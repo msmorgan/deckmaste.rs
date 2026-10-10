@@ -139,18 +139,33 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
 ## Landing record
 
 1. **Census delta** (`zsqyvxns` claim parent, verified identical to
-   `mqrlzszkuszn` baseline on the selector; `sslxqtkx` after refresh,
+   `mqrlzszkuszn` baseline on the selector; `mztlsnts` after integration refresh,
    containing `pxtwrtvu`): bounded manifest
    `target/english-v3/english-v3-named-modes/manifest.json`, all 640 supported
    ` —\n•` faces plus 300 random covered faces, seed 20261008; 938 distinct
-   faces. Covered 756 → 796; counted Readings 35,683 → 36,106. The native
-   `diff --lines` reports 40 admissions: **39 valid gains, one face covered by a known wrong
+   faces. Covered 756 → 799; counted Readings 35,683 → 36,278. The native
+   `diff --lines` reports 43 admissions: **40 valid named-mode gains (39 before refresh,
+   plus You Look Upon the Tarrasque jointly enabled by do-so/able-to), one face covered by a known wrong
    analysis (accepted with disclosure under NM-R1)**, Summon: Magus Sisters (three counted line Readings: two modal
-   Readings mislabel the chapter, plus one Haste Reading). Lost faces: none;
-   decreases, increases, digest-only changes and issues: zero. Evidence:
-   `target/english-v3/english-v3-named-modes/{before,after-refresh,final-diff}.json`.
-   The native `refresh-diff --lines` finds all 938 faces unchanged from the
-   pre-refresh after census, including counts, digests and lines.
+   Readings mislabel the chapter, plus one Haste Reading). The other
+   admissions are Blade of the Swarm (four Readings), brought by trunk's
+   keyword-mention change `zvtzutzx`, and Glorious Sunrise (eight Readings),
+   brought by quoted abilities `lrynurmu`. You Look Upon the Tarrasque
+   gains 160 Readings only after `zzwnrkot` supplies its able-to/do-so body;
+   probes select Mode → FlavorWordHead with Run and Hide / Gather Your Courage,
+   retaining parsed Paragraph bodies. The do-so ticket explicitly deferred
+   this named-mode face; count it as one joint valid gain, not a trunk-only
+   gain. Lost faces: none; decreases,
+   increases and issues: zero. Digest-only changes: 14. Two are The Sound of Drums
+   (6 → 6) and Thraben Charm (14 → 14), from trunk's half-rounded change
+   `soxvyspk`; the other 12 previously covered faces gain an empty optional
+   negator field from `wqkrtoxr`, as that ticket's ruling expects. Native
+   `integration-refresh-5-diff` reports 15 digest changes in that refresh,
+   including three newly covered named-mode faces; all counts are unchanged.
+   Named modes causes no digest-only change. Evidence:
+   `target/english-v3/english-v3-named-modes/{before,after-integration-refresh-5,integration-final-5-diff}.json`.
+   Native `integration-refresh-{2,3,4,5}-diff --lines` separates these trunk
+   changes from the named-modes gains.
 2. **Witnesses** (`zsqyvxns` before; `pxtwrtvu` after; complete whole-Document
    probes): Megaton's Fate 0 → 2; Dawnbringer Cleric 0 → 2; Cult of Skaro
    0 → 14; Special Move 0 → 12; Battle Menu 0 → 2. Their name-stripped
@@ -173,8 +188,19 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
    Journalism); Damage Control Crew (Repair / Impound).
 4. **Deviations and STOPs** (`pxtwrtvu`): no new Construction or Frame; Mode
    gains its second form using existing Ability and LabelKind. The open slot
-   is implemented in `deckmaste_lexical`, so NM3 requires scanner and lexical
-   validation changes there and matching occurrence validation in the chart.
+   is implemented in `deckmaste_lexical`. **Orchestrator ruling NM-R2
+   (2026-10-10):** the literal bullet checks are permitted LAYOUT handling,
+   like the existing line-start and ` —` anchors; they name no lexeme,
+   Construction or card. The three sites are `flavor_word_matches` in
+   `crates/deckmaste_lexical/src/analysis.rs`, which skips a line-initial
+   `• ` so the label starts after it; `valid_flavor_label` in that file,
+   which rejects a label beginning with `•`; and the `FlavorWord` occurrence
+   check in `crates/deckmaste_english_v3/src/chart.rs`, which admits an
+   occurrence immediately after a line-initial `• ` as well as at line start.
+   An Ability Word under a bullet would read only as a Flavor Word: the named
+   form requires `LabelKind = FlavorWord`; that shape is unattested today.
+   The open label slot runs to the first ` —` on the line, so a label can
+   swallow a sentence; corpus grep finds zero matching faces.
    Corpus grep on `zsqyvxns`: 48 named-mode faces; zero mixed lists and zero
    Ability Word mode heads. No special blocker for those unattested shapes.
    The new test initially required every paragraph-scope alternative to keep
@@ -186,23 +212,24 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
    `I, II, III` as a Flavor Word. The same defect on Nightmares and Daydreams
    is recorded with it under “Faces covered by a known wrong analysis” in
    `english-v3-systemic-residuals`. Chapter repair is deferred. No glossary gap.
-5. **Tests** (`pxtwrtvu` initially; `sslxqtkx` after refresh): the initial
-   English suite failed the new scope expectation; its corrected full rerun
-   passed 795 tests. After refresh, `cargo build -p xtask` passed, and full
-   `cargo test -p deckmaste_english_v3` (805 tests),
-   `cargo test -p deckmaste_lexical` (60 tests), and
-   `cargo test -p deckmaste_lexical_source` (82 tests) passed.
+5. **Tests** (`pxtwrtvu` initially; `mztlsnts` after integration refresh):
+   the initial English suite failed the new scope expectation; its corrected
+   full rerun passed 795 tests. Final `cargo build -p xtask` passed;
+   `cargo test -p deckmaste_english_v3` passed 853 tests,
+   `cargo test -p deckmaste_lexical` passed 60 tests, and
+   `cargo test -p deckmaste_lexical_source` passed 83 tests.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
    `cargo clippy -p deckmaste_lexical --tests -- -D warnings`, and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
-   Refresh brought `lvpxmkkl` (preposed frequency) and `zunolrnv` (preverbal
-   next), including lexical-source data and suite registrations; the
-   registration conflict preserved both suites. The bounded census and all
-   three full suites and clippy checks were rerun. Assurance: restored 0 /
-   re-spelled 0 / ignored 0 / added 6 / removed 0; no removals to justify.
+   Every refresh bringing code/data reran build, bounded census, all three
+   full suites and clippy: `lvpxmkkl` / `zunolrnv`, `zqnqzmnu` / `koswtsww`,
+   `zvtzutzx`, `soxvyspk` / `lrynurmu`, `zzwnrkot`, and `wqkrtoxr`.
+   Registration conflicts preserved all suites; the residual-document
+   conflict preserved both entries under their correct headings. Assurance:
+   restored 0 / re-spelled 0 / ignored 0 / added 6 / removed 0; no removals.
    Citation checks: zero noncompliant and zero stale; piped
    `jj --no-pager diff --git | target/debug/cargo-xtask cite audit --diff`
    selected zero changed citation sites. Logs are under the evidence directory.
-6. **Timing** (`sslxqtkx`): the bounded after-refresh census took
-   **77.65 s wall** under `/usr/bin/time -v`, six workers, samples per face
+6. **Timing** (`mztlsnts`): the bounded integration-refresh census took
+   **30.27 s wall** under `/usr/bin/time -v`, six workers, samples per face
    zero. No full-corpus census or Lean check was run.
