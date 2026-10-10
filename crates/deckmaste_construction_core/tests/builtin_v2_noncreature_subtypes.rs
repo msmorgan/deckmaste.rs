@@ -286,8 +286,8 @@ fn spell_subtypes_share_one_category_without_inventing_other_subtype_domains() {
 }
 
 /// The `Subtype` node a subtype declaration's derived body writes: its own
-/// category and spelling, and nothing else.
-fn expected_definition_body(declaration: &NormalizedDeclaration) -> String {
+/// category and spelling, and the `rules` list the declaration writes by hand.
+fn expected_definition_body(declaration: &NormalizedDeclaration, rules: &str) -> String {
     let DeclarationKind::Subtype(category) = declaration.identity().kind() else {
         panic!("{}: not a subtype declaration", declaration.identity())
     };
@@ -308,7 +308,7 @@ fn expected_definition_body(declaration: &NormalizedDeclaration) -> String {
         || format!("Spell(label: \"{label}\")"),
         |host| format!("Of(host: {host}, label: \"{label}\")"),
     );
-    format!("Subtype(subtype: {identity}, rules: [])")
+    format!("Subtype(subtype: {identity}, rules: {rules})")
 }
 
 /// The v1 core type-rule record a declaration file preserves as a comment
@@ -334,13 +334,13 @@ fn preserved_v1_record(source: &str) -> String {
     record
 }
 
-/// The four rules-defined conferrals were never written in v2 syntax, so their
-/// declarations carry an EMPTY `rules` list and keep the v1 core type-rule
-/// record on the file, verbatim, as a comment
-/// (`plugins-v2-subtypes-macro-only`; the rules themselves are
-/// `semantics-v2-subtype-rules`). The record staying on its own declaration is
-/// what makes the conversion lossless, so it is pinned here exactly as the
-/// body once was.
+/// The four rules-defined conferrals keep the v1 core type-rule record on the
+/// file, verbatim, as a comment (`plugins-v2-subtypes-macro-only`), and
+/// reproduce it in v2 syntax on their hand-written `rules` lists
+/// (`semantics-v2-subtype-rules`, ruling 2026-10-10). The record staying on its
+/// own declaration is what makes the conversion lossless, so it is pinned here
+/// exactly as the body once was, beside the rules that reproduce it. Every
+/// other noncreature subtype writes no rules.
 #[test]
 fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
     let workspace_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -351,28 +351,32 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             "equipment",
             "subtypes/artifact/equipment.ron",
             "body: Subtype(name:\"Equipment\",types:[Artifact],confers:[Static(May(attach(what:Ref(This),to:Type(Creature))))]),",
+            "[Property(mayBeAttachedTo(thisEquipment,allOf(creature))),StateBased(not(matches(thisEquipment,attachment(Attachment))),attachment(Unattached,thisEquipment))]",
         ),
         (
             SubtypeCategory::Artifact,
             "fortification",
             "subtypes/artifact/fortification.ron",
             "body: Subtype(name:\"Fortification\",types:[Artifact],confers:[Static(May(attach(what:Ref(This),to:Type(Land))))]),",
+            "[Property(mayBeAttachedTo(thisFortification,allOf(land))),StateBased(not(matches(thisFortification,attachment(Attachment))),attachment(Unattached,thisFortification))]",
         ),
         (
             SubtypeCategory::Enchantment,
             "aura",
             "subtypes/enchantment/aura.ron",
             "body: Subtype(name:\"Aura\",types:[Enchantment],confers:[StateBased(condition:Not(LegallyAttached(This)),effect:Move(This,Graveyard))]),",
+            "[StateBased(not(matches(thisAura,attachment(Attachment))),move(thisAura,battlefield,graveyard))]",
         ),
         (
             SubtypeCategory::Enchantment,
             "saga",
             "subtypes/enchantment/saga.ron",
             "body: Subtype(name:\"Saga\",types:[Enchantment],confers:[Ability(Static(Replacement(Also(would:ThisEnters,also:PutCounters(This,loreCounter,1))))),TurnBased(at:PrecombatMain,effect:PutCounters(This,loreCounter,1)),StateBased(condition:And([Compare(GreatestWatchedThreshold(This),AtLeast,1),Compare(CounterCount(This,loreCounter),AtLeast,GreatestWatchedThreshold(This))]),effect:sacrifice(You,This))]),",
+            "[Ability(static(onlyUnless(asEvent(enters(thisSaga),establish(entersWithCounters(thisSaga,1,loreCounter))),matches(thisSaga,hasKeyword(The(readAhead)))))),TurnBased(precombatMainPhase,putCounters(1,loreCounter,thisSaga)),StateBased(and([compareAmt(finalChapterNumber(thisSaga),AtLeast,1),compareAmt(countersOn(loreCounter,thisSaga),AtLeast,finalChapterNumber(thisSaga))]),sacrifice(thisSaga))]",
         ),
     ];
 
-    for (category, name, file, expected_record) in expected {
+    for (category, name, file, expected_record, expected_rules) in expected {
         let declaration = subtype(&declarations, category, name);
         let source =
             fs::read_to_string(workspace_root.join("plugins_v2/builtin/macros").join(file))
@@ -387,7 +391,8 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             .unwrap_or_else(|| panic!("{name} must define its subtype"));
         assert_eq!(
             compact_ron(body.get_ron()),
-            compact_ron(&expected_definition_body(declaration))
+            compact_ron(&expected_definition_body(declaration, expected_rules)),
+            "{name} must define its subtype with the rules it writes"
         );
         assert_eq!(declaration.params(), Some([].as_slice()));
         assert!(declaration.is_graduated());
@@ -397,7 +402,12 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
         matches!(
             declaration.identity().kind(),
             DeclarationKind::Subtype(category) if category != SubtypeCategory::Creature
-        )
+        ) && !expected
+            .iter()
+            .any(|(category, name, ..)| {
+                declaration.identity().kind() == DeclarationKind::Subtype(*category)
+                    && declaration.identity().name() == *name
+            })
     }) {
         // Since `semantics-v2-definition-bodies` every subtype declaration
         // carries its `Definition` node as its body, and since
@@ -410,7 +420,7 @@ fn rules_defined_conferrals_stay_on_their_subtype_declarations() {
             .unwrap_or_else(|| panic!("{} must define its subtype", declaration.identity()));
         assert_eq!(
             compact_ron(body.get_ron()),
-            compact_ron(&expected_definition_body(declaration)),
+            compact_ron(&expected_definition_body(declaration, "[]")),
             "{} must not infer a semantic conferral",
             declaration.identity()
         );

@@ -1,0 +1,9 @@
+// "<saga>'s final chapter number": the greatest chapter number among the
+// chapter abilities it has, 0 when it has none [CR#714.2d]. The chapter axis
+// projects several values from one object, so the fold reads one object.
+(
+    name: "finalChapterNumber",
+    kinds: [Amount],
+    params: {"saga": NounPhrase},
+    body: Aggregate(Max, Chapter, Param(saga)),
+)

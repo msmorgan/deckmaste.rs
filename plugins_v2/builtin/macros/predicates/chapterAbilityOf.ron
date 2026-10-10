@@ -1,0 +1,8 @@
+// "a chapter ability of <saga>": an ability of it with a chapter number
+// [CR#714.2,714.2a]; no chapter is numbered below I.
+(
+    name: "chapterAbilityOf",
+    kinds: [Predicate],
+    params: {"saga": NounPhrase},
+    body: And([AbilityOf(Param(saga)), Compare([Chapter], AtLeast, 1)]),
+)

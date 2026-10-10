@@ -1,8 +1,11 @@
-// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
-// EMPTY, and the Equipment host rule is not yet written in v2 syntax: the
-// [CR#301.5] rule is a deontic over the `Attach` deed [CR#701.3a], whose
-// `actFacts` row declares no patient role, so "…to a creature" has no role to
-// bind. Routed to `semantics-v2-subtype-rules`, which owns writing it.
+// REPRODUCED (semantics-v2-subtype-rules, ruling 2026-10-10). The [CR#301.5]
+// host rule is the deontic "this Equipment may be attached to a creature" over
+// the attach deed's host role [CR#701.3a], conferred ability-free as
+// `Property`; the [CR#704.5n] state-based action is "if it isn't attached to a
+// legal host, it becomes unattached". Legality is the engine's attach-permission
+// model under default-deny, so the condition reads the attachment relation the
+// model keeps, and an Equipment attached to nothing is already unattached
+// [CR#701.3d]; no `legallyAttached` primitive is written.
 //
 // The v1 core type-rule record this declaration carried until
 // `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
@@ -26,4 +29,11 @@ Subtype(
     spelling: "Equipment",
     grammar: Noun(singular: "Equipment", plural: "Equipment"),
     params: [],
+    rules: [
+        Property(mayBeAttachedTo(thisEquipment, allOf(creature))),
+        StateBased(
+            not(matches(thisEquipment, attachment(Attachment))),
+            attachment(Unattached, thisEquipment),
+        ),
+    ],
 )

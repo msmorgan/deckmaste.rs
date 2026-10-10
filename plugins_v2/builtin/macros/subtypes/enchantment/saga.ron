@@ -1,9 +1,12 @@
-// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
-// EMPTY. [CR#714.4] reads the Saga's FINAL chapter number off its own chapter
-// abilities [CR#714.2d], and `Amount` has no aggregate over a card's chapter
-// marks; the [CR#714.3a] entry replacement and the [CR#714.3c] turn-based lore
-// counter are expressible, but a third of a record is not a record. Routed to
-// `semantics-v2-subtype-rules`.
+// REPRODUCED (semantics-v2-subtype-rules, ruling 2026-10-10), with one named
+// residue. The final chapter number is `finalChapterNumber`, the chapter axis
+// folded by `aggregate` [CR#714.2d]. RESIDUE: [CR#704.5s,714.4] also require
+// that the Saga "isn't the source of a chapter ability that has triggered but
+// not yet left the stack"; an ability waiting to be put on the stack
+// [CR#704.3] has no spelling, so that clause is not written, as Siege's
+// [CR#704.5v] is not. The entry counter applies only without read ahead
+// [CR#714.3a]; the read-ahead entry [CR#714.3b] is a residue named on
+// `readAhead`.
 //
 // The v1 core type-rule record this declaration carried until
 // `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
@@ -49,4 +52,20 @@ Subtype(
     spelling: "Saga",
     grammar: Noun(singular: "Saga"),
     params: [],
+    rules: [
+        Ability(static(
+            onlyUnless(
+                asEvent(enters(thisSaga), establish(entersWithCounters(thisSaga, 1, loreCounter))),
+                matches(thisSaga, hasKeyword(The(readAhead))),
+            ),
+        )),
+        TurnBased(precombatMainPhase, putCounters(1, loreCounter, thisSaga)),
+        StateBased(
+            and([
+                compareAmt(finalChapterNumber(thisSaga), AtLeast, 1),
+                compareAmt(countersOn(loreCounter, thisSaga), AtLeast, finalChapterNumber(thisSaga)),
+            ]),
+            sacrifice(thisSaga),
+        ),
+    ],
 )

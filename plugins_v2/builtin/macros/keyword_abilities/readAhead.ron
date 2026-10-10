@@ -5,12 +5,35 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "read ahead",
     ),
-    // STOP (waits on: an ability's own chapter number).
     // "Read ahead" means "Chapter abilities of this Saga can't trigger the turn
-    // it entered the battlefield unless it has exactly the number of lore counters on
-    // it specified in the chapter symbol of THAT ABILITY." [CR#702.155a] The
-    // exception reads a number off the very ability the prohibition ranges over; no
-    // `Predicate` projects an ability's own chapter number, so the `unless` clause
-    // cannot be written. [CR#702.155b]'s two intrinsic abilities are a separate
-    // grant the keyword's own definition does not carry.
+    // it entered the battlefield unless it has exactly the number of lore
+    // counters on it specified in the chapter symbol of that ability."
+    // [CR#702.155a] The chapter axis reads that ability's own chapter number
+    // (ruling 2026-10-10, `semantics-v2-subtype-rules`), so the exception is a
+    // restriction on the forbidden abilities: those whose chapter number is not
+    // the Saga's lore counter count.
+    //
+    // RESIDUE: [CR#702.155b,714.3b]'s two intrinsic abilities, "As this Saga
+    // enters, choose a number between one and this Saga's final chapter number"
+    // and "This Saga enters with the chosen number of lore counters on it", are
+    // not written here or on the Saga subtype. The choice needs a number range
+    // whose upper bound is an `Amount` (the final chapter number); `Quantity`
+    // writes a range only between literal bounds, and `upToOf` admits zero.
+    body: [
+        static(
+            onlyWhile(
+                deontic(
+                    allOf(and([
+                        chapterAbilityOf(thisSaga),
+                        not(compare(Eq, countersOn(loreCounter, thisSaga), [Chapter])),
+                    ])),
+                    Forbid,
+                    [Trigger],
+                    Agent,
+                    NoPatient,
+                ),
+                happened(enters(gap(Object)), thisSaga, soFarThisTurn),
+            ),
+        ),
+    ],
 )

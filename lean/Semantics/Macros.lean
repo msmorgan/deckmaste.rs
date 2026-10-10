@@ -276,6 +276,8 @@ semantic_macro thisSiege : NounPhrase := .asType .battle .this (some (.of .battl
 semantic_macro thisVehicle : NounPhrase := .asType .artifact .this (some (artifactType "Vehicle"))
 semantic_macro thisSpacecraft : NounPhrase := .asType .artifact .this (some (artifactType "Spacecraft"))
 semantic_macro thisSaga : NounPhrase := .asType .enchantment .this (some (enchantmentType "Saga"))
+semantic_macro thisFortification : NounPhrase :=
+  .asType .artifact .this (some (artifactType "Fortification"))
 semantic_macro thisCase : NounPhrase := .asType .enchantment .this (some (enchantmentType "Case"))
 semantic_macro thisClass : NounPhrase := .asType .enchantment .this (some (enchantmentType "Class"))
 /-- "your commander" -/
@@ -438,6 +440,12 @@ semantic_macro speedOf (player : NounPhrase) : Amount := .statOf (.playerStat .s
 semantic_macro powerOf (subject : NounPhrase) : Amount := .statOf (.stat .power) subject
 semantic_macro toughnessOf (subject : NounPhrase) : Amount := .statOf (.stat .toughness) subject
 semantic_macro countersOn (kind : CounterKind) (holder : NounPhrase) : Amount := .statOf (.counter kind) holder
+/-- "<saga>'s final chapter number": the greatest of its chapter numbers, 0 with none
+[CR#714.2d]. -/
+semantic_macro finalChapterNumber (saga : NounPhrase) : Amount := .aggregate .max .chapter saga
+/-- "a chapter ability of <saga>" [CR#714.2,714.2a] -/
+semantic_macro chapterAbilityOf (saga : NounPhrase) : Predicate :=
+  .and [.abilityOf saga, .compare [.chapter] .atLeast (.lit 1)]
 semantic_macro plus (left right : Amount) : Amount := .arith .plus left right
 semantic_macro minus (left right : Amount) : Amount := .arith .minus left right
 semantic_macro times (per amount : Amount) : Amount := .arith .times per amount
@@ -1055,6 +1063,10 @@ semantic_macro maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorle
     (purpose : Option SpendPurpose) : StaticSpec :=
   .deonticRule who .permit [.core .spend] .agent none .noPatient (some (.mana what as_ purpose))
     .noRider none
+/-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
+role [CR#701.3a,301.5]. -/
+semantic_macro mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
+  .deonticRule subject .permit [.action "attach"] .patient none (.host host) none .noRider none
 /-- "<player> can't <deed> more than N <p>" -/
 semantic_macro cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=

@@ -6,9 +6,32 @@ KeywordAbility(
         surface: "enchant",
         participial_adjective: (bare_singular_use: true, surface: "enchanted",),
     ),
-    // Settled empty. "Enchant is a static ability, written 'Enchant [object or
-    // player]'"; the entry states how the ability restricts an Aura's target and
-    // host [CR#702.5a] rather than quoting an expansion, so there is no definition
-    // to write. The printed argument is a description, a `Predicate` (Lean
-    // `KeywordParam.subject`), forwarded as the keyword's argument.
+    // Not settled empty (overturned by ruling 2026-10-10,
+    // `semantics-v2-subtype-rules`). "Enchant is a static ability, written
+    // 'Enchant [object or player]'", and it "restricts what an Aura spell can
+    // target and what an Aura can enchant" [CR#702.5a]. The printed argument is
+    // a description, a `Predicate` (Lean `KeywordParam.subject`), forwarded as
+    // the keyword's argument. As the v1 record
+    // `plugins/builtin/macros/keyword/Enchant.ron` divides it, the keyword owns
+    // three abilities:
+    // - the Aura spell's target, defined by the enchant ability [CR#303.4a];
+    // - the legal-host permission, attachment being default-deny [CR#303.4c];
+    // - the entry clause: as the Aura enters other than by resolving as an Aura
+    //   spell, its controller chooses a legal object or player and it enters
+    //   attached to it [CR#303.4f]. It is mandatory: with nothing to choose,
+    //   the attach is impossible and ignored [CR#303.4g,101.3]. The choice is
+    //   the attach's own "a [quality]" rather than a `choose` read back by a
+    //   pronoun, because no pronoun reaches back over an argument that may be an
+    //   object or a player.
+    // The Aura subtype's own [CR#704.5m] state-based action is the subtype's.
+    body: [
+        static(addsTarget(thisAura, Param(0))),
+        static(mayBeAttachedTo(thisAura, allOf(Param(0)))),
+        static(
+            asEvent(
+                enters(thisAura, AnywhereBut([stack])),
+                attach(thisAura, a(Param(0))),
+            ),
+        ),
+    ],
 )

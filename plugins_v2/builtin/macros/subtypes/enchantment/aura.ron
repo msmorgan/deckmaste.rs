@@ -1,8 +1,10 @@
-// STOP (plugins-v2-subtypes-macro-only). This declaration's `rules` list is
-// EMPTY. [CR#704.5m] fires when an Aura is "attached to an illegal object or
-// player, or is not attached"; `Predicate.attachment` spells only the second
-// half, so writing the condition in v2 today would silently narrow the rule.
-// Routed to `semantics-v2-subtype-rules`.
+// REPRODUCED (semantics-v2-subtype-rules, ruling 2026-10-10). [CR#704.5m] is
+// the state-based action "if this Aura is not attached, put it into its owner's
+// graveyard". Its other half, "attached to an illegal object or player", is NOT
+// written: legality is the engine's attach-permission model under default-deny
+// (the Enchant keyword's "may be attached to [quality]" [CR#702.5a,303.4c]), and
+// the condition reads the attachment relation that model keeps. No
+// `legallyAttached` primitive is written.
 //
 // The v1 core type-rule record this declaration carried until
 // `plugins-v2-subtypes-macro-only`, preserved verbatim so nothing is lost:
@@ -35,4 +37,10 @@ Subtype(
     spelling: "Aura",
     grammar: Noun(singular: "Aura"),
     params: [],
+    rules: [
+        StateBased(
+            not(matches(thisAura, attachment(Attachment))),
+            move(thisAura, battlefield, graveyard),
+        ),
+    ],
 )

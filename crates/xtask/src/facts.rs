@@ -303,6 +303,10 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Enchant",
+            // The Aura spell's target is the enchant ability's, chosen as the
+            // spell is cast [CR#303.4a,601.2c]; its other two components
+            // function on the battlefield.
+            regime: Some(Regime::AtCasting),
             ..D
         },
         Row {
@@ -1637,7 +1641,7 @@ const GATE_COLUMNS: &str = "gate columns (regime, functionsOnStack, \
                             home in the stub schema moves that crate's English-v2 metadata seam \
                             and all 192 stubs rather than this overlay.";
 
-const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole) stay hand-kept per \
+const ROLE_COLUMNS: &str = "actFacts role columns (agentRole, patientRole, hostRole) stay hand-kept per \
                             deed: they are the gate on a deontic clause ([noun] can't/must \
                             [deed]) through Effect.Deontic's DeedFits obligation, not a \
                             transcription of the deed's [CR#701] entry — the Destroy row carries \

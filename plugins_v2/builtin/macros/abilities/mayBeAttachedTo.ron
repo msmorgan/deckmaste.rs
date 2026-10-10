@@ -1,0 +1,11 @@
+// "<subject> may be attached to <host>": the legal-host permission over the
+// attach deed [CR#701.3a], the subject in its patient role and the host in its
+// host role. Attachment is default-deny, so this is the only thing that makes
+// a host legal: an Equipment's "can be attached to a creature" [CR#301.5], a
+// Fortification's land [CR#301.6], an Aura's enchant quality [CR#702.5a].
+(
+    name: "mayBeAttachedTo",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "host": NounPhrase},
+    body: DeonticRule(Param(subject), Permit, [attach], Patient, None, Host(Param(host)), None, NoRider, None),
+)

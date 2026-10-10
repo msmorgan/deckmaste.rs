@@ -53,6 +53,7 @@ use deckmaste_semantics_v2::words::MarkerWord;
 use deckmaste_semantics_v2::words::RoomHalf;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
+use macro_ron::MacroSet;
 use serde::Deserialize;
 use serde::de::IgnoredAny;
 
@@ -1097,14 +1098,14 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
 /// `Subtype`/`SpellSubtype` meta from the declaration's category and spelling
 /// (`plugins-v2-subtypes-macro-only`), so there is nowhere else to read the
 /// identity from and no fallback to a name.
-fn subtype_of(row: &NormalizedDeclaration) -> anyhow::Result<Subtype> {
+fn subtype_of(macros: &MacroSet, row: &NormalizedDeclaration) -> anyhow::Result<Subtype> {
     if !matches!(row.identity().kind(), DeclarationKind::Subtype(_)) {
         anyhow::bail!("{}: not a subtype declaration", row.identity().name());
     }
     let body = row
         .body()
         .with_context(|| format!("{}: subtype has no declaration body", row.identity().name()))?;
-    match macro_set().read_str::<Definition>(body.get_ron()) {
+    match macros.read_str::<Definition>(body.get_ron()) {
         Ok(Definition::Subtype { subtype, .. }) => Ok(subtype),
         _ => anyhow::bail!(
             "{}: subtype declaration does not define a subtype",
@@ -1124,12 +1125,18 @@ fn subtype(subtype: &Subtype) -> String {
 /// `plugins-v2-subtypes-macro-only` derived every subtype body from its
 /// declaration: the guard stays so that a subtype declaration failing to
 /// define a subtype is a refusal, and so that a future exception has to be
-/// written down here to exist.
+/// written down here to exist. Since `semantics-v2-subtype-rules` no subtype
+/// carries an empty `rules` list for want of syntax either: Aura, Equipment,
+/// Fortification and Saga write theirs.
 const SUBTYPE_DEFINITION_STOPS: &[&str] = &[];
 
-/// Every subtype declaration defines its subtype.
-fn subtype_definitions_read(rows: &[NormalizedDeclaration]) -> anyhow::Result<()> {
-    let dialect = macro_set();
+/// Every subtype declaration defines its subtype. Its `rules` may be written
+/// over the builtin helpers (`mayBeAttachedTo`, `finalChapterNumber`), so the
+/// body is read through the builtin plugin's macros, as a counter's is.
+fn subtype_definitions_read(
+    dialect: &MacroSet,
+    rows: &[NormalizedDeclaration],
+) -> anyhow::Result<()> {
     for row in rows
         .iter()
         .filter(|row| matches!(row.identity().kind(), DeclarationKind::Subtype(_)))
@@ -1148,8 +1155,13 @@ fn subtype_definitions_read(rows: &[NormalizedDeclaration]) -> anyhow::Result<()
     Ok(())
 }
 
-fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
-    subtype_definitions_read(rows)?;
+fn subtype_rows(
+    rows: &[NormalizedDeclaration],
+    plugin_dir: &Path,
+) -> anyhow::Result<Vec<String>> {
+    let plugin =
+        Plugin::load(plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
+    subtype_definitions_read(&plugin.macros, rows)?;
     // The frame column is not a definition-node field: it says what the CARD
     // FRAME a subtype sits on looks like [CR#714.1,715.1,709.5j], which no
     // conferral expresses. Keyed by declaration name, so no label mapping
@@ -1171,7 +1183,7 @@ fn subtype_rows(rows: &[NormalizedDeclaration]) -> anyhow::Result<Vec<String>> {
                 .with_context(|| format!("{name}: frame overlay has no subtype declaration"))?;
             Ok(format!(
                 "\u{27e8}{}, {frame}\u{27e9}",
-                subtype(&subtype_of(row)?)
+                subtype(&subtype_of(&plugin.macros, row)?)
             ))
         })
         .collect()
@@ -1216,7 +1228,7 @@ pub(super) fn render(root: &Path) -> anyhow::Result<String> {
         &mut out,
         "subtypeFacts",
         "SubtypeFacts",
-        &subtype_rows(&declarations)?,
+        &subtype_rows(&declarations, &root.join("plugins_v2/builtin"))?,
     );
     out.push_str("end Semantics\n");
     Ok(out)

@@ -205,6 +205,54 @@ theorem okInstantType : Definition.check instantTypeDefinition = [] := by decide
 /-- [CR#309.2c] "Dungeon cards are not permanents. They can't be cast." -/
 theorem okDungeonType : Definition.check (.cardType .dungeon false []) = [] := by decide
 
+/-! ## The rules-defined subtypes (ruling 2026-10-10, `semantics-v2-subtype-rules`) -/
+
+/-- "This Aura/Equipment/Fortification is attached": the attachment relation the engine's
+attach-permission model keeps [CR#704.5m,704.5n]. -/
+def isAttached (subject : NounPhrase) : Condition :=
+  .matches subject (.attachment .attachment none none)
+
+/-- [CR#301.5,704.5n] An Equipment may be attached to a creature, and one attached to no legal
+host becomes unattached. -/
+def equipmentDefinition : Definition :=
+  .subtype (artifactType "Equipment")
+    [ .property (mayBeAttachedTo thisEquipment (allOf creature)),
+      .stateBased (.not (isAttached thisEquipment)) (.attachment .unattached thisEquipment none) ]
+theorem okEquipmentDefinition : Definition.check equipmentDefinition = [] := by decide
+
+/-- [CR#301.6,704.5n] The Land twin of Equipment. -/
+def fortificationDefinition : Definition :=
+  .subtype (artifactType "Fortification")
+    [ .property (mayBeAttachedTo thisFortification (allOf land)),
+      .stateBased (.not (isAttached thisFortification))
+        (.attachment .unattached thisFortification none) ]
+theorem okFortificationDefinition : Definition.check fortificationDefinition = [] := by decide
+
+/-- [CR#704.5m] An Aura that is not attached is put into its owner's graveyard. -/
+def auraDefinition : Definition :=
+  .subtype (enchantmentType "Aura")
+    [ .stateBased (.not (isAttached thisAura))
+        (.move thisAura (.zone .battlefield .bare) graveyard []) ]
+theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
+
+/-- [CR#714.3a,714.3c,714.4] A Saga enters with a lore counter unless it has read ahead, gets one
+as its controller's precombat main phase begins, and is sacrificed once its lore counters reach
+its final chapter number. -/
+def sagaDefinition : Definition :=
+  .subtype (enchantmentType "Saga")
+    [ .ability (.static (onlyUnless
+        (.asEvent (.zoneChange thisSaga none (some battlefield) .after)
+          (.establish (entersWithCounters thisSaga (.lit 1) (.named "loreCounter")) none))
+        (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
+      .turnBased .firstMain
+        (.putCounters (.lit 1) (.printed (.named "loreCounter")) thisSaga),
+      .stateBased
+        (.and [ .compareAmt (finalChapterNumber thisSaga) .atLeast (.lit 1),
+                .compareAmt (countersOn (.named "loreCounter") thisSaga) .atLeast
+                  (finalChapterNumber thisSaga) ])
+        (sacrifice thisSaga) ]
+theorem okSagaDefinition : Definition.check sagaDefinition = [] := by decide
+
 /-- The type conferral helpers are the raw conferrals. -/
 theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
 theorem playableFromIsThePlayPermission :

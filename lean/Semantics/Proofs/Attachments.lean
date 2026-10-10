@@ -1,4 +1,5 @@
 import Semantics.Macros
+import Semantics.Macros.Declared
 import Semantics.Check.Card
 
 open Semantics Semantics.Macros
@@ -80,5 +81,49 @@ theorem badCurrentFaceOnPlayer :
 
 theorem currentFaceDoesNotSupplyTokenEvidence :
     Predicate.seedsToken (.currentFace .back) = false := by rfl
+
+/-! ## The attach deed's host role (ruling 2026-10-10) -/
+
+/-- "This Equipment may be attached to a creature" [CR#301.5,701.3a]. -/
+theorem okEquipmentMayBeAttachedToACreature :
+    StaticSpec.check [] (mayBeAttachedTo thisEquipment (allOf creature)) = [] := by decide
+
+/-- An Aura may be attached to a player [CR#702.5d]: the host role admits either kind. -/
+theorem okAuraMayBeAttachedToAPlayer :
+    StaticSpec.check [] (mayBeAttachedTo thisAura (allOf .anyPlayer)) = [] := by decide
+
+/-- A deed with no host role takes no host. -/
+theorem badHostOfAHostlessDeed :
+    StaticSpec.check []
+      (.deonticRule thisPermanent .permit [.action "destroy"] .patient none (.host (allOf creature))
+        none .noRider none) = [.deonticPatientOk] := by decide
+
+/-! ## The chapter axis (ruling 2026-10-10) -/
+
+/-- "This Saga's final chapter number" folds one object's chapter numbers [CR#714.2d]. -/
+theorem okFinalChapterNumber :
+    Amount.check [] (finalChapterNumber thisSaga) = [] := by decide
+
+/-- A single-valued axis still folds only a group. -/
+theorem badGreatestPowerOfOne :
+    Amount.check [] (.aggregate .max (.stat .power) thisCreature) = [.plural] := by decide
+
+/-- "A chapter ability of this Saga whose chapter number is its lore counter count"
+[CR#702.155a]. -/
+theorem okChapterAbilityAtLoreCount :
+    NounPhrase.check none []
+      (allOf (.and [chapterAbilityOf thisSaga,
+        .compare [.chapter] .eq (countersOn (.named "loreCounter") thisSaga)])) = [] := by decide
+
+/-- Read ahead's body as its declaration writes it: chapter abilities of this Saga whose chapter
+number is not its lore counter count can't trigger the turn it entered [CR#702.155a]. -/
+theorem okReadAhead : Ability.check [] Macros.Declared.readAhead = [] := by decide
+
+/-- Enchant's body as its declaration writes it, here over "enchant creature": the Aura spell's
+target, the legal-host permission, and the entry clause [CR#702.5a,303.4a,303.4c,303.4f]. -/
+theorem okEnchantCreature : Ability.check [] (Macros.Declared.enchant creature) = [] := by decide
+
+/-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
+theorem okEnchantPlayer : Ability.check [] (Macros.Declared.enchant .anyPlayer) = [] := by decide
 
 end Semantics.Proofs.Attachments

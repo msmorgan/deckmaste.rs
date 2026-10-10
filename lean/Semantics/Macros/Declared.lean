@@ -260,6 +260,10 @@ semantic_macro manaCostOf (object : Semantics.NounPhrase) : Semantics.ManaCostTe
 semantic_macro manaRetention (player : Semantics.NounPhrase) (mana : Semantics.ManaHeld) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.manaRetention player mana)
 
+/-- `abilities/mayBeAttachedTo.ron` -/
+semantic_macro mayBeAttachedTo (subject : Semantics.NounPhrase) (host : Semantics.NounPhrase) : Semantics.StaticSpec :=
+  (Semantics.StaticSpec.deonticRule subject Semantics.Compulsion.permit [(Semantics.Deed.action "attach")] Semantics.Role.patient none (Semantics.DeonticPatient.host host) none Semantics.DeonticRider.noRider none)
+
 /-- `abilities/mayBeginOnBattlefield.ron` -/
 semantic_macro mayBeginOnBattlefield : Semantics.Ability :=
   Semantics.Ability.mayBeginOnBattlefield
@@ -727,6 +731,10 @@ semantic_macro down (amount : Semantics.Amount) : (Semantics.Delta Semantics.Amo
 /-- `amounts/eventTally.ron` -/
 semantic_macro eventTally (op : Semantics.TallyOp) (subject : Semantics.NounPhrase) (lookback : Semantics.LookbackClause) : Semantics.Amount :=
   (Semantics.Amount.eventTally op subject lookback)
+
+/-- `amounts/finalChapterNumber.ron` -/
+semantic_macro finalChapterNumber (saga : Semantics.NounPhrase) : Semantics.Amount :=
+  (Semantics.Amount.aggregate Semantics.AggregateOp.max Semantics.ProjAxis.chapter saga)
 
 /-- `amounts/forEach.ron` -/
 semantic_macro forEach (per : Semantics.Amount) (p : Semantics.Predicate) : Semantics.Amount :=
@@ -2230,7 +2238,7 @@ semantic_macro emergeFrom (arg0 : Semantics.Predicate) (arg1 : Semantics.Cost) :
 
 /-- `keyword_abilities/enchant.ron` -/
 semantic_macro enchant (arg0 : Semantics.Predicate) : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "enchant") [(Semantics.KeywordParam.subject arg0)] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "enchant") [(Semantics.KeywordParam.subject arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.addsTarget (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Aura"))) arg0)), (Semantics.Ability.static (Semantics.StaticSpec.deonticRule (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Aura"))) Semantics.Compulsion.permit [(Semantics.Deed.action "attach")] Semantics.Role.patient none (Semantics.DeonticPatient.host (Semantics.NounPhrase.described Semantics.DetPhrase.all arg0)) none Semantics.DeonticRider.noRider none)), (Semantics.Ability.static (Semantics.StaticSpec.asEvent (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Aura"))) (some (Semantics.EventSource.anywhereBut [(Semantics.ZoneExpr.zone Semantics.Zone.stack Semantics.ZoneScope.bare)])) (some (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)) Semantics.ObservationPoint.after) (Semantics.Instruction.enact (Semantics.Deed.action "attach") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.attachment Semantics.AttachMove.attached (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Aura")))) (some (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) arg0))))))))])
 
 /-- `keyword_abilities/encore.ron` -/
 semantic_macro encore (arg0 : Semantics.Cost) : Semantics.Ability :=
@@ -2618,7 +2626,7 @@ semantic_macro reach : Semantics.Ability :=
 
 /-- `keyword_abilities/readAhead.ron` -/
 semantic_macro readAhead : Semantics.Ability :=
-  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "readAhead") [] [])
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "readAhead") [] [(Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.deonticRule (Semantics.NounPhrase.described Semantics.DetPhrase.all (Semantics.Predicate.and [(Semantics.Predicate.and [(Semantics.Predicate.abilityOf (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Saga")))), (Semantics.Predicate.compare [Semantics.ProjAxis.chapter] Semantics.Comparator.atLeast (Semantics.Amount.lit 1))]), (Semantics.Predicate.not (Semantics.Predicate.compare [Semantics.ProjAxis.chapter] Semantics.Comparator.eq (Semantics.Amount.statOf (Semantics.ProjAxis.counter (Semantics.CounterKind.named "loreCounter")) (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Saga"))))))])) Semantics.Compulsion.forbid [(Semantics.Deed.core Semantics.CoreDeed.trigger)] Semantics.Role.agent none Semantics.DeonticPatient.noPatient none Semantics.DeonticRider.noRider none) (Semantics.Condition.happened (Semantics.NounPhrase.asType Semantics.CardType.enchantment Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.enchantment "Saga"))) (Semantics.LookbackClause.mk (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.gap Semantics.Kind.object) none (some (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)) Semantics.ObservationPoint.after) (Semantics.Duration.between (some (Semantics.GameEvent.beginningOf Semantics.TurnPart.turn none Semantics.TurnRef.current)) (some Semantics.GameEvent.now)) none)) Semantics.CondMarking.asLongAs))])
 
 /-- `keyword_abilities/rebound.ron` -/
 semantic_macro rebound : Semantics.Ability :=
@@ -3300,6 +3308,10 @@ semantic_macro thisEnchantment : Semantics.NounPhrase :=
 semantic_macro thisEquipment : Semantics.NounPhrase :=
   (Semantics.NounPhrase.asType Semantics.CardType.artifact Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.artifact "Equipment")))
 
+/-- `nouns/thisFortification.ron` -/
+semantic_macro thisFortification : Semantics.NounPhrase :=
+  (Semantics.NounPhrase.asType Semantics.CardType.artifact Semantics.NounPhrase.this (some (Semantics.Subtype.of Semantics.CardType.artifact "Fortification")))
+
 /-- `nouns/thisLand.ron` -/
 semantic_macro thisLand : Semantics.NounPhrase :=
   (Semantics.NounPhrase.asType Semantics.CardType.land Semantics.NounPhrase.this none)
@@ -3467,6 +3479,10 @@ semantic_macro castBy (player : Semantics.NounPhrase) : Semantics.Predicate :=
 /-- `predicates/castFrom.ron` -/
 semantic_macro castFrom (zone : Semantics.ZoneExpr) : Semantics.Predicate :=
   (Semantics.Predicate.castFrom zone)
+
+/-- `predicates/chapterAbilityOf.ron` -/
+semantic_macro chapterAbilityOf (saga : Semantics.NounPhrase) : Semantics.Predicate :=
+  (Semantics.Predicate.and [(Semantics.Predicate.abilityOf saga), (Semantics.Predicate.compare [Semantics.ProjAxis.chapter] Semantics.Comparator.atLeast (Semantics.Amount.lit 1))])
 
 /-- `predicates/choseExtreme.ron` -/
 semantic_macro choseExtreme (op : Semantics.AggregateOp) : Semantics.Predicate :=
