@@ -112,6 +112,13 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    | 13: bare *surveil* | plugin `grammar:` bare frame; measure frame retained | 20 → 28 |
    | 14: *basic landcycling* | deferred | 0 → 0 |
 
+   Review re-check on `tplmmvqw`: `\b(back|there)\b` matched 513 supported
+   faces; adding 300 covered controls (seed 20261008) produced the 799-face
+   `review-manifest.json`. Built-in `diff --lines` against `kpvllwpt`
+   reports covered 693 → 693 and Readings 38,813 → 38,813; lost/gained/
+   decreases/increases/digest-only all 0 and changed lines 0. Own gains
+   remain 310. Evidence: `review-after.json`, `review-diff.json`.
+
 2. **Witnesses** — probes before declarations on claim parent `pwpypkvo`
    confirmed every failing witness except the already-supported `Transform
    it.` (1 Reading); it was retained as a control. Final counts on
@@ -154,7 +161,9 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    Cryptborn Horror 51 → 66 and
    Tainted Sigil 15 → 21 Readings, through new object-gap relative analyses
    of “the total life lost …”; it was dropped under D5, leaving *life total*
-   as a native multiword declaration. The one bounded scan was repaired
+   as a native multiword declaration. Standalone *total* remains deferred:
+   it needs a declaration constrained so those covered object-gap relative
+   Readings do not increase. The one bounded scan was repaired
    with the built-in incremental census on the identical manifest (244
    faces rechecked, 11,499 reused); its final built-in diff has no covered
    increases. This is no claim that CGEL rejects those relatives: the
@@ -166,7 +175,9 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    this land.” increase 1 → 4 via competing Source attachments; that frame
    was retired and the active control restored to 1. The bare-passive
    “removed this way” witness remains unread and needs grammar narrowing
-   before the bare Object frame can satisfy D5. *Devotion to* needs a
+   before the bare Object frame can satisfy D5. Deferred *remove* therefore
+   needs both the bare transitive Object frame and its bare passive, with
+   the existing marked Source readings preserved. *Devotion to* needs a
    nominal Complement marker beyond the currently declared None/Of and the
    existing *of* route. *Basic landcycling* needs a compound supertype/type
    stem beyond the bound-stem schema and single-stem grammar. Neither is
@@ -185,6 +196,17 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    remains distinct from locative *there*. CGEL Ch. 7 §2.4, pp. 614–615
    supports only the Preposition classification of *back* and locative
    *there*; the frames and licences follow this ticket's project rulings.
+   Review on `tplmmvqw` tested D4 narrowing for both locative words. With
+   `VerbComplement` alone, “Put them back.” and “Put them back in any
+   order.” each fell 1 → 0; “Put them back on top of your library in any
+   order.” stayed 1, and “It was put there.” fell 1 → 0. Under the review's
+   explicit exception, both words retain `VerbComplement|PredicativeComplement`.
+   Restoring it restores all four witnesses to 1. “It is there.” and
+   “It is back.” consequently remain at 1, so no 0-Reading negatives were
+   added. Supported-corpus grep for `(is|are|was|were) (still |not )?(there|back)`
+   and `be there` found 0 faces each. Bare “any turn / any combat / any game”
+   reads through the Temporal dependent licence, parallel to *every* and
+   *each*; that bare adjunct is unattested, and the review directs no change.
    Plugin bodies were untouched; `cargo xtask facts check` passed on
    `owzsyvqn`. No grammar, loader, frame-kind or feature-schema edits.
    Refresh brought vocabulary batch 1 (`nouqyyouuops`, review rulings
@@ -220,7 +242,14 @@ table (item, where declared, faces gained) and item 4 the follow-up list.
    -p deckmaste_lexical_source` passed 35 unit and 40 integration tests.
    No failures or ignores in either suite. The same lexical-source clippy
    command passed again after correcting the test name to “declared plural”;
-   its assertions are unchanged.
+   its assertions are unchanged. On the reviewed current head `kpvllwpt`,
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed
+   again (`clippy-english-current.log`), and `cargo xtask facts check`
+   passed with both generated facts files up to date (`facts-current.log`).
+   A `cargo test -p deckmaste_english_v3` trial was interrupted during
+   compilation after the narrowing was reverted; no test results were
+   produced. All code, data and tests are byte-identical to `kpvllwpt`;
+   the previous complete-suite results remain applicable.
 
 6. **Timing** — `owzsyvqn`: 4m05.31s for the bounded census, 6 workers,
    `--samples-per-face 0`, measured with `/usr/bin/time -v` (`census.time`).
