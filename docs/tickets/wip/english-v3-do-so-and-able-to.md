@@ -137,8 +137,8 @@ english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (`mqrlzszk` before, source-equivalent to the claim-parent
-   grammar `mktpoqzr`; `qtzurkpz` after): bounded covered faces **510 → 541**,
-   total Readings **7,268 → 7,368**; **31 gains**, lost **none**, decreases **0**,
+   grammar `mktpoqzr`; refreshed `nxqykwxr` after): bounded covered faces **510 → 542**,
+   total Readings **7,268 → 7,373**; **32 gains**, lost **none**, decreases **0**,
    increases on previously covered faces **0**, digest-only **0**, validation
    issues **0**. Selector: `\b(do|does|did|doing) so\b|\bable\b`, case-insensitive,
    **284 faces**, plus **300** random covered controls from the census diff
@@ -150,6 +150,10 @@ english-v3 grep` only.
    `refresh-diff.json` isolates that one gain, with no other changes.
    Review prune `qtzurkpz` leaves all **582** faces unchanged from accepted
    `zzwnrkot` (`prune-diff.json`): **30** own gains, **0** other changes.
+   Integration refresh `nxqykwxr` adds Raving Dead (**5** Readings), whose
+   *loses half their life, rounded up* uses trunk `soxvyspk` / `pnpplmqn`.
+   `final-refresh-diff.json` isolates that gain: no losses, decreases,
+   increases or digest-only changes; own gains remain **30**.
    comparison used `cargo xtask english-v3 diff before.json after.json --json diff.json --lines`
    with those full evidence paths.
 2. **Witnesses** (claim-parent grammar `mktpoqzr` → `zzwnrkot`, complete direct
@@ -187,19 +191,22 @@ english-v3 grep` only.
    without making an auxiliary classification claim about CGEL. Added
    *If you did so, draw a card.* to the Document negatives. No unresolved
    glossary gap or STOP.
-5. **Tests** (`qtzurkpz`, repeated after the review prune): `cargo test -p deckmaste_english_v3` passed
-   (**819 tests** after refresh; **797** before, including the new module registered once in `suite_6`);
-   `cargo test -p deckmaste_lexical_source` passed (**82 tests**);
+5. **Tests** (`nxqykwxr`, repeated after the integration refresh): `cargo test -p deckmaste_english_v3` passed
+   (**837 tests**; **819** on review prune `qtzurkpz`, **797** on original
+   `zzwnrkot`, including the new module registered once in `suite_6`);
+   `cargo test -p deckmaste_lexical_source` passed (**83 tests**; **82** on `qtzurkpz`);
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Restored **0**, re-spelled **0**, ignored **0**, added **7**, removed **0**
    (no removals to justify). After refresh, `cargo build -p xtask` and both
-   complete crate suites and clippy commands passed again. The sole refresh
+   complete crate suites and clippy commands passed again, including after the
+   half-rounded and keyword-mention integration refresh. The sole refresh
    conflict was overlapping `suite_6` registrations; all three were preserved.
    Citation checks: zero noncompliant strings, zero
    stale citations; bless changed no registrations; the diff audit selected
    no new citation sites. No Lean check or full-corpus census was run.
-6. **Timing** (`zzwnrkot`): the bounded landing census took **22.15 s wall time** after review prune `qtzurkpz`
+6. **Timing** (`zzwnrkot`): the bounded landing census took **10.57 s wall time** after integration refresh `nxqykwxr`
+   (**22.15 s** after review prune `qtzurkpz`)
    (**6.01 s** on refreshed `zzwnrkot`, **7.27 s** before refresh)
    under `/usr/bin/time -v`, using the prebuilt binary, **6 workers** and
    `--samples-per-face 0`.
