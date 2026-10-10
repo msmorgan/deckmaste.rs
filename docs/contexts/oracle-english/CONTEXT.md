@@ -1642,7 +1642,7 @@ A supertype may premodify the stem as a separate Adjective, as *basic* in
 *Basic landcycling* and *snow* in *Snow forestwalk*; the Premodifier takes
 positional Capitalization while the stem remains lowercase (orchestrator
 rulings SB1, SB5 and SB7, 2026-10-10,
-[supertype-premodification ticket](../../tickets/wip/english-v3-supertype-premodified-bound-keyword.md#analysis)).
+[supertype-premodification ticket](../../tickets/done/english-v3-supertype-premodified-bound-keyword.md#analysis)).
 
 **Bound Keyword Stem Class** (project term):
 A keyword's declared set of subtype classes and card type supplying its Bound
