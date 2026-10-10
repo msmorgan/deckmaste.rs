@@ -134,7 +134,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    digest-only 0, unchanged 1,734; issues 0. Every previously covered face,
    including every covered *combat damage* and *nontoken* face, is unchanged.
    Evidence: `target/english-v3/english-v3-noncombat-negative-noun/`:
-   `manifest.json`, `before.json`, `after.json`, `diff.json`.
+   `manifest.json`, `before.json`, `after.json`, `diff.json`. Post-refresh
+   (`lnskowyvyylt`): covered 1,524 → 1,556, Readings 74,106 → 75,167;
+   gained 32, lost/decreased/increased/digest-only 0, unchanged 1,733.
+   `refresh-diff.json` isolates Felix Five-Boots (0 → 21) from trunk's
+   cause-catenative change `nzmrrqky`; this ticket's gain remains 31.
+   The refresh incorporated `nzmrrqky` and `tlpwnxqn`; every previously
+   covered face is still unchanged.
 2. **Witnesses** (`mzkvyunrqtrw`). Every ticket witness re-probed before the
    edit at 0; none dropped. Sentence Readings after / positive-control
    Readings: Chandra's Spitfire 1/1; Niv-Mizzet, Visionary 3/3; Mark of Asylum
@@ -166,7 +172,11 @@ Attestation by `cargo xtask english-v3 grep` only.
    removing a redundant clone of a Copy identifier in the new test helper;
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: PASS.
    Restored 0 / re-spelled 0 / ignored 0 / added 7 / removed 0; no removals
-   to justify. Citation checks: no noncompliant or stale citations; diff audit
+   to justify. After refresh (`lnskowyvyylt`), `cargo build -p xtask`: PASS;
+   the bounded manifest re-census: PASS, 0 issues; both full `cargo test -p`
+   commands above: PASS (English 1,016; lexical-source 84); both exact clippy
+   commands above: PASS. Citation checks: no noncompliant or stale citations;
+   diff audit
    has no citations to register or verify. No Lean or xtask test changes.
-6. **Timing** (`mzkvyunrqtrw`). Main AFTER bounded census: 157.61 s wall
+6. **Timing** (`mzkvyunrqtrw`). Main pre-refresh AFTER bounded census: 157610 ms wall
    under `/usr/bin/time -v`, 6 workers, samples-per-face 0. No full-corpus run.
