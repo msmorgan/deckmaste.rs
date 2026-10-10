@@ -312,12 +312,15 @@ pub(crate) fn add_participial_adjectives(
     Ok(())
 }
 
-/// A declared adjective class and the negative joining shared by its members.
+/// An adjective class's shared features and optional negative formation.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct AdjectiveClass {
     pub members: Vec<String>,
-    pub negative_prefix_join: deckmaste_construction_core::macro_def::NegativePrefixJoin,
+    #[serde(default)]
+    pub features: BTreeMap<String, String>,
+    #[serde(default)]
+    pub negative_prefix_join: Option<deckmaste_construction_core::macro_def::NegativePrefixJoin>,
 }
 
 pub(crate) fn add_adjective_classes(
@@ -353,6 +356,26 @@ pub(crate) fn add_adjective_classes(
                     reason: "expected Catalog or Adjective with invariant forms",
                 });
             }
+            for (name, value) in &class.features {
+                if name.is_empty() || value.is_empty() {
+                    return Err(LoadError::EmptyFeature {
+                        owner,
+                        name: name.clone(),
+                        value: value.clone(),
+                    });
+                }
+                if let Some(declared) = lexeme.properties.features.get(name)
+                    && declared != value
+                {
+                    return Err(LoadError::ConflictingFeature {
+                        owner,
+                        name: name.clone(),
+                        declared: declared.clone(),
+                        requested: value.clone(),
+                    });
+                }
+            }
+            lexeme.properties.features.extend(class.features.clone());
             lexeme.category = deckmaste_lexical::Category::Adjective;
             if lexeme.surface_structure == deckmaste_lexical::SurfaceStructure::Opaque {
                 lexeme.surface_structure = if lexeme.lemma.contains(' ') {
@@ -361,8 +384,10 @@ pub(crate) fn add_adjective_classes(
                     deckmaste_lexical::SurfaceStructure::Word
                 };
             }
-            let negative = negative_lexeme(lexeme, class.negative_prefix_join);
-            lexemes.push(negative);
+            if let Some(join) = class.negative_prefix_join {
+                let negative = negative_lexeme(lexeme, join);
+                lexemes.push(negative);
+            }
         }
     }
     Ok(())
@@ -1172,8 +1197,70 @@ mod adjective_class_tests {
     fn class(members: &[&str]) -> AdjectiveClass {
         AdjectiveClass {
             members: members.iter().map(|member| (*member).into()).collect(),
-            negative_prefix_join: NegativePrefixJoin::Joined,
+            features: BTreeMap::new(),
+            negative_prefix_join: Some(NegativePrefixJoin::Joined),
         }
+    }
+
+    #[test]
+    fn feature_exports_preserve_existing_members_without_creating_owners() {
+        let original =
+            Lexeme::invariant("class/member", "synthetic", Category::Adjective, source());
+        let mut expected = original.clone();
+        expected
+            .properties
+            .features
+            .insert("ClassPermission".into(), "Yes".into());
+        let declaration = || AdjectiveClass {
+            members: vec!["class/member".into()],
+            features: BTreeMap::from([("ClassPermission".into(), "Yes".into())]),
+            negative_prefix_join: None,
+        };
+        let mut entries = vec![original];
+        add_adjective_classes(&mut entries, vec![declaration()]).unwrap();
+        assert_eq!(entries, vec![expected.clone()]);
+        add_adjective_classes(&mut entries, vec![declaration()]).unwrap();
+        assert_eq!(entries, vec![expected]);
+    }
+
+    #[test]
+    fn conflicting_feature_exports_fail_without_overwriting_the_member() {
+        let mut original =
+            Lexeme::invariant("class/member", "synthetic", Category::Adjective, source());
+        original
+            .properties
+            .features
+            .insert("ClassPermission".into(), "No".into());
+        let mut entries = vec![original.clone()];
+        let error = add_adjective_classes(
+            &mut entries,
+            vec![AdjectiveClass {
+                members: vec!["class/member".into()],
+                features: BTreeMap::from([("ClassPermission".into(), "Yes".into())]),
+                negative_prefix_join: None,
+            }],
+        )
+        .unwrap_err();
+        match error {
+            LoadError::ConflictingFeature {
+                owner,
+                name,
+                declared,
+                requested,
+            } => {
+                assert_eq!(
+                    (
+                        owner.as_str(),
+                        name.as_str(),
+                        declared.as_str(),
+                        requested.as_str()
+                    ),
+                    ("class/member", "ClassPermission", "No", "Yes")
+                );
+            }
+            other => panic!("unexpected error: {other}"),
+        }
+        assert_eq!(entries, vec![original]);
     }
 
     #[test]

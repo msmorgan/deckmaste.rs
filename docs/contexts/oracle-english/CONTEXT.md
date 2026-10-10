@@ -350,10 +350,14 @@ A Clause whose Predicate contains no verb. A reducible Clause Complement of a
 Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
 
 **Verbless Predicate Use** (project term):
-An Adjective's declared permission to realize a Verbless Clause's Predicate
-with its selected infinitival Complement unexpressed. The licence for *able*
+An Adjective's declared permission to realize a Verbless Clause's Predicate.
+For *able*, its selected infinitival Complement is unexpressed; that licence
 is the [attestation-based project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis),
 not an example supplied by CGEL's account of *necessary* and *possible*.
+The state-Adjective class's permission follows orchestrator rulings VW2/VW6
+(2026-10-10, `english-v3-verbless-while-adjunct`); CGEL's account of reducible
+Clause Complements supports the verbless shape (Ch. 14 §10(b), p. 1267),
+not this project's choice of licensed Adjectives.
 
 **Verbless Clause Complement** (project term):
 A Preposition's declared permission to take a Verbless Clause as its

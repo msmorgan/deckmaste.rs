@@ -79,3 +79,6 @@ mod then_sequencing;
 
 #[path = "suite/preposed_duration_for.rs"]
 mod preposed_duration_for;
+
+#[path = "suite/verbless_while_adjunct.rs"]
+mod verbless_while_adjunct;

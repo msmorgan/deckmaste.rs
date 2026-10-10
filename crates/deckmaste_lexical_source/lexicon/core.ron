@@ -5,13 +5,18 @@
     // World has an ordinary adjective declaration without a negative Lexeme.
     // Legendary keeps its existing adjective owner and Catalog entry.
     adjective_classes: [(
-        negative_prefix_join: Joined,
+        negative_prefix_join: Some(Joined),
         members: [
             "vocab:Supertype/Basic", "vocab:PredicativeAdjective/Legendary",
             "vocab:Supertype/Snow",
             "vocab:ColorWord/Black", "vocab:ColorWord/Red", "vocab:ColorWord/White",
             "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
+    ), (
+        // VW2/VW6: the state class licenses a Verbless Clause Predicate
+        // on its existing Adjective owners; no second Lexeme is derived.
+        features: {"VerblessPredicateUse": "Yes"},
+        members: ["lexeme:designation/saddled"],
     )],
     // Attested common nouns declare their own negative formation.
     negative_noun_formations: {
@@ -220,7 +225,7 @@
         "vocab:Preposition/If": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "VerblessClauseComplement": "Yes", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Unless": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/As": {"FiniteObjectGapComplement": "Yes", "InterveningAdjunctLicence": "Yes", "ExpandedComparisonMarker": "Equality", "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct|ComparativeComplement|PredicativeComplement", "PrepositionComplement": "PredicativeNounPhrase", "FiniteClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "LocativeUse": "No"},
-        "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
+        "vocab:Preposition/While": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "VerblessClauseComplement": "Yes", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},
         "vocab:Preposition/Until": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase", "NominalBareClass": "Boundary"},
         "vocab:Preposition/Since": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No", "PrepositionComplement": "NounPhrase"},
         "vocab:TriggerMarker/When": {"PrepositionFunctionLicence": "Adjunct|PreposedAdjunct", "FiniteClauseComplement": "Yes", "LocativeUse": "No"},

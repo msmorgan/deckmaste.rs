@@ -78,6 +78,15 @@ pub enum LoadError {
     #[error("duplicate feature {name} for {owner}")]
     DuplicateFeature { owner: String, name: String },
     #[error(
+        "conflicting feature {name} for {owner}: declared {declared}, class exports {requested}"
+    )]
+    ConflictingFeature {
+        owner: String,
+        name: String,
+        declared: String,
+        requested: String,
+    },
+    #[error(
         "frame marker {vocabulary}/{member} must resolve to one declared identity (found {found})"
     )]
     MarkerIdentity {

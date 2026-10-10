@@ -72,6 +72,16 @@ Orchestrator rulings 2026-10-10:
   face is expected: no covered face has *while* + Adjective. An increase on a
   covered *while* + clause face, or on *if able*, is a defect.
 
+- VW6 (orchestrator, 2026-10-10). Extend the generic Adjective class mechanism
+  to export declared features onto existing members, preserving every owner
+  and introducing no duplicate Lexeme. The class row declares
+  `VerblessPredicateUse: Yes`; membership remains declarative and no loader
+  condition names a word. A conflicting feature already declared by a member
+  is a load error, never a silent override. Disclose the loader capability as
+  a deviation and test it with a synthetic class. This resolves VW2's STOP:
+  the claim parent exports *saddled* as `lexeme:designation/saddled`, not from
+  the participial class, whose recipe would create a second owner.
+
 ## Witnesses
 
 Each is the face's only failing line at `ymqwzour`. Probed 2026-10-10 with the `ymqwzour` binary (`--category sentence --readings
@@ -99,7 +109,7 @@ Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `\bwhile\b` or `\bif able\b` case-insensitively (both licences'
 consumers)
 plus 300 random covered controls (`cargo xtask english-v3 diff --manifest …
---random 300 --seed 20261010`), `--workers 6 --samples-per-face 0`, compared
+--random 300 --seed 20261008`), `--workers 6 --samples-per-face 0`, compared
 with `cargo xtask english-v3 diff` against the claim parent. Zero lost;
 VW5 for increases. Full `cargo test -p deckmaste_lexical_source` and `cargo test -p deckmaste_english_v3`
 and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` and `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
@@ -121,3 +131,63 @@ a plugin definition changes, run `cargo xtask lean check`.
 - Semantics of *saddled*.
 
 ## Landing record
+
+1. **Census delta** (claim-parent licences and implementation at `wxwozrtz`,
+   claim `ktlqxpoo`): bounded 643-face manifest, every supported face matching
+   `\bwhile\b|\bif able\b` case-insensitively (347 faces), plus 300 covered
+   controls drawn by the official diff from `baseline-wave8.json`, seed
+   20261008 (four overlaps). Covered 566 → 591; Readings 10,640 → 10,814.
+   Official `diff --lines`: 25 gains, 0 lost, 0 decreases, 0 increases,
+   0 digest-only; 0 source changes and 0 issues. Lost faces: none. No Reading
+   increase on a previously covered face. All 25 gains use the intended
+   construction; wrong-analysis-only gains: 0. Evidence under
+   `target/english-v3/english-v3-verbless-while-adjunct/`: `manifest.json`,
+   `before.json`, `after.json`, `diff.json`. Calamity remains unread for the
+   ticket's named second blocker.
+2. **Witnesses** (`wxwozrtz`, complete sentence probes, limit 64): Gilded
+   Ghoda, Alacrian Jaguar, District Mascot and Dracosaur Auxiliary each 0 → 1;
+   each control with *while saddled* removed reads 1 before and after (W9-A).
+   *This creature attacks while saddled* 0 → 1. The unattested *while tapped*
+   localization remains 0, as VW2 requires. Finite *while it's saddled*
+   control stays 2; the ordinary attack-trigger control stays 1; *This creature
+   is saddled* stays 2; *You may look at it while it's tapped* stays 4
+   (the draft's 3 was enumeration-capped). Every covered *if able* face keeps
+   its count and digest. Probe evidence: `before-probe-*.json` and
+   `after-probe-*.json` in the evidence directory.
+3. **Spot checks** (`wxwozrtz`): Alacrian Jaguar, Autarch Mammoth, Bounding
+   Felidar, Bridled Bighorn, Brightfield Glider, Brightfield Mustang, Bulwark
+   Ox, Congregation Gryff, District Mascot and Dracosaur Auxiliary. Each
+   inspected Reading places the *while* PP as Adjunct of the attack Predicate;
+   its Complement is a Verbless Clause with the existing
+   `lexeme:designation/saddled` Adjective as Predicate. Complete Document
+   probe counts, witness/control without the new material, respectively:
+   1/1, 1/1, 2/2, 1/1, 2/2, 3/3, 5/5, 2/2, 2/2, 1/1. W9-A's independent
+   ambiguity is preserved; every spot probe has 0 issues. Evidence:
+   `spot-0.json` through `spot-9.json` and matching `spot-control-*.json`.
+4. **Deviations and STOPs**: VW2's required STOP established that the claim
+   parent owns *saddled* as a designation Adjective, not a participial-class
+   derivation. VW6 resolves it: extended the general Adjective class loader
+   with declared feature exports and optional negative formation, retaining
+   each existing owner and rejecting conflicting member features without an
+   override. Synthetic-class loader tests cover export, repeated matching
+   declarations, owner preservation and conflict rejection. The existing
+   negative class retains its meaning with `Some(Joined)`. Added 0 / deleted
+   0 Constructions or Frames; no superseded route to retire. Broadened the
+   existing **Verbless Predicate Use** glossary entry under VW3, retaining
+   *able* as one case and citing the state permission as a project ruling.
+   No unresolved STOP remains.
+5. **Tests** (`wxwozrtz`): `cargo test -p deckmaste_english_v3` passed all six
+   binaries (899 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. `cargo test -p deckmaste_lexical_source` passed (42 unit + 44
+   integration); `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
+   passed. Initial English clippy found a needless Box replacement in the new
+   fixture; assigned into the existing Box, preserving the exact asserted
+   values, and reran the full English suite and clippy successfully. Restored
+   0 / re-spelled 0 / ignored 0 / added 5 (2 loader, 3 grammar) / removed 0.
+   The new module is registered exactly once in `suite_4`. `cargo build -p xtask`
+   passed. Citation checks: 0 noncompliant, 0 stale; piped diff audit selected
+   0 sites, so no new rules needed blessing. No Lean or full-corpus check ran.
+   Logs: `tests-english.log`, `clippy-english.log`, `tests-lexical-source.log`,
+   `clippy-lexical-source.log`, `cite-*.log` in the evidence directory.
+6. **Timing**: complete bounded census wall time **25.06 seconds**, six workers,
+   at `wxwozrtz`, measured by `/usr/bin/time -v` (`after.time`).
