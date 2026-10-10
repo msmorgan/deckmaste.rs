@@ -67,6 +67,12 @@ Orchestrator rulings 2026-10-10:
   face is expected: no covered face contains *cause(s)*. Any increase means the
   frame change leaked into another verb and is a defect.
 
+- W9-A (orchestrator, 2026-10-10). CC4 requires one catenative route
+  for *cause* + NP + *to*-infinitival, preserving independent NP ambiguities.
+  The witness/NP-only control counts are Sigarda 3/3, Quagnoth 2/2, and
+  Teysa 5/5. This interpretation applies to every "one analysis per string"
+  ruling.
+
 ## Witnesses
 
 Each is the face's only failing line at `ymqwzour`. Probed 2026-10-10 with the
@@ -116,3 +122,47 @@ english-v3 grep` only.
 - A clausal gerund-participial Subject (CC3).
 
 ## Landing record
+
+1. **Census delta** (`nzmrrqkysxto`, pre-edit claim parent `tzpunrwm` →
+   frame replacement): 671 faces; covered 550 → 605; Readings 10,252 →
+   10,727. 55 gains; lost faces none; decreases, increases on covered faces,
+   and digest-only changes all zero; zero issues. Selector is the Method's
+   two grep patterns (373 distinct faces), union 300 random covered controls
+   selected by `english-v3 diff --manifest --random 300 --seed 20261008`
+   (671 after overlap). Claim-parent BEFORE was measured on this manifest;
+   `english-v3 diff before.json after.json --json diff.json --lines` is the
+   comparison authority. Evidence is under
+   `target/english-v3/english-v3-cause-catenative-complement/`.
+2. **Witnesses** (`nzmrrqkysxto`): sentence probes before → after: Torpor Orb
+   0 → 1; Sigarda, Host of Herons 0 → 3; Quagnoth 0 → 2; Yurlok of Scorch
+   Thrash 0 → 1; Teysa Karlov 0 → 5. The three shortened diagnostics each
+   0 → 1. All enumerations completed. Controls retain 3/1/1/1/1 in ticket
+   order. NP-only controls retain Sigarda 3, Quagnoth 2, Teysa 5; these
+   independent ambiguities are preserved under W9-A, with one catenative
+   route per Reading.
+3. **Spot checks** (`nzmrrqkysxto`): Torpor Orb, Hushwing Gryff, Tocatli Honor
+   Guard and Doorkeeper Thrull select *abilities* as Object and *to trigger*
+   as Catenative Complement. Panharmonicon, Ancient Greenwarden and Drivnod,
+   Carnage Dominus select the triggered-ability NP as Object and *to trigger*
+   as Catenative Complement. Loxodon Smiter and Quagnoth select *you* and
+   *to discard this card*; Sigarda, Host of Herons selects *you* and *to
+   sacrifice permanents*. All ten selected analyses use the intended route;
+   wrong-analysis-only gains found: zero.
+4. **Deviations and STOPs**: retired the unread Cause frame spelling and
+   replaced it with the two declared Argument slots under CC1. There was no
+   grammar-side consumer of the retired spelling; no Construction, loader
+   code, or additional verb frame was added. Four tests were added for roles,
+   retained NP ambiguity, frame licensing/controls/CC4 negatives and an
+   independently constructed Torpor Orb constituent's two roundtrip laws.
+   STOP on CC4's literal uniqueness resolved by W9-A above. Seed 20261008
+   follows the user's binding brief rather than the Method's 20261010.
+   Glossary gaps: none.
+5. **Tests** (`nzmrrqkysxto`): `cargo test -p deckmaste_english_v3` passed
+   (900 tests); `cargo test -p deckmaste_lexical_source` passed (84 tests).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both
+   passed. Assurance: restored 0 / re-spelled 0 / ignored 0 / added 4 /
+   removed 0; no removals to justify. Citation checks: zero noncompliant,
+   zero stale, no changed citation sites.
+6. **Timing** (`nzmrrqkysxto`): bounded AFTER census 25.90 s wall under
+   `/usr/bin/time -v`, six workers, zero samples per face; no `--all` run.

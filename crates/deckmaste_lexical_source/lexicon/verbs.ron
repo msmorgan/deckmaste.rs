@@ -29,7 +29,10 @@
     (identity: Can, bare: "can", third_person: "can", frames: [Auxiliary]),
     (identity: Cant, bare: "can't", third_person: "can't", frames: [Auxiliary]),
     (identity: Cause, bare: "cause", third_person: "causes", preterite: Some("caused"), frames: [
-        Predicate([Role("Object"), Literal("to"), Role("VerbPhrase")]),
+        Predicate([
+            Argument((relation: Object, category: "NounPhrase")),
+            Argument((relation: Complement, category: "InfinitiveComplement")),
+        ]),
     ]),
     (identity: Choose, bare: "choose", third_person: "chooses", preterite: Some("chose"), participle: Some("chosen"), frames: [
         Predicate([ObjectNounPhrase]),

@@ -2,6 +2,9 @@
 #[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
 mod common;
 
+#[path = "suite/cause_catenative.rs"]
+mod cause_catenative;
+
 #[path = "suite/become_adjectival_passive.rs"]
 mod become_adjectival_passive;
 
