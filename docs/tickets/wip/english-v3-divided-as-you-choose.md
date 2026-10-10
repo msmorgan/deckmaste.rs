@@ -221,7 +221,11 @@ Deltas:
    one or two targets; Roil's Retribution: any number of attacking or blocking
    creatures. Probe samples: `spot-0.json` through `spot-9.json` under the
    evidence directory.
-4. **Deviations and STOPs**: the R12c STOP found no existing intervening
+4. **Deviations and STOPs**: R12d diagnosis: the parent already derived
+   Distribute's PastParticiple, but lacked the canonical selected Among
+   frame/marker route; unlike Dealt's To route, its passive was therefore
+   inadmissible, so no Distribute declaration change was needed.
+   The R12c STOP found no existing intervening
    Adjunct site; resolved by **orchestrator ruling R12f, 2026-10-09**, quoted
    in Analysis. CGEL p. 1149 backs the manner comparative-clause analysis,
    not the licensing details. Two helper Constructions were necessary:
@@ -250,7 +254,16 @@ Deltas:
    were added. Supported-corpus grep finds five comma-supplement faces
    (Angel of Salvation, Embolden, Pollen Remedy, Remedy, Serra's Hymn),
    versus the ticket's six; all five remain unread, as does Defensive
-   Formation (`umzuyqxmtqpx`). No supplementary mechanism was added.
+   Formation (0); the finite diagnostic "Distribute two counters as you
+   choose among one or two target creatures." remains 0 (`umzuyqxmtqpx`).
+   The five supported supplementive faces each remain 0. No supplementary
+   mechanism was added. The intervening-Adjunct licence sits on As whatever
+   its Complement, so unattested "divided as this creature enters among …"
+   reads: accepted by orchestrator ruling 2026-10-09; no previously covered
+   `\bas\b` face changed its Reading count. Unattested "Draw a card as you
+   choose." now reads 2, disclosed and accepted in that review. Two
+   Constructions were added against the 250 ceiling: FiniteGappedClause
+   and InterveningPrepositionAdjunct; their distinct roles are justified above.
 5. **Tests** (`umzuyqxmtqpx`): all commands below used
    `CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
    `cargo test -p deckmaste_english_v3` passed 683;
@@ -259,7 +272,10 @@ Deltas:
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`, and
    `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
-   all passed. Initial clippy found normalization clone/line-limit issues
+   all passed. Review follow-up (`uktyzswr`): these exact three clippy
+   commands also passed on the reconciled head with the same environment;
+   no code change was needed. Logs: `clippy-<crate>-review.log`.
+   Initial clippy found normalization clone/line-limit issues
    and two re-spelled tests one line over the limit; extraction of unchanged
    validation and noun-value helpers fixed them without weakening assertions.
    Core's extraction briefly failed to compile on a redundant slice conversion;
@@ -274,7 +290,16 @@ Deltas:
    Test changes: restored 0, re-spelled 9, ignored 0, added 8 (7 English,
    1 construction core), removed 0 (`umzuyqxmtqpx`). Re-spelling preserves
    exact values and card outcomes for passive fields, scalar noun heads,
-   and Choose's retained infinitive frame index.
+   and Choose's retained infinitive frame index. The nine re-spelled tests:
+   `selected_frame_passives::authentic_selected_object_and_passive_gap_preserve_frame_and_marker`;
+   `selected_complement_clusters::authentic_recipient_clusters_keep_independent_complete_sentence_structures`;
+   `selected_complement_clusters::selected_cluster_hosts_require_coordination_and_parallel_selected_markers`;
+   `selected_complement_clusters::avacyn_recipient_stays_with_the_lexical_passive_below_both_auxiliaries`;
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`;
+   `by_complement_functions::avacyn_internalised_complement_belongs_to_the_bare_passive`;
+   `by_complement_functions::noctis_means_preserves_its_complete_gerund_participial_complement`;
+   `base_phrases::selected_infinitive_is_a_whole_bare_predicate_and_not_a_sentence`;
+   `measured_damage_nominal::independent_bare_measurements_have_one_constituency_and_both_roundtrip_laws`.
 6. **Timing** (`uyspppsqonst`): refreshed bounded census **2:45.94 wall**, 6 workers,
    `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`;
    peak RSS 12,906,784 KiB. The orchestrator owns the full corpus run.
