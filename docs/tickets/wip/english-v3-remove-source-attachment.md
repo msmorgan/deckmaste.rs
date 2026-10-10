@@ -235,6 +235,11 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    is authorized by the orchestrator ruling of 2026-10-10: these two faces
    and eight other anchor-word faces were lost on trunk; their separate
    repair belongs to the named-modes-regression workspace. Own gains remain 67.
+   After integration was refused because default moved, the authorized
+   refresh brought the Ring landing's crate/plugin data changes. The same
+   1,500 identities compared against the prior refresh have zero
+   lost/gained/decreases/increases/digest-only changes: covered 1,498 and
+   54,523 Readings remain unchanged (`authorized-refresh-diff.json`).
 2. **Witnesses** (`nxxknqvk`, complete probes, claim-parent → after):
    Saprazzan Cove 0 → 2; Catti-brie of Mithral Hall 0 → 8; White Ward's
    sentence 0 → 1; Spires of Orazca's ability 0 → 4; Gustcloak Sentinel
@@ -309,6 +314,14 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    and `cargo test -p deckmaste_lexical` passed. Clippy with `--tests -- -D
    warnings` passed for all three crates, including the incoming lexical
    code. No construction-core or plugin-data changes came in.
+   Authorized Ring refresh: `cargo build -p xtask`, full
+   `cargo test -p deckmaste_english_v3` (all six binaries),
+   `cargo test -p deckmaste_lexical_source`,
+   `cargo test -p deckmaste_construction_core`, and
+   `cargo test -p xtask english_v3` passed. Clippy with
+   `--tests -- -D warnings` passed for English, lexical-source and
+   construction-core. Evidence: `authorized-refresh-*-tests.log` and
+   `authorized-refresh-*-clippy.log`. No Lean checks were run.
    Citation checks: 0 noncompliant, 0 stale, 0 changed citation sites.
 6. **Timing** (`nxxknqvk`). Bounded AFTER census **4:49.89** wall under
    `/usr/bin/time -v`, 6 workers, 6,634 faces, `--samples-per-face 0`.
