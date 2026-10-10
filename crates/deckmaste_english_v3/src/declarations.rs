@@ -465,8 +465,8 @@ constructions! {
         category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause(RelativeGapKind);
-        category FiniteObjectGap(ClauseComplementBoundary,number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
-        category BareObjectGap(ClauseComplementBoundary,PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category FiniteObjectGap(ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
+        category BareObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, ComparativeObjectGapLicence);
         category Cardinal(number);
         category CardinalModifier();
         category QuantitativeAdjectiveComplement();

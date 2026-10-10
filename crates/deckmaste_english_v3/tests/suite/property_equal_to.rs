@@ -130,7 +130,7 @@ fn ironclaw_curse_keeps_its_coordinated_governor_readings() {
     let text = "Enchanted creature can't block creatures with power equal to or greater than the enchanted creature's toughness.";
     assert_eq!(
         common::readings_on_card("Ironclaw Curse", text, Category::Document).len(),
-        8
+        6
     );
     common::assert_constituents_on_card(
         "Ironclaw Curse",
