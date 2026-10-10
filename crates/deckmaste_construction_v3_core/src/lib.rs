@@ -2,6 +2,8 @@
 //! projections.
 //!
 //! The compiler has no parser, lexical catalog, or morphology dependency.
+//! `last(items).Feature` projects the final Constituent of a repeated field.
+//! An empty repeat supplies the scalar feature's declared default.
 
 mod emit;
 mod ir;

@@ -375,6 +375,22 @@ fn form_pieces(
                             quote!(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category)?)
                         }
                         FieldType::One(_) => quote!(cache.admit(#binding, grammar, lexicon)?),
+                        FieldType::Repeated(_, _) => {
+                            let default = &form.repeat_features[*field]
+                                .iter()
+                                .find(|(projected, _)| projected == feature)
+                                .unwrap()
+                                .1;
+                            quote!({
+                                if let Some(child) = #binding.last() {
+                                    cache.admit(child, grammar, lexicon)?
+                                } else {
+                                    let mut summary = Summary::default();
+                                    summary.values[#feature] = Some(#default);
+                                    summary
+                                }
+                            })
+                        }
                         _ => unreachable!(),
                     };
                     quote!(#summary.values[#feature].clone().ok_or(Error::Invalid(#owner, "selected literal argument"))?)
@@ -430,7 +446,13 @@ fn form_pieces(
                         );
                     }
                     FieldType::Repeated(_, separator) => {
-                        summaries[*field] = quote!(Some({ let mut result = Summary::default(); for (index, child) in #binding.iter().enumerate() { #check_category if index != 0 { result.surface.literal(#separator); } let summary = cache.admit(child, grammar, lexicon)?; result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal)); result }));
+                        let defaults = form.repeat_features[*field].iter().map(
+                            |(feature, default)| quote!(result.values[#feature] = Some(#default);),
+                        );
+                        let last = form.repeat_features[*field].iter().map(|(feature, _)| {
+                            quote!(result.values[#feature] = summary.values[#feature].clone();)
+                        });
+                        summaries[*field] = quote!(Some({ let mut result = Summary::default(); #(#defaults)* for (index, child) in #binding.iter().enumerate() { #check_category if index != 0 { result.surface.literal(#separator); } let summary = cache.admit(child, grammar, lexicon)?; #(#last)* result.surface = result.surface.append(summary.surface); } result.values[12] = result.surface.onset.map(FeatureValue::Onset); result.values[14] = Some(FeatureValue::TerminalPunctuation(result.surface.terminal)); result }));
                         write.push(quote!(for (index, child) in #binding.iter().enumerate() { if index != 0 { output.push_str(#separator); } child.write(grammar, lexicon, output, cache)?; }));
                         visit.push(quote!(for child in #binding { child.visit(visitor)?; }));
                         word.push(quote!(for child in #binding { child.visit_words(visitor)?; }));

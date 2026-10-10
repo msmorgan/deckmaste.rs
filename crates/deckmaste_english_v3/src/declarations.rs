@@ -261,6 +261,14 @@ constructions! {
         feature ExpandedComparisonMarker { Equality }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
             QualityCost, Ability, Condition, CostPowerToughness, Instruction }
+        feature CostComponentForm { Empty, Symbols, Action } default Empty;
+        table final_cost_component(CostComponentForm, CostComponentForm) -> CostComponentForm {
+            (Symbols, Empty) => Symbols, (Action, Empty) => Action,
+            (_, Symbols) => Symbols, (_, Action) => Action,
+        }
+        separator keyword_cost_terminal(CostComponentForm, terminal_punctuation) {
+            (Symbols, None) => "", (Action, None) => ".", (Action, QuotedFullStop) => "",
+        }
         feature NominalBareClass { None, Interval, Boundary }
         feature NominalAdjunctClass { None, Temporal, Manner } default None;
         feature SlashPremodifierUse { No, Yes } default Yes;
@@ -468,9 +476,9 @@ constructions! {
         category SelectedComplementTail(HeadCoordination);
         category SelectedComplementTailSeries(HeadCoordination);
         category KeywordContinuation();
-        category Cost();
-        category CostComponent();
-        category CostContinuation();
+        category Cost(CostComponentForm);
+        category CostComponent(CostComponentForm);
+        category CostContinuation(CostComponentForm);
         category CostSymbols();
         category CostSymbol();
         category ManaPhrase();
@@ -2113,29 +2121,36 @@ constructions! {
 
         construction Cost: Cost {
             form [first: CostComponent, rest: repeat(CostContinuation, "")];
+            export CostComponentForm = final_cost_component(first.CostComponentForm,
+                last(rest).CostComponentForm);
         }
 
         construction CostContinuation: CostContinuation {
             form [", ", component: CostComponent];
+            export CostComponentForm = component.CostComponentForm;
         }
 
         construction ActionCost: CostComponent {
             boundary Initial;
             form [action: BarePredicate];
+            export CostComponentForm = Action;
         }
 
         construction SymbolCost: CostComponent {
             form [symbols: CostSymbols];
+            export CostComponentForm = Symbols;
         }
 
         // Oracle document notation, under the signed-numeral-cost project analysis.
         construction SignedScalarCost: Cost {
             form [value: ScalarComponent];
             require loyalty_sign(value.ScalarSign) = Yes;
+            export CostComponentForm = Symbols;
         }
 
         construction ZeroScalarCost: Cost {
             form ["0"];
+            export CostComponentForm = Symbols;
         }
 
         schema SymbolSequence {
@@ -2183,8 +2198,12 @@ constructions! {
         }
 
         construction CostKeyword: KeywordPhrase {
-            form [head: lexical(Keyword), " ", cost: CostSymbols];
             require head.KeywordParameterClass = Cost;
+            form [head: lexical(Keyword), " ", cost: CostSymbols];
+            // Project rulings KD1–KD3: the dash selects a Cost parameter;
+            // its final component determines the selected terminal literal.
+            form [head: lexical(Keyword), "—", cost: Cost,
+                keyword_cost_terminal(cost.CostComponentForm, cost.terminal_punctuation)];
         }
 
         table quality_number(number) -> KeywordQualityNumber {

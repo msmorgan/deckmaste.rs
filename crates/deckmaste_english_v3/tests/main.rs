@@ -1,5 +1,8 @@
 mod common;
 
+#[path = "suite/keyword_dash_cost_line.rs"]
+mod keyword_dash_cost_line;
+
 #[path = "suite/property_equal_to.rs"]
 mod property_equal_to;
 

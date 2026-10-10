@@ -71,4 +71,56 @@ before landing (KD3, KD4 make most of them defects).
 
 ## Landing record
 
-Six items as specified in `docs/tickets/README.md`.
+1. **Census delta** (`vwlkmvns` → `kxwsyulp`): bounded covered faces
+   302 → 453; total Readings 47,344 → 50,361. Gained 151; lost none;
+   decreases, increases on previously covered faces, and digest-only changes
+   all zero. Selector: every supported analysed face matching `[A-Za-z]—`
+   (238), plus 300 random covered faces, seed 20261008: 538 identities.
+   The claim parent `rsoqootn` differs from the baseline only in ticket docs.
+   Evidence: `target/english-v3/english-v3-keyword-dash-cost-line/`
+   (`manifest.json`, `before.json`, `after.json`, `diff.json`; builtin diff
+   also run with `--lines`).
+2. **Witnesses** (`kxwsyulp`, complete Document enumeration):
+   “Ward—Pay 3 life.” 1; “Flashback—{1}{R}, Pay 3 life.” 1;
+   “Equip—{3}” 1; “Escape—{3}{U}, Exile four other cards from your
+   graveyard.” 3; “Eternalize—{2}{W}{W}, Discard a card.” 1.
+   Each read zero on the claim-parent tree before implementation. The four
+   controls retain their claim-parent counts (1, 1, 1, 2 respectively).
+   All after probes are byte exact, complete, and issue-free at `kxwsyulp`.
+3. **Spot checks** (`kxwsyulp`): ten newly covered faces select the existing
+   CostKeyword dash form with a Cost parameter. Aboroth: imperative Put cost;
+   Acorn Harvest: mana symbols then Pay life; Axebane Ferox: imperative
+   Collect evidence cost; Flash of Defiance: mana symbols then Pay life;
+   Sweet Oblivion: mana symbols then Exile cards, retaining the existing
+   preposition attachments; Sunscourge Champion: mana symbols then Discard
+   a card; Demonmail Hauberk: Sacrifice a creature; Deepcavern Imp: Discard
+   a card; Dragon's Eye Savants: Reveal a blue card with the in-hand
+   preposition attachment; Constant Mists: Sacrifice a land. The final full
+   stop is the selected terminal literal, outside the Cost tree. Scoped
+   keyword-phrase probes are complete, byte exact, and issue-free.
+4. **Deviations and STOPs**: no STOPs and no new production Construction or
+   lexical Frame. Selecting the terminal while preserving the existing Cost
+   tree required generic compiler support for `last(items).Feature`, with a
+   declared scalar default for an empty repeat. Cost Component Form was a
+   glossary gap; it is now defined in the owning Oracle English context,
+   with the Cost citation and KD2–KD3 distinguished. No route is superseded:
+   the existing space form is retained under KD3. Beyond the literal witness
+   checks, two compiler diagnostic tests and a synthetic four-Construction
+   fixture (Symbols, Action, Tail, List) test the projection and both
+   roundtrip laws. Initial diagnostic parsing and clippy failures were fixed
+   in compiler code; the new test helper's Ident conversion, fixture's leading
+   separator, and Landfall expected set were corrected without removing or
+   weakening value assertions. The Landfall set explicitly retains both
+   ability-word and flavor-word trees shown by the before probe.
+5. **Tests** (`kxwsyulp`): `cargo test -p deckmaste_english_v3` passed
+   (735 tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed; `cargo test -p deckmaste_construction_v3_core` passed (36 tests);
+   `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
+   passed. Both doc-test suites passed with no tests. This ticket restored 0,
+   re-spelled 0, ignored 0, added 7, and removed 0 tests; no removals to justify.
+   Citation check reports no noncompliant citations and zero stale citations;
+   bless introduced no lock change, and the piped diff audit's sole citation
+   was read against its rule text.
+6. **Timing** (`kxwsyulp`): 19:15.97 wall time, 6 workers, under
+   `/usr/bin/time -v`, including the xtask dependency build. This is the
+   bounded census required by the binding verification budget.

@@ -203,6 +203,12 @@ entry reserves it for the printed line
 A conventional written representation using symbols, numerals, or other
 specialized marks rather than ordinary word-and-phrase grammar alone.
 
+**Cost Component Form** (project term):
+The grammatical realization of a component of a Cost [CR#118.1] as symbol
+Notation or an imperative Bare Predicate. The keyword-cost terminal literal
+follows orchestrator rulings KD2–KD3 (2026-10-10, ticket
+`english-v3-keyword-dash-cost-line`).
+
 **Mana Phrase** (project term):
 A phrase realized by mana notation or coordinated alternatives of that notation,
 used as a selected Complement. Its symbols preserve lexical identity and are

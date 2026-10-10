@@ -89,6 +89,7 @@ pub(crate) struct Form {
     pub pieces: Vec<Piece>,
     pub rule: usize,
     pub rules: Vec<usize>,
+    pub repeat_features: Vec<Vec<(usize, TokenStream)>>,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -418,9 +419,9 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             let other = collect_fields(form, &construction.name)?;
             if fields.len() != other.len()
                 || fields.iter().any(|(name, ty)| {
-                    !other.iter().any(|(n, t)| {
-                        name == n && same_field_storage(ty, t)
-                    })
+                    !other
+                        .iter()
+                        .any(|(n, t)| name == n && same_field_storage(ty, t))
                 })
             {
                 return Err(error(
@@ -654,10 +655,8 @@ fn normalize(
         {
             return Err(error(onset, "surface onset must be Consonant or Vowel"));
         }
-        let mut field_symbols = vec![];
-        for (_, ty) in ir.constructors[index].fields.clone() {
-            field_symbols.push(normalize_field(ir, &ty));
-        }
+        let repeat_features = repeated_projections(ir, index, interfaces, construction)?;
+        let field_symbols = normalize_fields(ir, index, &repeat_features);
         let mut canonical_requirements = vec![];
         for (parts, requirements) in construction
             .forms
@@ -787,6 +786,7 @@ fn normalize(
                     index: form_index,
                     category,
                     fields,
+                    repeat_features: repeat_features.clone(),
                 });
             }
             ir.constructors[index].fields = constructor_fields;
@@ -1064,9 +1064,17 @@ fn resolve_reference(
             )
         })?;
     let feature = feature_index(&ir.features, &reference.feature)?;
+    if reference.last && !matches!(construction.fields[field].1, FieldType::Repeated(_, _)) {
+        return Err(error(
+            &reference.field,
+            "last requires a repeated constituent field",
+        ));
+    }
     match &construction.fields[field].1 {
         FieldType::Lexical(_) => {}
-        FieldType::One(category) => {
+        FieldType::One(category) | FieldType::Repeated(category, _)
+            if reference.last || matches!(construction.fields[field].1, FieldType::One(_)) =>
+        {
             let category = ir
                 .categories
                 .iter()
@@ -1084,6 +1092,17 @@ fn resolve_reference(
                         "admission cannot reach {}.{} through its Category interface",
                         reference.field, reference.feature
                     ),
+                ));
+            }
+            if reference.last
+                && !matches!(
+                    ir.features[feature].kind,
+                    DomainKind::Custom { default: Some(_) }
+                )
+            {
+                return Err(error(
+                    &reference.feature,
+                    "last requires a declared scalar feature default for the empty repeat",
                 ));
             }
         }
@@ -1325,7 +1344,91 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
     });
 }
 
-fn normalize_field(ir: &mut Ir, ty: &FieldType) -> Symbol {
+fn normalize_fields(
+    ir: &mut Ir,
+    constructor: usize,
+    repeat_features: &[Vec<(usize, TokenStream)>],
+) -> Vec<Symbol> {
+    ir.constructors[constructor]
+        .fields
+        .clone()
+        .into_iter()
+        .enumerate()
+        .map(|(field, (_, ty))| normalize_field(ir, &ty, &repeat_features[field]))
+        .collect()
+}
+
+fn repeated_projections(
+    ir: &Ir,
+    constructor: usize,
+    interfaces: &[BTreeSet<usize>],
+    construction: &crate::parse::Construction,
+) -> syn::Result<Vec<Vec<(usize, TokenStream)>>> {
+    let mut features = vec![BTreeSet::new(); ir.constructors[constructor].fields.len()];
+    let mut add = |reference: &Reference| -> syn::Result<()> {
+        if reference.last {
+            let (field, feature) =
+                resolve_reference(ir, &ir.constructors[constructor], interfaces, reference)?;
+            features[field].insert(feature);
+        }
+        Ok(())
+    };
+    for equation in construction
+        .equations
+        .iter()
+        .chain(construction.form_requirements.iter().flatten())
+    {
+        for reference in equation.clone().references_mut() {
+            add(reference)?;
+        }
+    }
+    for part in construction.forms.iter().flatten() {
+        if let Part::SelectedLiteral(_, arguments) = part {
+            for reference in arguments {
+                add(reference)?;
+            }
+        }
+    }
+    features
+        .into_iter()
+        .map(|features| {
+            features
+                .into_iter()
+                .map(|feature| {
+                    let DomainKind::Custom {
+                        default: Some(default),
+                    } = ir.features[feature].kind
+                    else {
+                        unreachable!()
+                    };
+                    let name = format_ident!("{}", ir.features[feature].values[default]);
+                    Ok((feature, value(ir, feature, &name)?))
+                })
+                .collect()
+        })
+        .collect()
+}
+
+fn projected_helper(
+    ir: &mut Ir,
+    category: usize,
+    symbols: Vec<Symbol>,
+    build: Build,
+    features: &[(usize, TokenStream)],
+    source: Option<usize>,
+) {
+    helper(ir, category, symbols, build);
+    let rule = ir.rules.last_mut().unwrap();
+    for (register, (feature, default)) in features.iter().enumerate() {
+        rule.initial.push(source.is_none().then(|| default.clone()));
+        rule.exports.push((*feature, register));
+        if let Some(dot) = source {
+            rule.checks[dot].push((*feature, register));
+        }
+    }
+}
+
+fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)]) -> Symbol {
     if matches!(ty, FieldType::SelectedFrame(_, _)) {
         let category = ir.categories.len();
         ir.categories
@@ -1359,20 +1462,24 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType) -> Symbol {
         FieldType::Repeated(_, separator) => {
             let nonempty = ir.categories.len();
             ir.categories.push(format_ident!("__Constituent{nonempty}"));
-            helper(ir, category, vec![], Build::Empty);
-            helper(
+            projected_helper(ir, category, vec![], Build::Empty, features, None);
+            projected_helper(
                 ir,
                 category,
                 vec![Symbol::Nonterminal(nonempty)],
                 Build::Sequence,
+                features,
+                Some(0),
             );
-            helper(
+            projected_helper(
                 ir,
                 nonempty,
                 vec![Symbol::Nonterminal(child)],
                 Build::Singleton,
+                features,
+                Some(0),
             );
-            helper(
+            projected_helper(
                 ir,
                 nonempty,
                 vec![
@@ -1381,6 +1488,8 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType) -> Symbol {
                     Symbol::Nonterminal(child),
                 ],
                 Build::Append,
+                features,
+                Some(2),
             );
         }
         _ => unreachable!(),

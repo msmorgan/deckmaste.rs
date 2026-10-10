@@ -1251,3 +1251,41 @@ fn lexical_categories_belong_to_the_selected_form() {
     assert_eq!(lexical_categories, vec!["Determinative", "Adjective"]);
     compile(declaration).unwrap();
 }
+
+#[test]
+fn last_projection_requires_a_repeated_field() {
+    rejects(
+        quote! {
+            mod bad {
+                feature Kind { Empty, Present } default Empty;
+                category Item(Kind);
+                category List();
+                construction Item: Item { form ["a"]; export Kind = Present; }
+                construction List: List {
+                    form [item: Item];
+                    require last(item).Kind = Present;
+                }
+            }
+        },
+        "last requires a repeated constituent field",
+    );
+}
+
+#[test]
+fn last_projection_requires_an_empty_repeat_default() {
+    rejects(
+        quote! {
+            mod bad {
+                feature Kind { Present }
+                category Item(Kind);
+                category List();
+                construction Item: Item { form ["a"]; export Kind = Present; }
+                construction List: List {
+                    form [items: repeat(Item, " ")];
+                    require last(items).Kind = Present;
+                }
+            }
+        },
+        "last requires a declared scalar feature default",
+    );
+}

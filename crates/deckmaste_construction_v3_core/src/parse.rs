@@ -119,6 +119,7 @@ pub(crate) enum Part {
 pub(crate) struct Reference {
     pub field: Ident,
     pub feature: Ident,
+    pub last: bool,
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -139,11 +140,24 @@ fn names(input: ParseStream<'_>) -> syn::Result<Vec<Ident>> {
 }
 
 fn reference(input: ParseStream<'_>) -> syn::Result<Reference> {
-    let field = input.parse()?;
+    let name: Ident = input.parse()?;
+    let last = name == "last" && input.peek(syn::token::Paren);
+    let field = if last {
+        let argument;
+        parenthesized!(argument in input);
+        let field = argument.parse()?;
+        if !argument.is_empty() {
+            return Err(argument.error("last requires one repeated field"));
+        }
+        field
+    } else {
+        name
+    };
     input.parse::<Token![.]>()?;
     Ok(Reference {
         field,
         feature: input.parse()?,
+        last,
     })
 }
 
@@ -1081,7 +1095,11 @@ fn parse_directive(
         "export" => {
             let feature = contents.parse()?;
             contents.parse::<Token![=]>()?;
-            let equation = if contents.peek2(Token![.]) {
+            let lookahead = contents.fork();
+            let name: Ident = lookahead.parse()?;
+            let equation = if contents.peek2(Token![.])
+                || (name == "last" && lookahead.peek(syn::token::Paren))
+            {
                 Equation::Export(feature, reference(contents)?)
             } else if contents.peek2(syn::token::Paren) {
                 let table = contents.parse()?;
@@ -1102,7 +1120,9 @@ fn parse_directive(
                 .push(Equation::Agree(left, reference(contents)?));
         }
         "require" => {
-            let equation = if contents.peek2(syn::token::Paren) {
+            let lookahead = contents.fork();
+            let name: Ident = lookahead.parse()?;
+            let equation = if contents.peek2(syn::token::Paren) && name != "last" {
                 let table = contents.parse()?;
                 let arguments;
                 parenthesized!(arguments in contents);
@@ -1205,7 +1225,7 @@ fn declared_fields(forms: &[Vec<Part>]) -> std::collections::BTreeSet<String> {
 }
 
 impl Equation {
-    fn references_mut(&mut self) -> Vec<&mut Reference> {
+    pub(crate) fn references_mut(&mut self) -> Vec<&mut Reference> {
         match self {
             Self::Export(_, reference) | Self::Require(reference, _) => vec![reference],
             Self::ExportTable(_, _, arguments)
