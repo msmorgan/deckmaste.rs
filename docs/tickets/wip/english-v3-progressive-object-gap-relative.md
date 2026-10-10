@@ -148,7 +148,9 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    reviewed census. A second refresh imported kind-of-counter;
    `retry-refresh-diff.json` likewise reports all 492 faces unchanged. The
    third refresh imported supplementary-temporal-adjunct;
-   `temporal-refresh-diff.json` also reports all 492 faces unchanged. Selector:
+   `temporal-refresh-diff.json` also reports all 492 faces unchanged. The
+   fourth refresh imported preposed-duration-for; `duration-refresh-diff.json`
+   again reports all 492 faces unchanged. Selector:
    case-insensitive
    `\b(am|is|are|'m|'s|'re|was|were|isn't|aren't|wasn't|weren't|been|be) [a-z]+ing\b`,
    196 surface faces plus 300 covered controls from `baseline-wave8.json`
@@ -198,6 +200,8 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    A third refresh after default moved imported supplementary-temporal-adjunct
    grammar and lexical data; the same checks passed again. A transient sibling
    working-copy divergence cleared before the successful refresh retry.
+   A fourth refresh after default moved imported preposed-duration-for
+   grammar and tests; the same checks passed again.
    No glossary gap. The mandated review stop was observed; orchestrator review
    accepted the landing and authorized integration under PG7 on 2026-10-10.
 5. **Tests** (`opxvnokr`): `cargo test -p deckmaste_english_v3` first reported
@@ -220,10 +224,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    After the third refresh, the same build and full test commands passed:
    922 English tests and 84 lexical-source tests; both clippy commands passed.
    Evidence uses the `temporal-refresh-` prefix in the same directory.
+   After the fourth refresh (`ppvnxnrm` census), the same build and full
+   test commands passed: 926 English tests and 84 lexical-source tests; both
+   clippy commands passed. Evidence uses the `duration-refresh-` prefix.
    This ticket: restored 0 / re-spelled 0 / ignored 0 /
    added 4 / removed 0 (no removals); own code changes only in English v3.
    No Lean check. Citation checks report 0 non-compliant and 0 stale citations;
    no new CR registrations.
 6. **Timing** (final refreshed `opxvnokr` state): final bounded AFTER census
-   **17.17 s**, 6 workers,
+   **12.79 s**, 6 workers,
    measured with `/usr/bin/time -v`; no full-corpus census or `--all` run.
