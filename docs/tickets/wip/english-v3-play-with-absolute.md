@@ -216,6 +216,9 @@ uses `cargo xtask english-v3 grep`.
    Lies (`zvtzutzx`, keyword mentions); Hedge Whisperer, Old Man of the Sea
    and Vedalken Shackles (`wqkrtoxr`, negated infinitivals). Its 13 digest-only
    changes also predate this feature, isolated in `ancestor-diff.json`.
+   Post-refresh `after-refresh.json` / `refresh-diff.json`: all 433 faces
+   unchanged; covered 413 and Readings 36,216; no gains, losses, decreases,
+   increases, digest-only changes, source changes, or issues.
 2. **Witnesses** (`qpqyvsou` before: all 0; `wwzpptst` after): Telepathy **2**
    and Enduring Renewal's witness **2**, each one selected clause and one
    retained NP participial Postmodifier. Field of Dreams **7** and Future
@@ -244,16 +247,30 @@ uses `cargo xtask english-v3 grep`.
    remains subjectless, and the frame Category projection requires an overt
    Subject. These are PW2/PW-R1 distinctions, not word guards. No glossary
    gap. The extra bounded data-only parent run separates ancestor changes
-   from this feature without rebuilding the grammar.
+   from this feature without rebuilding the grammar. Refresh brought
+   `sztumtmq` (Ring) and `pxtwrtvu` (named modes), including parsing, lexical,
+   construction-core and plugin changes. The sole conflict was additive
+   module registration in `suite_6`; both registrations were retained. A
+   subsequent refresh succeeded as a no-op.
 5. **Tests** (`wwzpptst`): `cargo test -p deckmaste_english_v3 -p
    deckmaste_lexical_source -p deckmaste_construction_core -p
    deckmaste_semantics_v2` passed in full; its first build caught an ambiguous
    `.into()` in the new fixture, corrected before the successful full run.
    `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p
    deckmaste_construction_core -p deckmaste_semantics_v2 --tests -- -D warnings`
-   passed. Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
+   passed. Post-refresh `cargo build -p xtask` passed; full
+   `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source -p
+   deckmaste_construction_core -p deckmaste_semantics_v2 -p deckmaste_lexical`
+   and `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source -p
+   deckmaste_construction_core -p deckmaste_semantics_v2 -p deckmaste_lexical
+   --tests -- -D warnings` passed. `cargo test -p xtask english_v3`
+   also passed (56 matching tests). Logs: `refresh-build.log`,
+   `refresh-tests.log`, `refresh-clippy.log`, `refresh-xtask-tests.log`.
+   Restored 0 / re-spelled 0 / ignored 0 / added 10 / removed 0.
    The new module is registered once in `suite_6`. Citation check: 0
    noncompliant and 0 stale; `jj --no-pager diff --git | cargo xtask cite audit
    --diff` selected 0 new sites, so no new CR registrations need blessing.
 6. **Timing** (`wwzpptst`): landing bounded census **69.73 s** wall time,
    6 workers, `--samples-per-face 0`, prebuilt binary under `/usr/bin/time -v`.
+   The same post-refresh bounded census took **91.13 s** wall time; the
+   rebuild took **2m 14s**, and full suite compilation took **2m 26s**.
