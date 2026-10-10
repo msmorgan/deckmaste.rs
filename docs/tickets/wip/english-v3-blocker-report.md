@@ -109,6 +109,17 @@ Standard constraints apply. Deltas:
    six workers; report peak RSS 11,877,316 KiB, below census peak
    14,952,824 KiB (`sqnyzpnl`). Artifacts in the coordinator workspace:
    `target/english-v3/baseline-blockers.json`, `blockers.json`, `blockers.txt`.
+   After refresh (`qyllylkq`), the bounded selector combined the 1,607
+   supported faces matching `grep 'equal to' -i`, 300 covered controls
+   (seed 20261008), and the ten spot checks: 1,901 distinct identities.
+   The stock census diff reports lost 0 / gained 31 / decreases 0 /
+   increases 1 / digest-only 0; covered faces 1,384 to 1,415 and Readings
+   194,476 to 202,878. The gains and Woodcaller Automaton's increase
+   (273 to 285) come from incoming equality-property change `wlstpkpu`.
+   The blocker report on the bounded census has zero coverage mismatches
+   and zero internal analysis failures. Evidence: `refresh-manifest.json`,
+   `refresh-after.json`, `refresh-diff.json`, and `refresh-blockers.json`
+   under the feature workspace's `target/english-v3/english-v3-blocker-report/`.
 
     ```text
     5886 unread faces; 5035 with exactly one failing line; 1673 vocabulary-only faces
@@ -178,7 +189,9 @@ Standard constraints apply. Deltas:
    Corrected one new test's mistaken frontier expectation against the packed
    probe: the chart reaches the second *Draw* and stops before the full stop.
    Its exact position/key assertions remain. No glossary gap or unresolved
-   STOP. Tooling exception: no before/after grammar census or red witnesses.
+   STOP. Tooling exception: no before/after grammar census or red witnesses
+   for this implementation. Refresh brought equality-property grammar work
+   (`wlstpkpu`); the bounded re-check found no lost faces or removed Readings.
 
 5. **Tests** (`sqnyzpnl`). `cargo test -p xtask english_v3`: 53 passed (the
    initial run had 52 passes and the mistaken new expectation described
@@ -188,6 +201,16 @@ Standard constraints apply. Deltas:
    Restored 0 / re-spelled 0 / ignored 0 / added 6 / removed 0; removals:
    none. Existing test assertions are preserved. Citation checks: zero
    noncompliant and zero stale references; no newly cited rules.
+   After refresh (`qyllylkq`), `cargo test -p xtask` in full passes:
+   404 library, 4 binary, and 14 integration tests (422 total), zero
+   failures. The existing ignored
+   `macros::templates::tests::macro_schema_census_count_matches_21` remains
+   ignored with its existing reason, "cross-checks the live corpus against
+   the census; run on demand"; this change introduces no ignores.
+   After refresh (`qyllylkq`), `cargo test -p deckmaste_english_v3` in full
+   passes: 723 tests, zero failures and zero ignored. The pre-refresh
+   clippy checks above passed; refresh verification follows the bounded
+   census plus full-crate-test policy.
 
 6. **Timing** (`sqnyzpnl`). The one full census took **423340 ms**, six
    workers, prebuilt binary under `/usr/bin/time -v`, samples per face 0.
