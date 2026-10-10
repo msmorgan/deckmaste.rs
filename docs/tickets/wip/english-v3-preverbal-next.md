@@ -114,4 +114,43 @@ verb inside the trigger condition; the PN4 negatives on an attributive
 
 ## Landing record
 
-Not landed.
+1. **Census delta** — Claim parent `lvwytooq` → `zunolrnv`: bounded
+   selector `\bnext\b` case-insensitive (1,143 faces), unioned with 300
+   covered controls selected by `english-v3 diff`, seed 20261008: 1,436
+   distinct faces. Covered 1,198 → 1,226; Readings 38,568 → 39,650;
+   gained 28, lost none, decreases 0, increases 0, digest-only 0,
+   source changes 0, validation issues 0. The bounded before report agrees
+   exactly with `baseline-wave7.json` (`mqrlzszk`) on all selected faces.
+   Evidence: `target/english-v3/english-v3-preverbal-next/{manifest,before,after,diff}.json`.
+2. **Witnesses** — Probes on `lvwytooq`, before implementation: Galvanic
+   Iteration 0 (without *next*: 4), The Clone Saga chapter body 0 (2),
+   All-Out Assault 0 (2), Dual Strike document 0 (56). At `zunolrnv`,
+   these exact witnesses read 4, 2, 2, 56 respectively, with complete
+   enumeration and no issues; full-face census totals are 17, 8, 50, 57.
+   The upkeep / *also* / *still* / *next time* controls retain 1 / 1 / 1 / 8
+   Readings on both trees. No witness already read on the claim parent.
+3. **Spot checks** — At `zunolrnv`: Galvanic Iteration, The Clone Saga,
+   Dual Strike, Doublecast, Ride the Avalanche, Storm King's Thunder,
+   Teach by Example, Ral, Storm Conduit, and Thunderclap Drake select
+   *next* as a central Adverb Adjunct of finite *cast* in the trigger
+   condition; All-Out Assault selects that same role with finite *attack*.
+   All ten selected full-Document Readings realize byte-exactly, with no
+   issues or unintended analysis found in the inspected Readings.
+4. **Deviations and STOPs** — None. PN1's declaration alone suffices;
+   the attributive Adjective is untouched. No Construction or Frame was
+   added or removed, no route was superseded, and no glossary gap arose.
+   Seven structural / licence / roundtrip tests implement the ticket's
+   requested assurance in `suite/preverbal_next.rs`, registered once in
+   `suite_6.rs`.
+5. **Tests** — At `zunolrnv`, `cargo test -p deckmaste_english_v3` passed
+   (797 tests); `cargo test -p deckmaste_lexical_source` passed (82 tests).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   The initial English test command failed to compile an unnecessarily
+   collected fixture iterator; that fixture was corrected before the
+   successful full run. Restored 0 / re-spelled 0 / ignored 0 / added 7 /
+   removed 0. Citation checks: 0 noncompliant, 0 stale; diff audit selected
+   no citation sites. No Lean check or full-corpus census was run.
+6. **Timing** — At `zunolrnv`: the bounded after census took **50.59 s**
+   wall time under `/usr/bin/time -v`, using the prebuilt binary, 6 workers
+   and 0 samples per face.

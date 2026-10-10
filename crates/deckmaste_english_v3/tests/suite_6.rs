@@ -61,3 +61,6 @@ mod slice;
 
 #[path = "suite/targeting_projection.rs"]
 mod targeting_projection;
+
+#[path = "suite/preverbal_next.rs"]
+mod preverbal_next;

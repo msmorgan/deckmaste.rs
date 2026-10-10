@@ -1726,6 +1726,13 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "vocab:Adverb/Next", lemma: "next", category: Adverb,
+            properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No", "CentralAdjunctLicence": "Preverbal"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Next"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "vocab:Adverb/Still", lemma: "still", category: Adverb,
             properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No", "CentralAdjunctLicence": "Preverbal|PostCopula"}, frames: []),
             forms: [(form: Invariant, features: ())],
