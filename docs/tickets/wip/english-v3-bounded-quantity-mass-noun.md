@@ -128,7 +128,7 @@ english-v3 grep` only.
    changes: **0 / 0 / 0**. All 300 random controls were covered before.
    Native `english-v3 diff --lines` evidence and the identity manifest are in
    `target/english-v3/english-v3-bounded-quantity-mass-noun/`.
-   Post-refresh (`ssqzqnyk`, empty child of `nlprwskn`): covered **807**,
+   Post-refresh (the empty child of `nlprwskn`): covered **807**,
    Readings **13,494**, **95 total gains**. The two inherited gains are Ashen
    Ghoul (**3**) and Nether Shadow (**6**), from the *above* declaration in
    trunk `nqnztuzo`; this ticket contributes **93**. Refresh adds no losses,
@@ -161,7 +161,7 @@ english-v3 grep` only.
    superseded residual failure was re-spelled as above; the full suite was rerun.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed after
    correcting three borrowing lints, retaining full value comparisons.
-   Post-refresh gates (`ssqzqnyk` tree): the same full English test command
+   Post-refresh gates (the empty child of `nlprwskn`): the same full English test command
    passed **757** tests, and the same English clippy command passed.
    `cargo test -p xtask english_v3` passed **56** tests (required by incoming
    plugin grammar data). Full data-consumer command:
@@ -171,5 +171,5 @@ english-v3 grep` only.
    passed. Every suite reported zero failures and ignores.
    Restored / re-spelled / ignored-with-blocker / added / removed:
    **0 / 1 / 0 / 8 / 0**. No removals to justify.
-6. **Timing** (`ssqzqnyk` tree): refreshed bounded census **15.83 s** wall under
+6. **Timing** (the empty child of `nlprwskn`): refreshed bounded census **15.83 s** wall under
    `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.
