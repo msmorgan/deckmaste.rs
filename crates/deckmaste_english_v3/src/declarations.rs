@@ -187,7 +187,8 @@ constructions! {
             (Nominal, Nominal) => Nominal, (Content, Content) => Content,
         }
         feature CompoundComplementMarker { Of }
-        feature PrepositionPhraseComplementLicence { Unrestricted, Source }
+        feature PrepositionPhraseComplementLicence { Unrestricted, Source, With }
+        feature PrepositionPhraseComplementMarker { None, With } default None;
         feature SourceComplementUse { No, Yes } default No;
         feature SourceMarker { No, Yes } default No;
         feature SourceComplementSelection { No, Yes } default No;
@@ -222,8 +223,12 @@ constructions! {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
         table licensed_preposition_phrase_complement(PrepositionPhraseComplementLicence,
-            SourceComplementUse) -> Selection {
-            (Unrestricted, No) => Yes, (Unrestricted, Yes) => Yes, (Source, Yes) => Yes,
+            SourceComplementUse, PrepositionPhraseComplementMarker) -> Selection {
+            (Unrestricted, _, _) => Yes, (Source, Yes, _) => Yes, (With, _, With) => Yes,
+        }
+        table coordinated_preposition_phrase_complement_marker(PrepositionPhraseComplementMarker,
+            PrepositionPhraseComplementMarker) -> PrepositionPhraseComplementMarker {
+            (With, With) => With, (_, _) => None,
         }
         table coordinated_source_complement_use(SourceComplementUse, SourceComplementUse)
             -> SourceComplementUse {
@@ -568,7 +573,7 @@ constructions! {
         category NamePredicate();
         category PrepositionPhrase(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse,
-            ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+            ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category SourceComplement();
         category LocativeComplement();
         category MannerComplement();
@@ -671,10 +676,10 @@ constructions! {
         , SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
         category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
-        category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, SourceComplementUse);
-        category FocusedAdjunctSeries(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, SourceComplementUse);
-        category FocusedAdjunctCoordination(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, SourceComplementUse, PrepositionFunctionLicence, ComplementFunctionRestriction, PredicativeAdjunctUse, SelectedPrepositionUse, MatrixComplementRequirement, InternalisedComplementMarker);
+            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+        category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
+        category FocusedAdjunctSeries(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
+        category FocusedAdjunctCoordination(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse, PrepositionFunctionLicence, ComplementFunctionRestriction, PredicativeAdjunctUse, SelectedPrepositionUse, MatrixComplementRequirement, InternalisedComplementMarker);
         category AdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
@@ -691,7 +696,7 @@ constructions! {
         category CorrelativeNounPhraseSeries(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting,
             CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
         category CorrelativePrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
-            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator, FocusedUse);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
@@ -709,8 +714,8 @@ constructions! {
         category CorrelativeFiniteObjectGapSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
-        category SelectedPrepositionHeadSeries(LocativeUse, PrepositionFunctionLicence, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
+            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
+        category SelectedPrepositionHeadSeries(LocativeUse, PrepositionFunctionLicence, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator, GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
@@ -1461,6 +1466,7 @@ constructions! {
         }
 
         policy PrepositionHeadPermissions {
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
@@ -1852,6 +1858,8 @@ constructions! {
                 left.ComplementFunctionRestriction, Right.ComplementFunctionRestriction,
                 left.PrepositionFunctionLicence, Right.PrepositionFunctionLicence);
             export SourceMarker = coordinated_source_marker(left.SourceMarker, Right.SourceMarker);
+            export PrepositionPhraseComplementMarker = coordinated_preposition_phrase_complement_marker(
+                left.PrepositionPhraseComplementMarker, Right.PrepositionPhraseComplementMarker);
             export SourceComplementUse = coordinated_source_complement_use(
                 left.SourceComplementUse, Right.SourceComplementUse);
             export FocusedUse = coordinated_focus(left.FocusedUse, Right.FocusedUse);
@@ -1876,6 +1884,8 @@ constructions! {
             export PredicativeAdjunctUse = predicative_adjunct_concord(
                 left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
             export SourceMarker = coordinated_source_marker(left.SourceMarker, Right.SourceMarker);
+            export PrepositionPhraseComplementMarker = coordinated_preposition_phrase_complement_marker(
+                left.PrepositionPhraseComplementMarker, Right.PrepositionPhraseComplementMarker);
             export SourceComplementUse = coordinated_source_complement_use(
                 left.SourceComplementUse, Right.SourceComplementUse);
             export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
@@ -3241,6 +3251,7 @@ constructions! {
                 export ClauseComplementBoundary = head.ClauseComplementBoundary
                 export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse
                 export SourceMarker = head.SourceMarker
+                export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker
                 export SourceComplementUse = head.SourceComplementUse;
             form [head: AdverbPhrase]
                 require head.VPFinalAdjunct = Yes
@@ -3248,6 +3259,7 @@ constructions! {
                 export ClauseComplementBoundary = None
                 export ConnectiveAdjunctUse = No
                 export SourceMarker = No
+                export PrepositionPhraseComplementMarker = None
                 export SourceComplementUse = No;
         }
         // A bounded frequency stays inside its coordinate. The standalone
@@ -3262,6 +3274,7 @@ constructions! {
             export ClauseComplementBoundary = None;
             export ConnectiveAdjunctUse = No;
             export SourceMarker = No;
+            export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
         }
         policy FocusedAdjunctConcord<Right, Source> {
@@ -3272,6 +3285,8 @@ constructions! {
             export ConnectiveAdjunctUse = connective_adjunct_concord(
                 left.ConnectiveAdjunctUse, Right.ConnectiveAdjunctUse);
             export SourceMarker = coordinated_source_marker(left.SourceMarker, Right.SourceMarker);
+            export PrepositionPhraseComplementMarker = coordinated_preposition_phrase_complement_marker(
+                left.PrepositionPhraseComplementMarker, Right.PrepositionPhraseComplementMarker);
             export SourceComplementUse = coordinated_source_complement_use(
                 left.SourceComplementUse, Right.SourceComplementUse);
         }
@@ -4406,6 +4421,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = head.NominalExceptionComplementUse;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4434,6 +4450,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4470,6 +4487,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = PreposedOrPredicative;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4509,6 +4527,7 @@ constructions! {
                 head.PredicativeAdjunctUse) = Yes;
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = head.NominalExceptionComplementUse;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
@@ -4595,6 +4614,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4668,6 +4688,7 @@ constructions! {
             require head.VerblessClauseComplement = Yes;
             require complement.VerblessClauseComplement = Yes;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
+            export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceMarker = No;
             export FocusedUse = No;
@@ -4695,6 +4716,7 @@ constructions! {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4725,6 +4747,7 @@ constructions! {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4754,6 +4777,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = Adjunct;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -4848,6 +4872,7 @@ constructions! {
             export PredicativeAdjunctUse = No;
             export ClauseInitialAdjunct = No;
             export FocusedUse = No;
+            export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
@@ -4875,6 +4900,7 @@ constructions! {
             export PredicativeAdjunctUse = No;
             export ClauseInitialAdjunct = No;
             export FocusedUse = No;
+            export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
@@ -4900,7 +4926,7 @@ constructions! {
             require complement.MatrixComplementRequirement = None;
             require complement.ComplementFunctionRestriction = None;
             require licensed_preposition_phrase_complement(head.PrepositionPhraseComplementLicence,
-                complement.SourceComplementUse) = Yes;
+                complement.SourceComplementUse, complement.PrepositionPhraseComplementMarker) = Yes;
             export ObliqueNumber = None;
             use PrepositionHeadPermissions;
         }
@@ -6509,6 +6535,7 @@ constructions! {
             export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -6848,6 +6875,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;
@@ -6924,6 +6952,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
+            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
             export SourceComplementUse = head.SourceComplementUse;
             export SourceMarker = head.SourceMarker;
             export FocusedUse = No;

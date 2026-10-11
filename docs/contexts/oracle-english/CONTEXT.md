@@ -608,6 +608,13 @@ PPs (Ch. 8 §4.3, p. 687). The inclusion of *among* in the supported source
 class is a [project decision](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis),
 not an example or classification supplied by those passages.
 
+**Preposition Phrase Complement Marker** (project term):
+A PP head's declared marker identifying its availability as another
+Preposition's PP Complement. The *with* marker selected by deverbal
+*starting* follows orchestrator rulings SW1–SW2 (2026-10-10,
+`english-v3-starting-with-adjunct`); it supplies neither a nominal
+Complement licence nor an Adjunct function.
+
 **Source Complement Use** (project term):
 The declared availability of a PP as the internal Complement of a
 source-marking preposition. Its head licenses this distribution independently
@@ -673,6 +680,12 @@ The [orchestrator ruling of 2026-10-07](../../tickets/done/english-v3-focusing-o
 defers the clause-final widening until comparative and verb-selected replacement
 analyses exist; their Complements must not become Adjuncts.
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
+
+Deverbal *starting* takes a *with* PP Complement and licenses Adjunct and
+preposed Adjunct functions under orchestrator ruling SW1 (2026-10-10,
+`english-v3-starting-with-adjunct`). This is a project analysis; CGEL's
+conversion of secondary verb forms to Prepositions (Ch. 7 §2.3,
+pp. 610–611) does not list *starting*.
 
 **Predicative Complement of a Preposition**:
 A Complement that ascribes a property or role to a Predicand, as the Noun

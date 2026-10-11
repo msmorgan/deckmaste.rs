@@ -264,10 +264,24 @@
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/To": {"NominalComplementMarker": "To", "PrepositionFunctionLicence": "VerbComplement|ComparativeComplement|NounComplement|Compound|Modifier", "GerundClauseComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
-        "vocab:Preposition/With": {"PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "QuotedComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
+        "vocab:Preposition/With": {"PrepositionPhraseComplementMarker": "With", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "QuotedComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
         "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        // Orchestrator rulings SW1–SW2 (2026-10-10): deverbal Preposition
+        // with an obligatory with-PP Complement; the Adjective stays distinct.
+        (
+            id: "vocab:Preposition/Starting", lemma: "starting", category: Preposition,
+            properties: (countability: [], features: {
+                "PrepositionComplement": "PrepositionPhrase",
+                "PrepositionPhraseComplementLicence": "With",
+                "PrepositionFunctionLicence": "Adjunct|PreposedAdjunct",
+                "LocativeUse": "No",
+            }, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Starting"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // CGEL Ch. 5 §12(b), p. 434: fractional noun in predeterminer use.
         (
             id: "lexeme:Fraction/Half", lemma: "half", category: Noun,

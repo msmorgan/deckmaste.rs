@@ -136,4 +136,56 @@ ruling under **Preposition Function Licence** if a licence value is added.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`wxxvsntt`, BEFORE before editing, AFTER with this change;
+   claim `nltwmkvp`): bounded selector `(?i)\bstarting\b`, 84 attested faces
+   plus 300 covered controls, seed 20261008, one overlap: 383 faces.
+   Covered 318 → 331; Readings 6,590 → 6,821; gained 13, lost none.
+   This ticket gains 12; difference-noun refresh change `ropwqyov` gains
+   Shadow of Mortality (0 → 1), with *the difference* read as its declared
+   scalar noun phrase (byte-exact, zero issues).
+   decreases 0, increases 0, digest-only 1, issues 0. The sole digest change
+   is Janjeet Sentry (2 → 2): refresh brought declared mass countability on
+   its invariant {E} Words from quantified-energy change `tznkrzpw`.
+   The official AFTER-to-refreshed-AFTER diff attributes that change to trunk;
+   this ticket’s pre-refresh diff had digest-only 0. Existing covered
+   *starting* faces retain their complete Reading sets. Wrong-analysis gains: 0.
+2. **Witnesses** (`wxxvsntt`): The Horus Heresy 0 → 2 (control 2), Eureka
+   0 → 2 (control 2), Whims of the Fates 0 → 1 (control 1), Druid of
+   Purification 0 → 4 (control 4), Plague of Vermin's first sentence
+   0 → 1 (control 1). Counts are full-passage probes, not per-line face sums.
+   None already read on the claim parent. During, As, *with you*,
+   *starting life total*, and *starting deck* controls remain 1.
+   All 12 ticket-gained-face full-document probes match their Adjunct-free controls
+   (W9-A); in particular Collective Voyage 120/120 and The Horus Heresy 48/48.
+3. **Spot checks** (`wxxvsntt`): Alliance of Arms, Collective Voyage,
+   Disciple of Caelus Nin, Druid of Purification, Eureka, Hypergenesis,
+   Minds Aglow, Shared Trauma, The Horus Heresy, The Legend of Yangchen.
+   Each selected Reading has InitialPreposition with a deverbal Preposition
+   *starting* whose Complement is the complete *with you* PP; all are
+   byte-exact.
+4. **Deviations and STOPs**: no new or retired Construction or Frame, no
+   loader changes, no design STOP. Both refresh append conflicts in
+   `suite_2.rs` were resolved by retaining the imported modules and
+   starting-with module once each. Standing pre-integration review is pending. SW2 requires the With Complement licence and
+   declared Preposition Phrase Complement Marker, propagated through PP heads
+   and Coordination; the glossary defines the marker and cites SW1 under
+   Preposition Function Licence. The existing attributive Adjective remains.
+   SW3: post-Subject Mana-Charged Dragon (1 face) remains unread; the sole
+   Then face, Rejoin the Fight, retains its out-of-scope *next opponent in
+   turn order* gap; clause-final attestation 0. Plague of Vermin's later text
+   still prevents full-face coverage. Seed 20261008 follows the binding budget.
+5. **Tests** (`wxxvsntt`): `cargo test -p deckmaste_english_v3` passed
+   (1,027 before refresh; 1,034 after energy; 1,037 after difference);
+   `cargo test -p deckmaste_lexical_source` passed (88 tests, all runs).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed
+   before and after both refreshes.
+   An initial test compilation needed an explicit expected Lexeme ID type;
+   clippy required Copy use and a value comparison for the empty vector.
+   For this change: restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0.
+   `cargo build -p xtask` passed; cite checks report 0 noncompliant, 0 stale;
+   `jj --no-pager diff --git | cargo xtask cite audit --diff` found no new
+   citation sites. Evidence is under `target/english-v3/english-v3-starting-with-adjunct/`.
+6. **Timing** (`wxxvsntt`): final refreshed bounded AFTER census 21.58 s wall under
+   `/usr/bin/time -v`, 6 workers, samples-per-face 0. No full corpus run,
+   per the binding verification budget.

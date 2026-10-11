@@ -76,3 +76,6 @@ mod quantified_energy_symbol;
 
 #[path = "suite/difference_noun.rs"]
 mod difference_noun;
+
+#[path = "suite/starting_with_adjunct.rs"]
+mod starting_with_adjunct;
