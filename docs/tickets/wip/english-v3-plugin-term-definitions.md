@@ -239,8 +239,9 @@ Claim-parent probes are under
 
 ## Landing record
 
-1. **Census delta (`ztvzruvp`):** bounded manifest `target/english-v3/
-   english-v3-plugin-term-definitions/manifest.json`, 1,076 faces: 785 matching
+1. **Census delta (`ztvzruvp`):** bounded `--identity-manifest` selector
+   `target/english-v3/english-v3-plugin-term-definitions/manifest.json`,
+   1,076 faces: 785 matching
    `modif|part(y|ies)|multikick|expend|descend|poison|wicked|monster|young hero|cursed|royal|sorcerer|virtuous|bands with other|empower|convok|devour|saddl|evolv|banded|day|night|gift|promis`
    anywhere in supported analysed text, unioned with 300 covered controls
    (seed 20261008; all 300 covered on the claim parent). Covered 748 → 849;
@@ -248,7 +249,13 @@ Claim-parent probes are under
    digest-only/source changes 0. Lost faces: none. No unintended-analysis
    gains found. `english-v3 diff --lines` evidence is `diff.json` in that
    directory; no bespoke census comparison was used.
-2. **Witnesses (`ztvzruvp`, after/control):** modified attributive 2/2,
+   Post-refresh recheck (`refreshed-after.json`, `refreshed-diff.json`) has
+   exactly the same totals and delta. The official `incoming-diff.json`
+   compares the first AFTER with the refreshed AFTER: all 1,076 faces and
+   their per-line Reading counts/digests are unchanged.
+2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
+   0 on the claim parent; controls had the counts below before the edit.
+   Modified attributive 2/2,
    predicative 1/1; party 0/3; full party 0/1; both multikicker units 1/1;
    expend 1/1 (both attested Amount-frame controls 1/1); descended 1/2
    (including the Enterprising Scallywag unit); poisoned 1/1 (Corrupted
@@ -292,6 +299,12 @@ Claim-parent probes are under
    `every_keyword_template_is_consistent_with_its_params_and_grammar`. Their
    first two full-core runs exposed the missing expected inventory rows;
    verification was rerun after extending those rows.
+   Required refresh imported devotion (`mqyqzunv`), scalar comparatives
+   (`vszmnwup`) and supertype bound keywords (`ooumkosu`), including changes
+   to construction-v3-core, English declarations and core lexicon data.
+   The sole conflict was concurrent suite_6 registrations: preserved both
+   devotion and plugin-term modules exactly once, squashed the resolution
+   into `ztvzruvp`, and retried refresh successfully (no-op).
 5. **Tests:** all final commands exit 0:
    - `cargo test -p deckmaste_english_v3` — 964 passed.
    - `cargo test -p deckmaste_lexical_source` — 86 passed.
@@ -315,7 +328,19 @@ Claim-parent probes are under
    Final logs and command outcomes are in `verification.json` and adjacent
    logs under the evidence directory. Assurance counts: restored 0 /
    re-spelled 0 / ignored 0 / added 3 / removed 0; no removals to justify.
+   Required post-refresh verification also passed: `cargo build -p xtask`;
+   all five test commands and all five clippy commands above rerun in full
+   (the owner-prescribed `english_v3` selector for xtask). Refreshed totals:
+   English 979, lexical source 86, construction core 474, semantics_v2 105,
+   xtask English-v3 56. Additionally, `cargo test -p deckmaste_construction_v3_core`
+   passed 39 tests and `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
+   passed, because refresh changed that crate. All commands exit 0;
+   `refresh-verification.json` and `refresh-0.log` through `refresh-15.log`
+   retain their exact commands and outcomes. Plugin definitions did not change
+   during refresh; the required Lean check was run once as recorded above.
 6. **Timing (`ztvzruvp`):** final bounded census 45.17 s wall time under
    `/usr/bin/time -v`, six workers, `--samples-per-face 0`. No full-corpus
    run. The trial-data census was rerun after removing the two unusable
    declarations; final results above are for the retained data only.
+   Post-refresh bounded recheck: 22.86 s wall under `/usr/bin/time -v`,
+   the identical manifest, six workers, zero samples per face.
