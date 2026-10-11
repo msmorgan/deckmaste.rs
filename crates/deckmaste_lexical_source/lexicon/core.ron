@@ -209,7 +209,7 @@
         "vocab:ComparativeQuantifier/More": {"NominalComplementMarker": "Of", "ComparativeDeterminerUse": "Yes", "DeterminerUse": "PluralOrMass", "ComparativeQuantityUse": "Yes", "MeasureModifierUse": "Yes"},
         "vocab:ComparativeQuantifier/Fewer": {"NominalComplementMarker": "Of", "ComparativeDeterminerUse": "Yes", "DeterminerUse": "PluralCount", "ComparativeQuantityUse": "Yes"},
         "vocab:Determinative/Less": {"NominalComplementMarker": "Of", "ComparativeDeterminerUse": "Yes", "DeterminerUse": "Mass", "ComparativeQuantityUse": "Yes", "MeasureModifierUse": "Yes"},
-        "vocab:ScalarDegree/Greater": {"ScalarComparativeUse": "Yes", "ImplicitComparativeUse": "Yes"},
+        "vocab:ScalarDegree/Greater": {"ScalarComparativeUse": "Yes", "ImplicitComparativeUse": "Yes", "MeasureModifierUse": "Yes"},
         "vocab:ScalarDegree/Equal": {"ImplicitComparativeUse": "Yes"},
         "vocab:ScalarDegree/Lesser": {"ImplicitComparativeUse": "Yes"},
         "vocab:DefiniteMarker/The": {"Definiteness": "Definite", "NominalAdjunctDependent": "Definite", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},

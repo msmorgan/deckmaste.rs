@@ -141,6 +141,7 @@ fn scalar_location(possessor: &str, value: Reading) -> Reading {
             }),
         }),
         predicate: Box::new(Reading::ScalarLocationPredicate {
+            category: Category::ScalarLocationPredicate,
             form: 0,
             head,
             complements: vec![FrameValue::Argument(Box::new(value))],

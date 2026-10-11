@@ -82,3 +82,6 @@ mod up_to_that_many;
 
 #[path = "suite/mana_symbol_nominal.rs"]
 mod mana_symbol_nominal;
+
+#[path = "suite/irrealis_scalar_difference.rs"]
+mod irrealis_scalar_difference;

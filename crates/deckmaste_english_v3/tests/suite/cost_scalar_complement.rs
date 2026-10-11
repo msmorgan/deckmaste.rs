@@ -114,6 +114,7 @@ fn predicate(complement: Reading, infinitival: Option<Reading>) -> Reading {
 fn independent_complements_preserve_both_laws_and_traversal_identity() {
     // Exact predicate fragments in Inquisitive Glimmer and Ghoultree.
     let measured = Reading::MeasuredScalarLocation {
+        category: Category::ScalarLocationComplement,
         form: 0,
         modifier: Box::new(symbols(1)),
         head: word("vocab:Determinative/Less", WordForm::Invariant),
@@ -269,6 +270,7 @@ fn ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected() {
     assert!(wrong.admit(common::lexicon()).is_err());
     assert!(wrong.realize(common::lexicon()).is_err());
     let wrong = Reading::MeasuredScalarLocation {
+        category: Category::ScalarLocationComplement,
         form: 0,
         modifier: Box::new(symbols(1)),
         head: word("vocab:ScalarDegree/Greater", WordForm::Invariant),

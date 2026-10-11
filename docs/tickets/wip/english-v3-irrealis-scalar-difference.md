@@ -112,3 +112,66 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 - Semantics of crewing with modified power.
 
 ## Landing record
+
+1. **Census delta** (`ouykkpns` before edits, equivalent to claim parent
+   `zyovmtwr`, → `ouykkpns` verified implementation): bounded 4,190 faces;
+   covered **3,578 → 3,596**, total Readings **203,239 → 203,495**.
+   Official `english-v3 diff --lines`: lost **0**, gained **18**, decreases **0**,
+   increases **0**, digest-only **625**. The digest-only changes make the
+   existing scalar-predicate and measured-cost schema Categories explicit;
+   their Reading counts are unchanged. Lost faces: none. No gained face reads
+   only through an unintended analysis. Selector: every supported face matching
+   `\bwere\b|\bweren.t\b|\b(greater|less|more|fewer)\b`, case-insensitive
+   (3,914 faces), plus 300 covered controls chosen by the official diff manifest
+   writer with seed **20261008**; 24 overlap. Evidence and identity manifest:
+   `target/english-v3/english-v3-irrealis-scalar-difference/` (`before.json`,
+   `after.json`, `diff.json`, `manifest.json`).
+2. **Witnesses** (complete Sentence enumeration on `ouykkpns`): all ticket
+   witnesses failed on the claim-parent grammar; none was dropped. Hotshot
+   Mechanic **0 → 1**; Deathless Pilot, Dynamite Diver and Cloudspire Captain's
+   shared saddles/crews line **0 → 2** each; Prodigy's Prototype's whole trigger
+   sentence **0 → 5**, with **1** Reading of the quoted Pilot sentence.
+   W9-A controls: the saddles/crews and modal-crew sentences with the existing
+   *as though it had flash* clause each have **2**; Prodigy's Prototype with
+   the quoted basic crew sentence has **5**. Those independent attachments and
+   outer ambiguities survive. Modal crew witness **0 → 2**; *were 2* localization
+   **0 → 1**; *Its power is 2 greater.* **0 → 1**. The six stated controls retain
+   **1, 1, 1, 2, 2, 2**, respectively. The unattested explicit-standard
+   localization *Its power is 2 greater than its toughness.* stays **0 → 0**;
+   IS2 covers the bare comparative.
+3. **Spot checks** (`ouykkpns`): Hotshot Mechanic, Deathless Pilot, Dynamite
+   Diver and Cloudspire Captain select an irrealis copula with a measured
+   adjectival predicative Complement in their direct crew/saddle clause.
+   Prodigy's Prototype, Shorikai, Genesis Engine, Born to Drive, Back on Track,
+   Reckoner Bankbuster and Roadside Assistance select that same analysis inside
+   the quoted token ability. All ten retain numeral *2* as the Modifier of
+   adjective *greater*, with the declared empty comparative frame. Each
+   inspected Reading realizes the full face exactly and has zero issues.
+4. **Deviations and STOPs**: no new named Construction or lexical frame;
+   both existing Constructions became shared schemas with one additional
+   instance each. IS1 retains the existing scalar Subject restriction using
+   Scalar Denotation. IS2's measured adjective fills the predicative Complement
+   slot directly in the shared schema, preserving its Adjective head and
+   Measure Modifier. This fixed a chart-budget regression found by the full
+   suite in `all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`:
+   its final fixture uses **11,541** items on `ouykkpns`, versus **11,536** on
+   `zyovmtwr`, under the unchanged **12,000** limit. No test was weakened.
+   Seed 20261008 follows the binding session instruction rather than the Method's
+   older seed. No superseded lexical or grammar route remains; existing live
+   cost and bounded-property routes are retained. No STOP or glossary gap.
+5. **Tests** (`ouykkpns`): full `cargo test -p deckmaste_english_v3` passed
+   (1,053 tests), following the initial chart-budget failure and its grammar
+   fix; full `cargo test -p deckmaste_lexical_source` passed.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored **0** / re-spelled **3** / ignored **0** / added **5** / removed **0**.
+   The three re-spellings preserve the same independent values and assertions
+   in `independent_scalar_location_preserves_both_laws_and_traversal_identity`,
+   `independent_complements_preserve_both_laws_and_traversal_identity`, and
+   `ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected`, adding
+   only the shared schemas' explicit Category fields. No removal to justify.
+   Citation checks: zero noncompliant, zero stale; the piped diff audit found
+   zero new citation sites, so no new rule registration was needed.
+6. **Timing** (`ouykkpns`): final complete bounded census wall **208.335 s**,
+   **6 workers**, `--samples-per-face 0`, captured under `/usr/bin/time -v`.
+   No full-corpus census was run.

@@ -581,7 +581,7 @@ constructions! {
         category FiniteGappedClause();
         category InterveningPrepositionAdjunct();
         category IrrealisClause();
-        category IrrealisPredicate(number, person);
+        category IrrealisPredicate(number, person, ScalarDenotation);
         category CentralAdverbSelectedHead(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
         category ExistentialExtension();
         category DummyPronoun();
@@ -1223,6 +1223,7 @@ constructions! {
         }
 
         policy IrrealisHeadAgreement {
+            export ScalarDenotation = No;
             require head.form = Irrealis;
             require head.finiteness = Finite;
             require head.Clitic = No;
@@ -3094,10 +3095,16 @@ constructions! {
             use FiniteAuxiliaryAgreement;
         }
 
+        // IS1 (orchestrator ruling, 2026-10-10): retain the scalar-location
+        // Subject restriction when extending the copula's irrealis instance.
+        table scalar_subject_licence(ScalarDenotation, ScalarDenotation) -> Selection {
+            (_, No) => Yes, (Yes, Yes) => Yes,
+        }
         // CGEL Ch. 3 §§1.7–1.8.1, pp. 86–88: finite irrealis is non-tensed
         // and distinct from the ordinary agreeing preterite.
         construction IrrealisClause: IrrealisClause {
             form [subject: NominativePhrase, " ", predicate: IrrealisPredicate];
+            require scalar_subject_licence(subject.ScalarDenotation, predicate.ScalarDenotation) = Yes;
             require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes;
             agree subject.person = predicate.person;
         }
@@ -3138,10 +3145,23 @@ constructions! {
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
-        construction ScalarLocationPredicate: ScalarLocationPredicate {
+        schema ScalarLocationPredicate {
             form [head: lexical(Verb), complements: selected_frame(head, ScalarLocation)];
-            use FiniteHeadAgreement;
         }
+        policy IrrealisScalarHeadAgreement {
+            require head.form = Irrealis;
+            require head.finiteness = Finite;
+            require head.Clitic = No;
+            export number = head.number;
+            export person = head.person;
+            export ScalarDenotation = Yes;
+        }
+        // IS1 (orchestrator ruling, 2026-10-10): the irrealis copula
+        // selects the same scalar-location frame as the finite copula.
+        instance ScalarLocationPredicate<Result, Properties>: [
+            (ScalarLocationPredicate, FiniteHeadAgreement),
+            (IrrealisPredicate, IrrealisScalarHeadAgreement),
+        ] { use Properties; }
 
         // Preposed temporal NP position: project ruling R11a (2026-10-09).
         // Keep the existing PP forms and their Reading identities.
@@ -6573,10 +6593,22 @@ constructions! {
         }
 
         // Project analysis: a mana measure modifies the comparative determinative.
-        construction MeasuredScalarLocation: ScalarLocationComplement {
-            form [modifier: CostSymbols, " ", head: lexical(Determinative)];
+        schema MeasuredScalarLocation {
+            form [modifier: node, " ", head: lexical(node)];
             require head.MeasureModifierUse = Yes;
         }
+        // IS2–IS3 (orchestrator ruling, 2026-10-10): the measure modifies
+        // the comparative head when its standard is unexpressed.
+        policy MeasuredComparativeAdjectiveProperties {
+            require modifier.MeasureKind = Scalar;
+            require head.frame = Intransitive;
+            export PredicativeKind = Adjectival;
+            export PredicativeAdjunctUse = No;
+        }
+        instance MeasuredScalarLocation<Result, Modifier: modifier, Head: head, Properties>: [
+            (ScalarLocationComplement, CostSymbols, Determinative, NoFeatures),
+            (PredicativeComplement, MeasurePhrase, Adjective, MeasuredComparativeAdjectiveProperties),
+        ] { use Properties; }
 
         // A selected hollow internal Complement links its Object Gap to the Subject
         // (CGEL Ch. 14 §6.3(c), p. 1250); ordinary infinitivals keep a full predicate.
