@@ -75,6 +75,18 @@ Orchestrator rulings 2026-10-10:
   covered face containing *dealt to* or *dealt by* means DR3(a) leaked;
   report it with its shape before landing.
 
+Orchestrator ruling DR6 (2026-10-11): first choice, no new declaration:
+use the optional lexical field support landed in `ooumkosurztr` under SB8 of
+`english-v3-supertype-premodified-bound-keyword`. Give `SelectedVerbHead` an
+optional selected-Preposition field; its requirements apply only when present.
+Its licence reads the verb frame and Preposition Function Licence. Preserve
+existing counts, include every claim-parent `SelectedVerbHead` consumer in the
+bounded manifest, and classify expected digest-only changes if Readings gain a
+field. Second choice, only if that field cannot express the member (explain
+why): one passive selected-head Construction feeding the existing coordination
+and Shared Complement route, disclosed against the Construction budget.
+DR2–DR5 remain in force.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed with the `ymqwzour` binary
@@ -100,6 +112,41 @@ dealt to this creature and dealt by this creature." 3+ (basic coordination);
 "Whenever this creature attacks or blocks a creature, destroy that
 creature." 2; "Whenever this creature blocks or becomes blocked by a
 creature, destroy that creature." 3+; "Damage is dealt to this creature." 1.
+
+## Claim-parent probes and DR1 STOP (2026-10-11)
+
+Measured on `mzpnmlpo`, empty child of claim `nqlnoplr` (claim parent
+`orwuzrvu`), with `cargo xtask english-v3 probe --category sentence
+--readings 100 --json`. Every enumeration completed:
+
+| Witness | Shared NP | To control | By control |
+|---|---:|---:|---:|
+| Fog Bank | 0 | 5 | 10 |
+| Gaseous Form | 0 | 5 | 10 |
+| Maze of Ith (second sentence) | 0 | 11 | 28 |
+| Kiora, the Crashing Wave (without loyalty cost) | 0 | 4 | 9 |
+| Statecraft | 0 | 12 | 22 |
+
+Other controls: basic coordination 14; attacks or blocks 2; blocks or
+becomes blocked 3; simple passive 1. Standalone *dealt to*, probed as
+`secondary-verb-phrase`, has 0. No witness was already covered.
+
+Bounded BEFORE: 857 faces, 812 covered, 81,312 Readings; 54.84 seconds,
+6 workers. Manifest unions the Method's 420 surface faces, 300 covered
+controls selected with seed 20261008 (user direction supersedes the Method's
+seed), and 144 selected-head consumers identified by Construction in
+`baseline-wave8.json`. Evidence is under
+`target/english-v3/english-v3-delayed-right-constituent-passive/`.
+
+STOP requiring an amendment to DR1: `SelectedVerbHead` stores only its verb
+Word; the proposed incomplete passive member needs both that Word and its
+Preposition Word. The v3 compiler requires every form to retain the same named
+fields and cardinalities (`crates/deckmaste_construction_v3_core/src/ir.rs`,
+form validation); schema instances cannot override schema-owned forms. A new
+coordination-schema row alone does not create an incomplete member. Proposed
+resolution: permit a passive selected-head declaration retaining both Words,
+using the existing Coordination schemas and Shared Complement route. No
+implementation or test changes have been made pending that ruling.
 
 ## Method
 
