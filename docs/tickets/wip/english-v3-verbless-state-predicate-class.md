@@ -174,6 +174,13 @@ and continuation; the final checks are recorded below.
    gains, 0 lost/increases, the same 25 CF7 decreases and 157 digest-only
    changes. There are 0 issues. No new material from this ticket changes
    a covered face; the preferred class satisfies VW11/VW12's gate.
+   Waterbend refresh (ulrnwvuw) adds seven trunk gains and no other change:
+   waterbend-refresh-only-diff.json retains every previously covered
+   Reading and digest. Final parent comparison: 5,972→6,120 covered,
+   214,320→235,479 Readings, 148 trunk gains, 0 lost/increases, the same
+   25 CF7 decreases, 157 digest-only changes and 0 issues. Ticket-caused
+   census changes remain zero. Evidence: waterbend-refresh-after.json,
+   waterbend-refresh-only-diff.json, waterbend-refresh-parent-diff.json.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
    gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
    tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
@@ -230,6 +237,13 @@ and continuation; the final checks are recorded below.
    fixture is re-spelled to include the derived feature while retaining its
    complete feature-map comparison. The new legendary exclusion is
    re-spelled as the exact positive class Reading under VW12.
+   An additional, optional facts check after the phrasal-keyword refresh
+   fails: ChooseABackground has no gate-column overlay. That registry
+   checker reads builtin declarations and xtask overlays, not the adjective
+   loader; the inherited zvoyutom declaration is unrelated to this class.
+   No facts overlay or exemption is added in this ticket. Required English,
+   lexical-source, xtask-English and Lean gates all pass. The failed command
+   is preserved in integration-refresh-facts.log rather than reported green.
 5. **Tests** — On vsvvsrvs, cargo test -p deckmaste_english_v3 PASS:
    975 tests across all six binaries. cargo test -p deckmaste_lexical_source
    PASS: 87 tests (43 unit, 44 integration). cargo clippy -p
@@ -255,12 +269,18 @@ and continuation; the final checks are recorded below.
    deckmaste_lexical_source --tests -- -D warnings PASS; cargo test -p xtask
    english_v3 PASS (56 tests). The refreshed cargo xtask lean check PASS: all 242 cards across two
    plugins prove Card.check = []. Integration refresh checks also PASS:
-   cargo build -p xtask; cargo test -p deckmaste_english_v3 (990 tests);
+   cargo build -p xtask; cargo test -p deckmaste_english_v3 (998 tests);
    cargo test -p deckmaste_lexical_source (87 tests); cargo clippy -p
    deckmaste_english_v3 --tests -- -D warnings; cargo clippy -p
    deckmaste_lexical_source --tests -- -D warnings; cargo test -p xtask
    english_v3 (56 tests); cargo xtask lean check (242 cards, two plugins).
-6. **Timing** — Latest bounded census: 476 s (rounded wall time), six
+   After waterbend refresh these same commands PASS again: 1,002 English
+   tests, 87 lexical-source tests, 56 xtask-English tests, both clippy
+   commands and 242 Lean card proofs across two plugins. The additional
+   cargo xtask facts check fails on the inherited missing ChooseABackground
+   overlay, as disclosed in item 4; its earlier pre-phrasal passes remain
+   historical results.
+6. **Timing** — Latest bounded census: 319 s (rounded wall time), six
    workers, zero samples per face. No full corpus census was run, per the
    binding verification budget. Evidence is under
    target/english-v3/english-v3-verbless-state-predicate-class/.
