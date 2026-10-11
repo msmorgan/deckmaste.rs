@@ -221,8 +221,31 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    that fixture is blocked by the earlier item guard. All three requested
    review measurements pass. The review instruction prohibits grammar changes
    unless one fails; neither grammar nor the test guard has been changed.
-   A ruling is needed to address this refresh interaction without weakening
-   the test. Evidence: `tests-refresh.log`, `refresh-performance-probe.json`.
+   Evidence: `tests-refresh.log`, `refresh-performance-probe.json`.
+   **CP6 measurement, STOP (orchestrator ruling, 2026-10-11):** a fresh
+   `cargo build -p xtask` on the refreshed claim parent `ywzorprm`, without this
+   landing, supplies the baseline. The default workspace's available binary
+   predates its current source; its preliminary counts are excluded. All nine
+   same unscoped Document witnesses were probed with `--packed --readings 2
+   --json` on the refreshed parent and this landing. Chart items, parent →
+   landing (delta): Brothers of Fire 7,732 → 7,815 (+83); Fireslinger 7,690 →
+   7,773 (+83); Goblin Artillery 7,690 → 7,773 (+83); Orcish Artillery 7,690 →
+   7,773 (+83); Orcish Cannoneers 7,690 → 7,773 (+83); Psionic Entity 7,684 →
+   7,767 (+83); Reckless Embermage 7,705 → 7,788 (+83); Forge Devil 9,089 →
+   9,184 (+95); the final two-line artifact damage/gain fixture 11,895 →
+   12,017 (+122). Every witness grew; all eighteen probes have exactly one
+   Reading, complete enumeration and zero issues. The maximum delta is 122,
+   exceeding CP6's 1% of the 12,000 budget (120 items) by two items. The parent
+   itself is below the ceiling. CP6 therefore requires STOP: no budget change,
+   grammar change or hygiene-ticket append; attribution sufficient to permit
+   re-budgeting has not been established. The exact-Reading-set assertions
+   remain untouched. Evidence: `cp6-nine-measurements.json`, the eighteen
+   `cp6-*-refreshed-parent.json` / `cp6-*-feature.json` packed probes, and
+   `cp6-parent-build.log`. The workspace is restored to its landing tree;
+   cached xtask currently contains the diagnostic parent build. No refresh or
+   integration was run for CP6. Re-spelled remains six, with no budget
+   re-spelling. Full suite/clippy were not repeated after this measurement:
+   no code changed and CP6's excessive-delta branch requires STOP.
 
 5. **Tests** (`ptokxtuo`): `cargo test -p deckmaste_english_v3` passed all 1,064
    tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
