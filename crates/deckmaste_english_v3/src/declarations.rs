@@ -12,6 +12,7 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
+        feature SuperlativeQuantifierUse { No, Yes } default No;
         feature DegreeUse { None, Head, Modifier } default None;
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
@@ -1026,6 +1027,8 @@ constructions! {
             DeterminerRequirement, NominalAdjunctDependent) -> Selection {
             // FH7 (orchestrator, 2026-10-10): noun-side definite selection.
             (Unrestricted, Singular, Count, Definite, Definite) => Yes,
+            (Unrestricted, Plural, Count, Definite, Definite) => Yes,
+            (Unrestricted, Singular, Mass, Definite, Definite) => Yes,
             (SingularCount, Singular, Count, No, _) => Yes,
             (SingularCount, Singular, Count, Yes, _) => Yes,
             (Unrestricted, Singular, Count, No, _) => Yes,
@@ -3857,6 +3860,53 @@ constructions! {
             require modifier.AdjectiveStructure = Simple;
             require modifier.AdjectivePremodifierUse = Yes;
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+        }
+
+        table superlative_quantifier_license(DeterminerUse, number, countability) -> Selection {
+            (PluralOrMass, Plural, Count) => Yes, (PluralOrMass, Singular, Mass) => Yes,
+            (PluralCount, Plural, Count) => Yes, (Mass, Singular, Mass) => Yes,
+            (Unrestricted, Singular, Count) => Yes, (Unrestricted, Plural, Count) => Yes,
+            (Unrestricted, Singular, Mass) => Yes,
+        }
+        // SM1–SM4 and the owner ruling (2026-10-11) assign internal Modifier
+        // function to the declared superlative class. CGEL p. 1166 [15] backs
+        // the superlative meaning, not this project choice of internal structure.
+        construction SuperlativePremodifiedNominal: Nominal {
+            form [modifier: lexical(Determinative), " ", head: Nominal];
+            form [modifier: lexical(Adjective), " ", head: Nominal];
+            require modifier.SuperlativeQuantifierUse = Yes;
+            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+            require superlative_quantifier_license(modifier.DeterminerUse,
+                head.number, head.countability) = Yes;
+            export NominalDependentPresent = Yes;
+            export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
+            export NominalAgreementNumber = head.NominalAgreementNumber;
+            export BarePrepositionUse = head.BarePrepositionUse;
+            export NominalComplementMarker = head.NominalComplementMarker;
+            export MeasurePosition = head.MeasurePosition;
+            export ScalarMeasurementHeadUse = No;
+            export ScalarDenotation = head.ScalarDenotation;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
+            export number = head.number;
+            export countability = head.countability;
+            export Targeting = head.Targeting;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            export ObliqueNumber = head.ObliqueNumber;
+            export DeterminerRequirement = coordinated_determiner_requirement(
+                modifier.DeterminerRequirement, head.DeterminerRequirement);
+            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
+            export SubjectRelativeNumber = head.SubjectRelativeNumber;
+            export BareGenitiveHost = head.BareGenitiveHost;
+            export ComparativeModifierPresent = head.ComparativeModifierPresent;
+            export PropertyValuePosition = head.PropertyValuePosition;
+            export SelectedPrepositionUse = head.SelectedPrepositionUse;
+            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
+            export SourceModifierPresent = head.SourceModifierPresent;
+            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
         }
 
         // CGEL pp. 393, 395 gives comparative Determiner function and head

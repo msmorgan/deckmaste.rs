@@ -220,7 +220,7 @@
         "vocab:Determinative/Any": {"NominalComplementMarker": "Of", "QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary", "NominalAdjunctDependent": "Temporal"},
         "vocab:Determinative/Either": {"NominalComplementMarker": "Of", "CorrelativeKind": "Either", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Many": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
-        "vocab:Determinative/Most": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
+        "vocab:Determinative/Most": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary", "SuperlativeQuantifierUse": "Yes", "DeterminerRequirement": "Definite"},
         "vocab:Determinative/Much": {"NominalComplementMarker": "Of", "DeterminerUse": "Mass", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
         "vocab:Determinative/Neither": {"NominalComplementMarker": "Of", "CorrelativeKind": "Neither", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/No": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
@@ -708,7 +708,7 @@
         ),
         (
             id: "vocab:AttributiveAdjective/Fewest", lemma: "fewest", category: Adjective,
-            properties: (countability: [], features: {"HomographLicense": "Unlicensed", "ModifierLicense": "Unrestricted", "QuantitativeAdjectiveComplementUse": "Yes"}, frames: []),
+            properties: (countability: [], features: {"HomographLicense": "Unlicensed", "ModifierLicense": "Unrestricted", "QuantitativeAdjectiveComplementUse": "Yes", "SuperlativeQuantifierUse": "Yes", "DeterminerUse": "PluralCount", "AdjectivePremodifierUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:AttributiveAdjective/Fewest"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1937,7 +1937,7 @@
         ),
         (
             id: "vocab:Adjective/Least", lemma: "least", category: Adjective,
-            properties: (countability: [], features: {"QuantitativeAdjectiveComplementUse": "Yes"}, frames: []),
+            properties: (countability: [], features: {"QuantitativeAdjectiveComplementUse": "Yes", "SuperlativeQuantifierUse": "Yes", "DeterminerUse": "Unrestricted", "AdjectivePremodifierUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adjective/Least"),
             capitalization: Initial, binding: Free, surface_structure: Word,

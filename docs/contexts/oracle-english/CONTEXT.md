@@ -1162,6 +1162,17 @@ It is distinct from the Determiner function.
 **Determinative Phrase**:
 A phrase headed by a Determinative, including cardinal determinatives.
 
+**Superlative Quantifier**:
+A quantifier comparing members of a set by quantity, rather than expressing a
+proportion; inserting *the* distinguishes superlative *most* from proportional
+*most* (CGEL, Ch. 13 §6.3.2, p. 1166 [15]).
+
+**Superlative Quantifier Use** (project term):
+A Lexeme's declared permission to function as an internal pre-head Modifier
+of a Nominal, retaining its head Number and Countability licence; *most* in
+this function requires an outer definite Determiner (orchestrator rulings
+SM1–SM3 and the owner ruling, 2026-10-11, `english-v3-superlative-most`).
+
 **Degree Modifier**:
 A Modifier expressing degree, including the Determinative *that* modifying
 *many* or *much* within a Determinative Phrase (CGEL, Ch. 5 §11(c), p. 431).

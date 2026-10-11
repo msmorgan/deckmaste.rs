@@ -121,3 +121,6 @@ mod plugin_term_definitions;
 
 #[path = "suite/your_choice_of_keywords.rs"]
 mod your_choice_of_keywords;
+
+#[path = "suite/superlative_quantifiers.rs"]
+mod superlative_quantifiers;

@@ -829,8 +829,8 @@ const WITNESSES: &[(&str, &str, &str, Category, usize, Category, &str)] = &[
         "At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token.",
         Category::Document,
         1,
-        Category::AdjectivePhrase,
-        "fewest",
+        Category::Nominal,
+        "fewest creatures",
     ),
     (
         "fewest",
@@ -838,8 +838,8 @@ const WITNESSES: &[(&str, &str, &str, Category, usize, Category, &str)] = &[
         "each player who controls the fewest creatures",
         Category::NounPhrase,
         1,
-        Category::AdjectivePhrase,
-        "fewest",
+        Category::Nominal,
+        "fewest creatures",
     ),
     (
         "wrong",

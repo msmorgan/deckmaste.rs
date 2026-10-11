@@ -135,4 +135,70 @@ quantifier use (CGEL p. 1166 [15iv]) in the landing.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`nklknwxy`, before/after; claim parent `ytpquprw`,
+   grammar base `qklnposw`): 446 faces, comprising all 147 supported faces
+   matching `(?i)\b(most|fewest|least)\b` anywhere plus 300 covered random
+   controls, seed 20261008 (one overlap). Covered 378 → 389; Readings
+   7,055 → 7,253. Native `english-v3 diff --lines`: lost none, gained 11,
+   decreases 0, increases 0, digest-only 2. Digest classes: *fewest*, one
+   line on Gor Muldrak, Amphinologist (1 → 1); *least*, one line on
+   Witch-king, Bringer of Ruin (14 → 14). Both replace the adjective-phrase
+   wrapper with the shared internal Modifier route, preserving lexical
+   identity and attachment. Evidence: `target/english-v3/english-v3-superlative-most/`
+   (`manifest.json`, `before.json`, `after.json`, `diff.json`).
+2. **Witnesses** (`nklknwxy`): all five ticket witnesses and four failing NP
+   fragments re-probed at the claim parent with 0 Readings; none dropped.
+   After: No Witnesses 1, Wild Mammoth 1, Tectonic Hellion's trigger 1,
+   Ghazbán Ogre 1, Sokenzan Renegade's Subject 4 (its *fewest* control 4).
+   *the most creatures*, *the most life*, *the player with the most life*
+   each have 1; *the player with the most cards in hand* has 3 (control 3).
+   Cardinal/that-player sentence controls each retain 1; *the fewest
+   creatures*, bare *most creatures*, *the greatest power*, *the player
+   who controls the fewest creatures*, *the player with 3 life*, *the least
+   life*, *the fewest lands*, bare *fewest creatures* and bare *least life*
+   retain 1. *the most common color* retains 0. Both roundtrip laws are
+   exercised by independently built article/Modifier/head values.
+3. **Spot checks** (`nklknwxy`): ten newly covered faces reviewed with *the*
+   as Determiner and *most* as internal Modifier of the Nominal. Object of
+   *controls*: No Witnesses (*creatures*), Wild Mammoth (*creatures*),
+   Tectonic Hellion (*lands*), Thoughtbound Primoc (*Wizards*), Scholarship
+   Sponsor (*lands*). Object of *has*: Sokenzan Renegade (*cards in hand*).
+   Complement of *with*: Adamaro, First to Desire (*cards in hand*),
+   Galactus, Devourer of Worlds (*life among your opponents*), Ghazbán Ogre
+   (*life*), Tales of the Ancestors (*cards in hand*). All 11 gains were
+   probed, including Wild Dogs; enumeration complete, byte-exact, no issues.
+   Wrong-analysis-only gains: 0. Independent ambiguity stays, including
+   the 4-versus-4 Subject and 3-versus-3 *with* controls of W9-A.
+4. **Deviations and STOPs**: owner ruling implemented by moving all three
+   existing Lexemes onto one `SuperlativePremodifiedNominal` Construction
+   with category-preserving lexical forms and `SuperlativeQuantifierUse`.
+   This distinguishes the quantifier's head licence and determiner
+   requirement from ordinary adjectival Premodification. The existing
+   `AdjectivePremodifierUse` grammar guard, declared No on *fewest* and
+   *least*, retires their superseded nominal route; their bare uses and
+   quantitative-preposition uses remain. No Lexemes or frames minted.
+   *Most* retains PluralOrMass and requires a definite outer Determiner;
+   *fewest* declares PluralCount; *least* retains its unrestricted head
+   distribution. The initial bounded census found Witch-king's 15-Reading
+   face lost when *least* was restricted to PluralOrMass: restored its
+   singular count *power* use and added the same card as a regression test.
+   Glossary added Superlative Quantifier and Superlative Quantifier Use;
+   CGEL p. 1166 backs the meaning, SM1–SM3/owner rulings the internal
+   structure. Binding seed 20261008 used. STOPs: none.
+5. **Tests** (`nklknwxy`): `cargo test -p deckmaste_english_v3` passed
+   (1,093 passed, one inherited ignore); repeated in full after the census
+   regression fix. `cargo test -p deckmaste_lexical_source` passed (44).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 1 / newly ignored 0 / added 5 / removed 0.
+   Re-spelled `vocabulary_only_witnesses_preserve_counts_and_roles`:
+   both Gor Muldrak cases keep their cards and Reading counts, with the
+   expected constituent changed from AdjectivePhrase *fewest* to Nominal
+   *fewest creatures*, reflecting the retired wrapper. Added tests are
+   `superlative_quantifiers` in `suite_6`, registered once. The inherited
+   ignore is `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`;
+   its existing blocker is `english-v3-mana-symbol-verbless-subject` MS4's
+   governed Mana Phrase Subject route. No test removals to justify.
+6. **Timing** (`nklknwxy`): the bounded 446-face landing census took
+   22.61 s wall time under `/usr/bin/time -v`, with 6 workers and
+   `--samples-per-face 0`.
