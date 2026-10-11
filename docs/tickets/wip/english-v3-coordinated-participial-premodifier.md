@@ -124,6 +124,20 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    from the supplied baseline, seed 20261008 (312 surface faces; two random
    overlaps). Manifest and before/after/diff evidence are under
    `target/english-v3/english-v3-coordinated-participial-premodifier/`.
+   Review reach (`ywzorprm` tree via empty `wqokolrq`, versus `ptokxtuo`
+   tree via empty `rzszunwr`): 4,375 faces, covered 4,042 → 4,059,
+   Readings 207,140 → 228,284; the same 17 gains, 0 lost/decreases/increases,
+   1,309 digest-only faces and 3,049 unchanged. `english-v3 diff --lines`
+   identifies 1,359 digest-only lines; claim-parent Reading inspection attests a retained
+   `VerbalPremodifier` in every one (explicit Category encoding only).
+   No node-level selector is available. `reach-manifest.json` unions the
+   requested fallback grep (2,771 faces), supplied BEFORE-baseline attestations
+   of `VerbalPremodifier`/noun/adjective members (1,366 faces), and the original
+   610-face manifest, including the same 300 covered controls, seed 20261008.
+   Fallback regex:
+   `(?i)\b[a-z]+(ed|ing|en)? (and|or) [a-z]+ (creature|permanent|card|token|spell|land|artifact|enchantment|player)s?\b|, [a-z]+,? (and|or) [a-z]+ (creature|permanent|card|token|spell)`.
+   `reach-before.json`, `reach-after.json`, `reach-diff.json`/`.log` and
+   `reach-line-attestation-batch-parallel.json` hold the wider evidence in the same directory.
    The claim parent has 84 covered *tapped and attacking* faces: all retain their
    counts, with encoding-only digest changes on Hans Eriksson, Kinscaer Sentry,
    Najeela, the Blade-Blossom, Thousand-Faced Shadow, Warren Warleader, and
@@ -136,6 +150,25 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    All witnesses were probed before implementation. The seven ticket controls
    retain counts 1, 1, 5, 1, 1, 1, 1; the ticket's reported 3 was an enumeration
    cap. W9-A preserves the independent copy/relative and quoted-ability ambiguity.
+   Review ambiguity measurements (`ptokxtuo`): the top five gained faces are
+   Altaïr Ibn-La'Ahad 15,751; Shaun, Father of Synths 4,759; Loki, the Deceiver
+   231; Ghalta and Mavren 85; Sauron, the Necromancer 76. Schema-v8 face
+   counts sum line counts. Altaïr = keyword line 1 + paragraph line
+   (75 × 210 × 1) = 15,751; its three sentence probes give 75, 210, 1.
+   The 210-reading sentence's tapped-only control also gives 210. Shaun =
+   first line 4,757 + second line 2; the first line's tapped-only control
+   also gives 4,757. Coordination contributes a factor of 1 in both controls.
+   Isolated NounPhrase probes (CLI `--category noun-phrase`, complete):
+   Furnace's `a tapped and attacking token` / `a tapped token` /
+   `an attacking token`: 1 / 1 / 1; Pugilist's same heads with
+   `1/1 red Devil creature token`: 1 / 1 / 1; Krothuss's same heads with
+   `that's a copy of another target attacking creature`: 5 / 5 / 5;
+   Tetsuo's `target tapped or blocking creature` / `target tapped creature` /
+   `target blocking creature`: 1 / 1 / 1. Every coordinated Reading has one
+   shared Modifier, adjectival tapped, and no verbal-tap or NP-coordination
+   twin. Krothuss's five copy-relative/attachment Readings are present in
+   both single-premodifier controls (W9-A). Evidence: `np-*.json`,
+   `altair-sentence-*.json`, `altair-line-control.json`, `shaun-line-control.json`.
 3. **Spot checks** (`ptokxtuo`): Furnace-Blessed Conqueror, Pugnacious Pugilist,
    Krothuss, Lord of the Deep, Maestros Diabolist, Phantom Steed, Redoubled
    Stormsinger, Satya, Aetherflux Genius, and Sauron, the Necromancer each use
@@ -155,18 +188,49 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    seed 20261008 follows the binding session budget rather than Method's older
    seed. CP5's protected analyses are unchanged; the encoding changes are
    disclosed in item 1.
+   Review reach inventory (forms unchanged unless stated): existing
+   `NounPremodifierMember` and `AdjectivePremodifierMember` export the new
+   category/tail summaries; `PremodifierConcord` adds category/tail requirements
+   and exports, affecting existing `SerialCoordination: PremodifierCoordination`
+   and `CoordinationSeriesContinuation: PremodifierCoordination`; the latter
+   additionally uses `AsyndeticPremodifierTail`. Existing standalone
+   `VerbalPremodifier` becomes a shared schema with the same form/licence and
+   `VerbalPremodifier: VerbalPremodifier` instance: its formerly inferred Category
+   is explicit in the value. `Premodifier` and `PremodifierCoordination` add
+   category/tail features. Newly added instances are
+   `VerbalPremodifier: Premodifier`, `Coordination: PremodifierCoordination`,
+   `CoordinationSeriesEnd: Premodifier`, and
+   `CoordinationSeriesContinuation: Premodifier`, with new
+   `SyndeticPremodifierConcord`/`AsyndeticPremodifierTail` policies. No other
+   existing declaration changes form, requirements or exports.
 5. **Tests** (`ptokxtuo`): `cargo test -p deckmaste_english_v3` passed all 1,064
    tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
    Restored 0 / re-spelled 6 / ignored 0 / added 7 / removed 0. Re-spelled:
-   `independent_participial_premodifier_preserves_verb_form_and_distribution`,
-   `authentic_attacking_and_blocking_modifiers_retain_verbal_identity`,
-   `righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal`,
-   `independently_built_attested_modifiers_preserve_passive_form_and_both_laws`,
-   `of_shapes_keep_their_nominal_and_predicative_functions`, and
-   `adjective_and_participial_premodifiers_stay_below_targeting`; their subjects
-   and asserted outcomes are preserved. Citation checks: 0 noncompliant, 0 stale;
+   `tests/suite/grammar.rs::independent_participial_premodifier_preserves_verb_form_and_distribution`
+   adds Category to the defending-player expected modifier and invalid-frame
+   value; exact parse/realization and frame rejection are unchanged.
+   `tests/suite/participial_uses.rs::authentic_attacking_and_blocking_modifiers_retain_verbal_identity`
+   adds Category to the attacking/blocking expected modifier; the same authentic
+   sentences retain their exact verbal values.
+   `tests/suite/participial_uses.rs::righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal`
+   adds Category to both attacking/blocking expected coordinates; the same
+   Righteous Blow sentence retains its exact shared-head value.
+   `tests/suite/past_participial_premodifiers.rs::independently_built_attested_modifiers_preserve_passive_form_and_both_laws`
+   adds Category to expected exiled/revealed/triggered/discarded/milled
+   modifiers and the invalid-frame value; exact values, both laws and rejection
+   are unchanged on the same surfaces.
+   `tests/suite/preposition_function_licences.rs::of_shapes_keep_their_nominal_and_predicative_functions`
+   adds Category in the shared chosen-type expected value; the same PP and
+   predicative sentences retain exact expected Reading sets.
+   `tests/suite/targeting_projection.rs::adjective_and_participial_premodifiers_stay_below_targeting`
+   adds Category to expected attacking-creature modifiers; the same singular
+   and plural surfaces retain exact values and the reversed-order rejection.
+   All six retain value comparisons; no discriminant/matches substitution. Citation checks: 0 noncompliant, 0 stale;
    diff audit selected no new citation sites. No other crate code/data or plugin
    definitions changed; no Lean checks required.
 6. **Timing** (`ptokxtuo`): bounded after-census 44.84 seconds wall time,
    six workers, zero samples per face, under `/usr/bin/time -v`; no full-corpus
-   run.
+   run. Wider review census: 123.85 seconds before and 128.92 seconds after,
+   six workers, zero samples, both under `/usr/bin/time -v`. Review changes only
+   this record; grammar and test code remain `ptokxtuo`, so the prior full suite
+   and clippy results apply.
