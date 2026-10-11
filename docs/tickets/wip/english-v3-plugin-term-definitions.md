@@ -197,7 +197,7 @@ or a Debug-printed tree.
 
 ## Landing record
 
-1. **Census delta (`umluypxs`, implementation `ztvzruvp`):** bounded identity
+1. **Census delta (`ssztnqqu`, implementation `ztvzruvp`):** bounded identity
    manifest `target/english-v3/english-v3-plugin-term-definitions/manifest.json`,
    1,076 faces: 785 matching
    `modif|part(y|ies)|multikick|expend|descend|poison|wicked|monster|young hero|cursed|royal|sorcerer|virtuous|bands with other|empower|convok|devour|saddl|evolv|banded|day|night|gift|promis`
@@ -205,7 +205,7 @@ or a Debug-printed tree.
    (seed 20261008; all 300 covered on the claim parent). Covered 748 → 857;
    total Readings 20,427 → 21,387. Official `english-v3 diff --lines`:
    109 gains, 0 lost/decreases/increases/source changes, 16 digest-only,
-   951 unchanged (`fourth-after.json`, `fourth-diff.json`). The accepted
+   951 unchanged (`fifth-after.json`, `fifth-diff.json`). The accepted
    ticket contributes 101 gains, 0 changes on covered faces. The first incoming
    diff (`accepted-incoming-diff.json`, against `second-refreshed-after.json`)
    attributes three extra gains to trunk: Bjorna, Nightfall Alchemist and
@@ -239,7 +239,10 @@ or a Debug-printed tree.
    Magmakin Artillerist 4, Phyrexian Obliterator 3, Refraction Trap 299,
    Simic Ascendancy 4 and Visions of Brutality 4. All 16 final digest
    changes are attributed to trunk; the accepted ticket delta remains
-   101 gains with no covered-face changes.
+   101 gains with no covered-face changes. The next refresh imported
+   property equality (`svlsnsmvwlup`) and protection/deed patient roles
+   (`mwtywluv`); `fifth-incoming-diff.json` reports all 1,076 manifest
+   faces unchanged. All required checks, including Lean, passed on `ssztnqqu`.
 2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
    0 on the claim parent; controls had the counts below before the edit.
    Modified attributive 2/2,
@@ -293,10 +296,10 @@ or a Debug-printed tree.
    The upstream six-row STOP from `zvoyutom` was resolved by `kruuppqw`'s
    owner-approved semantics-debt exemptions, regenerated Lean and corrected
    Waterbend assertion. Post-refresh verification below supersedes the STOP.
-5. **Tests (`umluypxs` after the latest code refresh):** all commands exit 0:
+5. **Tests (`ssztnqqu` after the latest code/plugin refresh):** all commands exit 0:
    - `cargo build -p xtask` — passed.
    - `cargo test -p xtask` — full suite, 425 passed, 1 inherited ignore.
-   - `cargo test -p deckmaste_english_v3` — 1,046 passed.
+   - `cargo test -p deckmaste_english_v3` — 1,051 passed.
    - `cargo test -p deckmaste_lexical_source` — 88 passed.
    - `cargo test -p deckmaste_construction_core` — 474 passed.
    - `cargo test -p deckmaste_semantics_v2` — 106 passed.
@@ -305,23 +308,22 @@ or a Debug-printed tree.
    - `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` — passed.
-   - `cargo xtask lean check` — 243 cards / 2 plugins passed on `yzlwrssy`;
-     retained because the final degree-arithmetic refresh touched no Lean or
-     plugin definitions or dependencies of that check.
+   - `cargo xtask lean check` — 244 cards / 2 plugins passed.
    - `cargo xtask cite check --list-noncompliant` — 0 noncompliant.
    - `cargo xtask cite check` — 0 stale.
    - `jj --no-pager diff --git | cargo xtask cite audit --diff` — one moved
      citation audited; [CR#701.71a] read in full against the ownership claim.
    Earlier `cargo xtask cite bless` registered only that rule. Exact commands,
-   outcomes and timings are in `fourth-verification.json` and adjacent
-   `fourth-check-*.log`; prior rounds remain in `accepted-verification.json`,
-   `integration-verification.json` and `third-verification.json` in that directory. Assurance: restored 0 /
+   outcomes and timings are in `fifth-verification.json` and adjacent
+   `fifth-check-*.log`; prior rounds remain in `accepted-verification.json`,
+   `integration-verification.json`, `third-verification.json` and
+   `fourth-verification.json` in that directory. Assurance: restored 0 /
    re-spelled 0 / introduced ignores 0 / added 3 / removed 0. No removals to
    justify. The inherited ignored xtask test
    `macros::templates::tests::macro_schema_census_count_matches_21` retains
    its existing reason: “cross-checks the live corpus against the census;
    run on demand”.
-6. **Timing (`umluypxs`):** final bounded census 43.50 s wall under
+6. **Timing (`ssztnqqu`):** final bounded census 53.69 s wall under
    `/usr/bin/time -v`, six workers, `--samples-per-face 0`, identical manifest.
    No full-corpus census was run. Earlier bounded checks remain in the evidence
    directory.
