@@ -180,6 +180,13 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    totals: **572 → 618** covered, **26,331 → 78,785** Readings, 46 gains
    (43 feature + 3 trunk), 262 digest-only changes, zero issues. Evidence:
    `after-final-refresh.json`, `final-refresh-diff.json`, `final-diff.json`.
+   The integration refresh imported the exactly-modifier landing
+   (`oyqrxmwz`): Turtles Forever gains 28 Readings, with no other census
+   change relative to the accepted AFTER. Final integration totals are
+   **572 → 619** covered, **26,331 → 78,813** Readings, **47 gains**
+   (43 feature + 4 trunk), 262 digest-only changes and zero losses,
+   decreases, increases or issues. Evidence: `after-integrate-refresh.json`,
+   `integrate-refresh-diff.json` and `integrated-diff.json`.
 2. **Witnesses** (`pusrqwml`, complete fragment probes): all five were 0 on
    the claim-parent grammar; after: Urza's Armor 2, Scalpelexis 9, Mangara 1,
    The Mana Rig 3, Parallel Lives 3. Their matched controls have respectively
@@ -207,6 +214,22 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    *three times that many tokens* and *three times that many of those tokens*
    both probe 0, while *that many of those tokens* probes 1 (`pusrqwml`).
    That modifier needs work beyond this slot refinement. No STOPs.
+   Accepted review notes (owner ruling): `Definiteness` now exports from
+   the quantity so that *that many of ...* satisfies the existing
+   `predeterminer_host(Multiplier, Definite)` test. Bare-cardinal partitives
+   therefore export `Nondefinite` instead of `Unspecified`, with no count
+   change on the 262 faces using the route.
+   The category-level slot also admits these unattested strings, accepted
+   under the owner's class principle (licence the class, not the witness):
+   *1 or more of those cards* (Arabic numeral through
+   `NumeralComparativeCoordination`), *1 of that card* (`ObliqueNumber =
+   Singular` does not separate non-count from count singular), *one or both
+   of them*, and *that much of that damage*. No check was added.
+   The PQ5 line count in the selector is **187**, not 190; all unchanged.
+   The Reading rise **26,331 → 78,785** sits entirely on newly covered
+   faces. Slimefoot's Survey's **32,256 = 96 × 42 × 8** and Nael's
+   **17,641** arise from partitive-free sentences; the partitive contributes
+   a factor of **1**.
 5. **Tests** (`pusrqwml`): `cargo test -p deckmaste_english_v3` passed all
    975 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed after fixing a needless-by-value parameter in the new witness
@@ -221,10 +244,16 @@ a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    (`--tests -- -D warnings`) passed. After the second refresh,
    `cargo build -p xtask` and the same full three-package test and clippy
    commands passed again: 987 English v3, 39 construction-core and 86
-   lexical-source tests, zero failed or ignored.
+   lexical-source tests, zero failed or ignored. The integration refresh
+   rebuilt xtask and ran
+   `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source` in full:
+   995 English v3 and 86 lexical-source tests passed, zero failed or
+   ignored. Matching clippy (`--tests -- -D warnings`) passed.
 6. **Timing** (`pusrqwml`): bounded AFTER census corpus wall **96.65 s**,
    **6 workers**, `--samples-per-face 0`, run under `/usr/bin/time -v`.
    The post-refresh bounded census used the same settings and selector:
    **50.10 s** corpus wall, zero issues or undetermined faces. The final
    refreshed bounded census took **82.79 s** corpus wall with those same
-   settings, again zero issues or undetermined faces.
+   settings, again zero issues or undetermined faces. The integration
+   recheck took **77.57 s** corpus wall, with the same settings and no
+   issues or undetermined faces.
