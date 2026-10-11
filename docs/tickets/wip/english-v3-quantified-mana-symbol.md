@@ -143,6 +143,11 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
    plus 300 covered controls from official `diff --manifest --random 300
    --seed 20261008`: union 6,377. Evidence under `target/english-v3/english-v3-quantified-mana-symbol/`:
    `manifest.json`, `before.json`, `after.json`, `diff.json`.
+   Final authorized refresh: the ORIGINAL 6,377-face manifest reproduces
+   these exact totals and classes (`after-refresh.json`, `diff-refresh.json`).
+   Official `trunk-diff.json` against the pre-refresh AFTER is unchanged
+   on all 6,377 faces (0 changed lines), including incoming `onymknyk`
+   passive-symbol and `zquvqlrm` additive-adjustment changes.
 2. **Witnesses — `rovouzyr`.** All five claim-parent probes were 0;
    Castle Garenbrig 1, Irencrag Feat's sentence 1, Sakiko's sentence 3,
    Sphinx of the Revelation 1, Pia Nalaar's sentence 1 after. Sakiko's
@@ -190,7 +195,14 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
    retaining exact value equality. Initial clippy caught a by-value helper
    argument and an empty-vector assertion; both were corrected. The four
    new role/roundtrip/class/gap tests are registered once in `suite_2`.
+   Final authorized refresh: `cargo build -p xtask` passed; full
+   `cargo test -p deckmaste_english_v3` passed (1,147 passed, 0 failed,
+   1 inherited ignore), including the protected all-nine chart-budget test;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   Our consumed-data/code changes remain confined to English v3.
    Citation checks: 0 noncompliant, 0 stale; bless adds no registrations;
    diff audit selects no new citation sites.
 6. **Timing — `rovouzyr`.** One bounded after-census: 8m33s710ms elapsed
    under `/usr/bin/time -v`, 6 workers, including Cargo's build-lock wait.
+   Authorized post-refresh bounded re-check: 1m53s220ms, same manifest,
+   6 workers and samples per face 0; no full census.
