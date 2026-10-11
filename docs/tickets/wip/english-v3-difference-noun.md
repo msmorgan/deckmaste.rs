@@ -132,15 +132,17 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 ## Landing record
 
 1. **Census delta** (`knuqqtus` original claim-parent code → `ropwqyov`;
-   refreshed `nploynyx`): bounded
+   refreshed through the energy-symbol landing): bounded
    manifest of all 41 Method matches (also searching the regular plural) plus
    300 covered controls, seed 20261008: 341 faces. Covered 302 → 319;
    Readings 6,180 → 6,476. `english-v3 diff --lines`: 17 gained, 0 lost,
-   0 decreases, 0 increases, 0 digest-only; 324 unchanged. Lost faces: none.
+   0 decreases, 0 increases, 1 digest-only; 323 unchanged. Lost faces: none.
    Refreshes incorporated `qnvlmzuu`, `mlnortmq`, `yovlyztp` and `vsvvsrvs`;
-   both refreshed censuses have identical counts and digests on all 341 faces
-   (no trunk delta to attribute).
-   Evidence: `target/english-v3/english-v3-difference-noun/{before,after,diff,refresh-diff,refresh2-diff}.json`.
+   the first two refreshed censuses have identical counts and digests on all
+   341 faces. The third incorporated `tznkrzpw`: Janjeet Sentry has a
+   digest-only change on both lines, still 2 Readings, attributed to that
+   quantified-energy-symbol landing; all other 340 faces are unchanged.
+   Evidence: `target/english-v3/english-v3-difference-noun/{before,after,diff,refresh-diff,refresh2-diff,refresh3-diff}.json`.
 2. **Witnesses** (`ropwqyov`, complete line probes): Balance of Power 1,
    Kozilek 4, Shadow of Mortality 1, Ancient Cellarspawn 4, Jaws of Defeat 0,
    Doran 0; all six were 0 on claim-parent code, so none was dropped. The
@@ -163,17 +165,20 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    all still unread. Regular plural *differences* is declared under the
    owner's 2026-10-10 paradigm ruling, superseding DN1's plural clause.
    No design STOP or glossary gap. First Kata refresh returned 69 for foreign
-   divergence `kruuppqw`; retry completed successfully without our editing it.
+   divergence `kruuppqw`; retry completed successfully without our editing it. The post-review
+   refresh conflicted on adjacent test registrations in `suite_2`; resolved
+   in `ropwqyov` by preserving both modules exactly once, then refreshed
+   successfully.
 5. **Tests** (`ropwqyov` initially; `kttvtmqy` / `nploynyx` after code
    refreshes): full `cargo test -p deckmaste_english_v3` — 1,002 / 1,018 /
-   1,021 passed; full `cargo test -p deckmaste_lexical_source` — 86 / 87 /
-   88 passed. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   1,021 passed, and 1,028 after the post-review refresh; full `cargo test -p deckmaste_lexical_source` — 86 / 87 /
+   88 passed, and 88 after the post-review refresh. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
-   passed all three times. `cargo build -p xtask` passed after both code
+   passed all four times. `cargo build -p xtask` passed after all three code
    refreshes. First English compilation found a fixture type-inference
    error; corrected before the initial executed full suite. This feature
    restored 0 / re-spelled 0 / ignored 0 / added 3 / removed 0 tests.
    The new tests assert lexical ownership, Complement roles and both
    roundtrip laws, registered once in `suite_2`.
-6. **Timing** (`nploynyx`): latest bounded census 7.04 s wall, 6 workers,
+6. **Timing** (post-review refresh): latest bounded census 13.54 s wall, 6 workers,
    measured with `/usr/bin/time -v`; no full-corpus run.
