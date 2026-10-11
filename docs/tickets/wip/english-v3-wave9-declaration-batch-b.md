@@ -170,15 +170,22 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** (`txkvmlxzpprs` claim-parent content → `mlnortmqxzrl`):
-   bounded manifest of 2,278 faces; 1,836 → 1,879 covered, 135,314 → 140,643
-   Readings. Official `english-v3 diff --lines`: 43 gained, zero lost,
-   decreases, increases or digest-only changes; 2,235 unchanged. Lost faces:
-   none. Selector: the Method's complete surface pattern plus
+1. **Census delta** (original `txkvmlxzpprs` claim-parent content →
+   `mlnortmqxzrl` → refreshed `vtnyzwqyyzwu`): bounded manifest of 2,278
+   faces; own change 1,836 → 1,879 covered, 135,314 → 140,643 Readings,
+   43 gains. After refresh: 1,884 covered, 140,968 Readings, 48 net gains,
+   2,230 unchanged. The five additional gains belong to trunk waterbend
+   change `ulrnwvuw`: Avatar Kuruk, Foggy Swamp Vinebender, Secret of
+   Bloodbending, Spirit Water Revival and Water Tribe Rallier (325 Readings).
+   Both official `english-v3 diff --lines` comparisons report zero lost,
+   decreases, increases and digest-only changes. Lost faces: none.
+   Selector: the Method's complete surface pattern plus
    `\b(flipped|skipped)\b`, 1,994 matching faces, unioned with 300 random
    covered controls from `diff --manifest --random 300 --seed 20261008`
    (all 300 covered on the claim parent). Evidence:
-   `target/english-v3/english-v3-wave9-declaration-batch-b/{manifest,before,after,diff}.json`.
+   `target/english-v3/english-v3-wave9-declaration-batch-b/`:
+   `manifest.json`, `before.json`, `after.json`, `after-refresh.json`,
+   `diff.json`, `refresh-diff.json`, `final-diff.json`.
 2. **Witnesses** (`txkvmlxzpprs` → `mlnortmqxzrl`, complete `probe` enumeration
    of the ticket texts in card context): Barrin's Spite 0 → 6 (owned control
    6); Run Away Together 0 → 6 (6); Granted 0 → 34 (from-hand control 34);
@@ -211,15 +218,19 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    frame. No plugin definition changed. No Construction/frame/test retired;
    no glossary gap. Seven role/roundtrip English tests and one lexical
    spelling test added.
-5. **Tests** (`mlnortmqxzrl`): `cargo test -p deckmaste_english_v3` passed
-   (1,002); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+5. **Tests** (`mlnortmqxzrl`, then refreshed `vtnyzwqyyzwu`):
+   `cargo test -p deckmaste_english_v3` passed (1,002 before refresh,
+   1,006 after); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed after fixing the new fixture's explicit-default style lint;
    `cargo test -p deckmaste_lexical_source` passed (87);
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
-   Restored 0 / re-spelled 0 / ignored 0 / added 8 / removed 0.
-   Citation checks: zero stale, zero noncompliant; piped diff audit selects
-   zero citation sites. No new citations to bless. No Lean/plugin checks
-   apply because no plugin definition changed.
-6. **Timing** (`mlnortmqxzrl`): bounded after-census under `/usr/bin/time -v`,
-   **1m 34.07s**, six workers, `--samples-per-face 0`. No `--all` run.
-
+   All four commands ran in full again after refresh, along with
+   `cargo build -p xtask` (passed). Restored 0 / re-spelled 0 / ignored 0 /
+   added 8 / removed 0. Citation checks: zero stale, zero noncompliant;
+   piped diff audit selects zero citation sites. No new citations to bless.
+   No Lean/plugin checks apply because this feature changed no plugin
+   definition. Refresh incorporated waterbend's tests and plugin data;
+   no change to this feature's selected Readings, and no trunk decreases.
+6. **Timing** (`vtnyzwqyyzwu`): bounded post-refresh census under
+   `/usr/bin/time -v`, **1m 33.61s**, six workers,
+   `--samples-per-face 0`. No `--all` run.
