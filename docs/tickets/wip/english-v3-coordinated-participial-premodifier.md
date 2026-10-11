@@ -212,7 +212,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `CoordinationSeriesContinuation: Premodifier`, with new
    `SyndeticPremodifierConcord`/`AsyndeticPremodifierTail` policies. No other
    existing declaration changes form, requirements or exports.
-   **Refresh STOP, unresolved:** the full English suite fails
+   **Refresh STOP, resolved by CP7 below:** the full English suite fails
    `tests/suite/selected_complement_clusters.rs::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
    at its chart-item ceiling (12,017 > 12,000). It passed before refresh.
    The failing final fixture is the two-line artifact damage/gain document;
@@ -246,10 +246,21 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    integration was run for CP6. Re-spelled remains six, with no budget
    re-spelling. Full suite/clippy were not repeated after this measurement:
    no code changed and CP6's excessive-delta branch requires STOP.
+   **CP7 resolution (orchestrator ruling, 2026-10-11):** CP7 attributes the
+   measured +83..+122 items to new mixed premodifier coordination and authorizes
+   re-budgeting this resource guard. `bounded_roundtrip` raises only its item
+   ceiling from 12,000 to 12,500 and replaces the stale fewer-than-5,000 comment
+   with the measured parent range, landing delta and relational-replacement
+   status. The heaviest witness has 12,332 families against 13,000, leaving
+   668 families (over 3% of the limit); that ceiling stays 13,000. Every exact
+   Reading-set assertion is untouched. The requested follow-up line is appended
+   to section C of `planned/english-v3-hygiene-3.md`. This supersedes the CP6
+   STOP and counts as one justified budget re-spelling, bringing the total to
+   seven. No grammar or lexicon changes; the accepted bounded census applies.
 
 5. **Tests** (`ptokxtuo`): `cargo test -p deckmaste_english_v3` passed all 1,064
    tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
-   Restored 0 / re-spelled 6 / ignored 0 / added 7 / removed 0. Re-spelled:
+   Restored 0 / re-spelled 7 / ignored 0 / added 7 / removed 0. Re-spelled:
    `tests/suite/grammar.rs::independent_participial_premodifier_preserves_verb_form_and_distribution`
    adds Category to the defending-player expected modifier and invalid-frame
    value; exact parse/realization and frame rejection are unchanged.
@@ -270,6 +281,11 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    adds Category to expected attacking-creature modifiers; the same singular
    and plural surfaces retain exact values and the reversed-order rejection.
    All six retain value comparisons; no discriminant/matches substitution.
+   Seventh (CP7):
+   `tests/suite/selected_complement_clusters.rs::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   retains the same nine sentences and exact independent Document sets;
+   its shared `bounded_roundtrip` resource ceiling changes 12,000 → 12,500
+   with measured attribution, while the families ceiling stays 13,000.
    Citation checks: 0 noncompliant, 0 stale;
    diff audit selected no new citation sites. No other crate code/data or plugin
    definitions changed in this feature. Refresh imports code/grammar/plugins:
@@ -291,6 +307,13 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    0 noncompliant and 0 stale; no citation was added.
    Refresh logs are under the evidence directory (`tests-refresh*.log`,
    `clippy-refresh.log`, `lean-refresh*.log`).
+   CP7 verification: `cargo test -p deckmaste_english_v3` passed all 1,069
+   tests across all six binaries, with zero failures or ignored tests; doctests
+   also passed. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. Logs: `tests-cp7.log`, `clippy-cp7.log`. Citation checks remain
+   0 noncompliant and 0 stale; the diff audit selected zero citation sites.
+   No grammar/lexicon change requires a new census. No refresh or integration
+   was run after CP7, following the orchestrator's serialized-landing instruction.
 6. **Timing** (`ptokxtuo`): bounded after-census 44.84 seconds wall time,
    six workers, zero samples per face, under `/usr/bin/time -v`; no full-corpus
    run. Wider review census: 123 seconds 850 milliseconds before and 128 seconds 920 milliseconds after,

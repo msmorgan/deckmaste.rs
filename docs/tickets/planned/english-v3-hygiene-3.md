@@ -126,6 +126,8 @@ has not been probed at the current trunk.
   face containing the surface form) lives only in the dispatch brief. Put it
   in `docs/decisions/english-lexical-analysis.md` or the census tool's help.
 
+Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Reading fixtures grew from <5,000 (original comment) to 7,684–11,895 items by 2026-10-11; raised 12,000 -> 12,500 by english-v3-coordinated-participial-premodifier (+83..+122). Find which Constructions inflate the chart on these nine witnesses (heaviest: the artifact damage/gain fixture) and replace the magic ceiling with a relational guard. OWNER DECISION whether further raises are allowed.
+
 ### D. Scope and bookkeeping
 
 - **D1. Duplicate ticket.** `planned/english-v3-comparative-property-premodifier`
