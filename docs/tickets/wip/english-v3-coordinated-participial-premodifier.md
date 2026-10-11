@@ -124,7 +124,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    from the supplied baseline, seed 20261008 (312 surface faces; two random
    overlaps). Manifest and before/after/diff evidence are under
    `target/english-v3/english-v3-coordinated-participial-premodifier/`.
-   Review reach (`ywzorprm` tree via empty `wqokolrq`, versus `ptokxtuo`
+   Pre-refresh review reach (`ywzorprm` tree via empty `wqokolrq`, versus `ptokxtuo`
    tree via empty `rzszunwr`): 4,375 faces, covered 4,042 → 4,059,
    Readings 207,140 → 228,284; the same 17 gains, 0 lost/decreases/increases,
    1,309 digest-only faces and 3,049 unchanged. `english-v3 diff --lines`
@@ -138,6 +138,15 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `(?i)\b[a-z]+(ed|ing|en)? (and|or) [a-z]+ (creature|permanent|card|token|spell|land|artifact|enchantment|player)s?\b|, [a-z]+,? (and|or) [a-z]+ (creature|permanent|card|token|spell)`.
    `reach-before.json`, `reach-after.json`, `reach-diff.json`/`.log` and
    `reach-line-attestation-batch-parallel.json` hold the wider evidence in the same directory.
+   Refresh census (`wmkwztxy` after importing trunk): the same 4,375 faces,
+   covered 4,042 → 4,062 and Readings 207,140 → 228,327 against the saved
+   claim-parent census; 20 gains, 0 lost/decreases/increases, 1,309 digest-only.
+   Against the reviewed after-census, official `diff --lines` reports only
+   three gains: Loamcrafter Faun 1, Nyssa of Traken 5, The Earth King 37,
+   attributable to `xzwlutqp` (up-to-that-many); all other 4,372 faces retain
+   counts and digests. The original 17 gains and 1,359 digest-only lines are
+   unchanged. Evidence: `reach-after-refresh.json`, `reach-refresh-diff.json`
+   and `reach-refresh-incoming-diff.json` in the same directory.
    The claim parent has 84 covered *tapped and attacking* faces: all retain their
    counts, with encoding-only digest changes on Hans Eriksson, Kinscaer Sentry,
    Najeela, the Blade-Blossom, Thousand-Faced Shadow, Warren Warleader, and
@@ -203,6 +212,18 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `CoordinationSeriesContinuation: Premodifier`, with new
    `SyndeticPremodifierConcord`/`AsyndeticPremodifierTail` policies. No other
    existing declaration changes form, requirements or exports.
+   **Refresh STOP, unresolved:** the full English suite fails
+   `tests/suite/selected_complement_clusters.rs::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   at its chart-item ceiling (12,017 > 12,000). It passed before refresh.
+   The failing final fixture is the two-line artifact damage/gain document;
+   the direct probe gives exactly one Reading, complete enumeration and zero
+   issues, with 12,017 items and 12,332 families. Exact value comparison in
+   that fixture is blocked by the earlier item guard. All three requested
+   review measurements pass. The review instruction prohibits grammar changes
+   unless one fails; neither grammar nor the test guard has been changed.
+   A ruling is needed to address this refresh interaction without weakening
+   the test. Evidence: `tests-refresh.log`, `refresh-performance-probe.json`.
+
 5. **Tests** (`ptokxtuo`): `cargo test -p deckmaste_english_v3` passed all 1,064
    tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
    Restored 0 / re-spelled 6 / ignored 0 / added 7 / removed 0. Re-spelled:
@@ -225,12 +246,33 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `tests/suite/targeting_projection.rs::adjective_and_participial_premodifiers_stay_below_targeting`
    adds Category to expected attacking-creature modifiers; the same singular
    and plural surfaces retain exact values and the reversed-order rejection.
-   All six retain value comparisons; no discriminant/matches substitution. Citation checks: 0 noncompliant, 0 stale;
+   All six retain value comparisons; no discriminant/matches substitution.
+   Citation checks: 0 noncompliant, 0 stale;
    diff audit selected no new citation sites. No other crate code/data or plugin
-   definitions changed; no Lean checks required.
+   definitions changed in this feature. Refresh imports code/grammar/plugins:
+   `cargo build -p xtask` passed. Full
+   `cargo test -p deckmaste_english_v3 -p xtask -p deckmaste_semantics_v2 -p deckmaste_construction_core -p macro_ron`
+   failed only at the English chart guard: 1,068 English tests pass, one fails;
+   all six English test binaries ran. To complete suites aborted by that failure,
+   `cargo test -p xtask -p deckmaste_semantics_v2 -p macro_ron` passed and
+   `cargo test -p deckmaste_construction_core` passed, including doctests.
+   `cargo clippy -p deckmaste_english_v3 -p xtask -p deckmaste_semantics_v2 -p deckmaste_construction_core -p macro_ron --tests -- -D warnings`
+   passed. xtask retains its existing ignored
+   `macros::templates::tests::macro_schema_census_count_matches_21` (live corpus
+   cross-check, run on demand); no new ignored or removed tests.
+   `cargo xtask lean check` first failed because concurrent xtask tests removed
+   generated Lean files; its serialized retry after all Rust suites passed
+   (all 245 cards prove `Card.check = []`).
+   Decimal timing text triggered two citation-looking false positives; spelling
+   seconds/milliseconds separately fixes those. Final citation checks pass with
+   0 noncompliant and 0 stale; no citation was added.
+   Refresh logs are under the evidence directory (`tests-refresh*.log`,
+   `clippy-refresh.log`, `lean-refresh*.log`).
 6. **Timing** (`ptokxtuo`): bounded after-census 44.84 seconds wall time,
    six workers, zero samples per face, under `/usr/bin/time -v`; no full-corpus
-   run. Wider review census: 123.85 seconds before and 128.92 seconds after,
+   run. Wider review census: 123 seconds 850 milliseconds before and 128 seconds 920 milliseconds after,
    six workers, zero samples, both under `/usr/bin/time -v`. Review changes only
    this record; grammar and test code remain `ptokxtuo`, so the prior full suite
-   and clippy results apply.
+   and clippy results apply to pre-refresh code. Post-refresh bounded census
+   (`wmkwztxy`): 238 seconds 730 milliseconds wall, six workers and zero
+   samples, under `/usr/bin/time -v`. No full-corpus run.
