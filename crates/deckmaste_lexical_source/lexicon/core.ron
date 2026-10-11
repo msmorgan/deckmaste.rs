@@ -191,7 +191,7 @@
         "vocab:FixedCostSymbol/Snow": {"SymbolUse": "Cost"},
         "vocab:FixedCostSymbol/Tap": {"SymbolUse": "Cost"},
         "vocab:FixedCostSymbol/Untap": {"SymbolUse": "Cost"},
-        "vocab:FixedCostSymbol/E": {"SymbolUse": "Cost"},
+        "vocab:FixedCostSymbol/E": {"SymbolUse": "Cost", "MeasurePosition": "Before", "CardinalMeasurementUse": "Yes"},
         "vocab:FixedCostSymbol/H": {"SymbolUse": "Cost"},
         "lexeme:CommonNoun/Toughness": {"PropertyValuePosition": "Second", "ScalarDenotation": "Yes"},
         "lexeme:CommonNoun/Power": {"PropertyValuePosition": "First", "ScalarDenotation": "Yes"},
@@ -1997,7 +1997,7 @@
         ),
         (
             id: "vocab:FixedCostSymbol/E", lemma: "E", category: Symbol,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (countability: [Mass], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:FixedCostSymbol/E"),
             capitalization: Initial, binding: Free, surface_structure: Opaque,

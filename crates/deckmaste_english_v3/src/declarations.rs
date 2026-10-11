@@ -3330,6 +3330,41 @@ constructions! {
             use UnmodifiedNominalProperties;
         }
 
+        // Project rulings QE1–QE2: a declared Symbol heads a measured mass Nominal.
+        construction MeasuredSymbolNominal: Nominal {
+            export ComparativeModifierPresent = No;
+            export UnmarkedConjunctLicence = Yes;
+            export NominalDependentPresent = No;
+            export SubjectRelativeNumber = None;
+            export BareGenitiveHost = No;
+            form ["{", head: lexical(Symbol), "}"];
+            require head.MeasurePosition = Before;
+            require head.CardinalMeasurementUse = Yes;
+            export AttributePremodifierHead = head.AttributePremodifierHead;
+            export KeywordPremodifierHead = head.KeywordPremodifierHead;
+            export NominalAgreementNumber = Head;
+            export SelectedPrepositionUse = head.SelectedPrepositionUse;
+            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
+            export SourceModifierPresent = head.SourceModifierPresent;
+            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
+            export BarePrepositionUse = head.BarePrepositionUse;
+            export NominalComplementMarker = head.NominalComplementMarker;
+            export DeterminerRequirement = Yes;
+            export MeasurePosition = head.MeasurePosition;
+            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
+            export PropertyValuePosition = head.PropertyValuePosition;
+            export ScalarDenotation = head.ScalarDenotation;
+            export CardinalMeasurementUse = head.CardinalMeasurementUse;
+            export number = Singular;
+            export countability = head.countability;
+            export Targeting = No;
+            export NominalAdjunctClass = head.NominalAdjunctClass;
+            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
+            export SlashPremodifierUse = head.SlashPremodifierUse;
+            export NumberTransparency = head.NumberTransparency;
+            export ObliqueNumber = None;
+        }
+
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
         construction InfinitiveComplementNominal: Nominal {
@@ -3768,6 +3803,13 @@ constructions! {
             export BareGenitiveHost = No;
         }
 
+        // QE6: quantification satisfies an unmeasured mass head's declared
+        // Determiner Requirement, without determining an already measured Nominal.
+        table quantifying_determiner_requirement(DeterminerRequirement, MeasurePosition,
+            countability) -> Selection {
+            (No, _, _) => Yes, (Yes, Before, Mass) => Yes,
+        }
+
         construction CardinalMeasuredNounPhrase: NounPhrase {
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
@@ -3787,7 +3829,8 @@ constructions! {
             require head.CardinalMeasurementUse = Yes;
             require head.number = Singular;
             require head.countability = Mass;
-            require head.DeterminerRequirement = No;
+            require quantifying_determiner_requirement(head.DeterminerRequirement,
+                head.MeasurePosition, head.countability) = Yes;
             export number = Singular;
             export BareGenitiveHost = No;
             export Targeting = head.Targeting;
@@ -5260,6 +5303,7 @@ constructions! {
             require head.number = Singular;
             require head.countability = Count;
             require head.Targeting = No;
+            require head.DeterminerRequirement = No;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
         }
@@ -5787,7 +5831,8 @@ constructions! {
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
             require determiner_license(quantity.DeterminerUse, head.number, head.countability,
                 head.DeterminerRequirement, quantity.NominalAdjunctDependent) = Yes;
-            require head.DeterminerRequirement = No;
+            require quantifying_determiner_requirement(head.DeterminerRequirement,
+                head.MeasurePosition, head.countability) = Yes;
             export ScalarDenotation = quantified_scalar_denotation(head.ScalarDenotation, head.MeasurePosition);
             export SubjectStructure = Phrase;
             export BareGenitiveHost = head.BareGenitiveHost;

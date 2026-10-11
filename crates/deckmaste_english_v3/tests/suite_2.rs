@@ -70,3 +70,6 @@ mod coordinated_focused_adjuncts;
 
 #[path = "suite/supertype_premodified_bound_keyword.rs"]
 mod supertype_premodified_bound_keyword;
+
+#[path = "suite/quantified_energy_symbol.rs"]
+mod quantified_energy_symbol;

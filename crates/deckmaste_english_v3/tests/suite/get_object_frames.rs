@@ -109,12 +109,18 @@ fn word(owner: &str, form: WordForm) -> Word {
     }
 }
 
+fn energy_symbol_word() -> Word {
+    let mut symbol = word("vocab:FixedCostSymbol/E", WordForm::Invariant);
+    symbol.countability = Some(false);
+    symbol
+}
+
 #[test]
 fn independently_constructed_energy_object_preserves_both_laws_and_traversal() {
     // Predicate fragment from Attune with Aether.
     let symbol = Reading::NamedCostSymbol {
         form: 0,
-        symbol: word("vocab:FixedCostSymbol/E", WordForm::Invariant),
+        symbol: energy_symbol_word(),
     };
     let symbols = Reading::SymbolSequence {
         category: Category::CostSymbols,
@@ -149,8 +155,8 @@ fn independently_constructed_energy_object_preserves_both_laws_and_traversal() {
         words,
         [
             head,
-            word("vocab:FixedCostSymbol/E", WordForm::Invariant),
-            word("vocab:FixedCostSymbol/E", WordForm::Invariant),
+            energy_symbol_word(),
+            energy_symbol_word(),
         ]
     );
 }

@@ -72,6 +72,14 @@ Orchestrator rulings 2026-10-10:
 - QE5. Newly covered faces are gains. No Reading-count increase on the 99
   covered {E} faces is expected; report any with its shape. Under QE3 it is
   a defect.
+- QE6 (orchestrator, 2026-10-10). No bare-NP licence. Export the existing
+  `DeterminerRequirement = Yes` on the symbol-headed Nominal; quantifying
+  Noun Phrase Constructions may satisfy it, while bare routes must reject it.
+  This authorizes refining QE1's existing quantifying requirements. Target
+  zero increases on all 99 covered {E} faces; explain digest-only changes.
+  Leave the two quantity witnesses as named residuals unless the same
+  refinement fixes them. Any remaining covered-face increase requires
+  restoring the implementation and returning the ticket to planned.
 
 ## Witnesses
 
@@ -126,4 +134,80 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** — At `tznkrzpw`, claim parent `zmpwzzsl` (code parent
+   `oupzlsuq`), bounded BEFORE → QE6 AFTER: covered 609 → 625; Readings
+   9,066 → 9,199. Lost none; gained 16; decreases 0; increases 0;
+   digest-only 99; unchanged 563; source changes 0; issues 0. Selector:
+   every supported face matching `\{E\}` (142), plus 300 random covered
+   controls selected by the official diff's `--manifest --random 300
+   --seed 20261008`; plus all 245 faces containing any form of *defend*
+   for the refined bare participial route, giving 678 distinct faces after
+   overlaps. All 99 existing covered {E} faces preserve their Reading counts. Their digests change
+   because the invariant Symbol Word now records declared mass countability
+   (`Some(false)`) instead of undeclared countability; their Notation routes
+   are preserved. Official `diff --lines` evidence: this workspace's
+   `target/english-v3/english-v3-quantified-energy-symbol/qe6-expanded-diff.json`
+   and `qe6-expanded-diff.txt`, alongside `qe6-expanded-before.json`,
+   `qe6-expanded-after.json` and
+   `qe6-manifest.json`.
+2. **Witnesses** — At `tznkrzpw`, claim-parent probes → QE6 probes:
+   Aethertide Whale 0 → 1; Aethersquall Ancient 0 → 1; Roil Cartographer
+   0 → 1; Fabrication Module 0 → 0; Empyreal Voyager 0 → 0;
+   Overclocked Electromancer 0 → 6. Overclocked's counterpart replacing
+   *X {E}* with *X energy counters* also has 6 Readings: independent
+   ambiguity is preserved under W9-A. Controls: Nissa's Landfall line
+   2 → 2; Solstice Zealot 1 → 1; Inventor's Axe 1 → 1; Peema Aether-Seer
+   9 → 9; *any amount of {E}* 1 → 1; *six energy counters* 1 → 1.
+   Additional controls: *Pay {E}: Draw a card.* 1 → 1; *You get {E}{E}.*
+   1 → 1; *each {E} paid this way* 0 → 0. All probes enumerated completely
+   with zero validation issues. Fabrication's *one or more* and Empyreal's
+   *that many* select plural count heads on the existing quantitative route;
+   the declared energy head is singular mass. Fixing that selection or adding
+   a scalar measurement route is a separate refinement: both are residuals
+   under QE6. The 3 *each* faces remain residuals under QE4.
+3. **Spot checks** — At `tznkrzpw`, ten gained faces were fully probed and
+   every Reading inspected. Each uses `CardinalMeasuredNounPhrase` with
+   `MeasuredSymbolNominal` as head: Aethertide Whale (*six*, Get Object);
+   Aethersquall Ancient (*eight*, Pay Cost); Roil Cartographer (*six*, Pay
+   Cost); Overclocked Electromancer (*X*, Get Object); Gonti's Aether Heart
+   (*eight*, Pay Cost); Era of Innovation (*six*, Pay Cost); Aethertorch
+   Renegade (*eight*, Pay Cost); Chthonian Nightmare (*X*, Pay Cost);
+   HELIOS One (*X*, Pay Cost); Stone Idol Generator (*six*, Pay Cost).
+   No unintended gained analysis found. Evidence: `qe6-spot-0.json` through
+   `qe6-spot-9.json` beside the census.
+4. **Deviations and STOPs** — QE3's trial STOP is resolved by QE6: the trial's
+   47 increases were bare-NP twins; the final symbol Nominal exports the
+   measured-nominal landing `xtuursvxqwso`'s existing Determiner Requirement.
+   One added `MeasuredSymbolNominal`; {E} declares mass countability,
+   Measure Position and Cardinal Measurement Use. QE6 authorizes refining
+   `CardinalMeasuredNounPhrase` and `QuantifiedNounPhrase` to satisfy the
+   requirement for an unmeasured mass head with Measure Position Before.
+   Already measured Nominals remain excluded.
+   `BareParticipialStatusNounPhrase` lacked the check and now requires
+   `head.DeterminerRequirement = No`, as QE6 directs; other bare routes
+   already check the feature. Its only declared verb licence is Defend, so
+   the selector also includes all 245 faces matching any form of *defend*.
+   No bare-NP licence or twin route is added.
+   No frame or route is retired. Count-singular use remains undeclared
+   under QE4. The existing independently constructed Attune with Aether
+   energy-object test is re-spelled with the declared mass Word metadata,
+   preserving its exact value, roundtrip and traversal assertions. Seven
+   tests are added in one module registered once in `suite_2.rs`. No glossary
+   gap found. The Symbol Word remains invariant; singular Number is exported
+   on the Nominal.
+5. **Tests** — At `tznkrzpw`, `cargo test -p deckmaste_english_v3`
+   passed all 994 tests; `cargo test -p deckmaste_lexical_source` passed all
+   44 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
+   passed. The first full English run found the independently constructed
+   energy-object fixture's old countability metadata; it was re-spelled,
+   then the full suite passed. English tests and clippy passed again after
+   adding the bare participial check. Restored 0 / re-spelled 1 / ignored 0 /
+   added 7 / removed 0. Citation checks: zero stale, zero noncompliant, diff
+   audit selected zero new citation sites. No Lean checks.
+6. **Timing** — At `tznkrzpw`, bounded expanded QE6 AFTER census:
+   **12.38 s**, 6 workers,
+   samples per face 0, under `/usr/bin/time -v`. Expanded BEFORE: 20.36 s.
+   The user's
+   bounded-run instruction supersedes the full-corpus timing requirement;
+   no full-corpus census was run.
