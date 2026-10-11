@@ -5,17 +5,22 @@ KeywordAbility(
     grammar: FixedKeyword(
         surface: "ripple",
     ),
-    // STOP (waits on: `lean-drt-anaphora-refactor`).
-    // "Ripple N" means
+    // STOP (waits on: a reveal that stamps what it reveals; routed in
+    // `lean-drt-anaphora-refactor`). "Ripple N" means
     // "When you cast this spell, you may reveal the top N cards of your library… you
     // may cast any of those cards with the same name as this spell without paying
     // their mana costs, then put all revealed cards not cast this way on the bottom
-    // of your library in any order." [CR#702.60a] The reveal of the library slice
-    // and the cast write; the final clause's subject does not. "Revealed cards" as
-    // `theVerbed(reveal, Many)` is refused `[anaphor (verbed (action "reveal") none
-    // attributive) many 0]`: the reveal deed stamps no patient. "Those cards" is
-    // refused `[anaphor (word card) many 2]`: the slice and the cast cards both
-    // reach. Re-mentioning the slice by identity checks, but the cast has moved part
-    // of it, which the 2026-10-08 ruling "A moved referent is read back by anaphora"
-    // forbids.
+    // of your library in any order." [CR#702.60a] Measured 2026-10-10 with the
+    // pile vocabulary: the reveal of `slice(Top, N, library(you))` and the cast
+    // write and resolve, "those cards" in the cast read as `them`. The last
+    // clause does not. "Revealed cards" as `theVerbed(reveal, Many)` is refused
+    // `[anaphor (verbed (action "reveal") none attributive) many 0]`: reveal now
+    // has a patient role [CR#701.20a], but `revealCards` stamps nothing it
+    // reveals, and a stamp would displace the one a searched card carries
+    // (transmute reads `theVerbed(search, One)` after revealing it). `them` and
+    // "those cards" are refused `[anaphor … many 2]`: the slice and the cast
+    // cards both reach. `theRest` checks, but reads "the rest" of the cast
+    // selection, which drops a card chosen and not castable, so it is not the
+    // CR's set. Re-mentioning the slice is barred by the 2026-10-08 ruling "A
+    // moved referent is read back by anaphora".
 )
