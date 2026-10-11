@@ -147,7 +147,7 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
 ## Landing record
 
 1. **Census delta** (`lvsykyns`, clean claim-parent grammar `yytzzztu` →
-   implementation, rechecked after refresh at `zospqmwy` and `xlovkpvk`): bounded selector `(?i)\bthat (many|much)\b|\b(plus|minus)\b`,
+   implementation, rechecked after refresh at `zospqmwy`, `xlovkpvk` and `ukysysvw`): bounded selector `(?i)\bthat (many|much)\b|\b(plus|minus)\b`,
    748 matching faces plus 300 covered controls selected by `english-v3 diff
    --manifest --random 300 --seed 20261008`; 1,048 faces. Covered 824 → 841;
    Readings 20,981 → 21,131. Lost: none; gained 17; decreases 0; increases 0;
@@ -161,7 +161,10 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
    as shown by the official pre-refresh → refreshed `trunk-diff.json`.
    The integration refresh brought `ropwqyov` (difference noun) and
    `wxxvsntt` (starting-with adjunct); `trunk-integration-diff.json` reports
-   all 1,048 selected faces unchanged from the reviewed census.
+   all 1,048 selected faces unchanged from the reviewed census. Integration
+   was then refused because default moved; the retry refresh brought the
+   devour-quality landing (`ulkrnzyt`, `vuyokrvx`, `pknkolqq`). Its official
+   `trunk-devour-diff.json` also reports all 1,048 faces unchanged.
 2. **Witnesses** (`lvsykyns`, complete direct probes before → after, with
    no-arithmetic control counts): Hardened Scales 0 → 2 / control 2;
    Conclave Mentor 0 → 2 / 2; Kenessos 0 → 0 / 1; Colossus of the Blood Age
@@ -214,11 +217,15 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
    another `cargo build -p xtask`, `cargo test -p deckmaste_english_v3
    -p deckmaste_lexical_source` and `cargo clippy -p deckmaste_english_v3
    -p deckmaste_lexical_source --tests -- -D warnings` all PASS on the
-   final grammar/lexicon refresh. The new planned ticket passes `kata kanban check`.
+   grammar/lexicon refresh. After the devour-quality retry refresh,
+   `cargo build -p xtask` and the full five-package test/clippy commands above
+   PASS again, including full xtask, construction core and semantics v2.
+   `cargo xtask lean check` PASS again, 243/243 cards; citation checks remain
+   clean. The new planned ticket passes `kata kanban check`.
    Two existing fixture builders set the new optional field to None without
    changing assertions. Citation checks: 0 noncompliant, 0 stale;
    `jj --no-pager diff --git | cargo xtask cite audit --diff` selected 0 sites.
 6. **Timing** (`lvsykyns`): the bounded AFTER census took 19.30 s wall before
    refresh, 31.90 s after review refresh and 67.90 s after integration refresh
-   under `/usr/bin/time -v`, 6 workers,
+   and 1:15.21 after the devour retry refresh, all under `/usr/bin/time -v`, 6 workers,
    `--samples-per-face 0`. No full census ran.
