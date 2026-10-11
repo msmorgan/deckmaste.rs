@@ -148,6 +148,124 @@ Attestation by `cargo xtask english-v3 grep` only.
 - Lines with another blocker: Tapestry Warden (*stations permanents*), Ninja
   Teen, Scarlet Spider and Spiders-Man (*he* / *they* enter with …).
 
+## Claim-parent evidence and STOP (2026-10-11)
+
+Measured on `rrprmvmlsnms` (claim parent `wxwrlxzu`), before changing data:
+Tenacious Underdog 0 / control 3; Giant Ox 0 / plain control 1 / *with*
+control 3; Heroic Teamwork 0 / *with* control 2; Virtual Assistant 0 /
+construction-free control 2; The Myriad Pools whole witness 0 / the ticket's
+*with mana* control 18. The *by using* witness is 0. Scourge of Nel Toth,
+Alien Symbiosis, Plunder the Trollshaws, and Hero of Bladehold controls are
+10, 22, 2, and 5. No already-readable target witness was dropped.
+
+The Method grep matches 432 faces. The built-in census diff selected 300
+covered controls with seed 20261008 from `baseline-wave8.json`; two overlap
+the pattern, giving 730 identities in the union. The BEFORE census was rebuilt
+on the claim parent, not taken from that older report. Evidence is under
+`target/english-v3/english-v3-using-means-adjunct/`.
+
+A runtime-only UM1 experiment adds `core-verb:Use` with one transitive Object
+frame. It leaves every control unchanged, but Tenacious's witness now has 4
+Readings, Giant Ox 2, and the Myriad Pools predicate fragment 34. They enter
+through `ParticipialPostmodifiedNominal`: *graveyard using its blitz ability*,
+*Vehicles using its toughness rather than its power*, and *a permanent spell
+using mana …*. Heroic Teamwork and Virtual Assistant remain 0 because the
+ordinary Object frame does not select a Keyword Phrase. *By using* reads twice
+through `GerundComplementPreposition`, with a selected Object. No means
+Adjunct route is supplied by this experiment.
+
+`cargo xtask english-v3 diff before.json after-um1.json --json diff-um1.json
+--lines` compares the same 730 faces: covered 607 → 617; Readings 21554 →
+25676; lost/decreases/increases/digest-only all 0. All ten apparent gains use
+the unintended nominal attachment, so **none is counted as a correct gain**:
+Barracks of the Thousand (3949), Brokkos, Apex of Forever (6), Detective's
+Phoenix (7), Giant Ox (2), Interface Ace (3), Sabin, Master Monk (6), Tecutlan,
+the Searing Rift (35), Tenacious Underdog (5), The Myriad Pools (103), and
+Timeline Culler (6). These are whole-face counts, including unaffected lines.
+The nine *used* faces do not gain coverage. The bounded AFTER experiment took
+its timing from `after-um1-time.log`, with six workers and zero samples.
+
+**Earlier STOP, resolved by UM7: UM1 alone is not a safe fallback.** UM4 explicitly anticipates nominal
+attachments and requests their count/shape rather than a word guard. The
+standing landing contract says an unintended analysis is a defect, even when
+it supplies coverage. That same defect is already present before any UM2
+class-level widening. The existing depictive attachment sites are restricted
+to intransitive lexical heads and the selected-source/object-preposition host
+Categories; the generic final Adjunct route accepts Adverb Phrases and
+Preposition Phrases, not gerund-participial Verb Phrases. A new means-use
+licence can admit the intended attachment but cannot itself retire these
+existing nominal attachments. Clarification is needed on whether UM4 permits
+retaining them as grammatical semantic nonsense, or authorizes a declared
+participial-function restriction (and its natural class). No class licence,
+keyword frame, grammar guard, or test has been added; the data experiment is
+uncommitted and is not a completed landing. No refresh or integration ran.
+
+## UM7 ruling and return to planned (2026-10-11)
+
+UM7 (orchestrator ruling): retain ordinary gerund-participial nominal
+attachment ambiguity without a restriction aimed only at *use*. UM1 alone
+must not land: the ten faces count as gains only when at least one Reading
+also contains the intended VP means Adjunct. Preserved nominal attachments
+are reported beside another participial-postmodifier control. A covered-face
+increase must be a correct means-Adjunct Reading with shared control
+ambiguity. If UM2 needs a new Construction or produces incorrect increases,
+restore code, record the findings, return this ticket to planned, and land
+only that ticket change. Otherwise finish and stop before integration.
+
+Continuation on `rrprmvmlsnms` tried the existing schema rather than adding
+a named Construction. The experimental lexical category default declared
+`ParticipialMeansUse` for Verb, with stative exceptions on *be*, *have*,
+*control*, *own*, *share*, *cost*, and *remain*; auxiliary projections denied
+that use. Ordinary and coordinated secondary projections retained the
+permission, and `ParticipialDepictive` projected it into its existing phrase.
+The experiment preserved all ordinary nominal and depictive routes. It also
+tried UM3's Object frame selecting `KeywordPhrase`, without keyword noun
+homographs. These were exploratory declarations, not a landed class ruling.
+
+The proposed refinement added these rows to `ComplementedDepictivePredicate`:
+
+```
+(FinitePredicate, Self, PredicateHostAgreement, MeansAdjunctAdmission)
+(SecondaryVerbPhrase, Self, SecondaryAdjunctProjection, MeansAdjunctAdmission)
+```
+
+The existing rows use `FiniteDepictiveHost` and `SecondaryDepictiveHost`.
+The generic rows require the modifier's declared means permission. This is
+the missing after-Complements, no-comma attachment site, distinct from the
+intransitive lexical host of `DepictivePredicate`. `cargo build -p xtask`
+rejected it with **"schema requires unique result category per instance"**
+for `ComplementedDepictivePredicate`. The generated Reading variant cannot
+select two different Head Categories for the same Result Category under this
+schema. Keeping the old selected depictive hosts while adding the completed
+predicate host needs a distinct attachment Construction (or a host-union
+conversion Construction). Reusing `AdverbPredicate` has the same repeated
+Result restriction and does not make a gerund-participial VP an Adverb Phrase.
+Replacing the old depictive rows would retire existing analyses, contrary to
+the preservation requirement. No compiler change or new Construction was made.
+
+Consequently UM2 does not build, its witnesses have no measured intended
+means-Adjunct Reading, and there is no UM2 census or claimed gain. The UM1
+probe/census findings above remain the evidence for what reads through the
+existing nominal route and *by* Complement route; *using teamwork* remains
+unread. All grammar and lexical edits, including UM1 and UM3, were restored.
+No tests were added, removed, ignored, restored, or re-spelled; no full tests,
+clippy, Lean checks, or full corpus census ran. The 730-face before/UM1 census
+and built-in diff remain under target for review. The return change is
+**ticket-only**; this is not a completed implementation or a Landing record.
+A revised ticket needs authority for the distinct means/manner attachment
+Construction or a concrete refinement that preserves the existing schema's
+single-Head-Category constraint.
+
+The ticket-only findings were committed as `rrprmvmlsnms` and refreshed.
+Kata's bundled Kanban driver completes WIP items into done during integrate;
+its supported return transition is `kata drop english-v3-using-means-adjunct
+--return-items` from default. That transition preserves this ticket's edits,
+returns it to its claim-parent planned folder, and retires the workspace.
+Code/data restoration was verified by an empty jj diff for both crates.
+The restored `cargo xtask` build succeeded. Citation checks reported zero
+non-compliant strings and zero stale citations; diff audit selected no new
+citation sites. Refresh brought only ticket claim changes, not code or data.
+
 ## Landing record
 
 To be written by the claimant (six items, `docs/tickets/README.md`).
