@@ -189,7 +189,17 @@ Attestation by `cargo xtask english-v3 grep` only.
    144 faces, 0 changed lines. The diff's 43 changed lines belong to gained
    faces. Post-commit refresh verification on `kxoymtwv` is identical:
    `refresh-diff.json` reports 857 unchanged faces and 0 changed lines;
-   no trunk decreases or digest-only classes to attribute. The wider
+   no changes from that plugin refresh. A later keyword-choice refresh
+   (`zspvqono`), verified on `ynsyywut`, adds Gideon Blackblade (19 Readings)
+   and 64 inherited digest-only faces / 65 lines, with no losses, decreases
+   or covered-face increases. Exclusive digest classes: keyword-PP
+   schema/category 32 lines; ordinary Choice empty Nominal frame 29;
+   `InfinitiveComplementNominal` → `SelectedComplementNominal` 4.
+   `keyword-refresh-diff.json` and `keyword-refresh-classes.json` record
+   attribution. Combined claim-parent diff: covered **812 → 835**, Readings
+   **81,312 → 81,556**, **23 gains** (22 own / 1 inherited), lost/decreases/
+   increases 0, **63 digest-only faces** (the 64th inherited digest change is
+   on this ticket's gained Maze of Shadows), 771 unchanged, issues 0. The wider
    declared-marker coordination grep finds 23 faces, all in
    the manifest. Winter's Chill remains unread through another blocker.
 
@@ -222,6 +232,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    plugin-term-definitions landing (`ztvzruvp`, with `tulwlsor` synchronizing
    multikicker checks); its incoming `jj diff --stat` includes crate and plugin
    files. The same bounded manifest and all standing-rule gates were rerun.
+   The next refresh brought keyword choices (`zspvqono`), touching grammar,
+   lexicon and English tests; it required the xtask build, same bounded
+   census, full English suite and clippy again. No plugin file changed then.
 
 5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
    tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
@@ -246,9 +259,17 @@ Attestation by `cargo xtask english-v3 grep` only.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
    `cargo test -p xtask` (full), `cargo test -p deckmaste_semantics_v2`,
    `cargo test -p deckmaste_construction_core`, and `cargo xtask lean check`.
+   After the keyword-choice refresh, `cargo build -p xtask`, the bounded
+   census, both official `diff --lines` comparisons,
+   `cargo test -p deckmaste_english_v3` (1,073 tests), and
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` pass on
+   `ynsyywut`. This ticket re-spells no inherited test; their changes belong
+   to the incoming keyword-choice landing.
 
 6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
    wall time under `/usr/bin/time -v`, with **6 workers** and
    `--samples-per-face 0`. The post-refresh bounded census on `kxoymtwv`
    took **27.41 seconds**, again under `/usr/bin/time -v`, 6 workers and
-   `--samples-per-face 0`. No full-corpus census was run.
+   `--samples-per-face 0`. The keyword-choice refresh census on `ynsyywut`
+   took **27.03 seconds**, with the same timing command, 6 workers and zero
+   samples per face. No full-corpus census was run.
