@@ -198,6 +198,14 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    with claim-parent BEFORE, 34 of those are digest-only changes (the other
    14 are already listed as gains). Final reports:
    `diff-integrate-refresh.json` and `integrate-refresh-diff.json`.
+   Integration was then refused because default moved. The next refresh at
+   `rvknxrlq` brought property-pair grammar `svlsnsmv`: Gideon, Champion of
+   Justice 0 → 202 and Spark Rupture 0 → 33 are its two gains. The built-in
+   refresh comparison reports no other changes. Final claim-parent delta:
+   18 gains (16 this ticket, two `svlsnsmv`), eight PA7 increases, zero lost
+   or decreased faces, 34 digest-only changes attributed to `lvsykyns`;
+   covered 1,862 → 1,880 and Readings 58,675 → 59,227. Final evidence is
+   `diff-integrate-refresh-2.json` and `integrate-refresh-2-diff.json`.
 
 2. **Witnesses** (`xswzoyrx`, before/after, complete direct-probe counts):
    Tolarian Winds 0 → 4 (bare/definite controls 4/4);
@@ -274,6 +282,9 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source
    --tests -- -D warnings`. Exact commands and zero exit statuses are in
    `integrate-refresh-checks.json`, with adjacent logs (English 1,052 tests).
+   After the second integration refresh, the same build, bounded census,
+   full English and lexical-source suites, and both clippy commands passed
+   again; exact commands and zero statuses: `integrate-refresh-2-checks.json`.
 
 6. **Timing** (`xswzoyrx`): bounded AFTER census 49.42 s wall time under
    `/usr/bin/time -v`, six workers, zero samples per face; post-refresh
