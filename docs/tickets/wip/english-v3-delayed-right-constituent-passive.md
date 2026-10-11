@@ -204,7 +204,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    schema/category class (`participial-refresh-{diff,classes}.json`).
    Final combined diff: **103 digest-only faces**, **731 unchanged**, issues
    **0**; all digest changes are inherited, including changes on some of
-   this ticket's gained faces. No removed Reading to attribute. The wider
+   this ticket's gained faces. No removed Reading to attribute. The mana
+   refresh (`qtyxwuyo`), verified on `lxklmwmk`, changes none of the 857
+   selected faces or their lines (`mana-refresh-diff.json`): all final
+   counts and digest classifications above remain exact. The wider
    declared-marker coordination grep finds 23 faces, all in
    the manifest. Winter's Chill remains unread through another blocker.
 
@@ -245,6 +248,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    both modules once, without assertion changes. Harmony verification shows
    no remaining conflict, and the full suite passes. The same build, bounded
    census, full English suite and clippy were rerun; no plugin file changed.
+   The subsequent mana-symbol-nominal refresh (`qtyxwuyo`) changed grammar
+   and lexicon, with no conflict or plugin change; the same scoped checks
+   were rerun. The remaining mana-Subject blocker is its inherited ignored
+   test, not work added or suppressed by this ticket.
 
 5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
    tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
@@ -255,7 +262,8 @@ Attestation by `cargo xtask english-v3 grep` only.
    witness to the set of NP surfaces in the corresponding selected-*to*
    control, preserving Kiora/Statecraft's higher relative attachments under
    W9-A, while retaining both member-frame comparisons and the NP-internal
-   attachment assertion. Restored 0; re-spelled 0 existing / 1 new; ignored 0;
+   attachment assertion. This ticket: restored 0; re-spelled 0 existing /
+   1 new; ignored 0;
    added 4; removed 0 (no removals to justify). Registered once in `suite_5`.
    Mandatory gates after the plugin refresh also pass: `cargo build -p xtask`,
    `cargo test -p xtask` (full), `cargo test -p deckmaste_semantics_v2`,
@@ -279,6 +287,17 @@ Attestation by `cargo xtask english-v3 grep` only.
    comparisons pass; `cargo test -p deckmaste_english_v3` passes **1,080**
    tests and `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passes on `rnuzputz`. No inherited test was re-spelled by this ticket.
+   After the mana refresh, the same build, bounded census and official diffs
+   pass; `cargo test -p deckmaste_english_v3` passes **1,083 active tests**,
+   and `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes
+   on `lxklmwmk`. One inherited English ignore:
+   `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`,
+   blocker `english-v3-mana-symbol-verbless-subject` (MS4 needs a governed
+   Mana Phrase Subject route preserving the bare-symbol boundary). The full
+   xtask run has its one pre-existing ignore:
+   `macros::templates::tests::macro_schema_census_count_matches_21`, whose
+   recorded reason is “cross-checks the live corpus against the census; run
+   on demand”. No ignored test was introduced by this ticket.
 
 6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
    wall time under `/usr/bin/time -v`, with **6 workers** and
@@ -288,4 +307,6 @@ Attestation by `cargo xtask english-v3 grep` only.
    took **27.03 seconds**, with the same timing command, 6 workers and zero
    samples per face. The participial refresh census on `rnuzputz` took
    **28.07 seconds**, with the same timing command, 6 workers and zero
-   samples per face. No full-corpus census was run.
+   samples per face. The mana refresh census on `lxklmwmk` took **24.90
+   seconds**, with the same timing command, 6 workers and zero samples per
+   face. No full-corpus census was run.
