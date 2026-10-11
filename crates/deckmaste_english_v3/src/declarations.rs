@@ -608,7 +608,9 @@ constructions! {
             PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category FinitePredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category QuantifiedAuxiliaryHead(Polarity, number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ScalarLocationPredicate(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category ScalarLocationPredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category BareScalarLocationPredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category BareScalarLocationComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryVerbPhrase(ParticipialSupplementUse, NominalAdjunctHost, ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category FiniteDepictiveHost(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryDepictiveHost(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
@@ -3173,6 +3175,7 @@ constructions! {
             use PredicateHostAgreement;
         }
         construction QuantifiedScalarLocation: ScalarLocationPredicate {
+            use NoClauseComplementBoundary;
             form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, ScalarLocation)];
             use PredicateHostAgreement;
         }
@@ -3247,6 +3250,14 @@ constructions! {
         schema ScalarLocationPredicate {
             form [head: lexical(Verb), complements: selected_frame(head, ScalarLocation)];
         }
+        // SL1 (orchestrator ruling, 2026-10-11): an auxiliary selects the
+        // plain scalar predicate; ScalarLocation still checks its Subject.
+        policy PlainScalarHeadProperties {
+            require head.form = Plain;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export SourceComplementSelection = head.SourceComplementSelection;
+        }
         policy IrrealisScalarHeadAgreement {
             require head.form = Irrealis;
             require head.finiteness = Finite;
@@ -3257,10 +3268,11 @@ constructions! {
         }
         // IS1 (orchestrator ruling, 2026-10-10): the irrealis copula
         // selects the same scalar-location frame as the finite copula.
-        instance ScalarLocationPredicate<Result, Properties>: [
-            (ScalarLocationPredicate, FiniteHeadAgreement),
+        instance ScalarLocationPredicate<Result, Properties, BoundaryProperties = NoFeatures>: [
+            (ScalarLocationPredicate, FiniteHeadAgreement, NoClauseComplementBoundary),
             (IrrealisPredicate, IrrealisScalarHeadAgreement),
-        ] { use Properties; }
+            (BareScalarLocationPredicate, PlainScalarHeadProperties),
+        ] { use Properties; use BoundaryProperties; }
 
         // Preposed temporal NP position: project ruling R11a (2026-10-09).
         // Keep the existing PP forms and their Reading identities.
@@ -5377,6 +5389,7 @@ constructions! {
         instance BareAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, BareComplement, FiniteAuxiliaryAgreement),
             (SecondaryVerbPhrase, BareComplement, SecondaryAuxiliaryProperties),
+            (ScalarLocationPredicate, BareScalarLocationComplement, FiniteAuxiliaryAgreement),
         ] {
             export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = None;
@@ -6007,6 +6020,7 @@ constructions! {
 
         instance OvertComplement<Result, Predicate: predicate, Properties = NoComplementProperties>: [
             (BareComplement, BarePredicate, OvertComplementRealization),
+            (BareScalarLocationComplement, BareScalarLocationPredicate, OvertComplementRealization),
             (ParticipialComplement, ParticipialPredicate),
             (PerfectComplement, PastParticiplePredicate),
             (ManaPassiveComplement, ManaPassivePredicate),

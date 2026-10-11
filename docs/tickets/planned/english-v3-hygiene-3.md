@@ -70,6 +70,8 @@ has not been probed at the current trunk.
 
 - **QS7 quantifier policies.** `english-v3-quantified-mana-symbol` preserves ordinary determiner-licensing rows in a separate number-neutral quantifier policy; table composition could share those rows without broadening ordinary noun licensing.
 
+- ScalarLocationPredicate carries NominalAdjunctHost and ClauseComplementBoundary to reuse the auxiliary schema (english-v3-scalar-location-plain-be-and-become); its current clause assembly does not consume them. Consider category-specific boundary projections if the schema compiler gains them.
+
 - **B1. Two spellings of definiteness.** The noun-side determiner selection
   of `english-v3-fused-head-noun-phrases` (ruling FH7) reads the
   Determinative's `NominalAdjunctDependent = Definite`; trunk also has a

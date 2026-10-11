@@ -127,3 +127,93 @@ english-v3 grep` only.
   it falls out.
 
 ## Landing record
+
+1. **Census delta — `lpnkpkpu`, against claim-parent tree `vukukmwz`.**
+   Bounded manifest: 3,353 faces, comprising the broad Method pattern
+   (extended to every declared modal spelling and all *size* uses), all 129
+   baseline faces using `ScalarLocationPredicate` or
+   `QuantifiedScalarLocation`, and 300 random covered controls, seed
+   20261008. The grep union has 2,955 faces; plural *sizes* has 0 supported
+   faces. BEFORE joins the 3,352-face claim-parent run and its one additional
+   quantified-scalar face, Angry Mob; component reports remain under target/.
+   Covered faces **3,049 → 3,076**; total Readings **99,257 → 99,620**.
+   `cargo xtask english-v3 diff --lines`: gained 27; lost **none**;
+   decreases 0; increases on previously covered faces 0; digest-only 0
+   (no classes or lines); unchanged 3,326. All 60 changed line entries
+   belong to gains. Wrong-analysis gains observed: 0. Evidence:
+   `target/english-v3/english-v3-scalar-location-plain-be-and-become/{manifest,before,after,diff}.json`.
+   Post-refresh, the same bounded manifest gives covered **3,049 → 3,080**,
+   Readings **99,257 → 101,754**, gained 31, lost/decreases/increases/
+   digest-only all 0, unchanged 3,322, and 66 changed lines. The official
+   pre/post-refresh diff attributes four additional gains (Azorius Herald,
+   Batwing Brume, Boros Fury-Shield, Mythos of Vadrok), 2,134 Readings and
+   six changed lines to trunk's mana-passive landing `onymknyk`; all 27
+   own gains retain their counts and digests. No digest-only classes/lines.
+   Evidence: `after-post-refresh.json`, `diff-post-refresh.json`, and
+   `diff-refresh-only.json` in the same directory.
+2. **Witnesses — `lpnkpkpu`.** Re-probed before implementation: Aladdin's
+   Lamp, Gogo's final sentence, Worldfire's life-total sentence, Vraska's
+   −10 line, Null Profusion's hand-size sentence, and Cursed Rack's hand-size
+   sentence each **0 → 1**; none dropped. The three additional neighbour
+   probes (*X can be 0*, *your life total becomes 1*, *its power becomes 0*)
+   also give 0 → 1. All ten listed controls retain their claim-parent
+   counts: 1 each except *It can't be blocked* at 2. *It is 0*, *It can't
+   be 0*, and *It becomes 0* remain 0. Full-document W9-A checks:
+   Aladdin's Lamp witness/control **96/96**, Gogo **8/8**, replacing only
+   *X can't be 0* with the existing *X can't be greater than 3* route.
+3. **Spot checks — `lpnkpkpu`.** Ten newly covered faces, census Reading
+   counts in parentheses: Aladdin's Lamp (96) and Gogo (8), auxiliary with
+   an overt plain scalar-location predicate; Worldfire (6), Vraska (8),
+   Blessed Wind (1), and Sorin Markov (3), *become* selecting the life-total
+   scalar value; Null Profusion (3) and Cursed Rack (2), scalar *hand size*
+   with finite *be*; Stunning Reversal (25) and The Golden Throne (6), the
+   same *become* value under their existing *instead* coordination. These
+   last two gains fall out without adding an *instead* route. Inspected
+   Readings retain the selected scalar role and render byte-exactly.
+4. **Deviations and STOPs — `lpnkpkpu`.** No new Construction, Lexeme,
+   loader code, or superseded route. Two Categories and one plain-head
+   policy connect existing scalar, overt-complement, and auxiliary schemas;
+   the scalar category gains the two boundary exports required by the
+   auxiliary instance. Its Subject check stays in `ScalarLocation`.
+   The optional-auxiliary attempt was rejected by the compiler's unique
+   result-category rule; the schema-instance route resolves this without a
+   clause projection or STOP. *Hand size* inherits Scalar Denotation from
+   its declared *size* head. *Become*'s frame is in core.ron's native frame
+   additions because verbs.ron's frame enum cannot express ScalarLocation.
+   The unused boundary projections are recorded in hygiene-3 section B.
+   Initial citation cleanup of two pre-existing decimal timings in the
+   planned predicative-gap-relative ticket conflicted with trunk's own
+   cleanup during refresh; retained trunk's wording, leaving no feature
+   diff in that ticket. The first refresh exited 69 on this one docs
+   conflict; it was resolved at `lpnkpkpu`, and retry exited 0. Incoming
+   grammar/lexicon changes are the mana-passive landing `onymknyk`.
+   No glossary gap; no unresolved STOP.
+5. **Tests — `lpnkpkpu`.** `cargo test -p deckmaste_english_v3` initially
+   failed only on the new Vraska assertion's ambiguous substring *1*
+   (also present in *−10*). Direct diagnostic:
+   `target/debug/deps/suite_2-f75055dd7abcea6b --exact scalar_location_plain_be_and_become::witnesses_keep_scalar_location_complement_roles --nocapture`
+   confirmed that span-selection error. The assertion now explicitly
+   selects the value's second occurrence with the same role and value.
+   `cargo test -p deckmaste_english_v3 -- --test-threads 6`: **passed**,
+   1,138 tests, including all five new tests and every selected-complement
+   budget check; one inherited MS4 ignore remains, with its named blocker.
+   `cargo test -p deckmaste_lexical_source`: **passed**, 44 tests.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: **passed**.
+   Restored 0 / re-spelled existing tests 0 / newly ignored 0 / added 5 /
+   removed 0; no removal to justify. Existing independently constructed
+   expected values are unchanged. `cargo build -p xtask` passed;
+   citation checks: 0 noncompliant, 0 stale, diff audit 0 new sites.
+   Post-refresh, repeated `cargo build -p xtask`,
+   `cargo test -p deckmaste_english_v3 -- --test-threads 6` (1,144 passed,
+   one inherited MS4 ignore), `cargo test -p deckmaste_lexical_source`
+   (44 passed), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`:
+   **all passed**, including the unchanged selected-complement ceilings.
+   Repeated citation checks/audit: 0 noncompliant, 0 stale, 0 new sites.
+   No plugins_v2 changes, Lean checks, or full-corpus census.
+6. **Timing — `lpnkpkpu`.** Bounded AFTER invocation: **7 min 2 s 420 ms**
+   wall under `/usr/bin/time -v`, 6 workers, samples per face 0; includes
+   waiting for Cargo's test-build lock. Post-refresh bounded AFTER:
+   **6 min 3 s 280 ms** wall with the same workers/sample settings,
+   including Cargo's build-lock wait. No `--all` run.

@@ -149,6 +149,8 @@
         "vocab:Adjective/Random": {"AdjectiveComplementClass": "Manner", "InterveningAdjunctLicence": "Yes"},
         "vocab:Adjective/Able": {"VerblessPredicateUse": "Yes", "VerblessComplementOmissionUse": "Yes"},
         "lexeme:CommonNoun/Number": {"NumberTransparency": "Yes", "ScalarDenotation": "Yes"},
+        // SL4: compound hand size inherits its scalar noun-head declaration.
+        "lexeme:CommonNoun/Size": {"ScalarDenotation": "Yes"},
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},
         "vocab:Determinative/Every": {"NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:SingularDemonstrative/That": {"Definiteness": "Definite", "NominalAdjunctDependent": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary", "DegreeUse": "Modifier"},
@@ -2246,6 +2248,8 @@
             (kind: "Nominal", items: [Argument((relation: Complement, category: "InfinitiveComplement"))]),
         ],
         "core-verb:Be": [(kind: "Predicate", items: [Argument((relation: Complement, category: "LocativeComplement"))]), (kind: "ScalarLocation", items: [Argument((relation: Complement, category: "ScalarValue"))]), (kind: "Existential", items: [Argument((relation: Complement, category: "NounPhrase")), Optional(Argument((relation: Complement, category: "LocativeComplement")))])],
+        // SL1/SL3: the change-of-state copula selects scalar location too.
+        "core-verb:Become": [(kind: "ScalarLocation", items: [Argument((relation: Complement, category: "ScalarValue"))])],
         "core-verb:Do": [(kind: "Auxiliary", items: [Argument((relation: Complement, category: "BarePredicate"))]), (kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))])],
         "core-verb:Have": [
             (kind: "Auxiliary", items: [Argument((relation: Complement, category: "PastParticiplePredicate"))]),

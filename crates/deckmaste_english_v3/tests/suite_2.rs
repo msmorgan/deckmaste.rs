@@ -85,3 +85,6 @@ mod all_but_exception;
 
 #[path = "suite/quantified_mana_symbol.rs"]
 mod quantified_mana_symbol;
+
+#[path = "suite/scalar_location_plain_be_and_become.rs"]
+mod scalar_location_plain_be_and_become;
