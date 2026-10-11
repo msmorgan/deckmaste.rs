@@ -187,7 +187,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    **81,312 → 81,537**; gained **22**, lost **none**, decreases **0**, increases
    **0**, digest-only **0**, issues **0**. Existing selected-head consumer class:
    144 faces, 0 changed lines. The diff's 43 changed lines belong to gained
-   faces. The wider declared-marker coordination grep finds 23 faces, all in
+   faces. Post-commit refresh verification on `kxoymtwv` is identical:
+   `refresh-diff.json` reports 857 unchanged faces and 0 changed lines;
+   no trunk decreases or digest-only classes to attribute. The wider
+   declared-marker coordination grep finds 23 faces, all in
    the manifest. Winter's Chill remains unread through another blocker.
 
 2. **Witnesses** (`knlqxlok`, complete sentence probes; to/by control counts in
@@ -215,7 +218,10 @@ Attestation by `cargo xtask english-v3 grep` only.
    this Construction; no repair beyond the ticket's surface was made. Initial
    refresh brought the semantics-v2 counter-annihilation landing, including
    `plugins_v2/` changes, so the standing rule adds the full xtask, semantics,
-   construction-core and Lean gates.
+   construction-core and Lean gates. The final refresh brought the
+   plugin-term-definitions landing (`ztvzruvp`, with `tulwlsor` synchronizing
+   multikicker checks); its incoming `jj diff --stat` includes crate and plugin
+   files. The same bounded manifest and all standing-rule gates were rerun.
 
 5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
    tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
@@ -234,7 +240,15 @@ Attestation by `cargo xtask english-v3 grep` only.
    Citation checks pass: `cargo xtask cite check --list-noncompliant`,
    `cargo xtask cite check`, and
    `jj --no-pager diff --git | cargo xtask cite audit --diff`; no new CR sites.
+   After the final plugin refresh, all gates pass again on `kxoymtwv`:
+   `cargo build -p xtask`, the bounded census and both official `diff --lines`
+   comparisons, `cargo test -p deckmaste_english_v3` (1,069 tests),
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   `cargo test -p xtask` (full), `cargo test -p deckmaste_semantics_v2`,
+   `cargo test -p deckmaste_construction_core`, and `cargo xtask lean check`.
 
 6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
    wall time under `/usr/bin/time -v`, with **6 workers** and
+   `--samples-per-face 0`. The post-refresh bounded census on `kxoymtwv`
+   took **27.41 seconds**, again under `/usr/bin/time -v`, 6 workers and
    `--samples-per-face 0`. No full-corpus census was run.
