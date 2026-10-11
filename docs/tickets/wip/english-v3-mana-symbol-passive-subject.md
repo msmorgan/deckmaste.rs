@@ -197,7 +197,9 @@ english-v3 grep` only.
    same passive licence. No symbols gain Noun Phrase distribution. Moonhold
    gains through existing coordination of two complete finite predicates,
    each with its own condition; no gapped coordination was added. Dawnglow
-   remains the separately disclosed defect above; Firespout remains unread.
+   remains the separately disclosed defect above, also appended under
+   systemic residuals / Faces covered by a known wrong analysis; Firespout
+   remains unread.
    Glossary additions explain the governed Mana Subject via project rulings
    MP2/MP6. Hygiene A10/B7 record the residual Dawnglow analysis and redundant
    selected-head interface exports. Two inherited citation-check false
@@ -213,8 +215,9 @@ english-v3 grep` only.
    Restored 0 / re-spelled 1 / newly ignored 0 / added 6 / removed 0.
    The re-spelled
    `purpose_infinitival::auxiliary_predicates_inherit_the_selected_predicates_purpose_licence`
-   replaces the old empty Reading expectation for the symbol Subject with
-   typed Mana Subject, selected passive and purpose constituents; its other
+   changes the expected value for *{R} was spent to cast this spell.* from
+   the empty Reading set to a nonempty set with typed Mana Subject, selected
+   passive and purpose constituents; its other
    auxiliary assertions remain. The six new tests assert structural roles,
    frame-class derivation, agreement/symbol boundaries and both roundtrip
    laws. Citation checks: zero noncompliant, zero stale; stdin diff audit

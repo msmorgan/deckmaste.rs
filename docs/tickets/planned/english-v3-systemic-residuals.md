@@ -776,6 +776,16 @@ obligations rather than correct coverage gains:
   CQ-R1 and NM-R1. Missing piece: an interrogative clause Complement for
   *reselect*. Re-examine these Readings when that Complement is implemented.
 
+- **Dawnglow Infusion** (`english-v3-mana-symbol-passive-subject`,
+  `onymknyk`, 0 → 18): all Readings coordinate *this spell and X life* as
+  the Object of *cast* inside the purpose Infinitival, instead of sharing
+  *gain* across the two conditional amounts. The Mana Phrase Subjects are
+  licensed, but the resulting face analysis is wrong. Count this face
+  separately from the ticket's 40 intended gains, as accepted by the
+  orchestrator on 2026-10-11. Missing piece: gapped coordination of the
+  conditional *gain* amounts; re-examine the inherited Object coordination
+  and purpose attachments when that construction is implemented.
+
 ## Cycling cost and ability gerund retirement candidate (2026-10-10)
 
 Accepted review ruling L3 for `english-v3-keyword-mention-without-parameter`:
