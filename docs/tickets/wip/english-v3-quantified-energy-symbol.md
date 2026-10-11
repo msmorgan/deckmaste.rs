@@ -151,16 +151,14 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `target/english-v3/english-v3-quantified-energy-symbol/qe6-expanded-diff.json`
    and `qe6-expanded-diff.txt`, alongside `qe6-expanded-before.json`,
    `qe6-expanded-after.json` and `qe6-manifest.json`.
-   After refresh, at `mnrokvtn`, the same 678 faces have exactly the same
-   coverage, counts and digests: `refresh-only-diff.json` reports all 678
-   unchanged, zero losses/decreases/increases. Incoming trunk changes
-   `pusrqwml` (partitive quantities), `ulrnwvuw` (waterbend), and `mlnortmq`
-   (declaration batch) introduce no census delta on this selector. The final
-   first refreshed claim-parent comparison is `refresh-diff.json` / `refresh-diff.txt`.
-   Second refresh at `vtylwlmy` brings `qnvlmzuu` (partitive determinative
-   heads): `refresh2-only-diff.json` again reports all 678 unchanged, with
-   zero losses/decreases/increases. Final comparison: `refresh2-diff.json`
-   / `refresh2-diff.txt`; counts and the digest-only class above are unchanged.
+   Re-checks after refresh at `mnrokvtn`, `vtylwlmy`, and `nxvnzxrv`
+   each report all 678 faces unchanged from the preceding AFTER, including
+   counts and digests. Incoming implementation changes `pusrqwml`,
+   `ulrnwvuw`, `mlnortmq`, `qnvlmzuu`, `yovlyztp`, and `vsvvsrvs`
+   introduce no selector delta. Final claim-parent comparison:
+   `refresh3-diff.json` / `refresh3-diff.txt`; refresh attribution comparisons:
+   `refresh-only-diff.json`, `refresh2-only-diff.json`, `refresh3-only-diff.json`.
+
 2. **Witnesses** — At `tznkrzpw`, claim-parent probes → QE6 probes:
    Aethertide Whale 0 → 1; Aethersquall Ancient 0 → 1; Roil Cartographer
    0 → 1; Fabrication Module 0 → 0; Empyreal Voyager 0 → 0;
@@ -206,23 +204,23 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    tests are added in one module registered once in `suite_2.rs`. No glossary
    gap found. The Symbol Word remains invariant; singular Number is exported
    on the Nominal.
-5. **Tests** — At `tznkrzpw`, `cargo test -p deckmaste_english_v3`
-   passed all 994 tests; `cargo test -p deckmaste_lexical_source` passed all
-   86 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
-   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
-   passed. After refresh, at `mnrokvtn`, the same four commands passed in
-   full: 1,013 English tests and 87 lexical-source tests. `cargo build -p xtask`
-   passed before the refreshed bounded census. After the second refresh,
-   at `vtylwlmy`, xtask build and the same four full test/clippy commands
-   passed again: 1,022 English tests and 87 lexical-source tests. The first full English run found the independently constructed
-   energy-object fixture's old countability metadata; it was re-spelled,
-   then the full suite passed. English tests and clippy passed again after
-   adding the bare participial check. Restored 0 / re-spelled 1 / ignored 0 /
-   added 7 / removed 0. Citation checks: zero stale, zero noncompliant, diff
-   audit selected zero new citation sites. No Lean checks.
+5. **Tests** — Full commands passed: `cargo test -p deckmaste_english_v3`,
+   `cargo test -p deckmaste_lexical_source`,
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`, and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`.
+   English / lexical-source totals by measured change: `tznkrzpw` 994 / 86;
+   `mnrokvtn` 1,013 / 87; `vtylwlmy` 1,022 / 87;
+   `nxvnzxrv` 1,025 / 88. `cargo build -p xtask` passed before every refreshed
+   bounded census. The first full English run found the independently
+   constructed energy-object fixture's old countability metadata; it was
+   re-spelled and the full suite passed. English tests and clippy also passed
+   after adding the bare participial check. Restored 0 / re-spelled 1 /
+   ignored 0 / added 7 / removed 0. Citation checks: zero stale, zero
+   noncompliant, diff audit selected zero new citation sites. No Lean checks.
 6. **Timing** — At `tznkrzpw`, bounded expanded QE6 AFTER census:
    **12.38 s**, 6 workers, samples per face 0, under `/usr/bin/time -v`. Expanded BEFORE: 20.36 s.
    Refreshed bounded AFTER at `mnrokvtn`: 25.58 s, 6 workers;
-   after the second refresh at `vtylwlmy`: 36.49 s, 6 workers. The user's
+   after the second refresh at `vtylwlmy`: 36.49 s, 6 workers;
+   after the third at `nxvnzxrv`: 19.17 s, 6 workers. The user's
    bounded-run instruction supersedes the full-corpus timing requirement;
    no full-corpus census was run.
