@@ -126,8 +126,9 @@ or a Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 - *all but one of them*: `english-v3-all-but-exception`.
 - Unifying the two partitive Constructions' oblique checks (routed by
   `english-v3-systemic-residuals` to `english-v3-licence-plumbing-economy`).
-- Faces whose line has a second blocker (e.g. Three Wishes, *any of those
-  cards you didn't play*; Squall, Gunblade Duelist).
+- Faces whose line has additional blockers beyond this Construction. Three
+  Wishes now gains through its existing oblique Relative Clause; no relative
+  machinery is added here.
 
 ## Settled scope and residual
 
@@ -170,7 +171,14 @@ those do not demonstrate this blocker. Evidence is under
    anywhere in supported analysed text, 421 surface faces, plus 300 covered
    controls from the built-in manifest generator (seed 20261008), one overlap.
    `manifest.json` is the 720-face union; `before.json`,
-   `after.json`, and `diff.json` are the evidence.
+   `after.json`, and `diff.json` are the pre-refresh evidence.
+   After refresh, measured on `oktskxwv`: covered **615**, Readings **29,034**;
+   claim-parent delta **27 gains**, still 0 lost/decreases/increases/digest-only.
+   `diff-incoming.json` isolates **Leela, Sevateem Warrior (0 → 15)** as the
+   sole trunk gain, attributable to `zvoyutomxpyp`: its newly declared
+   *Doctor's companion* reads through `BareKeyword` (one keyword-line Reading,
+   plus 14 on its existing ability line). `after-refresh.json` and
+   `diff-refresh.json` hold the final census and comparison.
 2. **Witnesses** — Claim-parent → `qnvlmzuu` fragment probes: Chrome Mox **0 → 1**;
    Arena of Glory **0 → 2**; Mindblade Render **0 → 9**; Ludevic's Test Subject
    **0 → 12**; Tamiyo, Field Researcher **0 → 1**. Plural *any* clause **0 → 1**;
@@ -216,11 +224,14 @@ those do not demonstrate this blocker. Evidence is under
    `cargo test -p deckmaste_lexical_source` (86 tests);
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`.
    Citation checks have no noncompliant or stale citations; diff audit adds
-   no rule claims. Assurance: restored 0,
+   no rule claims. The same four commands passed again after refresh on
+   `oktskxwv`: English 988 tests (three additional trunk tests), lexical source
+   86 tests; both clippy checks clean. `cargo build -p xtask` passed before
+   that recheck. Assurance: restored 0,
    re-spelled 0, ignored 0, added 9, removed 0; no existing test retired.
    The new module is registered once in `tests/suite_3.rs` and asserts
    selected roles, value equality, roundtrip laws, number selection,
    hypothetical class members, and the PD7 shared residual.
-6. **Timing** — Bounded final census on `qnvlmzuu`: **37.76 s wall**, 6 workers,
+6. **Timing** — Final bounded census after refresh on `oktskxwv`: **63.37 s wall**, 6 workers,
    0 samples per face (`/usr/bin/time -v`). Full corpus census omitted under
    the binding verification budget; the orchestrator owns that batch check.
