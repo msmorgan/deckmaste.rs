@@ -74,6 +74,24 @@ Orchestrator rulings 2026-10-10:
   feature check to block an unattested indefinite head.
 - PG5. Newly covered faces are gains: the 10 named below.
 
+
+Orchestrator ruling 2026-10-11:
+
+- PG6. Apply PG3 in order, stopping at the first successful restriction.
+  First restrict the gap to the nominal-Complement realisation, declared on
+  the frame slot. If increases or failures persist because *be* also takes
+  a nominal Complement, declare the slot's gap licence on the class of
+  change-of-state copular frames whose predicative Complement does not also
+  host an auxiliary construction; include every existing verb sharing that
+  frame class, and exclude *be*'s auxiliary-hosting frame. Record the
+  structural exclusion of unattested *the permanent it is* under Deviations
+  and append a line to hygiene-3 section A if that implementation lands.
+  Acceptance: Aura witnesses read; 0 increases, 0 decreases, 0 lost on the
+  8,801-face manifest; the three existing progressive-object-gap-relative
+  tests pass unchanged. If neither restriction succeeds, restore the code,
+  record the findings and return this ticket to planned with a ticket-only
+  change. Otherwise finish and STOP BEFORE INTEGRATE.
+
 ## Witnesses
 
 All ten faces carry the same line, their only failing line in
@@ -131,4 +149,75 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta — withdrawn attempt `xtulvkxv`, claim parent `wzxklzkx`
+   (trunk `xxzltuxw`).** Bounded selector: Method grep
+   `(?i)\b(it|they|he|she|you) (becomes?|is|are|was|were|remains?)\b|\bbecomes? (a|an|the)\b`
+   (1,048 faces), union with every existing `ZeroObjectRelativeClause`
+   face from `baseline-wave9mid.json` (8,501 union faces), plus 300 covered
+   outside-union controls selected by `english-v3 diff --manifest --random
+   300 --seed 20261008`: 8,801 faces. Claim-parent census contains 7,781
+   faces using that declaration. Initial attempt: covered 8,669 → 8,681,
+   Readings 271,394 → 271,753; 12 gains, 13 defective increases. PG6 step 2:
+   covered 8,669 → 8,679, Readings 271,394 → 271,597; ten gains, one defective
+   increase, Seifer, Balamb Rival 10 → 11 (line 2: 8 → 9). Lost none;
+   decreases 0; digest-only 0, all classes 0 lines. `diff --lines` reports
+   30 changed lines. These are experimental deltas; no grammar change lands.
+   Evidence: `target/english-v3/english-v3-predicative-gap-relative/`
+   `{manifest,before,after,diff,pg6-step2-after,pg6-step2-diff}.json`.
+2. **Witnesses — withdrawn attempt `xtulvkxv`.** All ten whole-face
+   witnesses and the three failing fragments were probed before editing:
+   0 Readings, complete, no issues. PG6 step 2 per-face counts: Armor of
+   Thorns 18; Grave Servitude 18; Lightning Reflexes 18; Mystic Veil 18;
+   Necromancy 40; Parapet 17; Relic Ward 18; Soar 18; Spider Climb 18;
+   Ward of Lights 19. The shared line has 16, matching its *it controls*
+   attachment control's 16; the controller NP has 2, matching its control's
+   2 (W9-A). Original controls: 4 / 1 / 1 / 1 / 1 / 3, in ticket order.
+   These witnesses remain unsupported after restoration; the ticket returns
+   to planned rather than claiming those experimental gains as landed.
+3. **Spot checks — withdrawn attempt `xtulvkxv`.** Armor of Thorns,
+   Grave Servitude, Lightning Reflexes, Mystic Veil, Necromancy, Parapet,
+   Relic Ward, Soar, Spider Climb and Ward of Lights have genuine candidate
+   Readings with *permanent* as antecedent, *it* as relative Subject and the
+   declared predicative-Complement slot of *becomes* as gap. The remaining
+   defective Reading is Seifer: in *a creature attacking one of your
+   opponents becomes blocked by two or more creatures*, a bare relative
+   ends at *becomes*, with *blocked* read as the finite matrix verb.
+   It is an unintended analysis, not an approved gain.
+4. **Deviations and STOPs — withdrawn attempt `xtulvkxv`.** PG6 step 1
+   declared nominal-Complement realisation on the frame slot via generic
+   lexicon feature classes and projected slot features; Wall of Corpses'
+   changed line still had 2 Readings versus 1 before, and Seifer's had 9
+   versus 8. Step 2 excluded classes hosting an Auxiliary frame, retaining
+   the shared Predicate slot class of *become* and *remain*, without a
+   verb-naming guard. Wall returned to 1 and the progressive regressions
+   passed, but Seifer's non-auxiliary *becomes* ambiguity remained. Neither
+   permitted step meets acceptance. Per PG6, all grammar, lexicon, loader,
+   construction-core, glossary and new-test changes were restored to the
+   claim parent. No hygiene-3 deferral is landed because no gap route lands.
+   Existing tests are unchanged; no additional boundary guard was invented.
+   A ruling on this remaining participial/clause-boundary ambiguity is
+   required before another implementation attempt. Kata's completion
+   transition marks a claimed ticket done, so the ticket-only findings are
+   returned to planned using its `drop --return-items` transition after
+   commit and refresh.
+5. **Tests — withdrawn attempt `xtulvkxv`.** Initial
+   `cargo test -p deckmaste_english_v3`: failed, 1,121 passed, 3 failed,
+   1 pre-existing ignored; all five experimental tests passed. Initial
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`: passed.
+   PG6 step 2 `cargo test -p deckmaste_english_v3 --test suite_6
+   progressive_object_gap_relative::`: passed, 4 tests, including the three
+   unchanged acceptance tests:
+   `strong_phrase_subjects_and_that_relatives_share_the_object_gap_route`,
+   `ticket_witnesses_link_the_progressive_object_gap_to_the_antecedent`,
+   `subject_gaps_passives_and_ungapped_progressives_keep_their_roles`.
+   `cargo build -p xtask`: passed for slot-feature experiment. Final
+   ticket-only change: restored / re-spelled / newly ignored / added /
+   removed existing tests all 0. The five unlanded experimental tests are
+   withdrawn together with their unlanded subject; no existing test was
+   removed. No consumed code/data changes remain requiring further crate
+   tests or clippy. Initial citation checks: 0 noncompliant, 0 stale;
+   diff audit selected 0 new citation sites.
+6. **Timing — withdrawn attempt `xtulvkxv`.** PG6 step 2 bounded census:
+   134.74 seconds wall, 6 workers, samples per face 0, under
+   `/usr/bin/time -v`. Initial bounded census: 138.42 seconds. No `--all`
+   or full-corpus census was run.
