@@ -181,6 +181,13 @@ and continuation; the final checks are recorded below.
    25 CF7 decreases, 157 digest-only changes and 0 issues. Ticket-caused
    census changes remain zero. Evidence: waterbend-refresh-after.json,
    waterbend-refresh-only-diff.json, waterbend-refresh-parent-diff.json.
+   Declaration-batch refresh (mlnortmq) adds 12 trunk gains and no covered
+   count/digest change. Its final parent diff has 5,972→6,132 covered,
+   214,320→239,562 Readings, 160 trunk gains, 0 lost/increases, the same
+   25 CF7 decreases and 157 digest-only changes. All 7,102 faces complete
+   with 0 issues. Ticket-caused gains/lost/decreases/increases/digests: zero.
+   Evidence: batch-b-refresh-after.json, batch-b-refresh-only-diff.json,
+   batch-b-refresh-parent-diff.json.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
    gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
    tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
@@ -279,8 +286,13 @@ and continuation; the final checks are recorded below.
    commands and 242 Lean card proofs across two plugins. The additional
    cargo xtask facts check fails on the inherited missing ChooseABackground
    overlay, as disclosed in item 4; its earlier pre-phrasal passes remain
-   historical results.
-6. **Timing** — Latest bounded census: 319 s (rounded wall time), six
+   historical results. Declaration-batch refresh checks PASS: cargo build
+   -p xtask; cargo test -p deckmaste_english_v3 (1,009 tests); cargo test -p
+   deckmaste_lexical_source (88 tests); cargo clippy -p deckmaste_english_v3
+   --tests -- -D warnings; cargo clippy -p deckmaste_lexical_source --tests
+   -- -D warnings. This refresh changes no plugin definitions or xtask
+   code, so the passed xtask-English/Lean results are retained.
+6. **Timing** — Latest bounded census: 335 s (rounded wall time), six
    workers, zero samples per face. No full corpus census was run, per the
    binding verification budget. Evidence is under
    target/english-v3/english-v3-verbless-state-predicate-class/.
