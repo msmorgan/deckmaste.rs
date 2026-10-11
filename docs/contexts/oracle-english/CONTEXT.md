@@ -1051,6 +1051,11 @@ and nonfinite infinitivals; participial forms are nonfinite.
 A Complement expressing location, source, or goal. It is distinct from a
 predicative Complement and from an optional locative Adjunct.
 
+**Locative Use** (project term):
+A head's declared permission for its phrase to function as a Locative
+Complement. Compound determinative *anywhere* has NP locative use under AE2
+(orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+
 **Manner Complement**:
 A dependent expressing manner that is selected by its head. Manner dependents
 can have NP or PP form, and their function as Complement is distinct from
@@ -1232,6 +1237,25 @@ A Determinative's declared permission to fuse the Determiner and Head
 functions without an overt nominal or partitive Complement. Fused heads and
 their distributions are described in CGEL, Ch. 5 §§9.1–9.2, pp. 410–415;
 the lexical permission is a project representation.
+
+**Immediate Post-head Dependent**:
+A dependent immediately following a fused Determiner-Head, as *else* follows
+*anywhere* (CGEL, Ch. 5 §9.6, p. 423). The nominal *else* use adopts the
+Preposition analysis proposed in Ch. 7 §2.4, p. 615, n. 5, under AE1
+(orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+
+**Immediate Post-head Dependent Use** (project term):
+A fused head's declared permission to take an Immediate Post-head Dependent
+under AE1 (orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+
+**Fused Head Postmodifier Use** (project term):
+A Preposition's declared permission to serve as an Immediate Post-head
+Dependent of a fused head under AE1; it supplies no Clause Adjunct function.
+
+**Optional Field Presence** (project term):
+Whether an optional lexical field is expressed in a Construction's form.
+It licenses conditional requirements without creating a second Reading
+route (AE6 implementation, 2026-10-11, `english-v3-anywhere-else-goal`).
 
 **Comparative Postmodifier Use** (project term):
 A Noun Phrase head's declared permission to take a postpositive Comparative

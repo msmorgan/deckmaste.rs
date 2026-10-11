@@ -221,6 +221,7 @@ fn independent_fused_determiner_head_and_transitive_do_preserve_lexical_identity
     use crate::common::lexicon;
 
     let nominal = Reading::FusedDeterminerHeadNounPhrase {
+        dependent: None,
         form: 0,
         head: invariant("vocab:SingularDemonstrative/This"),
     };

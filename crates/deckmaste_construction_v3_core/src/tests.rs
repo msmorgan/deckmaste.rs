@@ -1342,7 +1342,16 @@ fn optional_lexical_fields_apply_requirements_only_when_present() {
         .find(|rule| matches!(rule.build, crate::ir::Build::AbsentWord))
         .unwrap();
     assert_eq!(absent.symbols, [] as [crate::ir::Symbol; 0]);
-    assert!(absent.initial.is_empty());
+    let presence = ir
+        .features
+        .iter()
+        .position(|f| f.name == "present")
+        .unwrap();
+    assert_eq!(absent.exports, vec![(presence, 0)]);
+    assert_eq!(
+        absent.initial[0].as_ref().unwrap().to_string(),
+        quote!(FeatureValue::Custom(#presence, 0)).to_string()
+    );
     let present = ir
         .rules
         .iter()
@@ -1401,5 +1410,73 @@ fn optional_lexical_fields_reject_bad_categories_and_requirements() {
             form [modifier: optional(lexical(Adjective), " ")]; require modifier.number = First;
         } } },
         "not a value of feature number",
+    );
+}
+
+#[test]
+fn optional_posthead_words_preserve_separator_order_and_host_licensing() {
+    let declaration = quote! { mod valid {
+        feature Licence { No, Yes }
+        feature Selection { No, Yes }
+        table permitted(present, Licence) -> Selection {
+            (No, _) => Yes, (Yes, Yes) => Yes,
+        }
+        category Atom();
+        construction Atom: Atom {
+            form [head: lexical(Noun), dependent: optional(lexical(Preposition), before(" "))];
+            require dependent.Licence = Yes;
+            require permitted(dependent.present, head.Licence) = Yes;
+        }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    let absent = ir
+        .rules
+        .iter()
+        .find(|r| matches!(r.build, crate::ir::Build::AbsentWord))
+        .unwrap();
+    assert_eq!(absent.symbols, [] as [crate::ir::Symbol; 0]);
+    let present = ir
+        .rules
+        .iter()
+        .find(|r| matches!(r.build, crate::ir::Build::PresentWord))
+        .unwrap();
+    assert_eq!(
+        present.symbols,
+        vec![
+            crate::ir::Symbol::Literal(" ".into()),
+            crate::ir::Symbol::Lexical("Preposition".into())
+        ]
+    );
+    assert_eq!(present.checks[0], [] as [(usize, usize); 0]);
+    assert_eq!(present.checks[1].len(), 1);
+    let constructor = ir
+        .rules
+        .iter()
+        .find(|r| matches!(r.build, crate::ir::Build::Construction { .. }))
+        .unwrap();
+    assert_eq!(constructor.table_requirements.len(), 1);
+    syn::parse2::<syn::File>(compile(declaration).unwrap()).unwrap();
+}
+
+#[test]
+fn optional_posthead_words_reject_invalid_separator_and_requirements() {
+    rejects(
+        quote! { mod bad { category Atom(); construction Atom: Atom {
+            form [dependent: optional(lexical(Unknown), before(" "))];
+        } } },
+        "unknown lexical Category",
+    );
+    rejects(
+        quote! { mod bad { feature Licence { No, Yes } category Atom(); construction Atom: Atom {
+            form [dependent: optional(lexical(Preposition), before(" "))];
+            require dependent.Licence = Yes; require dependent.Licence = No;
+        } } },
+        "contradictory admission requirements",
+    );
+    rejects(
+        quote! { mod bad { category Atom(); construction Atom: Atom {
+            form [dependent: optional(lexical(Preposition), after(" "))];
+        } } },
+        "expected before(separator)",
     );
 }

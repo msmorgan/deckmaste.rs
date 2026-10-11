@@ -148,7 +148,7 @@
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},
         "vocab:Determinative/Every": {"NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:SingularDemonstrative/That": {"Definiteness": "Definite", "NominalAdjunctDependent": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary", "DegreeUse": "Modifier"},
-        "vocab:CompoundDeterminative/Anywhere": {"ComparativePostmodifierUse": "Yes", "FusedHeadUse": "Yes", "DeterminerUse": "Singular"},
+        "vocab:CompoundDeterminative/Anywhere": {"ComparativePostmodifierUse": "Yes", "FusedHeadUse": "Yes", "DeterminerUse": "Singular", "ImmediatePostheadDependentUse": "Yes", "LocativeUse": "Yes"},
         "vocab:SingularDemonstrative/This": {"Definiteness": "Definite", "FusedHeadUse": "Yes", "NominalAdjunctDependent": "Demonstrative", "DeterminerUse": "Singular", "DeterminerKind": "Ordinary"},
         "vocab:RelativePronoun/Who": {"RelativeUse": "Yes"},
         "lexeme:CommonNoun/Exile": {"BarePrepositionUse": "Location"},
@@ -268,6 +268,15 @@
         "vocab:Preposition/Without": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        // AE1 adopts the nominal Preposition analysis proposed in
+        // CGEL Ch. 7 §2.4, p. 615, n. 5 (orchestrator, 2026-10-10).
+        (
+            id: "vocab:Preposition/Else", lemma: "else", category: Preposition,
+            properties: (countability: [], features: {"FusedHeadPostmodifierUse": "Yes"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Else"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // Orchestrator rulings SW1–SW2 (2026-10-10): deverbal Preposition
         // with an obligatory with-PP Complement; the Adjective stays distinct.
         (

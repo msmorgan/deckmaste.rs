@@ -227,6 +227,11 @@ fn builtin_domains() -> Vec<Domain> {
             values: vec!["None".into(), "FullStop".into(), "QuotedFullStop".into()],
             kind: DomainKind::TerminalPunctuation,
         },
+        Domain {
+            name: "present".into(),
+            values: vec!["No".into(), "Yes".into()],
+            kind: DomainKind::Custom { default: None },
+        },
     ])
     .collect()
 }
@@ -436,7 +441,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             for (name, ty) in collect_fields(form, &construction.name)? {
                 match &ty {
                     FieldType::SelectedFrame(_, _) => {}
-                    FieldType::Lexical(category) | FieldType::OptionalLexical(category, _) => {
+                    FieldType::Lexical(category) | FieldType::OptionalLexical(category, _, _) => {
                         ron::from_str::<deckmaste_lexical_model::Category>(category)
                             .map_err(|_| error(&name, "unknown lexical Category"))?;
                     }
@@ -1070,6 +1075,7 @@ fn resolve_reference(
     }
     match &construction.fields[field].1 {
         FieldType::Lexical(_) => {}
+        FieldType::OptionalLexical(_, _, _) if ir.features[feature].name == "present" => {}
         FieldType::One(category) | FieldType::Repeated(category, _)
             if reference.last || matches!(construction.fields[field].1, FieldType::One(_)) =>
         {
@@ -1437,12 +1443,14 @@ fn optional_word_requirements(
     let mut ordinary = Vec::new();
     for obligation in obligations {
         if let Equation::Require(reference, constant) = obligation
+            && reference.feature != "present"
             && let Some(field) =
                 ir.constructors[constructor]
                     .fields
                     .iter()
                     .position(|(name, ty)| {
-                        name == &reference.field && matches!(ty, FieldType::OptionalLexical(_, _))
+                        name == &reference.field
+                            && matches!(ty, FieldType::OptionalLexical(_, _, _))
                     })
         {
             if reference.last {
@@ -1472,8 +1480,8 @@ fn surface_field_symbol(
 ) -> syn::Result<Symbol> {
     Ok(match ty {
         FieldType::Lexical(category) => Symbol::Lexical(category.clone()),
-        FieldType::OptionalLexical(category, separator) => {
-            normalize_optional_word(ir, category, separator, requirements, owner)?
+        FieldType::OptionalLexical(category, separator, preceding) => {
+            normalize_optional_word(ir, category, separator, *preceding, requirements, owner)?
         }
         FieldType::One(category) => Symbol::Nonterminal(
             ir.categories
@@ -1493,17 +1501,35 @@ fn normalize_optional_word(
     ir: &mut Ir,
     lexical: &str,
     separator: &str,
+    preceding: bool,
     requirements: &[(usize, TokenStream)],
     owner: &Ident,
 ) -> syn::Result<Symbol> {
     let category = ir.categories.len();
     ir.categories
         .push(format_ident!("__OptionalWord{category}"));
-    helper(ir, category, vec![], Build::AbsentWord);
+    let presence = ir
+        .features
+        .iter()
+        .position(|f| f.name == "present")
+        .unwrap();
+    projected_helper(
+        ir,
+        category,
+        vec![],
+        Build::AbsentWord,
+        &[(presence, quote!(FeatureValue::Custom(#presence, 0)))],
+        None,
+    );
     let mut symbols = vec![Symbol::Lexical(lexical.to_owned())];
     if !separator.is_empty() {
-        symbols.push(Symbol::Literal(separator.to_owned()));
+        if preceding {
+            symbols.insert(0, Symbol::Literal(separator.to_owned()));
+        } else {
+            symbols.push(Symbol::Literal(separator.to_owned()));
+        }
     }
+    let word_slot = usize::from(preceding && !separator.is_empty());
     helper(ir, category, symbols, Build::PresentWord);
     let rule = ir.rules.last_mut().unwrap();
     let mut constants = BTreeMap::<usize, String>::new();
@@ -1516,8 +1542,12 @@ fn normalize_optional_word(
         }
         let register = rule.initial.len();
         rule.initial.push(Some(constant.clone()));
-        rule.checks[0].push((*feature, register));
+        rule.checks[word_slot].push((*feature, register));
     }
+    let register = rule.initial.len();
+    rule.initial
+        .push(Some(quote!(FeatureValue::Custom(#presence, 1))));
+    rule.exports.push((presence, register));
     Ok(Symbol::Nonterminal(category))
 }
 
@@ -1529,13 +1559,13 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)
         return Symbol::Nonterminal(category);
     }
 
-    if let FieldType::Lexical(category) | FieldType::OptionalLexical(category, _) = ty {
+    if let FieldType::Lexical(category) | FieldType::OptionalLexical(category, _, _) = ty {
         return Symbol::Lexical(category.clone());
     }
     let name = match ty {
         FieldType::One(c) | FieldType::Optional(c) | FieldType::Repeated(c, _) => c,
         FieldType::Lexical(_)
-        | FieldType::OptionalLexical(_, _)
+        | FieldType::OptionalLexical(_, _, _)
         | FieldType::SelectedFrame(_, _) => unreachable!(),
     };
     let child = ir.categories.iter().position(|n| n == name).unwrap();

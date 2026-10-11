@@ -102,7 +102,7 @@ pub(crate) struct PolicyUse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldType {
     Lexical(String),
-    OptionalLexical(String, String),
+    OptionalLexical(String, String, bool),
     SelectedFrame(String, String),
     One(String),
     Optional(String),
@@ -756,7 +756,7 @@ fn instantiate_schemas(
                     | FieldType::Optional(category)
                     | FieldType::Repeated(category, _)
                     | FieldType::Lexical(category)
-                    | FieldType::OptionalLexical(category, _) => category,
+                    | FieldType::OptionalLexical(category, _, _) => category,
                     FieldType::SelectedFrame(_, _) => continue,
                 };
                 if category != "node" {
@@ -1193,13 +1193,30 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
                         if !lexical.is_empty() {
                             return Err(lexical.error("unexpected lexical arguments"));
                         }
-                        let separator = if arguments.is_empty() {
-                            String::new()
+                        let (separator, preceding) = if arguments.is_empty() {
+                            (String::new(), false)
                         } else {
                             arguments.parse::<Token![,]>()?;
-                            arguments.parse::<LitStr>()?.value()
+                            if arguments.peek(LitStr) {
+                                (arguments.parse::<LitStr>()?.value(), false)
+                            } else {
+                                let position: Ident = arguments.parse()?;
+                                if position != "before" {
+                                    return Err(syn::Error::new(
+                                        position.span(),
+                                        "expected before(separator)",
+                                    ));
+                                }
+                                let value;
+                                parenthesized!(value in arguments);
+                                let separator = value.parse::<LitStr>()?.value();
+                                if !value.is_empty() {
+                                    return Err(value.error("unexpected separator arguments"));
+                                }
+                                (separator, true)
+                            }
                         };
-                        FieldType::OptionalLexical(category.to_string(), separator)
+                        FieldType::OptionalLexical(category.to_string(), separator, preceding)
                     }
                     "optional" => FieldType::Optional(category.to_string()),
                     "repeat" => {

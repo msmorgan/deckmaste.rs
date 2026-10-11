@@ -72,6 +72,15 @@ Orchestrator rulings 2026-10-10:
   face is expected; the 136 covered *from anywhere* lines and the locative
   *there* lines must keep their counts. Report any increase with its shape.
 
+- AE6 (orchestrator, 2026-10-11): extend the compiler with the leading
+  separator mirror of SB8's optional lexical field. Use one form on
+  `FusedDeterminerHeadNounPhrase`; requirements apply only when present and
+  absent optional fields remain omitted from Debug. No wrapper Construction.
+  Verify compiler tests and clippy and disclose the compiler change. The
+  manifest is the 4,434 faces using the touched Constructions, the ticket
+  pattern, and 300 random covered controls. AE2–AE5 stand; stop before
+  integration for serialized orchestrator review.
+
 ## Witnesses
 
 Each is the only failing line of its face in `blockers-wave8.json` (census
@@ -134,4 +143,101 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta (`oslovlpz`, claim-parent tree `ktusvmxm`):** on the
+   AE6 4,434-face manifest, covered 4,348 → 4,361; Readings 209,959 →
+   210,218. Lost/decreased/increased/digest-only: all zero (digest-only
+   classes and line counts: none); 13 gains, 4,421 unchanged, zero issues.
+   Selector: 184 fused-head users, 3,822 locative users, union with the
+   660-face Method grep and 300 distinct random covered controls, seed
+   20261008. `manifest-node-users.json` is the exact manifest. Official
+   `cargo xtask english-v3 diff before.json after.json --json diff.json
+   --lines` compares its intersection with the broader parent report;
+   the 21,284 extra BEFORE faces are outside this comparison, not losses.
+   No previously covered face changes count or digest, including *from
+   anywhere* and *there*. Evidence: `target/english-v3/english-v3-anywhere-else-goal/`.
+2. **Witnesses (`oslovlpz`):** full ticket text / its *there* control:
+   Gruesome Encore 8/8, Nephalia Academy 22/22, Storm Herald 6/6, From the
+   Catacombs 28/28; each ticket witness was 0 on `ktusvmxm`. The replacement
+   fragment is 0 → 1, its control remains 1. Graveyard control, *there* tail,
+   and *Put it there* remain 1; Dissipate remains 2; Luminous Phantom remains
+   4. Each bare *anywhere [else]* goal/tail is 0 → 1 (AE4). All enumerations
+   complete with zero issues. Census counts sum per-line Readings, rather
+   than multiplying full-document alternatives: the four witness faces
+   have 8, 23, 7 and 31 respectively.
+3. **Spot checks (`oslovlpz`):** all 13 gains were probed, complete and
+   byte-exact, with zero issues. Ten named checks: Elemental Expressionist,
+   From the Catacombs, Geth, Thane of Contracts, Gruesome Encore, Isareth the
+   Awakener, Llanowar Greenwidow, Moira and Teshar, Nephalia Academy,
+   Realmbreaker, the Invasion Tree, and Spirit-Sister's Call. Each selected
+   analysis has *put*'s object followed by `LocativeComplement` form 1,
+   whose phrase is fused-head *anywhere* with lexical *else* as its optional
+   dependent. Storm Herald, The Eighth Doctor and Whip of Erebos have the
+   same analysis. Wrong-analysis gains: zero. Several faces marked blocked
+   elsewhere in the draft already have those surrounding routes on the
+   claim parent; this change adds only the missing dependent/goal route.
+4. **Deviations and STOPs:** the same-field compiler invariant rejected the
+   attempted two-form AE1 implementation; the STOP was resolved by AE6.
+   No wrapper or other Construction was added. Compiler syntax now supports
+   `optional(lexical(Category), before("separator"))`, beside SB8's trailing
+   separator. Its `present` feature permits a conditional host-license
+   table; requirements on the optional word still apply only when present,
+   and absent fields remain omitted from Debug. NP interfaces/policies
+   now export locative permission (ordinary heads: No; NP modifiers pass
+   through the head), required by AE2. No verb frame changed or route was
+   retired. Glossary gaps filled: immediate post-head dependent and its
+   head/dependent licenses, locative use, optional field presence. Nominal
+   *else* adopts CGEL's proposed Preposition analysis (Ch. 7 §2.4, p. 615,
+   n. 5) as an AE1 project choice; p. 423 backs its immediate dependent use.
+5. **Tests (`oslovlpz`):** `cargo test -p deckmaste_english_v3` passed
+   1,083 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed. `cargo test -p deckmaste_lexical_source` passed 44;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   `cargo test -p deckmaste_construction_v3_core` passed 41 (also repeated
+   after the clippy cleanup); `cargo clippy -p deckmaste_construction_v3_core
+   --tests -- -D warnings` initially found function-length and empty-assert
+   style warnings, fixed by extracting separator emission and an exact
+   empty-vector assertion; its final run passed. Added 6, restored 0,
+   re-spelled 9, newly ignored 0, removed 0. Eight English tests retain their
+   exact expected values with explicit absent `dependent: None`:
+   `from_anywhere::{brinebound_gift, yawgmoths_agenda, planar_void,
+   rest_in_peace, generous_soul,
+   independently_constructed_fused_head_and_source_obey_both_laws,
+   comparative_modifier_attaches_to_anywhere_and_retains_nominal_scope}`
+   and `once_frequency::independent_fused_determiner_head_and_transitive_do_preserve_lexical_identity`.
+   Compiler `optional_lexical_fields_apply_requirements_only_when_present`
+   now expects the absence helper's explicit No presence export, retaining
+   its exact present-word requirement comparison. The inherited ignored
+   `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`
+   remains blocked by MS4's governed Mana Phrase Subject route. Citation
+   audit selected zero new sites; check: zero stale, zero noncompliant.
+6. **Timing (`oslovlpz`):** no full census was run, per the binding bounded
+   budget. The broader bounded parent census took 8m04.40s; the exact
+   4,434-face AFTER run took 3m58.69s under `/usr/bin/time -v`, six workers,
+   zero samples per face.
+
+## Claim-parent evidence (2026-10-11)
+
+Measured on pristine `oslovlpz` (tree identical to claim parent `ktusvmxm`):
+all four full card witnesses and the replacement fragment have 0 Readings.
+The three locative controls each have 1, Dissipate has 2, and Luminous
+Phantom has 4. The fragment with *there* replacing *anywhere else* has 1.
+The bare *Put it anywhere.* / *Put it anywhere else.* and the two
+*Exile it instead of putting it anywhere [else].* probes each have 0.
+All enumerations completed without issues. Evidence is under
+`target/english-v3/english-v3-anywhere-else-goal/before-probe-*.json`.
+
+The Method grep selects 660 supported faces. An expanded declaration-surface
+grep plus 300 distinct random covered controls (official diff manifest,
+seed 20261008) produced a 25,718-face claim-parent census: 23,600 covered,
+695,867 Readings, zero issues, 8m04.40s under `/usr/bin/time -v`, 6 workers,
+0 samples. All 300 random controls remain covered on this parent. The census
+identifies 184 faces using `FusedDeterminerHeadNounPhrase` and 3,822 using
+`LocativeComplement`; their union with the 660 ticket faces and those same
+300 controls is the exact, narrower manifest for further checks. Evidence:
+`before.json`, `before.time`, `manifest.json`, `manifest-node-users.json`,
+`ticket-selector.json` and `declaration-selector.json` in that directory.
+
+The attempted two-form implementation was rejected by the compiler's same-field
+invariant, prompting a STOP. AE6 resolves it with an optional post-head field
+in the existing single form. The rejected draft remains evidence only
+(`rejected-two-form.patch`); it is not a second route in the grammar.

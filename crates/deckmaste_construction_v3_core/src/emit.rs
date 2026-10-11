@@ -384,6 +384,20 @@ fn frame_item(item: &FrameItem) -> TokenStream {
     }
 }
 
+fn optional_word_separator(separator: &str, preceding: bool) -> (TokenStream, TokenStream) {
+    if preceding {
+        (
+            quote!({ let mut prefix = SurfaceSummary::default(); prefix.literal(#separator); summary.surface = prefix.append(summary.surface); }),
+            quote!(output.push_str(#separator); output.word(child, lexicon)?;),
+        )
+    } else {
+        (
+            quote!(summary.surface.literal(#separator);),
+            quote!(output.word(child, lexicon)?; output.push_str(#separator);),
+        )
+    }
+}
+
 fn form_pieces(
     ir: &Ir,
     form: &crate::ir::Form,
@@ -450,7 +464,7 @@ fn form_pieces(
                 }
                 let category_name = match ty {
                     FieldType::Lexical(c)
-                    | FieldType::OptionalLexical(c, _)
+                    | FieldType::OptionalLexical(c, _, _)
                     | FieldType::One(c)
                     | FieldType::Optional(c)
                     | FieldType::Repeated(c, _) => format_ident!("{c}"),
@@ -464,7 +478,7 @@ fn form_pieces(
                         write.push(quote!(output.word(#binding, lexicon)?;));
                         word.push(quote!(visitor(#binding);));
                     }
-                    FieldType::OptionalLexical(_, separator) => {
+                    FieldType::OptionalLexical(_, separator, preceding) => {
                         // Each field has its own helper, located through its surface slot.
                         let Build::Construction { slots, .. } = &ir.rules[form.rule].build else {
                             unreachable!()
@@ -482,17 +496,26 @@ fn form_pieces(
                                     && matches!(rule.build, Build::PresentWord)
                             })
                             .unwrap();
-                        let checks = rule.checks[0].iter().map(|(feature, register)| {
+                        let word_slot = usize::from(*preceding && !separator.is_empty());
+                        let presence = ir
+                            .features
+                            .iter()
+                            .position(|f| f.name == "present")
+                            .unwrap();
+                        let checks = rule.checks[word_slot].iter().map(|(feature, register)| {
                             let expected = rule.initial[*register].as_ref().unwrap();
                             quote!(if summary.values[#feature].as_ref() != Some(&#expected) { return Err(Error::Invalid(#owner, "optional lexical requirement")); })
                         });
+                        let (add_separator, realize) =
+                            optional_word_separator(separator, *preceding);
                         summaries[*field] = quote!(Some({ if let Some(child) = #binding {
                             let mut summary = cache.word(child, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?;
                             #(#checks)*
-                            summary.surface.literal(#separator);
+                            summary.values[#presence] = Some(FeatureValue::Custom(#presence, 1));
+                            #add_separator
                             summary
-                        } else { Summary::default() } }));
-                        write.push(quote!(if let Some(child) = #binding { output.word(child, lexicon)?; output.push_str(#separator); }));
+                        } else { let mut absent = Summary::default(); absent.values[#presence] = Some(FeatureValue::Custom(#presence, 0)); absent } }));
+                        write.push(quote!(if let Some(child) = #binding { #realize }));
                         word.push(quote!(if let Some(child) = #binding { visitor(child); }));
                     }
                     FieldType::One(_) => {
@@ -626,7 +649,7 @@ fn ast(ir: &Ir) -> TokenStream {
             .collect();
         let types = constructor.fields.iter().map(|(_, ty)| match ty {
             FieldType::Lexical(_) => quote!(Word),
-            FieldType::OptionalLexical(_, _) => quote!(Option<Word>),
+            FieldType::OptionalLexical(_, _, _) => quote!(Option<Word>),
             FieldType::SelectedFrame(_, _) => quote!(Vec<FrameValue>),
             FieldType::One(_) => quote!(Box<Reading>),
             FieldType::Optional(_) => quote!(Option<Box<Reading>>),
@@ -804,7 +827,7 @@ fn emit_reading_debug(ir: &Ir) -> TokenStream {
             .then(|| quote!(debug.field("category", category);));
         let debug_fields = constructor.fields.iter().map(|(field, ty)| {
             let label = field.to_string();
-            if matches!(ty, FieldType::OptionalLexical(_, _)) {
+            if matches!(ty, FieldType::OptionalLexical(_, _, _)) {
                 quote!(if #field.is_some() { debug.field(#label, #field); })
             } else {
                 quote!(debug.field(#label, #field);)
@@ -977,7 +1000,7 @@ fn materializer(ir: &Ir) -> TokenStream {
                         let binding = &values[field];
                         let conversion = match constructor.fields[field].1 {
                             FieldType::Lexical(_) => quote!(value.word()?),
-                            FieldType::OptionalLexical(_, _) => quote!(value.optional_word()?),
+                            FieldType::OptionalLexical(_, _, _) => quote!(value.optional_word()?),
                             FieldType::SelectedFrame(_, _) => quote!(return Err(Error::Internal)),
                             FieldType::One(_) => quote!(Box::new(value.node()?)),
                             FieldType::Optional(_) => quote!(value.optional()?),
@@ -993,7 +1016,11 @@ fn materializer(ir: &Ir) -> TokenStream {
             Build::PresentWord => {
                 let separator = rule.symbols.len() > 1;
                 let consume_separator = separator.then(|| quote!(if !matches!(children.next(), Some(Value::Literal)) { return Err(Error::Internal); }));
-                quote!({ let word = children.next().ok_or(Error::Internal)?.word()?; #consume_separator Ok(Value::OptionalWord(Some(word))) })
+                if matches!(rule.symbols.first(), Some(Symbol::Literal(_))) {
+                    quote!({ #consume_separator let word = children.next().ok_or(Error::Internal)?.word()?; Ok(Value::OptionalWord(Some(word))) })
+                } else {
+                    quote!({ let word = children.next().ok_or(Error::Internal)?.word()?; #consume_separator Ok(Value::OptionalWord(Some(word))) })
+                }
             },
             Build::Present => quote!(Ok(Value::Optional(Some(children.next().ok_or(Error::Internal)?.node()?)))),
             Build::Empty => quote!(Ok(Value::Repeated(vec![]))),

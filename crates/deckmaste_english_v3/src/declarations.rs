@@ -150,6 +150,11 @@ constructions! {
                 left.SourceComplementSelection, Right.SourceComplementSelection);
         }
         feature FusedHeadUse { No, Yes } default No;
+        feature ImmediatePostheadDependentUse { No, Yes } default No;
+        feature FusedHeadPostmodifierUse { No, Yes } default No;
+        table licensed_posthead_dependent(present, ImmediatePostheadDependentUse) -> Selection {
+            (No, _) => Yes, (Yes, Yes) => Yes,
+        }
         feature ComparativePostmodifierUse { No, Yes } default No;
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
@@ -327,7 +332,7 @@ constructions! {
         feature InternalisedComplementMarker { No, Yes } default No;
         feature InternalisedComplementPresent { No, Yes } default No;
         feature ExtentMarker { Yes }
-        feature LocativeUse { No, Yes }
+        feature LocativeUse { No, Yes } default No;
         feature AdjectiveOrigin { Ordinary, Participial } default Ordinary;
         feature AdjectivePremodifierUse { No, Yes } default Yes;
         table coordinated_adjective_premodifier(AdjectivePremodifierUse, AdjectivePremodifierUse)
@@ -613,7 +618,7 @@ constructions! {
         category NounPremodifierSeries(NounPremodifier, PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
-            BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
+            BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
         category NominativePhrase(number, person, DeterminerAgreementNumber, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
         category AccusativePhrase(PartitiveCountability, number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
         category AdjectivePhrase(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
@@ -714,7 +719,7 @@ constructions! {
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
         category FinitePredicateSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category NounPhraseSeries(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
+        category NounPhraseSeries(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
         category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(Polarity, number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
@@ -753,7 +758,7 @@ constructions! {
         category CorrelativeSecondaryVerbPhraseSeries(ParticipialSupplementUse, form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeNounPhraseSeries(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness);
+            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
         category CorrelativePrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
@@ -1484,6 +1489,7 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export ScalarDenotation = head.ScalarDenotation;
             export SubjectStructure = Phrase;
@@ -1866,6 +1872,7 @@ constructions! {
             (Alternative, _, Plural, _, _) => Plural,
         }
         policy NounCoordinationAgreement<Right, Source> {
+            export LocativeUse = No;
             export PartitiveCountability = coordinated_partitive_countability(left.PartitiveCountability, Right.PartitiveCountability);
             export NounPhraseStructure = Other;
             export FocusedUse = coordinated_focus(left.FocusedUse, Right.FocusedUse);
@@ -4037,6 +4044,7 @@ constructions! {
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4082,6 +4090,7 @@ constructions! {
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
         policy PostpositiveNounPhraseProperties {
+            export LocativeUse = head.LocativeUse;
             require unquantified_comparative(modifier.PropertyEqualityForm) = Yes;
             export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = Other;
@@ -4158,6 +4167,7 @@ constructions! {
         // Owner ruling (2026-10-08): Oracle names carry the grammatical
         // agreement declared on their lexeme.
         construction ProperNameNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = Count;
             export NounPhraseStructure = ProperName;
             export FocusedUse = No;
@@ -4182,6 +4192,7 @@ constructions! {
         // supplement a proper-name anchor. NA1–NA4 (orchestrator ruling,
         // 2026-10-10) license this unclosed NP shape wherever a name occurs.
         construction AscriptiveNounPhraseSupplement: NounPhrase {
+            export LocativeUse = anchor.LocativeUse;
             export PartitiveCountability = anchor.PartitiveCountability;
             form [anchor: NounPhrase, ", ", supplement: NounPhrase];
             require anchor.NounPhraseStructure = ProperName;
@@ -4292,6 +4303,7 @@ constructions! {
             (Nominal, PluralCount) => Plural, (Nominal, Mass) => Singular,
         }
         construction PartitiveNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = Unrestricted;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4354,6 +4366,7 @@ constructions! {
         // CGEL Ch. 5 §§9.1–9.2, pp. 411–413: explicitly partitive determiner-head.
         // PD2 (orchestrator, 2026-10-10) specifies oblique and agreement selection.
         construction DeterminerHeadPartitiveNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = complement.PartitiveCountability;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4385,6 +4398,9 @@ constructions! {
         // CGEL Ch. 5 §9.2(c), pp. 414–415: a singular demonstrative
         // can fuse Determiner and Head without an overt nominal.
         construction FusedDeterminerHeadNounPhrase: NounPhrase {
+            // AE1–AE2 and AE6 (orchestrator, 2026-10-10/11):
+            // immediate dependent and locative use; CGEL Ch. 5 §9.6, p. 423.
+            export LocativeUse = head.LocativeUse;
             export PartitiveCountability = Unrestricted;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4392,7 +4408,11 @@ constructions! {
             export UnitBearing = No;
             export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
             export DeterminerAgreementNumber = Nominal;
-            form [head: lexical(Determinative)];
+            form [head: lexical(Determinative),
+                dependent: optional(lexical(Preposition), before(" "))];
+            require dependent.FusedHeadPostmodifierUse = Yes;
+            require licensed_posthead_dependent(dependent.present,
+                head.ImmediatePostheadDependentUse) = Yes;
             require head.FusedHeadUse = Yes;
             require head.DeterminerUse = Singular;
             export number = Singular;
@@ -4410,6 +4430,7 @@ constructions! {
         // CGEL Ch. 5 §12(b–c), p. 434: fractions and multipliers are
         // external Modifiers; HR1–HR2 require a declared definite host.
         construction PredeterminerNounPhrase: NounPhrase {
+            export LocativeUse = head.LocativeUse;
             export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = predeterminer_structure(modifier.PredeterminerUse);
             form [modifier: lexical(Adverb), " ", head: NounPhrase];
@@ -4439,6 +4460,7 @@ constructions! {
         }
 
         construction DeterminedNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4471,6 +4493,7 @@ constructions! {
         }
 
         construction IndefiniteNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = IndefiniteArticle;
             export FocusedUse = No;
@@ -4546,6 +4569,7 @@ constructions! {
         }
 
         construction TargetNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4573,6 +4597,7 @@ constructions! {
 
         schema NominativePronoun { form [head: lexical(Pronoun)]; }
         policy OrdinaryNominativePronoun {
+            export LocativeUse = No;
             export PartitiveCountability = Unrestricted;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4615,6 +4640,7 @@ constructions! {
         }
 
         construction AccusativePronoun: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = Unrestricted;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -4779,6 +4805,7 @@ constructions! {
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
         }
         policy FocusedNounPhrasePermissions {
+            export LocativeUse = head.LocativeUse;
             export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = Other;
             export FocusedUse = Yes;
@@ -5166,11 +5193,13 @@ constructions! {
         }
 
         construction LocativeComplement: LocativeComplement {
-            form [phrase: PrepositionPhrase];
+            form [phrase: PrepositionPhrase]
+                require phrase.SelectedPrepositionUse = No
+                require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes
+                require phrase.ComplementFunctionRestriction = None;
+            // AE2: NP function follows its head's declared locative use.
+            form [phrase: NounPhrase];
             require phrase.LocativeUse = Yes;
-            require phrase.SelectedPrepositionUse = No;
-            require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
-            require phrase.ComplementFunctionRestriction = None;
         }
 
         construction MannerComplement: MannerComplement {
@@ -6119,6 +6148,7 @@ constructions! {
         }
 
         construction QuantifiedNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -6287,6 +6317,7 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -6384,6 +6415,7 @@ constructions! {
         // coordinated-property-values (2026-10-08). A property Nominal selects
         // its following value Complement through declared position and kind.
         construction MeasuredAttribute: NounPhrase {
+            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -6449,6 +6481,7 @@ constructions! {
             form [head: node, " ", comparison: MatrixComparativePhrase];
         }
         policy NominalComparisonHost {
+            export LocativeUse = head.LocativeUse;
             export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = Other;
             export FocusedUse = No;

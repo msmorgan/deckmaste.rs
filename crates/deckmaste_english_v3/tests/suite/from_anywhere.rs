@@ -27,6 +27,7 @@ fn word(id: &str) -> Word {
 
 fn anywhere() -> Reading {
     Reading::FusedDeterminerHeadNounPhrase {
+        dependent: None,
         form: 0,
         head: word("vocab:CompoundDeterminative/Anywhere"),
     }
@@ -183,6 +184,7 @@ fn comparative_modifier_attaches_to_anywhere_and_retains_nominal_scope() {
         category: Category::NounPhrase,
         form: 0,
         head: Box::new(Reading::FusedDeterminerHeadNounPhrase {
+            dependent: None,
             form: 0,
             head: word("vocab:SingularDemonstrative/This"),
         }),

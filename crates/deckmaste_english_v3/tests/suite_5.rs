@@ -88,3 +88,6 @@ mod coordinated_participial_premodifier;
 
 #[path = "suite/delayed_right_constituent_passive.rs"]
 mod delayed_right_constituent_passive;
+
+#[path = "suite/anywhere_else_goal.rs"]
+mod anywhere_else_goal;
