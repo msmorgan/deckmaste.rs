@@ -119,7 +119,18 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    Official `english-v3 diff --lines`: lost **0**, gained **18**, decreases **0**,
    increases **0**, digest-only **625**. The digest-only changes make the
    existing scalar-predicate and measured-cost schema Categories explicit;
-   their Reading counts are unchanged. Lost faces: none. No gained face reads
+   their Reading counts are unchanged. Complete retained-Reading inspection
+   classifies all 625 digest-only faces and all **639** changed top-level lines:
+   **544** measured-cost-only faces / **558** lines (`MeasuredScalarLocation`
+   at `ScalarLocationComplement`); **80** finite-scalar-only faces / **80**
+   lines (`ScalarLocationPredicate` at its original Category); **1** mixed
+   face / **1** line, The End's *This spell costs {2} less to cast if your life
+   total is 5 or less.* Both schemas occur on that line. These are disjoint
+   face and line classes, not Reading-occurrence counts; no unclassified line.
+   The parent and implementation retained-Reading inspections agree on every
+   class membership. Evidence: `digest-classes.json`, `digest-class-lines.json`,
+   `digest-parent-confirmation.json`, `reach-parent.json`, `reach-current.json`.
+   Lost faces: none. No gained face reads
    only through an unintended analysis. Selector: every supported face matching
    `\bwere\b|\bweren.t\b|\b(greater|less|more|fewer)\b`, case-insensitive
    (3,914 faces), plus 300 covered controls chosen by the official diff manifest
@@ -142,6 +153,30 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    and The Earth King (`xzwlutqp`'s *up to that many*). The supported-corpus
    grep evidence is `trunk-gain-attestation.json`. No lost Reading to restore or justify. Evidence:
    `after-refresh.json`, `diff-refresh.json`, `diff-trunk.json`.
+   Review reach extension (2026-10-11): the original finite-scalar instance
+   has **46** supported claim-parent users outside the 4,190-face selector,
+   each with one retained finite-scalar line. Enumerating every top-level
+   Ability Reading of the copula-surface candidates identified all users;
+   the claim-parent and implementation user identity sets are equal. The
+   loaded lexicon has only `Be`, `BeNegative` and `BeContracted` owners of
+   `ScalarLocation` frames; their declared finite surfaces are exhausted by
+   supported-corpus grep `\b(is|are|was|were|am|isn.t|aren.t|wasn.t|weren.t)\b|[’\x27](s|re|m)\b`,
+   case-insensitive (**8,353** faces, **6,739** outside the original selector).
+   No raw Scryfall search was used. The classifier additionally inspects the
+   original digest-only faces, for 8,769 inspected candidate faces in all.
+   Official `english-v3 diff --lines` on the 46-face identity manifest:
+   covered **46 → 46**, Readings **800 → 800**, lost/gained/decreases/increases
+   **0/0/0/0**, digest-only **46** faces / **46** lines, issues **0**.
+   Both censuses use `--identity-manifest …/reach-manifest.json --workers 6
+   --samples-per-face 0` under `/usr/bin/time -v`, with outputs
+   `reach-before.json` and `reach-after.json`; the official diff outputs
+   `reach-diff.json`. BEFORE temporarily loads the exact refreshed
+   `zyovmtwr` grammar and core lexicon, isolating this ticket from inherited
+   trunk changes; both report headers retain the workspace change `ltyonqkl`.
+   Verified implementation files were restored byte-for-byte before AFTER.
+   Classifier/selector evidence stays in `target/`: `copula-reach.json`,
+   `reach-input.json`, `outside-parent-users.json`, `outside-after-users.json`,
+   `frame-owners.txt`, `frame-owners-after.txt`, and `reach-manifest.json`.
 2. **Witnesses** (complete Sentence enumeration on `ouykkpns`): all ticket
    witnesses failed on the claim-parent grammar; none was dropped. Hotshot
    Mechanic **0 → 1**; Deathless Pilot, Dynamite Diver and Cloudspire Captain's
@@ -175,17 +210,91 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    Seed 20261008 follows the binding session instruction rather than the Method's
    older seed. No superseded lexical or grammar route remains; existing live
    cost and bounded-property routes are retained. No STOP or glossary gap.
+   Changed-declaration reach inventory (supported faces outside the original
+   selector; unchanged form/requirements/exports are stated explicitly):
+
+   - `IrrealisPredicate` Category adds `ScalarDenotation` to `number, person`.
+     Outside reach **no**: its existing and new instances require an irrealis
+     copula, *were* or *weren't*, both exhaustively selected.
+   - `IrrealisHeadAgreement` adds export `ScalarDenotation = No`; its form,
+     finiteness, no-clitic, number and person equations are unchanged. This
+     changes exports of the existing `SelectedPredicate<IrrealisPredicate,
+     IrrealisHeadAgreement>` and `ParticipialAuxiliaryPredicate<IrrealisPredicate,
+     ParticipialComplement, IrrealisHeadAgreement>` instances; their forms and
+     other requirements/exports are unchanged. Outside reach **no** for the
+     policy and both affected instances (lexical *were*/*weren't*). Their
+     finite and secondary instances are unchanged.
+   - `IrrealisClause` adds the `scalar_subject_licence` requirement. Its Subject,
+     Predicate, number and person equations are unchanged. The new table admits
+     any Subject for predicate `ScalarDenotation = No`, and only a scalar
+     Subject for `Yes`. Outside reach **no** for clause/table: an irrealis
+     predicate still requires a selected *were*/*weren't* surface.
+   - `ScalarLocationPredicate` becomes a shared schema with the same lexical
+     Verb and `selected_frame(head, ScalarLocation)` form. Its entire instance
+     list is `(ScalarLocationPredicate, FiniteHeadAgreement)` and
+     `(IrrealisPredicate, IrrealisScalarHeadAgreement)`. The existing finite
+     instance keeps all original requirements/exports and gains an explicit
+     Reading Category field; `FiniteHeadAgreement` itself is unchanged.
+     Outside reach **yes** for the shared schema's finite instance: the
+     46 users measured in item 1. Outside reach **no** for the new irrealis
+     instance. New `IrrealisScalarHeadAgreement` requires Irrealis, Finite,
+     no clitic, exports head number/person and `ScalarDenotation = Yes`;
+     outside reach **no** (*were*/*weren't*).
+   - `MeasuredScalarLocation` becomes a shared schema: its Modifier and
+     lexical Head are instance parameters, and `head.MeasureModifierUse = Yes`
+     is retained. Its entire instance list is `(ScalarLocationComplement,
+     CostSymbols, Determinative, NoFeatures)` and `(PredicativeComplement,
+     MeasurePhrase, Adjective, MeasuredComparativeAdjectiveProperties)`.
+     The original cost instance's specialized form and requirements/exports
+     are unchanged; its Reading gains the explicit Category field. Outside
+     reach **no** for either instance/schema: the cost heads are *less/more*,
+     while the licensed Adjective head is *greater*, all selected.
+   - New `MeasuredComparativeAdjectiveProperties` requires Scalar Measure Kind
+     and an Intransitive (empty) head frame, exports Adjectival Predicative Kind
+     and `PredicativeAdjunctUse = No`. Outside reach **no**, by its sole
+     measured-adjective instance. The comparative AdjP's measure-Modifier form
+     is that instance's `[MeasurePhrase, " ", lexical(Adjective)]`;
+     `ComparativeAdjectivePhrase` itself, its instances/policies, and the
+     existing `MeasurePhrase`/`ScalarMeasurePhrase` declarations are unchanged.
+   - The existing `vocab:ScalarDegree/Greater` lexeme adds only
+     `MeasureModifierUse = Yes`; its forms, Category and selected frames are
+     unchanged. Outside reach **no**: all supported *greater* faces are in
+     the selector. No new loader or parser condition was added.
+
 5. **Tests** (`ouykkpns`): full `cargo test -p deckmaste_english_v3` passed
    (1,053 tests), following the initial chart-budget failure and its grammar
    fix; full `cargo test -p deckmaste_lexical_source` passed.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
-   Restored **0** / re-spelled **3** / ignored **0** / added **5** / removed **0**.
-   The three re-spellings preserve the same independent values and assertions
-   in `independent_scalar_location_preserves_both_laws_and_traversal_identity`,
-   `independent_complements_preserve_both_laws_and_traversal_identity`, and
-   `ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected`, adding
-   only the shared schemas' explicit Category fields. No removal to justify.
+   Restored **0** / re-spelled **4** / ignored **0** / added **5** / removed **0**.
+   Review correction: the original tally of three counted edited value sites;
+   one is a shared builder used by two tests, so four existing tests are
+   affected. Every original assertion and input remains unchanged:
+
+   - `copular_scalar_location.rs::independent_scalar_location_preserves_both_laws_and_traversal_identity`:
+     `scalar_location` adds only `category: Category::ScalarLocationPredicate`
+     to the expected predicate; the same *its power is 2*, *her power is 1 or
+     less*, and *three* values still compare complete parsed sets, realization,
+     nodes and Words with the independently constructed values.
+   - `cost_scalar_complement.rs::independent_complements_preserve_both_laws_and_traversal_identity`:
+     the expected measured value adds only `category: Category::ScalarLocationComplement`;
+     *cost {1} less*, *{1} less*, *{0}*, *to cast*, and *costs {1} less to cast*
+     retain the same full-set comparisons, including the existing participial
+     alternative, and both roundtrip/traversal outcomes.
+   - `cost_scalar_complement.rs::ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected`:
+     the independently constructed invalid `{1} greater` value adds only
+     `category: Category::ScalarLocationComplement`; every original rejected
+     fragment still compares its complete parsed set with the empty set, and
+     the same invalid values still fail admission and realization.
+   - `copular_scalar_location.rs::independent_non_scalar_subject_and_wrong_frame_are_rejected`:
+     the shared `scalar_location` builder adds the same predicate Category to
+     its two existing invalid values; the wrong Subject and wrong frame, and
+     their admission/realization rejection assertions, are unchanged. This
+     indirect fourth consumer was omitted from the original tally.
+
+   No value comparison was replaced by a variant/discriminant check; no
+   assertion, sentence, alternative, test or blocker was removed. No removal
+   to justify.
    Citation checks: zero noncompliant, zero stale; the piped diff audit found
    zero new citation sites, so no new rule registration was needed.
    Post-refresh `cargo build -p xtask` passed. Full `cargo test -p` and
@@ -209,4 +318,6 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    **6 workers**, `--samples-per-face 0`, captured under `/usr/bin/time -v`.
    Refreshed bounded census wall **4 min 40 s**, same manifest and settings;
    `/usr/bin/time -v` captured in `census-refresh.log`.
-   No full-corpus census was run.
+   Review reach extension: BEFORE **582 ms**, AFTER **499 ms** corpus wall,
+   six workers, zero samples; build overhead is separately captured in the
+   `/usr/bin/time -v` logs. No full-corpus census was run.
