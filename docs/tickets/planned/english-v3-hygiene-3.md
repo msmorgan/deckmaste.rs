@@ -109,9 +109,13 @@ has not been probed at the current trunk.
 
 - **B7. Mana passive head carries unused selected-head exports.** `english-v3-mana-symbol-passive-subject` (`onymknyk`) reuses `SelectedVerbHead`, whose Category interface also requires `FrameUse`, `HeadCoordination`, `AuxiliaryEllipsisLicence` and `AuxiliaryProFormLicence`; the current Mana passive Subject route does not consume these four exports. Evaluate schema/interface economy without changing retained Readings.
 
+- **Parameter-recipe premodifier distribution.** `english-v3-quality-cost-keyword-lines` found duplicate bare *equip costs/abilities* Readings from the Cost and unmarked Quality+Cost recipes; the latter's premodifier licence is now excluded by recipe-class derivation. Audit other multi-recipe keyword classes for the same redundant distribution before adding variants.
+
 ### C. Tests and tooling
 
 - `english-v3-partner-with-name-keyword`: `builtin_v2_keyword_abilities::parameterized_keyword_params` and `builtin_v2_keyword_spelling_templates::every_keyword_template_is_consistent_with_its_params_and_grammar` pin numeric inventory sizes (110 → 111 and 66 + 209 → 66 + 210 with the new declaration); replace them with inventory relations in the C1 sweep.
+
+- `builtin_v2_keyword_abilities::parameterized_keyword_params` retains a hardcoded inventory length (110 → 111 when `english-v3-quality-cost-keyword-lines` adds Equip's Quality+Cost recipe); replace it with the inventory's actual structural obligation under C1.
 
 - **C1. Magic-number and Debug-tree assertions.** Owner complaint of
   2026-10-09 after `english-v3-per-line-readings`: tests pin numbers such as

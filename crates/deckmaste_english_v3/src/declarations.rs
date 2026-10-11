@@ -2930,14 +2930,21 @@ constructions! {
             require head.KeywordSeparator = Space;
             require amount.MeasureKind = Scalar;
         }
+        table quality_cost_marker_concord(KeywordMarker, KeywordMarker) -> Selection {
+            (For, For) => Yes, (From, From) => Yes,
+            (Onto, Onto) => Yes,
+        }
         construction QualityCostKeyword: KeywordPhrase {
-            form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition,
-                keyword_parameter_separator(head.KeywordParameterSeparator), cost: CostSymbols];
             require head.KeywordParameterClass = QualityCost;
             require head.KeywordSeparator = Space;
-            agree head.KeywordMarker = quality.KeywordMarker;
             require compatible_quality(head.KeywordQualityNumber,
                 quality.KeywordQualityNumber) = Yes;
+            form [head: lexical(Keyword), " ", quality: KeywordQualityPreposition,
+                keyword_parameter_separator(head.KeywordParameterSeparator), cost: CostSymbols]
+                require quality_cost_marker_concord(head.KeywordMarker, quality.KeywordMarker) = Yes;
+            form [head: lexical(Keyword), " ", quality: KeywordQuality,
+                keyword_parameter_separator(head.KeywordParameterSeparator), cost: CostSymbols]
+                require head.KeywordMarker = None;
         }
         // A bare quality then a number, no preposition: "Devour artifact 1"
         // (ruling 2026-10-10, `semantics-v2-devour-quality-keyword`).

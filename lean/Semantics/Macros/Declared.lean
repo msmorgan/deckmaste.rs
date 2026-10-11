@@ -3228,6 +3228,10 @@ semantic_macro epic : Semantics.Ability :=
 semantic_macro equip (arg0 : Semantics.Cost) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "equip") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.activated arg0 (Semantics.Instruction.enact (Semantics.Deed.action "attach") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.attachment Semantics.AttachMove.attached (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this)) (some (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.described (Semantics.DetPhrase.target (Semantics.Quantity.range (some 1) (some 1))) (Semantics.Predicate.and [(Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.you)]))))))) (some (Semantics.Timing.and [(Semantics.Timing.inPart Semantics.TurnPart.mainPhase (some Semantics.NounPhrase.you) Semantics.TurnRef.current), (Semantics.Timing.onlyIf (Semantics.Condition.not (Semantics.Condition.exists_ (Semantics.NounPhrase.described Semantics.DetPhrase.bare (Semantics.Predicate.inZone (Semantics.ZoneExpr.zone Semantics.Zone.stack Semantics.ZoneScope.bare))))))])) none none none)])
 
+/-- `keyword_abilities/equipQuality.ron` -/
+semantic_macro equipQuality (arg0 : Semantics.Predicate) (arg1 : Semantics.Cost) : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "equipQuality") [(Semantics.KeywordParam.quality arg0), (Semantics.KeywordParam.cost arg1)] [])
+
 /-- `keyword_abilities/escalate.ron` -/
 semantic_macro escalate (arg0 : Semantics.Cost) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "escalate") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.modeChoice (Semantics.ModeChange.extraModesCost arg0)))])

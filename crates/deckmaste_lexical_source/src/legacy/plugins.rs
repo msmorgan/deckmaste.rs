@@ -397,10 +397,27 @@ fn export_distribution(
         export_grammar_distribution(lexeme, grammar);
     }
     if let Some(parameter) = normalized.keyword_parameter_class() {
+        // An unmarked Quality+Cost recipe supplies the complete keyword
+        // phrase, not a second bare noun premodifier (QC5/QC8, 2026-10-11).
+        let premodifier = if parameter == metadata::KeywordParameterClass::QualityCost
+            && normalized.keyword_syntax().is_none_or(|syntax| {
+                syntax.payload_order == metadata::KeywordPayloadOrder::AfterHead
+            })
+            && matches!(
+                normalized.grammar().map(metadata::GrammarRow::recipe),
+                Some(metadata::GrammarRecipe::FixedKeyword {
+                    parameter: None,
+                    ..
+                })
+            ) {
+            "None"
+        } else {
+            "Keyword"
+        };
         lexeme
             .properties
             .features
-            .insert("NounPremodifier".into(), "Keyword".into());
+            .insert("NounPremodifier".into(), premodifier.into());
         lexeme.properties.features.insert(
             "KeywordParameterClass".into(),
             match parameter {

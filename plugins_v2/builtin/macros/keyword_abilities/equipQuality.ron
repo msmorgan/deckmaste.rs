@@ -1,0 +1,10 @@
+KeywordAbility(
+    name: "equipQuality",
+    params: [Quality, Cost],
+    spelling: "equip <Param(0)> <Param(1)>",
+    grammar: FixedKeyword(
+        surface: "equip",
+    ),
+    // Grammar-only parameter recipe authorized by orchestrator ruling QC2
+    // (2026-10-11). The engine body belongs to semantics-v2-keyword-ability-census.
+)

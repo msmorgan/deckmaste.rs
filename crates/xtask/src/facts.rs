@@ -1673,6 +1673,11 @@ const REGIME_AXIS: &str = "regime and functionsOnStack are two columns because t
 /// Keyword-ability stubs the workbench does not row.
 const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[
     Exempt {
+        label: "EquipQuality",
+        reason: "grammar-only parameter recipe authorized by orchestrator ruling QC2 (2026-10-11); \
+             its engine body and Facts row belong to semantics-v2-keyword-ability-census",
+    },
+    Exempt {
         label: "Prototype",
         reason: "a layout keyword, not a keyword-ability row: the prototype ability is the inset \
              frame itself [CR#702.160a,718.1], so the workbench spells it as the `Card` wrapper \

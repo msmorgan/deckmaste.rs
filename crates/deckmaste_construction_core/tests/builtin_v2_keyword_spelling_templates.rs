@@ -156,6 +156,7 @@ const KEYWORD_ABILITY_TEMPLATES: &[(&str, &str)] = &[
     ("entwine", "entwine <Param(0)>"),
     ("epic", "epic"),
     ("equip", "equip <Param(0)>"),
+    ("equipQuality", "equip <Param(0)> <Param(1)>"),
     ("escalate", "escalate <Param(0)>"),
     ("escape", "escape <Param(0)>"),
     ("eternalize", "eternalize <Param(0)>"),
@@ -365,7 +366,10 @@ fn every_keyword_declaration_pins_its_template() {
 #[test]
 fn every_keyword_template_is_consistent_with_its_params_and_grammar() {
     let declarations = keyword_declarations();
-    assert_eq!(declarations.len(), 66 + 210);
+    assert_eq!(
+        declarations.len(),
+        KEYWORD_ACTION_TEMPLATES.len() + KEYWORD_ABILITY_TEMPLATES.len()
+    );
     for declaration in &declarations {
         let name = declaration.identity().name();
         let params = declaration.params().unwrap_or_default();

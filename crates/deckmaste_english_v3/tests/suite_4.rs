@@ -88,3 +88,6 @@ mod verbless_state_predicate_class;
 
 #[path = "suite/property_pair_each_equal_to.rs"]
 mod property_pair_each_equal_to;
+
+#[path = "suite/quality_cost_keyword_lines.rs"]
+mod quality_cost_keyword_lines;

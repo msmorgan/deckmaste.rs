@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Read Quality-then-Cost keyword lines: Equip legendary creature {1}; Craft with artifact {1}{U}
+# Read unmarked Quality-then-Cost keyword lines: Equip legendary creature {1}
 
 ## Why
 
@@ -22,9 +22,10 @@ materials: *artifact* 10, *creature* 2, *Island*, *Cave*, quantified NPs 7
 
 ## Goal
 
-A keyword phrase `<keyword> [marker] <Quality> <Cost>` reads for a keyword
-whose declaration selects a Quality and a Cost, with or without a selected
-Preposition, byte-exact. Bare-Cost *Equip {1}* keeps its Reading.
+An unmarked keyword phrase `<keyword> <Quality> <Cost>` reads for a keyword
+whose declaration selects a Quality and a Cost, byte-exact. Existing marked
+QualityCost routes and bare-Cost *Equip {1}* keep their Readings. QC9 defers
+Craft to `english-v3-craft-with-quality-cost`.
 
 ## Analysis
 
@@ -85,6 +86,15 @@ Orchestrator rulings 2026-10-11:
   baseline uses them (splice, and every `For`/`From`/`Onto` keyword), and
   digest-only changes are reported by class.
 
+- QC9 (orchestrator, 2026-10-11). Land the unmarked Quality+Cost form and
+  separate grammar-only EquipQuality definition with its facts exemption.
+  Preserve every existing keyword signature. Remove the With marker rows,
+  which only serve Craft here. Defer Craft to
+  `english-v3-craft-with-quality-cost`; its 24 faces stay unread. The owner
+  and semantics-v2 line must decide whether a grammar ticket may alter Craft
+  and regenerate the v1 facts row. QC9 supersedes QC2's Craft instruction
+  and QC6, and resolves the implementation STOP by splitting the ticket.
+
 ## Witnesses
 
 Each is the whole failing line of a face whose only failing line it is.
@@ -94,19 +104,19 @@ all 0.
 - Ace's Baseball Bat: "Equip legendary creature {1}"
 - Steelclaw Lance: "Equip Knight {1}"
 - Robe of the Archmagi: "Equip Shaman, Warlock, or Wizard {1}"
-- Braided Net: "Craft with artifact {1}{U}"
-- The Enigma Jewel: "Craft with four or more nonlands with activated
-  abilities {8}{U}"
+Deferred witnesses are recorded in `english-v3-craft-with-quality-cost`: Braided
+Net and The Enigma Jewel remain unread under QC9.
 
 Controls that must not change: "Equip {1}" 1; "Equip—Pay 3 life." 1; "Splice
 onto Arcane {1}{R}" 1; "Affinity for artifacts" 2; "Protection from
-legendary creatures" 2. Changes under QC6: "Craft {1}{U}" 1 → 0.
+legendary creatures" 2. Under QC9, "Craft {1}{U}" retains 1.
 
 ## Method
 
 Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `(?im)^(equip|craft|splice|affinity|protection|champion)\b|\b(equip|craft)\b`
-plus 300 random covered controls (`--random 300 --seed 20261008`),
+plus 300 random covered controls (`--random 300 --seed 20261008`). Craft
+remains in this selector to verify all 24 deferred faces stay unread. Use
 `--workers 6 --samples-per-face 0`, compared with `cargo xtask english-v3
 diff` against the claim parent. Zero lost; QC8 for changes. Because
 `plugins_v2/` changes: FULL `cargo test -p xtask`, `-p
@@ -120,10 +130,101 @@ Attestation by `cargo xtask english-v3 grep` only.
 
 ## Out of scope
 
-- QC7's two fused-material faces.
+- Craft, including QC7's two fused-material faces; tracked in
+  `english-v3-craft-with-quality-cost` under QC9.
 - *Commander ninjutsu {U}{B}* (1), *Modular—Sunburst* (1), *Kicker {1}{W}
   and/or {1}{U}* (5 sole), *Cumulative upkeep {W} or {U}* (4), *Suspend
   X—{X}{G}{G}.* (5): other keyword-line shapes, counted in the wave-10 triage.
 - Engine bodies for craft and equip-with-Quality.
 
 ## Landing record
+
+1. **Census delta — `vwntqpupwqyw`, claim-parent runtime `wlslkrom`.**
+   Bounded manifest: 1,399 faces. Method grep selects 915; declaration reach
+   adds 187 outside that pattern (419 claim-parent users); the unmarked
+   AfterHead class adds Crabomination; 300 random covered controls use seed
+   20261008. BEFORE is the original claim-parent census expanded with exact
+   parent runtime bytes; official diff leaves all 1,398 shared faces unchanged.
+   Covered 1,271 → 1,292; Readings 15,804 → 15,988; gained 21; lost none;
+   decreases 0; increases 0; digest-only 0 (all classes, 0 covered lines);
+   issues 0. All 24 Craft faces remain unread under QC9. Evidence:
+   `target/english-v3/english-v3-quality-cost-keyword-lines/{before,after,diff}.json`.
+   Post-refresh comparison with that original claim parent: covered 1,271 →
+   1,298; Readings 15,804 → 16,005; gained 27; lost/decreases/increases/
+   digest-only/source changes/issues all 0. The official `refresh-diff.json`
+   comparing the saved QC9 AFTER with refreshed AFTER attributes six gains
+   (17 Readings) to trunk's `zquvqlrmolsk` additional-adjustment landing:
+   Bride's Gown, Groom's Finery, Heavy Mattock, Silver-Inlaid Dagger,
+   Tenza, Godo's Maul and True-Faith Censer. Ticket gains remain 21.
+   Both runs use the same 1,399-face manifest; digest-only classes each have
+   0 changed covered lines.
+2. **Witnesses — `vwntqpupwqyw`.** Ace's Baseball Bat, Steelclaw Lance and
+   Robe of the Archmagi: each 0 → 1. Deferred Braided Net and The Enigma
+   Jewel: each 0 → 0. Controls before/after: bare Equip 1/1, dashed Equip 1/1,
+   Splice 1/1, Affinity 2/2, Protection 2/2; bare Craft retains 1/1 under QC9.
+3. **Spot checks — `vwntqpupwqyw`.** Ten gained faces, each one byte-exact
+   `QualityCostKeyword` form 1, EquipQuality Head and separately selected
+   Quality/Cost: Ace's Baseball Bat and Blackblade Reforged (legendary
+   creature); Steelclaw Lance (Knight); Robe of the Archmagi (coordinated
+   Shaman, Warlock, or Wizard); Commander's Plate (commander); Dúnedain Blade
+   (Human); Bilbo's Ring (Halfling); Lothlórien Blade (Elf); Veteran's
+   Powerblade (Soldier); Team Pennant (creature token). No gain relies on
+   an unintended route. Crabomination's unmarked Emerge-from line also reads
+   once, but its whole face remains unread through separate text, so is no gain.
+4. **Deviations and STOPs — `vwntqpupwqyw`.** No Construction or frame added
+   or deleted. A marker-concord table preserves marked form 0 while the new
+   unmarked form shares its named fields. Initial duplicate Equip noun
+   premodifiers are fixed by class-derived lexical distribution for unmarked
+   AfterHead QualityCost recipes; no plugin data override exists for that
+   licence. The STOP on Craft's semantic signature/generated Idris facts is
+   resolved by QC9's split: Craft and its derived macro are restored, both
+   With rows omitted, all existing facts rows unchanged. The new planned
+   `english-v3-craft-with-quality-cost` preserves the 24 identities, probes,
+   exact Lean/Idris diffs and OWNER DECISION. Semantic artifacts add the new EquipQuality macro
+   export and facts exemption. Hygiene observations are in hygiene-3.
+   Two inherited citation-looking timing decimals are preserved in seconds
+   and milliseconds. No glossary gap. Refresh brought grammar and lexicon
+   changes and one hygiene-note conflict; both independent notes were
+   retained. Kata refresh then exited 0, with no remaining conflicts.
+5. **Tests — `vwntqpupwqyw`, QC9 rerun.** All full suites and clippy passed:
+   `cargo test -p xtask`;
+   `cargo clippy -p xtask --tests -- -D warnings`;
+   `cargo test -p deckmaste_semantics_v2`;
+   `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings`;
+   `cargo test -p deckmaste_construction_core`;
+   `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`;
+   `cargo test -p deckmaste_lexical_source`;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`;
+   `cargo test -p deckmaste_english_v3` (1,138 passed, 1 inherited ignored);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`.
+   `cargo xtask lean check` passed. Cite checks: 0 noncompliant, 0 stale;
+   `jj --no-pager diff --git | cargo xtask cite audit --diff`: 0 sites.
+   Kanban graph check passed. `cargo xtask facts check`
+   passed with both generated files unchanged. After refresh, `cargo build -p
+   xtask` passed; all ten test/clippy commands above passed again in full.
+   Refreshed English: 1,157 passed, 1 inherited ignored; all seven
+   `selected_complement_clusters` tests passed with unchanged budget ceilings.
+   `cargo xtask lean check` passed again (245 cards); `cargo xtask facts check`
+   passed again without changing either generated facts file. Evidence:
+   `target/english-v3/english-v3-quality-cost-keyword-lines/post-refresh-checks.json`.
+   Restored 1:
+   `keyword_mention_without_parameter::keyword_premodifiers_keep_keyword_identity_in_costs_and_abilities`
+   keeps its original expected value, restored by preventing the new recipe's
+   bare noun-premodifier twin. Re-spelled 4:
+   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`
+   adds EquipQuality's Quality+Cost signature; Craft's original Cost signature
+   and grammar remain pinned;
+   `every_keyword_declaration_pins_its_template` adds EquipQuality's bare
+   two-parameter template while preserving Craft's original template;
+   `every_keyword_template_is_consistent_with_its_params_and_grammar` derives
+   the complete expected inventory size from both pinned template arrays;
+   `keyword_declarations_mint_premodifier_permissions_without_changing_category`
+   keeps Keyword category for every keyword and expects NounPremodifier None
+   for unmarked AfterHead QualityCost recipes, Keyword otherwise.
+   Added 5 English tests; newly ignored 0; removed 0. Unlanded Craft-positive
+   cases are withdrawn under QC9 and retained as deferred unread controls;
+   no existing test was removed or weakened.
+6. **Timing — `vwntqpupwqyw`.** QC9 bounded census: 13.25 seconds wall under
+   `/usr/bin/time -v`, 6 workers, 0 samples per face. Refreshed bounded census:
+   40.91 seconds wall; xtask rebuild: 6 minutes 37 seconds.
+   No full-corpus census run.
