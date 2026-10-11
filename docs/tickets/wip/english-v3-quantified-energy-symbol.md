@@ -114,8 +114,9 @@ amount of {E} equal to the greatest power among creatures you control." 9
 Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `\{E\}` (142 faces: the 36, 7 other unread, 99 covered) plus
 300 random covered controls, `--workers 6 --samples-per-face 0`, compared
-with `cargo xtask english-v3 diff` against the claim parent. Zero lost; QE5
-for increases. Full `cargo test -p` and `cargo clippy -p … --tests -- -D
+with `cargo xtask english-v3 diff` against the claim parent. QE6 adds all
+faces matching `\b(defend|defends|defended|defending)\b` case-insensitively
+for the bare participial requirement refinement. Zero lost and zero increases. Full `cargo test -p` and `cargo clippy -p … --tests -- -D
 warnings` for `deckmaste_lexical_source` and `deckmaste_english_v3`, once, at
 the end; a rebuild after a grammar edit takes about 2–3 minutes, the six test
 binaries about 75 seconds; lexicon data loads at runtime. Tests assert the
@@ -134,7 +135,7 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** — At `tznkrzpw`, claim parent `zmpwzzsl` (code parent
+1. **Census delta** — At `tznkrzpw`, original claim parent `zmpwzzsl` (code parent
    `oupzlsuq`), bounded BEFORE → QE6 AFTER: covered 609 → 625; Readings
    9,066 → 9,199. Lost none; gained 16; decreases 0; increases 0;
    digest-only 99; unchanged 563; source changes 0; issues 0. Selector:
@@ -142,14 +143,20 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    controls selected by the official diff's `--manifest --random 300
    --seed 20261008`; plus all 245 faces containing any form of *defend*
    for the refined bare participial route, giving 678 distinct faces after
-   overlaps. All 99 existing covered {E} faces preserve their Reading counts. Their digests change
+   overlaps. All 99 existing covered {E} faces preserve their Reading counts.
+   Their digests change
    because the invariant Symbol Word now records declared mass countability
    (`Some(false)`) instead of undeclared countability; their Notation routes
    are preserved. Official `diff --lines` evidence: this workspace's
    `target/english-v3/english-v3-quantified-energy-symbol/qe6-expanded-diff.json`
    and `qe6-expanded-diff.txt`, alongside `qe6-expanded-before.json`,
-   `qe6-expanded-after.json` and
-   `qe6-manifest.json`.
+   `qe6-expanded-after.json` and `qe6-manifest.json`.
+   After refresh, at `mnrokvtn`, the same 678 faces have exactly the same
+   coverage, counts and digests: `refresh-only-diff.json` reports all 678
+   unchanged, zero losses/decreases/increases. Incoming trunk changes
+   `pusrqwml` (partitive quantities), `ulrnwvuw` (waterbend), and `mlnortmq`
+   (declaration batch) introduce no census delta on this selector. The final
+   claim-parent comparison is `refresh-diff.json` / `refresh-diff.txt`.
 2. **Witnesses** — At `tznkrzpw`, claim-parent probes → QE6 probes:
    Aethertide Whale 0 → 1; Aethersquall Ancient 0 → 1; Roil Cartographer
    0 → 1; Fabrication Module 0 → 0; Empyreal Voyager 0 → 0;
@@ -197,17 +204,18 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    on the Nominal.
 5. **Tests** — At `tznkrzpw`, `cargo test -p deckmaste_english_v3`
    passed all 994 tests; `cargo test -p deckmaste_lexical_source` passed all
-   44 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   86 tests. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
-   passed. The first full English run found the independently constructed
+   passed. After refresh, at `mnrokvtn`, the same four commands passed in
+   full: 1,013 English tests and 87 lexical-source tests. `cargo build -p xtask`
+   passed before the refreshed bounded census. The first full English run found the independently constructed
    energy-object fixture's old countability metadata; it was re-spelled,
    then the full suite passed. English tests and clippy passed again after
    adding the bare participial check. Restored 0 / re-spelled 1 / ignored 0 /
    added 7 / removed 0. Citation checks: zero stale, zero noncompliant, diff
    audit selected zero new citation sites. No Lean checks.
 6. **Timing** — At `tznkrzpw`, bounded expanded QE6 AFTER census:
-   **12.38 s**, 6 workers,
-   samples per face 0, under `/usr/bin/time -v`. Expanded BEFORE: 20.36 s.
-   The user's
+   **12.38 s**, 6 workers, samples per face 0, under `/usr/bin/time -v`. Expanded BEFORE: 20.36 s.
+   Refreshed bounded AFTER at `mnrokvtn`: 25.58 s, 6 workers. The user's
    bounded-run instruction supersedes the full-corpus timing requirement;
    no full-corpus census was run.
