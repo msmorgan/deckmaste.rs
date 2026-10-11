@@ -238,7 +238,7 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 109);
+    assert_eq!(parameterized.len(), 110);
     parameterized
 }
 

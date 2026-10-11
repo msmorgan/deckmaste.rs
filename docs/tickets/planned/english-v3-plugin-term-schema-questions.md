@@ -17,7 +17,9 @@ Probe evidence below is relative to
 pair was re-probed with `cargo xtask english-v3 probe` on the claim parent
 `vwktxkol` before implementation; `before-probes.json`,
 `extra-before-probes.json`, and `gift-before-probes.json` preserve the text and
-Readings. Counts are witness/control. Fresh supported-face counts were taken with `cargo xtask english-v3 grep`
+Readings. Counts are witness/control. Schema diagnoses describe `vwktxkol`;
+recheck current declarations before implementing. The later devour-quality
+landing (`vuyokrvx`, `ulkrnzyt`) adds a Quality-before-Amount route. Fresh supported-face counts were taken with `cargo xtask english-v3 grep`
 on `kmynzkut`; unread counts use the claim-parent `before.json`. The JSON
 attestations are `deferred-<question>-faces.json` and
 `deferred-<question>-unread.json` in that directory. Historical target-shape
