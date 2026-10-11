@@ -4,10 +4,11 @@
 normalized [`deckmaste_lexical::Lexeme`] declarations. Its public interface is
 independent of the corpus-reporting CLI and of any English parser.
 
-The source vocabulary and verb inventory live in `lexicon/vocabulary.rs` and
-`lexicon/verbs.ron`. The vocabulary file contains declaration data read by
-`deckmaste_construction_core`; it is not compiled Rust or an English parser.
-Plugin declarations retain their own shared source reader.
+The source vocabulary and verb inventory live in `lexicon/vocabulary.ron` and
+`lexicon/verbs.ron`. The vocabulary file retains named classes, member features
+and morphology overrides as RON read by serde. Its `provenance_path` preserves the original
+declaration identifiers, including the historical `vocabulary.rs` path.
+Plugin declarations use the shared `deckmaste_macro_def` metadata reader.
 
 Source trees are discovered as inventories. Declaration identity comes from
 normalized declaration content; callers and tests do not name an individual

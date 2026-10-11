@@ -50,7 +50,7 @@ fn loader_reports_unresolved_paradigm_identities() {
     let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("lexicon");
     let dest = root.path().join("crates/deckmaste_lexical_source/lexicon");
     std::fs::create_dir_all(&dest).unwrap();
-    for file in ["core.ron", "vocabulary.rs", "verbs.ron", "overrides.ron"] {
+    for file in ["core.ron", "vocabulary.ron", "verbs.ron", "overrides.ron"] {
         std::fs::copy(source.join(file), dest.join(file)).unwrap();
     }
     let path = dest.join("core.ron");

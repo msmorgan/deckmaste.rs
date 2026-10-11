@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
-use deckmaste_construction_core::macro_def::read_str;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::SurfaceFeature;
+use deckmaste_macro_def::read_builtin_v2;
+use deckmaste_macro_def::read_str;
 
 /// The declaration name a catalog surface is written under: the surface's
 /// words joined in camelCase, which is Lean's macro name for the same ability

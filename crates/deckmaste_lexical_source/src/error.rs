@@ -20,16 +20,10 @@ pub enum LoadError {
         #[source]
         source: Box<ron::error::SpannedError>,
     },
-    #[error("reading vocabulary {}: {source}", path.display())]
-    Vocabulary {
-        path: PathBuf,
-        #[source]
-        source: syn::Error,
-    },
     #[error("reading authored lexical metadata: {0}")]
-    Declaration(#[from] deckmaste_construction_core::macro_def::ReadError),
+    Declaration(#[from] deckmaste_macro_def::ReadError),
     #[error("building declaration reader: {0}")]
-    DeclarationReader(#[from] deckmaste_construction_core::macro_def::DeclarationReaderError),
+    DeclarationReader(#[from] deckmaste_macro_def::DeclarationReaderError),
     #[error("loading canonical lexical catalogs: {0}")]
     Catalog(#[from] deckmaste_catalogs::CatalogError),
     #[error("unresolved core verb paradigm owners: {owners:?}")]

@@ -1,8 +1,6 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use deckmaste_construction_core as construction;
-use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Capitalization;
 use deckmaste_lexical::Case;
 use deckmaste_lexical::Category;
@@ -12,6 +10,7 @@ use deckmaste_lexical::Number;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::WordForm;
+use deckmaste_macro_def as metadata;
 use serde::Deserialize;
 use serde::de::EnumAccess;
 use serde::de::VariantAccess;
@@ -21,7 +20,77 @@ use crate::LexicalSources;
 use crate::LoadError;
 use crate::source;
 
-const VOCABULARY_PATH: &str = "crates/deckmaste_lexical_source/lexicon/vocabulary.rs";
+const VOCABULARY_PATH: &str = "crates/deckmaste_lexical_source/lexicon/vocabulary.ron";
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Vocabulary {
+    // Stable declaration provenance survives a change of storage format.
+    provenance_path: String,
+    declarations: Vec<VocabularyDeclaration>,
+}
+
+#[derive(Deserialize)]
+enum VocabularyDeclaration {
+    Vocab(Vocab),
+    Lexeme(NounClass),
+    Morphology(Morphology),
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Vocab {
+    name: String,
+    #[serde(default)]
+    features: BTreeMap<String, String>,
+    members: Vec<VocabMember>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct VocabMember {
+    name: String,
+    surface: String,
+    #[serde(default)]
+    features: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NounClass {
+    name: String,
+    morphology: String,
+    #[serde(default)]
+    features: BTreeMap<String, String>,
+    members: Vec<NounMember>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct NounMember {
+    name: String,
+    lemma: String,
+    #[serde(default)]
+    overrides: Vec<InflectionOverride>,
+    #[serde(default)]
+    features: BTreeMap<String, String>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct InflectionOverride {
+    form: String,
+    surface: String,
+}
+
+// Retain the authored recipes even though lexical export uses its own morphology.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Morphology {
+    name: String,
+    feature: String,
+    recipe: String,
+}
 
 pub(crate) fn load(
     root: &Path,
@@ -30,18 +99,18 @@ pub(crate) fn load(
 ) -> Result<(), LoadError> {
     let path = root.join(VOCABULARY_PATH);
     let text = crate::error::read(&path)?;
-    let invocation =
-        construction::invocation_from_source(&text).map_err(|source| LoadError::Vocabulary {
-            path: path.clone(),
-            source,
-        })?;
-    let declarations = construction::parse_declarations(invocation.tokens)
-        .map_err(|source| LoadError::Vocabulary { path, source })?;
-    for declaration in declarations.declarations {
+    let vocabulary: Vocabulary = crate::error::decode(&path, &text)?;
+    for declaration in vocabulary.declarations {
         match declaration {
-            construction::Declaration::Vocab(vocab) => export_vocab(vocab, output),
-            construction::Declaration::Lexeme(lexeme) => export_noun(lexeme, output)?,
-            _ => {}
+            VocabularyDeclaration::Vocab(vocab) => {
+                export_vocab(vocab, &vocabulary.provenance_path, output);
+            }
+            VocabularyDeclaration::Lexeme(lexeme) => {
+                export_noun(lexeme, &vocabulary.provenance_path, output)?;
+            }
+            VocabularyDeclaration::Morphology(morphology) => {
+                let _ = (morphology.name, morphology.feature, morphology.recipe);
+            }
         }
     }
     let mut inventories = super::ron_documents(root)?
@@ -92,38 +161,28 @@ fn inventory_category(name: &str) -> Option<Category> {
     })
 }
 
-fn export_vocab(vocab: construction::Vocab, output: &mut LexicalSources) {
-    let inventory = vocab.name.to_string();
+fn export_vocab(vocab: Vocab, provenance_path: &str, output: &mut LexicalSources) {
+    let inventory = vocab.name;
     let Some(category) = inventory_category(&inventory) else {
-        for member in vocab.variants {
+        for member in vocab.members {
             output.unmapped.push(format!(
                 "vocab {inventory}::{}: {:?}",
-                member.name,
-                member.word.value()
+                member.name, member.surface
             ));
         }
         return;
     };
-    let defaults = vocab
-        .feature_defaults
-        .iter()
-        .map(|feature| (format!("{:?}", feature.feature), feature.value.to_string()))
-        .collect::<BTreeMap<_, _>>();
-    for member in vocab.variants {
+    let defaults = vocab.features;
+    for member in vocab.members {
         let owner = format!("vocab:{inventory}/{}", member.name);
         let mut lexeme = Lexeme::invariant(
             &owner,
-            member.word.value(),
+            member.surface,
             category,
-            source(SourceKind::Core, VOCABULARY_PATH, &owner),
+            source(SourceKind::Core, provenance_path, &owner),
         );
         lexeme.properties.features = defaults.clone();
-        for feature in member.feature_overrides {
-            lexeme
-                .properties
-                .features
-                .insert(format!("{:?}", feature.feature), feature.value.to_string());
-        }
+        lexeme.properties.features.extend(member.features);
         match inventory.as_str() {
             "SubjectPronoun" => lexeme.forms[0].features.case = Some(Case::Nominative),
             "ObjectPronoun" => lexeme.forms[0].features.case = Some(Case::Accusative),
@@ -140,31 +199,25 @@ fn export_vocab(vocab: construction::Vocab, output: &mut LexicalSources) {
 }
 
 fn export_noun(
-    declaration: construction::Lexeme,
+    declaration: NounClass,
+    provenance_path: &str,
     output: &mut LexicalSources,
 ) -> Result<(), LoadError> {
-    let inventory = declaration.name.to_string();
+    let inventory = declaration.name;
     if inventory != "CommonNoun" || declaration.morphology != "EnglishNoun" {
         for member in declaration.members {
             output.unmapped.push(format!(
                 "lexeme {inventory}::{}: {:?}",
-                member.name,
-                member.lemma.value()
+                member.name, member.lemma
             ));
         }
         return Ok(());
     }
-    let defaults = declaration
-        .feature_defaults
-        .iter()
-        .map(|feature| (format!("{:?}", feature.feature), feature.value.to_string()))
-        .collect::<BTreeMap<_, _>>();
+    let defaults = declaration.features;
     for member in declaration.members {
         let owner = format!("lexeme:{inventory}/{}", member.name);
         let mut features = defaults.clone();
-        for feature in member.feature_overrides {
-            features.insert(format!("{:?}", feature.feature), feature.value.to_string());
-        }
+        features.extend(member.features);
         let countability = match features.get("Countability").map(String::as_str) {
             Some("Count") => vec![Countability::Count],
             Some("Mass") => vec![Countability::Mass],
@@ -178,13 +231,13 @@ fn export_noun(
         };
         let mut lexeme = Lexeme::noun(
             &owner,
-            member.lemma.value(),
+            member.lemma,
             countability,
-            source(SourceKind::Core, VOCABULARY_PATH, &owner),
+            source(SourceKind::Core, provenance_path, &owner),
         );
         lexeme.properties.features = features;
         for replacement in member.overrides {
-            let form = match replacement.feature.to_string().as_str() {
+            let form = match replacement.form.as_str() {
                 "Singular" => WordForm::Singular,
                 "Plural" => WordForm::Plural,
                 other => {
@@ -202,7 +255,7 @@ fn export_noun(
                     owner: owner.clone(),
                     form,
                 })?;
-            slot.surfaces = Some(vec![replacement.surface.value()]);
+            slot.surfaces = Some(vec![replacement.surface]);
         }
         output.lexemes.push(lexeme);
     }
@@ -360,22 +413,15 @@ mod tests {
 
     #[test]
     fn unknown_vocabulary_is_reported_with_members_and_never_given_pos() {
-        let declarations = construction::parse_declarations(
-            "vocab UndeclaredDistribution { Example = \"mystery\", }"
-                .parse()
-                .unwrap(),
+        let vocab: Vocab = ron::from_str(
+            r#"(name: "UndeclaredDistribution", members: [(name: "Example", surface: "mystery")])"#,
         )
         .unwrap();
         let mut output = LexicalSources {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        let construction::Declaration::Vocab(vocab) =
-            declarations.declarations.into_iter().next().unwrap()
-        else {
-            panic!("expected vocab");
-        };
-        export_vocab(vocab, &mut output);
+        export_vocab(vocab, "test-source", &mut output);
         assert_eq!(output.lexemes, [] as [deckmaste_lexical::Lexeme; 0]);
         assert_eq!(
             output.unmapped,
@@ -385,28 +431,21 @@ mod tests {
 
     #[test]
     fn noun_export_preserves_irregular_override_and_mass_restriction() {
-        let declarations = construction::parse_declarations(
-            r#"
-            lexeme CommonNoun using EnglishNoun {
-                feature Countability = Count;
-                Ability = "ability" { Plural = "abilities", },
-                Mana = "mana" { feature Countability = Mass; },
-            }
-        "#
-            .parse()
-            .unwrap(),
-        )
-        .unwrap();
+        let noun: NounClass = ron::from_str(r#"
+            (
+                name: "CommonNoun", morphology: "EnglishNoun",
+                features: {"Countability": "Count"},
+                members: [
+                    (name: "Ability", lemma: "ability", overrides: [(form: "Plural", surface: "abilities")]),
+                    (name: "Mana", lemma: "mana", features: {"Countability": "Mass"}),
+                ],
+            )
+        "#).unwrap();
         let mut output = LexicalSources {
             lexemes: Vec::new(),
             unmapped: Vec::new(),
         };
-        let construction::Declaration::Lexeme(noun) =
-            declarations.declarations.into_iter().next().unwrap()
-        else {
-            panic!("expected lexeme");
-        };
-        export_noun(noun, &mut output).unwrap();
+        export_noun(noun, "test-source", &mut output).unwrap();
         let lexicon = Lexicon::new(output.lexemes).unwrap();
         assert_ne!(
             lexicon.analyze("abilities").matches,

@@ -8,11 +8,10 @@ publish = false
 workspace = true
 
 [dependencies]
+deckmaste_macro_def = { version = "0.1.0", path = "../deckmaste_macro_def" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 thiserror = { workspace = true }
-syn = { version = "2.0.117", features = ["full", "parsing"] }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
-deckmaste_construction_core = { version = "0.1.0", path = "../deckmaste_construction_core" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 ron = "0.12.1"

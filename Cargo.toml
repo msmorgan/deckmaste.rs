@@ -17,6 +17,7 @@ members = [
     "crates/deckmaste_english",
     "crates/deckmaste_features",
     "crates/deckmaste_construction_core",
+    "crates/deckmaste_macro_def",
     "crates/deckmaste_construction_compiler",
     "crates/deckmaste_constructions_macro",
     "crates/deckmaste_spelling",
@@ -100,6 +101,9 @@ opt-level = 2
 opt-level = 2
 
 [profile.dev.package.deckmaste_construction_core]
+opt-level = 2
+
+[profile.dev.package.deckmaste_macro_def]
 opt-level = 2
 
 [profile.dev.package.xtask]

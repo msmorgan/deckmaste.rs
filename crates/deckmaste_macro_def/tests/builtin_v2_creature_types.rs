@@ -1,14 +1,14 @@
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::SubtypeCategory;
-use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::ValidationError;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
-use deckmaste_construction_core::macro_def::read_str;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::NormalizedDeclaration;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::SubtypeCategory;
+use deckmaste_macro_def::SurfaceFeature;
+use deckmaste_macro_def::ValidationError;
+use deckmaste_macro_def::read_builtin_v2;
+use deckmaste_macro_def::read_str;
 
 /// A body's text with every space taken out, so a comparison is about the
 /// value written and not about how the expander spaced it: a derived body is
@@ -100,7 +100,7 @@ fn builtin_v2_creature_type_nursery_preserves_declared_spelling_and_morphology()
         assert_eq!(
             declaration
                 .grammar()
-                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
+                .map(deckmaste_macro_def::GrammarRow::recipe),
             Some(&GrammarRecipe::Noun)
         );
         // Since `semantics-v2-definition-bodies` a subtype declaration carries

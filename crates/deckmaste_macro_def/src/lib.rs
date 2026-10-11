@@ -3323,7 +3323,9 @@ fn validate_surface(
     Ok(())
 }
 
-pub(crate) fn valid_surface(surface: &str) -> bool {
+/// Whether a surface is nonempty and is trimmed and contains no line breaks.
+#[must_use]
+pub fn valid_surface(surface: &str) -> bool {
     !surface.is_empty()
         && surface.trim() == surface
         && !surface

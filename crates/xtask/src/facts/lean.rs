@@ -26,10 +26,10 @@ use std::fmt::Write;
 use std::path::Path;
 
 use anyhow::Context;
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::SubtypeCategory;
-use deckmaste_construction_core::macro_def::{self};
+use deckmaste_macro_def as macro_def;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::NormalizedDeclaration;
+use deckmaste_macro_def::SubtypeCategory;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::abilities::Compulsion;
 use deckmaste_semantics_v2::abilities::DeonticRider;
@@ -639,7 +639,7 @@ pub(crate) struct RegistryDefinitions {
 
 /// The family kind of a relation declaration (`macros/meta/Relation.ron`).
 /// A relation is no construction of the English grammar, so the declaration
-/// reader of `deckmaste_construction_core` does not read the family; the
+/// reader of `deckmaste_macro_def` does not read the family; the
 /// plugin loader does.
 const RELATION: &str = "Relation";
 
@@ -761,7 +761,11 @@ fn written_components(
         );
     }
     let mut components = Vec::new();
-    for (index, (category, form)) in declared.categories.iter().zip(&declared.regimes).enumerate()
+    for (index, (category, form)) in declared
+        .categories
+        .iter()
+        .zip(&declared.regimes)
+        .enumerate()
     {
         let Some(category) = category else {
             // The printed ability's own: each category the CR entry admits.
@@ -802,7 +806,11 @@ pub(super) fn resolved_categories(
         .iter()
         .flat_map(|category| match category {
             Some(category) => vec![*category],
-            None => row.definition.iter().map(|(category, _)| category.lean()).collect(),
+            None => row
+                .definition
+                .iter()
+                .map(|(category, _)| category.lean())
+                .collect(),
         })
         .collect()
 }
@@ -1204,10 +1212,7 @@ fn subtype_definitions_read(
     Ok(())
 }
 
-fn subtype_rows(
-    rows: &[NormalizedDeclaration],
-    plugin_dir: &Path,
-) -> anyhow::Result<Vec<String>> {
+fn subtype_rows(rows: &[NormalizedDeclaration], plugin_dir: &Path) -> anyhow::Result<Vec<String>> {
     let plugin =
         Plugin::load(plugin_dir).with_context(|| format!("loading {}", plugin_dir.display()))?;
     subtype_definitions_read(&plugin.macros, rows)?;

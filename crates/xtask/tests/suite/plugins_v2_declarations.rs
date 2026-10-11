@@ -1,4 +1,4 @@
-//! The declaration file is the shared contract: `deckmaste_construction_core`
+//! The declaration file is the shared contract: `deckmaste_macro_def`
 //! reads its spelling and grammar under a typed metadata, and
 //! `deckmaste_semantics_v2` reads its params and body with that metadata
 //! opaque. Neither crate depends on the other for the file, so nothing but
@@ -11,8 +11,8 @@ use std::collections::BTreeSet;
 use std::path::Path;
 use std::path::PathBuf;
 
-use deckmaste_construction_core::macro_def::ParameterType;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_macro_def::ParameterType;
+use deckmaste_macro_def::read_builtin_v2;
 use deckmaste_semantics_v2::abilities::Ability;
 use deckmaste_semantics_v2::card::Card;
 use deckmaste_semantics_v2::phrase::Timing;
@@ -81,7 +81,7 @@ fn both_readers_accept_every_builtin_declaration() {
 }
 
 /// Every param type name `deckmaste_semantics_v2::ron::param_types()`
-/// registers also parses as a `deckmaste_construction_core::macro_def::
+/// registers also parses as a `deckmaste_macro_def::
 /// ParameterType`: the declaration file is the shared contract
 /// (`docs/decisions/semantics-v2.md` §11), so a name the semantics side
 /// accepts must not be unregistrable on the typed side. `ParameterType` is

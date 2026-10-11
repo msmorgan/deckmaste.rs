@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::{
+use deckmaste_macro_def::{
     DeclarationKind, NegativePrefixJoin, SurfaceFeature, TypeWordGrammar, ValidationError,
     read_builtin_v2, read_str,
 };

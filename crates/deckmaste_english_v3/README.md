@@ -162,7 +162,7 @@ recorded tree's generated Debug encoding.
 For lexical edits, add `--incremental-from target/english-v3/base.json` to the
 same census command. A compatible schema-7 base records source hashes plus each
 Lexeme's fingerprint and complete Word Forms. Changes to `core.ron`,
-`verbs.ron` or `vocabulary.rs` select faces containing old or new affected forms,
+`verbs.ron` or `vocabulary.ron` select faces containing old or new affected forms,
 using conservative case-folded substrings of the recorded parser input so bound
 and multiword forms, including those joined by reminder removal, are included. Every selected face is fully checked; other face results are copied.
 The output records `incremental`, `base_census`, affected Lexemes/forms, and

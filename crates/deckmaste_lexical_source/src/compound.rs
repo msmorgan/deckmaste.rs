@@ -1,8 +1,8 @@
 //! Declaration-owned supplemental compound nouns share their head paradigm.
 
-use deckmaste_construction_core::macro_def as metadata;
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Source;
+use deckmaste_macro_def as metadata;
 
 use crate::LexicalSources;
 use crate::LoadError;

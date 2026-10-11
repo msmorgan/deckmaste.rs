@@ -4,7 +4,7 @@ mod format;
 pub mod frame;
 mod frame_family;
 mod identifier;
-pub mod macro_def;
+pub use deckmaste_macro_def as macro_def;
 mod model;
 mod morphology;
 mod parse;

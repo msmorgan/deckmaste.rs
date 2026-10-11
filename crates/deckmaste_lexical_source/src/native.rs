@@ -18,8 +18,7 @@ pub(crate) struct Inventory {
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
     #[serde(default)]
-    pub negative_noun_formations:
-        BTreeMap<String, deckmaste_construction_core::macro_def::NegativePrefixJoin>,
+    pub negative_noun_formations: BTreeMap<String, deckmaste_macro_def::NegativePrefixJoin>,
     #[serde(default)]
     pub participial_adjective_classes: Vec<ParticipialAdjectiveClass>,
     #[serde(default)]
@@ -89,13 +88,13 @@ pub(crate) fn add_bound_keyword_stems(
 
 #[cfg(test)]
 mod bound_keyword_stem_tests {
-    use deckmaste_construction_core::macro_def as metadata;
     use deckmaste_lexical::Binding;
     use deckmaste_lexical::Category;
     use deckmaste_lexical::Countability;
     use deckmaste_lexical::Source;
     use deckmaste_lexical::SourceKind;
     use deckmaste_lexical::WordForm;
+    use deckmaste_macro_def as metadata;
 
     use super::*;
 
@@ -173,9 +172,9 @@ mod bound_keyword_stem_tests {
 #[serde(deny_unknown_fields)]
 pub(crate) struct CompoundNounClass {
     pub head: String,
-    pub stem_structure: deckmaste_construction_core::macro_def::CompoundStemStructure,
+    pub stem_structure: deckmaste_macro_def::CompoundStemStructure,
     #[serde(default)]
-    pub stem_onset: Option<deckmaste_construction_core::macro_def::Onset>,
+    pub stem_onset: Option<deckmaste_macro_def::Onset>,
     pub members: Vec<CompoundNounMember>,
 }
 
@@ -204,7 +203,7 @@ pub(crate) fn compound_noun_declarations(
             }
             declarations.push(crate::compound::Declaration {
                 source: crate::source(deckmaste_lexical::SourceKind::Core, PATH, &member.owner),
-                recipe: deckmaste_construction_core::macro_def::CompoundNounGrammar {
+                recipe: deckmaste_macro_def::CompoundNounGrammar {
                     head: class.head.clone(),
                     stem: member.stem,
                     stem_structure: class.stem_structure,
@@ -320,7 +319,7 @@ pub(crate) struct AdjectiveClass {
     #[serde(default)]
     pub features: BTreeMap<String, String>,
     #[serde(default)]
-    pub negative_prefix_join: Option<deckmaste_construction_core::macro_def::NegativePrefixJoin>,
+    pub negative_prefix_join: Option<deckmaste_macro_def::NegativePrefixJoin>,
 }
 
 pub(crate) fn add_adjective_classes(
@@ -397,7 +396,7 @@ pub(crate) fn add_adjective_classes(
 /// use.
 pub(crate) fn add_negative_noun_formations(
     lexemes: &mut Vec<Lexeme>,
-    formations: BTreeMap<String, deckmaste_construction_core::macro_def::NegativePrefixJoin>,
+    formations: BTreeMap<String, deckmaste_macro_def::NegativePrefixJoin>,
 ) -> Result<(), LoadError> {
     for (owner, join) in formations {
         let parent = lexemes
@@ -428,11 +427,11 @@ pub(crate) fn add_negative_noun_formations(
 /// Prefix a declared paradigm without changing its lexical ownership or slots.
 pub(crate) fn negative_lexeme(
     parent: &Lexeme,
-    join: deckmaste_construction_core::macro_def::NegativePrefixJoin,
+    join: deckmaste_macro_def::NegativePrefixJoin,
 ) -> Lexeme {
     let prefix = match join {
-        deckmaste_construction_core::macro_def::NegativePrefixJoin::Joined => "non",
-        deckmaste_construction_core::macro_def::NegativePrefixJoin::Hyphenated => "non-",
+        deckmaste_macro_def::NegativePrefixJoin::Joined => "non",
+        deckmaste_macro_def::NegativePrefixJoin::Hyphenated => "non-",
     };
     let mut negative = parent.clone();
     negative.id = format!("{}/non", parent.id).as_str().into();
@@ -1215,13 +1214,13 @@ mod tests {
 
 #[cfg(test)]
 mod adjective_class_tests {
-    use deckmaste_construction_core::macro_def::NegativePrefixJoin;
     use deckmaste_lexical::Category;
     use deckmaste_lexical::Countability;
     use deckmaste_lexical::Onset;
     use deckmaste_lexical::Source;
     use deckmaste_lexical::SourceKind;
     use deckmaste_lexical::SurfaceStructure;
+    use deckmaste_macro_def::NegativePrefixJoin;
 
     use super::*;
 

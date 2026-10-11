@@ -45,7 +45,7 @@ pub const RULES_DIR: &str = "rules";
 
 /// A declaration's consumer metadata, read and discarded.
 ///
-/// `deckmaste_construction_core` types this field; this crate reads the same
+/// `deckmaste_macro_def` types this field; this crate reads the same
 /// files and has no use for it, so it accepts any shape and keeps nothing. That
 /// is what makes the declaration file a shared contract rather than a
 /// dependency (§11).

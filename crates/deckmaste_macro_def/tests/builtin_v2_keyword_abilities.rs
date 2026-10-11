@@ -2,20 +2,20 @@ use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::FixedKeywordNominalNumber;
-use deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar;
-use deckmaste_construction_core::macro_def::FixedLexeme;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::KeywordParameterClass;
-use deckmaste_construction_core::macro_def::KeywordPayloadOrder;
-use deckmaste_construction_core::macro_def::KeywordSeparator;
-use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::ParameterType;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::UnsupportedKeywordParameterClass;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::FixedKeywordNominalNumber;
+use deckmaste_macro_def::FixedKeywordParameterGrammar;
+use deckmaste_macro_def::FixedLexeme;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::KeywordParameterClass;
+use deckmaste_macro_def::KeywordPayloadOrder;
+use deckmaste_macro_def::KeywordSeparator;
+use deckmaste_macro_def::NormalizedDeclaration;
+use deckmaste_macro_def::ParameterType;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::SurfaceFeature;
+use deckmaste_macro_def::UnsupportedKeywordParameterClass;
+use deckmaste_macro_def::read_builtin_v2;
 
 fn render_without_hints(spelling: &[SpellingPart]) -> String {
     spelling
@@ -330,7 +330,7 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
             assert_eq!(
                 params
                     .iter()
-                    .map(deckmaste_construction_core::macro_def::ParameterType::as_str)
+                    .map(deckmaste_macro_def::ParameterType::as_str)
                     .collect::<Vec<_>>(),
                 *expected_params,
                 "{name}",
@@ -429,20 +429,20 @@ fn landwalk_declares_one_bound_suffix_surface() {
         workspace_root.join("plugins_v2/builtin/macros/keyword_abilities/landwalk.ron"),
     )
     .unwrap();
-    let definition: macro_ron::MacroDef<deckmaste_construction_core::macro_def::Metadata> =
-        deckmaste_construction_core::macro_def::declaration_macro_set()
+    let definition: macro_ron::MacroDef<deckmaste_macro_def::Metadata> =
+        deckmaste_macro_def::declaration_macro_set()
             .unwrap()
             .read_str(&text)
             .unwrap();
     assert_eq!(
         definition.metadata.grammar,
-        Some(deckmaste_construction_core::macro_def::Grammar::FixedKeyword {
+        Some(deckmaste_macro_def::Grammar::FixedKeyword {
             surface: "landwalk".into(),
             onset: None,
-            bound_suffix: Some(deckmaste_construction_core::macro_def::BoundSuffixGrammar {
+            bound_suffix: Some(deckmaste_macro_def::BoundSuffixGrammar {
                 surface: "walk".into(),
-                stem_class: deckmaste_construction_core::macro_def::BoundKeywordStemClass::SubtypesAndType {
-                    category: deckmaste_construction_core::macro_def::SubtypeCategory::Land,
+                stem_class: deckmaste_macro_def::BoundKeywordStemClass::SubtypesAndType {
+                    category: deckmaste_macro_def::SubtypeCategory::Land,
                     card_type: "land".into(),
                 },
             }),

@@ -1,16 +1,16 @@
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::CustomTailAtom;
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::DerivedSurface;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::InflectionalForm;
-use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::RealizedSurface;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::VerbFrameSet;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_macro_def::CustomTailAtom;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::DerivedSurface;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::InflectionalForm;
+use deckmaste_macro_def::NormalizedDeclaration;
+use deckmaste_macro_def::RealizedSurface;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::SurfaceFeature;
+use deckmaste_macro_def::VerbFrameSet;
+use deckmaste_macro_def::read_builtin_v2;
 
 const EXPECTED_NAMES: &[&str] = &[
     "activate",
@@ -365,25 +365,18 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     );
     assert_eq!(
         ring.grammar().unwrap().verb(),
-        Some(
-            &deckmaste_construction_core::macro_def::KeywordVerbGrammar {
-                bare: "tempt".into(),
-                frames: vec![
-                    deckmaste_construction_core::macro_def::VerbDeclarationFrame::Predicate(vec![
-                        deckmaste_construction_core::macro_def::FrameItem::Argument(
-                            deckmaste_construction_core::macro_def::FrameComplement {
-                                relation:
-                                    deckmaste_construction_core::macro_def::FrameRelation::Object,
-                                category: "NounPhrase".into(),
-                            },
-                        ),
-                    ])
-                ],
-                preterite: DerivedSurface::default(),
-                participle: DerivedSurface::default(),
-                gerund_participle: DerivedSurface::default(),
-            }
-        ),
+        Some(&deckmaste_macro_def::KeywordVerbGrammar {
+            bare: "tempt".into(),
+            frames: vec![deckmaste_macro_def::VerbDeclarationFrame::Predicate(vec![
+                deckmaste_macro_def::FrameItem::Argument(deckmaste_macro_def::FrameComplement {
+                    relation: deckmaste_macro_def::FrameRelation::Object,
+                    category: "NounPhrase".into(),
+                },),
+            ])],
+            preterite: DerivedSurface::default(),
+            participle: DerivedSurface::default(),
+            gerund_participle: DerivedSurface::default(),
+        }),
     );
 }
 

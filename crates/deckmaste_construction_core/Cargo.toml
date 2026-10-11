@@ -8,6 +8,7 @@ edition = "2024"
 workspace = true
 
 [dependencies]
+deckmaste_macro_def = { version = "0.1.0", path = "../deckmaste_macro_def" }
 macro_ron = { version = "0.1.0", path = "../macro_ron" }
 proc-macro2 = "1.0.106"
 quote = "1.0.45"

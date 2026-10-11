@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
-use deckmaste_construction_core::macro_def::read_str;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::read_builtin_v2;
+use deckmaste_macro_def::read_str;
 
 fn expected_recipe(name: &str) -> Option<GrammarRecipe> {
     match name {
@@ -68,7 +68,7 @@ fn builtin_v2_designations_preserve_identity_surfaces_and_definitions() {
         assert_eq!(
             declaration
                 .grammar()
-                .map(deckmaste_construction_core::macro_def::GrammarRow::recipe),
+                .map(deckmaste_macro_def::GrammarRow::recipe),
             expected.as_ref()
         );
         let [SpellingPart::Literal(spelling)] = declaration.spelling() else {

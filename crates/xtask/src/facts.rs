@@ -1433,12 +1433,11 @@ fn stub_names(dir: &Path) -> anyhow::Result<Vec<String>> {
 /// shares that keyword's row.
 fn keyword_stub_names(
     root: &Path,
-    declarations: &[deckmaste_construction_core::macro_def::NormalizedDeclaration],
+    declarations: &[deckmaste_macro_def::NormalizedDeclaration],
 ) -> anyhow::Result<Vec<String>> {
     let mut variants = Vec::new();
     for declared in declarations.iter().filter(|declared| {
-        declared.identity().kind()
-            == deckmaste_construction_core::macro_def::DeclarationKind::KeywordAbility
+        declared.identity().kind() == deckmaste_macro_def::DeclarationKind::KeywordAbility
     }) {
         let name = declared.identity().name();
         let Some(body) = declared.body() else {
@@ -1474,8 +1473,7 @@ fn stub_field<'a>(src: &'a str, field: &str) -> Option<&'a str> {
 /// record updates over `defaultKeywordFacts`, so adding a column never
 /// renumbers a row.
 fn render(root: &Path) -> anyhow::Result<String> {
-    let declarations =
-        deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
+    let declarations = deckmaste_macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
     let definitions = lean::keyword_definitions(&declarations, &root.join("plugins_v2/builtin"))?;
     let counter_keywords =
         lean::counter_eligible_keywords(&declarations, &root.join("plugins_v2/builtin"))?;
@@ -1641,7 +1639,7 @@ const GATE_COLUMNS: &str = "gate columns (regime, functionsOnStack, \
                             hand-kept in xtask's overlay: \
                             plugins_v2/builtin/macros/meta/KeywordAbility.ron declares no field \
                             that could carry them, and its `metadata` block is read into \
-                            deckmaste_construction_core::macro_def::Metadata, which is \
+                            deckmaste_macro_def::Metadata, which is \
                             deny_unknown_fields over spelling/grammar/noun_class/category, so a \
                             home in the stub schema moves that crate's English-v2 metadata seam \
                             and all 192 stubs rather than this overlay.";
@@ -1861,7 +1859,7 @@ fn designation_ctors(src: &str) -> Vec<String> {
 /// Every label the designation declarations declare, under the Idris name
 /// each is spelled with there.
 fn designation_labels(
-    declarations: &[deckmaste_construction_core::macro_def::NormalizedDeclaration],
+    declarations: &[deckmaste_macro_def::NormalizedDeclaration],
 ) -> anyhow::Result<Vec<String>> {
     lean::designation_declared_labels(declarations)?
         .into_iter()
@@ -1995,8 +1993,7 @@ fn run_labels(root: &Path) -> anyhow::Result<()> {
     let lean_facts = fs::read_to_string(&lean_path)
         .with_context(|| format!("reading {}", lean_path.display()))?;
     let counter_rows = lean_counter_labels(&lean_facts)?;
-    let declarations =
-        deckmaste_construction_core::macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
+    let declarations = deckmaste_macro_def::read_builtin_v2(root.join("plugins_v2/builtin"))?;
 
     let tables = [
         Table {
@@ -2149,10 +2146,8 @@ mod tests {
 
     #[test]
     fn recorded_reasons_name_labels_that_are_really_there() {
-        let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-            root().join("plugins_v2/builtin"),
-        )
-        .expect("reading the builtin declarations");
+        let declarations = deckmaste_macro_def::read_builtin_v2(root().join("plugins_v2/builtin"))
+            .expect("reading the builtin declarations");
         // The exemption tables name keywords, and a keyword is what its
         // declaration's body defines.
         let stubs = lean::keyword_definitions(&declarations, &root().join("plugins_v2/builtin"))
@@ -2222,10 +2217,8 @@ mod tests {
         );
         // The declared labels reach the Idris constructors through `normalize`
         // alone, bar the one recorded alias.
-        let declarations = deckmaste_construction_core::macro_def::read_builtin_v2(
-            root().join("plugins_v2/builtin"),
-        )
-        .expect("reading the builtin declarations");
+        let declarations = deckmaste_macro_def::read_builtin_v2(root().join("plugins_v2/builtin"))
+            .expect("reading the builtin declarations");
         let mapped = designation_labels(&declarations).expect("mapping the designation labels");
         assert!(mapped.contains(&"CommanderD".to_owned()));
         assert!(mapped.contains(&"day".to_owned()) && mapped.contains(&"night".to_owned()));

@@ -12,7 +12,7 @@ use crate::raw_corpus::{SelectedCorpus, digest};
 const LEXICON_SOURCES: [&str; 3] = [
     "crates/deckmaste_lexical_source/lexicon/core.ron",
     "crates/deckmaste_lexical_source/lexicon/verbs.ron",
-    "crates/deckmaste_lexical_source/lexicon/vocabulary.rs",
+    "crates/deckmaste_lexical_source/lexicon/vocabulary.ron",
 ];
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
@@ -37,7 +37,7 @@ impl Snapshot {
             "crates/deckmaste_english_v3/src",
             "crates/deckmaste_construction_v3/src",
             "crates/deckmaste_construction_v3_core/src",
-            "crates/deckmaste_construction_core/src",
+            "crates/deckmaste_macro_def/src",
             "crates/deckmaste_lexical/src",
             "crates/deckmaste_lexical_model/src",
             "crates/deckmaste_lexical_source/src",
@@ -65,7 +65,7 @@ impl Snapshot {
             "deckmaste_english_v3",
             "deckmaste_construction_v3",
             "deckmaste_construction_v3_core",
-            "deckmaste_construction_core",
+            "deckmaste_macro_def",
             "deckmaste_lexical",
             "deckmaste_lexical_model",
             "deckmaste_lexical_source",

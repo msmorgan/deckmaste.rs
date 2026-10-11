@@ -6,15 +6,15 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::FixedKeywordNominalNumber;
-use deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::NormalizedDeclaration;
-use deckmaste_construction_core::macro_def::SpellingHint;
-use deckmaste_construction_core::macro_def::SpellingPart;
-use deckmaste_construction_core::macro_def::SurfaceFeature;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::FixedKeywordNominalNumber;
+use deckmaste_macro_def::FixedKeywordParameterGrammar;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::NormalizedDeclaration;
+use deckmaste_macro_def::SpellingHint;
+use deckmaste_macro_def::SpellingPart;
+use deckmaste_macro_def::SurfaceFeature;
+use deckmaste_macro_def::read_builtin_v2;
 
 /// Keyword actions that still spell only their bare head: none. Fight, the
 /// last, spells its parameter now that its first creature is the performer

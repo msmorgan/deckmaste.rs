@@ -1,11 +1,11 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DeclarationKind;
-use deckmaste_construction_core::macro_def::NounClassSemantics;
-use deckmaste_construction_core::macro_def::NounLocativeTemporalLicense;
-use deckmaste_construction_core::macro_def::NounRelationality;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
+use deckmaste_macro_def::DeclarationKind;
+use deckmaste_macro_def::NounClassSemantics;
+use deckmaste_macro_def::NounLocativeTemporalLicense;
+use deckmaste_macro_def::NounRelationality;
+use deckmaste_macro_def::read_builtin_v2;
 
 #[test]
 fn every_builtin_noun_declaration_inherits_its_class_semantics() {

@@ -498,6 +498,7 @@ name = "deckmaste_construction_core"
 version = "0.1.0"
 dependencies = [
  "deckmaste_data",
+ "deckmaste_macro_def",
  "macro_ron",
  "prettyplease",
  "proc-macro2",
@@ -663,13 +664,12 @@ name = "deckmaste_lexical_source"
 version = "0.1.0"
 dependencies = [
  "deckmaste_catalogs",
- "deckmaste_construction_core",
  "deckmaste_data",
  "deckmaste_lexical",
+ "deckmaste_macro_def",
  "macro_ron",
  "ron",
  "serde",
- "syn 2.0.117",
  "tempfile",
  "thiserror",
 ]
@@ -683,6 +683,17 @@ dependencies = [
  "deckmaste_semantics",
  "macro_ron",
  "serde",
+]
+
+[[package]]
+name = "deckmaste_macro_def"
+version = "0.1.0"
+dependencies = [
+ "macro_ron",
+ "ron",
+ "serde",
+ "tempfile",
+ "thiserror",
 ]
 
 [[package]]
@@ -2340,7 +2351,6 @@ dependencies = [
  "clap",
  "deckmaste_card",
  "deckmaste_catalogs",
- "deckmaste_construction_core",
  "deckmaste_core",
  "deckmaste_data",
  "deckmaste_english",
@@ -2348,6 +2358,7 @@ dependencies = [
  "deckmaste_legacy_render",
  "deckmaste_lexical",
  "deckmaste_lexical_source",
+ "deckmaste_macro_def",
  "deckmaste_migrations",
  "deckmaste_plugin",
  "deckmaste_semantics",

@@ -30,7 +30,7 @@ pub const MACRO_KIND: &str = "Macro";
 /// SEMANTIC kind after it (`KeywordAction` → `Instruction`, `KeywordAbility`
 /// and `AbilityWord` → `Ability`), which is what makes the declaration
 /// invocable at the position its body occupies; the family kind is the
-/// declaration's identity and is what `deckmaste_construction_core` reads.
+/// declaration's identity and is what `deckmaste_macro_def` reads.
 ///
 /// Three families — `Subtype`, `CounterKind`, `TurnPart` — carry the serde
 /// name of a v2 syntax type, so they need no second kind: a declaration

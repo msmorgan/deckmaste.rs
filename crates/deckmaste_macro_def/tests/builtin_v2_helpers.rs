@@ -1,11 +1,11 @@
 use std::path::Path;
 
-use deckmaste_construction_core::macro_def::DerivedSurface;
-use deckmaste_construction_core::macro_def::GrammarRecipe;
-use deckmaste_construction_core::macro_def::ReadError;
-use deckmaste_construction_core::macro_def::ValidationError;
-use deckmaste_construction_core::macro_def::read_builtin_v2;
-use deckmaste_construction_core::macro_def::read_builtin_v2_helpers;
+use deckmaste_macro_def::DerivedSurface;
+use deckmaste_macro_def::GrammarRecipe;
+use deckmaste_macro_def::ReadError;
+use deckmaste_macro_def::ValidationError;
+use deckmaste_macro_def::read_builtin_v2;
+use deckmaste_macro_def::read_builtin_v2_helpers;
 
 #[test]
 fn helpers_reuse_normalized_terms_and_leave_fact_declarations_unchanged() {
