@@ -145,7 +145,8 @@ only.
 ## Landing record
 
 1. **Census delta** (`olomvlyu` before implementation, with claim-parent
-   grammar at `ltmzsouk`, → implemented `olomvlyu`): **11,692 → 11,709
+   grammar at immutable `nknuqvqu` (original claim `ltmzsouk`), →
+   implemented `olomvlyu`): **11,692 → 11,709
    covered faces**, **544,916 → 545,003 line Readings**. **17 gains**;
    lost faces: none; decreases / covered-face increases / digest-only:
    **0 / 0 / 0**. Digest-only line counts are zero in every class; the
@@ -160,6 +161,24 @@ only.
    `target/english-v3/english-v3-no-more-than/{manifest,before,after,diff}.json`;
    comparison is `cargo xtask english-v3 diff before.json after.json
    --lines --json diff.json` with those full paths.
+   **Refresh attribution** (`otvxplsm`, after `kata refresh`): the official
+   BEFORE → `after-refresh.json` comparison reports **11,692 → 11,732**
+   covered faces, **544,916 → 545,317** line Readings, **40 gains**,
+   **0 lost / 0 decreases / 0 covered-face increases / 633 digest-only**.
+   The official `after.json` → `after-refresh.json` comparison isolates
+   **23 incoming gains**, **0 lost / 0 decreases / 0 increases**, and
+   all **633 digest-only faces**, from trunk implementations `ouykkpns`
+   (irrealis scalar difference) and `knlqxlok` (delayed passive shared
+   complements). The original 17-gain ticket result is preserved.
+   Incoming digest-only classes, attributed to `ouykkpns`'s existing
+   scalar Constructions becoming schema instances: **563 measured-cost-only
+   lines**, **83 finite-scalar-only lines**, **1 mixed line** (*The End*),
+   **647 lines total**; unexplained classes: none. Every changed line was
+   parsed and its retained Reading nodes inspected. Evidence:
+   `diff-refresh.json`, `diff-incoming.json`, and
+   `incoming-digest-classes.json` in the same target directory. The
+   remaining incoming changed lines belong to gains; no new covered-face
+   Reading shape needs an increase justification.
 2. **Witnesses** (`olomvlyu`, parent → implementation probe counts):
    Crawlspace **0 → 2**; Judoon Enforcers **0 → 2**; Pit Imp **0 → 1**;
    Sewer Rats **0 → 2**; Fires of Invention **0 → 4**; Noun Phrase
@@ -200,7 +219,19 @@ only.
    have **0** Readings. The existing measured NP admits only Coordinated
    quantities under BQ1; a ruling was requested on admitting Headed
    quantities there or leaving this inherited host gap to a follow-up.
-   That route has not been broadened. The Eternal Wanderer's independent
+   That route has not been broadened. **Refresh STOP, scope ruling pending:**
+   the full English suite fails
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   at the unchanged chart-item ceiling: **12,503 > 12,500**;
+   **12,884** families remain within **13,000**. This ticket's full suite
+   passed before refresh. The exact two-line artifact fixture's direct
+   packed probe has **1** Reading, complete enumeration, byte-exact
+   realization and zero issues. The earlier item guard prevents the test
+   reaching its exact Reading-set assertion. No test ceiling or assertion
+   was weakened; parser-performance work would extend this ticket's scope,
+   and the orchestrator was asked whether to add it or review this STOP.
+   Evidence: `refresh-test-english.log` and `resource-failure-probe.json`
+   under the ticket's target directory. The Eternal Wanderer's independent
    failing line and the ticket's discontinuous/no-*than* exclusions remain
    outside this implementation.
 5. **Tests** (`olomvlyu`): `cargo test -p deckmaste_english_v3` PASS
@@ -219,5 +250,14 @@ only.
    `modifier: None`, retaining every existing card and expected outcome.
    No removal to justify. Citation checks: zero noncompliant, zero stale,
    no new citation sites in the piped diff audit; `cite bless` unchanged.
-6. **Timing** (`olomvlyu`): the bounded AFTER census took **549.10 s**
+   After refresh (`otvxplsm`, code-equivalent to refreshed `olomvlyu`):
+   `cargo build -p xtask` PASS; the same full English test command **FAIL**
+   (**1,092 passed / 1 failed / 1 pre-existing ignored**), with the failure
+   named in item 4; the same full lexical-source test command PASS
+   (**88 passed**); both exact clippy commands above PASS. All five new
+   tests passed again. No additional test re-spelling or removal.
+6. **Timing** (`olomvlyu`): the bounded AFTER census took **549 seconds, 100 milliseconds**
    under `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.
+   The same bounded census after refresh took **383 seconds, 580 milliseconds**, under the
+   same timing command, **6 workers**, `--samples-per-face 0`, with the
+   original **13,276-face** identity manifest; no full corpus run.
