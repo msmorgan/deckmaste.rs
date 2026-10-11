@@ -124,8 +124,8 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta — `opkxokpk`.** Claim-parent grammar (`rmxnmksp`, measured
-   in empty `opkxokpk`) versus the implementation: 369 → 415 covered faces,
+1. **Census delta — `opkxokpk`; refreshed `ksntxunw`.** Pre-refresh
+   claim-parent grammar (`rmxnmksp`, measured in empty `opkxokpk`) versus the implementation: 369 → 415 covered faces,
    9,703 → 11,093 total per-line Readings. Selector: every supported face
    matching `(?i)\bpartner\b` (129), plus 300 disjoint covered controls selected
    with seed 20261008: 429 identities in
@@ -135,7 +135,11 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    BEFORE was run on the claim parent's grammar, not copied from the older
    full baseline; that baseline supplied only the seeded controls. All controls
    remained covered on the claim parent. Final evidence: `before.json`,
-   `after.json`, `diff.json` in the same directory.
+   `after.json`, `diff.json` in the same directory. After refresh,
+   `ksntxunw` remains 415 covered / 11,093 Readings. Official
+   `english-v3 diff --lines`, saved as `refresh-diff.json`, reports all
+   429 unchanged. Digest-only
+   classes: none, zero changed lines. No inherited decreases to attribute.
 2. **Witnesses — `opkxokpk`.** Re-probed before implementation: Amy Pond,
    Pir, Imaginative Rascal, Blaring Recruiter, Khorvath Brightflame and Rowan
    Kenrith each 0 → 1 Reading for the ticket's whole keyword line, through
@@ -182,13 +186,19 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    Existing numeric inventory assertions are noted in hygiene-3; two timing
    decimals in the unclaimed predicative-gap-relative ticket were rewritten
    with minute/second units without changing their values, fixing citation
-   false positives already present on the claim parent.
-5. **Tests — `opkxokpk`.** PW7 verification passed in full:
+   false positives already present on the claim parent. Refresh conflicted
+   only on those same timing fixes; default had also fixed them. Kept
+   default's values and wording, removing this feature's redundant edit.
+   Incoming grammar/data: `onymknyk` (mana passive subjects) and `zquvqlrm`
+   (additive slash adjustments); refreshed, conflicts cleared, xtask rebuilt.
+   No incoming plugins. Post-refresh bounded census is identical; full
+   touched-crate checks passed on `ksntxunw`.
+5. **Tests — `opkxokpk`; post-refresh `ksntxunw`.** PW7 verification passed in full:
    `cargo test -p deckmaste_english_v3`, `cargo test -p deckmaste_construction_core`,
    `cargo test -p deckmaste_lexical_source`, `cargo test -p deckmaste_semantics_v2`
    and `cargo test -p xtask`. English: 1,137 passed, one existing ignored;
-   xtask: 425 passed, one existing ignored. `cargo xtask facts check` passes unchanged
-   generated Facts. The initial xtask run's 16 parameter-schema failures
+   xtask: 425 passed, one existing ignored. `cargo xtask facts check` passes
+   unchanged generated Facts. The initial xtask run's 16 parameter-schema failures
    were resolved by PW7; its stale generated Lean declaration was regenerated.
    A new negative test's expected value was corrected to the existing earlier
    `UnsupportedKeywordParameterSignature` rejection of `[NounPhrase]`,
@@ -196,7 +206,12 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo clippy -p deckmaste_english_v3 -p deckmaste_construction_core
    -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p xtask --tests --
    -D warnings`. `cargo xtask lean check` passed (245 cards) after regenerating
-   declarations; Lean LSP reports no errors for the new macro.
+   declarations; Lean LSP reports no errors for the new macro. After refresh,
+   `cargo build -p xtask`, the same five full test commands and the same
+   five-crate clippy command all passed on `ksntxunw`: English 1,147 passed
+   with one existing ignored; xtask 425 passed with one existing ignored.
+   No incoming plugins required another Lean run. Chart-budget tests passed
+   without changing their ceilings.
    Citation checks: zero noncompliant, zero stale; bless changed no lock;
    diff audit selected zero new citation sites. Restored 0 / re-spelled 3 /
    newly ignored 0 / added 7 / removed 0. Re-spelled:
@@ -209,7 +224,7 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    66 + 210 declarations instead of 66 + 209, retaining all its parameter and
    template assertions. Four structural English tests, two parameter-recipe
    tests and one semantic value test added; no existing test removed or weakened.
-6. **Timing — `opkxokpk`.** Final PW7 bounded census: 29.60s wall under
+6. **Timing — `ksntxunw`.** Final refreshed bounded census: 6.66s wall under
    `/usr/bin/time -v`, 6 workers, samples per face 0. The bounded census was
    rechecked after PW7, with zero further Reading or digest changes; no
    full-corpus run or `--all`.
