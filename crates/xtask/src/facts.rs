@@ -1679,6 +1679,42 @@ const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[
         label: "Typecycling",
         reason: "a variant of the cycling ability [CR#702.29e], already spelled by the Cycling row's compound-quality schema; a row would be a second representation of the same ability",
     },
+    Exempt {
+        label: "ChooseABackground",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             chooseABackground's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
+    Exempt {
+        label: "DoctorsCompanion",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             doctorsCompanion's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
+    Exempt {
+        label: "PartnerCharacterSelect",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             partnerCharacterSelect's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
+    Exempt {
+        label: "PartnerFatherAndSon",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             partnerFatherAndSon's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
+    Exempt {
+        label: "PartnerFriendsForever",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             partnerFriendsForever's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
+    Exempt {
+        label: "PartnerSurvivors",
+        reason: "grammar-only declaration authorized by owner ruling PK1 (2026-10-10); \
+             partnerSurvivors's engine body and Facts row are semantics debt owned by \
+             semantics-v2-keyword-ability-census",
+    },
 ];
 
 /// Rows whose label is a CR-defined variant of a keyword that has its own

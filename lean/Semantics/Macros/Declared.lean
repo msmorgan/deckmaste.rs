@@ -2124,6 +2124,10 @@ semantic_macro champion (arg0 : Semantics.Predicate) : Semantics.Ability :=
 semantic_macro changeling : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "changeling") [] [(Semantics.Ability.static (Semantics.StaticSpec.characteristicChange (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none) [(Semantics.CharacteristicEdit.everyTypeOf Semantics.QualityOp.adds Semantics.SubtypeSpace.creature)]))])
 
+/-- `keyword_abilities/chooseABackground.ron` -/
+semantic_macro chooseABackground : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "chooseABackground") [] [])
+
 /-- `keyword_abilities/cipher.ron` -/
 semantic_macro cipher : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "cipher") [] [(Semantics.Ability.spell none (Semantics.Instruction.doIf (Semantics.Condition.matches Semantics.NounPhrase.this Semantics.Predicate.isCard) (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.sequentially [(Semantics.Instruction.enact (Semantics.Deed.action "exile") (Semantics.Instruction.ownScope 0 (Semantics.Instruction.move (Semantics.NounPhrase.inCaller 0 (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.ZoneExpr.wherever (Semantics.ZoneExpr.zone Semantics.Zone.exile Semantics.ZoneScope.bare) []))), (Semantics.Instruction.relate Semantics.NounPhrase.this (Semantics.RelationLabel.named "encodedOn") (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) (Semantics.Predicate.and [(Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.you)])))]) none none) none)), (Semantics.Ability.static (Semantics.StaticSpec.abilityGrant (Semantics.NounPhrase.counterpart (Semantics.RelationLabel.named "encodedOn") Semantics.NounPhrase.this) (Semantics.Ability.triggered (Semantics.GameEvent.damage Semantics.DamageKind.combatOnly (some (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none)) (some (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) Semantics.Predicate.anyPlayer))) [] none [] none none none (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.sequentially [(Semantics.Instruction.copy Semantics.CopySort.fromCardZone (Semantics.NounPhrase.described Semantics.DetPhrase.the (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.related (Semantics.RelationLabel.named "encodedOn") (some (Semantics.NounPhrase.asType Semantics.CardType.creature Semantics.NounPhrase.this none)))])) (Semantics.Amount.lit 1) []), (Semantics.Instruction.withContinuation Semantics.ContinuationPolicy.optional (Semantics.Instruction.enact (Semantics.Deed.action "cast") (Semantics.Instruction.procedure Semantics.Procedure.cast (Semantics.NounPhrase.pro (Semantics.Reach.word Semantics.NounWord.copy) Semantics.Plurality.one Semantics.Window.whole) Semantics.PlayPayment.withoutPaying none)) none none)]) none none))))])
@@ -2211,6 +2215,10 @@ semantic_macro disguise (arg0 : Semantics.Cost) : Semantics.Ability :=
 /-- `keyword_abilities/disturb.ron` -/
 semantic_macro disturb (arg0 : Semantics.Cost) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "disturb") [(Semantics.KeywordParam.cost arg0)] [])
+
+/-- `keyword_abilities/doctorsCompanion.ron` -/
+semantic_macro doctorsCompanion : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "doctorsCompanion") [] [])
 
 /-- `keyword_abilities/doubleStrike.ron` -/
 semantic_macro doubleStrike : Semantics.Ability :=
@@ -2571,6 +2579,22 @@ semantic_macro paradigm : Semantics.Ability :=
 /-- `keyword_abilities/partner.ron` -/
 semantic_macro partner : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partner") [] [])
+
+/-- `keyword_abilities/partnerCharacterSelect.ron` -/
+semantic_macro partnerCharacterSelect : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerCharacterSelect") [] [])
+
+/-- `keyword_abilities/partnerFatherAndSon.ron` -/
+semantic_macro partnerFatherAndSon : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerFatherAndSon") [] [])
+
+/-- `keyword_abilities/partnerFriendsForever.ron` -/
+semantic_macro partnerFriendsForever : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerFriendsForever") [] [])
+
+/-- `keyword_abilities/partnerSurvivors.ron` -/
+semantic_macro partnerSurvivors : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerSurvivors") [] [])
 
 /-- `keyword_abilities/persist.ron` -/
 semantic_macro persist : Semantics.Ability :=

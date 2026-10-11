@@ -335,9 +335,20 @@ fn builtin_v2_keyword_action_nursery_is_complete_and_normalized() {
     let waterbend = action(&declarations, "waterbend");
     assert_eq!(
         waterbend.grammar().unwrap().recipe(),
-        &GrammarRecipe::FixedTerm
+        &GrammarRecipe::Verb {
+            frame_set: VerbFrameSet::Custom {
+                frames: vec![vec![], vec![CustomTailAtom::Role("CostSymbols".into())]],
+            },
+        }
     );
-    assert_eq!(surfaces(waterbend), [(SurfaceFeature::Fixed, "waterbend")]);
+    assert_eq!(
+        surfaces(waterbend),
+        [
+            (SurfaceFeature::PLAIN, "waterbend"),
+            (SurfaceFeature::THIRD_PERSON_SINGULAR_PRESENT, "waterbends"),
+            (SurfaceFeature::PAST_PARTICIPLE, "waterbended"),
+        ]
+    );
 
     let ring = action(&declarations, "theRingTemptsYou");
     assert_eq!(
