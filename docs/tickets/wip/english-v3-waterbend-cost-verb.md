@@ -126,4 +126,53 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`ulrnwvuw`, BEFORE on claim-parent `ytpqnwnm`'s
+   unchanged tree): bounded selector `(?i)\bwaterbend|\bearthbend|\bairbend|\bfirebend|\bpay \{`
+   selects 847 faces; 300 random covered controls (seed 20261008) give 1,135
+   distinct faces. Covered 1,022 → 1,049; total Readings 20,187 → 20,650.
+   `cargo xtask english-v3 diff --lines`: 27 gained, 0 lost, 0 decreases,
+   0 increases, 0 digest-only changes, 0 issues. Lost faces: none. All 29
+   waterbend faces were uncovered before retiring `FixedTerm`; no covered
+   Reading used it. Unintended gains: none. Manifest, BEFORE, AFTER and
+   diff: `target/english-v3/english-v3-waterbend-cost-verb/`.
+2. **Witnesses** (`ulrnwvuw`, complete fragment probes): Giant Koi 0 → 5;
+   Katara, Bending Prodigy 0 → 1; Water Whip 0 → 1; Spirit Water Revival
+   0 → 1; Waterbending Lesson 0 → 1; The Unagi of Kyoshi Island 0 → 1.
+   Hama's actual gerund-participial sentence 0 → 3. Giant Koi's otherwise
+   identical pay control has 5; Hama's paying control has 3, preserving
+   independent ambiguity under W9-A. The ticket's five pay controls and
+   pay-life control stay at 1; Earth Village Ruffians stays at 1, scoped
+   Appa at 5, bare coordination control at 0. No already-reading witness
+   needed dropping.
+3. **Spot checks** (`ulrnwvuw`): Giant Koi, Katara, Bending Prodigy, The
+   Unagi of Kyoshi Island, Ruthless Waterbender, Flexible Waterbender and
+   Geyser Leaper select `ActionCost` with waterbend as the verb head and
+   `CostSymbols` as its Complement (Unagi inside `CostKeyword`). Water
+   Whip selects an imperative additional-cost Predicate; Spirit Water
+   Revival a modal additional-cost Predicate; Waterbending Lesson a
+   finite Predicate under *unless*; Hama, the Bloodbender a
+   gerund-participial Predicate in the *by* Means Adjunct. Each retains
+   the selected cost-symbol Complement, with no twin `FixedTerm` route.
+4. **Deviations and STOPs**: WB4 is superseded by the owner's 2026-10-10
+   natural-class ruling: ordinary defaults declare *waterbends*,
+   *waterbending*, and regular-derived *waterbended* for both past forms;
+   grep attests neither past spelling nor *waterbends* (`ulrnwvuw`). Four
+   structural/paradigm/roundtrip tests were added, including Hama and the
+   attested bare frame. No Construction, loader, core lexeme or frame
+   beyond WB1 was added. Avatar Aang's excluded coordination remains
+   unread; Katara, Water Tribe's Hope's complete activated line and its
+   pay counterpart both probe 0 (`ulrnwvuw`), an independent residual.
+   STOPs: none. Glossary gaps: none.
+5. **Tests** (`ulrnwvuw`): `cargo test -p deckmaste_english_v3` passed
+   (983 tests); `cargo test -p deckmaste_lexical_source` passed (86 tests);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed;
+   `cargo test -p xtask english_v3` passed (56 tests);
+   `cargo xtask lean check` passed (242 cards).
+   `cargo xtask cite check --list-noncompliant` found 0;
+   `cargo xtask cite check` found 0 stale. Diff citation audit selected 0
+   new citation sites. Restored 0 / re-spelled 0 / ignored 0 / added 4 /
+   removed 0; removal names: none.
+6. **Timing** (`ulrnwvuw`): bounded AFTER census wall time **39.13 s**,
+   6 workers, `--samples-per-face 0`, under `/usr/bin/time -v`. No full
+   corpus census was run, per the binding verification budget.

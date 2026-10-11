@@ -6,7 +6,10 @@ KeywordAction(
     name: "waterbend",
     params: [Cost],
     spelling: "waterbend <Param(0)>",
-    grammar: FixedTerm(surface: "waterbend"),
+    grammar: Verb(
+        bare: "waterbend",
+        frame_set: Custom(frames: [[], [Role("CostSymbols")]]),
+    ),
     body: pay(
         withSubstitute(
             Param(0),

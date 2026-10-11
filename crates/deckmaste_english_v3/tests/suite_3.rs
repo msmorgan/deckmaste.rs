@@ -2,6 +2,9 @@
 #[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
 mod common;
 
+#[path = "suite/waterbend_cost_verb.rs"]
+mod waterbend_cost_verb;
+
 #[path = "suite/phrasal_keyword_surfaces.rs"]
 mod phrasal_keyword_surfaces;
 
