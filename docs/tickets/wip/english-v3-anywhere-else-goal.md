@@ -166,6 +166,11 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    respelling is classified as a gain in that comparison. All 13 own gains
    retain their counts. Evidence: `after-refresh.json`, `diff-refresh.json`,
    `diff-refresh-incoming.json`, `refresh-digest-classes.json`.
+   Authorized integration verification (`urrsqmrl`): original 4,434-face
+   manifest, identical final totals and classes; `diff-integration.json`
+   reports 14 gains, 80 inherited digest-only faces, zero lost/decreased/
+   increased. Official reviewed-result → final comparison has all 4,434
+   unchanged and zero changed lines (`diff-integration-incoming.json`).
 2. **Witnesses (`oslovlpz`):** full ticket text / its *there* control:
    Gruesome Encore 8/8, Nephalia Academy 22/22, Storm Herald 6/6, From the
    Catacombs 28/28; each ticket witness was 0 on `ktusvmxm`. The replacement
@@ -239,12 +244,18 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected}` add only
    `Category::ScalarLocationComplement` to their measured values. These are
    inherited, additional to this ticket's nine re-spelled tests.
+   Authorized integration (`urrsqmrl`): `cargo build -p xtask` and all six
+   full test/clippy commands passed again (English 1,092, lexical source 44,
+   compiler 41, inherited ignore unchanged). The named
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   test passed; no chart ceiling was changed.
 6. **Timing (`oslovlpz`):** no full census was run, per the binding bounded
    budget. The broader bounded parent census took 8m04.40s; the exact
    4,434-face AFTER run took 3m58.69s under `/usr/bin/time -v`, six workers,
    zero samples per face. Refresh (`qznlvuzl`) took 6m43.23s including the
    Cargo queue; its census corpus wall was 3m50.97s, again six workers and
-   zero samples. No second full census ran.
+   zero samples. No second full census ran. Authorized final bounded run
+   (`urrsqmrl`): 2m11.51s, six workers, zero samples, zero issues.
 
 ## Claim-parent evidence (2026-10-11)
 
