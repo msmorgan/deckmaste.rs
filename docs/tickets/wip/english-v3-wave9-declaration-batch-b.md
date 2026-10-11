@@ -89,6 +89,13 @@ Orchestrator rulings 2026-10-10:
   probe evidence and return that item (mint or route it); do not add a
   Construction under this ticket. Newly covered faces are gains.
 
+Owner amendments (2026-10-10, task instructions): DB1 applies to the natural
+class of regular transitive verbs, including every other core verb with the
+same missing form. DB3's core member-list recipe is superseded: the plugin
+must own the participial-Adjective export. If that export cannot carry the
+marked *to* frame, return C independently. Standing ruling W9-A preserves
+independent ambiguity and requires one route for the new construction.
+
 ## Witnesses
 
 Each is the only failing line of its face in `blockers-wave8.json` (census
@@ -163,4 +170,56 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`txkvmlxzpprs` claim-parent content → `mlnortmqxzrl`):
+   bounded manifest of 2,278 faces; 1,836 → 1,879 covered, 135,314 → 140,643
+   Readings. Official `english-v3 diff --lines`: 43 gained, zero lost,
+   decreases, increases or digest-only changes; 2,235 unchanged. Lost faces:
+   none. Selector: the Method's complete surface pattern plus
+   `\b(flipped|skipped)\b`, 1,994 matching faces, unioned with 300 random
+   covered controls from `diff --manifest --random 300 --seed 20261008`
+   (all 300 covered on the claim parent). Evidence:
+   `target/english-v3/english-v3-wave9-declaration-batch-b/{manifest,before,after,diff}.json`.
+2. **Witnesses** (`txkvmlxzpprs` → `mlnortmqxzrl`, complete `probe` enumeration
+   of the ticket texts in card context): Barrin's Spite 0 → 6 (owned control
+   6); Run Away Together 0 → 6 (6); Granted 0 → 34 (from-hand control 34);
+   Living Wish 0 → 91 (91); Enormous Energy Blade 0 → 0 (blocked control 2);
+   Bramble Elemental 0 → 0 (2); Parallel Thoughts 0 → 5 (without-central-
+   instead control 5); Retriever Phoenix 0 → 1 (1). The W9-A control counts
+   are preserved. Lydia Frye 21, Strong Back 3, Silvan Rally 4, Pursuit of
+   Knowledge 2, Likeness of the Seeker 1: all unchanged. These are witness
+   fragment/document counts; the face census sums its separate Ability lines.
+3. **Spot checks** (`mlnortmqxzrl`): Barrin's Spite, Run Away Together,
+   Cannibalize and Retribution select the *controlled by* verbal past-
+   participial Postmodifier; Granted, Living Wish and Burning Wish select
+   *outside the game* as the PP Complement of *from*; Parallel Thoughts,
+   Retriever Phoenix and Archmage Ascension select intransitive Preposition
+   *instead* as a central Adjunct in the modal's Bare Complement. Each
+   inspected Reading realizes byte-exactly, with no issue or unintended
+   analysis found. `spot-0.json` … `spot-9.json` under the evidence directory.
+4. **Deviations and STOPs** (`mlnortmqxzrl`): DB1's cause is an orthographic
+   hole, not a removed form: defaults generate *controled*, *fliped*,
+   *skiped*. The core inventory audit found exactly Control, Flip and Skip;
+   their existing verb declarations now supply the correct participles.
+   The retired default spellings attest zero supported faces (`english-v3
+   grep`, `retired-spellings.txt`). No Adjective *controlled* is minted.
+   DB2 adds only SourceComplementUse and Compound on *outside*. DB4 uses
+   its authorized fallback: one additional form on CentralAdverbComplement
+   reads an intransitive Preposition and the existing central licence; no
+   Adverb homograph or new Construction. C's item-only STOP is resolved by
+   returning it to `english-v3-plugin-participial-adjective-selected-frame`:
+   the current export is FixedKeyword-only and cannot carry a selected
+   frame. No plugin definition changed. No Construction/frame/test retired;
+   no glossary gap. Seven role/roundtrip English tests and one lexical
+   spelling test added.
+5. **Tests** (`mlnortmqxzrl`): `cargo test -p deckmaste_english_v3` passed
+   (1,002); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed after fixing the new fixture's explicit-default style lint;
+   `cargo test -p deckmaste_lexical_source` passed (87);
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 0 / ignored 0 / added 8 / removed 0.
+   Citation checks: zero stale, zero noncompliant; piped diff audit selects
+   zero citation sites. No new citations to bless. No Lean/plugin checks
+   apply because no plugin definition changed.
+6. **Timing** (`mlnortmqxzrl`): bounded after-census under `/usr/bin/time -v`,
+   **1m 34.07s**, six workers, `--samples-per-face 0`. No `--all` run.
+

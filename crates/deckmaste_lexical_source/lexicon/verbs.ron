@@ -38,7 +38,7 @@
         Predicate([ObjectNounPhrase]),
         Predicate([Role("InfinitiveComplement")]),
     ]),
-    (identity: Control, bare: "control", third_person: "controls", preterite: Some("controlled"), frames: [
+    (identity: Control, bare: "control", third_person: "controls", preterite: Some("controlled"), participle: Some("controlled"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Copy, bare: "copy", third_person: "copies", preterite: Some("copied"), frames: [
@@ -86,7 +86,7 @@
         Predicate([]),
         Predicate([ObjectNounPhrase]),
     ]),
-    (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), frames: [
+    (identity: Flip, bare: "flip", third_person: "flips", preterite: Some("flipped"), participle: Some("flipped"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Gain, bare: "gain", third_person: "gains", preterite: Some("gained"), frames: [
@@ -201,7 +201,7 @@
         Predicate([ObjectNounPhrase]),
         Predicate([ObjectNounPhrase, Lex("Preposition", "With"), ObjectNounPhrase]),
     ]),
-    (identity: Skip, bare: "skip", third_person: "skips", preterite: Some("skipped"), frames: [
+    (identity: Skip, bare: "skip", third_person: "skips", preterite: Some("skipped"), participle: Some("skipped"), frames: [
         Predicate([ObjectNounPhrase]),
     ]),
     (identity: Turn, bare: "turn", third_person: "turns", preterite: Some("turned"), participle: Some("turned"), frames: [

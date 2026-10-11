@@ -109,3 +109,6 @@ mod devotion_to_colour;
 
 #[path = "suite/partitive_quantity_phrases.rs"]
 mod partitive_quantity_phrases;
+
+#[path = "suite/declaration_batch_b.rs"]
+mod declaration_batch_b;

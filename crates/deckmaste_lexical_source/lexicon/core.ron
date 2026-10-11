@@ -262,7 +262,7 @@
         "vocab:Preposition/Of": {"GerundClauseComplement": "Yes", "ComplementFunctionRestriction": "Compound", "PrepositionPhraseComplementLicence": "Unrestricted", "PrepositionFunctionLicence": "NounComplement|Modifier|PredicativeComplement", "ObliqueMarker": "Yes", "PrepositionComplement": "NounPhrase|PrepositionPhrase", "LocativeUse": "No", "NominalComplementMarker": "Of", "NominalBareClass": "Interval", "KeywordMarker": "Of"},
         "vocab:Preposition/On": {"BareNominalComplement": "SpatialEdge", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "On"},
         "vocab:Preposition/Onto": {"PrepositionFunctionLicence": "VerbComplement", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "Onto"},
-        "vocab:Preposition/Outside": {"PrepositionFunctionLicence": "Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
+        "vocab:Preposition/Outside": {"SourceComplementUse": "Yes", "PrepositionFunctionLicence": "Adjunct|Modifier|Compound|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/To": {"NominalComplementMarker": "To", "PrepositionFunctionLicence": "VerbComplement|ComparativeComplement|NounComplement|Compound|Modifier", "GerundClauseComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
@@ -1156,7 +1156,7 @@
         ),
         (
             id: "vocab:Preposition/Instead", lemma: "instead", category: Preposition,
-            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "ConnectiveAdjunctUse": "Yes", "PrepositionComplement": "Intransitive", "ClauseInitialAdjunct": "Yes", "LocativeUse": "No"}, frames: []),
+            properties: (countability: [], features: {"PrepositionFunctionLicence": "Adjunct|Compound|PreposedAdjunct", "CompoundComplementMarker": "Of", "CentralAdjunctLicence": "PostAuxiliary", "ConnectiveAdjunctUse": "Yes", "PrepositionComplement": "Intransitive", "ClauseInitialAdjunct": "Yes", "LocativeUse": "No"}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Instead"),
             capitalization: Initial, binding: Free, surface_structure: Word,

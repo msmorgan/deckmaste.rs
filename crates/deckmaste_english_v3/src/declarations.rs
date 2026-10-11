@@ -2033,6 +2033,8 @@ constructions! {
         // rather than modifying a following NP or predicative Complement.
         schema CentralAdverbComplement {
             form [" ", modifier: lexical(Adverb), " ", predicate: node];
+            form [" ", modifier: lexical(Preposition), " ", predicate: node]
+                require modifier.PrepositionComplement = Intransitive;
         }
         table central_participial_position(CentralAdjunctLicence, CentralAdjunctPosition) -> Selection {
             (contains PostCopula, PostCopula) => Yes,
