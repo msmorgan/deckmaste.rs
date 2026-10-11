@@ -151,6 +151,20 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    counts, with encoding-only digest changes on Hans Eriksson, Kinscaer Sentry,
    Najeela, the Blade-Blossom, Thousand-Faced Shadow, Warren Warleader, and
    Zareth San, the Trickster. No wrong-only gains found.
+   Final authorized integration refresh: original `manifest.json` only, 610
+   faces (same 300 random covered controls, seed 20261008). Official
+   `cargo xtask english-v3 diff before.json after-final-refresh.json --lines`
+   reports covered 542 → 560; Readings 10,302 → 31,462; 18 gains, zero
+   lost/decreases/increases/source changes, 150 digest-only, 442 unchanged.
+   Seventeen gains belong to this ticket. Against the accepted `after.json`,
+   official `diff-final-incoming.json` reports one inherited gain,
+   Mirror-Style Master 0 → 16 (`ztvzruvp`, plugin-owned Modified declaration),
+   zero lost/decreases/increases and 46 inherited digest-only changes from
+   `zspvqono` (keyword-choice declaration/schema re-spellings; 12 overlap this
+   ticket's digest-only faces). The gained Reading probe retains
+   `lexeme:predicate/modified`; zero issues or wrong-only gains. Evidence:
+   `after-final-refresh.json`, `diff-final-refresh.json`/`.log`,
+   `diff-final-incoming.json`/`.log`, `final-inherited-gain-probe.json`.
 2. **Witnesses** (`ptokxtuo`, complete probe enumeration): Furnace-Blessed
    Conqueror 0 → 5 (tapped-only control 5); Pugnacious Pugilist 0 → 6 (control 6);
    Krothuss, Lord of the Deep 0 → 5 (control 5); Tetsuo Umezawa 0 → 1 (control 1,
@@ -314,6 +328,18 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    0 noncompliant and 0 stale; the diff audit selected zero citation sites.
    No grammar/lexicon change requires a new census. No refresh or integration
    was run after CP7, following the orchestrator's serialized-landing instruction.
+   Final authorized turn: `kata refresh` passed; `cargo build -p xtask`
+   passed (3m30s); full `cargo test -p deckmaste_english_v3` passed 1,076
+   tests with zero failed or ignored, plus doctests. The nine-witness
+   `selected_complement_clusters` budget and every exact Reading assertion pass.
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   The scoped post-refresh ruling requires checks of this landing's touched
+   crates only: no lexicon, plugin or other crate change belongs to this landing,
+   so no additional crate suites or Lean check are repeated. Evidence:
+   `build-final-refresh.log`, `tests-final-refresh.log`,
+   `clippy-final-refresh.log`, `census-final-refresh.log`. The original bounded
+   manifest passes with no lost/decreased/increased Readings. Final citation
+   compliance/check and diff audit pass, with no newly cited sites.
 6. **Timing** (`ptokxtuo`): bounded after-census 44.84 seconds wall time,
    six workers, zero samples per face, under `/usr/bin/time -v`; no full-corpus
    run. Wider review census: 123 seconds 850 milliseconds before and 128 seconds 920 milliseconds after,
@@ -322,3 +348,5 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    and clippy results apply to pre-refresh code. Post-refresh bounded census
    (`wmkwztxy`): 238 seconds 730 milliseconds wall, six workers and zero
    samples, under `/usr/bin/time -v`. No full-corpus run.
+   Final original-manifest census: 19 seconds 290 milliseconds wall,
+   `/usr/bin/time -v`, six workers, zero samples; no wider or full-corpus run.
