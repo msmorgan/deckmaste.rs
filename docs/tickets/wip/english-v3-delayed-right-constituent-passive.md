@@ -145,8 +145,16 @@ fields and cardinalities (`crates/deckmaste_construction_v3_core/src/ir.rs`,
 form validation); schema instances cannot override schema-owned forms. A new
 coordination-schema row alone does not create an incomplete member. Proposed
 resolution: permit a passive selected-head declaration retaining both Words,
-using the existing Coordination schemas and Shared Complement route. No
-implementation or test changes have been made pending that ruling.
+using the existing Coordination schemas and Shared Complement route. Resolved by DR6's fallback (2026-10-11): SB8's optional lexical support
+extracts only direct constant requirements from optional fields
+(`optional_word_requirements` in `ir.rs`). A cross-field frame/marker table
+call and feature export still fail `resolve_reference` with “optional/repeated
+fields have no single feature value”. The member needs that cross-field licence
+and a retained distinction between a selected recipient and an internalised
+agent. One `PassiveSelectedHead` Construction supplies both, feeding
+`SecondarySelectedHead`, the existing Coordination schemas and
+`SharedObjectComplement`. No new Category, schema or lexicon entry; ordinary
+selected-head Readings retain their fields.
 
 ## Method
 
@@ -170,4 +178,63 @@ Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta**: bounded selector `(?i)\bdealt (to|by)\b` (420
+   faces), 300 random covered controls (seed 20261008), and every
+   `SelectedVerbHead` consumer selected by node in `baseline-wave8.json`
+   (144 faces; the claim-parent BEFORE also contains those 144): union **857**.
+   Manifest: `target/english-v3/english-v3-delayed-right-constituent-passive/manifest.json`.
+   On `mzpnmlpo` → `knlqxlok`: covered **812 → 834**, total per-line Readings
+   **81,312 → 81,537**; gained **22**, lost **none**, decreases **0**, increases
+   **0**, digest-only **0**, issues **0**. Existing selected-head consumer class:
+   144 faces, 0 changed lines. The diff's 43 changed lines belong to gained
+   faces. The wider declared-marker coordination grep finds 23 faces, all in
+   the manifest. Winter's Chill remains unread through another blocker.
+
+2. **Witnesses** (`knlqxlok`, complete sentence probes; to/by control counts in
+   parentheses): Fog Bank **2** (5/10); Gaseous Form **2** (5/10); Maze of Ith,
+   second sentence **8** (11/28); Kiora, the Crashing Wave, without loyalty
+   cost **2** (4/9); Statecraft **5** (12/22). All five were 0 on `mzpnmlpo`;
+   none was dropped. W9-A preserves independent attachment ambiguity, while
+   each Reading has one route for the new material. Other controls unchanged:
+   basic coordination 14, attacks or blocks 2, blocks or becomes blocked 3,
+   simple passive 1; standalone *dealt to* remains 0 as Secondary Verb Phrase.
+
+3. **Spot checks** (`knlqxlok`, full-face census counts): Cephalid Illusionist (18); Deftblade Elite (9); Delirium (25); Dovin, Hand of Control (10); Ebony Horse (16); Elvish Scout (16); Energy Arc (8); Fog Bank (4); Foxfire (10); Goblin Snowman (9).
+   Each inspected Reading has two `PassiveSelectedHead` members retaining
+   separate selected Prepositions, joined by `Coordination` below one
+   `SharedObjectComplement` NP, with byte-exact realization and no issues.
+   Wrong-analysis gains: 0 observed.
+
+4. **Deviations and STOPs** (`knlqxlok`): the DR1 STOP is resolved by DR6's
+   fallback, for the optional-field limitation recorded above. Exactly one
+   Construction added, `PassiveSelectedHead`; no Category, schema or lexicon
+   entry added or retired. `FrameUse` distinguishes recipient and internalised
+   agent completion; existing concord/completion policies preserve ordinary
+   signatures. No superseded route, removed Reading or glossary gap.
+   Goblin Snowman's gain is incidental: its other line already reads without
+   this Construction; no repair beyond the ticket's surface was made. Initial
+   refresh brought the semantics-v2 counter-annihilation landing, including
+   `plugins_v2/` changes, so the standing rule adds the full xtask, semantics,
+   construction-core and Lean gates.
+
+5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
+   tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
+   The first full suite found an overstrict new expectation; the full suite
+   was rerun after re-spelling
+   `delayed_right_constituent_passive::witnesses_keep_two_incomplete_members_and_one_shared_np`:
+   its expected value changed from one fully postmodified NP surface per
+   witness to the set of NP surfaces in the corresponding selected-*to*
+   control, preserving Kiora/Statecraft's higher relative attachments under
+   W9-A, while retaining both member-frame comparisons and the NP-internal
+   attachment assertion. Restored 0; re-spelled 0 existing / 1 new; ignored 0;
+   added 4; removed 0 (no removals to justify). Registered once in `suite_5`.
+   Mandatory gates after the plugin refresh also pass: `cargo build -p xtask`,
+   `cargo test -p xtask` (full), `cargo test -p deckmaste_semantics_v2`,
+   `cargo test -p deckmaste_construction_core`, and `cargo xtask lean check`.
+   Citation checks pass: `cargo xtask cite check --list-noncompliant`,
+   `cargo xtask cite check`, and
+   `jj --no-pager diff --git | cargo xtask cite audit --diff`; no new CR sites.
+
+6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
+   wall time under `/usr/bin/time -v`, with **6 workers** and
+   `--samples-per-face 0`. No full-corpus census was run.

@@ -545,7 +545,7 @@ constructions! {
         feature SecondaryNegation { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
-            QuantitativeDeterminer, Infinitive }
+            QuantitativeDeterminer, Infinitive, PassiveNominal, PassiveInternalised }
         feature HeadCoordination { No, Yes }
         feature SelectedTailLicence { ParallelFrames, DeclaredFrames } default ParallelFrames;
         feature BareCoordination { No, Yes } default Yes;
@@ -1470,8 +1470,8 @@ constructions! {
             export SourceComplementSelection = head.SourceComplementSelection;
             export form = head.form;
             export ParticipialSupplementUse = No;
-            export ParticipialUse = Ordinary;
-            export InternalisedComplementPresent = No;
+            export ParticipialUse = shared_participial_use(head.FrameUse);
+            export InternalisedComplementPresent = shared_internalised_presence(head.FrameUse);
         }
 
         table partitive_countability(countability) -> PartitiveCountability {
@@ -2012,13 +2012,45 @@ constructions! {
                 Right.ParticipialUse);
         }
 
+        // DR6: passive selected heads share an NP, preserving whether either
+        // member licenses an Internalised Complement. Ordinary signatures still agree.
+        table shared_frame_concord(FrameUse, FrameUse) -> FrameUse {
+            (Object, Object) => Object,
+            (Predicative, Predicative) => Predicative,
+            (Locative, Locative) => Locative,
+            (Mana, Mana) => Mana,
+            (Amount, Amount) => Amount,
+            (Measure, Measure) => Measure,
+            (SlashMeasure, SlashMeasure) => SlashMeasure,
+            (GrantedAbility, GrantedAbility) => GrantedAbility,
+            (AuxiliaryBare, AuxiliaryBare) => AuxiliaryBare,
+            (AuxiliaryParticiple, AuxiliaryParticiple) => AuxiliaryParticiple,
+            (AuxiliaryPerfect, AuxiliaryPerfect) => AuxiliaryPerfect,
+            (ObjectName, ObjectName) => ObjectName,
+            (QuantitativeDeterminer, QuantitativeDeterminer) => QuantitativeDeterminer,
+            (Infinitive, Infinitive) => Infinitive,
+            (PassiveNominal, PassiveNominal) => PassiveNominal,
+            (PassiveNominal, PassiveInternalised) => PassiveInternalised,
+            (PassiveInternalised, PassiveNominal) => PassiveInternalised,
+            (PassiveInternalised, PassiveInternalised) => PassiveInternalised,
+        }
+        table shared_nominal_frame(FrameUse) -> Selection {
+            (Object) => Yes, (PassiveNominal) => Yes, (PassiveInternalised) => Yes,
+        }
+        table shared_participial_use(FrameUse) -> ParticipialUse {
+            (PassiveNominal) => BarePassive, (PassiveInternalised) => BarePassive,
+            (_) => Ordinary,
+        }
+        table shared_internalised_presence(FrameUse) -> InternalisedComplementPresent {
+            (PassiveInternalised) => Yes, (_) => No,
+        }
+
         policy SelectedFrameConcord<Right, Source> {
             export AuxiliaryProFormLicence = auxiliary_pro_form_concord(
                 left.AuxiliaryProFormLicence, Right.AuxiliaryProFormLicence);
             export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
                 left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
-            agree left.FrameUse = Right.FrameUse;
-            export FrameUse = left.FrameUse;
+            export FrameUse = shared_frame_concord(left.FrameUse, Right.FrameUse);
         }
 
         policy SharedFrameConcord<Right, Source> {
@@ -2026,8 +2058,7 @@ constructions! {
                 left.AuxiliaryProFormLicence, Right.AuxiliaryProFormLicence);
             export AuxiliaryEllipsisLicence = auxiliary_ellipsis_concord(
                 left.AuxiliaryEllipsisLicence, Right.AuxiliaryEllipsisLicence);
-            agree left.FrameUse = Right.FrameUse;
-            export FrameUse = left.FrameUse;
+            export FrameUse = shared_frame_concord(left.FrameUse, Right.FrameUse);
             export HeadCoordination = Yes;
         }
 
@@ -2302,7 +2333,7 @@ constructions! {
         schema SharedObjectComplement {
             form [head: node, " ", object: node];
             require head.HeadCoordination = Yes;
-            require head.FrameUse = Object;
+            require shared_nominal_frame(head.FrameUse) = Yes;
         }
 
         schema SharedPredicativeComplement {
@@ -6641,6 +6672,27 @@ constructions! {
             (PurposeInfinitival, BarePredicate),
         ] {
             export FocusedUse = No;
+        }
+
+        // DR6 fallback: optional lexical fields cannot participate in the
+        // cross-field frame/marker licence or export its completion distinction.
+        // These members are incomplete; only shared-head completion admits their NP.
+        construction PassiveSelectedHead: SecondarySelectedHead {
+            form [head: lexical(Verb), " ", marker: lexical(Preposition)]
+                require selected_object_marker(head.frame, marker.KeywordMarker) = Yes
+                export FrameUse = PassiveNominal;
+            form [head: lexical(Verb), " ", marker: lexical(Preposition)]
+                require head.frame = Transitive
+                require marker.InternalisedComplementMarker = Yes
+                export FrameUse = PassiveInternalised;
+            require head.form = PastParticiple;
+            require head.Clitic = No;
+            require noun_phrase_complement(marker.PrepositionComplement) = Yes;
+            require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
+            export HeadCoordination = No;
+            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
+            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
+            use SecondaryHeadForm;
         }
 
         // Shared head primitives: exact selected signatures; no complement or coordination yet.

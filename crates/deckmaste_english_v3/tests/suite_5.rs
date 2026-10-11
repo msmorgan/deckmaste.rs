@@ -85,3 +85,6 @@ mod kind_of_counter;
 
 #[path = "suite/coordinated_participial_premodifier.rs"]
 mod coordinated_participial_premodifier;
+
+#[path = "suite/delayed_right_constituent_passive.rs"]
+mod delayed_right_constituent_passive;
