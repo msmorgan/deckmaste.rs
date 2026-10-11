@@ -177,6 +177,17 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    Classifier/selector evidence stays in `target/`: `copula-reach.json`,
    `reach-input.json`, `outside-parent-users.json`, `outside-after-users.json`,
    `frame-owners.txt`, `frame-owners-after.txt`, and `reach-manifest.json`.
+   Authorized integration refresh (2026-10-11), original **4,190** identities
+   only: covered **3,578 → 3,615**, Readings **203,239 → 204,124**;
+   lost **0**, gained **37** (18 own, 19 inherited), decreases **0**,
+   increases **2** (the same `xswzoyrx` PA7 shapes above), digest-only **942**,
+   issues **0**. Official reviewed-head → final diff isolates **11** incoming
+   gains and **409** digest-only changes, with zero losses/decreases/increases;
+   all 18 ticket gains retain their counts. The incoming work is plugin terms
+   `ztvzruvp`, keyword choices `zspvqono`, coordinated premodifiers `ptokxtuo`,
+   and mana-symbol nominals `qtyxwuyo`. Evidence: `after-integration-refresh.json`,
+   `diff-integration-refresh.json`, `diff-integration-incoming.json` and
+   `integration-incoming.stat`.
 2. **Witnesses** (complete Sentence enumeration on `ouykkpns`): all ticket
    witnesses failed on the claim-parent grammar; none was dropped. Hotshot
    Mechanic **0 → 1**; Deathless Pilot, Dynamite Diver and Cloudspire Captain's
@@ -314,10 +325,24 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    cards (237 canon, eight testing); log `lean-refresh.log`. Final citation
    checks again found **0** noncompliant and **0** stale (17,799 sites);
    the implementation's piped `jj diff --git` audit selected zero new sites.
+   Final scoped integration checks passed: `cargo build -p xtask`;
+   full `cargo test -p deckmaste_english_v3` (**1,084** passed) and
+   `cargo test -p deckmaste_lexical_source` (**88** passed); both
+   `cargo clippy -p <crate> --tests -- -D warnings` commands passed.
+   The named selected-complement-clusters budget test passed with inherited
+   CP7 ceilings unchanged. One inherited English ignore names
+   `english-v3-mana-symbol-verbless-subject` as its exact blocker:
+   `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`.
+   This landing adds no ignore. Integration refresh's registration conflict
+   retained both `mana_symbol_nominal` and `irrealis_scalar_difference` once.
+   Per the orchestrator's scoped rule, no plugin/semantics checks were repeated:
+   this change touches only English grammar/tests and core lexical data.
 6. **Timing** (`ouykkpns`): final complete bounded census wall **3 min 28 s**,
    **6 workers**, `--samples-per-face 0`, captured under `/usr/bin/time -v`.
    Refreshed bounded census wall **4 min 40 s**, same manifest and settings;
    `/usr/bin/time -v` captured in `census-refresh.log`.
    Review reach extension: BEFORE **582 ms**, AFTER **499 ms** corpus wall,
    six workers, zero samples; build overhead is separately captured in the
-   `/usr/bin/time -v` logs. No full-corpus census was run.
+   `/usr/bin/time -v` logs. Final original-manifest census wall **87 s**,
+   six workers, zero samples, under `/usr/bin/time -v` in
+   `integration-census.log`. No full-corpus census was run.
