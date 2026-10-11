@@ -756,6 +756,16 @@ mimicked.
   cards' own wording [CR#704.5q]. Snowblind's "whichever is smaller" is its
   non-rule witness. (Ruling, 2026-10-10, owner;
   `semantics-v2-counter-annihilation-sba`.)
+- **A declaration's name means its term everywhere; the Registry Definition
+  is held apart.** A counter, subtype, designation or relation declaration
+  registers its name as a macro whose body is the term it declares (a
+  counter's kind, `m1m1Counter` being `Named(name: "m1m1Counter")`), inside
+  its own definition as anywhere else, and the registry holds the definition
+  record under the same name for the facts tables and `lean definitions`. The
+  single macro whose body was the record, read back at a term position by the
+  `denoted_by` marker and the `Definition.*Term` projections, is retired.
+  (Ruling, 2026-10-10, owner, Q80 option A;
+  `semantics-v2-counter-annihilation-sba`.)
 
 ## 8. Process
 
@@ -1023,7 +1033,9 @@ all consumer-declared: two `MacroSet` switches (`denying_unknown_fields`,
 `reading_positional_arguments`) and three `#[macro_ron(...)]` markers on the
 mirror (`embed`, `literal`, `denoted_by`). A `MacroSet` with neither switch,
 over types carrying none of the markers, reads exactly as it did before.
-`denoted_by(Spelling, term = path)` is the type-level one: it declares that a
+`denoted_by(Spelling, term = path)` is the type-level one (no v2 type carries
+it since the §7 ruling of 2026-10-10, under which a declaration's name
+registers its term and the Registry Definition is held apart): it declares that a
 Registry Definition's spelling also reads at the type's position and denotes
 the term `path` finds in it — a definition's name denotes its term, so
 `p1p1Counter`, whose body is its `Definition::Counter` node, reads at a

@@ -790,9 +790,9 @@ Conferrals; a Designation's holder and columns; a Card Type, whether it is a
 Permanent Type, and its Conferrals (a creature is a Combatant [CR#508.1a]). A registry declares a
 namespace's members, so a Registry Definition names what it defines, where a
 Rules Table row names nothing and is scoped by a Predicate instead. The
-declared name DENOTES what is defined: where a position wants the defined term
-— a Subtype in a card's subtype list, a Counter's kind — the name stands for
-that term rather than for the Registry Definition that gives it; a
+declared name means the defined term everywhere, the Registry Definition's own
+body included — a Subtype in a card's subtype list, a Counter's kind — and the
+Registry Definition is a separate record the registry holds under that name; a
 Designation's name is the Designation.
 _Avoid_: Rules Table for a Registry Definition.
 

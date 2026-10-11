@@ -289,13 +289,10 @@ pub enum Ordinal {
 /// table generated from the declarations' definitions.
 ///
 /// A type of its own rather than a `String`, so a designation's name reads
-/// here bare (Lean `Semantics.Definition.designationTerm`): `goaded` expands
-/// to its `Definition::Designation` node, and the `denoted_by` marker reads
-/// that node at this position as its `label`, which is
-/// `Named(name: "goaded")`. `Designation` is not one of this type's
-/// constructors, so a card writing the node raw is refused by name (§11.1).
+/// here bare: the name means its label everywhere, `goaded` expanding to
+/// `Named(name: "goaded")`, and the designation's Registry Definition is a
+/// separate record the registry holds under the name (ruling 2026-10-10).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-#[macro_ron(denoted_by(Designation, term = crate::rules::Definition::designation_term))]
 pub enum DesignationLabel {
     Named { name: String },
 }
@@ -316,12 +313,9 @@ impl DesignationLabel {
 /// Which relations exist, and the kinds of their two sides, is the relation
 /// facts table generated from the declarations' definitions.
 ///
-/// A relation's name reads here bare, as a designation's does (Lean
-/// `Semantics.Definition.relationTerm`): `haunting` expands to its
-/// `Definition::Relation` node, and the `denoted_by` marker reads that node
-/// at this position as its `label`.
+/// A relation's name reads here bare, as a designation's does: `haunting`
+/// expands to its label, `Named(name: "haunting")` (ruling 2026-10-10).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-#[macro_ron(denoted_by(Relation, term = crate::rules::Definition::relation_term))]
 pub enum RelationLabel {
     Named { name: String },
 }
@@ -836,19 +830,12 @@ pub enum LoyaltyCost {
 
 /// A card subtype. Instants and sorceries share their spell types [CR#205.3k].
 ///
-/// A DEFINITION'S NAME DENOTES ITS TERM (Lean
-/// `Semantics.Definition.subtypeTerm`, `plugins-v2-subtypes-macro-only`). Every
-/// registry declaration's body is the `Definition` node it defines, so the
-/// macro `gargoyle` expands to `Subtype(subtype: Of(host: Creature, label:
-/// "Gargoyle"), rules: [])` wherever it is written; at a TERM position — a
-/// card's subtype list, an amassed subtype — the position takes the term the
-/// definition names rather than the node. The `denoted_by` marker declares that
-/// reading; the same marker reads a counter definition's `kind` at
-/// [`CounterKind`]. The node's spelling is not one of this type's constructors,
-/// so a card writing it raw is refused by name like `Of` and `Spell` are
-/// (§11.1).
+/// A DECLARATION'S NAME MEANS ITS TERM, everywhere, its own body included
+/// (ruling 2026-10-10): the macro `gargoyle` expands to `Of(host: Creature,
+/// label: "Gargoyle")`, and the subtype's Registry Definition
+/// (`Subtype(subtype: …, rules: […])`) is a separate record the registry
+/// holds under the name (`crate::reader::Declaration::definition`).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-#[macro_ron(denoted_by(Subtype, term = crate::rules::Definition::subtype_term))]
 pub enum Subtype {
     Of { host: CardType, label: String },
     Spell { label: String },
@@ -948,13 +935,11 @@ pub enum DefinedSlots {
 /// counter facts table generated from those definitions.
 ///
 /// A type of its own rather than a `String`, so a counter DECLARATION's name
-/// reads here bare (Lean `Semantics.Definition.counterTerm`): `p1p1Counter`
-/// expands to its `Definition::Counter` node, and the `denoted_by` marker
-/// reads that node at this position as its `kind`, which is
-/// `Named(name: "p1p1Counter")`. `Counter` is not one of this type's
-/// constructors, so a card writing the node raw is refused by name (§11.1).
+/// reads here bare: the name means its kind everywhere, its own definition
+/// included, `p1p1Counter` expanding to `Named(name: "p1p1Counter")`; the
+/// counter's Registry Definition is a separate record the registry holds
+/// under the name (ruling 2026-10-10).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, SupportsMacros)]
-#[macro_ron(denoted_by(Counter, term = crate::rules::Definition::counter_term))]
 pub enum CounterKind {
     Named { name: String },
 }

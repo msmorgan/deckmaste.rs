@@ -1092,9 +1092,9 @@ reaches the checker. `DesignationLabel.facts` is one registry lookup by name
 zone, type and Room half) is read from that row; the generator writes one row
 per designation, labelled with its name. `RoomHalf.designation` returns the
 designation the table marks with that half, by name. A designation
-definition (`Definition.designation`) names its label
-(`Definition.designationTerm`), so a declaration's bare name reads at a
-designation position.
+declaration's bare name means its label, so it reads at a designation
+position; its definition (`Definition.designation`) is a separate record the
+registry holds under the name (ruling 2026-10-10).
 
 The two lethal-damage state-based actions [CR#704.5g,704.5h] have no row: the
 grammar projects no marked damage and has no "since state-based actions were

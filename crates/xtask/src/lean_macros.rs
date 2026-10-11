@@ -666,6 +666,9 @@ const LEAN_KEYWORDS: &[&str] = &[
     "Prop",
     "this",
     "matches",
+    // Lean's `seal`/`unseal` commands; `seal` is a creature type.
+    "seal",
+    "unseal",
     // The macro layer's own binder modes (`Semantics.Authoring`).
     "splice",
     "capture",
@@ -695,7 +698,7 @@ pub fn render(root: &Path) -> anyhow::Result<Module> {
     let pool = variation_pool(root);
     let harvested = harvest_arguments(root);
     let words = lean_words(root, &plugin.macros);
-    let outcomes: Vec<(String, String, Result<Derived, String>)> = by_file
+    let outcomes: Vec<(String, String, bool, Result<Derived, String>)> = by_file
         .into_par_iter()
         .map(|(path, declaration)| {
             let relative = path
@@ -710,24 +713,36 @@ pub fn render(root: &Path) -> anyhow::Result<Module> {
                     derived
                 },
             );
-            (relative, name, outcome)
+            // A registry declaration's name registers its term, apart from
+            // the Registry Definition the registry holds (ruling 2026-10-10).
+            let term = declaration.registered.body() != declaration.definition.body();
+            (relative, name, term, outcome)
         })
         .collect();
 
     // Two declarations of one name (at different kinds) cannot share a Lean
-    // name in one namespace: both are qualified by their result type.
+    // name in one namespace: both are qualified by their result type. A
+    // registry declaration's term (`solved` the designation) gives way to the
+    // macro it shares a name with (`solved` the keyword ability), which keeps
+    // its name.
     let mut counts: BTreeMap<String, usize> = BTreeMap::new();
-    for (_, _, outcome) in &outcomes {
+    let mut macro_counts: BTreeMap<String, usize> = BTreeMap::new();
+    for (_, _, term, outcome) in &outcomes {
         if let Ok(derived) = outcome {
             *counts.entry(derived.ident.clone()).or_default() += 1;
+            if !term {
+                *macro_counts.entry(derived.ident.clone()).or_default() += 1;
+            }
         }
     }
     let mut derived = Vec::new();
     let mut skipped = Vec::new();
-    for (relative, name, outcome) in outcomes {
+    for (relative, name, term, outcome) in outcomes {
         match outcome {
             Ok(mut one) => {
-                if counts[&one.ident] > 1 {
+                let clashes =
+                    if term { counts[&one.ident] > 1 } else { macro_counts[&one.ident] > 1 };
+                if clashes {
                     let ty = one
                         .result
                         .trim_start_matches('(')
@@ -1111,7 +1126,10 @@ fn derive(
     words: &BTreeMap<String, Vec<String>>,
     declaration: &Declaration,
 ) -> Result<Derived, String> {
-    let definition = &declaration.definition;
+    // The macro the name registers: for a registry declaration, the kind
+    // reference its name means, not the Registry Definition the registry
+    // holds beside it (ruling 2026-10-10).
+    let definition = &declaration.registered;
     let name = definition.name.as_str();
     let kinds: Vec<&str> = definition
         .kinds

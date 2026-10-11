@@ -948,6 +948,946 @@ semantic_macro playableFrom (zone : Semantics.ZoneExpr) (timing : Semantics.Timi
 semantic_macro stateBased (when : Semantics.Condition) (then_ : Semantics.Instruction) : Semantics.Conferral :=
   (Semantics.Conferral.stateBased when then_)
 
+/-- `counter_kinds/acornCounter.ron` -/
+semantic_macro acornCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "acornCounter")
+
+/-- `counter_kinds/aegisCounter.ron` -/
+semantic_macro aegisCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "aegisCounter")
+
+/-- `counter_kinds/ageCounter.ron` -/
+semantic_macro ageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ageCounter")
+
+/-- `counter_kinds/aimCounter.ron` -/
+semantic_macro aimCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "aimCounter")
+
+/-- `counter_kinds/arrowCounter.ron` -/
+semantic_macro arrowCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "arrowCounter")
+
+/-- `counter_kinds/arrowheadCounter.ron` -/
+semantic_macro arrowheadCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "arrowheadCounter")
+
+/-- `counter_kinds/awakeningCounter.ron` -/
+semantic_macro awakeningCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "awakeningCounter")
+
+/-- `counter_kinds/baitCounter.ron` -/
+semantic_macro baitCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "baitCounter")
+
+/-- `counter_kinds/blazeCounter.ron` -/
+semantic_macro blazeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "blazeCounter")
+
+/-- `counter_kinds/blessingCounter.ron` -/
+semantic_macro blessingCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "blessingCounter")
+
+/-- `counter_kinds/bloodCounter.ron` -/
+semantic_macro bloodCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "bloodCounter")
+
+/-- `counter_kinds/bloodlineCounter.ron` -/
+semantic_macro bloodlineCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "bloodlineCounter")
+
+/-- `counter_kinds/bloodstainCounter.ron` -/
+semantic_macro bloodstainCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "bloodstainCounter")
+
+/-- `counter_kinds/bookCounter.ron` -/
+semantic_macro bookCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "bookCounter")
+
+/-- `counter_kinds/boreCounter.ron` -/
+semantic_macro boreCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "boreCounter")
+
+/-- `counter_kinds/bountyCounter.ron` -/
+semantic_macro bountyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "bountyCounter")
+
+/-- `counter_kinds/brainCounter.ron` -/
+semantic_macro brainCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "brainCounter")
+
+/-- `counter_kinds/briberyCounter.ron` -/
+semantic_macro briberyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "briberyCounter")
+
+/-- `counter_kinds/brickCounter.ron` -/
+semantic_macro brickCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "brickCounter")
+
+/-- `counter_kinds/burdenCounter.ron` -/
+semantic_macro burdenCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "burdenCounter")
+
+/-- `counter_kinds/cageCounter.ron` -/
+semantic_macro cageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "cageCounter")
+
+/-- `counter_kinds/carrionCounter.ron` -/
+semantic_macro carrionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "carrionCounter")
+
+/-- `counter_kinds/cellCounter.ron` -/
+semantic_macro cellCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "cellCounter")
+
+/-- `counter_kinds/chargeCounter.ron` -/
+semantic_macro chargeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "chargeCounter")
+
+/-- `counter_kinds/chorusCounter.ron` -/
+semantic_macro chorusCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "chorusCounter")
+
+/-- `counter_kinds/collectionCounter.ron` -/
+semantic_macro collectionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "collectionCounter")
+
+/-- `counter_kinds/componentCounter.ron` -/
+semantic_macro componentCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "componentCounter")
+
+/-- `counter_kinds/conquerorCounter.ron` -/
+semantic_macro conquerorCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "conquerorCounter")
+
+/-- `counter_kinds/contestedCounter.ron` -/
+semantic_macro contestedCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "contestedCounter")
+
+/-- `counter_kinds/corpseCounter.ron` -/
+semantic_macro corpseCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "corpseCounter")
+
+/-- `counter_kinds/corruptionCounter.ron` -/
+semantic_macro corruptionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "corruptionCounter")
+
+/-- `counter_kinds/creditCounter.ron` -/
+semantic_macro creditCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "creditCounter")
+
+/-- `counter_kinds/croakCounter.ron` -/
+semantic_macro croakCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "croakCounter")
+
+/-- `counter_kinds/crystalCounter.ron` -/
+semantic_macro crystalCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "crystalCounter")
+
+/-- `counter_kinds/cubeCounter.ron` -/
+semantic_macro cubeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "cubeCounter")
+
+/-- `counter_kinds/currencyCounter.ron` -/
+semantic_macro currencyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "currencyCounter")
+
+/-- `counter_kinds/deathtouchCounter.ron` -/
+semantic_macro deathtouchCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "deathtouchCounter")
+
+/-- `counter_kinds/decayedCounter.ron` -/
+semantic_macro decayedCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "decayedCounter")
+
+/-- `counter_kinds/defenseCounter.ron` -/
+semantic_macro defenseCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "defenseCounter")
+
+/-- `counter_kinds/delayCounter.ron` -/
+semantic_macro delayCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "delayCounter")
+
+/-- `counter_kinds/depletionCounter.ron` -/
+semantic_macro depletionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "depletionCounter")
+
+/-- `counter_kinds/descentCounter.ron` -/
+semantic_macro descentCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "descentCounter")
+
+/-- `counter_kinds/despairCounter.ron` -/
+semantic_macro despairCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "despairCounter")
+
+/-- `counter_kinds/discoveryCounter.ron` -/
+semantic_macro discoveryCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "discoveryCounter")
+
+/-- `counter_kinds/divinityCounter.ron` -/
+semantic_macro divinityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "divinityCounter")
+
+/-- `counter_kinds/doomCounter.ron` -/
+semantic_macro doomCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "doomCounter")
+
+/-- `counter_kinds/doubleStrikeCounter.ron` -/
+semantic_macro doubleStrikeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "doubleStrikeCounter")
+
+/-- `counter_kinds/dreadCounter.ron` -/
+semantic_macro dreadCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "dreadCounter")
+
+/-- `counter_kinds/dreamCounter.ron` -/
+semantic_macro dreamCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "dreamCounter")
+
+/-- `counter_kinds/dutyCounter.ron` -/
+semantic_macro dutyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "dutyCounter")
+
+/-- `counter_kinds/eggCounter.ron` -/
+semantic_macro eggCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "eggCounter")
+
+/-- `counter_kinds/elixirCounter.ron` -/
+semantic_macro elixirCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "elixirCounter")
+
+/-- `counter_kinds/emberCounter.ron` -/
+semantic_macro emberCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "emberCounter")
+
+/-- `counter_kinds/energy.ron` -/
+semantic_macro energy : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "energy")
+
+/-- `counter_kinds/enlightenedCounter.ron` -/
+semantic_macro enlightenedCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "enlightenedCounter")
+
+/-- `counter_kinds/eonCounter.ron` -/
+semantic_macro eonCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "eonCounter")
+
+/-- `counter_kinds/exaltedCounter.ron` -/
+semantic_macro exaltedCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "exaltedCounter")
+
+/-- `counter_kinds/experience.ron` -/
+semantic_macro experience : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "experience")
+
+/-- `counter_kinds/eyeballCounter.ron` -/
+semantic_macro eyeballCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "eyeballCounter")
+
+/-- `counter_kinds/fadeCounter.ron` -/
+semantic_macro fadeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fadeCounter")
+
+/-- `counter_kinds/fateCounter.ron` -/
+semantic_macro fateCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fateCounter")
+
+/-- `counter_kinds/featherCounter.ron` -/
+semantic_macro featherCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "featherCounter")
+
+/-- `counter_kinds/feedingCounter.ron` -/
+semantic_macro feedingCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "feedingCounter")
+
+/-- `counter_kinds/fellowshipCounter.ron` -/
+semantic_macro fellowshipCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fellowshipCounter")
+
+/-- `counter_kinds/fetchCounter.ron` -/
+semantic_macro fetchCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fetchCounter")
+
+/-- `counter_kinds/filibusterCounter.ron` -/
+semantic_macro filibusterCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "filibusterCounter")
+
+/-- `counter_kinds/filmCounter.ron` -/
+semantic_macro filmCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "filmCounter")
+
+/-- `counter_kinds/finalityCounter.ron` -/
+semantic_macro finalityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "finalityCounter")
+
+/-- `counter_kinds/fireCounter.ron` -/
+semantic_macro fireCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fireCounter")
+
+/-- `counter_kinds/firstStrikeCounter.ron` -/
+semantic_macro firstStrikeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "firstStrikeCounter")
+
+/-- `counter_kinds/flameCounter.ron` -/
+semantic_macro flameCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "flameCounter")
+
+/-- `counter_kinds/floodCounter.ron` -/
+semantic_macro floodCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "floodCounter")
+
+/-- `counter_kinds/flyingCounter.ron` -/
+semantic_macro flyingCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "flyingCounter")
+
+/-- `counter_kinds/foreshadowCounter.ron` -/
+semantic_macro foreshadowCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "foreshadowCounter")
+
+/-- `counter_kinds/fungusCounter.ron` -/
+semantic_macro fungusCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fungusCounter")
+
+/-- `counter_kinds/furyCounter.ron` -/
+semantic_macro furyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "furyCounter")
+
+/-- `counter_kinds/fuseCounter.ron` -/
+semantic_macro fuseCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "fuseCounter")
+
+/-- `counter_kinds/gemCounter.ron` -/
+semantic_macro gemCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "gemCounter")
+
+/-- `counter_kinds/ghostformCounter.ron` -/
+semantic_macro ghostformCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ghostformCounter")
+
+/-- `counter_kinds/glyphCounter.ron` -/
+semantic_macro glyphCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "glyphCounter")
+
+/-- `counter_kinds/goldCounter.ron` -/
+semantic_macro goldCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "goldCounter")
+
+/-- `counter_kinds/growthCounter.ron` -/
+semantic_macro growthCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "growthCounter")
+
+/-- `counter_kinds/harmonyCounter.ron` -/
+semantic_macro harmonyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "harmonyCounter")
+
+/-- `counter_kinds/hasteCounter.ron` -/
+semantic_macro hasteCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hasteCounter")
+
+/-- `counter_kinds/hatchingCounter.ron` -/
+semantic_macro hatchingCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hatchingCounter")
+
+/-- `counter_kinds/hatchlingCounter.ron` -/
+semantic_macro hatchlingCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hatchlingCounter")
+
+/-- `counter_kinds/hexproofCounter.ron` -/
+semantic_macro hexproofCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hexproofCounter")
+
+/-- `counter_kinds/hitCounter.ron` -/
+semantic_macro hitCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hitCounter")
+
+/-- `counter_kinds/honeCounter.ron` -/
+semantic_macro honeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "honeCounter")
+
+/-- `counter_kinds/hoofprintCounter.ron` -/
+semantic_macro hoofprintCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hoofprintCounter")
+
+/-- `counter_kinds/hopeCounter.ron` -/
+semantic_macro hopeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hopeCounter")
+
+/-- `counter_kinds/hourCounter.ron` -/
+semantic_macro hourCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hourCounter")
+
+/-- `counter_kinds/hourglassCounter.ron` -/
+semantic_macro hourglassCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hourglassCounter")
+
+/-- `counter_kinds/hungerCounter.ron` -/
+semantic_macro hungerCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "hungerCounter")
+
+/-- `counter_kinds/iceCounter.ron` -/
+semantic_macro iceCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "iceCounter")
+
+/-- `counter_kinds/impostorCounter.ron` -/
+semantic_macro impostorCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "impostorCounter")
+
+/-- `counter_kinds/incarnationCounter.ron` -/
+semantic_macro incarnationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "incarnationCounter")
+
+/-- `counter_kinds/incubationCounter.ron` -/
+semantic_macro incubationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "incubationCounter")
+
+/-- `counter_kinds/indestructibleCounter.ron` -/
+semantic_macro indestructibleCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "indestructibleCounter")
+
+/-- `counter_kinds/infectionCounter.ron` -/
+semantic_macro infectionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "infectionCounter")
+
+/-- `counter_kinds/influenceCounter.ron` -/
+semantic_macro influenceCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "influenceCounter")
+
+/-- `counter_kinds/ingenuityCounter.ron` -/
+semantic_macro ingenuityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ingenuityCounter")
+
+/-- `counter_kinds/ingredientCounter.ron` -/
+semantic_macro ingredientCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ingredientCounter")
+
+/-- `counter_kinds/intelCounter.ron` -/
+semantic_macro intelCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "intelCounter")
+
+/-- `counter_kinds/interventionCounter.ron` -/
+semantic_macro interventionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "interventionCounter")
+
+/-- `counter_kinds/invasionCounter.ron` -/
+semantic_macro invasionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "invasionCounter")
+
+/-- `counter_kinds/invitationCounter.ron` -/
+semantic_macro invitationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "invitationCounter")
+
+/-- `counter_kinds/isolationCounter.ron` -/
+semantic_macro isolationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "isolationCounter")
+
+/-- `counter_kinds/javelinCounter.ron` -/
+semantic_macro javelinCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "javelinCounter")
+
+/-- `counter_kinds/judgmentCounter.ron` -/
+semantic_macro judgmentCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "judgmentCounter")
+
+/-- `counter_kinds/kiCounter.ron` -/
+semantic_macro kiCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "kiCounter")
+
+/-- `counter_kinds/kickCounter.ron` -/
+semantic_macro kickCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "kickCounter")
+
+/-- `counter_kinds/knowledgeCounter.ron` -/
+semantic_macro knowledgeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "knowledgeCounter")
+
+/-- `counter_kinds/landmarkCounter.ron` -/
+semantic_macro landmarkCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "landmarkCounter")
+
+/-- `counter_kinds/levelCounter.ron` -/
+semantic_macro levelCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "levelCounter")
+
+/-- `counter_kinds/lifelinkCounter.ron` -/
+semantic_macro lifelinkCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "lifelinkCounter")
+
+/-- `counter_kinds/lootCounter.ron` -/
+semantic_macro lootCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "lootCounter")
+
+/-- `counter_kinds/loreCounter.ron` -/
+semantic_macro loreCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "loreCounter")
+
+/-- `counter_kinds/loyaltyCounter.ron` -/
+semantic_macro loyaltyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "loyaltyCounter")
+
+/-- `counter_kinds/luckCounter.ron` -/
+semantic_macro luckCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "luckCounter")
+
+/-- `counter_kinds/m1m1Counter.ron` -/
+semantic_macro m1m1Counter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "m1m1Counter")
+
+/-- `counter_kinds/magnetCounter.ron` -/
+semantic_macro magnetCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "magnetCounter")
+
+/-- `counter_kinds/manifestationCounter.ron` -/
+semantic_macro manifestationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "manifestationCounter")
+
+/-- `counter_kinds/mannequinCounter.ron` -/
+semantic_macro mannequinCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "mannequinCounter")
+
+/-- `counter_kinds/matrixCounter.ron` -/
+semantic_macro matrixCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "matrixCounter")
+
+/-- `counter_kinds/memoryCounter.ron` -/
+semantic_macro memoryCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "memoryCounter")
+
+/-- `counter_kinds/menaceCounter.ron` -/
+semantic_macro menaceCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "menaceCounter")
+
+/-- `counter_kinds/mineCounter.ron` -/
+semantic_macro mineCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "mineCounter")
+
+/-- `counter_kinds/miningCounter.ron` -/
+semantic_macro miningCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "miningCounter")
+
+/-- `counter_kinds/mireCounter.ron` -/
+semantic_macro mireCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "mireCounter")
+
+/-- `counter_kinds/musicCounter.ron` -/
+semantic_macro musicCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "musicCounter")
+
+/-- `counter_kinds/musterCounter.ron` -/
+semantic_macro musterCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "musterCounter")
+
+/-- `counter_kinds/nestCounter.ron` -/
+semantic_macro nestCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "nestCounter")
+
+/-- `counter_kinds/netCounter.ron` -/
+semantic_macro netCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "netCounter")
+
+/-- `counter_kinds/nightCounter.ron` -/
+semantic_macro nightCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "nightCounter")
+
+/-- `counter_kinds/oilCounter.ron` -/
+semantic_macro oilCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "oilCounter")
+
+/-- `counter_kinds/omenCounter.ron` -/
+semantic_macro omenCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "omenCounter")
+
+/-- `counter_kinds/oreCounter.ron` -/
+semantic_macro oreCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "oreCounter")
+
+/-- `counter_kinds/p1p1Counter.ron` -/
+semantic_macro p1p1Counter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "p1p1Counter")
+
+/-- `counter_kinds/pageCounter.ron` -/
+semantic_macro pageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "pageCounter")
+
+/-- `counter_kinds/painCounter.ron` -/
+semantic_macro painCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "painCounter")
+
+/-- `counter_kinds/palliationCounter.ron` -/
+semantic_macro palliationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "palliationCounter")
+
+/-- `counter_kinds/paralyzationCounter.ron` -/
+semantic_macro paralyzationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "paralyzationCounter")
+
+/-- `counter_kinds/petalCounter.ron` -/
+semantic_macro petalCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "petalCounter")
+
+/-- `counter_kinds/petrificationCounter.ron` -/
+semantic_macro petrificationCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "petrificationCounter")
+
+/-- `counter_kinds/phylacteryCounter.ron` -/
+semantic_macro phylacteryCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "phylacteryCounter")
+
+/-- `counter_kinds/phyresisCounter.ron` -/
+semantic_macro phyresisCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "phyresisCounter")
+
+/-- `counter_kinds/pinCounter.ron` -/
+semantic_macro pinCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "pinCounter")
+
+/-- `counter_kinds/plagueCounter.ron` -/
+semantic_macro plagueCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "plagueCounter")
+
+/-- `counter_kinds/planCounter.ron` -/
+semantic_macro planCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "planCounter")
+
+/-- `counter_kinds/pointCounter.ron` -/
+semantic_macro pointCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "pointCounter")
+
+/-- `counter_kinds/poison.ron` -/
+semantic_macro poison : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "poison")
+
+/-- `counter_kinds/polypCounter.ron` -/
+semantic_macro polypCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "polypCounter")
+
+/-- `counter_kinds/possessionCounter.ron` -/
+semantic_macro possessionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "possessionCounter")
+
+/-- `counter_kinds/pressureCounter.ron` -/
+semantic_macro pressureCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "pressureCounter")
+
+/-- `counter_kinds/preyCounter.ron` -/
+semantic_macro preyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "preyCounter")
+
+/-- `counter_kinds/pupaCounter.ron` -/
+semantic_macro pupaCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "pupaCounter")
+
+/-- `counter_kinds/questCounter.ron` -/
+semantic_macro questCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "questCounter")
+
+/-- `counter_kinds/radCounter.ron` -/
+semantic_macro radCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "radCounter")
+
+/-- `counter_kinds/rallyCounter.ron` -/
+semantic_macro rallyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "rallyCounter")
+
+/-- `counter_kinds/reachCounter.ron` -/
+semantic_macro reachCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "reachCounter")
+
+/-- `counter_kinds/refineCounter.ron` -/
+semantic_macro refineCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "refineCounter")
+
+/-- `counter_kinds/rejectionCounter.ron` -/
+semantic_macro rejectionCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "rejectionCounter")
+
+/-- `counter_kinds/reprieveCounter.ron` -/
+semantic_macro reprieveCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "reprieveCounter")
+
+/-- `counter_kinds/revCounter.ron` -/
+semantic_macro revCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "revCounter")
+
+/-- `counter_kinds/revivalCounter.ron` -/
+semantic_macro revivalCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "revivalCounter")
+
+/-- `counter_kinds/ribbonCounter.ron` -/
+semantic_macro ribbonCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ribbonCounter")
+
+/-- `counter_kinds/ritualCounter.ron` -/
+semantic_macro ritualCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ritualCounter")
+
+/-- `counter_kinds/ropeCounter.ron` -/
+semantic_macro ropeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "ropeCounter")
+
+/-- `counter_kinds/rustCounter.ron` -/
+semantic_macro rustCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "rustCounter")
+
+/-- `counter_kinds/saurianCounter.ron` -/
+semantic_macro saurianCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "saurianCounter")
+
+/-- `counter_kinds/screamCounter.ron` -/
+semantic_macro screamCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "screamCounter")
+
+/-- `counter_kinds/shadowCounter.ron` -/
+semantic_macro shadowCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "shadowCounter")
+
+/-- `counter_kinds/shellCounter.ron` -/
+semantic_macro shellCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "shellCounter")
+
+/-- `counter_kinds/shieldCounter.ron` -/
+semantic_macro shieldCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "shieldCounter")
+
+/-- `counter_kinds/shredCounter.ron` -/
+semantic_macro shredCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "shredCounter")
+
+/-- `counter_kinds/silverCounter.ron` -/
+semantic_macro silverCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "silverCounter")
+
+/-- `counter_kinds/skewerCounter.ron` -/
+semantic_macro skewerCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "skewerCounter")
+
+/-- `counter_kinds/sleepCounter.ron` -/
+semantic_macro sleepCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "sleepCounter")
+
+/-- `counter_kinds/sleightCounter.ron` -/
+semantic_macro sleightCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "sleightCounter")
+
+/-- `counter_kinds/slimeCounter.ron` -/
+semantic_macro slimeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "slimeCounter")
+
+/-- `counter_kinds/slumberCounter.ron` -/
+semantic_macro slumberCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "slumberCounter")
+
+/-- `counter_kinds/sootCounter.ron` -/
+semantic_macro sootCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "sootCounter")
+
+/-- `counter_kinds/soulCounter.ron` -/
+semantic_macro soulCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "soulCounter")
+
+/-- `counter_kinds/spiteCounter.ron` -/
+semantic_macro spiteCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "spiteCounter")
+
+/-- `counter_kinds/sporeCounter.ron` -/
+semantic_macro sporeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "sporeCounter")
+
+/-- `counter_kinds/stashCounter.ron` -/
+semantic_macro stashCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "stashCounter")
+
+/-- `counter_kinds/storageCounter.ron` -/
+semantic_macro storageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "storageCounter")
+
+/-- `counter_kinds/storyCounter.ron` -/
+semantic_macro storyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "storyCounter")
+
+/-- `counter_kinds/strifeCounter.ron` -/
+semantic_macro strifeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "strifeCounter")
+
+/-- `counter_kinds/strikeCounter.ron` -/
+semantic_macro strikeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "strikeCounter")
+
+/-- `counter_kinds/studyCounter.ron` -/
+semantic_macro studyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "studyCounter")
+
+/-- `counter_kinds/stunCounter.ron` -/
+semantic_macro stunCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "stunCounter")
+
+/-- `counter_kinds/supplyCounter.ron` -/
+semantic_macro supplyCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "supplyCounter")
+
+/-- `counter_kinds/suspectCounter.ron` -/
+semantic_macro suspectCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "suspectCounter")
+
+/-- `counter_kinds/takeoverCounter.ron` -/
+semantic_macro takeoverCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "takeoverCounter")
+
+/-- `counter_kinds/taskCounter.ron` -/
+semantic_macro taskCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "taskCounter")
+
+/-- `counter_kinds/theftCounter.ron` -/
+semantic_macro theftCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "theftCounter")
+
+/-- `counter_kinds/tideCounter.ron` -/
+semantic_macro tideCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "tideCounter")
+
+/-- `counter_kinds/timeCounter.ron` -/
+semantic_macro timeCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "timeCounter")
+
+/-- `counter_kinds/towerCounter.ron` -/
+semantic_macro towerCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "towerCounter")
+
+/-- `counter_kinds/trampleCounter.ron` -/
+semantic_macro trampleCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "trampleCounter")
+
+/-- `counter_kinds/trapCounter.ron` -/
+semantic_macro trapCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "trapCounter")
+
+/-- `counter_kinds/treasureCounter.ron` -/
+semantic_macro treasureCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "treasureCounter")
+
+/-- `counter_kinds/unityCounter.ron` -/
+semantic_macro unityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "unityCounter")
+
+/-- `counter_kinds/valorCounter.ron` -/
+semantic_macro valorCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "valorCounter")
+
+/-- `counter_kinds/velocityCounter.ron` -/
+semantic_macro velocityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "velocityCounter")
+
+/-- `counter_kinds/verseCounter.ron` -/
+semantic_macro verseCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "verseCounter")
+
+/-- `counter_kinds/vigilanceCounter.ron` -/
+semantic_macro vigilanceCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "vigilanceCounter")
+
+/-- `counter_kinds/vitalityCounter.ron` -/
+semantic_macro vitalityCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "vitalityCounter")
+
+/-- `counter_kinds/voidCounter.ron` -/
+semantic_macro voidCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "voidCounter")
+
+/-- `counter_kinds/vortexCounter.ron` -/
+semantic_macro vortexCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "vortexCounter")
+
+/-- `counter_kinds/vowCounter.ron` -/
+semantic_macro vowCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "vowCounter")
+
+/-- `counter_kinds/voyageCounter.ron` -/
+semantic_macro voyageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "voyageCounter")
+
+/-- `counter_kinds/wageCounter.ron` -/
+semantic_macro wageCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "wageCounter")
+
+/-- `counter_kinds/winchCounter.ron` -/
+semantic_macro winchCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "winchCounter")
+
+/-- `counter_kinds/windCounter.ron` -/
+semantic_macro windCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "windCounter")
+
+/-- `counter_kinds/wishCounter.ron` -/
+semantic_macro wishCounter : Semantics.CounterKind :=
+  (Semantics.CounterKind.named "wishCounter")
+
+/-- `designations/citysBlessing.ron` -/
+semantic_macro citysBlessing : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "citysBlessing")
+
+/-- `designations/commander.ron` -/
+semantic_macro commander : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "commander")
+
+/-- `designations/enduringStory.ron` -/
+semantic_macro enduringStory : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "enduringStory")
+
+/-- `designations/goaded.ron` -/
+semantic_macro goaded : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "goaded")
+
+/-- `designations/harnessed.ron` -/
+semantic_macro harnessed : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "harnessed")
+
+/-- `designations/initiative.ron` -/
+semantic_macro initiative : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "initiative")
+
+/-- `designations/leftHalfUnlocked.ron` -/
+semantic_macro leftHalfUnlocked : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "leftHalfUnlocked")
+
+/-- `designations/level.ron` -/
+semantic_macro level : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "level")
+
+/-- `designations/monarch.ron` -/
+semantic_macro monarch : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "monarch")
+
+/-- `designations/monstrous.ron` -/
+semantic_macro monstrous : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "monstrous")
+
+/-- `designations/prepared.ron` -/
+semantic_macro prepared : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "prepared")
+
+/-- `designations/renowned.ron` -/
+semantic_macro renowned : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "renowned")
+
+/-- `designations/rightHalfUnlocked.ron` -/
+semantic_macro rightHalfUnlocked : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "rightHalfUnlocked")
+
+/-- `designations/ringBearer.ron` -/
+semantic_macro ringBearer : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "ringBearer")
+
+/-- `designations/saddled.ron` -/
+semantic_macro saddled : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "saddled")
+
+/-- `designations/solved.ron` -/
+semantic_macro DesignationLabel.solved : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "solved")
+
+/-- `designations/suspected.ron` -/
+semantic_macro suspected : Semantics.DesignationLabel :=
+  (Semantics.DesignationLabel.named "suspected")
+
 /-- `determiners/a.ron` -/
 semantic_macro a (p : Semantics.Predicate) : Semantics.NounPhrase :=
   (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.unmarked) p)
@@ -3980,6 +4920,1862 @@ semantic_macro upToOf (amount : Semantics.Amount) : Semantics.Quantity :=
 semantic_macro worth (n : Nat) : Semantics.Quantity :=
   (Semantics.Quantity.worth n)
 
+/-- `relations/encodedOn.ron` -/
+semantic_macro encodedOn : Semantics.RelationLabel :=
+  (Semantics.RelationLabel.named "encodedOn")
+
+/-- `relations/haunting.ron` -/
+semantic_macro haunting : Semantics.RelationLabel :=
+  (Semantics.RelationLabel.named "haunting")
+
+/-- `relations/paired.ron` -/
+semantic_macro paired : Semantics.RelationLabel :=
+  (Semantics.RelationLabel.named "paired")
+
+/-- `subtypes/artifact/blood.ron` -/
+semantic_macro blood : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Blood")
+
+/-- `subtypes/artifact/bobblehead.ron` -/
+semantic_macro bobblehead : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Bobblehead")
+
+/-- `subtypes/artifact/book.ron` -/
+semantic_macro book : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Book")
+
+/-- `subtypes/artifact/clue.ron` -/
+semantic_macro clue : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Clue")
+
+/-- `subtypes/artifact/contraption.ron` -/
+semantic_macro contraption : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Contraption")
+
+/-- `subtypes/artifact/equipment.ron` -/
+semantic_macro equipment : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Equipment")
+
+/-- `subtypes/artifact/food.ron` -/
+semantic_macro food : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Food")
+
+/-- `subtypes/artifact/fortification.ron` -/
+semantic_macro fortification : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Fortification")
+
+/-- `subtypes/artifact/gold.ron` -/
+semantic_macro gold : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Gold")
+
+/-- `subtypes/artifact/incubator.ron` -/
+semantic_macro incubator : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Incubator")
+
+/-- `subtypes/artifact/infinity.ron` -/
+semantic_macro Subtype.infinity : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Infinity")
+
+/-- `subtypes/artifact/junk.ron` -/
+semantic_macro junk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Junk")
+
+/-- `subtypes/artifact/lander.ron` -/
+semantic_macro lander : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Lander")
+
+/-- `subtypes/artifact/map.ron` -/
+semantic_macro map : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Map")
+
+/-- `subtypes/artifact/mutagen.ron` -/
+semantic_macro mutagen : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Mutagen")
+
+/-- `subtypes/artifact/powerstone.ron` -/
+semantic_macro powerstone : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Powerstone")
+
+/-- `subtypes/artifact/spacecraft.ron` -/
+semantic_macro spacecraft : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Spacecraft")
+
+/-- `subtypes/artifact/stone.ron` -/
+semantic_macro stone : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Stone")
+
+/-- `subtypes/artifact/treasure.ron` -/
+semantic_macro treasure : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Treasure")
+
+/-- `subtypes/artifact/vehicle.ron` -/
+semantic_macro vehicle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Vehicle")
+
+/-- `subtypes/artifact/vibranium.ron` -/
+semantic_macro vibranium : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.artifact "Vibranium")
+
+/-- `subtypes/battle/siege.ron` -/
+semantic_macro siege : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.battle "Siege")
+
+/-- `subtypes/creature/advisor.ron` -/
+semantic_macro advisor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Advisor")
+
+/-- `subtypes/creature/aetherborn.ron` -/
+semantic_macro aetherborn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Aetherborn")
+
+/-- `subtypes/creature/alien.ron` -/
+semantic_macro alien : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Alien")
+
+/-- `subtypes/creature/ally.ron` -/
+semantic_macro ally : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ally")
+
+/-- `subtypes/creature/angel.ron` -/
+semantic_macro angel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Angel")
+
+/-- `subtypes/creature/antelope.ron` -/
+semantic_macro antelope : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Antelope")
+
+/-- `subtypes/creature/ape.ron` -/
+semantic_macro ape : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ape")
+
+/-- `subtypes/creature/archer.ron` -/
+semantic_macro archer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Archer")
+
+/-- `subtypes/creature/archon.ron` -/
+semantic_macro archon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Archon")
+
+/-- `subtypes/creature/armadillo.ron` -/
+semantic_macro armadillo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Armadillo")
+
+/-- `subtypes/creature/army.ron` -/
+semantic_macro army : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Army")
+
+/-- `subtypes/creature/artificer.ron` -/
+semantic_macro artificer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Artificer")
+
+/-- `subtypes/creature/assassin.ron` -/
+semantic_macro assassin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Assassin")
+
+/-- `subtypes/creature/assemblyWorker.ron` -/
+semantic_macro assemblyWorker : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Assembly-Worker")
+
+/-- `subtypes/creature/astartes.ron` -/
+semantic_macro astartes : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Astartes")
+
+/-- `subtypes/creature/atog.ron` -/
+semantic_macro atog : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Atog")
+
+/-- `subtypes/creature/aurochs.ron` -/
+semantic_macro aurochs : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Aurochs")
+
+/-- `subtypes/creature/avatar.ron` -/
+semantic_macro avatar : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Avatar")
+
+/-- `subtypes/creature/azra.ron` -/
+semantic_macro azra : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Azra")
+
+/-- `subtypes/creature/badger.ron` -/
+semantic_macro badger : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Badger")
+
+/-- `subtypes/creature/balloon.ron` -/
+semantic_macro balloon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Balloon")
+
+/-- `subtypes/creature/barbarian.ron` -/
+semantic_macro barbarian : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Barbarian")
+
+/-- `subtypes/creature/bard.ron` -/
+semantic_macro bard : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bard")
+
+/-- `subtypes/creature/basilisk.ron` -/
+semantic_macro basilisk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Basilisk")
+
+/-- `subtypes/creature/bat.ron` -/
+semantic_macro bat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bat")
+
+/-- `subtypes/creature/bear.ron` -/
+semantic_macro bear : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bear")
+
+/-- `subtypes/creature/beast.ron` -/
+semantic_macro beast : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Beast")
+
+/-- `subtypes/creature/beaver.ron` -/
+semantic_macro beaver : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Beaver")
+
+/-- `subtypes/creature/beeble.ron` -/
+semantic_macro beeble : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Beeble")
+
+/-- `subtypes/creature/beholder.ron` -/
+semantic_macro beholder : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Beholder")
+
+/-- `subtypes/creature/berserker.ron` -/
+semantic_macro berserker : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Berserker")
+
+/-- `subtypes/creature/bird.ron` -/
+semantic_macro bird : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bird")
+
+/-- `subtypes/creature/bison.ron` -/
+semantic_macro bison : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bison")
+
+/-- `subtypes/creature/blinkmoth.ron` -/
+semantic_macro blinkmoth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Blinkmoth")
+
+/-- `subtypes/creature/boar.ron` -/
+semantic_macro boar : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Boar")
+
+/-- `subtypes/creature/bringer.ron` -/
+semantic_macro bringer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Bringer")
+
+/-- `subtypes/creature/brushwagg.ron` -/
+semantic_macro brushwagg : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Brushwagg")
+
+/-- `subtypes/creature/camarid.ron` -/
+semantic_macro camarid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Camarid")
+
+/-- `subtypes/creature/camel.ron` -/
+semantic_macro camel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Camel")
+
+/-- `subtypes/creature/capybara.ron` -/
+semantic_macro capybara : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Capybara")
+
+/-- `subtypes/creature/caribou.ron` -/
+semantic_macro caribou : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Caribou")
+
+/-- `subtypes/creature/carrier.ron` -/
+semantic_macro carrier : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Carrier")
+
+/-- `subtypes/creature/cat.ron` -/
+semantic_macro cat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Cat")
+
+/-- `subtypes/creature/centaur.ron` -/
+semantic_macro centaur : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Centaur")
+
+/-- `subtypes/creature/child.ron` -/
+semantic_macro child : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Child")
+
+/-- `subtypes/creature/chimera.ron` -/
+semantic_macro chimera : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Chimera")
+
+/-- `subtypes/creature/citizen.ron` -/
+semantic_macro citizen : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Citizen")
+
+/-- `subtypes/creature/cleric.ron` -/
+semantic_macro cleric : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Cleric")
+
+/-- `subtypes/creature/clown.ron` -/
+semantic_macro clown : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Clown")
+
+/-- `subtypes/creature/cockatrice.ron` -/
+semantic_macro cockatrice : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Cockatrice")
+
+/-- `subtypes/creature/construct.ron` -/
+semantic_macro construct : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Construct")
+
+/-- `subtypes/creature/coward.ron` -/
+semantic_macro coward : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Coward")
+
+/-- `subtypes/creature/coyote.ron` -/
+semantic_macro coyote : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Coyote")
+
+/-- `subtypes/creature/crab.ron` -/
+semantic_macro crab : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Crab")
+
+/-- `subtypes/creature/crocodile.ron` -/
+semantic_macro crocodile : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Crocodile")
+
+/-- `subtypes/creature/ctan.ron` -/
+semantic_macro ctan : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "C'tan")
+
+/-- `subtypes/creature/custodes.ron` -/
+semantic_macro custodes : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Custodes")
+
+/-- `subtypes/creature/cyberman.ron` -/
+semantic_macro cyberman : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Cyberman")
+
+/-- `subtypes/creature/cyclops.ron` -/
+semantic_macro cyclops : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Cyclops")
+
+/-- `subtypes/creature/dalek.ron` -/
+semantic_macro dalek : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dalek")
+
+/-- `subtypes/creature/dauthi.ron` -/
+semantic_macro dauthi : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dauthi")
+
+/-- `subtypes/creature/demigod.ron` -/
+semantic_macro demigod : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Demigod")
+
+/-- `subtypes/creature/demon.ron` -/
+semantic_macro demon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Demon")
+
+/-- `subtypes/creature/deserter.ron` -/
+semantic_macro deserter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Deserter")
+
+/-- `subtypes/creature/detective.ron` -/
+semantic_macro detective : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Detective")
+
+/-- `subtypes/creature/devil.ron` -/
+semantic_macro devil : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Devil")
+
+/-- `subtypes/creature/dinosaur.ron` -/
+semantic_macro dinosaur : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dinosaur")
+
+/-- `subtypes/creature/djinn.ron` -/
+semantic_macro djinn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Djinn")
+
+/-- `subtypes/creature/doctor.ron` -/
+semantic_macro doctor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Doctor")
+
+/-- `subtypes/creature/dog.ron` -/
+semantic_macro dog : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dog")
+
+/-- `subtypes/creature/dragon.ron` -/
+semantic_macro dragon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dragon")
+
+/-- `subtypes/creature/drake.ron` -/
+semantic_macro drake : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Drake")
+
+/-- `subtypes/creature/dreadnought.ron` -/
+semantic_macro dreadnought : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dreadnought")
+
+/-- `subtypes/creature/drix.ron` -/
+semantic_macro drix : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Drix")
+
+/-- `subtypes/creature/drone.ron` -/
+semantic_macro drone : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Drone")
+
+/-- `subtypes/creature/druid.ron` -/
+semantic_macro druid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Druid")
+
+/-- `subtypes/creature/dryad.ron` -/
+semantic_macro dryad : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dryad")
+
+/-- `subtypes/creature/dwarf.ron` -/
+semantic_macro dwarf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Dwarf")
+
+/-- `subtypes/creature/echidna.ron` -/
+semantic_macro echidna : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Echidna")
+
+/-- `subtypes/creature/efreet.ron` -/
+semantic_macro efreet : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Efreet")
+
+/-- `subtypes/creature/egg.ron` -/
+semantic_macro egg : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Egg")
+
+/-- `subtypes/creature/elder.ron` -/
+semantic_macro elder : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Elder")
+
+/-- `subtypes/creature/eldrazi.ron` -/
+semantic_macro eldrazi : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Eldrazi")
+
+/-- `subtypes/creature/elemental.ron` -/
+semantic_macro elemental : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Elemental")
+
+/-- `subtypes/creature/elephant.ron` -/
+semantic_macro elephant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Elephant")
+
+/-- `subtypes/creature/elf.ron` -/
+semantic_macro elf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Elf")
+
+/-- `subtypes/creature/elk.ron` -/
+semantic_macro elk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Elk")
+
+/-- `subtypes/creature/employee.ron` -/
+semantic_macro employee : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Employee")
+
+/-- `subtypes/creature/eternal.ron` -/
+semantic_macro eternal : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Eternal")
+
+/-- `subtypes/creature/eye.ron` -/
+semantic_macro eye : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Eye")
+
+/-- `subtypes/creature/faerie.ron` -/
+semantic_macro faerie : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Faerie")
+
+/-- `subtypes/creature/ferret.ron` -/
+semantic_macro ferret : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ferret")
+
+/-- `subtypes/creature/fish.ron` -/
+semantic_macro fish : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Fish")
+
+/-- `subtypes/creature/flagbearer.ron` -/
+semantic_macro flagbearer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Flagbearer")
+
+/-- `subtypes/creature/fox.ron` -/
+semantic_macro fox : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Fox")
+
+/-- `subtypes/creature/fractal.ron` -/
+semantic_macro fractal : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Fractal")
+
+/-- `subtypes/creature/frog.ron` -/
+semantic_macro frog : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Frog")
+
+/-- `subtypes/creature/fungus.ron` -/
+semantic_macro fungus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Fungus")
+
+/-- `subtypes/creature/gamer.ron` -/
+semantic_macro gamer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gamer")
+
+/-- `subtypes/creature/gamma.ron` -/
+semantic_macro gamma : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gamma")
+
+/-- `subtypes/creature/gargoyle.ron` -/
+semantic_macro gargoyle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gargoyle")
+
+/-- `subtypes/creature/germ.ron` -/
+semantic_macro germ : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Germ")
+
+/-- `subtypes/creature/giant.ron` -/
+semantic_macro giant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Giant")
+
+/-- `subtypes/creature/giraffe.ron` -/
+semantic_macro giraffe : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Giraffe")
+
+/-- `subtypes/creature/gith.ron` -/
+semantic_macro gith : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gith")
+
+/-- `subtypes/creature/glimmer.ron` -/
+semantic_macro glimmer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Glimmer")
+
+/-- `subtypes/creature/gnoll.ron` -/
+semantic_macro gnoll : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gnoll")
+
+/-- `subtypes/creature/gnome.ron` -/
+semantic_macro gnome : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gnome")
+
+/-- `subtypes/creature/goat.ron` -/
+semantic_macro goat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Goat")
+
+/-- `subtypes/creature/goblin.ron` -/
+semantic_macro goblin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Goblin")
+
+/-- `subtypes/creature/god.ron` -/
+semantic_macro god : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "God")
+
+/-- `subtypes/creature/golem.ron` -/
+semantic_macro golem : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Golem")
+
+/-- `subtypes/creature/gorgon.ron` -/
+semantic_macro gorgon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gorgon")
+
+/-- `subtypes/creature/graveborn.ron` -/
+semantic_macro graveborn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Graveborn")
+
+/-- `subtypes/creature/gremlin.ron` -/
+semantic_macro gremlin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Gremlin")
+
+/-- `subtypes/creature/griffin.ron` -/
+semantic_macro griffin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Griffin")
+
+/-- `subtypes/creature/guest.ron` -/
+semantic_macro guest : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Guest")
+
+/-- `subtypes/creature/hag.ron` -/
+semantic_macro hag : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hag")
+
+/-- `subtypes/creature/halfling.ron` -/
+semantic_macro halfling : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Halfling")
+
+/-- `subtypes/creature/hamster.ron` -/
+semantic_macro hamster : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hamster")
+
+/-- `subtypes/creature/harpy.ron` -/
+semantic_macro harpy : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Harpy")
+
+/-- `subtypes/creature/hedgehog.ron` -/
+semantic_macro hedgehog : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hedgehog")
+
+/-- `subtypes/creature/hellion.ron` -/
+semantic_macro hellion : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hellion")
+
+/-- `subtypes/creature/hero.ron` -/
+semantic_macro hero : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hero")
+
+/-- `subtypes/creature/hippo.ron` -/
+semantic_macro hippo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hippo")
+
+/-- `subtypes/creature/hippogriff.ron` -/
+semantic_macro hippogriff : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hippogriff")
+
+/-- `subtypes/creature/homarid.ron` -/
+semantic_macro homarid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Homarid")
+
+/-- `subtypes/creature/homunculus.ron` -/
+semantic_macro homunculus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Homunculus")
+
+/-- `subtypes/creature/horror.ron` -/
+semantic_macro horror : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Horror")
+
+/-- `subtypes/creature/horse.ron` -/
+semantic_macro horse : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Horse")
+
+/-- `subtypes/creature/human.ron` -/
+semantic_macro human : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Human")
+
+/-- `subtypes/creature/hydra.ron` -/
+semantic_macro hydra : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hydra")
+
+/-- `subtypes/creature/hyena.ron` -/
+semantic_macro hyena : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Hyena")
+
+/-- `subtypes/creature/illusion.ron` -/
+semantic_macro illusion : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Illusion")
+
+/-- `subtypes/creature/imp.ron` -/
+semantic_macro imp : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Imp")
+
+/-- `subtypes/creature/incarnation.ron` -/
+semantic_macro incarnation : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Incarnation")
+
+/-- `subtypes/creature/inhuman.ron` -/
+semantic_macro inhuman : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Inhuman")
+
+/-- `subtypes/creature/inkling.ron` -/
+semantic_macro inkling : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Inkling")
+
+/-- `subtypes/creature/inquisitor.ron` -/
+semantic_macro inquisitor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Inquisitor")
+
+/-- `subtypes/creature/insect.ron` -/
+semantic_macro insect : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Insect")
+
+/-- `subtypes/creature/jackal.ron` -/
+semantic_macro jackal : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Jackal")
+
+/-- `subtypes/creature/jellyfish.ron` -/
+semantic_macro jellyfish : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Jellyfish")
+
+/-- `subtypes/creature/juggernaut.ron` -/
+semantic_macro juggernaut : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Juggernaut")
+
+/-- `subtypes/creature/kangaroo.ron` -/
+semantic_macro kangaroo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kangaroo")
+
+/-- `subtypes/creature/kavu.ron` -/
+semantic_macro kavu : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kavu")
+
+/-- `subtypes/creature/kirin.ron` -/
+semantic_macro kirin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kirin")
+
+/-- `subtypes/creature/kithkin.ron` -/
+semantic_macro kithkin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kithkin")
+
+/-- `subtypes/creature/knight.ron` -/
+semantic_macro knight : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Knight")
+
+/-- `subtypes/creature/kobold.ron` -/
+semantic_macro kobold : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kobold")
+
+/-- `subtypes/creature/kor.ron` -/
+semantic_macro kor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kor")
+
+/-- `subtypes/creature/kraken.ron` -/
+semantic_macro kraken : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kraken")
+
+/-- `subtypes/creature/kree.ron` -/
+semantic_macro kree : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Kree")
+
+/-- `subtypes/creature/lamia.ron` -/
+semantic_macro lamia : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lamia")
+
+/-- `subtypes/creature/lammasu.ron` -/
+semantic_macro lammasu : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lammasu")
+
+/-- `subtypes/creature/leech.ron` -/
+semantic_macro leech : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Leech")
+
+/-- `subtypes/creature/lemur.ron` -/
+semantic_macro lemur : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lemur")
+
+/-- `subtypes/creature/leviathan.ron` -/
+semantic_macro leviathan : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Leviathan")
+
+/-- `subtypes/creature/lhurgoyf.ron` -/
+semantic_macro lhurgoyf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lhurgoyf")
+
+/-- `subtypes/creature/licid.ron` -/
+semantic_macro licid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Licid")
+
+/-- `subtypes/creature/lizard.ron` -/
+semantic_macro lizard : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lizard")
+
+/-- `subtypes/creature/llama.ron` -/
+semantic_macro llama : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Llama")
+
+/-- `subtypes/creature/lobster.ron` -/
+semantic_macro lobster : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Lobster")
+
+/-- `subtypes/creature/manticore.ron` -/
+semantic_macro manticore : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Manticore")
+
+/-- `subtypes/creature/masticore.ron` -/
+semantic_macro masticore : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Masticore")
+
+/-- `subtypes/creature/mercenary.ron` -/
+semantic_macro mercenary : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mercenary")
+
+/-- `subtypes/creature/merfolk.ron` -/
+semantic_macro merfolk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Merfolk")
+
+/-- `subtypes/creature/metathran.ron` -/
+semantic_macro metathran : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Metathran")
+
+/-- `subtypes/creature/minion.ron` -/
+semantic_macro minion : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Minion")
+
+/-- `subtypes/creature/minotaur.ron` -/
+semantic_macro minotaur : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Minotaur")
+
+/-- `subtypes/creature/mite.ron` -/
+semantic_macro mite : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mite")
+
+/-- `subtypes/creature/mole.ron` -/
+semantic_macro mole : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mole")
+
+/-- `subtypes/creature/monger.ron` -/
+semantic_macro monger : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Monger")
+
+/-- `subtypes/creature/mongoose.ron` -/
+semantic_macro mongoose : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mongoose")
+
+/-- `subtypes/creature/monk.ron` -/
+semantic_macro monk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Monk")
+
+/-- `subtypes/creature/monkey.ron` -/
+semantic_macro monkey : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Monkey")
+
+/-- `subtypes/creature/moogle.ron` -/
+semantic_macro moogle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Moogle")
+
+/-- `subtypes/creature/moonfolk.ron` -/
+semantic_macro moonfolk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Moonfolk")
+
+/-- `subtypes/creature/mount.ron` -/
+semantic_macro mount : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mount")
+
+/-- `subtypes/creature/mouse.ron` -/
+semantic_macro mouse : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mouse")
+
+/-- `subtypes/creature/mutant.ron` -/
+semantic_macro mutant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mutant")
+
+/-- `subtypes/creature/myr.ron` -/
+semantic_macro myr : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Myr")
+
+/-- `subtypes/creature/mystic.ron` -/
+semantic_macro mystic : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Mystic")
+
+/-- `subtypes/creature/nautilus.ron` -/
+semantic_macro nautilus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nautilus")
+
+/-- `subtypes/creature/necron.ron` -/
+semantic_macro necron : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Necron")
+
+/-- `subtypes/creature/nephilim.ron` -/
+semantic_macro nephilim : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nephilim")
+
+/-- `subtypes/creature/nightmare.ron` -/
+semantic_macro nightmare : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nightmare")
+
+/-- `subtypes/creature/nightstalker.ron` -/
+semantic_macro nightstalker : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nightstalker")
+
+/-- `subtypes/creature/ninja.ron` -/
+semantic_macro ninja : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ninja")
+
+/-- `subtypes/creature/noble.ron` -/
+semantic_macro noble : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Noble")
+
+/-- `subtypes/creature/noggle.ron` -/
+semantic_macro noggle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Noggle")
+
+/-- `subtypes/creature/nomad.ron` -/
+semantic_macro nomad : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nomad")
+
+/-- `subtypes/creature/nymph.ron` -/
+semantic_macro nymph : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Nymph")
+
+/-- `subtypes/creature/octopus.ron` -/
+semantic_macro octopus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Octopus")
+
+/-- `subtypes/creature/ogre.ron` -/
+semantic_macro ogre : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ogre")
+
+/-- `subtypes/creature/ooze.ron` -/
+semantic_macro ooze : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ooze")
+
+/-- `subtypes/creature/orb.ron` -/
+semantic_macro orb : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Orb")
+
+/-- `subtypes/creature/orc.ron` -/
+semantic_macro orc : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Orc")
+
+/-- `subtypes/creature/orgg.ron` -/
+semantic_macro orgg : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Orgg")
+
+/-- `subtypes/creature/otter.ron` -/
+semantic_macro otter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Otter")
+
+/-- `subtypes/creature/ouphe.ron` -/
+semantic_macro ouphe : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ouphe")
+
+/-- `subtypes/creature/ox.ron` -/
+semantic_macro ox : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ox")
+
+/-- `subtypes/creature/oyster.ron` -/
+semantic_macro oyster : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Oyster")
+
+/-- `subtypes/creature/pangolin.ron` -/
+semantic_macro pangolin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pangolin")
+
+/-- `subtypes/creature/peasant.ron` -/
+semantic_macro peasant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Peasant")
+
+/-- `subtypes/creature/pegasus.ron` -/
+semantic_macro pegasus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pegasus")
+
+/-- `subtypes/creature/pentavite.ron` -/
+semantic_macro pentavite : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pentavite")
+
+/-- `subtypes/creature/performer.ron` -/
+semantic_macro performer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Performer")
+
+/-- `subtypes/creature/pest.ron` -/
+semantic_macro pest : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pest")
+
+/-- `subtypes/creature/phelddagrif.ron` -/
+semantic_macro phelddagrif : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Phelddagrif")
+
+/-- `subtypes/creature/phoenix.ron` -/
+semantic_macro phoenix : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Phoenix")
+
+/-- `subtypes/creature/phyrexian.ron` -/
+semantic_macro phyrexian : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Phyrexian")
+
+/-- `subtypes/creature/pilot.ron` -/
+semantic_macro pilot : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pilot")
+
+/-- `subtypes/creature/pincher.ron` -/
+semantic_macro pincher : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pincher")
+
+/-- `subtypes/creature/pirate.ron` -/
+semantic_macro pirate : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Pirate")
+
+/-- `subtypes/creature/plant.ron` -/
+semantic_macro plant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Plant")
+
+/-- `subtypes/creature/platypus.ron` -/
+semantic_macro platypus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Platypus")
+
+/-- `subtypes/creature/porcupine.ron` -/
+semantic_macro porcupine : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Porcupine")
+
+/-- `subtypes/creature/possum.ron` -/
+semantic_macro possum : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Possum")
+
+/-- `subtypes/creature/praetor.ron` -/
+semantic_macro praetor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Praetor")
+
+/-- `subtypes/creature/primarch.ron` -/
+semantic_macro primarch : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Primarch")
+
+/-- `subtypes/creature/prism.ron` -/
+semantic_macro prism : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Prism")
+
+/-- `subtypes/creature/processor.ron` -/
+semantic_macro processor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Processor")
+
+/-- `subtypes/creature/qu.ron` -/
+semantic_macro qu : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Qu")
+
+/-- `subtypes/creature/rabbit.ron` -/
+semantic_macro rabbit : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rabbit")
+
+/-- `subtypes/creature/raccoon.ron` -/
+semantic_macro raccoon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Raccoon")
+
+/-- `subtypes/creature/ranger.ron` -/
+semantic_macro ranger : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Ranger")
+
+/-- `subtypes/creature/rat.ron` -/
+semantic_macro rat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rat")
+
+/-- `subtypes/creature/rebel.ron` -/
+semantic_macro rebel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rebel")
+
+/-- `subtypes/creature/reflection.ron` -/
+semantic_macro reflection : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Reflection")
+
+/-- `subtypes/creature/rhino.ron` -/
+semantic_macro rhino : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rhino")
+
+/-- `subtypes/creature/rigger.ron` -/
+semantic_macro rigger : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rigger")
+
+/-- `subtypes/creature/robot.ron` -/
+semantic_macro robot : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Robot")
+
+/-- `subtypes/creature/rogue.ron` -/
+semantic_macro rogue : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Rogue")
+
+/-- `subtypes/creature/sable.ron` -/
+semantic_macro sable : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sable")
+
+/-- `subtypes/creature/salamander.ron` -/
+semantic_macro salamander : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Salamander")
+
+/-- `subtypes/creature/samurai.ron` -/
+semantic_macro samurai : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Samurai")
+
+/-- `subtypes/creature/sand.ron` -/
+semantic_macro sand : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sand")
+
+/-- `subtypes/creature/saproling.ron` -/
+semantic_macro saproling : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Saproling")
+
+/-- `subtypes/creature/satyr.ron` -/
+semantic_macro satyr : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Satyr")
+
+/-- `subtypes/creature/scarecrow.ron` -/
+semantic_macro scarecrow : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Scarecrow")
+
+/-- `subtypes/creature/scientist.ron` -/
+semantic_macro scientist : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Scientist")
+
+/-- `subtypes/creature/scion.ron` -/
+semantic_macro scion : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Scion")
+
+/-- `subtypes/creature/scorpion.ron` -/
+semantic_macro scorpion : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Scorpion")
+
+/-- `subtypes/creature/scout.ron` -/
+semantic_macro scout : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Scout")
+
+/-- `subtypes/creature/sculpture.ron` -/
+semantic_macro sculpture : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sculpture")
+
+/-- `subtypes/creature/seal.ron` -/
+semantic_macro seal_ : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Seal")
+
+/-- `subtypes/creature/serf.ron` -/
+semantic_macro serf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Serf")
+
+/-- `subtypes/creature/serpent.ron` -/
+semantic_macro serpent : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Serpent")
+
+/-- `subtypes/creature/servo.ron` -/
+semantic_macro servo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Servo")
+
+/-- `subtypes/creature/shade.ron` -/
+semantic_macro shade : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Shade")
+
+/-- `subtypes/creature/shaman.ron` -/
+semantic_macro shaman : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Shaman")
+
+/-- `subtypes/creature/shapeshifter.ron` -/
+semantic_macro shapeshifter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Shapeshifter")
+
+/-- `subtypes/creature/shark.ron` -/
+semantic_macro shark : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Shark")
+
+/-- `subtypes/creature/sheep.ron` -/
+semantic_macro sheep : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sheep")
+
+/-- `subtypes/creature/shiar.ron` -/
+semantic_macro shiar : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Shi'ar")
+
+/-- `subtypes/creature/siren.ron` -/
+semantic_macro siren : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Siren")
+
+/-- `subtypes/creature/skeleton.ron` -/
+semantic_macro skeleton : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Skeleton")
+
+/-- `subtypes/creature/skrull.ron` -/
+semantic_macro skrull : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Skrull")
+
+/-- `subtypes/creature/skunk.ron` -/
+semantic_macro skunk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Skunk")
+
+/-- `subtypes/creature/slith.ron` -/
+semantic_macro slith : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Slith")
+
+/-- `subtypes/creature/sliver.ron` -/
+semantic_macro sliver : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sliver")
+
+/-- `subtypes/creature/sloth.ron` -/
+semantic_macro sloth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sloth")
+
+/-- `subtypes/creature/slug.ron` -/
+semantic_macro slug : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Slug")
+
+/-- `subtypes/creature/snail.ron` -/
+semantic_macro snail : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Snail")
+
+/-- `subtypes/creature/snake.ron` -/
+semantic_macro snake : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Snake")
+
+/-- `subtypes/creature/soldier.ron` -/
+semantic_macro soldier : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Soldier")
+
+/-- `subtypes/creature/soltari.ron` -/
+semantic_macro soltari : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Soltari")
+
+/-- `subtypes/creature/sorcerer.ron` -/
+semantic_macro sorcerer : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sorcerer")
+
+/-- `subtypes/creature/spawn.ron` -/
+semantic_macro spawn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spawn")
+
+/-- `subtypes/creature/specter.ron` -/
+semantic_macro specter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Specter")
+
+/-- `subtypes/creature/spellshaper.ron` -/
+semantic_macro spellshaper : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spellshaper")
+
+/-- `subtypes/creature/sphinx.ron` -/
+semantic_macro sphinx : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sphinx")
+
+/-- `subtypes/creature/spider.ron` -/
+semantic_macro spider : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spider")
+
+/-- `subtypes/creature/spike.ron` -/
+semantic_macro spike : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spike")
+
+/-- `subtypes/creature/spirit.ron` -/
+semantic_macro spirit : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spirit")
+
+/-- `subtypes/creature/splinter.ron` -/
+semantic_macro splinter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Splinter")
+
+/-- `subtypes/creature/sponge.ron` -/
+semantic_macro sponge : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Sponge")
+
+/-- `subtypes/creature/spy.ron` -/
+semantic_macro spy : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Spy")
+
+/-- `subtypes/creature/squid.ron` -/
+semantic_macro squid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Squid")
+
+/-- `subtypes/creature/squirrel.ron` -/
+semantic_macro squirrel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Squirrel")
+
+/-- `subtypes/creature/starfish.ron` -/
+semantic_macro starfish : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Starfish")
+
+/-- `subtypes/creature/surrakar.ron` -/
+semantic_macro surrakar : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Surrakar")
+
+/-- `subtypes/creature/survivor.ron` -/
+semantic_macro survivor : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Survivor")
+
+/-- `subtypes/creature/symbiote.ron` -/
+semantic_macro symbiote : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Symbiote")
+
+/-- `subtypes/creature/synth.ron` -/
+semantic_macro synth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Synth")
+
+/-- `subtypes/creature/tentacle.ron` -/
+semantic_macro tentacle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Tentacle")
+
+/-- `subtypes/creature/tetravite.ron` -/
+semantic_macro tetravite : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Tetravite")
+
+/-- `subtypes/creature/thalakos.ron` -/
+semantic_macro thalakos : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Thalakos")
+
+/-- `subtypes/creature/thopter.ron` -/
+semantic_macro thopter : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Thopter")
+
+/-- `subtypes/creature/thrull.ron` -/
+semantic_macro thrull : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Thrull")
+
+/-- `subtypes/creature/tiefling.ron` -/
+semantic_macro tiefling : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Tiefling")
+
+/-- `subtypes/creature/timeLord.ron` -/
+semantic_macro timeLord : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Time Lord")
+
+/-- `subtypes/creature/toy.ron` -/
+semantic_macro toy : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Toy")
+
+/-- `subtypes/creature/treefolk.ron` -/
+semantic_macro treefolk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Treefolk")
+
+/-- `subtypes/creature/trilobite.ron` -/
+semantic_macro trilobite : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Trilobite")
+
+/-- `subtypes/creature/triskelavite.ron` -/
+semantic_macro triskelavite : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Triskelavite")
+
+/-- `subtypes/creature/troll.ron` -/
+semantic_macro troll : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Troll")
+
+/-- `subtypes/creature/turtle.ron` -/
+semantic_macro turtle : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Turtle")
+
+/-- `subtypes/creature/tyranid.ron` -/
+semantic_macro tyranid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Tyranid")
+
+/-- `subtypes/creature/unicorn.ron` -/
+semantic_macro unicorn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Unicorn")
+
+/-- `subtypes/creature/utrom.ron` -/
+semantic_macro utrom : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Utrom")
+
+/-- `subtypes/creature/vampire.ron` -/
+semantic_macro vampire : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Vampire")
+
+/-- `subtypes/creature/varmint.ron` -/
+semantic_macro varmint : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Varmint")
+
+/-- `subtypes/creature/vedalken.ron` -/
+semantic_macro vedalken : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Vedalken")
+
+/-- `subtypes/creature/villain.ron` -/
+semantic_macro villain : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Villain")
+
+/-- `subtypes/creature/volver.ron` -/
+semantic_macro volver : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Volver")
+
+/-- `subtypes/creature/wall.ron` -/
+semantic_macro wall : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wall")
+
+/-- `subtypes/creature/walrus.ron` -/
+semantic_macro walrus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Walrus")
+
+/-- `subtypes/creature/warlock.ron` -/
+semantic_macro warlock : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Warlock")
+
+/-- `subtypes/creature/warrior.ron` -/
+semantic_macro warrior : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Warrior")
+
+/-- `subtypes/creature/weasel.ron` -/
+semantic_macro weasel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Weasel")
+
+/-- `subtypes/creature/weird.ron` -/
+semantic_macro weird : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Weird")
+
+/-- `subtypes/creature/werewolf.ron` -/
+semantic_macro werewolf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Werewolf")
+
+/-- `subtypes/creature/whale.ron` -/
+semantic_macro whale : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Whale")
+
+/-- `subtypes/creature/wizard.ron` -/
+semantic_macro wizard : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wizard")
+
+/-- `subtypes/creature/wolf.ron` -/
+semantic_macro wolf : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wolf")
+
+/-- `subtypes/creature/wolverine.ron` -/
+semantic_macro wolverine : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wolverine")
+
+/-- `subtypes/creature/wombat.ron` -/
+semantic_macro wombat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wombat")
+
+/-- `subtypes/creature/worm.ron` -/
+semantic_macro worm : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Worm")
+
+/-- `subtypes/creature/wraith.ron` -/
+semantic_macro wraith : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wraith")
+
+/-- `subtypes/creature/wurm.ron` -/
+semantic_macro wurm : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Wurm")
+
+/-- `subtypes/creature/yeti.ron` -/
+semantic_macro yeti : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Yeti")
+
+/-- `subtypes/creature/zombie.ron` -/
+semantic_macro zombie : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Zombie")
+
+/-- `subtypes/creature/zubera.ron` -/
+semantic_macro zubera : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.creature "Zubera")
+
+/-- `subtypes/enchantment/aura.ron` -/
+semantic_macro aura : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Aura")
+
+/-- `subtypes/enchantment/background.ron` -/
+semantic_macro background : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Background")
+
+/-- `subtypes/enchantment/cartouche.ron` -/
+semantic_macro cartouche : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Cartouche")
+
+/-- `subtypes/enchantment/case.ron` -/
+semantic_macro case : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Case")
+
+/-- `subtypes/enchantment/class.ron` -/
+semantic_macro class_ : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Class")
+
+/-- `subtypes/enchantment/curse.ron` -/
+semantic_macro curse : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Curse")
+
+/-- `subtypes/enchantment/plan.ron` -/
+semantic_macro plan : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Plan")
+
+/-- `subtypes/enchantment/role.ron` -/
+semantic_macro role : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Role")
+
+/-- `subtypes/enchantment/room.ron` -/
+semantic_macro room : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Room")
+
+/-- `subtypes/enchantment/rune.ron` -/
+semantic_macro rune : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Rune")
+
+/-- `subtypes/enchantment/saga.ron` -/
+semantic_macro saga : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Saga")
+
+/-- `subtypes/enchantment/shard.ron` -/
+semantic_macro shard : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Shard")
+
+/-- `subtypes/enchantment/shrine.ron` -/
+semantic_macro shrine : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.enchantment "Shrine")
+
+/-- `subtypes/land/cave.ron` -/
+semantic_macro cave : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Cave")
+
+/-- `subtypes/land/desert.ron` -/
+semantic_macro desert : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Desert")
+
+/-- `subtypes/land/forest.ron` -/
+semantic_macro forest : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Forest")
+
+/-- `subtypes/land/gate.ron` -/
+semantic_macro gate : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Gate")
+
+/-- `subtypes/land/island.ron` -/
+semantic_macro island : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Island")
+
+/-- `subtypes/land/lair.ron` -/
+semantic_macro lair : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Lair")
+
+/-- `subtypes/land/locus.ron` -/
+semantic_macro locus : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Locus")
+
+/-- `subtypes/land/mine.ron` -/
+semantic_macro mine : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Mine")
+
+/-- `subtypes/land/mountain.ron` -/
+semantic_macro mountain : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Mountain")
+
+/-- `subtypes/land/plains.ron` -/
+semantic_macro plains : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Plains")
+
+/-- `subtypes/land/planet.ron` -/
+semantic_macro planet : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Planet")
+
+/-- `subtypes/land/powerPlant.ron` -/
+semantic_macro powerPlant : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Power-Plant")
+
+/-- `subtypes/land/sphere.ron` -/
+semantic_macro sphere : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Sphere")
+
+/-- `subtypes/land/swamp.ron` -/
+semantic_macro swamp : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Swamp")
+
+/-- `subtypes/land/tower.ron` -/
+semantic_macro tower : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Tower")
+
+/-- `subtypes/land/town.ron` -/
+semantic_macro town : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Town")
+
+/-- `subtypes/land/urzas.ron` -/
+semantic_macro urzas : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.land "Urza's")
+
+/-- `subtypes/planeswalker/ajani.ron` -/
+semantic_macro ajani : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Ajani")
+
+/-- `subtypes/planeswalker/aminatou.ron` -/
+semantic_macro aminatou : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Aminatou")
+
+/-- `subtypes/planeswalker/angrath.ron` -/
+semantic_macro angrath : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Angrath")
+
+/-- `subtypes/planeswalker/arlinn.ron` -/
+semantic_macro arlinn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Arlinn")
+
+/-- `subtypes/planeswalker/ashiok.ron` -/
+semantic_macro ashiok : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Ashiok")
+
+/-- `subtypes/planeswalker/bahamut.ron` -/
+semantic_macro bahamut : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Bahamut")
+
+/-- `subtypes/planeswalker/basri.ron` -/
+semantic_macro basri : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Basri")
+
+/-- `subtypes/planeswalker/bolas.ron` -/
+semantic_macro bolas : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Bolas")
+
+/-- `subtypes/planeswalker/calix.ron` -/
+semantic_macro calix : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Calix")
+
+/-- `subtypes/planeswalker/chandra.ron` -/
+semantic_macro chandra : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Chandra")
+
+/-- `subtypes/planeswalker/comet.ron` -/
+semantic_macro comet : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Comet")
+
+/-- `subtypes/planeswalker/dack.ron` -/
+semantic_macro dack : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Dack")
+
+/-- `subtypes/planeswalker/dakkon.ron` -/
+semantic_macro dakkon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Dakkon")
+
+/-- `subtypes/planeswalker/daretti.ron` -/
+semantic_macro daretti : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Daretti")
+
+/-- `subtypes/planeswalker/davriel.ron` -/
+semantic_macro davriel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Davriel")
+
+/-- `subtypes/planeswalker/dellian.ron` -/
+semantic_macro dellian : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Dellian")
+
+/-- `subtypes/planeswalker/dihada.ron` -/
+semantic_macro dihada : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Dihada")
+
+/-- `subtypes/planeswalker/domri.ron` -/
+semantic_macro domri : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Domri")
+
+/-- `subtypes/planeswalker/dovin.ron` -/
+semantic_macro dovin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Dovin")
+
+/-- `subtypes/planeswalker/ellywick.ron` -/
+semantic_macro ellywick : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Ellywick")
+
+/-- `subtypes/planeswalker/elminster.ron` -/
+semantic_macro elminster : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Elminster")
+
+/-- `subtypes/planeswalker/elspeth.ron` -/
+semantic_macro elspeth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Elspeth")
+
+/-- `subtypes/planeswalker/estrid.ron` -/
+semantic_macro estrid : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Estrid")
+
+/-- `subtypes/planeswalker/freyalise.ron` -/
+semantic_macro freyalise : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Freyalise")
+
+/-- `subtypes/planeswalker/garruk.ron` -/
+semantic_macro garruk : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Garruk")
+
+/-- `subtypes/planeswalker/gideon.ron` -/
+semantic_macro gideon : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Gideon")
+
+/-- `subtypes/planeswalker/grist.ron` -/
+semantic_macro grist : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Grist")
+
+/-- `subtypes/planeswalker/guff.ron` -/
+semantic_macro guff : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Guff")
+
+/-- `subtypes/planeswalker/huatli.ron` -/
+semantic_macro huatli : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Huatli")
+
+/-- `subtypes/planeswalker/jace.ron` -/
+semantic_macro jace : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Jace")
+
+/-- `subtypes/planeswalker/jared.ron` -/
+semantic_macro jared : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Jared")
+
+/-- `subtypes/planeswalker/jaya.ron` -/
+semantic_macro jaya : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Jaya")
+
+/-- `subtypes/planeswalker/jeska.ron` -/
+semantic_macro jeska : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Jeska")
+
+/-- `subtypes/planeswalker/kaito.ron` -/
+semantic_macro kaito : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Kaito")
+
+/-- `subtypes/planeswalker/karn.ron` -/
+semantic_macro karn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Karn")
+
+/-- `subtypes/planeswalker/kasmina.ron` -/
+semantic_macro kasmina : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Kasmina")
+
+/-- `subtypes/planeswalker/kaya.ron` -/
+semantic_macro kaya : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Kaya")
+
+/-- `subtypes/planeswalker/kiora.ron` -/
+semantic_macro kiora : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Kiora")
+
+/-- `subtypes/planeswalker/koth.ron` -/
+semantic_macro koth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Koth")
+
+/-- `subtypes/planeswalker/liliana.ron` -/
+semantic_macro liliana : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Liliana")
+
+/-- `subtypes/planeswalker/lolth.ron` -/
+semantic_macro lolth : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Lolth")
+
+/-- `subtypes/planeswalker/lukka.ron` -/
+semantic_macro lukka : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Lukka")
+
+/-- `subtypes/planeswalker/minsc.ron` -/
+semantic_macro minsc : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Minsc")
+
+/-- `subtypes/planeswalker/mordenkainen.ron` -/
+semantic_macro mordenkainen : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Mordenkainen")
+
+/-- `subtypes/planeswalker/nahiri.ron` -/
+semantic_macro nahiri : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Nahiri")
+
+/-- `subtypes/planeswalker/narset.ron` -/
+semantic_macro narset : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Narset")
+
+/-- `subtypes/planeswalker/niko.ron` -/
+semantic_macro niko : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Niko")
+
+/-- `subtypes/planeswalker/nissa.ron` -/
+semantic_macro nissa : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Nissa")
+
+/-- `subtypes/planeswalker/nixilis.ron` -/
+semantic_macro nixilis : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Nixilis")
+
+/-- `subtypes/planeswalker/oko.ron` -/
+semantic_macro oko : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Oko")
+
+/-- `subtypes/planeswalker/quintorius.ron` -/
+semantic_macro quintorius : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Quintorius")
+
+/-- `subtypes/planeswalker/ral.ron` -/
+semantic_macro ral : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Ral")
+
+/-- `subtypes/planeswalker/rowan.ron` -/
+semantic_macro rowan : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Rowan")
+
+/-- `subtypes/planeswalker/saheeli.ron` -/
+semantic_macro saheeli : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Saheeli")
+
+/-- `subtypes/planeswalker/samut.ron` -/
+semantic_macro samut : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Samut")
+
+/-- `subtypes/planeswalker/sarkhan.ron` -/
+semantic_macro sarkhan : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Sarkhan")
+
+/-- `subtypes/planeswalker/serra.ron` -/
+semantic_macro serra : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Serra")
+
+/-- `subtypes/planeswalker/sivitri.ron` -/
+semantic_macro sivitri : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Sivitri")
+
+/-- `subtypes/planeswalker/sorin.ron` -/
+semantic_macro sorin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Sorin")
+
+/-- `subtypes/planeswalker/szat.ron` -/
+semantic_macro szat : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Szat")
+
+/-- `subtypes/planeswalker/tamiyo.ron` -/
+semantic_macro tamiyo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Tamiyo")
+
+/-- `subtypes/planeswalker/tasha.ron` -/
+semantic_macro tasha : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Tasha")
+
+/-- `subtypes/planeswalker/teferi.ron` -/
+semantic_macro teferi : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Teferi")
+
+/-- `subtypes/planeswalker/teyo.ron` -/
+semantic_macro teyo : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Teyo")
+
+/-- `subtypes/planeswalker/tezzeret.ron` -/
+semantic_macro tezzeret : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Tezzeret")
+
+/-- `subtypes/planeswalker/tibalt.ron` -/
+semantic_macro tibalt : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Tibalt")
+
+/-- `subtypes/planeswalker/tyvar.ron` -/
+semantic_macro tyvar : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Tyvar")
+
+/-- `subtypes/planeswalker/ugin.ron` -/
+semantic_macro ugin : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Ugin")
+
+/-- `subtypes/planeswalker/urza.ron` -/
+semantic_macro urza : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Urza")
+
+/-- `subtypes/planeswalker/venser.ron` -/
+semantic_macro venser : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Venser")
+
+/-- `subtypes/planeswalker/vivien.ron` -/
+semantic_macro vivien : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Vivien")
+
+/-- `subtypes/planeswalker/vraska.ron` -/
+semantic_macro vraska : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Vraska")
+
+/-- `subtypes/planeswalker/vronos.ron` -/
+semantic_macro vronos : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Vronos")
+
+/-- `subtypes/planeswalker/will.ron` -/
+semantic_macro will : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Will")
+
+/-- `subtypes/planeswalker/windgrace.ron` -/
+semantic_macro windgrace : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Windgrace")
+
+/-- `subtypes/planeswalker/wrenn.ron` -/
+semantic_macro wrenn : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Wrenn")
+
+/-- `subtypes/planeswalker/xenagos.ron` -/
+semantic_macro xenagos : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Xenagos")
+
+/-- `subtypes/planeswalker/yanggu.ron` -/
+semantic_macro yanggu : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Yanggu")
+
+/-- `subtypes/planeswalker/yanling.ron` -/
+semantic_macro yanling : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Yanling")
+
+/-- `subtypes/planeswalker/zariel.ron` -/
+semantic_macro zariel : Semantics.Subtype :=
+  (Semantics.Subtype.of Semantics.CardType.planeswalker "Zariel")
+
+/-- `subtypes/spell/adventure.ron` -/
+semantic_macro adventure : Semantics.Subtype :=
+  (Semantics.Subtype.spell "Adventure")
+
+/-- `subtypes/spell/arcane.ron` -/
+semantic_macro arcane : Semantics.Subtype :=
+  (Semantics.Subtype.spell "Arcane")
+
+/-- `subtypes/spell/lesson.ron` -/
+semantic_macro lesson : Semantics.Subtype :=
+  (Semantics.Subtype.spell "Lesson")
+
+/-- `subtypes/spell/omen.ron` -/
+semantic_macro omen : Semantics.Subtype :=
+  (Semantics.Subtype.spell "Omen")
+
+/-- `subtypes/spell/trap.ron` -/
+semantic_macro trap : Semantics.Subtype :=
+  (Semantics.Subtype.spell "Trap")
+
 /-- `text_changes/appendTextOf.ron` -/
 semantic_macro appendTextOf (source : Semantics.NounPhrase) : Semantics.TextChange :=
   (Semantics.TextChange.appendTextOf source)
@@ -4155,245 +6951,10 @@ semantic_macro zone (zone : Semantics.Zone) (scope : Semantics.ZoneScope) : Sema
 end Semantics.Macros.Declared
 
 /-
-Not derived (732):
+Not derived (33):
 - abilities/activated.ron (activated): no sample assignment reads (20000 tried); first: 1:181-1:182: in the expansion of `activated`: 1:103-1:104: 1:57: 1:2-1:12: 1:2-1:12: `AnyOnStack` is neither a variant of `Timing` nor a known `Timing` macro
 - abilities/triggeredJoined.ron (triggeredJoined): no second argument to `joins` (`JoinedHeaders`) reads, so its holes cannot be located (first: `[]`)
-- counter_kinds/acornCounter.ron (acornCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/aegisCounter.ron (aegisCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ageCounter.ron (ageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/aimCounter.ron (aimCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/arrowCounter.ron (arrowCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/arrowheadCounter.ron (arrowheadCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/awakeningCounter.ron (awakeningCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/baitCounter.ron (baitCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/blazeCounter.ron (blazeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/blessingCounter.ron (blessingCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/bloodCounter.ron (bloodCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/bloodlineCounter.ron (bloodlineCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/bloodstainCounter.ron (bloodstainCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/bookCounter.ron (bookCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/boreCounter.ron (boreCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/bountyCounter.ron (bountyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/brainCounter.ron (brainCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/briberyCounter.ron (briberyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/brickCounter.ron (brickCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/burdenCounter.ron (burdenCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/cageCounter.ron (cageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/carrionCounter.ron (carrionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/cellCounter.ron (cellCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/chargeCounter.ron (chargeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/chorusCounter.ron (chorusCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/collectionCounter.ron (collectionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/componentCounter.ron (componentCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/conquerorCounter.ron (conquerorCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/contestedCounter.ron (contestedCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/corpseCounter.ron (corpseCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/corruptionCounter.ron (corruptionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/creditCounter.ron (creditCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/croakCounter.ron (croakCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/crystalCounter.ron (crystalCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/cubeCounter.ron (cubeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/currencyCounter.ron (currencyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/deathtouchCounter.ron (deathtouchCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/decayedCounter.ron (decayedCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/defenseCounter.ron (defenseCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/delayCounter.ron (delayCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/depletionCounter.ron (depletionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/descentCounter.ron (descentCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/despairCounter.ron (despairCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/discoveryCounter.ron (discoveryCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/divinityCounter.ron (divinityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/doomCounter.ron (doomCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/doubleStrikeCounter.ron (doubleStrikeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/dreadCounter.ron (dreadCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/dreamCounter.ron (dreamCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/dutyCounter.ron (dutyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/eggCounter.ron (eggCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/elixirCounter.ron (elixirCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/emberCounter.ron (emberCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/energy.ron (energy): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/enlightenedCounter.ron (enlightenedCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/eonCounter.ron (eonCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/exaltedCounter.ron (exaltedCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/experience.ron (experience): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/eyeballCounter.ron (eyeballCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fadeCounter.ron (fadeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fateCounter.ron (fateCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/featherCounter.ron (featherCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/feedingCounter.ron (feedingCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fellowshipCounter.ron (fellowshipCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fetchCounter.ron (fetchCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/filibusterCounter.ron (filibusterCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/filmCounter.ron (filmCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/finalityCounter.ron (finalityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fireCounter.ron (fireCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/firstStrikeCounter.ron (firstStrikeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/flameCounter.ron (flameCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/floodCounter.ron (floodCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/flyingCounter.ron (flyingCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/foreshadowCounter.ron (foreshadowCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fungusCounter.ron (fungusCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/furyCounter.ron (furyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/fuseCounter.ron (fuseCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/gemCounter.ron (gemCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ghostformCounter.ron (ghostformCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/glyphCounter.ron (glyphCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/goldCounter.ron (goldCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/growthCounter.ron (growthCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/harmonyCounter.ron (harmonyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hasteCounter.ron (hasteCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hatchingCounter.ron (hatchingCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hatchlingCounter.ron (hatchlingCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hexproofCounter.ron (hexproofCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hitCounter.ron (hitCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/honeCounter.ron (honeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hoofprintCounter.ron (hoofprintCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hopeCounter.ron (hopeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hourCounter.ron (hourCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hourglassCounter.ron (hourglassCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/hungerCounter.ron (hungerCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/iceCounter.ron (iceCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/impostorCounter.ron (impostorCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/incarnationCounter.ron (incarnationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/incubationCounter.ron (incubationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/indestructibleCounter.ron (indestructibleCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/infectionCounter.ron (infectionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/influenceCounter.ron (influenceCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ingenuityCounter.ron (ingenuityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ingredientCounter.ron (ingredientCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/intelCounter.ron (intelCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/interventionCounter.ron (interventionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/invasionCounter.ron (invasionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/invitationCounter.ron (invitationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/isolationCounter.ron (isolationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/javelinCounter.ron (javelinCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/judgmentCounter.ron (judgmentCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/kiCounter.ron (kiCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/kickCounter.ron (kickCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/knowledgeCounter.ron (knowledgeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/landmarkCounter.ron (landmarkCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/levelCounter.ron (levelCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/lifelinkCounter.ron (lifelinkCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/lootCounter.ron (lootCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/loreCounter.ron (loreCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/loyaltyCounter.ron (loyaltyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/luckCounter.ron (luckCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/m1m1Counter.ron (m1m1Counter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/magnetCounter.ron (magnetCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/manifestationCounter.ron (manifestationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/mannequinCounter.ron (mannequinCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/matrixCounter.ron (matrixCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/memoryCounter.ron (memoryCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/menaceCounter.ron (menaceCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/mineCounter.ron (mineCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/miningCounter.ron (miningCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/mireCounter.ron (mireCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/musicCounter.ron (musicCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/musterCounter.ron (musterCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/nestCounter.ron (nestCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/netCounter.ron (netCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/nightCounter.ron (nightCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/oilCounter.ron (oilCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/omenCounter.ron (omenCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/oreCounter.ron (oreCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/p1p1Counter.ron (p1p1Counter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/pageCounter.ron (pageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/painCounter.ron (painCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/palliationCounter.ron (palliationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/paralyzationCounter.ron (paralyzationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/petalCounter.ron (petalCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/petrificationCounter.ron (petrificationCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/phylacteryCounter.ron (phylacteryCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/phyresisCounter.ron (phyresisCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/pinCounter.ron (pinCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/plagueCounter.ron (plagueCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/planCounter.ron (planCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/pointCounter.ron (pointCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/poison.ron (poison): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/polypCounter.ron (polypCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/possessionCounter.ron (possessionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/pressureCounter.ron (pressureCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/preyCounter.ron (preyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/pupaCounter.ron (pupaCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/questCounter.ron (questCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/radCounter.ron (radCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/rallyCounter.ron (rallyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/reachCounter.ron (reachCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/refineCounter.ron (refineCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/rejectionCounter.ron (rejectionCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/reprieveCounter.ron (reprieveCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/revCounter.ron (revCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/revivalCounter.ron (revivalCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ribbonCounter.ron (ribbonCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ritualCounter.ron (ritualCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/ropeCounter.ron (ropeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/rustCounter.ron (rustCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/saurianCounter.ron (saurianCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/screamCounter.ron (screamCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/shadowCounter.ron (shadowCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/shellCounter.ron (shellCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/shieldCounter.ron (shieldCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/shredCounter.ron (shredCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/silverCounter.ron (silverCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/skewerCounter.ron (skewerCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/sleepCounter.ron (sleepCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/sleightCounter.ron (sleightCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/slimeCounter.ron (slimeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/slumberCounter.ron (slumberCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/sootCounter.ron (sootCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/soulCounter.ron (soulCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/spiteCounter.ron (spiteCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/sporeCounter.ron (sporeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/stashCounter.ron (stashCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/storageCounter.ron (storageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/storyCounter.ron (storyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/strifeCounter.ron (strifeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/strikeCounter.ron (strikeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/studyCounter.ron (studyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/stunCounter.ron (stunCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/supplyCounter.ron (supplyCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/suspectCounter.ron (suspectCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/takeoverCounter.ron (takeoverCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/taskCounter.ron (taskCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/theftCounter.ron (theftCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/tideCounter.ron (tideCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/timeCounter.ron (timeCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/towerCounter.ron (towerCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/trampleCounter.ron (trampleCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/trapCounter.ron (trapCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/treasureCounter.ron (treasureCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/unityCounter.ron (unityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/valorCounter.ron (valorCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/velocityCounter.ron (velocityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/verseCounter.ron (verseCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/vigilanceCounter.ron (vigilanceCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/vitalityCounter.ron (vitalityCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/voidCounter.ron (voidCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/vortexCounter.ron (vortexCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/vowCounter.ron (vowCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/voyageCounter.ron (voyageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/wageCounter.ron (wageCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/winchCounter.ron (winchCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/windCounter.ron (windCounter): registry node: its Lean form is `cargo xtask facts`'s
-- counter_kinds/wishCounter.ron (wishCounter): registry node: its Lean form is `cargo xtask facts`'s
-- designations/citysBlessing.ron (citysBlessing): registry node: its Lean form is `cargo xtask facts`'s
-- designations/commander.ron (commander): registry node: its Lean form is `cargo xtask facts`'s
 - designations/dayNight.ron (dayNight): registry node: its Lean form is `cargo xtask facts`'s
-- designations/enduringStory.ron (enduringStory): registry node: its Lean form is `cargo xtask facts`'s
-- designations/goaded.ron (goaded): registry node: its Lean form is `cargo xtask facts`'s
-- designations/harnessed.ron (harnessed): registry node: its Lean form is `cargo xtask facts`'s
-- designations/initiative.ron (initiative): registry node: its Lean form is `cargo xtask facts`'s
-- designations/leftHalfUnlocked.ron (leftHalfUnlocked): registry node: its Lean form is `cargo xtask facts`'s
-- designations/level.ron (level): registry node: its Lean form is `cargo xtask facts`'s
-- designations/monarch.ron (monarch): registry node: its Lean form is `cargo xtask facts`'s
-- designations/monstrous.ron (monstrous): registry node: its Lean form is `cargo xtask facts`'s
-- designations/prepared.ron (prepared): registry node: its Lean form is `cargo xtask facts`'s
-- designations/renowned.ron (renowned): registry node: its Lean form is `cargo xtask facts`'s
-- designations/rightHalfUnlocked.ron (rightHalfUnlocked): registry node: its Lean form is `cargo xtask facts`'s
-- designations/ringBearer.ron (ringBearer): registry node: its Lean form is `cargo xtask facts`'s
-- designations/saddled.ron (saddled): registry node: its Lean form is `cargo xtask facts`'s
-- designations/solved.ron (solved): registry node: its Lean form is `cargo xtask facts`'s
-- designations/suspected.ron (suspected): registry node: its Lean form is `cargo xtask facts`'s
 - events/rollsDice.ron (rollsDice): no sample assignment reads (20000 tried); first: 1:71-1:72: in the expansion of `rollsDice`: 1:95-1:96: 1:52-1:53: 1:2-1:12: `AnyOnStack` is neither a variant of `DiceBatch` nor a known `DiceBatch` macro
 - instructions/applyResultsTable.ron (applyResultsTable): `rows` is untyped (`Any`) and no second argument to it reads (first: `[]`)
 - instructions/chooseModes.ron (chooseModes): `modes` is untyped (`Any`) and no second argument to it reads (first: `[]`)
@@ -4414,470 +6975,6 @@ Not derived (732):
 - meta/Subtype.ron (Subtype): meta-macro: its body is a definition template
 - meta/TurnPart.ron (TurnPart): meta-macro: its body is a definition template
 - meta/Type.ron (Type): meta-macro: its body is a definition template
-- relations/encodedOn.ron (encodedOn): registry node: its Lean form is `cargo xtask facts`'s
-- relations/haunting.ron (haunting): registry node: its Lean form is `cargo xtask facts`'s
-- relations/paired.ron (paired): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/blood.ron (blood): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/bobblehead.ron (bobblehead): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/book.ron (book): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/clue.ron (clue): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/contraption.ron (contraption): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/equipment.ron (equipment): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/food.ron (food): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/fortification.ron (fortification): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/gold.ron (gold): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/incubator.ron (incubator): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/infinity.ron (infinity): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/junk.ron (junk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/lander.ron (lander): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/map.ron (map): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/mutagen.ron (mutagen): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/powerstone.ron (powerstone): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/spacecraft.ron (spacecraft): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/stone.ron (stone): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/treasure.ron (treasure): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/vehicle.ron (vehicle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/artifact/vibranium.ron (vibranium): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/battle/siege.ron (siege): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/advisor.ron (advisor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/aetherborn.ron (aetherborn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/alien.ron (alien): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ally.ron (ally): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/angel.ron (angel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/antelope.ron (antelope): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ape.ron (ape): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/archer.ron (archer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/archon.ron (archon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/armadillo.ron (armadillo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/army.ron (army): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/artificer.ron (artificer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/assassin.ron (assassin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/assemblyWorker.ron (assemblyWorker): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/astartes.ron (astartes): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/atog.ron (atog): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/aurochs.ron (aurochs): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/avatar.ron (avatar): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/azra.ron (azra): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/badger.ron (badger): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/balloon.ron (balloon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/barbarian.ron (barbarian): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bard.ron (bard): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/basilisk.ron (basilisk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bat.ron (bat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bear.ron (bear): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/beast.ron (beast): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/beaver.ron (beaver): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/beeble.ron (beeble): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/beholder.ron (beholder): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/berserker.ron (berserker): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bird.ron (bird): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bison.ron (bison): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/blinkmoth.ron (blinkmoth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/boar.ron (boar): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/bringer.ron (bringer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/brushwagg.ron (brushwagg): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/camarid.ron (camarid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/camel.ron (camel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/capybara.ron (capybara): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/caribou.ron (caribou): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/carrier.ron (carrier): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/cat.ron (cat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/centaur.ron (centaur): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/child.ron (child): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/chimera.ron (chimera): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/citizen.ron (citizen): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/cleric.ron (cleric): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/clown.ron (clown): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/cockatrice.ron (cockatrice): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/construct.ron (construct): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/coward.ron (coward): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/coyote.ron (coyote): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/crab.ron (crab): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/crocodile.ron (crocodile): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ctan.ron (ctan): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/custodes.ron (custodes): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/cyberman.ron (cyberman): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/cyclops.ron (cyclops): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dalek.ron (dalek): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dauthi.ron (dauthi): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/demigod.ron (demigod): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/demon.ron (demon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/deserter.ron (deserter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/detective.ron (detective): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/devil.ron (devil): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dinosaur.ron (dinosaur): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/djinn.ron (djinn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/doctor.ron (doctor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dog.ron (dog): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dragon.ron (dragon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/drake.ron (drake): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dreadnought.ron (dreadnought): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/drix.ron (drix): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/drone.ron (drone): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/druid.ron (druid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dryad.ron (dryad): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/dwarf.ron (dwarf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/echidna.ron (echidna): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/efreet.ron (efreet): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/egg.ron (egg): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/elder.ron (elder): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/eldrazi.ron (eldrazi): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/elemental.ron (elemental): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/elephant.ron (elephant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/elf.ron (elf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/elk.ron (elk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/employee.ron (employee): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/eternal.ron (eternal): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/eye.ron (eye): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/faerie.ron (faerie): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ferret.ron (ferret): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/fish.ron (fish): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/flagbearer.ron (flagbearer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/fox.ron (fox): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/fractal.ron (fractal): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/frog.ron (frog): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/fungus.ron (fungus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gamer.ron (gamer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gamma.ron (gamma): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gargoyle.ron (gargoyle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/germ.ron (germ): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/giant.ron (giant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/giraffe.ron (giraffe): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gith.ron (gith): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/glimmer.ron (glimmer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gnoll.ron (gnoll): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gnome.ron (gnome): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/goat.ron (goat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/goblin.ron (goblin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/god.ron (god): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/golem.ron (golem): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gorgon.ron (gorgon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/graveborn.ron (graveborn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/gremlin.ron (gremlin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/griffin.ron (griffin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/guest.ron (guest): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hag.ron (hag): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/halfling.ron (halfling): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hamster.ron (hamster): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/harpy.ron (harpy): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hedgehog.ron (hedgehog): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hellion.ron (hellion): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hero.ron (hero): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hippo.ron (hippo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hippogriff.ron (hippogriff): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/homarid.ron (homarid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/homunculus.ron (homunculus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/horror.ron (horror): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/horse.ron (horse): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/human.ron (human): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hydra.ron (hydra): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/hyena.ron (hyena): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/illusion.ron (illusion): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/imp.ron (imp): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/incarnation.ron (incarnation): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/inhuman.ron (inhuman): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/inkling.ron (inkling): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/inquisitor.ron (inquisitor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/insect.ron (insect): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/jackal.ron (jackal): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/jellyfish.ron (jellyfish): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/juggernaut.ron (juggernaut): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kangaroo.ron (kangaroo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kavu.ron (kavu): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kirin.ron (kirin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kithkin.ron (kithkin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/knight.ron (knight): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kobold.ron (kobold): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kor.ron (kor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kraken.ron (kraken): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/kree.ron (kree): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lamia.ron (lamia): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lammasu.ron (lammasu): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/leech.ron (leech): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lemur.ron (lemur): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/leviathan.ron (leviathan): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lhurgoyf.ron (lhurgoyf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/licid.ron (licid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lizard.ron (lizard): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/llama.ron (llama): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/lobster.ron (lobster): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/manticore.ron (manticore): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/masticore.ron (masticore): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mercenary.ron (mercenary): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/merfolk.ron (merfolk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/metathran.ron (metathran): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/minion.ron (minion): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/minotaur.ron (minotaur): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mite.ron (mite): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mole.ron (mole): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/monger.ron (monger): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mongoose.ron (mongoose): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/monk.ron (monk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/monkey.ron (monkey): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/moogle.ron (moogle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/moonfolk.ron (moonfolk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mount.ron (mount): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mouse.ron (mouse): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mutant.ron (mutant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/myr.ron (myr): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/mystic.ron (mystic): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nautilus.ron (nautilus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/necron.ron (necron): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nephilim.ron (nephilim): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nightmare.ron (nightmare): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nightstalker.ron (nightstalker): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ninja.ron (ninja): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/noble.ron (noble): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/noggle.ron (noggle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nomad.ron (nomad): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/nymph.ron (nymph): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/octopus.ron (octopus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ogre.ron (ogre): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ooze.ron (ooze): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/orb.ron (orb): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/orc.ron (orc): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/orgg.ron (orgg): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/otter.ron (otter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ouphe.ron (ouphe): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ox.ron (ox): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/oyster.ron (oyster): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pangolin.ron (pangolin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/peasant.ron (peasant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pegasus.ron (pegasus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pentavite.ron (pentavite): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/performer.ron (performer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pest.ron (pest): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/phelddagrif.ron (phelddagrif): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/phoenix.ron (phoenix): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/phyrexian.ron (phyrexian): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pilot.ron (pilot): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pincher.ron (pincher): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/pirate.ron (pirate): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/plant.ron (plant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/platypus.ron (platypus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/porcupine.ron (porcupine): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/possum.ron (possum): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/praetor.ron (praetor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/primarch.ron (primarch): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/prism.ron (prism): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/processor.ron (processor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/qu.ron (qu): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rabbit.ron (rabbit): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/raccoon.ron (raccoon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/ranger.ron (ranger): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rat.ron (rat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rebel.ron (rebel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/reflection.ron (reflection): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rhino.ron (rhino): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rigger.ron (rigger): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/robot.ron (robot): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/rogue.ron (rogue): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sable.ron (sable): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/salamander.ron (salamander): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/samurai.ron (samurai): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sand.ron (sand): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/saproling.ron (saproling): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/satyr.ron (satyr): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/scarecrow.ron (scarecrow): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/scientist.ron (scientist): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/scion.ron (scion): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/scorpion.ron (scorpion): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/scout.ron (scout): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sculpture.ron (sculpture): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/seal.ron (seal): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/serf.ron (serf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/serpent.ron (serpent): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/servo.ron (servo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/shade.ron (shade): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/shaman.ron (shaman): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/shapeshifter.ron (shapeshifter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/shark.ron (shark): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sheep.ron (sheep): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/shiar.ron (shiar): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/siren.ron (siren): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/skeleton.ron (skeleton): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/skrull.ron (skrull): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/skunk.ron (skunk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/slith.ron (slith): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sliver.ron (sliver): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sloth.ron (sloth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/slug.ron (slug): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/snail.ron (snail): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/snake.ron (snake): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/soldier.ron (soldier): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/soltari.ron (soltari): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sorcerer.ron (sorcerer): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spawn.ron (spawn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/specter.ron (specter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spellshaper.ron (spellshaper): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sphinx.ron (sphinx): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spider.ron (spider): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spike.ron (spike): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spirit.ron (spirit): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/splinter.ron (splinter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/sponge.ron (sponge): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/spy.ron (spy): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/squid.ron (squid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/squirrel.ron (squirrel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/starfish.ron (starfish): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/surrakar.ron (surrakar): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/survivor.ron (survivor): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/symbiote.ron (symbiote): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/synth.ron (synth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/tentacle.ron (tentacle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/tetravite.ron (tetravite): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/thalakos.ron (thalakos): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/thopter.ron (thopter): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/thrull.ron (thrull): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/tiefling.ron (tiefling): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/timeLord.ron (timeLord): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/toy.ron (toy): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/treefolk.ron (treefolk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/trilobite.ron (trilobite): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/triskelavite.ron (triskelavite): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/troll.ron (troll): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/turtle.ron (turtle): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/tyranid.ron (tyranid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/unicorn.ron (unicorn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/utrom.ron (utrom): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/vampire.ron (vampire): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/varmint.ron (varmint): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/vedalken.ron (vedalken): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/villain.ron (villain): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/volver.ron (volver): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wall.ron (wall): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/walrus.ron (walrus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/warlock.ron (warlock): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/warrior.ron (warrior): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/weasel.ron (weasel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/weird.ron (weird): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/werewolf.ron (werewolf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/whale.ron (whale): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wizard.ron (wizard): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wolf.ron (wolf): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wolverine.ron (wolverine): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wombat.ron (wombat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/worm.ron (worm): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wraith.ron (wraith): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/wurm.ron (wurm): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/yeti.ron (yeti): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/zombie.ron (zombie): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/creature/zubera.ron (zubera): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/aura.ron (aura): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/background.ron (background): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/cartouche.ron (cartouche): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/case.ron (case): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/class.ron (class): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/curse.ron (curse): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/plan.ron (plan): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/role.ron (role): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/room.ron (room): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/rune.ron (rune): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/saga.ron (saga): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/shard.ron (shard): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/enchantment/shrine.ron (shrine): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/cave.ron (cave): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/desert.ron (desert): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/forest.ron (forest): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/gate.ron (gate): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/island.ron (island): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/lair.ron (lair): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/locus.ron (locus): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/mine.ron (mine): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/mountain.ron (mountain): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/plains.ron (plains): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/planet.ron (planet): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/powerPlant.ron (powerPlant): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/sphere.ron (sphere): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/swamp.ron (swamp): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/tower.ron (tower): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/town.ron (town): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/land/urzas.ron (urzas): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/ajani.ron (ajani): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/aminatou.ron (aminatou): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/angrath.ron (angrath): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/arlinn.ron (arlinn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/ashiok.ron (ashiok): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/bahamut.ron (bahamut): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/basri.ron (basri): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/bolas.ron (bolas): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/calix.ron (calix): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/chandra.ron (chandra): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/comet.ron (comet): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/dack.ron (dack): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/dakkon.ron (dakkon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/daretti.ron (daretti): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/davriel.ron (davriel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/dellian.ron (dellian): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/dihada.ron (dihada): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/domri.ron (domri): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/dovin.ron (dovin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/ellywick.ron (ellywick): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/elminster.ron (elminster): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/elspeth.ron (elspeth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/estrid.ron (estrid): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/freyalise.ron (freyalise): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/garruk.ron (garruk): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/gideon.ron (gideon): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/grist.ron (grist): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/guff.ron (guff): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/huatli.ron (huatli): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/jace.ron (jace): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/jared.ron (jared): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/jaya.ron (jaya): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/jeska.ron (jeska): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/kaito.ron (kaito): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/karn.ron (karn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/kasmina.ron (kasmina): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/kaya.ron (kaya): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/kiora.ron (kiora): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/koth.ron (koth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/liliana.ron (liliana): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/lolth.ron (lolth): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/lukka.ron (lukka): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/minsc.ron (minsc): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/mordenkainen.ron (mordenkainen): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/nahiri.ron (nahiri): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/narset.ron (narset): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/niko.ron (niko): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/nissa.ron (nissa): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/nixilis.ron (nixilis): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/oko.ron (oko): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/quintorius.ron (quintorius): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/ral.ron (ral): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/rowan.ron (rowan): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/saheeli.ron (saheeli): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/samut.ron (samut): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/sarkhan.ron (sarkhan): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/serra.ron (serra): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/sivitri.ron (sivitri): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/sorin.ron (sorin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/szat.ron (szat): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/tamiyo.ron (tamiyo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/tasha.ron (tasha): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/teferi.ron (teferi): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/teyo.ron (teyo): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/tezzeret.ron (tezzeret): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/tibalt.ron (tibalt): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/tyvar.ron (tyvar): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/ugin.ron (ugin): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/urza.ron (urza): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/venser.ron (venser): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/vivien.ron (vivien): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/vraska.ron (vraska): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/vronos.ron (vronos): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/will.ron (will): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/windgrace.ron (windgrace): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/wrenn.ron (wrenn): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/xenagos.ron (xenagos): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/yanggu.ron (yanggu): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/yanling.ron (yanling): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/planeswalker/zariel.ron (zariel): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/spell/adventure.ron (adventure): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/spell/arcane.ron (arcane): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/spell/lesson.ron (lesson): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/spell/omen.ron (omen): registry node: its Lean form is `cargo xtask facts`'s
-- subtypes/spell/trap.ron (trap): registry node: its Lean form is `cargo xtask facts`'s
 - types/artifact.ron (artifact): no kind of [Type] is a v2 syntax type
 - types/battle.ron (battle): no kind of [Type] is a v2 syntax type
 - types/creature.ron (creature): no kind of [Type] is a v2 syntax type

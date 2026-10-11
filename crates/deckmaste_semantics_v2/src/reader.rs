@@ -67,10 +67,62 @@ pub struct Declaration {
     /// and the rest of [`crate::ron::DECLARATION_KINDS`], or a semantic kind
     /// for an ordinary phrase macro.
     pub kind: Ident,
-    /// The definition, metadata erased.
+    /// The definition, metadata erased. For a registry declaration (a counter,
+    /// subtype, designation or relation) this is its Registry Definition, the
+    /// record the registry holds under the declaration's name; the macro the
+    /// name registers is [`Declaration::registered`].
     pub definition: MacroDef,
+    /// The macro registered under the declaration's name. For a registry
+    /// declaration whose name reads where its term is written, its body is
+    /// that term, the kind reference the name means everywhere, its own
+    /// body included (`m1m1Counter` at a `CounterKind` is `Named(name:
+    /// "m1m1Counter")`; ruling 2026-10-10). Otherwise it is
+    /// [`Declaration::definition`].
+    pub registered: MacroDef,
     /// The file it was read from.
     pub path: PathBuf,
+}
+
+/// The record head and the field naming the term, for each registry family
+/// whose declaration's name reads where that term is written, with the
+/// record's fields.
+fn term_field(family: &str) -> Option<(&'static str, &'static str, &'static [&'static str])> {
+    match family {
+        "CounterKind" => Some(("Counter", "kind", &["kind", "holder", "confers"])),
+        "Subtype" => Some(("Subtype", "subtype", &["subtype", "rules"])),
+        "Relation" => Some(("Relation", "label", &["label", "left", "right"])),
+        crate::designations::DESIGNATION => Some((
+            "Designation",
+            "label",
+            &["label", "scope", "effectful", "zone", "type", "half"],
+        )),
+        _ => None,
+    }
+}
+
+/// The term a registry declaration's name means: the term field of the
+/// Registry Definition `record` it declares (a counter's `kind`, a subtype's
+/// `subtype`, a designation's or relation's `label`), or `None` for a family
+/// whose name reads at no term position or a body that is no such record.
+///
+/// # Errors
+/// If `record` is headed as the family's definition record but does not read
+/// as one.
+pub fn name_term(family: &str, record: &str) -> Result<Option<String>, String> {
+    let Some((head, field, fields)) = term_field(family) else {
+        return Ok(None);
+    };
+    // A helper macro registered at the family's kind (`artifactType` at
+    // `Subtype`) is a term already, not a record.
+    let Some(fields_text) = record
+        .trim()
+        .strip_prefix(head)
+        .filter(|rest| rest.trim_start().starts_with('('))
+    else {
+        return Ok(None);
+    };
+    let read = crate::keywords::Record::read(fields_text, fields)?;
+    Ok(Some(read.required(field)?.trim().to_owned()))
 }
 
 /// A loaded `plugins_v2` plugin.
@@ -189,6 +241,36 @@ impl Plugin {
     }
 }
 
+/// The macros a declaration of `family` registers: the declaration's own and
+/// its members', each with its term as body where its name means one
+/// ([`name_term`]). A designation that lists members names no single
+/// designation, so its own name reads nowhere and registers the record
+/// unchanged.
+fn registered_terms(
+    family: &str,
+    definition: &MacroDef,
+    members: Vec<MacroDef>,
+) -> Result<(MacroDef, Vec<MacroDef>), String> {
+    let registered = if family == crate::designations::DESIGNATION && !members.is_empty() {
+        definition.clone()
+    } else {
+        match name_term(family, definition.body())? {
+            Some(term) => definition.clone().with_body(&term),
+            None => definition.clone(),
+        }
+    };
+    let members = members
+        .into_iter()
+        .map(|member| {
+            Ok(match name_term(family, member.body())? {
+                Some(term) => member.with_body(&term),
+                None => member,
+            })
+        })
+        .collect::<Result<_, String>>()?;
+    Ok((registered, members))
+}
+
 /// Reads and registers every definition under `root/macros/`.
 ///
 /// A definition file may invoke a meta-macro from a file that has not loaded
@@ -288,6 +370,16 @@ fn read_macros(
                             .kinds
                             .retain(|kind| kind.as_str() != crate::designations::DESIGNATION_LABEL);
                     }
+                    // A registry declaration's name means its term, the kind
+                    // reference, everywhere, its own body included; the
+                    // Registry Definition is a separate record the registry
+                    // holds under the name (`Declaration::definition`;
+                    // ruling 2026-10-10).
+                    let (registered, members) = match registered_terms(family, &definition, members)
+                    {
+                        Ok(registered) => registered,
+                        Err(reason) => return Err(LoadError::Definition { path, reason }),
+                    };
                     // Two ways a same-named collision is harmless, so this
                     // check only refuses the third:
                     //  - IDENTITY: the body's own outermost identifier is the
@@ -335,12 +427,13 @@ fn read_macros(
                             Declaration {
                                 kind,
                                 definition: definition.clone(),
+                                registered: registered.clone(),
                                 path: path.clone(),
                             },
                         );
                     }
                     macros
-                        .replace(&definition)
+                        .replace(&registered)
                         .map_err(|source| LoadError::Register {
                             path: path.clone(),
                             source,

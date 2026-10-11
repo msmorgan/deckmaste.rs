@@ -11,9 +11,8 @@
 // state-based action of a check is one event ([CR#704.3]), not one pair per
 // sweep. It lives here rather than on `p1p1Counter`, which points at it.
 //
-// The rule names this declaration's own kind as `Named(name: "m1m1Counter")`,
-// not by the bare name: the bare name is a macro whose body is this whole
-// definition, so reading it inside that body would expand it without end.
+// The rule names this kind by its bare name inside its own definition: a
+// declaration's name means its kind everywhere (ruling 2026-10-10).
 CounterKind(
     name: "m1m1Counter",
     params: [],
@@ -24,16 +23,16 @@ CounterKind(
     confers: [
         boost(down(1), down(1)),
         stateBased(
-            matches(This, and([hasCounters(p1p1Counter), hasCounters(Named(name: "m1m1Counter"))])),
+            matches(This, and([hasCounters(p1p1Counter), hasCounters(m1m1Counter)])),
             simultaneously([
                 removeCounters(
-                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(Named(name: "m1m1Counter"), This))),
+                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(m1m1Counter, This))),
                     p1p1Counter,
                     This,
                 ),
                 removeCounters(
-                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(Named(name: "m1m1Counter"), This))),
-                    Printed(Named(name: "m1m1Counter")),
+                    exactlyOf(smallerOf(countersOn(p1p1Counter, This), countersOn(m1m1Counter, This))),
+                    m1m1Counter,
                     This,
                 ),
             ]),

@@ -123,8 +123,8 @@ pub fn kinds() -> KindSet {
     kinds.add(crate::words::CounterKind::kind());
     // A designation declaration's name reads bare where a designation is
     // written: the declaration names this kind second, after its family
-    // (`macros/meta/Designation.ron`), and the type's `denoted_by` marker
-    // reads the node it expands to as the label it defines.
+    // (`macros/meta/Designation.ron`), and its name registers the label it
+    // means (`crate::reader::name_term`; ruling 2026-10-10).
     kinds.add(crate::words::DesignationLabel::kind());
     // A relation declaration's name reads bare where a relation is written,
     // as a designation's does (`macros/meta/Relation.ron`).

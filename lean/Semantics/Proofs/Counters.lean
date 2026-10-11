@@ -1,6 +1,7 @@
 import Semantics.Macros
 import Semantics.Check.Card
 import Semantics.Check.Rules
+import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.Counters
@@ -590,6 +591,11 @@ theorem okSnowblindWhicheverIsSmaller :
         (minus (toughnessOf (.attachHost .enchanted (.type .creature))) (.lit 1)))
       = [] := by
   decide
+
+/-- The −1/−1 counter's declared name is its kind, everywhere, its own definition included
+(ruling 2026-10-10): the name expands to the kind reference, never to the definition. -/
+theorem m1m1CounterNameIsItsKind :
+    Semantics.Macros.Declared.m1m1Counter = CounterKind.named "m1m1Counter" := rfl
 
 /-- "whichever is greater" is the same aggregate under `max`. -/
 theorem okGreaterOf :

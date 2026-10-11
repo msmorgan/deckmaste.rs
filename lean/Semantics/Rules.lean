@@ -134,43 +134,12 @@ inductive Definition where
   | relation (label : RelationLabel) (left : Kind) (right : Kind)
   deriving Repr, BEq
 
-/-- A definition's name DENOTES its term.
-
-A registry declaration's name is a macro whose body is the `Definition` above, so the name
-stands at two kinds of position: where a definition is wanted, it is the node; where the
-declared TERM is wanted — a card's subtype list, a counter reference, a designation — the
-position takes the term the definition names, not the node that defines it. Each flavor names
-one term: `.subtype` names its `subtype`, `.counter` its `kind`, `.designation` its `label`.
-A `.cardType` names its `cardType`, but a card writes a card type as the word itself
-(`.creature`), never through its declaration's name, so it has no projection.
-
-Each projection is defined: a card writes a subtype, a counter kind and a designation by its
-declaration's bare name (`plugins-v2-subtypes-macro-only`; the counter half by ruling
-2026-10-03, the designation half by ruling 2026-10-05). -/
-def Definition.subtypeTerm : Definition → Option Subtype
-  | .subtype term _rules => some term
-  | .counter .. | .designation .. | .cardType .. | .relation .. => none
-
-/-- The counter half of `Definition.subtypeTerm`: a counter definition names its `kind`, so a
-counter declaration's name read at a `CounterKind` position is the kind it defines, which is
-that same name. -/
-def Definition.counterTerm : Definition → Option CounterKind
-  | .counter kind _holder _confers => some kind
-  | .subtype .. | .designation .. | .cardType .. | .relation .. => none
-
-/-- The designation half of `Definition.subtypeTerm`: a designation definition names its `label`,
-so a designation declaration's name read at a `DesignationLabel` position is the designation it
-defines, which is that same name (or, for a member of a declaration that lists several, the
-member's). -/
-def Definition.designationTerm : Definition → Option DesignationLabel
-  | .designation label .. => some label
-  | .subtype .. | .counter .. | .cardType .. | .relation .. => none
-
-/-- The relation half of `Definition.subtypeTerm`: a relation definition names its `label`, so a
-relation declaration's name read at a `RelationLabel` position is the relation it defines. -/
-def Definition.relationTerm : Definition → Option RelationLabel
-  | .relation label .. => some label
-  | .subtype .. | .counter .. | .designation .. | .cardType .. => none
+/-! A registry declaration's name means its TERM everywhere, its own definition included: a
+counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its
+`Subtype`, a designation's or relation's its label. The `Definition` above is a separate record
+the registry holds under the name, which `cargo xtask facts` and `cargo xtask lean definitions`
+read; the name never expands to it (ruling 2026-10-10, retiring the `Definition.*Term`
+projections that read the term back out of the record). -/
 
 /-- The three tables a plugin's `rules/` directory defines, concatenated across its files. The
 predefined-token catalog is a separate list, because its entries are named and a plugin writes
