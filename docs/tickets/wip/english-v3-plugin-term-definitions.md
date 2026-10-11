@@ -1,7 +1,7 @@
 ---
 needs: []
 ---
-# Declare game terms through their owning plugin definitions: another modified creature you control / the number of creatures in your party / Multikicker {1}{G}
+# Declare eight plugin-owned terms: modified, poisoned, multikicker, expend, descend, convoke, devour and evolve
 
 A declaration ticket. No `declarations.rs` edit is expected. The owner
 answered PT-Q1 and PT-Q2 on 2026-10-10, as recorded below.
@@ -135,6 +135,12 @@ Orchestrator rulings 2026-10-10 (PT-Q1 and PT-Q2 answered below):
   controls (seed 20261008), six workers, no stored samples. Stop after commit,
   refresh and any required bounded rechecks; integration awaits owner review.
 
+Owner acceptance (2026-10-10): the eight completed terms are accepted (101
+feature gains, no covered-face changes). Move the seven deferred questions to a
+new planned ticket, verify against `kruuppqw`, then integrate and drop the
+workspace. This supersedes the review STOP for this landing; it does not waive
+post-refresh verification.
+
 ## Witnesses
 
 Probed 2026-10-10 on the `uoqyuxtnowpo` binary (Document, `--readings 3`):
@@ -189,76 +195,26 @@ or a Debug-printed tree.
   construction gap listed in `english-v3-keyword-state-adjectives`.
 - Bodies and Lean mirrors of new definitions beyond what PT-Q1 settles.
 
-### Deferred terms and declaration questions
-
-Claim-parent probes are under
-`target/english-v3/english-v3-plugin-term-definitions/` (`before-probes.json`,
-`extra-before-probes.json`, `gift-before-probes.json`). Counts below are on
-`ztvzruvp`, whose grammar/data match claim parent `vwktxkol`.
-
-- **Party / full party:** party witness 0, graveyard control 3; full-party
-  witness 0, creature control 1. Which existing helper family/kind should own
-  party's noun stub? `nouns/` has the relevant semantic helpers but the lexical
-  reader accepts only `Predicate` and `GameEvent` helpers from `predicates/`
-  and `events/`. Full party additionally lacks the adjective *full* (PT6).
-- **Role names:** Wicked, Monster, Young Hero, Cursed, Royal and Virtuous
-  witnesses 0 each; Role-token control 5 each. The predefined-token family is
-  `instructions/`, with `CharacteristicBundle` kind (`treasureToken.ron`).
-  It has no lexical reader/grammar convention. May that family export an
-  adjective recipe for its names? Sorcerer already reads (9; control 5), so
-  its witness is dropped as directed; no duplicate lexical owner is added.
-- **Day/night:** both witnesses 0; your-turn controls 1/2 respectively.
-  How should a multi-member Designation export each member as a noun while
-  retaining the existing *day or night* owner?
-- **Gift/promise:** original witness 0, whole-clause control 2. Two attested
-  units retaining *the gift* and substituting only *blocked* for *promised*
-  still have 0 Readings. Gift's keyword export is recognized lexically but
-  does not supply its noun use. May FixedKeyword export a noun as well as its
-  existing verb? Its verb field can already express *promise* independently
-  of the keyword stem; no new verb field is needed.
-- **Bands with other:** witnesses 0; affinity-for controls 2 each. A trial
-  `FixedKeyword`/Quality declaration still gives 0. The existing quality
-  routes select a preposition-marked quality, a before-head quality, or a bound
-  suffix; none selects a bare quality after the head. PT6 defers this
-  Construction gap; the trial declaration is removed.
-- **Banded:** both witnesses 0, paired-with controls 1. A trial band verb
-  with the same active Object + with + Object frame still leaves both passive
-  Postmodifier witnesses at 0. Pair's passive frame is supplied in core data,
-  which PT1 forbids editing here. May KeywordVerbGrammar declare a Passive
-  frame? Its current frame variants are Predicate, Auxiliary and ProVerb;
-  the participial-adjective row has no Complement frame field. The trial verb
-  export is removed rather than shipping an unused active-only route.
-- **Empower:** owner confirmed as the keyword action Empower Jace
-  [CR#701.71a]. Both ticket/enters witnesses are 0, amass-Zombies controls 1.
-  The narrower same-complement control *Amass Jace 3.* is also 0 (no
-  vocabulary gaps): the bare singular subtype Complement needs a declared
-  class licence, not a Jace member-list exception. PT3 fails for the existing
-  Object Noun Phrase + Amount frame; defer that construction/class decision.
-- **Already completed on parent:** saddle exports its verb; *saddles* 1 and
-  *becomes saddled* 1. Leave that definition untouched.
-
 ## Landing record
 
-1. **Census delta (`ztvzruvp`):** bounded `--identity-manifest` selector
-   `target/english-v3/english-v3-plugin-term-definitions/manifest.json`,
+1. **Census delta (`kmynzkut`, implementation `ztvzruvp`):** bounded identity
+   manifest `target/english-v3/english-v3-plugin-term-definitions/manifest.json`,
    1,076 faces: 785 matching
    `modif|part(y|ies)|multikick|expend|descend|poison|wicked|monster|young hero|cursed|royal|sorcerer|virtuous|bands with other|empower|convok|devour|saddl|evolv|banded|day|night|gift|promis`
    anywhere in supported analysed text, unioned with 300 covered controls
-   (seed 20261008; all 300 covered on the claim parent). Covered 748 → 849;
-   total Readings 20,427 → 21,307. Gains 101; lost/decreases/increases/
-   digest-only/source changes 0. Lost faces: none. No unintended-analysis
-   gains found. `english-v3 diff --lines` evidence is `diff.json` in that
-   directory; no bespoke census comparison was used.
-   Post-refresh recheck (`refreshed-after.json`, `refreshed-diff.json`) has
-   exactly the same totals and delta. The official `incoming-diff.json`
-   compares the first AFTER with the refreshed AFTER: all 1,076 faces and
-   their per-line Reading counts/digests are unchanged.
-   A second refresh imported subtype rules (`wsskrpxl` and its supporting
-   stack). `second-refreshed-after.json` / `second-refreshed-diff.json`
-   retain the same totals; `second-incoming-diff.json` again reports all
-   1,076 faces unchanged, with no count or digest changes from trunk.
-   These are the last verified totals, before the third refresh described
-   below. The latest grammar snapshot is blocked and has not been re-censused.
+   (seed 20261008; all 300 covered on the claim parent). Covered 748 → 852;
+   total Readings 20,427 → 21,324. Official `english-v3 diff --lines`:
+   104 gains, 0 lost/decreases/increases/source changes, 3 digest-only,
+   969 unchanged (`accepted-after.json`, `accepted-diff.json`). The accepted
+   ticket contributes 101 gains, 0 changes on covered faces. Official incoming
+   diff against the last verified AFTER (`accepted-incoming-diff.json`)
+   attributes three extra gains to trunk: Bjorna, Nightfall Alchemist and
+   Peri Brown (`zvoyutom`, phrasal keywords); Wicked Slumber (`qnvlmzuu`,
+   determinative-headed partitive). Three unchanged-count digests come from
+   `pusrqwml` wrapping Cardinal partitive heads as quantitative Determiners:
+   Heroes' Hangout 12, Interdisciplinary Mascot 5, Party Thrasher 82.
+   `incoming-gain-probes.json` confirms the intended keyword/partitive shapes.
+   Lost faces: none. No unintended-analysis gains found. No bespoke comparison.
 2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
    0 on the claim parent; controls had the counts below before the edit.
    Modified attributive 2/2,
@@ -284,113 +240,56 @@ Claim-parent probes are under
    Hellkite Hatchling — devoured transitive Predicate; Watchful Radstag —
    evolves intransitive Predicate. Each is newly covered and uses the
    plugin-owned Lexeme; `spot-checks.json` records the inspected Readings.
-4. **Deviations and STOPs:** eight terms completed with existing rows; no
-   Construction, loader, core vocabulary, or existing semantic body changed.
-   The deferred questions above collect party/full party, Role names,
-   day/night, gift/promise, bands with other, banded and empower. Trial
-   bands-with-other and active-only band declarations were removed after
-   probes proved the gaps. Semantics debt: modified, poisoned, descend,
-   expend and multikicker are new bodyless declarations (helper `body: ()`
-   is the existing bodyless representation). No glossary gap. A concurrent
-   docs-only claim-parent update produced divergent successors; harmony
-   recovered the test-bearing successor, preserving the newer parent and
-   ticket notes. Three integration tests in one module, registered once in
-   suite_6, assert ownership, grammatical role and independent roundtrips.
-   A first test build failed on an ambiguous conversion in a new assertion;
-   it was corrected without changing the assertion's subject or strength.
-   Existing exhaustive inventory tests were extended for multikicker's Cost
-   signature and spelling (no assertions removed):
-   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`,
-   `every_keyword_declaration_pins_its_template`, and
-   `every_keyword_template_is_consistent_with_its_params_and_grammar`. Their
-   first two full-core runs exposed the missing expected inventory rows;
-   verification was rerun after extending those rows.
-   Required refresh imported devotion (`mqyqzunv`), scalar comparatives
-   (`vszmnwup`) and supertype bound keywords (`ooumkosu`), including changes
-   to construction-v3-core, English declarations and core lexicon data.
-   The sole conflict was concurrent suite_6 registrations: preserved both
-   devotion and plugin-term modules exactly once, squashed the resolution
-   into `ztvzruvp`, and retried refresh successfully (no-op).
-   The second refresh changed semantics_v2, xtask and plugin definitions.
-   Its full xtask suite found two own regressions: the existing Multikicker
-   row-without-stub exemption became stale, and the generated Lean module
-   was stale. Removed only that obsolete exemption (the bidirectional label
-   check now covers Multikicker), and regenerated
-   `lean/Semantics/Macros/Declared.lean` with
-   `cargo xtask lean macros generate`. It adds Multikicker's syntax wrapper
-   with an empty ability-body list and records the four bodyless helpers as
-   not derived; all five engine implementations remain semantics debt.
-   No failing test was deleted, ignored or weakened.
-   Third refresh imported exactly-cardinal (`oyqrxmwz`), partitive quantity
-   (`pusrqwml`) and phrasal keyword surfaces (`zvoyutom`). Preserved both
-   suite_6 registrations and combined the keyword inventory expectation
-   (66 action declarations + 208 ability declarations); squashed both
-   conflict resolutions into `ztvzruvp`. Refresh retry completed as a no-op.
-   **STOP: upstream regression outside this ticket.** The fast facts-label
-   gate now fails on six grammar-only stubs introduced by `zvoyutom`:
-   `chooseABackground`, `doctorsCompanion`, `partnerCharacterSelect`,
-   `partnerFatherAndSon`, `partnerFriendsForever`, `partnerSurvivors`.
-   All six lack facts rows; Multikicker's own row/stub pair is now clean.
-   Giving these declarations semantic identities/rows, or changing the gate's
-   treatment of grammar-only declarations, leaves this ticket's scope and
-   needs the owning landing/ruling. Do not filter them out or waive the check.
-   The owner's assurance rule permits a STOP when the fix leaves the ticket;
-   remaining third-refresh verification stops here, before integration.
-5. **Tests:** all final commands exit 0:
-   - `cargo test -p deckmaste_english_v3` — 964 passed.
-   - `cargo test -p deckmaste_lexical_source` — 86 passed.
+4. **Deviations and STOPs:** eight terms completed with existing rows;
+   no Construction, loader, core vocabulary or existing semantic body changed.
+   Deferred questions: [english-v3-plugin-term-schema-questions](../planned/english-v3-plugin-term-schema-questions.md).
+   Removed trial bands-with-other and active-only band exports after probes
+   proved the declaration/Construction gaps; no previously admitted route was
+   retired. PT-Q1 authorizes all five new bodiless definitions as semantics debt:
+   modified and poisoned need predicate evaluation; descend and expend need
+   event recognition and rules implementations. These four helper families
+   have no facts-row gate; generated Lean lists each as bodyless/not derived.
+   Multikicker has its existing Cost-signature facts row in
+   `crates/xtask/src/facts.rs`; its engine body remains debt despite its
+   generated syntax wrapper. No invented facts rows or bodies. No glossary gap.
+   Three tests assert ownership, role and independent roundtrips, registered
+   once in suite_6; three existing exhaustive inventory tests were extended
+   for Multikicker. Initial assertion conversion and Copy-clone lint defects
+   were fixed without weakening assertions. Full xtask found a stale
+   Multikicker row-without-stub exemption and stale generated Lean: removed
+   only that obsolete exemption and regenerated Declared.lean. No failing test
+   was removed or ignored. Refresh test-registration conflicts preserved both
+   sides exactly once; documentation divergence was repaired by retaining
+   both sets of edits (the discarded successor had the identical final tree).
+   The upstream six-row STOP from `zvoyutom` was resolved by `kruuppqw`'s
+   owner-approved semantics-debt exemptions, regenerated Lean and corrected
+   Waterbend assertion. Post-refresh verification below supersedes the STOP.
+5. **Tests (`kmynzkut`):** all commands exit 0:
+   - `cargo build -p xtask` — passed (4m 43s).
+   - `cargo test -p xtask` — full suite, 425 passed, 1 inherited ignore.
+   - `cargo test -p deckmaste_english_v3` — 1,021 passed.
+   - `cargo test -p deckmaste_lexical_source` — 88 passed.
    - `cargo test -p deckmaste_construction_core` — 474 passed.
    - `cargo test -p deckmaste_semantics_v2` — 105 passed.
-   - `cargo test -p xtask english_v3` — 56 passed.
+   - `cargo clippy -p xtask --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` — passed.
-   - `cargo clippy -p xtask --tests -- -D warnings` — passed.
-   - `cargo xtask lean check` — 240/240 cards checked, 2 plugins.
-   - `cargo xtask cite bless` — registered only [CR#701.71a]; its complete
-     rule text was read against the keyword-action ownership claim.
+   - `cargo xtask lean check` — passed.
    - `cargo xtask cite check --list-noncompliant` — 0 noncompliant.
    - `cargo xtask cite check` — 0 stale.
-   - `jj --no-pager diff --git | cargo xtask cite audit --diff` — two sites
-     audited and read against the claim.
-   English clippy initially found a redundant clone of a Copy lexeme ID in
-   the new helper; removing it preserved the value comparison and assertions.
-   Final logs and command outcomes are in `verification.json` and adjacent
-   logs under the evidence directory. Assurance counts: restored 0 /
-   re-spelled 0 / ignored 0 / added 3 / removed 0; no removals to justify.
-   Required post-refresh verification also passed: `cargo build -p xtask`;
-   all five test commands and all five clippy commands above rerun in full
-   (the owner-prescribed `english_v3` selector for xtask). Refreshed totals:
-   English 979, lexical source 86, construction core 474, semantics_v2 105,
-   xtask English-v3 56. Additionally, `cargo test -p deckmaste_construction_v3_core`
-   passed 39 tests and `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
-   passed, because refresh changed that crate. All commands exit 0;
-   `refresh-verification.json` and `refresh-0.log` through `refresh-15.log`
-   retain their exact commands and outcomes. The second refresh repeated the
-   build, bounded census and full crate suites, with the same five totals.
-   Full `cargo test -p xtask` initially found the two regressions above;
-   after fixing them, it passed 425 tests. Its one pre-existing ignored test,
-   `macros::templates::tests::macro_schema_census_count_matches_21`, retains
-   its existing reason: "cross-checks the live corpus against the census;
-   run on demand". Introduced ignores: 0. All six clippy commands passed
-   again; `cargo test -p xtask english_v3` passed 56 again. Regeneration
-   required a final `cargo xtask lean check`: 242/242 cards, 2 plugins,
-   passed (the earlier check was before this generated-file correction).
-   Lean LSP completed the new declaration's elaboration with no errors.
-   Final citation checks: 0 noncompliant, 0 stale. Evidence is
-   `second-refresh-verification.json`, `fix-verification.json` and adjacent
-   logs. These successful checks precede the third refresh. On the latest
-   snapshot, `target/debug/cargo-xtask facts labels` exits 1 (six missing
-   rows), evidence `third-refresh-facts-labels.log`. The new grammar has not
-   had its required bounded census/full-suite/clippy recheck; that remains
-   pending resolution of this upstream blocker. No successful-check claim
-   is made for the latest snapshot.
-6. **Timing (`ztvzruvp`):** final bounded census 45.17 s wall time under
-   `/usr/bin/time -v`, six workers, `--samples-per-face 0`. No full-corpus
-   run. The trial-data census was rerun after removing the two unusable
-   declarations; final results above are for the retained data only.
-   Post-refresh bounded recheck: 22.86 s wall under `/usr/bin/time -v`,
-   the identical manifest, six workers, zero samples per face.
-   Second post-refresh bounded recheck: 49.97 s wall with the identical
-   manifest and worker/sample settings. No full v3 census was run.
+   - `jj --no-pager diff --git | cargo xtask cite audit --diff` — one moved
+     citation audited; [CR#701.71a] read in full against the ownership claim.
+   Earlier `cargo xtask cite bless` registered only that rule. Exact commands,
+   outcomes and timings are in `accepted-verification.json` and adjacent
+   `accepted-check-*.log` under the evidence directory. Assurance: restored 0 /
+   re-spelled 0 / introduced ignores 0 / added 3 / removed 0. No removals to
+   justify. The inherited ignored xtask test
+   `macros::templates::tests::macro_schema_census_count_matches_21` retains
+   its existing reason: “cross-checks the live corpus against the census;
+   run on demand”.
+6. **Timing (`kmynzkut`):** final bounded census 41.25 s wall under
+   `/usr/bin/time -v`, six workers, `--samples-per-face 0`, identical manifest.
+   No full-corpus census was run. Earlier bounded checks remain in the evidence
+   directory.
