@@ -700,6 +700,12 @@ The grammatical distinction between positive and negative expressions.
 **Countability**:
 The distinction between count and mass uses of a noun. A Lexeme may license
 both uses; Number and choice of Determiner constrain which use is available.
+Explicit partitives distinguish plural, non-count singular, and restricted
+count singular obliques (CGEL, Ch. 5 §9.1, p. 411). The projected Countability
+(`PartitiveCountability`) implements PD2
+([orchestrator ruling, 2026-10-10](../../tickets/done/english-v3-partitive-determinative-heads.md#analysis))
+by distinguishing mass singular noun obliques from count singular ones.
+Pronouns project `Unrestricted` without inventing a noun Countability.
 
 **Bare Noun Phrase**:
 A Noun Phrase formed from a Nominal without a Determiner. Plural count and
@@ -1542,6 +1548,10 @@ when its Nominal head is coordinated. Other Determiners allow Nominal
 Agreement Number through ([owner ruling, 2026-10-08](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis));
 CGEL, Ch. 5 §18.4(a), p. 508 [28] describes singular agreement for
 coordinated NPs containing distributive *each* or *every*.
+For an unrestricted fused Determiner-Head over a plural partitive oblique,
+Agreement permits either Number, selected by the finite Predicate, while
+retaining one Noun Phrase analysis (PD2,
+[orchestrator ruling, 2026-10-10](../../tickets/done/english-v3-partitive-determinative-heads.md#analysis)).
 
 **Subject Relative Number** (project term):
 The Number required by a Subject-gap Relative Clause on a coordinated Nominal,

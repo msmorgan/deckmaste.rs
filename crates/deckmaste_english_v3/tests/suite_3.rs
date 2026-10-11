@@ -73,3 +73,6 @@ mod named_modes_regression;
 
 #[path = "suite/exactly_cardinal_modifier.rs"]
 mod exactly_cardinal_modifier;
+
+#[path = "suite/partitive_determinative_heads.rs"]
+mod partitive_determinative_heads;
