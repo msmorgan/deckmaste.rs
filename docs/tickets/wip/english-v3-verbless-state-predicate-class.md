@@ -158,6 +158,13 @@ and continuation; the final checks are recorded below.
    refresh-after.json, refresh-diff.json, refresh-only-diff.json. The only supported
    haunted face is Cecily, Haunted Mage: haunted occurs in its proper Name,
    so no covered-face state-Adjective increase is expected there.
+   Final refresh brought ooumkosu (supertype-bound keywords) and
+   wsskrpxl (subtype/plugin definitions). The bounded re-run
+   vw12-post-refresh-after.json again has 6,045 covered faces, 216,140
+   Readings and 0 issues; its official line diff against vw12-final-after
+   reports all 7,102 faces unchanged. The parent diff still reports exactly
+   the previously attributed 73 gains, 25 CF7 decreases and 80 digest-only
+   changes. Ticket-caused gains/lost/decreases/increases/digest-only: all 0.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
    gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
    tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
@@ -232,8 +239,14 @@ and continuation; the final checks are recorded below.
    their logs remain in target. cargo xtask cite check --list-noncompliant
    reports 0; cargo xtask cite check reports 0 stale; jj --no-pager diff
    --git | cargo xtask cite audit --diff audits 0 citation sites; cargo
-   xtask facts check PASS.
-6. **Timing** — Latest bounded census: 324 s (rounded wall time), six
+   xtask facts check PASS. After the final refresh, cargo build -p xtask
+   PASS; cargo test -p deckmaste_english_v3 PASS (979 tests); cargo test -p
+   deckmaste_lexical_source PASS (87 tests); cargo clippy -p
+   deckmaste_english_v3 --tests -- -D warnings PASS; cargo clippy -p
+   deckmaste_lexical_source --tests -- -D warnings PASS; cargo test -p xtask
+   english_v3 PASS (56 tests). The refreshed cargo xtask lean check PASS: all 242 cards across two
+   plugins prove Card.check = [].
+6. **Timing** — Latest bounded census: 301 s (rounded wall time), six
    workers, zero samples per face. No full corpus census was run, per the
    binding verification budget. Evidence is under
    target/english-v3/english-v3-verbless-state-predicate-class/.
