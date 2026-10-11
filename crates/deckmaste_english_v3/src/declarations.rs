@@ -274,6 +274,10 @@ constructions! {
         feature IrrealisClauseComplement { No, Yes } default No;
         feature VerblessClauseComplement { No, Yes, OvertSubject } default No;
         feature VerblessPredicateUse { No, Yes } default No;
+        feature VerblessComplementOmissionUse { No, Yes } default No;
+        table verbless_ordinary_frame_use(framing, VerblessComplementOmissionUse) -> VerblessPredicateUse {
+            (Unframed, _) => Yes, (_, Yes) => Yes, (_, _) => No,
+        }
         feature GerundClauseComplement { Yes }
         feature ComplementFunctionRestriction { None, Adjunct, Compound, PreposedOrPredicative } default None;
         table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction,
@@ -4574,13 +4578,19 @@ constructions! {
         // intransitive frame, never an unsupplied selected Complement.
         construction VerblessClause: VerblessClause {
             form [predicate: lexical(Adjective)]
-                require predicate.AdjectiveOrigin = Ordinary;
+                require predicate.AdjectiveOrigin = Ordinary
+                require verbless_ordinary_frame_use(predicate.framing,
+                    predicate.VerblessComplementOmissionUse) = Yes;
             form [predicate: lexical(Adjective)]
                 require predicate.AdjectiveOrigin = Participial
                 require predicate.framing = Unframed;
             form [predicate: lexical(Adjective)]
                 require predicate.AdjectiveOrigin = Participial
                 require predicate.frame = Intransitive;
+            form [predicate: lexical(Adjective)]
+                require predicate.AdjectiveOrigin = Ordinary
+                require predicate.frame = Intransitive
+                require predicate.VerblessComplementOmissionUse = No;
             require predicate.VerblessPredicateUse = Yes;
             export VerblessClauseComplement = Yes;
         }

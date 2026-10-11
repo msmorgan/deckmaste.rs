@@ -25,6 +25,16 @@ fn adjunct(preposition: &str, owner: &str) -> Reading {
                 .unwrap(),
         );
         2
+    } else if !entry.properties.frames.is_empty() {
+        predicate.frame = Some(
+            entry
+                .properties
+                .frames
+                .iter()
+                .position(|frame| frame.kind == "Predicate" && frame.items.is_empty())
+                .unwrap(),
+        );
+        3
     } else {
         0
     };
@@ -61,7 +71,7 @@ pub(super) fn add_predicate_adjunct(mut control: Reading, owner: &str) -> Readin
 
 #[test]
 fn state_derivations_supply_one_verbless_route_and_preserve_control_ambiguity() {
-    // VW7–VW10 authorize hypothetical class members, independently of attestation.
+    // VW7–VW12 authorize hypothetical class members, independently of attestation.
     for (surface, owner) in [
         ("saddled", "lexeme:designation/saddled"),
         ("prepared", "lexeme:designation/prepared"),
@@ -74,6 +84,13 @@ fn state_derivations_supply_one_verbless_route_and_preserve_control_ambiguity() 
         ("enchanted", "lexeme:keyword_ability/enchant/adjective"),
         ("suspended", "lexeme:keyword_ability/suspend/adjective"),
         ("haunted", "lexeme:keyword_ability/haunt/adjective"),
+        ("unblocked", "vocab:Adjective/Unblocked"),
+        ("unspent", "vocab:Adjective/Unspent"),
+        ("red", "vocab:ColorWord/Red"),
+        ("monocolored", "vocab:ColorWord/Monocolored"),
+        ("legendary", "vocab:PredicativeAdjective/Legendary"),
+        ("other", "vocab:AttributiveAdjective/Other"),
+        ("same", "vocab:AttributiveAdjective/Same"),
     ] {
         let text = format!("This creature attacks while {surface}.");
         let controls = common::readings("This creature attacks.", Category::Sentence);
@@ -109,6 +126,13 @@ fn independently_composed_state_complements_keep_existing_owners_and_both_laws()
         ("crewed", "lexeme:keyword_ability/crew/verb/adjective"),
         ("equipped", "lexeme:keyword_ability/equip/adjective"),
         ("haunted", "lexeme:keyword_ability/haunt/adjective"),
+        ("unblocked", "vocab:Adjective/Unblocked"),
+        ("unspent", "vocab:Adjective/Unspent"),
+        ("red", "vocab:ColorWord/Red"),
+        ("monocolored", "vocab:ColorWord/Monocolored"),
+        ("legendary", "vocab:PredicativeAdjective/Legendary"),
+        ("other", "vocab:AttributiveAdjective/Other"),
+        ("same", "vocab:AttributiveAdjective/Same"),
     ] {
         for (preposition, text) in [
             ("vocab:Preposition/While", format!("while {surface}")),
@@ -123,7 +147,11 @@ fn independently_composed_state_complements_keep_existing_owners_and_both_laws()
             );
         }
     }
-    assert!(common::readings("while legendary", Category::PrepositionPhrase).is_empty());
+    // An implicit comparative is attributive-only; less has a required
+    // selected Complement rather than a bare predicative frame.
+    for text in ["while greater", "while less"] {
+        assert!(common::readings(text, Category::PrepositionPhrase).is_empty());
+    }
 }
 
 #[test]

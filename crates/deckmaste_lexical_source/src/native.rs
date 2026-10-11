@@ -619,6 +619,44 @@ pub(crate) fn replace_forms(
     Ok(())
 }
 
+// VW12: bare Adjective and IntransitiveAdjective are predicative unless
+// ImplicitComparativeUse makes their phrase attributive-only. Selected
+// complements still need an explicit omission licence (currently able).
+pub(crate) fn add_predicative_adjective_permission(
+    lexemes: &mut [Lexeme],
+) -> Result<(), LoadError> {
+    for lexeme in lexemes {
+        let properties = &mut lexeme.properties;
+        if lexeme.category != deckmaste_lexical::Category::Adjective
+            || properties
+                .features
+                .get("ImplicitComparativeUse")
+                .is_some_and(|value| value == "Yes")
+            || (!properties.frames.is_empty()
+                && !properties
+                    .frames
+                    .iter()
+                    .any(|frame| frame.kind == "Predicate" && frame.items.is_empty()))
+        {
+            continue;
+        }
+        if properties
+            .features
+            .get("VerblessPredicateUse")
+            .is_some_and(|value| value != "Yes")
+        {
+            return Err(LoadError::DuplicateFeature {
+                owner: lexeme.id.to_string(),
+                name: "VerblessPredicateUse".into(),
+            });
+        }
+        properties
+            .features
+            .insert("VerblessPredicateUse".into(), "Yes".into());
+    }
+    Ok(())
+}
+
 /// Apply authored category defaults only where an individual declaration is
 /// silent.
 pub(crate) fn add_category_feature_defaults(
@@ -1194,6 +1232,73 @@ mod adjective_class_tests {
             owner: "class/member".into(),
         }
     }
+    #[test]
+    fn predicative_admissibility_exports_permission_without_membership_or_new_owners() {
+        let bare = Lexeme::invariant("synthetic/bare", "synthetic", Category::Adjective, source());
+        let mut intransitive = bare.clone();
+        intransitive.properties.frames = vec![Frame {
+            kind: "Predicate".into(),
+            items: vec![],
+        }];
+        let mut attributive = intransitive.clone();
+        attributive
+            .properties
+            .features
+            .insert("ImplicitComparativeUse".into(), "Yes".into());
+        let mut selected = bare.clone();
+        selected.properties.frames = vec![Frame {
+            kind: "Adjectival".into(),
+            items: vec![FrameItem::Argument(deckmaste_lexical::FrameSlot {
+                relation: deckmaste_lexical::Relation::Complement,
+                category: "InfinitiveComplement".into(),
+            })],
+        }];
+        let mut noun = bare.clone();
+        noun.category = Category::Noun;
+        let mut entries = vec![
+            bare.clone(),
+            intransitive.clone(),
+            attributive.clone(),
+            selected.clone(),
+            noun.clone(),
+        ];
+        let mut expected_bare = bare.clone();
+        expected_bare
+            .properties
+            .features
+            .insert("VerblessPredicateUse".into(), "Yes".into());
+        let mut expected_intransitive = intransitive;
+        expected_intransitive
+            .properties
+            .features
+            .insert("VerblessPredicateUse".into(), "Yes".into());
+        let expected = vec![
+            expected_bare,
+            expected_intransitive,
+            attributive,
+            selected,
+            noun,
+        ];
+        add_predicative_adjective_permission(&mut entries).unwrap();
+        assert_eq!(entries, expected);
+        add_predicative_adjective_permission(&mut entries).unwrap();
+        assert_eq!(entries, expected);
+        let mut conflicting = bare;
+        conflicting
+            .properties
+            .features
+            .insert("VerblessPredicateUse".into(), "No".into());
+        let mut entries = vec![conflicting.clone()];
+        match add_predicative_adjective_permission(&mut entries).unwrap_err() {
+            LoadError::DuplicateFeature { owner, name } => {
+                assert_eq!(owner, "synthetic/bare");
+                assert_eq!(name, "VerblessPredicateUse");
+            }
+            other => panic!("{other:?}"),
+        }
+        assert_eq!(entries, vec![conflicting]);
+    }
+
     fn class(members: &[&str]) -> AdjectiveClass {
         AdjectiveClass {
             members: members.iter().map(|member| (*member).into()).collect(),

@@ -48,6 +48,22 @@ Owner correction (user, 2026-10-10, verbatim): "hypothetical lines such as attac
   restricted to the KS shape on faces containing the new state Adjective;
   otherwise STOP. This resolves the vocabulary-source STOP recorded below.
 
+- **VW11** (orchestrator, 2026-10-10): trunk decreases introduced by
+  refresh are attributed to their owning change, including the 25 from
+  `qktrquumtlmk` authorized by CF7. They do not count against this ticket's
+  self-integration gate: ticket-caused lost/decreases must be zero and
+  increases must be only the KS shape on newly derived haunted faces.
+- **VW12** (orchestrator, 2026-10-10): prefer the class of Adjectives
+  admissible as predicative Complements, using the existing declared
+  predicative restriction. Replace redundant per-derivation exports and
+  include unblocked, unspent, red and monocolored. Adopt only if the same
+  7,102-face census has zero ticket-caused lost/decreases and no increases
+  on covered faces except the KS shape. Otherwise retain the state-class
+  exports, mark negative participial Adjectives through their derivation or
+  existing class, list remaining unmarked predicative residuals, and report
+  the rejected trial's increases. No grammar member lists. Run full suites
+  and clippy, apply refresh checks, integrate and drop without another STOP.
+
 ## Method
 
 Inspect the existing state-Adjective derivations and declarations; re-probe
@@ -125,9 +141,17 @@ and continuation; the final checks are recorded below.
    the 62 outer-focus Readings deliberately retired by `qktrquumtlmk`, CF7,
    in [coordinated-focused-adjuncts](../done/english-v3-coordinated-focused-adjuncts.md).
    Their face counts are: Arcum's Sleigh 2→1; Ashen Ghoul 3→2; Assassin's Blade 7→4; Champion's Victory 7→4; Coffin Puppets 2→1; Command of Unsummoning 7→4; Deep Wood 30→27; Defenders of Humanity 21→14; Defiant Stand 7→4; Eightfold Maze 7→4; Essence Anchor 3→2; Gutterbones 3→2; Hakim, Loreweaver 4→3; Harsh Justice 12→9; Heavy Fog 30→27; Just Fate 7→4; Kjeldoran Guard 2→1; Kongming's Contraptions 6→3; Kuldotha Phoenix 5→3; Nemesis Phoenix 3→2; Rally the Troops 7→4; Remove 7→4; Scorching Winds 7→4; Treetop Defense 7→4; Warrior's Stand 7→4.
-   No decrease originates in this ticket's pre-refresh change. Nevertheless,
-   the post-refresh 25 decreases fail VW10's literal self-integration gate:
-   STOP, pending a ruling. No retired wrong outer-focus route is restored.
+   No decrease originates in this ticket. VW11 resolves the prior gate
+   STOP: these owner-approved trunk decreases are attributed to CF7 and
+   excluded from this ticket's gate. No retired wrong route is restored.
+   The VW12 preferred-class trial compares refresh-after.json with
+   vw12-preferred-after.json: all 7,102 faces unchanged, 0 gains/lost/
+   decreases/increases/digest-only, 6,045 covered and 216,140 Readings.
+   The corrected final census vw12-final-after.json has the same totals
+   and its official vw12-final-only-diff.json again reports all 7,102
+   faces unchanged. Its official parent comparison has the same 73 gains,
+   25 decreases and 80 digest-only trunk changes, with 0 ticket-caused
+   gains, lost faces, decreases, increases or digest changes.
    The other incoming implementations are `vszmnwup` / `ttzrlpkw`
    (comparatives), `mqyqzunv` (devotion) and `tsvuoyup` (spelled cardinals);
    refresh-incoming-changes.txt lists the complete ancestry. Census evidence:
@@ -146,7 +170,12 @@ and continuation; the final checks are recorded below.
    remains 1. Prior Ghoda/Jaguar/Mascot/Dracosaur witnesses and controls read
    1 each; local while saddled stays 1, has flying while tapped changes 0→1,
    finite while saddled stays 2, finite while tapped stays 4, and the attack
-   trigger control stays 1. All final probes enumerate completely with 0 issues.
+   trigger control stays 1. VW12 unblocked/unspent/red/monocolored/legendary
+   while probes change 0→1; their is/remains controls each stay 1. Corrected
+   other/same while probes each read 1 beside their is controls of 1;
+   while greater/less read 0 and if able stays 1. All final probes enumerate
+   completely with 0 issues. Evidence: vw12-final-probe-*.json,
+   vw12-before-*.json, vw12-preferred-while-*.json, vw12-corrected-*.json.
 3. **Spot checks** — No ticket-owned newly covered corpus faces exist in the
    pre-refresh final diff,
    so there are no ten gained faces to name. Independent hypothetical probes
@@ -155,50 +184,56 @@ and continuation; the final checks are recorded below.
    forms a clause-final Preposition Predicate containing while + Verbless
    Clause with its existing Adjective owner. This is the same one route as
    its control, with no subjectless passive alternative.
-4. **Deviations and STOPs** — VW7–VW10 replace the superseded one-member
-   adjective-class row, which is deleted. Native participial classes export
-   VerblessPredicateUse with their existing AdjectiveOrigin marker; no member
-   list changes. Keyword participial_adjective recipes and Designation
-   declarations with Adjective grammar export the permission generically in
-   the loader, without naming a word or changing owners. Haunt declares the
-   existing participial-adjective recipe on its owning plugin: no schema
-   change or core member row. The vocabulary-source STOP at `znzxkzuk` was
-   resolved by VW10. A later native-source audit at `xxtorssp` found
-   invariant core Adjectives unblocked and unspent with empty feature maps,
-   no state/participial marker or declared state-class membership. Both is/remains
-   controls read 1; both bare while phrases read 0, completely with 0
-   issues. Integration is held for the VW7 unmarked-class STOP unless a
-   ruling classifies these existing ordinary Adjective sources as VW10
-   vocabulary residuals. No word list or new marker has been introduced.
-   Evidence: marker-probe-*.json; core.ron owns both declarations. One extra blocked
-   route was found by probes: the selected by-Complement frame was accepted
-   without its Complement. The existing VerblessClause now separates native
-   participial unframed/intransitive selections from ordinary licensed heads;
-   the existing saddled/able forms remain stable. Two surface alternatives,
-   no new Construction or lexical frame, are added to enforce VW8's one
-   route. The VerblessPredicateUse glossary entry records the class ruling;
-   no terminology gap remains. CGEL p. 1267 supports reducible Clause
-   Complements only; class permission and distribution are project rulings.
-5. **Tests** — At `yovlyztp`, cargo test -p deckmaste_english_v3 passes all
-   945 tests, and cargo test -p deckmaste_lexical_source passes all 86 tests.
-   Both cargo clippy -p deckmaste_english_v3 --tests -- -D warnings and
-   cargo clippy -p deckmaste_lexical_source --tests -- -D warnings pass.
-   cargo test -p xtask english_v3 passes 56 tests; cargo xtask lean check
-   passes for 240 cards across two plugins.
-   Restored 0 / re-spelled 1 / ignored 0 / added 3 / removed 0:
-   independent_complement_keeps_owner_roundtrips_and_lexical_licences retains
-   its subject and now asserts the licensed tapped Reading; the three new
-   class-role tests are registered once in suite_4. No test deletion or
-   weakening. cargo xtask cite check --list-noncompliant reports 0; cargo xtask cite
-   check reports 0 stale; jj --no-pager diff --git | cargo xtask cite audit
-   --diff audits 0 citation sites; cargo xtask facts check passes. The
-   citation checker initially treated a decimal timing as a rule-number
-   lookalike; integer seconds resolved that documentation-only failure.
-   After refresh at `xxtorssp`, cargo build -p xtask and the same four full
-   touched-crate test/clippy commands PASS again: 975 English tests and 86
-   lexical-source tests. The once-required xtask English and Lean checks
-   are retained; refresh changed no xtask code or plugin definitions.
-6. **Timing** — Latest bounded census at `xxtorssp`: 956 s (rounded wall
-   time, including Cargo's build-lock wait), six workers, zero samples per
-   face. No full corpus census was run, per the binding verification budget.
-   Evidence is under target/english-v3/english-v3-verbless-state-predicate-class/.
+4. **Deviations and STOPs** — VW7–VW12 supersede the one-member
+   adjective-class row, which is deleted. The preferred predicative-class
+   implementation is adopted: the loader derives VerblessPredicateUse for
+   every existing Adjective with an unframed or empty Predicate realization,
+   excluding ImplicitComparativeUse's existing attributive-only restriction.
+   These are the declarations underlying Adjective/IntransitiveAdjective
+   and AdjectiveAttributiveOnlyUse on AdjectivalComplement. No word guard,
+   member list, duplicate lexeme or new owner is introduced. The now-redundant
+   native participial-class and keyword/Designation exports are removed.
+   Haunt declares its existing participial-adjective recipe in the owning
+   plugin; no schema change or core member row. The vocabulary-source STOP
+   at znzxkzuk was resolved by VW10; the unmarked unblocked/unspent STOP
+   at xxtorssp is resolved by VW12. Both are members of the natural
+   predicative class and now read under while, as do red/monocolored/legendary.
+   No remaining unmarked predicative residual was found.
+   Probes found wrong omitted-selected-Complement routes for blocked and,
+   in the preferred trial, other. The latter initially read 2 although its
+   bare is control has one adjectival route. VerblessClause restricts derived
+   permission to unframed or Intransitive selections. Its ordinary framed
+   alternative is added; the existing saddled/able form and native
+   participial forms remain stable. VerblessComplementOmissionUse explicitly
+   preserves the existing able omission decision without granting omission
+   to the broader class. Both feature terms are recorded in the glossary.
+   CGEL p. 1267 supports reducible Clause Complements only; class permission
+   and distribution are project rulings. The synthetic loader test checks
+   complete values, owner preservation, attributive/selected exclusions,
+   idempotence and conflicting-value rejection. The single/extra lexical
+   fixture is re-spelled to include the derived feature while retaining its
+   complete feature-map comparison. The new legendary exclusion is
+   re-spelled as the exact positive class Reading under VW12.
+5. **Tests** — On vsvvsrvs, cargo test -p deckmaste_english_v3 PASS:
+   975 tests across all six binaries. cargo test -p deckmaste_lexical_source
+   PASS: 87 tests (43 unit, 44 integration). cargo clippy -p
+   deckmaste_english_v3 --tests -- -D warnings PASS; cargo clippy -p
+   deckmaste_lexical_source --tests -- -D warnings PASS. cargo build -p
+   xtask PASS. The earlier once-required cargo test -p xtask english_v3
+   passed 56 tests, and cargo xtask lean check passed 240 cards across two
+   plugins. Restored 0 / re-spelled 2 / ignored 0 / added 4 / removed 0:
+   the existing tapped exclusion and single/extra lexical fixture are
+   re-spelled against their authorized class; three role/roundtrip tests
+   are registered once in suite_4, and one synthetic loader test is added.
+   No test is removed or weakened. The initial preferred-suite failures
+   exposed the missing fixture feature and the wrong omitted other-than
+   frame; the complete suites pass after the fixture update and production
+   frame fix. Initial and post-first-refresh suites/clippy also passed;
+   their logs remain in target. cargo xtask cite check --list-noncompliant
+   reports 0; cargo xtask cite check reports 0 stale; jj --no-pager diff
+   --git | cargo xtask cite audit --diff audits 0 citation sites; cargo
+   xtask facts check PASS.
+6. **Timing** — Latest bounded census: 324 s (rounded wall time), six
+   workers, zero samples per face. No full corpus census was run, per the
+   binding verification budget. Evidence is under
+   target/english-v3/english-v3-verbless-state-predicate-class/.

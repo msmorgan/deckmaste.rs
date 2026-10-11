@@ -354,13 +354,22 @@ An Adjective's declared permission to realize a Verbless Clause's Predicate.
 For *able*, its selected infinitival Complement is unexpressed; that licence
 is the [attestation-based project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis),
 not an example supplied by CGEL's account of *necessary* and *possible*.
-State Adjectives inherit the permission from their declared derivation or
-class: native participial-Adjective classes, keyword participial-adjective
-exports, and Adjective exports of Designations. This class permission follows
-project rulings VW7/VW10 (2026-10-10, `english-v3-verbless-state-predicate-class`),
+Adjectives inherit the permission from their admissibility as a bare
+predicative Complement: an unframed Adjective or an empty Predicate frame
+without the existing implicit-comparative attributive-only restriction.
+The same declaration underlies AdjectiveAttributiveOnlyUse on the
+predicative phrase. Required selected Complements still need an explicit
+omission licence, as for able. This class permission follows project rulings
+VW7–VW12 (2026-10-10, `english-v3-verbless-state-predicate-class`),
 superseding VW2/VW6's one-member licence; CGEL's account of reducible
 Clause Complements supports the verbless shape (Ch. 14 §10(b), p. 1267),
 not this project's choice of licensed Adjectives.
+
+**VerblessComplementOmissionUse** (project feature):
+An Adjective's declared permission to leave its selected Complement
+unexpressed in a Verbless Clause. This preserves the existing able licence
+([project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis));
+ordinary predicative admissibility alone licenses only the bare frame.
 
 **Verbless Clause Complement** (project term):
 A Preposition's declared permission to take a Verbless Clause as its

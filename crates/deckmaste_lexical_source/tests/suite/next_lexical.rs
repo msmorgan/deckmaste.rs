@@ -145,6 +145,7 @@ fn single_and_extra_are_invariant_adjectives_with_declared_default_license() {
             lexeme.properties.features,
             std::collections::BTreeMap::from([
                 ("BareSingularUse".into(), "No".into()),
+                ("VerblessPredicateUse".into(), "Yes".into()),
                 (
                     "FeatureSource:BareSingularUse".into(),
                     "crates/deckmaste_lexical_source/lexicon/core.ron".into()

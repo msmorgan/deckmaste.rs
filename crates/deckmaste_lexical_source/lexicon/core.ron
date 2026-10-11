@@ -19,13 +19,13 @@
         "lexeme:turn_part/combat": Joined,
     },
     participial_adjective_classes: [(
-        features: {"AdjectiveOrigin": "Participial", "VerblessPredicateUse": "Yes"},
+        features: {"AdjectiveOrigin": "Participial"},
         form: PastParticiple,
         members: [
             "lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block",
         ],
     ), (
-        features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No", "VerblessPredicateUse": "Yes"},
+        features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No"},
         form: PastParticiple,
         members: ["lexeme:keyword_action/exile", "lexeme:keyword_ability/crew/verb"],
     )],
@@ -143,7 +143,7 @@
         "lexeme:turn_part/combat": {"NounPremodifier": "Yes", "NominalBareClass": "Interval", "NominalAdjunctClass": "Temporal"},
         "lexeme:Verb/Defend": {"BareSingularUse": "Yes"},
         "vocab:Adjective/Random": {"AdjectiveComplementClass": "Manner"},
-        "vocab:Adjective/Able": {"VerblessPredicateUse": "Yes"},
+        "vocab:Adjective/Able": {"VerblessPredicateUse": "Yes", "VerblessComplementOmissionUse": "Yes"},
         "lexeme:CommonNoun/Number": {"NumberTransparency": "Yes", "ScalarDenotation": "Yes"},
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},
         "vocab:Determinative/Every": {"NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},

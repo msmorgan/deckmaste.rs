@@ -110,6 +110,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
     native::add_frames(&mut output.lexemes, native.frame_additions)?;
     native::add_category_feature_defaults(&mut output.lexemes, &native.category_feature_defaults)?;
     native::reconcile_frames(&mut output.lexemes, &native.frame_markers)?;
+    native::add_predicative_adjective_permission(&mut output.lexemes)?;
     for lexeme in &mut output.lexemes {
         if lexeme.source.kind == SourceKind::Catalog || lexeme.category == Category::Keyword {
             lexeme.surface_structure = SurfaceStructure::Opaque;
