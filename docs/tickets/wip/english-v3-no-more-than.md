@@ -179,6 +179,18 @@ only.
    `incoming-digest-classes.json` in the same target directory. The
    remaining incoming changed lines belong to gains; no new covered-face
    Reading shape needs an increase justification.
+   **Final accepted refresh** (`xqpvtoks`): the ORIGINAL **13,276-face**
+   manifest reports **11,692 → 11,763 covered**, **544,916 → 545,604
+   Readings**; **71 gains / 0 lost / 0 decreases / 0 covered-face increases /
+   633 digest-only**. This preserves the accepted **17 ticket gains** and
+   adds **54 trunk gains**. Against `after-refresh.json`, the final official
+   diff adds **31 gains** and changes no previously covered face. Thus the
+   **647 digest-only lines** retain the classes above. New trunk behavior
+   comes from `oslovlpz` (anywhere else), `nklknwxy` (superlative most),
+   `wvxrpyol` (independent genitives), `vlxnywvr` (dead prediction filtering)
+   and `owouoxzv` (at-random source); no incoming decrease or increase needs
+   attribution. Evidence: `after-final.json`, `diff-final.json` and
+   `diff-final-incoming.json` under the same ticket target directory.
 2. **Witnesses** (`olomvlyu`, parent → implementation probe counts):
    Crawlspace **0 → 2**; Judoon Enforcers **0 → 2**; Pit Imp **0 → 1**;
    Sewer Rats **0 → 2**; Fires of Invention **0 → 4**; Noun Phrase
@@ -213,13 +225,18 @@ only.
    determination rejects it. The Modifier class follows the owner
    refinement above, rather than NM2's superseded member list. Glossary
    additions: Comparative Degree Modifier Use and Frequency Use, with
-   CGEL and project-ruling attribution kept distinct. **STOP, ruling
-   pending:** Emblazoned Golem's *no more than one mana of each color*
+   CGEL and project-ruling attribution kept distinct. **Residual, accepted by the orchestrator (2026-10-11):** Emblazoned Golem's *no more than one mana of each color*
    and its unmodified control *more than one mana of each color* both
    have **0** Readings. The existing measured NP admits only Coordinated
-   quantities under BQ1; a ruling was requested on admitting Headed
-   quantities there or leaving this inherited host gap to a follow-up.
-   That route has not been broadened. **Refresh STOP, scope ruling pending:**
+   quantities under BQ1; the orchestrator directs that this inherited host gap remain
+   a residual, not a fix in this landing. Affected supported face:
+   **Emblazoned Golem** (`fbeafc81-1ddb-4b54-8f86-e6afd5f81db8#card`),
+   **one face**, verified by `english-v3 grep 'more than one mana' -i`;
+   identity evidence: `measured-mana-residual-faces.json`. The wider search
+   also finds Jegantha, the Wellspring, whose *one of the same mana symbol*
+   is a different partitive shape, not this measured-mana host gap.
+   That route has not been broadened.
+   **Historical refresh STOP, resolved by trunk:**
    the full English suite fails
    `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
    at the unchanged chart-item ceiling: **12,503 > 12,500**;
@@ -229,7 +246,10 @@ only.
    realization and zero issues. The earlier item guard prevents the test
    reaching its exact Reading-set assertion. No test ceiling or assertion
    was weakened; parser-performance work would extend this ticket's scope,
-   and the orchestrator was asked whether to add it or review this STOP.
+   the orchestrator
+   confirms that `english-v3-chart-dead-prediction-filter` fixes it on trunk
+   by skipping dead dot-0 predictions, with no ceiling change. The final
+   scoped checks below verify the combined tree.
    Evidence: `refresh-test-english.log` and `resource-failure-probe.json`
    under the ticket's target directory. The Eternal Wanderer's independent
    failing line and the ticket's discontinuous/no-*than* exclusions remain
@@ -242,12 +262,15 @@ only.
    (**88 passed**); `cargo clippy -p deckmaste_english_v3 --tests --
    -D warnings` PASS; `cargo clippy -p deckmaste_lexical_source --tests --
    -D warnings` PASS. Restored / re-spelled / newly ignored / added /
-   removed: **0 / 3 / 0 / 5 / 0**. Re-spelled
-   `independent_comparative_quantities_preserve_structure_and_lexical_identity`,
-   `comparative_determiners_preserve_finite_agreement` and
-   `comparative_quantity_selection_rejects_invalid_independent_values`:
-   their independently constructed comparative values now include
-   `modifier: None`, retaining every existing card and expected outcome.
+   removed: **0 / 3 / 0 / 5 / 0**. Re-spelled expectations (no sentence,
+   value-comparison assertion or asserted outcome changed):
+
+   `independent_comparative_quantities_preserve_structure_and_lexical_identity`: the expected unmodified Comparative Determinative Phrase in the quantity and NP values adds `modifier: None`.
+
+   `comparative_determiners_preserve_finite_agreement`: the expected full NP value for *more than one creature* adds `modifier: None` to its Comparative Determinative Phrase; the Reading-set value comparison remains.
+
+   `comparative_quantity_selection_rejects_invalid_independent_values`: the independently constructed invalid Comparative Determinative Phrase values add `modifier: None`; their admission/realization rejection checks remain.
+
    No removal to justify. Citation checks: zero noncompliant, zero stale,
    no new citation sites in the piped diff audit; `cite bless` unchanged.
    After refresh (`otvxplsm`, code-equivalent to refreshed `olomvlyu`):
@@ -256,8 +279,19 @@ only.
    named in item 4; the same full lexical-source test command PASS
    (**88 passed**); both exact clippy commands above PASS. All five new
    tests passed again. No additional test re-spelling or removal.
+   **Final scoped checks** (`xqpvtoks`): `cargo build -p xtask` PASS;
+   `cargo test -p deckmaste_english_v3` PASS (**1,119 passed**, same one
+   pre-existing ignore), including the unchanged recipient chart-budget
+   test; `cargo test -p deckmaste_lexical_source` PASS (**88 passed**);
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` PASS;
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` PASS.
+   The three original tests still use the same full values and sentences;
+   their rejection checks and Reading-set comparisons are unchanged.
 6. **Timing** (`olomvlyu`): the bounded AFTER census took **549 seconds, 100 milliseconds**
    under `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.
    The same bounded census after refresh took **383 seconds, 580 milliseconds**, under the
    same timing command, **6 workers**, `--samples-per-face 0`, with the
    original **13,276-face** identity manifest; no full corpus run.
+   Final bounded census: **207 seconds, 560 milliseconds**, again under
+   `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`, and the
+   ORIGINAL **13,276-face** manifest.
