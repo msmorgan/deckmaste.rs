@@ -151,6 +151,15 @@ english-v3 grep` only.
    own gains retain their counts and digests. No digest-only classes/lines.
    Evidence: `after-post-refresh.json`, `diff-post-refresh.json`, and
    `diff-refresh-only.json` in the same directory.
+   Accepted integration-turn refresh: original **3,353** faces, covered
+   **3,049 → 3,083**, Readings **99,257 → 101,855**, gained **34**;
+   lost/decreases/increases/digest-only all **0**, unchanged **3,319**,
+   73 changed lines. The 27 own gains are unchanged. Relative to the
+   reviewed post-refresh census, three trunk gains add 101 Readings and
+   seven lines: Akawalli (80) from additive adjustments `zquvqlrm`, Jetfire
+   (8) and Raphael (13) from quantified mana `rovouzyr`. No digest-only
+   classes or lines. Final evidence: `after-integration.json`,
+   `diff-integration.json`, `diff-integration-refresh-only.json`.
 2. **Witnesses — `lpnkpkpu`.** Re-probed before implementation: Aladdin's
    Lamp, Gogo's final sentence, Worldfire's life-total sentence, Vraska's
    −10 line, Null Profusion's hand-size sentence, and Cursed Rack's hand-size
@@ -187,7 +196,10 @@ english-v3 grep` only.
    diff in that ticket. The first refresh exited 69 on this one docs
    conflict; it was resolved at `lpnkpkpu`, and retry exited 0. Incoming
    grammar/lexicon changes are the mana-passive landing `onymknyk`.
-   No glossary gap; no unresolved STOP.
+   Integration-turn refresh exited 69 on adjacent test registrations and
+   hygiene notes; preserved both sides at `lpnkpkpu`, and retry exited 0.
+   Incoming code is additive adjustments `zquvqlrm` and quantified mana
+   `rovouzyr`. No glossary gap; no unresolved STOP.
 5. **Tests — `lpnkpkpu`.** `cargo test -p deckmaste_english_v3` initially
    failed only on the new Vraska assertion's ambiguous substring *1*
    (also present in *−10*). Direct diagnostic:
@@ -197,7 +209,7 @@ english-v3 grep` only.
    `cargo test -p deckmaste_english_v3 -- --test-threads 6`: **passed**,
    1,138 tests, including all five new tests and every selected-complement
    budget check; one inherited MS4 ignore remains, with its named blocker.
-   `cargo test -p deckmaste_lexical_source`: **passed**, 44 tests.
+   `cargo test -p deckmaste_lexical_source`: **passed**, 88 tests across three binaries.
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: **passed**.
    Restored 0 / re-spelled existing tests 0 / newly ignored 0 / added 5 /
@@ -207,13 +219,24 @@ english-v3 grep` only.
    Post-refresh, repeated `cargo build -p xtask`,
    `cargo test -p deckmaste_english_v3 -- --test-threads 6` (1,144 passed,
    one inherited MS4 ignore), `cargo test -p deckmaste_lexical_source`
-   (44 passed), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   (88 passed across three binaries), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
    and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`:
    **all passed**, including the unchanged selected-complement ceilings.
    Repeated citation checks/audit: 0 noncompliant, 0 stale, 0 new sites.
+   Accepted integration-turn scoped checks: `cargo build -p xtask`,
+   `cargo test -p deckmaste_english_v3 -- --test-threads 6` (1,152 passed,
+   one inherited MS4 ignore), `cargo test -p deckmaste_lexical_source`
+   (88 passed across three binaries), both above clippy commands, and
+   citation checks/audit: **all passed**. In particular,
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   passed with its original ceilings. Own assurance counts stay
+   restored 0 / re-spelled 0 / newly ignored 0 / added 5 / removed 0.
+   Corrected earlier lexical test totals from 44 (last binary only) to 88.
    No plugins_v2 changes, Lean checks, or full-corpus census.
 6. **Timing — `lpnkpkpu`.** Bounded AFTER invocation: **7 min 2 s 420 ms**
    wall under `/usr/bin/time -v`, 6 workers, samples per face 0; includes
    waiting for Cargo's test-build lock. Post-refresh bounded AFTER:
    **6 min 3 s 280 ms** wall with the same workers/sample settings,
+   including Cargo's build-lock wait. Accepted integration-turn bounded
+   AFTER: **9 min 4 s 230 ms** wall, same manifest/workers/sample settings,
    including Cargo's build-lock wait. No `--all` run.
