@@ -100,6 +100,7 @@ fn flying(head: Reading) -> Reading {
         form: 0,
         head: Box::new(head),
         modifier: Box::new(Reading::KeywordComplementPreposition {
+            category: Category::PrepositionPhrase,
             form: 0,
             head: word("vocab:Preposition/With"),
             complement: Box::new(Reading::BareKeyword {

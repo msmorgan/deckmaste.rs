@@ -61,6 +61,7 @@ fn phrasal_keyword_lines_have_one_declared_route_and_roundtrip() {
 
 fn mention() -> Reading {
     Reading::KeywordComplementPreposition {
+        category: Category::PrepositionPhrase,
         form: 0,
         head: Word {
             value: LexicalReading::Word(LexicalValue {

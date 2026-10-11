@@ -118,3 +118,6 @@ mod degree_quantity_arithmetic;
 
 #[path = "suite/plugin_term_definitions.rs"]
 mod plugin_term_definitions;
+
+#[path = "suite/your_choice_of_keywords.rs"]
+mod your_choice_of_keywords;

@@ -159,6 +159,7 @@ fn hurricane_keyword_pp_remains_a_nominal_modifier() {
         form: 0,
         head: Box::new(noun("lexeme:type/creature")),
         modifier: Box::new(Reading::KeywordComplementPreposition {
+            category: Category::PrepositionPhrase,
             form: 0,
             head: invariant("vocab:Preposition/With"),
             complement: Box::new(Reading::BareKeyword {

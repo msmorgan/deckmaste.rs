@@ -170,7 +170,10 @@ fn avacyn_passive() -> Reading {
 fn avacyn_by() -> Reading {
     let choice = possessed(
         "vocab:PossessiveDeterminerPronoun/Your",
-        noun("lexeme:CommonNoun/Choice", WordForm::Singular, true),
+        Reading::BareFramedNoun {
+            form: 0,
+            head: word("lexeme:CommonNoun/Choice", WordForm::Singular, Some(0), Some(true)),
+        },
     );
     let color = determined(
         "vocab:DefiniteMarker/The",

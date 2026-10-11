@@ -2179,6 +2179,12 @@
         "vocab:RelativePronoun/Whose": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive))), (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
     },
     frame_additions: {
+        // CK1–CK2: choice selects a keyword-complemented of PP. Its ordinary
+        // noun use stays available through the empty Nominal frame.
+        "lexeme:CommonNoun/Choice": [
+            (kind: "Nominal", items: []),
+            (kind: "Nominal", items: [Argument((relation: Complement, category: "SelectedKeywordPreposition"))]),
+        ],
         "core-verb:Round": [
             (kind: "Passive", items: [Marker(vocabulary: "Adverb", member: "Up")]),
             (kind: "Passive", items: [Marker(vocabulary: "Adverb", member: "Down")]),

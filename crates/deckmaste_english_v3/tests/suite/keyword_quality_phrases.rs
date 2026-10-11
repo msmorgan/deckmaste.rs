@@ -38,6 +38,15 @@ fn noun(owner: &str, number: Number) -> Reading {
     }
     Reading::Noun { form: 0, head }
 }
+fn bare_choice() -> Reading {
+    let mut head = word("lexeme:CommonNoun/Choice");
+    head.countability = Some(true);
+    head.frame = Some(0);
+    let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
+    value.form = WordForm::Singular;
+    value.features.number = Some(Number::Singular);
+    Reading::BareFramedNoun { form: 0, head }
+}
 fn color_of_choice() -> Reading {
     let mut possessor = word("vocab:PossessiveDeterminerPronoun/Your");
     if let LexicalReading::Word(value) = &mut possessor.value {
@@ -63,7 +72,7 @@ fn color_of_choice() -> Reading {
                     head: Box::new(Reading::PossessiveNounPhrase {
                         form: 0,
                         possessor,
-                        head: Box::new(noun("lexeme:CommonNoun/Choice", Number::Singular)),
+                        head: Box::new(bare_choice()),
                     }),
                 }),
             }),
@@ -111,7 +120,7 @@ fn exact(text: &str, expected: BTreeSet<Reading>) {
         assert_eq!(words[3].value, word("vocab:Coordinator/Or").value);
         assert_eq!(
             words[9].value,
-            if let Reading::Noun { head, .. } = noun("lexeme:CommonNoun/Choice", Number::Singular) {
+            if let Reading::BareFramedNoun { head, .. } = bare_choice() {
                 head.value
             } else {
                 unreachable!()

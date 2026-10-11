@@ -104,7 +104,15 @@ fn predicate(number: Number) -> Reading {
     let choice = Reading::PossessiveNounPhrase {
         form: 0,
         possessor,
-        head: Box::new(noun("lexeme:CommonNoun/Choice", Number::Singular)),
+        head: Box::new({
+            let mut head = word("lexeme:CommonNoun/Choice");
+            head.frame = Some(0);
+            head.countability = Some(true);
+            let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
+            value.form = WordForm::Singular;
+            value.features.number = Some(Number::Singular);
+            Reading::BareFramedNoun { form: 0, head }
+        }),
     };
     let color = determined(
         "vocab:DefiniteMarker/The",

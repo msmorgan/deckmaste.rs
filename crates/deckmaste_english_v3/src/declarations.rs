@@ -643,6 +643,7 @@ constructions! {
         category ComparativeDeterminerHead(ComparativeDeterminerUse, DeterminerUse,
             NominalAdjunctDependent);
         category KeywordPhrase();
+        category SelectedKeywordPreposition(NominalComplementMarker);
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
@@ -831,6 +832,7 @@ constructions! {
         frame BoundKeywordStem = BoundKeywordStem();
         frame NominalSymbols = Nominal(Marked(Preposition, Of, Complement(CostSymbols)));
         frame NominalInfinitive = Nominal(Complement(InfinitiveComplement));
+        frame NominalKeywordPreposition = Nominal(Complement(SelectedKeywordPreposition));
         frame NominalPreposition = Nominal(Marked(Preposition, Of, Complement(NounPhrase)));
         frame NominalToPreposition = Nominal(Marked(Preposition, To, Complement(NounPhrase)));
         frame NominalColorWordPreposition = Nominal(Marked(Preposition, To, Complement(AdjectivePhrase)));
@@ -3426,14 +3428,18 @@ constructions! {
 
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
-        construction InfinitiveComplementNominal: Nominal {
+        construction SelectedComplementNominal: Nominal {
             export ComparativeModifierPresent = head.ComparativeModifierPresent;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
-            form [head: lexical(Noun), " ", complement: InfinitiveComplement];
-            require head.frame = NominalInfinitive;
+            form [head: lexical(Noun), " ", complement: InfinitiveComplement]
+                require head.frame = NominalInfinitive;
+            // CK1–CK3: the noun frame selects the whole keyword-complemented PP.
+            form [head: lexical(Noun), " ", complement: SelectedKeywordPreposition]
+                require head.frame = NominalKeywordPreposition
+                require complement.NominalComplementMarker = Of;
             use UnmodifiedNominalProperties;
         }
 
@@ -6977,7 +6983,10 @@ constructions! {
             require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
         }
 
-        construction KeywordComplementPreposition: PrepositionPhrase {
+        schema KeywordComplementPreposition {
+            form [head: lexical(Preposition), " ", complement: KeywordPhrase];
+        }
+        policy OrdinaryKeywordPreposition {
             export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
@@ -6989,9 +6998,21 @@ constructions! {
             export FocusedUse = No;
             export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export ObliqueNumber = None;
-            form [head: lexical(Preposition), " ", complement: KeywordPhrase];
             require head.KeywordComplement = Yes;
-            use PrepositionHeadPermissions;
+        }
+        // CK2: this category has no free Modifier or Adjunct route. Only a
+        // declared nominal frame consumes it; Of remains unlicensed as a
+        // general keyword-complemented PrepositionPhrase.
+        policy SelectedKeywordPreposition {
+            export NominalComplementMarker = head.NominalComplementMarker;
+            require licence_noun_complement(head.PrepositionFunctionLicence) = Yes;
+        }
+        instance KeywordComplementPreposition<Result, Properties, Permissions = NoFeatures>: [
+            (PrepositionPhrase, OrdinaryKeywordPreposition, PrepositionHeadPermissions),
+            (SelectedKeywordPreposition, SelectedKeywordPreposition),
+        ] {
+            use Properties;
+            use Permissions;
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
             export PartitiveCountability = Unrestricted;

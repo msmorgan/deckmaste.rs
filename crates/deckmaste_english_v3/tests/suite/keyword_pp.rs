@@ -65,6 +65,7 @@ fn keyword(id: &str) -> Reading {
 }
 fn pp(marker: &str, complement: Reading) -> Reading {
     Reading::KeywordComplementPreposition {
+        category: Category::PrepositionPhrase,
         form: 0,
         head: word(
             &format!("vocab:Preposition/{marker}"),

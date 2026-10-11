@@ -122,6 +122,7 @@ fn bare_keywords_fill_the_granted_ability_complement() {
 #[test]
 fn bare_keyword_is_the_complement_of_with() {
     let expected = Reading::KeywordComplementPreposition {
+        category: Category::PrepositionPhrase,
         form: 0,
         head: word(
             "vocab:Preposition/With",

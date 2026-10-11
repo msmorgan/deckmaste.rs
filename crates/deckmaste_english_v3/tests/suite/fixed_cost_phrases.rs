@@ -271,7 +271,7 @@ fn independent_cost_opener_preserves_predication_and_infinitival_selection() {
                 None,
             ),
         }),
-        head: Box::new(Reading::InfinitiveComplementNominal {
+        head: Box::new(Reading::SelectedComplementNominal {
             form: 0,
             head: cost,
             complement: Box::new(infinitive),
