@@ -114,6 +114,7 @@ fn authentic_attacking_and_blocking_modifiers_retain_verbal_identity() {
                 head: Box::new(Reading::ParticipialPremodifier {
                     form: 0,
                     modifier: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
                         form: 0,
                         head: verb(owner, WordForm::GerundParticiple, 0),
                     }),
@@ -203,11 +204,13 @@ fn righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal() {
                     form: 0,
                     category: Category::VerbalPremodifier,
                     left: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
                         form: 0,
                         head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
                     }),
                     coordinator: word("vocab:Coordinator/Or"),
                     right: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
                         form: 0,
                         head: verb("core-verb:Block", WordForm::GerundParticiple, 0),
                     }),

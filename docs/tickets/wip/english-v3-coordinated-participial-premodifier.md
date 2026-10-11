@@ -113,3 +113,60 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
   blocker (16 touched faces).
 
 ## Landing record
+
+1. **Census delta** (`ptokxtuo` before/after implementation; before tree equals
+   claim parent `ywzorprm`): bounded 610 faces, covered 542 → 559, total Readings
+   10,302 → 31,446; 17 gains, no lost faces, decreases or increases on covered
+   faces. 116 digest-only changes encode the newly explicit, previously inferred
+   `VerbalPremodifier` Category after its promotion to a shared schema; no
+   grammatical analysis is retired. The selector is the Method pattern, with
+   comma-list `attacking, blocking, or tapped` included, plus 300 covered controls
+   from the supplied baseline, seed 20261008 (312 surface faces; two random
+   overlaps). Manifest and before/after/diff evidence are under
+   `target/english-v3/english-v3-coordinated-participial-premodifier/`.
+   The claim parent has 84 covered *tapped and attacking* faces: all retain their
+   counts, with encoding-only digest changes on Hans Eriksson, Kinscaer Sentry,
+   Najeela, the Blade-Blossom, Thousand-Faced Shadow, Warren Warleader, and
+   Zareth San, the Trickster. No wrong-only gains found.
+2. **Witnesses** (`ptokxtuo`, complete probe enumeration): Furnace-Blessed
+   Conqueror 0 → 5 (tapped-only control 5); Pugnacious Pugilist 0 → 6 (control 6);
+   Krothuss, Lord of the Deep 0 → 5 (control 5); Tetsuo Umezawa 0 → 1 (control 1,
+   Document category because the cost-prefixed control also has zero Sentence
+   Readings). Sonar Strike's serial target constituent reads through one route.
+   All witnesses were probed before implementation. The seven ticket controls
+   retain counts 1, 1, 5, 1, 1, 1, 1; the ticket's reported 3 was an enumeration
+   cap. W9-A preserves the independent copy/relative and quoted-ability ambiguity.
+3. **Spot checks** (`ptokxtuo`): Furnace-Blessed Conqueror, Pugnacious Pugilist,
+   Krothuss, Lord of the Deep, Maestros Diabolist, Phantom Steed, Redoubled
+   Stormsinger, Satya, Aetherflux Genius, and Sauron, the Necromancer each use
+   one *tapped and attacking* Modifier of their token Nominal, with Adjective
+   *tapped* and verbal *attacking*. Tetsuo Umezawa uses the same mixed Modifier
+   with *or*; Sonar Strike uses a flat *attacking, blocking, or tapped* Modifier.
+   Full-face probe samples realize exactly and have no validation issues.
+4. **Deviations and STOPs** (`ptokxtuo`): no new named Construction, lexical
+   frame, lexeme, loader change or glossary gap; no STOP. Shared
+   `VerbalPremodifier` schema instances supply its existing standalone Category
+   and its new coordination-member projection, retaining the declared participial
+   licence. Grammatical category and syndetic-tail summaries keep like-category
+   routes and the existing asyndetic route distinct. No existing route is
+   superseded or lexical analysis narrowed. Added seven role/roundtrip tests and
+   re-spelled existing exact values for the schema's explicit Category field.
+   The selector additionally includes Sonar Strike's comma-separated surface;
+   seed 20261008 follows the binding session budget rather than Method's older
+   seed. CP5's protected analyses are unchanged; the encoding changes are
+   disclosed in item 1.
+5. **Tests** (`ptokxtuo`): `cargo test -p deckmaste_english_v3` passed all 1,064
+   tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 6 / ignored 0 / added 7 / removed 0. Re-spelled:
+   `independent_participial_premodifier_preserves_verb_form_and_distribution`,
+   `authentic_attacking_and_blocking_modifiers_retain_verbal_identity`,
+   `righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal`,
+   `independently_built_attested_modifiers_preserve_passive_form_and_both_laws`,
+   `of_shapes_keep_their_nominal_and_predicative_functions`, and
+   `adjective_and_participial_premodifiers_stay_below_targeting`; their subjects
+   and asserted outcomes are preserved. Citation checks: 0 noncompliant, 0 stale;
+   diff audit selected no new citation sites. No other crate code/data or plugin
+   definitions changed; no Lean checks required.
+6. **Timing** (`ptokxtuo`): bounded after-census 44.84 seconds wall time,
+   six workers, zero samples per face, under `/usr/bin/time -v`; no full-corpus
+   run.

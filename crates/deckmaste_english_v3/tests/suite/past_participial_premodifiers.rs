@@ -138,6 +138,7 @@ fn independently_built_attested_modifiers_preserve_passive_form_and_both_laws() 
             value.features.finiteness = Some(Finiteness::Nonfinite);
         }
         let modifier = Reading::VerbalPremodifier {
+            category: Category::VerbalPremodifier,
             form: 0,
             head: verb,
         };
@@ -165,7 +166,7 @@ fn independently_built_attested_modifiers_preserve_passive_form_and_both_laws() 
         value.features.finiteness = Some(Finiteness::Nonfinite);
     }
     assert!(
-        Reading::VerbalPremodifier { form: 0, head }
+        Reading::VerbalPremodifier { category: Category::VerbalPremodifier, form: 0, head }
             .admit(lexicon())
             .is_err()
     );

@@ -206,6 +206,7 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
     let value = Reading::ParticipialPremodifier {
         form: 0,
         modifier: Box::new(Reading::VerbalPremodifier {
+            category: Category::VerbalPremodifier,
             form: 0,
             head: modifier.clone(),
         }),
@@ -229,6 +230,7 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
         Reading::ParticipialPremodifier {
             form: 0,
             modifier: Box::new(Reading::VerbalPremodifier {
+                category: Category::VerbalPremodifier,
                 form: 0,
                 head: modifier
             }),

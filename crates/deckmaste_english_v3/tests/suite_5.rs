@@ -82,3 +82,6 @@ mod named_token_apposition;
 
 #[path = "suite/kind_of_counter.rs"]
 mod kind_of_counter;
+
+#[path = "suite/coordinated_participial_premodifier.rs"]
+mod coordinated_participial_premodifier;

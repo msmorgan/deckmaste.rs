@@ -463,6 +463,27 @@ constructions! {
         }
         feature NounPremodifier { Yes, Attribute, Keyword, None }
         feature PremodifierCoordination { No, Yes } default No;
+        feature PremodifierCategory { Nominal, Adjectival, Verbal, Mixed }
+        feature SyndeticPremodifier { No, Yes }
+        table premodifier_category(PremodifierCategory, PremodifierCategory)
+            -> PremodifierCategory {
+            (Nominal, Nominal) => Nominal, (Adjectival, Adjectival) => Adjectival,
+            (Verbal, Verbal) => Verbal, (_, _) => Mixed,
+        }
+        table serial_premodifier_licence(PremodifierCategory, PremodifierCategory,
+            SyndeticPremodifier) -> Selection {
+            (Nominal, Nominal, No) => Yes, (Nominal, Adjectival, No) => Yes,
+            (Adjectival, Nominal, No) => Yes, (Adjectival, Adjectival, No) => Yes,
+            (Nominal, Mixed, No) => Yes, (Adjectival, Mixed, No) => Yes,
+            (Adjectival, Verbal, Yes) => Yes, (Verbal, Adjectival, Yes) => Yes,
+            (Adjectival, Mixed, Yes) => Yes, (Verbal, Mixed, Yes) => Yes,
+        }
+        table unlike_premodifiers(PremodifierCategory, PremodifierCategory) -> Selection {
+            (Adjectival, Verbal) => Yes, (Verbal, Adjectival) => Yes,
+        }
+        table syndetic_premodifier_member(PremodifierCategory) -> Selection {
+            (Adjectival) => Yes, (Verbal) => Yes,
+        }
         feature AttributePremodifierHead { No, Yes } default No;
         feature KeywordPremodifierHead { No, Yes } default No;
         table noun_premodifier_use(NounPremodifier) -> Selection {
@@ -580,9 +601,9 @@ constructions! {
         category NominativePhrase(number, person, DeterminerAgreementNumber, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
         category AccusativePhrase(PartitiveCountability, number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
         category AdjectivePhrase(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
-        category Premodifier(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
+        category Premodifier(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
-        category PremodifierCoordination(NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
+        category PremodifierCoordination(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category VerblessClause(VerblessClauseComplement);
         category Name(number);
@@ -1526,6 +1547,12 @@ constructions! {
         }
 
         policy PremodifierConcord<Right, Source> {
+            require left.SyndeticPremodifier = No;
+            require serial_premodifier_licence(left.PremodifierCategory,
+                Right.PremodifierCategory, Right.SyndeticPremodifier) = Yes;
+            export PremodifierCategory = premodifier_category(left.PremodifierCategory,
+                Right.PremodifierCategory);
+            export SyndeticPremodifier = Right.SyndeticPremodifier;
             export NounPremodifier = coordinated_noun_premodifier(
                 left.NounPremodifier, Right.NounPremodifier);
             export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
@@ -3201,7 +3228,7 @@ constructions! {
         instance CoordinationSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
-            (PremodifierCoordination, Premodifier, Self, PremodifierConcord),
+            (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (ClauseSeries, Clause, Self, UnmarkedConjunct, CoordinatedClauseHost),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
@@ -3605,6 +3632,8 @@ constructions! {
         // function, including pre-head modifiers. R15e (2026-10-09) supplies
         // the Oracle grouping and keeps coordinator-ending lists unchanged.
         construction NounPremodifierMember: Premodifier {
+            export PremodifierCategory = Nominal;
+            export SyndeticPremodifier = No;
             form [head: NounPremodifier];
             require head.PremodifierCoordination = No;
             export NounPremodifier = head.NounPremodifier;
@@ -3615,6 +3644,8 @@ constructions! {
         }
 
         construction AdjectivePremodifierMember: Premodifier {
+            export PremodifierCategory = Adjectival;
+            export SyndeticPremodifier = No;
             form [head: AdjectivePhrase];
             require head.PremodifierCoordination = No;
             require head.AdjectiveStructure = Simple;
@@ -3633,6 +3664,50 @@ constructions! {
             (None, Ordinary, None) => None, (None, Ordinary, Single) => Single,
             (None, Ordinary, First) => First, (None, Ordinary, Second) => Second,
             (None, Ordinary, Pair) => Pair,
+        }
+
+        // CP1–CP4 (orchestrator, coordinated-participial-premodifier,
+        // 2026-10-10): one shared Modifier retains each coordinate's Category.
+        policy AsyndeticPremodifierTail<Right, Source> {
+            require Right.SyndeticPremodifier = No;
+        }
+        policy SyndeticPremodifierConcord<Right, Source> {
+            export PremodifierCategory = premodifier_category(left.PremodifierCategory,
+                Right.PremodifierCategory);
+            export SyndeticPremodifier = Yes;
+            export NounPremodifier = None;
+            export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin,
+                Right.AdjectiveOrigin);
+            export TargetingPremodifierUse = coordinated_targeting_premodifier(
+                left.TargetingPremodifierUse, Right.TargetingPremodifierUse);
+            export SelectedPrepositionUse = selected_preposition_complement(
+                left.SelectedPrepositionUse, Right.SelectedPrepositionUse);
+            export PredicativeAdjunctUse = predicative_adjunct_concord(
+                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
+        }
+        instance Coordination: PremodifierCoordination {
+            bind left, right = Premodifier;
+            require left.SyndeticPremodifier = No;
+            require right.SyndeticPremodifier = No;
+            require unlike_premodifiers(left.PremodifierCategory, right.PremodifierCategory) = Yes;
+            use SyndeticPremodifierConcord(right, coordinator);
+            use GeneralCoordinatorDistribution(right, coordinator);
+        }
+        instance CoordinationSeriesEnd: Premodifier {
+            bind left, right = Premodifier;
+            require left.SyndeticPremodifier = No;
+            require right.SyndeticPremodifier = No;
+            require syndetic_premodifier_member(left.PremodifierCategory) = Yes;
+            require syndetic_premodifier_member(right.PremodifierCategory) = Yes;
+            use SyndeticPremodifierConcord(right, coordinator);
+            use GeneralCoordinatorDistribution(right, coordinator);
+        }
+        instance CoordinationSeriesContinuation: Premodifier {
+            bind left, rest = Premodifier;
+            require left.SyndeticPremodifier = No;
+            require rest.SyndeticPremodifier = Yes;
+            require syndetic_premodifier_member(left.PremodifierCategory) = Yes;
+            use SyndeticPremodifierConcord(rest, rest);
         }
 
         construction CoordinatedPremodifiedNominal: Nominal {
@@ -3957,9 +4032,19 @@ constructions! {
             (GerundParticiple, Intransitive, Yes) => Yes,
             (PastParticiple, Transitive, Yes) => Yes,
         }
-        construction VerbalPremodifier: VerbalPremodifier {
+        schema VerbalPremodifier {
             form [head: lexical(Verb)];
             require verbal_premodifier(head.form, head.frame, head.PastParticipialPremodifier) = Yes;
+        }
+        instance VerbalPremodifier: VerbalPremodifier {}
+        instance VerbalPremodifier: Premodifier {
+            export PremodifierCategory = Verbal;
+            export SyndeticPremodifier = No;
+            export NounPremodifier = None;
+            export AdjectiveOrigin = Participial;
+            export TargetingPremodifierUse = No;
+            export SelectedPrepositionUse = Yes;
+            export PredicativeAdjunctUse = Yes;
         }
 
         construction ParticipialPremodifier: Nominal {

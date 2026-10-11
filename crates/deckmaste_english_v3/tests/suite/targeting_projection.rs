@@ -387,7 +387,7 @@ fn adjective_and_participial_premodifiers_stay_below_targeting() {
         head.frame = Some(0);
         Reading::ParticipialPremodifier {
             form: 0,
-            modifier: Box::new(Reading::VerbalPremodifier { form: 0, head }),
+            modifier: Box::new(Reading::VerbalPremodifier { category: Category::VerbalPremodifier, form: 0, head }),
             head: Box::new(creature(number)),
         }
     };
