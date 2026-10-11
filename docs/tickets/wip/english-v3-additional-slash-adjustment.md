@@ -162,6 +162,12 @@ would admit unrelated adjectives before a pair and cannot be reused.
    grammar and lexical data restored; the verified implementation was then
    restored byte-for-byte. AFTER and `diff --lines` use the new executable.
    Evidence: `target/english-v3/english-v3-additional-slash-adjustment/`.
+   Final authorized integration refresh: the ORIGINAL 10,783-face manifest
+   gives 37 gains (25 this landing; 12 from trunk `onymknyk`, mana-symbol
+   passive subjects), covered 10,006 → 10,043 and Readings 228,917 → 229,297.
+   Lost / decreases / increases / digest-only / issues remain 0. The built-in
+   `refresh-diff.json` isolates those 12 trunk gains (21 materialized lines);
+   no covered-face Reading shapes changed.
 2. **Witnesses — `zquvqlrm`.** Silver-Inlaid Dagger 1 / control 1; Wild
    Might 1 / 1; Taste for Mayhem 2 / 2; Desert's Due 1 / 1; Tenza, Godo's
    Maul 1 / 1. Each was 0 before. W9-A preserves Taste for Mayhem's independent
@@ -184,9 +190,10 @@ would admit unrelated adjectives before a pair and cannot be reused.
    (`CostPowerToughnessKeyword`, `SlashMeasure`, `SlashModifiedNominal`) read
    the declared feature to reject modified pairs; no old route is retired.
    The compiler Selected Literal observation is recorded as hygiene C5.
-   Two inherited timing values in `english-v3-predicative-gap-relative`
-   were re-spelled in seconds plus milliseconds to avoid citation false
-   positives, preserving their exact values.
+   The final refresh independently corrected the two inherited timing
+   values in `english-v3-predicative-gap-relative`; the documentation
+   conflict was resolved to trunk’s equivalent wording, leaving no change
+   to that ticket in this landing.
 5. **Tests — `zquvqlrm`.** `cargo test -p deckmaste_english_v3`: passes, 1,137 passed and one
    inherited ignore: `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`
    (MS4 needs a governed Mana Phrase Subject route keeping bare {X}/{2}
@@ -205,6 +212,14 @@ would admit unrelated adjectives before a pair and cannot be reused.
    add absent article/modifier fields to the same expected pair values;
    `next_lexical::single_and_extra_are_invariant_adjectives_with_declared_default_license`
    adds `AdditiveModifierUse = Yes` to *extra*'s exact expected feature map.
+   Authorized post-refresh checks all pass: `cargo build -p xtask`;
+   `cargo test -p deckmaste_english_v3` (1,143 passed, one inherited ignore);
+   `cargo test -p deckmaste_lexical_source` (88 passed);
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_lexical_source --tests --
+   -D warnings`. The designated selected-complement chart-budget test
+   passes without a ceiling change. Final citation checks remain clean.
 6. **Timing — `zquvqlrm`.** Bounded AFTER census: 4 min 4 s 620 ms wall
    under `/usr/bin/time -v`, 6 workers, samples per face 0. No full-corpus
-   census was run.
+   census was run. Final refreshed census: 2 min 39 s 441 ms corpus wall;
+   `/usr/bin/time -v` wall 6 min 7 s 790 ms including Cargo lock wait.
+   Scoped `cargo build -p xtask` passed (4 min 14 s).
