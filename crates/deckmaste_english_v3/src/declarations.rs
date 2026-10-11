@@ -364,6 +364,7 @@ constructions! {
         }
         feature ScalarMeasurementHeadUse { No, Yes } default No;
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
+        feature PropertyEqualityForm { None, Unquantified, Quantified } default None;
         feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature MatrixComparisonUse { No, Yes } default No;
@@ -605,8 +606,8 @@ constructions! {
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
         category PurposeInfinitival(FocusedUse);
-        category ScalarValue(PredicativeKind);
-        category PropertyValue(MeasureKind);
+        category ScalarValue(PredicativeKind, PropertyEqualityForm);
+        category PropertyValue(MeasureKind, PropertyEqualityForm);
         category Amount();
         category MeasurePhrase(MeasureKind, UnitBearing);
         category ArithmeticOperand(UnitBearing);
@@ -620,7 +621,7 @@ constructions! {
         category ComparativeComplement(AdjectivePremodifierUse);
         category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
         category MatrixComparativePhrase(ComparativeComplementForm);
-        category ComparativeAdjectivePhrase(ComparisonMarker, AdjectivePremodifierUse);
+        category ComparativeAdjectivePhrase(ComparisonMarker, AdjectivePremodifierUse, PropertyEqualityForm);
         category DiscontinuousComparativeGovernor(frame, ImplicitComparativeUse);
         category ComparativeDeterminerHead(ComparativeDeterminerUse, DeterminerUse,
             NominalAdjunctDependent);
@@ -1670,9 +1671,23 @@ constructions! {
             (Ordinary, Ordinary) => Ordinary, (Ordinary, Participial) => Participial,
             (Participial, Ordinary) => Participial, (Participial, Participial) => Participial,
         }
-        table property_value_kind(PropertyValuePosition, MeasureKind) -> Selection {
-            (Single, Scalar) => Yes, (First, Scalar) => Yes, (Second, Scalar) => Yes,
-            (Pair, Pair) => Yes,
+        // PE1–PE4 (orchestrator, property-pair-each-equal-to, 2026-10-10):
+        // equality may predicate a coordinated property head; quantification
+        // agrees with that predicand, independently of the value's scalar kind.
+        table property_value_kind(PropertyValuePosition, MeasureKind, PropertyEqualityForm) -> Selection {
+            (Single, Scalar, _) => Yes, (First, Scalar, _) => Yes, (Second, Scalar, _) => Yes,
+            (Pair, Pair, _) => Yes,
+            (Pair, Scalar, Unquantified) => Yes, (Pair, Scalar, Quantified) => Yes,
+        }
+        table property_equality_form(ComparisonMarker) -> PropertyEqualityForm {
+            (Equality) => Unquantified, (Ordering) => None,
+        }
+        table property_equality_agreement(PropertyEqualityForm, NominalAgreementNumber, number) -> Selection {
+            (None, _, _) => Yes, (Unquantified, _, _) => Yes,
+            (Quantified, Plural, _) => Yes, (Quantified, Head, Plural) => Yes,
+        }
+        table unquantified_comparative(PropertyEqualityForm) -> Selection {
+            (None) => Yes, (Unquantified) => Yes,
         }
         table coordinated_cardinal_measurement(CardinalMeasurementUse, CardinalMeasurementUse)
             -> CardinalMeasurementUse {
@@ -3883,6 +3898,7 @@ constructions! {
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
         policy PostpositiveNounPhraseProperties {
+            require unquantified_comparative(modifier.PropertyEqualityForm) = Yes;
             export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
@@ -5966,12 +5982,15 @@ constructions! {
         policy UnitFreeMeasure {
             export UnitBearing = No;
         }
+        policy NoPropertyEquality {
+            export PropertyEqualityForm = None;
+        }
         schema SlashMeasure {
             form [pair: SlashPair];
             export MeasureKind = Pair;
         }
         instance SlashMeasure<Result, Properties = NoFeatures>: [
-            (MeasurePhrase, UnitFreeMeasure), (PropertyValue),
+            (MeasurePhrase, UnitFreeMeasure), (PropertyValue, NoPropertyEquality),
         ] { use Properties; }
 
         table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
@@ -6078,11 +6097,13 @@ constructions! {
         }
 
         policy ScalarValueMeasure {
+            export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             require value.MeasureKind = Scalar;
         }
         policy ScalarPropertyValueKind {
             export MeasureKind = Scalar;
+            export PropertyEqualityForm = value.PropertyEqualityForm;
         }
         schema ScalarMeasureValue {
             cost 0;
@@ -6103,16 +6124,19 @@ constructions! {
         // not this value-slot analysis.
         construction ComparativeScalarValue: ScalarValue {
             export PredicativeKind = Adjectival;
+            export PropertyEqualityForm = value.PropertyEqualityForm;
             form [value: ComparativeAdjectivePhrase];
         }
 
         construction ScalarCardinalValue: ScalarValue {
+            export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Cardinal;
         }
 
         construction ScalarPropertyCoordination: ScalarValue {
+            export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             cost 0;
             form [value: ComparativeQuantity];
@@ -6122,6 +6146,7 @@ constructions! {
         // CGEL Ch. 5 §11(d), p. 432 n. 48 classifies greater as an
         // Adjective. Its permission in this value position is a project ruling.
         construction AdjectivalScalarCoordination: ScalarValue {
+            export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Adjective)];
@@ -6151,7 +6176,10 @@ constructions! {
             export BareGenitiveHost = No;
             export Targeting = No;
             form [head: Nominal, " ", quantity: PropertyValue];
-            require property_value_kind(head.PropertyValuePosition, quantity.MeasureKind) = Yes;
+            require property_value_kind(head.PropertyValuePosition, quantity.MeasureKind,
+                quantity.PropertyEqualityForm) = Yes;
+            require property_equality_agreement(quantity.PropertyEqualityForm,
+                head.NominalAgreementNumber, head.number) = Yes;
             require head.DeterminerRequirement = No;
             require head.Targeting = No;
             require head.number = Singular;
@@ -6268,12 +6296,27 @@ constructions! {
         }
 
         construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            export PropertyEqualityForm = property_equality_form(governor.ComparisonMarker);
             export ComparisonMarker = governor.ComparisonMarker;
             export AdjectivePremodifierUse = complement.AdjectivePremodifierUse;
             form [governor: ComparativeGovernorHead, " ", complement: ComparativeComplement];
         }
 
+        // PE1–PE5 extend the implicit-partitive Adjunct to a reduced
+        // predication. The existing clause routes contain a Subject or a
+        // copular Verb; this prefix AdjP shape has neither. Its plural
+        // predicand requirement is discharged only by MeasuredAttribute.
+        construction QuantifiedComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            form [quantifier: lexical(Determinative), " ", value: ComparativeAdjectivePhrase];
+            require quantifier.QuantificationalAdjunctUse = Yes;
+            require value.PropertyEqualityForm = Unquantified;
+            export PropertyEqualityForm = Quantified;
+            export ComparisonMarker = value.ComparisonMarker;
+            export AdjectivePremodifierUse = No;
+        }
+
         construction ComparativeAdjective: AdjectivePhrase {
+            require unquantified_comparative(phrase.PropertyEqualityForm) = Yes;
             export AdjectiveComplementClass = None;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;

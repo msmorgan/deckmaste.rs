@@ -85,3 +85,6 @@ mod verbless_while_adjunct;
 
 #[path = "suite/verbless_state_predicate_class.rs"]
 mod verbless_state_predicate_class;
+
+#[path = "suite/property_pair_each_equal_to.rs"]
+mod property_pair_each_equal_to;

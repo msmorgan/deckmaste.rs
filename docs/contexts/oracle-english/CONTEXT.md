@@ -887,9 +887,18 @@ in *0/2* or *X/X*. Its use as a selected Property Value is the
 
 **Property Value** (project term):
 A selected value Complement of a property Nominal: a Scalar Property Value
-for a single property, or a Slash Pair for an ordered pair of properties.
+for a single property, a Slash Pair for an ordered pair of properties, or an
+equality predicated of that pair (orchestrator rulings PE1–PE4, 2026-10-10,
+`english-v3-property-pair-each-equal-to`).
 This extension is the [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values),
 not an analysis attributed to CGEL.
+
+**Property Equality Form** (project term):
+The distinction between an equality Property Value with or without a
+Quantificational Adjunct; other values have neither form. Equality can be
+predicated of a coordinated property head, and quantified equality requires a
+plural Predicand (orchestrator rulings PE1–PE4, 2026-10-10,
+`english-v3-property-pair-each-equal-to`).
 
 **Property Value Position** (project term):
 A property's declared position in a value: a single scalar property, the
@@ -1339,6 +1348,9 @@ selected predicative and preposed uses.
 **Quantificational Adjunct**:
 A fused-head partitive functioning in Clause structure to quantify the Subject;
 implicit partitives include *all*, *both* and *each* (CGEL, Ch. 5 §9.2, p. 413).
+Its use in the reduced predication *power and toughness each equal to …* is
+an extension under orchestrator rulings PE1–PE5 (2026-10-10,
+`english-v3-property-pair-each-equal-to`), not a claim of that CGEL passage.
 
 **Quantificational Adjunct Use** (project term):
 A Determinative's declared permission to function as an implicit-partitive
