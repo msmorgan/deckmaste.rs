@@ -257,6 +257,8 @@ Claim-parent probes are under
    stack). `second-refreshed-after.json` / `second-refreshed-diff.json`
    retain the same totals; `second-incoming-diff.json` again reports all
    1,076 faces unchanged, with no count or digest changes from trunk.
+   These are the last verified totals, before the third refresh described
+   below. The latest grammar snapshot is blocked and has not been re-censused.
 2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
    0 on the claim parent; controls had the counts below before the edit.
    Modified attributive 2/2,
@@ -319,6 +321,21 @@ Claim-parent probes are under
    with an empty ability-body list and records the four bodyless helpers as
    not derived; all five engine implementations remain semantics debt.
    No failing test was deleted, ignored or weakened.
+   Third refresh imported exactly-cardinal (`oyqrxmwz`), partitive quantity
+   (`pusrqwml`) and phrasal keyword surfaces (`zvoyutom`). Preserved both
+   suite_6 registrations and combined the keyword inventory expectation
+   (66 action declarations + 208 ability declarations); squashed both
+   conflict resolutions into `ztvzruvp`. Refresh retry completed as a no-op.
+   **STOP: upstream regression outside this ticket.** The fast facts-label
+   gate now fails on six grammar-only stubs introduced by `zvoyutom`:
+   `chooseABackground`, `doctorsCompanion`, `partnerCharacterSelect`,
+   `partnerFatherAndSon`, `partnerFriendsForever`, `partnerSurvivors`.
+   All six lack facts rows; Multikicker's own row/stub pair is now clean.
+   Giving these declarations semantic identities/rows, or changing the gate's
+   treatment of grammar-only declarations, leaves this ticket's scope and
+   needs the owning landing/ruling. Do not filter them out or waive the check.
+   The owner's assurance rule permits a STOP when the fix leaves the ticket;
+   remaining third-refresh verification stops here, before integration.
 5. **Tests:** all final commands exit 0:
    - `cargo test -p deckmaste_english_v3` — 964 passed.
    - `cargo test -p deckmaste_lexical_source` — 86 passed.
@@ -363,7 +380,12 @@ Claim-parent probes are under
    Lean LSP completed the new declaration's elaboration with no errors.
    Final citation checks: 0 noncompliant, 0 stale. Evidence is
    `second-refresh-verification.json`, `fix-verification.json` and adjacent
-   logs. No other code or data changed after these successful checks.
+   logs. These successful checks precede the third refresh. On the latest
+   snapshot, `target/debug/cargo-xtask facts labels` exits 1 (six missing
+   rows), evidence `third-refresh-facts-labels.log`. The new grammar has not
+   had its required bounded census/full-suite/clippy recheck; that remains
+   pending resolution of this upstream blocker. No successful-check claim
+   is made for the latest snapshot.
 6. **Timing (`ztvzruvp`):** final bounded census 45.17 s wall time under
    `/usr/bin/time -v`, six workers, `--samples-per-face 0`. No full-corpus
    run. The trial-data census was rerun after removing the two unusable
