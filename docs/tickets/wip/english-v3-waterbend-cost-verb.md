@@ -126,15 +126,28 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-1. **Census delta** (`ulrnwvuw`, BEFORE on claim-parent `ytpqnwnm`'s
-   unchanged tree): bounded selector `(?i)\bwaterbend|\bearthbend|\bairbend|\bfirebend|\bpay \{`
+1. **Census delta** (`ulrnwvuw`, pre-refresh BEFORE on original claim-parent
+   `ytpqnwnm`'s unchanged tree, grammar at `pnzmstsu`): bounded selector
+   `(?i)\bwaterbend|\bearthbend|\bairbend|\bfirebend|\bpay \{`
    selects 847 faces; 300 random covered controls (seed 20261008) give 1,135
    distinct faces. Covered 1,022 → 1,049; total Readings 20,187 → 20,650.
    `cargo xtask english-v3 diff --lines`: 27 gained, 0 lost, 0 decreases,
-   0 increases, 0 digest-only changes, 0 issues. Lost faces: none. All 29
+   0 increases, 0 digest-only changes; both censuses have 0 issues. Lost
+   faces: none. All 29
    waterbend faces were uncovered before retiring `FixedTerm`; no covered
    Reading used it. Unintended gains: none. Manifest, BEFORE, AFTER and
    diff: `target/english-v3/english-v3-waterbend-cost-verb/`.
+   After Kata refresh (`znpnsztt`), the same 1,135-face manifest gives
+   **1,022 → 1,051** covered and **20,187 → 20,662** Readings: 29 gains
+   (27 feature + 2 trunk), 0 lost/decreases/increases, 4 digest-only, 0
+   issues. All 27 waterbend gains retain their counts and digests. The
+   exactly-cardinal landing `oyqrxmwz` contributes Jerren, Corrupted Bishop
+   (8) and Pitfall Trap (4). The partitive landing `pusrqwml` contributes
+   only the canonical `CardinalDeterminer` wrapper changes on Conspiracy
+   Theorist (10), Hollow Specter (13), Marchesa, Dealer of Death (3), and
+   Preferred Selection (9); their counts are unchanged. Attribution uses
+   `refresh-diff.json`; the final claim-parent comparison is
+   `diff-refreshed.json`, against `after-refreshed.json`.
 2. **Witnesses** (`ulrnwvuw`, complete fragment probes): Giant Koi 0 → 5;
    Katara, Bending Prodigy 0 → 1; Water Whip 0 → 1; Spirit Water Revival
    0 → 1; Waterbending Lesson 0 → 1; The Unagi of Kyoshi Island 0 → 1.
@@ -173,6 +186,11 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo xtask cite check` found 0 stale. Diff citation audit selected 0
    new citation sites. Restored 0 / re-spelled 0 / ignored 0 / added 4 /
    removed 0; removal names: none.
+   After refresh (`znpnsztt`), `cargo build -p xtask`, both full crate test
+   commands above (999 English tests, 86 lexical-source tests), and both
+   clippy commands above passed again. Citation checks again found 0
+   noncompliant strings and 0 stale citations. No verification used a
+   filtered English or lexical-source suite.
 6. **Timing** (`ulrnwvuw`): bounded AFTER census wall time **39.13 s**,
    6 workers, `--samples-per-face 0`, under `/usr/bin/time -v`. No full
    corpus census was run, per the binding verification budget.
