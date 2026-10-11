@@ -15,17 +15,21 @@ use crate::common;
 fn energy_head() -> Reading {
     Reading::MeasuredSymbolNominal {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: "vocab:FixedCostSymbol/E".into(),
-                form: WordForm::Invariant,
-                features: FeatureBundle::default(),
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
-            }),
-            frame: None,
-            countability: Some(false),
-        },
+        head: Box::new(Reading::NominalSymbol {
+            form: 0,
+            head: Word {
+                value: LexicalReading::Word(LexicalValue {
+                    lexeme: "vocab:FixedCostSymbol/E".into(),
+                    form: WordForm::Invariant,
+                    features: FeatureBundle::default(),
+                    variant: 0,
+                    capitalization: SurfaceCase::Declared,
+                }),
+                frame: None,
+                countability: Some(false),
+            },
+        }),
+        rest: vec![],
     }
 }
 

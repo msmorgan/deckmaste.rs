@@ -219,10 +219,26 @@ Notation or an imperative Bare Predicate. The keyword-cost terminal literal
 follows orchestrator rulings KD2–KD3 (2026-10-10, ticket
 `english-v3-keyword-dash-cost-line`).
 
+**Symbol** (project category):
+An Oracle lexical Category realized by specialized marks, with a distribution
+distinct from ordinary words (owner ruling, 2026-10-10).
+
 **Mana Phrase** (project term):
 A phrase realized by mana notation or coordinated alternatives of that notation,
 used as a selected Complement. Its symbols preserve lexical identity and are
 licensed separately from symbols that appear only in Costs.
+
+**Nominal Symbol** (project term):
+A Symbol licensed to head a determined or measured Nominal (orchestrator
+rulings MS1–MS3 and QE1–QE2, 2026-10-10).
+
+**Count Nominal Symbol** (project term):
+A Nominal Symbol with count use, eligible to continue a symbol sequence
+under orchestrator rulings MS1–MS2 (2026-10-10).
+
+**Symbol Nominal Use** (project term):
+A symbol class's declared Countability when its notation heads a determined
+or measured Nominal (orchestrator rulings MS1–MS3 and QE1–QE2, 2026-10-10).
 
 **Amount Complement** (project term):
 A numeric Complement selected by a declared Amount Frame Slot. Its notation

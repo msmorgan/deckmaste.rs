@@ -79,3 +79,6 @@ mod predeterminer_all;
 
 #[path = "suite/up_to_that_many.rs"]
 mod up_to_that_many;
+
+#[path = "suite/mana_symbol_nominal.rs"]
+mod mana_symbol_nominal;

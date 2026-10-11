@@ -428,6 +428,22 @@ constructions! {
         feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { Yes }
+        feature SymbolNominalUse { No, Count, Mass } default No;
+        table symbol_nominal_use(SymbolNominalUse) -> Selection {
+            (Count) => Yes, (Mass) => Yes,
+        }
+        table symbol_nominal_sequence(SymbolNominalUse, SymbolNominalUse) -> Selection {
+            (Count, No) => Yes, (Count, Count) => Yes, (Mass, No) => Yes,
+        }
+        table symbol_nominal_countability(SymbolNominalUse) -> countability {
+            (Count) => Count, (Mass) => Mass,
+        }
+        table symbol_measure_position(SymbolNominalUse) -> MeasurePosition {
+            (Count) => None, (Mass) => Before,
+        }
+        table symbol_cardinal_measurement(SymbolNominalUse) -> CardinalMeasurementUse {
+            (Count) => No, (Mass) => Yes,
+        }
         feature TypeLineRole { Supertype, CardType, Subtype }
         feature NameNumber { Singular, Plural } default Singular;
         table name_number(NameNumber) -> number {
@@ -678,6 +694,8 @@ constructions! {
         category CostSymbol();
         category ManaPhrase();
         category ManaSymbol();
+        category CountNominalSymbol(SymbolNominalUse);
+        category NominalSymbol(SymbolNominalUse);
         category Parenthetical();
         category QuotedText(QuotationStructure);
         category GrantedAbility(GrantedAbilityKind);
@@ -3418,38 +3436,55 @@ constructions! {
             use UnmodifiedNominalProperties;
         }
 
-        // Project rulings QE1–QE2: a declared Symbol heads a measured mass Nominal.
+        // MS1–MS2: the declared symbol class supplies a nominal head.
+        construction NominalSymbol: NominalSymbol {
+            form ["{", head: lexical(Symbol), "}"]
+                require symbol_nominal_use(head.SymbolNominalUse) = Yes
+                export SymbolNominalUse = head.SymbolNominalUse;
+            form ["{", head: lexical(Numeral), "}"]
+                require head.numeral_kind = Arabic
+                export SymbolNominalUse = Count;
+        }
+
+        // A count-symbol continuation cannot borrow the measured mass use.
+        construction CountNominalSymbol: CountNominalSymbol {
+            form [head: NominalSymbol];
+            require head.SymbolNominalUse = Count;
+            export SymbolNominalUse = Count;
+        }
+
+        // QE1–QE2 and MS1–MS5: one determined or measured symbol-sequence head.
         construction MeasuredSymbolNominal: Nominal {
             export ComparativeModifierPresent = No;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = No;
             export SubjectRelativeNumber = None;
             export BareGenitiveHost = No;
-            form ["{", head: lexical(Symbol), "}"];
-            require head.MeasurePosition = Before;
-            require head.CardinalMeasurementUse = Yes;
-            export AttributePremodifierHead = head.AttributePremodifierHead;
-            export KeywordPremodifierHead = head.KeywordPremodifierHead;
+            form [head: NominalSymbol, rest: repeat(CountNominalSymbol, "")];
+            require symbol_nominal_sequence(head.SymbolNominalUse,
+                last(rest).SymbolNominalUse) = Yes;
+            export AttributePremodifierHead = No;
+            export KeywordPremodifierHead = No;
             export NominalAgreementNumber = Head;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export NominalComplementMarker = head.NominalComplementMarker;
+            export SelectedPrepositionUse = No;
+            export PredicativeAdjunctUse = No;
+            export SourceModifierPresent = No;
+            export WholeObjectSourcePresent = No;
+            export BarePrepositionUse = No;
+            export NominalComplementMarker = None;
             export DeterminerRequirement = Yes;
-            export MeasurePosition = head.MeasurePosition;
-            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
-            export PropertyValuePosition = head.PropertyValuePosition;
-            export ScalarDenotation = head.ScalarDenotation;
-            export CardinalMeasurementUse = head.CardinalMeasurementUse;
+            export MeasurePosition = symbol_measure_position(head.SymbolNominalUse);
+            export ScalarMeasurementHeadUse = No;
+            export PropertyValuePosition = None;
+            export ScalarDenotation = No;
+            export CardinalMeasurementUse = symbol_cardinal_measurement(head.SymbolNominalUse);
             export number = Singular;
-            export countability = head.countability;
+            export countability = symbol_nominal_countability(head.SymbolNominalUse);
             export Targeting = No;
-            export NominalAdjunctClass = head.NominalAdjunctClass;
-            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
-            export SlashPremodifierUse = head.SlashPremodifierUse;
-            export NumberTransparency = head.NumberTransparency;
+            export NominalAdjunctClass = None;
+            export RelativisableAdjunctClass = None;
+            export SlashPremodifierUse = Yes;
+            export NumberTransparency = No;
             export ObliqueNumber = None;
         }
 
