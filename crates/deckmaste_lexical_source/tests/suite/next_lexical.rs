@@ -133,25 +133,26 @@ fn assign_and_change_have_complete_regular_paradigms_and_declared_frames() {
 
 #[test]
 fn single_and_extra_are_invariant_adjectives_with_declared_default_license() {
-    for (owner, spelling) in [
-        ("vocab:Adjective/Single", "single"),
-        ("vocab:Adjective/Extra", "extra"),
+    for (owner, spelling, additive) in [
+        ("vocab:Adjective/Single", "single", false),
+        ("vocab:Adjective/Extra", "extra", true),
     ] {
         let lexeme = &LEXICON.lexemes()[owner];
         assert_eq!(lexeme.category, Category::Adjective);
         assert_eq!(lexeme.source.kind, SourceKind::Core);
         assert_eq!(lexeme.source.owner, owner);
-        assert_eq!(
-            lexeme.properties.features,
-            std::collections::BTreeMap::from([
-                ("BareSingularUse".into(), "No".into()),
-                ("VerblessPredicateUse".into(), "Yes".into()),
-                (
-                    "FeatureSource:BareSingularUse".into(),
-                    "crates/deckmaste_lexical_source/lexicon/core.ron".into()
-                ),
-            ])
-        );
+        let mut features = std::collections::BTreeMap::from([
+            ("BareSingularUse".into(), "No".into()),
+            ("VerblessPredicateUse".into(), "Yes".into()),
+            (
+                "FeatureSource:BareSingularUse".into(),
+                "crates/deckmaste_lexical_source/lexicon/core.ron".into(),
+            ),
+        ]);
+        if additive {
+            features.insert("AdditiveModifierUse".into(), "Yes".into());
+        }
+        assert_eq!(lexeme.properties.features, features);
         assert_eq!(
             lexeme.properties.frames,
             [] as [deckmaste_lexical::Frame; 0]

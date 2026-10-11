@@ -189,6 +189,7 @@ constructions! {
             (Yes, _) => Yes, (No, Yes) => Yes, (No, No) => No,
         }
         feature MeasureModifierUse { No, Yes } default No;
+        feature AdditiveModifierUse { No, Yes } default No;
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct,
             Supplement, MedialSupplement } set;
@@ -686,7 +687,7 @@ constructions! {
         category ScalarExtentMeasure();
         category UnsignedScalar();
         category ScalarComponent(ScalarSign);
-        category SlashPair();
+        category SlashPair(AdditiveModifierUse);
         category ComparativeGovernorHead(ComparisonMarker);
         category ComparativeComplement(AdjectivePremodifierUse);
         category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
@@ -2945,6 +2946,7 @@ constructions! {
         construction CostPowerToughnessKeyword: KeywordPhrase {
             form [head: lexical(Keyword), " ", cost: CostSymbols,
                 keyword_parameter_separator(head.KeywordParameterSeparator), size: SlashPair];
+            require size.AdditiveModifierUse = No;
             require head.KeywordParameterClass = CostPowerToughness;
             require head.KeywordSeparator = Space;
         }
@@ -6421,8 +6423,28 @@ constructions! {
             form ["−", value: UnsignedScalar] export ScalarSign = Minus;
         }
 
+        // AD1–AD7: the optional dependent belongs to the adjustment Complement.
+        // Its article follows ordinary lexical Onset agreement.
+        table additive_modifier_presence(present) -> AdditiveModifierUse {
+            (No) => No, (Yes) => Yes,
+        }
         construction SlashPair: SlashPair {
-            form [left: ScalarComponent, "/", right: ScalarComponent];
+            form [determiner: optional(lexical(Determinative), " "),
+                modifier: optional(lexical(Adjective), " "),
+                left: ScalarComponent, "/", right: ScalarComponent]
+                require determiner.article_onset = Vowel
+                require modifier.onset = Vowel;
+            form [determiner: optional(lexical(Determinative), " "),
+                modifier: optional(lexical(Adjective), " "),
+                left: ScalarComponent, "/", right: ScalarComponent]
+                require modifier.present = Yes
+                require determiner.article_onset = Consonant
+                require modifier.onset = Consonant;
+            agree determiner.present = modifier.present;
+            require determiner.DeterminerKind = Indefinite;
+            require determiner.number = Singular;
+            require modifier.AdditiveModifierUse = Yes;
+            export AdditiveModifierUse = additive_modifier_presence(modifier.present);
         }
 
         policy UnitFreeMeasure {
@@ -6433,6 +6455,7 @@ constructions! {
         }
         schema SlashMeasure {
             form [pair: SlashPair];
+            require pair.AdditiveModifierUse = No;
             export MeasureKind = Pair;
         }
         instance SlashMeasure<Result, Properties = NoFeatures>: [
@@ -6450,6 +6473,7 @@ constructions! {
             export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = head.BareGenitiveHost;
             form [modifier: SlashPair, " ", head: Nominal];
+            require modifier.AdditiveModifierUse = No;
             require head.SlashPremodifierUse = Yes;
             use NominalHeadFeatures;
             use NominalHeadProperties;

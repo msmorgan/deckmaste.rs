@@ -143,6 +143,8 @@ fn independent_ordered_pair_and_premodification_preserve_both_laws() {
         }),
     };
     let pair = Reading::SlashPair {
+        determiner: None,
+        modifier: None,
         form: 0,
         left: Box::new(component(0)),
         right: Box::new(component(2)),
@@ -156,6 +158,8 @@ fn independent_ordered_pair_and_premodification_preserve_both_laws() {
         }),
     };
     let variable_pair = Reading::SlashPair {
+        determiner: None,
+        modifier: None,
         form: 0,
         left: Box::new(variable.clone()),
         right: Box::new(variable),

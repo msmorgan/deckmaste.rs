@@ -186,6 +186,8 @@ fn agreement_clause(number: Number) -> Reading {
                 category: Category::FinitePredicate,
                 head,
                 complements: vec![FrameValue::Argument(Box::new(Reading::SlashPair {
+                    determiner: None,
+                    modifier: None,
                     form: 0,
                     left: Box::new(component()),
                     right: Box::new(component()),

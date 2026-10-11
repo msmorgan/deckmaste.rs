@@ -5,6 +5,10 @@
     // World has an ordinary adjective declaration without a negative Lexeme.
     // Legendary keeps its existing adjective owner and Catalog entry.
     adjective_classes: [(
+        // AD7: existing additive adjectives share the adjustment licence.
+        features: {"AdditiveModifierUse": "Yes"},
+        members: ["vocab:AttributiveAdjective/Additional", "vocab:Adjective/Extra"],
+    ), (
         negative_prefix_join: Some(Joined),
         members: [
             "vocab:Supertype/Basic", "vocab:PredicativeAdjective/Legendary",

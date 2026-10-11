@@ -220,6 +220,8 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
                 vec![named("Green"), named("Green")],
             )),
             size: Box::new(Reading::SlashPair {
+                determiner: None,
+                modifier: None,
                 form: 0,
                 left: Box::new(Reading::UnsignedScalar {
                     form: 0,

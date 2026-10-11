@@ -340,6 +340,12 @@ _Avoid_: past subjunctive; treating irrealis as a Past Tense
 **Irrealis Clause**:
 A finite Clause whose Predicate contains an Irrealis verb.
 
+**Additive Modifier Use** (project term):
+An Adjective Lexeme's declared permission to modify a power/toughness
+adjustment as an added amount, with an indefinite article agreeing with its
+Onset (orchestrator rulings AD1–AD7, 2026-10-11,
+`english-v3-additional-slash-adjustment`).
+
 **Scalar Measurement Head Use** (project term):
 A mass noun's declared permission to head a scalar measurement Noun Phrase.
 The Nominal retains it through a participial Postmodifier; other nominal

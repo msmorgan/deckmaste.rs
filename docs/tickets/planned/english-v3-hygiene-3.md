@@ -136,6 +136,8 @@ Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Rea
 
 2026-10-11, `english-v3-chart-dead-prediction-filter` (`swxynlzl` → `vlxnywvr`): the pre-refresh nine witnesses use 7,869–12,295 → 4,698–7,578 items and 8,051–12,618 → 4,880–7,901 families; predictions 6,843–10,716 → 3,672–5,999; `items - predicted_items` stays 1,026–1,579 and completed nodes stay 163–287. Diagnosis suggests a control ratio `items(text) <= 2.0 * items(text without the second cluster)`, or bounds on `items - predicted_items` and completed nodes; the existing 12,500 / 13,000 ceilings and assertions remain unchanged pending the owner decision. After refresh: maximum 7,581 items / 7,904 families, completed nodes unchanged.
 
+- **C5. Selected Literal over an optional lexical field panics.** `english-v3-additional-slash-adjustment` (`zquvqlrm`, 2026-10-11): `separator article(present)` referenced by `article(modifier.present)` before `modifier: optional(lexical(Adjective), " ")` passes validation but proc-macro expansion hits `internal error: entered unreachable code`; diagnose the emitter and reject or implement this combination. The landing uses retained lexical articles instead.
+
 ### D. Scope and bookkeeping
 
 - **D1. Duplicate ticket.** `planned/english-v3-comparative-property-premodifier`

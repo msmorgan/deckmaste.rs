@@ -594,6 +594,8 @@ fn unsigned_scalar(value: i32) -> Reading {
 #[test]
 fn slash_pairs_preserve_ordered_components_and_explicit_signs() {
     let pair = Reading::SlashPair {
+        determiner: None,
+        modifier: None,
         form: 0,
         left: Box::new(Reading::PositiveScalar {
             form: 0,
@@ -689,6 +691,8 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         FeatureBundle::default(),
     );
     let pair = Reading::SlashPair {
+        determiner: None,
+        modifier: None,
         form: 0,
         left: Box::new(Reading::UnsignedScalar {
             form: 0,
@@ -761,6 +765,8 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
         head: get.clone(),
         complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
             Box::new(Reading::SlashPair {
+                determiner: None,
+                modifier: None,
                 form: 0,
                 left: Box::new(Reading::PositiveScalar {
                     form: 0,

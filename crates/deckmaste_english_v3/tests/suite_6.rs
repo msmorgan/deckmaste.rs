@@ -127,3 +127,6 @@ mod superlative_quantifiers;
 
 #[path = "suite/independent_genitive_pronoun.rs"]
 mod independent_genitive_pronoun;
+
+#[path = "suite/additional_slash_adjustment.rs"]
+mod additional_slash_adjustment;
