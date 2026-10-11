@@ -197,17 +197,17 @@ or a Debug-printed tree.
 
 ## Landing record
 
-1. **Census delta (`kmynzkut`, implementation `ztvzruvp`):** bounded identity
+1. **Census delta (`nlwqxwtx`, implementation `ztvzruvp`):** bounded identity
    manifest `target/english-v3/english-v3-plugin-term-definitions/manifest.json`,
    1,076 faces: 785 matching
    `modif|part(y|ies)|multikick|expend|descend|poison|wicked|monster|young hero|cursed|royal|sorcerer|virtuous|bands with other|empower|convok|devour|saddl|evolv|banded|day|night|gift|promis`
    anywhere in supported analysed text, unioned with 300 covered controls
-   (seed 20261008; all 300 covered on the claim parent). Covered 748 → 852;
-   total Readings 20,427 → 21,324. Official `english-v3 diff --lines`:
-   104 gains, 0 lost/decreases/increases/source changes, 3 digest-only,
-   969 unchanged (`accepted-after.json`, `accepted-diff.json`). The accepted
-   ticket contributes 101 gains, 0 changes on covered faces. Official incoming
-   diff against the last verified AFTER (`accepted-incoming-diff.json`)
+   (seed 20261008; all 300 covered on the claim parent). Covered 748 → 854;
+   total Readings 20,427 → 21,343. Official `english-v3 diff --lines`:
+   106 gains, 0 lost/decreases/increases/source changes, 4 digest-only,
+   966 unchanged (`integration-after.json`, `integration-diff.json`). The accepted
+   ticket contributes 101 gains, 0 changes on covered faces. The first incoming
+   diff (`accepted-incoming-diff.json`, against `second-refreshed-after.json`)
    attributes three extra gains to trunk: Bjorna, Nightfall Alchemist and
    Peri Brown (`zvoyutom`, phrasal keywords); Wicked Slumber (`qnvlmzuu`,
    determinative-headed partitive). Three unchanged-count digests come from
@@ -215,6 +215,16 @@ or a Debug-printed tree.
    Heroes' Hangout 12, Interdisciplinary Mascot 5, Party Thrasher 82.
    `incoming-gain-probes.json` confirms the intended keyword/partitive shapes.
    Lost faces: none. No unintended-analysis gains found. No bespoke comparison.
+   Integration refresh imported `tznkrzpw` (quantified energy) and `ropwqyov`
+   (scalar difference). `integration-incoming-diff.json` attributes two more
+   gains to scalar difference: Ancient Cellarspawn 8 and Vraska, Betrayal's
+   Sting 11. It attributes one unchanged-count digest to quantified energy:
+   Janjeet Sentry 2: its Symbol Words now carry declared mass countability
+   (`Some(false)`); the repeated-symbol Complement route is preserved, as
+   recorded by the energy landing. Five extra gains require incoming trunk
+   changes, and all four digest changes come from trunk; the ticket's accepted
+   delta remains 101 gains with no changes to covered faces. `integration-incoming-probes.json` records the intended shapes.
+   All required post-refresh full suites and clippy passed on `nlwqxwtx`.
 2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
    0 on the claim parent; controls had the counts below before the edit.
    Modified attributive 2/2,
@@ -264,10 +274,10 @@ or a Debug-printed tree.
    The upstream six-row STOP from `zvoyutom` was resolved by `kruuppqw`'s
    owner-approved semantics-debt exemptions, regenerated Lean and corrected
    Waterbend assertion. Post-refresh verification below supersedes the STOP.
-5. **Tests (`kmynzkut`):** all commands exit 0:
-   - `cargo build -p xtask` — passed (4m 43s).
+5. **Tests (`nlwqxwtx` after integration refresh):** all commands exit 0:
+   - `cargo build -p xtask` — passed.
    - `cargo test -p xtask` — full suite, 425 passed, 1 inherited ignore.
-   - `cargo test -p deckmaste_english_v3` — 1,021 passed.
+   - `cargo test -p deckmaste_english_v3` — 1,031 passed.
    - `cargo test -p deckmaste_lexical_source` — 88 passed.
    - `cargo test -p deckmaste_construction_core` — 474 passed.
    - `cargo test -p deckmaste_semantics_v2` — 105 passed.
@@ -276,20 +286,22 @@ or a Debug-printed tree.
    - `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_construction_core --tests -- -D warnings` — passed.
    - `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings` — passed.
-   - `cargo xtask lean check` — passed.
+   - `cargo xtask lean check` — 242 cards / 2 plugins, passed on `kmynzkut`;
+     the later refresh changed no Lean or plugin dependencies.
    - `cargo xtask cite check --list-noncompliant` — 0 noncompliant.
    - `cargo xtask cite check` — 0 stale.
    - `jj --no-pager diff --git | cargo xtask cite audit --diff` — one moved
      citation audited; [CR#701.71a] read in full against the ownership claim.
    Earlier `cargo xtask cite bless` registered only that rule. Exact commands,
-   outcomes and timings are in `accepted-verification.json` and adjacent
-   `accepted-check-*.log` under the evidence directory. Assurance: restored 0 /
+   outcomes and timings are in `integration-verification.json` and adjacent
+   `integration-check-*.log`; the earlier Lean check is in
+   `accepted-verification.json` / `accepted-check-29.log` in that directory. Assurance: restored 0 /
    re-spelled 0 / introduced ignores 0 / added 3 / removed 0. No removals to
    justify. The inherited ignored xtask test
    `macros::templates::tests::macro_schema_census_count_matches_21` retains
    its existing reason: “cross-checks the live corpus against the census;
    run on demand”.
-6. **Timing (`kmynzkut`):** final bounded census 41.25 s wall under
+6. **Timing (`nlwqxwtx`):** final bounded census 65.17 s wall under
    `/usr/bin/time -v`, six workers, `--samples-per-face 0`, identical manifest.
    No full-corpus census was run. Earlier bounded checks remain in the evidence
    directory.
