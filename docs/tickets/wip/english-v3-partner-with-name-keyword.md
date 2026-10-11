@@ -140,6 +140,16 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `english-v3 diff --lines`, saved as `refresh-diff.json`, reports all
    429 unchanged. Digest-only
    classes: none, zero changed lines. No inherited decreases to attribute.
+   Final authorized refresh (`qlwqzypn`), using the same 429-identity manifest:
+   369 → 416 covered faces and 9,703 → 11,159 Readings. Official final diff:
+   47 gains, zero lost/decreases/increases/digest-only. The ticket retains its
+   46 gains; the additional gain is Cecily, Haunted Mage (66 per-line Readings),
+   attributable to trunk `lpnkpkpu` (scalar locations): “Your maximum hand size
+   is eleven.” is now a ScalarLocation (one Reading). Its other lines contribute
+   64 and one Readings, with the latter using the existing bare Partner route.
+   Official `refresh-final-diff.json`: one gain, 428 unchanged, three newly
+   reported lines; no other delta or digest-only class. Final files remain
+   `after.json` and `diff.json`; prior result is `after-pre-final.json`.
 2. **Witnesses — `opkxokpk`.** Re-probed before implementation: Amy Pond,
    Pir, Imaginative Rascal, Blaring Recruiter, Khorvath Brightflame and Rowan
    Kenrith each 0 → 1 Reading for the ticket's whole keyword line, through
@@ -222,6 +232,13 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    with one existing ignored; xtask 425 passed with one existing ignored.
    No incoming plugins required another Lean run. Chart-budget tests passed
    without changing their ceilings.
+   Final authorized refresh (`qlwqzypn`): `cargo build -p xtask`, the same
+   five full crate test commands and five-crate clippy command, and
+   `cargo xtask lean check` all passed. English: 1,156 passed, one existing
+   ignored; xtask: 425 passed, one existing ignored. The exact
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   test passed with its ceiling unchanged. Final command outcomes are in
+   `checks-final.json`, with build evidence in `build-final.log`.
    Citation checks: zero noncompliant, zero stale; bless changed no lock;
    diff audit selected zero new citation sites. Restored 0 / re-spelled 3 /
    newly ignored 0 / added 7 / removed 0. Re-spelled:
@@ -234,7 +251,7 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    66 + 210 declarations instead of 66 + 209, retaining all its parameter and
    template assertions. Four structural English tests, two parameter-recipe
    tests and one semantic value test added; no existing test removed or weakened.
-6. **Timing — `ksntxunw`.** Final refreshed bounded census: 6.66s wall under
+6. **Timing — `qlwqzypn`.** Final authorized-refresh bounded census: 6.82s wall under
    `/usr/bin/time -v`, 6 workers, samples per face 0. The bounded census was
    rechecked after PW7, with zero further Reading or digest changes; no
    full-corpus run or `--all`.
