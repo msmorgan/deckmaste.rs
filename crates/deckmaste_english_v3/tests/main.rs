@@ -76,3 +76,6 @@ mod spelled_cardinal_scalar_measure;
 
 #[path = "suite/predeterminer_all.rs"]
 mod predeterminer_all;
+
+#[path = "suite/up_to_that_many.rs"]
+mod up_to_that_many;

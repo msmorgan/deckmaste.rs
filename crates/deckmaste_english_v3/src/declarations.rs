@@ -12,7 +12,7 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
-        feature DegreeUse { Head, Modifier }
+        feature DegreeUse { None, Head, Modifier } default None;
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
             (Multiplier, Definite, Other) => Yes, (Fraction, Definite, Other) => Yes,
@@ -611,10 +611,12 @@ constructions! {
         category PrimaryNegator();
         category NegatedAuxiliaryHead(PredicateFrameUse, Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
         category QuantitativeAdjectiveComplement();
-        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent);
+        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent, DegreeUse);
         category CardinalPrepositionPhrase(number);
         category ArithmeticModifier();
         category QuantitativePrepositionPhrase(number);
+        category DegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
+        category QuantitativeDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
         category ComparativePrepositionPhrase(number);
         category QuantityConjunct(number, CardinalComplementUse, CardinalMeasurementUse);
         category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse);
@@ -5794,6 +5796,21 @@ constructions! {
             require head.QuantitativeComplement = CardinalPrepositionPhrase;
         }
 
+        policy QuantitativeDegreePrepositionComplement {
+            export DeterminerUse = complement.DeterminerUse;
+            export DeterminerAgreementNumber = complement.DeterminerAgreementNumber;
+            require head.QuantitativeComplement = CardinalPrepositionPhrase;
+        }
+
+        // UM1–UM2: the bound also takes a degree Determinative Phrase,
+        // retaining its declared head selection and Agreement.
+        policy DegreePrepositionComplement {
+            require head.QuantitativeComplement = Cardinal;
+            require complement.DegreeUse = Head;
+            export DeterminerUse = complement.DeterminerUse;
+            export DeterminerAgreementNumber = complement.DeterminerAgreementNumber;
+        }
+
         policy ComparativePrepositionComplement {
             export number = complement.number;
             require head.ComparisonMarker = Ordering;
@@ -5812,6 +5829,9 @@ constructions! {
                 QuantitativePrepositionComplement),
             (ComparativePrepositionPhrase, Cardinal, ComparativePrepositionComplement),
             (CardinalModifier, QuantitativeAdjectiveComplement, QuantitativeAdjectiveComplementLicence),
+            (DegreePrepositionPhrase, QuantitativeDeterminer, DegreePrepositionComplement),
+            (QuantitativeDegreePrepositionPhrase, DegreePrepositionPhrase,
+                QuantitativeDegreePrepositionComplement),
         ] {
             use Properties;
         }
@@ -5841,6 +5861,7 @@ constructions! {
 
         // MH2: a declared Determinative may coordinate with a cardinal count.
         construction CardinalDeterminativeCoordination: QuantitativeDeterminer {
+            export DegreeUse = None;
             form [left: Cardinal, " ", coordinator: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
             require coordinator.CoordinationKind = Alternative;
@@ -5853,6 +5874,7 @@ constructions! {
         }
 
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
+            export DegreeUse = None;
             export Definiteness = Nondefinite;
             export NominalAdjunctDependent = None;
             cost 0;
@@ -5862,6 +5884,7 @@ constructions! {
         }
 
         construction CardinalDeterminer: QuantitativeDeterminer {
+            export DegreeUse = None;
             export Definiteness = Nondefinite;
             export NominalAdjunctDependent = None;
             cost 0;
@@ -5871,12 +5894,16 @@ constructions! {
         }
 
         construction PrepositionDeterminer: QuantitativeDeterminer {
+            export DegreeUse = None;
             export Definiteness = Nondefinite;
             export NominalAdjunctDependent = None;
             cost 0;
-            form [value: QuantitativePrepositionPhrase];
-            export DeterminerUse = cardinal_determiner_use(value.number);
-            export DeterminerAgreementNumber = cardinal_agreement_number(value.number);
+            form [value: QuantitativePrepositionPhrase]
+                export DeterminerUse = cardinal_determiner_use(value.number)
+                export DeterminerAgreementNumber = cardinal_agreement_number(value.number);
+            form [value: QuantitativeDegreePrepositionPhrase]
+                export DeterminerUse = value.DeterminerUse
+                export DeterminerAgreementNumber = value.DeterminerAgreementNumber;
         }
 
         table cardinal_agreement_number(number) -> DeterminerAgreementNumber {
@@ -5894,6 +5921,7 @@ constructions! {
 
         // CGEL Ch. 5 §11(c), p. 431: degree modification within a DP.
         construction DegreeDeterminativePhrase: QuantitativeDeterminer {
+            export DegreeUse = head.DegreeUse;
             export Definiteness = modifier.Definiteness;
             export NominalAdjunctDependent = None;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
