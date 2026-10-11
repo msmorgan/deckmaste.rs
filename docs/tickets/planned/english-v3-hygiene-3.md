@@ -68,6 +68,8 @@ has not been probed at the current trunk.
 
 ### B. Lexicon and feature economy
 
+- **QS7 quantifier policies.** `english-v3-quantified-mana-symbol` preserves ordinary determiner-licensing rows in a separate number-neutral quantifier policy; table composition could share those rows without broadening ordinary noun licensing.
+
 - **B1. Two spellings of definiteness.** The noun-side determiner selection
   of `english-v3-fused-head-noun-phrases` (ruling FH7) reads the
   Determinative's `NominalAdjunctDependent = Definite`; trunk also has a

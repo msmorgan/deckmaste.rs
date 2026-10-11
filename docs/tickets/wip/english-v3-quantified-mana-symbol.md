@@ -77,6 +77,14 @@ Orchestrator rulings 2026-10-11:
   reported by class. No Reading-count increase is expected on a covered face;
   report any with its shape.
 
+- QS7 (pre-ruling, orchestrator, 2026-10-11). A symbol needing both mass
+  and count quantification keeps one `SymbolNominalUse` declaration and one
+  analysis. Its quantified Nominal contributes number-neutral Agreement;
+  its Noun Phrase exports the existing `SingularOrPlural` convention and
+  accepts the mass or count Determiners its class licenses. No symbol twin
+  or extra `SymbolNominalUse` member. STOP only if this convention cannot
+  express the attested pairs.
+
 ## Witnesses
 
 Each is the face's only failing line, or a sentence of it. Probed 2026-10-11
@@ -122,3 +130,67 @@ negatives), never an incidental count or a Debug-printed tree. Attestation by
   `english-v3-mana-symbol-passive-subject`.
 
 ## Landing record
+
+1. **Census delta — `rovouzyr`.** Claim-parent tree `loqmruup` (empty
+   `rovouzyr` before edits) → implemented `rovouzyr`: 6,328 → 6,359 covered
+   faces; 225,908 → 226,817 Readings. Official `diff --lines`: 31 gained,
+   0 lost, 0 decreases, 0 increases, 16 digest-only faces/lines: 12
+   spelled-cardinal energy lines and 4 variable-energy lines replace
+   `CardinalMeasuredNounPhrase` with `QuantifiedNounPhrase` containing
+   `CardinalDeterminer`. No lost faces or unintended symbol analysis found.
+   Manifest: ticket Method grep (166 faces), baseline declaration users of
+   `NominalSymbol`, `MeasuredSymbolNominal` or `QuantifiedNounPhrase` (5,998),
+   plus 300 covered controls from official `diff --manifest --random 300
+   --seed 20261008`: union 6,377. Evidence under `target/english-v3/english-v3-quantified-mana-symbol/`:
+   `manifest.json`, `before.json`, `after.json`, `diff.json`.
+2. **Witnesses — `rovouzyr`.** All five claim-parent probes were 0;
+   Castle Garenbrig 1, Irencrag Feat's sentence 1, Sakiko's sentence 3,
+   Sphinx of the Revelation 1, Pia Nalaar's sentence 1 after. Sakiko's
+   otherwise identical *that much mana* control is 3 (W9-A). All eight
+   ticket controls remain 1; *Add X {G}.* changes 0 → 1. Complete,
+   byte-exact probe enumeration throughout. Irencrag's full face remains
+   unread at the separate *only one more spell* gap.
+3. **Spot checks — `rovouzyr`.** Ten new faces have the intended quantified
+   symbol as selected Object: Aether Refinery (*one or more {E}*, *twice
+   that many {E}*, Get); Castle Garenbrig (*six {G}*, Add); Fangorn, Tree
+   Shepherd (*twice that much {G}*, Add); Mana Seism (*that much {C}*, Add);
+   Neheb, Dreadhorde Champion (*that much {R}*, Add); Sakiko, Mother of
+   Summer (*that much {G}*, Add); Mark of Sakiko (quoted *that much {G}*,
+   Add); Sphinx of the Revelation (*that many {E}*, Get); Pia Nalaar, Chief
+   Mechanic (*one or more {E}*, Pay); Su-Chi Cave Guard (*eight {C}*, Add).
+   All inspected line Readings realize byte-exactly with no issues.
+4. **Deviations and STOPs — `rovouzyr`.** No Construction or verb frame
+   added/deleted; no STOP. QS7 adds number-neutral Nominal Agreement and
+   derives it from the existing mana and mass-symbol classes. Generic,
+   numeric and cost-only snow notation retain their existing class gaps.
+   Retired `symbol_cardinal_measurement`; energy's existing lexical Mass
+   declaration still supplies Countability, with no lexical twin or
+   superseded lexical alternative left behind. The glossary records QS7;
+   hygiene-3 records duplicated quantifier-licensing rows. Fangorn's
+   multiplier falls out through its existing Predeterminer, as allowed.
+   Two existing timing decimals in planned `english-v3-predicative-gap-relative`
+   were reworded as seconds/milliseconds to clear citation-check false
+   positives, preserving their values.
+5. **Tests — `rovouzyr`.** `cargo test -p deckmaste_english_v3`: passed in full
+   (1,137 passed, 1 inherited ignore: the named
+   `english-v3-mana-symbol-verbless-subject` blocker). `cargo clippy -p
+   deckmaste_english_v3 --tests -- -D warnings`: passed. `cargo test -p
+   deckmaste_lexical_source`: passed (44 tests). `cargo clippy -p
+   deckmaste_lexical_source --tests -- -D warnings`: passed.
+   Restored 0 / re-spelled 5 / newly ignored 0 / added 4 / removed 0.
+   Re-spelled in `quantified_energy_symbol`: each expected symbol Object
+   uses `QuantifiedNounPhrase(CardinalDeterminer(...), symbol Nominal)`:
+   `independently_constructed_energy_measurement_preserves_both_roundtrip_laws`,
+   `aethertide_whale_gets_a_cardinal_measurement_with_a_symbol_head`,
+   `aethersquall_ancient_pays_a_cardinal_measurement_as_a_cost`,
+   `roil_cartographer_pays_a_measurement_beside_a_symbol_cost`, and
+   `overclocked_electromancer_gets_a_variable_measurement_with_a_symbol_head`.
+   The initial full run caught the re-spelled Roil helper collecting the
+   unrelated *three cards* NP; its symbol-head selector was corrected,
+   retaining exact value equality. Initial clippy caught a by-value helper
+   argument and an empty-vector assertion; both were corrected. The four
+   new role/roundtrip/class/gap tests are registered once in `suite_2`.
+   Citation checks: 0 noncompliant, 0 stale; bless adds no registrations;
+   diff audit selects no new citation sites.
+6. **Timing — `rovouzyr`.** One bounded after-census: 8m33s710ms elapsed
+   under `/usr/bin/time -v`, 6 workers, including Cargo's build-lock wait.

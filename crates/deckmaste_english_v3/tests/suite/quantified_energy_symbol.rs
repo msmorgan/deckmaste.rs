@@ -34,20 +34,23 @@ fn energy_head() -> Reading {
 }
 
 fn measured_energy(value: i32) -> Reading {
-    Reading::CardinalMeasuredNounPhrase {
+    Reading::QuantifiedNounPhrase {
         form: 0,
-        quantity: Box::new(Reading::Cardinal {
+        quantity: Box::new(Reading::CardinalDeterminer {
             form: 0,
-            modifier: None,
-            head: Word {
-                value: LexicalReading::Numeral {
-                    value,
-                    notation: Numeral::Cardinal,
-                    capitalization: SurfaceCase::Declared,
+            value: Box::new(Reading::Cardinal {
+                form: 0,
+                modifier: None,
+                head: Word {
+                    value: LexicalReading::Numeral {
+                        value,
+                        notation: Numeral::Cardinal,
+                        capitalization: SurfaceCase::Declared,
+                    },
+                    frame: None,
+                    countability: None,
                 },
-                frame: None,
-                countability: None,
-            },
+            }),
         }),
         head: Box::new(energy_head()),
     }
@@ -79,7 +82,9 @@ fn cardinal_witness(card: &str, text: &str, value: i32) {
         let mut measurements = BTreeSet::new();
         reading
             .visit(&mut |node| {
-                if let Reading::CardinalMeasuredNounPhrase { .. } = node {
+                if let Reading::QuantifiedNounPhrase { head, .. } = node
+                    && let Reading::MeasuredSymbolNominal { .. } = head.as_ref()
+                {
                     measurements.insert(node.clone());
                 }
             })
@@ -124,7 +129,7 @@ fn overclocked_electromancer_gets_a_variable_measurement_with_a_symbol_head() {
         let mut heads = BTreeSet::new();
         reading
             .visit(&mut |node| {
-                if let Reading::CardinalMeasuredNounPhrase { quantity, head, .. } = node {
+                if let Reading::QuantifiedNounPhrase { quantity, head, .. } = node {
                     assert_eq!(quantity.realize(common::lexicon()).unwrap(), "X");
                     heads.insert(head.as_ref().clone());
                 }

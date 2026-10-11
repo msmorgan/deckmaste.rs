@@ -1723,7 +1723,10 @@ applies ([owner ruling, 2026-10-08](../../tickets/done/english-v3-overgeneration
 **Nominal Agreement Number** (project term):
 The Number a Nominal contributes to its containing Noun Phrase's Agreement,
 which can differ from the coordinates' Number used for shared Determiner
-selection. The additive plural restriction in Oracle English is the
+selection. A declared nominal-symbol class can contribute number-neutral
+Agreement while retaining one Head and accepting mass or count quantification
+(orchestrator ruling QS7, 2026-10-11, `english-v3-quantified-mana-symbol`).
+The additive plural restriction in Oracle English is the
 [coordinated-subject project analysis](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis).
 
 **Concord Class** (project term):

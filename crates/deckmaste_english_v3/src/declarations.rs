@@ -57,6 +57,7 @@ constructions! {
         table deferred_relative_number(NominalAgreementNumber, number) -> SubjectRelativeNumber {
             (Head, Singular) => None, (Head, Plural) => None,
             (Plural, Singular) => Singular, (Plural, Plural) => Plural,
+            (SingularOrPlural, _) => None,
         }
         table singular_relative_number(SubjectRelativeNumber) -> Selection {
             (None) => Yes, (Singular) => Yes,
@@ -67,6 +68,7 @@ constructions! {
         table resolved_ordinary_relative_number(SubjectRelativeNumber, NominalAgreementNumber, number) -> Selection {
             (None, _, _) => Yes, (Singular, Head, Singular) => Yes,
             (Plural, Head, Plural) => Yes, (Plural, Plural, _) => Yes,
+            (_, SingularOrPlural, _) => Yes,
         }
         table resolved_relative_number(SubjectRelativeNumber, NominalAgreementNumber, number, DeterminerAgreementNumber) -> Selection {
             (None, _, _, _) => Yes,
@@ -74,8 +76,9 @@ constructions! {
             (Singular, Head, Singular, Nominal) => Yes,
             (Plural, Head, Plural, Nominal) => Yes,
             (Plural, Plural, _, Nominal) => Yes,
+            (_, SingularOrPlural, _, _) => Yes,
         }
-        feature NominalAgreementNumber { Head, Plural } default Head;
+        feature NominalAgreementNumber { Head, Plural, SingularOrPlural } default Head;
         feature DeterminerAgreementNumber { Nominal, Singular, SingularOrPlural } default Nominal;
         feature QuantificationalDeterminer { No, Yes } default No;
         feature QuantificationalAdjunctUse { No, Yes } default No;
@@ -440,7 +443,7 @@ constructions! {
         feature BareGenitiveHost { No, Yes } default No;
         feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
-        feature ManaSymbolUse { Yes }
+        feature ManaSymbolUse { No, Yes } default No;
         feature SymbolNominalUse { No, Count, Mass } default No;
         table symbol_nominal_use(SymbolNominalUse) -> Selection {
             (Count) => Yes, (Mass) => Yes,
@@ -451,11 +454,14 @@ constructions! {
         table symbol_nominal_countability(SymbolNominalUse) -> countability {
             (Count) => Count, (Mass) => Mass,
         }
-        table symbol_measure_position(SymbolNominalUse) -> MeasurePosition {
-            (Count) => None, (Mass) => Before,
+        // QS2/QS7: notation licensed as mana or a mass symbol has one
+        // number-neutral quantified use; generic cost notation retains Head.
+        table symbol_nominal_agreement(SymbolNominalUse, ManaSymbolUse) -> NominalAgreementNumber {
+            (Count, Yes) => SingularOrPlural, (Mass, _) => SingularOrPlural,
+            (Count, No) => Head,
         }
-        table symbol_cardinal_measurement(SymbolNominalUse) -> CardinalMeasurementUse {
-            (Count) => No, (Mass) => Yes,
+        table symbol_measure_position(NominalAgreementNumber) -> MeasurePosition {
+            (Head) => None, (SingularOrPlural) => Before,
         }
         feature TypeLineRole { Supertype, CardType, Subtype }
         feature NameNumber { Singular, Plural } default Singular;
@@ -721,7 +727,7 @@ constructions! {
             SourceComplementSelection);
         category ManaSymbol();
         category CountNominalSymbol(SymbolNominalUse);
-        category NominalSymbol(SymbolNominalUse);
+        category NominalSymbol(SymbolNominalUse, NominalAgreementNumber);
         category Parenthetical();
         category QuotedText(QuotationStructure);
         category GrantedAbility(GrantedAbilityKind);
@@ -973,16 +979,21 @@ constructions! {
             -> NominalAgreementNumber {
             (Additive, Head) => Plural, (Additive, Plural) => Plural,
             (Alternative, Head) => Head, (Alternative, Plural) => Plural,
+            (Additive, SingularOrPlural) => Plural,
+            (Alternative, SingularOrPlural) => SingularOrPlural,
         }
         table nominal_agreement_number(NominalAgreementNumber, number) -> number {
             (Head, Singular) => Singular, (Head, Plural) => Plural,
             (Plural, Singular) => Plural, (Plural, Plural) => Plural,
+            (SingularOrPlural, Singular) => Singular,
+            (SingularOrPlural, Plural) => Plural,
         }
 
         table nominal_relative_agreement(NominalAgreementNumber, number, number) -> Selection {
             (Head, Singular, Singular) => Yes, (Head, Plural, Plural) => Yes,
             (Plural, Singular, Plural) => Yes, (Plural, Plural, Plural) => Yes,
             (Plural, Singular, Singular) => Yes, (Plural, Plural, Singular) => Yes,
+            (SingularOrPlural, _, _) => Yes,
         }
 
         table coordinate_person(CoordinationKind, person, person) -> person {
@@ -1089,6 +1100,7 @@ constructions! {
         // declared quantificational use; the syntactic head keeps its Number.
         table quantificational_number(QuantificationalDeterminer, NumberTransparency,
             ObliqueNumber, number, NominalAgreementNumber, DeterminerAgreementNumber) -> number {
+            (_, No, None, Singular, SingularOrPlural, _) => Singular,
             (No, No, None, Singular, Head, Nominal) => Singular,
             (No, No, None, Plural, Head, Nominal) => Plural,
             (No, No, Singular, Singular, Head, Nominal) => Singular,
@@ -3547,10 +3559,13 @@ constructions! {
         construction NominalSymbol: NominalSymbol {
             form ["{", head: lexical(Symbol), "}"]
                 require symbol_nominal_use(head.SymbolNominalUse) = Yes
-                export SymbolNominalUse = head.SymbolNominalUse;
+                export SymbolNominalUse = head.SymbolNominalUse
+                export NominalAgreementNumber = symbol_nominal_agreement(
+                    head.SymbolNominalUse, head.ManaSymbolUse);
             form ["{", head: lexical(Numeral), "}"]
                 require head.numeral_kind = Arabic
-                export SymbolNominalUse = Count;
+                export SymbolNominalUse = Count
+                export NominalAgreementNumber = Head;
         }
 
         // A count-symbol continuation cannot borrow the measured mass use.
@@ -3572,7 +3587,7 @@ constructions! {
                 last(rest).SymbolNominalUse) = Yes;
             export AttributePremodifierHead = No;
             export KeywordPremodifierHead = No;
-            export NominalAgreementNumber = Head;
+            export NominalAgreementNumber = head.NominalAgreementNumber;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
@@ -3580,11 +3595,13 @@ constructions! {
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
             export DeterminerRequirement = Yes;
-            export MeasurePosition = symbol_measure_position(head.SymbolNominalUse);
+            export MeasurePosition = symbol_measure_position(head.NominalAgreementNumber);
             export ScalarMeasurementHeadUse = No;
             export PropertyValuePosition = None;
             export ScalarDenotation = No;
-            export CardinalMeasurementUse = symbol_cardinal_measurement(head.SymbolNominalUse);
+            // QS4/QS7: CardinalDeterminer and QuantifiedNounPhrase own all
+            // quantified symbols; there is no parallel cardinal-measure route.
+            export CardinalMeasurementUse = No;
             export number = Singular;
             export countability = symbol_nominal_countability(head.SymbolNominalUse);
             export Targeting = No;
@@ -4136,7 +4153,7 @@ constructions! {
         // Determiner Requirement, without determining an already measured Nominal.
         table quantifying_determiner_requirement(DeterminerRequirement, MeasurePosition,
             countability) -> Selection {
-            (No, _, _) => Yes, (Yes, Before, Mass) => Yes,
+            (No, _, _) => Yes, (Yes, Before, Mass) => Yes, (Yes, Before, Count) => Yes,
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
@@ -6300,6 +6317,8 @@ constructions! {
             (Singular, Plural, Singular) => Singular, (Singular, Plural, Plural) => Singular,
             (Nominal, Head, Singular) => Singular, (Nominal, Head, Plural) => Plural,
             (Nominal, Plural, Singular) => Plural, (Nominal, Plural, Plural) => Plural,
+            (_, SingularOrPlural, Singular) => Singular,
+            (_, SingularOrPlural, Plural) => Plural,
         }
         table cardinal_determiner_use(number) -> DeterminerUse {
             (Singular) => SingularCount, (Plural) => PluralCount,
@@ -6340,6 +6359,44 @@ constructions! {
             (Yes, None) => Yes, (Yes, Before) => Yes,
         }
 
+        // QS7: a number-neutral Nominal accepts mass and count Determiners
+        // without expanding its lexical analysis or its grammatical Number.
+        table quantified_determiner_license(DeterminerUse, number, countability,
+            DeterminerRequirement, NominalAdjunctDependent, NominalAgreementNumber) -> Selection {
+            // FH7 (orchestrator, 2026-10-10): noun-side definite selection.
+            (_, Singular, Count, Yes, _, SingularOrPlural) => Yes,
+            (_, Singular, Mass, Yes, _, SingularOrPlural) => Yes,
+            (Unrestricted, Singular, Count, Definite, Definite, _) => Yes,
+            (Unrestricted, Plural, Count, Definite, Definite, _) => Yes,
+            (Unrestricted, Singular, Mass, Definite, Definite, _) => Yes,
+            (SingularCount, Singular, Count, No, _, _) => Yes,
+            (SingularCount, Singular, Count, Yes, _, _) => Yes,
+            (Unrestricted, Singular, Count, No, _, _) => Yes,
+            (Unrestricted, Singular, Count, Yes, _, _) => Yes,
+            (Unrestricted, Plural, Count, No, _, _) => Yes,
+            (Unrestricted, Plural, Count, Yes, _, _) => Yes,
+            (Unrestricted, Singular, Mass, No, _, _) => Yes,
+            (Unrestricted, Singular, Mass, Yes, _, _) => Yes,
+            (PluralOrMass, Plural, Count, No, _, _) => Yes,
+            (PluralOrMass, Plural, Count, Yes, _, _) => Yes,
+            (PluralOrMass, Singular, Mass, No, _, _) => Yes,
+            (PluralOrMass, Singular, Mass, Yes, _, _) => Yes,
+            (PluralCount, Plural, Count, No, _, _) => Yes,
+            (PluralCount, Plural, Count, Yes, _, _) => Yes,
+            (Mass, Singular, Mass, No, _, _) => Yes,
+            (Mass, Singular, Mass, Yes, _, _) => Yes,
+            (Singular, Singular, Count, No, _, _) => Yes,
+            (Singular, Singular, Count, Yes, _, _) => Yes,
+            (Singular, Singular, Mass, No, _, _) => Yes,
+            (Singular, Singular, Mass, Yes, _, _) => Yes,
+        }
+        table quantified_agreement(DeterminerAgreementNumber, NominalAgreementNumber)
+            -> DeterminerAgreementNumber {
+            (_, SingularOrPlural) => SingularOrPlural,
+            (Nominal, _) => Nominal, (Singular, _) => Singular,
+            (SingularOrPlural, _) => SingularOrPlural,
+        }
+
         construction QuantifiedNounPhrase: NounPhrase {
             export NominalDependentPresent = head.NominalDependentPresent;
             export LocativeUse = No;
@@ -6349,15 +6406,17 @@ constructions! {
             export Definiteness = quantity.Definiteness;
             export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
             export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = quantity.DeterminerAgreementNumber;
+            export DeterminerAgreementNumber = quantified_agreement(
+                quantity.DeterminerAgreementNumber, head.NominalAgreementNumber);
             export SelectedPrepositionUse = head.SelectedPrepositionUse;
             export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
             export SourceModifierPresent = head.SourceModifierPresent;
             export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
-            require determiner_license(quantity.DeterminerUse, head.number, head.countability,
-                head.DeterminerRequirement, quantity.NominalAdjunctDependent) = Yes;
+            require quantified_determiner_license(quantity.DeterminerUse, head.number, head.countability,
+                head.DeterminerRequirement, quantity.NominalAdjunctDependent,
+                head.NominalAgreementNumber) = Yes;
             require quantifying_determiner_requirement(head.DeterminerRequirement,
                 head.MeasurePosition, head.countability) = Yes;
             export ScalarDenotation = quantified_scalar_denotation(head.ScalarDenotation, head.MeasurePosition);

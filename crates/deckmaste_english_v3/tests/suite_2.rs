@@ -82,3 +82,6 @@ mod starting_with_adjunct;
 
 #[path = "suite/all_but_exception.rs"]
 mod all_but_exception;
+
+#[path = "suite/quantified_mana_symbol.rs"]
+mod quantified_mana_symbol;
