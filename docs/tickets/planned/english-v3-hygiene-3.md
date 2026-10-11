@@ -29,8 +29,9 @@ has not been probed at the current trunk.
   carries two Readings with the same tree, differing only in countability
   (`english-v3-next-time-relative-adjunct`, `szkxvvylquyv`; inherited from
   `NounPhrase`). The review correction `stymwqqo` removed the mass analysis of
-  *each time* only. OWNER DECISION: should a temporal-location NP require
-  Count?
+  *each time* only. TICKETED 2026-10-11: the owner decided on 2026-10-10
+  ("seems unhygenic yeah") that the mass twin is removed; the work is
+  `english-v3-temporal-np-count-time`. Not an open decision any more.
 - **A3. "Exile target card type."** Noted in the review of
   `english-v3-card-noun-premodifier` (`ktvsnxsr`): the *card* premodifier gate
   on heads type/name/pool admits this unattested sentence. From review notes,
@@ -148,6 +149,8 @@ Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Rea
 
 - **C5. Selected Literal over an optional lexical field panics.** `english-v3-additional-slash-adjustment` (`zquvqlrm`, 2026-10-11): `separator article(present)` referenced by `article(modifier.present)` before `modifier: optional(lexical(Adjective), " ")` passes validation but proc-macro expansion hits `internal error: entered unreachable code`; diagnose the emitter and reject or implement this combination. The landing uses retained lexical articles instead.
 
+- kata refresh racing a live thread's snapshot produced divergent working-copy changes six times on 2026-10-10/11 (each blocked every claim/refresh until repaired by abandoning or squashing the redundant half); kata is the owner's tool: OWNER DECISION on a fix (e.g. refresh skipping workspaces with a live snapshot, or retrying).
+
 ### D. Scope and bookkeeping
 
 - **D1. Duplicate ticket.** `planned/english-v3-comparative-property-premodifier`
@@ -155,6 +158,14 @@ Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Rea
   `english-v3-attributive-scalar-comparative` (set A, in flight). When the
   latter lands, check the set-B ticket's 44 faces against it, move any
   remainder into a new ticket and retire the duplicate. Do not dispatch it.
+  RESOLVED 2026-10-11: `english-v3-attributive-scalar-comparative` landed
+  (`vszmnwup`, 40 of the 44 faces gained) and the duplicate ticket file is
+  deleted (never claimed; nothing `needs:` it). `cargo xtask english-v3 grep
+  -i '\b(lesser|greater) (mana value|power|toughness)\b'`: 44 faces, 4 unread
+  in `baseline-wave9.json` (Scrap Trawler, Gyrus, Waker of Corpses, Baral and
+  Kari Zev, Sculpted Sunburst). Their comparative NPs read in isolation on a
+  2026-10-11 in-flight binary (5, 2, 8+ and 2 Readings), so each is held by
+  another line or by a stale baseline: no remainder ticket is minted.
 - **D2. Planechase faces in the supported corpus.** Wave-9 set B drafting saw
   "Path of the …" faces with planeswalk / "chaos ensues" text among the
   unread faces (under the *tied* cluster). Planechase is permanently out of
@@ -162,6 +173,13 @@ Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Rea
   unverified. Scope check: list them with `cargo xtask english-v3 grep`, find
   why the supported-face filter admits them, fix the filter and restate the
   denominator. OWNER DECISION if any is Vintage-legal.
+  RESOLVED 2026-10-11 by the owner: "planchase/conspiracy stuff that's
+  vintage-legal should be supported for parsing." Such faces are in scope for
+  parsing when the card is Vintage-legal: they stay in the supported corpus
+  and the denominator, and the filter is not changed. The wording is ticketed
+  as `english-v3-planechase-conspiracy-wording` (38 faces, all unread). The
+  grammar parses the wording only; the Planechase and Conspiracy game modes
+  stay unmodelled.
 - **D3. Undrafted clusters with no ticket.** From the wave-9 set C report and
   the wave-6 follow-up list, sole-blocker counts as noted, unverified:
   "except it's N/N" 13; "life total becomes N" 12; "each player votes for X or

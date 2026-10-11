@@ -1,95 +1,183 @@
 ---
 needs: []
 ---
-# Read a list of bare option words after a choice verb: Choose odd or even.
+# Read option words as mentions after a choice verb: Choose odd or even.
 
 ## Why
 
 A choice among named options is written as a bare coordination of the option
 words: *Choose odd or even.*, *Choose artifact, creature, or land.*, *choose
 friend or foe*, *Choose left or right.*, *choose first strike, vigilance, or
-lifelink*, *votes for death or taxes*. It reads only when every member happens
-to be a bare-capable noun ("Choose heads or tails." 2; "Each player votes for
-time or money." 4). Blocker report at trunk `qzprwuxz`
-(`target/english-v3/blockers-wave9.json`): hidden under `at:even .`,
-`at:foe .`, `at:land .`, `at:sorcery .`, `at:lifelink .`, `at:random .` and
-about thirty one-face `word:` keys. `cargo xtask english-v3 grep -i
-'\b(chooses?|votes? for) [a-z-]+( [a-z]+)?(, [a-z -]+)*,? or [a-z-]+( [a-z]+)?[.:]'`
-finds **116** faces, **76** unread; 72 failing lines match, **57** the only
-failing line of their face (the 40 covered are mostly *choose target X or Y*
-and *choose among one or two targets*, not this). A hand-cut of the sole lines
-gives **67**: **39** whose option words are all declared Lexemes (*odd or
-even* 8, card types 10, *friend or foe* 5, *left or right* 6, keyword lists
-5, numerals 4, colours 2, *land or nonland* 3) and **28** with an undeclared
-label word (*grace or condemnation*, *war or peace*; 22 are *votes for*).
-`english-v3-hygiene-3` listed "each player votes for X or Y 27" as unrouted.
+lifelink*, *votes for death or taxes*, *choose Khans or Dragons*. The words
+are mentioned, not used (*odd* is predicated of nothing; *creature* has no
+Determiner although it is a singular count noun), and today a list reads only
+when every member happens to be a bare-capable noun or a Catalog name.
+
+Counts from the findings below (supplied `baseline-wave9.json`, stamp
+`mqrlzszkuszn`): **71** distinct unread faces carry an option list: **21**
+whose members are all declared Noun heads, **22** with a member of another
+declared Category (odd/even 8, left/right 5, Keyword/state lists 4, Color
+Words 2, Arabic Numeral lists 3), **2** with a plural or Catalog-shaped
+member, and **26** with at least one undeclared label. **5** covered faces
+(the Khans/Dragons Sieges) read an option pair through a mixed proper-name /
+bare-NP Coordination. These are faces, not predicted gains: Expropriate's
+option clause already reads and its face is held elsewhere. The five *votes
+for planeswalk or chaos* faces were excluded from the 71 as out-of-scope
+wording; the scope ruling of 2026-10-11 (`english-v3-planechase-conspiracy-wording`)
+brings them back as card-local labels, so the label count is 26 + 5.
+
+## Owner ruling 2026-10-11
+
+Verbatim: "own mention category probably. Khans/Dragons is another of these.
+these should be declared as macros somehow. odd or even may be slightly
+different since they're existing words."
+
+This resolves OW7's hold and the STOP under OW3. It decides design **A** of
+the findings; design B (nominalisation under ordinary bare NPs) is not
+pursued.
 
 ## Goal
 
-A coordination of bare option words reads as the Complement of a choice verb
-(*choose*, *vote for*), with byte-exact realisation, for every option word
-that is a declared Lexeme. The 28 undeclared-label faces are counted and
-routed, not read here (OW5).
+An option word reads as a member of its own mention Category, selected as
+the Complement of a choice verb through that verb's declared frame, with
+byte-exact realisation: (i) for every option word that is an existing
+Lexeme; (ii) for every card-local label a plugin macro definition declares.
+The five covered Sieges move to this analysis.
 
 ## Analysis
 
-No CGEL passage is relied on: the options are mentioned, not used (*odd* is
-not predicated of anything; *creature* has no Determiner although it is a
-singular count noun). The analysis is a project ruling.
+No CGEL passage is relied on; the analysis is a project ruling under the
+owner ruling above. Existing routes
+(`crates/deckmaste_english_v3/src/declarations.rs`): *choose*
+(`core-verb:Choose`) takes an NP Object through `SelectedPredicate`; *vote*
+is declared by `plugins_v2/builtin/macros/keyword_actions/vote.ron` with a
+`Custom` frame set (`[]`, `[ObjectNounPhrase]`, `[Lex("Preposition", "For"),
+ObjectNounPhrase]`); the coordination schemas build `Coordination` over NPs;
+`BareNounPhrase` admits plural and mass nouns.
 
-Existing routes (`crates/deckmaste_english_v3/src/declarations.rs`): *choose*
-(`core-verb:Choose`) takes an NP Object through `SelectedPredicate`; the
-coordination schemas build `Coordination` over NPs; `BareNounPhrase` admits
-plural and mass nouns, which is the only reason *heads or tails* and *time or
-money* read. The covered Siege faces read by accident: "As this enchantment
-enters, choose Khans or Dragons." reads 1 as `ProperNameNounPhrase`
-(`lexeme:Name/Khan`) *or* `BareNounPhrase` (*Dragons*), and "Choose Island or
-Swamp." reads through `catalog:card-names.txt/Island`. Nearest declared
-neighbour for an open label is the lexical Category `FlavorWord`
-(`FlavorWordHead`).
+Rulings (orchestrator 2026-10-11, rewritten after the owner ruling):
 
-Orchestrator rulings 2026-10-11:
-
-- OW1. One Option List route: a coordination (pair or comma series) whose
-  coordinates are bare option words, selected as Complement by a frame the
-  choice verb declares. Refine the existing coordination schemas with one
-  member projection; no parallel coordination family. If a new Construction is
-  unavoidable it is ONE member projection (R-budget): say so before building,
-  with the faces it buys.
-- OW2 (R-class). The licence is class-level: the verb's declared option frame
-  (every existing verb of the choice class gets it: *choose*, *vote*; not a
-  row per attested option list), and the member is any declared Lexeme of the
-  mentionable lexical Categories (Noun, Adjective, Keyword, Numeral, colour
-  word) in its citation form. No list of option words, no test on *odd*,
-  *friend*, *left*, and no card test. Mint no Lexeme for an unattested word.
-- OW3 (R-one, R-wrong). The twin to avoid is the bare-NP coordination that
-  reads today by accident. Before designing, record the trees of "Choose heads
-  or tails." (2), "Each player votes for time or money." (4), "choose Khans or
-  Dragons" (Monastery Siege) and "Choose Island or Swamp." (Roots of Life). If
-  the Option List would read beside them, STOP with both trees: which analysis
-  those faces keep is a ruling (R-prune permits retiring the accidental one;
-  the card-name and `Name/Khan` Readings are wrong analyses, not Readings to
-  protect).
-- OW4. *at random* after the list (*Choose 1, 2, or 3 at random.*, 3 faces)
-  is the existing Adjunct; in scope only if it falls out. A trailing colon
-  (Phyrexian Splicer's cost) is the existing cost position.
-- OW5. Undeclared label words (28 sole faces: council votes, *war or peace*,
-  *Believe or Doubt*) are card-local labels. They are NOT read by declaring
-  each word as a Noun. Out of scope here; report the count and the candidate
-  mechanism (an open label slot like `FlavorWord`, or per-face declarations)
-  for an owner decision. Later mentions (*for each death vote*, *each player
-  who chose war*) go with that decision.
-- OW6. Newly covered faces are gains. Reading-count changes are expected only
-  on covered faces matching the selector, and only as OW3's shape; under OW3
-  that is a STOP, not a result to report afterwards. Any other change is a
+- OW1 (owner). Option words form their own mention **Category**. A member is
+  a mentioned label, not a referential NP: it keeps its lexical identity and
+  printed Word Form and takes no Determiner. One route: a coordination (pair
+  or comma series) of members, built by the existing coordination schemas
+  with one member projection, selected as Complement. Budget: **1** new
+  member Construction, **0** new coordination families; say so before
+  building, with the faces it buys.
+- OW2 (R-class). The licence is the choice verbs' declared frame: every verb
+  of the choice class (*choose*, *vote for*) declares an option-list frame as
+  data, *vote*'s in its plugin definition. No row per attested list, no list
+  of option words, no test on *odd*, *friend*, *left*, and no card test.
+- OW3 (owner: "existing words"). An existing word used as an option (*odd*,
+  *even*, *left*, *right*, *heads*, *tails*, card types, keywords, colour
+  words, numerals) is a mention of the existing Lexeme and needs **no new
+  declaration**: the member projection reads any declared Lexeme of the
+  mentionable lexical Categories. Two consequences to carry, not to guard:
+  the findings show *left* analysed only as a form of the verb *leave*, so
+  the direction word needs an ordinary vocabulary declaration (a Lexeme in
+  its own right, not an option-label declaration); and a printed plural
+  (*taxes*, *heads*) is the Word Form mentioned, so no citation-form filter
+  is applied unless a probe shows it creates a twin.
+- OW4 (owner: "declared as macros"). Card-local labels (*Khans* / *Dragons*,
+  *war* / *peace*, the council-vote labels *grace* / *condemnation*,
+  *silence* / *snitch*, *planeswalk* / *chaos*) are declared through plugin
+  macro definitions. They are never minted as core Nouns and never read as
+  Catalog names. **The declaration shape is NOT yet decided.** Two concrete
+  shapes are proposed below; the choice between them is **ORCHESTRATOR RULING
+  NEEDED BEFORE CLAIM**.
+- OW5 (pruning rule). The five covered Sieges that read *Khans or Dragons* as
+  `ProperNameNounPhrase(Name/Khan)` *or* `BareNounPhrase(Dragons)` move to
+  the mention analysis. The accidental Readings are retired: `Name/Khan` and
+  a creature-subtype plural are wrong analyses of a label, not Readings to
+  protect. The same applies to the pure proper-name coordinations recorded in
+  the findings (clan-pair Sieges, Roots of Life, Travel Through Caradhras)
+  when their labels are declared. Under the choice frames the bare-NP
+  coordination of the same words does not survive beside the mention
+  (R-one); ordinary NP Objects (*a color*, *target artifact or enchantment*)
+  and the PP-Adjunct controls keep their Readings. The local exclusion reads
+  a declared feature of the frame, never the words.
+- OW6. *at random* after the list (3 faces) is the existing Adjunct, in scope
+  only if it falls out. A trailing colon (Phyrexian Splicer's cost) is the
+  existing cost position.
+- OW7. Newly covered faces are gains. Decreases are expected only as OW5's
+  retirements and are listed by face; any other change on a covered face is a
   defect.
+- OW8 (follow-up, not this landing). Later mentions of the same labels: *for
+  each death vote*, *For each Redhorn Pass vote*, *players who chose war*,
+  *each player who chose money*, *If grace gets more votes*, *the number of
+  truth votes*. Findings (d): 15 faces / 27 matches. They need the label as
+  Premodifier of *vote*, as Complement in a Relative Clause and as Subject,
+  all referring to the same declared label. Mint the follow-up ticket when
+  this lands; the declaration shape chosen under OW4 must not preclude it.
 
-## Findings for the owner decision
+### Proposed declaration shapes for card-local labels (OW4)
 
-OW7 (orchestrator, 2026-10-11): do not implement. The owner decides what an
-option word is, including OW5's card-local labels, the existing NP Readings,
-plural/Catalog membership and later mentions, as one design decision. This
-section records evidence and alternatives; it does not settle that decision.
+How `plugins_v2/builtin/macros/` declares comparable vocabulary today:
+
+- **Ability Words** are a closed inventory, one definition file per word
+  under `ability_words/` through the `AbilityWord` meta-macro, e.g.
+  `councilsDilemma.ron`: `AbilityWord(name: "councilsDilemma", spelling:
+  "Council's dilemma", grammar: FixedTerm(surface: "Council's dilemma"))`.
+- **Flavor Words** are an open slot: one definition,
+  `abilities/flavorWord.ron`, with a `FlavorWordLabel` parameter; the label is
+  the italic run captured verbatim, and nothing enumerates the labels.
+- **Anchor words** (the Siege labels as the rules call them) have no
+  definition under `plugins_v2/` today.
+- **Shortened Names** are scoped to a card: a generated table keyed by the
+  full card name (`deckmaste_catalogs`, `card-name-nicknames.json`), so a
+  shortened spelling is vocabulary only on that card's own faces.
+
+**Shape 1: one declared definition per label, scoped to the cards that print
+it** (Ability Word model for the file, Shortened Name model for the scope).
+A new meta-macro; a label is ordinary declared vocabulary on the named cards'
+faces and unknown elsewhere. Closed, auditable, one file per label; the
+follow-up mentions (OW8) find the same identity. Cost: one small file per
+label (two or three per label face, shared labels once), and each new
+printing needs a declaration.
+
+```ron
+// plugins_v2/builtin/macros/option_labels/khans.ron (sketch)
+OptionLabel(
+    name: "khans",
+    spelling: "Khans",
+    grammar: OptionWord(surface: "Khans"),
+    scope: Cards(["Monastery Siege", "Citadel Siege", "Frontier Siege",
+                  "Palace Siege", "Outpost Siege"]),
+)
+```
+
+**Shape 2: one open-slot definition; the choice sentence introduces its own
+labels** (Flavor Word model). A single definition with a label parameter; on
+a face, the members printed in the option position of a choice frame become
+that face's labels, and a later mention must match one of them. No per-label
+file and no card list. Cost: the label source is the face's own text, so the
+introducing position must be bounded by a declared feature of the frame
+(unbounded unknown-word capture is not acceptable, per the findings), and
+multiword labels (*Redhorn Pass*, *Mines of Moria*) need a declared extent.
+
+```ron
+// plugins_v2/builtin/macros/abilities/optionLabel.ron (sketch)
+(
+    name: "optionLabel",
+    kinds: [OptionWord],
+    params: {"label": OptionLabelText},
+    grammar: OptionWord(source: IntroducedBy(ChoiceFrame), scope: Face),
+)
+```
+
+Both sketches are illustrations: neither meta-macro, `OptionWord` row nor
+scope field exists. Either shape is a plugin-schema change (bodiless,
+grammar-only definitions are allowed), so the Method's plugin checks apply.
+
+## Findings (2026-10-11, recorded before the owner ruling)
+
+Kept as evidence. Where a paragraph below says the owner must still decide
+between A and B, the owner ruling above has decided it (A); the label
+declaration shape (OW4) is the one question still open, and it is the
+orchestrator's.
+OW numbers inside the findings are the pre-ruling numbering: old OW3
+is the twin STOP (now OW5), old OW5 the undeclared labels (now OW4), old OW7
+the hold for the owner (resolved).
 
 ### Recorded trees and claim-parent probes
 
@@ -350,10 +438,15 @@ trunk binary (`--category sentence --readings 8`): all 0.
   vigilance, or lifelink."
 
 Also 0: "Each player votes for death or taxes." (Capital Punishment; all words
-declared); "Choose 1, 2, or 3 at random." Controls that must not change
-except under OW3: "Choose heads or tails." 2; "Choose one or both." 1; "Choose
-a color." 1; "Choose a creature type." 1; "Each player votes for a creature."
-2; "Each player votes." 1.
+declared); "Choose 1, 2, or 3 at random." Label witnesses once OW4 is ruled:
+Archangel of Strife (*war or peace*), Magister of Worth (*grace or
+condemnation*). Moved under OW5 (1 → 1, analysis changes): Monastery Siege "As
+this enchantment enters, choose Khans or Dragons." Controls that must not
+change: "Choose one or both." 1; "Choose a color." 1; "Choose a creature
+type." 1; "Each player votes for a creature." 2; "Each player votes." 1.
+"Choose heads or tails." (2; 0 supported faces) and "Each player votes for
+time or money." (4) are expected to change under OW5 and are reported with
+their trees before and after.
 
 ## Method
 
@@ -361,23 +454,29 @@ Standard constraints apply. Bounded census, never `--all`: every supported
 face matching `(?i)\b(choose|chooses|chose|chosen|vote|votes|voted)\b` plus
 300 random covered controls (`--random 300 --seed 20261008`), `--workers 6
 --samples-per-face 0`, compared with `cargo xtask english-v3 diff` against the
-claim parent. Zero lost; OW6 for changes. Full `cargo test -p
+claim parent. Zero lost; OW7 for changes. Full `cargo test -p
 deckmaste_english_v3` and `cargo clippy -p deckmaste_english_v3 --tests -- -D
-warnings` (and `-p deckmaste_lexical_source` if the lexicon changes) once, at
-the end: a rebuild after a grammar edit takes 2–3 minutes and the six test
-binaries about 75 seconds; lexicon data loads at runtime. Tests assert the
-role (each option a coordinate of the list, the list the verb's Complement,
-the OW3 negatives), never an incidental count or a Debug-printed tree.
-Attestation by `cargo xtask english-v3 grep` only.
+warnings` (and `-p deckmaste_lexical_source` if the lexicon changes). Because
+`plugins_v2/` changes (*vote*'s frame; the OW4 definitions): the FULL `cargo
+test -p xtask`, `-p deckmaste_semantics_v2`, `-p deckmaste_construction_core`,
+`cargo xtask lean check`, and a facts registration or exemption for each new
+bodiless definition. No existing keyword's declared signature and no v1 /
+Idris facts row changes. Tests assert the role (each option a member of the
+list, the list the verb's Complement, the OW5 retirements as negatives), never
+an incidental count or a Debug-printed tree. Attestation by `cargo xtask
+english-v3 grep` only. Glossary: the option-word mention Category and the
+card-local label term are added to `docs/contexts/oracle-english/CONTEXT.md`
+by this landing.
 
 ## Out of scope
 
-- OW5's undeclared labels (28 sole faces). *votes for planeswalk or chaos*
-  (5 faces, Planechase wording): listed, never ticketed.
+- Later mentions (OW8): follow-up ticket.
 - *Choose a creature type other than Wall.* / *a card type other than
   creature* (6 sole faces): a bare type word after *other than*; related
   mention use, separate shape.
 - *Choose a number between 0 and 10.* (4 faces); *your choice of 5/1 or 1/5*.
 - Quoted options (Raging River, *choose "left" or "right."*).
+- The two expanded nominal lists (Teferi's Realm, Sarpadian Empires, Vol.
+  VII): whether a label has internal structure is not decided.
 
 ## Landing record

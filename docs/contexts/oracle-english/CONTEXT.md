@@ -211,7 +211,14 @@ entry reserves it for the printed line
 
 **Notation**:
 A conventional written representation using symbols, numerals, or other
-specialized marks rather than ordinary word-and-phrase grammar alone.
+specialized marks rather than ordinary word-and-phrase grammar alone. Oracle's
+symbols (mana, energy and other cost symbols) form a lexical Category of their
+own, **Symbol**, with their own distribution: a bare symbol sequence is
+Notation in cost, mana and measured positions, and a symbol heads a Nominal
+only when quantified or determined, which the symbol Nominal's Determiner
+Requirement expresses (project ruling; owner, 2026-10-10: "there are like, new
+parts of speech that Oracle creates. mana symbols and energy symbols are
+examples of these").
 
 **Cost Component Form** (project term):
 The grammatical realization of a component of a Cost [CR#118.1] as symbol

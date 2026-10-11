@@ -1,34 +1,109 @@
 ---
 needs: []
 ---
-# [design] Read Craft with Quality and Cost after the owner decides its semantic signature
+# [blocked] Read Craft with Quality and Cost: waits on the semantics-v2 line for Craft's signature
 
 Standard constraints apply. Split from `english-v3-quality-cost-keyword-lines`
-by orchestrator ruling QC9 (2026-10-11). This ticket is design-gated by the
-OWNER DECISION below; do not implement before that decision is recorded.
+by orchestrator ruling QC9 (2026-10-11). **Blocked on the semantics-v2 line,
+not on an owner question**: see the ruling and the Analysis. Do not claim
+until the blocker below is lifted.
 
-## Action and settled decisions
+## Owner ruling 2026-10-11
 
-Craft's existing declaration has `params: [Cost]`. Reading its printed
-materials and Cost through `QualityCostKeyword` requires all three changes:
+Verbatim: "v1 semantics should not be at all affected by anything you're
+doing".
 
-- `plugins_v2/builtin/macros/keyword_abilities/craft.ron`: `params: [Quality, Cost]`;
-- `FixedKeyword` parameter `Quality(preposition: ("Preposition", "With"))`;
+This replaces the former OWNER DECISION. No grammar ticket changes an
+existing keyword's declared semantic signature or regenerates a v1 / Idris
+facts row. The question "may a grammar ticket change Craft's signature and
+regenerate its facts row?" is answered: no.
+
+## Analysis: the partner-with pattern (PW7) applied to Craft
+
+`docs/tickets/done/english-v3-partner-with-name-keyword.md`, ruling PW7 and
+its landing record: the existing Facts row is the semantics authority and
+stays unchanged; the definition's `params` keep the signature that row
+declares (`PartnerWith`: `extra: &[Shape::Quality]`, so `[Quality]`); what
+the grammar needs is expressed in the definition's `grammar:` parameter
+recipe (`parameter: Name(preposition: ("Preposition", "With"))`), which
+refines the grammatical class of that one parameter. It worked because the
+existing carrier already admits the payload (`KeywordParam::Quality {
+predicate }` holds `Predicate::Named` with a printed name), so no new codec
+class and no facts change were needed.
+
+Craft's declared signature, as of 2026-10-11:
+
+- `crates/xtask/src/facts.rs`: `Row { label: "Craft", paid_cost: true, ..D }`,
+  no `extra` shape. Generated rows: Lean `argumentSchemas := [[⟨.cost,
+  none⟩]], paidCost := true`; Idris `paramShapes := [CostParam], paidCost :=
+  True`. One parameter, a Cost.
+- `plugins_v2/builtin/macros/keyword_abilities/craft.ron`: `params: [Cost]`,
+  `spelling: "craft <Param(0)>"`, `grammar: FixedKeyword(surface: "craft")`,
+  bodiless, with its own comment: "STOP (waits on: a second parameter for
+  craft's materials)".
+
+The Craft equivalent of PW7 would keep `params: [Cost]` and add a parameter
+recipe that reads *with* + Quality + Cost into that single Cost parameter.
+**The existing signature cannot carry it through the grammar recipe**, for
+three reasons:
+
+1. Arity. Partner-with prints one constituent for one parameter. Craft prints
+   two (the materials Quality and the Cost) for one parameter. A parameter
+   recipe (`Subject`, `Quality`, `Name` in `FixedKeywordParameterGrammar`)
+   refines the class of one declared parameter; the keyword's parameter class
+   is derived from `params` (`[Cost]` is class Cost, `[Quality, Cost]` is
+   class QualityCost in `macro_def.rs`). No recipe maps two printed
+   constituents onto one parameter.
+2. Carrier. `KeywordParam::Cost { cost }` holds a `Cost`. A Quality is a
+   `Predicate`; it fits in a Cost only wrapped in an instruction
+   (`Cost::Compound` of the printed cost and a `Cost::Perform` that exiles
+   the materials from the places the keyword's definition names). Choosing
+   that instruction is the keyword's meaning. For Partner-with the codec
+   stored the printed name unchanged; here it would have to author
+   semantics, and the semantic vocabulary for the materials exile is exactly
+   what `craft.ron`'s STOP comment says is missing.
+3. Roundtrip. The spelling `craft <Param(0)>` would have to realise *with*
+   + Quality + Cost out of that composed Cost by taking the instruction
+   apart again, a second, keyword-specific realisation route for a Cost.
+
+So the PW7 pattern does not fit, and the remaining ways to read the line
+are both the semantics line's to make:
+
+- the semantics-v2 line gives Craft its two-parameter signature (Facts row
+  and definition together, on its own authority and schedule); or
+- the semantics-v2 line rules that a separate grammar-only definition may
+  stand beside `craft` (the `equipQuality` shape from the source ticket:
+  `params: [Quality, Cost]`, bodiless, a `KEYWORD_STUBS_EXEMPT` entry, no
+  existing row touched). Unlike Equip, Craft has only one printed form (bare
+  Cost-only Craft is unattested: 0 faces), so this would leave two
+  definitions for one keyword; that is why it is not assumed here.
+
+**Blocker.** The semantics-v2 line decides between those two.
+`semantics-v2-keyword-ability-census` is done and lists craft among the
+definitions waiting on a parameter; no live ticket owns Craft's signature
+today, so the semantics line mints or names one, and this ticket then takes
+it in `needs:`.
+
+## Action once unblocked
+
+Grammar side only; none of it changes a facts row:
+
+- the `FixedKeyword` parameter recipe `Quality(preposition: ("Preposition",
+  "With"))` on whichever definition then carries `[Quality, Cost]`;
 - `(With) => Yes` in `keyword_quality_marker`, and marker concord for the
   marked QualityCost form (`With, With`).
 
-The unmarked QualityCost form and separate grammar-only EquipQuality recipe
-land in the source ticket. No new Construction is needed here. Preserve the
-same named Head, Quality and Cost fields. Every Quality admitted by the existing
+The unmarked QualityCost form and the grammar-only EquipQuality recipe landed
+in the source ticket. No new Construction is needed here. Preserve the same
+named Head, Quality and Cost fields. Every Quality admitted by the existing
 Quality Constructions is admissible (QC4); no witness or lexeme list licences
 it. One route for the construction preserves independent ambiguity (W9-A).
-QC7's two fused materials need `english-v3-fused-cardinal-head`; that dependency
-is a design fact, not permission to include an unresolved analysis.
-
-QC9 reverses QC2's Craft signature instruction and defers QC6's retirement of
-bare-Cost Craft. Until the owner decision, all 24 Craft-with faces remain unread
-and the existing signature and generated facts remain unchanged. Engine bodies
-remain outside this grammar ticket.
+QC7's two fused materials need `english-v3-fused-cardinal-head`; that
+dependency is a design fact, not permission to include an unresolved
+analysis. QC6's retirement of bare-Cost Craft goes with the signature
+decision. Until then all 24 Craft-with faces remain unread and the existing
+signature and generated facts remain unchanged. Engine bodies remain outside
+this grammar ticket.
 
 ## Probe evidence
 
@@ -78,24 +153,20 @@ stayed unread. The final census after QC9 must retain all 24 as unread.
 - Jade Seedstones (`fa2c984a-6bc1-4ec8-93d7-87f9f06b841e#face:0`)
 - Unstable Glyphbridge (`fcd54631-ea47-49a7-ad5f-9a9a51a815ba#face:0`)
 
-## OWNER DECISION
 
-May a grammar ticket change an existing keyword's declared semantic signature
-and regenerate its generated v1 facts row, or does the semantics-v2 line make
-that change first? Authority: `docs/decisions/semantics-v2.md` §§10–16 and
-AGENTS.md's "Never copy v2 work back into v1, and add no new v1 registries."
-QC9 says the orchestrator cannot authorise this exception; the owner decides
-with the semantics-v2 line. Record that decision and its ordering here before
-changing the signature or generated facts.
+## Evidence: what must NOT be done
 
-`cargo xtask facts generate` writes both Lean and legacy Idris facts;
-`cargo xtask facts check` rejects drift in either. The full xtask suite failed
-`facts::tests::the_committed_module_matches_the_stubs` while the proposed Craft
-signature was present. No generated facts source was changed in the Equip
-landing. The exact proposed generated changes are preserved below because
-`target/` evidence is untracked.
+Kept only as evidence; neither diff is an ask of this ticket. The withdrawn
+implementation changed `craft.ron` to `params: [Quality, Cost]`. `cargo xtask
+facts generate` writes both Lean and legacy Idris facts and `cargo xtask
+facts check` rejects drift in either, so that edit forced the two generated
+changes below, and the full xtask suite failed
+`facts::tests::the_committed_module_matches_the_stubs` while it was present.
+The second diff regenerates a v1 / Idris facts row, which the owner ruling
+forbids outright; the first changes an existing keyword's declared signature,
+which a grammar ticket may not do either.
 
-### Required Lean facts diff
+### Lean facts diff the withdrawn implementation required
 
 ```diff
 --- lean/Semantics/Check/Facts.lean	2026-10-11 01:13:06.381459443 -0400
@@ -111,7 +182,7 @@ landing. The exact proposed generated changes are preserved below because
      { word := .named "surge", argumentSchemas := [[⟨.cost, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, paidCost := true, definition := [⟨.static, some .atCasting⟩], regime := some .atCasting },
 ```
 
-### Required legacy Idris facts diff
+### Legacy Idris facts diff the withdrawn implementation required (never to be made by a grammar ticket)
 
 ```diff
 --- idris/src/Experimental/FactsGen.idr	2026-10-10 20:22:22.565083101 -0400
@@ -132,7 +203,7 @@ The derived Lean macro would also change from
 `craft (arg0 : Semantics.Predicate) (arg1 : Semantics.Cost)`, emitting separate
 Quality and Cost KeywordParams. That existing export is restored by QC9.
 
-## Verification after the decision
+## Verification once unblocked
 
 Probe the witnesses before editing. Select every supported face containing
 Craft anywhere, every affected declaration's claim-parent users, and 300 random
