@@ -6,15 +6,44 @@ KeywordAbility(
         surface: "protection",
         parameter: Quality(preposition: ("Preposition", "From")),
     ),
-    // STOP (waits on: a deontic slot for an attachment's host).
-    // "Protection from [quality]" [CR#702.16a] is four
-    // consequences, and three write and check: can't be targeted by spells with the quality
-    // or abilities from a source with it [CR#702.16b] (`cantBeTargetedBy`), damage from such
-    // sources prevented [CR#702.16e] (`damageRule`), and can't be blocked by such creatures
-    // [CR#702.16f] (`cantBeBlockedBy`). The fourth, "can't be enchanted by Auras … equipped
-    // by Equipment … or fortified by Fortifications that have the stated quality"
-    // [CR#702.16c,702.16d], forbids attaching such objects TO this permanent. The `attach`
-    // deed's row has no patient role, and `DeonticPatient`'s counterpart is the deed's other
-    // role (the attaching player), so no slot names the attachment's host. A body carrying
-    // only three of the four would be a wrong analysis, so none is written.
+    // "Protection from [quality]" [CR#702.16a] is five consequences, one row
+    // each:
+    // - can't be targeted by spells with the quality or by abilities from a
+    //   source with it [CR#702.16b];
+    // - can't be enchanted by Auras that have the quality [CR#702.16c];
+    // - can't be equipped by Equipment or fortified by Fortifications that have
+    //   the quality [CR#702.16d];
+    // - damage that would be dealt to it by sources with the quality is
+    //   prevented [CR#702.16e];
+    // - while attacking, it can't be blocked by creatures with the quality
+    //   [CR#702.16f].
+    // The attach rows forbid the attach deed from the attachment's side, this
+    // permanent in its host role. That an Aura, Equipment or Fortification
+    // already attached falls off is the subtypes' own state-based rows over the
+    // engine's attach-permission model [CR#704.5m,704.5n], not written here.
+    body: [
+        static(
+            cantBeTargetedBy(
+                thisPermanent,
+                allOf(or([and([spell, Param(0)]), abilityOf(allOf(and([source, Param(0)])))])),
+            ),
+        ),
+        static(cantBeAttachedTo(allOf(and([hasSubtype(aura), Param(0)])), thisPermanent)),
+        static(
+            cantBeAttachedTo(
+                allOf(and([or([hasSubtype(equipment), hasSubtype(fortification)]), Param(0)])),
+                thisPermanent,
+            ),
+        ),
+        static(
+            damageRule(
+                Any,
+                DealtBy(allOf(and([source, Param(0)]))),
+                ToRecipient(thisPermanent),
+                Prevent(All, None),
+                Repeatedly,
+            ),
+        ),
+        static(cantBeBlockedBy(thisCreature, and([creature, Param(0)]))),
+    ],
 )

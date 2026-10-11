@@ -85,7 +85,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "storm", argumentSchemas := [[]], functionsOnStack := true, onInstantOrSorceryCard := true, definition := [⟨.triggered, some .atCasting⟩], regime := some .atCasting },
     { word := .named "lifelink", argumentSchemas := [[]], counterEligible := true, regime := some .atResolution },
     { word := .named "ward", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true, definition := [⟨.triggered, none⟩] },
-    { word := .named "protection", argumentSchemas := [[⟨.quality, none⟩]] },
+    { word := .named "protection", argumentSchemas := [[⟨.quality, none⟩]], definition := [⟨.static, none⟩, ⟨.static, none⟩, ⟨.static, none⟩, ⟨.static, none⟩, ⟨.static, none⟩] },
     { word := .named "enchant", argumentSchemas := [[⟨.subject, none⟩]], definition := [⟨.static, some .atCasting⟩, ⟨.static, none⟩, ⟨.static, none⟩], regime := some .atCasting },
     { word := .named "equip", argumentSchemas := [[⟨.cost, none⟩], [⟨.quality, some .object⟩, ⟨.cost, none⟩]], paidCost := true, definition := [⟨.activated, none⟩] },
     { word := .named "suspend", argumentSchemas := [[⟨.number, none⟩, ⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true },

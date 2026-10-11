@@ -126,4 +126,21 @@ theorem okEnchantCreature : Ability.check [] (Macros.Declared.enchant creature) 
 /-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
 theorem okEnchantPlayer : Ability.check [] (Macros.Declared.enchant .anyPlayer) = [] := by decide
 
+/-! ## Protection's attach rows -/
+
+/-- Protection from black, its five rows as its declaration writes them: can't be targeted by
+black spells or abilities from black sources, can't be enchanted by black Auras, equipped by black
+Equipment or fortified by black Fortifications, damage from black sources prevented, and can't be
+blocked by black creatures [CR#702.16b..702.16f]. The attach rows name this permanent in the
+attach deed's host role. -/
+theorem okProtectionFromBlack :
+    Ability.check [] (Macros.Declared.protection (.colorIs .black)) = [] := by decide
+
+/-- "Black Auras can't be attached to this permanent": the attachment in the patient role, this
+permanent in the host role [CR#701.3a,702.16c]. -/
+theorem okCantBeAttachedTo :
+    StaticSpec.check []
+      (Macros.Declared.cantBeAttachedTo (allOf (.and [enchantment, .colorIs .black])) thisPermanent)
+      = [] := by decide
+
 end Semantics.Proofs.Attachments

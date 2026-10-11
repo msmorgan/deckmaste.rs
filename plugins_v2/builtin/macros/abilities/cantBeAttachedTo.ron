@@ -1,0 +1,11 @@
+// "<subject> can't be attached to <host>": the attach deed [CR#701.3a]
+// forbidden, the subject in its patient role and the host in its host role,
+// `mayBeAttachedTo`'s counterpart. Protection's "can't be enchanted by Auras …
+// equipped by Equipment … or fortified by Fortifications that have the stated
+// quality" is this, read from the attachment's side [CR#702.16c,702.16d].
+(
+    name: "cantBeAttachedTo",
+    kinds: [StaticSpec],
+    params: {"subject": NounPhrase, "host": NounPhrase},
+    body: DeonticRule(Param(subject), Forbid, [attach], Patient, None, Host(Param(host)), None, NoRider, None),
+)
