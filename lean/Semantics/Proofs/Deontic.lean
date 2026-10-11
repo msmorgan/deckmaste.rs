@@ -387,4 +387,9 @@ theorem badBareCostReadsPayer :
       = [.anaphor (.word .player) .one 0] := by
   decide
 
+/-- "This card can't be revealed": what is revealed is a card [CR#701.20a], so a deontic rule
+names it in the reveal deed's patient role. -/
+theorem okCantBeRevealed :
+    StaticSpec.check [] (objectCant (.action "reveal") .this) = [] := by decide
+
 end Semantics.Proofs.Deontic

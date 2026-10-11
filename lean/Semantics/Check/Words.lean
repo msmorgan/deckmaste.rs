@@ -364,7 +364,11 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("regenerate",
       { participle := some "regenerated", agentRole := ⟨none, true, none⟩,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
-    ("reveal", { agentRole := playerAgent }),
+    /- What is revealed is a card, of any type and in whatever zone it is in: revealing shows it
+    to all players and moves nothing [CR#701.20a,701.20b]. -/
+    ("reveal",
+      { agentRole := playerAgent,
+        patientRole := ⟨some ⟨.object, [.card], allTypes⟩, true, none⟩ }),
     ("sacrifice",
       { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
         patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
