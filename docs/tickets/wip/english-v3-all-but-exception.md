@@ -140,4 +140,74 @@ xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`vqyrupul`, before = empty child of claim parent
+   `vozvszqm`, after = implemented tree): bounded manifest
+   `target/english-v3/english-v3-all-but-exception/manifest.json`, the Method's
+   grep union (**898 faces**) plus **300 covered random controls**, seed
+   **20261008**, **1,190 distinct faces**. Covered **1,062 → 1,069**; total
+   Readings **35,996 → 36,115**. **7 gains**, **0 lost**, **0 decreases**,
+   **0 increases on previously covered faces**, **0 digest-only changes**
+   (therefore **0 changed digest-only lines/classes**), **0 source changes**,
+   **0 issues**. Wrong-analysis gains: **0**. Before and after were both
+   measured on this workspace; `baseline-wave8.json` supplied only the seeded
+   covered-control identities. All **300** controls were covered on the claim
+   parent. Comparison: `cargo xtask english-v3 diff BEFORE.json AFTER.json
+   --lines --json target/english-v3/english-v3-all-but-exception/diff.json`.
+2. **Witnesses** (probes on `vqyrupul`; every witness re-probed before editing,
+   none dropped): Soulgorger Orgg **0 → 1** (control **1**); Temple Altisaur
+   **0 → 3** (control **3**); Choice of Damnations **0 → 1** (control **1**);
+   Lily Bowen's quoted witness **0 → 18** (bare control **36**, Cardinal-route
+   control **18**). Bare *one* also has a lexical Determinative analysis;
+   AB1's exception PP selects the Cardinal quantity, preserving the Cardinal
+   control's independent ambiguity under W9-A. Aladdin's Lamp full text
+   **0 → 0** (full control **0**); its attested *put all but one of them …,
+   then draw a card* Bare Predicate **0 → 1** (control **1**). Its remaining
+   full-face blocker is independent of the exception construction. NP
+   fragments *all but 1 life*, *all but one of them*, and *all but one +1/+1
+   counter* each **0 → 1**. Prevention controls each remain **2**, *Destroy
+   one of them* **1**, Torrent Elemental's attack line **1**, and Felidar
+   Sovereign's upkeep line **1**.
+3. **Spot checks** (`vqyrupul`): only **7** faces became covered, so all were
+   checked rather than inventing ten gains. Soulgorger Orgg (**6** per-line
+   Readings) has *all but 1* as the life NP's Determiner; Choice of Damnations
+   (**1**) has the degree exception *all but that many* as Determiner; Lily
+   Bowen (**21**) has the singular Cardinal exception as the counter NP's
+   Determiner. Temple Altisaur (**3**), Hyperion, Supreme Hero (**6**), Ajani
+   Steadfast (**18**), and Forcefield (**64**) have *all but 1* as the fused
+   head of the damage partitive. Every enumerated full-document Reading of
+   each gained face contains the intended exception phrase. Three additional
+   control checks: Wrath of God retains ordinary *all creatures* determination
+   (**1**); Torrent Elemental retains ordinary *all creatures* with its
+   Subject-gap Relative Clause (attack line **1**); Felidar Sovereign retains
+   its comparative life quantity (upkeep line **1**). Counts distinguish the
+   census's per-line sums from whole-document probe products.
+4. **Deviations and STOPs**: added **1** Construction,
+   `ExceptionDeterminativePhrase`: its Determinative head with an exception PP
+   dependent differs from degree premodification and from a PP itself
+   functioning as Determiner (AB1; CGEL p. 433). Added **2** instances of the
+   existing `QuantitativePrepositionPhrase` schema, with separate cardinal and
+   degree result Categories as required by the schema compiler, and **2**
+   complement policies. Existing schema forms, instance requirements and
+   exports are unchanged. Lexicon declares only *all*'s exception permission
+   and *but*'s quantity-complement use (AB2); coordinator *but* is retained.
+   No superseded route, frame or test was retired. Added the glossary's
+   **Quantitative Exception Use**, with its grammatical source and AB1–AB3
+   ruling; no game-rule claim is introduced. Aladdin's Lamp's independent
+   full-text failure remains disclosed. No STOPs.
+5. **Tests** (`vqyrupul`): `cargo test -p deckmaste_english_v3` passed
+   (**1,125** tests; **1** inherited ignored test:
+   `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`,
+   blocked by `english-v3-mana-symbol-verbless-subject` MS4's governed Mana
+   Phrase Subject route). `cargo test -p deckmaste_lexical_source` passed
+   (**44** tests). `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` both
+   passed. Assurance changes: restored **0**, re-spelled **0**, newly ignored
+   **0**, added **6**, removed **0**. New module `all_but_exception` is
+   registered only in `suite_2`; it tests the declared roles, independent
+   construction, both roundtrip laws, head selection, and exclusion of the
+   coordinator/floated-quantifier twins. Citation checks: **0** noncompliant,
+   **0** stale; bless changed no lockfile; diff audit selected **0** sites.
+6. **Timing** (`vqyrupul`): the bounded after census took **21.19 s** wall
+   time under `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.
+   No full corpus census was run.
+

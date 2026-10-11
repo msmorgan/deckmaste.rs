@@ -14,6 +14,7 @@ constructions! {
         feature DeterminerKind { Ordinary, Indefinite }
         feature SuperlativeQuantifierUse { No, Yes } default No;
         feature DegreeUse { None, Head, Modifier } default None;
+        feature QuantitativeExceptionUse { No, Yes } default No;
         feature ComparativeDegreeModifierUse { No, Yes } default No;
         feature FrequencyUse { No, Yes } default No;
         table coordinated_frequency_use(FrequencyUse, FrequencyUse) -> FrequencyUse {
@@ -162,7 +163,7 @@ constructions! {
             (No, _) => Yes, (Yes, Yes) => Yes,
         }
         feature ComparativePostmodifierUse { No, Yes } default No;
-        feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase } default None;
+        feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase, ExceptionQuantity } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
         feature QuantitativeConjunctUse { No, Yes } default No;
@@ -665,6 +666,8 @@ constructions! {
         category QuantitativePrepositionPhrase(number);
         category DegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
         category QuantitativeDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
+        category ExceptionPrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
+        category ExceptionDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
         category ComparativePrepositionPhrase(number);
         category CountedFrequencyPrepositionPhrase();
         category AdverbFrequencyPrepositionPhrase();
@@ -6053,6 +6056,7 @@ constructions! {
         separator quantitative_modifier_separator(QuantitativeComplement) {
             (None) => "", (Cardinal) => "", (CardinalPrepositionPhrase) => "",
             (AdjectivePhrase) => " ",
+            (ExceptionQuantity) => "",
         }
         separator arithmetic_modifier_separator(MeasureOperator) {
             (No) => "", (Yes) => " ",
@@ -6090,6 +6094,26 @@ constructions! {
             export DeterminerUse = complement.DeterminerUse;
             export DeterminerAgreementNumber = complement.DeterminerAgreementNumber;
             require head.QuantitativeComplement = CardinalPrepositionPhrase;
+        }
+
+        // AB2–AB3: digit quantities retain their measurement use, whereas
+        // spelled cardinals select count heads as in their bare use.
+        table exception_determiner_use(CardinalMeasurementUse, number) -> DeterminerUse {
+            (No, Singular) => SingularCount, (No, Plural) => PluralCount,
+            (DeterminerRequired, Singular) => Singular,
+            (DeterminerRequired, Plural) => PluralOrMass,
+        }
+        policy ExceptionQuantityComplement {
+            require head.QuantitativeComplement = ExceptionQuantity;
+            export DeterminerUse = exception_determiner_use(
+                complement.CardinalMeasurementUse, complement.number);
+            export DeterminerAgreementNumber = cardinal_agreement_number(complement.number);
+        }
+        policy ExceptionDegreeComplement {
+            require head.QuantitativeComplement = ExceptionQuantity;
+            require complement.DegreeUse = Head;
+            export DeterminerUse = complement.DeterminerUse;
+            export DeterminerAgreementNumber = complement.DeterminerAgreementNumber;
         }
 
         // UM1–UM2: the bound also takes a degree Determinative Phrase,
@@ -6133,6 +6157,8 @@ constructions! {
             (DegreePrepositionPhrase, QuantitativeDeterminer, DegreePrepositionComplement),
             (QuantitativeDegreePrepositionPhrase, DegreePrepositionPhrase,
                 QuantitativeDegreePrepositionComplement),
+            (ExceptionPrepositionPhrase, QuantityConjunct, ExceptionQuantityComplement),
+            (ExceptionDegreePrepositionPhrase, QuantitativeDeterminer, ExceptionDegreeComplement),
         ] {
             use Properties;
         }
@@ -6245,6 +6271,19 @@ constructions! {
             require modifier.DegreeUse = Modifier;
             require head.DegreeUse = Head;
             export DeterminerUse = head.DeterminerUse;
+        }
+
+        // CGEL Ch. 5 §11(f), p. 433: an exception PP depends on all.
+        // AB1–AB3 license its quantity Complement and partitive-head use.
+        construction ExceptionDeterminativePhrase: QuantitativeDeterminer {
+            form [head: lexical(Determinative), " ", exception: ExceptionPrepositionPhrase];
+            form [head: lexical(Determinative), " ", exception: ExceptionDegreePrepositionPhrase];
+            require head.QuantitativeExceptionUse = Yes;
+            export DegreeUse = None;
+            export Definiteness = Nondefinite;
+            export NominalAdjunctDependent = None;
+            export DeterminerUse = exception.DeterminerUse;
+            export DeterminerAgreementNumber = exception.DeterminerAgreementNumber;
         }
 
         // Scalar Denotation includes measured amounts. Quantification of a

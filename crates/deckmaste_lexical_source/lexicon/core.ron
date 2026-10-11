@@ -227,7 +227,7 @@
         "vocab:Determinative/Some": {"ComparativeDegreeModifierUse": "Yes", "NominalComplementMarker": "Of", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Those": {"Definiteness": "Definite", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/All": {"PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/All": {"QuantitativeExceptionUse": "Yes", "PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Both": {"PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "QuantitativeConjunctUse": "Yes", "CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
 
@@ -1546,6 +1546,13 @@
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/AsThough"),
             capitalization: Initial, binding: Free, surface_structure: Multiword,
+        ),
+        (
+            id: "vocab:Preposition/But", lemma: "but", category: Preposition,
+            properties: (countability: [], features: {"QuantitativeComplement": "ExceptionQuantity", "PrepositionFunctionLicence": "None"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/But"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
             id: "vocab:Preposition/While", lemma: "while", category: Preposition,

@@ -79,3 +79,6 @@ mod difference_noun;
 
 #[path = "suite/starting_with_adjunct.rs"]
 mod starting_with_adjunct;
+
+#[path = "suite/all_but_exception.rs"]
+mod all_but_exception;

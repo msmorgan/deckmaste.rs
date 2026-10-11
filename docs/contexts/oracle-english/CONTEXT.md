@@ -1197,6 +1197,12 @@ under DQ3 (orchestrator ruling, 2026-10-10,
 `english-v3-degree-quantity-arithmetic`). A scalar variable's count use
 supplies no such permission.
 
+**Quantitative Exception Use** (project term):
+A Determinative's declared permission to head a phrase with a quantity-bearing
+exception Preposition Phrase as its dependent (CGEL, Ch. 5 §11(f), p. 433).
+Partitive-head use and quantity-based Number and Countability selection follow
+AB1–AB3 (orchestrator rulings, 2026-10-10, `english-v3-all-but-exception`).
+
 **Degree Use** (project term):
 A Determinative's declared permission to function as a Degree Modifier or as
 the head admitting one. The grammatical functions are described in CGEL,
