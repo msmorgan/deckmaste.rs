@@ -83,7 +83,6 @@ fn inventory_category(name: &str) -> Option<Category> {
         "SubjectPronoun"
         | "ObjectPronoun"
         | "PossessiveDeterminerPronoun"
-        | "PossessiveAbsolutePronoun"
         | "ReflexivePronoun"
         | "IndefinitePronoun" => Category::Pronoun,
         "Variable" | "ChapterNumeral" => Category::Numeral,
@@ -128,7 +127,7 @@ fn export_vocab(vocab: construction::Vocab, output: &mut LexicalSources) {
         match inventory.as_str() {
             "SubjectPronoun" => lexeme.forms[0].features.case = Some(Case::Nominative),
             "ObjectPronoun" => lexeme.forms[0].features.case = Some(Case::Accusative),
-            "PossessiveDeterminerPronoun" | "PossessiveAbsolutePronoun" => {
+            "PossessiveDeterminerPronoun" => {
                 lexeme.forms[0].features.case = Some(Case::Genitive);
             }
             "Variable" | "ChapterNumeral" | "FixedCostSymbol" => {

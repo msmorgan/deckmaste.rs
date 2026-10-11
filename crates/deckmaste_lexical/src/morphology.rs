@@ -11,6 +11,14 @@ pub(crate) fn applicable(category: Category, form: WordForm, features: &FeatureB
     let nominal =
         features.person.is_none() && features.tense.is_none() && features.finiteness.is_none();
     match form {
+        WordForm::IndependentGenitive => {
+            category == Category::Pronoun
+                && features.case == Some(crate::Case::Genitive)
+                && features.person.is_some()
+                && features.number.is_some()
+                && features.tense.is_none()
+                && features.finiteness.is_none()
+        }
         WordForm::Invariant => match category {
             Category::Verb => false,
             Category::Pronoun => features.tense.is_none() && features.finiteness.is_none(),

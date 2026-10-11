@@ -2157,17 +2157,35 @@
         (
             id: "vocab:SubjectPronoun/I", lemma: "I", category: Pronoun,
             properties: (countability: [], features: {}, frames: []),
-            forms: [(form: Invariant, features: (person: Some(First), number: Some(Singular), case: Some(Nominative)))],
+            forms: [
+                (form: Invariant, features: (person: Some(First), number: Some(Singular), case: Some(Nominative))),
+                (form: IndependentGenitive, features: (person: Some(First), number: Some(Singular), case: Some(Genitive)), surfaces: Some(["mine"])),
+            ],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:SubjectPronoun/I"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
     ],
     form_replacements: {
-        "vocab:SubjectPronoun/He": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative)))],
-        "vocab:SubjectPronoun/It": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative)))],
-        "vocab:SubjectPronoun/She": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative)))],
-        "vocab:SubjectPronoun/They": [(form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Nominative)))],
-        "vocab:SubjectPronoun/You": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Nominative)))],
+        "vocab:SubjectPronoun/He": [
+            (form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative))),
+            (form: IndependentGenitive, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)), surfaces: Some(["his"])),
+        ],
+        // IG8: the independent-genitive cell is absent from this paradigm.
+        "vocab:SubjectPronoun/It": [
+            (form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative))),
+        ],
+        "vocab:SubjectPronoun/She": [
+            (form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Nominative))),
+            (form: IndependentGenitive, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)), surfaces: Some(["hers"])),
+        ],
+        "vocab:SubjectPronoun/They": [
+            (form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Nominative))),
+            (form: IndependentGenitive, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)), surfaces: Some(["theirs"])),
+        ],
+        "vocab:SubjectPronoun/You": [
+            (form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Nominative))),
+            (form: IndependentGenitive, features: (person: Some(Second), number: Some(Singular), case: Some(Genitive)), surfaces: Some(["yours"])),
+        ],
         "vocab:ObjectPronoun/Her": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ObjectPronoun/Him": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ObjectPronoun/It": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
@@ -2178,8 +2196,6 @@
         "vocab:PossessiveDeterminerPronoun/Its": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)))],
         "vocab:PossessiveDeterminerPronoun/Their": [(form: Invariant, features: (person: Some(Third), number: Some(Plural), case: Some(Genitive)))],
         "vocab:PossessiveDeterminerPronoun/Your": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Genitive)))],
-        "vocab:PossessiveAbsolutePronoun/His": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Genitive)))],
-        "vocab:PossessiveAbsolutePronoun/Yours": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Genitive)))],
         "vocab:ReflexivePronoun/Himself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ReflexivePronoun/Itself": [(form: Invariant, features: (person: Some(Third), number: Some(Singular), case: Some(Accusative)))],
         "vocab:ReflexivePronoun/Yourself": [(form: Invariant, features: (person: Some(Second), number: Some(Singular), case: Some(Accusative)))],

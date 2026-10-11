@@ -62,6 +62,8 @@ has not been probed at the current trunk.
 
 - **A8. Woodcaller Automaton's toughness-only equality.** Pruning candidate: the pre-existing `MeasuredAttribute(head: Noun(Toughness))` Readings attach *equal to this creature's power and toughness* to *toughness* alone instead of the intended coordination *power and toughness* (12 full-ability Readings, 6 isolated-sentence Readings on `svlsnsmv`); retire this wrong attachment through a declared coordination-context feature, preserving the correct coordinated-head Readings, legitimate single-property equality, and independent scope ambiguity.
 
+- **A9. Have admits a nominal predicative Complement.** `english-v3-independent-genitive-pronoun` (IG8) leaves the existing Object + nominal predicative Complement frame unchanged; its shape splits *the chosen creature type in addition to yours | other types*. CGEL Ch. 4 §5.4, p. 265 labels complex-transitive *have* adjective-only; verify and repair the general frame licensing separately.
+
 ### B. Lexicon and feature economy
 
 - **B1. Two spellings of definiteness.** The noun-side determiner selection

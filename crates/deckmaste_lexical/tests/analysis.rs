@@ -1178,3 +1178,54 @@ fn mode_bullets_stay_outside_open_flavor_word_labels() {
     assert!(lexicon.realize(&invalid).is_err());
     assert!(lexicon.surface_features(&invalid).is_err());
 }
+
+#[test]
+fn independent_genitive_is_a_declared_pronoun_paradigm_cell() {
+    let features = FeatureBundle {
+        number: Some(Number::Singular),
+        person: Some(Person::Second),
+        case: Some(Case::Genitive),
+        ..FeatureBundle::default()
+    };
+    let mut pronoun = invariant("you", "you", Category::Pronoun);
+    pronoun.forms = vec![FormDeclaration {
+        form: WordForm::IndependentGenitive,
+        features: features.clone(),
+        surfaces: Some(vec!["yours".into()]),
+    }];
+    let lexicon = Lexicon::new([pronoun]).unwrap();
+    let expected = word("you", WordForm::IndependentGenitive, features);
+    assert_eq!(at(&lexicon.analyze("yours"), 0, 5), BTreeSet::from([expected.clone()]));
+    assert_eq!(lexicon.realize(&expected).unwrap(), "yours");
+}
+
+#[test]
+fn independent_genitive_requires_pronoun_genitive_features_and_explicit_spelling() {
+    let features = FeatureBundle {
+        number: Some(Number::Singular),
+        person: Some(Person::Second),
+        case: Some(Case::Genitive),
+        ..FeatureBundle::default()
+    };
+    let mut pronoun = invariant("you", "you", Category::Pronoun);
+    pronoun.forms = vec![FormDeclaration {
+        form: WordForm::IndependentGenitive,
+        features,
+        surfaces: Some(vec!["yours".into()]),
+    }];
+    let mut wrong_category = pronoun.clone();
+    wrong_category.category = Category::Noun;
+    let mut wrong_case = pronoun.clone();
+    wrong_case.forms[0].features.case = Some(Case::Accusative);
+    let mut verbal = pronoun.clone();
+    verbal.forms[0].features.finiteness = Some(Finiteness::Finite);
+    let mut missing_person = pronoun.clone();
+    missing_person.forms[0].features.person = None;
+    let mut missing_number = pronoun.clone();
+    missing_number.forms[0].features.number = None;
+    let mut missing_spelling = pronoun;
+    missing_spelling.forms[0].surfaces = None;
+    for invalid in [wrong_category, wrong_case, verbal, missing_person, missing_number, missing_spelling] {
+        assert!(Lexicon::new([invalid]).is_err());
+    }
+}

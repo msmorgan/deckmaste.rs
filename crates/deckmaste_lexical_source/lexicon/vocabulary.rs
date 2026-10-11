@@ -152,10 +152,6 @@ constructions! {
         Their = "their",
         Your = "your",
     }
-    vocab PossessiveAbsolutePronoun {
-        His = "his",
-        Yours = "yours",
-    }
     vocab ReflexivePronoun {
         Himself = "himself",
         Itself = "itself",

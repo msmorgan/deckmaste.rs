@@ -768,6 +768,12 @@ _Avoid_: Head for the Oblique
 A grammatical form expressing possession or a related dependency, including
 possessive determinatives and phrases marked with an apostrophe ending.
 
+**Independent Genitive**:
+A personal Pronoun's Genitive form used in head function, either as a fused
+Determiner-Head or as a pure Head (CGEL, Ch. 5 §9.1, p. 410; §16.4,
+pp. 470–471).
+_Avoid_: Possessive Absolute Pronoun
+
 **Bare Genitive**:
 A genitive marked in writing by an apostrophe without an added *s*, normally
 on a noun ending in *s*. It is obligatory for plural nouns with that ending,

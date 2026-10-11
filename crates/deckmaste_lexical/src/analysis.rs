@@ -217,8 +217,8 @@ impl Lexicon {
                 {
                     return Err(error("inapplicable form or feature bundle"));
                 }
-                if declaration.form == WordForm::Irrealis && declaration.surfaces.is_none() {
-                    return Err(error("irrealis requires an explicit spelling"));
+                if let Some(reason) = missing_explicit_spelling(declaration) {
+                    return Err(error(reason));
                 }
                 let surfaces = declaration.surfaces.clone().unwrap_or_else(|| {
                     vec![morphology::default_surface(
@@ -569,6 +569,17 @@ fn valid_flavor_label(label: &str) -> bool {
         && !label.starts_with('•')
         && !label.chars().any(char::is_control)
         && !label.contains(" —")
+}
+
+fn missing_explicit_spelling(slot: &crate::FormDeclaration) -> Option<&'static str> {
+    if slot.surfaces.is_some() {
+        return None;
+    }
+    match slot.form {
+        WordForm::Irrealis => Some("irrealis requires an explicit spelling"),
+        WordForm::IndependentGenitive => Some("independent Genitive requires an explicit spelling"),
+        _ => None,
+    }
 }
 
 fn flavor_word_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {

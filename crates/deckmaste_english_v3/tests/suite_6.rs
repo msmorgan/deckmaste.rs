@@ -124,3 +124,6 @@ mod your_choice_of_keywords;
 
 #[path = "suite/superlative_quantifiers.rs"]
 mod superlative_quantifiers;
+
+#[path = "suite/independent_genitive_pronoun.rs"]
+mod independent_genitive_pronoun;

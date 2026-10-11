@@ -162,6 +162,7 @@ fn builtin_domains() -> Vec<Domain> {
             "WordForm",
             &[
                 "Invariant",
+                "IndependentGenitive",
                 "Singular",
                 "Plural",
                 "Plain",

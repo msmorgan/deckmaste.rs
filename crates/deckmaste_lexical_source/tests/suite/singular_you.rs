@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use deckmaste_lexical::Case;
 use deckmaste_lexical::Category;
@@ -15,7 +15,11 @@ use crate::common::LEXICON;
 fn value(owner: &str, case: Case, number: Number, casing: SurfaceCase) -> LexicalValue {
     LexicalValue {
         lexeme: owner.into(),
-        form: WordForm::Invariant,
+        form: if owner.starts_with("vocab:SubjectPronoun/") && case == Case::Genitive {
+            WordForm::IndependentGenitive
+        } else {
+            WordForm::Invariant
+        },
         features: FeatureBundle {
             number: Some(number),
             person: Some(Person::Second),
@@ -30,6 +34,7 @@ fn value(owner: &str, case: Case, number: Number, casing: SurfaceCase) -> Lexica
 
 #[test]
 fn second_person_pronouns_have_exact_singular_case_and_capitalization_values() {
+    let mut expected_by_owner: BTreeMap<&str, BTreeSet<LexicalValue>> = BTreeMap::new();
     for (owner, spelling, case) in [
         ("vocab:SubjectPronoun/You", "you", Case::Nominative),
         ("vocab:ObjectPronoun/You", "you", Case::Accusative),
@@ -38,11 +43,7 @@ fn second_person_pronouns_have_exact_singular_case_and_capitalization_values() {
             "your",
             Case::Genitive,
         ),
-        (
-            "vocab:PossessiveAbsolutePronoun/Yours",
-            "yours",
-            Case::Genitive,
-        ),
+        ("vocab:SubjectPronoun/You", "yours", Case::Genitive),
         (
             "vocab:ReflexivePronoun/Yourself",
             "yourself",
@@ -84,6 +85,9 @@ fn second_person_pronouns_have_exact_singular_case_and_capitalization_values() {
                 "plural {owner}"
             );
         }
+        expected_by_owner.entry(owner).or_default().extend(expected);
+    }
+    for (owner, expected) in expected_by_owner {
         let actual: BTreeSet<_> = LEXICON
             .values()
             .filter(|value| value.lexeme == owner)
@@ -128,18 +132,14 @@ fn unrelated_third_person_pronouns_retain_their_existing_values() {
             Case::Genitive,
             Number::Plural,
         ),
-        (
-            "vocab:PossessiveAbsolutePronoun/His",
-            Case::Genitive,
-            Number::Singular,
-        ),
+        ("vocab:SubjectPronoun/He", Case::Genitive, Number::Singular),
         (
             "vocab:ReflexivePronoun/Himself",
             Case::Accusative,
             Number::Singular,
         ),
     ] {
-        let expected: BTreeSet<_> = [SurfaceCase::Declared, SurfaceCase::Initial]
+        let mut expected: BTreeSet<_> = [SurfaceCase::Declared, SurfaceCase::Initial]
             .into_iter()
             .map(|casing| {
                 let mut value = value(owner, case, number, casing);
@@ -147,6 +147,20 @@ fn unrelated_third_person_pronouns_retain_their_existing_values() {
                 value
             })
             .collect();
+        if owner == "vocab:SubjectPronoun/They" {
+            for casing in [SurfaceCase::Declared, SurfaceCase::Initial] {
+                let mut independent = value(owner, Case::Genitive, number, casing);
+                independent.features.person = Some(Person::Third);
+                expected.insert(independent);
+            }
+        }
+        if owner == "vocab:SubjectPronoun/He" {
+            for casing in [SurfaceCase::Declared, SurfaceCase::Initial] {
+                let mut nominative = value(owner, Case::Nominative, number, casing);
+                nominative.features.person = Some(Person::Third);
+                expected.insert(nominative);
+            }
+        }
         assert_eq!(
             LEXICON
                 .values()

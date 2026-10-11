@@ -80,6 +80,8 @@ pub struct FeatureBundle {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum WordForm {
     Invariant,
+    /// The independent Genitive cell of a personal Pronoun paradigm.
+    IndependentGenitive,
     Singular,
     Plural,
     Plain,

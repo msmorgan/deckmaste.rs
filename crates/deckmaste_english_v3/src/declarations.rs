@@ -79,7 +79,7 @@ constructions! {
         feature ObliqueMarker { No, Yes } default No;
         feature ObliqueNumber { None, Singular, Plural } default None;
         feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted;
-        feature CaseUse { Common, Nominative, Accusative }
+        feature CaseUse { Common, Nominative, Accusative, Genitive }
         feature Targeting { No, Yes }
         feature TargetingPremodifierUse { No, Yes } default No;
         table targeting_premodifier(TargetingPremodifierUse, Targeting) -> Selection {
@@ -986,16 +986,22 @@ constructions! {
             (Common, Accusative) => Accusative,
             (Accusative, Common) => Accusative,
             (Accusative, Accusative) => Accusative,
+            (Genitive, Genitive) => Genitive,
+            (Common, Genitive) => Genitive, (Genitive, Common) => Genitive,
+            (Nominative, Genitive) => Nominative, (Genitive, Nominative) => Nominative,
+            (Accusative, Genitive) => Accusative, (Genitive, Accusative) => Accusative,
         }
 
         table nominative_case(CaseUse) -> CaseUse {
             (Common) => Nominative,
             (Nominative) => Nominative,
+            (Genitive) => Nominative,
         }
 
         table accusative_case(CaseUse) -> CaseUse {
             (Common) => Accusative,
             (Accusative) => Accusative,
+            (Genitive) => Accusative,
         }
 
         // Local complement selection, not the voice of an auxiliary chain.
@@ -4454,17 +4460,29 @@ constructions! {
             export PartitiveCountability = Unrestricted;
             export NounPhraseStructure = Other;
             export FocusedUse = No;
-            export Definiteness = head.Definiteness;
             export UnitBearing = No;
-            export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
-            export DeterminerAgreementNumber = Nominal;
             form [head: lexical(Determinative),
-                dependent: optional(lexical(Preposition), before(" "))];
-            require dependent.FusedHeadPostmodifierUse = Yes;
-            require licensed_posthead_dependent(dependent.present,
-                head.ImmediatePostheadDependentUse) = Yes;
-            require head.FusedHeadUse = Yes;
-            require head.DeterminerUse = Singular;
+                dependent: optional(lexical(Preposition), before(" "))]
+                require dependent.FusedHeadPostmodifierUse = Yes
+                require licensed_posthead_dependent(dependent.present,
+                    head.ImmediatePostheadDependentUse) = Yes
+                require head.FusedHeadUse = Yes
+                require head.DeterminerUse = Singular
+                export Definiteness = head.Definiteness
+                export ComparativePostmodifierUse = head.ComparativePostmodifierUse
+                export DeterminerAgreementNumber = Nominal
+                export CaseUse = Common;
+            // CGEL Ch. 5 §9.1, p. 410: independent Genitives have head use.
+            // IG7 reuses the one-Reading partitive agreement convention.
+            form [head: lexical(Pronoun),
+                dependent: optional(lexical(Preposition), before(" "))]
+                require dependent.present = No
+                require head.case = Genitive
+                require head.form = IndependentGenitive
+                export Definiteness = Definite
+                export ComparativePostmodifierUse = No
+                export DeterminerAgreementNumber = SingularOrPlural
+                export CaseUse = Genitive;
             export number = Singular;
             export Targeting = No;
             export ScalarDenotation = No;
@@ -4474,7 +4492,8 @@ constructions! {
             export WholeObjectSourcePresent = No;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
-            use ThirdPersonCommonCase;
+            export SubjectStructure = Phrase;
+            export person = Third;
         }
 
         // CGEL Ch. 5 §12(b–c), p. 434: fractions and multipliers are
