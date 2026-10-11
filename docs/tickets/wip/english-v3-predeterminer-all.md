@@ -186,6 +186,10 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    roundtrip tests via the same definite-host licence.
    The built-in diff, including `--lines`, is
    `target/english-v3/english-v3-predeterminer-all/diff.json`.
+   Post-refresh census at `lmprkvko` reuses that manifest and has the same
+   totals and deltas against BEFORE (`diff-refresh.json`). The built-in
+   AFTER → refreshed-AFTER comparison (`refresh-diff.json`) reports all
+   2,163 faces unchanged: zero lost/gained/decreases/increases/digest-only.
 
 2. **Witnesses** (`xswzoyrx`, before/after, complete direct-probe counts):
    Tolarian Winds 0 → 4 (bare/definite controls 4/4);
@@ -219,8 +223,14 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    Glossary extends Predeterminer and Predeterminer Use; CGEL page-check
    confirms Ch. 5 §12(a), pp. 433–434. The genitive STOP is resolved by PA7,
    which amends PA6 and preserves both grammatical attachments. No
-   genitive-blocking feature added. Commit and refresh follow verification;
-   integration and workspace removal remain reserved for the orchestrator.
+   genitive-blocking feature added. Implementation committed as `xswzoyrx`;
+   refresh succeeded after retrying a concurrent snapshot refusal. Refresh
+   brought the Devour Quality landing: English grammar `vuyokrvx`,
+   semantics/plugin/facts `ulkrnzyt`, and canon Feasting Hobbit `pknkolqq`.
+   Incoming stat is saved in `refresh-stat.txt`; the refreshed base is
+   `vwktxkol`. Dependent Rust and plugin changes triggered the standing
+   post-refresh build, bounded census, full suites, clippy and Lean check.
+   Integration and workspace removal remain reserved for the orchestrator.
 
 5. **Tests** (`xswzoyrx`): `cargo test -p deckmaste_english_v3` passed
    (1,046 tests), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
@@ -232,9 +242,22 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    roundtrips, declared Number/Countability, plural finite agreement and
    PA4 exclusion of stacking/twins. Citation check: 0 noncompliant,
    0 stale; diff audit contains no newly cited CR rules. No plugin changes
-   or Lean checks in this implementation. Post-refresh verification follows
-   the standing rule if dependent code or plugin definitions arrive.
+   in this implementation. Post-refresh verification at `lmprkvko` passed
+   `cargo build -p xtask`, both crate suites and both clippy commands above
+   again (English 1,047 tests, including the incoming Devour test; lexical
+   source 88). Incoming plugin changes also required, and passed:
+   `cargo test -p xtask`;
+   `cargo clippy -p xtask --tests -- -D warnings`;
+   `cargo test -p deckmaste_semantics_v2`;
+   `cargo clippy -p deckmaste_semantics_v2 --tests -- -D warnings`;
+   `cargo test -p deckmaste_construction_core`;
+   `cargo clippy -p deckmaste_construction_core --tests -- -D warnings`;
+   `cargo xtask lean check` (243/243 cards). All suites were full, without
+   name filters. Exact commands, exit statuses and logs are recorded in
+   `post-refresh-checks.json`; build and Lean logs are adjacent. Refreshed
+   citation checks report 0 noncompliant and 0 stale among 17,763 citations.
 
 6. **Timing** (`xswzoyrx`): bounded AFTER census 49.42 s wall time under
-   `/usr/bin/time -v`, six workers, zero samples per face. No full-corpus
+   `/usr/bin/time -v`, six workers, zero samples per face; post-refresh
+   bounded census 126.79 s wall time under the same settings. No full-corpus
    census was run, per the binding verification budget.
