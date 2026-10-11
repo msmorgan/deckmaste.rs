@@ -780,3 +780,75 @@ fn all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets()
         expected,
     );
 }
+
+#[test]
+fn fireslinger_reading_is_preserved_with_fewer_predictions() {
+    let text = "{T}: This creature deals 1 damage to any target and 1 damage to you.";
+    let expected = document(
+        activated(
+            cost(
+                symbol_cost(vec![named_symbol("vocab:FixedCostSymbol/Tap")]),
+                vec![],
+            ),
+            sentence(this("creature", true), clusters(1, 1, you())),
+        ),
+        vec![],
+    );
+    assert_eq!(
+        roundtrip(text, Category::Document, &expected),
+        BTreeSet::from([expected])
+    );
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let forest = environment.parse(text, Category::Document).unwrap();
+    // Unfiltered baseline from this ticket's nine-fixture measurement.
+    assert!(forest.metrics().items < 7_875, "{:?}", forest.metrics());
+}
+
+#[test]
+fn goblin_artillery_reading_is_preserved_with_fewer_predictions() {
+    let text = "{T}: This creature deals 2 damage to any target and 3 damage to you.";
+    let expected = document(
+        activated(
+            cost(
+                symbol_cost(vec![named_symbol("vocab:FixedCostSymbol/Tap")]),
+                vec![],
+            ),
+            sentence(this("creature", true), clusters(2, 3, you())),
+        ),
+        vec![],
+    );
+    assert_eq!(
+        roundtrip(text, Category::Document, &expected),
+        BTreeSet::from([expected])
+    );
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let forest = environment.parse(text, Category::Document).unwrap();
+    assert!(forest.metrics().items < 7_875, "{:?}", forest.metrics());
+}
+
+#[test]
+fn forge_devil_reading_is_preserved_with_fewer_predictions() {
+    let text =
+        "When this creature enters, it deals 1 damage to target creature and 1 damage to you.";
+    let mut predicate = clusters(1, 1, you());
+    let Reading::SelectedComplementClustersPredicate { tail, .. } = &mut predicate else {
+        unreachable!()
+    };
+    let Reading::Coordination { left, .. } = tail.as_mut() else { unreachable!() };
+    let Reading::ObjectPrepositionTail { complement, .. } = left.as_mut() else {
+        unreachable!()
+    };
+    **complement = acc(Reading::TargetNounPhrase {
+        form: 0,
+        marker: invariant("vocab:TargetingMarker/Target"),
+        head: Box::new(noun("lexeme:type/creature")),
+    });
+    let expected = document(ordinary(enter_trigger("creature", predicate)), vec![]);
+    assert_eq!(
+        roundtrip(text, Category::Document, &expected),
+        BTreeSet::from([expected])
+    );
+    let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&LEXICON);
+    let forest = environment.parse(text, Category::Document).unwrap();
+    assert!(forest.metrics().items < 9_290, "{:?}", forest.metrics());
+}

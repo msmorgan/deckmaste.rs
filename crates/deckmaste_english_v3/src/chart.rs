@@ -225,6 +225,9 @@ impl<G: Grammar> Chart<'_, G> {
                 edges: Vec::new(),
                 edge_set: BTreeSet::new(),
             });
+            if item.dot == 0 {
+                self.forest.metrics.predicted_items += 1;
+            }
             self.items.push(item);
             self.agenda.push_back(id);
             self.forest.metrics.items += 1;
@@ -244,6 +247,23 @@ impl<G: Grammar> Chart<'_, G> {
             return;
         }
         for production in self.productions.get(category).cloned().unwrap_or_default() {
+            // A failing first terminal has no scan edge: the dot-0 item cannot
+            // advance, register as a nonterminal waiter, or complete. Lexical
+            // occurrences are nonempty (validated before prediction). Optional
+            // fields use helper nonterminals with separate empty productions;
+            // keep every nonterminal-first and empty production. Empty literals
+            // also remain eligible, since the scanner can match them. Inspect
+            // only the first runtime symbol, never FIRST through a nonterminal.
+            let can_start = match self.grammar.productions()[production].symbols.first() {
+                Some(Symbol::Lexical(category)) => {
+                    self.lexical.contains_key(&(position, *category))
+                }
+                Some(Symbol::Literal(text)) => self.literal_end(position, text).is_some(),
+                Some(Symbol::Nonterminal(_)) | None => true,
+            };
+            if !can_start {
+                continue;
+            }
             for state in self.grammar.begin(production) {
                 self.insert(
                     Item {
@@ -325,13 +345,7 @@ impl<G: Grammar> Chart<'_, G> {
             }
             Some(Symbol::Literal(text)) => {
                 let text = text.clone();
-                let length = text.chars().count();
-                let end = item.end + length;
-                if end <= self.input.tokens.len()
-                    && text
-                        .chars()
-                        .eq(self.input.tokens[item.end..end].iter().copied())
-                {
+                if let Some(end) = self.literal_end(item.end, &text) {
                     let leaf = *self
                         .literals
                         .entry((item.end, text.clone()))
@@ -350,6 +364,12 @@ impl<G: Grammar> Chart<'_, G> {
                 }
             }
         }
+    }
+
+    fn literal_end(&self, position: usize, text: &str) -> Option<usize> {
+        let end = position.checked_add(text.chars().count())?;
+        let tokens = self.input.tokens.get(position..end)?;
+        text.chars().eq(tokens.iter().copied()).then_some(end)
     }
 
     fn complete(&mut self, prefix: IntermediateId) {

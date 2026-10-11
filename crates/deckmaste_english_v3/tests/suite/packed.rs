@@ -1172,3 +1172,70 @@ fn packed_segments_report_cycles_outside_the_segment_category() {
         Err(deckmaste_english_v3::SegmentationError::Cycle)
     );
 }
+
+#[test]
+fn prediction_skips_only_terminals_that_the_scanner_cannot_match() {
+    let lexicon = Lexicon::new([]).unwrap();
+    let fixture = Fixture::new(vec![
+        ("S", vec![terminal()], Action::Erase, "missing lexical"),
+        ("S", vec![lit("x")], Action::Erase, "wrong literal"),
+        ("S", vec![lit("é")], Action::Erase, "matching literal"),
+    ]);
+    let forest = parse(&fixture, &lexicon, &lexicon.analyze("é"), &"S").unwrap();
+    let actual: BTreeSet<_> = forest.readings(&fixture).map(Result::unwrap).collect();
+    assert_eq!(
+        actual,
+        BTreeSet::from([Reading::Construction(
+            "matching literal",
+            Summary::default(),
+            None,
+            vec![Reading::Literal("é".into())],
+        )])
+    );
+    assert_eq!(forest.metrics().predicted_items, 1);
+    assert_eq!(forest.metrics().items, 2);
+    assert_eq!(forest.metrics().completed_nodes, 1);
+}
+
+#[test]
+fn prediction_retains_empty_literals_and_nullable_first_nonterminals() {
+    let lexicon = Lexicon::new([]).unwrap();
+    let fixture = Fixture::new(vec![
+        (
+            "S",
+            vec![nt("Optional"), lit("é")],
+            Action::Erase,
+            "optional",
+        ),
+        ("S", vec![lit(""), lit("é")], Action::Erase, "empty literal"),
+        ("Optional", vec![], Action::Erase, "absent"),
+        ("Optional", vec![terminal()], Action::Erase, "present"),
+    ]);
+    let forest = parse(&fixture, &lexicon, &lexicon.analyze("é"), &"S").unwrap();
+    let actual: BTreeSet<_> = forest.readings(&fixture).map(Result::unwrap).collect();
+    assert_eq!(
+        actual,
+        BTreeSet::from([
+            Reading::Construction(
+                "optional",
+                Summary::default(),
+                None,
+                vec![
+                    Reading::Construction("absent", Summary::default(), None, vec![]),
+                    Reading::Literal("é".into()),
+                ]
+            ),
+            Reading::Construction(
+                "empty literal",
+                Summary::default(),
+                None,
+                vec![
+                    Reading::Literal(String::new()),
+                    Reading::Literal("é".into()),
+                ]
+            ),
+        ])
+    );
+    assert_eq!(forest.metrics().predicted_items, 3);
+    assert_eq!(forest.metrics().completed_nodes, 2);
+}

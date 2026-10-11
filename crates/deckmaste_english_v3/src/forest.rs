@@ -89,6 +89,8 @@ pub struct Metrics {
     pub lexical_alternatives: usize,
     pub lexical_projections: usize,
     pub items: usize,
+    /// Distinct dot-0 items inserted by prediction, included in `items`.
+    pub predicted_items: usize,
     pub intermediate_nodes: usize,
     pub completed_nodes: usize,
     pub intermediate_edges: usize,
