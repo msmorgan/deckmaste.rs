@@ -190,6 +190,14 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    totals and deltas against BEFORE (`diff-refresh.json`). The built-in
    AFTER → refreshed-AFTER comparison (`refresh-diff.json`) reports all
    2,163 faces unchanged: zero lost/gained/decreases/increases/digest-only.
+   Integration refresh at `lytultmw` brought degree arithmetic `lvsykyns`.
+   Its bounded re-census retains 16 gains, eight PA7 increases, zero lost or
+   decreased faces and the same coverage/Reading totals. Compared with the
+   reviewed AFTER, it changes only 48 digests, attributed to `lvsykyns`'s
+   Cardinal feature exports and optional ArithmeticModifier slot. Compared
+   with claim-parent BEFORE, 34 of those are digest-only changes (the other
+   14 are already listed as gains). Final reports:
+   `diff-integrate-refresh.json` and `integrate-refresh-diff.json`.
 
 2. **Witnesses** (`xswzoyrx`, before/after, complete direct-probe counts):
    Tolarian Winds 0 → 4 (bare/definite controls 4/4);
@@ -230,7 +238,11 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    Incoming stat is saved in `refresh-stat.txt`; the refreshed base is
    `vwktxkol`. Dependent Rust and plugin changes triggered the standing
    post-refresh build, bounded census, full suites, clippy and Lean check.
-   Integration and workspace removal remain reserved for the orchestrator.
+   Before acceptance, integration and workspace removal were reserved for
+   the orchestrator.
+   Orchestrator accepted the landing and authorized integration and removal;
+   the subsequent refresh brought only degree-arithmetic crate changes and
+   docs/tickets changes, with no plugin changes.
 
 5. **Tests** (`xswzoyrx`): `cargo test -p deckmaste_english_v3` passed
    (1,046 tests), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
@@ -256,8 +268,15 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    name filters. Exact commands, exit statuses and logs are recorded in
    `post-refresh-checks.json`; build and Lean logs are adjacent. Refreshed
    citation checks report 0 noncompliant and 0 stale among 17,763 citations.
+   After acceptance, the integration refresh again passed `cargo build -p
+   xtask`, full `cargo test -p deckmaste_english_v3` and `cargo test -p
+   deckmaste_lexical_source`, and `cargo clippy -p deckmaste_english_v3
+   --tests -- -D warnings` and `cargo clippy -p deckmaste_lexical_source
+   --tests -- -D warnings`. Exact commands and zero exit statuses are in
+   `integrate-refresh-checks.json`, with adjacent logs (English 1,052 tests).
 
 6. **Timing** (`xswzoyrx`): bounded AFTER census 49.42 s wall time under
    `/usr/bin/time -v`, six workers, zero samples per face; post-refresh
-   bounded census 126.79 s wall time under the same settings. No full-corpus
+   bounded census 126.79 s wall time, and integration-refresh bounded census
+   52.47 s, under the same settings. No full-corpus
    census was run, per the binding verification budget.
