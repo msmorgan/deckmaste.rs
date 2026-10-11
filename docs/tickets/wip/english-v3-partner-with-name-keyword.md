@@ -172,10 +172,11 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `[Quality]`. Its carrier is `KeywordParam::Quality { predicate }`;
    `Predicate::Named` with `NameSource::Printed` carries the full card name.
    The definition now takes `[Quality]`, forwarding the argument normally,
-   while the Name recipe refines its grammatical class to Name. No Facts row,
-   argument schema or semantic codec class changes. Only the obsolete
-   “spelled through Partner” no-stub exemption is removed, since this
-   definition closes that gap; the existing row is not exempted. This is
+   while the Name recipe refines its grammatical class to Name. The Facts row and codec for PartnerWith are unchanged, as is its
+   argument schema. The only removed entry in `crates/xtask/src/facts.rs` is
+   PartnerWith’s `KEYWORD_ROWS_EXEMPT` bookkeeping reason, “spelled through
+   Partner”. It became obsolete because the keyword now has its own
+   definition; the existing row is not exempted. This is
    bookkeeping, not a change to the row's semantic authority. The definition
    remains bodiless; the engine body belongs to the semantics-v2 line.
    Generated Lean declarations add only this macro. Two generated legacy
@@ -183,6 +184,15 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    enum arm. No glossary gap. One semantic value test beyond the original
    ticket proves that the existing carrier preserves a printed card name,
    including its comma (PW7).
+   Three existing tests were re-spelled, preserving their asserted subjects:
+   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`
+   expects the separate Name recipe and `[Quality]` signature, with the
+   parameterized inventory changing from 110 to 111;
+   `every_keyword_declaration_pins_its_template` adds the expected template
+   `partnerWith: "partner with <Param(0)>"`;
+   `every_keyword_template_is_consistent_with_its_params_and_grammar`
+   expects 66 + 210 declarations instead of 66 + 209, retaining all parameter
+   and template assertions.
    Existing numeric inventory assertions are noted in hygiene-3; two timing
    decimals in the unclaimed predicative-gap-relative ticket were rewritten
    with minute/second units without changing their values, fixing citation
