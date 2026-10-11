@@ -151,8 +151,8 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
    748 matching faces plus 300 covered controls selected by `english-v3 diff
    --manifest --random 300 --seed 20261008`; 1,048 faces. Covered 824 → 841;
    Readings 20,981 → 21,131. Lost: none; gained 17; decreases 0; increases 0;
-   digest-only 414 (the absent optional field added to existing degree
-   phrases); unchanged 617. Zero issues, limited enumerations or internal
+   digest-only 414 (the optional post-head Modifier slot added to existing
+   degree Determinative Phrases); unchanged 617. Zero issues, limited enumerations or internal
    failures. Compared with `cargo xtask english-v3 diff before.json after.json
    --json diff.json --lines`; evidence and the identity manifest are under
    `target/english-v3/english-v3-degree-quantity-arithmetic/`. Refresh preserves
@@ -181,7 +181,9 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
    feature value for cross-field licensing. An existing QuantifiedNounPhrase
    form cannot acquire the delayed dependent with the required Determiner
    licence; its separate route needs a new Construction. The Method's delayed
-   grep still finds 21 unread faces. DQ5 variable Determiners remain deferred:
+   grep still finds 21 unread faces; the proposal and named inventory are in
+   [the delayed arithmetic follow-up](../planned/english-v3-delayed-degree-arithmetic-modifier.md).
+   DQ5 variable Determiners remain deferred:
    Green Sun's Twilight, Epiphany at the Drownyard and Eiganjo Uprising.
    No named Construction, schema or frame was added or retired: the existing
    QuantitativePrepositionPhrase schema supplies an Arithmetic Modifier
