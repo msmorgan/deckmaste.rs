@@ -157,7 +157,11 @@ Attestation by `cargo xtask english-v3 grep` only.
    Bride's Gown, Groom's Finery, Heavy Mattock, Silver-Inlaid Dagger,
    Tenza, Godo's Maul and True-Faith Censer. Ticket gains remain 21.
    Both runs use the same 1,399-face manifest; digest-only classes each have
-   0 changed covered lines.
+   0 changed covered lines. Integration-turn refresh (`opkxokpkrpqs`, Partner
+   with Name): original 1,399-face selector retained; official comparison
+   against reviewed AFTER reports all 1,399 faces unchanged, covered 1,298,
+   Readings 16,005; 27 total gains (21 ticket, 6 prior trunk), all regression
+   and digest-only classes 0.
 2. **Witnesses — `vwntqpupwqyw`.** Ace's Baseball Bat, Steelclaw Lance and
    Robe of the Archmagi: each 0 → 1. Deferred Braided Net and The Enigma
    Jewel: each 0 → 0. Controls before/after: bare Equip 1/1, dashed Equip 1/1,
@@ -186,6 +190,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    and milliseconds. No glossary gap. Refresh brought grammar and lexicon
    changes and one hygiene-note conflict; both independent notes were
    retained. Kata refresh then exited 0, with no remaining conflicts.
+   Integration-turn conflicts preserve both EquipQuality and PartnerWith
+   inventory entries, the structural template-total assertion, and both
+   hygiene notes; the combined parameter inventory is 112.
 5. **Tests — `vwntqpupwqyw`, QC9 rerun.** All full suites and clippy passed:
    `cargo test -p xtask`;
    `cargo clippy -p xtask --tests -- -D warnings`;
@@ -207,13 +214,17 @@ Attestation by `cargo xtask english-v3 grep` only.
    `cargo xtask lean check` passed again (245 cards); `cargo xtask facts check`
    passed again without changing either generated facts file. Evidence:
    `target/english-v3/english-v3-quality-cost-keyword-lines/post-refresh-checks.json`.
-   Restored 1:
+   Integration-turn scoped build, all five full suites, all five clippy
+   commands, facts and Lean checks passed again. English: 1,161 passed,
+   1 inherited ignored; the all-nine selected-complement chart-budget test
+   passed with unchanged ceilings. Evidence: `integration-checks.json` in
+   the same target directory. Restored 1:
    `keyword_mention_without_parameter::keyword_premodifiers_keep_keyword_identity_in_costs_and_abilities`
    keeps its original expected value, restored by preventing the new recipe's
    bare noun-premodifier twin. Re-spelled 4:
    `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`
    adds EquipQuality's Quality+Cost signature; Craft's original Cost signature
-   and grammar remain pinned;
+   and grammar remain pinned; combined inventory is 112 after PartnerWith;
    `every_keyword_declaration_pins_its_template` adds EquipQuality's bare
    two-parameter template while preserving Craft's original template;
    `every_keyword_template_is_consistent_with_its_params_and_grammar` derives
@@ -227,4 +238,5 @@ Attestation by `cargo xtask english-v3 grep` only.
 6. **Timing — `vwntqpupwqyw`.** QC9 bounded census: 13.25 seconds wall under
    `/usr/bin/time -v`, 6 workers, 0 samples per face. Refreshed bounded census:
    40.91 seconds wall; xtask rebuild: 6 minutes 37 seconds.
+   Integration-turn bounded census: 0:22.25 wall; rebuild: 5 minutes 23 seconds.
    No full-corpus census run.
