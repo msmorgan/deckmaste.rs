@@ -168,7 +168,10 @@ english-v3 grep` only.
    and adds no fields to existing Reading variants. All 2,000 sampled covered
    faces are unchanged, with zero digest-only changes (hence zero per-class
    changed-line counts). The orchestrator's next full-corpus census is the
-   final identity check.
+   final identity check. The required final post-refresh run on `kyszympw`
+   repeats the same 2,538 identities and exactly the same totals and delta:
+   40 intended gained faces plus Dawnglow separately, no lost/decreases,
+   increases or digest-only changes (`final-after.json`, `final-diff.json`).
 2. **Witnesses.** All eight failed with zero sentence Readings on the
    claim parent `worzonox`, before implementation. On `onymknyk`, Azorius
    Herald 3, Ribbons of Night 2, Shrieking Grotesque 2, Wumpus Aberration 8,
@@ -211,11 +214,18 @@ english-v3 grep` only.
    `cargo test -p deckmaste_lexical_source`: pass (88 tests).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: pass.
-   Results measured on `onymknyk`; logs under the evidence directory.
+   Results measured on `onymknyk`; the required post-refresh
+   `cargo build -p xtask`, both full test commands and both clippy commands
+   also pass on `kyszympw` (1,139 English integration tests, one pre-existing
+   ignore; 88 lexical-source tests). The specified
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   passes without ceiling changes. Refresh was a no-op. Final logs use the
+   `final-` prefix under the evidence directory.
    Restored 0 / re-spelled 1 / newly ignored 0 / added 6 / removed 0.
    The re-spelled
    `purpose_infinitival::auxiliary_predicates_inherit_the_selected_predicates_purpose_licence`
-   changes the expected value for *{R} was spent to cast this spell.* from
+   changes the expected value for *If {R} was spent to cast this spell, draw
+   a card.* from
    the empty Reading set to a nonempty set with typed Mana Subject, selected
    passive and purpose constituents; its other
    auxiliary assertions remain. The six new tests assert structural roles,
@@ -224,4 +234,6 @@ english-v3 grep` only.
    zero changed citation sites. No Lean, plugin or xtask source changed.
 6. **Timing.** The one bounded AFTER census on `onymknyk` took **82.45 s**
    wall time under `/usr/bin/time -v`, with 6 workers and
-   `--samples-per-face 0`. No full-corpus census was run in this workspace.
+   `--samples-per-face 0`. The required final post-refresh bounded rerun on `kyszympw` took
+   **74.18 s** with the same worker/sample settings. No full-corpus census
+   was run in this workspace.
