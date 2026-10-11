@@ -154,7 +154,19 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    project rulings. Fractalize is an incidental gain using arithmetic already
    present on the claim parent; no *plus 1* implementation was added. The
    user's bounded verification and seed override apply. No linguistic STOP;
-   the standing pre-integration review STOP applies.
+   the standing pre-integration review STOP applies. On Woodcaller Automaton,
+   the **8 added** full-ability Readings predicate *equal to* of the whole
+   coordination *power and toughness*, as intended under PE4: four have
+   `Coordination(PremodifiedNominal(base, Power), Toughness)` as the
+   `MeasuredAttribute` head and four have
+   `PremodifiedNominal(base, Coordination(Power, Toughness))`. Each head
+   shape retains comparison-complement and surrounding conditional scope.
+   The **12 pre-existing** full-ability Readings with
+   `MeasuredAttribute(head: Noun(Toughness))` predicate *equal to* of
+   *toughness* alone (6 in the isolated sentence, versus 4 coordinated-head
+   Readings). This unintended attachment is a pruning candidate in hygiene-3
+   A8, requiring a declared feature that distinguishes coordination context
+   while preserving legitimate single-property equality and independent scope.
 5. **Tests** (`svlsnsmvwlup`): `cargo test -p deckmaste_english_v3` passed
    **1,048 tests**, once; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed after fixing its one `replace_box` warning in the new test.

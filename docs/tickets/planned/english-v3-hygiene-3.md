@@ -60,6 +60,8 @@ has not been probed at the current trunk.
   their scope. Note ruling R14e (`english-v3-last-turn-temporal-adjunct`):
   *last* is not a numeral and was rehomed as a Word.
 
+- **A8. Woodcaller Automaton's toughness-only equality.** Pruning candidate: the pre-existing `MeasuredAttribute(head: Noun(Toughness))` Readings attach *equal to this creature's power and toughness* to *toughness* alone instead of the intended coordination *power and toughness* (12 full-ability Readings, 6 isolated-sentence Readings on `svlsnsmv`); retire this wrong attachment through a declared coordination-context feature, preserving the correct coordinated-head Readings, legitimate single-property equality, and independent scope ambiguity.
+
 ### B. Lexicon and feature economy
 
 - **B1. Two spellings of definiteness.** The noun-side determiner selection
