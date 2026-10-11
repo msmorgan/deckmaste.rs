@@ -206,6 +206,12 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    or decreased faces, 34 digest-only changes attributed to `lvsykyns`;
    covered 1,862 → 1,880 and Readings 58,675 → 59,227. Final evidence is
    `diff-integrate-refresh-2.json` and `integrate-refresh-2-diff.json`.
+   Another default-moved refusal required a third integration refresh at
+   `nzuqlszr`, bringing the facts landing (patient-role `mtwtyxxk`, protection
+   `mowpkrnr`, ripple `ozoomvpm`, Paladin en-Vec `txrvuxxt`). Its bounded
+   re-census changes none of the 2,163 faces, counts or digests; the final
+   gain count remains 18 (16 this ticket, two `svlsnsmv`). Latest reports:
+   `diff-integrate-refresh-3.json` and `integrate-refresh-3-diff.json`.
 
 2. **Witnesses** (`xswzoyrx`, before/after, complete direct-probe counts):
    Tolarian Winds 0 → 4 (bare/definite controls 4/4);
@@ -285,6 +291,10 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
    After the second integration refresh, the same build, bounded census,
    full English and lexical-source suites, and both clippy commands passed
    again; exact commands and zero statuses: `integrate-refresh-2-checks.json`.
+   The third refresh changed plugin definitions and Lean fixtures: build,
+   bounded census, all five full suites and clippy commands above passed
+   again (`integrate-refresh-3-checks.json`), as did `cargo xtask lean check`
+   (244/244 cards, `lean-integrate-refresh-3.log`).
 
 6. **Timing** (`xswzoyrx`): bounded AFTER census 49.42 s wall time under
    `/usr/bin/time -v`, six workers, zero samples per face; post-refresh
