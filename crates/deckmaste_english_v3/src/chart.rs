@@ -265,6 +265,29 @@ impl<G: Grammar> Chart<'_, G> {
                 continue;
             }
             for state in self.grammar.begin(production) {
+                // A first lexical child must satisfy the same declared
+                // transition used by scanning. Impossible starts need no item.
+                if let Some(Symbol::Lexical(category)) =
+                    self.grammar.productions()[production].symbols.first()
+                    && !self
+                        .lexical
+                        .get(&(position, *category))
+                        .is_some_and(|occurrences| {
+                            occurrences.iter().any(|occurrence| {
+                                !self
+                                    .grammar
+                                    .advance(
+                                        production,
+                                        0,
+                                        &state,
+                                        self.forest.leaf_summaries[occurrence.leaf].as_ref(),
+                                    )
+                                    .is_empty()
+                            })
+                        })
+                {
+                    continue;
+                }
                 self.insert(
                     Item {
                         production,

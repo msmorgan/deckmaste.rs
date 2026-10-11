@@ -1,9 +1,15 @@
-/// Ordered values for a lexically declared complement frame. No program or
+/// Values in declared slot order, with licensed intervening Adjuncts. No program or
 /// production identity is stored here: the selected Word retains its local
 /// declared frame choice and lexical owner.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FrameValue {
     Argument(Box<Reading>),
+    /// The Object stays in its declared slot; this value retains its
+    /// postposed Linearization and any preceding Depictive Adjunct.
+    PostposedObject {
+        argument: Box<Reading>,
+        modifier: Option<Box<Reading>>,
+    },
     Adjunct(Box<Reading>),
     Marker(Word),
     Marked {
@@ -11,6 +17,13 @@ pub enum FrameValue {
         argument: Box<Reading>,
     },
     Optional(Option<Box<FrameValue>>),
+}
+
+fn frame_values_in_surface_order(values: &[FrameValue]) -> impl Iterator<Item = &FrameValue> {
+    values
+        .iter()
+        .filter(|value| !value.is_postposed())
+        .chain(values.iter().filter(|value| value.is_postposed()))
 }
 
 #[derive(Clone, Copy)]
@@ -60,6 +73,7 @@ impl FrameGuard {
 #[derive(Clone)]
 enum FrameLayout {
     Argument(Category, Vec<(usize, FeatureValue)>),
+    PostposedObject(Category, Vec<(usize, FeatureValue)>, Option<Category>),
     Adjunct(Category),
     Marker(usize, ::deckmaste_lexical::Category),
     Marked(
@@ -102,9 +116,10 @@ impl SegmentRule {
                     state.segment_candidates = (0..candidates.len()).collect();
                 }
                 state.segment_candidates.retain(|&index| {
-                    candidates[index].1.iter().all(|(slot, guard)| {
-                        *slot != dot || guard.admits(child)
-                    })
+                    candidates[index]
+                        .1
+                        .iter()
+                        .all(|(slot, guard)| *slot != dot || guard.admits(child))
                 });
                 if state.segment_candidates.is_empty() {
                     return None;
@@ -231,6 +246,7 @@ fn corresponding_frame(
 struct FrameExpansion {
     template: usize,
     layout: Vec<FrameLayout>,
+    order: Vec<usize>,
 }
 
 /// A declared frame excluded from compilation because its slot vocabulary has
@@ -409,7 +425,9 @@ impl Grammar {
                             .frames
                             .iter()
                             .filter(|candidate| {
-                                if properties.features.get("SelectedTailLicence")
+                                if properties
+                                    .features
+                                    .get("SelectedTailLicence")
                                     .is_some_and(|licence| licence == "DeclaredFrames")
                                 {
                                     candidate.kind == selected.kind
@@ -457,7 +475,12 @@ impl Grammar {
         use ::deckmaste_lexical::FrameItem;
         match item {
             FrameItem::Argument(slot) => Self::frame_category(&slot.category)
-                .map(|category| vec![FrameLayout::Argument(category, frame_argument_requirements(&slot.category))])
+                .map(|category| {
+                    vec![FrameLayout::Argument(
+                        category,
+                        frame_argument_requirements(&slot.category),
+                    )]
+                })
                 .ok_or_else(|| {
                     format!(
                         "unsupported slot category {} ({:?})",
@@ -480,7 +503,12 @@ impl Grammar {
                     )
                 })?;
                 let (class, pos) = self.marker_class(vocabulary, member)?;
-                Ok(vec![FrameLayout::Marked(class, pos, category, frame_argument_requirements(&slot.category))])
+                Ok(vec![FrameLayout::Marked(
+                    class,
+                    pos,
+                    category,
+                    frame_argument_requirements(&slot.category),
+                )])
             }
             FrameItem::Optional(item) => {
                 let mut layouts = vec![FrameLayout::Optional(None)];
@@ -661,7 +689,8 @@ impl Grammar {
                 if self.programs[program].kind != kind {
                     continue;
                 }
-                for layout in &variants {
+                let layouts = self.frame_orders(&self.programs[program], &variants, lexicon);
+                for (layout, order) in layouts {
                     let original = &self.rules[template];
                     let mut rule = original.clone();
                     rule.checks.truncate(1);
@@ -674,8 +703,12 @@ impl Grammar {
                         .unwrap();
                     rule.guards = vec![FrameGuard::Head(canonical)];
                     let mut symbols = vec![self.productions[template].symbols[0].clone()];
-                    for item in layout {
-                        item.symbols(&mut symbols, &mut rule, &self.programs[program].kind);
+                    for &index in &order {
+                        layout[index].symbols(
+                            &mut symbols,
+                            &mut rule,
+                            &self.programs[program].kind,
+                        );
                     }
                     self.productions.push(::deckmaste_english_v3::Production {
                         category: self.productions[template].category,
@@ -688,7 +721,8 @@ impl Grammar {
                         .push(self.expansions.len());
                     self.expansions.push(FrameExpansion {
                         template,
-                        layout: layout.clone(),
+                        layout,
+                        order,
                     });
                 }
             }
@@ -698,6 +732,106 @@ impl Grammar {
             .iter()
             .map(|frame| self.programs.iter().position(|program| program == frame))
             .collect();
+    }
+
+    fn frame_orders(
+        &self,
+        frame: &::deckmaste_lexical::Frame,
+        variants: &[Vec<FrameLayout>],
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> Vec<(Vec<FrameLayout>, Vec<usize>)> {
+        use ::deckmaste_lexical::{Category as LexicalCategory, FrameItem, Relation};
+        fn object(item: &FrameItem) -> bool {
+            match item {
+                FrameItem::Argument(slot) => slot.relation == Relation::Object,
+                FrameItem::Optional(item) => object(item),
+                _ => false,
+            }
+        }
+        let mut result: Vec<_> = variants
+            .iter()
+            .map(|layout| (layout.clone(), (0..layout.len()).collect()))
+            .collect();
+        let Some((object_category, marked_categories, modifier)) = frame_postposing(&frame.kind)
+        else {
+            return result;
+        };
+        // Only the unmarked Object is moved. A marker's nominal Complement
+        // may itself have a legacy Object slot label, but is not another Object.
+        for (slot_index, _) in frame
+            .items
+            .iter()
+            .enumerate()
+            .filter(|(_, item)| object(item))
+        {
+            for layout in variants {
+                let index = layout
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, item)| !matches!(item, FrameLayout::Adjunct(_)))
+                    .nth(slot_index)
+                    .map(|(index, _)| index)
+                    .expect("one layout per declared frame slot");
+                let previous = layout[..index].iter().rev().find_map(FrameLayout::overt_slot);
+                if matches!(
+                    previous,
+                    Some(FrameLayout::Marker(class, LexicalCategory::Preposition))
+                        if self.marker_takes_complement(*class, lexicon)
+                ) {
+                    continue;
+                }
+                let mut following = layout[index + 1..].iter().filter_map(FrameLayout::overt_slot);
+                let marked = match following.next() {
+                    Some(FrameLayout::Marker(class, LexicalCategory::Preposition)) => {
+                        self.marker_takes_complement(*class, lexicon)
+                            && matches!(following.next(), Some(FrameLayout::Argument(_, _)))
+                    }
+                    Some(FrameLayout::Marked(class, LexicalCategory::Preposition, _, _)) => {
+                        self.marker_takes_complement(*class, lexicon)
+                    }
+                    Some(FrameLayout::Argument(category, _)) => {
+                        marked_categories.contains(category)
+                    }
+                    _ => false,
+                };
+                if !marked {
+                    continue;
+                }
+                let order: Vec<_> = (0..layout.len())
+                    .filter(|candidate| *candidate != index)
+                    .chain([index])
+                    .collect();
+                for preceding in ::std::iter::once(None).chain(modifier.map(Some)) {
+                    let Some(object) = layout[index]
+                        .postposed_object(preceding, &frame_argument_requirements(object_category))
+                    else {
+                        continue;
+                    };
+                    let mut postposed = layout.clone();
+                    postposed[index] = object;
+                    result.push((postposed, order.clone()));
+                }
+            }
+        }
+        result
+    }
+
+    fn marker_takes_complement(
+        &self,
+        class: usize,
+        lexicon: &::deckmaste_lexical::Lexicon,
+    ) -> bool {
+        let (name, category) = &self.marker_classes[class];
+        // An intransitive marker cannot head the following frame Argument.
+        lexicon.lexemes().values().any(|lexeme| {
+            lexeme.category == *category
+                && lexeme.properties.features.get("FrameMarker") == Some(name)
+                && lexeme
+                    .properties
+                    .features
+                    .get("PrepositionComplement")
+                    .is_none_or(|complement| complement != "Intransitive")
+        })
     }
 
     fn selected_expansion(
@@ -743,9 +877,9 @@ impl Grammar {
             }
             let mut summaries = vec![Some(summary.clone())];
             let mut valid = true;
-            for (layout, value) in expansion.layout.iter().zip(values) {
-                if layout
-                    .summaries(value, self, lexicon, &mut summaries, cache)
+            for &index in &expansion.order {
+                if expansion.layout[index]
+                    .summaries(&values[index], self, lexicon, &mut summaries, cache)
                     .is_err()
                 {
                     valid = false;
@@ -798,8 +932,8 @@ impl Grammar {
             FrameHead::Lexical(word) => output.word(word, lexicon)?,
             FrameHead::Constituent(reading) => reading.write(self, lexicon, output, cache)?,
         }
-        for (layout, value) in expansion.layout.iter().zip(values) {
-            layout.write(value, self, lexicon, output, cache)?;
+        for &index in &expansion.order {
+            expansion.layout[index].write(&values[index], self, lexicon, output, cache)?;
         }
         Ok(())
     }
@@ -819,10 +953,13 @@ impl Grammar {
             .ok_or(Error::Internal)?;
         let mut children = children.into_iter();
         let head = children.next().ok_or(Error::Internal)?;
-        let values = expansion
-            .layout
-            .iter()
-            .map(|item| item.materialize(&mut children))
+        let mut values = vec![None; expansion.layout.len()];
+        for &index in &expansion.order {
+            values[index] = Some(expansion.layout[index].materialize(&mut children)?);
+        }
+        let values = values
+            .into_iter()
+            .map(|value| value.ok_or(Error::Internal))
             .collect::<Result<Vec<_>, _>>()?;
         if children.next().is_some() {
             return Err(Error::Internal);
@@ -832,6 +969,30 @@ impl Grammar {
 }
 
 impl FrameLayout {
+    fn overt_slot(&self) -> Option<&Self> {
+        match self {
+            Self::Optional(None) | Self::Adjunct(_) => None,
+            Self::Optional(Some(item)) => item.overt_slot(),
+            _ => Some(self),
+        }
+    }
+    fn postposed_object(
+        &self,
+        modifier: Option<Category>,
+        extra: &[(usize, FeatureValue)],
+    ) -> Option<Self> {
+        match self {
+            Self::Argument(category, requirements) => Some(Self::PostposedObject(
+                *category,
+                requirements.iter().chain(extra).cloned().collect(),
+                modifier,
+            )),
+            Self::Optional(Some(item)) => Some(Self::Optional(Some(Box::new(
+                item.postposed_object(modifier, extra)?,
+            )))),
+            _ => None,
+        }
+    }
     fn symbols(
         &self,
         symbols: &mut Vec<::deckmaste_english_v3::Symbol<Category>>,
@@ -864,6 +1025,12 @@ impl FrameLayout {
                 rule.checks.push(vec![]);
                 rule.release.push(vec![]);
             }
+            Self::PostposedObject(category, requirements, modifier) => {
+                if let Some(modifier) = modifier {
+                    Self::Argument(*modifier, vec![]).symbols(symbols, rule, kind);
+                }
+                Self::Argument(*category, requirements.clone()).symbols(symbols, rule, kind);
+            }
             Self::Argument(category, requirements) => append(
                 symbols,
                 rule,
@@ -893,6 +1060,28 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
+            (
+                Self::PostposedObject(category, _, modifier_category),
+                FrameValue::PostposedObject { argument, modifier },
+            ) => {
+                match (modifier_category, modifier) {
+                    (Some(category), Some(value)) if value.category() == *category => {
+                        output.push(None);
+                        output.push(Some(cache.admit(value, grammar, lexicon)?));
+                    }
+                    (None, None) => {}
+                    _ => return Err(Error::Invalid("selected_frame", "postposed modifier")),
+                }
+                if argument.category() != *category {
+                    return Err(Error::Invalid(
+                        "selected_frame",
+                        "postposed Object category",
+                    ));
+                }
+                output.push(None);
+                output.push(Some(cache.admit(argument, grammar, lexicon)?));
+                Ok(())
+            }
             (Self::Adjunct(category), FrameValue::Adjunct(reading))
                 if reading.category() == *category =>
             {
@@ -951,6 +1140,17 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
+            (
+                Self::PostposedObject(_, _, _),
+                FrameValue::PostposedObject { argument, modifier },
+            ) => {
+                if let Some(modifier) = modifier {
+                    output.push_str(" ");
+                    modifier.write(grammar, lexicon, output, cache)?;
+                }
+                output.push_str(" ");
+                argument.write(grammar, lexicon, output, cache)
+            }
             (Self::Adjunct(_), FrameValue::Adjunct(reading)) => {
                 reading.write(grammar, lexicon, output, cache)
             }
@@ -983,6 +1183,12 @@ impl FrameLayout {
             children.next().ok_or(Error::Internal)
         }
         match self {
+            Self::PostposedObject(_, _, modifier) => Ok(FrameValue::PostposedObject {
+                modifier: modifier
+                    .map(|_| next(children).and_then(Value::node).map(Box::new))
+                    .transpose()?,
+                argument: Box::new(next(children)?.node()?),
+            }),
             Self::Adjunct(_) => Ok(FrameValue::Adjunct(Box::new(
                 children.next().ok_or(Error::Internal)?.node()?,
             ))),
@@ -1001,8 +1207,21 @@ impl FrameLayout {
 }
 
 impl FrameValue {
+    fn is_postposed(&self) -> bool {
+        match self {
+            Self::PostposedObject { .. } => true,
+            Self::Optional(Some(item)) => item.is_postposed(),
+            _ => false,
+        }
+    }
     fn visit(&self, visitor: &mut impl FnMut(&Reading)) -> Result<(), Error> {
         match self {
+            Self::PostposedObject { argument, modifier } => {
+                if let Some(modifier) = modifier {
+                    modifier.visit(visitor)?;
+                }
+                argument.visit(visitor)
+            }
             Self::Argument(reading)
             | Self::Adjunct(reading)
             | Self::Marked {
@@ -1014,6 +1233,12 @@ impl FrameValue {
     }
     fn visit_words(&self, visitor: &mut impl FnMut(&Word)) -> Result<(), Error> {
         match self {
+            Self::PostposedObject { argument, modifier } => {
+                if let Some(modifier) = modifier {
+                    modifier.visit_words(visitor)?;
+                }
+                argument.visit_words(visitor)
+            }
             Self::Argument(reading) | Self::Adjunct(reading) => reading.visit_words(visitor),
             Self::Marker(word) => {
                 visitor(word);

@@ -359,10 +359,23 @@ fn attested_ordinary_number_constituents_keep_singular_concord() {
         "vocab:DefiniteMarker/The",
         noun("lexeme:CommonNoun/Number", Number::Singular),
     );
+    // HO8 exports dependent presence through NP. Compare an independent
+    // dependent-bearing control, retaining equality of every Summary value.
+    let singular_with_complement = determined(
+        "vocab:DefiniteMarker/The",
+        of(
+            noun("lexeme:CommonNoun/Number", Number::Singular),
+            Reading::BareNounPhrase {
+                form: 0,
+                head: Box::new(noun("lexeme:CommonNoun/Card", Number::Plural)),
+            },
+        ),
+    );
     assert_eq!(
         ordinary.admit(lexicon()).unwrap(),
-        singular.admit(lexicon()).unwrap()
+        singular_with_complement.admit(lexicon()).unwrap()
     );
+    assert!(clause(singular, Number::Plural).admit(lexicon()).is_err());
     assert!(clause(ordinary, Number::Plural).admit(lexicon()).is_err());
     // Pain's Reward: "a bid of any number".
     let bare = determined(
@@ -402,9 +415,17 @@ fn transparent_quantification_rejects_singular_obliques_and_preserves_other_head
         unreachable!()
     };
     let Reading::CasePhrase { head, .. } = &**phrase else { unreachable!() };
+    // The complete Summary now includes HO8's dependent-presence export.
+    // This independent control preserves singular head concord and that value.
     let color = determined(
         "vocab:DefiniteMarker/The",
-        noun("lexeme:CommonNoun/Color", Number::Singular),
+        of(
+            noun("lexeme:CommonNoun/Color", Number::Singular),
+            determined(
+                "vocab:Determinative/Any",
+                noun("lexeme:CommonNoun/Target", Number::Singular),
+            ),
+        ),
     );
     assert_eq!(
         head.admit(lexicon()).unwrap(),

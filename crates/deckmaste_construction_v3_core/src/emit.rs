@@ -229,15 +229,12 @@ fn grammar(ir: &Ir) -> TokenStream {
     let static_count = ir.rules.len();
     let frame_categories = frame_category_projection(ir);
     let argument_requirements = frame_argument_requirements(ir);
-    let marker_licences = ir.frame_marker_licences.iter().map(|(kind, pos, feature, operation, expected)|{
-        let pos = format_ident!("{pos}");
-        quote!((#kind, ::deckmaste_lexical::Category::#pos) => Some((#feature, #operation, #expected)))
-    });
+    let postposing = frame_postposing(ir);
+    let marker_licences = frame_marker_licences(ir);
     quote! {
-        fn frame_marker_licence(kind: &str, pos: ::deckmaste_lexical::Category) -> Option<(usize, TableOperation, FeatureValue)> {
-            match (kind, pos) { #(#marker_licences,)* _ => None }
-        }
+        #marker_licences
         #argument_requirements
+        #postposing
         const SELECTED_FRAME_TEMPLATES: &[(usize, &str)] = &[#(#templates),*];
         const REQUIRES_ENVIRONMENT: bool = #required;
         impl Default for Grammar {
@@ -251,6 +248,39 @@ fn grammar(ir: &Ir) -> TokenStream {
                 static GRAMMAR: ::std::sync::OnceLock<Grammar> = ::std::sync::OnceLock::new();
                 GRAMMAR.get_or_init(Self::default)
             }
+        }
+    }
+}
+
+fn frame_marker_licences(ir: &Ir) -> TokenStream {
+    let marker_licences = ir.frame_marker_licences.iter().map(|(kind, pos, feature, operation, expected)|{
+        let pos = format_ident!("{pos}");
+        quote!((#kind, ::deckmaste_lexical::Category::#pos) => Some((#feature, #operation, #expected)))
+    });
+    quote! {
+        fn frame_marker_licence(kind: &str, pos: ::deckmaste_lexical::Category) -> Option<(usize, TableOperation, FeatureValue)> {
+            match (kind, pos) { #(#marker_licences,)* _ => None }
+        }
+    }
+}
+
+fn frame_postposing(ir: &Ir) -> TokenStream {
+    let postposing = ir
+        .frame_postposing
+        .iter()
+        .map(|(kind, object, complements, modifier)| {
+            let complements = complements.iter().map(|index| &ir.categories[*index]);
+            let modifier = if let Some(index) = modifier {
+                let category = &ir.categories[*index];
+                quote!(Some(Category::#category))
+            } else {
+                quote!(None)
+            };
+            quote!(#kind => Some((#object, &[#(Category::#complements),*], #modifier)))
+        });
+    quote! {
+        fn frame_postposing(kind: &str) -> Option<(&'static str, &'static [Category], Option<Category>)> {
+            match kind { #(#postposing,)* _ => None }
         }
     }
 }
@@ -470,8 +500,8 @@ fn form_pieces(
                 let binding = &bindings[*field];
                 let ty = &form.fields[*field].1;
                 if matches!(ty, FieldType::SelectedFrame(_, _)) {
-                    visit.push(quote!(for value in #binding { value.visit(visitor)?; }));
-                    word.push(quote!(for value in #binding { value.visit_words(visitor)?; }));
+                    visit.push(quote!(for value in frame_values_in_surface_order(#binding) { value.visit(visitor)?; }));
+                    word.push(quote!(for value in frame_values_in_surface_order(#binding) { value.visit_words(visitor)?; }));
                     continue;
                 }
                 let category_name = match ty {

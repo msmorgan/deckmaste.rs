@@ -84,5 +84,8 @@ mod partitive_determinative_heads;
 #[path = "suite/at_random_before_source.rs"]
 mod at_random_before_source;
 
+#[path = "suite/postposed_heavy_object.rs"]
+mod postposed_heavy_object;
+
 #[path = "suite/no_more_than.rs"]
 mod no_more_than;

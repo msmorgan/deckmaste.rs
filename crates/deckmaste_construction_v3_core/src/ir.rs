@@ -25,6 +25,7 @@ pub(crate) struct Ir {
     pub frame_adjuncts: Vec<(String, usize)>,
     pub tables: Vec<FeatureTable>,
     pub frame_marker_licences: Vec<(String, String, usize, TokenStream, TokenStream)>,
+    pub frame_postposing: Vec<(String, String, Vec<usize>, Option<usize>)>,
     pub categories: Vec<Ident>,
     pub public_categories: usize,
     pub constructors: Vec<Constructor>,
@@ -497,6 +498,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         frame_adjuncts: vec![],
         tables: vec![],
         frame_marker_licences: vec![],
+        frame_postposing: vec![],
         categories,
         public_categories,
         constructors,
@@ -508,12 +510,40 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         declaration.frame_category_requirements,
     )?;
     validate_frame_adjuncts(&mut ir, declaration.frame_adjuncts)?;
+    validate_postposing(&mut ir, declaration.frame_postposing)?;
     validate_tables(&mut ir, declaration.tables)?;
     validate_marker_licences(&mut ir, declaration.frame_marker_licences)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;
     check_recursion(&ir)?;
     merge_schemas(&mut ir)?;
     Ok(ir)
+}
+
+fn validate_postposing(
+    ir: &mut Ir,
+    declarations: Vec<(Ident, Ident, Vec<Ident>, Option<Ident>)>,
+) -> syn::Result<()> {
+    let mut postposing_kinds = BTreeSet::new();
+    for (kind, object, complements, modifier) in declarations {
+        if !ir.frame_categories.iter().any(|(name, _)| name == &object) {
+            return Err(error(&object, "unknown postposing Object frame category"));
+        }
+        reserve(&mut postposing_kinds, &kind)?;
+        let index = |name: &Ident| {
+            ir.categories
+                .iter()
+                .position(|candidate| candidate == name)
+                .ok_or_else(|| error(name, "unknown postposing category"))
+        };
+        let complements = complements
+            .iter()
+            .map(index)
+            .collect::<syn::Result<Vec<_>>>()?;
+        let modifier = modifier.as_ref().map(index).transpose()?;
+        ir.frame_postposing
+            .push((kind.to_string(), object.to_string(), complements, modifier));
+    }
+    Ok(())
 }
 
 fn validate_marker_licences(ir: &mut Ir, licences: Vec<(Ident, Ident, Ident)>) -> syn::Result<()> {

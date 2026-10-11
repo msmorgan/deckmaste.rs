@@ -1548,3 +1548,32 @@ fn frame_adjunct_roles_reject_unknown_or_duplicate_declarations() {
         "duplicate frame adjunct slot Category",
     );
 }
+
+#[test]
+fn frame_postposing_requires_a_declared_object_category_and_complement_categories() {
+    compile(quote! { mod valid {
+        feature DependentPresent { No, Yes } default No;
+        category Atom(DependentPresent);
+        frame_category Heavy = Atom where DependentPresent = Yes;
+        frame_postposing Predicate object Heavy after [Atom];
+        construction Atom: Atom { form [word: lexical(Noun)]; export DependentPresent = No; }
+    } })
+    .unwrap();
+    rejects(
+        quote! { mod bad {
+            category Atom();
+            frame_postposing Predicate object Missing after [Atom];
+            construction Atom: Atom { form [word: lexical(Noun)]; }
+        } },
+        "unknown postposing Object frame category",
+    );
+    rejects(
+        quote! { mod bad {
+            category Atom();
+            frame_category Heavy = Atom;
+            frame_postposing Predicate object Heavy after [Missing];
+            construction Atom: Atom { form [word: lexical(Noun)]; }
+        } },
+        "unknown postposing category",
+    );
+}

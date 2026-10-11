@@ -1378,6 +1378,23 @@ pronoun case.
 A grammatical relation licensed by a head, not a constituent Category. This
 term may coexist with the unrelated Game Model Object.
 
+**Heavy Object**:
+An Object whose NP has declared internal dependent structure or coordination.
+This is the structural proxy licensing postposing in Oracle English under
+HO8 (orchestrator, 2026-10-11), rather than a token count. CGEL discusses
+relative weight and discourse status, not this proxy (Ch. 16 §4, pp. 1382–1383).
+
+**Postposed Object**:
+An Object realized to the right of its basic position, commonly after a
+Preposition Phrase; it retains Object function (CGEL, Ch. 16 §4,
+pp. 1382–1384). Oracle English licenses this order for the class of declared
+frames whose Object directly precedes a preposition-headed Complement,
+under the owner rulings of 2026-10-10 and HO8 (2026-10-11)
+(`english-v3-postposed-heavy-object`). HO8 restricts the Object to an NP
+with declared internal dependent structure or coordination; this structural
+licence is a project ruling, informed by CGEL’s discussion of relative
+weight and discourse status (pp. 1382–1383).
+
 **Complement**:
 A dependent selected by its head.
 

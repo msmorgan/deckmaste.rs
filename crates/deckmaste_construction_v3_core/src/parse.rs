@@ -24,6 +24,7 @@ pub(crate) struct Declaration {
     pub frame_adjuncts: Vec<(Ident, Ident)>,
     pub tables: Vec<FeatureTable>,
     pub frame_marker_licences: Vec<(Ident, Ident, Ident)>,
+    pub frame_postposing: Vec<(Ident, Ident, Vec<Ident>, Option<Ident>)>,
     pub constructions: Vec<Construction>,
     pub capitalization: Option<Ident>,
 }
@@ -181,6 +182,7 @@ impl Parse for Declaration {
             frame_adjuncts: vec![],
             tables: vec![],
             frame_marker_licences: vec![],
+            frame_postposing: vec![],
             constructions: vec![],
             capitalization: None,
         };
@@ -235,19 +237,15 @@ impl Parse for Declaration {
                     });
                 }
                 "frame_marker_licence" => {
-                    let pos;
-                    parenthesized!(pos in body);
-                    let pos = pos.parse()?;
-                    body.parse::<Token![=]>()?;
-                    result
-                        .frame_marker_licences
-                        .push((name, pos, body.parse()?));
-                    body.parse::<Token![;]>()?;
+                    parse_frame_marker_licence(&body, name, &mut result)?;
                 }
                 "frame_adjunct" => {
                     body.parse::<Token![=]>()?;
                     result.frame_adjuncts.push((name, body.parse()?));
                     body.parse::<Token![;]>()?;
+                }
+                "frame_postposing" => {
+                    parse_frame_postposing(&body, name, &mut result)?;
                 }
                 "frame_category" => {
                     body.parse::<Token![=]>()?;
@@ -313,6 +311,58 @@ impl Parse for Declaration {
         instantiate_schemas(&mut result.constructions, &schemas)?;
         Ok(result)
     }
+}
+
+fn parse_frame_marker_licence(
+    input: ParseStream<'_>,
+    name: Ident,
+    declaration: &mut Declaration,
+) -> syn::Result<()> {
+    let pos;
+    parenthesized!(pos in input);
+    let pos = pos.parse()?;
+    input.parse::<Token![=]>()?;
+    declaration
+        .frame_marker_licences
+        .push((name, pos, input.parse()?));
+    input.parse::<Token![;]>()?;
+    Ok(())
+}
+
+fn parse_frame_postposing(
+    input: ParseStream<'_>,
+    name: Ident,
+    declaration: &mut Declaration,
+) -> syn::Result<()> {
+    let object: Ident = input.parse()?;
+    if object != "object" {
+        return Err(syn::Error::new(object.span(), "expected object"));
+    }
+    let object_category: Ident = input.parse()?;
+    let after: Ident = input.parse()?;
+    if after != "after" {
+        return Err(syn::Error::new(after.span(), "expected after"));
+    }
+    let list;
+    bracketed!(list in input);
+    let categories = list
+        .parse_terminated(Ident::parse, Token![,])?
+        .into_iter()
+        .collect();
+    let modifier = if input.peek(Token![;]) {
+        None
+    } else {
+        let with: Ident = input.parse()?;
+        if with != "with" {
+            return Err(syn::Error::new(with.span(), "expected with"));
+        }
+        Some(input.parse()?)
+    };
+    declaration
+        .frame_postposing
+        .push((name, object_category, categories, modifier));
+    input.parse::<Token![;]>()?;
+    Ok(())
 }
 
 fn parse_table(input: ParseStream<'_>, name: Ident, separator: bool) -> syn::Result<FeatureTable> {
