@@ -207,7 +207,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    this ticket's gained faces. No removed Reading to attribute. The mana
    refresh (`qtyxwuyo`), verified on `lxklmwmk`, changes none of the 857
    selected faces or their lines (`mana-refresh-diff.json`): all final
-   counts and digest classifications above remain exact. The wider
+   counts and digest classifications above remain exact at that checkpoint.
+   Accepted integration refresh on `rqlywrlp` brings `ouykkpns`: 9 inherited
+   digest-only faces / 10 lines, no count changes. Exclusive line classes: MeasuredScalarLocation schema/category 8; MeasuredScalarLocation + ScalarLocationPredicate schema/category 1; ScalarLocationPredicate schema/category 1.
+   Final original-manifest diff: **23 gains** (22 own / Gideon Blackblade
+   inherited), lost/decreases/increases **0**, digest-only **110** (all
+   inherited), unchanged **724**; covered **812 → 835**, Readings
+   **81,312 → 81,556**, issues **0**. The wider
    declared-marker coordination grep finds 23 faces, all in
    the manifest. Winter's Chill remains unread through another blocker.
 
@@ -251,7 +257,9 @@ Attestation by `cargo xtask english-v3 grep` only.
    The subsequent mana-symbol-nominal refresh (`qtyxwuyo`) changed grammar
    and lexicon, with no conflict or plugin change; the same scoped checks
    were rerun. The remaining mana-Subject blocker is its inherited ignored
-   test, not work added or suppressed by this ticket.
+   test, not work added or suppressed by this ticket. Final scoped refresh
+   brought irrealis scalar differences (`ouykkpns`); only the user-authorized
+   English checks and original bounded manifest were rerun.
 
 5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
    tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
@@ -297,7 +305,15 @@ Attestation by `cargo xtask english-v3 grep` only.
    xtask run has its one pre-existing ignore:
    `macros::templates::tests::macro_schema_census_count_matches_21`, whose
    recorded reason is “cross-checks the live corpus against the census; run
-   on demand”. No ignored test was introduced by this ticket.
+   on demand”. No ignored test was introduced by this ticket. Final accepted
+   scoped checks on `rqlywrlp` pass: `cargo build -p xtask`, full
+   `cargo test -p deckmaste_english_v3` (**1,088 active**, same inherited
+   ignore), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`,
+   and the original 857-face census with both official `diff --lines`
+   comparisons. The chart-budget test
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   passes; no ceiling changed. Evidence: `verification-accepted.json`,
+   `accepted-refresh-{diff,classes}.json` and the corresponding logs.
 
 6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
    wall time under `/usr/bin/time -v`, with **6 workers** and
@@ -309,4 +325,5 @@ Attestation by `cargo xtask english-v3 grep` only.
    **28.07 seconds**, with the same timing command, 6 workers and zero
    samples per face. The mana refresh census on `lxklmwmk` took **24.90
    seconds**, with the same timing command, 6 workers and zero samples per
-   face. No full-corpus census was run.
+   face. Final accepted original-subset census: **23.59 seconds**,
+   `/usr/bin/time -v`, 6 workers, zero samples per face. No full census ran.
