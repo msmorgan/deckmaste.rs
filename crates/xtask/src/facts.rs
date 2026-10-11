@@ -1724,16 +1724,10 @@ const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[
 
 /// Rows whose label is a CR-defined variant of a keyword that has its own
 /// stub, so the RON vocabulary spells the variant through that stub.
-const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
-    Exempt {
-        label: "BandsWithOther",
-        reason: "a special form of banding [CR#702.22b], spelled through the Banding stub",
-    },
-    Exempt {
-        label: "PartnerWith",
-        reason: "one of the partner abilities [CR#702.124j], spelled through the Partner stub",
-    },
-];
+const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[Exempt {
+    label: "BandsWithOther",
+    reason: "a special form of banding [CR#702.22b], spelled through the Banding stub",
+}];
 
 /// Designation stubs with no `Words.Designation` constructor. Every stub has
 /// one, so the list is empty; a stub the CR made a non-object property would

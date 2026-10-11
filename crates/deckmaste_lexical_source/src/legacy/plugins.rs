@@ -371,6 +371,12 @@ fn grammar_lexeme(
                     if *indefinite_article { "Yes" } else { "No" }.into(),
                 );
             }
+            if let Some(metadata::FixedKeywordParameterGrammar::Name { preposition }) = &parameter {
+                lexeme
+                    .properties
+                    .features
+                    .insert("KeywordMarker".into(), preposition.1.clone());
+            }
             if let Some(parameter) = parameter {
                 lexeme
                     .properties

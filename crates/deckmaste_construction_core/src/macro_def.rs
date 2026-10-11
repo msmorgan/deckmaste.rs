@@ -363,6 +363,7 @@ pub enum KeywordParameterClass {
     /// [CR#702.82c].
     QualityAmount,
     Subject,
+    Name,
     Unsupported(UnsupportedKeywordParameterClass),
 }
 
@@ -491,6 +492,9 @@ pub enum FixedKeywordParameterGrammar {
         preposition: FixedLexeme,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         nominal_number: Option<FixedKeywordNominalNumber>,
+    },
+    Name {
+        preposition: FixedLexeme,
     },
 }
 
@@ -2301,7 +2305,7 @@ fn normalize(
     let name = definition.name.as_str().to_owned();
     let kind = normalized_kind(&path, source_map, definition)?;
     let params = normalized_params(&path, source_map, definition)?;
-    let keyword_parameter_class = if kind == DeclarationKind::KeywordAbility {
+    let mut keyword_parameter_class = if kind == DeclarationKind::KeywordAbility {
         params
             .as_deref()
             .map(|params| normalized_keyword_parameter_class(&path, source_map, params))
@@ -2419,6 +2423,15 @@ fn normalize(
         grammar.as_ref(),
     )?;
 
+    if matches!(
+        grammar.as_ref().map(GrammarRow::recipe),
+        Some(GrammarRecipe::FixedKeyword {
+            parameter: Some(FixedKeywordParameterGrammar::Name { .. }),
+        })
+    ) {
+        keyword_parameter_class = Some(KeywordParameterClass::Name);
+    }
+
     Ok(NormalizedDeclaration {
         identity,
         params,
@@ -2454,6 +2467,9 @@ fn validate_fixed_keyword_parameter_grammar(
         ),
         FixedKeywordParameterGrammar::Subject { .. } => {
             matches!(params, Some([ParameterType::Predicate]))
+        }
+        FixedKeywordParameterGrammar::Name { .. } => {
+            matches!(params, Some([ParameterType::Quality]))
         }
     };
     if kind == DeclarationKind::KeywordAbility && compatible {
@@ -2914,10 +2930,15 @@ fn normalize_fixed_keyword_grammar(
     block_label: Option<BlockLabelGrammar>,
     parameter: Option<FixedKeywordParameterGrammar>,
 ) -> Result<NormalizedGrammarParts, ReadError> {
-    if let Some(FixedKeywordParameterGrammar::Quality {
-        preposition: FixedLexeme(vocabulary, member),
-        ..
-    }) = &parameter
+    if let Some(
+        FixedKeywordParameterGrammar::Quality {
+            preposition: FixedLexeme(vocabulary, member),
+            ..
+        }
+        | FixedKeywordParameterGrammar::Name {
+            preposition: FixedLexeme(vocabulary, member),
+        },
+    ) = &parameter
         && (vocabulary.is_empty() || member.is_empty())
     {
         return Err(validation_error_at(

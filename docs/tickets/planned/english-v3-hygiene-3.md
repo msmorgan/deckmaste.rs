@@ -111,6 +111,8 @@ has not been probed at the current trunk.
 
 ### C. Tests and tooling
 
+- `english-v3-partner-with-name-keyword`: `builtin_v2_keyword_abilities::parameterized_keyword_params` and `builtin_v2_keyword_spelling_templates::every_keyword_template_is_consistent_with_its_params_and_grammar` pin numeric inventory sizes (110 → 111 and 66 + 209 → 66 + 210 with the new declaration); replace them with inventory relations in the C1 sweep.
+
 - **C1. Magic-number and Debug-tree assertions.** Owner complaint of
   2026-10-09 after `english-v3-per-line-readings`: tests pin numbers such as
   `total_cost == 19` (xtask `tests.rs`, `cheapest_frequency_sample_…`) and

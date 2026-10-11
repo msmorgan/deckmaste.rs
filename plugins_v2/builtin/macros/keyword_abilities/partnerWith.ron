@@ -1,0 +1,13 @@
+KeywordAbility(
+    name: "partnerWith",
+    params: [Quality],
+    spelling: "partner with <Param(0)>",
+    grammar: FixedKeyword(
+        surface: "partner",
+        parameter: Name(preposition: ("Preposition", "With")),
+    ),
+    // Grammar-only declaration authorized by orchestrator ruling PW1 (2026-10-11).
+    // PW7 preserves the Facts signature: Quality carries a named Predicate.
+    // The Name recipe determines the grammatical payload and line class (PW2).
+    // The engine body belongs to semantics-v2-keyword-ability-census.
+)

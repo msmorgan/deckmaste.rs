@@ -75,10 +75,15 @@ fn derived_template(declaration: &NormalizedDeclaration) -> String {
         .collect::<Vec<_>>();
     if let GrammarRecipe::FixedKeyword {
         parameter:
-            Some(FixedKeywordParameterGrammar::Quality {
-                preposition: FixedLexeme(_, member),
-                ..
-            }),
+            Some(
+                FixedKeywordParameterGrammar::Quality {
+                    preposition: FixedLexeme(_, member),
+                    ..
+                }
+                | FixedKeywordParameterGrammar::Name {
+                    preposition: FixedLexeme(_, member),
+                },
+            ),
     } = grammar.recipe()
     {
         slots[0] = format!("{} {}", member.to_lowercase(), slots[0]);
@@ -238,7 +243,8 @@ fn parameterized_keyword_params() -> BTreeMap<&'static str, &'static [&'static s
         parameterized.insert("prototype", &["Cost", "Power", "Toughness"]),
         None
     );
-    assert_eq!(parameterized.len(), 110);
+    assert_eq!(parameterized.insert("partnerWith", &["Quality"]), None);
+    assert_eq!(parameterized.len(), 111);
     parameterized
 }
 
@@ -274,6 +280,9 @@ fn builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar() 
             .grammar()
             .expect("every keyword stub contributes grammar");
         let parameter = match name.as_str() {
+            "partnerWith" => Some(FixedKeywordParameterGrammar::Name {
+                preposition: FixedLexeme("Preposition".to_owned(), "With".to_owned()),
+            }),
             "champion" => Some(FixedKeywordParameterGrammar::Subject {
                 indefinite_article: true,
             }),

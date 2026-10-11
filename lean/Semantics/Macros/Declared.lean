@@ -3560,6 +3560,10 @@ semantic_macro partnerFriendsForever : Semantics.Ability :=
 semantic_macro partnerSurvivors : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerSurvivors") [] [])
 
+/-- `keyword_abilities/partnerWith.ron` -/
+semantic_macro partnerWith (arg0 : Semantics.Predicate) : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "partnerWith") [(Semantics.KeywordParam.quality arg0)] [])
+
 /-- `keyword_abilities/persist.ron` -/
 semantic_macro persist : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "persist") [] [(Semantics.Ability.triggered (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) (some (Semantics.EventSource.zones [(Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)])) (some (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare)) Semantics.ObservationPoint.before) [] none [] none none (some (Semantics.Condition.not (Semantics.Condition.matches (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) (Semantics.Predicate.hasCounters (some (Semantics.CounterKind.named "m1m1Counter")))))) (Semantics.Instruction.enact (Semantics.Deed.core Semantics.CoreDeed.return_) (Semantics.Instruction.move (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this) Semantics.ZoneExpr.wherever (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare) [(Semantics.MoveRider.entry (Semantics.EntryRider.under (Semantics.NounPhrase.possessorOf Semantics.PossessorAxis.owner (Semantics.NounPhrase.asMarker Semantics.MarkerWord.permanent Semantics.NounPhrase.this)))), (Semantics.MoveRider.entry (Semantics.EntryRider.withCounters (Semantics.Amount.lit 1) (Semantics.CounterKindSource.printed (Semantics.CounterKind.named "m1m1Counter")) Semantics.EntryCounterMark.fresh))])))])

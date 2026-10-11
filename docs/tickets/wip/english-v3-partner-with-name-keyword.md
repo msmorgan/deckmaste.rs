@@ -73,6 +73,17 @@ Orchestrator rulings 2026-10-11:
   any covered face (no covered face contains the line); any increase is a
   defect.
 
+- PW7 (orchestrator, 2026-10-11; replaces PW1's exemption sentence). The
+  existing Facts row is the semantics authority and stays unchanged and
+  unexempted. The definition takes its declared signature, `[Quality]`;
+  its Name payload is expressed by the Name parameter grammar recipe (PW2).
+  The existing carrier admits a printed name as
+  `Predicate::Named { source: NameSource::Printed { name } }`, so no new
+  semantic codec class is needed. If the signature cannot carry the Name,
+  STOP for the owner and semantics-v2; full xtask, semantics-v2 and
+  construction-core suites plus the Lean check must pass before the
+  STOP BEFORE INTEGRATE report.
+
 ## Witnesses
 
 Each is the whole failing line of a face whose only failing line it is
@@ -112,3 +123,93 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
   (landed).
 
 ## Landing record
+
+1. **Census delta — `opkxokpk`.** Claim-parent grammar (`rmxnmksp`, measured
+   in empty `opkxokpk`) versus the implementation: 369 → 415 covered faces,
+   9,703 → 11,093 total per-line Readings. Selector: every supported face
+   matching `(?i)\bpartner\b` (129), plus 300 disjoint covered controls selected
+   with seed 20261008: 429 identities in
+   `target/english-v3/english-v3-partner-with-name-keyword/manifest.json`.
+   Official `english-v3 diff --lines`: 46 gains; lost faces none; decreases,
+   increases and digest-only changes all zero. No unintended-analysis gains.
+   BEFORE was run on the claim parent's grammar, not copied from the older
+   full baseline; that baseline supplied only the seeded controls. All controls
+   remained covered on the claim parent. Final evidence: `before.json`,
+   `after.json`, `diff.json` in the same directory.
+2. **Witnesses — `opkxokpk`.** Re-probed before implementation: Amy Pond,
+   Pir, Imaginative Rascal, Blaring Recruiter, Khorvath Brightflame and Rowan
+   Kenrith each 0 → 1 Reading for the ticket's whole keyword line, through
+   `NameKeyword` with its `CatalogName` parameter. None was already covered.
+   Controls before/after: Document “Partner” 1/1; “Partner—Survivors” 1/1;
+   “Splice onto Arcane {1}{R}” 1/1; “Affinity for artifacts” 2/2; NounPhrase
+   “a card named Rory Williams” 1/1 and “Will Kenrith” 1/1. Comma-series
+   attestation (`(?im)^[^\n]+, partner with`): zero faces; no invented series
+   witness added.
+3. **Spot checks — `opkxokpk`.** Ten newly covered faces, each with one
+   byte-exact keyword-line Reading selecting `NameKeyword` and the following
+   full `CatalogName`: Alisaie Leveilleur → Alphinaud Leveilleur;
+   Alphinaud Leveilleur → Alisaie Leveilleur; Amy Pond → Rory Williams;
+   Bebop, Skull & Crossbones → Rocksteady, Mutant Marauder;
+   Blaring Captain → Blaring Recruiter; Blaring Recruiter → Blaring Captain;
+   Blue, Loyal Raptor → Owen Grady, Raptor Trainer;
+   Brallin, Skyshark Rider → Shabraz, the Skyshark;
+   Cazur, Ruthless Stalker → Ukkima, Stalking Shadow;
+   Chakram Retriever → Chakram Slinger. Each face's other-line ambiguities
+   remain independent of this route.
+4. **Deviations and STOPs — `opkxokpk`.** PW3 authorizes one new
+   Construction, `NameKeyword`, against the ultimate 250-Construction ceiling:
+   it buys the 46 sole faces among 52 touched keyword-line faces. Existing
+   Construction forms, requirements and exports remain unchanged. The new
+   Name recipe has zero claim-parent users; its class refinement needs no
+   additional declaration-use selector. No grammatical route was retired;
+   the bare keyword's lexical owner and grammar both remain. PW7 replaces
+   PW1's exemption sentence and resolves the Facts STOP: the existing
+   `PartnerWith` row declares `extra: &[Shape::Quality]`, hence signature
+   `[Quality]`. Its carrier is `KeywordParam::Quality { predicate }`;
+   `Predicate::Named` with `NameSource::Printed` carries the full card name.
+   The definition now takes `[Quality]`, forwarding the argument normally,
+   while the Name recipe refines its grammatical class to Name. No Facts row,
+   argument schema or semantic codec class changes. Only the obsolete
+   “spelled through Partner” no-stub exemption is removed, since this
+   definition closes that gap; the existing row is not exempted. This is
+   bookkeeping, not a change to the row's semantic authority. The definition
+   remains bodiless; the engine body belongs to the semantics-v2 line.
+   Generated Lean declarations add only this macro. Two generated legacy
+   Quality matches admit no Name payload and only receive the exhaustive
+   enum arm. No glossary gap. One semantic value test beyond the original
+   ticket proves that the existing carrier preserves a printed card name,
+   including its comma (PW7).
+   Existing numeric inventory assertions are noted in hygiene-3; two timing
+   decimals in the unclaimed predicative-gap-relative ticket were rewritten
+   with minute/second units without changing their values, fixing citation
+   false positives already present on the claim parent.
+5. **Tests — `opkxokpk`.** PW7 verification passed in full:
+   `cargo test -p deckmaste_english_v3`, `cargo test -p deckmaste_construction_core`,
+   `cargo test -p deckmaste_lexical_source`, `cargo test -p deckmaste_semantics_v2`
+   and `cargo test -p xtask`. English: 1,137 passed, one existing ignored;
+   xtask: 425 passed, one existing ignored. `cargo xtask facts check` passes unchanged
+   generated Facts. The initial xtask run's 16 parameter-schema failures
+   were resolved by PW7; its stale generated Lean declaration was regenerated.
+   A new negative test's expected value was corrected to the existing earlier
+   `UnsupportedKeywordParameterSignature` rejection of `[NounPhrase]`,
+   preserving its rejected subject. Clippy passed:
+   `cargo clippy -p deckmaste_english_v3 -p deckmaste_construction_core
+   -p deckmaste_lexical_source -p deckmaste_semantics_v2 -p xtask --tests --
+   -D warnings`. `cargo xtask lean check` passed (245 cards) after regenerating
+   declarations; Lean LSP reports no errors for the new macro.
+   Citation checks: zero noncompliant, zero stale; bless changed no lock;
+   diff audit selected zero new citation sites. Restored 0 / re-spelled 3 /
+   newly ignored 0 / added 7 / removed 0. Re-spelled:
+   `builtin_v2_keyword_ability_nursery_preserves_declared_spelling_and_grammar`
+   now expects the separate Name recipe and `[Quality]` signature (parameterized
+   inventory 110 → 111);
+   `every_keyword_declaration_pins_its_template` adds
+   `partnerWith: "partner with <Param(0)>"`;
+   `every_keyword_template_is_consistent_with_its_params_and_grammar` counts
+   66 + 210 declarations instead of 66 + 209, retaining all its parameter and
+   template assertions. Four structural English tests, two parameter-recipe
+   tests and one semantic value test added; no existing test removed or weakened.
+6. **Timing — `opkxokpk`.** Final PW7 bounded census: 29.60s wall under
+   `/usr/bin/time -v`, 6 workers, samples per face 0. The bounded census was
+   rechecked after PW7, with zero further Reading or digest changes; no
+   full-corpus run or `--all`.

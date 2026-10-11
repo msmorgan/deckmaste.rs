@@ -1511,6 +1511,69 @@ KeywordAbility(
 }
 
 #[test]
+fn fixed_name_parameters_preserve_the_name_class_and_selected_marker() {
+    let source = r#"KeywordAbility(
+        name: "partnerWith", params: [Quality], spelling: "partner with <Param(0)>",
+        grammar: FixedKeyword(surface: "partner", parameter: Name(preposition: ("Preposition", "With"))),
+    )"#;
+    let declaration = read_str(source_path("partnerWith.ron"), source).unwrap();
+    assert_eq!(
+        declaration.keyword_parameter_class(),
+        Some(KeywordParameterClass::Name)
+    );
+    assert_eq!(
+        declaration.params(),
+        Some([ParameterType::Quality].as_slice())
+    );
+    assert_eq!(
+        declaration.grammar().unwrap().recipe(),
+        &GrammarRecipe::FixedKeyword {
+            parameter: Some(FixedKeywordParameterGrammar::Name {
+                preposition: FixedLexeme("Preposition".into(), "With".into()),
+            }),
+        }
+    );
+}
+
+#[test]
+fn fixed_name_parameters_reject_other_signatures_and_empty_markers() {
+    for (params, expected) in [
+        ("[]", ValidationError::FixedKeywordParameterGrammarMismatch),
+        (
+            "[Predicate]",
+            ValidationError::FixedKeywordParameterGrammarMismatch,
+        ),
+        (
+            "[Quality, Cost]",
+            ValidationError::FixedKeywordParameterGrammarMismatch,
+        ),
+        (
+            "[NounPhrase]",
+            ValidationError::UnsupportedKeywordParameterSignature {
+                signature: "NounPhrase".into(),
+            },
+        ),
+    ] {
+        let source = format!(
+            r#"KeywordAbility(
+            name: "partnerWith", params: {params}, spelling: "partner",
+            grammar: FixedKeyword(surface: "partner", parameter: Name(preposition: ("Preposition", "With"))),
+        )"#
+        );
+        assert_eq!(validation(&source), expected);
+    }
+    for marker in [r#"("", "With")"#, r#"("Preposition", "")"#] {
+        let source = format!(
+            r#"KeywordAbility(
+            name: "partnerWith", params: [Quality], spelling: "partner with <Param(0)>",
+            grammar: FixedKeyword(surface: "partner", parameter: Name(preposition: {marker})),
+        )"#
+        );
+        assert_eq!(validation(&source), ValidationError::InvalidFixedLexeme);
+    }
+}
+
+#[test]
 fn grammatical_frame_items_preserve_relation_category_marker_and_optionality() {
     let declaration = read_str(source_path("Act.ron"), r#"KeywordAction(
         name: "Act", spelling: "act", grammar: Verb(bare: "act", frame_set: Custom(frames: [[

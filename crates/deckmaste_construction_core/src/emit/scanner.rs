@@ -698,7 +698,8 @@ fn declaration_term_arms(plan: &SemanticPlan) -> Vec<TokenStream> {
                                     },
                                     *nominal_number,
                                 )),
-                                ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. } => None,
+                                ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. }
+                                | ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Name { .. } => None,
                             }),
                             onset,
                             possessive_ending: possessive_ending_at(input.text, end),

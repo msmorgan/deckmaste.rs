@@ -2,6 +2,9 @@
 #[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
 mod common;
 
+#[path = "suite/partner_with_name_keyword.rs"]
+mod partner_with_name_keyword;
+
 #[path = "suite/arithmetic_nominal_operand.rs"]
 mod arithmetic_nominal_operand;
 

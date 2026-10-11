@@ -842,7 +842,8 @@ pub(crate) fn emit(
                                                 },
                                                 *nominal_number,
                                             )),
-                                            ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. } => None,
+                                            ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Subject { .. }
+                                            | ::deckmaste_construction_core::macro_def::FixedKeywordParameterGrammar::Name { .. } => None,
                                         });
                                         Self::from_reading(id, parameter)
                                     })

@@ -408,7 +408,7 @@ constructions! {
         }
         feature ComparisonMarker { Equality, Ordering }
         feature ExpandedComparisonMarker { Equality, Ordering }
-        feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, AmountCost,
+        feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, Name, AmountCost,
             QualityCost, QualityAmount, Ability, Condition, CostPowerToughness, Instruction }
         table bare_keyword_use(KeywordParameterClass) -> Selection {
             (Nullary) => Yes, (Amount) => Yes, (Cost) => Yes, (AmountCost) => Yes,
@@ -2861,6 +2861,14 @@ constructions! {
             agree head.KeywordMarker = quality.KeywordMarker;
             require compatible_quality(head.KeywordQualityNumber,
                 quality.KeywordQualityNumber) = Yes;
+        }
+        // Name parameter and selected marker: orchestrator ruling PW2 (2026-10-11).
+        construction NameKeyword: KeywordPhrase {
+            form [head: lexical(Keyword), " ", marker: lexical(Preposition), " ", name: Name];
+            require head.KeywordParameterClass = Name;
+            require head.KeywordPayloadOrder = AfterHead;
+            require head.KeywordSeparator = Space;
+            agree head.KeywordMarker = marker.KeywordMarker;
         }
         construction BeforeHeadQualityKeyword: KeywordPhrase {
             form [quality: KeywordQuality, " ", head: lexical(Keyword)];
