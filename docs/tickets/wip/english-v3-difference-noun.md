@@ -131,4 +131,41 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** (`knuqqtus` claim-parent code → `ropwqyov`): bounded
+   manifest of all 41 Method matches (also searching the regular plural) plus
+   300 covered controls, seed 20261008: 341 faces. Covered 302 → 319;
+   Readings 6,180 → 6,476. `english-v3 diff --lines`: 17 gained, 0 lost,
+   0 decreases, 0 increases, 0 digest-only; 324 unchanged. Lost faces: none.
+   Evidence: `target/english-v3/english-v3-difference-noun/{before,after,diff}.json`.
+2. **Witnesses** (`ropwqyov`, complete line probes): Balance of Power 1,
+   Kozilek 4, Shadow of Mortality 1, Ancient Cellarspawn 4, Jaws of Defeat 0,
+   Doran 0; all six were 0 on claim-parent code, so none was dropped. The
+   four scalar witnesses' *number* controls are respectively 1, 4, 1, 4
+   before/after (W9-A independent ambiguity retained). Named controls retain
+   1 (*You draw … number*), 1 (*X is … number*), 2 (Smellerbee), 3 (Gregor),
+   3 (Lydia Frye).
+3. **Spot checks** (`ropwqyov`): Balance of Power, Kozilek, Ancient Cellarspawn,
+   Damia, Sandstone Oracle, Slithermuse, Skull Raid, Isildur's Fateful Strike,
+   and Krang select *the difference* as the nominal Complement of *equal to*;
+   Shadow of Mortality selects it as *is*'s predicative Complement. All ten
+   are newly covered with the intended noun identity and structure; no wrong
+   gain observed.
+4. **Deviations and STOPs**: DN3 fallback applied. A data-only nominal
+   *between* frame still gives 0 for *the difference between its power and
+   its toughness*, without vocabulary gaps or issues: the existing route
+   recognizes only *of*/*to* frames. The ineffective trial frames were
+   removed; no Construction or frame added. Return Doran, Jaws of Defeat,
+   Lady Loki, Profane Transfusion, Psychic Transfer, and Spry and Mighty,
+   all still unread. Regular plural *differences* is declared under the
+   owner's 2026-10-10 paradigm ruling, superseding DN1's plural clause.
+   No STOP or glossary gap.
+5. **Tests** (`ropwqyov`): `cargo test -p deckmaste_english_v3` — 1,002 passed;
+   `cargo test -p deckmaste_lexical_source` — 44 passed;
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` — passed.
+   First English compilation found a fixture type-inference error; corrected
+   before the sole executed full suite. Restored 0 / re-spelled 0 / ignored 0 /
+   added 3 / removed 0. The new tests assert lexical ownership, Complement
+   roles and both roundtrip laws, registered once in `suite_2`.
+6. **Timing** (`ropwqyov`): bounded landing census 13.44 s wall, 6 workers,
+   measured with `/usr/bin/time -v`; no full-corpus run.

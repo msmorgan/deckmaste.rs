@@ -73,3 +73,6 @@ mod supertype_premodified_bound_keyword;
 
 #[path = "suite/quantified_energy_symbol.rs"]
 mod quantified_energy_symbol;
+
+#[path = "suite/difference_noun.rs"]
+mod difference_noun;

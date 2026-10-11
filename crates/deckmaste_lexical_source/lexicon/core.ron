@@ -1004,6 +1004,13 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "lexeme:CommonNoun/Difference", lemma: "difference", category: Noun,
+            properties: (countability: [Count], features: {"ScalarDenotation": "Yes"}, frames: []),
+            forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "lexeme:CommonNoun/Difference"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "lexeme:CommonNoun/LifeTotal", lemma: "life total", category: Noun,
             properties: (countability: [Count], features: {"ScalarDenotation": "Yes"}, frames: []),
             forms: [(form: Singular, features: (number: Some(Singular))), (form: Plural, features: (number: Some(Plural)))],
