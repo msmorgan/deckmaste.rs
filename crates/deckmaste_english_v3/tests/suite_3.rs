@@ -67,3 +67,6 @@ mod vocabulary_batch_1;
 
 #[path = "suite/named_modes_regression.rs"]
 mod named_modes_regression;
+
+#[path = "suite/exactly_cardinal_modifier.rs"]
+mod exactly_cardinal_modifier;

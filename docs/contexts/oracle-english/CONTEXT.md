@@ -1218,8 +1218,15 @@ The sequence *up to* retains nested Preposition Phrase structure: *up* takes
 the Complement *to …* (CGEL, Ch. 7 §3.2, pp. 624–625).
 
 **Cardinal Modifier**:
-A Preposition Phrase that marks a bound on a Cardinal Numeral, as *at least*
-does in *at least two* (CGEL, Ch. 5 §11(e), p. 432).
+A dependent of a Cardinal Numeral: an Adverb expressing approximation or
+precision, as *exactly* in *exactly two* (CGEL, Ch. 5 §11(b), p. 431), or a
+Preposition Phrase marking a bound, as *at least* in *at least two*
+(CGEL, Ch. 5 §11(e), p. 432).
+
+**Cardinal Modifier Use** (project term):
+An Adverb's declared permission to modify a numeral, independently of NP
+modification or Clause Adjunct use, under orchestrator rulings EX1–EX2
+(2026-10-10, `english-v3-exactly-cardinal-modifier`).
 
 **Quantitative Adjective Complement** (project term):
 An Adjective selected as the Complement of a quantitative Preposition Phrase

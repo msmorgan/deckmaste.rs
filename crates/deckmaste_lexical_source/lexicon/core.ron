@@ -1013,6 +1013,13 @@
             capitalization: Initial, binding: Free, surface_structure: Multiword,
         ),
         (
+            id: "vocab:Adverb/Exactly", lemma: "exactly", category: Adverb,
+            properties: (countability: [], features: {"CardinalModifierUse": "Yes", "VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No"}, frames: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Adverb/Exactly"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "vocab:Adverb/Secretly", lemma: "secretly", category: Adverb,
             properties: (countability: [], features: {"VPFinalAdjunct": "No", "ClauseInitialAdjunct": "No", "CentralAdjunctLicence": "Imperative"}, frames: []),
             forms: [(form: Invariant, features: ())],

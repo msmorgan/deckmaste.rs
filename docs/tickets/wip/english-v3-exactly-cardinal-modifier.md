@@ -131,4 +131,57 @@ english-v3 grep` only.
 
 ## Landing record
 
-To be written by the claimant (six items, `docs/tickets/README.md`).
+1. **Census delta** — `oyqrxmwz`: BEFORE is the empty feature tree at claim
+   parent `stymvrko`; AFTER contains this change. Bounded manifest: all 147
+   supported faces matching `(?i)\bexactly\b|\bat (least|most)\b`, plus 300
+   random covered controls (seed 20261008), 446 distinct faces. Covered
+   375 → 403; total Readings 7,030 → 7,627; 28 gains; lost faces none;
+   decreases / increases / digest-only / source changes all zero; zero issues.
+   `cargo xtask english-v3 diff` owns the comparison; evidence is under
+   `target/english-v3/english-v3-exactly-cardinal-modifier/`.
+   Refresh recheck at `ummqklns`: all 446 faces retain identical counts and
+   digests; covered 403 and Readings 7,627. No trunk Reading delta to attribute.
+2. **Witnesses** — `oyqrxmwz`, exact ticket fragments, fully enumerated by
+   `cargo xtask english-v3 probe`: all five BEFORE counts were zero, so none
+   was dropped. AFTER / unmodified control: Library of Alexandria 2 / 2;
+   Homicidal Seclusion 1 / 2; Near-Death Experience 1 / 1; Alluring Suitor
+   1 / 1; Amalia Benavides Aguirre 1 / 1. Seclusion's control has lexical
+   Determinative *one* and numeral *one* analyses; EX4's new route modifies
+   only the numeral. The control retains both. Fixed controls before/after:
+   Cauldron's Gift 4 / 4, Felidar Sovereign 1 / 1, Twice Upon a Time 1 / 1,
+   *As long as you control up to one creature, draw a card.* 1 / 1.
+   EX3's *exactly 13 life* NP also reads once.
+3. **Spot checks** — `oyqrxmwz`, ten gained faces, each retaining the lexical
+   Adverb as the numeral's Cardinal Modifier: Alluring Suitor (*two*,
+   Determiner); Amalia Benavides Aguirre (*20*, Scalar Value); Ayara's
+   Oathsworn (*four*, counter Determiner); Deadly Wanderings (*one*,
+   creature Determiner); Demonic Rising (*one*, creature Determiner);
+   Ghyrson Starn, Kelermorph (*1*, measured damage); Guildpact Paragon
+   (*two*, colors Determiner inside the relative predication); Hidetsugu's
+   Second Rite (*10*, measured life); Homarid (*one* / *three*, tide-counter
+   Determiners); Homicidal Seclusion (*one*, creature Determiner).
+   All 28 gained faces' precision-bearing Ability lines were inspected;
+   no unintended new analysis was observed.
+4. **Deviations and STOPs** — One Construction, `AdverbCardinalModifier`,
+   and its declared `CardinalModifierUse` feature supply EX1. No Category,
+   frame, numeral Construction or old route was added/deleted. EX3 needs no
+   `NumericQuantityConjunct` edit: Arabic amounts and scalar values already
+   use the existing modifier slot. No other precision/approximation Adverb
+   exists in the declared inventory, so the class ruling adds no lexemes.
+   The glossary's PP-only Cardinal Modifier definition was broadened, and
+   Cardinal Modifier Use was added with EX1–EX2 as its project authority.
+   Eight integration tests are registered once in `suite_3`. No STOPs.
+5. **Tests** — `oyqrxmwz`: `cargo test -p deckmaste_english_v3` passed
+   (1,084 tests), and `cargo test -p deckmaste_lexical_source` passed
+   (86 tests). `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   and `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`
+   passed. Initial English clippy found two test-helper borrowing issues;
+   fixed by borrowing the expected Reading and retaining the full-value
+   comparison. Restored 0 / re-spelled 0 / ignored 0 / added 8 / removed 0;
+   removals: none. Citation checks: no noncompliant citations, zero stale;
+   no new CR citations to bless. At `ummqklns` after Kata refresh,
+   `cargo build -p xtask`, both full test suites and both clippy commands above
+   passed again. The routine stale workspace was realigned; no conflicts.
+6. **Timing** — `oyqrxmwz`: bounded AFTER census wall 16.03 seconds,
+   six workers, `--samples-per-face 0`, measured under `/usr/bin/time -v`.
+   The verification budget replaces the catalog's full census requirement.

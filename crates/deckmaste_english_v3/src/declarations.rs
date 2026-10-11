@@ -471,6 +471,7 @@ constructions! {
         }
         feature VPFinalAdjunct { Yes, No }
         feature ClauseInitialAdjunct { Yes, No } default No;
+        feature CardinalModifierUse { Yes, No } default No;
         feature CentralAdjunctLicence { Preverbal, PostCopula, PostAuxiliary, Imperative } set;
         table central_preverbal(CentralAdjunctLicence) -> Selection contains Preverbal => Yes;
         table central_postcopula(CentralAdjunctLicence) -> Selection contains PostCopula => Yes;
@@ -5448,6 +5449,12 @@ constructions! {
 
 
 
+
+        // EX1: a licensed Adverb modifies the numeral, not its enclosing NP.
+        construction AdverbCardinalModifier: CardinalModifier {
+            form [head: lexical(Adverb), " "];
+            require head.CardinalModifierUse = Yes;
+        }
 
         construction Cardinal: Cardinal {
             form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
