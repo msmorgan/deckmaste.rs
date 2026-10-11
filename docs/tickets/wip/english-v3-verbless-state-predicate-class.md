@@ -188,6 +188,13 @@ and continuation; the final checks are recorded below.
    with 0 issues. Ticket-caused gains/lost/decreases/increases/digests: zero.
    Evidence: batch-b-refresh-after.json, batch-b-refresh-only-diff.json,
    batch-b-refresh-parent-diff.json.
+   Partitive-head refresh (qnvlmzuu) adds 15 trunk gains and no covered
+   count/digest changes: 6,147 covered, 241,700 Readings; final parent diff
+   has 175 trunk gains, 0 lost/increases, the same 25 CF7 decreases and
+   157 digest-only changes. All 7,102 faces complete with 0 issues;
+   ticket-caused changes remain zero. Evidence: partitive-head-refresh-
+   after.json, partitive-head-refresh-only-diff.json and
+   partitive-head-refresh-parent-diff.json.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
    gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
    tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
@@ -292,7 +299,12 @@ and continuation; the final checks are recorded below.
    --tests -- -D warnings; cargo clippy -p deckmaste_lexical_source --tests
    -- -D warnings. This refresh changes no plugin definitions or xtask
    code, so the passed xtask-English/Lean results are retained.
-6. **Timing** — Latest bounded census: 335 s (rounded wall time), six
+   Partitive-head refresh checks PASS: cargo build -p xtask; cargo test -p
+   deckmaste_english_v3 (1,018 tests); cargo test -p deckmaste_lexical_source
+   (88 tests); cargo clippy -p deckmaste_english_v3 --tests -- -D warnings;
+   cargo clippy -p deckmaste_lexical_source --tests -- -D warnings. No plugin
+   definitions or xtask code changed; their prior passed checks are retained.
+6. **Timing** — Latest bounded census: 347 s (rounded wall time), six
    workers, zero samples per face. No full corpus census was run, per the
    binding verification budget. Evidence is under
    target/english-v3/english-v3-verbless-state-predicate-class/.
