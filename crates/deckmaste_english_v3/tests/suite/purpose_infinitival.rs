@@ -319,12 +319,17 @@ fn stative_predicates_keep_their_frames_without_purpose_attachment() {
 
 #[test]
 fn auxiliary_predicates_inherit_the_selected_predicates_purpose_licence() {
-    assert_eq!(
-        common::readings(
-            "If {R} was spent to cast this spell, draw a card.",
-            Category::Document
-        ),
-        BTreeSet::new()
+    let text = "If {R} was spent to cast this spell, draw a card.";
+    assert_purpose(text);
+    common::assert_constituents(
+        text,
+        Category::Document,
+        &[
+            (Category::ManaSubject, "{R}"),
+            (Category::ManaPhrase, "{R}"),
+            (Category::ManaPassivePredicate, "spent to cast this spell"),
+            (Category::PurposeInfinitival, "to cast this spell"),
+        ],
     );
     assert_purpose_as("was spent to cast this spell", Category::FinitePredicate);
     assert_purpose("You have sacrificed a creature to cast this spell.");

@@ -709,6 +709,15 @@ constructions! {
         category CostSymbols();
         category CostSymbol();
         category ManaPhrase();
+        category ManaSubject(number, person, SubjectStructure, DeterminerAgreementNumber);
+        category ManaPassivePredicate(FrameUse, HeadCoordination, AuxiliaryProFormLicence,
+            AuxiliaryEllipsisLicence, NominalAdjunctHost, ClauseComplementBoundary, form,
+            PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category ManaPassiveComplement(PurposeAdjunctLicence, MatrixComplementLicence,
+            SourceComplementSelection);
+        category FiniteManaPassivePredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary,
+            number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence,
+            SourceComplementSelection);
         category ManaSymbol();
         category CountNominalSymbol(SymbolNominalUse);
         category NominalSymbol(SymbolNominalUse);
@@ -3113,6 +3122,11 @@ constructions! {
                 require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
             form [subject: DummyPronoun, clitic_separator(predicate.CliticHost),
                 predicate: ExistentialPredicate];
+            form [subject: ManaSubject, clitic_separator(predicate.CliticHost),
+                predicate: FiniteManaPassivePredicate]
+                require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes
+                require finite_subject_person(subject.person, predicate.person) = Yes
+                require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
         }
 
         // CGEL Ch. 5 §9.2, p. 413: implicit-partitive adjuncts quantify
@@ -5351,6 +5365,8 @@ constructions! {
         }
         instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties, BoundaryProperties = NoFeatures>: [
             (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement, NoClauseComplementBoundary),
+            (FiniteManaPassivePredicate, ManaPassiveComplement, FiniteAuxiliaryAgreement,
+                NoClauseComplementBoundary),
             (IrrealisPredicate, ParticipialComplement, IrrealisHeadAgreement),
             (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties, NoClauseComplementBoundary),
         ] {
@@ -5750,6 +5766,8 @@ constructions! {
         instance PurposePredicate<Result, Head: head, Properties>: [
             (FinitePredicate, Self, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, SecondaryAdjunctProjection),
+            (FiniteManaPassivePredicate, Self, PredicateHostAgreement),
+            (ManaPassivePredicate, Self, ManaPassiveProjection),
             (FiniteObjectGap, Self, FiniteGapHostProjection),
             (BareObjectGap, Self, BareGapHostProjection),
         ] {
@@ -5972,6 +5990,7 @@ constructions! {
             (BareComplement, BarePredicate, OvertComplementRealization),
             (ParticipialComplement, ParticipialPredicate),
             (PerfectComplement, PastParticiplePredicate),
+            (ManaPassiveComplement, ManaPassivePredicate),
         ] {
             use Properties;
             export PurposeAdjunctLicence = predicate.PurposeAdjunctLicence;
@@ -6904,6 +6923,39 @@ constructions! {
             export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
             export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
             use SecondaryHeadForm;
+        }
+
+        policy ManaPassiveProjection {
+            export FrameUse = head.FrameUse;
+            export HeadCoordination = head.HeadCoordination;
+            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
+            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
+            export form = head.form;
+            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
+            export MatrixComplementLicence = head.MatrixComplementLicence;
+            export SourceComplementSelection = head.SourceComplementSelection;
+        }
+
+        // MP2–MP3: the declared Mana Complement frame selects this passive
+        // head, independently of the verb's lexical identity.
+        instance SelectedVerbHead<Result, Properties>: [
+            (ManaPassivePredicate, SecondaryHeadForm),
+        ] {
+            require head.frame = ManaComplement;
+            require head.form = PastParticiple;
+            export NominalAdjunctHost = Yes;
+            export ClauseComplementBoundary = None;
+            use Properties;
+        }
+
+        // MP2/MP6: a governed Subject projection supplies singular Agreement
+        // without turning bare Mana Phrase notation into a Noun Phrase.
+        construction ManaSubject: ManaSubject {
+            form [head: ManaPhrase];
+            export number = Singular;
+            export person = Third;
+            export SubjectStructure = Phrase;
+            export DeterminerAgreementNumber = Nominal;
         }
 
         // Shared head primitives: exact selected signatures; no complement or coordination yet.

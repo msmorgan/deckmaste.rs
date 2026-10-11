@@ -64,6 +64,8 @@ has not been probed at the current trunk.
 
 - **A9. Have admits a nominal predicative Complement.** `english-v3-independent-genitive-pronoun` (IG8) leaves the existing Object + nominal predicative Complement frame unchanged; its shape splits *the chosen creature type in addition to yours | other types*. CGEL Ch. 4 §5.4, p. 265 labels complex-transitive *have* adjective-only; verify and repair the general frame licensing separately.
 
+- **A10. Dawnglow Infusion reads through the wrong coordination.** `english-v3-mana-symbol-passive-subject` (`onymknyk`) exposes 18 Readings whose *cast* Object includes *this spell and X life*, rather than the intended gapped *gain* coordination; not counted as a coverage gain. Supply the gapped gain analysis before considering pruning of the inherited nominal/purpose routes.
+
 ### B. Lexicon and feature economy
 
 - **B1. Two spellings of definiteness.** The noun-side determiner selection
@@ -100,6 +102,8 @@ has not been probed at the current trunk.
   `word`, so the realised keyword line drops the article. Needs an article
   hint in the spelling machinery, or a recorded decision that grammar-side
   `KeywordIndefiniteArticle` is the only owner.
+
+- **B7. Mana passive head carries unused selected-head exports.** `english-v3-mana-symbol-passive-subject` (`onymknyk`) reuses `SelectedVerbHead`, whose Category interface also requires `FrameUse`, `HeadCoordination`, `AuxiliaryEllipsisLicence` and `AuxiliaryProFormLicence`; the current Mana passive Subject route does not consume these four exports. Evaluate schema/interface economy without changing retained Readings.
 
 ### C. Tests and tooling
 

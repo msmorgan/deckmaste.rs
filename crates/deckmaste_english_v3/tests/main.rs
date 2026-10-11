@@ -85,3 +85,6 @@ mod mana_symbol_nominal;
 
 #[path = "suite/irrealis_scalar_difference.rs"]
 mod irrealis_scalar_difference;
+
+#[path = "suite/mana_symbol_passive_subject.rs"]
+mod mana_symbol_passive_subject;

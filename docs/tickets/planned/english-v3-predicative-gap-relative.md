@@ -218,6 +218,6 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    tests or clippy. Initial citation checks: 0 noncompliant, 0 stale;
    diff audit selected 0 new citation sites.
 6. **Timing — withdrawn attempt `xtulvkxv`.** PG6 step 2 bounded census:
-   134.74 seconds wall, 6 workers, samples per face 0, under
-   `/usr/bin/time -v`. Initial bounded census: 138.42 seconds. No `--all`
+   2m 14.74s wall, 6 workers, samples per face 0, under
+   `/usr/bin/time -v`. Initial bounded census: 2m 18.42s. No `--all`
    or full-corpus census was run.

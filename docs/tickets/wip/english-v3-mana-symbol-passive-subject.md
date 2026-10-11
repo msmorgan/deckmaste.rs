@@ -86,6 +86,19 @@ Orchestrator rulings 2026-10-11:
   change: then the selector's `spent|paid|added|produced` half is mandatory
   and digest-only changes are reported by class.
 
+- MP8 (R-reach, orchestrator, 2026-10-11). R-reach targets changes to
+  what existing inputs build: changed forms, requirements or exports, or a
+  renamed/re-shaped Reading. A purely additive form whose new first field
+  is a Mana Phrase Subject does not require every finite-clause face.
+  Existing `FiniteClause` forms retain their fields, requirements and exports
+  byte-for-byte, and existing generated Readings are unchanged. If new
+  fields cannot be omitted from old Debug trees, or existing digests move,
+  STOP. Use the ticket selector (including `spent|paid|added|produced`) plus
+  2,000 random covered faces, seed 20261008; require zero digest-only changes
+  among those controls. The orchestrator's next full census is the final
+  identity check; the landing records the exact claim that existing finite
+  clauses are unchanged. MP1–MP7 stand.
+
 ## Witnesses
 
 Each is a sentence of the face's only failing line. Probed 2026-10-11 with the
@@ -136,3 +149,76 @@ english-v3 grep` only.
 - `english-v3-mana-symbol-verbless-subject` (*with {X} in its mana cost*).
 
 ## Landing record
+
+1. **Census delta.** Claim-parent parser `worzonox`, measured in `onymknyk`:
+   2,394 covered faces / 77,490 Readings before; `onymknyk`: 2,435 / 80,269
+   after. Lost: none. Official `diff --lines`: 41 gained, zero decreases,
+   increases on covered faces, digest-only changes, source changes or
+   identity mismatches; 2,497 unchanged. Of the 41 newly covered faces,
+   40 have the intended analysis; Dawnglow Infusion's 18 Readings only
+   coordinate *this spell and X life* as the Object of *cast*, so it is an
+   unintended parse, not an intended gain (hygiene A10). The grep selector
+   `(?i)\b(spent|spend|spends|paid|added|produced)\b|\} (was|wasn.t|were|is|are)\b`
+   reaches 571 faces (671 matches); its union with 2,000 random covered
+   faces, seed 20261008, has 2,538 identities (33 overlap). Evidence:
+   `target/english-v3/english-v3-mana-symbol-passive-subject/{manifest,before,after,diff}.json`.
+   MP8's exact claim: existing finite-clause Readings are unchanged.
+   The original `FiniteClause` forms, requirements and exports are retained
+   byte-for-byte; the additive form has a distinct Mana Subject first field
+   and adds no fields to existing Reading variants. All 2,000 sampled covered
+   faces are unchanged, with zero digest-only changes (hence zero per-class
+   changed-line counts). The orchestrator's next full-corpus census is the
+   final identity check.
+2. **Witnesses.** All eight failed with zero sentence Readings on the
+   claim parent `worzonox`, before implementation. On `onymknyk`, Azorius
+   Herald 3, Ribbons of Night 2, Shrieking Grotesque 2, Wumpus Aberration 8,
+   Mythos of Brokkos 18; the corresponding noun controls have respectively
+   3, 2, 2, 8, 18, preserving independent ambiguity under W9-A.
+   *{U} was spent.* 1; *You spend {U}.* 1; *Draw a card if {G} was spent to
+   cast this spell.* 3 (noun control 3). The six original controls retain
+   their claim-parent counts: noun-if 2, noun-source 2, pay-purpose 1,
+   spend-noun 1, unless-pay 1, and bare Mythos search 6. Probes under
+   `before-probes/`, `after-probes/` record complete enumerations.
+3. **Spot checks.** On `onymknyk`, Ribbons of Night, Ogre Savant, Gruul
+   Scrapper, Steamcore Weird, Tin Street Hooligan, Rolling Spoil, Seed Spark,
+   Mythos of Nethroi, Vigor Mortis and Induce Paranoia each select a Mana
+   Phrase as Mana Subject of the passive, a declared Mana Complement frame
+   on *spent*, and the purpose Infinitival *to cast*; their preposed or
+   trailing condition keeps its existing attachment. These were inspected
+   with structured probes under `spot-probes/`.
+4. **Deviations and STOPs.** The R-reach STOP was resolved by orchestrator
+   ruling MP8 above. MP2's one unavoidable `ManaSubject` projection was
+   declared up front (the ticket estimates 38 sole faces); the verbless
+   sibling is not in flight. Four passive Categories and one projection
+   policy specialize existing selected-head, participial-auxiliary,
+   overt-complement and purpose schemas, without a new clause family,
+   verb-identity guard, retired route or removed frame. Spend gains the
+   declared Mana Complement frame; add/produce automatically receive the
+   same passive licence. No symbols gain Noun Phrase distribution. Moonhold
+   gains through existing coordination of two complete finite predicates,
+   each with its own condition; no gapped coordination was added. Dawnglow
+   remains the separately disclosed defect above; Firespout remains unread.
+   Glossary additions explain the governed Mana Subject via project rulings
+   MP2/MP6. Hygiene A10/B7 record the residual Dawnglow analysis and redundant
+   selected-head interface exports. Two inherited citation-check false
+   positives in the planned predicative-gap ticket were reworded from
+   decimal seconds to equivalent minutes/seconds, preserving their values.
+   No Construction, frame or test was deleted.
+5. **Tests.** `cargo test -p deckmaste_english_v3`: pass (all six integration binaries;
+   one pre-existing ignored test, no failures);
+   `cargo test -p deckmaste_lexical_source`: pass (88 tests).
+   `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings`: pass.
+   Results measured on `onymknyk`; logs under the evidence directory.
+   Restored 0 / re-spelled 1 / newly ignored 0 / added 6 / removed 0.
+   The re-spelled
+   `purpose_infinitival::auxiliary_predicates_inherit_the_selected_predicates_purpose_licence`
+   replaces the old empty Reading expectation for the symbol Subject with
+   typed Mana Subject, selected passive and purpose constituents; its other
+   auxiliary assertions remain. The six new tests assert structural roles,
+   frame-class derivation, agreement/symbol boundaries and both roundtrip
+   laws. Citation checks: zero noncompliant, zero stale; stdin diff audit
+   zero changed citation sites. No Lean, plugin or xtask source changed.
+6. **Timing.** The one bounded AFTER census on `onymknyk` took **82.45 s**
+   wall time under `/usr/bin/time -v`, with 6 workers and
+   `--samples-per-face 0`. No full-corpus census was run in this workspace.

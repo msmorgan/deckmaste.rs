@@ -1431,7 +1431,7 @@
         ),
         (
             id: "lexeme:Verb/Spend", lemma: "spend", category: Verb,
-            properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))])]),
+            properties: (countability: [], features: {}, frames: [(kind: "Predicate", items: [Argument((relation: Object, category: "NounPhrase"))]), (kind: "Predicate", items: [Argument((relation: Complement, category: "ManaPhrase"))])]),
             forms: [
                 (form: Plain, features: ()),
                 (form: GerundParticiple, features: (finiteness: Some(Nonfinite))),

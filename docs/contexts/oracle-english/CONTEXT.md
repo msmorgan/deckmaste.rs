@@ -225,8 +225,18 @@ distinct from ordinary words (owner ruling, 2026-10-10).
 
 **Mana Phrase** (project term):
 A phrase realized by mana notation or coordinated alternatives of that notation,
-used as a selected Complement. Its symbols preserve lexical identity and are
-licensed separately from symbols that appear only in Costs.
+used as a selected Complement or a governed Subject. Its symbols preserve lexical
+identity and are licensed separately from symbols that appear only in Costs.
+The passive Subject use is governed by the verb's declared Mana Phrase Complement
+frame (MP2–MP4, orchestrator rulings, 2026-10-11,
+[mana-symbol-passive-subject ticket](../../tickets/done/english-v3-mana-symbol-passive-subject.md#analysis)).
+
+**Mana Subject** (project term):
+A governed Subject realized by a Mana Phrase, with singular, third-person
+Agreement independently of its symbol count (MP2 and MP6, orchestrator rulings,
+2026-10-11,
+[mana-symbol-passive-subject ticket](../../tickets/done/english-v3-mana-symbol-passive-subject.md#analysis)).
+It does not give bare mana notation Noun Phrase distribution.
 
 **Nominal Symbol** (project term):
 A Symbol licensed to head a determined or measured Nominal (orchestrator
