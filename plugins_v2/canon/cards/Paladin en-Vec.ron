@@ -1,0 +1,16 @@
+// "First strike, protection from black and from red" [CR#702.16a,702.16g]
+SingleFaced(face: (
+    characteristics: (
+        name: "Paladin en-Vec",
+        cost: [
+            1,
+            White,
+            White,
+        ],
+        types: [Creature],
+        subtypes: [human, knight],
+        power: 2,
+        toughness: 2,
+        text: [firstStrike, protection(colorIs(Black)), protection(colorIs(Red))],
+    ),
+))
