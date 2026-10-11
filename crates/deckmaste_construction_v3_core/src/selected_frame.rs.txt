@@ -4,6 +4,7 @@
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum FrameValue {
     Argument(Box<Reading>),
+    Adjunct(Box<Reading>),
     Marker(Word),
     Marked {
         marker: Word,
@@ -59,6 +60,7 @@ impl FrameGuard {
 #[derive(Clone)]
 enum FrameLayout {
     Argument(Category, Vec<(usize, FeatureValue)>),
+    Adjunct(Category),
     Marker(usize, ::deckmaste_lexical::Category),
     Marked(
         usize,
@@ -543,7 +545,26 @@ impl Grammar {
             }
             let mut variants = vec![Vec::new()];
             let mut unsupported = None;
-            for item in &frame.items {
+            for (position, item) in frame.items.iter().enumerate() {
+                // A declared slot role admits an intervening Adjunct only
+                // after an overt Object, independently of the selecting head.
+                if let ::deckmaste_lexical::FrameItem::Argument(slot) = item {
+                    if slot.relation == ::deckmaste_lexical::Relation::Complement
+                        && position.checked_sub(1).is_some_and(|previous| {
+                            matches!(&frame.items[previous],
+                                ::deckmaste_lexical::FrameItem::Argument(previous)
+                                if previous.relation == ::deckmaste_lexical::Relation::Object)
+                        })
+                    {
+                        if let Some(category) = Self::frame_adjunct(&slot.category) {
+                            let mut with_adjunct = variants.clone();
+                            for prefix in &mut with_adjunct {
+                                prefix.push(FrameLayout::Adjunct(category));
+                            }
+                            variants.extend(with_adjunct);
+                        }
+                    }
+                }
                 match self.item_layouts(item) {
                     Ok(options) => {
                         variants = variants
@@ -835,6 +856,14 @@ impl FrameLayout {
             rule.release.push(vec![]);
         }
         match self {
+            Self::Adjunct(category) => {
+                // The Adjunct Category owns its intervening separator.
+                symbols.push(::deckmaste_english_v3::Symbol::Nonterminal(*category));
+                rule.guards.push(FrameGuard::Any);
+                rule.literals.push(None);
+                rule.checks.push(vec![]);
+                rule.release.push(vec![]);
+            }
             Self::Argument(category, requirements) => append(
                 symbols,
                 rule,
@@ -864,6 +893,12 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
+            (Self::Adjunct(category), FrameValue::Adjunct(reading))
+                if reading.category() == *category =>
+            {
+                output.push(Some(cache.admit(reading, grammar, lexicon)?));
+                Ok(())
+            }
             (Self::Argument(category, _), FrameValue::Argument(reading))
                 if reading.category() == *category =>
             {
@@ -916,6 +951,9 @@ impl FrameLayout {
         cache: &mut AdmissionCache,
     ) -> Result<(), Error> {
         match (self, value) {
+            (Self::Adjunct(_), FrameValue::Adjunct(reading)) => {
+                reading.write(grammar, lexicon, output, cache)
+            }
             (Self::Argument(_, _), FrameValue::Argument(reading)) => {
                 output.push_str(" ");
                 reading.write(grammar, lexicon, output, cache)
@@ -945,6 +983,9 @@ impl FrameLayout {
             children.next().ok_or(Error::Internal)
         }
         match self {
+            Self::Adjunct(_) => Ok(FrameValue::Adjunct(Box::new(
+                children.next().ok_or(Error::Internal)?.node()?,
+            ))),
             Self::Argument(_, _) => Ok(FrameValue::Argument(Box::new(next(children)?.node()?))),
             Self::Marker(_, _) => Ok(FrameValue::Marker(next(children)?.word()?)),
             Self::Marked(_, _, _, _) => Ok(FrameValue::Marked {
@@ -963,6 +1004,7 @@ impl FrameValue {
     fn visit(&self, visitor: &mut impl FnMut(&Reading)) -> Result<(), Error> {
         match self {
             Self::Argument(reading)
+            | Self::Adjunct(reading)
             | Self::Marked {
                 argument: reading, ..
             } => reading.visit(visitor),
@@ -972,7 +1014,7 @@ impl FrameValue {
     }
     fn visit_words(&self, visitor: &mut impl FnMut(&Word)) -> Result<(), Error> {
         match self {
-            Self::Argument(reading) => reading.visit_words(visitor),
+            Self::Argument(reading) | Self::Adjunct(reading) => reading.visit_words(visitor),
             Self::Marker(word) => {
                 visitor(word);
                 Ok(())

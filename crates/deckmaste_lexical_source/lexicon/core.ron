@@ -142,7 +142,7 @@
         "lexeme:type/planeswalker": {"BareGenitiveHost": "Yes"},
         "lexeme:turn_part/combat": {"NounPremodifier": "Yes", "NominalBareClass": "Interval", "NominalAdjunctClass": "Temporal"},
         "lexeme:Verb/Defend": {"BareSingularUse": "Yes"},
-        "vocab:Adjective/Random": {"AdjectiveComplementClass": "Manner"},
+        "vocab:Adjective/Random": {"AdjectiveComplementClass": "Manner", "InterveningAdjunctLicence": "Yes"},
         "vocab:Adjective/Able": {"VerblessPredicateUse": "Yes", "VerblessComplementOmissionUse": "Yes"},
         "lexeme:CommonNoun/Number": {"NumberTransparency": "Yes", "ScalarDenotation": "Yes"},
         "lexeme:CommonNoun/Counter": {"SlashPremodifierUse": "No"},

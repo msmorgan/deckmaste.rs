@@ -90,6 +90,39 @@ fn grammar_functions(
     (rule_fns, rule_calls, production_fns, production_calls)
 }
 
+fn frame_category_projection(ir: &Ir) -> TokenStream {
+    let categories = ir
+        .frame_categories
+        .iter()
+        .map(|(source, index)| {
+            let name = &ir.categories[*index];
+            let text = source.to_string();
+            quote!(#text => Some(Category::#name))
+        })
+        .chain(
+            ir.categories
+                .iter()
+                .take(ir.public_categories)
+                .filter(|name| {
+                    !ir.frame_categories
+                        .iter()
+                        .any(|(source, _)| source == *name)
+                })
+                .map(|name| {
+                    let text = name.to_string();
+                    quote!(#text => Some(Category::#name))
+                }),
+        );
+    let adjuncts = ir.frame_adjuncts.iter().map(|(role, index)| {
+        let category = &ir.categories[*index];
+        quote!(#role => Some(Category::#category))
+    });
+    quote! {
+        fn frame_category(name: &str) -> Option<Category> { match name { #(#categories,)* _ => None } }
+        fn frame_adjunct(role: &str) -> Option<Category> { match role { #(#adjuncts,)* _ => None } }
+    }
+}
+
 fn grammar(ir: &Ir) -> TokenStream {
     let productions = ir.rules.iter().map(|rule| {
         let category = &ir.categories[rule.category];
@@ -194,28 +227,7 @@ fn grammar(ir: &Ir) -> TokenStream {
     let canonical_frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     let required = !templates.is_empty() || ir.rules.iter().any(|rule| rule.segments.is_some());
     let static_count = ir.rules.len();
-    let categories = ir
-        .frame_categories
-        .iter()
-        .map(|(source, index)| {
-            let name = &ir.categories[*index];
-            let text = source.to_string();
-            quote!(#text => Some(Category::#name))
-        })
-        .chain(
-            ir.categories
-                .iter()
-                .take(ir.public_categories)
-                .filter(|name| {
-                    !ir.frame_categories
-                        .iter()
-                        .any(|(source, _)| source == *name)
-                })
-                .map(|name| {
-                    let text = name.to_string();
-                    quote!(#text => Some(Category::#name))
-                }),
-        );
+    let frame_categories = frame_category_projection(ir);
     let argument_requirements = frame_argument_requirements(ir);
     let marker_licences = ir.frame_marker_licences.iter().map(|(kind, pos, feature, operation, expected)|{
         let pos = format_ident!("{pos}");
@@ -234,7 +246,7 @@ fn grammar(ir: &Ir) -> TokenStream {
         impl Grammar {
             #(#rule_fns)*
             #(#production_fns)*
-            fn frame_category(name: &str) -> Option<Category> { match name { #(#categories,)* _ => None } }
+            #frame_categories
             fn for_admission() -> &'static Self {
                 static GRAMMAR: ::std::sync::OnceLock<Grammar> = ::std::sync::OnceLock::new();
                 GRAMMAR.get_or_init(Self::default)

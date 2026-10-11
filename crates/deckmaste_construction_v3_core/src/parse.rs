@@ -21,6 +21,7 @@ pub(crate) struct Declaration {
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, Ident)>,
     pub frame_category_requirements: Vec<(Ident, Ident, Ident)>,
+    pub frame_adjuncts: Vec<(Ident, Ident)>,
     pub tables: Vec<FeatureTable>,
     pub frame_marker_licences: Vec<(Ident, Ident, Ident)>,
     pub constructions: Vec<Construction>,
@@ -177,6 +178,7 @@ impl Parse for Declaration {
             frames: vec![],
             frame_categories: vec![],
             frame_category_requirements: vec![],
+            frame_adjuncts: vec![],
             tables: vec![],
             frame_marker_licences: vec![],
             constructions: vec![],
@@ -240,6 +242,11 @@ impl Parse for Declaration {
                     result
                         .frame_marker_licences
                         .push((name, pos, body.parse()?));
+                    body.parse::<Token![;]>()?;
+                }
+                "frame_adjunct" => {
+                    body.parse::<Token![=]>()?;
+                    result.frame_adjuncts.push((name, body.parse()?));
                     body.parse::<Token![;]>()?;
                 }
                 "frame_category" => {

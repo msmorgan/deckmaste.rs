@@ -788,6 +788,9 @@ constructions! {
         // takes the overt subject–predicate form, not reducible if able.
         frame_category VerblessClause = VerblessClause where VerblessClauseComplement = OvertSubject;
         frame_category SourceFreeObject = AccusativePhrase where SourceModifierPresent = No;
+        // AR1–AR2 (orchestrator ruling, 2026-10-10): an intervening
+        // Adjunct follows the Object only before this declared source role.
+        frame_adjunct SourceComplement = InterveningPrepositionAdjunct;
         frame_category WholeSourceFreeObject = AccusativePhrase where WholeObjectSourcePresent = No;
         frame_category NominalPredicativePreposition = PrepositionPhrase where ComplementFunctionRestriction = PreposedOrPredicative;
         frame_category PowerToughnessAdjustment = SlashPair;
@@ -4929,7 +4932,7 @@ constructions! {
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
             export PartitiveCountability = Unrestricted;
-            export InterveningAdjunctLicence = No;
+            export InterveningAdjunctLicence = complement.InterveningAdjunctLicence;
             export ConnectiveAdjunctUse = No;
             export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = None;

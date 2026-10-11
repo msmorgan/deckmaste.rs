@@ -1480,3 +1480,71 @@ fn optional_posthead_words_reject_invalid_separator_and_requirements() {
         "expected before(separator)",
     );
 }
+
+#[test]
+fn frame_adjunct_roles_resolve_declared_categories_without_changing_frame_slots() {
+    let declaration = quote! { mod valid {
+        category ObjectPhrase();
+        category SourcePhrase();
+        category InterveningAdjunct();
+        frame_category SourceRole = SourcePhrase;
+        frame_adjunct SourceRole = InterveningAdjunct;
+        frame Selected = Predicate(Object(ObjectPhrase), Complement(SourceRole));
+        construction ObjectPhrase: ObjectPhrase { form [head: lexical(Noun)]; }
+        construction SourcePhrase: SourcePhrase { form [head: lexical(Noun)]; }
+        construction InterveningAdjunct: InterveningAdjunct { form [" ", head: lexical(Adverb)]; }
+    } };
+    let ir = crate::ir::validate(syn::parse2(declaration.clone()).unwrap()).unwrap();
+    assert_eq!(
+        ir.frame_adjuncts
+            .iter()
+            .map(|(role, category)| (role.as_str(), ir.categories[*category].to_string()))
+            .collect::<Vec<_>>(),
+        [("SourceRole", "InterveningAdjunct".into())],
+    );
+    assert_eq!(
+        ir.frames[0].1.items,
+        [
+            deckmaste_lexical_model::FrameItem::Argument(deckmaste_lexical_model::FrameSlot {
+                relation: deckmaste_lexical_model::Relation::Object,
+                category: "ObjectPhrase".into(),
+            }),
+            deckmaste_lexical_model::FrameItem::Argument(deckmaste_lexical_model::FrameSlot {
+                relation: deckmaste_lexical_model::Relation::Complement,
+                category: "SourceRole".into(),
+            }),
+        ]
+    );
+    syn::parse2::<syn::File>(compile(declaration).unwrap()).unwrap();
+}
+
+#[test]
+fn frame_adjunct_roles_reject_unknown_or_duplicate_declarations() {
+    rejects(
+        quote! { mod bad {
+            category Adjunct();
+            frame_adjunct Missing = Adjunct;
+            construction Adjunct: Adjunct { form [head: lexical(Adverb)]; }
+        } },
+        "unknown frame adjunct slot Category",
+    );
+    rejects(
+        quote! { mod bad {
+            category Source();
+            frame_adjunct Source = Missing;
+            construction Source: Source { form [head: lexical(Noun)]; }
+        } },
+        "unknown frame adjunct Category",
+    );
+    rejects(
+        quote! { mod bad {
+            category Source();
+            category Adjunct();
+            frame_adjunct Source = Adjunct;
+            frame_adjunct Source = Adjunct;
+            construction Source: Source { form [head: lexical(Noun)]; }
+            construction Adjunct: Adjunct { form [head: lexical(Adverb)]; }
+        } },
+        "duplicate frame adjunct slot Category",
+    );
+}

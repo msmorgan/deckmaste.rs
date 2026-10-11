@@ -22,6 +22,7 @@ pub(crate) struct Ir {
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, usize)>,
     pub frame_category_requirements: Vec<(Ident, usize, TokenStream)>,
+    pub frame_adjuncts: Vec<(String, usize)>,
     pub tables: Vec<FeatureTable>,
     pub frame_marker_licences: Vec<(String, String, usize, TokenStream, TokenStream)>,
     pub categories: Vec<Ident>,
@@ -344,6 +345,26 @@ fn validate_frame_category_requirements(
     Ok(())
 }
 
+fn validate_frame_adjuncts(ir: &mut Ir, adjuncts: Vec<(Ident, Ident)>) -> syn::Result<()> {
+    let mut adjunct_roles = BTreeSet::new();
+    for (role, adjunct) in adjuncts {
+        if !ir.frame_categories.iter().any(|(name, _)| name == &role)
+            && !ir.categories[..ir.public_categories].contains(&role)
+        {
+            return Err(error(&role, "unknown frame adjunct slot Category"));
+        }
+        let category = ir.categories[..ir.public_categories]
+            .iter()
+            .position(|name| name == &adjunct)
+            .ok_or_else(|| error(&adjunct, "unknown frame adjunct Category"))?;
+        if !adjunct_roles.insert(role.to_string()) {
+            return Err(error(&role, "duplicate frame adjunct slot Category"));
+        }
+        ir.frame_adjuncts.push((role.to_string(), category));
+    }
+    Ok(())
+}
+
 pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut features = validate_features(&declaration.features)?;
     let frames = validate_frames(&declaration.frames)?;
@@ -473,6 +494,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         frames,
         frame_categories,
         frame_category_requirements: vec![],
+        frame_adjuncts: vec![],
         tables: vec![],
         frame_marker_licences: vec![],
         categories,
@@ -485,6 +507,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         &interfaces,
         declaration.frame_category_requirements,
     )?;
+    validate_frame_adjuncts(&mut ir, declaration.frame_adjuncts)?;
     validate_tables(&mut ir, declaration.tables)?;
     validate_marker_licences(&mut ir, declaration.frame_marker_licences)?;
     normalize(&mut ir, &declaration.constructions, &interfaces)?;
