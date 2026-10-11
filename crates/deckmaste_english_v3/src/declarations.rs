@@ -14,6 +14,11 @@ constructions! {
         feature DeterminerKind { Ordinary, Indefinite }
         feature SuperlativeQuantifierUse { No, Yes } default No;
         feature DegreeUse { None, Head, Modifier } default None;
+        feature ComparativeDegreeModifierUse { No, Yes } default No;
+        feature FrequencyUse { No, Yes } default No;
+        table coordinated_frequency_use(FrequencyUse, FrequencyUse) -> FrequencyUse {
+            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+        }
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
             (Multiplier, Definite, Other) => Yes, (Fraction, Definite, Other) => Yes,
@@ -661,8 +666,10 @@ constructions! {
         category DegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
         category QuantitativeDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
         category ComparativePrepositionPhrase(number);
+        category CountedFrequencyPrepositionPhrase();
+        category AdverbFrequencyPrepositionPhrase();
         category QuantityConjunct(number, CardinalComplementUse, CardinalMeasurementUse);
-        category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse);
+        category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse, FrequencyUse);
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
         category PurposeInfinitival(FocusedUse);
@@ -721,7 +728,7 @@ constructions! {
         category FinitePredicateSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category NounPhraseSeries(PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
-        category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
+        category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(Polarity, number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
@@ -745,7 +752,7 @@ constructions! {
         category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
         category FocusedAdjunctSeries(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
         category FocusedAdjunctCoordination(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse, PrepositionFunctionLicence, ComplementFunctionRestriction, PredicativeAdjunctUse, SelectedPrepositionUse, MatrixComplementRequirement, InternalisedComplementMarker);
-        category AdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse);
+        category AdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
@@ -763,7 +770,7 @@ constructions! {
         category CorrelativePrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
-            DurationUse, CorrelativeCoordinator, FocusedUse);
+            DurationUse, FrequencyUse, CorrelativeCoordinator, FocusedUse);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
         category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind, CardinalComplementUse);
         category CorrelativeAmountSeries(CorrelativeCoordinator);
@@ -1602,6 +1609,7 @@ constructions! {
         }
 
         policy AdverbPermissions<Right, Source> {
+            export FrequencyUse = coordinated_frequency_use(left.FrequencyUse, Right.FrequencyUse);
             export NominalAdjunctHost = Yes;
             require ordinary_adjunct_coordination(left.FocusedUse, Right.FocusedUse) = Yes;
             export FocusedUse = coordinated_focus(left.FocusedUse, Right.FocusedUse);
@@ -2241,6 +2249,8 @@ constructions! {
 
         schema FrequencyPredicate {
             form [head: node, " ", modifier: node];
+            form [head: node, " ", modifier: ComparativeQuantity]
+                require modifier.FrequencyUse = Yes;
         }
 
         schema PrepositionPredicate {
@@ -4868,6 +4878,7 @@ constructions! {
             export ObliqueNumber = None;
         }
         policy FocusedAdverbPermissions {
+            export FrequencyUse = head.FrequencyUse;
             export NominalAdjunctHost = Yes;
             export FocusedUse = Yes;
             require head.VPFinalAdjunct = Yes;
@@ -5688,6 +5699,7 @@ constructions! {
             require head.countability = Count;
             agree quantity.number = head.number;
         }
+
         instance FrequencyPredicate<Result, Head: head, Modifier: modifier, Properties>: [
             (FinitePredicate, Self, FrequencyPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, FrequencyPhrase, SecondaryProjection),
@@ -6094,6 +6106,15 @@ constructions! {
             require head.ComparisonMarker = Ordering;
         }
 
+        // NM3: frequency Complements belong to the same Comparative Quantity.
+        policy CountedFrequencyPrepositionComplement {
+            require head.ComparisonMarker = Ordering;
+        }
+        policy AdverbFrequencyPrepositionComplement {
+            require head.ComparisonMarker = Ordering;
+            require complement.FrequencyUse = Yes;
+        }
+
         // CGEL Ch. 5 §11(e), p. 432: a bounding PP modifies a numeral.
         // Its adjectival Complement licence follows ticket rulings R9a–R9d.
         policy QuantitativeAdjectiveComplementLicence {
@@ -6106,6 +6127,8 @@ constructions! {
             (QuantitativePrepositionPhrase, CardinalPrepositionPhrase,
                 QuantitativePrepositionComplement),
             (ComparativePrepositionPhrase, Cardinal, ComparativePrepositionComplement),
+            (CountedFrequencyPrepositionPhrase, FrequencyPhrase, CountedFrequencyPrepositionComplement),
+            (AdverbFrequencyPrepositionPhrase, AdverbPhrase, AdverbFrequencyPrepositionComplement),
             (CardinalModifier, QuantitativeAdjectiveComplement, QuantitativeAdjectiveComplementLicence),
             (DegreePrepositionPhrase, QuantitativeDeterminer, DegreePrepositionComplement),
             (QuantitativeDegreePrepositionPhrase, DegreePrepositionPhrase,
@@ -6117,6 +6140,7 @@ constructions! {
         // CGEL Ch. 5 §7.6, p. 386: a numeral and comparative are Conjuncts.
         // §3.4, p. 353 n. 13: with a count noun, it selects a plural head.
         construction NumeralComparativeCoordination: ComparativeQuantity {
+            export FrequencyUse = No;
             export MeasureModifierUse = right.MeasureModifierUse;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
@@ -6131,10 +6155,21 @@ constructions! {
         // controls head selection, including singular more than one.
         construction ComparativeDeterminativePhrase: ComparativeQuantity {
             export MeasureModifierUse = head.MeasureModifierUse;
-            form [head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase];
+            form [modifier: optional(lexical(Determinative), " "),
+                head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase]
+                export number = complement.number
+                export FrequencyUse = No;
+            form [modifier: optional(lexical(Determinative), " "),
+                head: lexical(Determinative), " ", complement: CountedFrequencyPrepositionPhrase]
+                export number = Plural
+                export FrequencyUse = Yes;
+            form [modifier: optional(lexical(Determinative), " "),
+                head: lexical(Determinative), " ", complement: AdverbFrequencyPrepositionPhrase]
+                export number = Plural
+                export FrequencyUse = Yes;
+            require modifier.ComparativeDegreeModifierUse = Yes;
             require head.ComparativeQuantityUse = Yes;
             export ComparativeQuantityStructure = Headed;
-            export number = complement.number;
         }
 
         // MH2: a declared Determinative may coordinate with a cardinal count.
@@ -6157,6 +6192,7 @@ constructions! {
             export NominalAdjunctDependent = None;
             cost 0;
             form [value: ComparativeQuantity];
+            require value.FrequencyUse = No;
             export DeterminerUse = cardinal_determiner_use(value.number);
             export DeterminerAgreementNumber = cardinal_agreement_number(value.number);
         }
@@ -6671,6 +6707,7 @@ constructions! {
         // use of the adverb. Applying that analysis to Oracle duration
         // Complements is the project analysis tested in this ticket.
         construction EquativeAdverb: AdverbPhrase {
+            export FrequencyUse = No;
             export NominalAdjunctHost = Yes;
             export FocusedUse = No;
             form [governor: lexical(Adverb), " ", head: lexical(Adverb), " ",
@@ -6685,6 +6722,7 @@ constructions! {
         }
 
         construction Adverb: AdverbPhrase {
+            export FrequencyUse = head.FrequencyUse;
             export NominalAdjunctHost = Yes;
             require head.MatrixComparisonUse = No;
             export FocusedUse = No;

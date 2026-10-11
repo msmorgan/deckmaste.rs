@@ -1202,6 +1202,11 @@ A Determinative's declared permission to function as a Degree Modifier or as
 the head admitting one. The grammatical functions are described in CGEL,
 Ch. 5 §11(c), p. 431; their declared licensing is a project representation.
 
+**Comparative Degree Modifier Use** (project term):
+A Determinative's declared permission to premodify a Comparative Quantity,
+independently of its Degree Use as a head (CGEL, Ch. 5 §11(d), p. 432;
+owner principle, 2026-10-10, `english-v3-no-more-than`).
+
 **Determiner**:
 The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
@@ -1451,6 +1456,12 @@ An Adjunct that quantifies occurrences of a situation, such as *X times* or
 A phrase licensed to function as a Frequency Adjunct; a counted Noun Phrase
 can have this function without becoming an Object or changing its noun's
 Part of Speech.
+
+**Frequency Use** (project term):
+An Adverb's or Comparative Quantity's permission to express frequency.
+The comparative use over a frequency Complement follows NM3 (orchestrator
+ruling, 2026-10-10, `english-v3-no-more-than`), rather than CGEL's account
+of nominal comparative determination.
 
 **Adverbial Use**:
 The licensed use of a phrase as an Adjunct to a predicate or Clause, distinct

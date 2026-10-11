@@ -83,6 +83,15 @@ Orchestrator rulings 2026-10-10:
   covered *more than* or *no* + noun face is a NM4 defect; report it with
   its shape before landing.
 
+Owner refinement (2026-10-10) supersedes NM2's member-list restriction:
+the existing quantificational Determinatives *no*, *any*, *many*, *much*,
+and *some* share `ComparativeDegreeModifierUse: Yes`. CGEL Ch. 5 §11(d),
+p. 432 supports the quantificational Modifier class; *any* is licensed by
+the owner ruling. `DegreeUse` cannot express this independently of *many*
+and *much* being degree heads. No *far* or *a few* Lexeme exists here;
+none is minted. Frequency Complements and their Predicate host refine
+existing schemas under NM3.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed with the `ymqwzour` binary
@@ -135,4 +144,80 @@ only.
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`olomvlyu` before implementation, with claim-parent
+   grammar at `ltmzsouk`, → implemented `olomvlyu`): **11,692 → 11,709
+   covered faces**, **544,916 → 545,003 line Readings**. **17 gains**;
+   lost faces: none; decreases / covered-face increases / digest-only:
+   **0 / 0 / 0**. Digest-only line counts are zero in every class; the
+   34 changed line entries belong to gains. No wrong-analysis-only gain.
+   Selector: supported-corpus grep
+   `(?i)\b(more|less|fewer|than|no|any|many|much|some|times|time|once|twice|wrong|yet|simultaneously|exactly|secretly|fully|as|long|then|up|down|also|next|still|rather|otherwise|alone|already|again|so|off|only)\b`
+   (**13,080 faces**, covering every Comparative Quantity use, every
+   changed Adverb/frequency declaration and the newly licensed words),
+   union 300 covered controls from `diff --manifest --random 300
+   --seed 20261008`: **13,276 distinct faces**. All 300 controls remained
+   covered on the claim parent. Evidence:
+   `target/english-v3/english-v3-no-more-than/{manifest,before,after,diff}.json`;
+   comparison is `cargo xtask english-v3 diff before.json after.json
+   --lines --json diff.json` with those full paths.
+2. **Witnesses** (`olomvlyu`, parent → implementation probe counts):
+   Crawlspace **0 → 2**; Judoon Enforcers **0 → 2**; Pit Imp **0 → 1**;
+   Sewer Rats **0 → 2**; Fires of Invention **0 → 4**; Noun Phrase
+   *no more than one creature* **0 → 1**. No witness already read.
+   Parent controls, all unchanged: *No creatures can attack you each
+   combat.* **2**; *More than one creature can attack each combat.* **3**;
+   *Activate only twice / twice each turn.* **1 / 1**; *Activate only
+   three times / three times each turn.* **1 / 2**; *You can cast more
+   than two spells each turn.* **2**; NPs *more than one creature* /
+   *no creature* **1 / 1**; *You can't cast more than two spells each
+   turn.* **2**; *Activate only once each turn.* **1**. Prerequisite
+   controls: *Activate more than twice each turn.* **0 → 1**, *Activate
+   more than three times each turn.* **1 → 2**. Sewer Rats' **2** sit
+   beside its *three times* control's **2** under W9-A: one frequency
+   Adjunct, one nominal Object; both contain the same licensed comparative
+   Modifier route. Pit Imp's **1** sits beside its *twice* control's **1**.
+3. **Spot checks** (`olomvlyu`): Caverns of Despair, Crawlspace, Dueling
+   Grounds, Fires of Invention and Judoon Enforcers use the Comparative
+   Quantity as Determiner with *no* internal to it and *than* as its
+   Complement. Fire-Belly Changeling, Phyrexian Battleflies and Pit Imp
+   use a Frequency Predicate over a Comparative Quantity with *twice*
+   in the Complement; Keen-Eared Sentry uses the same frequency route
+   with *once*. Manaforge Cinder retains the frequency/nominal alternatives
+   for *three times*. These are ten newly covered faces; all 17 gained
+   faces' relevant lines were probed and inspected in
+   `target/english-v3/english-v3-no-more-than/spot-checks.json`.
+4. **Deviations and STOPs** (`olomvlyu`): no Construction, Verb Frame or
+   Lexeme added or retired. NM3 uses two category instances of the existing
+   `QuantitativePrepositionPhrase` schema (counted frequency / frequency
+   Adverb), plus a form of the existing `FrequencyPredicate` schema.
+   `FrequencyUse` passes through Adverb focus and Coordination; numerical
+   determination rejects it. The Modifier class follows the owner
+   refinement above, rather than NM2's superseded member list. Glossary
+   additions: Comparative Degree Modifier Use and Frequency Use, with
+   CGEL and project-ruling attribution kept distinct. **STOP, ruling
+   pending:** Emblazoned Golem's *no more than one mana of each color*
+   and its unmodified control *more than one mana of each color* both
+   have **0** Readings. The existing measured NP admits only Coordinated
+   quantities under BQ1; a ruling was requested on admitting Headed
+   quantities there or leaving this inherited host gap to a follow-up.
+   That route has not been broadened. The Eternal Wanderer's independent
+   failing line and the ticket's discontinuous/no-*than* exclusions remain
+   outside this implementation.
+5. **Tests** (`olomvlyu`): `cargo test -p deckmaste_english_v3` PASS
+   (**1,084 passed**, one pre-existing ignored test:
+   `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`,
+   blocked by `english-v3-mana-symbol-verbless-subject` MS4's governed Mana
+   Phrase Subject route); `cargo test -p deckmaste_lexical_source` PASS
+   (**88 passed**); `cargo clippy -p deckmaste_english_v3 --tests --
+   -D warnings` PASS; `cargo clippy -p deckmaste_lexical_source --tests --
+   -D warnings` PASS. Restored / re-spelled / newly ignored / added /
+   removed: **0 / 3 / 0 / 5 / 0**. Re-spelled
+   `independent_comparative_quantities_preserve_structure_and_lexical_identity`,
+   `comparative_determiners_preserve_finite_agreement` and
+   `comparative_quantity_selection_rejects_invalid_independent_values`:
+   their independently constructed comparative values now include
+   `modifier: None`, retaining every existing card and expected outcome.
+   No removal to justify. Citation checks: zero noncompliant, zero stale,
+   no new citation sites in the piped diff audit; `cite bless` unchanged.
+6. **Timing** (`olomvlyu`): the bounded AFTER census took **549.10 s**
+   under `/usr/bin/time -v`, **6 workers**, `--samples-per-face 0`.

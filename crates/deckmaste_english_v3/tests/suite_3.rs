@@ -1,5 +1,9 @@
-// Register new tests/suite modules in exactly one binary root; see tests/README.
-#[allow(dead_code, reason = "Each binary uses a subset of the shared test fixtures.")]
+// Register new tests/suite modules in exactly one binary root; see
+// tests/README.
+#[allow(
+    dead_code,
+    reason = "Each binary uses a subset of the shared test fixtures."
+)]
 mod common;
 
 #[path = "suite/waterbend_cost_verb.rs"]
@@ -79,3 +83,6 @@ mod partitive_determinative_heads;
 
 #[path = "suite/at_random_before_source.rs"]
 mod at_random_before_source;
+
+#[path = "suite/no_more_than.rs"]
+mod no_more_than;

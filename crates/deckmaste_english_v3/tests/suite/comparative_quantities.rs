@@ -139,6 +139,7 @@ fn coordination(value: i32, owner: &str) -> Reading {
 fn comparison(value: i32, owner: &str) -> Reading {
     Reading::ComparativeDeterminativePhrase {
         form: 0,
+        modifier: None,
         head: word(owner),
         complement: Box::new(Reading::QuantitativePrepositionPhrase {
             category: Category::ComparativePrepositionPhrase,
@@ -339,6 +340,7 @@ fn comparative_quantity_selection_rejects_invalid_independent_values() {
     let wrong_conjunct = coordination(3, "vocab:Determinative/Many");
     let wrong_complement = Reading::ComparativeDeterminativePhrase {
         form: 0,
+        modifier: None,
         head: word("vocab:ComparativeQuantifier/More"),
         complement: Box::new(Reading::QuantitativePrepositionPhrase {
             category: Category::ComparativePrepositionPhrase,
