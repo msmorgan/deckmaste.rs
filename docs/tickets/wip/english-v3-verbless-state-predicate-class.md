@@ -165,6 +165,15 @@ and continuation; the final checks are recorded below.
    reports all 7,102 faces unchanged. The parent diff still reports exactly
    the previously attributed 73 gains, 25 CF7 decreases and 80 digest-only
    changes. Ticket-caused gains/lost/decreases/increases/digest-only: all 0.
+   Integration refresh imports oyqrxmwz (exactly-cardinal), zvoyutom
+   (phrasal keywords) and pusrqwml (partitive quantities). Its official
+   integration-refresh-only-diff.json adds 68 trunk gains, 84 digest-only
+   changes and zero lost/decreased/increased faces; the partitive digest
+   changes use its canonical CardinalDeterminer wrapper. The final parent
+   diff reports 5,972→6,113 covered, 214,320→235,412 Readings, 141 trunk
+   gains, 0 lost/increases, the same 25 CF7 decreases and 157 digest-only
+   changes. There are 0 issues. No new material from this ticket changes
+   a covered face; the preferred class satisfies VW11/VW12's gate.
 2. **Witnesses** — At `yovlyztp`, the six requested while probes each read 1:
    gets +1/+1 while saddled; attacks while equipped, enchanted, haunted,
    tapped and blocked. Parent while counts are respectively 1/0/0/0/0/0;
@@ -245,8 +254,13 @@ and continuation; the final checks are recorded below.
    deckmaste_english_v3 --tests -- -D warnings PASS; cargo clippy -p
    deckmaste_lexical_source --tests -- -D warnings PASS; cargo test -p xtask
    english_v3 PASS (56 tests). The refreshed cargo xtask lean check PASS: all 242 cards across two
-   plugins prove Card.check = [].
-6. **Timing** — Latest bounded census: 301 s (rounded wall time), six
+   plugins prove Card.check = []. Integration refresh checks also PASS:
+   cargo build -p xtask; cargo test -p deckmaste_english_v3 (990 tests);
+   cargo test -p deckmaste_lexical_source (87 tests); cargo clippy -p
+   deckmaste_english_v3 --tests -- -D warnings; cargo clippy -p
+   deckmaste_lexical_source --tests -- -D warnings; cargo test -p xtask
+   english_v3 (56 tests); cargo xtask lean check (242 cards, two plugins).
+6. **Timing** — Latest bounded census: 476 s (rounded wall time), six
    workers, zero samples per face. No full corpus census was run, per the
    binding verification budget. Evidence is under
    target/english-v3/english-v3-verbless-state-predicate-class/.
