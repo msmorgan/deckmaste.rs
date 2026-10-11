@@ -153,8 +153,19 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `cargo xtask english-v3 diff before.json after.json --json diff.json
    --lines` compares its intersection with the broader parent report;
    the 21,284 extra BEFORE faces are outside this comparison, not losses.
-   No previously covered face changes count or digest, including *from
-   anywhere* and *there*. Evidence: `target/english-v3/english-v3-anywhere-else-goal/`.
+   Before refresh, no previously covered face changes count or digest,
+   including *from anywhere* and *there*. Evidence: `target/english-v3/english-v3-anywhere-else-goal/`.
+   Refresh verification (`qznlvuzl`, source `oslovlpz`): covered
+   4,348 → 4,362; Readings 209,959 → 210,236; 14 gains, zero losses,
+   decreases or increases, 80 digest-only faces / 80 lines. Official
+   `diff-refresh-incoming.json` isolates Reckoner Bankbuster (0 → 18) and
+   81 digest-only faces / 81 lines, all from trunk `ouykkpns`: 60 measured-cost
+   schema/category lines, 21 scalar-predicate schema/category lines, no mixed
+   or unclassified line. Combined claim-parent digest classes are 59 and 21
+   faces/lines respectively: Llanowar Greenwidow's same-count cost-schema
+   respelling is classified as a gain in that comparison. All 13 own gains
+   retain their counts. Evidence: `after-refresh.json`, `diff-refresh.json`,
+   `diff-refresh-incoming.json`, `refresh-digest-classes.json`.
 2. **Witnesses (`oslovlpz`):** full ticket text / its *there* control:
    Gruesome Encore 8/8, Nephalia Academy 22/22, Storm Herald 6/6, From the
    Catacombs 28/28; each ticket witness was 0 on `ktusvmxm`. The replacement
@@ -175,6 +186,10 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    same analysis. Wrong-analysis gains: zero. Several faces marked blocked
    elsewhere in the draft already have those surrounding routes on the
    claim parent; this change adds only the missing dependent/goal route.
+   The incoming Reckoner Bankbuster gain (`qznlvuzl`) was separately probed:
+   full Document 30, complete, byte-exact, zero issues; its quoted crew
+   sentence has irrealis *Be* selecting the measured *2 greater* predicative
+   Complement, the `ouykkpns` IS1 route.
 4. **Deviations and STOPs:** the same-field compiler invariant rejected the
    attempted two-form AE1 implementation; the STOP was resolved by AE6.
    No wrapper or other Construction was added. Compiler syntax now supports
@@ -188,6 +203,9 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    head/dependent licenses, locative use, optional field presence. Nominal
    *else* adopts CGEL's proposed Preposition analysis (Ch. 7 §2.4, p. 615,
    n. 5) as an AE1 project choice; p. 423 backs its immediate dependent use.
+   Refresh brought `ouykkpns` and `knlqxlok`; the only merge conflict was the
+   two new `suite_5.rs` registrations. Both were retained exactly once;
+   no test was deleted or suppressed. No plugin file changed.
 5. **Tests (`oslovlpz`):** `cargo test -p deckmaste_english_v3` passed
    1,083 tests; `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
    passed. `cargo test -p deckmaste_lexical_source` passed 44;
@@ -210,10 +228,23 @@ Debug-printed tree. Attestation by `cargo xtask english-v3 grep` only.
    `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`
    remains blocked by MS4's governed Mana Phrase Subject route. Citation
    audit selected zero new sites; check: zero stale, zero noncompliant.
+   After refresh (`qznlvuzl`), `cargo build -p xtask` and all six listed
+   full-suite/clippy commands passed again: English 1,092; lexical source 44;
+   compiler 41; the same inherited ignore remains. Trunk `ouykkpns` also
+   re-spelled four tests, with complete comparisons preserved:
+   `copular_scalar_location::{independent_scalar_location_preserves_both_laws_and_traversal_identity,
+   independent_non_scalar_subject_and_wrong_frame_are_rejected}` add only
+   `Category::ScalarLocationPredicate` to their shared predicate value;
+   `cost_scalar_complement::{independent_complements_preserve_both_laws_and_traversal_identity,
+   ordinary_infinitivals_and_unlicensed_measure_heads_are_rejected}` add only
+   `Category::ScalarLocationComplement` to their measured values. These are
+   inherited, additional to this ticket's nine re-spelled tests.
 6. **Timing (`oslovlpz`):** no full census was run, per the binding bounded
    budget. The broader bounded parent census took 8m04.40s; the exact
    4,434-face AFTER run took 3m58.69s under `/usr/bin/time -v`, six workers,
-   zero samples per face.
+   zero samples per face. Refresh (`qznlvuzl`) took 6m43.23s including the
+   Cargo queue; its census corpus wall was 3m50.97s, again six workers and
+   zero samples. No second full census ran.
 
 ## Claim-parent evidence (2026-10-11)
 
