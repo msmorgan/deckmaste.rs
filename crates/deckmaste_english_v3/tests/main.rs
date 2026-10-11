@@ -73,3 +73,6 @@ mod supplementary_temporal_adjunct;
 
 #[path = "suite/spelled_cardinal_scalar_measure.rs"]
 mod spelled_cardinal_scalar_measure;
+
+#[path = "suite/predeterminer_all.rs"]
+mod predeterminer_all;

@@ -73,6 +73,30 @@ Orchestrator rulings 2026-10-10:
   second Reading of *all* + bare plural (1,767 faces contain *all*). Report
   any increase with its shape before landing.
 
+Owner amendment (2026-10-10): licence the natural universal-quantifier class
+of existing Determinatives, *all* and *both*. This overrides PA2's exclusion
+of *both* and the original scope below; no new Lexemes. CGEL Ch. 5 §12(a),
+pp. 433–434 is the page-checked passage (the owner's §11 locator was not
+the predeterminer section). W9-A means one route for this construction;
+independent ambiguity shared with the without-predeterminer control stays.
+PA4 and PA6 remain binding. The census selector includes every *all* and
+*both* face and uses the owner's seed 20261008.
+
+PA7 (orchestrator ruling, 2026-10-10) amends PA6: the eight increases
+from bare-plural genitives are permitted. *all opponents' graveyards* has
+both `[all [opponents' graveyards]]` and `[[all opponents]' graveyards]`;
+both grammatical structures are retained. No host feature is introduced to
+prune the genitive-determined definite Noun Phrase. This resolves the
+verification STOP. Each increase must add exactly that structure, multiplied
+only by independent ambiguity; no other increase shape is allowed.
+Demonstrative and possessive-pronoun hosts use the same Definiteness licence.
+CGEL Ch. 5 §12(a), pp. 433–434 explicitly places universal-quantifier
+Predeterminers before the definite article, demonstratives and genitives;
+its examples include *all her money*, *all these books* and *all Kim's
+friends*. PA7's preservation of the two genitive attachments is the
+orchestrator ruling, rather than a claim that those examples themselves
+establish this attachment ambiguity.
+
 ## Witnesses
 
 Each is the face's only failing line. Probed with the `ymqwzour` binary
@@ -104,9 +128,10 @@ the prebuilt binary); probe them on the claim parent.
 ## Method
 
 Standard constraints apply. Bounded census: every supported face matching
-`(?i)\ball\b` (1,767 faces; *all* gains a declared use, so every face with
-the word is in the selector) plus 300 random covered controls (`--random 300
---seed 20261010`), `--workers 6 --samples-per-face 0`, compared with `cargo
+`(?i)\b(all|both)\b` (1,879 faces on claim parent `wytzznnu`; each gains a
+declared use, so every face with either word is in the selector) plus 300
+random covered controls (`--random 300 --seed 20261008`),
+`--workers 6 --samples-per-face 0`, compared with `cargo
 xtask english-v3 diff` against the claim parent. Zero lost; PA6 for
 increases. Full `cargo test -p` and `cargo clippy -p … --tests -- -D
 warnings` for `deckmaste_english_v3` and `deckmaste_lexical_source`, once,
@@ -122,10 +147,94 @@ universal quantifier (CGEL Ch. 5 §12(a), pp. 433–434) in the landing.
 
 - *that many cards plus one* / *minus one* after the discard
   (`english-v3-degree-quantity-arithmetic`).
-- *all of the …* partitives; *both*.
+- *all of the …* partitives.
 - *win all the flips* beyond what PA1 gives (Squee's Revenge has other
   unread material).
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`xswzoyrx`; BEFORE measured while empty on claim parent
+   `wytzznnu`, AFTER measured with this implementation): selector
+   `(?i)\b(all|both)\b` finds 1,879 faces; the manifest unions them with
+   300 covered controls selected by `english-v3 diff --manifest --random 300
+   --seed 20261008` from `baseline-wave8.json`, giving 2,163 distinct faces.
+   Covered 1,862 → 1,878; total Readings 58,675 → 58,992. Lost: none;
+   decreases: none; digest-only: none; gained: 16; issues: zero. Eight
+   covered-face increases are permitted by PA7:
+   Ashiok, Nightmare Weaver 51 → 57; Author of Shadows 24 → 48;
+   Kaya's Guile 7 → 13; Mnemonic Betrayal 16 → 31;
+   Multani, Maro-Sorcerer 8 → 15; Phyrexian Scriptures 5 → 6;
+   Realm Seekers 20 → 34; Werewolf of Ancient Hunger 9 → 16.
+   Each adds `[all [opponents' graveyards]]` or `[all [players' hands]]`
+   as an outer Predeterminer, alongside the existing route with *all*
+   determining the possessor.
+   Affected line counts double, with other lines unchanged: Ashiok 6 → 12,
+   Author 24 → 48, Kaya 6 → 12, Mnemonic 15 → 30, Multani 7 → 14,
+   Phyrexian 1 → 2, Realm Seekers 14 → 28, Werewolf 7 → 14.
+   Complete enumeration confirms Author's 48 Document Readings are
+   24 old possessor / 24 new outer-Predeterminer analyses, and Multani's
+   14 Document Readings are 7 / 7 (the census also counts its Shroud line).
+   Each has exactly one NP shape per route and identical surrounding
+   Reading choices. Evidence: `pa7-author-of-shadows.json`,
+   `pa7-multani.json`, `pa7-enumeration-shapes.json` under the census directory.
+   No other increase shape occurs. Supported-corpus grep of *all* plus
+   demonstrative/possessive-pronoun determiners finds zero covered matches
+   in BEFORE; the sole corpus match is Demonic Covenant's *all their card
+   types*, an unread → covered gain. There is therefore no previously
+   covered face of those shapes whose count could change; *all those cards*
+   and *all your creatures* each read once in direct probes and independent
+   roundtrip tests via the same definite-host licence.
+   The built-in diff, including `--lines`, is
+   `target/english-v3/english-v3-predeterminer-all/diff.json`.
+
+2. **Witnesses** (`xswzoyrx`, before/after, complete direct-probe counts):
+   Tolarian Winds 0 → 4 (bare/definite controls 4/4);
+   Awaken the Erstwhile 0 → 2 (2/2); Robber Fly 0 → 2 (2/2);
+   Endurance 0 → 1 (1/1, no second blocker in this sentence);
+   Forgotten Creation's first sentence 0 → 3 (3/3).
+   Auxiliary modal witness 0 → 3. Noun Phrase witnesses
+   *all the cards in your hand*, *all those cards*, *both the cards*
+   and owner-class *both the creatures* each 0 → 1.
+   Controls *all cards in your hand*, *the cards in your hand*,
+   *all other creatures* each stay at 1, and the Each-player sentence
+   stays at 2. Bare incomplete *all three* is 0 on the claim parent;
+   tests preserve the complete constituent *all three cards*.
+   W9-A independent attachment ambiguity is retained.
+
+3. **Spot checks** (`xswzoyrx`, ten gained faces): Awaken the Erstwhile,
+   Barbed Shocker, Book Devourer, Collective Defiance, Decaying Time Loop,
+   Endurance, Fateful Showdown, Forgotten Creation and Hex Magic each
+   use *all* as an external Predeterminer of a *the cards …* Noun Phrase;
+   Demonic Covenant uses it over possessive *their card types*.
+   Up to three Reading trees per face were inspected in
+   `target/english-v3/english-v3-predeterminer-all/spot-checks.json`.
+   No unintended analysis found among those samples; the separate covered
+   genitive increases in item 1 are not counted as gains.
+
+4. **Deviations and STOPs** (`xswzoyrx`): owner's class ruling includes
+   existing *both*, overriding PA2 and the original scope. No Construction,
+   Lexeme or frame added/deleted; refine the existing Predeterminer form
+   and feature tables, including host Number/Countability and structural
+   stacking constraints for PA3/PA4. No superseded route was retired.
+   Glossary extends Predeterminer and Predeterminer Use; CGEL page-check
+   confirms Ch. 5 §12(a), pp. 433–434. The genitive STOP is resolved by PA7,
+   which amends PA6 and preserves both grammatical attachments. No
+   genitive-blocking feature added. Commit and refresh follow verification;
+   integration and workspace removal remain reserved for the orchestrator.
+
+5. **Tests** (`xswzoyrx`): `cargo test -p deckmaste_english_v3` passed
+   (1,046 tests), `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passed; `cargo test -p deckmaste_lexical_source` passed (88 tests),
+   `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
+   Restored 0 / re-spelled 0 / ignored 0 / added 9 / removed 0; no removals.
+   New module registered exactly once in `tests/main.rs`; tests assert
+   external Modifier role, original host Reading sets, independent
+   roundtrips, declared Number/Countability, plural finite agreement and
+   PA4 exclusion of stacking/twins. Citation check: 0 noncompliant,
+   0 stale; diff audit contains no newly cited CR rules. No plugin changes
+   or Lean checks in this implementation. Post-refresh verification follows
+   the standing rule if dependent code or plugin definitions arrive.
+
+6. **Timing** (`xswzoyrx`): bounded AFTER census 49.42 s wall time under
+   `/usr/bin/time -v`, six workers, zero samples per face. No full-corpus
+   census was run, per the binding verification budget.

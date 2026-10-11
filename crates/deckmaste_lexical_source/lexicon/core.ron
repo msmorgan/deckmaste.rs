@@ -227,8 +227,8 @@
         "vocab:Determinative/Some": {"NominalComplementMarker": "Of", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Those": {"Definiteness": "Definite", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/All": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
-        "vocab:FloatedQuantifier/Both": {"NominalComplementMarker": "Of", "QuantitativeConjunctUse": "Yes", "CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/All": {"PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
+        "vocab:FloatedQuantifier/Both": {"PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "QuantitativeConjunctUse": "Yes", "CorrelativeKind": "Both", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/Each": {"QuantificationalAdjunctUse": "Yes", "NominalComplementMarker": "Of", "NominalAdjunctDependent": "Temporal", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
 
         "vocab:Coordinator/And": {"NoncorrelativeCoordination": "Yes", "CorrelativeCoordinator": "And", "CoordinationKind": "Additive"},

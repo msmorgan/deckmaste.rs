@@ -13,9 +13,23 @@ constructions! {
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature DegreeUse { Head, Modifier }
-        feature PredeterminerUse { No, Multiplier, Fraction } default No;
-        table predeterminer_host(PredeterminerUse, Definiteness) -> Selection {
-            (Multiplier, Definite) => Yes, (Fraction, Definite) => Yes,
+        feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
+        table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
+            (Multiplier, Definite, Other) => Yes, (Fraction, Definite, Other) => Yes,
+            (Multiplier, Definite, ProperName) => Yes, (Fraction, Definite, ProperName) => Yes,
+            (Multiplier, Definite, IndefiniteArticle) => Yes, (Fraction, Definite, IndefiniteArticle) => Yes,
+            (Multiplier, Definite, Predeterminer) => Yes, (Fraction, Definite, Predeterminer) => Yes,
+            (UniversalQuantifier, Definite, Other) => Yes,
+            (UniversalQuantifier, Definite, ProperName) => Yes,
+            (UniversalQuantifier, Definite, IndefiniteArticle) => Yes,
+        }
+        table predeterminer_structure(PredeterminerUse) -> NounPhraseStructure {
+            (Multiplier) => Predeterminer, (Fraction) => Predeterminer,
+            (UniversalQuantifier) => UniversalPredeterminer,
+        }
+        table predeterminer_number(DeterminerUse, number, PartitiveCountability) -> Selection {
+            (PluralOrMass, Plural, Count) => Yes, (PluralOrMass, Singular, Mass) => Yes,
+            (PluralCount, Plural, Count) => Yes,
         }
         feature ParticipialSupplementUse { No, Yes } default No;
         table coordinated_participial_supplement(ParticipialSupplementUse, ParticipialSupplementUse)
@@ -23,7 +37,8 @@ constructions! {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
         feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
-        feature NounPhraseStructure { Other, ProperName, IndefiniteArticle } default Other;
+        feature NounPhraseStructure { Other, ProperName, IndefiniteArticle,
+            Predeterminer, UniversalPredeterminer } default Other;
         feature DeterminerRequirement { No, Yes, Definite } default No;
         feature NumberTransparency { No, Yes } default No;
         feature SubjectRelativeNumber { None, Singular, Plural } default None;
@@ -4217,10 +4232,14 @@ constructions! {
         // external Modifiers; HR1–HR2 require a declared definite host.
         construction PredeterminerNounPhrase: NounPhrase {
             export PartitiveCountability = head.PartitiveCountability;
-            export NounPhraseStructure = Other;
+            export NounPhraseStructure = predeterminer_structure(modifier.PredeterminerUse);
             form [modifier: lexical(Adverb), " ", head: NounPhrase];
             form [modifier: lexical(Noun), " ", head: NounPhrase];
-            require predeterminer_host(modifier.PredeterminerUse, head.Definiteness) = Yes;
+            form [modifier: lexical(Determinative), " ", head: NounPhrase]
+                require predeterminer_number(modifier.DeterminerUse, head.number,
+                    head.PartitiveCountability) = Yes;
+            require predeterminer_host(modifier.PredeterminerUse, head.Definiteness,
+                head.NounPhraseStructure) = Yes;
             export UnitBearing = head.UnitBearing;
             export number = head.number;
             export person = head.person;

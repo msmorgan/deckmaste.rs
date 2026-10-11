@@ -1169,7 +1169,9 @@ The grammatical function that marks a Noun Phrase as definite, quantified, or
 otherwise determined. A Determinative commonly realizes this function.
 
 **Predeterminer**:
-An external Modifier preceding a determined Noun Phrase. Fractional nouns
+An external Modifier preceding a determined Noun Phrase. Universal
+quantifiers such as *all* and *both* precede definite determination while
+remaining Determinatives (CGEL, Ch. 5 §12(a), pp. 433–434). Fractional nouns
 and multipliers have this function while retaining their lexical Category
 (CGEL, Ch. 5 §12(b–c), p. 434); their definite-host restriction in Oracle
 English follows HR1–HR2 (orchestrator ruling, 2026-10-10,
@@ -1182,6 +1184,8 @@ Noun Phrase, such as adverbial *twice* or nominal *double* and *triple*
 
 **Predeterminer Use** (project term):
 A Lexeme's declared permission to function as a Predeterminer, including the
+universal-quantifier use of *all* and *both* (owner ruling, 2026-10-10,
+`english-v3-predeterminer-all`; CGEL, Ch. 5 §12(a), pp. 433–434),
 multiplier use ([MP2](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis))
 and fractional use (HR1, orchestrator ruling, 2026-10-10,
 `english-v3-half-rounded`).
