@@ -1136,6 +1136,20 @@ A phrase headed by a Determinative, including cardinal determinatives.
 A Modifier expressing degree, including the Determinative *that* modifying
 *many* or *much* within a Determinative Phrase (CGEL, Ch. 5 §11(c), p. 431).
 
+**Arithmetic Modifier** (project term):
+An addition/subtraction Preposition Phrase in post-head Modifier function
+within a Determinative Phrase, or in its delayed position after the noun
+(CGEL, Ch. 5 §11(f), p. 433). Its application to a degree Determinative
+Phrase follows DQ1–DQ2 (orchestrator rulings, 2026-10-10,
+`english-v3-degree-quantity-arithmetic`), rather than CGEL's numeral example.
+
+**Cardinal Complement Use** (project term):
+A Cardinal Numeral's permission to complement an Arithmetic Modifier,
+derived from its numeral kind and retained through cardinal Coordination
+under DQ3 (orchestrator ruling, 2026-10-10,
+`english-v3-degree-quantity-arithmetic`). A scalar variable's count use
+supplies no such permission.
+
 **Degree Use** (project term):
 A Determinative's declared permission to function as a Degree Modifier or as
 the head admitting one. The grammatical functions are described in CGEL,

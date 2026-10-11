@@ -146,4 +146,69 @@ only. Glossary: extend **Degree Modifier** / add the addition PP (CGEL Ch. 5
 
 ## Landing record
 
-To be written by the claimant: the six items of `docs/tickets/README.md`.
+1. **Census delta** (`lvsykyns`, clean claim-parent grammar `yytzzztu` →
+   implementation, rechecked after refresh at `zospqmwy`): bounded selector `(?i)\bthat (many|much)\b|\b(plus|minus)\b`,
+   748 matching faces plus 300 covered controls selected by `english-v3 diff
+   --manifest --random 300 --seed 20261008`; 1,048 faces. Covered 824 → 841;
+   Readings 20,981 → 21,131. Lost: none; gained 17; decreases 0; increases 0;
+   digest-only 414 (the absent optional field added to existing degree
+   phrases); unchanged 617. Zero issues, limited enumerations or internal
+   failures. Compared with `cargo xtask english-v3 diff before.json after.json
+   --json diff.json --lines`; evidence and the identity manifest are under
+   `target/english-v3/english-v3-degree-quantity-arithmetic/`. Refresh preserves
+   every count; its two additional digest changes (Galvanic Discharge and
+   Harnessed Lightning) belong to quantified energy symbols, `tznkrzpw`,
+   as shown by the official pre-refresh → refreshed `trunk-diff.json`.
+2. **Witnesses** (`lvsykyns`, complete direct probes before → after, with
+   no-arithmetic control counts): Hardened Scales 0 → 2 / control 2;
+   Conclave Mentor 0 → 2 / 2; Kenessos 0 → 0 / 1; Colossus of the Blood Age
+   0 → 0 / 3; The Water Crystal 0 → 0 / 1; the counter NP 0 → 1 / 1;
+   `Draw that many cards plus one.` 0 → 0 / 1. All failed before editing;
+   none were dropped as already covered. DQ4 controls retain scalar arithmetic
+   2, multiplier 2 and plain counter NP 1; Torbran's scalar amount retains 1.
+   W9-A: the gained arithmetic lines on all 17 faces retain their respective
+   no-arithmetic control counts; independent ambiguity remains.
+3. **Spot checks** (`lvsykyns`): all 17 gained faces were probed; ten selected
+   analyses are Benevolent Hydra, Caradora, Heart of Alacria, Conclave Mentor,
+   Hardened Scales, High Score, Kami of Whispered Hopes, Mauhúr, Uruk-hai
+   Captain and Michelangelo, Weirdness to 11 (the PP is internal to the degree
+   Determiner quantifying the plural counter Nominal), and Doc Samson, Super
+   Psychiatrist and Lae'zel, Vlaakith's Champion (the same internal PP with
+   the existing partitive NP). Wrong-analysis-only gains: 0.
+4. **Deviations and STOPs** (`lvsykyns`): DQ1 alone, per DQ2's explicit STOP
+   ruling. The compiler requires each Construction form to retain the same
+   named fields and cardinalities; optional syntactic fields have no single
+   feature value for cross-field licensing. An existing QuantifiedNounPhrase
+   form cannot acquire the delayed dependent with the required Determiner
+   licence; its separate route needs a new Construction. The Method's delayed
+   grep still finds 21 unread faces. DQ5 variable Determiners remain deferred:
+   Green Sun's Twilight, Epiphany at the Drownyard and Eiganjo Uprising.
+   No named Construction, schema or frame was added or retired: the existing
+   QuantitativePrepositionPhrase schema supplies an Arithmetic Modifier
+   Category, and DegreeDeterminativePhrase takes it optionally. Cardinal
+   Complement Use derives from numeral kind and retains cardinal Coordination;
+   no operand-length restriction was added. Both glossary terms are recorded
+   with CGEL's PP account distinguished from DQ1–DQ3's project rulings.
+   Three partitive faces also gain through the existing route (Doc Samson,
+   Lae'zel and Winding Constrictor); no partitive rule changed. The initial
+   claim STOP on another workspace's divergence was resolved by the orchestrator.
+5. **Tests** (`lvsykyns`): `cargo test -p deckmaste_english_v3` PASS, 1,020
+   tests before refresh, 0 failures/ignores. Its first run caught the new test's repeated
+   counter surface; the assertion now explicitly selects its second
+   occurrence. `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   PASS after replacing three diagnostic/style assertions with full value
+   comparisons; `cargo test -p deckmaste_english_v3 --test suite_6
+   degree_quantity_arithmetic::` PASS, all 5 tests on those final assertions.
+   Restored 0 / re-spelled 0 / ignored 0 / added 5 / removed 0; no removals.
+   After refresh, `cargo build -p xtask` PASS; full suites via
+   `cargo test -p deckmaste_english_v3 -p deckmaste_lexical_source -p xtask
+   -p deckmaste_semantics_v2 -p deckmaste_construction_core` PASS
+   (English 1,030 tests). Clippy for the same five packages with
+   `--tests -- -D warnings` PASS. Incoming plugin/Lean changes also required
+   `cargo xtask lean check`: PASS, 242/242 cards.
+   Two existing fixture builders set the new optional field to None without
+   changing assertions. Citation checks: 0 noncompliant, 0 stale;
+   `jj --no-pager diff --git | cargo xtask cite audit --diff` selected 0 sites.
+6. **Timing** (`lvsykyns`): the bounded AFTER census took 19.30 s wall before
+   refresh and 31.90 s after refresh under `/usr/bin/time -v`, 6 workers,
+   `--samples-per-face 0`. No full census ran.

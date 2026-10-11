@@ -78,6 +78,7 @@ fn bounded(value: i32) -> Reading {
 fn degree(owner: &str) -> Reading {
     Reading::DegreeDeterminativePhrase {
         form: 0,
+        arithmetic_modifier: None,
         modifier: invariant("vocab:SingularDemonstrative/That"),
         head: invariant(owner),
     }

@@ -352,7 +352,7 @@ constructions! {
         feature ScalarVariable { Yes }
         feature ScalarSign { Absent, Plus, Hyphen, Minus } default Absent;
         table loyalty_sign(ScalarSign) -> Selection { (Plus) => Yes, (Minus) => Yes, }
-        feature MeasureOperator { Yes }
+        feature MeasureOperator { No, Yes } default No;
         feature ScalarDenotation { No, Yes } default No;
         feature MeasurePosition { None, Before } default None;
         feature UnitBearing { No, Yes } default No;
@@ -588,7 +588,7 @@ constructions! {
         category PastParticipleObjectGap(NominalAdjunctHost, ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category GerundParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
 
-        category Cardinal(number);
+        category Cardinal(number, CardinalComplementUse);
         category CardinalModifier();
         category SecondaryNegator();
         category SecondaryNegatorHead();
@@ -597,9 +597,10 @@ constructions! {
         category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent);
         category CardinalPrepositionPhrase(number);
+        category ArithmeticModifier();
         category QuantitativePrepositionPhrase(number);
         category ComparativePrepositionPhrase(number);
-        category QuantityConjunct(number, CardinalMeasurementUse);
+        category QuantityConjunct(number, CardinalComplementUse, CardinalMeasurementUse);
         category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse);
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
@@ -663,7 +664,7 @@ constructions! {
         category FiniteSelectedHeadSeries(Polarity, number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category ManaPhraseSeries();
-        category CardinalSeries(number, CoordinationKind);
+        category CardinalSeries(number, CoordinationKind, CardinalComplementUse);
         category AmountSeries();
         category MeasurePhraseSeries(MeasureKind, UnitBearing);
         category KeywordPhraseSeries();
@@ -700,7 +701,7 @@ constructions! {
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, CorrelativeCoordinator, FocusedUse);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
-        category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind);
+        category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind, CardinalComplementUse);
         category CorrelativeAmountSeries(CorrelativeCoordinator);
         category CorrelativeMeasurePhraseSeries(UnitBearing, MeasureKind, CorrelativeCoordinator);
         category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
@@ -1528,11 +1529,13 @@ constructions! {
         }
 
         policy CardinalAgreement<Right, Source> {
+            export CardinalComplementUse = coordinated_cardinal_complement(left.CardinalComplementUse, Right.CardinalComplementUse);
             export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
                 Right.number);
         }
 
         policy CardinalListEnd<Right, Source> {
+            export CardinalComplementUse = coordinated_cardinal_complement(left.CardinalComplementUse, Right.CardinalComplementUse);
             export CoordinationKind = Source.CoordinationKind;
             export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
                 Right.number);
@@ -5653,6 +5656,7 @@ constructions! {
             form [modifier: optional(CardinalModifier), head: lexical(Numeral)];
             require head.numeral_kind = Cardinal;
             export number = head.number;
+            export CardinalComplementUse = cardinal_complement_use(head.numeral_kind);
         }
 
         construction LargeCount: Cardinal {
@@ -5660,6 +5664,7 @@ constructions! {
             require head.numeral_kind = GroupedArabic;
             require head.numeral_size = Large;
             export number = head.number;
+            export CardinalComplementUse = cardinal_complement_use(head.numeral_kind);
         }
 
         construction NumericQuantityConjunct: QuantityConjunct {
@@ -5668,6 +5673,7 @@ constructions! {
             require head.numeral_kind = Arabic;
             require head.numeral_size = Small;
             export number = head.number;
+            export CardinalComplementUse = cardinal_complement_use(head.numeral_kind);
         }
 
         construction CardinalQuantityConjunct: QuantityConjunct {
@@ -5675,10 +5681,12 @@ constructions! {
             cost 0;
             form [value: Cardinal];
             export number = value.number;
+            export CardinalComplementUse = value.CardinalComplementUse;
         }
 
         policy VariableCountProperties {
             export number = Plural;
+            export CardinalComplementUse = No;
         }
         policy ScalarVariableProperties {
             export UnitBearing = No;
@@ -5719,14 +5727,31 @@ constructions! {
             (None) => "", (Cardinal) => "", (CardinalPrepositionPhrase) => "",
             (AdjectivePhrase) => " ",
         }
+        separator arithmetic_modifier_separator(MeasureOperator) {
+            (No) => "", (Yes) => " ",
+        }
         schema QuantitativePrepositionPhrase {
-            form [head: lexical(Preposition), " ", complement: node,
+            form [arithmetic_modifier_separator(head.MeasureOperator), head: lexical(Preposition), " ", complement: node,
                 quantitative_modifier_separator(head.QuantitativeComplement)];
         }
 
         policy CardinalPrepositionComplement {
             export number = complement.number;
             require head.QuantitativeComplement = Cardinal;
+        }
+
+        // DQ3: the Complement licence comes from the numeral's declared kind.
+        feature CardinalComplementUse { No, Yes } default No;
+        table cardinal_complement_use(numeral_kind) -> CardinalComplementUse {
+            (Cardinal) => Yes, (Arabic) => Yes, (GroupedArabic) => Yes,
+        }
+        table coordinated_cardinal_complement(CardinalComplementUse, CardinalComplementUse)
+            -> CardinalComplementUse {
+            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+        }
+        policy ArithmeticCardinalPrepositionComplement {
+            require head.MeasureOperator = Yes;
+            require complement.CardinalComplementUse = Yes;
         }
 
         policy QuantitativePrepositionComplement {
@@ -5747,6 +5772,7 @@ constructions! {
 
         instance QuantitativePrepositionPhrase<Result, Complement: complement, Properties>: [
             (CardinalPrepositionPhrase, Cardinal, CardinalPrepositionComplement),
+            (ArithmeticModifier, QuantityConjunct, ArithmeticCardinalPrepositionComplement),
             (QuantitativePrepositionPhrase, CardinalPrepositionPhrase,
                 QuantitativePrepositionComplement),
             (ComparativePrepositionPhrase, Cardinal, ComparativePrepositionComplement),
@@ -5836,7 +5862,9 @@ constructions! {
             export Definiteness = modifier.Definiteness;
             export NominalAdjunctDependent = None;
             export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
-            form [modifier: lexical(Determinative), " ", head: lexical(Determinative)];
+            // DQ1: the optional addition/subtraction PP is internal to the DP.
+            form [modifier: lexical(Determinative), " ", head: lexical(Determinative),
+                arithmetic_modifier: optional(ArithmeticModifier)];
             require modifier.DegreeUse = Modifier;
             require head.DegreeUse = Head;
             export DeterminerUse = head.DeterminerUse;

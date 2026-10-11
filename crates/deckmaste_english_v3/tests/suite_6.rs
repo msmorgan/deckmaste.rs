@@ -112,3 +112,6 @@ mod partitive_quantity_phrases;
 
 #[path = "suite/declaration_batch_b.rs"]
 mod declaration_batch_b;
+
+#[path = "suite/degree_quantity_arithmetic.rs"]
+mod degree_quantity_arithmetic;

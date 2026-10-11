@@ -117,6 +117,7 @@ fn word(owner: &str) -> Word {
 fn degree(head: &str, modifier: &str) -> Reading {
     Reading::DegreeDeterminativePhrase {
         form: 0,
+        arithmetic_modifier: None,
         modifier: word(modifier),
         head: word(head),
     }
