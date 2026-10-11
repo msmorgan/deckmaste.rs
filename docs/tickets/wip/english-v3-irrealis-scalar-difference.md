@@ -126,6 +126,22 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    writer with seed **20261008**; 24 overlap. Evidence and identity manifest:
    `target/english-v3/english-v3-irrealis-scalar-difference/` (`before.json`,
    `after.json`, `diff.json`, `manifest.json`).
+   Post-refresh census on empty `mnonzzlw`, child of `ouykkpns`, preserves all
+   18 ticket gains and adds eight trunk gains: covered **3,578 → 3,604**,
+   Readings **203,239 → 203,714**; lost **0**, gained **26**, decreases **0**,
+   increases **2**, digest-only **625**. The official pre-refresh → refreshed
+   diff isolates eight gains and two increases, with no other changes. The
+   increases belong to `xswzoyrx` (predeterminer-all), permitted by its PA7
+   ruling: Author of Shadows **24 → 48**, adding outer `[all [opponents'
+   graveyards]]` beside `[[all opponents]' graveyards]`; Werewolf of Ancient
+   Hunger **9 → 16**, adding `[all [players' hands]]` beside `[[all players]'
+   hands]` (its affected line doubles **7 → 14**, other lines unchanged).
+   The eight trunk gains are Collective Defiance and Demonic Covenant
+   (`xswzoyrx`'s *all* predeterminer), and Disorienting Choice, Loamcrafter
+   Faun, Nyssa of Traken, Seasoned Cryomancer, Swashbuckler Extraordinaire
+   and The Earth King (`xzwlutqp`'s *up to that many*). The supported-corpus
+   grep evidence is `trunk-gain-attestation.json`. No lost Reading to restore or justify. Evidence:
+   `after-refresh.json`, `diff-refresh.json`, `diff-trunk.json`.
 2. **Witnesses** (complete Sentence enumeration on `ouykkpns`): all ticket
    witnesses failed on the claim-parent grammar; none was dropped. Hotshot
    Mechanic **0 → 1**; Deathless Pilot, Dynamite Diver and Cloudspire Captain's
@@ -172,6 +188,25 @@ tree. Attestation by `cargo xtask english-v3 grep` only.
    only the shared schemas' explicit Category fields. No removal to justify.
    Citation checks: zero noncompliant, zero stale; the piped diff audit found
    zero new citation sites, so no new rule registration was needed.
-6. **Timing** (`ouykkpns`): final complete bounded census wall **208.335 s**,
+   Post-refresh `cargo build -p xtask` passed. Full `cargo test -p` and
+   `cargo clippy -p … --tests -- -D warnings` passed again for
+   `deckmaste_english_v3` (1,067 tests), `deckmaste_lexical_source` (88),
+   `xtask` (425), `deckmaste_semantics_v2` (106),
+   `deckmaste_construction_core` (474), and `macro_ron` (149).
+   The only ignored test is xtask's pre-existing
+   `macros::templates::tests::macro_schema_census_count_matches_21`, an
+   on-demand live-corpus cross-check; this landing adds no ignore.
+   Refresh's sole conflict was three appended `tests/main.rs` module
+   registrations; all three were retained exactly once. The successful
+   refresh imports `xswzoyrx`, `xzwlutqp`, facts patient-role changes, and
+   semantics-v2 counter/macro changes. Logs are `test-refresh-<crate>.log`
+   and `clippy-refresh-<crate>.log` in the evidence directory.
+   `cargo xtask lean check` passed after the plugin refresh: **245/245**
+   cards (237 canon, eight testing); log `lean-refresh.log`. Final citation
+   checks again found **0** noncompliant and **0** stale (17,799 sites);
+   the implementation's piped `jj diff --git` audit selected zero new sites.
+6. **Timing** (`ouykkpns`): final complete bounded census wall **3 min 28 s**,
    **6 workers**, `--samples-per-face 0`, captured under `/usr/bin/time -v`.
+   Refreshed bounded census wall **4 min 40 s**, same manifest and settings;
+   `/usr/bin/time -v` captured in `census-refresh.log`.
    No full-corpus census was run.
