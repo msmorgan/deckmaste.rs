@@ -1726,10 +1726,6 @@ const KEYWORD_STUBS_EXEMPT: &[Exempt] = &[
 /// stub, so the RON vocabulary spells the variant through that stub.
 const KEYWORD_ROWS_EXEMPT: &[Exempt] = &[
     Exempt {
-        label: "Multikicker",
-        reason: "a variant of the kicker ability [CR#702.33c], spelled through the Kicker stub",
-    },
-    Exempt {
         label: "BandsWithOther",
         reason: "a special form of banding [CR#702.22b], spelled through the Banding stub",
     },

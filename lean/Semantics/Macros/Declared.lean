@@ -3500,6 +3500,10 @@ semantic_macro moreThanMeetsTheEye (arg0 : Semantics.Cost) : Semantics.Ability :
 semantic_macro morph (arg0 : Semantics.Cost) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "morph") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play none none none false (Semantics.PlayPayment.faceDown ({ characteristics := (some ({ name := none, cost := none, colors := [], supertypes := [], types := [Semantics.CardType.creature], subtypes := [], text := [], power := (some (Semantics.Amount.lit 2)), toughness := (some (Semantics.Amount.lit 2)), loyalty := none, defense := none } : Semantics.Characteristics)) } : Semantics.FaceDown) (Semantics.Cost.mana [(Semantics.ManaSymbol.simple (Semantics.SimpleManaSymbol.generic 3))]))) none)), (Semantics.Ability.static (Semantics.StaticSpec.specialAction none arg0 (Semantics.Instruction.setStatus Semantics.Status.faceUp Semantics.NounPhrase.this)))])
 
+/-- `keyword_abilities/multikicker.ron` -/
+semantic_macro multikicker (arg0 : Semantics.Cost) : Semantics.Ability :=
+  (Semantics.Ability.keyword (Semantics.KeywordLabel.named "multikicker") [(Semantics.KeywordParam.cost arg0)] [])
+
 /-- `keyword_abilities/mutate.ron` -/
 semantic_macro mutate (arg0 : Semantics.Cost) : Semantics.Ability :=
   (Semantics.Ability.keyword (Semantics.KeywordLabel.named "mutate") [(Semantics.KeywordParam.cost arg0)] [(Semantics.Ability.static (Semantics.StaticSpec.deonticRule Semantics.NounPhrase.you Semantics.Compulsion.permit [(Semantics.Deed.action "cast")] Semantics.Role.agent none (Semantics.DeonticPatient.counterpart Semantics.NounPhrase.this) none (Semantics.DeonticRider.play none none none false (Semantics.PlayPayment.payingInstead arg0)) none)), (Semantics.Ability.static (Semantics.StaticSpec.addsTarget (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.Predicate.and [(Semantics.Predicate.hasType Semantics.CardType.creature), (Semantics.Predicate.not (Semantics.Predicate.hasSubtype (Semantics.Subtype.of Semantics.CardType.creature "Human"))), (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.owner (Semantics.NounPhrase.possessorOf Semantics.PossessorAxis.owner (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)))]))), (Semantics.Ability.static (Semantics.StaticSpec.conditional (Semantics.StaticSpec.replacement (Semantics.GameEvent.zoneChange (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) none (some (Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)) Semantics.ObservationPoint.after) [] none (Semantics.Instruction.chooseModes (Semantics.Quantity.range (some 1) (some 1)) [(none, none, (Semantics.Instruction.merge (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.NounPhrase.paid (Semantics.LinkedFacet.objects Semantics.LinkSource.theAlternative (Semantics.Deed.core Semantics.CoreDeed.target) Semantics.Plurality.one) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.MergePosition.top)), (none, none, (Semantics.Instruction.merge (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this) (Semantics.NounPhrase.paid (Semantics.LinkedFacet.objects Semantics.LinkSource.theAlternative (Semantics.Deed.core Semantics.CoreDeed.target) Semantics.Plurality.one) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.MergePosition.bottom))]) Semantics.ReplUse.repeatedly none) (Semantics.Condition.compareAmt (Semantics.Amount.paid (Semantics.LinkedFacet.readback (Semantics.LinkSource.byKeyword (Semantics.KeywordLabel.named "mutate")) none) (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this)) Semantics.Comparator.atLeast (Semantics.Amount.lit 1)) Semantics.CondMarking.asLongAs))])
@@ -6951,10 +6955,12 @@ semantic_macro zone (zone : Semantics.Zone) (scope : Semantics.ZoneScope) : Sema
 end Semantics.Macros.Declared
 
 /-
-Not derived (33):
+Not derived (37):
 - abilities/activated.ron (activated): no sample assignment reads (20000 tried); first: 1:181-1:182: in the expansion of `activated`: 1:103-1:104: 1:57: 1:2-1:12: 1:2-1:12: `AnyOnStack` is neither a variant of `Timing` nor a known `Timing` macro
 - abilities/triggeredJoined.ron (triggeredJoined): no second argument to `joins` (`JoinedHeaders`) reads, so its holes cannot be located (first: `[]`)
 - designations/dayNight.ron (dayNight): registry node: its Lean form is `cargo xtask facts`'s
+- events/descend.ron (descend): bodyless
+- events/expend.ron (expend): bodyless
 - events/rollsDice.ron (rollsDice): no sample assignment reads (20000 tried); first: 1:71-1:72: in the expansion of `rollsDice`: 1:95-1:96: 1:52-1:53: 1:2-1:12: `AnyOnStack` is neither a variant of `DiceBatch` nor a known `DiceBatch` macro
 - instructions/applyResultsTable.ron (applyResultsTable): `rows` is untyped (`Any`) and no second argument to it reads (first: `[]`)
 - instructions/chooseModes.ron (chooseModes): `modes` is untyped (`Any`) and no second argument to it reads (first: `[]`)
@@ -6975,6 +6981,8 @@ Not derived (33):
 - meta/Subtype.ron (Subtype): meta-macro: its body is a definition template
 - meta/TurnPart.ron (TurnPart): meta-macro: its body is a definition template
 - meta/Type.ron (Type): meta-macro: its body is a definition template
+- predicates/modified.ron (modified): bodyless
+- predicates/poisoned.ron (poisoned): bodyless
 - types/artifact.ron (artifact): no kind of [Type] is a v2 syntax type
 - types/battle.ron (battle): no kind of [Type] is a v2 syntax type
 - types/creature.ron (creature): no kind of [Type] is a v2 syntax type

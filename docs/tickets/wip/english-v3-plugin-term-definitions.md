@@ -253,6 +253,10 @@ Claim-parent probes are under
    exactly the same totals and delta. The official `incoming-diff.json`
    compares the first AFTER with the refreshed AFTER: all 1,076 faces and
    their per-line Reading counts/digests are unchanged.
+   A second refresh imported subtype rules (`wsskrpxl` and its supporting
+   stack). `second-refreshed-after.json` / `second-refreshed-diff.json`
+   retain the same totals; `second-incoming-diff.json` again reports all
+   1,076 faces unchanged, with no count or digest changes from trunk.
 2. **Witnesses (`ztvzruvp`, after/control):** every implemented witness was
    0 on the claim parent; controls had the counts below before the edit.
    Modified attributive 2/2,
@@ -305,6 +309,16 @@ Claim-parent probes are under
    The sole conflict was concurrent suite_6 registrations: preserved both
    devotion and plugin-term modules exactly once, squashed the resolution
    into `ztvzruvp`, and retried refresh successfully (no-op).
+   The second refresh changed semantics_v2, xtask and plugin definitions.
+   Its full xtask suite found two own regressions: the existing Multikicker
+   row-without-stub exemption became stale, and the generated Lean module
+   was stale. Removed only that obsolete exemption (the bidirectional label
+   check now covers Multikicker), and regenerated
+   `lean/Semantics/Macros/Declared.lean` with
+   `cargo xtask lean macros generate`. It adds Multikicker's syntax wrapper
+   with an empty ability-body list and records the four bodyless helpers as
+   not derived; all five engine implementations remain semantics debt.
+   No failing test was deleted, ignored or weakened.
 5. **Tests:** all final commands exit 0:
    - `cargo test -p deckmaste_english_v3` — 964 passed.
    - `cargo test -p deckmaste_lexical_source` — 86 passed.
@@ -336,11 +350,25 @@ Claim-parent probes are under
    passed 39 tests and `cargo clippy -p deckmaste_construction_v3_core --tests -- -D warnings`
    passed, because refresh changed that crate. All commands exit 0;
    `refresh-verification.json` and `refresh-0.log` through `refresh-15.log`
-   retain their exact commands and outcomes. Plugin definitions did not change
-   during refresh; the required Lean check was run once as recorded above.
+   retain their exact commands and outcomes. The second refresh repeated the
+   build, bounded census and full crate suites, with the same five totals.
+   Full `cargo test -p xtask` initially found the two regressions above;
+   after fixing them, it passed 425 tests. Its one pre-existing ignored test,
+   `macros::templates::tests::macro_schema_census_count_matches_21`, retains
+   its existing reason: "cross-checks the live corpus against the census;
+   run on demand". Introduced ignores: 0. All six clippy commands passed
+   again; `cargo test -p xtask english_v3` passed 56 again. Regeneration
+   required a final `cargo xtask lean check`: 242/242 cards, 2 plugins,
+   passed (the earlier check was before this generated-file correction).
+   Lean LSP completed the new declaration's elaboration with no errors.
+   Final citation checks: 0 noncompliant, 0 stale. Evidence is
+   `second-refresh-verification.json`, `fix-verification.json` and adjacent
+   logs. No other code or data changed after these successful checks.
 6. **Timing (`ztvzruvp`):** final bounded census 45.17 s wall time under
    `/usr/bin/time -v`, six workers, `--samples-per-face 0`. No full-corpus
    run. The trial-data census was rerun after removing the two unusable
    declarations; final results above are for the retained data only.
    Post-refresh bounded recheck: 22.86 s wall under `/usr/bin/time -v`,
    the identical manifest, six workers, zero samples per face.
+   Second post-refresh bounded recheck: 49.97 s wall with the identical
+   manifest and worker/sample settings. No full v3 census was run.
