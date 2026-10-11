@@ -198,8 +198,13 @@ Attestation by `cargo xtask english-v3 grep` only.
    `keyword-refresh-diff.json` and `keyword-refresh-classes.json` record
    attribution. Combined claim-parent diff: covered **812 → 835**, Readings
    **81,312 → 81,556**, **23 gains** (22 own / 1 inherited), lost/decreases/
-   increases 0, **63 digest-only faces** (the 64th inherited digest change is
-   on this ticket's gained Maze of Shadows), 771 unchanged, issues 0. The wider
+   increases 0. The subsequent participial-premodifier refresh (`ptokxtuo`),
+   verified on `rnuzputz`, preserves all counts and adds 52 inherited
+   digest-only faces / 54 lines, exclusively the `VerbalPremodifier`
+   schema/category class (`participial-refresh-{diff,classes}.json`).
+   Final combined diff: **103 digest-only faces**, **731 unchanged**, issues
+   **0**; all digest changes are inherited, including changes on some of
+   this ticket's gained faces. No removed Reading to attribute. The wider
    declared-marker coordination grep finds 23 faces, all in
    the manifest. Winter's Chill remains unread through another blocker.
 
@@ -228,13 +233,18 @@ Attestation by `cargo xtask english-v3 grep` only.
    this Construction; no repair beyond the ticket's surface was made. Initial
    refresh brought the semantics-v2 counter-annihilation landing, including
    `plugins_v2/` changes, so the standing rule adds the full xtask, semantics,
-   construction-core and Lean gates. The final refresh brought the
+   construction-core and Lean gates. The first post-commit refresh brought the
    plugin-term-definitions landing (`ztvzruvp`, with `tulwlsor` synchronizing
    multikicker checks); its incoming `jj diff --stat` includes crate and plugin
    files. The same bounded manifest and all standing-rule gates were rerun.
    The next refresh brought keyword choices (`zspvqono`), touching grammar,
    lexicon and English tests; it required the xtask build, same bounded
    census, full English suite and clippy again. No plugin file changed then.
+   The subsequent participial-premodifier refresh (`ptokxtuo`) produced one
+   registration conflict in `suite_5.rs`; resolved in `knlqxlok` by retaining
+   both modules once, without assertion changes. Harmony verification shows
+   no remaining conflict, and the full suite passes. The same build, bounded
+   census, full English suite and clippy were rerun; no plugin file changed.
 
 5. **Tests** (`knlqxlok`): `cargo test -p deckmaste_english_v3` passes (1,066
    tests); `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` passes.
@@ -264,7 +274,11 @@ Attestation by `cargo xtask english-v3 grep` only.
    `cargo test -p deckmaste_english_v3` (1,073 tests), and
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` pass on
    `ynsyywut`. This ticket re-spells no inherited test; their changes belong
-   to the incoming keyword-choice landing.
+   to the incoming keyword-choice landing. After the participial refresh,
+   the same xtask build, bounded census and two official `diff --lines`
+   comparisons pass; `cargo test -p deckmaste_english_v3` passes **1,080**
+   tests and `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings`
+   passes on `rnuzputz`. No inherited test was re-spelled by this ticket.
 
 6. **Timing**: the bounded AFTER census on `knlqxlok` took **86.36 seconds**
    wall time under `/usr/bin/time -v`, with **6 workers** and
@@ -272,4 +286,6 @@ Attestation by `cargo xtask english-v3 grep` only.
    took **27.41 seconds**, again under `/usr/bin/time -v`, 6 workers and
    `--samples-per-face 0`. The keyword-choice refresh census on `ynsyywut`
    took **27.03 seconds**, with the same timing command, 6 workers and zero
+   samples per face. The participial refresh census on `rnuzputz` took
+   **28.07 seconds**, with the same timing command, 6 workers and zero
    samples per face. No full-corpus census was run.
