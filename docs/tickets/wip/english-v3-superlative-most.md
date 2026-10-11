@@ -146,6 +146,11 @@ quantifier use (CGEL p. 1166 [15iv]) in the landing.
    wrapper with the shared internal Modifier route, preserving lexical
    identity and attachment. Evidence: `target/english-v3/english-v3-superlative-most/`
    (`manifest.json`, `before.json`, `after.json`, `diff.json`).
+   Final integration refresh (`lvrzxzuw`, trunk `kqltvkwm`) repeated the
+   original 446-face manifest: the same 11 gains, 0 lost/decreases/increases,
+   2 digest-only, 389 covered and 7,253 Readings; 0 issues. Native diff of
+   accepted `after.json` against `after-refresh.json`: all 446 unchanged.
+   Final evidence: `after-refresh.json`, `diff-refresh.json`, `diff-trunk.json`.
 2. **Witnesses** (`nklknwxy`): all five ticket witnesses and four failing NP
    fragments re-probed at the claim parent with 0 Readings; none dropped.
    After: No Witnesses 1, Wild Mammoth 1, Tectonic Hellion's trigger 1,
@@ -187,7 +192,8 @@ quantifier use (CGEL p. 1166 [15iv]) in the landing.
    structure. Binding seed 20261008 used. STOPs: none.
 5. **Tests** (`nklknwxy`): `cargo test -p deckmaste_english_v3` passed
    (1,093 passed, one inherited ignore); repeated in full after the census
-   regression fix. `cargo test -p deckmaste_lexical_source` passed (44).
+   regression fix. `cargo test -p deckmaste_lexical_source` passed (88 total: 43 unit,
+   1 doubled-core-verbs, 44 integration).
    `cargo clippy -p deckmaste_english_v3 --tests -- -D warnings` and
    `cargo clippy -p deckmaste_lexical_source --tests -- -D warnings` passed.
    Restored 0 / re-spelled 1 / newly ignored 0 / added 5 / removed 0.
@@ -199,6 +205,14 @@ quantifier use (CGEL p. 1166 [15iv]) in the landing.
    ignore is `mana_symbol_nominal::cost_notation_is_the_subject_of_the_licensed_locative_small_clause`;
    its existing blocker is `english-v3-mana-symbol-verbless-subject` MS4's
    governed Mana Phrase Subject route. No test removals to justify.
+   Final integration checks (`lvrzxzuw`): `cargo build -p xtask` passed;
+   the same two full test commands passed (English 1,097 with one inherited
+   ignore; lexical-source 88), as did both exact clippy commands above.
+   `selected_complement_clusters::all_nine_inherited_recipient_witnesses_have_exact_independent_document_sets`
+   passed with the existing ceiling unchanged. Logs: `integration-build.log`,
+   `integration-tests-{english,lexical}.log`, `integration-clippy-{english,lexical}.log`.
 6. **Timing** (`nklknwxy`): the bounded 446-face landing census took
    22.61 s wall time under `/usr/bin/time -v`, with 6 workers and
    `--samples-per-face 0`.
+   Final re-census (`lvrzxzuw`) process wall time: 3:00.41, including
+   waiting for Cargo's test-build lock; same workers and samples settings.
