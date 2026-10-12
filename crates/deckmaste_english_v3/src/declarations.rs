@@ -600,30 +600,77 @@ constructions! {
         category FiniteGappedClause();
         category InterveningPrepositionAdjunct();
         category IrrealisClause();
-        category IrrealisPredicate(number, person, ScalarDenotation);
-        category CentralAdverbSelectedHead(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
+        category IrrealisPredicate(head number, head person, head ScalarDenotation);
+        category CentralAdverbSelectedHead(
+            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection, head frame
+        );
         category ExistentialExtension();
         category DummyPronoun();
-        category ExistentialPredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost,
-            PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FinitePredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category QuantifiedAuxiliaryHead(Polarity, number, person, frame, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ScalarLocationPredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category BareScalarLocationPredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category BareScalarLocationComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category SecondaryVerbPhrase(ParticipialSupplementUse, NominalAdjunctHost, ClauseComplementBoundary, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FiniteDepictiveHost(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category SecondaryDepictiveHost(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category BarePredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ParticipialPredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, CentralAdjunctPosition);
-        category PastParticiplePredicate(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category PredicativeComplement(PredicativeKind, PredicativeAdjunctUse);
-        category DepictivePhrase(DepictiveKind);
-        category DepictivePhraseSeries(DepictiveKind);
-        category Ellipsis(form);
-        category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category ExistentialPredicate(
+            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category FinitePredicate(
+            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category QuantifiedAuxiliaryHead(
+            head Polarity, head number, head person, head frame, head CliticHost,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category ScalarLocationPredicate(
+            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category BareScalarLocationPredicate(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category BareScalarLocationComplement(
+            head AuxiliaryComplementRealization, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category SecondaryVerbPhrase(
+            head ParticipialSupplementUse, local NominalAdjunctHost, local ClauseComplementBoundary,
+            head form, head ParticipialUse, head InternalisedComplementPresent, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category FiniteDepictiveHost(
+            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category SecondaryDepictiveHost(
+            head ParticipialSupplementUse, head form, head ParticipialUse,
+            head InternalisedComplementPresent, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category BarePredicate(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category ParticipialPredicate(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
+            head CentralAdjunctPosition
+        );
+        category PastParticiplePredicate(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category PredicativeComplement(head PredicativeKind, head PredicativeAdjunctUse);
+        category DepictivePhrase(head DepictiveKind);
+        category DepictivePhraseSeries(head DepictiveKind);
+        category Ellipsis(head form);
+        category BareComplement(
+            head AuxiliaryComplementRealization, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category ParticipialComplement(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category PerfectComplement(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
         category Nominal(head ComparativeModifierPresent, head AttributePremodifierHead, head KeywordPremodifierHead, head number, head NominalAgreementNumber, head countability, head Targeting, head NominalAdjunctClass, local NominalDependentPresent,
             head RelativisableAdjunctClass, head SlashPremodifierUse,
             head NumberTransparency, head ObliqueNumber, head BareGenitiveHost, head DeterminerRequirement, head MeasurePosition, local ScalarMeasurementHeadUse, local PropertyValuePosition, head CardinalMeasurementUse,
@@ -678,17 +725,34 @@ constructions! {
         category BoundaryComplement();
         category SubjectRelativeClause(number);
         category ObjectRelativeClause(RelativeGapKind);
-        category FiniteObjectGap(Polarity, NominalAdjunctHost, ClauseComplementBoundary, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category BareObjectGap(NominalAdjunctHost, ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category PastParticipleObjectGap(NominalAdjunctHost, ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category GerundParticipleObjectGap(ClauseComplementBoundary, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category FiniteObjectGap(
+            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
+        category BareObjectGap(
+            local NominalAdjunctHost, local ClauseComplementBoundary, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
+        category PastParticipleObjectGap(
+            local NominalAdjunctHost, local ClauseComplementBoundary, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
+        category GerundParticipleObjectGap(
+            local ClauseComplementBoundary, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
 
         category Cardinal(number, CardinalComplementUse);
         category CardinalModifier();
         category SecondaryNegator();
         category SecondaryNegatorHead();
         category PrimaryNegator();
-        category NegatedAuxiliaryHead(PredicateFrameUse, Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
+        category NegatedAuxiliaryHead(
+            head PredicateFrameUse, head Polarity, head number, head person, head CliticHost,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
+            head frame
+        );
         category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent, DegreeUse);
         category CardinalPrepositionPhrase(head number);
@@ -730,8 +794,8 @@ constructions! {
         category KeywordQuality(KeywordQualityNumber);
         category KeywordQualityPreposition(head KeywordMarker, head KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(head KeywordMarker, head KeywordQualityNumber);
-        category SelectedComplementTail(HeadCoordination);
-        category SelectedComplementTailSeries(HeadCoordination);
+        category SelectedComplementTail(head HeadCoordination);
+        category SelectedComplementTailSeries(head HeadCoordination);
         category KeywordContinuation();
         category Cost(CostComponentForm);
         category CostComponent(CostComponentForm);
@@ -740,14 +804,20 @@ constructions! {
         category CostSymbol();
         category ManaPhrase();
         category ManaSubject(number, person, SubjectStructure, DeterminerAgreementNumber);
-        category ManaPassivePredicate(FrameUse, HeadCoordination, AuxiliaryProFormLicence,
-            AuxiliaryEllipsisLicence, NominalAdjunctHost, ClauseComplementBoundary, form,
-            PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category ManaPassiveComplement(PurposeAdjunctLicence, MatrixComplementLicence,
-            SourceComplementSelection);
-        category FiniteManaPassivePredicate(Polarity, NominalAdjunctHost, ClauseComplementBoundary,
-            number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence,
-            SourceComplementSelection);
+        category ManaPassivePredicate(
+            head FrameUse, head HeadCoordination, head AuxiliaryProFormLicence,
+            head AuxiliaryEllipsisLicence, local NominalAdjunctHost, local ClauseComplementBoundary,
+            head form, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category ManaPassiveComplement(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category FiniteManaPassivePredicate(
+            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
         category ManaSymbol();
         category CountNominalSymbol(SymbolNominalUse);
         category NominalSymbol(SymbolNominalUse, NominalAgreementNumber);
@@ -767,8 +837,15 @@ constructions! {
         category Subtypes();
         category SubtypeContinuation();
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
-        category FinitePredicateSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FinitePredicateSeries(
+            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category SecondaryPredicateSeries(
+            head ParticipialSupplementUse, head form, head ParticipialUse,
+            head InternalisedComplementPresent, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
         category NounPhraseSeries(
             head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
             head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
@@ -779,10 +856,25 @@ constructions! {
         );
         category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
         category InfinitiveComplement();
-        category FiniteSelectedHead(Polarity, number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category SecondarySelectedHead(form, FrameUse, HeadCoordination, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category FiniteSelectedHeadSeries(Polarity, number, person, FrameUse, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category SecondarySelectedHeadSeries(form, FrameUse, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category FiniteSelectedHead(
+            head Polarity, head number, head person, head FrameUse, head HeadCoordination, head CliticHost,
+            head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category SecondarySelectedHead(
+            head form, head FrameUse, head HeadCoordination, head AuxiliaryEllipsisLicence,
+            head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
+        category FiniteSelectedHeadSeries(
+            head Polarity, head number, head person, head FrameUse, head CliticHost,
+            head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category SecondarySelectedHeadSeries(
+            head form, head FrameUse, head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
         category ManaPhraseSeries();
         category CardinalSeries(number, CoordinationKind, CardinalComplementUse);
         category AmountSeries();
@@ -817,16 +909,31 @@ constructions! {
         category AdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
-        category FiniteObjectGapSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category BareObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category PastParticipleObjectGapSeries(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category FiniteObjectGapSeries(
+            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
+        category BareObjectGapSeries(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
+            head ComparativeObjectGapLicence
+        );
+        category PastParticipleObjectGapSeries(
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
+            head ComparativeObjectGapLicence
+        );
         category CoordinatedFiniteClause(GeneralCoordination);
         category FiniteClauseSeries(GeneralCoordination);
-        category PredicativeComplementSeries(PredicativeKind, PredicativeAdjunctUse);
+        category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
         category CorrelativeClauseSeries(ClauseCoordinationHost, CorrelativeCoordinator, UnmarkedConjunctLicence, SourceComplementSelection);
-        category CorrelativeFinitePredicateSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category CorrelativeSecondaryVerbPhraseSeries(ParticipialSupplementUse, form, ParticipialUse, CorrelativeCoordinator,
-            InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category CorrelativeFinitePredicateSeries(
+            head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category CorrelativeSecondaryVerbPhraseSeries(
+            head ParticipialSupplementUse, head form, head ParticipialUse, head CorrelativeCoordinator,
+            head InternalisedComplementPresent, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
         category CorrelativeNounPhraseSeries(
             head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
             head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
@@ -855,13 +962,27 @@ constructions! {
         category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
         category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
-        category CorrelativeFiniteSelectedHeadSeries(Polarity, number, person, FrameUse,
-            CorrelativeCoordinator, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category CorrelativeSecondarySelectedHeadSeries(form, FrameUse, CorrelativeCoordinator, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
+        category CorrelativeFiniteSelectedHeadSeries(
+            head Polarity, head number, head person, head FrameUse, head CorrelativeCoordinator,
+            head CliticHost, head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
+        );
+        category CorrelativeSecondarySelectedHeadSeries(
+            head form, head FrameUse, head CorrelativeCoordinator, head AuxiliaryEllipsisLicence,
+            head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection
+        );
         category CorrelativeAdjectivePhrase(AdjectiveAttributiveOnlyUse);
         category CorrelativeAdjectiveSeries(AdjectiveAttributiveOnlyUse, CorrelativeCoordinator);
-        category CorrelativeFiniteObjectGapSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category CorrelativeBareObjectGapSeries(CorrelativeCoordinator, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
+        category CorrelativeFiniteObjectGapSeries(
+            head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
+            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
+            head ComparativeObjectGapLicence
+        );
+        category CorrelativeBareObjectGapSeries(
+            head CorrelativeCoordinator, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head SourceComplementSelection, head ComparativeObjectGapLicence
+        );
         category SelectedPrepositionHead(
             head LocativeUse, head PrepositionFunctionLicence, head HeadCoordination,
             head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
@@ -901,26 +1022,21 @@ constructions! {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
             require head.PredicateFrameUse = Yes;
         }
-        instance SelectedPredicate<Result, Properties, BoundaryProperties = NoFeatures>: [
-            (FinitePredicate, FiniteHeadAgreement, NoClauseComplementBoundary),
+        instance SelectedPredicate<Result, Properties>: [
+            (FinitePredicate, FiniteHeadAgreement),
             (IrrealisPredicate, IrrealisHeadAgreement),
-            (SecondaryVerbPhrase, OrdinarySecondaryHead, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
             use Properties;
-            use BoundaryProperties;
         }
         // NB1–NB4: analytic verbal negation belongs to a positive finite
         // auxiliary head; its ordinary selected Complement is unchanged.
         construction NegatedAuxiliaryHead: NegatedAuxiliaryHead {
             form [head: lexical(Verb), " ", negator: PrimaryNegator];
             export frame = head.frame;
-            export PredicateFrameUse = head.PredicateFrameUse;
             require head.AuxiliaryUse = Yes;
             require head.Polarity = Positive;
             export Polarity = Negative;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
             export number = head.number;
@@ -930,16 +1046,11 @@ constructions! {
         construction NegatedSelectedPredicate: FinitePredicate {
             require head.PredicateFrameUse = Yes;
             form [head: NegatedAuxiliaryHead, complements: selected_frame(head, Predicate)];
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            use PredicateHostAgreement;
         }
 
         construction NegatedParticipialPredicate: FinitePredicate {
             form [head: NegatedAuxiliaryHead, complement: ParticipialComplement];
             require head.frame = ParticipialAuxiliary;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use SharedAuxiliaryAgreement;
         }
 
@@ -959,10 +1070,7 @@ constructions! {
             (CentralAdverbSelectedHead, FiniteHeadAgreement),
         ] { use Properties; }
         construction CentralAdverbPredicate: FinitePredicate {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: CentralAdverbSelectedHead, complements: selected_frame(head, Predicate)];
-            use PredicateHostAgreement;
         }
 
         construction ScalarMeasurePhrase: ScalarMeasurePhrase {
@@ -1333,10 +1441,6 @@ constructions! {
         }
 
         policy FiniteHeadAgreement {
-            export Polarity = head.Polarity;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
             export number = head.number;
@@ -1353,9 +1457,6 @@ constructions! {
         }
 
         policy SecondaryHeadForm {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export form = secondary_form(head.form);
         }
 
@@ -1363,42 +1464,11 @@ constructions! {
             export NominalDependentPresent = Yes;
         }
 
-        policy PredicateHostAgreement {
-            export Polarity = head.Polarity;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export CliticHost = head.CliticHost;
-            export number = head.number;
-            export person = head.person;
-        }
-
-        policy FiniteGapHostProjection {
-            export Polarity = head.Polarity;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export CliticHost = head.CliticHost;
-            export number = head.number;
-            export person = head.person;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-        }
-        policy BareGapHostProjection {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-        }
         policy FiniteGapHeadAgreement {
-            export Polarity = head.Polarity;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
             export number = head.number;
             export person = head.person;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
         }
 
         policy PredicateHeadAgreement {
@@ -1407,7 +1477,6 @@ constructions! {
         }
 
         policy FiniteAuxiliaryAgreement {
-            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
@@ -1418,13 +1487,9 @@ constructions! {
         }
 
         policy SharedAuxiliaryAgreement {
-            export Polarity = head.Polarity;
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
-            export CliticHost = head.CliticHost;
-            export number = head.number;
-            export person = head.person;
         }
 
         policy SecondaryAuxiliaryProperties {
@@ -1441,10 +1506,7 @@ constructions! {
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
-            export form = head.form;
-            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
-            export InternalisedComplementPresent = No;
         }
 
         policy PurposeHostProjection {
@@ -1465,12 +1527,6 @@ constructions! {
         }
 
         policy SecondaryProjection {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export InternalisedComplementPresent = head.InternalisedComplementPresent;
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
 
@@ -1480,30 +1536,12 @@ constructions! {
         policy SecondaryPrepositionProjection {
             require internalised_adjunct_admission(head.InternalisedComplementPresent,
                 modifier.InternalisedComplementMarker) = Yes;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export InternalisedComplementPresent = internalised_complement_presence(
                 head.InternalisedComplementPresent, modifier.InternalisedComplementMarker);
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export ParticipialUse = head.ParticipialUse;
             export form = secondary_form(head.form);
         }
 
-        policy SecondaryAdjunctProjection {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export InternalisedComplementPresent = head.InternalisedComplementPresent;
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export ParticipialUse = head.ParticipialUse;
-            export form = head.form;
-        }
-
         policy OrdinarySecondaryHead {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             export form = secondary_form(head.form);
             export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
@@ -1511,11 +1549,6 @@ constructions! {
         }
 
         policy OrdinarySelectedPredicate {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export form = head.form;
-            export ParticipialSupplementUse = No;
             export ParticipialUse = shared_participial_use(head.FrameUse);
             export InternalisedComplementPresent = shared_internalised_presence(head.FrameUse);
         }
@@ -2153,10 +2186,7 @@ constructions! {
             export PurposeAdjunctLicence = complement.PurposeAdjunctLicence;
             export MatrixComplementLicence = complement.MatrixComplementLicence;
             export SourceComplementSelection = complement.SourceComplementSelection;
-            export form = head.form;
-            export ParticipialSupplementUse = No;
             export ParticipialUse = Ordinary;
-            export InternalisedComplementPresent = No;
             require auxiliary_realization(head.form, complement.AuxiliaryComplementRealization)
                 = Yes;
         }
@@ -2188,6 +2218,7 @@ constructions! {
         // The adjunct precedes the overt auxiliary Complement's predicate,
         // rather than modifying a following NP or predicative Complement.
         schema CentralAdverbComplement {
+            head predicate;
             form [" ", modifier: lexical(Adverb), " ", predicate: node];
             form [" ", modifier: lexical(Preposition), " ", predicate: node]
                 require modifier.PrepositionComplement = Intransitive;
@@ -2211,9 +2242,6 @@ constructions! {
         ] {
             use Licence;
             use Properties;
-            export PurposeAdjunctLicence = predicate.PurposeAdjunctLicence;
-            export MatrixComplementLicence = predicate.MatrixComplementLicence;
-            export SourceComplementSelection = predicate.SourceComplementSelection;
         }
 
         schema NominalAdjunctPredicate {
@@ -2266,42 +2294,28 @@ constructions! {
             require licensed_matrix_complement(head.MatrixComplementLicence,
                 modifier.MatrixComplementRequirement) = Yes;
         }
+        instance LicensedMatrixComplementPredicate<Result, Head: head>: [
+            (FinitePredicate, Self),
+        ] {}
         instance LicensedMatrixComplementPredicate<Result, Head: head, Properties>: [
-            (FinitePredicate, Self, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, SecondaryProjection),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None; use Properties; }
+            use Properties;
+        }
 
         construction MatrixComplementPredicate: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
             require modifier.MatrixComplementRequirement = Internalised;
             require head.ParticipialUse = BarePassive;
             require head.InternalisedComplementPresent = No;
-            export form = head.form;
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export ParticipialUse = head.ParticipialUse;
             export InternalisedComplementPresent = Yes;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         construction InternalisedComplementPredicate: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             form [head: SecondaryVerbPhrase, " ", modifier: PrepositionPhrase];
             require head.ParticipialUse = BarePassive;
             require head.InternalisedComplementPresent = No;
             require modifier.InternalisedComplementMarker = Yes;
-            export form = head.form;
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export ParticipialUse = head.ParticipialUse;
             export InternalisedComplementPresent = Yes;
         }
 
@@ -2313,6 +2327,7 @@ constructions! {
         }
 
         schema OvertComplement {
+            head predicate;
             form [" ", predicate: node];
         }
 
@@ -2332,8 +2347,6 @@ constructions! {
         }
 
         schema SelectedVerbHead {
-            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
-            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
             // An uncomplemented coordinate head requires the strong form.
             require head.Clitic = No;
             form [head: lexical(Verb)];
@@ -3138,22 +3151,15 @@ constructions! {
             use FiniteHeadAgreement;
         }
         construction PostAuxiliaryQuantification: FinitePredicate {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, Predicate)];
-            use PredicateHostAgreement;
         }
         construction QuantifiedScalarLocation: ScalarLocationPredicate {
-            use NoClauseComplementBoundary;
             form [head: QuantifiedAuxiliaryHead, complements: selected_frame(head, ScalarLocation)];
-            use PredicateHostAgreement;
         }
 
         construction QuantifiedBareAuxiliaryPredicate: FinitePredicate {
             require licensed_auxiliary_pro_form(head.AuxiliaryProFormLicence,
                 complement.AuxiliaryComplementRealization) = Yes;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
                 complement: BareComplement];
             require quantifier.QuantificationalAdjunctUse = Yes;
@@ -3188,8 +3194,6 @@ constructions! {
         construction ExistentialPredicate: ExistentialPredicate {
             form [head: lexical(Verb), " ", displaced_subject: AccusativePhrase,
                 extension: optional(ExistentialExtension)];
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             require head.frame = Existential;
             require tensed_form(head.form) = Yes;
             agree displaced_subject.number = head.number;
@@ -3223,9 +3227,6 @@ constructions! {
         // plain scalar predicate; ScalarLocation still checks its Subject.
         policy PlainScalarHeadProperties {
             require head.form = Plain;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
         policy IrrealisScalarHeadAgreement {
             require head.form = Irrealis;
@@ -3237,11 +3238,11 @@ constructions! {
         }
         // IS1 (orchestrator ruling, 2026-10-10): the irrealis copula
         // selects the same scalar-location frame as the finite copula.
-        instance ScalarLocationPredicate<Result, Properties, BoundaryProperties = NoFeatures>: [
-            (ScalarLocationPredicate, FiniteHeadAgreement, NoClauseComplementBoundary),
+        instance ScalarLocationPredicate<Result, Properties>: [
+            (ScalarLocationPredicate, FiniteHeadAgreement),
             (IrrealisPredicate, IrrealisScalarHeadAgreement),
             (BareScalarLocationPredicate, PlainScalarHeadProperties),
-        ] { use Properties; use BoundaryProperties; }
+        ] { use Properties; }
 
         // Preposed temporal NP position: project ruling R11a (2026-10-09).
         // Keep the existing PP forms and their Reading identities.
@@ -4754,6 +4755,7 @@ constructions! {
         }
 
         construction PredicativePreposition: PredicativeComplement {
+            head phrase;
             export PredicativeAdjunctUse = No;
             form [phrase: PrepositionPhrase];
             require licence_predicative_complement(phrase.PrepositionFunctionLicence) = Yes;
@@ -4868,7 +4870,7 @@ constructions! {
         }
 
         construction AdjectivalComplement: PredicativeComplement {
-            export PredicativeAdjunctUse = No;
+            head phrase;
             form [phrase: AdjectivePhrase];
             export PredicativeKind = Adjectival;
             require phrase.AdjectiveAttributiveOnlyUse = No;
@@ -4876,12 +4878,14 @@ constructions! {
 
         // CGEL pp. 262, 1265: optional depictives are adjuncts.
         construction AdjectivalDepictive: DepictivePhrase {
+            head phrase;
             form [phrase: AdjectivePhrase];
             export DepictiveKind = Adjectival;
             require phrase.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction ParticipialDepictive: DepictivePhrase {
+            head phrase;
             form [phrase: SecondaryVerbPhrase];
             require phrase.form = GerundParticiple;
             require phrase.ParticipialUse = Ordinary;
@@ -4889,7 +4893,7 @@ constructions! {
         }
 
         construction NominalComplement: PredicativeComplement {
-            export PredicativeAdjunctUse = phrase.PredicativeAdjunctUse;
+            head phrase;
             form [phrase: AccusativePhrase];
             export PredicativeKind = Nominal;
         }
@@ -4898,26 +4902,20 @@ constructions! {
             (SecondaryVerbPhrase, BareComplement, SecondaryAuxiliaryProperties),
             (ScalarLocationPredicate, BareScalarLocationComplement, FiniteAuxiliaryAgreement),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties, BoundaryProperties = NoFeatures>: [
-            (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement, NoClauseComplementBoundary),
-            (FiniteManaPassivePredicate, ManaPassiveComplement, FiniteAuxiliaryAgreement,
-                NoClauseComplementBoundary),
+        instance ParticipialAuxiliaryPredicate<Result, Complement: complement, Properties>: [
+            (FinitePredicate, ParticipialComplement, FiniteAuxiliaryAgreement),
+            (FiniteManaPassivePredicate, ManaPassiveComplement, FiniteAuxiliaryAgreement),
             (IrrealisPredicate, ParticipialComplement, IrrealisHeadAgreement),
-            (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties, NoClauseComplementBoundary),
+            (SecondaryVerbPhrase, ParticipialComplement, SecondaryAuxiliaryProperties),
         ] {
             use Properties;
-            use BoundaryProperties;
         }
         instance PerfectAuxiliaryPredicate<Result, Complement: complement, Properties>: [
             (FinitePredicate, PerfectComplement, FiniteAuxiliaryAgreement),
             (SecondaryVerbPhrase, PerfectComplement, SecondaryAuxiliaryProperties),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -4936,6 +4934,7 @@ constructions! {
         }
         // CGEL Ch15 §4.3 pp1341–1343: parallel NP+PP tails under one selected verb.
         construction ObjectPrepositionTail: SelectedComplementTail {
+            head none;
             form [object: AccusativePhrase, " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require noun_phrase_complement(marker.PrepositionComplement) = Yes;
@@ -4944,12 +4943,14 @@ constructions! {
             export HeadCoordination = No;
         }
         construction ObjectLocativeTail: SelectedComplementTail {
+            head none;
             form [object: AccusativePhrase, " ", complement: LocativeComplement];
             segment Predicate;
             export HeadCoordination = No;
         }
         // GC7: each coordinate selects its own Manner Complement.
         construction ObjectLocativeMannerTail: SelectedComplementTail {
+            head none;
             form [object: AccusativePhrase, " ", complement: LocativeComplement,
                 " ", marker: lexical(Preposition), " ", manner: MannerComplement];
             require noun_phrase_complement(marker.PrepositionComplement) = Yes;
@@ -4966,8 +4967,6 @@ constructions! {
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         // The depictive precedes the selected predicative PP (Vesuva).
@@ -4982,8 +4981,8 @@ constructions! {
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None; use Properties; }
+            use Properties;
+        }
 
         schema SelectedSourceDepictivePredicate {
             form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
@@ -5022,17 +5021,9 @@ constructions! {
             require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
         }
         policy PlainGapHead {
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             require head.form = Plain;
         }
         policy BarePassiveHead {
-            export ParticipialSupplementUse = head.ParticipialSupplementUse;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             require head.form = PastParticiple;
             export form = PastParticiple;
             export ParticipialUse = BarePassive;
@@ -5043,13 +5034,9 @@ constructions! {
             (BareObjectGap, PlainGapHead),
             (SecondaryVerbPhrase, BarePassiveHead),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         construction BareNominalPrepositionPassive: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", marker: lexical(Preposition), " ",
                 complement: NounPhrase];
             require selected_object_marker(head.frame, marker.KeywordMarker) = Yes;
@@ -5068,26 +5055,18 @@ constructions! {
             (BareObjectGap, PlainGapHead),
             (SecondaryVerbPhrase, BarePassiveHead),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         construction SelectedExtentPassive: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", complement: ScalarExtentComplement];
             require head.frame = ObjectExtent;
             use BarePassiveHead;
         }
         construction SelectedFramePassive: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), complements: selected_frame(head, Passive)];
             use BarePassiveHead;
         }
         construction RetainedObjectPassive: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             form [head: lexical(Verb), " ", object: AccusativePhrase];
             require head.frame = Ditransitive;
             use BarePassiveHead;
@@ -5148,17 +5127,23 @@ constructions! {
             require nominal_adjunct_license(determiner.NominalAdjunctDependent,
                 head.NominalAdjunctClass, head.NominalDependentPresent) = Yes;
         }
-        instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
-            (ExistentialPredicate, Self, PredicateHostAgreement),
-            (FinitePredicate, Self, PredicateHostAgreement),
-            (SecondaryVerbPhrase, Self, SecondaryProjection),
-            (FiniteObjectGap, Self, FiniteGapHostProjection),
-            (BareObjectGap, Self, BareGapHostProjection),
+        instance NominalAdjunctPredicate<Result, Head: head>: [
+            (ExistentialPredicate, Self),
+            (FinitePredicate, Self),
         ] {
             require nonconnective_trailing_adjunct_host(head.ClauseComplementBoundary) = Yes;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
+        }
+        instance NominalAdjunctPredicate<Result, Head: head, Properties>: [
+            (SecondaryVerbPhrase, Self, SecondaryProjection),
+        ] {
+            require nonconnective_trailing_adjunct_host(head.ClauseComplementBoundary) = Yes;
             use Properties;
+        }
+        instance NominalAdjunctPredicate<Result, Head: head>: [
+            (FiniteObjectGap, Self),
+            (BareObjectGap, Self),
+        ] {
+            require nonconnective_trailing_adjunct_host(head.ClauseComplementBoundary) = Yes;
         }
 
         // CGEL pp. 409–410: restricted bare count NPs in selected PP frames.
@@ -5250,64 +5235,57 @@ constructions! {
             agree quantity.number = head.number;
         }
 
+        instance FrequencyPredicate<Result, Head: head, Modifier: modifier>: [
+            (FinitePredicate, Self, FrequencyPhrase),
+        ] {}
         instance FrequencyPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (FinitePredicate, Self, FrequencyPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, FrequencyPhrase, SecondaryProjection),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
 
+        instance PrepositionPredicate<Result, Head: head, Modifier: modifier>: [
+            (ExistentialPredicate, Self, PrepositionPhrase),
+            (FinitePredicate, Self, PrepositionPhrase),
+        ] {}
         instance PrepositionPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (ExistentialPredicate, Self, PrepositionPhrase, PredicateHostAgreement),
-            (FinitePredicate, Self, PrepositionPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, Self, PrepositionPhrase, SecondaryPrepositionProjection),
-            (FiniteObjectGap, Self, PrepositionPhrase, FiniteGapHostProjection),
-            (BareObjectGap, Self, PrepositionPhrase, BareGapHostProjection),
         ] {
             use Properties;
         }
+        instance PrepositionPredicate<Result, Head: head, Modifier: modifier>: [
+            (FiniteObjectGap, Self, PrepositionPhrase),
+            (BareObjectGap, Self, PrepositionPhrase),
+        ] {}
 
-        instance PurposePredicate<Result, Head: head, Properties>: [
-            (FinitePredicate, Self, PredicateHostAgreement),
-            (SecondaryVerbPhrase, Self, SecondaryAdjunctProjection),
-            (FiniteManaPassivePredicate, Self, PredicateHostAgreement),
-            (ManaPassivePredicate, Self, ManaPassiveProjection),
-            (FiniteObjectGap, Self, FiniteGapHostProjection),
-            (BareObjectGap, Self, BareGapHostProjection),
-        ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            use Properties;
-        }
+        instance PurposePredicate<Result, Head: head>: [
+            (FinitePredicate, Self),
+            (SecondaryVerbPhrase, Self),
+            (FiniteManaPassivePredicate, Self),
+            (ManaPassivePredicate, Self),
+            (FiniteObjectGap, Self),
+            (BareObjectGap, Self),
+        ] {}
 
         construction BarePredicate: BarePredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = Plain;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         construction ProgressiveComplement: ParticipialPredicate {
             export CentralAdjunctPosition = PostAuxiliary;
             form [head: SecondaryVerbPhrase];
             require head.form = GerundParticiple;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         // CGEL p. 1327: unlike AdjP and progressive complements coordinated under be.
         // The shared phrase describes their constituent structure; here it is a complement.
         construction MixedCopularProgressiveComplement: ParticipialPredicate {
+            head phrase;
             export CentralAdjunctPosition = PostAuxiliary;
             form [phrase: DepictivePhrase];
             require phrase.DepictiveKind = Mixed;
             export PurposeAdjunctLicence = No;
-            export MatrixComplementLicence = None;
-            export SourceComplementSelection = No;
         }
 
         construction PassiveComplement: ParticipialPredicate {
@@ -5315,26 +5293,15 @@ constructions! {
             form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             require head.ParticipialUse = BarePassive;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         construction PerfectComplement: PastParticiplePredicate {
             form [head: SecondaryVerbPhrase];
             require head.form = PastParticiple;
             require head.ParticipialUse = Ordinary;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         construction PassivePredicate: SecondaryVerbPhrase {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             form [head: lexical(Verb)];
             require head.form = PastParticiple;
             require head.frame = Transitive;
@@ -5363,9 +5330,6 @@ constructions! {
         }
 
         construction FiniteObjectGap: FiniteObjectGap {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
             require head.PredicateFrameUse = Yes;
             form [head: lexical(Verb)];
             use FiniteHeadAgreement;
@@ -5373,24 +5337,12 @@ constructions! {
         }
 
         construction BareObjectGap: BareObjectGap {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             form [head: lexical(Verb)];
             require head.form = Plain;
             require head.frame = Transitive;
         }
 
         construction PastParticipleObjectGap: PastParticipleObjectGap {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             form [head: lexical(Verb)];
             require head.PredicateFrameUse = Yes;
             require head.form = PastParticiple;
@@ -5398,11 +5350,6 @@ constructions! {
         }
 
         construction GerundParticipleObjectGap: GerundParticipleObjectGap {
-            export ClauseComplementBoundary = None;
-            export ComparativeObjectGapLicence = head.ComparativeObjectGapLicence;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
             form [head: lexical(Verb)];
             require head.PredicateFrameUse = Yes;
             require head.form = GerundParticiple;
@@ -5410,8 +5357,6 @@ constructions! {
         }
 
         construction AuxiliaryObjectGap: FiniteObjectGap {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export ComparativeObjectGapLicence = complement.ComparativeObjectGapLicence;
             form [head: lexical(Verb), " ", complement: BareObjectGap]
                 require head.frame = BareAuxiliary;
@@ -5472,6 +5417,7 @@ constructions! {
         }
 
         construction OmittedPlain: Ellipsis {
+            head none;
             form [];
             export form = Plain;
         }
@@ -5485,9 +5431,6 @@ constructions! {
             (ManaPassiveComplement, ManaPassivePredicate),
         ] {
             use Properties;
-            export PurposeAdjunctLicence = predicate.PurposeAdjunctLicence;
-            export MatrixComplementLicence = predicate.MatrixComplementLicence;
-            export SourceComplementSelection = predicate.SourceComplementSelection;
         }
 
         // DS1–DS2: an overt pro-form fills the stranded auxiliary's Complement.
@@ -5501,12 +5444,11 @@ constructions! {
         }
 
         construction BareEllipsis: BareComplement {
+            head omission;
             form [omission: Ellipsis];
             require omission.form = Plain;
             export AuxiliaryComplementRealization = Elided;
             export PurposeAdjunctLicence = No;
-            export MatrixComplementLicence = None;
-            export SourceComplementSelection = No;
         }
 
 
@@ -6193,18 +6135,12 @@ constructions! {
         }
         policy NonfiniteComparisonHost {
             require matched_nonfinite_comparison(head.form, comparison.ComparativeComplementForm) = Yes;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-            export InternalisedComplementPresent = head.InternalisedComplementPresent;
             export ParticipialSupplementUse = No;
-            export ParticipialUse = head.ParticipialUse;
-            export form = head.form;
         }
-        instance MatchedComparativeConstituent<Result, Head: head, Properties, BoundaryProperties = NoFeatures>: [
+        instance MatchedComparativeConstituent<Result, Head: head, Properties>: [
             (NounPhrase, Self, NominalComparisonHost),
-            (SecondaryVerbPhrase, Self, NonfiniteComparisonHost, NoClauseComplementBoundary),
-        ] { use Properties; use BoundaryProperties; }
+            (SecondaryVerbPhrase, Self, NonfiniteComparisonHost),
+        ] { use Properties; }
 
         table coordinated_comparison_marker(ComparisonMarker, ComparisonMarker)
             -> ComparisonMarker {
@@ -6316,26 +6252,16 @@ constructions! {
             (FinitePredicate, FiniteHeadAgreement),
             (SecondaryVerbPhrase, OrdinarySecondaryHead),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance ComplementedDepictivePredicate<Result, Head: head, Properties>: [
-            (FinitePredicate, FiniteDepictiveHost, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondaryDepictiveHost, SecondaryAdjunctProjection),
-        ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            use Properties;
-        }
-        instance AdverbPredicate<Result, Head: head, Modifier: modifier, Properties>: [
-            (FinitePredicate, Self, AdverbPhrase, PredicateHostAgreement),
-            (SecondaryVerbPhrase, Self, AdverbPhrase, SecondaryAdjunctProjection),
-        ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            use Properties;
-        }
+        instance ComplementedDepictivePredicate<Result, Head: head>: [
+            (FinitePredicate, FiniteDepictiveHost),
+            (SecondaryVerbPhrase, SecondaryDepictiveHost),
+        ] {}
+        instance AdverbPredicate<Result, Head: head, Modifier: modifier>: [
+            (FinitePredicate, Self, AdverbPhrase),
+            (SecondaryVerbPhrase, Self, AdverbPhrase),
+        ] {}
 
         construction InitialAdverb: Clause {
             export SourceComplementSelection = clause.SourceComplementSelection;
@@ -6413,20 +6339,7 @@ constructions! {
             require noun_phrase_complement(marker.PrepositionComplement) = Yes;
             require licence_verb_complement(marker.PrepositionFunctionLicence) = Yes;
             export HeadCoordination = No;
-            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
-            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
             use SecondaryHeadForm;
-        }
-
-        policy ManaPassiveProjection {
-            export FrameUse = head.FrameUse;
-            export HeadCoordination = head.HeadCoordination;
-            export AuxiliaryProFormLicence = head.AuxiliaryProFormLicence;
-            export AuxiliaryEllipsisLicence = head.AuxiliaryEllipsisLicence;
-            export form = head.form;
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
         }
 
         // MP2–MP3: the declared Mana Complement frame selects this passive
@@ -6436,8 +6349,6 @@ constructions! {
         ] {
             require head.frame = ManaComplement;
             require head.form = PastParticiple;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
 
@@ -6475,73 +6386,68 @@ constructions! {
             (Adversative, Plural, Plural) => Plural,
         }
 
+        instance SharedObjectComplement<Result, Head: head, Object: object>: [
+            (FinitePredicate, FiniteSelectedHead, AccusativePhrase),
+        ] {}
         instance SharedObjectComplement<Result, Head: head, Object: object, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase,
-                OrdinarySelectedPredicate),
+            (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance SharedPredicativeComplement<
-            Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, PredicativeComplement, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, PredicativeComplement,
-                OrdinarySelectedPredicate),
+        instance SharedPredicativeComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, PredicativeComplement),
+        ] {}
+        instance SharedPredicativeComplement<Result, Head: head, Complement: complement, Properties>: [
+            (SecondaryVerbPhrase, SecondarySelectedHead, PredicativeComplement, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
+        instance SharedLocativeComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, LocativeComplement),
+        ] {}
         instance SharedLocativeComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, LocativeComplement, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, LocativeComplement,
-                OrdinarySelectedPredicate),
+            (SecondaryVerbPhrase, SecondarySelectedHead, LocativeComplement, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
+        instance SharedManaComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, ManaPhrase),
+        ] {}
         instance SharedManaComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, ManaPhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, ManaPhrase, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
+        instance SharedAmountComplement<Result, Head: head, Amount: amount>: [
+            (FinitePredicate, FiniteSelectedHead, Amount),
+        ] {}
         instance SharedAmountComplement<Result, Head: head, Amount: amount, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, Amount, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, Amount, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
+        instance SharedMeasureComplement<Result, Head: head, Measure: measure>: [
+            (FinitePredicate, FiniteSelectedHead, MeasurePhrase),
+        ] {}
         instance SharedMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, MeasurePhrase, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, MeasurePhrase, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
+        instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure>: [
+            (FinitePredicate, FiniteSelectedHead, SlashPair),
+        ] {}
         instance SharedSlashMeasureComplement<Result, Head: head, Measure: measure, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, SlashPair, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, SlashPair, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance SharedGrantedAbilityComplement<
-            Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, GrantedAbility, PredicateHostAgreement),
+        instance SharedGrantedAbilityComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, GrantedAbility),
+        ] {}
+        instance SharedGrantedAbilityComplement<Result, Head: head, Complement: complement, Properties>: [
             (SecondaryVerbPhrase, SecondarySelectedHead, GrantedAbility, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryBareComplement<
@@ -6550,8 +6456,6 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, BareComplement,
                 AuxiliarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryParticipleComplement<
@@ -6560,8 +6464,6 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, ParticipialComplement,
                 SelectedAuxiliaryProperties),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         instance SharedAuxiliaryPerfectComplement<
@@ -6570,18 +6472,14 @@ constructions! {
             (SecondaryVerbPhrase, SecondarySelectedHead, PerfectComplement,
                 SelectedAuxiliaryProperties),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
-        instance SharedObjectNameComplement<
-            Result, Head: head, Object: object, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, Name, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, Name,
-                OrdinarySelectedPredicate),
+        instance SharedObjectNameComplement<Result, Head: head, Object: object, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, AccusativePhrase, Name),
+        ] {}
+        instance SharedObjectNameComplement<Result, Head: head, Object: object, Complement: complement, Properties>: [
+            (SecondaryVerbPhrase, SecondarySelectedHead, AccusativePhrase, Name, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
         table coordinated_locative_use(LocativeUse, LocativeUse) -> LocativeUse {
@@ -6958,28 +6856,26 @@ constructions! {
             require licence_modifier(head.PrepositionFunctionLicence) = Yes;
             export PrepositionFunctionLicence = Modifier;
         }
+        instance SharedQuantitativeDeterminerComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, QuantitativeDeterminer),
+        ] {}
         instance SharedQuantitativeDeterminerComplement<Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, QuantitativeDeterminer, PredicateHostAgreement),
             (SecondaryVerbPhrase, SecondarySelectedHead, QuantitativeDeterminer, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
 
-        instance SharedInfinitiveComplement<
-            Result, Head: head, Complement: complement, Properties>: [
-            (FinitePredicate, FiniteSelectedHead, InfinitiveComplement, PredicateHostAgreement),
-            (SecondaryVerbPhrase, SecondarySelectedHead, InfinitiveComplement,
-                OrdinarySelectedPredicate),
+        instance SharedInfinitiveComplement<Result, Head: head, Complement: complement>: [
+            (FinitePredicate, FiniteSelectedHead, InfinitiveComplement),
+        ] {}
+        instance SharedInfinitiveComplement<Result, Head: head, Complement: complement, Properties>: [
+            (SecondaryVerbPhrase, SecondarySelectedHead, InfinitiveComplement, OrdinarySelectedPredicate),
         ] {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             use Properties;
         }
 
         construction AdjectivalCorrelativeComplement: PredicativeComplement {
-            export PredicativeAdjunctUse = No;
+            head phrase;
             form [phrase: CorrelativeAdjectivePhrase];
             export PredicativeKind = Adjectival;
             require phrase.AdjectiveAttributiveOnlyUse = No;
