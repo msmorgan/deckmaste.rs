@@ -1,10 +1,10 @@
 ---
-needs: [english-v3-systemic-residuals, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-selected-preposition-nominal-licensing, english-v3-licence-plumbing-economy, english-v3-census-efficiency]
+needs: [grammar-coverage-resume, english-v3-generic-frame-consumption, english-v3-scalar-cardinals, english-v3-number-transparent-concord, english-v3-by-complement-functions, english-v3-census-tractability, english-v3-selected-preposition-nominal-licensing, english-v3-licence-plumbing-economy, english-v3-census-efficiency]
 ---
 # Cut production English consumers over to v3
 
 Begin only after the four residual implementation batches and
-`english-v3-systemic-residuals` reconciliation. That reconciliation adds any
+`grammar-coverage-resume` reconciliation. That reconciliation adds any
 newly measured systemic repair tickets to this ticket's `needs:`; four batches
 completing does not itself establish readiness. Require the explicit remaining
 identity/structure ownership and measured runtime/forest bounds at that handoff.

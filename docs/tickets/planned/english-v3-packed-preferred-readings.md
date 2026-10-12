@@ -71,7 +71,7 @@ Seedborn Muse's sentence actually has 8 Readings, not 3: each attachment site
 appears twice, because the lexicon reads "untap step" both as a compound lexeme
 and as *untap* + *step*, and the "attach to Untap" site exists at both clause and
 VP level. Both multiplicities predate the three-Reading ruling; the lexical one
-is a question for the residual audit (see `english-v3-systemic-residuals`).
+is a question for the residual audit (see `grammar-coverage-resume`).
 
 Two more Preference witnesses of the same kind (semantically odd but
 syntactically licensed nominal attachments that should rank last and remain

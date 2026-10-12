@@ -69,7 +69,7 @@ digest-only face is present. No new flag.
 ### e. Unlike-function complement coordination licensing: route only
 
 Already recorded as a design note at
-`docs/tickets/planned/english-v3-systemic-residuals.md:686–697` ("each
+`docs/tickets/planned/grammar-coverage-resume.md:686–697` ("each
 coordinate's frame signature for the shared head", Master Biomancer's
 *enters with … and as a Mutant*, gated today by coordinate licences per the
 owner's 2026-10-08 bounded ruling, `znsuzsus`). Add one sentence there with
