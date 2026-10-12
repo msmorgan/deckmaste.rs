@@ -683,10 +683,15 @@ mimicked.
   [CR#702.124a]; companion is Vintage-legal and in scope, but functions
   outside the game, so it is deferred until the mechanisms it needs exist
   [CR#702.139a] (amended 2026-10-10, owner). Freerunning goes to
-  `core-location-outside-the-game` [CR#702.173a]. Infect, lifelink, wither and
-  toxic are damage results: rows in the facts table plus an engine rule,
-  with no definition body [CR#120.3,702.90b,702.15b,702.80a,702.164c].
-  (Ruling, 2026-10-09, owner.)
+  `core-location-outside-the-game` [CR#702.173a]. Infect, lifelink, wither
+  and toxic, and deathtouch's lethal-damage rule, wait on the composable
+  damage-result rules table, one of the three rules tables §11 names
+  [CR#120.3,702.90b,702.15b,702.80a,702.164c,702.2c]; their shape is an open
+  owner decision as of 2026-10-12, and they are not engine-intrinsic. (The
+  routing of the other-face, partner and freerunning groups is an
+  orchestrator routing recorded 2026-10-09, not an owner ruling. Retracted
+  2026-10-12, owner: the damage-result sentence had been recorded as a ruling
+  without being asked.)
 - **Enchant is not settled empty.** The Enchant keyword owns three abilities
   [CR#702.5a]: the target restriction while the Aura is a spell, its targets
   limited to the quality [CR#303.4a]; the legal-host permission, a deontic
