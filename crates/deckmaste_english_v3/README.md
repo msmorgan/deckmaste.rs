@@ -12,28 +12,10 @@ dependency; integration tests load the authored lexical inventory.
 
 The 21 ordinary `Nominal` constructions use the compiler's
 [head inheritance and static defaults](../deckmaste_construction_v3_core/README.md#head-inheritance-and-defaults).
-`NominalDependentPresent`, `ScalarMeasurementHeadUse` and `PropertyValuePosition`
-are local: their default describes an unchanged local property; lexical
-projections and the exceptional preserving constructions explicitly forward them.
-The other Nominal interface features inherit from the named head, with static
-fallback when its interface lacks the feature. Existing defaults and domains are
-unchanged. Other constructions and shared policies still use explicit equations.
-
-For inspection, `MeasuredSymbolNominal` has the following complete elaboration.
-Its `NominalSymbol` head exposes only `SymbolNominalUse` and
-`NominalAgreementNumber`, so only one result feature can inherit:
-
-| Origin | Exports |
-|---|---|
-| Explicit | `number = Singular`, `Targeting = No`, `DeterminerRequirement = Yes`; `countability` and `MeasurePosition` use their authored tables |
-| Head | `NominalAgreementNumber = head.NominalAgreementNumber` |
-| Default `Yes` | `SlashPremodifierUse`, `UnmarkedConjunctLicence` |
-| Default `None` | `NominalAdjunctClass`, `RelativisableAdjunctClass`, `ObliqueNumber`, `PropertyValuePosition`, `NominalComplementMarker`, `SubjectRelativeNumber` |
-| Default `No` | `ComparativeModifierPresent`, `AttributePremodifierHead`, `KeywordPremodifierHead`, `NominalDependentPresent`, `NumberTransparency`, `BareGenitiveHost`, `ScalarMeasurementHeadUse`, `CardinalMeasurementUse`, `BarePrepositionUse`, `SelectedPrepositionUse`, `PredicativeAdjunctUse`, `ScalarDenotation`, `SourceModifierPresent`, `WholeObjectSourcePresent` |
-
-This is a compile-time expansion, independent of the head's runtime value. A
-missing inherited value never falls back dynamically. Explicit equations retain
-the existing conflict and domain checks.
+The `category Nominal(...)` interface marks each feature `head` or `local`;
+constructions select their head by the field name `head` and state their changes.
+Other Category interfaces remain strict. Features retain their existing domains
+and defaults.
 
 ## Fragment probe
 
@@ -78,7 +60,8 @@ face plus `--random N` unchanged covered faces chosen by `--seed`, ready for
 `--check no-loss` fails for lost coverage, incomplete or limited enumeration,
 validation issues, incompatible versions/input policies/source snapshots, changed
 face sources, or missing/added/duplicate face identities. Both reports must have
-complete enumeration metadata and the same nonempty face population; matching
+complete enumeration metadata, equal `selection_status`, and the same nonempty
+face population; matching
 subsets can be checked while iterating. `--check identical-digests` also fails for
 any changed face count or digest, including unread faces. These checks do not
 replace the judgment set or analysis-key gate for linguistic changes.

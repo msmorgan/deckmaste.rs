@@ -9,8 +9,8 @@ Licences themselves stay at admission. The 2026-10-07 permissive-admission exper
 
 ## Change
 
-- A feature is declared `head` (taken from the construction's head child unless overridden) or `local` (declared default unless set).
-- A construction names its head child. An export it does not write is filled by the compiler: the head's value for a `head` feature, the declared default for a `local` feature with one. A written export overrides. Features with no default and no head source must still be exported.
+- Each Category interface entry is `head` (taken from the construction's head unless overridden), `local` (declared default unless set), or unqualified (strict explicit export).
+- A field named `head` supplies the head by convention; `head other;` overrides it and `head none;` declares headlessness. Head-mode entries require a head or directive even with complete explicit exports. A constituent head supplies features exposed by its Category, with static declared-default fallback otherwise. Lexical heads may inherit only features with declared defaults; others require explicit exports. Headless constructions must explicitly export every head-mode entry. Local entries use their declared defaults. Explicit exports override inference.
 - The compiler elaborates this to today's lowered form and keeps its existing checks (each interface feature supplied exactly once, same domain); the chart and runtime do not change.
 - Convert the 21 constructions that produce `Nominal`, and nothing else, as the prototype.
 
@@ -20,45 +20,79 @@ This ticket also makes the census `diff` able to fail: today it exits 0 whatever
 
 Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capability. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Note: census delta (none); the judgment-set line does not apply yet.
 
-## Implemented design
+## Revised design
 
-Standard constraints apply. Features opt into `head` or `local` propagation;
-`head field;` names a singular lexical or constituent field. Explicit equations
-from constructions, forms, schemas and policies override inference, while
-conflicting explicit exports still reject. After schema binding, an omitted head
-feature copies an accessible head feature, otherwise takes its declared default;
-a local feature takes only its declared default. No applicable source/default is
-a compile error naming the construction and feature. Fallback is static, never a
-runtime repair of an absent value. Unqualified features retain explicit exports.
-The compiler README documents the semantics and inspection procedure; the English
-README lists all export origins for `MeasuredSymbolNominal`.
+Standard constraints apply. Propagation belongs to `(Category, feature)` pairs;
+only `Nominal` is annotated. Features retain their domains and defaults, and every
+unqualified interface remains strict. The three local entries are
+`NominalDependentPresent`, `ScalarMeasurementHeadUse`, and `PropertyValuePosition`;
+the other 25 inherit. Each form fills independently against its concrete head
+Category after policy expansion and schema binding. Explicit exports override
+inference; duplicate explicit exports still conflict. Missing exports name the
+Construction and feature. No Reading shape, field order, form index, admission,
+chart or runtime changes. The compiler README states the rules; no explain tool
+or maintained export inventory is needed.
 
-Only the 21 ordinary Nominal constructions were converted. Their 28 existing
-interface features received propagation annotations (including two builtin
-annotations, not new domains). `NominalDependentPresent`,
-`ScalarMeasurementHeadUse` and `PropertyValuePosition` are local; the others
-inherit. No feature domain/default, lexicon, category, construction, table or
-policy was added or changed beyond this authoring mechanism. Shared policies
-remain for their unconverted users.
+The missing-head check initially rejected shared coordination instances producing
+Nominal. Work stopped for the scope ruling. The owner authorized required headless
+declarations without converting these instances: `head none;` was added to exactly
+two schemas, `SerialCoordination` and `Coordination`. All their exports, policies
+and forms remain unchanged. The directive applies to all instances and has no
+effect for interfaces without head-mode entries. No other shared declaration
+needed this escape.
 
-The composed rule supplies 436 head forwards and 50 defaults. Direct export
-statements fell from 252 to 102; construction blocks from 423 to 271 physical
-lines, and declarations.rs from 7,702 to 7,552. Six blocks grow because replacing
-a policy use exposes its non-inherited changes: Noun and BareFramedNoun each
-10→12; SelectedComplementNominal 14→18; SymbolComplementNominal 13→17;
-PrepositionComplementNominal 31→35; PostmodifiedNominal 14→15. Their expanded
-export maps and ordered forms, like those of the other 15 blocks, are unchanged.
-CorrelativePostpositiveNominal has no census witness; it was included in that
-structural comparison rather than claiming corpus coverage for it.
+Only the 21 ordinary Nominal constructions were converted. All 21 redundant
+`head head;` directives are gone. The five lexical-headed constructions (Noun,
+BareFramedNoun, SelectedComplementNominal, SymbolComplementNominal,
+PrepositionComplementNominal) now explicitly forward builtin `number` and
+`countability`, which lack defaults. The trial removing their
+`NominalAgreementNumber = Head` and `ObliqueNumber = None` exports passed the
+56-face subset check: all 1,364 Readings and digests identical. Those ten exports
+remain removed. No lexicon, domain/default, construction, category, table or
+policy was added. Zero users were confirmed before deleting
+UnmodifiedNominalProperties, PostmodifiedNominalProperties and
+ParticipialNominalHeadFeatures; NominalHeadFeatures and NominalHeadProperties
+remain for their schema rows.
 
-`english-v3 diff --check no-loss` rejects incompatible/incomplete evidence and
-lost faces; `--check identical-digests` additionally rejects every changed count
-or digest, including unread faces. The 56-face subset and full identical-digest
-checks passed; an intentionally altered scratch digest produced exit 1. Added
-10 compiler tests and 4 census-check tests; restored/re-spelled/newly ignored/
-removed tests: 0/0/0/0. Boolean requirements and policy composition remain next;
-coordination still needs per-feature combiners, and typed lexical classes must
-refine lexical source accessibility. No other constructions were converted.
+Physical lines: declarations.rs 7,702 originally → 7,552 at first review → 7,456;
+the 21 construction blocks 423 → 271 → 250. Direct exports 252 → 102 → 102.
+Five blocks remain longer than their original policy-based spelling because
+substantive policy changes are now visible directly: Noun 10→11,
+BareFramedNoun 10→11, SelectedComplementNominal 14→17,
+SymbolComplementNominal 13→16, PrepositionComplementNominal 31→34.
+CorrelativePostpositiveNominal has no corpus witness; compiler/source checks,
+rather than a claimed witness, cover its conversion.
 
-Census delta (otnsrlky): none — faces read 30,794→30,794; total Readings 482,041→482,041; lost faces: none; all 32,828 face digests identical.
-Judgment set (otnsrlky): does not apply yet for this ticket.
+Baseline provenance: `target/english-v3/inherit-before.json` records change ID
+`qplsoopn`, which subsequently became the compiler commit. The completed census
+was captured in that change's clean pre-implementation working tree, before any
+compiler edits or propagation annotations; it was not captured after annotations.
+Its SHA-256 remains
+`c0857837d12302264f486b629cf68242522a2ce32b9a04531934acb3a3162da4`.
+This is a sound pre-change baseline: all exports were explicit and the complete
+32,828-face report has unlimited, complete enumeration and no validation issues.
+
+The census check additionally requires equal `selection_status`; both complete
+reports and matching subsets remain supported. Boolean requirements and policy
+composition are the next authoring work. Coordination still needs per-feature
+combiners; headless coordination keeps its explicit policies meanwhile. Typed
+lexical classes should refine lexical source availability, including builtin
+features currently requiring explicit forwards.
+
+Validation: the revised full census (`inherit-revised-after.json`) and
+`cargo xtask english-v3 diff inherit-before.json inherit-revised-after.json
+--check identical-digests` passed over all 32,828 faces (paths under
+`target/english-v3/`), with zero incomplete enumerations or validation issues.
+Full tests passed: construction core 60, construction macro 44, English 1,165,
+xtask 439. All four crates passed clippy with `--tests -- -D warnings`.
+Citation checks: zero noncompliant, zero stale, no changed citation sites.
+
+Assurance: the ticket adds 16 compiler tests and 5 census-check tests in total.
+This revision adds 6 compiler tests and 1 check test, and re-spells the earlier
+10 compiler tests for Category modes and the revised head contract. Restored,
+newly ignored and removed tests: 0 each. The existing English mana-symbol
+verbless-subject blocker and xtask live-corpus census ignore remain unchanged.
+No assertions were weakened.
+
+Census delta (utxtvuto): none — faces read 30,794→30,794; total Readings 482,041→482,041; lost faces: none; all 32,828 face digests identical.
+Judgment set (utxtvuto): does not apply yet for this ticket.

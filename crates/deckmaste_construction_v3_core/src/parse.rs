@@ -31,13 +31,17 @@ pub(crate) struct Declaration {
 
 pub(crate) struct Category {
     pub name: Ident,
-    pub features: Vec<Ident>,
+    pub features: Vec<InterfaceFeature>,
+}
+
+pub(crate) struct InterfaceFeature {
+    pub name: Ident,
+    pub propagation: Option<Propagation>,
 }
 
 pub(crate) struct Feature {
     pub name: Ident,
-    pub values: Option<Vec<Ident>>,
-    pub propagation: Option<Propagation>,
+    pub values: Vec<Ident>,
     pub default: Option<Ident>,
     pub set: bool,
 }
@@ -215,7 +219,7 @@ impl Parse for Declaration {
                     parenthesized!(features in body);
                     result.categories.push(Category {
                         name,
-                        features: names(&features)?,
+                        features: interface_features(&features)?,
                     });
                     body.parse::<Token![;]>()?;
                 }
@@ -297,33 +301,28 @@ impl Parse for Declaration {
     }
 }
 
-fn parse_feature(body: ParseStream<'_>, name: Ident) -> syn::Result<Feature> {
-    let propagation = if body.peek(Ident) {
-        let mode: Ident = body.parse()?;
-        Some(match mode.to_string().as_str() {
-            "head" => Propagation::Head,
-            "local" => Propagation::Local,
-            _ => return Err(syn::Error::new(mode.span(), "expected head or local")),
-        })
-    } else {
-        None
-    };
-    if body.peek(Token![;]) {
-        if propagation.is_none() {
-            return Err(body.error("builtin feature annotation requires head or local"));
+fn interface_features(input: ParseStream<'_>) -> syn::Result<Vec<InterfaceFeature>> {
+    let mut features = Vec::new();
+    while !input.is_empty() {
+        let first: Ident = input.parse()?;
+        let propagation = match first.to_string().as_str() {
+            "head" => Some(Propagation::Head),
+            "local" => Some(Propagation::Local),
+            _ => None,
+        };
+        let name = if propagation.is_some() { input.parse()? } else { first };
+        features.push(InterfaceFeature { name, propagation });
+        if !input.is_empty() {
+            input.parse::<Token![,]>()?;
         }
-        body.parse::<Token![;]>()?;
-        return Ok(Feature {
-            name,
-            values: None,
-            propagation,
-            default: None,
-            set: false,
-        });
     }
+    Ok(features)
+}
+
+fn parse_feature(body: ParseStream<'_>, name: Ident) -> syn::Result<Feature> {
     let values;
     braced!(values in body);
-    let values = Some(names(&values)?);
+    let values = names(&values)?;
     let set = body.peek(Ident) && body.fork().parse::<Ident>()? == "set";
     if set {
         body.parse::<Ident>()?;
@@ -340,7 +339,6 @@ fn parse_feature(body: ParseStream<'_>, name: Ident) -> syn::Result<Feature> {
     Ok(Feature {
         name,
         values,
-        propagation,
         default,
         set,
     })

@@ -34,7 +34,7 @@ public Category root. There is no scanner callback or preferred Reading.
 
 ## Lowered form versus authoring layer
 
-The chart consumes complete, finite summaries. Authors can now declare feature
+The chart consumes complete, finite summaries. Authors can now declare Category-interface
 propagation and state only a Construction's changes; the compiler fills its
 exports before validating and lowering them. Boolean requirements, policy
 composition, generic coordination with per-feature combiners, and typed lexical
@@ -45,74 +45,53 @@ is `docs/decisions/english-lexical-analysis.md`.
 ## Head inheritance and defaults
 
 ```rust
-feature number head; // annotate an existing builtin domain
-feature Permission head { No, Yes } default No;
-feature Modified local { No, Yes } default No;
-category Nominal(number, Permission, Modified);
+feature Permission { No, Yes } default No;
+feature Modified { No, Yes } default No;
+category Nominal(head number, head Permission, local Modified);
+category Clause(Permission); // strict: explicit export required
 construction ModifiedNominal: Nominal {
-    head noun;
-    form [modifier: lexical(Adjective), " ", noun: Nominal];
+    form [modifier: lexical(Adjective), " ", head: Nominal];
     export Modified = Yes;
 }
 ```
 
-`head noun;` names one existing, singular lexical or constituent field. It does
-not rename or reorder fields, add a Reading field, or change surface form indices.
-The field need not be named `head`. A schema can declare its head, or an instance
-can supply it when the schema does not. Two head declarations are an error, even
-if they name the same field. Policies supply equations, not heads.
+Propagation belongs to each Category interface entry: `head Feature` inherits,
+`local Feature` takes its declared default, and an unqualified entry requires an
+explicit export. Features retain their domains and optional defaults. This
+per-entry syntax leaves room for later coordination combiners; none exist yet.
 
-Feature declarations opt into `head` or `local` propagation. Omit the qualifier to
-retain the legacy requirement for explicit exports, even when a lexical default
-exists. `feature number head;` annotates a builtin without redefining its domain
-or giving it a default. Custom domains put the qualifier before their value list;
-`set` features can inherit but still cannot have scalar defaults.
+A field named `head` is the head by convention. `head other;` selects another
+field; `head none;` declares explicit headlessness. A Category with any head-mode
+entry requires a head field or directive, even when all exports are explicit.
+A selected head must be a singular lexical or constituent field. `head none;`
+requires explicit exports for **every head-mode entry**, even with defaults;
+local defaults still apply. A schema or its instance can declare the head, but
+two directives conflict. A schema directive applies to all its instances;
+`head none;` has no effect for interfaces without head-mode entries. Policies
+supply equations, not heads.
 
-After policy expansion, schema instantiation and Category binding, each form's
-exports are elaborated independently in result-interface order:
+After schema binding and policy expansion, **each form** fills its omitted exports
+against its own head's concrete Category. A head-mode feature exposed by that
+Category (including computed surface features) is copied; otherwise its declared
+default is used. A lexical head may inherit **only features with declared
+defaults**: an absent lexical property already takes that default in lexical
+projection. Without a declared default, a lexical head requires an explicit
+export, including for builtin features. Typed lexical classes will refine this
+rule later. Constituent fallback is static, never a runtime repair of a missing
+inherited value. A local entry always uses its declared default, never the head.
+Without an applicable source or default, compilation names the Construction and
+missing feature.
 
-| Authored feature | Source of an omitted export |
-|---|---|
-| `head`, with an accessible head feature | `export Feature = head_field.Feature` |
-| `head`, without that source | `export Feature = DeclaredDefault`, if any |
-| `local` | `export Feature = DeclaredDefault`, if any; never the head |
-| Unqualified, or no applicable source/default | Compile error naming the Construction and missing feature |
+Explicit exports from a Construction, form, schema or policy override inference;
+two explicit exports conflict. Requirements, agreements and table completeness
+checks remain unchanged. Read the Category line and the Construction to determine
+omitted exports, expanding policies and schema bindings where used. No duplicate
+export inventory or inspection command is maintained.
 
-An explicit export (constant, reference or table), whether from the Construction,
-its form, a schema or a policy, overrides inference. These sources have equal
-standing: two explicit exports are an error, not a precedence rule. Requirements
-and agreements are retained. No default weakens a requirement or supplies a table's
-missing tuple.
-
-Source accessibility is **static**. A constituent head exposes its Category
-interface (plus the existing computed surface features). Lexical fields retain
-today's general feature projection, including the existing absent-property lexical
-defaults. A reachable feature is copied even if its value can be absent at runtime;
-there is no runtime fallback. An out-of-domain lexical value remains absent and
-cannot satisfy an export. Typed lexical classes will refine lexical accessibility
-in a later ticket.
-
-To inspect an elaboration, list the result Category's features, cross out explicit
-exports after expanding `use`, and apply the table to the remaining features using
-the selected form's head Category. For the example above the complete result is:
-
-```rust
-export Modified = Yes;              // explicit change
-export number = noun.number;        // inherited
-export Permission = noun.Permission; // inherited, not the default No
-```
-
-If the same form instead has `noun: Narrow`, where `category Narrow(number);`,
-`Permission` becomes `export Permission = No;` (static default). If `Narrow` does
-not expose `number`, compilation fails for `ModifiedNominal` and `number`.
-Changing `Permission` to `local` also makes its omitted export `No`, even when the
-head exports `Permission`. This inspection requires no lexical input or parsing.
-
-Elaboration emits the existing reference/constant equations. The ordinary compiler
-still checks exactly one export per interface feature, accessible references,
-feature domains and table arities, contradictory requirements, singular head
-cardinality, surface retention and recursion. Chart, runtime, admission and
-Reading representation are unchanged.
+Elaboration produces the existing reference/constant equations. The compiler still
+checks complete, unique interface exports, accessible references, domains, table
+arities, contradictory requirements, surface retention and recursion. It changes
+neither field order nor form indices, Reading shapes, admission, chart or runtime.
 
 ## Frame declarations
 
@@ -296,7 +275,7 @@ A custom feature may explicitly provide an absent-property default:
 uses that default; an authored value outside the declared domain remains absent
 from projection and cannot satisfy an obligation. Features without defaults and
 builtin feature domains retain their existing absence behavior. Separately, an
-explicit `head` or `local` propagation qualifier enables the static export fill
+explicit `head` or `local` Category-interface qualifier enables the static export fill
 described above; it does not change lexical absence behavior.
 
 `onset` and `article_onset` share the `Consonant`/`Vowel` domain. The Lexicon

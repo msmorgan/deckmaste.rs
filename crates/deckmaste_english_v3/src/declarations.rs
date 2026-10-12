@@ -46,9 +46,9 @@ constructions! {
         feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
         feature NounPhraseStructure { Other, ProperName, IndefiniteArticle,
             Predeterminer, UniversalPredeterminer } default Other;
-        feature DeterminerRequirement head { No, Yes, Definite } default No;
-        feature NumberTransparency head { No, Yes } default No;
-        feature SubjectRelativeNumber head { None, Singular, Plural } default None;
+        feature DeterminerRequirement { No, Yes, Definite } default No;
+        feature NumberTransparency { No, Yes } default No;
+        feature SubjectRelativeNumber { None, Singular, Plural } default None;
         table relative_number_concord(SubjectRelativeNumber, SubjectRelativeNumber) -> SubjectRelativeNumber {
             (None, None) => None, (None, Singular) => Singular, (Singular, None) => Singular,
             (None, Plural) => Plural, (Plural, None) => Plural,
@@ -78,7 +78,7 @@ constructions! {
             (Plural, Plural, _, Nominal) => Yes,
             (_, SingularOrPlural, _, _) => Yes,
         }
-        feature NominalAgreementNumber head { Head, Plural, SingularOrPlural } default Head;
+        feature NominalAgreementNumber { Head, Plural, SingularOrPlural } default Head;
         feature DeterminerAgreementNumber { Nominal, Singular, SingularOrPlural } default Nominal;
         feature QuantificationalDeterminer { No, Yes } default No;
         feature QuantificationalAdjunctUse { No, Yes } default No;
@@ -86,10 +86,10 @@ constructions! {
         feature Polarity { Positive, Negative } default Positive;
         feature PrimaryNegation { Yes }
         feature ObliqueMarker { No, Yes } default No;
-        feature ObliqueNumber head { None, Singular, Plural } default None;
+        feature ObliqueNumber { None, Singular, Plural } default None;
         feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted;
         feature CaseUse { Common, Nominative, Accusative, Genitive }
-        feature Targeting head { No, Yes }
+        feature Targeting { No, Yes }
         feature TargetingPremodifierUse { No, Yes } default No;
         table targeting_premodifier(TargetingPremodifierUse, Targeting) -> Selection {
             (No, No) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
@@ -141,7 +141,7 @@ constructions! {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, No) => Yes,
         }
         feature NominalAdjunctHost { No, Yes } default Yes;
-        feature PredicativeAdjunctUse head { No, Yes } default No;
+        feature PredicativeAdjunctUse { No, Yes } default No;
         table predicative_adjunct_concord(PredicativeAdjunctUse, PredicativeAdjunctUse)
             -> PredicativeAdjunctUse {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
@@ -182,7 +182,7 @@ constructions! {
             -> AdjectiveAttributiveOnlyUse {
             (No, No) => No, (_, _) => Yes,
         }
-        feature ComparativeModifierPresent head { No, Yes } default No;
+        feature ComparativeModifierPresent { No, Yes } default No;
         table implicit_comparative_concord(ImplicitComparativeUse, ImplicitComparativeUse)
             -> ImplicitComparativeUse {
             (Yes, Yes) => Yes, (_, _) => No,
@@ -231,14 +231,14 @@ constructions! {
         table source_adjunct_admission(SourceComplementSelection, SourceMarker) -> Selection {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, No) => Yes,
         }
-        feature SourceModifierPresent head { No, Yes } default No;
+        feature SourceModifierPresent { No, Yes } default No;
         table source_modifier_presence(SourceModifierPresent, SourceModifierPresent) -> SourceModifierPresent {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
         table nominal_source_modifier(SourceModifierPresent, SourceMarker) -> SourceModifierPresent {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
-        feature WholeObjectSourcePresent head { No, Yes } default No;
+        feature WholeObjectSourcePresent { No, Yes } default No;
         table whole_object_source_presence(WholeObjectSourcePresent, WholeObjectSourcePresent) -> WholeObjectSourcePresent {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
@@ -281,7 +281,7 @@ constructions! {
             -> PrepositionFunctionLicence intersection;
         frame_marker_licence Predicate(Preposition) = licence_verb_complement;
         feature RelativeGapKind { Object, TemporalAdjunct } default Object;
-        feature RelativisableAdjunctClass head { None, Temporal } default None;
+        feature RelativisableAdjunctClass { None, Temporal } default None;
         table relative_head_licence(RelativeGapKind, RelativisableAdjunctClass) -> Selection {
             (Object, None) => Yes, (Object, Temporal) => Yes,
             (TemporalAdjunct, Temporal) => Yes,
@@ -384,8 +384,8 @@ constructions! {
         feature ScalarSign { Absent, Plus, Hyphen, Minus } default Absent;
         table loyalty_sign(ScalarSign) -> Selection { (Plus) => Yes, (Minus) => Yes, }
         feature MeasureOperator { No, Yes } default No;
-        feature ScalarDenotation head { No, Yes } default No;
-        feature MeasurePosition head { None, Before } default None;
+        feature ScalarDenotation { No, Yes } default No;
+        feature MeasurePosition { None, Before } default None;
         feature UnitBearing { No, Yes } default No;
         table nominal_unit_bearing(MeasurePosition) -> UnitBearing {
             (None) => No, (Before) => Yes,
@@ -393,10 +393,10 @@ constructions! {
         table arithmetic_unit_bearing(UnitBearing, UnitBearing) -> UnitBearing {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
-        feature ScalarMeasurementHeadUse local { No, Yes } default No;
-        feature PropertyValuePosition local { None, Single, First, Second, Pair } default None;
+        feature ScalarMeasurementHeadUse { No, Yes } default No;
+        feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
         feature PropertyEqualityForm { None, Unquantified, Quantified } default None;
-        feature CardinalMeasurementUse head { No, DeterminerRequired, DeterminerProjection, Yes } default No;
+        feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No;
         feature MeasureKind { Scalar, Pair }
         feature MatrixComparisonUse { No, Yes } default No;
         feature ComparativeComplementForm { Nominal, BareInfinitival, GerundParticipial }
@@ -422,9 +422,9 @@ constructions! {
             (Symbols, None) => "", (Action, None) => ".", (Action, QuotedFullStop) => "",
         }
         feature NominalBareClass { None, Interval, Boundary }
-        feature NominalAdjunctClass head { None, Temporal, Manner } default None;
-        feature SlashPremodifierUse head { No, Yes } default Yes;
-        feature NominalDependentPresent local { No, Yes } default No;
+        feature NominalAdjunctClass { None, Temporal, Manner } default None;
+        feature SlashPremodifierUse { No, Yes } default Yes;
+        feature NominalDependentPresent { No, Yes } default No;
         feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal } default None;
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
@@ -440,7 +440,7 @@ constructions! {
         feature Selection { Yes }
         feature Function { Genitive }
         feature HostEnding { Default, PluralS }
-        feature BareGenitiveHost head { No, Yes } default No;
+        feature BareGenitiveHost { No, Yes } default No;
         feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { No, Yes } default No;
@@ -469,12 +469,12 @@ constructions! {
             (Singular) => Singular, (Plural) => Plural,
         }
         feature IdentityUse { Name }
-        feature NominalComplementMarker head { None, Of, To } default None;
+        feature NominalComplementMarker { None, Of, To } default None;
         feature TaxonomicComplementUse { No, Yes } default No;
         table nominal_complement_marker(NominalComplementMarker, NominalComplementMarker) -> Selection {
             (None, None) => Yes, (Of, Of) => Yes, (To, To) => Yes,
         }
-        feature BarePrepositionUse head { No, Location, SpatialEdge } default No;
+        feature BarePrepositionUse { No, Location, SpatialEdge } default No;
         feature BareNominalComplement { No, Location, SpatialEdge } default No;
         table bare_preposition_use(BarePrepositionUse) -> Selection {
             (Location) => Yes, (SpatialEdge) => Yes,
@@ -482,7 +482,7 @@ constructions! {
         table bare_nominal_complement(BareNominalComplement, BarePrepositionUse) -> Selection {
             (Location, Location) => Yes, (SpatialEdge, SpatialEdge) => Yes,
         }
-        feature SelectedPrepositionUse head { No, Yes } default No;
+        feature SelectedPrepositionUse { No, Yes } default No;
         table selected_preposition_concord(SelectedPrepositionUse, SelectedPrepositionUse)
             -> SelectedPrepositionUse {
             (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
@@ -519,8 +519,8 @@ constructions! {
         table syndetic_premodifier_member(PremodifierCategory) -> Selection {
             (Adjectival) => Yes, (Verbal) => Yes,
         }
-        feature AttributePremodifierHead head { No, Yes } default No;
-        feature KeywordPremodifierHead head { No, Yes } default No;
+        feature AttributePremodifierHead { No, Yes } default No;
+        feature KeywordPremodifierHead { No, Yes } default No;
         table noun_premodifier_use(NounPremodifier) -> Selection {
             (Yes) => Yes, (Attribute) => Yes,
         }
@@ -570,7 +570,7 @@ constructions! {
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
         feature GeneralCoordination { No, Yes } default Yes;
-        feature UnmarkedConjunctLicence head { No, Yes } default Yes;
+        feature UnmarkedConjunctLicence { No, Yes } default Yes;
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
@@ -624,12 +624,10 @@ constructions! {
         category BareComplement(AuxiliaryComplementRealization, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category ParticipialComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category PerfectComplement(PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        feature number head;
-        feature countability head;
-        category Nominal(ComparativeModifierPresent, AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
-            RelativisableAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
-            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
+        category Nominal(head ComparativeModifierPresent, head AttributePremodifierHead, head KeywordPremodifierHead, head number, head NominalAgreementNumber, head countability, head Targeting, head NominalAdjunctClass, local NominalDependentPresent,
+            head RelativisableAdjunctClass, head SlashPremodifierUse,
+            head NumberTransparency, head ObliqueNumber, head BareGenitiveHost, head DeterminerRequirement, head MeasurePosition, local ScalarMeasurementHeadUse, local PropertyValuePosition, head CardinalMeasurementUse,
+            head BarePrepositionUse, head NominalComplementMarker, head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent, head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier(NounPremodifier, PremodifierCoordination);
@@ -1318,57 +1316,8 @@ constructions! {
             export ObliqueNumber = head.ObliqueNumber;
         }
 
-        policy ParticipialNominalHeadFeatures {
-            export NominalDependentPresent = Yes;
-            export AttributePremodifierHead = head.AttributePremodifierHead;
-            export KeywordPremodifierHead = head.KeywordPremodifierHead;
-            export NominalAgreementNumber = head.NominalAgreementNumber;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export DeterminerRequirement = head.DeterminerRequirement;
-            export MeasurePosition = head.MeasurePosition;
-            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
-            export ScalarDenotation = head.ScalarDenotation;
-            export CardinalMeasurementUse = head.CardinalMeasurementUse;
-            export number = head.number;
-            export countability = head.countability;
-            export Targeting = head.Targeting;
-            export NominalAdjunctClass = head.NominalAdjunctClass;
-            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
-            export SlashPremodifierUse = head.SlashPremodifierUse;
-            export NumberTransparency = head.NumberTransparency;
-            export ObliqueNumber = head.ObliqueNumber;
-        }
-
         policy NominalHeadProperties {
             export PropertyValuePosition = None;
-        }
-
-        policy PostmodifiedNominalProperties {
-            export NominalDependentPresent = Yes;
-            export AttributePremodifierHead = head.AttributePremodifierHead;
-            export KeywordPremodifierHead = head.KeywordPremodifierHead;
-            export NominalAgreementNumber = head.NominalAgreementNumber;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = nominal_source_modifier(head.SourceModifierPresent, modifier.SourceMarker);
-            export WholeObjectSourcePresent = whole_object_source_modifier(
-                head.WholeObjectSourcePresent, modifier.WholeObjectSourcePresent, modifier.SourceMarker);
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export DeterminerRequirement = head.DeterminerRequirement;
-            export MeasurePosition = head.MeasurePosition;
-            export ScalarMeasurementHeadUse = No;
-            export PropertyValuePosition = None;
-            export ScalarDenotation = head.ScalarDenotation;
-            export CardinalMeasurementUse = head.CardinalMeasurementUse;
-            export number = head.number;
-            export countability = head.countability;
-            export Targeting = head.Targeting;
-            export NominalAdjunctClass = head.NominalAdjunctClass;
-            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
-            export SlashPremodifierUse = head.SlashPremodifierUse;
-            export NumberTransparency = head.NumberTransparency;
         }
 
         policy PredicateHostAgreement {
@@ -1559,32 +1508,6 @@ constructions! {
             export SubjectStructure = Phrase;
             export person = Third;
             export CaseUse = Common;
-        }
-
-        policy UnmodifiedNominalProperties {
-            export AttributePremodifierHead = head.AttributePremodifierHead;
-            export KeywordPremodifierHead = head.KeywordPremodifierHead;
-            export NominalAgreementNumber = Head;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export DeterminerRequirement = head.DeterminerRequirement;
-            export MeasurePosition = head.MeasurePosition;
-            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
-            export PropertyValuePosition = head.PropertyValuePosition;
-            export ScalarDenotation = head.ScalarDenotation;
-            export CardinalMeasurementUse = head.CardinalMeasurementUse;
-            export number = head.number;
-            export countability = head.countability;
-            export Targeting = No;
-            export NominalAdjunctClass = head.NominalAdjunctClass;
-            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
-            export SlashPremodifierUse = head.SlashPremodifierUse;
-            export NumberTransparency = head.NumberTransparency;
-            export ObliqueNumber = None;
         }
 
         policy PrepositionHeadPermissions {
@@ -2177,6 +2100,7 @@ constructions! {
         }
 
         schema SerialCoordination {
+            head none;
             form [left: node, ", ", rest: node];
         }
 
@@ -2184,6 +2108,7 @@ constructions! {
             (No) => " ", (Yes) => ", ",
         }
         schema Coordination {
+            head none;
             form [left: node, coordination_separator(coordinator.CommaCoordination),
                 coordinator: lexical(Coordinator), " ", right: node];
             require coordinator.NoncorrelativeCoordination = Yes;
@@ -3563,29 +3488,27 @@ constructions! {
         }
 
         construction Noun: Nominal {
-            head head;
             export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun)];
             require head.framing = Unframed;
-            export NominalAgreementNumber = Head;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
             export Targeting = No;
-            export ObliqueNumber = None;
+            export number = head.number;
+            export countability = head.countability;
         }
 
         construction BareFramedNoun: Nominal {
-            head head;
             export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun)];
             require head.frame = BareNominal;
-            export NominalAgreementNumber = Head;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
             export Targeting = No;
-            export ObliqueNumber = None;
+            export number = head.number;
+            export countability = head.countability;
         }
 
         // MS1–MS2: the declared symbol class supplies a nominal head.
@@ -3610,7 +3533,6 @@ constructions! {
 
         // QE1–QE2 and MS1–MS5: one determined or measured symbol-sequence head.
         construction MeasuredSymbolNominal: Nominal {
-            head head;
             form [head: NominalSymbol, rest: repeat(CountNominalSymbol, "")];
             require symbol_nominal_sequence(head.SymbolNominalUse,
                 last(rest).SymbolNominalUse) = Yes;
@@ -3626,7 +3548,6 @@ constructions! {
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
         construction SelectedComplementNominal: Nominal {
-            head head;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3637,15 +3558,14 @@ constructions! {
             form [head: lexical(Noun), " ", complement: SelectedKeywordPreposition]
                 require head.frame = NominalKeywordPreposition
                 require complement.NominalComplementMarker = Of;
-            export NominalAgreementNumber = Head;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
             export Targeting = No;
-            export ObliqueNumber = None;
+            export number = head.number;
+            export countability = head.countability;
         }
 
         construction SymbolComplementNominal: Nominal {
-            head head;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3655,11 +3575,11 @@ constructions! {
             require head.frame = NominalSymbols;
             require marker.NominalComplementMarker = Of;
             require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
-            export NominalAgreementNumber = Head;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
             export Targeting = No;
-            export ObliqueNumber = None;
+            export number = head.number;
+            export countability = head.countability;
         }
 
         table nominal_preposition_frame(frame) -> Selection {
@@ -3668,7 +3588,6 @@ constructions! {
         // Orchestrator rulings DV1–DV4: the selected colour Complement stays
         // inside the noun's frame, without a general colour-word NP route.
         construction PrepositionComplementNominal: Nominal {
-            head head;
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3695,12 +3614,12 @@ constructions! {
                 require nominal_complement_marker(head.NominalComplementMarker,
                     marker.NominalComplementMarker) = Yes;
             require licence_noun_complement(marker.PrepositionFunctionLicence) = Yes;
-            export NominalAgreementNumber = Head;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
             export PropertyValuePosition = head.PropertyValuePosition;
             export Targeting = No;
-            export ObliqueNumber = None;
             export BareGenitiveHost = No;
+            export number = head.number;
+            export countability = head.countability;
         }
 
         construction Adjective: AdjectivePhrase {
@@ -3893,7 +3812,6 @@ constructions! {
         }
 
         construction CoordinatedPremodifiedNominal: Nominal {
-            head head;
             export UnmarkedConjunctLicence = No;
             form [modifier: PremodifierCoordination, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
@@ -3909,7 +3827,6 @@ constructions! {
         }
 
         construction NounPremodifiedNominal: Nominal {
-            head head;
             form [modifier: NounPremodifier, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
                 head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
@@ -3920,7 +3837,6 @@ constructions! {
         }
 
         construction PremodifiedNominal: Nominal {
-            head head;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
             export NominalDependentPresent = Yes;
             export ComparativeModifierPresent = comparative_modifier_present(
@@ -3942,7 +3858,6 @@ constructions! {
         // function to the declared superlative class. CGEL p. 1166 [15] backs
         // the superlative meaning, not this project choice of internal structure.
         construction SuperlativePremodifiedNominal: Nominal {
-            head head;
             form [modifier: lexical(Determinative), " ", head: Nominal];
             form [modifier: lexical(Adjective), " ", head: Nominal];
             require modifier.SuperlativeQuantifierUse = Yes;
@@ -4044,7 +3959,6 @@ constructions! {
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
         construction CardinalPremodifiedNominal: Nominal {
-            head head;
             export NominalDependentPresent = Yes;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
@@ -4072,7 +3986,6 @@ constructions! {
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
         construction CardinalMeasuredNominal: Nominal {
-            head head;
             export NominalDependentPresent = Yes;
             export NominalAgreementNumber = Head;
             export ScalarDenotation = Yes;
@@ -4205,7 +4118,6 @@ constructions! {
         }
 
         construction ParticipialPremodifier: Nominal {
-            head head;
             form [modifier: VerbalPremodifier, " ", head: Nominal];
             export NominalDependentPresent = Yes;
             require head.Targeting = No;
@@ -4281,14 +4193,12 @@ constructions! {
         }
 
         construction NamedNominal: Nominal {
-            head head;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: NamePredicate];
             export NominalDependentPresent = Yes;
         }
 
         construction TargetedNominal: Nominal {
-            head head;
             export NominalDependentPresent = Yes;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
@@ -4300,7 +4210,6 @@ constructions! {
         }
 
         construction PostmodifiedNominal: Nominal {
-            head head;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: PrepositionPhrase];
             require licence_modifier(modifier.PrepositionFunctionLicence) = Yes;
@@ -5490,7 +5399,6 @@ constructions! {
             (PastParticiple, BarePassive) => Yes,
         }
         construction ParticipialPostmodifiedNominal: Nominal {
-            head head;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
             require participial_postmodifier(modifier.form, modifier.ParticipialUse) = Yes;
@@ -5773,7 +5681,6 @@ constructions! {
         }
 
         construction SubjectRelativeNominal: Nominal {
-            head head;
             require relative_number_chain(head.SubjectRelativeNumber, relative.number) = Yes;
             export SubjectRelativeNumber = deferred_relative_number(head.NominalAgreementNumber, relative.number);
             export BareGenitiveHost = No;
@@ -5884,7 +5791,6 @@ constructions! {
         }
 
         construction ObjectRelativeNominal: Nominal {
-            head head;
             require relative_head_licence(relative.RelativeGapKind,
                 head.RelativisableAdjunctClass) = Yes;
             export BareGenitiveHost = No;
@@ -6421,7 +6327,6 @@ constructions! {
         }
 
         construction SlashModifiedNominal: Nominal {
-            head head;
             form [modifier: SlashPair, " ", head: Nominal];
             require modifier.AdditiveModifierUse = No;
             require head.SlashPremodifierUse = Yes;
@@ -7506,7 +7411,6 @@ constructions! {
         }
 
         construction CorrelativePostpositiveNominal: Nominal {
-            head head;
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: CorrelativeAdjectivePhrase];
             export NominalDependentPresent = Yes;

@@ -257,21 +257,8 @@ fn reserve(names: &mut BTreeSet<String>, name: &Ident) -> syn::Result<()> {
 fn validate_features(declared: &[crate::parse::Feature]) -> syn::Result<Vec<Domain>> {
     let mut features = builtin_domains();
     let mut feature_names: BTreeSet<_> = features.iter().map(|f| f.name.clone()).collect();
-    let mut annotations = BTreeSet::new();
     for feature in declared {
-        let Some(declared_values) = &feature.values else {
-            if !builtin_domains()
-                .iter()
-                .any(|domain| feature.name == domain.name)
-            {
-                return Err(error(
-                    &feature.name,
-                    "propagation annotation must name a builtin feature",
-                ));
-            }
-            reserve(&mut annotations, &feature.name)?;
-            continue;
-        };
+        let declared_values = &feature.values;
         reserve(&mut feature_names, &feature.name)?;
         if declared_values.is_empty() {
             return Err(error(
@@ -381,7 +368,7 @@ fn validate_frame_adjuncts(ir: &mut Ir, adjuncts: Vec<(Ident, Ident)>) -> syn::R
 }
 
 fn feature_propagation(
-    declared: &[crate::parse::Feature],
+    declared: &[crate::parse::InterfaceFeature],
     domains: &[Domain],
 ) -> syn::Result<BTreeMap<usize, Propagation>> {
     declared
@@ -396,9 +383,9 @@ fn category_interface(
     category: &crate::parse::Category,
 ) -> syn::Result<BTreeSet<usize>> {
     let mut interface = BTreeSet::new();
-    for name in &category.features {
-        if !interface.insert(feature_index(domains, name)?) {
-            return Err(error(name, "duplicate Category feature"));
+    for feature in &category.features {
+        if !interface.insert(feature_index(domains, &feature.name)?) {
+            return Err(error(&feature.name, "duplicate Category feature"));
         }
     }
     Ok(interface)
@@ -406,7 +393,7 @@ fn category_interface(
 
 pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut features = validate_features(&declaration.features)?;
-    let propagation = feature_propagation(&declaration.features, &features)?;
+    let mut propagation = vec![];
     let frames = validate_frames(&declaration.frames)?;
     features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
     let mut names = BTreeSet::new();
@@ -416,6 +403,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         reserve(&mut names, &category.name)?;
         categories.push(category.name.clone());
         interfaces.push(category_interface(&features, category)?);
+        propagation.push(feature_propagation(&category.features, &features)?);
     }
     if categories.is_empty() {
         return Err(error(
@@ -732,6 +720,45 @@ fn same_field_storage(left: &FieldType, right: &FieldType) -> bool {
         )
 }
 
+fn head_source<'a>(
+    construction: &'a Constructor,
+    head: Option<&'a Ident>,
+    propagation: &BTreeMap<usize, Propagation>,
+) -> syn::Result<Option<(&'a Ident, &'a FieldType)>> {
+    if head.is_some_and(|name| name == "none") {
+        return Ok(None);
+    }
+    let needs_head = propagation.values().any(|mode| *mode == Propagation::Head);
+    let head = head.or_else(|| {
+        needs_head
+            .then(|| construction.fields.iter().find(|(name, _)| name == "head"))
+            .flatten()
+            .map(|(name, _)| name)
+    });
+    if needs_head && head.is_none() {
+        return Err(error(
+            &construction.name,
+            "Category has head-mode features: provide a head field, head field; or head none;",
+        ));
+    }
+    head.map(|head| {
+        let ty = construction
+            .fields
+            .iter()
+            .find(|(name, _)| name == head)
+            .map(|(_, ty)| ty)
+            .ok_or_else(|| error(&construction.name, &format!("unknown head field {head}")))?;
+        match ty {
+            FieldType::Lexical(_) | FieldType::One(_) => Ok((head, ty)),
+            _ => Err(error(
+                &construction.name,
+                "head must be a single lexical or constituent field",
+            )),
+        }
+    })
+    .transpose()
+}
+
 fn fill_exports(
     ir: &Ir,
     index: usize,
@@ -741,23 +768,7 @@ fn fill_exports(
     equations: &mut Vec<Equation>,
 ) -> syn::Result<()> {
     let construction = &ir.constructors[index];
-    let source = head
-        .map(|head| {
-            let ty = construction
-                .fields
-                .iter()
-                .find(|(name, _)| name == head)
-                .map(|(_, ty)| ty)
-                .ok_or_else(|| error(&construction.name, &format!("unknown head field {head}")))?;
-            match ty {
-                FieldType::Lexical(_) | FieldType::One(_) => Ok((head, ty)),
-                _ => Err(error(
-                    &construction.name,
-                    "head must be a single lexical or constituent field",
-                )),
-            }
-        })
-        .transpose()?;
+    let source = head_source(construction, head, propagation)?;
     let explicit: BTreeSet<_> = equations
         .iter()
         .filter_map(|equation| match equation {
@@ -774,11 +785,16 @@ fn fill_exports(
         }
         let Some(mode) = propagation.get(&feature) else { continue };
         let name = Ident::new(&domain.name, construction.name.span());
+        if *mode == Propagation::Head && source.is_none() {
+            continue; // Explicit headlessness requires explicit head-mode exports.
+        }
         if *mode == Propagation::Head
             && let Some((head, ty)) = source
         {
             let accessible = match ty {
-                FieldType::Lexical(_) => true,
+                FieldType::Lexical(_) => {
+                    matches!(domain.kind, DomainKind::Custom { default: Some(_) })
+                }
                 FieldType::One(category) => {
                     let category = ir
                         .categories
@@ -838,7 +854,7 @@ fn normalize(
     ir: &mut Ir,
     constructions: &[crate::parse::Construction],
     interfaces: &[BTreeSet<usize>],
-    propagation: &BTreeMap<usize, Propagation>,
+    propagation: &[BTreeMap<usize, Propagation>],
 ) -> syn::Result<()> {
     for (index, construction) in constructions.iter().enumerate() {
         validate_surface_obligations(construction)?;
@@ -873,7 +889,7 @@ fn normalize(
                 index,
                 interfaces,
                 construction.head.as_ref(),
-                propagation,
+                &propagation[ir.constructors[index].category],
                 &mut obligations,
             )?;
             validate_selected_frame_surface(ir, interfaces, &construction.name, parts)?;
