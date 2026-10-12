@@ -659,9 +659,16 @@ constructions! {
         category VerblessClause(VerblessClauseComplement);
         category Name(head number);
         category NamePredicate();
-        category PrepositionPhrase(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse,
-            ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+        category PrepositionPhrase(
+            local PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
+            local NominalAdjunctHost, local ClauseComplementBoundary, head LocativeUse,
+            head PrepositionFunctionLicence, head ComplementFunctionRestriction, local ObliqueNumber,
+            head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
+            head PredicativeAdjunctUse, head ClauseInitialAdjunct, local FocusedUse,
+            head PrepositionPhraseComplementMarker, head SourceComplementUse, head SourceModifierPresent,
+            head WholeObjectSourcePresent, head SourceMarker, head MatrixComplementRequirement,
+            head NominalExceptionComplementUse
+        );
         category SourceComplement();
         category LocativeComplement();
         category MannerComplement();
@@ -684,14 +691,14 @@ constructions! {
         category NegatedAuxiliaryHead(PredicateFrameUse, Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, frame);
         category QuantitativeAdjectiveComplement();
         category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent, DegreeUse);
-        category CardinalPrepositionPhrase(number);
+        category CardinalPrepositionPhrase(head number);
         category ArithmeticModifier();
-        category QuantitativePrepositionPhrase(number);
-        category DegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
-        category QuantitativeDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
-        category ExceptionPrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
-        category ExceptionDegreePrepositionPhrase(DeterminerUse, DeterminerAgreementNumber);
-        category ComparativePrepositionPhrase(number);
+        category QuantitativePrepositionPhrase(head number);
+        category DegreePrepositionPhrase(head DeterminerUse, head DeterminerAgreementNumber);
+        category QuantitativeDegreePrepositionPhrase(head DeterminerUse, head DeterminerAgreementNumber);
+        category ExceptionPrepositionPhrase(head DeterminerUse, head DeterminerAgreementNumber);
+        category ExceptionDegreePrepositionPhrase(head DeterminerUse, head DeterminerAgreementNumber);
+        category ComparativePrepositionPhrase(head number);
         category CountedFrequencyPrepositionPhrase();
         category AdverbFrequencyPrepositionPhrase();
         category QuantityConjunct(number, CardinalComplementUse, CardinalMeasurementUse);
@@ -719,10 +726,10 @@ constructions! {
         category ComparativeDeterminerHead(ComparativeDeterminerUse, DeterminerUse,
             NominalAdjunctDependent);
         category KeywordPhrase();
-        category SelectedKeywordPreposition(NominalComplementMarker);
+        category SelectedKeywordPreposition(head NominalComplementMarker);
         category KeywordQuality(KeywordQualityNumber);
-        category KeywordQualityPreposition(KeywordMarker, KeywordQualityNumber);
-        category KeywordQualityPrepositionSeries(KeywordMarker, KeywordQualityNumber);
+        category KeywordQualityPreposition(head KeywordMarker, head KeywordQualityNumber);
+        category KeywordQualityPrepositionSeries(head KeywordMarker, head KeywordQualityNumber);
         category SelectedComplementTail(HeadCoordination);
         category SelectedComplementTailSeries(HeadCoordination);
         category KeywordContinuation();
@@ -794,8 +801,16 @@ constructions! {
             head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence
         );
         category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
-        category PrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+        category PrepositionPhraseSeries(
+            head PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
+            head NominalAdjunctHost, head ClauseComplementBoundary, head LocativeUse,
+            head PrepositionFunctionLicence, head ComplementFunctionRestriction, head ObliqueNumber,
+            head CoordinationKind, head InternalisedComplementMarker, head NominalComplementMarker,
+            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ClauseInitialAdjunct,
+            head FocusedUse, head PrepositionPhraseComplementMarker, head SourceComplementUse,
+            head SourceModifierPresent, head WholeObjectSourcePresent, head SourceMarker,
+            head MatrixComplementRequirement, head NominalExceptionComplementUse
+        );
         category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
         category FocusedAdjunctSeries(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
         category FocusedAdjunctCoordination(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse, PrepositionFunctionLicence, ComplementFunctionRestriction, PredicativeAdjunctUse, SelectedPrepositionUse, MatrixComplementRequirement, InternalisedComplementMarker);
@@ -821,8 +836,16 @@ constructions! {
             head WholeObjectSourcePresent, head DeterminerAgreementNumber, head ComparativePostmodifierUse,
             head Definiteness, head LocativeUse
         );
-        category CorrelativePrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
-            CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
+        category CorrelativePrepositionPhraseSeries(
+            head PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
+            head NominalAdjunctHost, head ClauseComplementBoundary, head LocativeUse,
+            head PrepositionFunctionLicence, head ComplementFunctionRestriction, head ObliqueNumber,
+            head CoordinationKind, head CorrelativeCoordinator, head InternalisedComplementMarker,
+            head NominalComplementMarker, head SelectedPrepositionUse, head PredicativeAdjunctUse,
+            head ClauseInitialAdjunct, head FocusedUse, head PrepositionPhraseComplementMarker,
+            head SourceComplementUse, head SourceModifierPresent, head WholeObjectSourcePresent,
+            head SourceMarker, head MatrixComplementRequirement, head NominalExceptionComplementUse
+        );
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
             DurationUse, FrequencyUse, CorrelativeCoordinator, FocusedUse);
         category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
@@ -839,9 +862,18 @@ constructions! {
         category CorrelativeAdjectiveSeries(AdjectiveAttributiveOnlyUse, CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
         category CorrelativeBareObjectGapSeries(CorrelativeCoordinator, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection, ComparativeObjectGapLicence);
-        category SelectedPrepositionHead(LocativeUse, PrepositionFunctionLicence, HeadCoordination,
-            InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
-        category SelectedPrepositionHeadSeries(LocativeUse, PrepositionFunctionLicence, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker);
+        category SelectedPrepositionHead(
+            head LocativeUse, head PrepositionFunctionLicence, head HeadCoordination,
+            head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
+            head PredicativeAdjunctUse, head PrepositionPhraseComplementMarker, head SourceComplementUse,
+            head SourceModifierPresent, head WholeObjectSourcePresent, head SourceMarker
+        );
+        category SelectedPrepositionHeadSeries(
+            head LocativeUse, head PrepositionFunctionLicence, head InternalisedComplementMarker,
+            head NominalComplementMarker, head SelectedPrepositionUse, head PredicativeAdjunctUse,
+            head PrepositionPhraseComplementMarker, head SourceComplementUse, head SourceModifierPresent,
+            head WholeObjectSourcePresent, head SourceMarker
+        );
         category CorrelativeFiniteClauseSeries(CorrelativeCoordinator, GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
@@ -1509,20 +1541,6 @@ constructions! {
             export SubjectStructure = Phrase;
             export person = Third;
             export CaseUse = Common;
-        }
-
-        policy PrepositionHeadPermissions {
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
-            export LocativeUse = head.LocativeUse;
         }
 
         table coordinated_adjective_complement_class(AdjectiveComplementClass,
@@ -4450,23 +4468,12 @@ constructions! {
             export PartitiveCountability = complement.PartitiveCountability;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
-            export NominalExceptionComplementUse = head.NominalExceptionComplementUse;
             export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AccusativePhrase];
             require noun_phrase_complement(head.PrepositionComplement) = Yes;
             export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
-            export LocativeUse = head.LocativeUse;
             export SelectedPrepositionUse = selected_preposition_complement(head.SelectedPrepositionUse,
                 complement.SelectedPrepositionUse);
             export PredicativeAdjunctUse = No;
@@ -4479,25 +4486,15 @@ constructions! {
             export PartitiveCountability = complement.PartitiveCountability;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: NounPhrase];
             require bare_nominal_complement(head.BareNominalComplement,
                 complement.BarePrepositionUse) = Yes;
             require noun_phrase_complement(head.PrepositionComplement) = Yes;
             export ObliqueNumber = oblique_number(head.ObliqueMarker, complement.number);
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
-            export LocativeUse = head.LocativeUse;
             export SelectedPrepositionUse = selected_preposition_complement(head.SelectedPrepositionUse,
                 complement.SelectedPrepositionUse);
             export PredicativeAdjunctUse = No;
@@ -4512,20 +4509,12 @@ constructions! {
         // The nominal's declared use licenses that position; selected and
         // preposed uses survive independently (CGEL Ch. 4 §5.3, p. 263).
         construction PredicativeComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export PredicativeAdjunctUse = complement.PredicativeAdjunctUse;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = PreposedOrPredicative;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
@@ -4535,10 +4524,7 @@ constructions! {
             require complement.PredicativeKind = Nominal;
             require licence_preposed_adjunct(head.PrepositionFunctionLicence) = Yes;
             require licence_predicative_complement(head.PrepositionFunctionLicence) = Yes;
-            export ObliqueNumber = None;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
-            export LocativeUse = head.LocativeUse;
         }
 
         // CGEL Ch. 6 §7.3.1, p. 587, [42i,ii,iv]: restrictive focusing
@@ -4550,20 +4536,9 @@ constructions! {
             require head.FocusedUse = No;
         }
         policy FocusedPrepositionPermissions {
-            export PartitiveCountability = Unrestricted;
-            export InterveningAdjunctLicence = head.InterveningAdjunctLicence;
-            export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse;
-            export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = head.ClauseComplementBoundary;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
             require adjunct_complement_function(head.ComplementFunctionRestriction,
                 head.PredicativeAdjunctUse) = Yes;
-            export MatrixComplementRequirement = head.MatrixComplementRequirement;
-            export NominalExceptionComplementUse = head.NominalExceptionComplementUse;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
             require licence_adjunct(head.PrepositionFunctionLicence) = Yes;
             require head.SelectedPrepositionUse = No;
             export PrepositionFunctionLicence = Adjunct;
@@ -4575,7 +4550,6 @@ constructions! {
             export LocativeUse = No;
             export NominalComplementMarker = None;
             export InternalisedComplementMarker = No;
-            export ObliqueNumber = None;
         }
         policy FocusedAdverbPermissions {
             export FrequencyUse = head.FrequencyUse;
@@ -4605,37 +4579,22 @@ constructions! {
         }
 
         construction IntransitivePreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
-            export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition)];
             require intransitive_preposition_complement(head.PrepositionComplement) = Yes;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         // CGEL Ch. 7 §3.2, p. 626: preposition + adjective idioms.
         construction AdjectiveComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = complement.InterveningAdjunctLicence;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
@@ -4645,7 +4604,6 @@ constructions! {
             require head.AdjectiveComplementClass = Manner;
             agree head.AdjectiveComplementClass = complement.AdjectiveComplementClass;
             require complement.framing = Unframed;
-            export ObliqueNumber = None;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -4693,10 +4651,8 @@ constructions! {
         }
 
         construction VerblessClauseComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = Verbless;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
@@ -4708,14 +4664,12 @@ constructions! {
             export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceMarker = No;
-            export FocusedUse = No;
             export ClauseInitialAdjunct = No;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = Adjunct;
@@ -4725,25 +4679,14 @@ constructions! {
         // content clauses, including modal preterites and irrealis.
         // Their Oracle function and irrealis licences are lexical declarations.
         construction ClauseComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
-            export InterveningAdjunctLicence = head.InterveningAdjunctLicence;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = Finite;
-            export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: FiniteClause]
                 require finite_clause_complement(head.FiniteClauseComplement) = Yes;
             // Orchestrator ruling R12f (2026-10-09), licensing detail.
@@ -4756,25 +4699,15 @@ constructions! {
 
         // CGEL Ch. 13 §5.5, p. 1152: irrealis content-clause Complement.
         construction IrrealisClauseComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = Finite;
-            export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: IrrealisClause];
             require head.IrrealisClauseComplement = Yes;
             export LocativeUse = No;
@@ -4786,19 +4719,11 @@ constructions! {
         // include duration use. The lexical licence and its application to
         // the Oracle equative duration are declared project analyses.
         construction AdverbComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = Adjunct;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: AdverbPhrase];
             require head.AdverbComplementClass = Duration;
             require complement.DurationUse = Yes;
@@ -4807,7 +4732,6 @@ constructions! {
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             export InternalisedComplementMarker = No;
             export LocativeUse = No;
             // PD1–PD2 (orchestrator, preposed-duration-for, 2026-10-10):
@@ -4819,21 +4743,14 @@ constructions! {
         // prepositions. Complement-specific function restriction is project policy,
         // declared by the lexicon, independently of Complement availability.
         construction GerundComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = head.ComplementFunctionRestriction;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
             require head.GerundClauseComplement = Yes;
             require complement.form = GerundParticiple;
-            export ObliqueNumber = None;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         construction PredicativePreposition: PredicativeComplement {
@@ -4847,34 +4764,26 @@ constructions! {
         // CGEL Ch. 7 §2.4, pp. 616–617: the selected PP is a constituent;
         // omission removes its head together with its internal Complement.
         construction CompoundPrepositionPhrase: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export FocusedUse = No;
             export ClauseInitialAdjunct = No;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require selected_compound_complement(head.CompoundComplementMarker,
                 complement.NominalComplementMarker) = Yes;
             require licence_compound(head.PrepositionFunctionLicence) = Yes;
             require compound_complement_function(complement.ComplementFunctionRestriction) = Yes;
-            export ObliqueNumber = None;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         // Project analysis: the numeric nominal exception retains its
         // cardinal Complement inside the selected PP, without licensing a
         // free duration, purpose or nominal-modifier use.
         construction QuantitativeExceptionPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: Cardinal];
             require head.NominalExceptionComplementUse = Yes;
@@ -4882,13 +4791,11 @@ constructions! {
             export NominalExceptionComplementUse = Yes;
             export PrepositionFunctionLicence = Compound;
             export LocativeUse = No;
-            export ObliqueNumber = None;
             export InternalisedComplementMarker = No;
             export NominalComplementMarker = None;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export ClauseInitialAdjunct = No;
-            export FocusedUse = No;
             export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceModifierPresent = No;
@@ -4896,11 +4803,8 @@ constructions! {
             export SourceMarker = No;
         }
         construction MatrixComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export ComplementFunctionRestriction = None;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require head.MatrixComplementGovernor = Yes;
@@ -4910,13 +4814,11 @@ constructions! {
             export NominalExceptionComplementUse = No;
             export PrepositionFunctionLicence = Adjunct;
             export LocativeUse = No;
-            export ObliqueNumber = None;
             export InternalisedComplementMarker = No;
             export NominalComplementMarker = None;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export ClauseInitialAdjunct = No;
-            export FocusedUse = No;
             export PrepositionPhraseComplementMarker = None;
             export SourceComplementUse = No;
             export SourceModifierPresent = No;
@@ -4928,24 +4830,18 @@ constructions! {
         // p. 687 describes locative PP Complements to a source preposition.
         // The supported source-head eligibility is a declared project decision.
         construction PrepositionComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
             require preposition_phrase_complement(head.PrepositionComplement) = Yes;
             require complement.MatrixComplementRequirement = None;
             require complement.ComplementFunctionRestriction = None;
             require licensed_preposition_phrase_complement(head.PrepositionPhraseComplementLicence,
                 complement.SourceComplementUse, complement.PrepositionPhraseComplementMarker) = Yes;
-            export ObliqueNumber = None;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
 
@@ -5289,20 +5185,14 @@ constructions! {
             export NominalBareClass = Boundary;
         }
         construction BareTemporalPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: BareTemporalNominal];
             agree head.NominalBareClass = complement.NominalBareClass;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         // The declared modifier licenses this Oracle-register bare singular NP.
@@ -6730,25 +6620,16 @@ constructions! {
         }
 
         construction CoordinatedClauseComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
             export ClauseComplementBoundary = Finite;
-            export MatrixComplementRequirement = head.MatrixComplementRequirement;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause]
                 require complement.GeneralCoordination = Yes;
             form [head: lexical(Preposition), " ", complement: CoordinatedFiniteClause]
@@ -7040,60 +6921,42 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: KeywordPhrase];
         }
         policy OrdinaryKeywordPreposition {
-            export PartitiveCountability = Unrestricted;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
-            export ObliqueNumber = None;
             require head.KeywordComplement = Yes;
         }
         // CK2: this category has no free Modifier or Adjunct route. Only a
         // declared nominal frame consumes it; Of remains unlicensed as a
         // general keyword-complemented PrepositionPhrase.
         policy SelectedKeywordPreposition {
-            export NominalComplementMarker = head.NominalComplementMarker;
             require licence_noun_complement(head.PrepositionFunctionLicence) = Yes;
         }
-        instance KeywordComplementPreposition<Result, Properties, Permissions = NoFeatures>: [
-            (PrepositionPhrase, OrdinaryKeywordPreposition, PrepositionHeadPermissions),
+        instance KeywordComplementPreposition<Result, Properties>: [
+            (PrepositionPhrase, OrdinaryKeywordPreposition),
             (SelectedKeywordPreposition, SelectedKeywordPreposition),
         ] {
             use Properties;
-            use Permissions;
         }
         construction QuotedComplementPreposition: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            export ObliqueNumber = None;
             form [head: lexical(Preposition), " ", complement: GrantedAbility];
             require head.QuotedComplement = Yes;
             require complement.GrantedAbilityKind = Quoted;
             require licence_modifier(head.PrepositionFunctionLicence) = Yes;
             export PrepositionFunctionLicence = Modifier;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export LocativeUse = head.LocativeUse;
         }
         instance SharedQuantitativeDeterminerComplement<Result, Head: head, Complement: complement, Properties>: [
             (FinitePredicate, FiniteSelectedHead, QuantitativeDeterminer, PredicateHostAgreement),
@@ -7133,30 +6996,12 @@ constructions! {
             form [head: lexical(Preposition)];
             require noun_phrase_complement(head.PrepositionComplement) = Yes;
             export HeadCoordination = No;
-            use PrepositionHeadPermissions;
+            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
 
         construction SharedPrepositionComplement: PrepositionPhrase {
-            export PartitiveCountability = Unrestricted;
-            export InterveningAdjunctLicence = No;
-            export ConnectiveAdjunctUse = No;
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-            export MatrixComplementRequirement = None;
-            export NominalExceptionComplementUse = No;
-            export ComplementFunctionRestriction = None;
-            export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker;
-            export SourceComplementUse = head.SourceComplementUse;
-            export SourceMarker = head.SourceMarker;
-            export FocusedUse = No;
-            export ClauseInitialAdjunct = No;
-            export ObliqueNumber = None;
             form [head: SelectedPrepositionHead, " ", complement: AccusativePhrase];
             require head.HeadCoordination = Yes;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export InternalisedComplementMarker = head.InternalisedComplementMarker;
-            export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
-            export LocativeUse = head.LocativeUse;
             export SelectedPrepositionUse = selected_preposition_complement(head.SelectedPrepositionUse,
                 complement.SelectedPrepositionUse);
             export PredicativeAdjunctUse = No;

@@ -16,3 +16,32 @@ Second half of replacing the authoring layer: finish the compiler capabilities t
 ## Gate
 
 Every `readings_sha256` identical on every face after each class of conversion and at the end, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capabilities. Note: census delta (none); the judgment-set line does not apply yet.
+
+
+## Completed prefix
+
+`lskylzln` converts the NounPhrase, NominativePhrase, AccusativePhrase, Name,
+NounPremodifier and associated series interfaces, and finishes the remaining
+Nominal policy forwarding. `ouxxktwm` converts the ordinary, quantitative,
+comparative, keyword and selected-head Preposition Phrase interfaces and their
+series. Shared coordination schemas declare `head none;` and retain their
+exports. Both family censuses pass `--check identical-digests` against the same
+full baseline.
+
+`NominalHeadProperties` is removed because its only assignment is the existing
+local default. `PrepositionHeadPermissions` is removed after inference replaces
+its defaulted forwarding; the non-defaulted PrepositionFunctionLicence export
+is explicit at its former callers. No compiler capability is added in this
+prefix.
+
+Remaining: the predicate/Verb Phrase and Clause families, then the other
+unconverted interfaces (115 nonempty strict interfaces remain); Boolean
+requirements and policy composition as needed, with their compiler tests and
+README updates; wildcard-table conversion; and the unread-slot/dead-declaration
+pass. All 24 AND and 11 OR tables still have export users. The initial unused
+PurposeConcord and PurposeHostProjection policies and coordinate_number table
+remain for that last pass. Unread case exports must retain their table admission
+checks when removed.
+
+Census delta (`ouxxktwm`, prefix): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`ouxxktwm`): does not apply yet.
