@@ -3,6 +3,8 @@ needs: []
 ---
 # A registered label is not also an open flavor-word label
 
+Parked on 2026-10-12 so the authoring-layer refactor goes first. A reviewed, gate-passing attempt is archived as `archive-grammar-registered-labels-not-flavor-words` (72,456 flavor-word Readings of registered labels removed, no face lost); it stores a `label_registration` flag on the lexeme, which is not wanted, and the rework to derive it from the existing lexeme source was interrupted. Flavor words themselves are registered nowhere: any text may stand in that position.
+
 A line that begins with a registered ability word or keyword is read twice today: once as that registered label, and once as an open flavor-word label (an arbitrary word before the dash). Reading *Landfall* as an arbitrary flavor word is not a different grammatical analysis of the card, so the second Reading goes. (A flavor-word label is the labelled-ability form, as on Dungeons & Dragons cards; it is not flavor text.)
 
 Measured after `grammar-per-sentence-enumeration`: 1,239 label-led ability units have both `AbilityWordHead` and `FlavorWordHead` wrappers (142,904 Readings), and 150 have `FlavorWordHead` beside `KeywordLine → ClausalKeyword` (2,008 Readings). Because their roots differ, these units cannot be decomposed and are kept whole; they hold about 30% of all enumerated Readings. 63 of the 64 distinct leading labels also have more than one declared lexical owner (for example a catalog entry and a plugin lexeme for *parley*, where the plugin lexeme lacks the property that marks it as an ability word).

@@ -1,5 +1,5 @@
 ---
-needs: [grammar-registered-labels-not-flavor-words]
+needs: []
 ---
 # Head inheritance and defaults: prototype on the Nominal constructions
 
