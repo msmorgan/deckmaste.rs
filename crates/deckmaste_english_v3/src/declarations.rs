@@ -594,9 +594,13 @@ constructions! {
         category SentenceParagraph();
         category SentenceContinuation();
         category Sentence(AbilityTermination);
-        category Clause(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
-        category ImperativeClause(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
-        category FiniteClause(SourceComplementSelection);
+        category Clause(
+            head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
+        );
+        category ImperativeClause(
+            head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
+        );
+        category FiniteClause(head SourceComplementSelection);
         category FiniteGappedClause();
         category InterveningPrepositionAdjunct();
         category IrrealisClause();
@@ -703,7 +707,7 @@ constructions! {
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
-        category VerblessClause(VerblessClauseComplement);
+        category VerblessClause(head VerblessClauseComplement);
         category Name(head number);
         category NamePredicate();
         category PrepositionPhrase(
@@ -723,8 +727,8 @@ constructions! {
         category NominalAdjunctPhrase(NominalAdjunctClass, NominalAdjunctDependent);
         category BareTemporalNominal(NominalBareClass);
         category BoundaryComplement();
-        category SubjectRelativeClause(number);
-        category ObjectRelativeClause(RelativeGapKind);
+        category SubjectRelativeClause(head number);
+        category ObjectRelativeClause(head RelativeGapKind);
         category FiniteObjectGap(
             head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
             head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
@@ -769,7 +773,7 @@ constructions! {
         category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse, FrequencyUse);
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
-        category PurposeInfinitival(FocusedUse);
+        category PurposeInfinitival(local FocusedUse);
         category ScalarValue(PredicativeKind, PropertyEqualityForm);
         category PropertyValue(MeasureKind, PropertyEqualityForm);
         category Amount();
@@ -836,7 +840,9 @@ constructions! {
         category CardTypeContinuation();
         category Subtypes();
         category SubtypeContinuation();
-        category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
+        category ClauseSeries(
+            head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
+        );
         category FinitePredicateSeries(
             head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
@@ -921,10 +927,13 @@ constructions! {
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
             head ComparativeObjectGapLicence
         );
-        category CoordinatedFiniteClause(GeneralCoordination);
-        category FiniteClauseSeries(GeneralCoordination);
+        category CoordinatedFiniteClause(head GeneralCoordination);
+        category FiniteClauseSeries(head GeneralCoordination);
         category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
-        category CorrelativeClauseSeries(ClauseCoordinationHost, CorrelativeCoordinator, UnmarkedConjunctLicence, SourceComplementSelection);
+        category CorrelativeClauseSeries(
+            head ClauseCoordinationHost, head CorrelativeCoordinator, head UnmarkedConjunctLicence,
+            head SourceComplementSelection
+        );
         category CorrelativeFinitePredicateSeries(
             head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
@@ -995,7 +1004,7 @@ constructions! {
             head PrepositionPhraseComplementMarker, head SourceComplementUse, head SourceModifierPresent,
             head WholeObjectSourcePresent, head SourceMarker
         );
-        category CorrelativeFiniteClauseSeries(CorrelativeCoordinator, GeneralCoordination);
+        category CorrelativeFiniteClauseSeries(head CorrelativeCoordinator, head GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
         // Owner rulings HO1/HO4 and HO8 (2026-10-11): frame shape and
@@ -2922,14 +2931,16 @@ constructions! {
             require head.KeywordSeparator = Space;
             require amount.MeasureKind = Scalar;
         }
-        category ClausalKeywordPayload(KeywordParameterClass);
+        category ClausalKeywordPayload(head KeywordParameterClass);
         construction AbilityKeywordPayload: ClausalKeywordPayload {
+            head body;
             form [body: Ability];
             require body.LabelKind = None;
             require body.AbilityTermination = Complete;
             export KeywordParameterClass = Ability;
         }
         construction ConditionKeywordPayload: ClausalKeywordPayload {
+            head body;
             form [body: Sentence];
             require body.AbilityTermination = Complete;
             export KeywordParameterClass = Condition;
@@ -3042,64 +3053,51 @@ constructions! {
         // Cost anchor. Unlike terminal supplementation, it has no initial
         // capitalization boundary and leaves punctuation to its container.
         schema ParticipialSupplementation {
+            head anchor;
             form [anchor: node, ", ", supplement: SecondaryVerbPhrase];
             require supplement.ParticipialUse = BarePassive;
             require supplement.form = PastParticiple;
             require supplement.ParticipialSupplementUse = Yes;
             require anchor.terminal_punctuation = None;
         }
-        policy SourceSelectionAnchor {
-            export SourceComplementSelection = anchor.SourceComplementSelection;
-        }
-        policy ImperativeSupplement {
-            export SourceComplementSelection = anchor.SourceComplementSelection;
-            export ClauseCoordinationHost = anchor.ClauseCoordinationHost;
-            export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
-        }
         policy CostSupplement {
             require anchor.CostComponentForm = Action;
             export CostComponentForm = Action;
         }
+        instance ParticipialSupplementation<Result, Anchor: anchor>: [
+            (FiniteClause, FiniteClause),
+            (Clause, ImperativeClause),
+        ] {}
         instance ParticipialSupplementation<Result, Anchor: anchor, Properties>: [
-            (FiniteClause, FiniteClause, SourceSelectionAnchor),
-            (Clause, ImperativeClause, ImperativeSupplement),
             (CostComponent, CostComponent, CostSupplement),
         ] {
             use Properties;
         }
 
         construction Declarative: Clause {
-            export SourceComplementSelection = clause.SourceComplementSelection;
-            export ClauseCoordinationHost = Simple;
+            head clause;
             form [clause: FiniteClause];
-            export UnmarkedConjunctLicence = Yes;
         }
 
         // HR4: a disjoint Clause anchor keeps the finite and imperative
         // supplementation routes from duplicating a declarative Reading.
         construction SupplementAnchorImperative: ImperativeClause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
-            export ClauseCoordinationHost = Simple;
+            head predicate;
             form [predicate: BarePredicate];
-            export UnmarkedConjunctLicence = Yes;
         }
 
         construction Imperative: Clause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
-            export ClauseCoordinationHost = Simple;
+            head predicate;
             form [predicate: BarePredicate];
-            export UnmarkedConjunctLicence = Yes;
         }
 
         // CGEL Ch. 8 §20.1, p. 781: without a Subject, front and
         // pre-verbal central position are not overtly distinct. The licensed
         // central analysis of Oracle imperative also is the project application.
         construction CentralAdverbImperative: Clause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
-            export ClauseCoordinationHost = Simple;
+            head predicate;
             form [modifier: lexical(Adverb), " ", predicate: BarePredicate];
             require central_imperative(modifier.CentralAdjunctLicence) = Yes;
-            export UnmarkedConjunctLicence = Yes;
         }
 
 
@@ -3112,7 +3110,7 @@ constructions! {
             (First, First) => Yes, (Second, Second) => Yes, (Third, Third) => Yes,
         }
         construction FiniteClause: FiniteClause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
+            head predicate;
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
                 predicate: FinitePredicate]
                 require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes
@@ -3130,7 +3128,7 @@ constructions! {
         // CGEL Ch. 5 §9.2, p. 413: implicit-partitive adjuncts quantify
         // the Subject. Clause attachment scopes over the whole Predicate.
         construction QuantifiedClause: FiniteClause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
+            head predicate;
             form [subject: NominativePhrase, " ", quantifier: lexical(Determinative),
                 " ", predicate: FinitePredicate];
             require quantifier.QuantificationalAdjunctUse = Yes;
@@ -3211,7 +3209,7 @@ constructions! {
         // predicative Complement. The Subject restriction is this ticket's
         // Oracle-English contract, not a restriction asserted by that passage.
         construction ScalarLocation: FiniteClause {
-            export SourceComplementSelection = predicate.SourceComplementSelection;
+            head predicate;
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
                 predicate: ScalarLocationPredicate];
             require subject.ScalarDenotation = Yes;
@@ -3247,7 +3245,7 @@ constructions! {
         // Preposed temporal NP position: project ruling R11a (2026-10-09).
         // Keep the existing PP forms and their Reading identities.
         construction InitialPreposition: Clause {
-            export SourceComplementSelection = clause.SourceComplementSelection;
+            head clause;
             export ClauseCoordinationHost = Simple;
             form [dependent: PrepositionPhrase, ", ", clause: Clause]
                 require licence_preposed_adjunct(dependent.PrepositionFunctionLicence) = Yes
@@ -3268,21 +3266,20 @@ constructions! {
         // Project ruling, trailing-adjunct-height (2026-10-09): only a
         // Clause Coordination licenses trailing Clause-level Adjunct scope.
         construction ClausalPreposition: Clause {
+            head clause;
             require source_adjunct_admission(clause.SourceComplementSelection,
                 dependent.SourceMarker) = Yes;
-            export SourceComplementSelection = clause.SourceComplementSelection;
             require clause.ClauseCoordinationHost = Coordinated;
-            export ClauseCoordinationHost = clause.ClauseCoordinationHost;
             form [clause: Clause, " ", dependent: PrepositionPhrase];
             require licence_adjunct(dependent.PrepositionFunctionLicence) = Yes;
             require adjunct_complement_function(dependent.ComplementFunctionRestriction,
                 dependent.PredicativeAdjunctUse) = Yes;
             require dependent.MatrixComplementRequirement = None;
             require dependent.SelectedPrepositionUse = No;
-            export UnmarkedConjunctLicence = clause.UnmarkedConjunctLicence;
         }
 
         construction MedialSupplementation: Clause {
+            head none;
             export SourceComplementSelection = source_selection_union(
                 anchor.SourceComplementSelection, continuation.SourceComplementSelection);
             export ClauseCoordinationHost = Simple;
@@ -3295,6 +3292,7 @@ constructions! {
         }
 
         construction ClauseCoordination: Clause {
+            head none;
             export SourceComplementSelection = source_selection_union(
                 left.SourceComplementSelection, right.SourceComplementSelection);
             export ClauseCoordinationHost = Coordinated;
@@ -4616,6 +4614,7 @@ constructions! {
         // VW8 (2026-10-10): a native participial state uses its bare or
         // intransitive frame, never an unsupplied selected Complement.
         construction VerblessClause: VerblessClause {
+            head predicate;
             form [predicate: lexical(Adjective)]
                 require predicate.AdjectiveOrigin = Ordinary
                 require verbless_ordinary_frame_use(predicate.framing,
@@ -4639,12 +4638,14 @@ constructions! {
         // The participial/adjectival restriction is project ruling PW2/PW6
         // (english-v3-play-with-absolute, 2026-10-10).
         construction SubjectAdjectiveVerblessClause: VerblessClause {
+            head predicate;
             form [subject: AccusativePhrase, " ", predicate: AdjectivePhrase];
             export VerblessClauseComplement = OvertSubject;
             require predicate.AdjectiveAttributiveOnlyUse = No;
         }
 
         construction SubjectParticipialClause: VerblessClause {
+            head predicate;
             form [subject: AccusativePhrase, " ", predicate: SecondaryVerbPhrase];
             require predicate.form = PastParticiple;
             require predicate.ParticipialUse = BarePassive;
@@ -5208,16 +5209,17 @@ constructions! {
         }
 
         construction PronounSubjectRelative: SubjectRelativeClause {
+            head predicate;
             form [marker: lexical(Pronoun), clitic_separator(predicate.CliticHost),
                 predicate: FinitePredicate];
             require marker.RelativeUse = Yes;
             require marker.case = Nominative;
             agree marker.person = predicate.person;
             agree marker.number = predicate.number;
-            export number = predicate.number;
         }
 
         construction QuantifiedSubjectRelative: SubjectRelativeClause {
+            head predicate;
             form [marker: lexical(Subordinator), " ", quantifier: lexical(Determinative),
                 " ", predicate: FinitePredicate];
             require marker.RelativeSubordinator = Yes;
@@ -5225,7 +5227,6 @@ constructions! {
             require predicate.CliticHost = Free;
             require predicate.number = Plural;
             require predicate.person = Third;
-            export number = predicate.number;
         }
 
         construction CountedFrequency: FrequencyPhrase {
@@ -5312,12 +5313,12 @@ constructions! {
         }
 
         construction SubjectRelativeClause: SubjectRelativeClause {
+            head predicate;
             form [marker: lexical(Subordinator), clitic_separator(predicate.CliticHost),
                 predicate: FinitePredicate];
             require marker.RelativeSubordinator = Yes;
             require relative_clitic(predicate.CliticHost) = Yes;
             require predicate.person = Third;
-            export number = predicate.number;
         }
 
         construction SubjectRelativeNominal: Nominal {
@@ -5372,7 +5373,7 @@ constructions! {
         }
 
         construction ObjectRelativeClause: ObjectRelativeClause {
-            export RelativeGapKind = Object;
+            head predicate;
             form [marker: lexical(Subordinator), " ", subject: NominativePhrase,
                 clitic_separator(predicate.CliticHost), predicate: FiniteObjectGap];
             require marker.RelativeSubordinator = Yes;
@@ -5382,7 +5383,7 @@ constructions! {
         }
 
         construction ZeroObjectRelativeClause: ObjectRelativeClause {
-            export RelativeGapKind = Object;
+            head predicate;
             form [subject: NominativePhrase, clitic_separator(predicate.CliticHost),
                 predicate: FiniteObjectGap];
             require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes;
@@ -5404,6 +5405,7 @@ constructions! {
         // CGEL Ch. 12 §3.3(e), pp. 1045–1046: a bare relative can have
         // an Adjunct gap. The temporal head licence is declared by the noun.
         construction AdverbialGapRelativeClause: ObjectRelativeClause {
+            head clause;
             form [clause: FiniteClause];
             export RelativeGapKind = TemporalAdjunct;
         }
@@ -6264,7 +6266,7 @@ constructions! {
         ] {}
 
         construction InitialAdverb: Clause {
-            export SourceComplementSelection = clause.SourceComplementSelection;
+            head clause;
             export ClauseCoordinationHost = Simple;
             form [modifier: AdverbPhrase, " ", clause: Clause];
             form [modifier: AdverbPhrase, ", ", clause: Clause];
@@ -6320,7 +6322,6 @@ constructions! {
         instance ToInfinitive<Result, Predicate: predicate>: [
             (PurposeInfinitival, BarePredicate),
         ] {
-            export FocusedUse = No;
         }
 
         // DR6 fallback: optional lexical fields cannot participate in the
