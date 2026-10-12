@@ -1,5 +1,5 @@
 ---
-needs: [grammar-size-report-and-ratchet]
+needs: [grammar-size-report-and-check-mode]
 ---
 # Head inheritance and defaults: prototype on the Nominal constructions
 
