@@ -2,7 +2,7 @@ use quote::quote;
 
 use crate::compile;
 
-fn rejects(input: proc_macro2::TokenStream, expected: &str) {
+pub(super) fn rejects(input: proc_macro2::TokenStream, expected: &str) {
     let error = compile(input)
         .expect_err("invalid declarations must fail before generated Rust is compiled");
     assert!(error.to_string().contains(expected), "{error}");

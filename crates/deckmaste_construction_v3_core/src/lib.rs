@@ -34,3 +34,6 @@ pub fn expand(input: TokenStream) -> TokenStream {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod inheritance_tests;

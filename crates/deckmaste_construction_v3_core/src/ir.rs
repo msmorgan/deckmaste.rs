@@ -12,6 +12,7 @@ use crate::parse::Declaration;
 use crate::parse::Equation;
 use crate::parse::FieldType;
 use crate::parse::Part;
+use crate::parse::Propagation;
 use crate::parse::Reference;
 
 pub(crate) struct Ir {
@@ -256,24 +257,37 @@ fn reserve(names: &mut BTreeSet<String>, name: &Ident) -> syn::Result<()> {
 fn validate_features(declared: &[crate::parse::Feature]) -> syn::Result<Vec<Domain>> {
     let mut features = builtin_domains();
     let mut feature_names: BTreeSet<_> = features.iter().map(|f| f.name.clone()).collect();
+    let mut annotations = BTreeSet::new();
     for feature in declared {
+        let Some(declared_values) = &feature.values else {
+            if !builtin_domains()
+                .iter()
+                .any(|domain| feature.name == domain.name)
+            {
+                return Err(error(
+                    &feature.name,
+                    "propagation annotation must name a builtin feature",
+                ));
+            }
+            reserve(&mut annotations, &feature.name)?;
+            continue;
+        };
         reserve(&mut feature_names, &feature.name)?;
-        if feature.values.is_empty() {
+        if declared_values.is_empty() {
             return Err(error(
                 &feature.name,
                 "a feature requires a finite nonempty domain",
             ));
         }
         let mut values = BTreeSet::new();
-        for value in &feature.values {
+        for value in declared_values {
             reserve(&mut values, value)?;
         }
         let default = feature
             .default
             .as_ref()
             .map(|default| {
-                feature
-                    .values
+                declared_values
                     .iter()
                     .position(|value| value == default)
                     .ok_or_else(|| {
@@ -283,9 +297,9 @@ fn validate_features(declared: &[crate::parse::Feature]) -> syn::Result<Vec<Doma
             .transpose()?;
         features.push(Domain {
             name: feature.name.to_string(),
-            values: feature.values.iter().map(ToString::to_string).collect(),
+            values: declared_values.iter().map(ToString::to_string).collect(),
             kind: if feature.set {
-                if feature.values.len() > usize::BITS as usize || default.is_some() {
+                if declared_values.len() > usize::BITS as usize || default.is_some() {
                     return Err(error(
                         &feature.name,
                         "set features require at most usize::BITS members and no scalar default",
@@ -366,8 +380,33 @@ fn validate_frame_adjuncts(ir: &mut Ir, adjuncts: Vec<(Ident, Ident)>) -> syn::R
     Ok(())
 }
 
+fn feature_propagation(
+    declared: &[crate::parse::Feature],
+    domains: &[Domain],
+) -> syn::Result<BTreeMap<usize, Propagation>> {
+    declared
+        .iter()
+        .filter_map(|feature| feature.propagation.map(|mode| (feature, mode)))
+        .map(|(feature, mode)| Ok((feature_index(domains, &feature.name)?, mode)))
+        .collect()
+}
+
+fn category_interface(
+    domains: &[Domain],
+    category: &crate::parse::Category,
+) -> syn::Result<BTreeSet<usize>> {
+    let mut interface = BTreeSet::new();
+    for name in &category.features {
+        if !interface.insert(feature_index(domains, name)?) {
+            return Err(error(name, "duplicate Category feature"));
+        }
+    }
+    Ok(interface)
+}
+
 pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut features = validate_features(&declaration.features)?;
+    let propagation = feature_propagation(&declaration.features, &features)?;
     let frames = validate_frames(&declaration.frames)?;
     features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
     let mut names = BTreeSet::new();
@@ -375,15 +414,8 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut interfaces = vec![];
     for category in &declaration.categories {
         reserve(&mut names, &category.name)?;
-        let mut interface = BTreeSet::new();
-        for name in &category.features {
-            let index = feature_index(&features, name)?;
-            if !interface.insert(index) {
-                return Err(error(name, "duplicate Category feature"));
-            }
-        }
         categories.push(category.name.clone());
-        interfaces.push(interface);
+        interfaces.push(category_interface(&features, category)?);
     }
     if categories.is_empty() {
         return Err(error(
@@ -513,7 +545,12 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     validate_postposing(&mut ir, declaration.frame_postposing)?;
     validate_tables(&mut ir, declaration.tables)?;
     validate_marker_licences(&mut ir, declaration.frame_marker_licences)?;
-    normalize(&mut ir, &declaration.constructions, &interfaces)?;
+    normalize(
+        &mut ir,
+        &declaration.constructions,
+        &interfaces,
+        &propagation,
+    )?;
     check_recursion(&ir)?;
     merge_schemas(&mut ir)?;
     Ok(ir)
@@ -695,27 +732,116 @@ fn same_field_storage(left: &FieldType, right: &FieldType) -> bool {
         )
 }
 
+fn fill_exports(
+    ir: &Ir,
+    index: usize,
+    interfaces: &[BTreeSet<usize>],
+    head: Option<&Ident>,
+    propagation: &BTreeMap<usize, Propagation>,
+    equations: &mut Vec<Equation>,
+) -> syn::Result<()> {
+    let construction = &ir.constructors[index];
+    let source = head
+        .map(|head| {
+            let ty = construction
+                .fields
+                .iter()
+                .find(|(name, _)| name == head)
+                .map(|(_, ty)| ty)
+                .ok_or_else(|| error(&construction.name, &format!("unknown head field {head}")))?;
+            match ty {
+                FieldType::Lexical(_) | FieldType::One(_) => Ok((head, ty)),
+                _ => Err(error(
+                    &construction.name,
+                    "head must be a single lexical or constituent field",
+                )),
+            }
+        })
+        .transpose()?;
+    let explicit: BTreeSet<_> = equations
+        .iter()
+        .filter_map(|equation| match equation {
+            Equation::Export(name, _)
+            | Equation::ExportConstant(name, _)
+            | Equation::ExportTable(name, _, _) => Some(name.to_string()),
+            _ => None,
+        })
+        .collect();
+    for &feature in &interfaces[construction.category] {
+        let domain = &ir.features[feature];
+        if explicit.contains(&domain.name) {
+            continue;
+        }
+        let Some(mode) = propagation.get(&feature) else { continue };
+        let name = Ident::new(&domain.name, construction.name.span());
+        if *mode == Propagation::Head
+            && let Some((head, ty)) = source
+        {
+            let accessible = match ty {
+                FieldType::Lexical(_) => true,
+                FieldType::One(category) => {
+                    let category = ir
+                        .categories
+                        .iter()
+                        .position(|name| name == category)
+                        .unwrap();
+                    interfaces[category].contains(&feature)
+                        || matches!(domain.name.as_str(), "onset" | "terminal_punctuation")
+                }
+                _ => unreachable!(),
+            };
+            if accessible {
+                equations.push(Equation::Export(
+                    name.clone(),
+                    Reference {
+                        field: head.clone(),
+                        feature: name,
+                        last: false,
+                    },
+                ));
+                continue;
+            }
+        }
+        if let DomainKind::Custom {
+            default: Some(default),
+        } = domain.kind
+        {
+            equations.push(Equation::ExportConstant(
+                name,
+                Ident::new(&domain.values[default], construction.name.span()),
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_surface_obligations(construction: &crate::parse::Construction) -> syn::Result<()> {
+    if let Some(boundary) = &construction.boundary
+        && boundary != "Initial"
+        && boundary != "Interior"
+    {
+        return Err(error(
+            boundary,
+            "surface boundary must be Initial or Interior",
+        ));
+    }
+    if let Some(onset) = &construction.onset
+        && onset != "Consonant"
+        && onset != "Vowel"
+    {
+        return Err(error(onset, "surface onset must be Consonant or Vowel"));
+    }
+    Ok(())
+}
+
 fn normalize(
     ir: &mut Ir,
     constructions: &[crate::parse::Construction],
     interfaces: &[BTreeSet<usize>],
+    propagation: &BTreeMap<usize, Propagation>,
 ) -> syn::Result<()> {
     for (index, construction) in constructions.iter().enumerate() {
-        if let Some(boundary) = &construction.boundary
-            && boundary != "Initial"
-            && boundary != "Interior"
-        {
-            return Err(error(
-                boundary,
-                "surface boundary must be Initial or Interior",
-            ));
-        }
-        if let Some(onset) = &construction.onset
-            && onset != "Consonant"
-            && onset != "Vowel"
-        {
-            return Err(error(onset, "surface onset must be Consonant or Vowel"));
-        }
+        validate_surface_obligations(construction)?;
         let repeat_features = repeated_projections(ir, index, interfaces, construction)?;
         let field_symbols = normalize_fields(ir, index, &repeat_features);
         let mut canonical_requirements = vec![];
@@ -742,6 +868,14 @@ fn normalize(
             let constructor_fields = std::mem::replace(&mut ir.constructors[index].fields, fields);
             let mut obligations = construction.equations.clone();
             obligations.extend(requirements.iter().cloned());
+            fill_exports(
+                ir,
+                index,
+                interfaces,
+                construction.head.as_ref(),
+                propagation,
+                &mut obligations,
+            )?;
             validate_selected_frame_surface(ir, interfaces, &construction.name, parts)?;
             let pieces = normalize_form(ir, index, interfaces, parts)?;
             let canonical = ir.constructors[index].forms.iter().position(|f| {
@@ -1378,7 +1512,14 @@ fn equations(
     if exported != interfaces[construction.category] {
         return Err(error(
             &construction.name,
-            "required Category feature cannot reach admission: missing export",
+            &format!(
+                "required Category feature cannot reach admission: missing export {}",
+                interfaces[construction.category]
+                    .difference(&exported)
+                    .map(|&feature| ir.features[feature].name.as_str())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         ));
     }
     Ok(plan)

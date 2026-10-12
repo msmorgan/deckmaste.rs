@@ -36,9 +36,16 @@ pub(crate) struct Category {
 
 pub(crate) struct Feature {
     pub name: Ident,
-    pub values: Vec<Ident>,
+    pub values: Option<Vec<Ident>>,
+    pub propagation: Option<Propagation>,
     pub default: Option<Ident>,
     pub set: bool,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Propagation {
+    Head,
+    Local,
 }
 
 pub(crate) struct FeatureTable {
@@ -77,6 +84,7 @@ pub(crate) struct Construction {
     pub boundary: Option<Ident>,
     pub onset: Option<Ident>,
     pub segments: Option<Segments>,
+    pub head: Option<Ident>,
 }
 
 #[derive(Clone)]
@@ -211,31 +219,7 @@ impl Parse for Declaration {
                     });
                     body.parse::<Token![;]>()?;
                 }
-                "feature" => {
-                    let values;
-                    braced!(values in body);
-                    let values = names(&values)?;
-                    let set = body.peek(Ident) && body.fork().parse::<Ident>()? == "set";
-                    if set {
-                        body.parse::<Ident>()?;
-                        body.parse::<Token![;]>()?;
-                    }
-                    let default = if body.peek(Ident) && body.fork().parse::<Ident>()? == "default"
-                    {
-                        body.parse::<Ident>()?;
-                        let value = body.parse()?;
-                        body.parse::<Token![;]>()?;
-                        Some(value)
-                    } else {
-                        None
-                    };
-                    result.features.push(Feature {
-                        name,
-                        values,
-                        default,
-                        set,
-                    });
-                }
+                "feature" => result.features.push(parse_feature(&body, name)?),
                 "frame_marker_licence" => {
                     parse_frame_marker_licence(&body, name, &mut result)?;
                 }
@@ -311,6 +295,55 @@ impl Parse for Declaration {
         instantiate_schemas(&mut result.constructions, &schemas)?;
         Ok(result)
     }
+}
+
+fn parse_feature(body: ParseStream<'_>, name: Ident) -> syn::Result<Feature> {
+    let propagation = if body.peek(Ident) {
+        let mode: Ident = body.parse()?;
+        Some(match mode.to_string().as_str() {
+            "head" => Propagation::Head,
+            "local" => Propagation::Local,
+            _ => return Err(syn::Error::new(mode.span(), "expected head or local")),
+        })
+    } else {
+        None
+    };
+    if body.peek(Token![;]) {
+        if propagation.is_none() {
+            return Err(body.error("builtin feature annotation requires head or local"));
+        }
+        body.parse::<Token![;]>()?;
+        return Ok(Feature {
+            name,
+            values: None,
+            propagation,
+            default: None,
+            set: false,
+        });
+    }
+    let values;
+    braced!(values in body);
+    let values = Some(names(&values)?);
+    let set = body.peek(Ident) && body.fork().parse::<Ident>()? == "set";
+    if set {
+        body.parse::<Ident>()?;
+        body.parse::<Token![;]>()?;
+    }
+    let default = if body.peek(Ident) && body.fork().parse::<Ident>()? == "default" {
+        body.parse::<Ident>()?;
+        let value = body.parse()?;
+        body.parse::<Token![;]>()?;
+        Some(value)
+    } else {
+        None
+    };
+    Ok(Feature {
+        name,
+        values,
+        propagation,
+        default,
+        set,
+    })
 }
 
 fn parse_frame_marker_licence(
@@ -637,6 +670,7 @@ fn validate_policies(policies: &[Construction]) -> syn::Result<()> {
             || policy.cost.is_some()
             || policy.boundary.is_some()
             || policy.onset.is_some()
+            || policy.head.is_some()
         {
             return Err(syn::Error::new(
                 policy.name.span(),
@@ -794,6 +828,14 @@ fn instantiate_schemas(
         instance.cost = schema.cost;
         instance.boundary = schema.boundary.clone();
         instance.onset = schema.onset.clone();
+        if let Some(head) = &schema.head
+            && instance.head.replace(head.clone()).is_some()
+        {
+            return Err(syn::Error::new(
+                instance.name.span(),
+                "duplicate construction head",
+            ));
+        }
         if let Some(segments) = &schema.segments
             && instance.segments.replace(segments.clone()).is_some()
         {
@@ -1051,6 +1093,7 @@ fn parse_construction(
         boundary: None,
         onset: None,
         segments: None,
+        head: None,
     };
     while !contents.is_empty() {
         let directive: Ident = contents.call(Ident::parse_any)?;
@@ -1119,17 +1162,21 @@ fn parse_directive(
                 ));
             }
         }
-        "boundary" | "onset" => {
+        "head" | "boundary" | "onset" => {
             let value: Ident = contents.parse()?;
-            let slot = if directive == "boundary" {
-                &mut construction.boundary
-            } else {
-                &mut construction.onset
+            let slot = match directive.to_string().as_str() {
+                "head" => &mut construction.head,
+                "boundary" => &mut construction.boundary,
+                _ => &mut construction.onset,
             };
             if slot.replace(value).is_some() {
                 return Err(syn::Error::new(
                     directive.span(),
-                    "duplicate surface obligation",
+                    if directive == "head" {
+                        "duplicate construction head"
+                    } else {
+                        "duplicate surface obligation"
+                    },
                 ));
             }
         }
