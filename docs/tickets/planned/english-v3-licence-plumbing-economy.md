@@ -1,5 +1,5 @@
 ---
-needs: [grammar-judgment-set]
+needs: [grammar-size-report-and-ratchet]
 ---
 # Head inheritance and defaults: prototype on the Nominal constructions
 
@@ -16,4 +16,4 @@ Licences themselves stay at admission. The 2026-10-07 permissive-admission exper
 
 ## Gate
 
-Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capability. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Three-line note: census delta (none); size delta per declaration kind from the size tool; judgment-set result.
+Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capability. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Note: census delta (none); the size report and the tracked grammar line total lowered to the new total; the analysis-key and judgment-set lines do not apply yet.

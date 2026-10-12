@@ -30,10 +30,10 @@ Entries are decided by two judging agents working independently on different mod
 
 The census reports faces as read, read only by a known-wrong analysis, and unread. A face is read if a correct analysis is among its readings: wrong readings alongside a correct one are acceptable, since not every wrong reading can be eliminated. Only a face whose readings are all known-wrong is read only by a known-wrong analysis. There is no count of faces that merely carry some wrong reading. A known-wrong analysis never counts as covered, and no ruling may accept one.
 
-- A reading is known-wrong if a judgment entry's stated wrong analysis (an unmet obligation or a forbidden analysis) matches it; any other reading of a read face counts as correct.
+- A reading is known-wrong if a judgment entry's stated wrong analysis (an unmet obligation or a forbidden analysis) matches it; any other reading of a read face counts as correct. A face whose admitted analyses nobody has judged counts as read, and the report says plainly that this is not a correctness claim.
 - Matching inside a complete face: an entry is a fragment. A reading matches when it contains a node of the entry's category whose span text equals the entry's text and whose analysis key equals the stated analysis. An entry may name a card; without one it matches only fragments that do not depend on card-name scoping.
 - `diff`, the blockers report and the later marginal-rate denominator (`grammar-coverage-resume`) use this same classification, and the lists of known-wrong faces are written under `target/english-v3/`.
 
 ## Gate
 
-Reading digests identical on every face, enforced by the census check mode for an identical-digest landing. The landing updates the census description in `crates/deckmaste_english_v3/README.md`. Report in full: census delta (none; the three coverage numbers stated for the first time); size delta per declaration kind; judgment-set result (entries by kind, unmet obligations listed, agreed versus sent to the owner, test outcome).
+Reading digests identical on every face, enforced by the census check mode for an identical-digest landing. The landing updates the census description in `crates/deckmaste_english_v3/README.md`. Report in full: census delta (none; the three coverage numbers stated for the first time, earlier landings having reported plain read and unread); the size report and the tracked grammar line total lowered to the new total; judgment-set result (entries by kind, unmet obligations listed, agreed versus sent to the owner, test outcome).

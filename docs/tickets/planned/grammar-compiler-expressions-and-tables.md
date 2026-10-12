@@ -15,4 +15,4 @@ Second half of replacing the authoring layer: finish the compiler capabilities t
 
 ## Gate
 
-Every `readings_sha256` identical on every face after each class of conversion and at the end, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capabilities. Three-line note: census delta (none); size delta per declaration kind (the ratchet file is lowered to the new totals); judgment-set result.
+Every `readings_sha256` identical on every face after each class of conversion and at the end, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capabilities. Note: census delta (none); the size report and the tracked grammar line total lowered to the new total; the analysis-key and judgment-set lines do not apply yet.

@@ -1,5 +1,5 @@
 ---
-needs: [grammar-closed-class-words]
+needs: [grammar-judgment-set]
 ---
 # Rewrite the oracle-english glossary
 
