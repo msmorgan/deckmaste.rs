@@ -6971,7 +6971,7 @@ mod tests {
         // admits it. That protection's own argument is `from [quality]`
         // [CR#702.16a] — making `Protection creature` meaningless as a Magic
         // rule — is a semantic fact this layer deliberately does not decide;
-        // see the `english-clauses-are-structural` decision. What the grammar
+        // the grammar parses structure before Magic lowering. What the grammar
         // must still refuse is an atom that spells its own preposition, whose
         // tail is that preposition's complement rather than an object.
         let report = parse_with_catalogs("Protection creature", &shape_catalogs());

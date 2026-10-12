@@ -33,16 +33,14 @@ Decisions already made, so the copy does not relitigate them:
   is a chart parse over a construction grammar, and the README's existing
   chart-parser framing is already slated to be *softened* by the
   `portfolio-polish` claims audit, not strengthened. "Regular" elsewhere in
-  this repo means regular morphology
-  (`docs/english-regular-vocabulary-tables-design.md`), an unrelated sense.
+  this repo means regular morphology, an unrelated sense.
   Say "templated", "regimented", or "controlled sublanguage".
 - The templating claim's evidence base is `docs/oracle-style-guide.md`, a
   CR/corpus-only reverse-engineering of WotC's manual. It is evidence, never an
   external authority: describe the observed regularity, and link the guide as
   the project's own reconstruction if at all — never as a published standard.
 - The primer describes the input corpus, not the parser. Adding implementation
-  claims here (grammar coverage, derivation — see
-  `docs/decisions/english-grammar-is-derived.md`) just gives the capstone audit
+  claims here (grammar coverage, derivation) just gives the capstone audit
   more to walk back.
 
 Scope is README framing plus the About blurb: no restructuring of §Design, no

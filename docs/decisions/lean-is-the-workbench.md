@@ -7,8 +7,7 @@ Decision: 2026-09-05.
 Lean succeeds Idris as the active semantics workbench. New syntax, checker
 laws, macros, cards and proof pins belong in `lean/Semantics/`. The model
 checks the card language's structural obligations; Rust remains the runtime
-game engine. The separate `lean/English/` model is governed by
-[English grammar design in Lean](english-lean-design-workbench.md).
+game engine. The separate English Lean model is retired.
 
 Idris is reference only: reread its sentences, earlier obligations and
 migration evidence, but do not extend its handwritten workbench. Shared

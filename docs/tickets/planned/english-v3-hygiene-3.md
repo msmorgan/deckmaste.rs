@@ -31,7 +31,7 @@ has not been probed at the current trunk.
   `NounPhrase`). The review correction `stymwqqo` removed the mass analysis of
   *each time* only. TICKETED 2026-10-11: the owner decided on 2026-10-10
   ("seems unhygenic yeah") that the mass twin is removed; the work is
-  `english-v3-temporal-np-count-time`. Not an open decision any more.
+  a coverage ticket deleted on 2026-10-12. Not an open decision any more.
 - **A3. "Exile target card type."** Noted in the review of
   `english-v3-card-noun-premodifier` (`ktvsnxsr`): the *card* premodifier gate
   on heads type/name/pool admits this unattested sentence. From review notes,
@@ -56,8 +56,8 @@ has not been probed at the current trunk.
   (`OrdinalPremodifier`): a ×2 lexical duplicate on Eluge and Saint Traft.
   Owner wish (2026-10-09): an ordinal is the numeral's ordinal form with
   adjective distribution, one lexeme each; retire the second label.
-  `english-v3-fused-ordinal-head` and
-  `english-v3-temporal-pp-and-premodifier-scope` both name the split as out of
+  a coverage ticket deleted on 2026-10-12 and
+  a coverage ticket deleted on 2026-10-12 both name the split as out of
   their scope. Note ruling R14e (`english-v3-last-turn-temporal-adjunct`):
   *last* is not a numeral and was rehomed as a Word.
 
@@ -177,7 +177,7 @@ Chart-item budget in selected_complement_clusters::bounded_roundtrip: single-Rea
   vintage-legal should be supported for parsing." Such faces are in scope for
   parsing when the card is Vintage-legal: they stay in the supported corpus
   and the denominator, and the filter is not changed. The wording is ticketed
-  as `english-v3-planechase-conspiracy-wording` (38 faces, all unread). The
+  as a coverage ticket deleted on 2026-10-12 (38 faces, all unread). The
   grammar parses the wording only; the Planechase and Conspiracy game modes
   stay unmodelled.
 - **D3. Undrafted clusters with no ticket.** From the wave-9 set C report and

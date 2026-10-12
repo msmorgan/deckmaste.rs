@@ -26,6 +26,6 @@ Standard constraints apply. Add a unit test that the single-pass metadata equals
 
 A `build.rs` or checked-in expanded artifact for the 899 declarations, worth about another 220,000,000 ns. A possible later step, only after this ticket and `card-corpus-fast-lookup`.
 
-## Landing record
+## What the landing reports
 
-The six items in CLAUDE.md. Plus: declaration-set, metadata and inventory-hash comparison before and after, the equivalence test, and before/after timings (integer ns, worker count).
+Declaration-set, metadata and inventory-hash comparison before and after, the equivalence test, and before/after timings (integer ns, worker count).

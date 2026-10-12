@@ -29,24 +29,14 @@ requires explicit review rather than an opportunistic refactor.
   One typed template drives both rendering and parsing.
 - [State-based actions are data](state-based-actions-are-data.md) — Ordinary
   state-based actions are swappable rules over explicit scopes.
-- [English clauses are structural](english-clauses-are-structural.md) — Parse
-  dependency, valency, voice, modality, and attachment before Magic lowering.
-- [English coordination is structural](english-coordination-is-structural.md) —
-  Keep shared context explicit and coordinate typed, contiguous members.
-- [English productions ship their inverse](english-productions-ship-their-inverse.md) —
-  A grammar slice lands only with its exact renderer inverse.
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md) — One
   semantics grammar; English relates two-way via spelling, core derives
   one-way via lowering.
-- [English grammar is derived](english-grammar-is-derived.md) — One
-  construction declaration compiles parse, render, and build.
-- [English v2 rewrite](english-v2-rewrite.md) — Historical rewrite plan,
-  superseded by the v3 grammar; its parser and exclusive proc macro are retired.
-- [English grammar design in Lean](english-lean-design-workbench.md) — Formal
-  historical grammar modeling and proofs; the English Lean project is retired.
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md) —
   Open plugin macros own positional semantic frames and the lexical facts
   needed to parse them.
+- [English grammar](english-lexical-analysis.md) — The one governing record for
+  `deckmaste_english_v3`: engine contract, Readings, words, gate and size.
 - [Semantics v2](semantics-v2.md) — Semantics encodes surface English in
   situ and lowering owns all rearrangement; `deckmaste_semantics_v2` mirrors
   the Lean syntax over the `plugins_v2` format, and v1 retires at parity.

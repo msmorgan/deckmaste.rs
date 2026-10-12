@@ -13,8 +13,7 @@ family descriptions, all twenty full identity keys, scope witnesses and the
 historical forty-one-row frontier now live in the
 [grammar migration obligation register](../english-grammar-migration-obligations.md),
 with production owners. No former entry was discarded as an unowned tail.
-The [wayfinder](../english-grammar-wayfinder.md) explains the replacement sequence;
-the ticket `needs:` graph schedules it.
+The ticket `needs:` graph schedules the replacement sequence.
 
 Unbucketed historical failures and the generic period frontier are owned by
 `english-v3-systemic-residuals` for representative triage. A demonstrated
@@ -89,8 +88,8 @@ although unattested)".
   `grammar: FixedTerm(surface: "flying")`). So a list containing "+1/+1" or
   another numeric kind before a shared "counter", or a bare "+1/+1" after
   "from among", may be unread.
-- `docs/decisions/english-coordination-is-structural.md` ~L111-113 already
-  names "first strike, vigilance, or lifelink counter" as a common-head
+- The retired coordination decision record already
+  named "first strike, vigilance, or lifelink counter" as a common-head
   coordination.
 
 ### Related

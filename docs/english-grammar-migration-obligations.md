@@ -1,19 +1,11 @@
 # Grammar migration obligations
 
-The English Lean project was retired on 2026-10-03. Remaining grammatical obligations are validated with Rust witnesses and corpus evidence; references to Lean modules below are historical provenance, not implementation prerequisites.
-
-This is the routing record for the grammar migration and lexical-analysis
-rewrite, not a corpus measurement or a second task graph. The implementation tickets own these
-outcomes; their `needs:` fields schedule the work. Entries retain source
-examples and identity keys from the former tickets/fog without treating old
-parser acceptance, census counts or discarded implementation recipes as
-linguistic authority. Re-fetch exact supported Oracle text at implementation.
-
-The 2026-09-07 lexical-analysis rewrite supersedes old ranking, unique-winner
-and tie-error prescriptions in the historical evidence below. Retain every
-valid grammatical analysis with exact source realization; neither a packed
-forest nor an old selected tree licenses an ungrammatical reading. The new
-implementation tickets determine carriers and proof boundaries.
+This file is kept as a witness register only: the source examples and
+identity keys below are cited by an open ticket. It is not a routing record,
+a task graph or an authority. The "Production owner" and "Pinned outcome"
+columns, the ticket names and the Lean module references are historical; the
+governing record is [English lexical analysis](decisions/english-lexical-analysis.md).
+Re-fetch exact supported Oracle text before using a witness.
 
 ## Grammatical families
 
@@ -460,7 +452,7 @@ nominals, relatives, coordination and ellipsis from their family owners.
   traversals or crates. Source/reading traversal obligations remain with
   `english-v3-lexical-inventory`; consolidation of replaced v2 paths belongs
   to `english-v3-systemic-residuals`. Deletion of v1 remains governed by
-  [the original cutover plan](decisions/english-v2-rewrite.md#cutover-plan),
+  the `semantics-v1-cutover` ticket,
   not by the earlier long-tail handoff. Current consumers require replacements.
 - `english-structural-recovery-long-tail`: retain the historical observation
   that 3,166 of 3,759 unresolved spans had unique text (2,858 of 3,366 faces)

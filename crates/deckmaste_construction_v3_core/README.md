@@ -32,6 +32,40 @@ lower-level `forest.readings(&grammar)` also exposes materialization metrics;
 its generated intermediate `Value` wrapper has a `Reading` variant at every
 public Category root. There is no scanner callback or preferred Reading.
 
+## Lowered form versus authoring layer
+
+Several rules below describe the **lowered form** the chart consumes, not a
+permanent rule for what an author must write. They are true of the compiler as
+it stands and are being replaced as authoring requirements:
+
+- every Construction exports every feature of its Category exactly once;
+- defaults do not infer feature equations or replace required exports;
+- policies cannot use other policies;
+- generic repetition and coordination do not fold member features;
+- the compiler derives nothing from a declared head.
+
+The chart needs complete, finite summaries, so the compiler will go on
+producing them. The authoring layer is changing so that an author states what
+a Construction changes and the compiler derives the rest: head inheritance and
+defaults, boolean requirements, policy composition, generic coordination with
+per-feature combiners, typed lexical classes. Each landing that completes one of
+these updates the affected passage here. The governing record is
+`docs/decisions/english-lexical-analysis.md`.
+
+## Frame declarations
+
+- `frame Name = ...;` declares a verb frame the grammar recognises. A lexical
+  frame is usable only if it is structurally identical to a declared one.
+- `form [head: lexical(Verb), complements: selected_frame(head, Family)];`
+  expands the head's declared frames into complement sequences. A
+  `selected_frame` form has exactly these two fields.
+- `frame_category Atom = Category [where Feature = Value];` maps a frame atom
+  to the grammar Category that realises it, optionally restricted by one
+  feature value.
+- `frame_adjunct` and `frame_postposing` declare, for a frame family, an
+  adjunct admitted between complements and a complement that may be postposed
+  after listed ones.
+
 ## Shared construction schemas
 
 A schema owns one AST construction, its fields, surface forms, cost and common
@@ -304,7 +338,7 @@ syntax remains supported and produces identical typed data and generated code.
 
 A head Construction can export `frame = head.frame`; a governing Construction
 can `require head.frame = Transitive`. Matching reads the declared lexical property,
-never a lexeme name or input word. Frames not in this grammar's inventory remain
+not an input word. Frames not in this grammar's inventory remain
 lexical choices, but cannot satisfy a required or exported frame feature.
 Duplicate frame signatures are rejected. As with any grammar declaration,
 authors must declare the appropriate complementary constituents and constraints;

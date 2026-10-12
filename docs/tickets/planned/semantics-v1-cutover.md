@@ -7,8 +7,8 @@ needs: [semantics-v2-parity]
 `plugins/builtin`, `plugins/canon`, the `deckmaste_spelling` splice
 machinery), rename `deckmaste_semantics_v2` to `deckmaste_semantics` and
 `plugins_v2/` to `plugins/`, drop the symlink, and re-point
-`deckmaste_migrations`. Coordinate with `idris-retirement` and
-`english-v2-rewrite.md`'s own cutover. Standard constraints apply.
+`deckmaste_migrations`. Coordinate with `idris-retirement` and the retirement
+of the legacy English stack. Standard constraints apply.
 
 The Idris card gate retires here with Idris itself (user ruling,
 2026-09-06; routed from `lean-card-soundness-gate`): delete

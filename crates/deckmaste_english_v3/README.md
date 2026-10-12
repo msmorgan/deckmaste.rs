@@ -310,8 +310,8 @@ ambiguous attachment, long ambiguous prefixes, agreement and correlated
 counterexamples, open dependencies and lexical frames, multiword/bound overlap,
 cycle reporting, and independently constructed spelling/feature values. Exact
 realization assertions use the lexical engine for words and declared literal
-leaves for separators, never a source-buffer echo. The ticket landing record
-contains the measured counts and validation on its stamped tree.
+leaves for separators, never a source-buffer echo. The landing note of an
+English grammar ticket carries the measured counts.
 
 ## Generated interacting slice
 

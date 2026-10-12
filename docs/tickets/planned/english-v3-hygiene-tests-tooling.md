@@ -93,4 +93,4 @@ Standard constraints apply. Deltas:
    item d). No Lean.
 4. No guard may name a lexeme, construction, verb, noun, preposition or card;
    read declared features only. Tests are re-spelled, never deleted.
-5. Record = the six items in CLAUDE.md.
+5. Record = the three-line note in `docs/tickets/README.md`.

@@ -12,7 +12,7 @@ Packaging superseded 2026-09-02: these declarations are ordinary
 `macro_ron::MacroDef<Metadata>` values read through the shared `MacroSet`;
 `KeywordAction`, `Subtype`, and the other category forms are meta-macros in
 that reader. The `spelling`/`grammar` payload and normalized rows are owned by
-`deckmaste_construction_core`. There is no separate v2 source schema, source
+`deckmaste_macro_def`. There is no separate v2 source schema, source
 kind enum, reader, or RON dialect. All field semantics below remain unchanged.
 
 ## Decision
@@ -129,14 +129,18 @@ Every `Verb` declaration stores one closed grammatical valence:
   inventory below, as with the empty or amount-bearing tails of `connive` /
   `connive N`.
 
-The serialized `Custom` tail atom inventory is closed and finite:
+The serialized frame atom vocabulary is the `FrameItem` enum in
+`crates/deckmaste_macro_def/src/lib.rs`; this record does not restate it.
 
-- `Literal(String)` matches one nonempty exact terminal span;
-- `Amount` admits the ordinary amount category;
-- `ObjectNounPhrase` admits an ordinary object-position noun phrase, where
-  "object" is a grammatical role rather than the Magic rules term; and
-- `PredicativeComplement` admits the ordinary predicative-complement
-  category.
+A plugin frame is data naming grammar categories and core lexemes. The grammar
+owns frame definitions (its `frame` declarations); a plugin or core verb refers
+to one by structure today, and a frame the grammar does not define cannot be
+used and must be reported at load, not silently dropped.
+
+A multiword term a plugin enters as one whole surface (*venture into the
+dungeon*) is one atomic lexeme: the grammar does not analyse inside it. Entering
+a term whole is therefore a deliberate statement that it has no internal
+grammatical structure the grammar should read.
 
 A custom shape is an ordered list of those atoms. The shape set must be finite
 and nonempty; an empty list is a valid individual shape for a no-tail
@@ -246,7 +250,7 @@ rendering but is not selectable as a semantic spelling frame.
 The Stage 5 parser may be brought up corpus-first with handwritten
 definitions, but this does not create a second authority or a closed official
 vocabulary. Bootstrap records live at their final
-`plugins/builtin_v2/macros/...` addresses and use consumer-owned
+`plugins_v2/builtin/macros/...` addresses and use consumer-owned
 macro-definition metadata. A narrow builtin-only provider normalizes those
 records into the same immutable inventory used by the parser. There is no
 generated stub manifest and no later content migration. These handwritten
@@ -255,7 +259,7 @@ records, not a catalog-derived fallback, own the bootstrap grammatical facts.
 The final provider resolves the complete plugin dependency closure and feeds
 the same normalization boundary. It replaces the narrow bootstrap reader as a
 provider, not the normalized row contract or parser ABI. At that point the
-resolved `builtin_v2` plugin declarations are the builtin runtime authority,
+resolved `plugins_v2/builtin` plugin declarations are the builtin runtime authority,
 and dependency/plugin declarations can add or shadow same-kind identities
 under the ordinary loader rules. The canonical catalogs remain read-only
 completeness checklists for the builtin source tree; neither bootstrap nor the
@@ -330,7 +334,7 @@ category brings its declarations under this same rule.
 
 ## Nursery records and catalog integrity
 
-`plugins/builtin_v2/macros` is the nursery and future address of these
+`plugins_v2/builtin/macros` is the nursery and future address of these
 macros, not a parallel registry. A stub carries the literal head shape and the
 grammar contribution now; graduation adds positional parameter types, extends
 `spelling` with `Param(n)` holes, and adds the semantic body in place.
@@ -445,7 +449,7 @@ exposes a concrete incompatibility.
 
 ## Related decisions
 
-- [English v2 rewrite](english-v2-rewrite.md)
+- [English lexical analysis](english-lexical-analysis.md)
 - [Macros are declarative](macros-are-declarative.md)
 - [Idris is a soundness gate](idris-is-a-soundness-gate.md)
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md)

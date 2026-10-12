@@ -1,5 +1,5 @@
 ---
-needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-postpositive-comparative-determinatives, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive, english-v3-existential-there, english-v3-from-preposition-phrase-complement, english-v3-verbless-if-complement, english-v3-purpose-infinitival, english-v3-coordinated-property-values, english-v3-gerund-preposition-complements, english-v3-except-matrix-complements, english-v3-as-though-content-clauses, english-v3-rather-than-complements, english-v3-signed-numeral-cost]
+needs: [english-v3-frame-coordination, english-v3-then-sequencing, english-v3-lexical-gaps-batch-1, english-v3-granted-ability-quotes, english-v3-clitic-contractions, english-v3-library-position, english-v3-fixed-cost-phrases, english-v3-comparative-quantity-determiners, english-v3-comparative-complements, english-v3-scalar-property-values, english-v3-copular-scalar-location, english-v3-as-long-as, english-v3-instead-replacement, english-v3-cost-scalar-complement, english-v3-remove-from-complement, english-v3-that-degree-quantifiers, english-v3-combat-interval-noun, english-v3-where-variable-clause, english-v3-each-of-partitive, english-v3-causative-have, english-v3-focusing-only, english-v3-once-frequency, english-v3-become-adjectival-passive, english-v3-existential-there, english-v3-from-preposition-phrase-complement, english-v3-verbless-if-complement, english-v3-purpose-infinitival, english-v3-coordinated-property-values, english-v3-gerund-preposition-complements, english-v3-except-matrix-complements, english-v3-as-though-content-clauses, english-v3-rather-than-complements, english-v3-signed-numeral-cost]
 ---
 # Reconcile systemic residuals before production cutover
 
@@ -127,8 +127,7 @@ article admission (`Draw a card.` versus `Draw the card.`), capitalization
 (`draw the card.`), and numeral duplication (`Gain 1 life.` has two Readings,
 `Gain 1,000 life.` one, `Gain 1000 life.` none at baseline).
 
-Acceptance follows [V3 sequence and evidence](../../decisions/english-lexical-analysis.md#v3-sequence-and-evidence)
-and [Chart admission and ambiguity](../../decisions/english-lexical-analysis.md#chart-admission-and-ambiguity).
+Acceptance follows [the English grammar record](../../decisions/english-lexical-analysis.md).
 Report complete no/one/multiple census, identity-level gains/losses and their
 analyses, invalid-Reading audit, both roundtrip laws, traversal, lexical gaps,
 zero internal failures and correlated packed-forest metrics. Deferred rejects
@@ -137,8 +136,7 @@ subset iteration, with complete enumeration and an explicit worker count.
 The baseline's 8.66 s used one worker and mostly failed early; it does not
 establish future throughput. Measure expanded coverage and justify operational
 corpus-runtime and forest bounds for cutover; linear extrapolation is only an
-estimate. The landing record is the six items in CLAUDE.md, stamped with the
-measured change id.
+estimate. The landing note is the three lines in `docs/tickets/README.md`.
 
 Keep all grammatical Readings, generated bidirectional declarations and the
 Earley/packed admission contract. V2 remains untouched until cutover. STOP and
@@ -322,7 +320,7 @@ its verification belong to the attached feature-economy ticket.
 The landing records of the batches run under this ticket (restricted Oracle
 hosts, selected complement coordination and PP licensing, the verified coverage
 batch, the keyword-label handoff, participial uses and participial composition)
-are in [English v3 residual batch records](../../english-v3-residual-batch-records.md).
+are in `docs/evidence/grammar-review-2026-10-11/english-v3-residual-batch-records.md` (untracked).
 They are provenance, not specification. This list of what they leave open was
 extracted from them on 2026-10-05; where it and a record disagree, the record
 is right and this list needs fixing.

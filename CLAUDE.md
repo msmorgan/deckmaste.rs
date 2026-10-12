@@ -2,9 +2,12 @@
 
 ## Scope
 
-Vintage-playable Magic only: whatever is legal in Vintage. Un-sets (including Unfinity's
-eternal-legal cards), Conspiracy, Planechase, Archenemy, Vanguard and ante are permanently out of
-scope. Do not ask about them, model them, or reserve room for them.
+Vintage-playable Magic only: whatever is legal in Vintage. No set is out of scope as a set:
+Vintage-legal cards printed in Conspiracy or Planechase products must parse like any other.
+
+- Permanently out of scope: the Conspiracy and Plane card types, Vanguard, Scheme cards and ante.
+  Do not ask about them, model them, or reserve room for them.
+- Deferred, not permanently out: Un-sets (some Un-cards are Vintage-legal).
 
 ## Version control
 
@@ -35,8 +38,8 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 - **Never `kata refresh --all`** (human-only).
 - Tickets: `docs/tickets/<status>/<slug>.md`; `docs/tickets/README.md` is the model.
   `kata kanban ready` lists claimable items. Name your session after the item.
-- Every completed ticket carries a **Landing record** before integrate; its six items are
-  specified in `docs/tickets/README.md`. A landing without one is a review finding.
+- English grammar tickets end with the three-line note in `docs/tickets/README.md`. Other tickets
+  carry no landing record.
 - A ticket-vs-ruling contradiction resolved without a STOP is a HIGH finding, even when disclosed.
 - If another feature moved a ticket you also hold to `done/`, reconcile the meaning (move or mint
   tickets), not just the conflict markers.
@@ -45,12 +48,10 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 
 - `deckmaste_english_v3` is the active grammar; read
   `docs/decisions/english-lexical-analysis.md` before implementing, planning, reviewing or
-  accounting for it. Preserve every grammatical Reading and both roundtrip laws.
+  accounting for it. It defines what a Reading is, how words reach the grammar, the gate and the
+  size rule; this file does not restate them.
 - Vocabulary and verbs live in `deckmaste_lexical_source/lexicon`. No new work in the legacy
   `deckmaste_english` stack.
-- No silent loss (the per-face census digest diff enforces it). No guard that names a lexeme,
-  construction, verb, noun, preposition or card: that is a STOP. A permitted guard reads a
-  declared feature.
 - Corpus work iterates on a subset (`cargo xtask english-v3 <selector>`) and verifies once with
   `--all`. Attestation checks use `cargo xtask english-v3 grep`, never raw `rg` over Scryfall.
 

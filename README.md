@@ -266,8 +266,7 @@ A family of `cargo xtask english` commands (`inspect`, `bracket`, `shapes`,
 `unknown`, `lint`, `roundtrip`) exposes parses, coverage, and uncovered
 phrases over the card corpus.
 
-The grammar is evolving from handwritten to **derived**
-(`docs/decisions/english-grammar-is-derived.md`). Today each construction
+The grammar is evolving from handwritten to **derived**. Today each construction
 family is written twice — a parse path and a render path held in
 correspondence by the round-trip gate. The successor makes one Rust-native
 construction declaration the defining authority per family — its AST shape,

@@ -4,7 +4,7 @@
 //! architecture and features there; touch this crate only to keep current
 //! users functioning or to enable cutover. Never treat the pair as parallel
 //! long-term implementations, and never copy the v2 design back here for
-//! parity. Authority: `docs/decisions/english-v2-rewrite.md`.
+//! parity.
 //!
 //! A grammatical syntax tree for Magic card text.
 //!

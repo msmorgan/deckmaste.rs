@@ -1,7 +1,7 @@
 //! Single-input parser work audit.
 //!
 //! Wall time and peak RSS are deliberately measured by an already-built
-//! `cargo-xtask` process (documented in `docs/english-parser-performance.md`).
+//! `cargo-xtask` process.
 //! Keeping compilation outside that process makes the external measurement
 //! meaningful; this command supplies the deterministic work counters that a
 //! cross-machine comparison can actually gate.

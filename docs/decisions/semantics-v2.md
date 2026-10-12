@@ -788,8 +788,8 @@ parity (§14).
   `plugins_v2/` by the Lean gate of §13, which `lean-card-soundness-gate`
   landed (2026-09-06); v1 canon stays on the Idris gate until
   `semantics-v1-cutover`.
-- [english-v2-rewrite](english-v2-rewrite.md): its cutover and §14's are
-  coordinated by `semantics-v1-cutover`; `macro_ron` is retained by both.
+- The legacy English stack's retirement and §14's cutover are coordinated by
+  `semantics-v1-cutover`; `macro_ron` is retained by both.
 - [workbench-ron-shaped-and-label-rulings](workbench-ron-shaped-and-label-rulings.md):
   the direction of travel stays RON → workbench; §11 names the RON.
 - The ticket chain: `semantics-v2-crate` → `lean-card-soundness-gate` →
@@ -1326,8 +1326,7 @@ list reported: `deckmaste_semantics`, `deckmaste_lowering`,
 `deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs`
 rehomed; `energy.rs` dropped as vestigial, its `deckmaste_migrations` call
 site going with it), `idris/`, `plugins/builtin`, `plugins/canon`, and the
-splice machinery of `deckmaste_spelling` already slated by
-[english-v2-rewrite](english-v2-rewrite.md). `deckmaste_migrations` sheds
+splice machinery of `deckmaste_spelling`, already slated for retirement. `deckmaste_migrations` sheds
 `deckmaste_legacy_render` and survives.
 
 ## 15. Registries

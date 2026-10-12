@@ -59,7 +59,7 @@ _Avoid_: nickname
 **Name Number** (project term):
 The declared grammatical Number of a full Name for Agreement. It describes
 agreement in the attested wording, independently of how many game objects the
-Name refers to (owner ruling, 2026-10-08).
+Name refers to.
 _Avoid_: object count
 
 **Lemma**:
@@ -145,20 +145,17 @@ The relation by which the grammar accepts a Reading of a given expression at a
 given Category, combining constituent derivation, feature conformance,
 dependency safety and Realization. An admitted Reading is retained regardless of
 Preference.
-_Avoid_: Selection, Parsing for this relation
 
 **Preference** (project term):
 An optional, non-destructive ranking annotated over already-admitted Readings. A
 Preference can order alternatives and name a representative; it can neither add
 a Reading nor revoke one.
-_Avoid_: Selection, Disambiguation for this annotation
 
 **Packing** (project term):
 Grouping Readings that every possible parent treats alike, so that the group can
 be carried as one item without constructing a product of its members. Packing
 preserves every distinction that can affect a parent's admissibility and keeps
 correlated alternatives correlated.
-_Avoid_: Merging, Collapsing, which suggest losing a distinction
 
 **Scope Class** (project term):
 An equivalence class of admitted Readings related by licensed scope alternations,
@@ -171,8 +168,7 @@ surface form.
 
 **Selected Literal** (project term):
 A fixed surface expression determined by its constituents' declared features
-or grammatical summaries, under the [derived-punctuation project ruling,
-2026-10-08](../../tickets/done/english-v3-derived-punctuation-forms.md#why).
+or grammatical summaries.
 Its spelling contributes no independent distinction to a Reading.
 _Avoid_: Spelling Variant for a structurally determined expression
 
@@ -190,12 +186,11 @@ including its sentences, keyword lines, and editorial boundaries.
 
 **Mode List Layout** (project term):
 The distinction between a Mode list introduced by a dash header and a
-Sentence Line List (orchestrator ruling NM-R3, 2026-10-10).
+Sentence Line List.
 
 **Sentence Line List** (project term):
 A named Mode list attached to a preceding line of complete Sentences as one
-Ability, under orchestrator ruling NM-R3 (2026-10-10,
-`english-v3-named-modes-regression`). Each bullet belongs to the list rather
+Ability. Each bullet belongs to the list rather
 than to its Flavor Word label.
 
 **Keyword Line**:
@@ -216,46 +211,37 @@ symbols (mana, energy and other cost symbols) form a lexical Category of their
 own, **Symbol**, with their own distribution: a bare symbol sequence is
 Notation in cost, mana and measured positions, and a symbol heads a Nominal
 only when quantified or determined, which the symbol Nominal's Determiner
-Requirement expresses (project ruling; owner, 2026-10-10: "there are like, new
-parts of speech that Oracle creates. mana symbols and energy symbols are
-examples of these").
+Requirement expresses.
 
 **Cost Component Form** (project term):
 The grammatical realization of a component of a Cost [CR#118.1] as symbol
-Notation or an imperative Bare Predicate. The keyword-cost terminal literal
-follows orchestrator rulings KD2–KD3 (2026-10-10, ticket
-`english-v3-keyword-dash-cost-line`).
+Notation or an imperative Bare Predicate. 
 
 **Symbol** (project category):
 An Oracle lexical Category realized by specialized marks, with a distribution
-distinct from ordinary words (owner ruling, 2026-10-10).
+distinct from ordinary words.
 
 **Mana Phrase** (project term):
 A phrase realized by mana notation or coordinated alternatives of that notation,
 used as a selected Complement or a governed Subject. Its symbols preserve lexical
 identity and are licensed separately from symbols that appear only in Costs.
 The passive Subject use is governed by the verb's declared Mana Phrase Complement
-frame (MP2–MP4, orchestrator rulings, 2026-10-11,
-[mana-symbol-passive-subject ticket](../../tickets/done/english-v3-mana-symbol-passive-subject.md#analysis)).
+frame.
 
 **Mana Subject** (project term):
 A governed Subject realized by a Mana Phrase, with singular, third-person
-Agreement independently of its symbol count (MP2 and MP6, orchestrator rulings,
-2026-10-11,
-[mana-symbol-passive-subject ticket](../../tickets/done/english-v3-mana-symbol-passive-subject.md#analysis)).
+Agreement independently of its symbol count.
 It does not give bare mana notation Noun Phrase distribution.
 
 **Nominal Symbol** (project term):
-A Symbol licensed to head a determined or measured Nominal (orchestrator
-rulings MS1–MS3 and QE1–QE2, 2026-10-10).
+A Symbol licensed to head a determined or measured Nominal.
 
 **Count Nominal Symbol** (project term):
-A Nominal Symbol with count use, eligible to continue a symbol sequence
-under orchestrator rulings MS1–MS2 (2026-10-10).
+A Nominal Symbol with count use, eligible to continue a symbol sequence.
 
 **Symbol Nominal Use** (project term):
 A symbol class's declared Countability when its notation heads a determined
-or measured Nominal (orchestrator rulings MS1–MS3 and QE1–QE2, 2026-10-10).
+or measured Nominal.
 
 **Amount Complement** (project term):
 A numeric Complement selected by a declared Amount Frame Slot. Its notation
@@ -269,18 +255,15 @@ punctuation and containing one or more Clauses.
 **Supplement**:
 Material set apart from a related expression, its **anchor**, without
 integration into the anchor's headed syntax (CGEL, Ch. 15 §5.1, pp. 1350–1351). The variable-defining
-*where X is …* Preposition Phrase is supplementary under the
-[where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis).
+*where X is …* Preposition Phrase is supplementary.
 
 **Participial Supplement Use** (project term):
 A verb's declared permission for its Bare Passive to function as a Supplement
-anchored on a Clause or action Cost, under HR3–HR4 (orchestrator ruling,
-2026-10-10, `english-v3-half-rounded`).
+anchored on a Clause or action Cost.
 
 **Imperative Clause** (project term):
 A subjectless Clause whose Predicate has plain Form. Its separate Supplement
-anchor preserves the distinction from a Finite Clause under HR4 (orchestrator
-ruling, 2026-10-10, `english-v3-half-rounded`).
+anchor preserves the distinction from a Finite Clause.
 
 **Parenthetical**:
 Supplementary material set off from the surrounding expression, commonly by
@@ -289,15 +272,13 @@ selected Complement of its host.
 
 **Clause Coordination Host** (project term):
 A Clause Coordination, including one with trailing Clause-level Adjuncts, that
-can host a further trailing Clause-level Adjunct under the
-`english-v3-trailing-adjunct-height` project ruling (2026-10-09).
+can host a further trailing Clause-level Adjunct.
 A Clause with a preposed dependent is not itself such a host.
 
 **Clause Complement Boundary** (project term):
 The scope boundary of a Preposition Phrase's finite or verbless Clause
-Complement, retained under focusing and Coordination. Under orchestrator rulings
-T2–T3 (2026-10-10), only a finite Complement blocks a further nonconnective
-trailing Adjunct of the enclosing Predicate.
+Complement, retained under focusing and Coordination. Only a finite
+Complement blocks a further nonconnective trailing Adjunct of the enclosing Predicate.
 
 **Existential Predicate**:
 The Predicate in a Clause with a Dummy Pronoun as Subject and an internal
@@ -350,30 +331,26 @@ A finite Clause whose Predicate contains an Irrealis verb.
 **Additive Modifier Use** (project term):
 An Adjective Lexeme's declared permission to modify a power/toughness
 adjustment as an added amount, with an indefinite article agreeing with its
-Onset (orchestrator rulings AD1–AD7, 2026-10-11,
-`english-v3-additional-slash-adjustment`).
+Onset.
 
 **Scalar Measurement Head Use** (project term):
 A mass noun's declared permission to head a scalar measurement Noun Phrase.
 The Nominal retains it through a participial Postmodifier; other nominal
-expansions do not create a second attachment for the measured phrase
-(divided-as-you-choose implementation, 2026-10-09).
+expansions do not create a second attachment for the measured phrase.
 
 **Comparative Object Gap Licence** (project term):
 A verb's declared permission for its Object gap to occur in a comparative-clause
 Complement, distinct from its ordinary relative-clause gaps. This attested
-capability restricts the new manner route under the R12f safety ruling
-(orchestrator, 2026-10-09); it does not license a temporal clause as a
+capability restricts the new manner route; it does not license a temporal clause as a
 comparative clause.
 
 **Finite Object Gap Complement** (project term):
 A Preposition's declared permission to take a finite Clause with an Object Gap
-as its Complement (orchestrator ruling R12f, 2026-10-09).
+as its Complement.
 
 **Intervening Adjunct Licence** (project term):
 A phrase head's declared permission for its Adjunct phrase to precede a
-preposition-marked verb Complement, without preceding an Object Noun Phrase
-(orchestrator ruling R12f, 2026-10-09).
+preposition-marked verb Complement, without preceding an Object Noun Phrase.
 
 **Irrealis Clause Complement** (project term):
 A Preposition's declared permission to take a finite Content Clause with an
@@ -391,23 +368,20 @@ Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
 **Verbless Predicate Use** (project term):
 An Adjective's declared permission to realize a Verbless Clause's Predicate.
 For *able*, its selected infinitival Complement is unexpressed; that licence
-is the [attestation-based project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis),
-not an example supplied by CGEL's account of *necessary* and *possible*.
+is attestation-based, not an example supplied by CGEL's account of *necessary* and *possible*.
 Adjectives inherit the permission from their admissibility as a bare
 predicative Complement: an unframed Adjective or an empty Predicate frame
 without the existing implicit-comparative attributive-only restriction.
 The same declaration underlies AdjectiveAttributiveOnlyUse on the
 predicative phrase. Required selected Complements still need an explicit
-omission licence, as for able. This class permission follows project rulings
-VW7–VW12 (2026-10-10, `english-v3-verbless-state-predicate-class`),
-superseding VW2/VW6's one-member licence; CGEL's account of reducible
+omission licence, as for able. This is a class permission, not a
+one-member licence; CGEL's account of reducible
 Clause Complements supports the verbless shape (Ch. 14 §10(b), p. 1267),
 not this project's choice of licensed Adjectives.
 
 **VerblessComplementOmissionUse** (project feature):
 An Adjective's declared permission to leave its selected Complement
-unexpressed in a Verbless Clause. This preserves the existing able licence
-([project decision](../../tickets/done/english-v3-verbless-if-complement.md#analysis));
+unexpressed in a Verbless Clause. This preserves the existing able licence;
 ordinary predicative admissibility alone licenses only the bare frame.
 
 **Verbless Clause Complement** (project term):
@@ -430,9 +404,8 @@ A restriction on the grammatical functions of a Preposition Phrase associated
 with a particular Complement shape, in addition to its head's Preposition
 Function Licence. The gerund-complemented *without* phrase has Adjunct use;
 the gerund-complemented *of* phrase is internal to its selecting Compound
-Preposition Phrase. These are the
-[gerund-preposition-complements project requirements](../../tickets/done/english-v3-gerund-preposition-complements.md#goal),
-not restrictions supplied by CGEL's general account of complementation.
+Preposition Phrase. These are
+project requirements, not restrictions supplied by CGEL's general account of complementation.
 Coordination retains only the functions permitted for every conjunct.
 
 **Bare Infinitival**:
@@ -442,20 +415,17 @@ _Avoid_: treating the plain Word Form alone as evidence of Finiteness
 
 **Secondary Negation**:
 Negation within a nonfinite Clause, with *not* premodifying its Verb Phrase
-(CGEL, Ch. 9 §2.3.1, p. 803). Its representation before the infinitival
-Subordinator follows orchestrator rulings NI1–NI4 (2026-10-10,
-`english-v3-negated-to-infinitival`, amended by NI-R1).
+(CGEL, Ch. 9 §2.3.1, p. 803).
 
 **Primary Negation**:
 Verbal negation in a primary inflectional form: analytic negation adds *not*
 after the auxiliary verb; synthetic negation uses its negative inflection
-(CGEL, Ch. 9 §2.1, p. 799). The project's attachment of analytic *not* to the
-finite auxiliary head, preceding its ordinary Complement, follows orchestrator
-rulings NB1–NB4 (2026-10-10, `english-v3-analytic-not-after-be`).
+(CGEL, Ch. 9 §2.1, p. 799). The project attaches analytic *not* to the
+finite auxiliary head, preceding its ordinary Complement.
 
 **Negator**:
 A word whose function is to mark negation; its licence distinguishes Primary
-Negation from Secondary Negation (orchestrator rulings NB1–NB4 and NI1–NI4).
+Negation from Secondary Negation.
 
 **Primary Negator**:
 A Negator functioning in Primary Negation.
@@ -470,9 +440,8 @@ linked to the matrix Subject (CGEL, Ch. 14 §6.3(c), p. 1250).
 
 **Measure Modifier Use** (project term):
 A comparative head's declared permission to take a measure as a degree Modifier.
-Its application to mana notation is the
-[cost-scalar-complement project analysis](../../tickets/done/english-v3-cost-scalar-complement.md#project-analysis),
-not a mana-symbol analysis supplied by CGEL.
+Its application to mana notation is a
+project analysis, not a mana-symbol analysis supplied by CGEL.
 
 **Catenative Construction**:
 A Construction in which a verb selects a nonfinite internal Complement.
@@ -499,8 +468,7 @@ Participle into an Adjective (CGEL, Ch. 6 §2.4.3, pp. 540–542).
 The distinction between an ordinary Adjective and one formed from a declared
 participial source. An Adjective Phrase containing any participial-origin
 Conjunct retains that origin. Ordinary adjectival Premodification preserves
-Property Value Position; participial-origin modification does not, under the
-[orchestrator ruling (2026-10-08)](../../tickets/done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08).
+Property Value Position; participial-origin modification does not.
 _Avoid_: treating every Adjective with a participial spelling as an ordinary Adjective
 
 **Duration Adverb**:
@@ -533,37 +501,30 @@ A nominal Construction whose Comparative Governor precedes its head while the
 expanded Comparative Complement follows it, as in *lesser risk than taking no
 action at all* (CGEL, Ch. 13 §4.1.1, p. 1126 [14ii]) or *same name as that land*
 (CGEL, Ch. 13 §5.1, p. 1139) or *more lands than you* (Ch. 5 §7.11,
-pp. 393, 395). The Adjective governor premodifies a Nominal under the
-[fixed-cost-phrases project ruling of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md#stop--comparative-admission-2026-10-06-resolved-by-orchestrator);
+pp. 393, 395). The Adjective governor premodifies a Nominal;
 the Ordering Adjective governor and coordinated *equal or lesser* share the
-post-head *than* Complement under orchestrator rulings AC2–AC4 (2026-10-10,
-`english-v3-attributive-scalar-comparative`); the Determinative governor supplies
+post-head *than* Complement; the Determinative governor supplies
 the Determiner of an indefinite Noun Phrase with an immediate NP Comparative
-Complement under
-orchestrator rulings CQ1–CQ4 (2026-10-10,
-`english-v3-comparative-quantity-than`).
+Complement.
 _Avoid_: Adjunct for the governor's selected comparison
 
 **Comparative Determiner Use** (project term):
 A Determinative's declared permission to determine a Nominal in a
 Discontinuous Comparative Nominal; its count plural or non-count singular
 head selection is retained (CGEL, Ch. 5 §7.11, pp. 393, 395).
-The immediate NP Complement analysis follows orchestrator ruling CQ3
-(2026-10-10), rather than choosing between CGEL's alternatives for a single
+The immediate NP Complement analysis does not choose between CGEL's alternatives for a single
 element after *than* (Ch. 13 §2.2, p. 1113).
 
 **Comparative Complement Form** (project term):
 The syntactic form of a compared Constituent: nominal, bare infinitival, or
 gerund-participial. Matching these forms in the attested postposed
-*rather than* Construction is the
-[rather-than-complements ticket's project analysis](../../tickets/done/english-v3-rather-than-complements.md#analysis).
+*rather than* Construction is a project analysis.
 CGEL, Ch. 14 §8.4(b), p. 1263 describes the matching infinitival form in
 *would rather*; it does not establish the project's NP or gerund analysis.
 
 **Matrix Comparison Use** (project term):
 An Adverb Comparative Governor's declared permission to take an Expanded
-Comparative Complement matched to a preceding matrix Constituent, under the
-[rather-than-complements project analysis](../../tickets/done/english-v3-rather-than-complements.md#analysis).
+Comparative Complement matched to a preceding matrix Constituent.
 _Avoid_: an unselected Adverb Adjunct for a governor with a required Complement
 
 **Expanded Comparative Complement**:
@@ -620,9 +581,8 @@ _Avoid_: treating every Complement of an exception-marking Preposition as matrix
 
 **Matrix Complement Licence** (project term):
 A host's declared permission for a nominal or content-clause exception
-Complement. The Oracle copy-description and selected-*for* uses are the
-[project analysis requested by the except ticket](../../tickets/done/english-v3-except-matrix-complements.md#goal),
-not an application established by CGEL's speech-verb example.
+Complement. The Oracle copy-description and selected-*for* uses are a
+project analysis, not an application established by CGEL's speech-verb example.
 
 **Matrix Complement Requirement** (project term):
 The host distribution an exception PP requires before attaching: an
@@ -637,21 +597,19 @@ matrix licence. Availability of the governor alone does not supply that licence.
 A PP's declared availability as the Complement of an exception governor in
 nominal exception wording, including a fused-head cardinal Complement.
 The selected-*for* relation is described by CGEL, Ch. 7 §5.1(c), p. 640;
-the restrictions on Oracle hosts are the exception ticket's project analysis.
+the restrictions on Oracle hosts are a project analysis.
 
 **Preposition Phrase Complement Licence** (project term):
 A preposition's declared restriction on the heads of its PP Complements,
 independent of its permission to take an NP Complement. Prepositions can take
 PP Complements (CGEL, Ch. 7 §2.4, p. 617); source-marking *from* takes locative
 PPs (Ch. 8 §4.3, p. 687). The inclusion of *among* in the supported source
-class is a [project decision](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis),
-not an example or classification supplied by those passages.
+class is a project decision, not an example or classification supplied by those passages.
 
 **Preposition Phrase Complement Marker** (project term):
 A PP head's declared marker identifying its availability as another
 Preposition's PP Complement. The *with* marker selected by deverbal
-*starting* follows orchestrator rulings SW1–SW2 (2026-10-10,
-`english-v3-starting-with-adjunct`); it supplies neither a nominal
+*starting* supplies neither a nominal
 Complement licence nor an Adjunct function.
 
 **Source Complement Use** (project term):
@@ -674,27 +632,25 @@ the governing preposition and that preposition's internal Complement
 **Source Complement Selection** (project term):
 A verb's declared selection of a Source Complement, retained when the Source
 is unexpressed. It is declared per verb, not derived from the Frame Set;
-*return* is left undeclared under RS9. Its attachment restriction in Oracle English
-is orchestrator ruling RS2 (2026-10-10, `english-v3-remove-source-attachment`),
-not a restriction supplied by CGEL.
+*return* is left undeclared. Its attachment restriction in Oracle English
+is not a restriction supplied by CGEL.
 
 **Source Modifier Present** (project term):
 Whether a nominal head has a source-marked PP Postmodifier. A source inside
 a distinct embedded Noun Phrase or Clause is not a Postmodifier of this head.
-RS10 (2026-10-10) preserves this distribution for existing Frames.
+This distribution is preserved for existing Frames.
 
 **Whole Object Source Present** (project term):
 Whether the Object contains a source-marked PP on its head or through a
-transparent Oblique or Genitive Possessor. RS7 and RS10 (2026-10-10,
-`english-v3-remove-source-attachment`) require this declared distribution
-only for that ticket's new bare-Object Frames. Embedded Clauses retain
+transparent Oblique or Genitive Possessor. This distribution is declared
+only for the new bare-Object Frames. Embedded Clauses retain
 their own attachment domain.
 
 **Source-free Object** (project term):
 An Object Noun Phrase whose own nominal head has no source-marked PP
-Postmodifier. Existing Frames retain this [project constraint](../../tickets/done/english-v3-from-preposition-phrase-complement.md#project-analysis).
+Postmodifier. Existing Frames retain this project constraint.
 The distinct whole-Object licence also excludes Sources in transparent
-Obliques and Genitive Possessors, as ruled in RS7/RS10 (2026-10-10).
+Obliques and Genitive Possessors.
 
 **Frame Category Projection** (project term):
 The correspondence between a lexical Frame Slot's Category and the grammar
@@ -704,25 +660,20 @@ Category that fills it, including any declared feature requirements of the slot.
 Project term. The declared set of grammatical functions a Preposition's
 phrase may take in Oracle English: Adjunct, Modifier or Complement of a noun,
 verb-selected Complement, or predicative Complement (CGEL, Ch. 7 §2.1,
-pp. 604–606). Supplementary use is additionally licensed under the
-[where-variable-clause project analysis](../../tickets/done/english-v3-where-variable-clause.md#project-analysis);
+pp. 604–606). Supplementary use is additionally licensed;
 this is project policy, not a claim that CGEL treats a Supplement as a syntactic
-dependent. Sentence-final and medial supplementary uses are licensed separately
-under ST4 (orchestrator ruling, 2026-10-10,
-`english-v3-supplementary-temporal-adjunct`). The licence is a set of functions,
+dependent. Sentence-final and medial supplementary uses are licensed separately.
+The licence is a set of functions,
 not a kind of Preposition Phrase (CGEL, Ch. 7 §2.2, p. 617, n. 3), and may be
 narrower than in general English. CGEL licenses predicative-*as* phrases in Adjunct function generally
 (Ch. 7 §5.1, p. 637). Their licence in Oracle English admits the preposed,
-comma-separated, clause-initial position under the
-[orchestrator resolution of 2026-10-06](../../tickets/done/english-v3-fixed-cost-phrases.md).
-The [orchestrator ruling of 2026-10-07](../../tickets/done/english-v3-focusing-only.md#goal)
-defers the clause-final widening until comparative and verb-selected replacement
+comma-separated, clause-initial position.
+The clause-final widening is deferred until comparative and verb-selected replacement
 analyses exist; their Complements must not become Adjuncts.
 _Avoid_: adverbial PP, adjectival PP, AdverbialUse
 
 Deverbal *starting* takes a *with* PP Complement and licenses Adjunct and
-preposed Adjunct functions under orchestrator ruling SW1 (2026-10-10,
-`english-v3-starting-with-adjunct`). This is a project analysis; CGEL's
+preposed Adjunct functions. This is a project analysis; CGEL's
 conversion of secondary verb forms to Prepositions (Ch. 7 §2.3,
 pp. 610–611) does not list *starting*.
 
@@ -766,9 +717,8 @@ The distinction between count and mass uses of a noun. A Lexeme may license
 both uses; Number and choice of Determiner constrain which use is available.
 Explicit partitives distinguish plural, non-count singular, and restricted
 count singular obliques (CGEL, Ch. 5 §9.1, p. 411). The projected Countability
-(`PartitiveCountability`) implements PD2
-([orchestrator ruling, 2026-10-10](../../tickets/done/english-v3-partitive-determinative-heads.md#analysis))
-by distinguishing mass singular noun obliques from count singular ones.
+(`PartitiveCountability`) distinguishes mass singular noun obliques from
+count singular ones.
 Pronouns project `Unrestricted` without inventing a noun Countability.
 
 **Bare Noun Phrase**:
@@ -819,8 +769,7 @@ Ch. 12 §3.3(e), pp. 1045–1046.
 **Relative Use** (project term):
 A Pronoun's declared permission to function as the relative marker of a
 Relative Clause. A Pronoun in Relative Use does not head an ordinary
-nominative pronoun Noun Phrase; that distribution is the
-[orchestrator ruling of 2026-10-08](../../tickets/done/english-v3-once-frequency.md#stop-and-resolution),
+nominative pronoun Noun Phrase; that distribution is
 represented by the declared permission rather than by lexical identity.
 
 **Extraction**:
@@ -840,16 +789,14 @@ Referent.
 The omission of material whose grammatical content is recoverable from an
 Antecedent or context. Oracle English licenses auxiliary stranding only in
 do-support and negative *can*; stranded *be*, *have* and other modals are
-excluded by the user ruling of 2026-10-06, applied by the orchestrator resolution
-of 2026-10-07. This is the project's attestation restriction, not a claim that
+excluded. This is the project's attestation restriction, not a claim that
 CGEL excludes those auxiliaries from English ellipsis generally.
 
 **Auxiliary Ellipsis Licence** (project term):
 The declared permission for an auxiliary to occur with an omitted Complement.
 A fully expressed predicate Complement does not require this permission. In a
 coordination with a shared omitted Complement, every auxiliary must carry the
-permission. The anaphoric pro-form route also requires it under
-[DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
+permission. The anaphoric pro-form route also requires it.
 _Avoid_: inferring this permission from the auxiliary's spelling or from a
 mere enumerable Gap.
 
@@ -859,12 +806,12 @@ pro-form headed by *do* (CGEL, Ch. 17 §7.5, p. 1529).
 
 **Pro-form Complement Use** (project term):
 An expression's declared permission to fill the pro-form Complement of an
-auxiliary under [DS1–DS2](../../tickets/done/english-v3-do-so-and-able-to.md#analysis).
+auxiliary.
 
 **Auxiliary Pro-form Licence** (project term):
 The declared permission to select a pro-form Complement through the project's
-stranded-*do* route under [DS1](../../tickets/done/english-v3-do-so-and-able-to.md#analysis),
-distinct from permission to omit its Complement under DS2.
+stranded-*do* route,
+distinct from permission to omit its Complement.
 
 **Cardinal Numeral**:
 A numeral expressing a count, such as *one* or *two*.
@@ -876,16 +823,12 @@ combinations and comparisons with other values.
 **Arithmetic Operand** (project term):
 An expression combined with another by an arithmetic operator in a Measure
 Phrase. A scalar Measure Phrase or a Noun Phrase with Scalar Denotation can
-fill this role under ticket `english-v3-arithmetic-nominal-operand` rulings
-R10a–R10d (2026-10-09).
-A Cardinal Numeral can also fill this role under ticket
-`english-v3-spelled-cardinal-scalar-measure` rulings SC1–SC4 (2026-10-10).
+fill this role. A Cardinal Numeral can also fill this role.
 
 **Unit Bearing** (project term):
 The presence of a measurement unit in an amount, as in *2 life* or *that much
 damage*, including an arithmetic expression containing such an amount.
-An amount with this property cannot quantify a further measured noun under
-[the orchestrator's Method 5 review ruling, 2026-10-09](../../tickets/done/english-v3-arithmetic-nominal-operand.md#landing-record).
+An amount with this property cannot quantify a further measured noun.
 
 **Scalar Location**:
 The expression of a position on a scale, commonly with *be* and an NP as
@@ -894,18 +837,14 @@ predicative Complement (CGEL, Ch. 8 §5.4, p. 693).
 **Scalar Denotation** (project term):
 A noun use, measured amount, or scalar variable's denotation of a quantity or
 scalar property. Scalar variables may be Subjects with scalar predicative
-Complements under orchestrator ruling R10e (2026-10-09).
+Complements.
 An ordinary headed phrase retains that denotation; a number-transparent
 quantificational use instead denotes its Oblique. Its licensing of a value Complement after
-*be* is the restriction of the
-[copular-scalar-location ticket](../../tickets/done/english-v3-copular-scalar-location.md),
-not a restriction asserted by CGEL's scalar-location passage.
+*be* is a project restriction, not a restriction asserted by CGEL's scalar-location passage.
 
 **Scalar Value** (project term):
 A value expression realized by a scalar Measure Phrase, Cardinal Numeral,
-numeral Coordination, or ordering or equality comparative Adjective Phrase,
-under orchestrator rulings R5a (2026-10-08) and
-[R13a (2026-10-09)](../../tickets/done/english-v3-property-equal-to.md#analysis).
+numeral Coordination, or ordering or equality comparative Adjective Phrase.
 All forms can supply a scalar property dependent;
 numeral and measurement forms also supply scalar location predicative
 Complements, while comparative forms retain Adjective Phrase predicative
@@ -918,8 +857,8 @@ retains its positive or negative meaning and its exact spelling.
 **Scalar Property Value** (project term):
 A Scalar Value selected as a dependent by a scalar property Nominal; its
 treatment as a Complement in
-*power 2* is a [project ruling (2026-10-07)](../../tickets/done/english-v3-scalar-property-values.md#project-ruling-scalar-property-values),
-not a claim made by CGEL's account of property-denoting NP Postmodifiers.
+*power 2* is a project analysis, not a claim made by CGEL's account of
+property-denoting NP Postmodifiers.
 
 **Measure Position** (project term):
 A noun's declared permission for a scalar value to precede it in measurement.
@@ -927,23 +866,19 @@ Following property Complements are licensed by Property Value Position.
 
 **Slash Pair** (project term):
 An ordered pair of scalar components realized with a slash separator, as
-in *0/2* or *X/X*. Its use as a selected Property Value is the
-[coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
+in *0/2* or *X/X*. Its use as a selected Property Value is a project analysis.
 
 **Property Value** (project term):
 A selected value Complement of a property Nominal: a Scalar Property Value
 for a single property, a Slash Pair for an ordered pair of properties, or an
-equality predicated of that pair (orchestrator rulings PE1–PE4, 2026-10-10,
-`english-v3-property-pair-each-equal-to`).
-This extension is the [coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values),
-not an analysis attributed to CGEL.
+equality predicated of that pair.
+This extension is a project analysis, not an analysis attributed to CGEL.
 
 **Property Equality Form** (project term):
 The distinction between an equality Property Value with or without a
 Quantificational Adjunct; other values have neither form. Equality can be
 predicated of a coordinated property head, and quantified equality requires a
-plural Predicand (orchestrator rulings PE1–PE4, 2026-10-10,
-`english-v3-property-pair-each-equal-to`).
+plural Predicand.
 
 **Property Value Position** (project term):
 A property's declared position in a value: a single scalar property, the
@@ -951,13 +886,11 @@ first or second coordinate of a Slash Pair, or their ordered additive pair.
 Ordinary adjectival Premodification preserves the position; participial and
 noun Premodification and all Postmodification do not. Additive Coordination
 of first and second positions licenses the pair, in that order. Other
-Coordinations do not license a Property Value. The modifier restriction is the
-[orchestrator ruling (2026-10-08)](../../tickets/done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08). The position and pair selection are the
-[coordinated-property-values project ruling](../../tickets/done/english-v3-coordinated-property-values.md#project-ruling-coordinated-property-values).
+Coordinations do not license a Property Value. The modifier restriction, the position and the pair
+selection are project analyses.
 
 **Attributive Adjective Restriction** (project term):
-A project restriction on the complement-free comparative use, introduced in
-`english-v3-attributive-scalar-comparative` to retire 157 spurious
+A project restriction on the complement-free comparative use, retiring 157 spurious
 predicative-coordination Readings. It is derived from Implicit Comparative Use,
 without a separate lexical declaration. Coordination retains it if any Conjunct
 has it, including Correlative Coordination; it blocks predicative and
@@ -970,15 +903,13 @@ lands: it must preserve the correct predicative Reading.
 
 **Implicit Comparative Use** (project term):
 An Adjective's declared permission to function as a comparative Premodifier
-with its standard left implicit, under orchestrator ruling AC1 (2026-10-10,
-`english-v3-attributive-scalar-comparative`). Coordination retains this
+with its standard left implicit. Coordination retains this
 permission when both Conjuncts declare it.
 
 **Comparative Modifier Presence** (project term):
 A Nominal's retention of a Premodifier or discontinuous Comparative Governor
 whose Adjective declares Implicit Comparative Use. Together with declared
-Scalar Denotation, it licenses a bare scalar-property Noun Phrase under
-orchestrator ruling AC6 (2026-10-10, `english-v3-attributive-scalar-comparative`).
+Scalar Denotation, it licenses a bare scalar-property Noun Phrase.
 
 **Scalar Comparative Use** (project term):
 An Adjective's declared permission to be the comparative Conjunct in a
@@ -989,7 +920,7 @@ Ch. 5 §11(d), p. 432, n. 48).
 **Comparative Quantity Structure** (project term):
 The distinction between a numeral Coordination and a headed comparative
 Determinative Phrase; only the former supplies the coordinated Scalar
-Property Value of this landing.
+Property Value.
 
 **Measured Noun Phrase** (project term):
 A Noun Phrase expressing a scalar amount or attribute through a quantity and
@@ -1011,8 +942,7 @@ Determiner; the closed bare Measured Noun Phrase retains its scalar route.
 The `DeterminerProjection` value carries that licence through Nominal
 modifiers and admits coordination only with another such measurement, so
 an ordinary recipient cannot lend its Determiner to a following amount.
-Inherited cardinal projections retain their parent licence (project ruling,
-2026-10-09, measured-damage-nominal).
+Inherited cardinal projections retain their parent licence.
 
 **Adverb**:
 A lexical Category whose members characteristically modify a phrase, Clause,
@@ -1025,11 +955,10 @@ A phrase headed by an Adverb.
 An Adjunct relating its Clause to surrounding text or context; connective
 elements can also link smaller units (CGEL, Ch. 8 §19, p. 775). In Oracle
 English, sentence-initial *Then* uses this Adverb route (CGEL, Ch. 8 §19,
-p. 778, [9ii]); sole-linking comma-*then* is a coordination marker under the
-project's orchestrator resolution of 2026-10-06. CGEL classifies connective AdvP
+p. 778, [9ii]); sole-linking comma-*then* is a coordination marker in this
+project. CGEL classifies connective AdvP
 Adjuncts as Clause-oriented (Ch. 6 §7.1, p. 576, [6v]); the intransitive
-Preposition Phrase *instead* has this orientation under orchestrator ruling T3
-(2026-10-10).
+Preposition Phrase *instead* has this orientation.
 
 **Focus**:
 The constituent whose interpretation is made prominent or restricted relative
@@ -1051,14 +980,10 @@ restrictive or additive interpretation kept distinct.
 **Focused Use** (project term):
 A phrase's having a Focusing Modifier of its own. In this project's restrictive
 Noun Phrase, PP and Adverb Phrase analysis, a phrase already in Focused Use
-cannot itself be the head of another restrictive Focusing Modifier (post-landing review, 2026-10-08, extended to
-Adverb Phrases by the [once-frequency landing](../../tickets/done/english-v3-once-frequency.md#landing-record)
-and Noun Phrases by [orchestrator ruling FO5, 2026-10-10](../../tickets/done/english-v3-focus-only-object.md#analysis)).
+cannot itself be the head of another restrictive Focusing Modifier.
 
 A Coordination containing a focused Conjunct is also in Focused Use, so it
-cannot itself be the focus of another restrictive Focusing Modifier
-(orchestrator ruling CF7, 2026-10-10,
-`english-v3-coordinated-focused-adjuncts`).
+cannot itself be the focus of another restrictive Focusing Modifier.
 
 **Predicate**:
 The grammatical function in a Clause that predicates something of the Subject.
@@ -1082,8 +1007,7 @@ predicative Complement and from an optional locative Adjunct.
 
 **Locative Use** (project term):
 A head's declared permission for its phrase to function as a Locative
-Complement. Compound determinative *anywhere* has NP locative use under AE2
-(orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+Complement. Compound determinative *anywhere* has NP locative use.
 
 **Manner Complement**:
 A dependent expressing manner that is selected by its head. Manner dependents
@@ -1118,8 +1042,7 @@ An intermediate nominal constituent headed by a noun or noun-like element.
 
 **Nominal Dependent Present** (project term):
 Whether a Nominal contains a Modifier or selected Complement in addition to
-its head; an outer Determiner is not such a dependent (temporal-NP ruling
-R11b, 2026-10-09; CGEL, Ch. 8 §6.3, p. 698).
+its head; an outer Determiner is not such a dependent (CGEL, Ch. 8 §6.3, p. 698).
 
 **Nominal Adjunct Class** (project term):
 A nominal head's declared eligibility for temporal or manner Noun Phrase
@@ -1129,9 +1052,8 @@ Adjunct use (CGEL, Ch. 8 §6.3, p. 698; §2.1, p. 671).
 A lexical dependent's declared eligibility to license a temporal or manner
 Noun Phrase Adjunct. Determinatives determine the phrase; a deictic adjective
 can license a determiner-less temporal phrase. Definite temporal use requires
-another dependent (CGEL, Ch. 8 §6.3, p. 698). Rehoming *last* as an attributive
-Adjective and licensing its determiner-less temporal phrase follow
-[orchestrator ruling R14e (2026-10-09)](../../tickets/done/english-v3-last-turn-temporal-adjunct.md#r14e-resolution-2026-10-09).
+another dependent (CGEL, Ch. 8 §6.3, p. 698). *Last* is an attributive
+Adjective that licenses a determiner-less temporal phrase.
 
 **Noun Phrase**:
 A phrase whose head or fused head is nominal and which can fill functions such
@@ -1141,8 +1063,7 @@ as Subject, Object, or Complement of a preposition.
 The distinction between a proper-name Noun Phrase, a Noun Phrase determined
 by an indefinite article, and other Noun Phrases. The first two license the
 anchor and Supplement, respectively, in the ascriptive NP supplementation
-Construction under NA1–NA2 (orchestrator ruling, 2026-10-10,
-`english-v3-named-token-apposition`). The Supplement retains its own structure;
+Construction. The Supplement retains its own structure;
 the resulting supplemented phrase is distinct from its unsupplemented anchor.
 
 **Bare Preposition Use** (project term):
@@ -1151,14 +1072,14 @@ as the internal Complement of a preposition, distinguishing a bare location
 from a spatial edge. The noun retains its Countability; this use does not
 license a bare count Subject or Object. In the right-branching
 analysis of *on top of the library*, *top of the library* is the Noun Phrase
-Complement of *on*. This is a [project ruling (2026-10-06)](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06),
+Complement of *on*. This is a project analysis,
 grounded in *top of X* outside the idiom; CGEL, Ch. 7 §3.1, pp. 620–623 supplies
 the competing analyses and diagnostics, not a decision for *on top of*.
 
 **Bare Nominal Complement** (project term):
 A preposition's declared permission to take a singular count Noun Phrase with
 Bare Preposition Use, matched to the location or spatial-edge distribution.
-The noun's permission alone does not make it a Complement of every preposition ([project ruling, 2026-10-06](../../tickets/done/english-v3-library-position.md#post-landing-fix-2026-10-06)).
+The noun's permission alone does not make it a Complement of every preposition.
 
 **Nominal Complement Marker** (project term):
 A declared marker of a nominal head's selected Complement, such as *of* in
@@ -1170,8 +1091,7 @@ Postmodifiers; Ch. 7 §3.1, pp. 620–623 discusses competing internal analyses)
 
 **Taxonomic Complement Use** (project term):
 A noun head's declared permission to select a bare singular count Nominal as
-the Complement of its *of* marker, under orchestrator rulings KC1–KC3
-(2026-10-10, ticket `english-v3-kind-of-counter`).
+the Complement of its *of* marker.
 Postmodifiers attach under the selecting head rather than inside that bare
 Complement, preserving the ordinary nominal attachment sites.
 
@@ -1199,8 +1119,7 @@ proportion; inserting *the* distinguishes superlative *most* from proportional
 **Superlative Quantifier Use** (project term):
 A Lexeme's declared permission to function as an internal pre-head Modifier
 of a Nominal, retaining its head Number and Countability licence; *most* in
-this function requires an outer definite Determiner (orchestrator rulings
-SM1–SM3 and the owner ruling, 2026-10-11, `english-v3-superlative-most`).
+this function requires an outer definite Determiner.
 
 **Degree Modifier**:
 A Modifier expressing degree, including the Determinative *that* modifying
@@ -1210,21 +1129,19 @@ A Modifier expressing degree, including the Determinative *that* modifying
 An addition/subtraction Preposition Phrase in post-head Modifier function
 within a Determinative Phrase, or in its delayed position after the noun
 (CGEL, Ch. 5 §11(f), p. 433). Its application to a degree Determinative
-Phrase follows DQ1–DQ2 (orchestrator rulings, 2026-10-10,
-`english-v3-degree-quantity-arithmetic`), rather than CGEL's numeral example.
+Phrase is a project extension, not CGEL's numeral example.
 
 **Cardinal Complement Use** (project term):
 A Cardinal Numeral's permission to complement an Arithmetic Modifier,
-derived from its numeral kind and retained through cardinal Coordination
-under DQ3 (orchestrator ruling, 2026-10-10,
-`english-v3-degree-quantity-arithmetic`). A scalar variable's count use
+derived from its numeral kind and retained through cardinal Coordination.
+A scalar variable's count use
 supplies no such permission.
 
 **Quantitative Exception Use** (project term):
 A Determinative's declared permission to head a phrase with a quantity-bearing
 exception Preposition Phrase as its dependent (CGEL, Ch. 5 §11(f), p. 433).
 Partitive-head use and quantity-based Number and Countability selection follow
-AB1–AB3 (orchestrator rulings, 2026-10-10, `english-v3-all-but-exception`).
+the exception Construction.
 
 **Degree Use** (project term):
 A Determinative's declared permission to function as a Degree Modifier or as
@@ -1233,8 +1150,7 @@ Ch. 5 §11(c), p. 431; their declared licensing is a project representation.
 
 **Comparative Degree Modifier Use** (project term):
 A Determinative's declared permission to premodify a Comparative Quantity,
-independently of its Degree Use as a head (CGEL, Ch. 5 §11(d), p. 432;
-owner principle, 2026-10-10, `english-v3-no-more-than`).
+independently of its Degree Use as a head (CGEL, Ch. 5 §11(d), p. 432).
 
 **Determiner**:
 The grammatical function that marks a Noun Phrase as definite, quantified, or
@@ -1246,8 +1162,7 @@ quantifiers such as *all* and *both* precede definite determination while
 remaining Determinatives (CGEL, Ch. 5 §12(a), pp. 433–434). Fractional nouns
 and multipliers have this function while retaining their lexical Category
 (CGEL, Ch. 5 §12(b–c), p. 434); their definite-host restriction in Oracle
-English follows HR1–HR2 (orchestrator ruling, 2026-10-10,
-`english-v3-half-rounded`).
+English is a project restriction.
 
 **Multiplier**:
 A multiplicative expression functioning as a Predeterminer of a definite
@@ -1256,23 +1171,18 @@ Noun Phrase, such as adverbial *twice* or nominal *double* and *triple*
 
 **Predeterminer Use** (project term):
 A Lexeme's declared permission to function as a Predeterminer, including the
-universal-quantifier use of *all* and *both* (owner ruling, 2026-10-10,
-`english-v3-predeterminer-all`; CGEL, Ch. 5 §12(a), pp. 433–434),
-multiplier use ([MP2](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis))
-and fractional use (HR1, orchestrator ruling, 2026-10-10,
-`english-v3-half-rounded`).
+universal-quantifier use of *all* and *both* (CGEL, Ch. 5 §12(a),
+pp. 433–434), multiplier use and fractional use.
 
 **Definiteness**:
 The distinction between definite and nondefinite Noun Phrases. The definite
 article, demonstratives and genitives supply definite determination (CGEL,
 Ch. 5 §12(a), p. 434); demonstrative degree determination in *that much* and
-*that many* supplies definite multiplier hosts under
-[MP1–MP3](../../tickets/done/english-v3-multiplier-predeterminer.md#analysis).
+*that many* supplies definite multiplier hosts.
 
 **Determiner Requirement** (project term):
 A Nominal's unresolved need for an outer Determiner, optionally of a selected
-class (orchestrator ruling FH7, 2026-10-10,
-[pro-nominal *other*](../../tickets/done/english-v3-fused-head-noun-phrases.md#analysis)).
+class, as for pro-nominal *other*.
 A cardinal numeral functioning as an internal Modifier also creates this
 requirement, as in *that one mistake*; without the outer Determiner it
 instead functions as Determiner (CGEL, Ch. 5 §7.6, p. 386).
@@ -1292,26 +1202,23 @@ the lexical permission is a project representation.
 **Immediate Post-head Dependent**:
 A dependent immediately following a fused Determiner-Head, as *else* follows
 *anywhere* (CGEL, Ch. 5 §9.6, p. 423). The nominal *else* use adopts the
-Preposition analysis proposed in Ch. 7 §2.4, p. 615, n. 5, under AE1
-(orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+Preposition analysis proposed in Ch. 7 §2.4, p. 615, n. 5.
 
 **Immediate Post-head Dependent Use** (project term):
-A fused head's declared permission to take an Immediate Post-head Dependent
-under AE1 (orchestrator ruling, 2026-10-10, `english-v3-anywhere-else-goal`).
+A fused head's declared permission to take an Immediate Post-head Dependent.
 
 **Fused Head Postmodifier Use** (project term):
 A Preposition's declared permission to serve as an Immediate Post-head
-Dependent of a fused head under AE1; it supplies no Clause Adjunct function.
+Dependent of a fused head; it supplies no Clause Adjunct function.
 
 **Optional Field Presence** (project term):
 Whether an optional lexical field is expressed in a Construction's form.
 It licenses conditional requirements without creating a second Reading
-route (AE6 implementation, 2026-10-11, `english-v3-anywhere-else-goal`).
+route.
 
 **Comparative Postmodifier Use** (project term):
 A Noun Phrase head's declared permission to take a postpositive Comparative
-Adjective Phrase as its Modifier. The fused-head *anywhere* use is the
-pre-integrate review ruling (2026-10-09, `english-v3-from-anywhere`),
+Adjective Phrase as its Modifier. The fused-head *anywhere* use is permitted,
 with the surrounding nominal attachment retained as a separate Reading.
 
 **Partitive Noun Phrase**:
@@ -1350,8 +1257,7 @@ is described in Ch. 13 §4.1.2, pp. 1126–1127.
 
 **Quantitative Conjunct Use** (project term):
 A Determinative's declared permission to coordinate with a Cardinal Numeral
-in a Quantitative Determiner, under MH2 (orchestrator ruling, 2026-10-10,
-`english-v3-modal-header-quantities`). This permission supplies neither a
+in a Quantitative Determiner. This permission supplies neither a
 standalone fused head nor a Comparative Quantity use.
 
 **Quantity Conjunct** (project term):
@@ -1374,18 +1280,15 @@ Preposition Phrase marking a bound, as *at least* in *at least two*
 
 **Cardinal Modifier Use** (project term):
 An Adverb's declared permission to modify a numeral, independently of NP
-modification or Clause Adjunct use, under orchestrator rulings EX1–EX2
-(2026-10-10, `english-v3-exactly-cardinal-modifier`).
+modification or Clause Adjunct use.
 
 **Quantitative Adjective Complement** (project term):
 An Adjective selected as the Complement of a quantitative Preposition Phrase
-modifying a cardinal, as *least* in *at least two*, under
-[orchestrator ruling R9a (2026-10-09)](../../tickets/done/english-v3-at-least-cardinal.md#analysis).
+modifying a cardinal, as *least* in *at least two*.
 
 **Quantitative Adjective Complement Use** (project term):
 An Adjective's declared permission to be the Complement of a quantitative
-Preposition Phrase modifying a cardinal, under
-[orchestrator ruling R9a (2026-10-09)](../../tickets/done/english-v3-at-least-cardinal.md#analysis).
+Preposition Phrase modifying a cardinal.
 
 **Quantity**:
 The Game Model count constraint a Determiner states over a Selection, such as
@@ -1403,19 +1306,17 @@ term may coexist with the unrelated Game Model Object.
 
 **Heavy Object**:
 An Object whose NP has declared internal dependent structure or coordination.
-This is the structural proxy licensing postposing in Oracle English under
-HO8 (orchestrator, 2026-10-11), rather than a token count. CGEL discusses
-relative weight and discourse status, not this proxy (Ch. 16 §4, pp. 1382–1383).
+This is the structural proxy licensing postposing in Oracle English, rather than a token count.
+CGEL discusses relative weight and discourse status, not this proxy (Ch. 16 §4, pp. 1382–1383).
 
 **Postposed Object**:
 An Object realized to the right of its basic position, commonly after a
 Preposition Phrase; it retains Object function (CGEL, Ch. 16 §4,
 pp. 1382–1384). Oracle English licenses this order for the class of declared
-frames whose Object directly precedes a preposition-headed Complement,
-under the owner rulings of 2026-10-10 and HO8 (2026-10-11)
-(`english-v3-postposed-heavy-object`). HO8 restricts the Object to an NP
+frames whose Object directly precedes a preposition-headed Complement.
+The Object is restricted to an NP
 with declared internal dependent structure or coordination; this structural
-licence is a project ruling, informed by CGEL’s discussion of relative
+licence is a project analysis, informed by CGEL’s discussion of relative
 weight and discourse status (pp. 1382–1383).
 
 **Complement**:
@@ -1437,12 +1338,11 @@ Complement.
 **Central Adjunct Licence** (project term):
 An Adverb's declared permission to function as an Adjunct at each licensed
 position: before a lexical verb, after a copula, after an auxiliary, or in an
-imperative. The positions are licensed separately under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
+imperative. The positions are licensed separately.
 
 **Central Adjunct Position** (project term):
 The declared central Adjunct site of a lexical predicate: before a lexical
-verb or after a copula. Auxiliary predicates admit the post-auxiliary site
-under the [central-adverb-position project analysis](../../tickets/done/english-v3-central-adverb-position.md#analysis).
+verb or after a copula. Auxiliary predicates admit the post-auxiliary site.
 
 **Predicative Adjunct**:
 An optional predicative dependent describing a pragmatically appropriate
@@ -1451,18 +1351,14 @@ predicand; an *as* phrase takes a nominal Complement in this function
 
 **Predicative Adjunct Use** (project term):
 A nominal head's declared permission to occur in an *as* Preposition Phrase
-functioning as a final Adjunct. Final position follows the orchestrator ruling
-of 2026-10-07 recorded in the
-[clause-final predicative-as ticket](../../tickets/done/english-v3-clause-final-predicative-as.md#analysis);
-the declared availability is based on attested Oracle usage, independently of
-selected predicative and preposed uses.
+functioning as a final Adjunct. The declared availability is based on attested Oracle usage,
+independently of selected predicative and preposed uses.
 
 **Quantificational Adjunct**:
 A fused-head partitive functioning in Clause structure to quantify the Subject;
 implicit partitives include *all*, *both* and *each* (CGEL, Ch. 5 §9.2, p. 413).
 Its use in the reduced predication *power and toughness each equal to …* is
-an extension under orchestrator rulings PE1–PE5 (2026-10-10,
-`english-v3-property-pair-each-equal-to`), not a claim of that CGEL passage.
+an extension, not a claim of that CGEL passage.
 
 **Quantificational Adjunct Use** (project term):
 A Determinative's declared permission to function as an implicit-partitive
@@ -1482,9 +1378,7 @@ _Avoid_: Catenative Complement for an unselected purpose Clause
 **Purpose Adjunct Licence**:
 Project term. A verb's declared permission for its predicate to take a Purpose
 Infinitival as an Adjunct. Oracle English may restrict this permission under
-its recorded construction analyses, including the
-[cost-scalar-complement analysis](../../tickets/done/english-v3-cost-scalar-complement.md#project-analysis)
-and the [orchestrator stative-host ruling of 2026-10-08](../../tickets/done/english-v3-purpose-infinitival.md#stop-and-resolution-2026-10-08).
+its recorded construction analyses, including a restriction for stative hosts.
 Auxiliary predicates inherit the licence of their selected predicate.
 
 **Means Adjunct**:
@@ -1505,8 +1399,7 @@ Part of Speech.
 
 **Frequency Use** (project term):
 An Adverb's or Comparative Quantity's permission to express frequency.
-The comparative use over a frequency Complement follows NM3 (orchestrator
-ruling, 2026-10-10, `english-v3-no-more-than`), rather than CGEL's account
+The comparative use over a frequency Complement is a project extension, not CGEL's account
 of nominal comparative determination.
 
 **Adverbial Use**:
@@ -1534,30 +1427,23 @@ does not supply declared past-participial Premodifier availability.
 
 **Adjective Premodifier Use** (project term):
 An Adjective's declared permission to function as a Premodifier, independently
-of its permission to be a predicative Complement ([orchestrator ruling KS5,
-2026-10-10](../../tickets/done/english-v3-keyword-state-adjectives.md#analysis)).
+of its permission to be a predicative Complement.
 
 **Attribute Noun Premodifier** (project term):
 A noun Premodifier whose declared use selects a head with Attribute Premodifier
-Head permission, as *card* in *card type*, *card name*, and *card pool*
-([orchestrator ruling, 2026-10-08](../../tickets/done/english-v3-card-noun-premodifier.md#rulings-orchestrator-2026-10-08)).
+Head permission, as *card* in *card type*, *card name*, and *card pool*.
 
 **Keyword Premodifier** (project term):
 A Keyword Lexeme functioning as a Premodifier while retaining its lexical
-Category, as *flashback* in *flashback cost* and *morph* in *morph ability*
-(orchestrator ruling KM2, 2026-10-10, ticket
-`english-v3-keyword-mention-without-parameter`).
+Category, as *flashback* in *flashback cost* and *morph* in *morph ability*.
 
 **Keyword Premodifier Head** (project term):
 A nominal head's declared permission to take a Keyword Premodifier;
-coordination retains this permission only when each head declares it
-(orchestrator ruling KM2, 2026-10-10, ticket
-`english-v3-keyword-mention-without-parameter`).
+coordination retains this permission only when each head declares it.
 
 **Attribute Premodifier Head** (project term):
 A nominal head's declared permission to take an Attribute Noun Premodifier;
-coordination retains this permission only when each head declares it
-([orchestrator ruling, 2026-10-08](../../tickets/done/english-v3-card-noun-premodifier.md#rulings-orchestrator-2026-10-08)).
+coordination retains this permission only when each head declares it.
 _Avoid_: Card Attribute Head
 
 **Resultative Complement**:
@@ -1591,8 +1477,7 @@ sentence and both would have a full stop, the matrix full stop is suppressed
 
 **Ability Termination** (project term):
 Whether an Ability has its ordinary terminal punctuation or omits its final
-sentence's full stop in a non-final Quotation, under
-[orchestrator rulings QA1–QA4 (2026-10-10)](../../tickets/done/english-v3-quoted-ability-coordination.md#analysis).
+sentence's full stop in a non-final Quotation.
 
 **Granted Ability Complement** (project term):
 A selected Complement expressing cited ability wording or a Keyword Phrase.
@@ -1609,21 +1494,18 @@ to other copular verbs (CGEL, Ch. 15 §3.2, pp. 1327–1328).
 **Focused Adjunct Member** (project term):
 A focused Preposition Phrase or Adverb Phrase used as a Conjunct sharing
 Adjunct function with other focused phrases. Its underlying Category and
-own Focusing Modifier are retained (orchestrator ruling CF8, 2026-10-10,
-`english-v3-coordinated-focused-adjuncts`).
+own Focusing Modifier are retained.
 
 **Nominal Adjunct Host** (project term):
 Permission for a phrase to take a following Nominal Adjunct. A temporal
 restriction following an Adverb Phrase at the right edge of a focused
 Adjunct Coordination belongs to that coordinate, rather than supplying
-another route through the matrix predicate (CF2/CF8 implementation,
-`english-v3-coordinated-focused-adjuncts`, 2026-10-10).
+another route through the matrix predicate.
 
 **Premodifier Coordination**:
 A Coordination whose Conjuncts share Premodifier function over one head,
 including unlike Categories (CGEL, Ch. 15 §3.2, pp. 1326–1328). The flat
-asyndetic Oracle grouping and preservation of coordinator-ending lists follow
-[orchestrator ruling R15e (2026-10-09)](../../tickets/done/english-v3-asyndetic-premodifier-coordination.md#orchestrator-ruling-r15e-2026-10-09).
+asyndetic Oracle grouping and preservation of coordinator-ending lists are project decisions.
 
 **Right Nonce-constituent Coordination**:
 Coordination of parallel sequences at a clause's right edge, each sequence
@@ -1633,8 +1515,7 @@ gives the sequences constituent status (CGEL, Ch. 15 §4.3, pp. 1341–1343).
 **Selected Tail Licence** (project term):
 A verb's declared permission for right nonce-constituent coordinates to use
 different complete Verb Frames it declares. An Object + goal coordinate may
-include the Manner Complement its own frame selects under
-[orchestrator rulings GC1–GC2, amended by GC7 (2026-10-10)](../../tickets/done/english-v3-gapped-coordination-shared-adjunct.md#analysis).
+include the Manner Complement its own frame selects.
 
 **Correlative Coordination**:
 A Coordination with a marker associated with its first Conjunct and a paired
@@ -1656,7 +1537,7 @@ marker in Oracle English.
 
 **Unmarked Conjunct Licence** (project term):
 Permission for an expression to serve as an unmarked Conjunct in a comma
-list, without an overt Coordinator. Under [R15d/R15e](../../tickets/done/english-v3-asyndetic-premodifier-coordination.md#orchestrator-ruling-r15e-2026-10-09), an asyndetic shared-head Premodifier Coordination does not supply an unmarked Nominal Conjunct within a coordinator-ending list.
+list, without an overt Coordinator. An asyndetic shared-head Premodifier Coordination does not supply an unmarked Nominal Conjunct within a coordinator-ending list.
 
 **Anchor** (project term):
 An ordered position at which a Coordination or a coordinated frame segment joins
@@ -1687,8 +1568,8 @@ The expression or discourse introduction on which an Anaphor depends.
 Of an Anaphor, another argument of the same verb: its Subject, Object or a
 Complement. A Genitive's possessor ("its power") and the noun phrase of a small
 clause ("counters on it") are not clause-mates of the verb. No CR rule fits;
-the boundary is the owner's ruling of 2026-10-07 (`docs/decisions/semantics-v2.md`
-§7), recorded there as provisional.
+the boundary is a provisional project decision (`docs/decisions/semantics-v2.md`
+§7).
 _Avoid_: co-argument for possessors or small-clause objects
 
 **Referent**:
@@ -1713,28 +1594,24 @@ English grammar requires the distinction.
 
 **Determiner Agreement Number** (project term):
 The Number a singular-selecting Determiner fixes for its Noun Phrase even
-when its Nominal head is coordinated. Other Determiners allow Nominal
-Agreement Number through ([owner ruling, 2026-10-08](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis));
-CGEL, Ch. 5 §18.4(a), p. 508 [28] describes singular agreement for
+when its Nominal head is coordinated. Other Determiners pass Nominal
+Agreement Number through. CGEL, Ch. 5 §18.4(a), p. 508 [28] describes singular agreement for
 coordinated NPs containing distributive *each* or *every*.
 For an unrestricted fused Determiner-Head over a plural partitive oblique,
 Agreement permits either Number, selected by the finite Predicate, while
-retaining one Noun Phrase analysis (PD2,
-[orchestrator ruling, 2026-10-10](../../tickets/done/english-v3-partitive-determinative-heads.md#analysis)).
+retaining one Noun Phrase analysis.
 
 **Subject Relative Number** (project term):
 The Number required by a Subject-gap Relative Clause on a coordinated Nominal,
 resolved against the containing Noun Phrase's Agreement after its Determiner
-applies ([owner ruling, 2026-10-08](../../tickets/done/english-v3-overgeneration-prune.md#d-a-relative-clause-on-a-coordinated-nominal-agrees-plural-even-under-each)).
+applies.
 
 **Nominal Agreement Number** (project term):
 The Number a Nominal contributes to its containing Noun Phrase's Agreement,
 which can differ from the coordinates' Number used for shared Determiner
 selection. A declared nominal-symbol class can contribute number-neutral
-Agreement while retaining one Head and accepting mass or count quantification
-(orchestrator ruling QS7, 2026-10-11, `english-v3-quantified-mana-symbol`).
-The additive plural restriction in Oracle English is the
-[coordinated-subject project analysis](../../tickets/done/english-v3-coordinated-subject-agreement.md#analysis).
+Agreement while retaining one Head and accepting mass or count quantification.
+The additive plural restriction in Oracle English is a project analysis.
 
 **Concord Class** (project term):
 A derived morphological equivalence class used to choose a finite agreeing
@@ -1774,8 +1651,7 @@ Targets.
 A Modifier's declared permission to precede a Nominal containing a Targeting
 Marker. This Oracle-English licence preserves the project's existing colour
 modifier restriction while admitting the attested *other target creatures* and
-ordinal compositions; its evidence and limits are recorded in the
-[each-of landing](../../tickets/done/english-v3-each-of-partitive.md#landing-record).
+ordinal compositions.
 
 **Target Verb**:
 The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in
@@ -1822,36 +1698,31 @@ _Avoid_: Prefix for the Keyword Quality it binds to
 
 **Bound Keyword Stem** (project term):
 The noun stem forming a Keyword Quality bound to a Bound Keyword Surface, as
-*island* in *islandwalk*, derived from the keyword's declared stem class
-(orchestrator ruling, 2026-10-08). Its lowercase form comes from the noun's
+*island* in *islandwalk*, derived from the keyword's declared stem class.
+Its lowercase form comes from the noun's
 declared singular Word Form, with positional Capitalization of the combined
-word (owner ruling, 2026-10-08,
-[landwalk ticket](../../tickets/done/english-v3-landwalk-bound-suffix.md#analysis)).
+word.
 A supertype may premodify the stem as a separate Adjective, as *basic* in
 *Basic landcycling* and *snow* in *Snow forestwalk*; the Premodifier takes
-positional Capitalization while the stem remains lowercase (orchestrator
-rulings SB1, SB5 and SB7, 2026-10-10,
-[supertype-premodification ticket](../../tickets/done/english-v3-supertype-premodified-bound-keyword.md#analysis)).
+positional Capitalization while the stem remains lowercase.
 
 **Bound Keyword Stem Class** (project term):
 A keyword's declared set of subtype classes and card type supplying its Bound
-Keyword Stems (orchestrator rulings, 2026-10-08, landwalk stem-class derivation
-and typecycling R8a).
+Keyword Stems.
 
 **Creature Subtype Stem** (project term):
 A Bound Keyword Stem derived from a declared creature-subtype noun.
 
 **Creature Subtype Stem Use** (project term):
 A bound suffix's licence to take a Creature Subtype Stem, supplied by its
-Bound Keyword Stem Class (typecycling ruling R8a, 2026-10-08).
+Bound Keyword Stem Class.
 
 ## Status, Designation (Game Model terms — not grammatical categories)
 
 `tapped`, `goaded`, `suspected`, `saddled` are the **Participles** of their
 keyword-action verbs, used attributively or predicatively; `monstrous` is an
 **Adjective**; `the monarch`, `the initiative` are **Noun Phrases**; `face down`
-is a lexicalized **Preposition Phrase** (analysis adopted 2026-10-04,
-superseding this part of the 2026-09-05 ruling). Whether such a form names a
+is a lexicalized **Preposition Phrase**. Whether such a form names a
 status [CR#110.5] or a designation [CR#701.15b] is Game Model semantics resolved through the verb
 declaration, never a grammatical class. _Avoid_ "Status", "Designation" as the
-name of a vocabulary, codec, or construction in the grammar (ruling 2026-09-05).
+name of a vocabulary, codec, or construction in the grammar.

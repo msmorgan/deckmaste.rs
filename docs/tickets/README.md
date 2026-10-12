@@ -173,33 +173,23 @@ checkout in the untracked `.claude/settings.local.json` from the plugin's
 `hooks/claude-project-hooks.example.json`; the hook path is machine-specific, so
 it never goes in the tracked `.claude/settings.json`.
 
-## Landing record
+## Landing note (English grammar tickets only)
 
-Every completed ticket carries a `## Landing record`, written by the claimant
-before integrate, of six short items and nothing more (ruling 2026-10-08,
-`docs/decisions/english-lexical-analysis.md`). Where this list conflicts with
-that decision's English grammar contract, the decision wins. Stamp every number
-with the change id it was measured on.
+A ticket that changes the English grammar, its compiler, its lexicon or its
+census tool ends with three lines, stamped with the change id they were
+measured on. No other ticket carries a landing record.
 
-1. **Census delta**: covered faces and total Readings before/after. Lost faces
-   by name with their classification (wrong analysis retired / routed to
-   `<live ticket>` / regression fixed), or "none". A long loss list is a defect
-   to fix, not a list to paste.
-2. **Witnesses**: each ticket witness with its Reading count after.
-3. **Spot checks**: ten newly covered faces by name with the selected analysis.
-   A wrong analysis that parses is a defect, never a gain.
-4. **Deviations and STOPs**: every construction, frame or test added or deleted
-   beyond the ticket's letter, with justification; every STOP with its
-   resolution; any glossary gap (a term missing from
-   `docs/contexts/oracle-english/CONTEXT.md`).
-5. **Tests**: the `cargo test -p` / clippy commands run and their outcome;
-   counts restored / re-spelled / ignored-with-blocker / added / removed, each
-   removal justified by name.
-6. **Timing**: wall time of the one full census as a single figure with worker
-   count.
+1. **Census delta**: faces read and total Readings before and after; lost
+   faces by name, or "none".
+2. **Size**: the size report from the size tool, and the tracked grammar line
+   total before and after.
+3. **Judgment set**: the result of running it.
 
-The safety laws are enforced by the per-face census digest diff, the
-`environment.rs` load errors and CLAUDE.md's Assurance section, not by prose.
+A ticket that lands before an instrument exists says which line does not apply
+yet. A ticket that changes census semantics, adds an instrument or completes a
+compiler capability updates the affected crate README in the same landing
+(`crates/deckmaste_english_v3/README.md` for the grammar and the census,
+`crates/deckmaste_construction_v3_core/README.md` for the compiler).
 
 ## Census
 
