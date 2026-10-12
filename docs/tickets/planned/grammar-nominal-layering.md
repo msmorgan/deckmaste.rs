@@ -1,0 +1,12 @@
+---
+needs: [grammar-glossary-rewrite]
+---
+# Nominal layering
+
+**Placeholder: not claimable.** The README has no marker for this, so the `needs:` chain is what blocks it, and it must not be claimed or worked until it has been specified. It is specified only after its predecessor lands, following a short design pass the owner approves; no rulings are pre-written here.
+
+Goal: replace the flat recursion on `Nominal` with plain category layers: nominal core, then postmodifiers, then premodifiers, then noun phrase. Today `Nominal` wraps itself for premodifiers, postmodifiers and relatives alike (`PremodifiedNominal` at `declarations.rs:3936`, `ObjectRelativeNominal` at `:6014`, both `head: Nominal`), so n premodifiers and one postmodifier give n+1 bracketings: 2, 3, 4 readings for one, two and three premodifiers ("red creatures you control" 2, "red artifact creatures you control" 3, "red nonlegendary artifact creatures you control" 4). "That player creates a token for each card exiled from their hand this way." has 13 readings and with "a 2/2 black Zombie creature token" 119, though that noun phrase alone has one. The "has this already happened" flags that police the recursion go.
+
+Gate decided so far: no face lost; per line, the set of analysis keys unchanged while tree count falls; ratchet passes; three-line note.
+
+Open, owner has not decided: the layer order. The Oracle style guide gives the linear order "quantity → other/another → target → intrinsic qualities → type phrase → controller/owner clause → zone or event clause → numeric qualification" (`docs/oracle-style-guide.md:646–668`); reading it as scope, quantity, other and target apply to the type phrase together with its controller and zone clauses ("up to one other target [nonland permanent you control]"). That nesting is an inference from the guide, not its wording. CGEL prescribes neither order: such a nominal is "structurally ambiguous according to which modifier is applied to the head noun first ... Usually ... it will make no practical difference" (CGEL, Ch. 5, §14.2, pp. 446–447); the tree at Ch. 5, §2, [11], p. 332 is a sample structure, not a rule. Verify the line numbers and quotes against the files when specifying. The 2026-10-09 approval of "premodifier outside postmodifier" is the owner's, but the convention should be confirmed in the design pass.

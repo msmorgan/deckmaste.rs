@@ -1,122 +1,19 @@
 ---
-needs: []
+needs: [grammar-judgment-set]
 ---
-# Licence plumbing economy: percolation, generic concord, categories and frames instead of flags
+# Head inheritance and defaults: prototype on the Nominal constructions
 
-## Why
+First half of replacing the grammar's authoring layer. The compiler currently makes authors write the lowered form: every construction must export every feature of its category's interface exactly once (`crates/deckmaste_construction_v3_core/src/ir.rs:1288–1343` for the export equations, `:1378–1383` for the missing-export check). Complete summaries are right for the chart; requiring authors to write them is the problem. Measured on `declarations.rs`: 2,082 of 7,483 stripped lines (28%) are `export`; 838 are pure forwards (`X = child.X`), 704 of them from a field named `head`; 993 are constants, 759 of them equal to the feature's declared default (138 more on features with no default). Seven features cost 404 export lines for about eight readers (`PurposeAdjunctLicence`, `MatrixComplementLicence`, `SourceComplementSelection`, `NominalAdjunctHost`, `ClauseComplementBoundary`, `WholeObjectSourcePresent`, `BareGenitiveHost`). Exports removable by rule: 816 by inheriting one field, 759 by taking the declared default, 1,306 if each block picks one rule, 1,575 if both compose per feature. This ticket is a prototype that settles which, on a bounded slice; the rest of the file follows in `grammar-compiler-expressions-and-tables`.
 
-The user approved this refactor on 2026-10-07. A permissive-admission
-experiment that day neutralized the grammar's licence features and showed
-that licences must stay at admission. Without them the corpus produced ×3.77
-Readings and 26 exploded faces, and about a third of covered faces gained a
-Reading already ruled wrong. The experiment is archived under the bookmark
-`archive-english-v3-licence-experiment-ref`; it is a reference and must never
-be integrated.
+Licences themselves stay at admission. The 2026-10-07 permissive-admission experiment showed that without them the corpus produced 3.77 times the Readings and 26 exploded faces; only how they are carried changes.
 
-The licences themselves are correct, but the apparatus that carries them is
-expensive. By the experiment's attribution it costs about 489 of 3,174
-non-blank lines in `crates/deckmaste_english_v3/src/declarations.rs`, measured
-on base `lryqtwskmyxs`. The file was then 374 lines over the 2,800-line
-ceiling of the 2026-10-04 construction-economy amendment in
-[english-lexical-analysis](../../decisions/english-lexical-analysis.md). The
-grammar has 201 ordinary constructions and 43 schemas against the
-250-construction ceiling. At mint (claim parent `pozynvyupsvk`) the file has
-3,227 non-blank lines. The claimant re-measures every figure on their own claim
-parent.
+## Change
 
-## Goal
+- A feature is declared `head` (taken from the construction's head child unless overridden) or `local` (declared default unless set).
+- A construction names its head child. An export it does not write is filled by the compiler: the head's value for a `head` feature, the declared default for a `local` feature with one. A written export overrides. Features with no default and no head source must still be exported.
+- The compiler elaborates this to today's lowered form and keeps its existing checks (each interface feature supplied exactly once, same domain); the chart and runtime do not change.
+- Convert the 21 constructions that produce `Nominal`, and nothing else, as the prototype.
 
-- **Readings unchanged, face by face.** The census matches the claim parent
-  exactly: the same covered set and the same Reading count on every face, with
-  0 lost and 0 changed.
-- **Line ceiling met.** `declarations.rs` ends at or under 2,800 non-blank lines.
-- **Every per-word licence preserved.** These features keep their meaning and
-  stay declared lexical properties that the grammar reads: PrepositionFunctionLicence,
-  AuxiliaryEllipsisLicence, BareGenitiveHost, UnmarkedConjunctLicence,
-  ClauseInitialAdjunct, VPFinalAdjunct and SelectedPrepositionUse. The
-  2026-10-06 licence amendment and its pruning rule stand unchanged.
+## Gate
 
-## Analysis
-
-All line savings below are estimates from the experiment.
-
-- **(a) Flags that duplicate a lexical category.** ComparativeQuantityUse,
-  NoncorrelativeCoordination, ScalarComparativeUse, and
-  MeasurePosition/CardinalMeasurementUse become `lexical(Category)` requirements.
-  Their subcategories are declared in
-  `crates/deckmaste_lexical_source/lexicon/vocabulary.rs`. Estimated saving:
-  about 30 lines.
-- **(b) One-off complement-shape flags on prepositions and adjectives.**
-  - The flags: the Finite, Gerund, Quoted, Keyword, PrepositionPhrase and
-    BareNominal complement flags, ExtentMarker, FrequencyUnit, DurationUse,
-    and Nominal/CompoundComplementMarker.
-  - The replacement: frames on prepositions and adjectives, in the style of
-    `crates/deckmaste_lexical_source/lexicon/verbs.ron`, read the way
-    `frame_marker_licence` reads verb frames.
-  - Estimated saving: about 30 lines.
-- **(c) Head-feature percolation.** A percolation capability in
-  `crates/deckmaste_construction_v3_core` replaces about 128 `export X =
-  head.X` lines. Estimated saving: about 120–150 lines.
-- **(d) Generic coordination concord.** One concord declaration per feature
-  replaces the per-feature tables. Each declaration uses one of four rules: all,
-  any, intersection, or same-or-Mixed.
-  - What it replaces: about 141 lines of `coordinated_*`, `*_concord` and
-    `combined_*` tables, and about 75 policy lines.
-  - What stays: the number, person and oblique agreement tables.
-  - Estimated saving: about 150 lines.
-- **(e) Wildcard table rows.** For example, `clitic_host` shrinks from 28
-  rows to about 6.
-
-Total plausible saving: 300–350 lines.
-
-Two compiler capabilities are prerequisites inside this ticket: head-feature
-percolation (c) and generic coordination concord (d). Each may land as its own
-commit within the ticket, ahead of the declaration conversions that use it.
-
-## Method
-
-Standard constraints apply (CLAUDE.md), plus:
-
-- **Census identity.** Prove the census identical, face by face, against the
-  claim parent. Compare the Reading count on every face, not only the covered
-  set.
-- **Compiler tests.** Each compiler capability lands with its own tests in
-  `crates/deckmaste_construction_v3_core`.
-- **One class at a time.** Convert the flags class by class, (a) through (e),
-  and run a census after each class.
-- **No dead declarations.** Retire every superseded feature, table and policy,
-  on both the grammar side and the lexicon side. Leave no unreachable
-  declarations.
-- **No naming guards.** No guard may name a word, construction or card.
-- **Line accounting.** Report net non-blank lines for each step.
-- **Evidence location.** Keep evidence under `target/english-v3/`, never `/tmp`.
-- **CGEL citations.** A CGEL citation may support only what the cited passage
-  says.
-
-## Out of scope
-
-- Any coverage gain or loss.
-- The census memory change (digest dedup and bounded caches). It is a separate
-  decision and has not been approved.
-- Changes to grammatical analysis.
-
-## Landing record
-
-The claimant writes this record before integrate. It must include:
-
-- **Inventories.** Before and after counts for non-blank declaration lines,
-  ordinary constructions, schemas, features, tables and policies.
-- **Census identity proof.** Covered set and per-face Reading counts against
-  the claim parent: 0 lost, 0 changed.
-- **Savings by class.** For each of (a) through (e), the lines actually saved
-  against the estimate above.
-
-## Compaction candidate (2026-10-08)
-
-The coordinated-property-values landing added a 75-row
-`coordinated_property_value_position` table (three Coordination kinds × five
-left positions × five right positions). Only additive first + second yields
-pair; every other row yields none. Consider wildcard rows in step (e),
-preserving the complete table domain: missing rows must not reject otherwise
-valid Nominal Coordination. The post-landing modifier restriction is recorded
-[in its done ticket](../done/english-v3-coordinated-property-values.md#post-landing-fix-2026-10-08).
+Every `readings_sha256` identical on every face. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Three-line note: census delta (none); size delta per declaration kind from the size tool; judgment-set result.
