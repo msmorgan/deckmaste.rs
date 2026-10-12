@@ -20,28 +20,50 @@ Every `readings_sha256` identical on every face after each class of conversion a
 
 ## Completed prefix
 
-`lskylzln` converts the NounPhrase, NominativePhrase, AccusativePhrase, Name,
-NounPremodifier and associated series interfaces, and finishes the remaining
-Nominal policy forwarding. `ouxxktwm` converts the ordinary, quantitative,
-comparative, keyword and selected-head Preposition Phrase interfaces and their
-series. Shared coordination schemas declare `head none;` and retain their
-exports. Both family censuses pass `--check identical-digests` against the same
-full baseline.
+All 140 nonempty Category interfaces now use head/local modes. The 714
+interface slots, 198 Categories, 326 constructions and 927 lowered rules are
+unchanged. Coordination and series are explicitly headless and retain their
+exports. Reading fields, form order and admission constraints are unchanged.
 
-`NominalHeadProperties` is removed because its only assignment is the existing
-local default. `PrepositionHeadPermissions` is removed after inference replaces
-its defaulted forwarding; the non-defaulted PrepositionFunctionLicence export
-is explicit at its former callers. No compiler capability is added in this
-prefix.
+Each family passes the full-corpus `--check identical-digests` gate against
+the same baseline taken before the first edit:
 
-Remaining: the predicate/Verb Phrase and Clause families, then the other
-unconverted interfaces (115 nonempty strict interfaces remain); Boolean
-requirements and policy composition as needed, with their compiler tests and
-README updates; wildcard-table conversion; and the unread-slot/dead-declaration
-pass. All 24 AND and 11 OR tables still have export users. The initial unused
-PurposeConcord and PurposeHostProjection policies and coordinate_number table
-remain for that last pass. Unread case exports must retain their table admission
-checks when removed.
+| Family | Change | Lines | Exports | Policies | Tables |
+|---|---|---:|---:|---:|---:|
+| Baseline | | 7,456 | 1,872 | 132 | 216 |
+| Noun phrases | `lskylzln` | 7,168 | 1,544 | 131 | 216 |
+| Preposition phrases | `ouxxktwm` | 7,013 | 1,367 | 130 | 216 |
+| Predicates and verb phrases (47 interfaces) | `pnpssukm` | 6,909 | 1,122 | 125 | 216 |
+| Clauses (13 interfaces) | `wukqwkzq` | 6,910 | 1,092 | 123 | 216 |
+| Remaining interfaces (55) | `nrtousno` | 6,897 | 991 | 119 | 216 |
 
-Census delta (`ouxxktwm`, prefix): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`ouxxktwm`): does not apply yet.
+Removed policies and why their uses are no longer needed:
+
+- `NominalHeadProperties`: its sole assignment is the local default.
+- `PrepositionHeadPermissions`: defaulted lexical forwarding is inferred;
+  the non-defaulted PrepositionFunctionLicence remains explicit at its callers.
+- `PredicateHostAgreement`, `FiniteGapHostProjection`, `BareGapHostProjection`,
+  `SecondaryAdjunctProjection`, `ManaPassiveProjection`: every assignment is
+  inferred from the syntactic head at every former caller.
+- `SourceSelectionAnchor`, `ImperativeSupplement`: their anchor forwarding is
+  inferred after declaring `head anchor;`.
+- `CompleteSentence`, `UnitFreeMeasure`, `NoPropertyEquality`: their assignments
+  are existing defaults when the named head lacks those slots.
+- `PredicateHeadAgreement`: its last caller has a lexical Pronoun head;
+  its number/person exports are inlined because neither has a declared default.
+
+No tables, interface slots or rules have been deleted. The 91 unread-slot
+candidates remain unmodified; unread case exports still constrain admission
+through their table lookups. All 24 AND and 11 OR tables have export users.
+No compiler capability is added in this prefix.
+
+Remaining, in order: Boolean requirements and policy composition, with
+compiler tests and README updates; wildcard table conversion; then unused
+PurposeConcord, PurposeHostProjection and coordinate_number and the broader
+dead-declaration pass, including unread slots one feature at a time. Boolean
+absence semantics await a ruling: unknown with three-valued connectives,
+rejection on any absent input, or treating an absent comparison as false.
+No compiler work proceeds across that authoring-model decision.
+
+Census delta (`nrtousno`, prefix): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`nrtousno`): does not apply yet.

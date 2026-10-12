@@ -586,14 +586,14 @@ constructions! {
         feature ModeListLayout { DashHeader, SentenceHeader }
 
         category Document();
-        category Ability(LabelKind, AbilityTermination, SentenceLineList);
+        category Ability(head LabelKind, head AbilityTermination, head SentenceLineList);
         category AbilityContinuation();
         category Paragraph();
         category ParagraphItem();
         category ParagraphContinuation();
         category SentenceParagraph();
         category SentenceContinuation();
-        category Sentence(AbilityTermination);
+        category Sentence(head AbilityTermination);
         category Clause(
             head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
         );
@@ -702,11 +702,19 @@ constructions! {
             head CaseUse, head SelectedPrepositionUse, head PredicativeAdjunctUse,
             head SourceModifierPresent, head WholeObjectSourcePresent
         );
-        category AdjectivePhrase(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
-        category Premodifier(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
-            SelectedPrepositionUse, PredicativeAdjunctUse);
-        category PremodifierCoordination(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
-            SelectedPrepositionUse, PredicativeAdjunctUse);
+        category AdjectivePhrase(
+            head AdjectiveComplementClass, head AdjectiveAttributiveOnlyUse, head ImplicitComparativeUse,
+            head AdjectiveStructure, head AdjectiveOrigin, head AdjectivePremodifierUse,
+            head TargetingPremodifierUse, local PremodifierCoordination
+        );
+        category Premodifier(
+            head PremodifierCategory, head SyndeticPremodifier, head NounPremodifier, head AdjectiveOrigin,
+            head TargetingPremodifierUse, head SelectedPrepositionUse, head PredicativeAdjunctUse
+        );
+        category PremodifierCoordination(
+            head PremodifierCategory, head SyndeticPremodifier, head NounPremodifier, head AdjectiveOrigin,
+            head TargetingPremodifierUse, head SelectedPrepositionUse, head PredicativeAdjunctUse
+        );
         category VerblessClause(head VerblessClauseComplement);
         category Name(head number);
         category NamePredicate();
@@ -724,8 +732,8 @@ constructions! {
         category LocativeComplement();
         category MannerComplement();
         category FrequencyPhrase();
-        category NominalAdjunctPhrase(NominalAdjunctClass, NominalAdjunctDependent);
-        category BareTemporalNominal(NominalBareClass);
+        category NominalAdjunctPhrase(head NominalAdjunctClass, head NominalAdjunctDependent);
+        category BareTemporalNominal(head NominalBareClass);
         category BoundaryComplement();
         category SubjectRelativeClause(head number);
         category ObjectRelativeClause(head RelativeGapKind);
@@ -747,7 +755,7 @@ constructions! {
             head SourceComplementSelection, head ComparativeObjectGapLicence
         );
 
-        category Cardinal(number, CardinalComplementUse);
+        category Cardinal(head number, head CardinalComplementUse);
         category CardinalModifier();
         category SecondaryNegator();
         category SecondaryNegatorHead();
@@ -758,7 +766,10 @@ constructions! {
             head frame
         );
         category QuantitativeAdjectiveComplement();
-        category QuantitativeDeterminer(DeterminerUse, DeterminerAgreementNumber, Definiteness, NominalAdjunctDependent, DegreeUse);
+        category QuantitativeDeterminer(
+            head DeterminerUse, head DeterminerAgreementNumber, head Definiteness,
+            head NominalAdjunctDependent, head DegreeUse
+        );
         category CardinalPrepositionPhrase(head number);
         category ArithmeticModifier();
         category QuantitativePrepositionPhrase(head number);
@@ -769,45 +780,52 @@ constructions! {
         category ComparativePrepositionPhrase(head number);
         category CountedFrequencyPrepositionPhrase();
         category AdverbFrequencyPrepositionPhrase();
-        category QuantityConjunct(number, CardinalComplementUse, CardinalMeasurementUse);
-        category ComparativeQuantity(number, ComparativeQuantityStructure, MeasureModifierUse, FrequencyUse);
+        category QuantityConjunct(head number, head CardinalComplementUse, head CardinalMeasurementUse);
+        category ComparativeQuantity(
+            head number, head ComparativeQuantityStructure, head MeasureModifierUse, head FrequencyUse
+        );
         category ScalarLocationComplement();
         category HollowInfinitivalComplement();
         category PurposeInfinitival(local FocusedUse);
-        category ScalarValue(PredicativeKind, PropertyEqualityForm);
-        category PropertyValue(MeasureKind, PropertyEqualityForm);
+        category ScalarValue(head PredicativeKind, head PropertyEqualityForm);
+        category PropertyValue(head MeasureKind, head PropertyEqualityForm);
         category Amount();
-        category MeasurePhrase(MeasureKind, UnitBearing);
-        category ArithmeticOperand(UnitBearing);
+        category MeasurePhrase(head MeasureKind, head UnitBearing);
+        category ArithmeticOperand(head UnitBearing);
         category ScalarMeasurePhrase();
         category ScalarExtentComplement();
         category ScalarExtentMeasure();
         category UnsignedScalar();
-        category ScalarComponent(ScalarSign);
-        category SlashPair(AdditiveModifierUse);
-        category ComparativeGovernorHead(ComparisonMarker);
-        category ComparativeComplement(AdjectivePremodifierUse);
-        category MatrixComparativeComplement(ComparisonMarker, ComparativeComplementForm);
-        category MatrixComparativePhrase(ComparativeComplementForm);
-        category ComparativeAdjectivePhrase(ComparisonMarker, AdjectivePremodifierUse, PropertyEqualityForm);
-        category DiscontinuousComparativeGovernor(frame, ImplicitComparativeUse);
-        category ComparativeDeterminerHead(ComparativeDeterminerUse, DeterminerUse,
-            NominalAdjunctDependent);
+        category ScalarComponent(head ScalarSign);
+        category SlashPair(head AdditiveModifierUse);
+        category ComparativeGovernorHead(head ComparisonMarker);
+        category ComparativeComplement(head AdjectivePremodifierUse);
+        category MatrixComparativeComplement(head ComparisonMarker, head ComparativeComplementForm);
+        category MatrixComparativePhrase(head ComparativeComplementForm);
+        category ComparativeAdjectivePhrase(
+            head ComparisonMarker, head AdjectivePremodifierUse, head PropertyEqualityForm
+        );
+        category DiscontinuousComparativeGovernor(head frame, head ImplicitComparativeUse);
+        category ComparativeDeterminerHead(
+            head ComparativeDeterminerUse, head DeterminerUse, head NominalAdjunctDependent
+        );
         category KeywordPhrase();
         category SelectedKeywordPreposition(head NominalComplementMarker);
-        category KeywordQuality(KeywordQualityNumber);
+        category KeywordQuality(head KeywordQualityNumber);
         category KeywordQualityPreposition(head KeywordMarker, head KeywordQualityNumber);
         category KeywordQualityPrepositionSeries(head KeywordMarker, head KeywordQualityNumber);
         category SelectedComplementTail(head HeadCoordination);
         category SelectedComplementTailSeries(head HeadCoordination);
         category KeywordContinuation();
-        category Cost(CostComponentForm);
-        category CostComponent(CostComponentForm);
-        category CostContinuation(CostComponentForm);
+        category Cost(head CostComponentForm);
+        category CostComponent(head CostComponentForm);
+        category CostContinuation(head CostComponentForm);
         category CostSymbols();
         category CostSymbol();
         category ManaPhrase();
-        category ManaSubject(number, person, SubjectStructure, DeterminerAgreementNumber);
+        category ManaSubject(
+            head number, head person, head SubjectStructure, head DeterminerAgreementNumber
+        );
         category ManaPassivePredicate(
             head FrameUse, head HeadCoordination, head AuxiliaryProFormLicence,
             head AuxiliaryEllipsisLicence, local NominalAdjunctHost, local ClauseComplementBoundary,
@@ -823,16 +841,16 @@ constructions! {
             head SourceComplementSelection
         );
         category ManaSymbol();
-        category CountNominalSymbol(SymbolNominalUse);
-        category NominalSymbol(SymbolNominalUse, NominalAgreementNumber);
+        category CountNominalSymbol(head SymbolNominalUse);
+        category NominalSymbol(head SymbolNominalUse, head NominalAgreementNumber);
         category Parenthetical();
-        category QuotedText(QuotationStructure);
-        category GrantedAbility(GrantedAbilityKind);
-        category GrantedAbilitySeries(GrantedAbilityKind);
-        category Mode(LabelKind);
-        category Modes(ModeListLayout);
+        category QuotedText(head QuotationStructure);
+        category GrantedAbility(head GrantedAbilityKind);
+        category GrantedAbilitySeries(head GrantedAbilityKind);
+        category Mode(head LabelKind);
+        category Modes(head ModeListLayout);
         category ModeContinuation();
-        category NamedModes(ModeListLayout);
+        category NamedModes(head ModeListLayout);
         category NamedModeContinuation();
         category TypeLine();
         category SupertypePrefix();
@@ -860,7 +878,10 @@ constructions! {
             head SourceModifierPresent, head WholeObjectSourcePresent, head DeterminerAgreementNumber,
             head ComparativePostmodifierUse, head Definiteness, head LocativeUse
         );
-        category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
+        category AdverbPhrase(
+            local NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
+            head UnmarkedConjunctLicence, local FocusedUse, head FrequencyUse
+        );
         category InfinitiveComplement();
         category FiniteSelectedHead(
             head Polarity, head number, head person, head FrameUse, head HeadCoordination, head CliticHost,
@@ -882,9 +903,9 @@ constructions! {
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category ManaPhraseSeries();
-        category CardinalSeries(number, CoordinationKind, CardinalComplementUse);
+        category CardinalSeries(head number, head CoordinationKind, head CardinalComplementUse);
         category AmountSeries();
-        category MeasurePhraseSeries(MeasureKind, UnitBearing);
+        category MeasurePhraseSeries(head MeasureKind, head UnitBearing);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
@@ -898,7 +919,11 @@ constructions! {
             head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent,
             head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence
         );
-        category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
+        category AdjectivePhraseSeries(
+            head AdjectiveComplementClass, head AdjectiveAttributiveOnlyUse, head ImplicitComparativeUse,
+            head AdjectiveStructure, head AdjectiveOrigin, head AdjectivePremodifierUse,
+            head TargetingPremodifierUse, head PremodifierCoordination
+        );
         category PrepositionPhraseSeries(
             head PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
             head NominalAdjunctHost, head ClauseComplementBoundary, head LocativeUse,
@@ -909,10 +934,27 @@ constructions! {
             head SourceModifierPresent, head WholeObjectSourcePresent, head SourceMarker,
             head MatrixComplementRequirement, head NominalExceptionComplementUse
         );
-        category FocusedAdjunctMember(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
-        category FocusedAdjunctSeries(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse);
-        category FocusedAdjunctCoordination(FocusedUse, NominalAdjunctHost, ClauseComplementBoundary, ConnectiveAdjunctUse, SourceMarker, PrepositionPhraseComplementMarker, SourceComplementUse, PrepositionFunctionLicence, ComplementFunctionRestriction, PredicativeAdjunctUse, SelectedPrepositionUse, MatrixComplementRequirement, InternalisedComplementMarker);
-        category AdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
+        category FocusedAdjunctMember(
+            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
+            head SourceComplementUse
+        );
+        category FocusedAdjunctSeries(
+            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
+            head SourceComplementUse
+        );
+        category FocusedAdjunctCoordination(
+            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
+            head SourceComplementUse, head PrepositionFunctionLicence, head ComplementFunctionRestriction,
+            head PredicativeAdjunctUse, head SelectedPrepositionUse, head MatrixComplementRequirement,
+            head InternalisedComplementMarker
+        );
+        category AdverbPhraseSeries(
+            head NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
+            head UnmarkedConjunctLicence, head FocusedUse, head FrequencyUse
+        );
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(
@@ -962,15 +1004,21 @@ constructions! {
             head SourceComplementUse, head SourceModifierPresent, head WholeObjectSourcePresent,
             head SourceMarker, head MatrixComplementRequirement, head NominalExceptionComplementUse
         );
-        category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
-            DurationUse, FrequencyUse, CorrelativeCoordinator, FocusedUse);
-        category CorrelativeManaPhraseSeries(CorrelativeCoordinator);
-        category CorrelativeCardinalSeries(number, CorrelativeCoordinator, CoordinationKind, CardinalComplementUse);
-        category CorrelativeAmountSeries(CorrelativeCoordinator);
-        category CorrelativeMeasurePhraseSeries(UnitBearing, MeasureKind, CorrelativeCoordinator);
-        category CorrelativeKeywordPhraseSeries(CorrelativeCoordinator);
-        category CorrelativeQuotedTextSeries(CorrelativeCoordinator);
-        category CorrelativeInfinitiveComplementSeries(CorrelativeCoordinator);
+        category CorrelativeAdverbPhraseSeries(
+            head NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
+            head FrequencyUse, head CorrelativeCoordinator, head FocusedUse
+        );
+        category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
+        category CorrelativeCardinalSeries(
+            head number, head CorrelativeCoordinator, head CoordinationKind, head CardinalComplementUse
+        );
+        category CorrelativeAmountSeries(head CorrelativeCoordinator);
+        category CorrelativeMeasurePhraseSeries(
+            head UnitBearing, head MeasureKind, head CorrelativeCoordinator
+        );
+        category CorrelativeKeywordPhraseSeries(head CorrelativeCoordinator);
+        category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
+        category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(
             head Polarity, head number, head person, head FrameUse, head CorrelativeCoordinator,
             head CliticHost, head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence,
@@ -981,8 +1029,8 @@ constructions! {
             head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
-        category CorrelativeAdjectivePhrase(AdjectiveAttributiveOnlyUse);
-        category CorrelativeAdjectiveSeries(AdjectiveAttributiveOnlyUse, CorrelativeCoordinator);
+        category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
+        category CorrelativeAdjectiveSeries(head AdjectiveAttributiveOnlyUse, head CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(
             head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
@@ -1476,11 +1524,6 @@ constructions! {
         policy FiniteGapHeadAgreement {
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
-            export number = head.number;
-            export person = head.person;
-        }
-
-        policy PredicateHeadAgreement {
             export number = head.number;
             export person = head.person;
         }
@@ -2553,9 +2596,10 @@ constructions! {
         }
 
         construction OrdinaryAbility: Ability {
+            head body;
             export LabelKind = None;
             export SentenceLineList = No;
-            form [body: Paragraph] export AbilityTermination = Complete;
+            form [body: Paragraph];
             form [body: Sentence] require body.AbilityTermination = Unterminated
                 export AbilityTermination = Unterminated;
         }
@@ -2596,11 +2640,13 @@ constructions! {
         }
 
         construction QuotedText: QuotedText {
+            head text;
             export QuotationStructure = Simple;
             form ["\"", text: Document, "\""];
         }
 
         construction QuotedClause: QuotedText {
+            head clause;
             export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", clause: Clause, "\""];
@@ -2610,6 +2656,7 @@ constructions! {
         }
 
         construction QuotedKeyword: QuotedText {
+            head keyword;
             export QuotationStructure = Simple;
             boundary Interior;
             form ["\"", keyword: KeywordPhrase, "\""];
@@ -2617,11 +2664,13 @@ constructions! {
         }
 
         construction KeywordGrantedAbility: GrantedAbility {
+            head keyword;
             form [keyword: KeywordPhrase];
             export GrantedAbilityKind = Keyword;
         }
 
         construction QuotedGrantedAbility: GrantedAbility {
+            head quotation;
             form [quotation: QuotedText];
             require quotation.QuotationStructure = Simple;
             export GrantedAbilityKind = Quoted;
@@ -2649,9 +2698,10 @@ constructions! {
         }
 
         construction ActivatedAbility: Ability {
+            head body;
             export LabelKind = None;
             export SentenceLineList = No;
-            form [cost: Cost, ": ", body: Paragraph] export AbilityTermination = Complete;
+            form [cost: Cost, ": ", body: Paragraph];
             form [cost: Cost, ": ", body: Sentence]
                 require body.AbilityTermination = Unterminated
                 export AbilityTermination = Unterminated;
@@ -2680,35 +2730,40 @@ constructions! {
         }
 
         construction Cost: Cost {
+            head none;
             form [first: CostComponent, rest: repeat(CostContinuation, "")];
             export CostComponentForm = final_cost_component(first.CostComponentForm,
                 last(rest).CostComponentForm);
         }
 
         construction CostContinuation: CostContinuation {
+            head component;
             form [", ", component: CostComponent];
-            export CostComponentForm = component.CostComponentForm;
         }
 
         construction ActionCost: CostComponent {
+            head action;
             boundary Initial;
             form [action: BarePredicate];
             export CostComponentForm = Action;
         }
 
         construction SymbolCost: CostComponent {
+            head symbols;
             form [symbols: CostSymbols];
             export CostComponentForm = Symbols;
         }
 
         // Oracle document notation, under the signed-numeral-cost project analysis.
         construction SignedScalarCost: Cost {
+            head value;
             form [value: ScalarComponent];
             require loyalty_sign(value.ScalarSign) = Yes;
             export CostComponentForm = Symbols;
         }
 
         construction ZeroScalarCost: Cost {
+            head none;
             form ["0"];
             export CostComponentForm = Symbols;
         }
@@ -2737,6 +2792,7 @@ constructions! {
         }
 
         construction KeywordLine: Ability {
+            head none;
             export LabelKind = None;
             export SentenceLineList = No;
             export AbilityTermination = Complete;
@@ -2803,17 +2859,20 @@ constructions! {
                 Right.KeywordQualityNumber);
         }
         construction AdjectivalKeywordQuality: KeywordQuality {
+            head phrase;
             form [phrase: AdjectivePhrase];
             require phrase.AdjectiveAttributiveOnlyUse = No;
             require phrase.AdjectiveStructure = Simple;
             export KeywordQualityNumber = Any;
         }
         construction NominalKeywordQuality: KeywordQuality {
+            head phrase;
             form [phrase: Nominal];
             require phrase.Targeting = No;
             export KeywordQualityNumber = quality_number(phrase.number);
         }
         construction NounPhraseKeywordQuality: KeywordQuality {
+            head phrase;
             require phrase.BarePrepositionUse = No;
             form [phrase: NounPhrase];
             require phrase.Targeting = No;
@@ -2963,6 +3022,7 @@ constructions! {
         }
 
         construction Mode: Mode {
+            head body;
             form ["• ", body: Paragraph] export LabelKind = None;
             form ["• ", body: Ability] require body.LabelKind = FlavorWord
                 export LabelKind = FlavorWord;
@@ -2988,6 +3048,7 @@ constructions! {
         }
 
         schema Modes {
+            head none;
             form [first: Mode, rest: repeat(node, "")];
         }
         instance Modes<Result, Rest: rest, Properties = NoFeatures>: [
@@ -3005,6 +3066,7 @@ constructions! {
             export SentenceLineList = Yes;
         }
         schema ModalItem {
+            head none;
             boundary Initial;
             form [header: Clause, " —\n", modes: Modes];
             form [header: SentenceParagraph, "\n", modes: NamedModes];
@@ -3018,9 +3080,9 @@ constructions! {
             (None) => ".", (QuotedFullStop) => "",
         }
         construction Sentence: Sentence {
+            head clause;
             boundary Initial;
-            form [clause: Clause, sentence_terminal(clause.terminal_punctuation)]
-                export AbilityTermination = Complete;
+            form [clause: Clause, sentence_terminal(clause.terminal_punctuation)];
             form [clause: Clause] require clause.terminal_punctuation = None
                 export AbilityTermination = Unterminated;
         }
@@ -3029,6 +3091,7 @@ constructions! {
         // clause or keyword label once. CGEL Ch. 11 §4.8, p. 971 supports
         // content-clause selection, not this variable-defining application.
         schema Supplementation {
+            head anchor;
             boundary Initial;
             form [anchor: node, ", ", supplement: PrepositionPhrase, "."];
             require licence_supplement(supplement.PrepositionFunctionLicence) = Yes;
@@ -3037,13 +3100,11 @@ constructions! {
         policy UnlabelledSupplementation {
             export LabelKind = None;
             export SentenceLineList = No;
-            export AbilityTermination = Complete;
         }
-        policy CompleteSentence {
-            export AbilityTermination = Complete;
-        }
+        instance Supplementation<Result, Anchor: anchor>: [
+            (Sentence, Clause),
+        ] {}
         instance Supplementation<Result, Anchor: anchor, Properties>: [
-            (Sentence, Clause, CompleteSentence),
             (Ability, KeywordPhrase, UnlabelledSupplementation),
         ] {
             use Properties;
@@ -3437,20 +3498,10 @@ constructions! {
                     head.PredicativeAdjunctUse) = Yes
                 require head.SelectedPrepositionUse = No
                 require head.MatrixComplementRequirement = None
-                export NominalAdjunctHost = Yes
-                export ClauseComplementBoundary = head.ClauseComplementBoundary
-                export ConnectiveAdjunctUse = head.ConnectiveAdjunctUse
-                export SourceMarker = head.SourceMarker
-                export PrepositionPhraseComplementMarker = head.PrepositionPhraseComplementMarker
-                export SourceComplementUse = head.SourceComplementUse;
+                export NominalAdjunctHost = Yes;
             form [head: AdverbPhrase]
                 require head.VPFinalAdjunct = Yes
-                export NominalAdjunctHost = No
-                export ClauseComplementBoundary = None
-                export ConnectiveAdjunctUse = No
-                export SourceMarker = No
-                export PrepositionPhraseComplementMarker = None
-                export SourceComplementUse = No;
+                export NominalAdjunctHost = No;
         }
         // A bounded frequency stays inside its coordinate. The standalone
         // predicate route is retained; no extra standalone AdvP is admitted.
@@ -3461,11 +3512,6 @@ constructions! {
             require head.VPFinalAdjunct = Yes;
             export FocusedUse = Yes;
             export NominalAdjunctHost = No;
-            export ClauseComplementBoundary = None;
-            export ConnectiveAdjunctUse = No;
-            export SourceMarker = No;
-            export PrepositionPhraseComplementMarker = None;
-            export SourceComplementUse = No;
         }
         policy FocusedAdjunctConcord<Right, Source> {
             export FocusedUse = Yes;
@@ -3541,7 +3587,6 @@ constructions! {
         construction NominalSymbol: NominalSymbol {
             form ["{", head: lexical(Symbol), "}"]
                 require symbol_nominal_use(head.SymbolNominalUse) = Yes
-                export SymbolNominalUse = head.SymbolNominalUse
                 export NominalAgreementNumber = symbol_nominal_agreement(
                     head.SymbolNominalUse, head.ManaSymbolUse);
             form ["{", head: lexical(Numeral), "}"]
@@ -3649,44 +3694,30 @@ constructions! {
         }
 
         construction Adjective: AdjectivePhrase {
-            export AdjectiveComplementClass = head.AdjectiveComplementClass;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;
-            export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.framing = Unframed;
             export AdjectiveStructure = Simple;
-            export AdjectiveOrigin = head.AdjectiveOrigin;
-            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
-            export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
-            export AdjectiveComplementClass = head.AdjectiveComplementClass;
             export AdjectiveAttributiveOnlyUse = implicit_comparative_attributive_use(
                 head.ImplicitComparativeUse);
-            export ImplicitComparativeUse = head.ImplicitComparativeUse;
-            export PremodifierCoordination = No;
             form [head: lexical(Adjective)];
             require head.frame = Intransitive;
             export AdjectiveStructure = Simple;
-            export AdjectiveOrigin = head.AdjectiveOrigin;
-            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
-            export TargetingPremodifierUse = head.TargetingPremodifierUse;
         }
 
         construction ComplementedAdjective: AdjectivePhrase {
             export AdjectiveComplementClass = None;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;
-            export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition), " ",
                 complement: AccusativePhrase];
             require head.frame = AdjectivalPrepositionComplement;
             require marker.InternalisedComplementMarker = Yes;
             export AdjectiveStructure = Complemented;
-            export AdjectiveOrigin = head.AdjectiveOrigin;
-            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = No;
         }
 
@@ -3696,12 +3727,9 @@ constructions! {
             export AdjectiveComplementClass = None;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;
-            export PremodifierCoordination = No;
             form [head: lexical(Adjective), " ", complement: InfinitiveComplement];
             require head.frame = AdjectivalInfinitive;
             export AdjectiveStructure = Complemented;
-            export AdjectiveOrigin = head.AdjectiveOrigin;
-            export AdjectivePremodifierUse = head.AdjectivePremodifierUse;
             export TargetingPremodifierUse = No;
         }
 
@@ -3762,11 +3790,6 @@ constructions! {
             export SyndeticPremodifier = No;
             form [head: NounPremodifier];
             require head.PremodifierCoordination = No;
-            export NounPremodifier = head.NounPremodifier;
-            export AdjectiveOrigin = Ordinary;
-            export TargetingPremodifierUse = No;
-            export SelectedPrepositionUse = No;
-            export PredicativeAdjunctUse = No;
         }
 
         construction AdjectivePremodifierMember: Premodifier {
@@ -3777,8 +3800,6 @@ constructions! {
             require head.AdjectiveStructure = Simple;
             require head.AdjectivePremodifierUse = Yes;
             export NounPremodifier = None;
-            export AdjectiveOrigin = head.AdjectiveOrigin;
-            export TargetingPremodifierUse = head.TargetingPremodifierUse;
             export SelectedPrepositionUse = Yes;
             export PredicativeAdjunctUse = Yes;
         }
@@ -3923,7 +3944,6 @@ constructions! {
             form [head: lexical(Adjective)];
             require discontinuous_governor_frame(head.frame, head.ImplicitComparativeUse) = Yes;
             export frame = head.frame;
-            export ImplicitComparativeUse = head.ImplicitComparativeUse;
         }
         policy DiscontinuousGovernorConcord<Right, Source> {
             export frame = coordinated_discontinuous_frame(left.frame, Right.frame);
@@ -3937,9 +3957,7 @@ constructions! {
         construction ComparativeDeterminerHead: ComparativeDeterminerHead {
             form [head: lexical(Determinative)];
             require head.ComparativeDeterminerUse = Yes;
-            export ComparativeDeterminerUse = head.ComparativeDeterminerUse;
             export DeterminerUse = head.DeterminerUse;
-            export NominalAdjunctDependent = head.NominalAdjunctDependent;
         }
 
         policy DiscontinuousComparativeModifier {
@@ -4457,7 +4475,8 @@ constructions! {
             export BareGenitiveHost = No;
             export Targeting = No;
             form [head: lexical(Pronoun)];
-            use PredicateHeadAgreement;
+            export number = head.number;
+            export person = head.person;
             require head.case = Accusative;
             require head.ExistentialUse = No;
             export CaseUse = Accusative;
@@ -4551,14 +4570,9 @@ constructions! {
             export InternalisedComplementMarker = No;
         }
         policy FocusedAdverbPermissions {
-            export FrequencyUse = head.FrequencyUse;
-            export NominalAdjunctHost = Yes;
             export FocusedUse = Yes;
             require head.VPFinalAdjunct = Yes;
-            export VPFinalAdjunct = head.VPFinalAdjunct;
             export ClauseInitialAdjunct = No;
-            export DurationUse = head.DurationUse;
-            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
         }
         policy FocusedNounPhrasePermissions {
             export FocusedUse = Yes;
@@ -5114,7 +5128,6 @@ constructions! {
             (Manner, Temporal) => None, (Manner, Manner) => Manner,
         }
         construction NominalAdjunctPhrase: NominalAdjunctPhrase {
-            export NominalAdjunctClass = head.NominalAdjunctClass;
             export NominalAdjunctDependent = determiner.NominalAdjunctDependent;
             form [determiner: lexical(Determinative), " ", head: Nominal]
                 require determiner_license(determiner.DeterminerUse, head.number, head.countability,
@@ -5487,11 +5500,9 @@ constructions! {
         }
 
         construction CardinalQuantityConjunct: QuantityConjunct {
-            export CardinalMeasurementUse = No;
+            head value;
             cost 0;
             form [value: Cardinal];
-            export number = value.number;
-            export CardinalComplementUse = value.CardinalComplementUse;
         }
 
         policy VariableCountProperties {
@@ -5646,6 +5657,7 @@ constructions! {
         // CGEL Ch. 5 §7.6, p. 386: a numeral and comparative are Conjuncts.
         // §3.4, p. 353 n. 13: with a count noun, it selects a plural head.
         construction NumeralComparativeCoordination: ComparativeQuantity {
+            head none;
             export FrequencyUse = No;
             export MeasureModifierUse = right.MeasureModifierUse;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
@@ -5660,7 +5672,6 @@ constructions! {
         // CGEL Ch. 5 §11(d), p. 432: the quantifier in the PP Complement
         // controls head selection, including singular more than one.
         construction ComparativeDeterminativePhrase: ComparativeQuantity {
-            export MeasureModifierUse = head.MeasureModifierUse;
             form [modifier: optional(lexical(Determinative), " "),
                 head: lexical(Determinative), " ", complement: ComparativePrepositionPhrase]
                 export number = complement.number
@@ -5680,6 +5691,7 @@ constructions! {
 
         // MH2: a declared Determinative may coordinate with a cardinal count.
         construction CardinalDeterminativeCoordination: QuantitativeDeterminer {
+            head none;
             export DegreeUse = None;
             form [left: Cardinal, " ", coordinator: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
@@ -5693,9 +5705,8 @@ constructions! {
         }
 
         construction ComparativeQuantityDeterminer: QuantitativeDeterminer {
-            export DegreeUse = None;
+            head value;
             export Definiteness = Nondefinite;
-            export NominalAdjunctDependent = None;
             cost 0;
             form [value: ComparativeQuantity];
             require value.FrequencyUse = No;
@@ -5704,9 +5715,8 @@ constructions! {
         }
 
         construction CardinalDeterminer: QuantitativeDeterminer {
-            export DegreeUse = None;
+            head value;
             export Definiteness = Nondefinite;
-            export NominalAdjunctDependent = None;
             cost 0;
             form [value: Cardinal];
             export DeterminerUse = cardinal_determiner_use(value.number);
@@ -5714,16 +5724,13 @@ constructions! {
         }
 
         construction PrepositionDeterminer: QuantitativeDeterminer {
-            export DegreeUse = None;
+            head value;
             export Definiteness = Nondefinite;
-            export NominalAdjunctDependent = None;
             cost 0;
             form [value: QuantitativePrepositionPhrase]
                 export DeterminerUse = cardinal_determiner_use(value.number)
                 export DeterminerAgreementNumber = cardinal_agreement_number(value.number);
-            form [value: QuantitativeDegreePrepositionPhrase]
-                export DeterminerUse = value.DeterminerUse
-                export DeterminerAgreementNumber = value.DeterminerAgreementNumber;
+            form [value: QuantitativeDegreePrepositionPhrase];
         }
 
         table cardinal_agreement_number(number) -> DeterminerAgreementNumber {
@@ -5743,10 +5750,8 @@ constructions! {
 
         // CGEL Ch. 5 §11(c), p. 431: degree modification within a DP.
         construction DegreeDeterminativePhrase: QuantitativeDeterminer {
-            export DegreeUse = head.DegreeUse;
             export Definiteness = modifier.Definiteness;
             export NominalAdjunctDependent = None;
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             // DQ1: the optional addition/subtraction PP is internal to the DP.
             form [modifier: lexical(Determinative), " ", head: lexical(Determinative),
                 arithmetic_modifier: optional(ArithmeticModifier)];
@@ -5840,7 +5845,6 @@ constructions! {
             export AdjectiveComplementClass = None;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;
-            export PremodifierCoordination = No;
             form [head: lexical(Numeral)];
             require head.numeral_kind = Ordinal;
             export AdjectiveStructure = Simple;
@@ -5872,17 +5876,19 @@ constructions! {
         }
 
         construction UnsignedScalar: ScalarComponent {
-            export ScalarSign = Absent;
+            head value;
             form [value: UnsignedScalar];
         }
 
         construction PositiveScalar: ScalarComponent {
+            head value;
             export ScalarSign = Plus;
             onset Consonant;
             form ["+", value: UnsignedScalar];
         }
 
         construction NegativeScalar: ScalarComponent {
+            head value;
             onset Consonant;
             form ["-", value: UnsignedScalar] export ScalarSign = Hyphen;
             form ["−", value: UnsignedScalar] export ScalarSign = Minus;
@@ -5894,6 +5900,7 @@ constructions! {
             (No) => No, (Yes) => Yes,
         }
         construction SlashPair: SlashPair {
+            head none;
             form [determiner: optional(lexical(Determinative), " "),
                 modifier: optional(lexical(Adjective), " "),
                 left: ScalarComponent, "/", right: ScalarComponent]
@@ -5912,20 +5919,16 @@ constructions! {
             export AdditiveModifierUse = additive_modifier_presence(modifier.present);
         }
 
-        policy UnitFreeMeasure {
-            export UnitBearing = No;
-        }
-        policy NoPropertyEquality {
-            export PropertyEqualityForm = None;
-        }
         schema SlashMeasure {
+            head pair;
             form [pair: SlashPair];
             require pair.AdditiveModifierUse = No;
             export MeasureKind = Pair;
         }
-        instance SlashMeasure<Result, Properties = NoFeatures>: [
-            (MeasurePhrase, UnitFreeMeasure), (PropertyValue, NoPropertyEquality),
-        ] { use Properties; }
+        instance SlashMeasure<Result>: [
+            (MeasurePhrase),
+            (PropertyValue),
+        ] {}
 
         table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
             -> SlashPremodifierUse {
@@ -5950,7 +5953,7 @@ constructions! {
         }
 
         construction ScalarMeasureOperand: ArithmeticOperand {
-            export UnitBearing = value.UnitBearing;
+            head value;
             form [value: MeasurePhrase];
             require value.MeasureKind = Scalar;
         }
@@ -5961,7 +5964,7 @@ constructions! {
             require head.numeral_kind = Cardinal;
         }
         construction ScalarNominalOperand: ArithmeticOperand {
-            export UnitBearing = value.UnitBearing;
+            head value;
             form [value: NounPhrase];
             require value.ScalarDenotation = Yes;
         }
@@ -5969,6 +5972,7 @@ constructions! {
         // Arithmetic nominal operands follow ticket rulings R10a–R10d
         // (2026-10-09). CGEL's PP complementation does not supply this route.
         construction ArithmeticMeasure: MeasurePhrase {
+            head none;
             export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, right.UnitBearing);
             form [left: ArithmeticOperand, " ", operator: lexical(Preposition), " ",
                 right: ArithmeticOperand];
@@ -6014,15 +6018,14 @@ constructions! {
         }
 
         policy ScalarValueMeasure {
-            export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             require value.MeasureKind = Scalar;
         }
         policy ScalarPropertyValueKind {
             export MeasureKind = Scalar;
-            export PropertyEqualityForm = value.PropertyEqualityForm;
         }
         schema ScalarMeasureValue {
+            head value;
             cost 0;
             form [value: node];
         }
@@ -6040,8 +6043,8 @@ constructions! {
         // CGEL Ch. 6 §3.3(c), p. 552 supports their postpositive function,
         // not this value-slot analysis.
         construction ComparativeScalarValue: ScalarValue {
+            head value;
             export PredicativeKind = Adjectival;
-            export PropertyEqualityForm = value.PropertyEqualityForm;
             form [value: ComparativeAdjectivePhrase];
         }
 
@@ -6053,7 +6056,7 @@ constructions! {
         }
 
         construction ScalarPropertyCoordination: ScalarValue {
-            export PropertyEqualityForm = None;
+            head value;
             export PredicativeKind = Nominal;
             cost 0;
             form [value: ComparativeQuantity];
@@ -6063,6 +6066,7 @@ constructions! {
         // CGEL Ch. 5 §11(d), p. 432 n. 48 classifies greater as an
         // Adjective. Its permission in this value position is a project ruling.
         construction AdjectivalScalarCoordination: ScalarValue {
+            head none;
             export PropertyEqualityForm = None;
             export PredicativeKind = Nominal;
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
@@ -6122,6 +6126,7 @@ constructions! {
             export ComparativeComplementForm = nonfinite_comparative_form(complement.form);
         }
         construction MatrixComparativePhrase: MatrixComparativePhrase {
+            head governor;
             form [governor: lexical(Adverb), " ", complement: MatrixComparativeComplement];
             require governor.MatrixComparisonUse = Yes;
             agree governor.ComparisonMarker = complement.ComparisonMarker;
@@ -6162,7 +6167,7 @@ constructions! {
         }
 
         construction ScalarComparativeComplement: ComparativeComplement {
-            export AdjectivePremodifierUse = Yes;
+            head value;
             form [value: ScalarMeasurePhrase];
         }
 
@@ -6174,13 +6179,13 @@ constructions! {
         }
 
         construction NominalComparativeComplement: ComparativeComplement {
-            export AdjectivePremodifierUse = Yes;
+            head value;
             form [value: AccusativePhrase];
         }
 
         construction ComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            head governor;
             export PropertyEqualityForm = property_equality_form(governor.ComparisonMarker);
-            export ComparisonMarker = governor.ComparisonMarker;
             export AdjectivePremodifierUse = complement.AdjectivePremodifierUse;
             form [governor: ComparativeGovernorHead, " ", complement: ComparativeComplement];
         }
@@ -6190,25 +6195,19 @@ constructions! {
         // copular Verb; this prefix AdjP shape has neither. Its plural
         // predicand requirement is discharged only by MeasuredAttribute.
         construction QuantifiedComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
+            head value;
             form [quantifier: lexical(Determinative), " ", value: ComparativeAdjectivePhrase];
             require quantifier.QuantificationalAdjunctUse = Yes;
             require value.PropertyEqualityForm = Unquantified;
             export PropertyEqualityForm = Quantified;
-            export ComparisonMarker = value.ComparisonMarker;
             export AdjectivePremodifierUse = No;
         }
 
         construction ComparativeAdjective: AdjectivePhrase {
+            head phrase;
             require unquantified_comparative(phrase.PropertyEqualityForm) = Yes;
-            export AdjectiveComplementClass = None;
-            export AdjectiveAttributiveOnlyUse = No;
-            export ImplicitComparativeUse = No;
-            export PremodifierCoordination = No;
             form [phrase: ComparativeAdjectivePhrase];
             export AdjectiveStructure = Complemented;
-            export AdjectiveOrigin = Ordinary;
-            export AdjectivePremodifierUse = phrase.AdjectivePremodifierUse;
-            export TargetingPremodifierUse = No;
         }
 
         construction CardinalAmount: Amount {
@@ -6226,29 +6225,19 @@ constructions! {
         // Complements is the project analysis tested in this ticket.
         construction EquativeAdverb: AdverbPhrase {
             export FrequencyUse = No;
-            export NominalAdjunctHost = Yes;
-            export FocusedUse = No;
             form [governor: lexical(Adverb), " ", head: lexical(Adverb), " ",
                 marker: lexical(Preposition), " ", complement: FiniteClause];
             require governor.ComparisonMarker = Equality;
             require head.DurationUse = Yes;
             require marker.ExpandedComparisonMarker = Equality;
-            export DurationUse = head.DurationUse;
             export VPFinalAdjunct = head.VPFinalAdjunct;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
             export UnmarkedConjunctLicence = governor.UnmarkedConjunctLicence;
         }
 
         construction Adverb: AdverbPhrase {
-            export FrequencyUse = head.FrequencyUse;
-            export NominalAdjunctHost = Yes;
             require head.MatrixComparisonUse = No;
-            export FocusedUse = No;
             form [head: lexical(Adverb)];
             export VPFinalAdjunct = head.VPFinalAdjunct;
-            export ClauseInitialAdjunct = head.ClauseInitialAdjunct;
-            export DurationUse = head.DurationUse;
-            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
         }
         instance DepictivePredicate<Result, Properties>: [
             (FinitePredicate, FiniteHeadAgreement),
@@ -6321,8 +6310,7 @@ constructions! {
 
         instance ToInfinitive<Result, Predicate: predicate>: [
             (PurposeInfinitival, BarePredicate),
-        ] {
-        }
+        ] {}
 
         // DR6 fallback: optional lexical fields cannot participate in the
         // cross-field frame/marker licence or export its completion distinction.
@@ -6360,7 +6348,6 @@ constructions! {
             export number = Singular;
             export person = Third;
             export SubjectStructure = Phrase;
-            export DeterminerAgreementNumber = Nominal;
         }
 
         // Shared head primitives: exact selected signatures; no complement or coordination yet.
