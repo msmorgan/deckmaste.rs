@@ -115,4 +115,4 @@ It also displays `scope=`, `gap=`, `binds=`, `shared=`, host kind and lexical-fo
 
 ## Gate
 
-Reading digests identical on every face, enforced by the census check mode from `grammar-size-report-and-check-mode` as an identical-digest landing, which gains its analysis-key landing type here. Note: census delta (none); the judgment-set line does not apply yet.
+Reading digests identical on every face, enforced by the census `diff` check mode as an identical-digest landing, which gains its analysis-key landing type here. Note: census delta (none); the judgment-set line does not apply yet.

@@ -1,5 +1,5 @@
 ---
-needs: [grammar-size-report-and-check-mode]
+needs: [grammar-registered-labels-not-flavor-words]
 ---
 # Head inheritance and defaults: prototype on the Nominal constructions
 
@@ -15,5 +15,7 @@ Licences themselves stay at admission. The 2026-10-07 permissive-admission exper
 - Convert the 21 constructions that produce `Nominal`, and nothing else, as the prototype.
 
 ## Gate
+
+This ticket also makes the census `diff` able to fail: today it exits 0 whatever it finds (`crates/xtask/src/english_v3/diff.rs:3`). Add a check mode that exits non-zero on a lost face, an incomplete enumeration, an incompatible baseline, or, for an identical-digest landing, any changed digest. Later tickets use it.
 
 Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capability. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Note: census delta (none); the judgment-set line does not apply yet.
