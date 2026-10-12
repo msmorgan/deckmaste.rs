@@ -118,15 +118,11 @@ costs dozens of lines is a defect in the authoring layer, to be fixed there.
 
 ## 6. Size
 
-About 2,400 grammar lines at 98% coverage has existed, so a grammar several
-times that size is a defect.
+The aim is a clean, concise, correct grammar. Line count is a reasonable
+measurement of that and is not a target: nothing enforces it, and no landing
+is required to lower or record it. A size report is available from the tool.
 
-- The size report, over every declaration kind, is printed in each landing's
-  note. It is for visibility.
-- One number is enforced by the check mode: total authored grammar lines,
-  recorded in one small tracked file. During the consolidation it may not
-  rise, and each landing lowers it. The landing that adds the analysis-key
-  mapping is the one exception, and it reports by how much.
-- When coverage work resumes: at most 0.25 grammar lines added per face
-  gained, vocabulary-only faces first. A landing over the rate is refused.
-- Only the owner changes these numbers.
+About 2,400 grammar lines at 98% coverage has existed, so a grammar several
+times that size is a defect. It is fixed by better abstractions (section 4),
+not by counting. The rule for resuming coverage work is decided when that
+step is reached.

@@ -16,4 +16,4 @@ Coordination is enumerated per category today: 51 `*Series` and `Correlative*` c
 
 ## Gate
 
-Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md`. Note: census delta (none); the size report and the tracked grammar line total lowered to the new total; the analysis-key and judgment-set lines do not apply yet.
+Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md`. Note: census delta (none); the judgment-set line does not apply yet.

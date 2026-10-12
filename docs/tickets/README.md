@@ -176,14 +176,12 @@ it never goes in the tracked `.claude/settings.json`.
 ## Landing note (English grammar tickets only)
 
 A ticket that changes the English grammar, its compiler, its lexicon or its
-census tool ends with three lines, stamped with the change id they were
+census tool ends with two lines, stamped with the change id they were
 measured on. No other ticket carries a landing record.
 
 1. **Census delta**: faces read and total Readings before and after; lost
    faces by name, or "none".
-2. **Size**: the size report from the size tool, and the tracked grammar line
-   total before and after.
-3. **Judgment set**: the result of running it.
+2. **Judgment set**: the result of running it.
 
 A ticket that lands before an instrument exists says which line does not apply
 yet. A ticket that changes census semantics, adds an instrument or completes a

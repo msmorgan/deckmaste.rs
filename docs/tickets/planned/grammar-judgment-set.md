@@ -36,4 +36,4 @@ The census reports faces as read, read only by a known-wrong analysis, and unrea
 
 ## Gate
 
-Reading digests identical on every face, enforced by the census check mode for an identical-digest landing. The landing updates the census description in `crates/deckmaste_english_v3/README.md`. Report in full: census delta (none; the three coverage numbers stated for the first time, earlier landings having reported plain read and unread); the size report and the tracked grammar line total lowered to the new total; judgment-set result (entries by kind, unmet obligations listed, agreed versus sent to the owner, test outcome).
+Reading digests identical on every face, enforced by the census check mode for an identical-digest landing. The landing updates the census description in `crates/deckmaste_english_v3/README.md`. Report in full: census delta (none; the three coverage numbers stated for the first time, earlier landings having reported plain read and unread); judgment-set result (entries by kind, unmet obligations listed, agreed versus sent to the owner, test outcome).

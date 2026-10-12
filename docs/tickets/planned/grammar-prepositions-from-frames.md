@@ -7,7 +7,7 @@ needs: [grammar-frame-derived-gaps]
 
 Goal: build preposition phrases from preposition frames and make case a feature, removing the case wrappers (`CasePhrase` is the most-built construction, 7,744,012 nodes; `Noun` follows at 6,480,818). 18 constructions produce `PrepositionPhrase`. "Search your library for a card." has 3 readings (frame complement, verb-phrase adjunct, postmodifier of "library"); the `search` plugin frame `[ObjectNounPhrase, Lex("Preposition","For"), ObjectNounPhrase]` is used by only one of them.
 
-Gate decided so far: no face lost; the census check mode passes for the landing type the owner assigns; the tracked grammar line total lowered; three-line note.
+Gate decided so far: no face lost; the census check mode passes for the landing type the owner assigns; two-line note.
 
 The specification must include an inventory of the existing tests that pin the affected tree shapes (for example the case-wrapper constructions in `crates/deckmaste_english_v3/tests/suite/relative_clause_adjuncts.rs`) and re-spell each against the new shape for the same witnesses; tests are never deleted to pass, and the landing reports restored, re-spelled, added and removed counts. The landing updates the affected crate README.
 

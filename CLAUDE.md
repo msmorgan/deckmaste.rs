@@ -38,7 +38,7 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 - **Never `kata refresh --all`** (human-only).
 - Tickets: `docs/tickets/<status>/<slug>.md`; `docs/tickets/README.md` is the model.
   `kata kanban ready` lists claimable items. Name your session after the item.
-- English grammar tickets end with the three-line note in `docs/tickets/README.md`. Other tickets
+- English grammar tickets end with the two-line note in `docs/tickets/README.md`. Other tickets
   carry no landing record.
 - A ticket-vs-ruling contradiction resolved without a STOP is a HIGH finding, even when disclosed.
 - If another feature moved a ticket you also hold to `done/`, reconcile the meaning (move or mint
