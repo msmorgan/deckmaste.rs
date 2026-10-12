@@ -19,3 +19,46 @@ Licences themselves stay at admission. The 2026-10-07 permissive-admission exper
 This ticket also makes the census `diff` able to fail: today it exits 0 whatever it finds (`crates/xtask/src/english_v3/diff.rs:3`). Add a check mode that exits non-zero on a lost face, an incomplete enumeration, an incompatible baseline, or, for an identical-digest landing, any changed digest. Later tickets use it.
 
 Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md` for the completed compiler capability. Report in the landing: how many export lines the prototype removed, whether the one-rule or the composed rule was needed to get there, and the compiler-side tests added in `crates/deckmaste_construction_v3_core`. Note: census delta (none); the judgment-set line does not apply yet.
+
+## Implemented design
+
+Standard constraints apply. Features opt into `head` or `local` propagation;
+`head field;` names a singular lexical or constituent field. Explicit equations
+from constructions, forms, schemas and policies override inference, while
+conflicting explicit exports still reject. After schema binding, an omitted head
+feature copies an accessible head feature, otherwise takes its declared default;
+a local feature takes only its declared default. No applicable source/default is
+a compile error naming the construction and feature. Fallback is static, never a
+runtime repair of an absent value. Unqualified features retain explicit exports.
+The compiler README documents the semantics and inspection procedure; the English
+README lists all export origins for `MeasuredSymbolNominal`.
+
+Only the 21 ordinary Nominal constructions were converted. Their 28 existing
+interface features received propagation annotations (including two builtin
+annotations, not new domains). `NominalDependentPresent`,
+`ScalarMeasurementHeadUse` and `PropertyValuePosition` are local; the others
+inherit. No feature domain/default, lexicon, category, construction, table or
+policy was added or changed beyond this authoring mechanism. Shared policies
+remain for their unconverted users.
+
+The composed rule supplies 436 head forwards and 50 defaults. Direct export
+statements fell from 252 to 102; construction blocks from 423 to 271 physical
+lines, and declarations.rs from 7,702 to 7,552. Six blocks grow because replacing
+a policy use exposes its non-inherited changes: Noun and BareFramedNoun each
+10→12; SelectedComplementNominal 14→18; SymbolComplementNominal 13→17;
+PrepositionComplementNominal 31→35; PostmodifiedNominal 14→15. Their expanded
+export maps and ordered forms, like those of the other 15 blocks, are unchanged.
+CorrelativePostpositiveNominal has no census witness; it was included in that
+structural comparison rather than claiming corpus coverage for it.
+
+`english-v3 diff --check no-loss` rejects incompatible/incomplete evidence and
+lost faces; `--check identical-digests` additionally rejects every changed count
+or digest, including unread faces. The 56-face subset and full identical-digest
+checks passed; an intentionally altered scratch digest produced exit 1. Added
+10 compiler tests and 4 census-check tests; restored/re-spelled/newly ignored/
+removed tests: 0/0/0/0. Boolean requirements and policy composition remain next;
+coordination still needs per-feature combiners, and typed lexical classes must
+refine lexical source accessibility. No other constructions were converted.
+
+Census delta (otnsrlky): none — faces read 30,794→30,794; total Readings 482,041→482,041; lost faces: none; all 32,828 face digests identical.
+Judgment set (otnsrlky): does not apply yet for this ticket.
