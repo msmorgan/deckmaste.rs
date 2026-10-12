@@ -120,7 +120,7 @@ costs dozens of lines is a defect in the authoring layer, to be fixed there.
 
 The aim is a clean, concise, correct grammar. Line count is a reasonable
 measurement of that and is not a target: nothing enforces it, and no landing
-is required to lower or record it. A size report is available from the tool.
+is required to lower or record it.
 
 About 2,400 grammar lines at 98% coverage has existed, so a grammar several
 times that size is a defect. It is fixed by better abstractions (section 4),
