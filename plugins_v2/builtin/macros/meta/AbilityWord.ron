@@ -13,7 +13,7 @@
 //
 // `kinds` names the family first and the SEMANTIC kind second: the family
 // (`AbilityWord`) is the declaration's identity, which
-// `deckmaste_construction_core::macro_def::normalized_kind` reads, and
+// `deckmaste_macro_def::normalized_kind` reads, and
 // `Ability` is the position this body occupies, which is what makes
 // `Threshold(<ability>)` resolve where a card writes an ability. Both are
 // registered kinds in `deckmaste_semantics_v2::ron::kinds`, so the produced

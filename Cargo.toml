@@ -16,7 +16,6 @@ members = [
     "crates/deckmaste_engine",
     "crates/deckmaste_english",
     "crates/deckmaste_features",
-    "crates/deckmaste_construction_core",
     "crates/deckmaste_macro_def",
     "crates/deckmaste_construction_compiler",
     "crates/deckmaste_constructions_macro",
@@ -98,9 +97,6 @@ opt-level = 2
 
 # Generic JSONL/macro_ron decoding is monomorphized here and governs startup.
 [profile.dev.package.deckmaste_lexical_source]
-opt-level = 2
-
-[profile.dev.package.deckmaste_construction_core]
 opt-level = 2
 
 [profile.dev.package.deckmaste_macro_def]

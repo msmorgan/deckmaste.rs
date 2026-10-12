@@ -8,7 +8,7 @@
 // `kinds` names the family first and `RelationLabel` second, so the name
 // reads where a relation is written and denotes the label its definition
 // names. A relation is not a construction of the English grammar, so
-// `deckmaste_construction_core` does not read this family.
+// `deckmaste_macro_def` does not read this family.
 (
     name: "Relation",
     kinds: [Macro],

@@ -494,23 +494,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "deckmaste_construction_core"
-version = "0.1.0"
-dependencies = [
- "deckmaste_data",
- "deckmaste_macro_def",
- "macro_ron",
- "prettyplease",
- "proc-macro2",
- "quote",
- "ron",
- "serde",
- "syn 2.0.117",
- "tempfile",
- "thiserror",
-]
-
-[[package]]
 name = "deckmaste_construction_v3"
 version = "0.1.0"
 dependencies = [

@@ -38,7 +38,7 @@ fn builtin() -> PathBuf {
 #[test]
 fn both_readers_accept_every_builtin_declaration() {
     let root = builtin();
-    let typed = read_builtin_v2(&root).expect("construction_core reads the builtin declarations");
+    let typed = read_builtin_v2(&root).expect("deckmaste_macro_def reads the builtin declarations");
     let opaque = Plugin::load(&root).expect("semantics_v2 reads the builtin declarations");
 
     let typed_names: BTreeSet<String> = typed
@@ -48,7 +48,7 @@ fn both_readers_accept_every_builtin_declaration() {
     // The nursery is shared. `macros/meta/` holds the declaration
     // meta-macros, which the typed reader consumes rather than reports, and
     // the helper macro families beside it are declarations of no construction
-    // at all — semantics_v2 reads them and construction_core does not. The
+    // at all — semantics_v2 reads them and deckmaste_macro_def does not. The
     // shared contract is the SPELLED families, and which those are is read
     // off the typed reading rather than restated here.
     let families: BTreeSet<PathBuf> = typed
@@ -71,7 +71,7 @@ fn both_readers_accept_every_builtin_declaration() {
     assert!(
         only_typed.is_empty() && only_opaque.is_empty(),
         "the two readings of plugins_v2/builtin disagree\n  \
-         construction_core only: {only_typed:?}\n  semantics_v2 only: {only_opaque:?}"
+         deckmaste_macro_def only: {only_typed:?}\n  semantics_v2 only: {only_opaque:?}"
     );
     assert!(
         !typed_names.is_empty(),
@@ -89,7 +89,7 @@ fn both_readers_accept_every_builtin_declaration() {
 /// rather than failing), so this never fails for a real registration — it
 /// exists to catch a future closing-back-up of the enum.
 #[test]
-fn every_semantics_v2_param_type_parses_in_construction_core() {
+fn every_semantics_v2_param_type_parses_in_deckmaste_macro_def() {
     let types = param_types();
     let names: Vec<&str> = types.names().collect();
     assert!(
@@ -99,7 +99,7 @@ fn every_semantics_v2_param_type_parses_in_construction_core() {
     for name in names {
         assert!(
             ParameterType::new(name).is_ok(),
-            "`{name}` is a `deckmaste_semantics_v2` param type construction_core cannot parse"
+            "`{name}` is a `deckmaste_semantics_v2` param type deckmaste_macro_def cannot parse"
         );
     }
 }
