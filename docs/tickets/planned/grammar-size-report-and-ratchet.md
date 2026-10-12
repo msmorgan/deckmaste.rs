@@ -1,5 +1,5 @@
 ---
-needs: [grammar-per-sentence-enumeration]
+needs: [grammar-registered-labels-not-flavor-words]
 ---
 # Size report, grammar line total and census check mode
 
