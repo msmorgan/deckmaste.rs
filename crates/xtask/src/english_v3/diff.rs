@@ -489,7 +489,13 @@ fn check_reports(
     before: &serde_json::Value,
     after: &serde_json::Value,
 ) -> Result<()> {
-    for field in ["field", "input_sha256", "support_filter", "input_policy"] {
+    for field in [
+        "field",
+        "input_sha256",
+        "support_filter",
+        "input_policy",
+        "selection_status",
+    ] {
         ensure!(
             before[field]
                 .as_str()
@@ -898,6 +904,22 @@ mod check_tests {
             },
             &mut Vec::new(),
         )
+    }
+
+    #[test]
+    fn check_rejects_different_selection_statuses_with_the_same_faces() {
+        let before = census();
+        let mut after = before.clone();
+        after["selection_status"] = "subset".into();
+        after["analysis_status"] = "subset".into();
+        for mode in [CheckMode::NoLoss, CheckMode::IdenticalDigests] {
+            assert!(
+                check_reports(mode, &before, &after)
+                    .unwrap_err()
+                    .to_string()
+                    .contains("selection_status")
+            );
+        }
     }
 
     #[test]
