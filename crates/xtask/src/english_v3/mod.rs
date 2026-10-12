@@ -2,6 +2,7 @@
 
 mod blockers;
 mod card_scope;
+mod decomposition;
 mod diff;
 mod grep;
 mod incremental;
@@ -13,7 +14,6 @@ mod validation;
 mod tests;
 
 use std::collections::BTreeMap;
-use std::collections::BTreeSet;
 use std::io::BufWriter;
 use std::io::Write;
 use std::num::NonZeroUsize;
@@ -34,16 +34,12 @@ use rayon::prelude::*;
 use serde::Deserialize;
 use serde::Serialize;
 
-use crate::english_v3::report::Enumeration;
 use crate::english_v3::report::FaceReport;
-use crate::english_v3::report::LineReport;
 use crate::english_v3::report::Measurements;
 use crate::english_v3::report::Report;
 use crate::english_v3::report::Sample;
 use crate::english_v3::report::UnknownWord;
 use crate::english_v3::validation::Issue;
-use crate::english_v3::validation::Tracing;
-use crate::english_v3::validation::validate_in_context;
 use crate::raw_corpus::CorpusSelectionArgs;
 use crate::raw_corpus::SelectedFace;
 use crate::raw_corpus::digest;
@@ -92,7 +88,11 @@ pub struct EnglishV3Args {
     /// faces.
     #[arg(long)]
     pub incremental_from: Option<PathBuf>,
-    /// Cap candidate requests per top-level line. Omit for a complete census.
+    /// Verify the single schema-8 migration baseline against reconstructed
+    /// region trees.
+    #[arg(long)]
+    pub migration_from: Option<PathBuf>,
+    /// Cap candidate requests per enumeration unit. Omit for a complete census.
     #[arg(long)]
     pub reading_limit: Option<NonZeroUsize>,
     /// Retain this many checked grammatical trees per face.
@@ -121,6 +121,10 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
         }
         None => {}
     }
+    ensure!(
+        args.migration_from.is_none() || args.reading_limit.is_none(),
+        "migration requires complete enumeration"
+    );
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -172,13 +176,18 @@ fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -
     writer.flush()?;
     writeln!(
         output,
-        "{} supported faces: {} no, {} one, {} multiple, {} undetermined; {} issues",
+        "{} supported faces: {} unread, {} read unambiguous, {} read ambiguous, {} incomplete; {} issues",
         report.faces.len(),
         report.totals.no,
         report.totals.one,
         report.totals.multiple,
         report.totals.undetermined,
         report.totals.issues
+    )?;
+    writeln!(
+        output,
+        "{} checked enumerated unit Readings (exact only for complete faces)",
+        report.totals.checked_readings
     )?;
     writeln!(
         output,
@@ -211,6 +220,9 @@ fn write_report(args: &EnglishV3Args, report: &Report, output: &mut dyn Write) -
         )?;
     }
     writeln!(output, "Report: {}", destination.display())?;
+    if let Some(path) = &args.migration_from {
+        decomposition::verify_migration(path, report, output)?;
+    }
     ensure!(
         report.totals.issues == 0,
         "English v3 issues recorded in {}",
@@ -279,41 +291,21 @@ fn analyze_face_with_progress(
             furthest_position = forest.metrics().furthest_position;
             result.chart = report::chart_metrics(forest.metrics());
             let started = Instant::now();
-            let (segments, category) =
-                match census_segments(&forest, args.field.category(), analyzed.tokens.len()) {
-                    Ok(segments) => segments,
-                    Err(issue) => {
-                        result.issues.push(issue);
-                        (Vec::new(), args.field.category())
-                    }
-                };
-            let context = std::cell::OnceCell::new();
-            for segment in segments {
-                let span = analyzed
-                    .byte_range(segment.span.start, segment.span.end)
-                    .context("segment has invalid chart coordinates")?;
-                let line = analyze_line(
-                    &forest,
-                    &CensusSegment {
-                        span,
-                        nodes: segment.nodes.into_iter().collect(),
-                        category,
-                    },
-                    grammar,
-                    lexicon,
-                    args,
-                    &mut result,
-                    context.get_or_init(|| {
-                        deckmaste_english_v3::grammar::RealizationContext::new_scoped(
-                            grammar,
-                            lexicon,
-                            analyzed.text(),
-                            &scope,
-                        )
-                    }),
-                )?;
-                result.lines.push(line);
-            }
+            let context = deckmaste_english_v3::grammar::RealizationContext::new_scoped(
+                grammar,
+                lexicon,
+                analyzed.text(),
+                &scope,
+            );
+            decomposition::analyze(
+                &forest,
+                &analyzed,
+                grammar,
+                lexicon,
+                args,
+                &mut result,
+                &context,
+            )?;
             result.validation_wall_ns = started.elapsed().as_nanos();
         }
         Err(error) => {
@@ -326,132 +318,6 @@ fn analyze_face_with_progress(
         .zip(report::thread_cpu_ns())
         .map(|(start, end)| end - start);
     Ok((result, furthest_position))
-}
-
-fn census_segments(
-    forest: &deckmaste_english_v3::GrammarForest<Grammar>,
-    category: Category,
-    length: usize,
-) -> Result<(Vec<deckmaste_english_v3::Segment>, Category), Issue> {
-    let whole = || {
-        vec![deckmaste_english_v3::Segment {
-            span: 0..length,
-            nodes: forest.roots().iter().copied().collect(),
-        }]
-    };
-    if category != Category::Document {
-        return Ok((whole(), category));
-    }
-    let segments = forest
-        .segments(&Category::Ability)
-        .map_err(|error| match error {
-            deckmaste_english_v3::SegmentationError::Ambiguous => Issue::AmbiguousSegmentation,
-            error @ deckmaste_english_v3::SegmentationError::Cycle => {
-                Issue::Materialization(error.to_string())
-            }
-        })?;
-    if segments.is_empty() && !forest.roots().is_empty() {
-        if length == 0 {
-            return Ok((whole(), Category::Document));
-        }
-        return Err(Issue::Materialization(
-            "nonempty Document has no top-level Ability segments".into(),
-        ));
-    }
-    Ok((segments, Category::Ability))
-}
-
-struct CensusSegment {
-    span: std::ops::Range<usize>,
-    nodes: Vec<deckmaste_english_v3::CompletedId>,
-    category: Category,
-}
-
-fn analyze_line(
-    forest: &deckmaste_english_v3::GrammarForest<Grammar>,
-    segment: &CensusSegment,
-    grammar: &Grammar,
-    lexicon: &Lexicon,
-    args: &EnglishV3Args,
-    result: &mut FaceReport,
-    context: &deckmaste_english_v3::grammar::RealizationContext<'_>,
-) -> Result<LineReport> {
-    let surface = &result.analyzed_source[segment.span.clone()];
-    let mut line = LineReport {
-        span: (segment.span.start, segment.span.end),
-        text_sha256: digest(surface.as_bytes()),
-        checked_readings: 0,
-        readings_sha256: None,
-        enumeration: Enumeration::Complete,
-    };
-    let issues_before = result.issues.len();
-    let mut values = forest
-        .readings_from(&segment.nodes, Tracing::new(grammar))
-        .with_digest_dedup(crate::english_v3::validation::TracedValue::dedup_key);
-    let mut checked = BTreeSet::new();
-    let mut requested = 0;
-    loop {
-        if args
-            .reading_limit
-            .is_some_and(|limit| requested >= limit.get())
-        {
-            line.enumeration = Enumeration::Limited;
-            break;
-        }
-        let Some(value) = values.next() else {
-            line.enumeration = Enumeration::Complete;
-            break;
-        };
-        requested += 1;
-        let value = match value {
-            Ok(value) => value,
-            Err(error) => {
-                result
-                    .issues
-                    .push(Issue::Materialization(error.to_string()));
-                continue;
-            }
-        };
-        match validate_in_context(&value, surface, segment.category, context) {
-            Ok(reading) => {
-                if !checked.insert(value.dedup_key()) {
-                    result.issues.push(Issue::DuplicateReading);
-                    continue;
-                }
-                for node in value.nodes.iter() {
-                    if let deckmaste_english_v3::grammar::Value::Reading(node) = &**node {
-                        *result
-                            .constructions
-                            .entry(node.construction().to_owned())
-                            .or_default() += 1;
-                    }
-                }
-                sample_line_reading(
-                    reading,
-                    &value,
-                    lexicon,
-                    &mut result.samples,
-                    args.samples_per_face,
-                )?;
-            }
-            Err(issue) => result.issues.push(issue),
-        }
-    }
-    for (key, count) in report::reading_metrics(values.metrics()) {
-        *result.readings.entry(key).or_default() += count;
-    }
-    let metrics = values.materializer().metrics();
-    result.materializations.leaf_requests += metrics.leaf_requests;
-    result.materializations.unique_leaves += metrics.unique_leaves;
-    result.materializations.build_requests += metrics.build_requests;
-    result.materializations.unique_builds += metrics.unique_builds;
-    line.checked_readings = checked.len();
-    if result.issues.len() != issues_before {
-        line.enumeration = Enumeration::Failed;
-    } else if line.enumeration == Enumeration::Complete {
-        line.readings_sha256 = Some(report::readings_digest(&checked));
-    }
-    Ok(line)
 }
 
 fn sample_line_reading(

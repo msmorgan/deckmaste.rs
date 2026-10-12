@@ -1,27 +1,38 @@
 //! Diagnostic line verdicts and blocker rankings, independent of admission.
 
-use std::collections::{BTreeMap, BTreeSet};
-use std::io::{BufReader, Write};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::io::BufReader;
+use std::io::Write;
 use std::num::NonZeroUsize;
-use std::path::{Path, PathBuf};
+use std::path::Path;
+use std::path::PathBuf;
 
-use anyhow::{Context, Result, ensure};
+use anyhow::Context;
+use anyhow::Result;
+use anyhow::ensure;
 use clap::Args;
 use deckmaste_english_v3::grammar::Grammar;
 use deckmaste_lexical::Lexicon;
 use rayon::prelude::*;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
+use serde::Serialize;
 
+use super::EnglishV3Args;
+use super::SourceField;
+use super::analyze_face_with_progress;
 use super::diff::CensusFace;
-use super::report::{Enumeration, UnknownWord};
-use super::{EnglishV3Args, SourceField, analyze_face_with_progress};
-use crate::raw_corpus::{
-    CorpusSelectionArgs, SelectedFace, SelectionRequest, digest, load_selected,
-};
+use super::report::Enumeration;
+use super::report::UnknownWord;
+use crate::raw_corpus::CorpusSelectionArgs;
+use crate::raw_corpus::SelectedFace;
+use crate::raw_corpus::SelectionRequest;
+use crate::raw_corpus::digest;
+use crate::raw_corpus::load_selected;
 
 #[derive(Debug, Args)]
 pub struct BlockersArgs {
-    /// Complete schema-8 text census made with the current grammar and lexicon.
+    /// Complete schema-9 text census made with the current grammar and lexicon.
     #[arg(long)]
     census: PathBuf,
     /// Write every face verdict and the uncapped ranking as JSON.
@@ -46,6 +57,7 @@ struct InputFace {
     #[serde(flatten)]
     census: CensusFace,
     analyzed_source: String,
+    ability_spans: Vec<(usize, usize)>,
     enumeration: Enumeration,
 }
 
@@ -226,18 +238,7 @@ fn inspect_face(
     let newline = newline_spans(&source);
     // Covered Documents already identify top-level abilities, including quoted
     // multiline abilities and modal lists. Unread Documents have no segments.
-    let spans = if covered {
-        input
-            .census
-            .lines
-            .as_ref()
-            .context("schema-8 census has no lines")?
-            .iter()
-            .map(|line| line.span)
-            .collect::<Vec<_>>()
-    } else {
-        newline.clone()
-    };
+    let spans = if covered { input.ability_spans.clone() } else { newline.clone() };
     let segmentation_disagrees = covered && spans != newline;
     let mut lines = Vec::new();
     for (start, end) in spans {
@@ -416,8 +417,8 @@ pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Resu
     let input: Input = serde_json::from_reader(BufReader::new(std::fs::File::open(&args.census)?))
         .with_context(|| format!("reading census {}", args.census.display()))?;
     ensure!(
-        input.schema_version == 8 && input.field == SourceField::Text,
-        "blockers requires a schema-8 text census"
+        input.schema_version == super::report::SCHEMA_VERSION && input.field == SourceField::Text,
+        "blockers requires a schema-9 text census"
     );
     let corpus = load_selected(
         data,
@@ -442,6 +443,7 @@ pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Resu
         selection: CorpusSelectionArgs::default(),
         output: None,
         incremental_from: None,
+        migration_from: None,
         reading_limit: None,
         samples_per_face: 0,
         workers: input.workers,
@@ -489,7 +491,9 @@ pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Resu
 mod tests {
     use super::super::analyze_face;
     use super::super::diff::CensusLine;
-    use super::super::tests::{args, lexicon, selected_corpus};
+    use super::super::tests::args;
+    use super::super::tests::lexicon;
+    use super::super::tests::selected_corpus;
     use super::*;
 
     fn inspect(text: &str) -> Face {
@@ -503,6 +507,7 @@ mod tests {
         let census = analyze_face(face, lexicon(), environment.grammar(), &args).unwrap();
         let input = InputFace {
             analyzed_source: census.analyzed_source,
+            ability_spans: census.ability_spans,
             enumeration: census.enumeration,
             census: CensusFace {
                 id: census.id,

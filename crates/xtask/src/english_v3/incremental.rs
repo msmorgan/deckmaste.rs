@@ -1,13 +1,22 @@
-use std::collections::{BTreeMap, BTreeSet};
-use std::path::{Path, PathBuf};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+use std::path::Path;
+use std::path::PathBuf;
 
-use anyhow::{Context, Result};
-use deckmaste_lexical::{LexicalReading, Lexicon};
-use serde::{Deserialize, Serialize};
+use anyhow::Context;
+use anyhow::Result;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::Lexicon;
+use serde::Deserialize;
+use serde::Serialize;
 
-use super::report::{Enumeration, FaceReport};
-use super::{EnglishV3Args, SourceField, analyze_cards};
-use crate::raw_corpus::{SelectedCorpus, digest};
+use super::EnglishV3Args;
+use super::SourceField;
+use super::analyze_cards;
+use super::report::Enumeration;
+use super::report::FaceReport;
+use crate::raw_corpus::SelectedCorpus;
+use crate::raw_corpus::digest;
 
 const LEXICON_SOURCES: [&str; 3] = [
     "crates/deckmaste_lexical_source/lexicon/core.ron",
@@ -154,6 +163,8 @@ pub(super) struct Incremental {
 pub(super) struct Base {
     pub schema_version: usize,
     pub readings_digest_version: usize,
+    pub decomposition_version: usize,
+    pub context_version: usize,
     pub field: SourceField,
     pub input_sha256: String,
     pub support_filter: String,
@@ -172,6 +183,8 @@ impl Base {
         // Old census schemas lack the evidence required for safe reuse.
         if json["schema_version"] != super::report::SCHEMA_VERSION
             || json["readings_digest_version"] != super::report::READINGS_DIGEST_VERSION
+            || json["decomposition_version"] != super::report::DECOMPOSITION_VERSION
+            || json["context_version"] != super::report::CONTEXT_VERSION
             || json["incremental_snapshot"].is_null()
         {
             return Ok(None);
@@ -189,6 +202,8 @@ impl Base {
     ) -> Option<String> {
         if self.schema_version != super::report::SCHEMA_VERSION
             || self.readings_digest_version != super::report::READINGS_DIGEST_VERSION
+            || self.decomposition_version != super::report::DECOMPOSITION_VERSION
+            || self.context_version != super::report::CONTEXT_VERSION
         {
             return Some("census or Readings digest version changed".into());
         }

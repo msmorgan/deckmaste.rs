@@ -407,7 +407,31 @@ pub(super) fn manifest(result: &Comparison, random: usize, seed: u64) -> Selecti
 ///
 /// # Errors
 /// Only when an input cannot be read or parsed, or an output cannot be written.
+fn require_current_versions(path: &Path) -> Result<()> {
+    let json: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
+    for (field, version) in [
+        ("schema_version", super::report::SCHEMA_VERSION),
+        (
+            "readings_digest_version",
+            super::report::READINGS_DIGEST_VERSION,
+        ),
+        (
+            "decomposition_version",
+            super::report::DECOMPOSITION_VERSION,
+        ),
+        ("context_version", super::report::CONTEXT_VERSION),
+    ] {
+        ensure!(
+            json[field] == version,
+            "comparison requires the new baseline and matching {field}; use --migration-from for the one re-baseline"
+        );
+    }
+    Ok(())
+}
+
 pub fn run(args: &DiffArgs, out: &mut dyn Write) -> Result<()> {
+    require_current_versions(&args.before)?;
+    require_current_versions(&args.after)?;
     let before = load(&args.before)?;
     let after = load(&args.after)?;
     let mut result = compare(&args.before, &before, &args.after, &after);
@@ -695,5 +719,32 @@ mod line_tests {
         let after = census(2, "b");
         assert!(compare_lines(&before, &after).is_err());
         assert!(compare_lines(&after, &before).is_err());
+    }
+}
+
+#[cfg(test)]
+mod version_tests {
+    use super::*;
+
+    #[test]
+    fn comparisons_require_the_new_baseline_and_all_matching_versions() {
+        let current = serde_json::json!({"schema_version":super::super::report::SCHEMA_VERSION,
+            "readings_digest_version":super::super::report::READINGS_DIGEST_VERSION,
+            "decomposition_version":super::super::report::DECOMPOSITION_VERSION,
+            "context_version":super::super::report::CONTEXT_VERSION});
+        let file = tempfile::NamedTempFile::new().unwrap();
+        std::fs::write(file.path(), serde_json::to_vec(&current).unwrap()).unwrap();
+        require_current_versions(file.path()).unwrap();
+        for field in [
+            "schema_version",
+            "readings_digest_version",
+            "decomposition_version",
+            "context_version",
+        ] {
+            let mut incompatible = current.clone();
+            incompatible[field] = 0.into();
+            std::fs::write(file.path(), serde_json::to_vec(&incompatible).unwrap()).unwrap();
+            assert!(require_current_versions(file.path()).is_err(), "{field}");
+        }
     }
 }

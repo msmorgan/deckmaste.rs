@@ -51,6 +51,7 @@ pub(super) fn args(limit: Option<usize>) -> EnglishV3Args {
         selection: CorpusSelectionArgs::default(),
         output: Some("unused-report.json".into()),
         incremental_from: None,
+        migration_from: None,
         reading_limit: limit.map(|n| NonZeroUsize::new(n).unwrap()),
         samples_per_face: 2,
         workers: NonZeroUsize::new(2).unwrap(),
@@ -224,7 +225,9 @@ fn capped_enumeration_never_claims_uniqueness_or_an_exact_total() {
     }
     let two = analyze_cards(&corpus.faces, lexicon(), &grammar, &args(Some(2))).unwrap();
     assert_eq!(two[0].checked_readings, 2);
-    assert_eq!(two[0].census, Census::Multiple);
+    assert_eq!(two[0].census, Census::Undetermined);
+    assert_eq!(two[0].ambiguous, Some(true));
+    assert_eq!(two[0].partial_checked_readings, Some(2));
     assert_eq!(two[0].enumeration, Enumeration::Limited);
     assert_eq!(two[0].exact_readings, None);
     for (face, expected) in two[1..].iter().zip([1, 2]) {
@@ -523,7 +526,23 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
             .take(4)
             .any(|line| line.trim() == "category: FinitePredicate,")
     );
-    assert_eq!(serialized["samples"][0]["total_cost"], 19);
+    assert_eq!(serialized["samples"][0]["total_cost"], 16);
+    // The old sampled Ability still has its original minimum cost. A census
+    // sample is now a Sentence, omitting three fixed surrounding constructors.
+    let input = lexicon().analyze("When this creature enters, it explores X times.");
+    let grammar = Grammar::with_lexicon(lexicon());
+    let forest = parse(&grammar, lexicon(), &input, &Category::Ability).unwrap();
+    let original_minimum = forest
+        .readings(&grammar)
+        .map(|value| {
+            let deckmaste_english_v3::grammar::Value::Reading(reading) = value.unwrap() else {
+                panic!("Ability Reading")
+            };
+            reading.total_cost().unwrap()
+        })
+        .min()
+        .unwrap();
+    assert_eq!(original_minimum, 19);
 }
 
 fn trace_card_draw(grammar: &Grammar) -> TracedValue {
@@ -945,6 +964,8 @@ fn incremental_base(
     super::incremental::Base {
         schema_version: super::report::SCHEMA_VERSION,
         readings_digest_version: super::report::READINGS_DIGEST_VERSION,
+        decomposition_version: super::report::DECOMPOSITION_VERSION,
+        context_version: super::report::CONTEXT_VERSION,
         field: args.field,
         input_sha256: corpus.snapshot_sha256.clone(),
         support_filter: crate::raw_corpus::SUPPORT_FILTER.into(),

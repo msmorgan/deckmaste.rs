@@ -96,3 +96,9 @@ This is the one re-baseline: reading digests are recomputed per unit and so diff
 ## Report
 
 Three-line note: census delta (faces, total enumerated unit Readings now counted per unit, retained-whole exceptions listed; none lost); the size line arrives with `grammar-size-report-and-ratchet`; the analysis-key and judgment-set lines do not apply yet (their instruments arrive in `grammar-analysis-key` and `grammar-judgment-set`).
+
+## Landing note
+
+1. **Census delta** (zupzwowr): 30,794 → 30,794 read faces; 724,921 → 482,041 enumerated unit Readings; lost faces: none. Migration: 54,339 old segments checked, 38,675 factorised; 39,890 Paragraph regions checked; 0 failures. Retained units: 15,346 (13,897 factorization-unproved, 1,299 alternative-wrapper, 150 boundary-disagreement; correlated-choices and shared-material: 0); every exception is listed in the untracked `target/english-v3/presentence-retained-whole.json`.
+2. **Size**: not applicable yet; the instrument arrives with `grammar-size-report-and-ratchet`. Grammar declarations and lexicon entries are unchanged.
+3. **Judgment set and analysis key**: not applicable yet; their instruments arrive with `grammar-judgment-set` and `grammar-analysis-key`.

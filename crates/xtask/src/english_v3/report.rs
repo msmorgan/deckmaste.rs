@@ -48,6 +48,9 @@ pub(super) enum Enumeration {
 pub(super) struct LineReport {
     /// Half-open byte offsets in the face's analyzed source.
     pub span: (usize, usize),
+    pub category: String,
+    pub retained_reason: Option<String>,
+    pub proposed_parts: Vec<(String, (usize, usize))>,
     pub text_sha256: String,
     pub checked_readings: usize,
     pub readings_sha256: Option<String>,
@@ -141,9 +144,19 @@ pub(super) struct FaceReport {
     pub enumeration: Enumeration,
     pub census: Census,
     pub checked_readings: usize,
+    #[serde(default)]
+    pub ambiguous: Option<bool>,
+    #[serde(default)]
+    pub partial_checked_readings: Option<usize>,
     pub exact_readings: Option<usize>,
     pub readings_sha256: Option<String>,
     pub lines: Vec<LineReport>,
+    #[serde(default)]
+    pub ability_spans: Vec<(usize, usize)>,
+    #[serde(default)]
+    pub surroundings_sha256: Option<String>,
+    #[serde(default)]
+    pub migration: Vec<super::decomposition::Bridge>,
     pub chart: BTreeMap<String, usize>,
     pub readings: BTreeMap<String, usize>,
     pub materializations: MaterializationMetrics,
@@ -191,9 +204,14 @@ impl FaceReport {
             enumeration: Enumeration::Failed,
             census: Census::Undetermined,
             checked_readings: 0,
+            ambiguous: None,
+            partial_checked_readings: None,
             exact_readings: None,
             readings_sha256: None,
             lines: Vec::new(),
+            ability_spans: Vec::new(),
+            surroundings_sha256: None,
+            migration: Vec::new(),
             chart: chart_metrics(Metrics::default()),
             readings: reading_metrics(ReadingMetrics::default()),
             materializations: MaterializationMetrics::default(),
@@ -233,48 +251,51 @@ impl FaceReport {
             } else {
                 self.lines.iter().map(|line| line.checked_readings).sum()
             };
+        let observed_ambiguity = self.lines.iter().any(|unit| unit.checked_readings > 1);
+        self.ambiguous = (observed_ambiguity || self.enumeration == Enumeration::Complete)
+            .then_some(observed_ambiguity);
+        self.partial_checked_readings = (self.enumeration != Enumeration::Complete)
+            .then(|| self.lines.iter().map(|unit| unit.checked_readings).sum());
         self.exact_readings =
             (self.enumeration == Enumeration::Complete).then_some(self.checked_readings);
         self.readings_sha256 = (self.enumeration == Enumeration::Complete)
-            .then(|| lines_digest(&self.lines))
+            .then(|| face_digest(&self.lines, self.surroundings_sha256.as_deref()))
             .flatten();
-        self.census = if self.checked_readings == 0 {
-            if self.enumeration == Enumeration::Complete {
-                Census::No
-            } else {
-                Census::Undetermined
-            }
-        } else if self.lines.iter().any(|line| line.checked_readings > 1) {
-            Census::Multiple
-        } else if self.enumeration == Enumeration::Complete {
-            Census::One
-        } else {
+        self.census = if self.enumeration != Enumeration::Complete {
             Census::Undetermined
+        } else if self.checked_readings == 0 {
+            Census::No
+        } else if observed_ambiguity {
+            Census::Multiple
+        } else {
+            Census::One
         };
     }
 }
 
-/// Hash the ordered, fixed-width raw line digests; ordering is grammatical
-/// Document order, independent of Reading enumeration order within each line.
+/// Hash ordered unit descriptors with their tree-set digests. Document order
+/// is independent of Reading enumeration order within each unit.
 pub(super) fn lines_digest(lines: &[LineReport]) -> Option<String> {
-    use std::fmt::Write as _;
+    let descriptors = lines
+        .iter()
+        .map(|line| {
+            Some((
+                &line.category,
+                line.span,
+                &line.text_sha256,
+                line.readings_sha256.as_ref()?,
+            ))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some(digest(
+        &serde_json::to_vec(&(READINGS_DIGEST_VERSION, descriptors)).ok()?,
+    ))
+}
 
-    let mut hash = sha2::Sha256::new();
-    for line in lines {
-        let hex = line.readings_sha256.as_deref()?;
-        if hex.len() != 64 {
-            return None;
-        }
-        for pair in hex.as_bytes().as_chunks::<2>().0 {
-            let byte = u8::from_str_radix(std::str::from_utf8(pair).ok()?, 16).ok()?;
-            hash.update([byte]);
-        }
-    }
-    let mut result = String::with_capacity(64);
-    for byte in hash.finalize() {
-        write!(result, "{byte:02x}").expect("writing to a String cannot fail");
-    }
-    Some(result)
+fn face_digest(lines: &[LineReport], surroundings: Option<&str>) -> Option<String> {
+    Some(digest(
+        &serde_json::to_vec(&(DECOMPOSITION_VERSION, lines_digest(lines)?, surroundings)).ok()?,
+    ))
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -291,7 +312,7 @@ pub(super) struct Totals {
     supported_faces_without_source: usize,
     source_bytes: usize,
     checked_text_bytes: usize,
-    checked_readings: usize,
+    pub checked_readings: usize,
     exact_readings: Option<usize>,
     thread_cpu_ns: Option<u128>,
     pub checked_text_cpu_ns_per_byte: Option<u128>,
@@ -369,6 +390,9 @@ pub(super) struct Report {
     validation_scope: &'static str,
     fingerprint_encoding: &'static str,
     readings_digest_version: usize,
+    decomposition_version: usize,
+    context_version: usize,
+    count_semantics: &'static str,
     readings_digest_encoding: &'static str,
     reading_limit: Option<usize>,
     samples_per_face: usize,
@@ -466,7 +490,10 @@ impl Report {
             validation_scope: "Every counted Reading passes declaration admission, lexical ownership/context, byte-exact realization, and node/word traversal comparison against materialization traces. Independent linguistic correctness and the independently constructed-value roundtrip law are NOT checked by this corpus command.",
             fingerprint_encoding: "SHA-256 of generated Reading Debug; diagnostic identity within this source tree, not a stable serialization contract. Node fingerprints include complete subtrees.",
             readings_digest_version: READINGS_DIGEST_VERSION,
-            readings_digest_encoding: "Version 1: each validated Reading key is SHA-256 of its value fingerprint (64 lowercase ASCII hex bytes), followed by ASCII |n= and its node trace encoding, then ASCII |w= and its Word trace encoding. A trace encoding is ASCII canonical if the complete ordered independent trace equals the generated visitor sequence of the root value; otherwise it is ASCII raw followed by the Rust Debug encoding of that complete trace. Canonical traces are completely reconstructible from the root value; mismatching traces remain distinct. The value fingerprint is SHA-256 of generated Reading Debug. Sort unique 32-byte Reading keys lexicographically by unsigned byte; concatenate them as fixed-width raw bytes, with no separators, and SHA-256 the concatenation. Encode each line digest as 64 lowercase ASCII hex characters. The face digest hashes the ordered raw 32-byte line digests; face checked_readings is their sum, or zero if any line is unread. Construction counts and samples are over line Readings, not Document combinations. EmptyDocument is one empty segment. The empty set hashes zero bytes. Only complete, issue-free enumeration has a face digest; limited or failed enumeration has null. Debug is diagnostic within the recorded source tree, not a cross-version grammatical serialization contract.",
+            decomposition_version: DECOMPOSITION_VERSION,
+            context_version: CONTEXT_VERSION,
+            count_semantics: "enumerated unit Readings; face counts are sums, not Document-tree counts; read means syntactically admitted, not a correctness claim",
+            readings_digest_encoding: "Version 2 retains version-1 validated tree keys and sorted fixed-width tree-set hashing within each unit. Ordered unit descriptors (category, half-open byte span, source hash, tree-set digest) are encoded as a JSON array with digest version 2. The face hashes a JSON array of decomposition version 1, that descriptor digest, and the validated surrounding-structure/root-constraint digest. Complete, issue-free enumeration alone has an exact sum or complete digest; partial checked counts are separate. EmptyDocument is one whole unit. Several unambiguous units do not imply ambiguity. Debug identities are diagnostic within the recorded source tree.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
             samples_per_face: args.samples_per_face,
             unmapped_sources,
@@ -483,8 +510,11 @@ impl Report {
     }
 }
 
-pub(super) const SCHEMA_VERSION: usize = 8;
-pub(super) const READINGS_DIGEST_VERSION: usize = 1;
+pub(super) const DECOMPOSITION_VERSION: usize = 1;
+pub(super) const CONTEXT_VERSION: usize = 1;
+
+pub(super) const SCHEMA_VERSION: usize = 9;
+pub(super) const READINGS_DIGEST_VERSION: usize = 2;
 
 pub(super) fn chart_metrics(m: Metrics) -> BTreeMap<String, usize> {
     [
@@ -671,6 +701,9 @@ mod line_tests {
     fn line(count: usize, key: u8) -> LineReport {
         LineReport {
             span: (0, 1),
+            category: "Sentence".into(),
+            retained_reason: None,
+            proposed_parts: vec![],
             text_sha256: digest(b"a"),
             checked_readings: count,
             readings_sha256: Some(readings_digest(&BTreeSet::from([[key; 32]]))),
@@ -701,11 +734,27 @@ mod line_tests {
         assert_eq!(result.exact_readings, Some(5));
         assert_eq!(result.census, Census::Multiple);
         let original = result.readings_sha256.clone();
-        let mut expected = Vec::new();
-        for key in [1, 2] {
-            expected.extend(sha2::Sha256::digest([key; 32]));
-        }
-        assert_eq!(original, Some(digest(&expected)));
+        let descriptors = result
+            .lines
+            .iter()
+            .map(|line| {
+                (
+                    &line.category,
+                    line.span,
+                    &line.text_sha256,
+                    &line.readings_sha256,
+                )
+            })
+            .collect::<Vec<_>>();
+        let descriptor_digest =
+            digest(&serde_json::to_vec(&(READINGS_DIGEST_VERSION, descriptors)).unwrap());
+        assert_eq!(
+            original,
+            Some(digest(
+                &serde_json::to_vec(&(DECOMPOSITION_VERSION, descriptor_digest, None::<String>))
+                    .unwrap()
+            ))
+        );
         result.lines.reverse();
         result.finish_readings();
         assert_ne!(result.readings_sha256, original);
@@ -738,5 +787,31 @@ mod line_tests {
         result.finish_readings();
         assert_eq!(result.enumeration, Enumeration::Failed);
         assert_eq!(result.readings_sha256, None);
+    }
+}
+
+#[cfg(test)]
+mod descriptor_tests {
+    use super::*;
+
+    #[test]
+    fn identical_unit_trees_do_not_hide_category_span_or_surrounding_changes() {
+        let mut units = vec![LineReport {
+            span: (0, 1),
+            category: "Sentence".into(),
+            retained_reason: None,
+            proposed_parts: vec![],
+            text_sha256: digest(b"x"),
+            checked_readings: 1,
+            readings_sha256: Some(readings_digest(&BTreeSet::from([[7; 32]]))),
+            enumeration: Enumeration::Complete,
+        }];
+        let original = face_digest(&units, Some("original-wrapper"));
+        assert_ne!(original, face_digest(&units, Some("different-label")));
+        units[0].span = (1, 2);
+        assert_ne!(original, face_digest(&units, Some("original-wrapper")));
+        units[0].span = (0, 1);
+        units[0].category = "Clause".into();
+        assert_ne!(original, face_digest(&units, Some("original-wrapper")));
     }
 }

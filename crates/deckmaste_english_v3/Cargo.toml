@@ -4,10 +4,9 @@ version = "0.1.0"
 edition = "2024"
 publish = false
 
-# src/ holds no unit tests (all tests live in tests/); skip the empty lib-test
-# unit, which otherwise costs a full compile of the crate.
+# Forest decomposition has unit tests; declaration witnesses live in tests/.
 [lib]
-test = false
+test = true
 
 [lints]
 workspace = true

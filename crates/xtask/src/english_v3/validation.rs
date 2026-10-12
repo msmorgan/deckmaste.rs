@@ -164,6 +164,15 @@ impl<'a> Tracing<'a> {
         self
     }
 
+    /// Import an immutable unit from another materializer's local cache.
+    /// Reassign its memo coordinate so independent unit caches cannot alias.
+    pub(super) fn import(&mut self, value: &TracedValue) -> TracedValue {
+        let mut value = value.clone();
+        value.id = self.next_id;
+        self.next_id += 1;
+        value
+    }
+
     pub(super) const fn metrics(&self) -> MaterializationMetrics {
         self.metrics
     }

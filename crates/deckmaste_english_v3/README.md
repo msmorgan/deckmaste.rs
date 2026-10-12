@@ -73,11 +73,11 @@ for corpus attestation checks.
 cargo xtask english-v3 blockers --census FILE [--json OUT] [--limit N]
 ```
 
-`blockers` diagnoses every unread face in a complete schema-8 text census
+`blockers` diagnoses every unread face in a complete schema-9 text census
 using the current grammar and lexicon and the census's worker count. It reuses
 card-scoped census line analysis, with no retained tree samples. Unread faces
-split on analysed-source newlines; covered faces use their census Ability
-segments, retaining quoted multiline abilities and modal lists. The summary
+split on analysed-source newlines; covered faces use their separately recorded census Ability
+spans, retaining quoted multiline abilities and modal lists. The summary
 counts covered faces whose segments differ from newline splitting. A source
 or coverage disagreement with the census fails loudly.
 
@@ -153,14 +153,66 @@ parser metrics, selection provenance, snapshot hashes and timings, and is writte
 command. Linguistic correctness and independently constructed-value roundtrips
 require separate evidence.
 
-Each face's `readings_sha256` hashes its sorted, unique, fixed-width Reading
-keys. `readings_digest_version` and `readings_digest_encoding` specify the exact
-encoding. Complete, issue-free faces have a digest, including the empty Reading
+The census parses the complete face in its original Category and card-name
+context. It then enumerates outermost Sentences, activated Costs and modal
+Clause headers; mode bodies and parenthetical paragraphs decompose recursively.
+Keyword lines, Type Lines and EmptyDocument remain whole units. A Sentence is
+a stopping boundary: quoted granted abilities and relative clauses stay inside
+it. Labels, separators, parentheses and connections remain validated surrounding
+structure.
+
+`Forest::decompose` compares fixed constructor/leaf structures and the actual
+permitted tuples of completed nodes. It accepts an independent product only
+when those tuple sets agree, rather than relying on equal spans or counts.
+Non-independent regions stay whole at their smallest available Reading boundary,
+with span, Category, count, proposed parts and a retained reason in the report.
+Compiler sequence helpers are not Reading boundaries. Unit Readings undergo exact
+realization and traversal checks in the original lexical environment. Generated
+surrounding realization depends on fixed fields, child admission summaries and
+recursive child realization; all distinct boundary-summary tuples and the root
+constraints are checked as well.
+
+The `lines` array now holds ordered enumeration units with Category and byte
+span. The separate `ability_spans` array preserves the Ability boundaries used
+by blocker diagnostics. Face counts sum the unit counts and are labelled
+**enumerated unit Readings**, never Document-tree counts. Ambiguity is separate:
+several one-Reading units are still unambiguous. An incomplete or failed face
+has no exact count or complete digest; its partial checked count is separate.
+Read means syntactically admitted, not a linguistic correctness claim.
+
+Schema 9, decomposition version 1, digest version 2 and context version 1
+invalidate older incremental results. Within a unit, tree keys and sorted
+fixed-width tree-set hashing retain the old encoding. Each face's
+`readings_sha256` hashes versioned JSON encodings of the ordered unit descriptors
+and tree-set digests, plus its validated surrounding structure and root
+constraints. Surrounding encodings retain constructor names, Categories, forms,
+fixed lexical values and literal separators; compiler helpers are transparent.
+Root-contract changes increment the context version. A label, header, wrapper or boundary change therefore changes the
+digest even if the unit trees stay identical. `readings_digest_version` and
+`readings_digest_encoding` specify the encoding. Complete, issue-free faces have a digest, including the empty Reading
 set; limited or failed enumeration has null. The digest is diagnostic under the
 recorded tree's generated Debug encoding.
 
+The single re-baseline bridge uses the recorded schema-8/digest-1 report:
+
+```sh
+cargo xtask english-v3 --all --workers 6 --samples-per-face 0 \
+  --migration-from target/english-v3/presentence-before.json \
+  --output target/english-v3/presentence-after.json
+```
+
+Migration enumerates original contextual Ability segments and accepted Paragraph
+regions independently, reconstructs every product tuple, and compares complete
+tree identities and tree-set digests. Checked multiplication must equal the
+original count; duplicate reconstruction, overflow, incomplete enumeration,
+coverage changes or lexical/chart changes fail the command. A retained whole
+region proves unchanged identity and count; it is not evidence of sentence
+factorization. Every retained unit and reason is preserved in the untracked
+report. Later `diff` comparisons require the new baseline and matching schema,
+decomposition, digest and context versions.
+
 For lexical edits, add `--incremental-from target/english-v3/base.json` to the
-same census command. A compatible schema-7 base records source hashes plus each
+same census command. A compatible schema-9 base records source hashes plus each
 Lexeme's fingerprint and complete Word Forms. Changes to `core.ron`,
 `verbs.ron` or `vocabulary.ron` select faces containing old or new affected forms,
 using conservative case-folded substrings of the recorded parser input so bound

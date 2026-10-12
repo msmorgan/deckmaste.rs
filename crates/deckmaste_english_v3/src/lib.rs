@@ -9,6 +9,9 @@ pub use crate::declarations::grammar;
 pub mod slice;
 
 mod chart;
+mod decomposition;
+pub use decomposition::Decomposition;
+pub use decomposition::EnumerationUnit;
 mod forest;
 mod readings;
 
