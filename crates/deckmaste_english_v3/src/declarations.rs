@@ -630,20 +630,34 @@ constructions! {
             head BarePrepositionUse, head NominalComplementMarker, head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent, head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence);
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
-        category NounPremodifier(NounPremodifier, PremodifierCoordination);
-        category NounPremodifierSeries(NounPremodifier, PremodifierCoordination);
+        category NounPremodifier(head NounPremodifier, local PremodifierCoordination);
+        category NounPremodifierSeries(head NounPremodifier, head PremodifierCoordination);
         category PartitiveModifier();
-        category NounPhrase(NominalDependentPresent, PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, BareGenitiveHost, SubjectStructure,
-            BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
-        category NominativePhrase(number, person, DeterminerAgreementNumber, CaseUse, SubjectStructure, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent);
-        category AccusativePhrase(NominalDependentPresent, PartitiveCountability, number, person, CaseUse, SelectedPrepositionUse, PredicativeAdjunctUse, SourceModifierPresent, WholeObjectSourcePresent);
+        category NounPhrase(
+            head NominalDependentPresent, head PartitiveCountability, local NounPhraseStructure,
+            local FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
+            head BareGenitiveHost, head SubjectStructure, head BarePrepositionUse,
+            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
+            head SourceModifierPresent, head WholeObjectSourcePresent, head DeterminerAgreementNumber,
+            head ComparativePostmodifierUse, head Definiteness, head LocativeUse
+        );
+        category NominativePhrase(
+            head number, head person, head DeterminerAgreementNumber, head CaseUse, head SubjectStructure,
+            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
+            head SourceModifierPresent, head WholeObjectSourcePresent
+        );
+        category AccusativePhrase(
+            head NominalDependentPresent, head PartitiveCountability, head number, head person,
+            head CaseUse, head SelectedPrepositionUse, head PredicativeAdjunctUse,
+            head SourceModifierPresent, head WholeObjectSourcePresent
+        );
         category AdjectivePhrase(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category Premodifier(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category PremodifierCoordination(PremodifierCategory, SyndeticPremodifier, NounPremodifier, AdjectiveOrigin, TargetingPremodifierUse,
             SelectedPrepositionUse, PredicativeAdjunctUse);
         category VerblessClause(VerblessClauseComplement);
-        category Name(number);
+        category Name(head number);
         category NamePredicate();
         category PrepositionPhrase(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse,
@@ -748,7 +762,14 @@ constructions! {
         category ClauseSeries(ClauseCoordinationHost, UnmarkedConjunctLicence, SourceComplementSelection);
         category FinitePredicateSeries(Polarity, number, person, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category SecondaryPredicateSeries(ParticipialSupplementUse, form, ParticipialUse, InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category NounPhraseSeries(NominalDependentPresent, PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
+        category NounPhraseSeries(
+            head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
+            head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
+            head CoordinationKind, head BareGenitiveHost, head SubjectStructure, head BarePrepositionUse,
+            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
+            head SourceModifierPresent, head WholeObjectSourcePresent, head DeterminerAgreementNumber,
+            head ComparativePostmodifierUse, head Definiteness, head LocativeUse
+        );
         category AdverbPhrase(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct, DurationUse, UnmarkedConjunctLicence, FocusedUse, FrequencyUse);
         category InfinitiveComplement();
         category FiniteSelectedHead(Polarity, number, person, FrameUse, HeadCoordination, CliticHost, AuxiliaryEllipsisLicence, AuxiliaryProFormLicence, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
@@ -762,11 +783,16 @@ constructions! {
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category NominalSeries(
-            ComparativeModifierPresent, AttributePremodifierHead, KeywordPremodifierHead, number, NominalAgreementNumber, countability, Targeting, NominalAdjunctClass, NominalDependentPresent,
-            RelativisableAdjunctClass, SlashPremodifierUse,
-            NumberTransparency, ObliqueNumber, CoordinationKind, BareGenitiveHost, DeterminerRequirement, MeasurePosition, ScalarMeasurementHeadUse, PropertyValuePosition, CardinalMeasurementUse,
-            BarePrepositionUse, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation
-        , SourceModifierPresent, WholeObjectSourcePresent, SubjectRelativeNumber, UnmarkedConjunctLicence);
+            head ComparativeModifierPresent, head AttributePremodifierHead, head KeywordPremodifierHead,
+            head number, head NominalAgreementNumber, head countability, head Targeting,
+            head NominalAdjunctClass, head NominalDependentPresent, head RelativisableAdjunctClass,
+            head SlashPremodifierUse, head NumberTransparency, head ObliqueNumber, head CoordinationKind,
+            head BareGenitiveHost, head DeterminerRequirement, head MeasurePosition,
+            head ScalarMeasurementHeadUse, head PropertyValuePosition, head CardinalMeasurementUse,
+            head BarePrepositionUse, head NominalComplementMarker, head SelectedPrepositionUse,
+            head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent,
+            head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence
+        );
         category AdjectivePhraseSeries(AdjectiveComplementClass, AdjectiveAttributiveOnlyUse, ImplicitComparativeUse, AdjectiveStructure, AdjectiveOrigin, AdjectivePremodifierUse, TargetingPremodifierUse, PremodifierCoordination);
         category PrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
@@ -786,8 +812,15 @@ constructions! {
         category CorrelativeFinitePredicateSeries(Polarity, number, person, CorrelativeCoordinator, CliticHost, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
         category CorrelativeSecondaryVerbPhraseSeries(ParticipialSupplementUse, form, ParticipialUse, CorrelativeCoordinator,
             InternalisedComplementPresent, PurposeAdjunctLicence, MatrixComplementLicence, SourceComplementSelection);
-        category CorrelativeNounPhraseSeries(NominalDependentPresent, PartitiveCountability, NounPhraseStructure, FocusedUse, UnitBearing, number, person, CaseUse, Targeting,
-            CorrelativeCoordinator, CoordinationKind, BareGenitiveHost, SubjectStructure, BarePrepositionUse, SelectedPrepositionUse, PredicativeAdjunctUse, ScalarDenotation, SourceModifierPresent, WholeObjectSourcePresent, DeterminerAgreementNumber, ComparativePostmodifierUse, Definiteness, LocativeUse);
+        category CorrelativeNounPhraseSeries(
+            head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
+            head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
+            head CorrelativeCoordinator, head CoordinationKind, head BareGenitiveHost,
+            head SubjectStructure, head BarePrepositionUse, head SelectedPrepositionUse,
+            head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent,
+            head WholeObjectSourcePresent, head DeterminerAgreementNumber, head ComparativePostmodifierUse,
+            head Definiteness, head LocativeUse
+        );
         category CorrelativePrepositionPhraseSeries(PartitiveCountability, InterveningAdjunctLicence, ConnectiveAdjunctUse, NominalAdjunctHost, ClauseComplementBoundary, LocativeUse, PrepositionFunctionLicence, ComplementFunctionRestriction, ObliqueNumber, CoordinationKind,
             CorrelativeCoordinator, InternalisedComplementMarker, NominalComplementMarker, SelectedPrepositionUse, PredicativeAdjunctUse, ClauseInitialAdjunct, FocusedUse, PrepositionPhraseComplementMarker, SourceComplementUse, SourceModifierPresent, WholeObjectSourcePresent, SourceMarker, MatrixComplementRequirement, NominalExceptionComplementUse);
         category CorrelativeAdverbPhraseSeries(NominalAdjunctHost, VPFinalAdjunct, ClauseInitialAdjunct,
@@ -1296,28 +1329,6 @@ constructions! {
 
         policy NominalHeadFeatures {
             export NominalDependentPresent = Yes;
-            export AttributePremodifierHead = head.AttributePremodifierHead;
-            export KeywordPremodifierHead = head.KeywordPremodifierHead;
-            export NominalAgreementNumber = head.NominalAgreementNumber;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export NominalComplementMarker = head.NominalComplementMarker;
-            export DeterminerRequirement = head.DeterminerRequirement;
-            export MeasurePosition = head.MeasurePosition;
-            export ScalarMeasurementHeadUse = No;
-            export ScalarDenotation = head.ScalarDenotation;
-            export CardinalMeasurementUse = head.CardinalMeasurementUse;
-            export number = head.number;
-            export countability = head.countability;
-            export Targeting = head.Targeting;
-            export NominalAdjunctClass = head.NominalAdjunctClass;
-            export RelativisableAdjunctClass = head.RelativisableAdjunctClass;
-            export SlashPremodifierUse = head.SlashPremodifierUse;
-            export NumberTransparency = head.NumberTransparency;
-            export ObliqueNumber = head.ObliqueNumber;
-        }
-
-        policy NominalHeadProperties {
-            export PropertyValuePosition = None;
         }
 
         policy PredicateHostAgreement {
@@ -1414,15 +1425,10 @@ constructions! {
         }
 
         policy NominativeCase {
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SubjectStructure = head.SubjectStructure;
             export CaseUse = nominative_case(head.CaseUse);
         }
 
         policy AccusativeCase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export PartitiveCountability = head.PartitiveCountability;
             export CaseUse = accusative_case(head.CaseUse);
         }
 
@@ -1492,13 +1498,8 @@ constructions! {
         }
 
         policy NounPhraseHeadAgreement {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export ScalarDenotation = head.ScalarDenotation;
             export SubjectStructure = Phrase;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export Targeting = head.Targeting;
             export number = nominal_agreement_number(head.NominalAgreementNumber, head.number);
             export person = Third;
             export CaseUse = Common;
@@ -2091,11 +2092,13 @@ constructions! {
         }
 
         schema CoordinationSeriesEnd {
+            head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
             require coordinator.NoncorrelativeCoordination = Yes;
         }
 
         schema CoordinationSeriesContinuation {
+            head none;
             form [left: node, ", ", rest: node];
         }
 
@@ -2116,7 +2119,6 @@ constructions! {
 
         schema CasePhrase {
             form [head: node];
-            use PredicateHeadAgreement;
         }
 
         // User ruling 2026-10-06, resolved by the orchestrator 2026-10-07:
@@ -2399,6 +2401,7 @@ constructions! {
         }
 
         schema EitherCoordination {
+            head none;
             form [marker: lexical(Determinative), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
             require marker.CorrelativeKind = Either;
@@ -2406,22 +2409,26 @@ constructions! {
         }
 
         schema CorrelativeSeriesEnd {
+            head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
             export CorrelativeCoordinator = coordinator.CorrelativeCoordinator;
         }
 
         schema CorrelativeSeriesContinuation {
+            head none;
             form [left: node, ", ", rest: node];
             export CorrelativeCoordinator = rest.CorrelativeCoordinator;
         }
 
         schema EitherSerialCoordination {
+            head none;
             form [marker: lexical(Determinative), " ", left: node, ", ", rest: node];
             require marker.CorrelativeKind = Either;
             require rest.CorrelativeCoordinator = Or;
         }
 
         schema BothCoordination {
+            head none;
             form [marker: lexical(Determinative), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
             require marker.CorrelativeKind = Both;
@@ -2429,6 +2436,7 @@ constructions! {
         }
 
         schema NeitherCoordination {
+            head none;
             form [marker: lexical(Determinative), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
             require marker.CorrelativeKind = Neither;
@@ -2436,6 +2444,7 @@ constructions! {
         }
 
         schema NeitherSerialCoordination {
+            head none;
             form [marker: lexical(Determinative), " ", left: node, ", ", rest: node];
             require marker.CorrelativeKind = Neither;
             require rest.CorrelativeCoordinator = Nor;
@@ -3680,7 +3689,6 @@ constructions! {
         }
 
         construction NounPremodifier: NounPremodifier {
-            export PremodifierCoordination = No;
             export NounPremodifier = head.NounPremodifier;
             form [head: lexical(Noun)]
                 require noun_premodifier_use(head.NounPremodifier) = Yes
@@ -3878,10 +3886,6 @@ constructions! {
                 marker: lexical(Preposition), " ", complement: AccusativePhrase];
             require licence_comparative_complement(marker.PrepositionFunctionLicence) = Yes;
             require head.Targeting = No;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
         }
 
         // AC2/AC4: the declared selected frame survives governor coordination,
@@ -3922,18 +3926,13 @@ constructions! {
         }
 
         policy DiscontinuousComparativeModifier {
-            export BareGenitiveHost = head.BareGenitiveHost;
             require discontinuous_comparative_marker(governor.frame,
                 marker.ExpandedComparisonMarker) = Yes;
             export ComparativeModifierPresent = comparative_modifier_present(
                 governor.ImplicitComparativeUse, head.ComparativeModifierPresent);
-            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
-            export SubjectRelativeNumber = head.SubjectRelativeNumber;
         }
 
         policy DiscontinuousComparativeDeterminer {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Nondefinite;
             require governor.ComparativeDeterminerUse = Yes;
             require determiner_license(governor.DeterminerUse, head.number, head.countability,
@@ -3943,18 +3942,16 @@ constructions! {
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber,
                 head.NominalAgreementNumber, head.number) = Yes;
             export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
             export BarePrepositionUse = No;
         }
 
         instance DiscontinuousComparativeNominal<Result, Governor: governor,
-            HeadFeatures, HeadProperties, Properties>: [
-            (Nominal, DiscontinuousComparativeGovernor, NominalHeadFeatures, NominalHeadProperties,
+            HeadFeatures, Properties>: [
+            (Nominal, DiscontinuousComparativeGovernor, NominalHeadFeatures,
                 DiscontinuousComparativeModifier),
-            (NounPhrase, ComparativeDeterminerHead, NounPhraseHeadAgreement, NoFeatures,
+            (NounPhrase, ComparativeDeterminerHead, NounPhraseHeadAgreement,
                 DiscontinuousComparativeDeterminer),
-        ] { use HeadFeatures; use HeadProperties; use Properties; }
+        ] { use HeadFeatures; use Properties; }
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
@@ -4017,20 +4014,9 @@ constructions! {
         }
 
         construction CardinalMeasuredNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
             export UnitBearing = Yes;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = Yes;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [quantity: Cardinal, " ", head: Nominal];
             require head.MeasurePosition = Before;
@@ -4041,7 +4027,6 @@ constructions! {
                 head.MeasurePosition, head.countability) = Yes;
             export number = Singular;
             export BareGenitiveHost = No;
-            export Targeting = head.Targeting;
             use ThirdPersonCommonCase;
             require singular_relative_number(head.SubjectRelativeNumber) = Yes;
         }
@@ -4050,51 +4035,25 @@ constructions! {
             form [head: node, " ", modifier: node];
         }
         policy PostpositiveNominalProperties {
-            export ComparativeModifierPresent = head.ComparativeModifierPresent;
-            export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
-            export SubjectRelativeNumber = head.SubjectRelativeNumber;
             export BareGenitiveHost = No;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             require modifier.AdjectiveStructure = Complemented;
             require modifier.AdjectiveAttributiveOnlyUse = No;
         }
         // Pre-integrate review ruling (2026-10-09): a declared fused-head NP
         // licence admits the comparative Postmodifier without pruning nominal scope.
         policy PostpositiveNounPhraseProperties {
-            export LocativeUse = head.LocativeUse;
             export NominalDependentPresent = Yes;
             require unquantified_comparative(modifier.PropertyEqualityForm) = Yes;
-            export PartitiveCountability = head.PartitiveCountability;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = head.Definiteness;
-            export UnitBearing = head.UnitBearing;
             require head.ComparativePostmodifierUse = Yes;
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
-            export number = head.number;
-            export person = head.person;
-            export CaseUse = head.CaseUse;
-            export Targeting = head.Targeting;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export SubjectStructure = head.SubjectStructure;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export ComparativePostmodifierUse = No;
         }
         instance PostpositiveNominal<Result, Head: head, Modifier: modifier,
-            HeadFeatures, HeadProperties, Properties>: [
-            (Nominal, Self, AdjectivePhrase, NominalHeadFeatures, NominalHeadProperties,
+            HeadFeatures, Properties>: [
+            (Nominal, Self, AdjectivePhrase, NominalHeadFeatures,
                 PostpositiveNominalProperties),
-            (NounPhrase, Self, ComparativeAdjectivePhrase, NoFeatures, NoFeatures,
+            (NounPhrase, Self, ComparativeAdjectivePhrase, NoFeatures,
                 PostpositiveNounPhraseProperties),
-        ] { use HeadFeatures; use HeadProperties; use Properties; }
+        ] { use HeadFeatures; use Properties; }
 
         // CGEL Ch. 5 §14.2, p. 444: participial VPs can premodify a noun.
         table verbal_premodifier(form, frame, PastParticipialPremodifier) -> Selection {
@@ -4133,25 +4092,10 @@ constructions! {
         // Owner ruling (2026-10-08): Oracle names carry the grammatical
         // agreement declared on their lexeme.
         construction ProperNameNounPhrase: NounPhrase {
-            export NominalDependentPresent = No;
-            export LocativeUse = No;
             export PartitiveCountability = Count;
             export NounPhraseStructure = ProperName;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export ScalarDenotation = No;
-            export SelectedPrepositionUse = No;
-            export PredicativeAdjunctUse = No;
-            export SourceModifierPresent = No;
-            export WholeObjectSourcePresent = No;
-            export BarePrepositionUse = No;
-            export BareGenitiveHost = No;
             export Targeting = No;
             form [head: Name];
-            export number = head.number;
             use ThirdPersonCommonCase;
         }
 
@@ -4159,31 +4103,13 @@ constructions! {
         // supplement a proper-name anchor. NA1–NA4 (orchestrator ruling,
         // 2026-10-10) license this unclosed NP shape wherever a name occurs.
         construction AscriptiveNounPhraseSupplement: NounPhrase {
-            export LocativeUse = anchor.LocativeUse;
+            head anchor;
             export NominalDependentPresent = Yes;
-            export PartitiveCountability = anchor.PartitiveCountability;
             form [anchor: NounPhrase, ", ", supplement: NounPhrase];
             require anchor.NounPhraseStructure = ProperName;
             require supplement.NounPhraseStructure = IndefiniteArticle;
             require supplement.Definiteness = Nondefinite;
-            export NounPhraseStructure = Other;
             export FocusedUse = anchor.FocusedUse;
-            export Definiteness = anchor.Definiteness;
-            export UnitBearing = anchor.UnitBearing;
-            export number = anchor.number;
-            export person = anchor.person;
-            export CaseUse = anchor.CaseUse;
-            export Targeting = anchor.Targeting;
-            export BareGenitiveHost = anchor.BareGenitiveHost;
-            export SubjectStructure = anchor.SubjectStructure;
-            export BarePrepositionUse = anchor.BarePrepositionUse;
-            export SelectedPrepositionUse = anchor.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = anchor.PredicativeAdjunctUse;
-            export ScalarDenotation = anchor.ScalarDenotation;
-            export SourceModifierPresent = anchor.SourceModifierPresent;
-            export WholeObjectSourcePresent = anchor.WholeObjectSourcePresent;
-            export DeterminerAgreementNumber = anchor.DeterminerAgreementNumber;
-            export ComparativePostmodifierUse = anchor.ComparativePostmodifierUse;
         }
 
         construction PassiveNamePredicate: NamePredicate {
@@ -4240,21 +4166,9 @@ constructions! {
             (Nominal, PluralCount) => Plural, (Nominal, Mass) => Singular,
         }
         construction PartitiveNounPhrase: NounPhrase {
+            head quantity;
             export NominalDependentPresent = Yes;
-            export LocativeUse = No;
-            export PartitiveCountability = Unrestricted;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = Nominal;
-            export ScalarDenotation = No;
-            export SelectedPrepositionUse = No;
-            export PredicativeAdjunctUse = No;
-            export SourceModifierPresent = No;
-            export WholeObjectSourcePresent = No;
-            export BarePrepositionUse = No;
-            export BareGenitiveHost = No;
             form [quantity: QuantitativeDeterminer, " ", complement: PrepositionPhrase,
                 modifiers: repeat(PartitiveModifier, "")]
                 export number = partitive_quantity_number(quantity.DeterminerAgreementNumber,
@@ -4307,8 +4221,6 @@ constructions! {
             export NominalDependentPresent = Yes;
             export LocativeUse = No;
             export PartitiveCountability = complement.PartitiveCountability;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
@@ -4339,11 +4251,8 @@ constructions! {
         construction FusedDeterminerHeadNounPhrase: NounPhrase {
             // AE1–AE2 and AE6 (orchestrator, 2026-10-10/11):
             // immediate dependent and locative use; CGEL Ch. 5 §9.6, p. 423.
-            export LocativeUse = head.LocativeUse;
             export NominalDependentPresent = posthead_dependent_presence(dependent.present);
             export PartitiveCountability = Unrestricted;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export UnitBearing = No;
             form [head: lexical(Determinative),
                 dependent: optional(lexical(Preposition), before(" "))]
@@ -4383,9 +4292,6 @@ constructions! {
         // CGEL Ch. 5 §12(b–c), p. 434: fractions and multipliers are
         // external Modifiers; HR1–HR2 require a declared definite host.
         construction PredeterminerNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = head.LocativeUse;
-            export PartitiveCountability = head.PartitiveCountability;
             export NounPhraseStructure = predeterminer_structure(modifier.PredeterminerUse);
             form [modifier: lexical(Adverb), " ", head: NounPhrase];
             form [modifier: lexical(Noun), " ", head: NounPhrase];
@@ -4394,44 +4300,15 @@ constructions! {
                     head.PartitiveCountability) = Yes;
             require predeterminer_host(modifier.PredeterminerUse, head.Definiteness,
                 head.NounPhraseStructure) = Yes;
-            export UnitBearing = head.UnitBearing;
-            export number = head.number;
-            export person = head.person;
-            export CaseUse = head.CaseUse;
-            export Targeting = head.Targeting;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export SubjectStructure = head.SubjectStructure;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
-            export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
-            export FocusedUse = No;
-            export Definiteness = head.Definiteness;
         }
 
         construction DeterminedNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = determiner.Definiteness;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = determiner.DeterminerAgreementNumber;
             export ScalarDenotation = quantificational_scalar_denotation(
                 determiner.QuantificationalDeterminer, head.NumberTransparency, head.ScalarDenotation);
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export Targeting = head.Targeting;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Ordinary;
             require determiner_license(determiner.DeterminerUse, head.number,
@@ -4448,19 +4325,9 @@ constructions! {
         }
 
         construction IndefiniteNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
             export NounPhraseStructure = IndefiniteArticle;
-            export FocusedUse = No;
             export Definiteness = Nondefinite;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [determiner: lexical(Determinative), " ", head: Nominal];
             require determiner.DeterminerKind = Indefinite;
@@ -4469,9 +4336,6 @@ constructions! {
             require head.countability = Count;
             agree determiner.article_onset = head.onset;
             export number = determiner.number;
-            export ScalarDenotation = head.ScalarDenotation;
-            export Targeting = head.Targeting;
-            export BareGenitiveHost = head.BareGenitiveHost;
             use ThirdPersonCommonCase;
             require singular_relative_number(head.SubjectRelativeNumber) = Yes;
             require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;
@@ -4483,16 +4347,7 @@ constructions! {
             (Singular, Count, Yes, Yes) => Yes,
         }
         construction BareNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Nondefinite;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [head: Nominal];
             require bare_noun_phrase_license(head.number, head.countability,
@@ -4504,43 +4359,19 @@ constructions! {
 
         // CGEL Ch. 7 §3.1, pp. 620–623: the bare NP is internal to the PP.
         construction BarePrepositionNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             form [head: Nominal];
             require bare_preposition_use(head.BarePrepositionUse) = Yes;
             require head.number = Singular;
             require head.countability = Count;
             require head.DeterminerRequirement = No;
-            export BarePrepositionUse = head.BarePrepositionUse;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
         }
 
         construction TargetNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Nondefinite;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
-            export BareGenitiveHost = head.BareGenitiveHost;
             form [marker: lexical(Determinative), " ", head: Nominal];
             require marker.Targeting = Yes;
             require head.Targeting = No;
@@ -4557,8 +4388,6 @@ constructions! {
             export NominalDependentPresent = No;
             export LocativeUse = No;
             export PartitiveCountability = Unrestricted;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Unspecified;
 
             export UnitBearing = No;
@@ -4590,10 +4419,6 @@ constructions! {
             (AccusativePhrase, NounPhrase, AccusativeCase),
         ] {
             require head.BarePrepositionUse = No;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             use Properties;
         }
 
@@ -4601,8 +4426,6 @@ constructions! {
             export NominalDependentPresent = No;
             export LocativeUse = No;
             export PartitiveCountability = Unrestricted;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Unspecified;
             export UnitBearing = No;
             export ComparativePostmodifierUse = No;
@@ -4765,27 +4588,7 @@ constructions! {
             export UnmarkedConjunctLicence = head.UnmarkedConjunctLicence;
         }
         policy FocusedNounPhrasePermissions {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = head.LocativeUse;
-            export PartitiveCountability = head.PartitiveCountability;
-            export NounPhraseStructure = Other;
             export FocusedUse = Yes;
-            export UnitBearing = head.UnitBearing;
-            export number = head.number;
-            export person = head.person;
-            export CaseUse = head.CaseUse;
-            export Targeting = head.Targeting;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export SubjectStructure = head.SubjectStructure;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
-            export ComparativePostmodifierUse = head.ComparativePostmodifierUse;
-            export Definiteness = head.Definiteness;
         }
         policy FocusedPurposePermissions {
             export FocusedUse = Yes;
@@ -5504,16 +5307,6 @@ constructions! {
 
         // The declared modifier licenses this Oracle-register bare singular NP.
         construction BareStatusNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [modifier: lexical(Adjective), " ", head: Nominal];
             require modifier.BareSingularUse = Yes;
@@ -5526,16 +5319,6 @@ constructions! {
         }
 
         construction BareParticipialStatusNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [modifier: lexical(Verb), " ", head: Nominal];
             require verbal_premodifier(modifier.form, modifier.frame,
@@ -6198,20 +5981,11 @@ constructions! {
         }
 
         construction QuantifiedNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = quantity.Definiteness;
             export UnitBearing = nominal_unit_bearing(head.MeasurePosition);
-            export ComparativePostmodifierUse = No;
             export DeterminerAgreementNumber = quantified_agreement(
                 quantity.DeterminerAgreementNumber, head.NominalAgreementNumber);
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [quantity: QuantitativeDeterminer, " ", head: Nominal];
             require quantified_determiner_license(quantity.DeterminerUse, head.number, head.countability,
@@ -6221,8 +5995,6 @@ constructions! {
                 head.MeasurePosition, head.countability) = Yes;
             export ScalarDenotation = quantified_scalar_denotation(head.ScalarDenotation, head.MeasurePosition);
             export SubjectStructure = Phrase;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export Targeting = head.Targeting;
             export number = quantified_nominal_number(quantity.DeterminerAgreementNumber,
                 head.NominalAgreementNumber, head.number);
             export person = Third;
@@ -6383,20 +6155,9 @@ constructions! {
         }
 
         construction MeasuredNounPhrase: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
             export UnitBearing = Yes;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
             export ScalarDenotation = Yes;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
@@ -6482,20 +6243,7 @@ constructions! {
         // coordinated-property-values (2026-10-08). A property Nominal selects
         // its following value Complement through declared position and kind.
         construction MeasuredAttribute: NounPhrase {
-            export NominalDependentPresent = head.NominalDependentPresent;
-            export LocativeUse = No;
             export PartitiveCountability = partitive_countability(head.countability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = Unspecified;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             export BareGenitiveHost = No;
             export Targeting = No;
@@ -6549,28 +6297,9 @@ constructions! {
             form [head: node, " ", comparison: MatrixComparativePhrase];
         }
         policy NominalComparisonHost {
-            export LocativeUse = head.LocativeUse;
             export NominalDependentPresent = Yes;
-            export PartitiveCountability = head.PartitiveCountability;
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
-            export Definiteness = head.Definiteness;
-            export UnitBearing = head.UnitBearing;
             export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = head.DeterminerAgreementNumber;
             require comparison.ComparativeComplementForm = Nominal;
-            export number = head.number;
-            export person = head.person;
-            export CaseUse = head.CaseUse;
-            export Targeting = head.Targeting;
-            export BareGenitiveHost = head.BareGenitiveHost;
-            export SubjectStructure = head.SubjectStructure;
-            export BarePrepositionUse = head.BarePrepositionUse;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export ScalarDenotation = head.ScalarDenotation;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
         }
         policy NonfiniteComparisonHost {
             require matched_nonfinite_comparison(head.form, comparison.ComparativeComplementForm) = Yes;
@@ -7281,16 +7010,8 @@ constructions! {
             (Plural, Yes, PluralS) => Yes,
         }
         construction GenitiveNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Definite;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
             require possessor.BarePrepositionUse = No;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
             export WholeObjectSourcePresent = whole_object_source_presence(
                 head.WholeObjectSourcePresent, possessor.WholeObjectSourcePresent);
             export BarePrepositionUse = No;
@@ -7305,16 +7026,7 @@ constructions! {
         }
 
         construction PossessiveNounPhrase: NounPhrase {
-            export NounPhraseStructure = Other;
-            export FocusedUse = No;
             export Definiteness = Definite;
-            export UnitBearing = No;
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = Nominal;
-            export SelectedPrepositionUse = head.SelectedPrepositionUse;
-            export PredicativeAdjunctUse = head.PredicativeAdjunctUse;
-            export SourceModifierPresent = head.SourceModifierPresent;
-            export WholeObjectSourcePresent = head.WholeObjectSourcePresent;
             export BarePrepositionUse = No;
             form [possessor: lexical(Pronoun), " ", head: Nominal];
             require possessor.case = Genitive;
