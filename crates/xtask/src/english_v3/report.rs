@@ -154,6 +154,8 @@ pub(super) struct FaceReport {
     #[serde(default)]
     pub ability_spans: Vec<(usize, usize)>,
     #[serde(default)]
+    pub helper_fallbacks: usize,
+    #[serde(default)]
     pub surroundings_sha256: Option<String>,
     #[serde(default)]
     pub migration: Vec<super::decomposition::Bridge>,
@@ -210,6 +212,7 @@ impl FaceReport {
             readings_sha256: None,
             lines: Vec::new(),
             ability_spans: Vec::new(),
+            helper_fallbacks: 0,
             surroundings_sha256: None,
             migration: Vec::new(),
             chart: chart_metrics(Metrics::default()),

@@ -45,7 +45,6 @@ pub struct BlockersArgs {
 
 #[derive(Deserialize)]
 struct Input {
-    schema_version: usize,
     field: SourceField,
     workers: NonZeroUsize,
     change_id: Option<String>,
@@ -413,13 +412,28 @@ fn write_summary(report: &Report, limit: Option<usize>, out: &mut dyn Write) -> 
     Ok(())
 }
 
-pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Result<()> {
-    let input: Input = serde_json::from_reader(BufReader::new(std::fs::File::open(&args.census)?))
-        .with_context(|| format!("reading census {}", args.census.display()))?;
+fn read_input(path: &Path) -> Result<Input> {
+    let value: serde_json::Value =
+        serde_json::from_reader(BufReader::new(std::fs::File::open(path)?))
+            .with_context(|| format!("reading census {}", path.display()))?;
     ensure!(
-        input.schema_version == super::report::SCHEMA_VERSION && input.field == SourceField::Text,
+        value
+            .get("schema_version")
+            .and_then(serde_json::Value::as_u64)
+            == Some(super::report::SCHEMA_VERSION as u64),
+        "blockers: incompatible baseline; requires a schema-9 text census"
+    );
+    let input: Input = serde_json::from_value(value)
+        .with_context(|| format!("reading census {}", path.display()))?;
+    ensure!(
+        input.field == SourceField::Text,
         "blockers requires a schema-9 text census"
     );
+    Ok(input)
+}
+
+pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Result<()> {
+    let input = read_input(&args.census)?;
     let corpus = load_selected(
         data,
         &SelectionRequest {
@@ -530,6 +544,25 @@ mod tests {
             },
         };
         inspect_face(&input, face, lexicon(), environment.grammar(), &args).unwrap()
+    }
+
+    #[test]
+    fn incompatible_baseline_is_reported_before_missing_schema_9_face_fields() {
+        let file = tempfile::NamedTempFile::new().unwrap();
+        let old = serde_json::json!({"schema_version":8, "field":"text", "workers":1,
+            "change_id":null, "faces":[{"analyzed_source":"Flying"}]});
+        std::fs::write(file.path(), serde_json::to_vec(&old).unwrap()).unwrap();
+        let error = read_input(file.path()).err().unwrap().to_string();
+        assert_eq!(
+            error,
+            "blockers: incompatible baseline; requires a schema-9 text census"
+        );
+        let mut current = old;
+        current["schema_version"] = 9.into();
+        std::fs::write(file.path(), serde_json::to_vec(&current).unwrap()).unwrap();
+        let error = format!("{:#}", read_input(file.path()).err().unwrap());
+        assert!(!error.contains("incompatible baseline"), "{error}");
+        assert!(error.contains("missing field"), "{error}");
     }
 
     #[test]

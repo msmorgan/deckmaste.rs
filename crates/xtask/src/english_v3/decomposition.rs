@@ -127,10 +127,10 @@ impl UnitEnumeration<'_, '_> {
         let mut report = LineReport {
             span: (bytes.start, bytes.end),
             category: format!("{:?}", unit.category),
-            retained_reason: unit.retained_reason.map(str::to_owned).or_else(|| {
-                (fallback || unit.category == Category::Ability)
-                    .then(|| "factorization-unproved".into())
-            }),
+            retained_reason: unit
+                .retained_reason
+                .map(str::to_owned)
+                .or_else(|| fallback.then(|| "factorization-unproved".into())),
             proposed_parts: unit
                 .proposed_parts
                 .iter()
@@ -295,6 +295,7 @@ pub(super) fn analyze(
         result.ability_spans.push((bytes.start, bytes.end));
         let nodes: Vec<_> = segment.nodes.iter().copied().collect();
         let (plan, fallback) = enumeration.plan(&nodes)?;
+        result.helper_fallbacks += usize::from(fallback);
         let mut values = Vec::new();
         for unit in plan.units() {
             let (line, unit_values) = enumeration.enumerate(unit, result, fallback)?;
@@ -895,6 +896,97 @@ mod tests {
             &grammar,
         )
         .unwrap();
+    }
+
+    #[test]
+    fn keyword_units_are_ordinary_units_without_retained_reasons() {
+        for text in ["Flying", "Ward {2}, protection from red"] {
+            let face = check(text, Category::Document, 1, &[1], &["Ability"]);
+            assert_eq!(face.lines[0].retained_reason, None);
+            assert_eq!(face.lines[0].proposed_parts, []);
+            assert_eq!(face.helper_fallbacks, 0);
+        }
+    }
+
+    #[test]
+    fn ability_word_label_alternatives_keep_the_current_whole_unit_and_proposed_sentence() {
+        let text = "Landfall — Whenever a land you control enters, you get {E}{E}.";
+        let face = check(text, Category::Document, 2, &[2], &["Ability"]);
+        assert_eq!(
+            face.lines[0].retained_reason.as_deref(),
+            Some("alternative-wrapper")
+        );
+        assert_eq!(
+            face.lines[0].proposed_parts,
+            [("Sentence".into(), (13, text.len()))]
+        );
+        assert_eq!(face.helper_fallbacks, 0);
+    }
+
+    #[test]
+    fn bridge_rejects_a_mutated_reconstruction_with_the_original_forest_unchanged() {
+        let text = "Draw a card.";
+        let lexicon = super::super::tests::lexicon();
+        let grammar = Grammar::with_lexicon(lexicon);
+        let input = lexicon.analyze(text);
+        let forest =
+            deckmaste_english_v3::parse(&grammar, lexicon, &input, &Category::Document).unwrap();
+        let scope = BTreeSet::new();
+        let context = RealizationContext::new_scoped(&grammar, lexicon, text, &scope);
+        let args = super::super::tests::args(None);
+        let enumeration = UnitEnumeration {
+            forest: &forest,
+            analyzed: &input,
+            grammar: &grammar,
+            lexicon,
+            args: &args,
+            context: &context,
+        };
+        let (plan, _) = enumeration.plan(forest.roots()).unwrap();
+        let values = forest
+            .readings_from(
+                &plan.units()[0].nodes.iter().copied().collect::<Vec<_>>(),
+                Tracing::new(&grammar),
+            )
+            .collect::<std::result::Result<Vec<_>, _>>()
+            .unwrap();
+        bridge(
+            &forest,
+            &plan,
+            forest.roots(),
+            &[values],
+            &grammar,
+            &context,
+            text,
+            Category::Document,
+            (0, text.len()),
+        )
+        .unwrap();
+        let replacement = lexicon.analyze("Gain 1 life.");
+        let replacement_forest =
+            deckmaste_english_v3::parse(&grammar, lexicon, &replacement, &Category::Sentence)
+                .unwrap();
+        let mutated = replacement_forest
+            .readings(Tracing::new(&grammar))
+            .next()
+            .unwrap()
+            .unwrap();
+        let error = bridge(
+            &forest,
+            &plan,
+            forest.roots(),
+            &[vec![mutated]],
+            &grammar,
+            &context,
+            text,
+            Category::Document,
+            (0, text.len()),
+        )
+        .unwrap_err();
+        assert!(
+            error.to_string().contains("migration reconstruction"),
+            "{error}"
+        );
     }
 
     #[test]

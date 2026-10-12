@@ -156,19 +156,27 @@ require separate evidence.
 The census parses the complete face in its original Category and card-name
 context. It then enumerates outermost Sentences, activated Costs and modal
 Clause headers; mode bodies and parenthetical paragraphs decompose recursively.
-Keyword lines, Type Lines and EmptyDocument remain whole units. A Sentence is
-a stopping boundary: quoted granted abilities and relative clauses stay inside
-it. Labels, separators, parentheses and connections remain validated surrounding
-structure.
+Keyword lines, Type Lines and EmptyDocument remain ordinary whole units, without
+a retained reason. A Sentence is a stopping boundary: quoted granted abilities
+and relative clauses stay inside it. Labels, separators, parentheses and
+connections remain validated surrounding structure.
 
 `Forest::decompose` compares fixed constructor/leaf structures and the actual
 permitted tuples of completed nodes. It accepts an independent product only
 when those tuple sets agree, rather than relying on equal spans or counts.
-Non-independent regions stay whole at their smallest available Reading boundary,
-with span, Category, count, proposed parts and a retained reason in the report.
-Compiler sequence helpers are not Reading boundaries. Unit Readings undergo exact
-realization and traversal checks in the original lexical environment. Generated
-surrounding realization depends on fixed fields, child admission summaries and
+Regions without a proved fixed surrounding structure and product stay whole
+at their smallest available Reading boundary, with span, Category, count,
+proposed parts and a retained reason in the report.
+Label-led regions are retained whole because label alternatives are not modelled
+as surrounding-structure variants. This is a decomposition limitation, not a
+claim that the label and body choices are non-independent. Modal Paragraphs with
+alternative attachments of trailing sentences also remain whole: the last mode
+and the enclosing Paragraph have different surrounding structures.
+Compiler sequence helpers are not Reading boundaries; `helper_fallbacks` counts
+forced whole-region fallbacks when a helper survives decomposition.
+Unit Readings undergo exact realization and traversal checks in the original
+lexical environment. Generated surrounding realization depends on fixed fields,
+child admission summaries and
 recursive child realization; all distinct boundary-summary tuples and the root
 constraints are checked as well.
 
