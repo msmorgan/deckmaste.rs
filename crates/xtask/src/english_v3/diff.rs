@@ -1,6 +1,6 @@
 //! Face-by-face comparison of two census reports.
 //!
-//! A report, never a gate: every outcome exits 0 once both inputs parse.
+//! Optional checks turn the comparison into a no-loss or identical-digest gate.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -12,6 +12,7 @@ use anyhow::Context;
 use anyhow::Result;
 use anyhow::ensure;
 use clap::Args;
+use clap::ValueEnum;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -43,6 +44,16 @@ pub struct DiffArgs {
     /// arrays.
     #[arg(long)]
     lines: bool,
+    /// Fail on incompatible/incomplete reports or lost coverage; identical-digests
+    /// additionally requires every face's count and digest to be unchanged.
+    #[arg(long, value_enum)]
+    check: Option<CheckMode>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, ValueEnum)]
+enum CheckMode {
+    NoLoss,
+    IdenticalDigests,
 }
 
 /// The per-face fields of a census report that the comparison reads. Unknown
@@ -407,7 +418,7 @@ pub(super) fn manifest(result: &Comparison, random: usize, seed: u64) -> Selecti
 ///
 /// # Errors
 /// Only when an input cannot be read or parsed, or an output cannot be written.
-fn require_current_versions(path: &Path) -> Result<()> {
+fn require_current_versions(path: &Path) -> Result<serde_json::Value> {
     let json: serde_json::Value = serde_json::from_slice(&std::fs::read(path)?)?;
     for (field, version) in [
         ("schema_version", super::report::SCHEMA_VERSION),
@@ -426,12 +437,102 @@ fn require_current_versions(path: &Path) -> Result<()> {
             "comparison requires the new baseline and matching {field}; use --migration-from for the one re-baseline"
         );
     }
+    Ok(json)
+}
+
+fn checked_faces(report: &serde_json::Value) -> Result<BTreeMap<&str, &serde_json::Value>> {
+    let status = report["selection_status"].as_str();
+    ensure!(
+        matches!(status, Some("complete" | "subset"))
+            && report["analysis_status"].as_str() == status
+            && report.get("reading_limit") == Some(&serde_json::Value::Null),
+        "check requires complete enumeration and selection metadata (no reading limit)"
+    );
+    let faces = report["faces"].as_array().context("check requires faces")?;
+    ensure!(!faces.is_empty(), "check requires a nonempty census");
+    let mut result = BTreeMap::new();
+    for face in faces {
+        let id = face["id"]
+            .as_str()
+            .filter(|id| !id.is_empty())
+            .context("face lacks an identity")?;
+        ensure!(
+            result.insert(id, face).is_none(),
+            "duplicate face identity {id}"
+        );
+        ensure!(
+            face["enumeration"] == "complete"
+                && face["checked_readings"].as_u64().is_some()
+                && face["exact_readings"] == face["checked_readings"]
+                && face["readings_sha256"]
+                    .as_str()
+                    .is_some_and(|digest| !digest.is_empty())
+                && face["issues"].as_array().is_some_and(Vec::is_empty),
+            "incomplete enumeration or validation issues on face {id}"
+        );
+        let lines = face["lines"]
+            .as_array()
+            .context("check requires enumeration units")?;
+        ensure!(
+            lines.iter().all(|line| line["enumeration"] == "complete"
+                && line["readings_sha256"]
+                    .as_str()
+                    .is_some_and(|digest| !digest.is_empty())),
+            "incomplete unit enumeration on face {id}"
+        );
+    }
+    Ok(result)
+}
+
+fn check_reports(
+    mode: CheckMode,
+    before: &serde_json::Value,
+    after: &serde_json::Value,
+) -> Result<()> {
+    for field in ["field", "input_sha256", "support_filter", "input_policy"] {
+        ensure!(
+            before[field]
+                .as_str()
+                .is_some_and(|value| !value.is_empty())
+                && before[field] == after[field],
+            "incompatible baseline: missing or different {field}"
+        );
+    }
+    let before_faces = checked_faces(before).context("baseline")?;
+    let after_faces = checked_faces(after).context("comparison")?;
+    ensure!(
+        before_faces.keys().eq(after_faces.keys()),
+        "incompatible baseline: face populations differ (missing or added faces)"
+    );
+    for (id, before) in before_faces {
+        let after = after_faces[id];
+        ensure!(
+            before["analyzed_source_sha256"]
+                .as_str()
+                .is_some_and(|hash| !hash.is_empty())
+                && before["analyzed_source_sha256"] == after["analyzed_source_sha256"],
+            "incompatible baseline: source changed on face {id}"
+        );
+        ensure!(
+            before["checked_readings"] == 0 || after["checked_readings"] != 0,
+            "lost face {id} ({})",
+            before["name"]
+        );
+        if mode == CheckMode::IdenticalDigests {
+            ensure!(
+                before["checked_readings"] == after["checked_readings"]
+                    && before["readings_sha256"] == after["readings_sha256"],
+                "changed count or digest on face {id} ({})",
+                before["name"]
+            );
+        }
+    }
     Ok(())
 }
 
 pub fn run(args: &DiffArgs, out: &mut dyn Write) -> Result<()> {
-    require_current_versions(&args.before)?;
-    require_current_versions(&args.after)?;
+    let before_metadata = require_current_versions(&args.before)?;
+    let after_metadata = require_current_versions(&args.after)?;
     let before = load(&args.before)?;
     let after = load(&args.after)?;
     let mut result = compare(&args.before, &before, &args.after, &after);
@@ -471,6 +572,10 @@ pub fn run(args: &DiffArgs, out: &mut dyn Write) -> Result<()> {
             request.face_identities.len(),
             path.display()
         )?;
+    }
+    if let Some(mode) = args.check {
+        check_reports(mode, &before_metadata, &after_metadata)?;
+        writeln!(out, "check {mode:?}: passed ({} faces)", result.compared)?;
     }
     Ok(())
 }
@@ -746,5 +851,143 @@ mod version_tests {
             std::fs::write(file.path(), serde_json::to_vec(&incompatible).unwrap()).unwrap();
             assert!(require_current_versions(file.path()).is_err(), "{field}");
         }
+    }
+}
+
+#[cfg(test)]
+mod check_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn census() -> serde_json::Value {
+        json!({
+            "schema_version": super::super::report::SCHEMA_VERSION,
+            "readings_digest_version": super::super::report::READINGS_DIGEST_VERSION,
+            "decomposition_version": super::super::report::DECOMPOSITION_VERSION,
+            "context_version": super::super::report::CONTEXT_VERSION,
+            "field":"text", "input_sha256":"input", "support_filter":"vintage",
+            "input_policy":"policy", "selection_status":"complete", "analysis_status":"complete",
+            "reading_limit":null,
+            "faces":[{"id":"x", "name":"X", "analyzed_source_sha256":"source",
+                "enumeration":"complete", "checked_readings":2, "exact_readings":2,
+                "readings_sha256":"digest", "issues":[],
+                "lines":[{"span":[0,1], "enumeration":"complete", "checked_readings":2,
+                    "readings_sha256":"digest"}]}]
+        })
+    }
+
+    fn run_files(
+        before: &serde_json::Value,
+        after: &serde_json::Value,
+        check: Option<CheckMode>,
+    ) -> Result<()> {
+        let b = tempfile::NamedTempFile::new()?;
+        let a = tempfile::NamedTempFile::new()?;
+        std::fs::write(b.path(), serde_json::to_vec(before)?)?;
+        std::fs::write(a.path(), serde_json::to_vec(after)?)?;
+        run(
+            &DiffArgs {
+                before: b.path().to_owned(),
+                after: a.path().to_owned(),
+                json: None,
+                manifest: None,
+                random: 0,
+                seed: 0,
+                lines: false,
+                check,
+            },
+            &mut Vec::new(),
+        )
+    }
+
+    #[test]
+    fn check_accepts_identical_complete_censuses_and_matching_subsets() {
+        for status in ["complete", "subset"] {
+            let mut report = census();
+            report["selection_status"] = status.into();
+            report["analysis_status"] = status.into();
+            for mode in [CheckMode::NoLoss, CheckMode::IdenticalDigests] {
+                run_files(&report, &report, Some(mode)).unwrap();
+            }
+        }
+    }
+
+    #[test]
+    fn check_fails_on_lost_faces_but_reporting_still_succeeds() {
+        let before = census();
+        let mut after = before.clone();
+        after["faces"][0]["checked_readings"] = 0.into();
+        after["faces"][0]["exact_readings"] = 0.into();
+        assert!(
+            run_files(&before, &after, Some(CheckMode::NoLoss))
+                .unwrap_err()
+                .to_string()
+                .contains("lost face x")
+        );
+        run_files(&before, &after, None).unwrap();
+    }
+
+    #[test]
+    fn identical_mode_checks_counts_and_digests_even_on_unread_faces() {
+        for count in [0, 2] {
+            let mut before = census();
+            before["faces"][0]["checked_readings"] = count.into();
+            before["faces"][0]["exact_readings"] = count.into();
+            let mut after = before.clone();
+            after["faces"][0]["readings_sha256"] = "changed".into();
+            run_files(&before, &after, Some(CheckMode::NoLoss)).unwrap();
+            assert!(run_files(&before, &after, Some(CheckMode::IdenticalDigests)).is_err());
+        }
+        let before = census();
+        let mut after = before.clone();
+        after["faces"][0]["checked_readings"] = 3.into();
+        after["faces"][0]["exact_readings"] = 3.into();
+        run_files(&before, &after, Some(CheckMode::NoLoss)).unwrap();
+        assert!(run_files(&before, &after, Some(CheckMode::IdenticalDigests)).is_err());
+    }
+
+    #[test]
+    fn check_rejects_incomplete_or_incompatible_evidence_on_either_side() {
+        let good = census();
+        for (path, value) in [
+            ("/schema_version", json!(0)),
+            ("/readings_digest_version", json!(0)),
+            ("/decomposition_version", json!(0)),
+            ("/context_version", json!(0)),
+            ("/field", json!("type_line")),
+            ("/input_sha256", json!("changed")),
+            ("/support_filter", json!("changed")),
+            ("/input_policy", json!("changed")),
+            ("/selection_status", json!(null)),
+            ("/analysis_status", json!("limited")),
+            ("/reading_limit", json!(1)),
+            ("/faces/0/enumeration", json!("limited")),
+            ("/faces/0/enumeration", json!("failed")),
+            ("/faces/0/exact_readings", json!(null)),
+            ("/faces/0/readings_sha256", json!(null)),
+            ("/faces/0/issues", json!(["invalid"])),
+            ("/faces/0/lines/0/enumeration", json!("limited")),
+            ("/faces/0/analyzed_source_sha256", json!("changed")),
+            ("/faces/0/id", json!("missing")),
+            ("/faces", json!([])),
+        ] {
+            let mut bad = good.clone();
+            *bad.pointer_mut(path).unwrap() = value;
+            assert!(
+                run_files(&good, &bad, Some(CheckMode::NoLoss)).is_err(),
+                "{path}"
+            );
+            assert!(
+                run_files(&bad, &good, Some(CheckMode::NoLoss)).is_err(),
+                "{path}"
+            );
+        }
+        let mut duplicate = good.clone();
+        duplicate["faces"]
+            .as_array_mut()
+            .unwrap()
+            .push(good["faces"][0].clone());
+        assert!(run_files(&good, &duplicate, Some(CheckMode::NoLoss)).is_err());
+        assert!(run_files(&duplicate, &good, Some(CheckMode::NoLoss)).is_err());
     }
 }

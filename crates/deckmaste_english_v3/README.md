@@ -35,7 +35,7 @@ reporting them.
 
 ```sh
 cargo xtask english-v3 diff BEFORE.json AFTER.json [--json OUT] \
-  [--manifest OUT --random N --seed S]
+  [--manifest OUT --random N --seed S] [--check no-loss|identical-digests]
 ```
 
 `diff` compares two census reports face by face over the faces present in
@@ -46,7 +46,20 @@ different `readings_sha256`), unchanged, and covered faces and total Readings
 before and after, then capped face lists with counts. `--json` writes every
 list uncapped. `--manifest` writes an identity manifest of every count-changed
 face plus `--random N` unchanged covered faces chosen by `--seed`, ready for
-`--identity-manifest`. It always exits 0: a report, not a gate.
+`--identity-manifest`. Differences alone do not fail the reporting mode.
+
+`--check no-loss` fails for lost coverage, incomplete or limited enumeration,
+validation issues, incompatible versions/input policies/source snapshots, changed
+face sources, or missing/added/duplicate face identities. Both reports must have
+complete enumeration metadata and the same nonempty face population; matching
+subsets can be checked while iterating. `--check identical-digests` also fails for
+any changed face count or digest, including unread faces. These checks do not
+replace the judgment set or analysis-key gate for linguistic changes.
+
+```sh
+cargo xtask english-v3 diff target/english-v3/inherit-before.json \
+  target/english-v3/inherit-after.json --check identical-digests
+```
 
 ## Corpus search
 
