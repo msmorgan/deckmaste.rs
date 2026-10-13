@@ -75,7 +75,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Saint Traft and Rem Karolus",
             "If it's the second time, create a 1/1 blue Spirit creature token with flying.",
-            16,
+            12,
         ),
         (
             "Aurelia, the Warleader",
@@ -85,7 +85,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Felisa, Fang of Silverquill",
             "Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it.",
-            140,
+            112,
         ),
     ];
     for (card, text, count) in witnesses {

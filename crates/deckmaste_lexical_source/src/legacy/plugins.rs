@@ -188,9 +188,15 @@ fn export_metadata(
             type_word.negative_prefix_join,
         ));
     }
-    // A card-type classifier commutes only in its positive noun use.
-    // Its negative derivative was emitted above and keeps the default barrier.
-    if normalized.identity().kind() == metadata::DeclarationKind::Type {
+    // Reviewed type and creature-subtype classifiers commute in their positive
+    // noun use. Negative derivatives were emitted above and retain the barrier.
+    if lexeme.category == Category::Noun
+        && matches!(
+            normalized.identity().kind(),
+            metadata::DeclarationKind::Type
+                | metadata::DeclarationKind::Subtype(metadata::SubtypeCategory::Creature)
+        )
+    {
         lexeme
             .properties
             .features

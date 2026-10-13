@@ -108,7 +108,7 @@ fn authentic_noun_modification_and_stacking_have_complete_independent_values() {
     exact(
         "Vampire creature",
         Category::Nominal,
-        barrier_modified(
+        modified(
             "lexeme:creature_subtype/vampire",
             noun("lexeme:type/creature", Number::Singular),
         ),
@@ -118,13 +118,13 @@ fn authentic_noun_modification_and_stacking_have_complete_independent_values() {
     exact(
         "Assembly-Worker creature",
         Category::Nominal,
-        barrier_modified(
+        modified(
             "lexeme:creature_subtype/assemblyWorker",
             noun("lexeme:type/creature", Number::Singular),
         ),
     );
     // Time Lord Regeneration: "... reveal a Time Lord creature card."
-    let expected = barrier_modified(
+    let expected = modified(
         "lexeme:creature_subtype/timeLord",
         modified(
             "lexeme:type/creature",
@@ -348,17 +348,17 @@ fn permanent_premodifiers_keep_independently_constructed_noun_identity() {
         ("Elf permanent card", "lexeme:creature_subtype/elf"),
         ("nonland permanent card", "lexeme:type/land/non"),
     ] {
-        exact(
-            text,
-            Category::Nominal,
-            barrier_modified(
-                owner,
-                barrier_modified(
-                    "lexeme:CommonNoun/Permanent",
-                    noun("lexeme:CommonNoun/Card", Number::Singular),
-                ),
-            ),
-        );
+        exact(text, Category::Nominal, {
+            let head = barrier_modified(
+                "lexeme:CommonNoun/Permanent",
+                noun("lexeme:CommonNoun/Card", Number::Singular),
+            );
+            match owner {
+                "lexeme:creature_subtype/elf" => modified(owner, head),
+                "lexeme:type/land/non" => barrier_modified(owner, head),
+                _ => unreachable!("unexpected premodifier fixture"),
+            }
+        });
     }
 }
 
@@ -383,7 +383,10 @@ fn permanent_head_use_is_unchanged_and_plural_modifiers_are_rejected() {
             .unwrap();
         assert_eq!(
             heads,
-            vec![crate::common::into_nominal_core(noun("lexeme:CommonNoun/Permanent", Number::Singular))]
+            vec![crate::common::into_nominal_core(noun(
+                "lexeme:CommonNoun/Permanent",
+                Number::Singular
+            ))]
         );
     }
     for text in ["permanents card", "permanents cards", "permanents spell"] {

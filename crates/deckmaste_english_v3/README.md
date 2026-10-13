@@ -575,8 +575,7 @@ Category, and recursively normalizes dependents. There is no global sorting or
 transparent-wrapper default. The seven wrappers and the initial commuting list
 live together in `xtask/src/english_v3/nominal_normal_form.rs`: colour words,
 nonlegendary, adjectival tapped, and positive card-type noun premodifiers.
-Negative card-type nouns such as nonartifact and noncreature remain barriers. Unlisted uses
-are barriers, including nonred, enchanted and creature subtypes pending review.
+Negative card-type nouns such as nonartifact and noncreature remain barriers. Unlisted uses remain barriers; the subsequent reviewed additions are recorded below.
 
 The implementation structurally reads the generated Debug tree encoding already
 used by census Reading identity. Unsupported syntax and changed known wrapper
@@ -601,7 +600,10 @@ reviewed inventory. Version 5 additionally lists the two adjective lexemes
 uses commute: a complement, agent, verbal predicate or coordinated modifier
 is not a simple Adjective node. Untapped, fortified, kicked and other unreviewed
 state words remain barriers. No verbal enchant or equip lexeme is added or
-reclassified.
+reclassified. Version 6 adds base creature-subtype noun lexemes in their simple
+noun-premodifier use. Negative derivatives and bound keyword stems remain
+barriers, as do quoted and coordinated modifiers. The producer assigns the
+property after negative formation, independently of the tool's ID inventory.
 
 Only simple Adjective and noun-category NounPremodifier forms pass the lexical
 property to their phrase. Other adjective uses, keyword premodifiers and

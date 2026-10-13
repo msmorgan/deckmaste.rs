@@ -1032,18 +1032,18 @@ mod tests {
         let face = check(
             text,
             Category::Document,
-            15400,
-            &[2, 50, 154],
+            8800,
+            &[2, 50, 88],
             &["Sentence", "Sentence", "Sentence"],
         );
-        assert_eq!(face.checked_readings, 206);
+        assert_eq!(face.checked_readings, 140);
         assert_eq!(
             face.migration
                 .iter()
                 .find(|region| region.category == "Ability")
                 .unwrap()
                 .old_count,
-            15400
+            8800
         );
         assert!(face.lines.iter().all(|unit| unit.retained_reason.is_none()));
     }

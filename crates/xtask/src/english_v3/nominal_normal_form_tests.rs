@@ -204,11 +204,11 @@ case!(
     1
 );
 case!(
-    unlisted_subtype_is_a_barrier,
+    reviewed_subtype_commutes_with_relatives,
     "Goblin creatures you control",
     NounPhrase,
-    2,
-    2
+    1,
+    1
 );
 
 #[test]
@@ -393,6 +393,10 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
             5,
             "d0a4880a635ed7c552ee37123f25a43eee4967b9aab4eaa324ad668f4412716f",
         ),
+        (
+            6,
+            "be40c1d4c7838ea990789ad86b418f26b94a281838355e6ab264d5def59b2af3",
+        ),
     ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
@@ -504,6 +508,13 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
         "lexeme:keyword_ability/kicker/adjective",
     ] {
         assert!(!admitted.contains(id));
+    }
+    for subtype in ["goblin", "elf", "soldier", "wizard"] {
+        assert!(admitted.contains(&format!("lexeme:creature_subtype/{subtype}")));
+        assert!(!admitted.contains(&format!("lexeme:creature_subtype/{subtype}/non")));
+        assert!(!admitted.contains(&format!(
+            "lexeme:creature_subtype/{subtype}/bound-keyword-stem"
+        )));
     }
     assert!(admitted.contains("lexeme:type/artifact"));
     for colour in ["White", "Blue", "Black", "Red", "Green"] {
@@ -715,5 +726,69 @@ fn reviewed_state_ids_do_not_license_non_simple_modifier_shapes() {
                 "{shape}"
             );
         }
+    }
+}
+
+#[test]
+fn simple_creature_subtypes_remove_the_modifier_order_twin() {
+    for word in ["Goblin", "Elf", "Soldier", "Wizard"] {
+        let text = format!("{word} creatures you control");
+        let values = readings(&text, Category::NounPhrase);
+        assert_eq!(values.len(), 1, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            1,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn negative_and_coordinated_creature_subtypes_keep_their_scopes() {
+    for text in [
+        "non-Goblin creatures you control",
+        "Goblin and Orc creatures you control",
+    ] {
+        let values = readings(text, Category::NounPhrase);
+        assert_eq!(values.len(), 2, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            2,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn subtype_inventory_does_not_license_quoted_coordinated_or_derived_modifiers() {
+    let id = "lexeme:creature_subtype/goblin";
+    let word = format!("Word {{ value: Word(Word {{ lexeme: Ident({id:?}) }}) }}");
+    let simple = format!("NounPremodifier {{ form: 0, head: {word} }}");
+    assert!(
+        Parser { input: &simple }
+            .tree()
+            .unwrap()
+            .commuting_pre(true)
+    );
+    for shape in [
+        simple.replace("form: 0", "form: 1"),
+        simple.replace(id, &format!("{id}/non")),
+        simple.replace(id, &format!("{id}/bound-keyword-stem")),
+        format!("NounPremodifier {{ form: 0, head: Quoted {{ head: {word} }} }}"),
+        format!("QuotedNominal {{ form: 0, head: {word} }}"),
+        format!("Coordination {{ form: 0, left: {simple}, right: {simple} }}"),
+    ] {
+        assert!(
+            !Parser { input: &shape }.tree().unwrap().commuting_pre(true),
+            "{shape}"
+        );
     }
 }

@@ -702,20 +702,11 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             },
         });
         let head = Box::new(head);
-        match owner {
-            "lexeme:type/creature" => Reading::NounPremodifiedNominal {
-                form: 0,
-                modifier,
-                head,
-            },
-            "lexeme:creature_subtype/soldier" => {
-                common::nominal(Reading::BarrierNounPremodifiedNominal {
-                    form: 0,
-                    modifier,
-                    head,
-                })
-            }
-            _ => panic!("unexpected premodifier fixture"),
+        assert!(["lexeme:type/creature", "lexeme:creature_subtype/soldier"].contains(&owner));
+        Reading::NounPremodifiedNominal {
+            form: 0,
+            modifier,
+            head,
         }
     };
     let postmodify = |head: Reading| Reading::NominalProjection {
@@ -726,19 +717,13 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             modifier: Box::new(from_hand.clone()),
         }),
     };
-    // Creature commutes with the source PP: its two old application orders
-    // share the first tree. Soldier remains a barrier, retaining both scopes.
+    // Both classifiers commute with the source PP on the card head;
+    // their former application-order twins have one representative.
     let card = noun("lexeme:CommonNoun/Card");
-    let nominals = [
-        premodify(
-            "lexeme:creature_subtype/soldier",
-            premodify("lexeme:type/creature", postmodify(card.clone())),
-        ),
-        postmodify(premodify(
-            "lexeme:creature_subtype/soldier",
-            premodify("lexeme:type/creature", card),
-        )),
-    ];
+    let nominals = [premodify(
+        "lexeme:creature_subtype/soldier",
+        premodify("lexeme:type/creature", postmodify(card)),
+    )];
     let mut article = word("vocab:Article/Indefinite");
     if let LexicalReading::Word(value) = &mut article.value {
         value.features.number = Some(Number::Singular);

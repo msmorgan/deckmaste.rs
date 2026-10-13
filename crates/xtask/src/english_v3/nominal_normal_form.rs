@@ -10,7 +10,7 @@ use serde::Serialize;
 
 // Bump on every classification or normalization change and append the new
 // source identity to the version lock in the tests. Historical entries stay fixed.
-pub(super) const VERSION: usize = 5;
+pub(super) const VERSION: usize = 6;
 
 pub(super) fn source_sha256() -> String {
     // Compile the source into the binary: a disk edit after building must not
@@ -169,11 +169,13 @@ impl Tree {
             .and_then(Self::word_id)
             .is_some_and(|id| {
                 // The reviewed list lives here. Vocabulary groups are lexical
-                // inventories, not surface-string matches. Do not include /non,
-                // subtype inventories, or other participial adjectives implicitly.
+                // inventories, not surface-string matches. Base type and creature-
+                // subtype nouns exclude /non and bound-stem derivatives;
+                // participial adjectives enter only by their exact reviewed IDs.
                 if noun {
                     return id
                         .strip_prefix("lexeme:type/")
+                        .or_else(|| id.strip_prefix("lexeme:creature_subtype/"))
                         .is_some_and(|name| !name.is_empty() && !name.contains('/'));
                 }
                 matches!(
