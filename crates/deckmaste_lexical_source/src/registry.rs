@@ -90,7 +90,7 @@ pub(crate) fn apply(
                 }
             } else if !metadata(name)
                 && !name
-                    .strip_prefix("FeatureSource:")
+                    .strip_prefix(crate::native::FEATURE_SOURCE_PREFIX)
                     .is_some_and(|feature| properties.contains_key(feature) || metadata(feature))
             {
                 return Err(fail(format!(
@@ -133,42 +133,38 @@ fn core_closed_class(word: &Lexeme) -> bool {
 // Source-adapter metadata is retained during the staged migration. These keys
 // are not grammar features and never grant membership in a lexical class.
 fn metadata(name: &str) -> bool {
-    matches!(
-        name,
-        "OriginalIdentity"
-            | "FrameSource"
-            | "Contraction"
-            | "ParadigmSource"
-            | "OverrideSource:PastParticiple:None:None"
-            | "OverrideSource:Preterite:None:None"
-            | "OverrideSource:GerundParticiple:None:None"
-            | "OverrideSource:Present:Some(Singular):Some(Third)"
-            | "BareLocativeLicense"
-            | "Compoundability"
-            | "Countability"
-            | "LocativeTemporalLicense"
-            | "MannerAnaphorClass"
-            | "Properness"
-            | "Relationality"
-            | "CompoundHead"
-            | "source_recipe"
-            | "locative_temporal_license"
-            | "relationality"
-            | "KeywordParameter"
-            | "Onset"
-            | "FrameMarker"
-            | "HomographLicense"
-            | "ModifierLicense"
-            | "Cardinality"
-            | "Quantification"
-            | "Finiteness"
-            | "FormSource"
-            | "BareDurationLicense"
-            | "DeterminerNumber"
-            | "BareLocativeComplement"
-            | "PrepositionAttachment"
-            | "PrepositionComplementKind"
-    )
+    // The producer owns this namespace; the cell suffix is opaque provenance,
+    // not a grammatical value or an inventory of currently observed overrides.
+    name.strip_prefix(crate::supplement::OVERRIDE_SOURCE_PREFIX)
+        .is_some_and(|cell| !cell.is_empty())
+        || matches!(
+            name,
+            "OriginalIdentity"
+                | "FrameSource"
+                | "Contraction"
+                | "ParadigmSource"
+                | "BareLocativeLicense"
+                | "Compoundability"
+                | "Countability"
+                | "LocativeTemporalLicense"
+                | "MannerAnaphorClass"
+                | "Properness"
+                | "Relationality"
+                | "CompoundHead"
+                | "source_recipe"
+                | "locative_temporal_license"
+                | "relationality"
+                | "KeywordParameter"
+                | "Onset"
+                | "FrameMarker"
+                | "HomographLicense"
+                | "ModifierLicense"
+                | "Cardinality"
+                | "Quantification"
+                | "FormSource"
+                | "BareDurationLicense"
+                | "DeterminerNumber"
+        )
 }
 
 #[cfg(test)]
@@ -356,6 +352,49 @@ mod tests {
                 .insert(name.into(), value.into());
             assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
         }
+    }
+
+    #[test]
+    fn retired_keys_and_unknown_provenance_targets_are_rejected() {
+        for name in [
+            "BareLocativeComplement",
+            "PrepositionAttachment",
+            "PrepositionComplementKind",
+            "Finiteness",
+            "FeatureSource:Missing",
+            "FeatureSource:BareLocativeComplement",
+            "OverrideSource:",
+        ] {
+            let (mut words, registry) = fixture();
+            words[0]
+                .properties
+                .features
+                .insert(name.into(), "unused".into());
+            assert!(
+                apply(&mut words, &registry, BTreeMap::new()).is_err(),
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn provenance_namespaces_follow_producers_without_enumerating_cells() {
+        let (mut words, registry) = fixture();
+        let override_key = format!(
+            "{}{:?}:{:?}:{:?}",
+            crate::supplement::OVERRIDE_SOURCE_PREFIX,
+            deckmaste_lexical::WordForm::Plain,
+            Some(deckmaste_lexical::Number::Plural),
+            Some(deckmaste_lexical::Person::First)
+        );
+        let property_key = format!("{}Kind", crate::native::FEATURE_SOURCE_PREFIX);
+        words[0].properties.features.extend([
+            (override_key, "overrides.ron".into()),
+            (property_key, "core.ron".into()),
+        ]);
+        let expected = words.clone();
+        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        assert_eq!(words, expected);
     }
 
     #[test]

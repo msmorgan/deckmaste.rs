@@ -80,3 +80,21 @@ closed-class eligibility, membership name and Category, and property value.
 Plugin/catalog words can be class members but cannot be closed-word symbols.
 The legacy ID-keyed `class_additions` map is checked too; it does not replace
 a plugin declaration's own membership route.
+
+The four retired map keys `BareLocativeComplement`, `PrepositionAttachment`,
+`PrepositionComplementKind` and infinitival-marker `Finiteness` had no readers;
+typed form finiteness is unchanged. Undeclared keys still fail loading.
+Provenance namespaces use constants shared with their producers:
+`FeatureSource:<key>` must name a declared property or recognized metadata key;
+`OverrideSource:<cell>` retains the morphology producer's opaque, nonempty cell
+suffix rather than enumerating its Debug-formatted cells. This does not grant a
+grammatical feature or class membership.
+
+The remaining fixed metadata keys are `OriginalIdentity`, `FrameSource`,
+`Contraction`, `ParadigmSource`, `BareLocativeLicense`, `Compoundability`,
+`Countability`, `LocativeTemporalLicense`, `MannerAnaphorClass`, `Properness`,
+`Relationality`, `CompoundHead`, `source_recipe`, `locative_temporal_license`,
+`relationality`, `KeywordParameter`, `Onset`, `FrameMarker`, `HomographLicense`,
+`ModifierLicense`, `Cardinality`, `Quantification`, `FormSource`,
+`BareDurationLicense` and `DeterminerNumber`. These include source-adapter
+annotations and mirrors of typed fields; their representation is retained here.

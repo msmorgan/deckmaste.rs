@@ -399,3 +399,129 @@ need; convert the eligible families while retaining table/export-fed properties,
 default-driven flags and open-class singletons; finish the remaining dispositions
 and ticket note. The glossary and READMEs are current for the completed step.
 The ticket remains WIP; the final two-line landing note belongs to completion.
+
+## Review follow-up: unread keys and provenance metadata
+
+The three preposition keys have no reader in the compiler, grammar, loaders or
+other crates: their only production occurrences were the vocabulary data and
+registry exemptions. Each occurred on 15 vocabulary prepositions. The string
+map key Finiteness occurred only on infinitival To; form finiteness is a separate
+typed field, not a reader of that key. Removed all 46 values and their four
+metadata exemptions. Negative loader tests now reject these keys.
+
+The fixed metadata allowlist shrank from 33 names to 25: four dead keys were
+removed and four observed OverrideSource cell names were replaced by the
+producer-owned namespace. Both OverrideSource and FeatureSource prefixes are
+shared constants used by their writers and consumers. OverrideSource requires
+a nonempty opaque cell suffix; FeatureSource must identify a declared property
+or recognized metadata key. No provenance values or typed fields changed. The
+loader README lists all 25 remaining adapter annotations and typed-field mirrors;
+this step does not redesign their representation.
+
+### Candidate dispositions at this prefix
+
+All 49 original candidates are accounted for below: four already converted,
+19 retained properties, and 26 pending conversion/eligibility review. Pending
+means not implemented, not an assertion that a conversion has passed its gates.
+The table-output-domain check adds VerblessPredicateUse to the retained list;
+the initial inventory's table column had counted only inputs. No plugin/catalog
+route is implemented by this cleanup step. BareSingularUse and IdentityUse are
+the measured candidates that could justify it; table-fed plugin properties do
+not justify a membership route on their own.
+
+**Direct-reference candidates (24)**
+
+| Original feature | Disposition | Reason / next work |
+|---|---|---|
+| QuantitativeExceptionUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| QuantificationalDeterminer | Retain property | Inputs to quantificational_number and quantificational_scalar_denotation. |
+| QuantificationalAdjunctUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| PrimaryNegation | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| ObliqueMarker | Retain property | Inputs to oblique_number and whole_object_oblique_source exports. |
+| AdverbComplementClass | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| FocusingModifierUse | Converted | Only word reference. |
+| ImmediatePostheadDependentUse | Retain property | Input to licensed_posthead_dependent; optional admission judgment. |
+| FusedHeadPostmodifierUse | Pending | Else occurs in an optional field; assess existing present-only word requirement. |
+| QuantitativeConjunctUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| MatrixComplementGovernor | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| CompoundComplementMarker | Retain property | Input to selected_compound_complement. |
+| FiniteObjectGapComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| IrrealisClauseComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| ExtentMarker | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| RelativeSubordinator | Converted | RelativeThat word reference. |
+| ProFormComplementUse | Pending | Review So eligibility: current generic Adverb inventory does not establish closed-word eligibility. |
+| MatrixComparisonUse | Retain property | Both Yes and default No are read; ordinary Adverb admission uses No. |
+| ExistentialUse | Retain property | Dummy pronouns require Yes; ordinary nominative/accusative pronouns require default No. |
+| CardinalModifierUse | Pending | Review Exactly eligibility: current generic Adverb inventory does not establish closed-word eligibility. |
+| InfinitivalMarker | Converted | InfinitivalTo word reference. |
+| SecondaryNegation | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| CorrelativeKind | Pending | Three single-word values (Both, Either, Neither); assess selector replacements in schemas. |
+| QuotedComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+
+**Closed-word class candidates (10)**
+
+| Original feature | Disposition | Reason / next work |
+|---|---|---|
+| ComparativeDegreeModifierUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| AuxiliaryUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| FusedHeadUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| ComparativeQuantityUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| GerundClauseComplement | Converted | GerundClausePreposition class (By, Of, To, Without). |
+| RelativeUse | Retain property | Both Yes and default No are read; ordinary pronoun admission depends on No. |
+| BareCoordination | Retain property | Default Yes licenses words without a stored value; Then explicitly has No. |
+| NoncorrelativeCoordination | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| NominalLicense | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| KeywordComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+
+**Lexicon-supplied class candidates (15)**
+
+| Original feature | Disposition | Reason / next work |
+|---|---|---|
+| SuperlativeQuantifierUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| QuantitativeAdjectiveComplementUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| ScalarComparativeUse | Retain property | Greater is an open-class adjective and the only holder; no singleton class. |
+| FrequencyUnit | Retain property | Time is an open-class noun and the only holder; no singleton class. |
+| VerblessPredicateUse | Retain property | Output domain of verbless_ordinary_frame_use, not merely a membership flag. |
+| VerblessComplementOmissionUse | Retain property | Input to verbless_ordinary_frame_use; also singleton Able. |
+| PastParticipialPremodifier | Retain property | Input to verbal_premodifier. |
+| BareSingularUse | Pending | Assess class on Defend plus plugin-derived enchant/equip/fortify adjectives; needs an actual plugin declaration route. |
+| BoundKeyword | Retain property | Both Yes and No are read (bound suffix versus noun premodifier); positive membership does not replace both. |
+| CreatureSubtypeStem | Retain property | Input to licensed_creature_stem. |
+| CreatureSubtypeStemUse | Retain property | Input to licensed_creature_stem. |
+| IdentityUse | Pending | Assess name class; catalog-generated membership must be stated as data, not a hard-coded class name. |
+| TaxonomicComplementUse | Retain property | Kind is an open-class noun and the only holder; no singleton class. |
+| SelectedTailLicence | Retain property | Default ParallelFrames and explicit DeclaredFrames are read by selected-frame expansion; a real lexical property. |
+| KeywordIndefiniteArticle | Retain property | Input to keyword_subject_article and keyword_subject_license; also singleton champion. |
+
+The cleanup passes the full identical-digests gate against the version-2
+baseline: 32,828 unchanged faces, zero lost/gained/count/digest-only changes,
+30,794 read faces and 482,041 Readings. Nissa's 20 Readings, unit contracts and
+surrounding structure also match in the subset. Sorted comparison again matches
+927 rules, 326 constructor records and 666 emitted shapes. The structured
+comparison checks all 35,603 lexemes, permitting only the four earlier
+membership replacements on seven entries and the 46 explicitly retired map
+values. Forms, variants, other properties, provenance and frame order match;
+the four replacement predicates agree extensionally on every entry. All seven
+unsupported frame signatures and all unmapped declarations remain unchanged.
+The lexical inventory hash is now
+c86d867f1b731356925fba56f899530a9968ffb052db21d0399c71e1b977429b.
+The step census was deleted after the gate; only the baseline census remains.
+
+No grammar declaration changed in this step: declarations.rs remains 6,089
+lines, 180 authored features, three closed-word references and one lexical class.
+The already-retired features are InfinitivalMarker, RelativeSubordinator,
+FocusingModifierUse and GerundClauseComplement. This cleanup retires data keys,
+not further grammar features.
+
+Full cargo test for deckmaste_lexical_source, deckmaste_english_v3 and xtask
+passes: 1,705 passed, zero failed, two existing ignored. Full clippy for those
+three crates with --tests -- -D warnings passes. Assurance for this step:
+two added loader tests, zero restored, re-spelled, removed or newly ignored.
+The existing ignored mana-symbol Subject test and live-corpus macro census test
+retain their stated blockers unchanged. Citation audit selects zero changed
+sites; zero noncompliant sites and zero stale citations (17,780 checked).
+
+This is a complete cleanup step. The ticket remains WIP: the need-dependent
+plugin/catalog data route, 26 pending candidate reviews/conversions and final
+landing note remain. The glossary already defines Closed Word and Lexical Class;
+READMEs and the seven unsupported frame findings are current for this prefix.

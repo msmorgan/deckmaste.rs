@@ -10,6 +10,8 @@ use serde::Deserialize;
 use crate::LexicalSources;
 use crate::LoadError;
 
+pub(crate) const OVERRIDE_SOURCE_PREFIX: &str = "OverrideSource:";
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Supplement {
@@ -95,7 +97,7 @@ fn apply_declarations(
         }
         lexeme.properties.features.insert(
             format!(
-                "OverrideSource:{:?}:{:?}:{:?}",
+                "{OVERRIDE_SOURCE_PREFIX}{:?}:{:?}:{:?}",
                 replacement.form, replacement.number, replacement.person
             ),
             path.to_string(),

@@ -9,6 +9,8 @@ use serde::Deserialize;
 
 use crate::LoadError;
 
+pub(crate) const FEATURE_SOURCE_PREFIX: &str = "FeatureSource:";
+
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Inventory {
@@ -682,7 +684,7 @@ pub(crate) fn add_category_feature_defaults(
                     lexeme
                         .properties
                         .features
-                        .insert(format!("FeatureSource:{name}"), PATH.into());
+                        .insert(format!("{FEATURE_SOURCE_PREFIX}{name}"), PATH.into());
                 }
             }
         }
@@ -712,7 +714,7 @@ pub(crate) fn add_features(
             lexeme
                 .properties
                 .features
-                .insert(format!("FeatureSource:{name}"), PATH.into());
+                .insert(format!("{FEATURE_SOURCE_PREFIX}{name}"), PATH.into());
             lexeme.properties.features.insert(name, value);
         }
     }

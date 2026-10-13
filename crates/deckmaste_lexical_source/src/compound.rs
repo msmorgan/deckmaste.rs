@@ -76,9 +76,10 @@ pub(crate) fn add_compound_nouns(
         }
         for feature in ["Onset", "SingularOnset", "PluralOnset"] {
             noun.properties.features.remove(feature);
-            noun.properties
-                .features
-                .remove(&format!("FeatureSource:{feature}"));
+            noun.properties.features.remove(&format!(
+                "{}{feature}",
+                crate::native::FEATURE_SOURCE_PREFIX
+            ));
         }
         noun.properties
             .features

@@ -281,7 +281,7 @@
         ),
         (
             id: "vocab:InfinitivalMarker/To", lemma: "to", category: Subordinator,
-            properties: (countability: [], features: {"Finiteness": "Nonfinite"}, frames: [], classes: []),
+            properties: (countability: [], features: {}, frames: [], classes: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:InfinitivalMarker/To"),
             capitalization: Initial, binding: Free, surface_structure: Word,
