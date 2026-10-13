@@ -595,7 +595,15 @@ card-type producer. Version 4 adds exactly the five negative colour words
 nonwhite, nonblue, nonblack, nonred and nongreen. Negative derivation precedes
 classification: these words are listed explicitly, while negative card types
 remain barriers. A test compares every loaded lexeme with the tool's independent
-reviewed inventory. Only simple Adjective and noun-category NounPremodifier forms pass the lexical
+reviewed inventory. Version 5 additionally lists the two adjective lexemes
+`lexeme:keyword_ability/enchant/adjective` and
+`lexeme:keyword_ability/equip/adjective`. Only their bare simple attributive
+uses commute: a complement, agent, verbal predicate or coordinated modifier
+is not a simple Adjective node. Untapped, fortified, kicked and other unreviewed
+state words remain barriers. No verbal enchant or equip lexeme is added or
+reclassified.
+
+Only simple Adjective and noun-category NounPremodifier forms pass the lexical
 property to their phrase. Other adjective uses, keyword premodifiers and
 coordinated premodifiers remain Barrier.
 

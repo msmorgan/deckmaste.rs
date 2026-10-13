@@ -115,22 +115,16 @@ fn a_status_modifier_keeps_its_existing_determiner_bearing_composition() {
         &Reading::TargetNounPhrase {
             form: 0,
             marker: invariant("vocab:TargetingMarker/Target", SurfaceCase::Declared),
-            head: Box::new(Reading::NominalProjection {
+            head: Box::new(Reading::PremodifiedNominal {
                 form: 0,
-                head: Box::new(Reading::NominalCoreProjection {
+                modifier: Box::new(Reading::Adjective {
                     form: 0,
-                    head: Box::new(Reading::BarrierPremodifiedNominal {
-                        form: 0,
-                        modifier: Box::new(Reading::Adjective {
-                            form: 0,
-                            head: invariant(
-                                "lexeme:keyword_ability/enchant/adjective",
-                                SurfaceCase::Declared,
-                            ),
-                        }),
-                        head: Box::new(noun("lexeme:type/creature")),
-                    }),
+                    head: invariant(
+                        "lexeme:keyword_ability/enchant/adjective",
+                        SurfaceCase::Declared,
+                    ),
                 }),
+                head: Box::new(noun("lexeme:type/creature")),
             }),
         },
     );

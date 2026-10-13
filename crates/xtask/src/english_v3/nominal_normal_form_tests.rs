@@ -197,11 +197,11 @@ case!(
     1
 );
 case!(
-    unlisted_enchanted_is_a_barrier,
+    reviewed_enchanted_commutes_with_relatives,
     "enchanted creatures you control",
     NounPhrase,
-    2,
-    2
+    1,
+    1
 );
 case!(
     unlisted_subtype_is_a_barrier,
@@ -389,6 +389,10 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
             4,
             "3f29a1d713f733a12e3af7668a9a9056fbf32128220ef70c0156d32ff7618f5f",
         ),
+        (
+            5,
+            "d0a4880a635ed7c552ee37123f25a43eee4967b9aab4eaa324ad668f4412716f",
+        ),
     ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
@@ -490,6 +494,17 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
     assert!(admitted.contains("vocab:ColorWord/Red"));
     assert!(admitted.contains("vocab:PredicativeAdjective/Legendary/non"));
     assert!(admitted.contains("lexeme:keyword_action/tap/adjective"));
+    for word in ["enchant", "equip"] {
+        assert!(admitted.contains(&format!("lexeme:keyword_ability/{word}/adjective")));
+        assert!(!admitted.contains(&format!("lexeme:keyword_ability/{word}")));
+    }
+    for id in [
+        "lexeme:keyword_action/untap/adjective",
+        "lexeme:keyword_ability/fortify/adjective",
+        "lexeme:keyword_ability/kicker/adjective",
+    ] {
+        assert!(!admitted.contains(id));
+    }
     assert!(admitted.contains("lexeme:type/artifact"));
     for colour in ["White", "Blue", "Black", "Red", "Green"] {
         assert!(admitted.contains(&format!("vocab:ColorWord/{colour}/non")));
@@ -627,5 +642,78 @@ fn negative_card_types_retain_their_modifier_scopes() {
                 .len(),
             2
         );
+    }
+}
+
+#[test]
+fn reviewed_bare_state_adjectives_remove_the_modifier_order_twin() {
+    for word in ["enchanted", "equipped"] {
+        let text = format!("{word} creatures you control");
+        let values = readings(&text, Category::NounPhrase);
+        assert_eq!(values.len(), 1, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            1
+        );
+    }
+}
+
+#[test]
+fn unreviewed_states_and_participial_or_coordinated_uses_keep_their_analyses() {
+    for (text, count) in [
+        ("untapped creatures you control", 2),
+        ("fortified creatures you control", 2),
+        ("kicked creatures you control", 2),
+        ("attacking creatures you control", 2),
+        ("creatures tapped by players you control", 4),
+        ("enchanted and equipped creatures you control", 2),
+    ] {
+        let values = readings(text, Category::NounPhrase);
+        assert_eq!(values.len(), count, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            count,
+            "{text}"
+        );
+    }
+}
+
+#[test]
+fn reviewed_state_ids_do_not_license_non_simple_modifier_shapes() {
+    for id in [
+        "lexeme:keyword_ability/enchant/adjective",
+        "lexeme:keyword_ability/equip/adjective",
+    ] {
+        let word = format!("Word {{ value: Word(Word {{ lexeme: Ident({id:?}) }}) }}");
+        let simple = format!("Adjective {{ form: 0, head: {word} }}");
+        assert!(
+            Parser { input: &simple }
+                .tree()
+                .unwrap()
+                .commuting_pre(false)
+        );
+        for shape in [
+            format!("Adjective {{ form: 1, head: {word} }}"),
+            format!("Adjective {{ form: 0, head: {word}, complement: Phrase }}"),
+            format!("Adjective {{ form: 0, head: {word}, agent: Phrase }}"),
+            format!("SelectedPredicate {{ form: 0, head: {word} }}"),
+            format!("Coordination {{ form: 0, left: {simple}, right: {simple} }}"),
+        ] {
+            assert!(
+                !Parser { input: &shape }
+                    .tree()
+                    .unwrap()
+                    .commuting_pre(false),
+                "{shape}"
+            );
+        }
     }
 }

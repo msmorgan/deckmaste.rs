@@ -26,6 +26,7 @@
             "vocab:ColorWord/Black/non", "vocab:ColorWord/Blue/non",
             "vocab:ColorWord/Green/non", "vocab:ColorWord/Red/non", "vocab:ColorWord/White/non",
             "vocab:PredicativeAdjective/Legendary/non",
+            "lexeme:keyword_ability/enchant/adjective", "lexeme:keyword_ability/equip/adjective",
         ],
     )],
     // Attested common nouns declare their own negative formation.
