@@ -101,9 +101,10 @@ Regular English families use `coordinable` blocks; the exceptions
 listed below remain handwritten.
 
 The grammar's Standard profile requires GeneralCoordination at ordinary overt
-joins. Clausal uses the same schemas without that requirement for predicates,
-object gaps and clauses. Each Category selects its existing forms; profiles do
-not add forms implicitly beyond the helpers needed by those selections.
+joins. WithoutGeneralCoordinatorRequirement uses the same schemas without that
+requirement for predicates, selected heads, object gaps, clauses and the
+discontinuous comparative governor. Each Category selects its existing forms;
+profiles do not add forms implicitly beyond the helpers needed by those selections.
 
 Named tables retain multi-valued judgments, including noun-phrase and cardinal
 number, complement functions, and ability kinds. Depictive and predicative
@@ -139,10 +140,12 @@ block is an error. Ordinary constructions retain their existing export rules.
 - `always No` (or another value): export a constant without reading inputs.
   Values named `all`, `any` or `same` remain unambiguous after `always`.
 - `left.CliticHost` (or another reference): copy that input.
-- A named table, such as `coordinated_oblique`: infer `(left.F, right.F)` for
-  inputs `(F, F)`, or `(coordinator.CoordinationKind, left.F, right.F)` for inputs
-  `(CoordinationKind, F, F)`, where F is the combined feature. Other signatures
-  need explicit arguments, for example
+- A named pairwise table, such as `common_case`: infer `(left.F, right.F)` for
+  inputs `(F, F)`, where F is the combined feature. All other signatures need
+  explicit arguments, including coordinator-dependent judgments such as
+  `coordinated_oblique(coordinator.CoordinationKind, left.ObliqueNumber,
+  right.ObliqueNumber)`. The compiler knows no grammar-specific feature names.
+  An irregular signature likewise spells out its arguments, for example
   `determined_np_coordinate_number(coordinator.CoordinationKind, left.number,
   right.number, left.DeterminerAgreementNumber, right.DeterminerAgreementNumber)`.
 
@@ -163,11 +166,12 @@ Profiles declare `binary Schema;`, `serial End, Continue, Result;`,
 by a binary schema and an optional serial result schema. Both `forms` and `on`
 use these role names. Selecting `either`, for example, selects precisely the
 binary and serial forms declared for that pair, automatically adding the shared
-correlative helpers when needed. `schema(Name)` is the exact-schema escape.
+correlative helpers when needed. There is no exact-schema escape.
 No undeclared form or correlative pair is invented.
 
 Contexts also include `helper` (end/continuation), `result` (binary/completion),
-`correlative`, `overt` (joins with a coordinator field), and `ordinary_overt`
+`tail` (continuation/completion, whose right member is a helper summary),
+`correlative`, `overt` (binary/end joins), and `ordinary_overt`
 (the ordinary binary and serial end). Profiles may place shared requirements
 in these contexts: English Standard states
 `on ordinary_overt { require coordinator.GeneralCoordination = Yes; }` once.
@@ -179,19 +183,23 @@ coordinable Nominal using Standard {
     forms binary, serial;
     on serial { require left.UnmarkedConjunctLicence = Yes; }
     on helper { combine SomeSummary = always No; omit CompletedOnlySummary; }
-    on schema(End) { require right.SomePermission = Yes; }
+    on tail { require right.SomePermission = Yes; }
 }
 ```
 
 This illustrates scopes; the extra features need declarations in a real grammar.
-An exact-schema override wins over role-context overrides. Overlapping overrides
-at the same specificity reject; requirements and agreements accumulate. There
-is no block-level combiner tier, Boolean requirement syntax or policy composition.
+Overlapping context overrides reject; requirements and agreements accumulate.
+There is no block-level combiner tier, Boolean requirement syntax or policy composition.
 
 Helpers start with the Category's combined entries. Helper contexts can override,
 add or omit entries without repeating regular ones; completed entries cannot be
-omitted. Schema exports add helper entries, such as CorrelativeCoordinator.
+omitted. An override outside the result interface reports the feature at its
+location in the `coordinable` block; helpers may add declared features.
+Schema exports add helper entries, such as CorrelativeCoordinator.
 Coordinator features read through tails are carried automatically from the end.
+Generated helper entries have no `head` or `local` propagation mode: every
+summary export is explicit and the coordination templates are headless, so
+ordinary head inheritance and local defaulting have nothing to supply.
 End and continuation must expose the same summary. Helper names default to
 `<Category>Series` and `Correlative<Category>Series`; `helper Name;` and
 `correlative_helper Name;` name exceptions.
@@ -205,10 +213,6 @@ Elaboration retains constructor names, field order, form indices and `category`
 discriminators. Handwritten instances can coexist for other Categories.
 
 The following English structures intentionally remain handwritten:
-
-- DiscontinuousComparativeGovernor: its lone binary instance omits
-  GeneralCoordination. A one-user profile or a misleading Clausal binding would
-  obscure this small declaration.
 
 - Focused adjunct coordination: six result-only function features would each need
   a constant override and a helper omission. FocusedAdjunctConcord and
@@ -327,7 +331,7 @@ policy uses. Reuse supplies equations, never a new AST construction.
 Policies may parameterize equation field references:
 
 ```rust
-policy FiniteConcord<Other> {
+policy AgreementConcord<Other> {
     agree left.number = Other.number;
     agree left.person = Other.person;
     export number = left.number;
@@ -335,7 +339,7 @@ policy FiniteConcord<Other> {
 }
 ```
 
-`use FiniteConcord(right);` and `use FiniteConcord(rest);` instantiate the same
+`use AgreementConcord(right);` and `use AgreementConcord(rest);` instantiate the same
 explicit equations with different declared caller fields. Only field positions
 in references substitute; feature names, tables, constants and Categories do
 not. Parameter names must be unique, argument arity must match, and every
