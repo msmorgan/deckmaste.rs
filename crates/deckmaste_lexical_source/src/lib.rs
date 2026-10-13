@@ -125,7 +125,7 @@ pub fn load_workspace(
             lexeme.surface_structure = SurfaceStructure::Multiword;
         }
     }
-    registry::apply(&mut output.lexemes, registry, native.class_additions)?;
+    registry::apply(&mut output.lexemes, registry)?;
     output.lexemes.sort_by_key(|left| left.id);
     if let Some(pair) = output
         .lexemes

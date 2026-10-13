@@ -420,8 +420,8 @@ this step does not redesign their representation.
 
 ### Final candidate dispositions
 
-All 49 original candidates are accounted for below: 21 converted and
-28 retained properties; none pending. Final validation is recorded at the end.
+All 49 original candidates are accounted for below: 23 converted and
+26 retained properties; none pending. Final validation is recorded at the end.
 The table-output-domain check adds VerblessPredicateUse to the retained list;
 the initial inventory's table column had counted only inputs. No plugin/catalog
 route is implemented by this cleanup step. BareSingularUse and IdentityUse are
@@ -461,7 +461,7 @@ not justify a membership route on their own.
 
 | Original feature | Disposition | Reason / next work |
 |---|---|---|
-| ComparativeDegreeModifierUse | Retain property | Any, Many, Much, No and Some have this degree-modifier permission; ComparativeDegreeDeterminative would restate that role without clarifying which words belong. |
+| ComparativeDegreeModifierUse | Converted | ComparativeDegreeDeterminative class: Any, Many, Much, No and Some are the permitted comparative degree modifiers; parallel to ComparativeQuantifier. |
 | AuxiliaryUse | Retain property | Only Be, BeContracted and HaveNegative carry this permission; Auxiliary would overstate the class and PostmodifiedAuxiliary would merely rename the construction permission. |
 | FusedHeadUse | Retain property | Anywhere and This license this particular fused-head path; FusedHeadDeterminative would imply a broader general class or merely rename the permission. |
 | ComparativeQuantityUse | Converted | ComparativeQuantifier names fewer, less and more at both reader sites. |
@@ -470,7 +470,7 @@ not justify a membership route on their own.
 | BareCoordination | Retain property | Default Yes licenses words without a stored value; Then explicitly has No. |
 | NoncorrelativeCoordination | Converted | NoncorrelativeCoordinator names the five ordinary joining words and excludes Nor; other joining requirements remain. |
 | NominalLicense | Converted | DependentGenitivePronoun names the five possessors more precisely than AnyNominal; Genitive case is still required. |
-| KeywordComplement | Retain property | With and Without license the keyword complement; KeywordPreposition would restate the same complement permission, not clarify the policy. |
+| KeywordComplement | Converted | KeywordPreposition class: With and Without are the permitted heads; parallel to GerundClausePreposition. |
 
 **Lexicon-supplied class candidates (15)**
 
@@ -702,5 +702,95 @@ among 17,780 citations. READMEs and the glossary are current. All requested
 candidate decisions and verification are complete; integration remains the
 owner's action, so this ticket stays in WIP until kata integrates it.
 
-Census delta (ryxnzzsu): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost none; identical digests on all 32,828 faces.
-Judgment set (ryxnzzsu): not applicable yet.
+
+## Independent-review fixes
+
+The earlier rationale for retaining KeywordComplement and
+ComparativeDegreeModifierUse was inconsistent with GerundClauseComplement and
+ComparativeQuantityUse. Converted them to KeywordPreposition (With, Without)
+and ComparativeDegreeDeterminative (Any, Many, Much, No, Some), respectively.
+Their memberships live on their data entries; the two flags and provenance are
+removed. The final disposition table has 23 converted and 26 retained candidates.
+
+AuxiliaryUse remains a property: Be, BeContracted and HaveNegative do not form
+the general auxiliary class; a narrower honest name would just enumerate the
+words these postmodified-auxiliary constructions allow. FusedHeadUse also
+remains: Anywhere and This have different internal/distributional properties,
+and do not form the general fused-head determinative class. The only narrower
+name here would mean the words this particular construction allows. No new
+membership route or capability is justified by those two properties.
+
+Removed class_additions from the native inventory and registry API and deleted
+the README claims that it was legacy. It was unused scaffolding introduced by
+this stack. Membership is validated on members themselves. Three loader tests
+are re-spelled: data_memberships_preserve_plugin_identity_forms_and_properties
+now starts with membership on its member; unknown_reference_ids_and_member_classes_are_errors
+retains the unknown-ID and unknown-class rejections through the surviving
+reference/member declarations; off_category_membership_and_duplicate_class_declarations_are_errors
+retains Category rejection and checks duplicate class declarations plus rejection
+of the retired patch format (with a valid unmodified-data control). There is no
+longer a separate member-ID patch to resolve or duplicate; BTreeSet membership
+lives on the word. No tests are removed or weakened.
+
+Merged the identical PrimaryNegatorLicence and SecondaryNegatorLicence policies
+as NegatorLicence. The callers remain distinct instance rows and constructors;
+the shared requirement is exactly head is Not. Restored That, infinitival To,
+By and Without to their original relative positions in core.ron without changing
+their records, forms or frame order.
+
+Three permanent compiler tests cover the independent review probes: multi-row
+instance lists with different word/class constraints on required and optional
+fields; identical form pieces with different form-local is requirements and
+preserved form indices; and selected-frame heads with both is and in. The last
+test exercises two frame lengths and separately rejects a class-member homograph
+and the correctly named word without membership. Each checks parsing and
+admission/realization of independently constructed Readings. Assurance for this
+follow-up: three added, three loader tests re-spelled, zero removed, restored or
+newly ignored.
+
+Two findings are recorded without fixing them here:
+
+- Adverb closed-word eligibility uses Source owner prefixes
+  vocab:PredicateNegator/, vocab:FrequencyAdverb/ and vocab:FocusAdverb/.
+  This is data organisation, not a linguistic closedness criterion; it explains
+  why So and Exactly are excluded. A future change needs an explicit closedness
+  marker in the data rather than relying on the inventory in which a word was
+  authored. This review does not relax eligibility or introduce that marker.
+- Thirteen data-authored metadata keys have no grammar feature reader:
+  BareLocativeLicense, Compoundability, Countability, LocativeTemporalLicense,
+  MannerAnaphorClass, Properness, Relationality, HomographLicense, ModifierLicense,
+  Cardinality, Quantification, BareDurationLicense and DeterminerNumber.
+  These names occur in lexical data and are absent from the grammar's feature
+  declarations/readers. They are deletion candidates, not deletions in this
+  step; adapter effects and typed-field mirrors must be checked before removal.
+  In particular the Countability map key is distinct from typed countability.
+
+Review-fix equivalence gates pass against the version-2 baseline: identical
+digests on all 32,828 faces, 30,794 read and 482,041 Readings, with zero losses,
+gains, count changes, digest-only changes, incomplete faces or issues. The
+subset retains Nissa's 20 Readings. The completed census was deleted after the
+gate; only the baseline census is retained under target/english-v3.
+
+The sorted comparison still matches 927 rule contracts, 326 constructor records
+and 666 emitted shapes. The structured comparison covers all 35,603 lexemes and
+25 replacement predicates, including absent values. Only the cumulative 23
+retired flags/provenance and 46 previously retired map values differ; 52 entries
+change representation. IDs, forms, variants, other properties and frame order
+match. The seven unsupported frame signatures and unmapped declarations remain
+unchanged. The inventory hash is now
+891ff4faebdcf274a0e1a3e199d32a35da28cdcae80c418462bdf283faf03c2e.
+Final declarations.rs is 6,068 lines, with 161 features, 16 closed-word bindings
+and seven classes containing 27 memberships; the ticket started at 6,093 lines
+and 184 features. No further compiler capability was added.
+
+Full cargo test for deckmaste_construction_v3_core, deckmaste_construction_v3,
+deckmaste_lexical_source, deckmaste_english_v3 and xtask passes: 1,854 passed,
+zero failed and two pre-existing ignored with their blockers unchanged. The
+12 registry tests passed again after a test-only character-pattern lint fix.
+Full clippy --tests -- -D warnings passes for all five crates. Citation audit
+selects zero changed sites; zero noncompliant strings and zero stale references
+among 17,780 citations. The review fixes are complete; integration remains the
+owner's action.
+
+Census delta (vmmvsoyl): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost none; identical digests on all 32,828 faces.
+Judgment set (vmmvsoyl): not applicable yet.

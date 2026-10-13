@@ -646,10 +646,9 @@ become word symbols. No additional eligibility flag is introduced.
 
 The loader checks data membership against declared class names and Categories,
 and grammatical properties against their domains. Unknown IDs, class names,
-properties and out-of-domain values fail loading. The legacy `class_additions`
-map also accepts memberships by existing ID; it is not a plugin-declaration
-membership route. Source-adapter metadata is recognized separately during the
-staged migration.
+properties and out-of-domain values fail loading. Membership is declared on
+the member. Source-adapter metadata is recognized separately during the staged
+migration.
 
 Word selectors and word/class constraints have distinct AST variants.
 Their admission checks are separate from grammatical feature slots and the
@@ -665,3 +664,10 @@ An absent optional field passes; a present homograph or nonmember fails both
 admission and realization. This matters because optional-word emission has a
 separate path from ordinary rule advancement: testing only parsed Readings would
 miss a constraint omitted when checking independently supplied values.
+
+Additional admission regressions cover different lexical constraints in each
+row of an instance list, identical form pieces with different word requirements,
+and selected-frame heads constrained by both identity and class. Each has
+independently built positive and negative Readings as well as parse controls.
+Selected-frame parsing uses GrammarEnvironment so the lexicon's frames are
+expanded before parsing.

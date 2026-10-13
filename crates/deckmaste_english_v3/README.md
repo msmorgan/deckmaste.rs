@@ -541,8 +541,13 @@ separate case, agreement, selection and separator judgments still apply.
 The superlative class spans Adjective and Determinative; each form retains its
 own Category and index.
 
-`ComparativeDegreeModifierUse`, `AuxiliaryUse`, `FusedHeadUse`,
-`KeywordComplement` and `QuantitativeAdjectiveComplementUse` remain permissions.
+`ComparativeDegreeDeterminative` names *any*, *many*, *much*, *no* and *some*
+as degree modifiers of comparative quantifiers. `KeywordPreposition` names
+*with* and *without* as heads of the ordinary keyword-complement construction.
+Both classes are declared on their members in lexical data.
+
+`AuxiliaryUse`, `FusedHeadUse` and `QuantitativeAdjectiveComplementUse` remain
+permissions.
 Their proposed class names would repeat the construction's role rather than
 identify a more informative class. In particular, `AuxiliaryUse` licenses only
 three entries in the two postmodified auxiliary constructions, not every

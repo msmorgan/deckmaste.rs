@@ -77,9 +77,9 @@ each word's forms, properties and frames remain in its source data. A native
 lexeme states class membership in `properties.classes`; a vocabulary member
 states it in `classes`. Loading checks every referenced ID and Category, core
 closed-class eligibility, membership name and Category, and property value.
-Plugin/catalog words can be class members but cannot be closed-word symbols.
-The legacy ID-keyed `class_additions` map is checked too; it does not replace
-a plugin declaration's own membership route.
+Registry validation permits plugin/catalog members but not closed-word symbols.
+Their source-declaration membership route remains unimplemented: no current
+grammar class needs it.
 
 The four retired map keys `BareLocativeComplement`, `PrepositionAttachment`,
 `PrepositionComplementKind` and infinitival-marker `Finiteness` had no readers;

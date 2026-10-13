@@ -43,7 +43,7 @@
         (name: "Onto", surface: "onto", features: {}),
         (name: "To", surface: "to", classes: ["GerundClausePreposition"], features: {}),
         (name: "Under", surface: "under", features: {}),
-        (name: "With", surface: "with", features: {}),
+        (classes: ["KeywordPreposition"], name: "With", surface: "with", features: {}),
     ])),
     Vocab((name: "CompoundDeterminative", features: {}, members: [
         (name: "Anywhere", surface: "anywhere", features: {}),

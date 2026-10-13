@@ -221,14 +221,14 @@
         // CGEL Ch. 5 §§9.1–9.2, pp. 411–413). Every existing eligible owner
         // declares Of; cardinal heads keep their separate Cardinal route.
         "vocab:Determinative/Another": {"NominalComplementMarker": "Of", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Any": {"ComparativeDegreeModifierUse": "Yes", "NominalComplementMarker": "Of", "QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary", "NominalAdjunctDependent": "Temporal"},
+        "vocab:Determinative/Any": {"NominalComplementMarker": "Of", "QuantificationalDeterminer": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary", "NominalAdjunctDependent": "Temporal"},
         "vocab:Determinative/Either": {"NominalComplementMarker": "Of", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Many": {"ComparativeDegreeModifierUse": "Yes", "NominalComplementMarker": "Of", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
+        "vocab:Determinative/Many": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
         "vocab:Determinative/Most": {"NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary", "DeterminerRequirement": "Definite"},
-        "vocab:Determinative/Much": {"ComparativeDegreeModifierUse": "Yes", "NominalComplementMarker": "Of", "DeterminerUse": "Mass", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
+        "vocab:Determinative/Much": {"NominalComplementMarker": "Of", "DeterminerUse": "Mass", "DeterminerKind": "Ordinary", "DegreeUse": "Head"},
         "vocab:Determinative/Neither": {"NominalComplementMarker": "Of", "DeterminerUse": "SingularCount", "DeterminerAgreementNumber": "Singular", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/No": {"ComparativeDegreeModifierUse": "Yes", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
-        "vocab:Determinative/Some": {"ComparativeDegreeModifierUse": "Yes", "NominalComplementMarker": "Of", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
+        "vocab:Determinative/No": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
+        "vocab:Determinative/Some": {"NominalComplementMarker": "Of", "DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Those": {"Definiteness": "Definite", "DeterminerUse": "PluralCount", "DeterminerKind": "Ordinary"},
         "vocab:Determinative/Which": {"DeterminerUse": "Unrestricted", "DeterminerKind": "Ordinary"},
         "vocab:FloatedQuantifier/All": {"PredeterminerUse": "UniversalQuantifier", "NominalComplementMarker": "Of", "DeterminerUse": "PluralOrMass", "DeterminerKind": "Ordinary"},
@@ -267,38 +267,10 @@
         "vocab:Preposition/Over": {"PrepositionFunctionLicence": "Adjunct|Modifier|VerbComplement|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes"},
         "vocab:Preposition/To": {"NominalComplementMarker": "To", "PrepositionFunctionLicence": "VerbComplement|ComparativeComplement|NounComplement|Compound|Modifier", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "ComparisonMarker": "Equality", "KeywordMarker": "To", "QuantitativeComplement": "Cardinal"},
         "vocab:Preposition/Under": {"PrepositionFunctionLicence": "VerbComplement|Adjunct|Modifier|PredicativeComplement|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "Yes", "KeywordMarker": "Under"},
-        "vocab:Preposition/With": {"PrepositionPhraseComplementMarker": "With", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
-        "vocab:Preposition/Without": {"ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
+        "vocab:Preposition/With": {"PrepositionPhraseComplementMarker": "With", "PrepositionFunctionLicence": "Modifier|VerbComplement|Adjunct|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No", "KeywordMarker": "With"},
+        "vocab:Preposition/Without": {"ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
-        (
-            id: "vocab:Subordinator/That", lemma: "that", category: Subordinator,
-            properties: (countability: [], features: {}, frames: [], classes: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Subordinator/That"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:InfinitivalMarker/To", lemma: "to", category: Subordinator,
-            properties: (countability: [], features: {}, frames: [], classes: []),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:InfinitivalMarker/To"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Preposition/By", lemma: "by", category: Preposition,
-            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition"]),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/By"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
-        (
-            id: "vocab:Preposition/Without", lemma: "without", category: Preposition,
-            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition"]),
-            forms: [(form: Invariant, features: ())],
-            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Without"),
-            capitalization: Initial, binding: Free, surface_structure: Word,
-        ),
         // AE1 adopts the nominal Preposition analysis proposed in
         // CGEL Ch. 7 §2.4, p. 615, n. 5 (orchestrator, 2026-10-10).
         (
@@ -1600,6 +1572,13 @@
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
+            id: "vocab:Subordinator/That", lemma: "that", category: Subordinator,
+            properties: (countability: [], features: {}, frames: [], classes: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Subordinator/That"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
             id: "vocab:Subordinator/Whether", lemma: "whether", category: Subordinator,
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
@@ -1611,6 +1590,27 @@
             properties: (countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Since"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:InfinitivalMarker/To", lemma: "to", category: Subordinator,
+            properties: (countability: [], features: {}, frames: [], classes: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:InfinitivalMarker/To"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:Preposition/By", lemma: "by", category: Preposition,
+            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition"]),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/By"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:Preposition/Without", lemma: "without", category: Preposition,
+            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition", "KeywordPreposition"]),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Without"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
@@ -1671,7 +1671,7 @@
         ),
         (
             id: "vocab:Determinative/Any", lemma: "any", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (classes: ["ComparativeDegreeDeterminative"], countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Any"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1685,7 +1685,7 @@
         ),
         (
             id: "vocab:Determinative/Some", lemma: "some", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (classes: ["ComparativeDegreeDeterminative"], countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Some"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1701,7 +1701,7 @@
         ),
         (
             id: "vocab:Determinative/No", lemma: "no", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (classes: ["ComparativeDegreeDeterminative"], countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/No"),
             capitalization: Initial, binding: Free, surface_structure: Word,
@@ -1729,14 +1729,14 @@
         ),
         (
             id: "vocab:Determinative/Many", lemma: "many", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (classes: ["ComparativeDegreeDeterminative"], countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Many"),
             capitalization: Initial, binding: Free, surface_structure: Word,
         ),
         (
             id: "vocab:Determinative/Much", lemma: "much", category: Determinative,
-            properties: (countability: [], features: {}, frames: []),
+            properties: (classes: ["ComparativeDegreeDeterminative"], countability: [], features: {}, frames: []),
             forms: [(form: Invariant, features: ())],
             source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Determinative/Much"),
             capitalization: Initial, binding: Free, surface_structure: Word,

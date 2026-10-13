@@ -2,11 +2,7 @@ use crate::LoadError;
 use deckmaste_lexical::{Lexeme, LexicalRegistry};
 use std::collections::{BTreeMap, BTreeSet};
 
-pub(crate) fn apply(
-    lexemes: &mut [Lexeme],
-    registry: &LexicalRegistry,
-    additions: BTreeMap<String, Vec<String>>,
-) -> Result<(), LoadError> {
+pub(crate) fn apply(lexemes: &mut [Lexeme], registry: &LexicalRegistry) -> Result<(), LoadError> {
     let fail = |message| LoadError::Registry(message);
     let classes: BTreeMap<_, _> = registry
         .classes
@@ -51,17 +47,6 @@ pub(crate) fn apply(
         .collect();
     if properties.len() != registry.properties.len() {
         return Err(fail("duplicate property declaration".into()));
-    }
-    for (id, memberships) in additions {
-        let word = lexemes
-            .iter_mut()
-            .find(|word| word.id == id.as_str())
-            .ok_or_else(|| fail(format!("unknown class member id {id}")))?;
-        for name in memberships {
-            if !word.properties.classes.insert(name.clone()) {
-                return Err(fail(format!("duplicate membership {id} in {name}")));
-            }
-        }
     }
     for word in lexemes {
         for class in &word.properties.classes {
@@ -212,7 +197,7 @@ mod tests {
         words[0].source.kind = SourceKind::Core;
         registry.words.push(reference(&words[0]));
         let expected = words.clone();
-        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        apply(&mut words, &registry).unwrap();
         assert_eq!(words, expected);
     }
 
@@ -228,7 +213,7 @@ mod tests {
                 word.id = "missing".into();
             }
             registry.words.push(word);
-            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+            assert!(apply(&mut words, &registry).is_err());
         }
     }
 
@@ -246,7 +231,7 @@ mod tests {
             words[0].source.kind = kind;
             words[0].category = category;
             registry.words.push(reference(&words[0]));
-            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+            assert!(apply(&mut words, &registry).is_err());
         }
     }
 
@@ -257,7 +242,7 @@ mod tests {
         words[0].source.owner = "vocab:FocusAdverb/Only".into();
         words[0].category = Category::Adverb;
         registry.words.push(reference(&words[0]));
-        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        apply(&mut words, &registry).unwrap();
         words[0] = Lexeme::verb("core-verb:Be", "be", words[0].source.clone());
         words[0].properties.frames.push(deckmaste_lexical::Frame {
             kind: "Auxiliary".into(),
@@ -265,7 +250,7 @@ mod tests {
         });
         registry.words[0] = reference(&words[0]);
         let expected = words.clone();
-        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        apply(&mut words, &registry).unwrap();
         assert_eq!(words, expected);
     }
 
@@ -282,64 +267,49 @@ mod tests {
                 other.id = "different".into();
             }
             registry.words.push(other);
-            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+            assert!(apply(&mut words, &registry).is_err());
         }
     }
 
     #[test]
     fn data_memberships_preserve_plugin_identity_forms_and_properties() {
         let (mut words, registry) = fixture();
-        let mut expected = words[0].clone();
-        expected.properties.classes.insert("Marker".into());
-        apply(
-            &mut words,
-            &registry,
-            [("plugin:marker".into(), vec!["Marker".into()])].into(),
-        )
-        .unwrap();
-        assert_eq!(words, [expected]);
+        words[0].properties.classes.insert("Marker".into());
+        let expected = words.clone();
+        apply(&mut words, &registry).unwrap();
+        assert_eq!(words, expected);
     }
 
     #[test]
-    fn unknown_member_ids_and_classes_are_errors() {
-        for (id, class) in [("missing", "Marker"), ("plugin:marker", "Missing")] {
-            let (mut words, registry) = fixture();
-            assert!(
-                apply(
-                    &mut words,
-                    &registry,
-                    [(id.into(), vec![class.into()])].into()
-                )
-                .is_err()
-            );
-        }
+    fn unknown_reference_ids_and_member_classes_are_errors() {
+        let (mut words, mut registry) = fixture();
+        let mut named = reference(&words[0]);
+        named.id = "missing".into();
+        registry.words.push(named);
+        assert!(apply(&mut words, &registry).is_err());
+        let (mut words, registry) = fixture();
+        words[0].properties.classes.insert("Missing".into());
+        assert!(apply(&mut words, &registry).is_err());
     }
 
     #[test]
-    fn off_category_membership_and_duplicates_are_errors() {
+    fn off_category_membership_and_duplicate_class_declarations_are_errors() {
         let (mut words, registry) = fixture();
         words[0].category = Category::Noun;
-        assert!(
-            apply(
-                &mut words,
-                &registry,
-                [("plugin:marker".into(), vec!["Marker".into()])].into()
-            )
-            .is_err()
+        words[0].properties.classes.insert("Marker".into());
+        assert!(apply(&mut words, &registry).is_err());
+        let (mut words, mut registry) = fixture();
+        registry.classes.push(registry.classes[0].clone());
+        assert!(apply(&mut words, &registry).is_err());
+        // The removed ID-keyed patch format cannot bypass member declarations.
+        let data = include_str!("../lexicon/core.ron");
+        assert!(ron::from_str::<crate::native::Inventory>(data).is_ok());
+        let retired = data.replacen(
+            '(',
+            "(class_additions: {\"plugin:marker\": [\"Marker\", \"Marker\"]},",
+            1,
         );
-        let (mut words, registry) = fixture();
-        assert!(
-            apply(
-                &mut words,
-                &registry,
-                [(
-                    "plugin:marker".into(),
-                    vec!["Marker".into(), "Marker".into()]
-                )]
-                .into()
-            )
-            .is_err()
-        );
+        assert!(ron::from_str::<crate::native::Inventory>(&retired).is_err());
     }
 
     #[test]
@@ -350,7 +320,7 @@ mod tests {
                 .properties
                 .features
                 .insert(name.into(), value.into());
-            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+            assert!(apply(&mut words, &registry).is_err());
         }
     }
 
@@ -370,10 +340,7 @@ mod tests {
                 .properties
                 .features
                 .insert(name.into(), "unused".into());
-            assert!(
-                apply(&mut words, &registry, BTreeMap::new()).is_err(),
-                "{name}"
-            );
+            assert!(apply(&mut words, &registry).is_err(), "{name}");
         }
     }
 
@@ -393,7 +360,7 @@ mod tests {
             (property_key, "core.ron".into()),
         ]);
         let expected = words.clone();
-        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        apply(&mut words, &registry).unwrap();
         assert_eq!(words, expected);
     }
 
@@ -406,7 +373,7 @@ mod tests {
                 .properties
                 .features
                 .insert("Kind".into(), value.into());
-            apply(&mut words, &registry, BTreeMap::new()).unwrap();
+            apply(&mut words, &registry).unwrap();
         }
         let (mut words, mut registry) = fixture();
         registry.properties[0].set = true;
@@ -414,6 +381,6 @@ mod tests {
             .properties
             .features
             .insert("Kind".into(), "A|Missing".into());
-        assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+        assert!(apply(&mut words, &registry).is_err());
     }
 }

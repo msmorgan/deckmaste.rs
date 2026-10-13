@@ -10,6 +10,8 @@ constructions! {
         capitalization Positional;
 
         lexical_class GerundClausePreposition: Preposition;
+        lexical_class ComparativeDegreeDeterminative: Determinative;
+        lexical_class KeywordPreposition: Preposition;
         lexical_class ComparativeQuantifier: Determinative;
         lexical_class NoncorrelativeCoordinator: Coordinator;
         lexical_class DependentGenitivePronoun: Pronoun;
@@ -35,7 +37,6 @@ constructions! {
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature DegreeUse { None, Head, Modifier } default None;
-        feature ComparativeDegreeModifierUse { No, Yes } default No;
         feature FrequencyUse { No, Yes } default No combine all;
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
@@ -524,7 +525,6 @@ constructions! {
         // The default partial judgments reject like pairs; helpers use the total tables.
         feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed } combine unlike_predicative_kind;
         feature DepictiveKind { Adjectival, Participial, Mixed } combine unlike_depictive_kind;
-        feature KeywordComplement { Yes }
         feature QuotationStructure { Simple, Coordinated } combine always Coordinated;
         feature GrantedAbilityKind { Keyword, Quoted } combine combined_ability_kind;
         feature AbilityTermination { Complete, Unterminated } default Complete;
@@ -5098,7 +5098,7 @@ constructions! {
                 head: lexical(Determinative), " ", complement: AdverbFrequencyPrepositionPhrase]
                 export number = Plural
                 export FrequencyUse = Yes;
-            require modifier.ComparativeDegreeModifierUse = Yes;
+            require modifier in ComparativeDegreeDeterminative;
             require head in ComparativeQuantifier;
             export ComparativeQuantityStructure = Headed;
         }
@@ -5690,15 +5690,12 @@ constructions! {
         schema Negator {
             form [head: lexical(Adverb)];
         }
-        policy SecondaryNegatorLicence {
-            require head is Not;
-        }
-        policy PrimaryNegatorLicence {
+        policy NegatorLicence {
             require head is Not;
         }
         instance Negator<Result, Licence>: [
-            (SecondaryNegatorHead, SecondaryNegatorLicence),
-            (PrimaryNegator, PrimaryNegatorLicence),
+            (SecondaryNegatorHead, NegatorLicence),
+            (PrimaryNegator, NegatorLicence),
         ] { use Licence; }
         construction SecondaryNegator: SecondaryNegator {
             form [head: SecondaryNegatorHead, " "];
@@ -5988,7 +5985,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = None;
-            require head.KeywordComplement = Yes;
+            require head in KeywordPreposition;
         }
         // CK2: this category has no free Modifier or Adjunct route. Only a
         // declared nominal frame consumes it; Of remains unlicensed as a

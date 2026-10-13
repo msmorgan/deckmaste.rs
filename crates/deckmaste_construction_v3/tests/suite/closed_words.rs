@@ -10,6 +10,24 @@ constructions! {
     pub mod fixture {
         closed_word Marker: Subordinator = "old:marker";
         lexical_class Markers: Subordinator | Preposition;
+        closed_word OtherMarker: Subordinator = "core:other";
+        category RowIdentity();
+        category RowMember();
+        category OptionalRowIdentity();
+        category OptionalRowMember();
+        schema Row { form [head: lexical(Subordinator)]; }
+        instance Row<Result, Guard>: [(RowIdentity, Identity), (RowMember, Membership)] {
+            use Guard(head);
+        }
+        schema OptionalRow { form ["(", head: optional(lexical(Subordinator), " "), ")"]; }
+        instance OptionalRow<Result, Guard>: [
+            (OptionalRowIdentity, Identity), (OptionalRowMember, Membership)
+        ] { use Guard(head); }
+        category SamePieces();
+        construction SamePieces: SamePieces {
+            form [head: lexical(Subordinator)] require head is Marker;
+            form [head: lexical(Subordinator)] require head is OtherMarker;
+        }
         category Direct();
         category Policy();
         category Member();
@@ -94,6 +112,10 @@ fn marker_lexeme() -> Lexeme {
 
 fn lexicon() -> Lexicon {
     let mut words = vec![marker_lexeme()];
+    let mut second = marker_lexeme();
+    second.id = "core:other".into();
+    second.source.owner = second.id.to_string();
+    words.push(second);
     let mut other = Lexeme::invariant(
         "plugin:other",
         "to",
@@ -423,6 +445,97 @@ fn lexical_constraints_stay_on_their_own_form() {
         let wrong = fixture::Reading::FormLocal {
             form,
             head: word(denied),
+        };
+        assert!(wrong.admit(&lexicon).is_err());
+        assert!(wrong.realize(&lexicon).is_err());
+    }
+}
+
+#[test]
+fn instance_rows_keep_distinct_required_and_optional_lexical_requirements() {
+    let lexicon = lexicon();
+    for (category, optional_category, allowed, denied) in [
+        (
+            fixture::Category::RowIdentity,
+            fixture::Category::OptionalRowIdentity,
+            "old:marker",
+            "plugin:other",
+        ),
+        (
+            fixture::Category::RowMember,
+            fixture::Category::OptionalRowMember,
+            "plugin:other",
+            "old:marker",
+        ),
+    ] {
+        let expected = fixture::Reading::Row {
+            category,
+            form: 0,
+            head: word(allowed),
+        };
+        assert_eq!(
+            readings(&lexicon, "to", category),
+            BTreeSet::from([expected.clone()])
+        );
+        assert!(expected.admit(&lexicon).is_ok());
+        assert_eq!(expected.realize(&lexicon).unwrap(), "to");
+        let wrong = fixture::Reading::Row {
+            category,
+            form: 0,
+            head: word(denied),
+        };
+        assert!(wrong.admit(&lexicon).is_err());
+        assert!(wrong.realize(&lexicon).is_err());
+        for (head, text) in [(None, "()"), (Some(word(allowed)), "(to )")] {
+            let expected = fixture::Reading::OptionalRow {
+                category: optional_category,
+                form: 0,
+                head,
+            };
+            assert_eq!(
+                readings(&lexicon, text, optional_category),
+                BTreeSet::from([expected.clone()])
+            );
+            assert!(expected.admit(&lexicon).is_ok());
+            assert_eq!(expected.realize(&lexicon).unwrap(), text);
+        }
+        let wrong = fixture::Reading::OptionalRow {
+            category: optional_category,
+            form: 0,
+            head: Some(word(denied)),
+        };
+        assert!(wrong.admit(&lexicon).is_err());
+        assert!(wrong.realize(&lexicon).is_err());
+    }
+}
+
+#[test]
+fn identical_form_pieces_keep_distinct_word_requirements_and_indices() {
+    let lexicon = lexicon();
+    let expected: BTreeSet<_> = [(0, "old:marker"), (1, "core:other")]
+        .into_iter()
+        .map(|(form, id)| fixture::Reading::SamePieces {
+            form,
+            head: word(id),
+        })
+        .collect();
+    assert_eq!(
+        readings(&lexicon, "to", fixture::Category::SamePieces),
+        expected
+    );
+    for value in expected {
+        assert!(value.admit(&lexicon).is_ok());
+        assert_eq!(value.realize(&lexicon).unwrap(), "to");
+    }
+    for (form, id) in [
+        (0, "core:other"),
+        (1, "old:marker"),
+        (0, "plugin:other"),
+        (1, "plugin:other"),
+    ] {
+        let wrong = fixture::Reading::SamePieces {
+            form,
+            head: word(id),
         };
         assert!(wrong.admit(&lexicon).is_err());
         assert!(wrong.realize(&lexicon).is_err());

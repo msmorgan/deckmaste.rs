@@ -18,6 +18,15 @@ use deckmaste_lexical::WordForm;
 
 constructions! {
     pub mod grammar {
+        closed_word Share: Verb = "share";
+        lexical_class SharingVerb: Verb;
+        category ConstrainedPredicate();
+        construction ConstrainedPredicate: ConstrainedPredicate {
+            form [head: lexical(Verb), complements: selected_frame(head, Predicate)];
+            require head.form = Plain;
+            require head is Share;
+            require head in SharingVerb;
+        }
         category NounPhrase();
         category Amount();
         category Object();
@@ -455,5 +464,78 @@ fn identical_marker_classes_share_metadata_without_losing_lexical_owners() {
     assert_eq!(parsed(&environment, text), expected);
     for reading in expected {
         assert_eq!(environment.realize(&reading).unwrap(), text);
+    }
+}
+
+#[test]
+fn selected_frame_heads_enforce_word_and_class_requirements_in_both_directions() {
+    let base = lexicon();
+    let mut entries: Vec<_> = base.lexemes().values().cloned().collect();
+    let share = entries
+        .iter_mut()
+        .find(|entry| entry.id == "share")
+        .unwrap();
+    share.properties.classes.insert("SharingVerb".into());
+    share.properties.frames.push(Frame {
+        kind: "Auxiliary".into(),
+        items: vec![],
+    });
+    let mut other = share.clone();
+    other.id = "other-share".into();
+    other.source.owner = other.id.to_string();
+    entries.push(other);
+    let lexicon = Lexicon::new(entries.clone()).unwrap();
+    for frame in [0, 1] {
+        let mut complements = vec![arg(noun(&lexicon, "Orcs"))];
+        let text = if frame == 0 {
+            "share Orcs"
+        } else {
+            complements.push(grammar::FrameValue::Marker(word(
+                &lexicon,
+                "with",
+                WordForm::Invariant,
+                None,
+            )));
+            complements.push(arg(noun(&lexicon, "Orcs")));
+            "share Orcs with Orcs"
+        };
+        let expected = grammar::Reading::ConstrainedPredicate {
+            form: 0,
+            head: word(&lexicon, "share", WordForm::Plain, Some(frame)),
+            complements: complements.clone(),
+        };
+        let parse_values = |lexicon: &Lexicon| {
+            let environment = grammar::GrammarEnvironment::new(lexicon);
+            let forest = environment
+                .parse(text, grammar::Category::ConstrainedPredicate)
+                .unwrap();
+            environment
+                .grammar()
+                .readings(&forest)
+                .map(Result::unwrap)
+                .collect::<BTreeSet<_>>()
+        };
+        assert_eq!(parse_values(&lexicon), BTreeSet::from([expected.clone()]));
+        assert!(expected.admit(&lexicon).is_ok());
+        assert_eq!(expected.realize(&lexicon).unwrap(), text);
+        let wrong_id = grammar::Reading::ConstrainedPredicate {
+            form: 0,
+            head: word(&lexicon, "other-share", WordForm::Plain, Some(frame)),
+            complements,
+        };
+        assert!(wrong_id.admit(&lexicon).is_err());
+        assert!(wrong_id.realize(&lexicon).is_err());
+        let mut nonmembers = entries.clone();
+        nonmembers
+            .iter_mut()
+            .find(|entry| entry.id == "share")
+            .unwrap()
+            .properties
+            .classes
+            .remove("SharingVerb");
+        let nonmembers = Lexicon::new(nonmembers).unwrap();
+        assert!(parse_values(&nonmembers).is_empty());
+        assert!(expected.admit(&nonmembers).is_err());
+        assert!(expected.realize(&nonmembers).is_err());
     }
 }

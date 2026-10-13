@@ -16,8 +16,6 @@ pub(crate) const FEATURE_SOURCE_PREFIX: &str = "FeatureSource:";
 pub(crate) struct Inventory {
     pub lexemes: Vec<Lexeme>,
     #[serde(default)]
-    pub class_additions: BTreeMap<String, Vec<String>>,
-    #[serde(default)]
     pub category_feature_defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
