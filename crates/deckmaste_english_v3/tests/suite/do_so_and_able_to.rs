@@ -53,7 +53,7 @@ fn witness(card: &str, text: &str, infinitival: &str) {
                     pro_forms.push(complement.as_ref().clone());
                 }
                 if let Reading::PostpositiveNominal {
-                    category: Category::Nominal,
+                    category: Category::NominalCore,
                     modifier,
                     ..
                 } = node
@@ -204,7 +204,9 @@ fn bare_adjectives_and_nonagreeing_or_unlicensed_heads_gain_no_route() {
     let values = common::readings("creatures tapped", Category::Nominal);
     assert!(!values.is_empty());
     for value in values {
-        let Reading::ParticipialPostmodifiedNominal { modifier, .. } = value else {
+        let Reading::ParticipialPostmodifiedNominal { modifier, .. } =
+            *common::postmodification(value)
+        else {
             panic!("tapped must remain a verbal postmodifier");
         };
         assert_eq!(

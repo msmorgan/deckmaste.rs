@@ -209,11 +209,17 @@ fn comparative_modifier_attaches_to_anywhere_and_retains_nominal_scope() {
                     anywhere_attached.insert(reading.clone());
                 }
                 for head in &nominal_heads {
-                    let expected = Reading::PostpositiveNominal {
-                        category: Category::Nominal,
+                    let expected = Reading::NominalProjection {
                         form: 0,
-                        head: Box::new(head.clone()),
-                        modifier: Box::new(nominal_modifier.clone()),
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::PostpositiveNominal {
+                                category: Category::NominalCore,
+                                form: 0,
+                                head: Box::new(head.clone()),
+                                modifier: Box::new(nominal_modifier.clone()),
+                            }),
+                        }),
                     };
                     if node == &expected {
                         nominal_attached.insert(reading.clone());

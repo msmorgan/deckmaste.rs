@@ -132,14 +132,20 @@ fn without_paying() -> Reading {
                             None,
                             None,
                         ),
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: word(
-                                "lexeme:CommonNoun/ManaCost",
-                                WordForm::Singular,
-                                None,
-                                Some(true),
-                            ),
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: word(
+                                        "lexeme:CommonNoun/ManaCost",
+                                        WordForm::Singular,
+                                        None,
+                                        Some(true),
+                                    ),
+                                }),
+                            }),
                         }),
                     }),
                 }),

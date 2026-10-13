@@ -170,9 +170,15 @@ fn independent_position_pp_retains_noun_complement_and_both_roundtrip_laws() {
             WordForm::Invariant,
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:CommonNoun/Library", WordForm::Singular, None),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:CommonNoun/Library", WordForm::Singular, None),
+                }),
+            }),
         }),
     };
     let expected = Reading::BareNominalPreposition {
@@ -180,14 +186,20 @@ fn independent_position_pp_retains_noun_complement_and_both_roundtrip_laws() {
         head: word("vocab:Preposition/On", WordForm::Invariant, None),
         complement: Box::new(Reading::BarePrepositionNounPhrase {
             form: 0,
-            head: Box::new(Reading::PrepositionComplementNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word("lexeme:CommonNoun/Top", WordForm::Singular, Some(1)),
-                marker: word("vocab:Preposition/Of", WordForm::Invariant, None),
-                complement: Box::new(Reading::CasePhrase {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    category: Category::AccusativePhrase,
-                    head: Box::new(library),
+                    head: Box::new(Reading::PrepositionComplementNominal {
+                        form: 0,
+                        head: word("lexeme:CommonNoun/Top", WordForm::Singular, Some(1)),
+                        marker: word("vocab:Preposition/Of", WordForm::Invariant, None),
+                        complement: Box::new(Reading::CasePhrase {
+                            form: 0,
+                            category: Category::AccusativePhrase,
+                            head: Box::new(library),
+                        }),
+                    }),
                 }),
             }),
         }),

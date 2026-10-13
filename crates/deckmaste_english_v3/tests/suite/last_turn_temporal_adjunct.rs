@@ -35,17 +35,23 @@ fn last_turn() -> Reading {
             FeatureBundle::default(),
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(
-                "lexeme:CommonNoun/Turn",
-                WordForm::Singular,
-                FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
-                },
-                Some(true),
-            ),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(
+                        "lexeme:CommonNoun/Turn",
+                        WordForm::Singular,
+                        FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        Some(true),
+                    ),
+                }),
+            }),
         }),
     }
 }

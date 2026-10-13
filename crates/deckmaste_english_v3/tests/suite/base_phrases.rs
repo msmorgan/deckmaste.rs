@@ -75,9 +75,15 @@ fn independent_uncoordinated_phrase_primitives_roundtrip() {
         Some(Number::Plural),
     );
     creature.countability = Some(true);
-    let nominal = Reading::Noun {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        head: creature,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: creature,
+            }),
+        }),
     };
     let np = Reading::BareNounPhrase {
         form: 0,

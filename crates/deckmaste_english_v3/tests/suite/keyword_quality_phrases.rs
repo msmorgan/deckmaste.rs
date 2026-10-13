@@ -36,7 +36,13 @@ fn noun(owner: &str, number: Number) -> Reading {
         value.form = if number == Number::Plural { WordForm::Plural } else { WordForm::Singular };
         value.features.number = Some(number);
     }
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 fn bare_choice() -> Reading {
     let mut head = word("lexeme:CommonNoun/Choice");
@@ -45,7 +51,13 @@ fn bare_choice() -> Reading {
     let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
     value.form = WordForm::Singular;
     value.features.number = Some(Number::Singular);
-    Reading::BareFramedNoun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BareFramedNoun { form: 0, head }),
+        }),
+    }
 }
 fn color_of_choice() -> Reading {
     let mut possessor = word("vocab:PossessiveDeterminerPronoun/Your");
@@ -60,19 +72,25 @@ fn color_of_choice() -> Reading {
     Reading::DeterminedNounPhrase {
         form: 0,
         determiner: word("vocab:DefiniteMarker/The"),
-        head: Box::new(Reading::PostmodifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:CommonNoun/Color", Number::Singular)),
-            modifier: Box::new(Reading::PrepositionPhrase {
+            head: Box::new(Reading::PostmodifiedNominal {
                 form: 0,
-                head: word("vocab:Preposition/Of"),
-                complement: Box::new(Reading::CasePhrase {
+                head: crate::common::postmodification(noun(
+                    "lexeme:CommonNoun/Color",
+                    Number::Singular,
+                )),
+                modifier: Box::new(Reading::PrepositionPhrase {
                     form: 0,
-                    category: Category::AccusativePhrase,
-                    head: Box::new(Reading::PossessiveNounPhrase {
+                    head: word("vocab:Preposition/Of"),
+                    complement: Box::new(Reading::CasePhrase {
                         form: 0,
-                        possessor,
-                        head: Box::new(bare_choice()),
+                        category: Category::AccusativePhrase,
+                        head: Box::new(Reading::PossessiveNounPhrase {
+                            form: 0,
+                            possessor,
+                            head: Box::new(bare_choice()),
+                        }),
                     }),
                 }),
             }),
@@ -120,7 +138,7 @@ fn exact(text: &str, expected: BTreeSet<Reading>) {
         assert_eq!(words[3].value, word("vocab:Coordinator/Or").value);
         assert_eq!(
             words[9].value,
-            if let Reading::BareFramedNoun { head, .. } = bare_choice() {
+            if let Reading::BareFramedNoun { head, .. } = common::into_nominal_core(bare_choice()) {
                 head.value
             } else {
                 unreachable!()

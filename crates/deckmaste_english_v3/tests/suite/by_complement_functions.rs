@@ -46,10 +46,10 @@ fn invariant(owner: &str) -> Word {
     word(owner, WordForm::Invariant, None, None)
 }
 fn noun(owner: &str, form: WordForm, count: bool) -> Reading {
-    Reading::Noun {
+    crate::common::nominal(Reading::Noun {
         form: 0,
         head: word(owner, form, None, Some(count)),
-    }
+    })
 }
 fn acc(head: Reading) -> Reading {
     Reading::CasePhrase {
@@ -143,11 +143,11 @@ fn laws(expected: &Reading, text: &str) {
 fn avacyn_passive() -> Reading {
     let creature = determined(
         "vocab:Determinative/Another",
-        Reading::TargetedNominal {
+        crate::common::nominal(Reading::TargetedNominal {
             form: 0,
             marker: invariant("vocab:TargetingMarker/Target"),
             head: Box::new(noun("lexeme:type/creature", WordForm::Singular, true)),
-        },
+        }),
     );
     Reading::NominalAdjunctPredicate {
         category: Category::SecondaryVerbPhrase,
@@ -170,27 +170,46 @@ fn avacyn_passive() -> Reading {
 fn avacyn_by() -> Reading {
     let choice = possessed(
         "vocab:PossessiveDeterminerPronoun/Your",
-        Reading::BareFramedNoun {
+        crate::common::nominal(Reading::BareFramedNoun {
             form: 0,
-            head: word("lexeme:CommonNoun/Choice", WordForm::Singular, Some(0), Some(true)),
-        },
+            head: word(
+                "lexeme:CommonNoun/Choice",
+                WordForm::Singular,
+                Some(0),
+                Some(true),
+            ),
+        }),
     );
     let color = determined(
         "vocab:DefiniteMarker/The",
-        Reading::PostmodifiedNominal {
+        Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:CommonNoun/Color", WordForm::Singular, true)),
-            modifier: Box::new(pp("vocab:Preposition/Of", choice)),
+            head: Box::new(Reading::PostmodifiedNominal {
+                form: 0,
+                head: crate::common::postmodification(noun(
+                    "lexeme:CommonNoun/Color",
+                    WordForm::Singular,
+                    true,
+                )),
+                modifier: Box::new(pp("vocab:Preposition/Of", choice)),
+            }),
         },
     );
     pp(
         "vocab:Preposition/By",
         Reading::BareNounPhrase {
             form: 0,
-            head: Box::new(Reading::PostmodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Box::new(noun("lexeme:CommonNoun/Source", WordForm::Plural, true)),
-                modifier: Box::new(pp("vocab:Preposition/Of", color)),
+                head: Box::new(Reading::PostmodifiedNominal {
+                    form: 0,
+                    head: crate::common::postmodification(noun(
+                        "lexeme:CommonNoun/Source",
+                        WordForm::Plural,
+                        true,
+                    )),
+                    modifier: Box::new(pp("vocab:Preposition/Of", color)),
+                }),
             }),
         },
     )
@@ -393,7 +412,7 @@ fn trusted_advisor_passive_extent_remains_a_selected_complement() {
 fn noctis_means_preserves_its_complete_gerund_participial_complement() {
     let other_costs = possessed(
         "vocab:PossessiveDeterminerPronoun/Their",
-        Reading::PremodifiedNominal {
+        crate::common::nominal(Reading::BarrierPremodifiedNominal {
             form: 0,
             modifier: Box::new(Reading::IntransitiveAdjective {
                 form: 0,
@@ -403,7 +422,7 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                     head
                 },
             }),
-            head: Box::new(Reading::BareFramedNoun {
+            head: Box::new(crate::common::nominal(Reading::BareFramedNoun {
                 form: 0,
                 head: word(
                     "lexeme:CommonNoun/Cost",
@@ -411,8 +430,8 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                     Some(0),
                     Some(true),
                 ),
-            }),
-        },
+            })),
+        }),
     );
     let paying_costs = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,
@@ -422,17 +441,20 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
     };
     let addition = Reading::BareNounPhrase {
         form: 0,
-        head: Box::new(Reading::PostmodifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun(
-                "lexeme:CommonNoun/Addition",
-                WordForm::Singular,
-                false,
-            )),
-            modifier: Box::new(Reading::GerundComplementPreposition {
+            head: Box::new(Reading::PostmodifiedNominal {
                 form: 0,
-                head: invariant("vocab:Preposition/To"),
-                complement: Box::new(paying_costs),
+                head: crate::common::postmodification(noun(
+                    "lexeme:CommonNoun/Addition",
+                    WordForm::Singular,
+                    false,
+                )),
+                modifier: Box::new(Reading::GerundComplementPreposition {
+                    form: 0,
+                    head: invariant("vocab:Preposition/To"),
+                    complement: Box::new(paying_costs),
+                }),
             }),
         }),
     };
@@ -508,10 +530,13 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
             "vocab:Preposition/From",
             possessed(
                 "vocab:PossessiveDeterminerPronoun/Your",
-                Reading::PostmodifiedNominal {
+                Reading::NominalProjection {
                     form: 0,
-                    head: Box::new(graveyard),
-                    modifier: Box::new(expected),
+                    head: Box::new(Reading::PostmodifiedNominal {
+                        form: 0,
+                        head: crate::common::postmodification(graveyard),
+                        modifier: Box::new(expected),
+                    }),
                 },
             ),
         )),

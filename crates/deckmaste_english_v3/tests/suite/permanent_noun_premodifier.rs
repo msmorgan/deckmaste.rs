@@ -8,7 +8,7 @@ fn witness(text: &str, expected_heads: &[&str]) {
         let mut modifiers = Vec::new();
         value
             .visit(&mut |node| {
-                if let Reading::NounPremodifiedNominal { modifier, head, .. } = node
+                if let Reading::BarrierNounPremodifiedNominal { modifier, head, .. } = node
                     && modifier.realize(common::lexicon()).unwrap() == "permanent"
                 {
                     let head_text = head.realize(common::lexicon()).unwrap();

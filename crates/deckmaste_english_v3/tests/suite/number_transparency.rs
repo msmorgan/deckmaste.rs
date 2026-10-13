@@ -40,7 +40,13 @@ fn noun(id: &str, number: Number) -> Reading {
     value.form = if number == Number::Singular { WordForm::Singular } else { WordForm::Plural };
     value.features.number = Some(number);
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 fn case(head: Reading, category: Category) -> Reading {
@@ -52,13 +58,16 @@ fn case(head: Reading, category: Category) -> Reading {
 }
 
 fn of(head: Reading, complement: Reading) -> Reading {
-    Reading::PostmodifiedNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(head),
-        modifier: Box::new(Reading::PrepositionPhrase {
+        head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
-            head: word("vocab:Preposition/Of"),
-            complement: Box::new(case(complement, Category::AccusativePhrase)),
+            head: crate::common::postmodification(head),
+            modifier: Box::new(Reading::PrepositionPhrase {
+                form: 0,
+                head: word("vocab:Preposition/Of"),
+                complement: Box::new(case(complement, Category::AccusativePhrase)),
+            }),
         }),
     }
 }
@@ -74,10 +83,16 @@ fn determined(id: &str, head: Reading) -> Reading {
 fn targets() -> Reading {
     Reading::BareNounPhrase {
         form: 0,
-        head: Box::new(Reading::TargetedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            marker: word("vocab:TargetingMarker/Target"),
-            head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::TargetedNominal {
+                    form: 0,
+                    marker: word("vocab:TargetingMarker/Target"),
+                    head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+                }),
+            }),
         }),
     }
 }
@@ -111,7 +126,13 @@ fn predicate(number: Number) -> Reading {
             let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
             value.form = WordForm::Singular;
             value.features.number = Some(Number::Singular);
-            Reading::BareFramedNoun { form: 0, head }
+            Reading::NominalProjection {
+                form: 0,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::BareFramedNoun { form: 0, head }),
+                }),
+            }
         }),
     };
     let color = determined(
@@ -234,7 +255,7 @@ fn independently_constructed_sway_clause_requires_plural_third_concord() {
         "Any number of target creatures become the color of your choice until end of turn.\nDraw a card.",
         Category::Document,
         &[
-            (Category::Nominal, "number"),
+            (Category::NominalCore, "number"),
             (Category::PrepositionPhrase, "of target creatures"),
         ],
     );
@@ -263,22 +284,25 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
             finiteness: Some(Finiteness::Finite),
             ..Default::default()
         };
-        Reading::ObjectRelativeNominal {
+        Reading::NominalProjection {
             form: 0,
-            head: Box::new(head),
-            relative: Box::new(Reading::ZeroObjectRelativeClause {
+            head: Box::new(Reading::ObjectRelativeNominal {
                 form: 0,
-                subject: Box::new(case(
-                    Reading::NominativePronoun {
-                        category: Category::NounPhrase,
-                        form: 0,
-                        head: you,
-                    },
-                    Category::NominativePhrase,
-                )),
-                predicate: Box::new(Reading::FiniteObjectGap {
+                head: crate::common::postmodification(head),
+                relative: Box::new(Reading::ZeroObjectRelativeClause {
                     form: 0,
-                    head: control,
+                    subject: Box::new(case(
+                        Reading::NominativePronoun {
+                            category: Category::NounPhrase,
+                            form: 0,
+                            head: you,
+                        },
+                        Category::NominativePhrase,
+                    )),
+                    predicate: Box::new(Reading::FiniteObjectGap {
+                        form: 0,
+                        head: control,
+                    }),
                 }),
             }),
         }
@@ -288,18 +312,30 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
     };
     let low = Reading::BareNounPhrase {
         form: 0,
-        head: Box::new(Reading::TargetedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            marker: word("vocab:TargetingMarker/Target"),
-            head: Box::new(relative(noun("lexeme:type/creature", Number::Plural))),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::TargetedNominal {
+                    form: 0,
+                    marker: word("vocab:TargetingMarker/Target"),
+                    head: Box::new(relative(noun("lexeme:type/creature", Number::Plural))),
+                }),
+            }),
         }),
     };
     let high = Reading::BareNounPhrase {
         form: 0,
-        head: Box::new(relative(Reading::TargetedNominal {
+        head: Box::new(relative(Reading::NominalProjection {
             form: 0,
-            marker: word("vocab:TargetingMarker/Target"),
-            head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::TargetedNominal {
+                    form: 0,
+                    marker: word("vocab:TargetingMarker/Target"),
+                    head: Box::new(noun("lexeme:type/creature", Number::Plural)),
+                }),
+            }),
         })),
     };
     let expected = BTreeSet::from([
@@ -326,7 +362,10 @@ fn eerie_interlude_keeps_both_relative_clause_scopes_and_plural_concord() {
         text,
         Category::NounPhrase,
         &[
-            (Category::Nominal, "number of target creatures"),
+            (
+                Category::NominalPostmodification,
+                "number of target creatures",
+            ),
             (Category::ObjectRelativeClause, "you control"),
         ],
     );
@@ -464,7 +503,7 @@ fn a_later_of_modifier_keeps_the_first_oblique_and_both_attachment_scopes() {
         "any number of cards of that type",
         Category::NounPhrase,
         &[
-            (Category::Nominal, "number of cards"),
+            (Category::NominalPostmodification, "number of cards"),
             (Category::PrepositionPhrase, "of that type"),
         ],
     );

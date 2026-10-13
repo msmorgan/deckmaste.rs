@@ -59,7 +59,13 @@ fn amount(value: i32, notation: Numeral, comparative: &str, noun: &str) -> Readi
             marker: word("vocab:Coordinator/Or"),
             right: word(comparative),
         }),
-        head: Box::new(Reading::Noun { form: 0, head }),
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun { form: 0, head }),
+            }),
+        }),
     }
 }
 

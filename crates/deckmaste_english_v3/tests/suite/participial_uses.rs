@@ -37,7 +37,13 @@ fn noun(owner: &str) -> Reading {
         value.form = WordForm::Singular;
         value.features.number = Some(Number::Singular);
     }
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 fn verb(owner: &str, form: WordForm, frame: usize) -> Word {
     let mut head = word(owner);
@@ -111,14 +117,20 @@ fn authentic_attacking_and_blocking_modifiers_retain_verbal_identity() {
             &Reading::TargetNounPhrase {
                 form: 0,
                 marker: word("vocab:TargetingMarker/Target"),
-                head: Box::new(Reading::ParticipialPremodifier {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    modifier: Box::new(Reading::VerbalPremodifier {
-                        category: Category::VerbalPremodifier,
+                    head: Box::new(Reading::NominalCoreProjection {
                         form: 0,
-                        head: verb(owner, WordForm::GerundParticiple, 0),
+                        head: Box::new(Reading::ParticipialPremodifier {
+                            form: 0,
+                            modifier: Box::new(Reading::VerbalPremodifier {
+                                category: Category::VerbalPremodifier,
+                                form: 0,
+                                head: verb(owner, WordForm::GerundParticiple, 0),
+                            }),
+                            head: Box::new(noun("lexeme:type/creature")),
+                        }),
                     }),
-                    head: Box::new(noun("lexeme:type/creature")),
                 }),
             },
         );
@@ -131,20 +143,31 @@ fn authentic_tapped_and_untapped_modifiers_retain_adjective_identity() {
         ("tap", "target tapped creature"),
         ("untap", "target untapped creature"),
     ] {
+        let modifier = Box::new(Reading::Adjective {
+            form: 0,
+            head: word(&format!("lexeme:keyword_action/{owner}/adjective")),
+        });
+        let head = Box::new(noun("lexeme:type/creature"));
+        let nominal = if owner == "tap" {
+            Reading::PremodifiedNominal {
+                form: 0,
+                modifier,
+                head,
+            }
+        } else {
+            common::nominal(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier,
+                head,
+            })
+        };
         exact(
             text,
             Category::NounPhrase,
             &Reading::TargetNounPhrase {
                 form: 0,
                 marker: word("vocab:TargetingMarker/Target"),
-                head: Box::new(Reading::PremodifiedNominal {
-                    form: 0,
-                    modifier: Box::new(Reading::Adjective {
-                        form: 0,
-                        head: word(&format!("lexeme:keyword_action/{owner}/adjective")),
-                    }),
-                    head: Box::new(noun("lexeme:type/creature")),
-                }),
+                head: Box::new(nominal),
             },
         );
     }
@@ -198,24 +221,30 @@ fn righteous_blow_keeps_coordinated_verbal_modifiers_under_the_nominal() {
         &Reading::TargetNounPhrase {
             form: 0,
             marker: word("vocab:TargetingMarker/Target"),
-            head: Box::new(Reading::ParticipialPremodifier {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::Coordination {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    category: Category::VerbalPremodifier,
-                    left: Box::new(Reading::VerbalPremodifier {
-                        category: Category::VerbalPremodifier,
+                    head: Box::new(Reading::ParticipialPremodifier {
                         form: 0,
-                        head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
-                    }),
-                    coordinator: word("vocab:Coordinator/Or"),
-                    right: Box::new(Reading::VerbalPremodifier {
-                        category: Category::VerbalPremodifier,
-                        form: 0,
-                        head: verb("core-verb:Block", WordForm::GerundParticiple, 0),
+                        modifier: Box::new(Reading::Coordination {
+                            form: 0,
+                            category: Category::VerbalPremodifier,
+                            left: Box::new(Reading::VerbalPremodifier {
+                                category: Category::VerbalPremodifier,
+                                form: 0,
+                                head: verb("core-verb:Attack", WordForm::GerundParticiple, 0),
+                            }),
+                            coordinator: word("vocab:Coordinator/Or"),
+                            right: Box::new(Reading::VerbalPremodifier {
+                                category: Category::VerbalPremodifier,
+                                form: 0,
+                                head: verb("core-verb:Block", WordForm::GerundParticiple, 0),
+                            }),
+                        }),
+                        head: Box::new(noun("lexeme:type/creature")),
                     }),
                 }),
-                head: Box::new(noun("lexeme:type/creature")),
             }),
         },
     );
@@ -387,23 +416,26 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
     exact(
         "creature attacking you",
         Category::Nominal,
-        &Reading::ParticipialPostmodifiedNominal {
+        &Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:type/creature")),
-            modifier: Box::new(Reading::SelectedPredicate {
+            head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
-                category: Category::SecondaryVerbPhrase,
-                head: verb("core-verb:Attack", WordForm::GerundParticiple, 1),
-                complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
-                    Box::new(accusative(Reading::AccusativePronoun {
-                        form: 0,
-                        head: pronoun(
-                            "vocab:ObjectPronoun/You",
-                            deckmaste_lexical::Case::Accusative,
-                            Person::Second,
-                        ),
-                    })),
-                )],
+                head: crate::common::postmodification(noun("lexeme:type/creature")),
+                modifier: Box::new(Reading::SelectedPredicate {
+                    form: 0,
+                    category: Category::SecondaryVerbPhrase,
+                    head: verb("core-verb:Attack", WordForm::GerundParticiple, 1),
+                    complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                        Box::new(accusative(Reading::AccusativePronoun {
+                            form: 0,
+                            head: pronoun(
+                                "vocab:ObjectPronoun/You",
+                                deckmaste_lexical::Case::Accusative,
+                                Person::Second,
+                            ),
+                        })),
+                    )],
+                }),
             }),
         },
     );
@@ -414,16 +446,19 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
         &Reading::TargetNounPhrase {
             form: 0,
             marker: word("vocab:TargetingMarker/Target"),
-            head: Box::new(Reading::ParticipialPostmodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Box::new(noun("lexeme:type/creature")),
-                modifier: Box::new(Reading::SelectedPredicate {
+                head: Box::new(Reading::ParticipialPostmodifiedNominal {
                     form: 0,
-                    category: Category::SecondaryVerbPhrase,
-                    head: verb("core-verb:Block", WordForm::GerundParticiple, 1),
-                    complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
-                        Box::new(this_creature()),
-                    )],
+                    head: crate::common::postmodification(noun("lexeme:type/creature")),
+                    modifier: Box::new(Reading::SelectedPredicate {
+                        form: 0,
+                        category: Category::SecondaryVerbPhrase,
+                        head: verb("core-verb:Block", WordForm::GerundParticiple, 1),
+                        complements: vec![deckmaste_english_v3::grammar::FrameValue::Argument(
+                            Box::new(this_creature()),
+                        )],
+                    }),
                 }),
             }),
         },
@@ -439,21 +474,24 @@ fn authentic_complemented_participial_postmodifiers_preserve_their_objects_and_a
     exact(
         "player being attacked",
         Category::Nominal,
-        &Reading::ParticipialPostmodifiedNominal {
+        &Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:CommonNoun/Player")),
-            modifier: Box::new(Reading::ParticipialAuxiliaryPredicate {
+            head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
-                category: Category::SecondaryVerbPhrase,
-                head: verb("core-verb:Be", WordForm::GerundParticiple, 1),
-                complement: Box::new(Reading::OvertComplement {
+                head: crate::common::postmodification(noun("lexeme:CommonNoun/Player")),
+                modifier: Box::new(Reading::ParticipialAuxiliaryPredicate {
                     form: 0,
-                    category: Category::ParticipialComplement,
-                    predicate: Box::new(Reading::PassiveComplement {
+                    category: Category::SecondaryVerbPhrase,
+                    head: verb("core-verb:Be", WordForm::GerundParticiple, 1),
+                    complement: Box::new(Reading::OvertComplement {
                         form: 0,
-                        head: Box::new(Reading::PassivePredicate {
+                        category: Category::ParticipialComplement,
+                        predicate: Box::new(Reading::PassiveComplement {
                             form: 0,
-                            head: attacked,
+                            head: Box::new(Reading::PassivePredicate {
+                                form: 0,
+                                head: attacked,
+                            }),
                         }),
                     }),
                 }),
@@ -477,25 +515,31 @@ fn hero_of_bladehold_mixed_be_complement_preserves_adjective_and_progressive() {
     exact(
         "tokens that are tapped and attacking",
         Category::Nominal,
-        &Reading::SubjectRelativeNominal {
+        &Reading::NominalProjection {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::SubjectRelativeNominal {
                 form: 0,
-                head: tokens,
-            }),
-            relative: Box::new(Reading::SubjectRelativeClause {
-                form: 0,
-                marker: word("vocab:Subordinator/That"),
-                predicate: Box::new(Reading::ParticipialAuxiliaryPredicate {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    category: Category::FinitePredicate,
-                    head: are,
-                    complement: Box::new(Reading::OvertComplement {
+                    head: Box::new(Reading::Noun {
                         form: 0,
-                        category: Category::ParticipialComplement,
-                        predicate: Box::new(Reading::MixedCopularProgressiveComplement {
+                        head: tokens,
+                    }),
+                }),
+                relative: Box::new(Reading::SubjectRelativeClause {
+                    form: 0,
+                    marker: word("vocab:Subordinator/That"),
+                    predicate: Box::new(Reading::ParticipialAuxiliaryPredicate {
+                        form: 0,
+                        category: Category::FinitePredicate,
+                        head: are,
+                        complement: Box::new(Reading::OvertComplement {
                             form: 0,
-                            phrase: Box::new(depictive(true)),
+                            category: Category::ParticipialComplement,
+                            predicate: Box::new(Reading::MixedCopularProgressiveComplement {
+                                form: 0,
+                                phrase: Box::new(depictive(true)),
+                            }),
                         }),
                     }),
                 }),
@@ -616,10 +660,15 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
                         Reading::DeterminedNounPhrase {
                             form: 0,
                             determiner: word("vocab:DefiniteMarker/The"),
-                            head: Box::new(Reading::ParticipialPostmodifiedNominal {
+                            head: Box::new(Reading::NominalProjection {
                                 form: 0,
-                                head: Box::new(noun("lexeme:CommonNoun/Battlefield")),
-                                modifier: Box::new(attacking()),
+                                head: Box::new(Reading::ParticipialPostmodifiedNominal {
+                                    form: 0,
+                                    head: crate::common::postmodification(noun(
+                                        "lexeme:CommonNoun/Battlefield",
+                                    )),
+                                    modifier: Box::new(attacking()),
+                                }),
                             }),
                         },
                     ))),
@@ -644,32 +693,46 @@ fn actual_movement_constituents_keep_selected_destination_before_depictive() {
             head: Box::new(noun("lexeme:CommonNoun/Hand")),
         })),
     };
-    let premodify = |owner: &str, head: Reading| Reading::NounPremodifiedNominal {
-        form: 0,
-        modifier: Box::new(Reading::NounPremodifier {
+    let premodify = |owner: &str, head: Reading| {
+        let modifier = Box::new(Reading::NounPremodifier {
             form: 0,
-            head: match noun(owner) {
+            head: match common::into_nominal_core(noun(owner)) {
                 Reading::Noun { head, .. } => head,
                 _ => unreachable!(),
             },
-        }),
-        head: Box::new(head),
+        });
+        let head = Box::new(head);
+        match owner {
+            "lexeme:type/creature" => Reading::NounPremodifiedNominal {
+                form: 0,
+                modifier,
+                head,
+            },
+            "lexeme:creature_subtype/soldier" => {
+                common::nominal(Reading::BarrierNounPremodifiedNominal {
+                    form: 0,
+                    modifier,
+                    head,
+                })
+            }
+            _ => panic!("unexpected premodifier fixture"),
+        }
     };
-    let postmodify = |head: Reading| Reading::PostmodifiedNominal {
+    let postmodify = |head: Reading| Reading::NominalProjection {
         form: 0,
-        head: Box::new(head),
-        modifier: Box::new(from_hand.clone()),
+        head: Box::new(Reading::PostmodifiedNominal {
+            form: 0,
+            head: crate::common::postmodification(head),
+            modifier: Box::new(from_hand.clone()),
+        }),
     };
-    // The source PP can qualify card, creature-card, or Soldier-creature-card.
+    // Creature commutes with the source PP: its two old application orders
+    // share the first tree. Soldier remains a barrier, retaining both scopes.
     let card = noun("lexeme:CommonNoun/Card");
     let nominals = [
         premodify(
             "lexeme:creature_subtype/soldier",
             premodify("lexeme:type/creature", postmodify(card.clone())),
-        ),
-        premodify(
-            "lexeme:creature_subtype/soldier",
-            postmodify(premodify("lexeme:type/creature", card.clone())),
         ),
         postmodify(premodify(
             "lexeme:creature_subtype/soldier",
@@ -806,25 +869,31 @@ fn participial_postmodifiers_and_mixed_complements_reject_wrong_form_or_function
             common::readings_with_lexicon(&LEXICON, text, Category::SecondaryVerbPhrase).is_empty()
         );
     }
-    let finite = Reading::ParticipialPostmodifiedNominal {
+    let finite = Reading::NominalProjection {
         form: 0,
-        head: Box::new(noun("lexeme:type/creature")),
-        modifier: Box::new(Reading::SelectedPredicate {
+        head: Box::new(Reading::ParticipialPostmodifiedNominal {
             form: 0,
-            category: Category::FinitePredicate,
-            head: verb("core-verb:Attack", WordForm::Present, 0),
-            complements: vec![],
+            head: crate::common::postmodification(noun("lexeme:type/creature")),
+            modifier: Box::new(Reading::SelectedPredicate {
+                form: 0,
+                category: Category::FinitePredicate,
+                head: verb("core-verb:Attack", WordForm::Present, 0),
+                complements: vec![],
+            }),
         }),
     };
     assert!(finite.admit(&LEXICON).is_err());
-    let plain = Reading::ParticipialPostmodifiedNominal {
+    let plain = Reading::NominalProjection {
         form: 0,
-        head: Box::new(noun("lexeme:type/creature")),
-        modifier: Box::new(Reading::SelectedPredicate {
+        head: Box::new(Reading::ParticipialPostmodifiedNominal {
             form: 0,
-            category: Category::SecondaryVerbPhrase,
-            head: verb("core-verb:Attack", WordForm::Plain, 0),
-            complements: vec![],
+            head: crate::common::postmodification(noun("lexeme:type/creature")),
+            modifier: Box::new(Reading::SelectedPredicate {
+                form: 0,
+                category: Category::SecondaryVerbPhrase,
+                head: verb("core-verb:Attack", WordForm::Plain, 0),
+                complements: vec![],
+            }),
         }),
     };
     assert!(plain.admit(&LEXICON).is_err());

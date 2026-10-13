@@ -22,14 +22,20 @@ fn word(owner: &str, form: WordForm, number: Option<Number>, countability: Optio
 }
 
 fn other_noun() -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(
-            "lexeme:CommonNoun/Other",
-            WordForm::Singular,
-            Some(Number::Singular),
-            Some(true),
-        ),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(
+                    "lexeme:CommonNoun/Other",
+                    WordForm::Singular,
+                    Some(Number::Singular),
+                    Some(true),
+                ),
+            }),
+        }),
     }
 }
 
@@ -98,7 +104,9 @@ fn independent_definite_np_roundtrips_and_preserves_the_lexical_values() {
     else {
         unreachable!()
     };
-    let Reading::Noun { head: noun, .. } = *head else { unreachable!() };
+    let Reading::Noun { head: noun, .. } = crate::common::into_nominal_core(*head) else {
+        unreachable!()
+    };
     assert_eq!(words, [determiner, noun]);
 }
 
@@ -153,20 +161,32 @@ fn other_before_an_overt_noun_remains_an_adjective() {
         None,
     );
     adjective.frame = Some(0);
-    let expected = Reading::PremodifiedNominal {
+    let expected = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::IntransitiveAdjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: adjective,
-        }),
-        head: Box::new(Reading::Noun {
-            form: 0,
-            head: word(
-                "lexeme:CommonNoun/Card",
-                WordForm::Singular,
-                Some(Number::Singular),
-                Some(true),
-            ),
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::IntransitiveAdjective {
+                    form: 0,
+                    head: adjective,
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word(
+                                "lexeme:CommonNoun/Card",
+                                WordForm::Singular,
+                                Some(Number::Singular),
+                                Some(true),
+                            ),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     let noun = other_noun();

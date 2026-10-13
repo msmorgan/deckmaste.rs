@@ -71,9 +71,15 @@ fn irrealis_scalar() -> Reading {
             head: Box::new(Reading::PossessiveNounPhrase {
                 form: 0,
                 possessor: word("vocab:PossessiveDeterminerPronoun/Its", WordForm::Invariant),
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                        }),
+                    }),
                 }),
             }),
         }),
@@ -133,11 +139,7 @@ fn pilot_witnesses_use_the_measure_as_comparative_modifier() {
 fn independent_values_preserve_both_roundtrip_laws() {
     // The Pilot line's attested constituents; the numeric clause localizes IS1.
     for (value, text, category) in [
-        (
-            measured(),
-            "2 greater",
-            Category::PredicativeComplement,
-        ),
+        (measured(), "2 greater", Category::PredicativeComplement),
         (
             irrealis_scalar(),
             "its power were 2",

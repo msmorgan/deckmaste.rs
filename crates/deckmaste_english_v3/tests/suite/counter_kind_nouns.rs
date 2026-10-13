@@ -119,7 +119,13 @@ fn independently_constructed_compounds_preserve_identity_and_number() {
                 frame: None,
                 countability: Some(true),
             };
-            let expected = Reading::Noun { form: 0, head };
+            let expected = Reading::NominalProjection {
+                form: 0,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun { form: 0, head }),
+                }),
+            };
             expected.admit(common::lexicon()).unwrap();
             let text = format!(
                 "{kind} counter{}",

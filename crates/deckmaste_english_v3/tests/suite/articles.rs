@@ -104,17 +104,29 @@ fn independent_article_values_preserve_onset_variants_and_modifier_attachment() 
         ("artifact", Some("xenic"), true),
     ] {
         for casing in [SurfaceCase::Declared, SurfaceCase::Initial] {
-            let nominal = Reading::Noun {
+            let nominal = Reading::NominalProjection {
                 form: 0,
-                head: word(noun, WordForm::Singular, 0, SurfaceCase::Declared),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(noun, WordForm::Singular, 0, SurfaceCase::Declared),
+                    }),
+                }),
             };
             let nominal = if let Some(modifier) = modifier {
-                Reading::PremodifiedNominal {
+                Reading::NominalProjection {
                     form: 0,
-                    head: Box::new(nominal),
-                    modifier: Box::new(Reading::Adjective {
+                    head: Box::new(Reading::NominalCoreProjection {
                         form: 0,
-                        head: word(modifier, WordForm::Invariant, 0, SurfaceCase::Declared),
+                        head: Box::new(Reading::BarrierPremodifiedNominal {
+                            form: 0,
+                            head: Box::new(nominal),
+                            modifier: Box::new(Reading::Adjective {
+                                form: 0,
+                                head: word(modifier, WordForm::Invariant, 0, SurfaceCase::Declared),
+                            }),
+                        }),
                     }),
                 }
             } else {
@@ -218,15 +230,32 @@ fn homographs_keep_pronunciation_correlated_with_their_article_variant() {
                 variant,
                 SurfaceCase::Declared,
             ),
-            head: Box::new(Reading::PremodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::Adjective {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    head: word(modifier, WordForm::Invariant, 0, SurfaceCase::Declared),
-                }),
-                head: Box::new(Reading::Noun {
-                    form: 0,
-                    head: word("artifact", WordForm::Singular, 0, SurfaceCase::Declared),
+                    head: Box::new(Reading::BarrierPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(Reading::Adjective {
+                            form: 0,
+                            head: word(modifier, WordForm::Invariant, 0, SurfaceCase::Declared),
+                        }),
+                        head: Box::new(Reading::NominalProjection {
+                            form: 0,
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: word(
+                                        "artifact",
+                                        WordForm::Singular,
+                                        0,
+                                        SurfaceCase::Declared,
+                                    ),
+                                }),
+                            }),
+                        }),
+                    }),
                 }),
             }),
         };

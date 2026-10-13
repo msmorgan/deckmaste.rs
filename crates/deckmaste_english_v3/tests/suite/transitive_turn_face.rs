@@ -180,9 +180,15 @@ fn independently_constructed_active_and_passive_frames_roundtrip() {
             None,
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:type/creature", WordForm::Singular, None, Some(true)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:type/creature", WordForm::Singular, None, Some(true)),
+                }),
+            }),
         }),
     };
     independent(

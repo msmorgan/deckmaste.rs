@@ -36,9 +36,15 @@ fn bare_location(preposition: &str, noun: &str) -> Reading {
         head: word(preposition, WordForm::Invariant),
         complement: Box::new(Reading::BarePrepositionNounPhrase {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word(noun, WordForm::Singular),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(noun, WordForm::Singular),
+                    }),
+                }),
             }),
         }),
     }

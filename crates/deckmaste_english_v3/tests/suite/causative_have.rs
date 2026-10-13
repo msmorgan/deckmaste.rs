@@ -174,7 +174,13 @@ fn noun(owner: &str) -> Reading {
         None,
     );
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 fn accusative(head: Reading) -> Reading {

@@ -50,7 +50,7 @@ fn singular_determiner_selection_survives_nominal_coordination() {
     assert_constituents(
         "each creature and planeswalker they control",
         Category::NounPhrase,
-        &[(Category::Nominal, "creature and planeswalker")],
+        &[(Category::NominalCore, "creature and planeswalker")],
     );
 }
 
@@ -110,17 +110,23 @@ fn word(id: &str, form: WordForm, features: FeatureBundle, countability: Option<
 
 #[test]
 fn independently_constructed_coordinated_subject_roundtrips_with_singular_coordinates() {
-    let noun = |id| Reading::Noun {
+    let noun = |id| Reading::NominalProjection {
         form: 0,
-        head: word(
-            id,
-            WordForm::Singular,
-            FeatureBundle {
-                number: Some(Number::Singular),
-                ..FeatureBundle::default()
-            },
-            Some(true),
-        ),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(
+                    id,
+                    WordForm::Singular,
+                    FeatureBundle {
+                        number: Some(Number::Singular),
+                        ..FeatureBundle::default()
+                    },
+                    Some(true),
+                ),
+            }),
+        }),
     };
     let value = Reading::PossessiveNounPhrase {
         form: 0,
@@ -135,17 +141,23 @@ fn independently_constructed_coordinated_subject_roundtrips_with_singular_coordi
             },
             None,
         ),
-        head: Box::new(Reading::Coordination {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            category: Category::Nominal,
-            left: Box::new(noun("lexeme:CommonNoun/Power")),
-            coordinator: word(
-                "vocab:Coordinator/And",
-                WordForm::Invariant,
-                FeatureBundle::default(),
-                None,
-            ),
-            right: Box::new(noun("lexeme:CommonNoun/Toughness")),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Coordination {
+                    form: 0,
+                    category: Category::NominalCore,
+                    left: Box::new(noun("lexeme:CommonNoun/Power")),
+                    coordinator: word(
+                        "vocab:Coordinator/And",
+                        WordForm::Invariant,
+                        FeatureBundle::default(),
+                        None,
+                    ),
+                    right: Box::new(noun("lexeme:CommonNoun/Toughness")),
+                }),
+            }),
         }),
     };
     let text = "its power and toughness";

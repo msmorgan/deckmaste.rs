@@ -116,24 +116,42 @@ fn independent_ordered_pair_and_premodification_preserve_both_laws() {
     use crate::scalar_property_values::assert_laws;
     use crate::scalar_property_values::numeric;
     use crate::scalar_property_values::word;
-    let noun = |property: &str| Reading::Noun {
+    let noun = |property: &str| Reading::NominalProjection {
         form: 0,
-        head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
-    };
-    let head = Reading::Coordination {
-        category: Category::Nominal,
-        form: 0,
-        left: Box::new(noun("Power")),
-        coordinator: word("vocab:Coordinator/And", WordForm::Invariant),
-        right: Box::new(noun("Toughness")),
-    };
-    let modified = Reading::PremodifiedNominal {
-        form: 0,
-        modifier: Box::new(Reading::Adjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word("vocab:AttributiveAdjective/Base", WordForm::Invariant),
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
+            }),
         }),
-        head: Box::new(head.clone()),
+    };
+    let head = Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Coordination {
+                category: Category::NominalCore,
+                form: 0,
+                left: Box::new(noun("Power")),
+                coordinator: word("vocab:Coordinator/And", WordForm::Invariant),
+                right: Box::new(noun("Toughness")),
+            }),
+        }),
+    };
+    let modified = Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::Adjective {
+                    form: 0,
+                    head: word("vocab:AttributiveAdjective/Base", WordForm::Invariant),
+                }),
+                head: Box::new(head.clone()),
+            }),
+        }),
     };
     let component = |value| Reading::UnsignedScalar {
         form: 0,

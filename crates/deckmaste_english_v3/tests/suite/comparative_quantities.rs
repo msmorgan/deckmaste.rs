@@ -162,7 +162,13 @@ fn counted(value: Reading, owner: &str, number: Number) -> Reading {
             form: 0,
             value: Box::new(value),
         }),
-        head: Box::new(Reading::Noun { form: 0, head }),
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun { form: 0, head }),
+            }),
+        }),
     }
 }
 

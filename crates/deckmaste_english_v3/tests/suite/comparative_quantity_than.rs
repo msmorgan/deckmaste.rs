@@ -176,9 +176,15 @@ fn an_independently_constructed_comparative_np_roundtrips() {
             form: 0,
             head: word("vocab:ComparativeQuantifier/More"),
         }),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: land,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: land,
+                }),
+            }),
         }),
         marker: word("vocab:Preposition/Than"),
         complement: Box::new(Reading::CasePhrase {
@@ -197,7 +203,7 @@ fn an_independently_constructed_comparative_np_roundtrips() {
     let Reading::DiscontinuousComparativeNominal { category, .. } = &mut wrong_category else {
         unreachable!()
     };
-    *category = Category::Nominal;
+    *category = Category::NominalCore;
     assert!(wrong_category.admit(lexicon()).is_err());
 }
 

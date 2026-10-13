@@ -35,18 +35,24 @@ fn clause(verb: &str) -> Reading {
             form: 0,
             head: Box::new(Reading::BareNounPhrase {
                 form: 0,
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: lexical(
-                        "lexeme:type/creature",
-                        WordForm::Plural,
-                        FeatureBundle {
-                            number: Some(Number::Plural),
-                            ..Default::default()
-                        },
-                        None,
-                        Some(true),
-                    ),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: lexical(
+                                "lexeme:type/creature",
+                                WordForm::Plural,
+                                FeatureBundle {
+                                    number: Some(Number::Plural),
+                                    ..Default::default()
+                                },
+                                None,
+                                Some(true),
+                            ),
+                        }),
+                    }),
                 }),
             }),
         }),

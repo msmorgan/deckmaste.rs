@@ -331,7 +331,9 @@ fn normalize_burn_standard(value: &mut Reading) -> bool {
             }
             changed
         }
-        Reading::CasePhrase { head, .. }
+        Reading::NominalProjection { form: 0, head }
+        | Reading::NominalCoreProjection { form: 0, head }
+        | Reading::CasePhrase { head, .. }
         | Reading::BareNounPhrase { head, .. }
         | Reading::DeterminedNounPhrase { head, .. } => normalize_burn_standard(head),
         Reading::PrepositionPhrase { complement, .. }

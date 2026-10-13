@@ -1027,23 +1027,23 @@ mod tests {
     }
 
     #[test]
-    fn necromentia_migration_preserves_36100_trees_and_counts_413_unit_readings() {
+    fn necromentia_migration_preserves_trees_and_counts_unit_readings() {
         let text = "Choose a card name other than a basic land card name. Search target opponent's graveyard, hand, and library for any number of cards with that name and exile them. That player shuffles, then creates a 2/2 black Zombie creature token for each card exiled from their hand this way.";
         let face = check(
             text,
             Category::Document,
-            36100,
-            &[2, 50, 361],
+            15400,
+            &[2, 50, 154],
             &["Sentence", "Sentence", "Sentence"],
         );
-        assert_eq!(face.checked_readings, 413);
+        assert_eq!(face.checked_readings, 206);
         assert_eq!(
             face.migration
                 .iter()
                 .find(|region| region.category == "Ability")
                 .unwrap()
                 .old_count,
-            36100
+            15400
         );
         assert!(face.lines.iter().all(|unit| unit.retained_reason.is_none()));
     }

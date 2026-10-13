@@ -182,12 +182,18 @@ fn independent_complemented_adjective_selects_its_marker_and_object() {
         head: Box::new(Reading::IndefiniteNounPhrase {
             form: 0,
             determiner: word("vocab:Article/Indefinite", WordForm::Invariant, None),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Word {
-                    countability: Some(true),
-                    ..word("lexeme:type/creature", WordForm::Singular, None)
-                },
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: Word {
+                            countability: Some(true),
+                            ..word("lexeme:type/creature", WordForm::Singular, None)
+                        },
+                    }),
+                }),
             }),
         }),
     };

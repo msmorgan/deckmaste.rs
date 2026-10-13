@@ -132,7 +132,13 @@ fn quantified(quantity: Reading, owner: &str, number: Number, count: bool) -> Re
     Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(quantity),
-        head: Box::new(Reading::Noun { form: 0, head }),
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun { form: 0, head }),
+            }),
+        }),
     }
 }
 

@@ -32,7 +32,9 @@ fn implicit_standards_are_adjective_modifiers_of_property_nouns() {
             let Reading::BareNounPhrase { head: nominal, .. } = value else {
                 panic!("the comparative property must form a bare noun phrase");
             };
-            let Reading::PremodifiedNominal { modifier, head, .. } = nominal.as_ref() else {
+            let Reading::BarrierPremodifiedNominal { modifier, head, .. } =
+                crate::common::nominal_core(&nominal)
+            else {
                 panic!("the comparative adjective must premodify the property noun");
             };
             assert_eq!(
@@ -54,7 +56,9 @@ fn implicit_standards_are_adjective_modifiers_of_property_nouns() {
             let Reading::BareNounPhrase { head: nominal, .. } = value else {
                 unreachable!()
             };
-            let Reading::PremodifiedNominal { modifier, .. } = nominal.as_ref() else {
+            let Reading::BarrierPremodifiedNominal { modifier, .. } =
+                crate::common::nominal_core(&nominal)
+            else {
                 unreachable!()
             };
             let Reading::Coordination {
@@ -104,11 +108,11 @@ fn overt_standards_belong_to_one_discontinuous_governor() {
                 marker,
                 complement,
                 ..
-            } = nominal.as_ref()
+            } = crate::common::nominal_core(&nominal)
             else {
                 panic!("the standard must be the governor's comparative complement");
             };
-            assert_eq!(*category, Category::Nominal);
+            assert_eq!(*category, Category::NominalCore);
             assert_eq!(
                 compared.category(),
                 Category::DiscontinuousComparativeGovernor
@@ -245,15 +249,27 @@ fn independently_constructed_attributive_property_roundtrips() {
     lexical.form = WordForm::Singular;
     lexical.features.number = Some(Number::Singular);
     power.countability = Some(true);
-    let value = Reading::PremodifiedNominal {
+    let value = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::IntransitiveAdjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word("vocab:ScalarDegree/Greater", Some(1)),
-        }),
-        head: Box::new(Reading::Noun {
-            form: 0,
-            head: power,
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::IntransitiveAdjective {
+                    form: 0,
+                    head: word("vocab:ScalarDegree/Greater", Some(1)),
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: power,
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     value.admit(lexicon()).unwrap();

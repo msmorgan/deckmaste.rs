@@ -594,5 +594,15 @@ Barrier. The conservative Commuting inventory is declared in lexical data and
 its existing card-type producer. Negative derivation precedes classification,
 so a positive colour or card type does not automatically license its negative
 word. A test compares every loaded lexeme with the tool's independent reviewed
-inventory. Classification alone does not change admission or Reading shapes;
-the nominal layers will consume it in simple modifier phrases.
+inventory. Only simple Adjective and noun-category NounPremodifier forms pass the lexical
+property to their phrase. Other adjective uses, keyword premodifiers and
+coordinated premodifiers remain Barrier.
+
+Nominals have three layers: NominalCore contains bases, completed coordination
+and barrier modifiers; NominalPostmodification adds the reviewed postmodifiers
+and relatives; Nominal adds commuting premodifiers. NominalCoreProjection and
+NominalProjection lift between these categories and explicitly forward the
+three local slots. A barrier consumes a full Nominal and returns NominalCore,
+retaining both inside and outside scopes. The two premodifier constructions
+have complementary commuting/barrier routes. Existing policing features and
+requirements remain in place; the layers do not replace their external uses.

@@ -291,3 +291,50 @@ fn constituent_positions_in_scope(
         })
         .collect()
 }
+
+pub fn postmodification(nominal: Reading) -> Box<Reading> {
+    let Reading::NominalProjection { form: 0, head } = nominal else {
+        panic!("expected the complete nominal's outer projection")
+    };
+    head
+}
+
+pub fn nominal_core(nominal: &Reading) -> &Reading {
+    let Reading::NominalProjection { form: 0, head } = nominal else {
+        panic!("expected the complete nominal's outer projection")
+    };
+    let Reading::NominalCoreProjection { form: 0, head } = head.as_ref() else {
+        panic!("expected the core's postmodification projection")
+    };
+    head
+}
+
+pub fn nominal_core_mut(nominal: &mut Reading) -> &mut Reading {
+    let Reading::NominalProjection { form: 0, head } = nominal else {
+        panic!("expected the complete nominal's outer projection")
+    };
+    let Reading::NominalCoreProjection { form: 0, head } = head.as_mut() else {
+        panic!("expected the core's postmodification projection")
+    };
+    head
+}
+
+pub fn into_nominal_core(nominal: Reading) -> Reading {
+    let Reading::NominalProjection { form: 0, head } = nominal else {
+        panic!("expected the complete nominal's outer projection")
+    };
+    let Reading::NominalCoreProjection { form: 0, head } = *head else {
+        panic!("expected the core's postmodification projection")
+    };
+    *head
+}
+
+pub fn nominal(core: Reading) -> Reading {
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(core),
+        }),
+    }
+}

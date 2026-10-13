@@ -35,17 +35,29 @@ fn noun(owner: &str, number: Number) -> Reading {
     value.form = if number == Number::Singular { WordForm::Singular } else { WordForm::Plural };
     value.features.number = Some(number);
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 fn creature(number: Number) -> Reading {
     noun("lexeme:type/creature", number)
 }
 fn targeted(head: Reading) -> Reading {
-    Reading::TargetedNominal {
+    Reading::NominalProjection {
         form: 0,
-        marker: word("vocab:TargetingMarker/Target"),
-        head: Box::new(head),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::TargetedNominal {
+                form: 0,
+                marker: word("vocab:TargetingMarker/Target"),
+                head: Box::new(head),
+            }),
+        }),
     }
 }
 fn direct(head: Reading) -> Reading {
@@ -87,25 +99,30 @@ fn counted_number(head: Reading, value: i32) -> Reading {
     }
 }
 fn coordinate(category: Category, owner: &str, left: Reading, right: Reading) -> Reading {
-    Reading::Coordination {
-        category,
+    let value = Reading::Coordination {
+        category: if category == Category::Nominal { Category::NominalCore } else { category },
         form: 0,
         left: Box::new(left),
         coordinator: word(owner),
         right: Box::new(right),
-    }
+    };
+    if category == Category::Nominal { common::nominal(value) } else { value }
 }
+
 fn flying(head: Reading) -> Reading {
-    Reading::PostmodifiedNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(head),
-        modifier: Box::new(Reading::KeywordComplementPreposition {
-            category: Category::PrepositionPhrase,
+        head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
-            head: word("vocab:Preposition/With"),
-            complement: Box::new(Reading::BareKeyword {
+            head: crate::common::postmodification(head),
+            modifier: Box::new(Reading::KeywordComplementPreposition {
+                category: Category::PrepositionPhrase,
                 form: 0,
-                head: word("lexeme:keyword_ability/flying"),
+                head: word("vocab:Preposition/With"),
+                complement: Box::new(Reading::BareKeyword {
+                    form: 0,
+                    head: word("lexeme:keyword_ability/flying"),
+                }),
             }),
         }),
     }
@@ -176,7 +193,7 @@ fn bare_target_projection_uses_the_declared_number_boundary() {
         marker: other_marker,
         head: other_head,
         ..
-    } = nominal.as_ref()
+    } = common::nominal_core(nominal)
     else {
         unreachable!()
     };
@@ -214,7 +231,9 @@ fn numerals_and_noun_premodifiers_keep_the_targeted_nominal() {
         modifier: Box::new(Reading::NounPremodifier {
             form: 0,
             head: {
-                let Reading::Noun { head, .. } = creature(Number::Singular) else {
+                let Reading::Noun { head, .. } =
+                    crate::common::into_nominal_core(creature(Number::Singular))
+                else {
                     unreachable!()
                 };
                 head
@@ -228,19 +247,27 @@ fn numerals_and_noun_premodifiers_keep_the_targeted_nominal() {
         BTreeSet::from([counted(targeted(cards))]),
     );
     // Go for the Throat: the noun premodifier stays below targeting.
-    let nonartifact = Reading::NounPremodifiedNominal {
+    let nonartifact = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::NounPremodifier {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: {
-                let Reading::Noun { head, .. } = noun("lexeme:type/artifact/non", Number::Singular)
-                else {
-                    unreachable!()
-                };
-                head
-            },
+            head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::NounPremodifier {
+                    form: 0,
+                    head: {
+                        let Reading::Noun { head, .. } = crate::common::into_nominal_core(noun(
+                            "lexeme:type/artifact/non",
+                            Number::Singular,
+                        )) else {
+                            unreachable!()
+                        };
+                        head
+                    },
+                }),
+                head: Box::new(creature(Number::Singular)),
+            }),
         }),
-        head: Box::new(creature(Number::Singular)),
     };
     exact(
         "target nonartifact creature",
@@ -362,15 +389,21 @@ fn adjective_and_participial_premodifiers_stay_below_targeting() {
         form: 0,
         head: word(owner),
     };
-    let colored = Reading::PremodifiedNominal {
+    let colored = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(coordinate(
-            Category::AdjectivePhrase,
-            "vocab:Coordinator/Or",
-            adjective("vocab:ColorWord/Black"),
-            adjective("vocab:ColorWord/Red"),
-        )),
-        head: Box::new(creature(Number::Singular)),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(coordinate(
+                    Category::AdjectivePhrase,
+                    "vocab:Coordinator/Or",
+                    adjective("vocab:ColorWord/Black"),
+                    adjective("vocab:ColorWord/Red"),
+                )),
+                head: Box::new(creature(Number::Singular)),
+            }),
+        }),
     };
     exact(
         "target black or red creature",
@@ -385,10 +418,20 @@ fn adjective_and_participial_premodifiers_stay_below_targeting() {
         value.form = WordForm::GerundParticiple;
         value.features.finiteness = Some(deckmaste_lexical::Finiteness::Nonfinite);
         head.frame = Some(0);
-        Reading::ParticipialPremodifier {
+        Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::VerbalPremodifier { category: Category::VerbalPremodifier, form: 0, head }),
-            head: Box::new(creature(number)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::ParticipialPremodifier {
+                    form: 0,
+                    modifier: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
+                        form: 0,
+                        head,
+                    }),
+                    head: Box::new(creature(number)),
+                }),
+            }),
         }
     };
     exact(
@@ -409,13 +452,19 @@ fn simple_adjective_above_targeting_preserves_the_single_nominal_projection() {
     // Felidar Savior: "each of up to two other target creatures you control".
     let mut other = word("vocab:AttributiveAdjective/Other");
     other.frame = Some(0);
-    let nominal = Reading::PremodifiedNominal {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::IntransitiveAdjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: other,
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::IntransitiveAdjective {
+                    form: 0,
+                    head: other,
+                }),
+                head: Box::new(targeted(creature(Number::Plural))),
+            }),
         }),
-        head: Box::new(targeted(creature(Number::Plural))),
     };
     exact(
         "other target creatures",

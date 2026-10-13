@@ -99,22 +99,28 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
 }
 
 fn noun(owner: &str, countability: bool) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(countability),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(countability),
-        },
+        }),
     }
 }
 
@@ -131,13 +137,22 @@ fn independently_constructed_definite_temporal_adjunct_requires_a_dependent() {
         let mut value = Reading::NominalAdjunctPhrase {
             form: 0,
             determiner: invariant("vocab:DefiniteMarker/The", SurfaceCase::Declared),
-            head: Box::new(Reading::PremodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::Adjective {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    head: invariant("vocab:AttributiveAdjective/Next", SurfaceCase::Declared),
+                    head: Box::new(Reading::BarrierPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(Reading::Adjective {
+                            form: 0,
+                            head: invariant(
+                                "vocab:AttributiveAdjective/Next",
+                                SurfaceCase::Declared,
+                            ),
+                        }),
+                        head: Box::new(noun("lexeme:CommonNoun/Time", countability)),
+                    }),
                 }),
-                head: Box::new(noun("lexeme:CommonNoun/Time", countability)),
             }),
         };
         laws("the next time", &value);

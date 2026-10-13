@@ -97,9 +97,15 @@ fn become_clause() -> Reading {
             head: Box::new(Reading::PossessiveNounPhrase {
                 form: 0,
                 possessor: word("vocab:PossessiveDeterminerPronoun/Its", WordForm::Invariant),
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                        }),
+                    }),
                 }),
             }),
         }),

@@ -126,7 +126,9 @@ fn designation_is_a_count_noun_under_a_genitive_determiner_and_in_the_plural() {
         };
         let LexicalReading::Word(value) = &possessor.value else { panic!("pronoun") };
         assert_eq!(value.features.case, Some(Case::Genitive));
-        let Reading::Noun { head, .. } = *head else { panic!("noun head") };
+        let Reading::Noun { head, .. } = crate::common::into_nominal_core(*head) else {
+            panic!("noun head")
+        };
         assert_eq!(owner(&head).as_str(), BEARER);
         assert_eq!(head.countability, Some(true));
     }
@@ -136,7 +138,9 @@ fn designation_is_a_count_noun_under_a_genitive_determiner_and_in_the_plural() {
         &[(Category::Nominal, "Ring-bearers")],
     );
     for reading in common::readings("Ring-bearers", Category::Nominal) {
-        let Reading::Noun { head, .. } = reading else { panic!("plural noun") };
+        let Reading::Noun { head, .. } = crate::common::into_nominal_core(reading) else {
+            panic!("plural noun")
+        };
         let LexicalReading::Word(value) = &head.value else { panic!("noun word") };
         assert_eq!(value.lexeme, LexemeId::new(BEARER));
         assert_eq!(value.form, WordForm::Plural);

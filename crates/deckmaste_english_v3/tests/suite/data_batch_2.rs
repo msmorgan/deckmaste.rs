@@ -253,18 +253,24 @@ fn declarations_fill_attested_roles_and_preserve_both_roundtrip_laws() {
             "mana ability",
         ),
     ] {
-        let expected = Reading::Noun {
+        let expected = Reading::NominalProjection {
             form: 0,
-            head: word(
-                owner,
-                WordForm::Singular,
-                FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
-                },
-                None,
-                Some(true),
-            ),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(
+                        owner,
+                        WordForm::Singular,
+                        FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        None,
+                        Some(true),
+                    ),
+                }),
+            }),
         };
         expected.admit(common::lexicon()).unwrap();
         assert_eq!(expected.realize(common::lexicon()).unwrap(), text);

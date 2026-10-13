@@ -29,22 +29,28 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
 }
 
 fn noun(owner: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 
@@ -140,7 +146,7 @@ fn authentic_quality_and_subject_keywords_keep_declared_payloads() {
     );
     // Myr Enforcer: "Affinity for artifacts" (followed by reminder text).
     let mut artifacts = noun("lexeme:type/artifact");
-    if let Reading::Noun { head, .. } = &mut artifacts
+    if let Reading::Noun { head, .. } = crate::common::nominal_core_mut(&mut artifacts)
         && let LexicalReading::Word(value) = &mut head.value
     {
         value.form = WordForm::Plural;
@@ -236,7 +242,7 @@ fn authentic_amount_cost_quality_cost_and_size_payloads_keep_separators() {
     );
     // Kodama's Might: "Splice onto Arcane {G}" (followed by reminder text).
     let mut arcane = noun("lexeme:spell_subtype/arcane");
-    if let Reading::Noun { head, .. } = &mut arcane
+    if let Reading::Noun { head, .. } = crate::common::nominal_core_mut(&mut arcane)
         && let LexicalReading::Word(value) = &mut head.value
     {
         value.capitalization = SurfaceCase::Declared;
@@ -298,7 +304,10 @@ fn keyword_payload_contracts_reject_wrong_markers_numbers_and_separators() {
     // as an independently constructed bare keyword mention.
     exact(
         "Suspend",
-        &Reading::BareKeyword { form: 0, head: keyword("suspend") },
+        &Reading::BareKeyword {
+            form: 0,
+            head: keyword("suspend"),
+        },
     );
     for text in [
         "Protection for red",

@@ -529,9 +529,9 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
             .take(4)
             .any(|line| line.trim() == "category: FinitePredicate,")
     );
-    assert_eq!(serialized["samples"][0]["total_cost"], 16);
-    // The old sampled Ability still has its original minimum cost. A census
-    // sample is now a Sentence, omitting three fixed surrounding constructors.
+    assert_eq!(serialized["samples"][0]["total_cost"], 18);
+    // Both costs include the two nominal lifts. The Sentence census sample
+    // omits the Ability’s three fixed surrounding constructors.
     let input = lexicon().analyze("When this creature enters, it explores X times.");
     let grammar = Grammar::with_lexicon(lexicon());
     let forest = parse(&grammar, lexicon(), &input, &Category::Ability).unwrap();
@@ -545,7 +545,7 @@ fn cheapest_frequency_sample_preserves_all_readings_in_census() {
         })
         .min()
         .unwrap();
-    assert_eq!(original_minimum, 19);
+    assert_eq!(original_minimum, 21);
 }
 
 fn trace_card_draw(grammar: &Grammar) -> TracedValue {

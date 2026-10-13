@@ -29,22 +29,28 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
 }
 
 fn noun(owner: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 
@@ -192,7 +198,7 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     // Aggravate: "Each creature dealt damage this way attacks this turn if
     // able."
     let mut damage = noun("lexeme:CommonNoun/Damage");
-    if let Reading::Noun { head, .. } = &mut damage {
+    if let Reading::Noun { head, .. } = crate::common::nominal_core_mut(&mut damage) {
         head.countability = Some(false);
     }
     let passive = Reading::RetainedObjectPassive {
@@ -206,14 +212,17 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
     exact(
         "creature dealt damage this way",
         Category::Nominal,
-        &Reading::ParticipialPostmodifiedNominal {
+        &Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:type/creature")),
-            modifier: Box::new(Reading::NominalAdjunctPredicate {
-                category: Category::SecondaryVerbPhrase,
+            head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
-                head: Box::new(passive.clone()),
-                modifier: Box::new(manner()),
+                head: crate::common::postmodification(noun("lexeme:type/creature")),
+                modifier: Box::new(Reading::NominalAdjunctPredicate {
+                    category: Category::SecondaryVerbPhrase,
+                    form: 0,
+                    head: Box::new(passive.clone()),
+                    modifier: Box::new(manner()),
+                }),
             }),
         },
     );
@@ -236,17 +245,24 @@ fn authentic_retained_object_and_reduced_passives_keep_manner_attachment() {
         &Reading::DeterminedNounPhrase {
             form: 0,
             determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
-            head: Box::new(Reading::ParticipialPostmodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Box::new(noun("lexeme:CommonNoun/Card")),
-                modifier: Box::new(Reading::NominalAdjunctPredicate {
-                    category: Category::SecondaryVerbPhrase,
+                head: Box::new(Reading::ParticipialPostmodifiedNominal {
                     form: 0,
-                    head: Box::new(Reading::PassivePredicate {
+                    head: crate::common::postmodification(noun("lexeme:CommonNoun/Card")),
+                    modifier: Box::new(Reading::NominalAdjunctPredicate {
+                        category: Category::SecondaryVerbPhrase,
                         form: 0,
-                        head: verb("lexeme:keyword_action/discard", WordForm::PastParticiple, 0),
+                        head: Box::new(Reading::PassivePredicate {
+                            form: 0,
+                            head: verb(
+                                "lexeme:keyword_action/discard",
+                                WordForm::PastParticiple,
+                                0,
+                            ),
+                        }),
+                        modifier: Box::new(manner()),
                     }),
-                    modifier: Box::new(manner()),
                 }),
             }),
         },

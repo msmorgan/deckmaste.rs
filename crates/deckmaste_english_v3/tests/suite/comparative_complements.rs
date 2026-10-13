@@ -146,9 +146,15 @@ fn an_independent_nominal_comparison_preserves_structure_and_words() {
                     head: Box::new(Reading::PossessiveNounPhrase {
                         form: 0,
                         possessor: possessor.clone(),
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: power.clone(),
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: power.clone(),
+                                }),
+                            }),
                         }),
                     }),
                 }),
@@ -249,15 +255,27 @@ fn an_independent_shared_governor_comparison_preserves_structure_and_words() {
                         possessor: Box::new(Reading::DeterminedNounPhrase {
                             form: 0,
                             determiner: this.clone(),
-                            head: Box::new(Reading::Noun {
+                            head: Box::new(Reading::NominalProjection {
                                 form: 0,
-                                head: creature.clone(),
+                                head: Box::new(Reading::NominalCoreProjection {
+                                    form: 0,
+                                    head: Box::new(Reading::Noun {
+                                        form: 0,
+                                        head: creature.clone(),
+                                    }),
+                                }),
                             }),
                         }),
                         marker: genitive.clone(),
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: power.clone(),
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: power.clone(),
+                                }),
+                            }),
                         }),
                     }),
                 }),

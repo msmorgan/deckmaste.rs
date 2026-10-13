@@ -251,15 +251,33 @@ fn keyword_supplement() -> Reading {
                                         "vocab:SingularDemonstrative/This",
                                         WordForm::Invariant,
                                     ),
-                                    head: Box::new(Reading::Noun {
+                                    head: Box::new(Reading::NominalProjection {
                                         form: 0,
-                                        head: word("lexeme:type/creature", WordForm::Singular),
+                                        head: Box::new(Reading::NominalCoreProjection {
+                                            form: 0,
+                                            head: Box::new(Reading::Noun {
+                                                form: 0,
+                                                head: word(
+                                                    "lexeme:type/creature",
+                                                    WordForm::Singular,
+                                                ),
+                                            }),
+                                        }),
                                     }),
                                 }),
                                 marker: word("vocab:Genitive/Default", WordForm::Invariant),
-                                head: Box::new(Reading::Noun {
+                                head: Box::new(Reading::NominalProjection {
                                     form: 0,
-                                    head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                                    head: Box::new(Reading::NominalCoreProjection {
+                                        form: 0,
+                                        head: Box::new(Reading::Noun {
+                                            form: 0,
+                                            head: word(
+                                                "lexeme:CommonNoun/Power",
+                                                WordForm::Singular,
+                                            ),
+                                        }),
+                                    }),
                                 }),
                             }),
                         }),

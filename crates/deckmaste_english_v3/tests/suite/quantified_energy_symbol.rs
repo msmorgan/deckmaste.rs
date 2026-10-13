@@ -13,23 +13,29 @@ use deckmaste_lexical::WordForm;
 use crate::common;
 
 fn energy_head() -> Reading {
-    Reading::MeasuredSymbolNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::NominalSymbol {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: Word {
-                value: LexicalReading::Word(LexicalValue {
-                    lexeme: "vocab:FixedCostSymbol/E".into(),
-                    form: WordForm::Invariant,
-                    features: FeatureBundle::default(),
-                    variant: 0,
-                    capitalization: SurfaceCase::Declared,
+            head: Box::new(Reading::MeasuredSymbolNominal {
+                form: 0,
+                head: Box::new(Reading::NominalSymbol {
+                    form: 0,
+                    head: Word {
+                        value: LexicalReading::Word(LexicalValue {
+                            lexeme: "vocab:FixedCostSymbol/E".into(),
+                            form: WordForm::Invariant,
+                            features: FeatureBundle::default(),
+                            variant: 0,
+                            capitalization: SurfaceCase::Declared,
+                        }),
+                        frame: None,
+                        countability: Some(false),
+                    },
                 }),
-                frame: None,
-                countability: Some(false),
-            },
+                rest: vec![],
+            }),
         }),
-        rest: vec![],
     }
 }
 
@@ -83,6 +89,8 @@ fn cardinal_witness(card: &str, text: &str, value: i32) {
         reading
             .visit(&mut |node| {
                 if let Reading::QuantifiedNounPhrase { head, .. } = node
+                    && let Reading::NominalProjection { form: 0, head } = head.as_ref()
+                    && let Reading::NominalCoreProjection { form: 0, head } = head.as_ref()
                     && let Reading::MeasuredSymbolNominal { .. } = head.as_ref()
                 {
                     measurements.insert(node.clone());

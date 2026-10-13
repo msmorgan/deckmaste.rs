@@ -88,9 +88,15 @@ fn determined(owner: &str, determiner: &str, form: WordForm, countable: bool) ->
     Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant(determiner),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(owner, form, Some(countable)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(owner, form, Some(countable)),
+                }),
+            }),
         }),
     }
 }
@@ -173,9 +179,19 @@ fn independent_quantity_heads_keep_one_route_and_both_roundtrip_laws() {
                 Reading::PossessiveNounPhrase {
                     form: 0,
                     possessor: invariant("vocab:PossessiveDeterminerPronoun/Your"),
-                    head: Box::new(Reading::Noun {
+                    head: Box::new(Reading::NominalProjection {
                         form: 0,
-                        head: word("lexeme:CommonNoun/Opponent", WordForm::Plural, Some(true)),
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(
+                                    "lexeme:CommonNoun/Opponent",
+                                    WordForm::Plural,
+                                    Some(true),
+                                ),
+                            }),
+                        }),
                     }),
                 },
                 0,

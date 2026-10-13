@@ -8,26 +8,32 @@ use deckmaste_lexical::{
 use crate::common;
 
 fn noun(owner: &str, number: Number) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: if number == Number::Singular {
-                    WordForm::Singular
-                } else {
-                    WordForm::Plural
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: if number == Number::Singular {
+                            WordForm::Singular
+                        } else {
+                            WordForm::Plural
+                        },
+                        features: FeatureBundle {
+                            number: Some(number),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                features: FeatureBundle {
-                    number: Some(number),
-                    ..Default::default()
-                },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 
@@ -63,7 +69,11 @@ fn assert_roll_object(text: &str, category: Category, owner: &str, number: Numbe
                 }
             })
             .unwrap();
-        assert_eq!(objects, vec![vec![expected.clone()]], "{text}");
+        assert_eq!(
+            objects,
+            vec![vec![common::nominal_core(&expected).clone()]],
+            "{text}"
+        );
     }
 }
 

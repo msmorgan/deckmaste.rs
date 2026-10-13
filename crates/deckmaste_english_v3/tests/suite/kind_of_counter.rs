@@ -24,23 +24,35 @@ fn noun_word(owner: &str) -> Word {
 }
 
 fn bare_complement() -> Reading {
-    Reading::PrepositionComplementNominal {
-        form: 1,
-        head: noun_word("lexeme:CommonNoun/Kind"),
-        marker: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: "vocab:Preposition/Of".into(),
-                form: WordForm::Invariant,
-                features: FeatureBundle::default(),
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
-            }),
-            frame: None,
-            countability: None,
-        },
-        complement: Box::new(Reading::Noun {
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: noun_word("lexeme:CommonNoun/Counter"),
+            head: Box::new(Reading::PrepositionComplementNominal {
+                form: 1,
+                head: noun_word("lexeme:CommonNoun/Kind"),
+                marker: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: "vocab:Preposition/Of".into(),
+                        form: WordForm::Invariant,
+                        features: FeatureBundle::default(),
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: None,
+                },
+                complement: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: noun_word("lexeme:CommonNoun/Counter"),
+                        }),
+                    }),
+                }),
+            }),
         }),
     }
 }
@@ -53,7 +65,7 @@ fn check_taxonomic_roles(value: &Reading) {
                 && complement.category() == Category::Nominal
             {
                 // The noun head selects the bare Nominal, rather than an NP or a verb.
-                assert_eq!(node, &bare_complement());
+                assert_eq!(node, crate::common::nominal_core(&bare_complement()));
                 found = true;
             }
         })
@@ -101,15 +113,26 @@ fn postmodifiers_keep_the_ordinary_nominal_attachment_shapes() {
                 .iter()
                 .map(|value| {
                     let mut shape = Vec::new();
+                    let mut complement_lifts = Vec::new();
                     value
                         .visit(&mut |node| {
-                            // Erasing the selecting taxonomic head leaves the ordinary noun's structure.
-                            if !(taxonomic && node.construction() == "PrepositionComplementNominal")
+                            // Erase the selecting head and exactly its complement's lifts.
+                            // The remaining category boundaries must match the ordinary noun.
+                            if let Some(expected) = complement_lifts.pop() {
+                                assert_eq!(node.construction(), expected);
+                            } else if taxonomic
+                                && let Reading::PrepositionComplementNominal { complement, .. } =
+                                    node
                             {
+                                crate::common::nominal_core(complement);
+                                complement_lifts =
+                                    vec!["NominalCoreProjection", "NominalProjection"];
+                            } else {
                                 shape.push(node.construction());
                             }
                         })
                         .unwrap();
+                    assert_eq!(complement_lifts, [] as [&str; 0]);
                     shape
                 })
                 .collect::<Vec<_>>()

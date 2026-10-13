@@ -145,15 +145,21 @@ fn independently_constructed_enter_complement_roundtrips() {
     let creature = Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant("vocab:SingularDemonstrative/This"),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(
-                "lexeme:type/creature",
-                WordForm::Singular,
-                Some(Number::Singular),
-                None,
-                Some(true),
-            ),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(
+                        "lexeme:type/creature",
+                        WordForm::Singular,
+                        Some(Number::Singular),
+                        None,
+                        Some(true),
+                    ),
+                }),
+            }),
         }),
     };
     let copy = Reading::IndefiniteNounPhrase {
@@ -165,22 +171,28 @@ fn independently_constructed_enter_complement_roundtrips() {
             None,
             None,
         ),
-        head: Box::new(Reading::PostmodifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::PostmodifiedNominal {
                 form: 0,
-                head: word(
-                    "lexeme:CommonNoun/Copy",
-                    WordForm::Singular,
-                    Some(Number::Singular),
-                    None,
-                    Some(true),
-                ),
-            }),
-            modifier: Box::new(Reading::PrepositionPhrase {
-                form: 0,
-                head: invariant("vocab:Preposition/Of"),
-                complement: Box::new(accusative(creature)),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(
+                            "lexeme:CommonNoun/Copy",
+                            WordForm::Singular,
+                            Some(Number::Singular),
+                            None,
+                            Some(true),
+                        ),
+                    }),
+                }),
+                modifier: Box::new(Reading::PrepositionPhrase {
+                    form: 0,
+                    head: invariant("vocab:Preposition/Of"),
+                    complement: Box::new(accusative(creature)),
+                }),
             }),
         }),
     };
@@ -231,7 +243,7 @@ fn existing_enter_frames_and_adjunct_exclusion_survive() {
 fn geths_summons_keeps_finite_as_as_an_adjunct() {
     let text = "Return up to one target creature card from your graveyard to the battlefield.\nCorrupted — For each opponent who has three or more poison counters as you cast this spell, put up to one target creature card from that player's graveyard onto the battlefield under your control.";
     let values = common::readings(text, Category::Document);
-    assert_eq!(values.len(), 24);
+    assert_eq!(values.len(), 16);
     for value in values {
         let mut selected_predicatives = 0;
         value

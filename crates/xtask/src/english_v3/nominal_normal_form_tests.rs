@@ -32,42 +32,42 @@ macro_rules! case {
         }
     };
 }
-case!(judgment_1, "red creatures you control", NounPhrase, 2, 1);
-case!(judgment_2, "red creatures with flying", NounPhrase, 2, 1);
+case!(judgment_1, "red creatures you control", NounPhrase, 1, 1);
+case!(judgment_2, "red creatures with flying", NounPhrase, 1, 1);
 case!(
     judgment_3,
     "red artifact creatures you control",
     NounPhrase,
-    3,
+    1,
     1
 );
 case!(
     judgment_4,
     "red nonlegendary artifact creatures you control",
     NounPhrase,
-    4,
+    1,
     1
 );
-case!(judgment_5, "tapped creatures you control", NounPhrase, 2, 1);
+case!(judgment_5, "tapped creatures you control", NounPhrase, 1, 1);
 case!(
     judgment_6,
     "other red creatures you control",
     NounPhrase,
-    3,
+    2,
     2
 );
 case!(
     judgment_7,
     "only red creatures you control",
     NounPhrase,
-    2,
+    1,
     1
 );
 case!(
     judgment_8,
     "another red creature you control",
     NounPhrase,
-    2,
+    1,
     1
 );
 case!(
@@ -146,7 +146,7 @@ case!(
     judgment_28,
     "Artifact spells you cast have convoke.",
     Sentence,
-    4,
+    2,
     2
 );
 case!(
@@ -277,7 +277,7 @@ fn recursive_nominal_inventory_requires_review_when_grammar_changes() {
         tokens.windows(3).any(|w| {
             w[0].to_string() == "head"
                 && w[1].to_string() == ":"
-                && matches!(&w[2], TokenTree::Ident(i) if i == "Nominal")
+                && matches!(&w[2], TokenTree::Ident(i) if matches!(i.to_string().as_str(), "Nominal" | "NominalCore" | "NominalPostmodification"))
         }) || tokens.iter().any(|t| match t {
             TokenTree::Group(g) => has_nominal_head(g.stream()),
             _ => false,
@@ -306,7 +306,10 @@ fn recursive_nominal_inventory_requires_review_when_grammar_changes() {
     let mut recursive = BTreeSet::new();
     for window in tokens.windows(5) {
         if window[0].to_string() == "construction"
-            && window[3].to_string() == "Nominal"
+            && matches!(
+                window[3].to_string().as_str(),
+                "Nominal" | "NominalCore" | "NominalPostmodification"
+            )
             && let TokenTree::Group(body) = &window[4]
             && has_nominal_head(body.stream())
         {
@@ -314,6 +317,10 @@ fn recursive_nominal_inventory_requires_review_when_grammar_changes() {
         }
     }
     let expected: BTreeSet<_> = [
+        "NominalProjection",
+        "NominalCoreProjection",
+        "BarrierPremodifiedNominal",
+        "BarrierNounPremodifiedNominal",
         "CoordinatedPremodifiedNominal",
         "NounPremodifiedNominal",
         "PremodifiedNominal",
@@ -341,20 +348,29 @@ fn recursive_nominal_inventory_requires_review_when_grammar_changes() {
 
 #[test]
 fn a_derived_card_type_id_does_not_extend_the_reviewed_inventory() {
-    let values = readings("artifact creatures you control", Category::NounPhrase);
-    assert_eq!(values.len(), 2);
-    let mut ordinary = BTreeSet::new();
-    let mut derived = BTreeSet::new();
-    for value in values {
-        let debug = format!("{value:?}");
-        assert!(debug.contains("lexeme:type/artifact"));
-        ordinary.insert(encoded(&debug).unwrap());
-        derived.insert(
-            encoded(&debug.replace("lexeme:type/artifact", "lexeme:type/artifact/non")).unwrap(),
-        );
-    }
+    let ordinary = readings("artifact creatures you control", Category::NounPhrase);
+    let derived = readings("nonartifact creatures you control", Category::NounPhrase);
     assert_eq!(ordinary.len(), 1);
     assert_eq!(derived.len(), 2);
+    for value in &derived {
+        assert!(format!("{value:?}").contains("lexeme:type/artifact/non"));
+    }
+    assert_eq!(
+        ordinary
+            .iter()
+            .map(|v| fingerprint(v).unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        1
+    );
+    assert_eq!(
+        derived
+            .iter()
+            .map(|v| fingerprint(v).unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        2
+    );
 }
 
 #[test]
@@ -559,7 +575,11 @@ fn layer_lifts_do_not_interrupt_a_commuting_head_chain() {
     }
     for reading in readings("red creatures you control", Category::NounPhrase) {
         let debug = format!("{reading:?}");
-        let old = Parser { input: &debug }.tree().unwrap();
+        let old = Parser { input: &debug }
+            .tree()
+            .unwrap()
+            .adapt_layers()
+            .unwrap();
         let new = lift_nouns(old.clone());
         assert_ne!(old, new);
         assert_eq!(

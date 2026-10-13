@@ -1048,6 +1048,14 @@ _Avoid_: Complement for the slot descriptor
 **Nominal**:
 An intermediate nominal constituent headed by a noun or noun-like element.
 
+**Nominal Core** (project term):
+The nominal layer containing a lexical or selected head, a completed nominal
+coordination, or a barrier modifier with its complete nominal head.
+
+**Nominal Postmodification** (project term):
+The nominal layer containing a Nominal Core and its postmodifiers and relatives,
+before commuting premodifiers apply.
+
 **Nominal Modifier Order** (project term):
 A modifier use's permission to interchange premodifier and postmodifier
 application to the same nominal head: commuting or barrier.

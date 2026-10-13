@@ -244,9 +244,15 @@ fn independently_constructed_property_values_preserve_both_roundtrip_laws() {
         assert_laws(&quantity, value_surface, Category::ScalarValue);
         let np = Reading::MeasuredAttribute {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(&format!("lexeme:CommonNoun/{property}"), WordForm::Singular),
+                    }),
+                }),
             }),
             quantity: Box::new(Reading::ScalarMeasureValue {
                 category: Category::PropertyValue,

@@ -35,7 +35,10 @@ fn pinned_maximum_quantities_keep_the_counted_nominal_structure() {
                 head.realize(lexicon()).unwrap(),
                 if text.contains("cards") { "target creature cards" } else { "target creature" }
             );
-            assert!(matches!(*head, Reading::TargetedNominal { .. }));
+            assert!(matches!(
+                common::nominal_core(&head),
+                Reading::TargetedNominal { .. }
+            ));
         }
     }
     assert!(readings("up to two", Category::Cardinal).is_empty());
@@ -104,14 +107,26 @@ fn noun(owner: &str, number: Number) -> Reading {
         Some(number),
     );
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 fn targeted(head: Reading) -> Reading {
-    Reading::TargetedNominal {
+    Reading::NominalProjection {
         form: 0,
-        marker: word("vocab:TargetingMarker/Target", WordForm::Invariant, None),
-        head: Box::new(head),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::TargetedNominal {
+                form: 0,
+                marker: word("vocab:TargetingMarker/Target", WordForm::Invariant, None),
+                head: Box::new(head),
+            }),
+        }),
     }
 }
 
@@ -170,7 +185,7 @@ fn independently_constructed_maximum_determiners_preserve_number_and_lexical_own
     let Reading::Noun {
         head: creature_word,
         ..
-    } = creature.clone()
+    } = crate::common::into_nominal_core(creature.clone())
     else {
         unreachable!()
     };

@@ -84,9 +84,15 @@ fn noun_word(owner: &str, number: Number) -> Word {
 }
 
 fn noun(owner: &str, number: Number) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: noun_word(owner, number),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: noun_word(owner, number),
+            }),
+        }),
     }
 }
 
@@ -128,26 +134,38 @@ fn mana_nominal(number: Number) -> Reading {
         let Reading::DeterminedNounPhrase { head, .. } = &mut color else {
             unreachable!()
         };
-        **head = Reading::CardinalPremodifiedNominal {
+        **head = Reading::NominalProjection {
             form: 0,
-            quantity: Box::new(cardinal(1)),
-            head: Box::new(noun("lexeme:CommonNoun/Color", Number::Singular)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::CardinalPremodifiedNominal {
+                    form: 0,
+                    quantity: Box::new(cardinal(1)),
+                    head: Box::new(noun("lexeme:CommonNoun/Color", Number::Singular)),
+                }),
+            }),
         };
     }
-    Reading::PostmodifiedNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
-            head: {
-                let mut head = noun_word("lexeme:CommonNoun/Mana", Number::Singular);
-                head.countability = Some(false);
-                head
-            },
-        }),
-        modifier: Box::new(Reading::PrepositionPhrase {
-            form: 0,
-            head: word("vocab:Preposition/Of", WordForm::Invariant, None),
-            complement: Box::new(acc(color)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: {
+                        let mut head = noun_word("lexeme:CommonNoun/Mana", Number::Singular);
+                        head.countability = Some(false);
+                        head
+                    },
+                }),
+            }),
+            modifier: Box::new(Reading::PrepositionPhrase {
+                form: 0,
+                head: word("vocab:Preposition/Of", WordForm::Invariant, None),
+                complement: Box::new(acc(color)),
+            }),
         }),
     }
 }
@@ -261,20 +279,32 @@ fn independent_cost_opener_preserves_predication_and_infinitival_selection() {
     };
     let mut cost = noun_word("lexeme:CommonNoun/Cost", Number::Singular);
     cost.frame = Some(1);
-    let nominal = Reading::PremodifiedNominal {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::Adjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word(
-                "vocab:AttributiveAdjective/Additional",
-                WordForm::Invariant,
-                None,
-            ),
-        }),
-        head: Box::new(Reading::SelectedComplementNominal {
-            form: 0,
-            head: cost,
-            complement: Box::new(infinitive),
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::Adjective {
+                    form: 0,
+                    head: word(
+                        "vocab:AttributiveAdjective/Additional",
+                        WordForm::Invariant,
+                        None,
+                    ),
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::SelectedComplementNominal {
+                            form: 0,
+                            head: cost,
+                            complement: Box::new(infinitive),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     let mut article = word(
@@ -338,19 +368,32 @@ fn mutated_witnesses_reject_wrong_number_finiteness_and_of_adjuncts() {
     }
     let wrong = Reading::BareNounPhrase {
         form: 0,
-        head: Box::new(Reading::CardinalMeasuredNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            quantity: Box::new(Reading::CardinalQuantityConjunct {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                value: Box::new(cardinal(2)),
-            }),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: {
-                    let mut head = noun_word("lexeme:CommonNoun/Mana", Number::Singular);
-                    head.countability = Some(false);
-                    head
-                },
+                head: Box::new(Reading::CardinalMeasuredNominal {
+                    form: 0,
+                    quantity: Box::new(Reading::CardinalQuantityConjunct {
+                        form: 0,
+                        value: Box::new(cardinal(2)),
+                    }),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: {
+                                    let mut head =
+                                        noun_word("lexeme:CommonNoun/Mana", Number::Singular);
+                                    head.countability = Some(false);
+                                    head
+                                },
+                            }),
+                        }),
+                    }),
+                }),
             }),
         }),
     };

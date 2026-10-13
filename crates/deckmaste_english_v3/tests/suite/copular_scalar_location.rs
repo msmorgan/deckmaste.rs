@@ -134,9 +134,15 @@ fn scalar_location(possessor: &str, value: Reading) -> Reading {
             head: Box::new(Reading::PossessiveNounPhrase {
                 form: 0,
                 possessor: word(possessor, WordForm::Invariant),
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                        }),
+                    }),
                 }),
             }),
         }),
@@ -235,9 +241,15 @@ fn independent_non_scalar_subject_and_wrong_frame_are_rejected() {
         head: Box::new(Reading::DeterminedNounPhrase {
             form: 0,
             determiner: word("vocab:SingularDemonstrative/That", WordForm::Invariant),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word("lexeme:type/creature", WordForm::Singular),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word("lexeme:type/creature", WordForm::Singular),
+                    }),
+                }),
             }),
         }),
     };

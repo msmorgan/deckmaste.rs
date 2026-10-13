@@ -75,7 +75,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Saint Traft and Rem Karolus",
             "If it's the second time, create a 1/1 blue Spirit creature token with flying.",
-            24,
+            16,
         ),
         (
             "Aurelia, the Warleader",
@@ -85,7 +85,7 @@ fn frequency_and_lexical_have_controls_keep_their_readings() {
         (
             "Felisa, Fang of Silverquill",
             "Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it.",
-            196,
+            140,
         ),
     ];
     for (card, text, count) in witnesses {
@@ -156,81 +156,90 @@ fn word(
 }
 
 fn noun(owner: &str, countability: bool) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(
-            owner,
-            WordForm::Singular,
-            FeatureBundle {
-                number: Some(Number::Singular),
-                ..Default::default()
-            },
-            None,
-            Some(countability),
-        ),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(
+                    owner,
+                    WordForm::Singular,
+                    FeatureBundle {
+                        number: Some(Number::Singular),
+                        ..Default::default()
+                    },
+                    None,
+                    Some(countability),
+                ),
+            }),
+        }),
     }
 }
 
 #[test]
 fn independently_constructed_temporal_relative_roundtrips_and_requires_licensed_head() {
     for countability in [false, true] {
-        let mut value = Reading::ObjectRelativeNominal {
+        let mut value = Reading::NominalProjection {
             form: 0,
-            head: Box::new(noun("lexeme:CommonNoun/Time", countability)),
-            relative: Box::new(Reading::AdverbialGapRelativeClause {
+            head: Box::new(Reading::ObjectRelativeNominal {
                 form: 0,
-                clause: Box::new(Reading::FiniteClause {
+                head: crate::common::postmodification(noun("lexeme:CommonNoun/Time", countability)),
+                relative: Box::new(Reading::AdverbialGapRelativeClause {
                     form: 0,
-                    subject: Box::new(Reading::CasePhrase {
+                    clause: Box::new(Reading::FiniteClause {
                         form: 0,
-                        category: Category::NominativePhrase,
-                        head: Box::new(Reading::DeterminedNounPhrase {
+                        subject: Box::new(Reading::CasePhrase {
                             form: 0,
-                            determiner: word(
-                                "vocab:SingularDemonstrative/This",
-                                WordForm::Invariant,
-                                FeatureBundle::default(),
-                                None,
+                            category: Category::NominativePhrase,
+                            head: Box::new(Reading::DeterminedNounPhrase {
+                                form: 0,
+                                determiner: word(
+                                    "vocab:SingularDemonstrative/This",
+                                    WordForm::Invariant,
+                                    FeatureBundle::default(),
+                                    None,
+                                    None,
+                                ),
+                                head: Box::new(noun("lexeme:CommonNoun/Ability", true)),
+                            }),
+                        }),
+                        predicate: Box::new(Reading::PerfectAuxiliaryPredicate {
+                            form: 0,
+                            category: Category::FinitePredicate,
+                            head: word(
+                                "core-verb:Have",
+                                WordForm::Present,
+                                FeatureBundle {
+                                    number: Some(Number::Singular),
+                                    person: Some(Person::Third),
+                                    tense: Some(Tense::Present),
+                                    finiteness: Some(Finiteness::Finite),
+                                    case: None,
+                                },
+                                Some(4),
                                 None,
                             ),
-                            head: Box::new(noun("lexeme:CommonNoun/Ability", true)),
-                        }),
-                    }),
-                    predicate: Box::new(Reading::PerfectAuxiliaryPredicate {
-                        form: 0,
-                        category: Category::FinitePredicate,
-                        head: word(
-                            "core-verb:Have",
-                            WordForm::Present,
-                            FeatureBundle {
-                                number: Some(Number::Singular),
-                                person: Some(Person::Third),
-                                tense: Some(Tense::Present),
-                                finiteness: Some(Finiteness::Finite),
-                                case: None,
-                            },
-                            Some(4),
-                            None,
-                        ),
-                        complement: Box::new(Reading::OvertComplement {
-                            form: 0,
-                            category: Category::PerfectComplement,
-                            predicate: Box::new(Reading::PerfectComplement {
+                            complement: Box::new(Reading::OvertComplement {
                                 form: 0,
-                                head: Box::new(Reading::SelectedPredicate {
+                                category: Category::PerfectComplement,
+                                predicate: Box::new(Reading::PerfectComplement {
                                     form: 0,
-                                    category: Category::SecondaryVerbPhrase,
-                                    head: word(
-                                        "core-verb:Resolve",
-                                        WordForm::PastParticiple,
-                                        FeatureBundle {
-                                            finiteness: Some(Finiteness::Nonfinite),
-                                            ..Default::default()
-                                        },
-                                        Some(0),
-                                        None,
-                                    ),
-                                    complements: vec![],
+                                    head: Box::new(Reading::SelectedPredicate {
+                                        form: 0,
+                                        category: Category::SecondaryVerbPhrase,
+                                        head: word(
+                                            "core-verb:Resolve",
+                                            WordForm::PastParticiple,
+                                            FeatureBundle {
+                                                finiteness: Some(Finiteness::Nonfinite),
+                                                ..Default::default()
+                                            },
+                                            Some(0),
+                                            None,
+                                        ),
+                                        complements: vec![],
+                                    }),
                                 }),
                             }),
                         }),
@@ -246,10 +255,13 @@ fn independently_constructed_temporal_relative_roundtrips_and_requires_licensed_
         assert!(
             common::readings("time this ability has resolved", Category::Nominal).contains(&value)
         );
-        let Reading::ObjectRelativeNominal { head, .. } = &mut value else {
+        let Reading::NominalProjection { form: 0, head } = &mut value else {
             unreachable!()
         };
-        **head = noun("lexeme:CommonNoun/Ability", true);
+        let Reading::ObjectRelativeNominal { head, .. } = head.as_mut() else {
+            unreachable!()
+        };
+        *head = common::postmodification(noun("lexeme:CommonNoun/Ability", true));
         assert!(value.admit(common::lexicon()).is_err());
         assert!(value.realize(common::lexicon()).is_err());
     }

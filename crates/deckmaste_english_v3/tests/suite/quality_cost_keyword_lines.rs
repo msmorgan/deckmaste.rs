@@ -81,22 +81,28 @@ fn witnesses_select_quality_and_cost_without_a_second_keyword_route() {
 fn nominal(owner: &str) -> Reading {
     Reading::NominalKeywordQuality {
         form: 0,
-        phrase: Box::new(Reading::Noun {
+        phrase: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Word {
-                value: LexicalReading::Word(LexicalValue {
-                    lexeme: owner.into(),
-                    form: WordForm::Singular,
-                    features: FeatureBundle {
-                        number: Some(Number::Singular),
-                        ..Default::default()
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: Word {
+                        value: LexicalReading::Word(LexicalValue {
+                            lexeme: owner.into(),
+                            form: WordForm::Singular,
+                            features: FeatureBundle {
+                                number: Some(Number::Singular),
+                                ..Default::default()
+                            },
+                            variant: 0,
+                            capitalization: SurfaceCase::Declared,
+                        }),
+                        frame: None,
+                        countability: Some(true),
                     },
-                    variant: 0,
-                    capitalization: SurfaceCase::Declared,
                 }),
-                frame: None,
-                countability: Some(true),
-            },
+            }),
         }),
     }
 }

@@ -261,9 +261,15 @@ fn independently_constructed_focus_preserves_structure_and_lexical_identity() {
     let nominal = Reading::IndefiniteNounPhrase {
         form: 0,
         determiner: article,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: noun,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun,
+                }),
+            }),
         }),
     };
     let expected = Reading::FocusedPhrase {

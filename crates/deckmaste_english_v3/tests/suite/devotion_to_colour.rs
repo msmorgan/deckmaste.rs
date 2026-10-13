@@ -35,11 +35,17 @@ fn selected(complement: Reading) -> Reading {
     value.features.number = Some(Number::Singular);
     head.frame = Some(2);
     head.countability = Some(false);
-    Reading::PrepositionComplementNominal {
-        form: 2,
-        head,
-        marker: word("vocab:Preposition/To"),
-        complement: Box::new(complement),
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::PrepositionComplementNominal {
+                form: 2,
+                head,
+                marker: word("vocab:Preposition/To"),
+                complement: Box::new(complement),
+            }),
+        }),
     }
 }
 
@@ -120,7 +126,11 @@ fn witnesses_select_the_colour_complement_on_devotion() {
                     }
                 })
                 .unwrap();
-            assert_eq!(complements, vec![selected(colour(owner))], "{card}");
+            assert_eq!(
+                complements,
+                vec![crate::common::into_nominal_core(selected(colour(owner)))],
+                "{card}"
+            );
         }
     }
 }

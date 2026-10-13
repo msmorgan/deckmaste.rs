@@ -129,13 +129,19 @@ fn independent_named_nominal_retains_selected_frame_and_catalog_identity() {
         readings("named Powerstone Shard", Category::NamePredicate),
         BTreeSet::from([predicate.clone()])
     );
-    let value = Reading::NamedNominal {
+    let value = Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NamedNominal {
             form: 0,
-            head: noun.clone(),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun.clone(),
+                }),
+            }),
+            modifier: Box::new(predicate),
         }),
-        modifier: Box::new(predicate),
     };
     assert_eq!(
         value.realize(lexicon()).unwrap(),
@@ -203,16 +209,28 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
         },
     );
     modifier.frame = Some(0);
-    let value = Reading::ParticipialPremodifier {
+    let value = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::VerbalPremodifier {
-            category: Category::VerbalPremodifier,
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: modifier.clone(),
-        }),
-        head: Box::new(Reading::Noun {
-            form: 0,
-            head: noun.clone(),
+            head: Box::new(Reading::ParticipialPremodifier {
+                form: 0,
+                modifier: Box::new(Reading::VerbalPremodifier {
+                    category: Category::VerbalPremodifier,
+                    form: 0,
+                    head: modifier.clone(),
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: noun.clone(),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "defending player");
@@ -227,17 +245,29 @@ fn independent_participial_premodifier_preserves_verb_form_and_distribution() {
     assert_eq!(leaves, [modifier.clone(), noun.clone()]);
     modifier.frame = Some(1);
     assert!(
-        Reading::ParticipialPremodifier {
+        Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::VerbalPremodifier {
-                category: Category::VerbalPremodifier,
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: modifier
-            }),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: noun
-            }),
+                head: Box::new(Reading::ParticipialPremodifier {
+                    form: 0,
+                    modifier: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
+                        form: 0,
+                        head: modifier
+                    }),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: noun
+                            })
+                        })
+                    }),
+                })
+            })
         }
         .admit(lexicon())
         .is_err()
@@ -311,11 +341,17 @@ fn independent_amount_complement_consumes_its_frame_without_losing_countability(
         }),
         rest: vec![],
     };
-    let value = Reading::SymbolComplementNominal {
+    let value = Reading::NominalProjection {
         form: 0,
-        head: amount.clone(),
-        marker: marker.clone(),
-        complement: Box::new(symbols.clone()),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::SymbolComplementNominal {
+                form: 0,
+                head: amount.clone(),
+                marker: marker.clone(),
+                complement: Box::new(symbols.clone()),
+            }),
+        }),
     };
     assert_eq!(value.realize(lexicon()).unwrap(), "amount of {G}");
     assert_eq!(
@@ -328,28 +364,46 @@ fn independent_amount_complement_consumes_its_frame_without_losing_countability(
         .unwrap();
     assert_eq!(leaves, [amount.clone(), marker.clone(), symbol]);
     assert!(
-        Reading::Noun {
+        Reading::NominalProjection {
             form: 0,
-            head: amount.clone()
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: amount.clone()
+                })
+            })
         }
         .admit(lexicon())
         .is_err()
     );
     amount.frame = Some(0);
-    let bare = Reading::BareFramedNoun {
+    let bare = Reading::NominalProjection {
         form: 0,
-        head: amount.clone(),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BareFramedNoun {
+                form: 0,
+                head: amount.clone(),
+            }),
+        }),
     };
     assert_eq!(
         readings("amount", Category::Nominal),
         BTreeSet::from([bare])
     );
     assert!(
-        Reading::SymbolComplementNominal {
+        Reading::NominalProjection {
             form: 0,
-            head: amount,
-            marker,
-            complement: Box::new(symbols),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::SymbolComplementNominal {
+                    form: 0,
+                    head: amount,
+                    marker,
+                    complement: Box::new(symbols),
+                })
+            })
         }
         .admit(lexicon())
         .is_err()
@@ -656,7 +710,7 @@ fn slash_pairs_compose_with_nominal_modifiers_and_selected_predicates() {
                 quantity.realize(lexicon()).unwrap(),
                 surface.split(' ').next().unwrap()
             );
-            let Reading::SlashModifiedNominal { modifier, .. } = *head else {
+            let Reading::SlashModifiedNominal { modifier, .. } = common::nominal_core(&head) else {
                 panic!("{head:?}")
             };
             assert_eq!(
@@ -722,12 +776,24 @@ fn independent_slash_consumers_preserve_count_components_and_leaf_order() {
                 head: x.clone(),
             }),
         }),
-        head: Box::new(Reading::SlashModifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(pair),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: tokens.clone(),
+                head: Box::new(Reading::SlashModifiedNominal {
+                    form: 0,
+                    modifier: Box::new(pair),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: tokens.clone(),
+                            }),
+                        }),
+                    }),
+                }),
             }),
         }),
     };
@@ -912,7 +978,10 @@ fn document_collections_connect_keywords_costs_modes_quotes_and_clauses() {
         };
         expected.admit(lexicon()).unwrap();
         assert_eq!(expected.realize(lexicon()).unwrap(), text);
-        assert_eq!(readings(text, Category::Document), BTreeSet::from([expected]));
+        assert_eq!(
+            readings(text, Category::Document),
+            BTreeSet::from([expected])
+        );
     }
     for text in [
         "Flying 2",
@@ -992,10 +1061,16 @@ fn independent_keyword_collection_preserves_parameters_separators_and_leaf_ident
         ]
     );
     // KM1 admits the same ward owner as a bare keyword mention.
-    let bare = Reading::BareKeyword { form: 0, head: ward };
+    let bare = Reading::BareKeyword {
+        form: 0,
+        head: ward,
+    };
     bare.admit(lexicon()).unwrap();
     assert_eq!(bare.realize(lexicon()).unwrap(), "ward");
-    assert_eq!(readings("ward", Category::KeywordPhrase), BTreeSet::from([bare]));
+    assert_eq!(
+        readings("ward", Category::KeywordPhrase),
+        BTreeSet::from([bare])
+    );
     assert!(
         Reading::CostKeyword {
             form: 0,
@@ -1235,25 +1310,43 @@ fn complemented_adjectives_are_postpositive_in_both_directions() {
     );
     noun.frame = Some(0);
     noun.countability = Some(true);
-    let head = Reading::BareFramedNoun {
+    let head = Reading::NominalProjection {
         form: 0,
-        head: noun,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BareFramedNoun {
+                form: 0,
+                head: noun,
+            }),
+        }),
     };
-    let valid = Reading::PostpositiveNominal {
-        category: Category::Nominal,
+    let valid = Reading::NominalProjection {
         form: 0,
-        head: Box::new(head.clone()),
-        modifier: Box::new(modifier.clone()),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::PostpositiveNominal {
+                category: Category::NominalCore,
+                form: 0,
+                head: Box::new(head.clone()),
+                modifier: Box::new(modifier.clone()),
+            }),
+        }),
     };
     assert_eq!(valid.realize(lexicon()).unwrap(), "amount equal to 2");
     assert_eq!(
         readings("amount equal to 2", Category::Nominal),
         BTreeSet::from([valid])
     );
-    let invalid = Reading::PremodifiedNominal {
+    let invalid = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(modifier),
-        head: Box::new(head),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(modifier),
+                head: Box::new(head),
+            }),
+        }),
     };
     assert!(invalid.admit(lexicon()).is_err());
     assert!(invalid.realize(lexicon()).is_err());
@@ -1272,7 +1365,10 @@ fn integrated_pp_modifiers_stay_inside_the_nominal() {
     let Reading::DeterminedNounPhrase { head, .. } = values.into_iter().next().unwrap() else {
         panic!("determiner must include the restriction")
     };
-    assert!(matches!(*head, Reading::PostmodifiedNominal { .. }));
+    assert!(matches!(
+        *common::postmodification(*(head)),
+        Reading::PostmodifiedNominal { .. }
+    ));
     assert!(!readings("Draw creatures on the battlefield.", Category::Document).is_empty());
 }
 
@@ -1442,7 +1538,13 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
             },
         );
         head.countability = Some(true);
-        Reading::Noun { form: 0, head }
+        Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun { form: 0, head }),
+            }),
+        }
     };
     let [cards, creatures, artifacts, lands] = [
         "lexeme:CommonNoun/Card",
@@ -1477,20 +1579,26 @@ fn serial_coordination_composes_with_agreement_case_and_predicate_forms() {
             }),
         }),
     };
-    let nominal = bare(Reading::SerialCoordination {
-        category: Category::Nominal,
+    let nominal = bare(Reading::NominalProjection {
         form: 0,
-        left: Box::new(cards),
-        rest: Box::new(Reading::CoordinationSeriesContinuation {
-            category: Category::NominalSeries,
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            left: Box::new(creatures),
-            rest: Box::new(Reading::CoordinationSeriesEnd {
-                category: Category::NominalSeries,
+            head: Box::new(Reading::SerialCoordination {
+                category: Category::NominalCore,
                 form: 0,
-                left: Box::new(artifacts),
-                coordinator: and,
-                right: Box::new(lands),
+                left: Box::new(cards),
+                rest: Box::new(Reading::CoordinationSeriesContinuation {
+                    category: Category::NominalSeries,
+                    form: 0,
+                    left: Box::new(creatures),
+                    rest: Box::new(Reading::CoordinationSeriesEnd {
+                        category: Category::NominalSeries,
+                        form: 0,
+                        left: Box::new(artifacts),
+                        coordinator: and,
+                        right: Box::new(lands),
+                    }),
+                }),
             }),
         }),
     });

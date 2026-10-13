@@ -238,9 +238,15 @@ fn independently_constructed_fraction_preserves_both_roundtrip_laws() {
                 WordForm::Invariant,
                 None,
             ),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word("lexeme:CommonNoun/Life", WordForm::Singular, Some(false)),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word("lexeme:CommonNoun/Life", WordForm::Singular, Some(false)),
+                    }),
+                }),
             }),
         }),
     };

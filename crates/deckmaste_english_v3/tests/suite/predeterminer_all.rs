@@ -31,9 +31,15 @@ fn determined(owner: &str, determiner: &str, form: WordForm, countable: bool) ->
     Reading::DeterminedNounPhrase {
         form: 0,
         determiner: word(determiner, WordForm::Invariant, None),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(owner, form, Some(countable)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(owner, form, Some(countable)),
+                }),
+            }),
         }),
     }
 }
@@ -88,9 +94,15 @@ fn independently_constructed_universal_quantifiers_keep_both_roundtrip_laws() {
             WordForm::Invariant,
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:type/creature", WordForm::Plural, Some(true)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:type/creature", WordForm::Plural, Some(true)),
+                }),
+            }),
         }),
     };
     let value = universal("vocab:FloatedQuantifier/All", host);
@@ -282,9 +294,15 @@ fn number_definiteness_and_stacking_constraints_are_bidirectional() {
             "vocab:FloatedQuantifier/All",
             Reading::BareNounPhrase {
                 form: 0,
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: word("lexeme:CommonNoun/Card", WordForm::Plural, Some(true)),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:CommonNoun/Card", WordForm::Plural, Some(true)),
+                        }),
+                    }),
                 }),
             },
         ),

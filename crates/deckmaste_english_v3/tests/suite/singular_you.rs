@@ -99,7 +99,13 @@ fn noun(owner: &str) -> Reading {
         },
     );
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 #[test]

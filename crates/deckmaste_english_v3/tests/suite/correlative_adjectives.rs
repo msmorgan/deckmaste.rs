@@ -92,13 +92,25 @@ fn independently_constructed_correlative_adjectives_have_explicit_hosts() {
         Some(Number::Singular),
     );
     creature.countability = Some(true);
-    let nominal = Reading::CorrelativePostpositiveNominal {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: creature,
+            head: Box::new(Reading::CorrelativePostpositiveNominal {
+                form: 0,
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: creature,
+                        }),
+                    }),
+                }),
+                modifier: Box::new(both),
+            }),
         }),
-        modifier: Box::new(both),
     };
     assert_laws(&nominal, "creature both red and green", Category::Nominal);
     for text in [

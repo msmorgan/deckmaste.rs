@@ -198,18 +198,24 @@ fn unlike_predicative_categories_share_a_function_without_erasing_their_categori
                     None,
                     None,
                 ),
-                head: Box::new(Reading::Noun {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    head: lexical(
-                        "lexeme:type/creature",
-                        WordForm::Singular,
-                        FeatureBundle {
-                            number: Some(Number::Singular),
-                            ..Default::default()
-                        },
-                        None,
-                        Some(true),
-                    ),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: lexical(
+                                "lexeme:type/creature",
+                                WordForm::Singular,
+                                FeatureBundle {
+                                    number: Some(Number::Singular),
+                                    ..Default::default()
+                                },
+                                None,
+                                Some(true),
+                            ),
+                        }),
+                    }),
                 }),
             }),
         }),

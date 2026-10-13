@@ -29,7 +29,7 @@ fn witness(card: &str, text: &str, count: usize, head_owner: &str) {
         let mut heads = Vec::new();
         reading
             .visit(&mut |node| {
-                if let Reading::NounPremodifiedNominal { modifier, head, .. } = node
+                if let Reading::BarrierNounPremodifiedNominal { modifier, head, .. } = node
                     && modifier.realize(common::lexicon()).unwrap() == "card"
                 {
                     assert_eq!(
@@ -115,15 +115,27 @@ fn independently_constructed_card_premodifiers_roundtrip_without_duplicate_route
         // Deal Broker: "a card in your card pool".
         ("card pool", "lexeme:CommonNoun/Pool", Number::Singular),
     ] {
-        let expected = Reading::NounPremodifiedNominal {
+        let expected = Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::NounPremodifier {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: word("lexeme:CommonNoun/Card", Number::Singular),
-            }),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: word(owner, number),
+                head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                    form: 0,
+                    modifier: Box::new(Reading::NounPremodifier {
+                        form: 0,
+                        head: word("lexeme:CommonNoun/Card", Number::Singular),
+                    }),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(owner, number),
+                            }),
+                        }),
+                    }),
+                }),
             }),
         };
         expected.admit(common::lexicon()).unwrap();

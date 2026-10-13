@@ -29,22 +29,34 @@ fn invariant(owner: &str) -> Word {
 }
 
 fn nominal(owner: &str, number: Number, count: bool) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(
-            owner,
-            if number == Number::Plural { WordForm::Plural } else { WordForm::Singular },
-            Some(number),
-            Some(count),
-        ),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(
+                    owner,
+                    if number == Number::Plural { WordForm::Plural } else { WordForm::Singular },
+                    Some(number),
+                    Some(count),
+                ),
+            }),
+        }),
     }
 }
 
 fn superlative(owner: &str, head: Reading) -> Reading {
-    Reading::SuperlativePremodifiedNominal {
-        form: usize::from(owner != "vocab:Determinative/Most"),
-        modifier: invariant(owner),
-        head: Box::new(head),
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::SuperlativePremodifiedNominal {
+                form: usize::from(owner != "vocab:Determinative/Most"),
+                modifier: invariant(owner),
+                head: Box::new(head),
+            }),
+        }),
     }
 }
 

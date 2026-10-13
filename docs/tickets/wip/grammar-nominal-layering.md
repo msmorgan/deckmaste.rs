@@ -638,3 +638,74 @@ Assurance: two tests added (strict inverse mappings, nested lifts in a commuting
 chain), the version-lock test extended; no tests removed, weakened or newly
 ignored. Full xtask: 487 passed, one existing ignore. Clippy with tests and
 warnings denied passed; all 43 normal-form tests passed after the style fixes.
+
+
+## Conservative layer conversion
+
+The mutually recursive nominal routes now use the three approved layers.
+Bases, barriers and completed nominal coordination produce NominalCore;
+postmodifiers and relatives extend NominalPostmodification; commuting
+premodifiers extend Nominal. The two unary projections forward all three
+local slots explicitly. Coordination's interface overrides moved to its
+result category; conjuncts remain full Nominal values. Simple adjective and
+noun-premodifier forms forward NominalModifierOrder; phrase composition and
+coordination retain Barrier. No lexicon change or compiler capability was
+needed for this conversion.
+
+The version-3 gate passes on all 32,828 faces and all 75,412 units: no lost
+face, no changed normal-form set, and all 89,886 removed trees differ only in
+approved modifier order. Faces read remain 30,794; trees fall from 482,041 to
+392,155, exactly the 392,155 normal forms on both sides. Perilous Predicament
+retains two trees and two normal forms. The six-face subset passed first.
+
+| Five largest baseline units | Before trees | After trees | Normal forms (both) |
+|---|---:|---:|---:|
+| Slimefoot's Survey, unit 0 | 32,256 | 10,368 | 10,368 |
+| Nael, Avizoa Aeronaut, unit 1 | 17,640 | 6,804 | 6,804 |
+| Bring to Light, unit 0 | 15,456 | 10,200 | 10,200 |
+| Whiskervale Forerunner, unit 0 | 11,520 | 6,912 | 6,912 |
+| Osseous Sticktwister, unit 1 | 7,216 | 7,216 | 7,216 |
+
+Both four-worker performance censuses ran without concurrent builds, tests or
+other census commands. Chart items rise from 247,973,895 to 251,121,745
+(+1.27%); wall time falls from 571 s 477 ms to 513 s 549 ms (−10.14%).
+Host loads at start were respectively 4.219 / 6.345 / 6.287 and
+2.435 / 4.958 / 5.162. This is one run per side, not a claim of a precise
+speedup; neither measure shows material deterioration that would bar the
+approved follow-up.
+
+Shape tests retain their witnesses and full value comparisons, with explicit
+lifts and complementary barrier constructors. For example the Soldier
+creature card with a source PP retains both Soldier scopes; only the twin
+order of commuting creature and the PP disappears. Necromentia still verifies
+whole-tree migration against the product of unit counts: 2 × 50 × 154 =
+15,400 trees, and 206 unit Readings. Its name no longer embeds retired counts.
+The sampled frequency Sentence and Ability costs both gain two lifts (18 and
+21); their three-constructor difference remains asserted.
+
+Assurance inventory: 125 named tests re-spelled (including that one rename)
+and nine macro-generated normal-form cases re-spelled; no tests added,
+removed, weakened, restored or newly ignored in this conversion. Shared
+fixture builders and exact constituent expectations also follow the layers.
+The adapter commit separately added two tests. Existing ignores are unchanged.
+
+The policing-feature audit above still applies: no whole feature is proved
+redundant. Layering eliminates commuting-order ambiguity but does not replace
+external admission contracts, agreement, scalar licensing or source ownership.
+No policing feature was deleted. Negative card-type modifiers remain barriers.
+
+Remaining after this complete conservative step: the separately versioned
+follow-up for negative colours, bare adjectival enchanted/equipped and simple
+creature-subtype noun premodifiers; its unchanged-grammar baseline, conversion,
+normal-form gate, tests and performance assessment. None of those additions
+has been made in this step.
+
+Full validation: English 1,165 passed / one existing ignore; xtask 487 passed /
+one existing ignore. Full clippy for both touched crates, with tests and
+warnings denied, passed. Citation checks: zero non-compliant and zero stale;
+the change introduces no citation sites. The full corpus gate ran on the final
+production grammar; subsequent edits only re-spelled tests and documentation.
+README and glossary are current for the conservative conversion.
+
+Census delta (conservative layers): faces read 30,794 → 30,794; Readings 482,041 → 392,155; lost faces none.
+Judgment set: does not apply yet.

@@ -45,9 +45,15 @@ fn number() -> Word {
     }
 }
 fn noun(owner: &str, form: WordForm) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(owner, form, None, Some(true)),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(owner, form, None, Some(true)),
+            }),
+        }),
     }
 }
 fn accusative(head: Reading) -> Reading {
@@ -249,24 +255,42 @@ fn urzas_blast(relative_inside_premodifier: bool) -> Reading {
     });
     let permanent = Box::new(noun("lexeme:CommonNoun/Permanent", WordForm::Plural));
     let nominal = if relative_inside_premodifier {
-        Reading::NounPremodifiedNominal {
+        Reading::NominalProjection {
             form: 0,
-            modifier,
-            head: Box::new(Reading::SubjectRelativeNominal {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: permanent,
-                relative,
+                head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                    form: 0,
+                    modifier,
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::SubjectRelativeNominal {
+                            form: 0,
+                            head: crate::common::postmodification(*(permanent)),
+                            relative,
+                        }),
+                    }),
+                }),
             }),
         }
     } else {
-        Reading::SubjectRelativeNominal {
+        Reading::NominalProjection {
             form: 0,
-            head: Box::new(Reading::NounPremodifiedNominal {
+            head: Box::new(Reading::SubjectRelativeNominal {
                 form: 0,
-                modifier,
-                head: permanent,
+                head: crate::common::postmodification(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                            form: 0,
+                            modifier,
+                            head: permanent,
+                        }),
+                    }),
+                }),
+                relative,
             }),
-            relative,
         }
     };
     let mut exile = word(

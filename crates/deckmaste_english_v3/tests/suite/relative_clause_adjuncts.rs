@@ -44,7 +44,13 @@ fn noun(owner: &str) -> Reading {
         },
     );
     head.countability = Some(true);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 
 fn accusative(head: Reading) -> Reading {
@@ -64,27 +70,39 @@ fn during_untap_step() -> Reading {
             possessor: Box::new(Reading::DeterminedNounPhrase {
                 form: 0,
                 determiner: invariant("vocab:FloatedQuantifier/Each"),
-                head: Box::new(Reading::PremodifiedNominal {
+                head: Box::new(Reading::NominalProjection {
                     form: 0,
-                    modifier: Box::new(Reading::IntransitiveAdjective {
+                    head: Box::new(Reading::NominalCoreProjection {
                         form: 0,
-                        head: {
-                            let mut head = invariant("vocab:AttributiveAdjective/Other");
-                            head.frame = Some(0);
-                            head
-                        },
+                        head: Box::new(Reading::BarrierPremodifiedNominal {
+                            form: 0,
+                            modifier: Box::new(Reading::IntransitiveAdjective {
+                                form: 0,
+                                head: {
+                                    let mut head = invariant("vocab:AttributiveAdjective/Other");
+                                    head.frame = Some(0);
+                                    head
+                                },
+                            }),
+                            head: Box::new(noun("lexeme:CommonNoun/Player")),
+                        }),
                     }),
-                    head: Box::new(noun("lexeme:CommonNoun/Player")),
                 }),
             }),
             marker: invariant("vocab:Genitive/Default"),
-            head: Box::new(Reading::PremodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::Adjective {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    head: invariant("vocab:AttributiveAdjective/Untap"),
+                    head: Box::new(Reading::BarrierPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(Reading::Adjective {
+                            form: 0,
+                            head: invariant("vocab:AttributiveAdjective/Untap"),
+                        }),
+                        head: Box::new(noun("lexeme:CommonNoun/Step")),
+                    }),
                 }),
-                head: Box::new(noun("lexeme:CommonNoun/Step")),
             }),
         })),
     }
@@ -171,13 +189,19 @@ fn seedborn_muse(relative: Reading) -> Reading {
     let object = accusative(Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant("vocab:FloatedQuantifier/All"),
-        head: Box::new(Reading::ObjectRelativeNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::ObjectRelativeNominal {
                 form: 0,
-                head: permanent,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: permanent,
+                    }),
+                }),
+                relative: Box::new(relative),
             }),
-            relative: Box::new(relative),
         }),
     });
     let mut untap = word(

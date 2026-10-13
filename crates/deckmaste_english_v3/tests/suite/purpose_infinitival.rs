@@ -172,9 +172,15 @@ fn spell(number: Number) -> Reading {
     let LexicalReading::Word(value) = &mut spell.value else { unreachable!() };
     value.features.number = Some(number);
     spell.countability = Some(true);
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: spell,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: spell,
+            }),
+        }),
     }
 }
 

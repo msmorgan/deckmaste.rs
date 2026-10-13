@@ -32,7 +32,7 @@ const WITNESSES: &[(&str, &str, &str, &str, usize)] = &[
         "Haunting Apparition's power is equal to 1 plus the number of green creature cards in the chosen player's graveyard.",
         "1 plus the number of green creature cards in the chosen player's graveyard",
         "the number of green creature cards in the chosen player's graveyard",
-        5,
+        3,
     ),
     (
         "Food Chain",

@@ -86,9 +86,15 @@ fn card_object() -> Reading {
                 WordForm::Invariant,
                 Some(Number::Singular),
             ),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: card,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: card,
+                    }),
+                }),
             }),
         }),
     }

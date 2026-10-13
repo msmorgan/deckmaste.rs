@@ -152,9 +152,15 @@ fn independently_constructed_multiplier_preserves_both_roundtrip_laws() {
             WordForm::Invariant,
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:CommonNoun/Power", WordForm::Singular, Some(true)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:CommonNoun/Power", WordForm::Singular, Some(true)),
+                }),
+            }),
         }),
     };
     let value = Reading::PredeterminerNounPhrase {

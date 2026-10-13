@@ -25,10 +25,16 @@ fn word(owner: &str) -> Word {
 fn symbol(owner: &str, countability: Option<bool>) -> Reading {
     let mut head = word(owner);
     head.countability = countability;
-    Reading::MeasuredSymbolNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::NominalSymbol { form: 0, head }),
-        rest: vec![],
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::MeasuredSymbolNominal {
+                form: 0,
+                head: Box::new(Reading::NominalSymbol { form: 0, head }),
+                rest: vec![],
+            }),
+        }),
     }
 }
 
@@ -184,7 +190,8 @@ fn witnesses_quantify_the_symbol_inside_the_selected_object() {
                 panic!("{card}: Object must be a quantified Noun Phrase");
             };
             assert_eq!(quantity.category(), Category::QuantitativeDeterminer);
-            let Reading::MeasuredSymbolNominal { head, rest, .. } = head.as_ref() else {
+            let Reading::MeasuredSymbolNominal { head, rest, .. } = common::nominal_core(head)
+            else {
                 panic!("{card}: the symbol must head its Nominal");
             };
             assert_eq!(rest.as_slice(), []);

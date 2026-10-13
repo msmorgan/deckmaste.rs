@@ -38,7 +38,13 @@ fn noun(id: &str) -> Reading {
     let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
     value.form = WordForm::Singular;
     value.features.number = Some(Number::Singular);
-    Reading::Noun { form: 0, head }
+    Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    }
 }
 fn determined(marker: &str, head: Reading) -> Reading {
     Reading::DeterminedNounPhrase {
@@ -155,16 +161,19 @@ fn library_of_leng_fixed_preposition_keeps_its_pp_complement() {
 }
 #[test]
 fn hurricane_keyword_pp_remains_a_nominal_modifier() {
-    let expected = Reading::PostmodifiedNominal {
+    let expected = Reading::NominalProjection {
         form: 0,
-        head: Box::new(noun("lexeme:type/creature")),
-        modifier: Box::new(Reading::KeywordComplementPreposition {
-            category: Category::PrepositionPhrase,
+        head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
-            head: invariant("vocab:Preposition/With"),
-            complement: Box::new(Reading::BareKeyword {
+            head: crate::common::postmodification(noun("lexeme:type/creature")),
+            modifier: Box::new(Reading::KeywordComplementPreposition {
+                category: Category::PrepositionPhrase,
                 form: 0,
-                head: invariant("lexeme:keyword_ability/flying"),
+                head: invariant("vocab:Preposition/With"),
+                complement: Box::new(Reading::BareKeyword {
+                    form: 0,
+                    head: invariant("lexeme:keyword_ability/flying"),
+                }),
             }),
         }),
     };
@@ -216,10 +225,20 @@ fn chosen_type() -> Reading {
     word.features.finiteness = Some(Finiteness::Nonfinite);
     determined(
         "vocab:DefiniteMarker/The",
-        Reading::ParticipialPremodifier {
+        Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::VerbalPremodifier { category: Category::VerbalPremodifier, form: 0, head }),
-            head: Box::new(noun("lexeme:CommonNoun/Type")),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::ParticipialPremodifier {
+                    form: 0,
+                    modifier: Box::new(Reading::VerbalPremodifier {
+                        category: Category::VerbalPremodifier,
+                        form: 0,
+                        head,
+                    }),
+                    head: Box::new(noun("lexeme:CommonNoun/Type")),
+                }),
+            }),
         },
     )
 }

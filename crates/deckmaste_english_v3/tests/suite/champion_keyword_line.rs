@@ -28,22 +28,28 @@ fn keyword(name: &str) -> Word {
 }
 
 fn noun(owner: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 

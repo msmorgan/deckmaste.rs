@@ -142,15 +142,27 @@ fn independently_built_attested_modifiers_preserve_passive_form_and_both_laws() 
             form: 0,
             head: verb,
         };
-        let value = Reading::ParticipialPremodifier {
+        let value = Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(modifier),
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: word(
-                    &format!("lexeme:CommonNoun/{noun}"),
-                    if plural { WordForm::Plural } else { WordForm::Singular },
-                ),
+                head: Box::new(Reading::ParticipialPremodifier {
+                    form: 0,
+                    modifier: Box::new(modifier),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(
+                                    &format!("lexeme:CommonNoun/{noun}"),
+                                    if plural { WordForm::Plural } else { WordForm::Singular },
+                                ),
+                            }),
+                        }),
+                    }),
+                }),
             }),
         };
         assert_laws(&value, surface, Category::Nominal);
@@ -166,9 +178,13 @@ fn independently_built_attested_modifiers_preserve_passive_form_and_both_laws() 
         value.features.finiteness = Some(Finiteness::Nonfinite);
     }
     assert!(
-        Reading::VerbalPremodifier { category: Category::VerbalPremodifier, form: 0, head }
-            .admit(lexicon())
-            .is_err()
+        Reading::VerbalPremodifier {
+            category: Category::VerbalPremodifier,
+            form: 0,
+            head
+        }
+        .admit(lexicon())
+        .is_err()
     );
 }
 

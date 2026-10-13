@@ -269,9 +269,20 @@ fn independently_constructed_conditional_pp_obeys_both_roundtrip_laws() {
                 head: Box::new(Reading::IndefiniteNounPhrase {
                     form: 0,
                     determiner: word("vocab:Article/Indefinite", WordForm::Invariant, None, None),
-                    head: Box::new(Reading::Noun {
+                    head: Box::new(Reading::NominalProjection {
                         form: 0,
-                        head: word("lexeme:type/artifact", WordForm::Singular, None, Some(true)),
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(
+                                    "lexeme:type/artifact",
+                                    WordForm::Singular,
+                                    None,
+                                    Some(true),
+                                ),
+                            }),
+                        }),
                     }),
                 }),
             }))],

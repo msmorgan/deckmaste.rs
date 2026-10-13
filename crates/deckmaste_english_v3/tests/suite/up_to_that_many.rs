@@ -136,12 +136,24 @@ fn witnesses_use_a_bounded_degree_determiner_in_each_nominal_position() {
 #[test]
 fn independent_bounded_degree_values_preserve_both_roundtrip_laws_and_traversal() {
     // Attested constituents of Heroic Feast and Scapeshift.
-    let creatures = Reading::TargetedNominal {
+    let creatures = Reading::NominalProjection {
         form: 0,
-        marker: word("vocab:TargetingMarker/Target"),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: noun("lexeme:type/creature", Number::Plural),
+            head: Box::new(Reading::TargetedNominal {
+                form: 0,
+                marker: word("vocab:TargetingMarker/Target"),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: noun("lexeme:type/creature", Number::Plural),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     let cards = Reading::NounPremodifiedNominal {
@@ -150,9 +162,15 @@ fn independent_bounded_degree_values_preserve_both_roundtrip_laws_and_traversal(
             form: 0,
             head: noun("lexeme:type/land", Number::Singular),
         }),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: noun("lexeme:CommonNoun/Card", Number::Plural),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun("lexeme:CommonNoun/Card", Number::Plural),
+                }),
+            }),
         }),
     };
     for (head, text) in [
@@ -231,9 +249,15 @@ fn bounded_degree_preserves_head_selection_and_subject_agreement() {
     let invalid = Reading::QuantifiedNounPhrase {
         form: 0,
         quantity: Box::new(bounded(false)),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: noun("lexeme:type/creature", Number::Singular),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun("lexeme:type/creature", Number::Singular),
+                }),
+            }),
         }),
     };
     assert!(invalid.admit(common::lexicon()).is_err());

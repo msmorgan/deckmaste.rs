@@ -65,16 +65,28 @@ fn noun_word(id: &str, count: bool) -> Word {
 }
 
 fn noun(id: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: noun_word(id, true),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: noun_word(id, true),
+            }),
+        }),
     }
 }
 
 fn mass_noun(id: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: noun_word(id, false),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: noun_word(id, false),
+            }),
+        }),
     }
 }
 
@@ -116,17 +128,23 @@ fn any_target(other: bool) -> Reading {
         form: 0,
         determiner: invariant("vocab:Determinative/Any"),
         head: Box::new(if other {
-            Reading::PremodifiedNominal {
+            Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::IntransitiveAdjective {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    head: {
-                        let mut head = invariant("vocab:AttributiveAdjective/Other");
-                        head.frame = Some(0);
-                        head
-                    },
+                    head: Box::new(Reading::BarrierPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(Reading::IntransitiveAdjective {
+                            form: 0,
+                            head: {
+                                let mut head = invariant("vocab:AttributiveAdjective/Other");
+                                head.frame = Some(0);
+                                head
+                            },
+                        }),
+                        head: Box::new(target),
+                    }),
                 }),
-                head: Box::new(target),
             }
         } else {
             target
@@ -357,10 +375,16 @@ fn another_creature() -> Reading {
     acc(Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant("vocab:Determinative/Another"),
-        head: Box::new(Reading::TargetedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            marker: invariant("vocab:TargetingMarker/Target"),
-            head: Box::new(noun("lexeme:type/creature")),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::TargetedNominal {
+                    form: 0,
+                    marker: invariant("vocab:TargetingMarker/Target"),
+                    head: Box::new(noun("lexeme:type/creature")),
+                }),
+            }),
         }),
     })
 }

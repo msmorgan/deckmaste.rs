@@ -43,7 +43,7 @@ fn witness(text: &str) {
         let mut modifiers = Vec::new();
         value
             .visit(&mut |node| {
-                if let Reading::NounPremodifiedNominal { modifier, head, .. } = node
+                if let Reading::BarrierNounPremodifiedNominal { modifier, head, .. } = node
                     && **modifier == negative_premodifier()
                 {
                     let mut owners = Vec::new();
@@ -121,12 +121,24 @@ fn negative_noun_retains_plugin_provenance_and_declared_properties() {
 #[test]
 fn independently_constructed_negative_premodifier_roundtrips_with_mass_head() {
     // Constituent attested on every ticket witness, including Mark of Asylum.
-    let expected = Reading::NounPremodifiedNominal {
+    let expected = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(negative_premodifier()),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: noun("lexeme:CommonNoun/Damage", false),
+            head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(negative_premodifier()),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: noun("lexeme:CommonNoun/Damage", false),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     expected.admit(&LEXICON).unwrap();

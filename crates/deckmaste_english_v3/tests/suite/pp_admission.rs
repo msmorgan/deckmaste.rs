@@ -39,9 +39,15 @@ fn nominal_complement_pp_cannot_become_a_free_clause_or_verb_adjunct() {
         Some(Number::Plural),
     );
     creature.countability = Some(true);
-    let nominal = Reading::Noun {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        head: creature,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: creature,
+            }),
+        }),
     };
     let pp = Reading::PrepositionPhrase {
         form: 0,
@@ -98,10 +104,13 @@ fn nominal_complement_pp_cannot_become_a_free_clause_or_verb_adjunct() {
     ] {
         assert!(invalid.admit(lexicon()).is_err());
     }
-    let value = Reading::PostmodifiedNominal {
+    let value = Reading::NominalProjection {
         form: 0,
-        head: Box::new(nominal),
-        modifier: Box::new(pp),
+        head: Box::new(Reading::PostmodifiedNominal {
+            form: 0,
+            head: crate::common::postmodification(nominal),
+            modifier: Box::new(pp),
+        }),
     };
     value.admit(lexicon()).unwrap();
     assert!(readings("creatures of creatures", Category::Nominal).contains(&value));

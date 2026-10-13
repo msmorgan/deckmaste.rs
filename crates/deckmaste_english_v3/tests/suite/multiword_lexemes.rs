@@ -38,9 +38,15 @@ fn independent_multiword_nominals_own_one_lexical_leaf_in_both_roundtrip_directi
                     text.to_owned()
                 };
                 let leaf = noun_word(owner, number, casing);
-                let expected = Reading::Noun {
+                let expected = Reading::NominalProjection {
                     form: 0,
-                    head: leaf.clone(),
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: leaf.clone(),
+                        }),
+                    }),
                 };
                 assert_eq!(
                     expected.realize(&LEXICON).unwrap().as_bytes(),
@@ -69,9 +75,15 @@ fn independent_multiword_nominals_own_one_lexical_leaf_in_both_roundtrip_directi
 #[test]
 fn grammar_consumes_noun_number_and_countability_without_decomposing_the_lexeme() {
     for owner in ["lexeme:CommonNoun/ManaValue", "lexeme:CommonNoun/ManaCost"] {
-        let head = Reading::Noun {
+        let head = Reading::NominalProjection {
             form: 0,
-            head: noun_word(owner, Number::Plural, SurfaceCase::Declared),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun_word(owner, Number::Plural, SurfaceCase::Declared),
+                }),
+            }),
         };
         let expected = Reading::BareNounPhrase {
             form: 0,
@@ -82,9 +94,15 @@ fn grammar_consumes_noun_number_and_countability_without_decomposing_the_lexeme(
         let mut wrong_mass = noun_word(owner, Number::Singular, SurfaceCase::Declared);
         wrong_mass.countability = Some(false);
         assert!(
-            Reading::Noun {
+            Reading::NominalProjection {
                 form: 0,
-                head: wrong_mass
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: wrong_mass
+                    })
+                })
             }
             .admit(&LEXICON)
             .is_err()
@@ -93,9 +111,15 @@ fn grammar_consumes_noun_number_and_countability_without_decomposing_the_lexeme(
         let LexicalReading::Word(value) = &mut crossed.value else { unreachable!() };
         value.features.number = Some(Number::Singular);
         assert!(
-            Reading::Noun {
+            Reading::NominalProjection {
                 form: 0,
-                head: crossed
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: crossed
+                    })
+                })
             }
             .admit(&LEXICON)
             .is_err()
@@ -254,9 +278,15 @@ fn reusable_realization_context_checks_independent_values_and_changed_text() {
         (Number::Singular, "mana value"),
         (Number::Plural, "mana values"),
     ] {
-        let expected = Reading::Noun {
+        let expected = Reading::NominalProjection {
             form: 0,
-            head: noun_word("lexeme:CommonNoun/ManaValue", number, SurfaceCase::Declared),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: noun_word("lexeme:CommonNoun/ManaValue", number, SurfaceCase::Declared),
+                }),
+            }),
         };
         assert_eq!(
             context
@@ -276,7 +306,13 @@ fn reusable_realization_context_checks_independent_values_and_changed_text() {
     );
     let LexicalReading::Word(value) = &mut head.value else { unreachable!() };
     value.features.number = Some(Number::Singular);
-    let invalid = Reading::Noun { form: 0, head };
+    let invalid = Reading::NominalProjection {
+        form: 0,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun { form: 0, head }),
+        }),
+    };
     let reference = grammar.realize(&invalid, &LEXICON);
     assert!(reference.is_err());
     assert_eq!(

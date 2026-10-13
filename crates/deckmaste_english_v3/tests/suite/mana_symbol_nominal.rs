@@ -23,16 +23,22 @@ fn symbol(owner: &str) -> Word {
 }
 
 fn nominal(first: Word, form: usize, rest: Vec<Word>) -> Reading {
-    Reading::MeasuredSymbolNominal {
+    Reading::NominalProjection {
         form: 0,
-        head: Box::new(Reading::NominalSymbol { form, head: first }),
-        rest: rest
-            .into_iter()
-            .map(|head| Reading::CountNominalSymbol {
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::MeasuredSymbolNominal {
                 form: 0,
-                head: Box::new(Reading::NominalSymbol { form: 0, head }),
-            })
-            .collect(),
+                head: Box::new(Reading::NominalSymbol { form, head: first }),
+                rest: rest
+                    .into_iter()
+                    .map(|head| Reading::CountNominalSymbol {
+                        form: 0,
+                        head: Box::new(Reading::NominalSymbol { form: 0, head }),
+                    })
+                    .collect(),
+            }),
+        }),
     }
 }
 
@@ -67,7 +73,9 @@ fn independently_constructed_symbol_sequences_preserve_both_roundtrip_laws() {
 
 fn symbol_nominal_head(nominal: &Reading) -> &Reading {
     match nominal {
-        Reading::PostmodifiedNominal { head, .. } => symbol_nominal_head(head),
+        Reading::NominalProjection { form: 0, head }
+        | Reading::NominalCoreProjection { form: 0, head }
+        | Reading::PostmodifiedNominal { head, .. } => symbol_nominal_head(head),
         Reading::MeasuredSymbolNominal { .. } => nominal,
         _ => panic!("expected a symbol-headed Nominal"),
     }
@@ -126,8 +134,10 @@ fn additional_mana_is_the_head_of_the_selected_object_nominal() {
                                 let mut heads = BTreeSet::new();
                                 object
                                     .visit(&mut |part| {
-                                        if let Reading::PremodifiedNominal {
-                                            modifier, head, ..
+                                        if let Reading::BarrierPremodifiedNominal {
+                                            modifier,
+                                            head,
+                                            ..
                                         } = part
                                             && modifier.realize(common::lexicon()).unwrap()
                                                 == "additional"
@@ -136,7 +146,10 @@ fn additional_mana_is_the_head_of_the_selected_object_nominal() {
                                         }
                                     })
                                     .unwrap();
-                                assert_eq!(heads, BTreeSet::from([expected.clone()]));
+                                assert_eq!(
+                                    heads,
+                                    BTreeSet::from([common::nominal_core(&expected).clone()])
+                                );
                                 objects.push(object.as_ref().clone());
                             }
                         }

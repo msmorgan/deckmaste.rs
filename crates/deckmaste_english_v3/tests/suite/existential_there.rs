@@ -293,13 +293,19 @@ fn independent_condition() -> Reading {
                 head: Box::new(Reading::DeterminedNounPhrase {
                     form: 0,
                     determiner: word("vocab:Determinative/No", WordForm::Invariant, None),
-                    head: Box::new(Reading::Noun {
+                    head: Box::new(Reading::NominalProjection {
                         form: 0,
-                        head: word(
-                            "lexeme:type/creature",
-                            WordForm::Plural,
-                            Some(Number::Plural),
-                        ),
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(
+                                    "lexeme:type/creature",
+                                    WordForm::Plural,
+                                    Some(Number::Plural),
+                                ),
+                            }),
+                        }),
                     }),
                 }),
             }),
@@ -320,13 +326,19 @@ fn independent_condition() -> Reading {
                                     WordForm::Invariant,
                                     None,
                                 ),
-                                head: Box::new(Reading::Noun {
+                                head: Box::new(Reading::NominalProjection {
                                     form: 0,
-                                    head: word(
-                                        "lexeme:CommonNoun/Battlefield",
-                                        WordForm::Singular,
-                                        Some(Number::Singular),
-                                    ),
+                                    head: Box::new(Reading::NominalCoreProjection {
+                                        form: 0,
+                                        head: Box::new(Reading::Noun {
+                                            form: 0,
+                                            head: word(
+                                                "lexeme:CommonNoun/Battlefield",
+                                                WordForm::Singular,
+                                                Some(Number::Singular),
+                                            ),
+                                        }),
+                                    }),
                                 }),
                             }),
                         }),

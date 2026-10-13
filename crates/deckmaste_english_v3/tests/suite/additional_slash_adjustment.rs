@@ -170,7 +170,7 @@ fn noun_controls_keep_their_nominal_modifier_and_bare_pair() {
             let mut nominal_modifiers = Vec::new();
             value
                 .visit(&mut |node| {
-                    if let Reading::PremodifiedNominal { modifier, .. } = node
+                    if let Reading::BarrierPremodifiedNominal { modifier, .. } = node
                         && let Reading::Adjective { head, .. } = modifier.as_ref()
                     {
                         nominal_modifiers.push(head.clone());

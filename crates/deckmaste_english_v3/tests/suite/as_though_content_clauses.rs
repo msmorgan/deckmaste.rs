@@ -263,15 +263,24 @@ fn adjunct_licence_excludes_nominal_predicative_and_preposed_functions() {
         None,
     );
     noun_head.countability = Some(true);
-    let noun = Reading::Noun {
+    let noun = Reading::NominalProjection {
         form: 0,
-        head: noun_head,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: noun_head,
+            }),
+        }),
     };
     noun.admit(common::lexicon()).unwrap();
-    let nominal = Reading::PostmodifiedNominal {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        head: Box::new(noun),
-        modifier: Box::new(pp.clone()),
+        head: Box::new(Reading::PostmodifiedNominal {
+            form: 0,
+            head: crate::common::postmodification(noun),
+            modifier: Box::new(pp.clone()),
+        }),
     };
     assert!(nominal.admit(common::lexicon()).is_err());
     assert!(

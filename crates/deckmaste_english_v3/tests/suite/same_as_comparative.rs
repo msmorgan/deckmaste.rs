@@ -136,27 +136,45 @@ fn an_independent_comparative_nominal_roundtrips_with_its_selected_complement() 
     let marker = word("vocab:Preposition/As");
     let that = word("vocab:SingularDemonstrative/That");
     let land = noun("lexeme:type/land");
-    let value = Reading::DiscontinuousComparativeNominal {
-        category: Category::Nominal,
+    let value = Reading::NominalProjection {
         form: 0,
-        governor: Box::new(Reading::DiscontinuousComparativeGovernorHead {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: governor.clone(),
-        }),
-        head: Box::new(Reading::Noun {
-            form: 0,
-            head: head.clone(),
-        }),
-        marker: marker.clone(),
-        complement: Box::new(Reading::CasePhrase {
-            category: Category::AccusativePhrase,
-            form: 0,
-            head: Box::new(Reading::DeterminedNounPhrase {
+            head: Box::new(Reading::DiscontinuousComparativeNominal {
+                category: Category::NominalCore,
                 form: 0,
-                determiner: that.clone(),
-                head: Box::new(Reading::Noun {
+                governor: Box::new(Reading::DiscontinuousComparativeGovernorHead {
                     form: 0,
-                    head: land.clone(),
+                    head: governor.clone(),
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: head.clone(),
+                        }),
+                    }),
+                }),
+                marker: marker.clone(),
+                complement: Box::new(Reading::CasePhrase {
+                    category: Category::AccusativePhrase,
+                    form: 0,
+                    head: Box::new(Reading::DeterminedNounPhrase {
+                        form: 0,
+                        determiner: that.clone(),
+                        head: Box::new(Reading::NominalProjection {
+                            form: 0,
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: land.clone(),
+                                }),
+                            }),
+                        }),
+                    }),
                 }),
             }),
         }),
@@ -174,13 +192,17 @@ fn an_independent_comparative_nominal_roundtrips_with_its_selected_complement() 
         .unwrap();
     assert_eq!(leaves, [governor, head, marker, that, land]);
     let mut wrong_marker = value.clone();
-    let Reading::DiscontinuousComparativeNominal { marker, .. } = &mut wrong_marker else {
+    let Reading::DiscontinuousComparativeNominal { marker, .. } =
+        crate::common::nominal_core_mut(&mut wrong_marker)
+    else {
         unreachable!()
     };
     *marker = word("vocab:Preposition/To");
     assert!(wrong_marker.admit(lexicon()).is_err());
     let mut wrong_governor = value;
-    let Reading::DiscontinuousComparativeNominal { governor, .. } = &mut wrong_governor else {
+    let Reading::DiscontinuousComparativeNominal { governor, .. } =
+        crate::common::nominal_core_mut(&mut wrong_governor)
+    else {
         unreachable!()
     };
     let Reading::DiscontinuousComparativeGovernorHead { head, .. } = governor.as_mut() else {

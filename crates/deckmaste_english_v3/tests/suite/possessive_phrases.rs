@@ -76,7 +76,13 @@ fn possessed(noun: &str, possessor_number: Number) -> Reading {
     Reading::PossessiveNounPhrase {
         form: 0,
         possessor,
-        head: Box::new(Reading::Noun { form: 0, head }),
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun { form: 0, head }),
+            }),
+        }),
     }
 }
 

@@ -32,9 +32,15 @@ fn word(owner: &str, number: Number) -> Word {
 }
 
 fn noun(owner: &str, number: Number) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(owner, number),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(owner, number),
+            }),
+        }),
     }
 }
 
@@ -51,6 +57,14 @@ fn modified(owner: &str, head: Reading) -> Reading {
         modifier: Box::new(modifier(owner)),
         head: Box::new(head),
     }
+}
+
+fn barrier_modified(owner: &str, head: Reading) -> Reading {
+    crate::common::nominal(Reading::BarrierNounPremodifiedNominal {
+        form: 0,
+        modifier: Box::new(modifier(owner)),
+        head: Box::new(head),
+    })
 }
 
 fn exact(text: &str, category: Category, expected: Reading) {
@@ -94,7 +108,7 @@ fn authentic_noun_modification_and_stacking_have_complete_independent_values() {
     exact(
         "Vampire creature",
         Category::Nominal,
-        modified(
+        barrier_modified(
             "lexeme:creature_subtype/vampire",
             noun("lexeme:type/creature", Number::Singular),
         ),
@@ -104,13 +118,13 @@ fn authentic_noun_modification_and_stacking_have_complete_independent_values() {
     exact(
         "Assembly-Worker creature",
         Category::Nominal,
-        modified(
+        barrier_modified(
             "lexeme:creature_subtype/assemblyWorker",
             noun("lexeme:type/creature", Number::Singular),
         ),
     );
     // Time Lord Regeneration: "... reveal a Time Lord creature card."
-    let expected = modified(
+    let expected = barrier_modified(
         "lexeme:creature_subtype/timeLord",
         modified(
             "lexeme:type/creature",
@@ -190,7 +204,7 @@ fn authentic_negative_type_nouns_use_the_same_modifier_primitive() {
         exact(
             text,
             Category::Nominal,
-            modified(owner, noun(head, Number::Singular)),
+            barrier_modified(owner, noun(head, Number::Singular)),
         );
     }
     let target = Word {
@@ -210,7 +224,7 @@ fn authentic_negative_type_nouns_use_the_same_modifier_primitive() {
         Reading::TargetNounPhrase {
             form: 0,
             marker: target,
-            head: Box::new(modified(
+            head: Box::new(barrier_modified(
                 "lexeme:type/land/non",
                 noun("lexeme:CommonNoun/Permanent", Number::Singular),
             )),
@@ -248,21 +262,28 @@ fn authentic_coordinated_noun_modifiers_share_the_head_with_oxford_serials() {
         Category::NounPremodifier,
         binary.clone(),
     );
-    let shared = Reading::NounPremodifiedNominal {
+    let shared = crate::common::nominal(Reading::BarrierNounPremodifiedNominal {
         form: 0,
         modifier: Box::new(binary),
         head: Box::new(noun("lexeme:CommonNoun/Card", Number::Singular)),
-    };
+    });
+
     assert_eq!(shared.realize(&LEXICON).unwrap(), "instant or sorcery card");
-    let ordinary = Reading::Coordination {
-        category: Category::Nominal,
+    let ordinary = Reading::NominalProjection {
         form: 0,
-        left: Box::new(noun("lexeme:type/instant", Number::Singular)),
-        coordinator: coordinator("vocab:Coordinator/Or"),
-        right: Box::new(modified(
-            "lexeme:type/sorcery",
-            noun("lexeme:CommonNoun/Card", Number::Singular),
-        )),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Coordination {
+                category: Category::NominalCore,
+                form: 0,
+                left: Box::new(noun("lexeme:type/instant", Number::Singular)),
+                coordinator: coordinator("vocab:Coordinator/Or"),
+                right: Box::new(modified(
+                    "lexeme:type/sorcery",
+                    noun("lexeme:CommonNoun/Card", Number::Singular),
+                )),
+            }),
+        }),
     };
     assert_eq!(
         readings("instant or sorcery card", Category::Nominal),
@@ -319,7 +340,7 @@ fn permanent_premodifiers_keep_independently_constructed_noun_identity() {
         exact(
             text,
             Category::Nominal,
-            modified("lexeme:CommonNoun/Permanent", noun(owner, number)),
+            barrier_modified("lexeme:CommonNoun/Permanent", noun(owner, number)),
         );
     }
     // Skyshroud Poacher and Illuna, Apex of Wishes: stacked noun Premodifiers.
@@ -330,9 +351,9 @@ fn permanent_premodifiers_keep_independently_constructed_noun_identity() {
         exact(
             text,
             Category::Nominal,
-            modified(
+            barrier_modified(
                 owner,
-                modified(
+                barrier_modified(
                     "lexeme:CommonNoun/Permanent",
                     noun("lexeme:CommonNoun/Card", Number::Singular),
                 ),
@@ -362,7 +383,7 @@ fn permanent_head_use_is_unchanged_and_plural_modifiers_are_rejected() {
             .unwrap();
         assert_eq!(
             heads,
-            vec![noun("lexeme:CommonNoun/Permanent", Number::Singular)]
+            vec![crate::common::into_nominal_core(noun("lexeme:CommonNoun/Permanent", Number::Singular))]
         );
     }
     for text in ["permanents card", "permanents cards", "permanents spell"] {

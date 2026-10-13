@@ -167,22 +167,28 @@ fn cards() -> Reading {
         form: 0,
         head: Box::new(Reading::BareNounPhrase {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Word {
-                    value: LexicalReading::Word(LexicalValue {
-                        lexeme: "fixture:card".into(),
-                        form: WordForm::Plural,
-                        features: FeatureBundle {
-                            number: Some(Number::Plural),
-                            ..Default::default()
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: Word {
+                            value: LexicalReading::Word(LexicalValue {
+                                lexeme: "fixture:card".into(),
+                                form: WordForm::Plural,
+                                features: FeatureBundle {
+                                    number: Some(Number::Plural),
+                                    ..Default::default()
+                                },
+                                variant: 0,
+                                capitalization: SurfaceCase::Declared,
+                            }),
+                            frame: None,
+                            countability: Some(true),
                         },
-                        variant: 0,
-                        capitalization: SurfaceCase::Declared,
                     }),
-                    frame: None,
-                    countability: Some(true),
-                },
+                }),
             }),
         }),
     }

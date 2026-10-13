@@ -132,10 +132,13 @@ fn an_independent_until_modifier_is_rejected_by_admission() {
         .into_iter()
         .next()
         .unwrap();
-    let invalid = Reading::PostmodifiedNominal {
+    let invalid = Reading::NominalProjection {
         form: 0,
-        head: Box::new(head),
-        modifier: Box::new(modifier),
+        head: Box::new(Reading::PostmodifiedNominal {
+            form: 0,
+            head: crate::common::postmodification(head),
+            modifier: Box::new(modifier),
+        }),
     };
     assert!(invalid.admit(common::lexicon()).is_err());
     assert!(

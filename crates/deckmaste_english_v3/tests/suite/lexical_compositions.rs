@@ -52,25 +52,37 @@ fn combat_damage_keeps_its_noun_premodifier_and_mass_head() {
     exact(
         "combat damage",
         Category::Nominal,
-        Reading::NounPremodifiedNominal {
+        Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::NounPremodifier {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: word(
-                    "lexeme:turn_part/combat",
-                    WordForm::Singular,
-                    features.clone(),
-                    Some(true),
-                ),
-            }),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: word(
-                    "lexeme:CommonNoun/Damage",
-                    WordForm::Singular,
-                    features,
-                    Some(false),
-                ),
+                head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                    form: 0,
+                    modifier: Box::new(Reading::NounPremodifier {
+                        form: 0,
+                        head: word(
+                            "lexeme:turn_part/combat",
+                            WordForm::Singular,
+                            features.clone(),
+                            Some(true),
+                        ),
+                    }),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
+                            form: 0,
+                            head: Box::new(Reading::Noun {
+                                form: 0,
+                                head: word(
+                                    "lexeme:CommonNoun/Damage",
+                                    WordForm::Singular,
+                                    features,
+                                    Some(false),
+                                ),
+                            }),
+                        }),
+                    }),
+                }),
             }),
         },
     );
@@ -103,17 +115,23 @@ fn defending_player_is_a_bare_np_with_a_verbal_premodifier() {
         Reading::BareParticipialStatusNounPhrase {
             form: 0,
             modifier,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: word(
-                    "lexeme:CommonNoun/Player",
-                    WordForm::Singular,
-                    FeatureBundle {
-                        number: Some(Number::Singular),
-                        ..Default::default()
-                    },
-                    Some(true),
-                ),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: word(
+                            "lexeme:CommonNoun/Player",
+                            WordForm::Singular,
+                            FeatureBundle {
+                                number: Some(Number::Singular),
+                                ..Default::default()
+                            },
+                            Some(true),
+                        ),
+                    }),
+                }),
             }),
         },
     );
@@ -145,17 +163,23 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
             },
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(
-                "lexeme:CommonNoun/Owner",
-                WordForm::Plural,
-                FeatureBundle {
-                    number: Some(Number::Plural),
-                    ..Default::default()
-                },
-                Some(true),
-            ),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(
+                        "lexeme:CommonNoun/Owner",
+                        WordForm::Plural,
+                        FeatureBundle {
+                            number: Some(Number::Plural),
+                            ..Default::default()
+                        },
+                        Some(true),
+                    ),
+                }),
+            }),
         }),
     };
     let expected = Reading::GenitiveNounPhrase {
@@ -167,17 +191,23 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
             FeatureBundle::default(),
             None,
         ),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word(
-                "lexeme:CommonNoun/Hand",
-                WordForm::Plural,
-                FeatureBundle {
-                    number: Some(Number::Plural),
-                    ..Default::default()
-                },
-                Some(true),
-            ),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(
+                        "lexeme:CommonNoun/Hand",
+                        WordForm::Plural,
+                        FeatureBundle {
+                            number: Some(Number::Plural),
+                            ..Default::default()
+                        },
+                        Some(true),
+                    ),
+                }),
+            }),
         }),
     };
     exact(
@@ -192,33 +222,42 @@ fn plural_bare_genitives_preserve_possessor_number_and_the_apostrophe() {
     let Reading::PossessiveNounPhrase { head, .. } = &mut **possessor else {
         unreachable!()
     };
-    **head = Reading::PostmodifiedNominal {
+    **head = Reading::NominalProjection {
         form: 0,
-        head: head.clone(),
-        modifier: Box::new(Reading::PrepositionPhrase {
+        head: Box::new(Reading::PostmodifiedNominal {
             form: 0,
-            head: word(
-                "vocab:Preposition/Of",
-                WordForm::Invariant,
-                FeatureBundle::default(),
-                None,
-            ),
-            complement: Box::new(Reading::CasePhrase {
-                category: Category::AccusativePhrase,
+            head: crate::common::postmodification(*(head.clone())),
+            modifier: Box::new(Reading::PrepositionPhrase {
                 form: 0,
-                head: Box::new(Reading::BareNounPhrase {
+                head: word(
+                    "vocab:Preposition/Of",
+                    WordForm::Invariant,
+                    FeatureBundle::default(),
+                    None,
+                ),
+                complement: Box::new(Reading::CasePhrase {
+                    category: Category::AccusativePhrase,
                     form: 0,
-                    head: Box::new(Reading::Noun {
+                    head: Box::new(Reading::BareNounPhrase {
                         form: 0,
-                        head: word(
-                            "lexeme:CommonNoun/Card",
-                            WordForm::Plural,
-                            FeatureBundle {
-                                number: Some(Number::Plural),
-                                ..Default::default()
-                            },
-                            Some(true),
-                        ),
+                        head: Box::new(Reading::NominalProjection {
+                            form: 0,
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: word(
+                                        "lexeme:CommonNoun/Card",
+                                        WordForm::Plural,
+                                        FeatureBundle {
+                                            number: Some(Number::Plural),
+                                            ..Default::default()
+                                        },
+                                        Some(true),
+                                    ),
+                                }),
+                            }),
+                        }),
                     }),
                 }),
             }),

@@ -624,7 +624,7 @@ constructions! {
         category PerfectComplement(
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
-        category Nominal(
+        category NominalCore(
             head ComparativeModifierPresent,
             head AttributePremodifierHead,
             head KeywordPremodifierHead,
@@ -654,8 +654,71 @@ constructions! {
             head SubjectRelativeNumber,
             head UnmarkedConjunctLicence
         );
+        category NominalPostmodification(
+            head ComparativeModifierPresent,
+            head AttributePremodifierHead,
+            head KeywordPremodifierHead,
+            head number,
+            head NominalAgreementNumber,
+            head countability,
+            head Targeting,
+            head NominalAdjunctClass,
+            local NominalDependentPresent,
+            head RelativisableAdjunctClass,
+            head SlashPremodifierUse,
+            head NumberTransparency,
+            head ObliqueNumber,
+            head BareGenitiveHost,
+            head DeterminerRequirement,
+            head MeasurePosition,
+            local ScalarMeasurementHeadUse,
+            local PropertyValuePosition,
+            head CardinalMeasurementUse,
+            head BarePrepositionUse,
+            head NominalComplementMarker,
+            head SelectedPrepositionUse,
+            head PredicativeAdjunctUse,
+            head ScalarDenotation,
+            head SourceModifierPresent,
+            head WholeObjectSourcePresent,
+            head SubjectRelativeNumber,
+            head UnmarkedConjunctLicence
+        );
+        category Nominal(
+            head ComparativeModifierPresent,
+            head AttributePremodifierHead,
+            head KeywordPremodifierHead,
+            head number,
+            head NominalAgreementNumber,
+            head countability,
+            head Targeting,
+            head NominalAdjunctClass,
+            local NominalDependentPresent,
+            head RelativisableAdjunctClass,
+            head SlashPremodifierUse,
+            head NumberTransparency,
+            head ObliqueNumber,
+            head BareGenitiveHost,
+            head DeterminerRequirement,
+            head MeasurePosition,
+            local ScalarMeasurementHeadUse,
+            local PropertyValuePosition,
+            head CardinalMeasurementUse,
+            head BarePrepositionUse,
+            head NominalComplementMarker,
+            head SelectedPrepositionUse,
+            head PredicativeAdjunctUse,
+            head ScalarDenotation,
+            head SourceModifierPresent,
+            head WholeObjectSourcePresent,
+            head SubjectRelativeNumber,
+            head UnmarkedConjunctLicence
+        );
         category VerbalPremodifier();
-        category NounPremodifier(head NounPremodifier, local PremodifierCoordination);
+        category NounPremodifier(
+            head NounPremodifier, local PremodifierCoordination,
+            local NominalModifierOrder combine always Barrier
+        );
         category PartitiveModifier();
         category NounPhrase(
             head NominalDependentPresent combine always Yes,
@@ -694,7 +757,8 @@ constructions! {
         category AdjectivePhrase(
             head AdjectiveComplementClass, head AdjectiveAttributiveOnlyUse, head ImplicitComparativeUse,
             head AdjectiveStructure, head AdjectiveOrigin, head AdjectivePremodifierUse,
-            head TargetingPremodifierUse, local PremodifierCoordination
+            head TargetingPremodifierUse, local PremodifierCoordination,
+            local NominalModifierOrder combine always Barrier
         );
         category Premodifier(
             head PremodifierCategory, head SyndeticPremodifier, head NounPremodifier, head AdjectiveOrigin,
@@ -1619,7 +1683,8 @@ constructions! {
             on ordinary_overt { require coordinator.GeneralCoordination = Yes; }
         }
 
-        coordinable Nominal using Standard {
+        coordinable NominalCore of Nominal using Standard {
+            helper NominalSeries;
             forms binary, serial;
             // R15d/R15e: an asyndetic shared-head group cannot resegment
             // an unmarked member of a coordinator-ending Nominal list.
@@ -3030,7 +3095,21 @@ constructions! {
             use FocusedAdjunctFunction;
         }
 
-        construction Noun: Nominal {
+        construction NominalCoreProjection: NominalPostmodification {
+            form [head: NominalCore];
+            export NominalDependentPresent = head.NominalDependentPresent;
+            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
+            export PropertyValuePosition = head.PropertyValuePosition;
+        }
+
+        construction NominalProjection: Nominal {
+            form [head: NominalPostmodification];
+            export NominalDependentPresent = head.NominalDependentPresent;
+            export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
+            export PropertyValuePosition = head.PropertyValuePosition;
+        }
+
+        construction Noun: NominalCore {
             export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun)];
@@ -3042,7 +3121,7 @@ constructions! {
             export countability = head.countability;
         }
 
-        construction BareFramedNoun: Nominal {
+        construction BareFramedNoun: NominalCore {
             export UnmarkedConjunctLicence = Yes;
             export SubjectRelativeNumber = None;
             form [head: lexical(Noun)];
@@ -3074,7 +3153,7 @@ constructions! {
         }
 
         // QE1–QE2 and MS1–MS5: one determined or measured symbol-sequence head.
-        construction MeasuredSymbolNominal: Nominal {
+        construction MeasuredSymbolNominal: NominalCore {
             form [head: NominalSymbol, rest: repeat(CountNominalSymbol, "")];
             require symbol_nominal_sequence(head.SymbolNominalUse,
                 last(rest).SymbolNominalUse) = Yes;
@@ -3089,7 +3168,7 @@ constructions! {
 
         // CGEL Ch. 14 §8.2, pp. 1259–1260: selected subjectless
         // to-infinitivals are internal Complements of nouns.
-        construction SelectedComplementNominal: Nominal {
+        construction SelectedComplementNominal: NominalCore {
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3107,7 +3186,7 @@ constructions! {
             export countability = head.countability;
         }
 
-        construction SymbolComplementNominal: Nominal {
+        construction SymbolComplementNominal: NominalCore {
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3129,7 +3208,7 @@ constructions! {
         }
         // Orchestrator rulings DV1–DV4: the selected colour Complement stays
         // inside the noun's frame, without a general colour-word NP route.
-        construction PrepositionComplementNominal: Nominal {
+        construction PrepositionComplementNominal: NominalCore {
             export UnmarkedConjunctLicence = Yes;
             export NominalDependentPresent = Yes;
             export SubjectRelativeNumber = None;
@@ -3165,6 +3244,7 @@ constructions! {
         }
 
         construction Adjective: AdjectivePhrase {
+            export NominalModifierOrder = head.NominalModifierOrder;
             export AdjectiveAttributiveOnlyUse = No;
             export ImplicitComparativeUse = No;
             form [head: lexical(Adjective)];
@@ -3209,7 +3289,8 @@ constructions! {
             form [head: lexical(Noun)]
                 require noun_premodifier_use(head.NounPremodifier) = Yes
                 require head.form = Singular
-                require head.framing = Unframed;
+                require head.framing = Unframed
+                export NominalModifierOrder = head.NominalModifierOrder;
             form [head: lexical(Keyword)]
                 require head.NounPremodifier = Keyword
                 require head.BoundKeyword = No;
@@ -3299,7 +3380,7 @@ constructions! {
             use SyndeticPremodifierConcord(rest, rest);
         }
 
-        construction CoordinatedPremodifiedNominal: Nominal {
+        construction CoordinatedPremodifiedNominal: NominalCore {
             export UnmarkedConjunctLicence = No;
             form [modifier: PremodifierCoordination, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
@@ -3315,6 +3396,18 @@ constructions! {
         }
 
         construction NounPremodifiedNominal: Nominal {
+            require modifier.NominalModifierOrder = Commuting;
+            form [modifier: NounPremodifier, " ", head: Nominal];
+            require licensed_noun_premodifier(modifier.NounPremodifier,
+                head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
+            export NominalDependentPresent = Yes;
+            export SelectedPrepositionUse = No;
+            export PredicativeAdjunctUse = No;
+            require head.Targeting = No;
+        }
+
+        construction BarrierNounPremodifiedNominal: NominalCore {
+            require modifier.NominalModifierOrder = Barrier;
             form [modifier: NounPremodifier, " ", head: Nominal];
             require licensed_noun_premodifier(modifier.NounPremodifier,
                 head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
@@ -3325,6 +3418,20 @@ constructions! {
         }
 
         construction PremodifiedNominal: Nominal {
+            require modifier.NominalModifierOrder = Commuting;
+            form [modifier: AdjectivePhrase, " ", head: Nominal];
+            export NominalDependentPresent = Yes;
+            export ComparativeModifierPresent = comparative_modifier_present(
+                modifier.ImplicitComparativeUse, head.ComparativeModifierPresent);
+            export PropertyValuePosition = premodified_property_value_position(
+                modifier.AdjectiveOrigin, head.PropertyValuePosition);
+            require modifier.AdjectiveStructure = Simple;
+            require modifier.AdjectivePremodifierUse = Yes;
+            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+        }
+
+        construction BarrierPremodifiedNominal: NominalCore {
+            require modifier.NominalModifierOrder = Barrier;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
             export NominalDependentPresent = Yes;
             export ComparativeModifierPresent = comparative_modifier_present(
@@ -3345,7 +3452,7 @@ constructions! {
         // SM1–SM4 and the owner ruling (2026-10-11) assign internal Modifier
         // function to the declared superlative class. CGEL p. 1166 [15] backs
         // the superlative meaning, not this project choice of internal structure.
-        construction SuperlativePremodifiedNominal: Nominal {
+        construction SuperlativePremodifiedNominal: NominalCore {
             form [modifier: lexical(Determinative), " ", head: Nominal];
             form [modifier: lexical(Adjective), " ", head: Nominal];
             require modifier in SuperlativeQuantifier;
@@ -3418,7 +3525,7 @@ constructions! {
 
         instance DiscontinuousComparativeNominal<Result, Governor: governor,
             HeadFeatures, Properties>: [
-            (Nominal, DiscontinuousComparativeGovernor, NominalHeadFeatures,
+            (NominalCore, DiscontinuousComparativeGovernor, NominalHeadFeatures,
                 DiscontinuousComparativeModifier),
             (NounPhrase, ComparativeDeterminerHead, NounPhraseHeadAgreement,
                 DiscontinuousComparativeDeterminer),
@@ -3426,7 +3533,7 @@ constructions! {
 
         // CGEL Ch. 5 §7.6, p. 386: numerical cardinals can modify under
         // an outer Determiner; without it the cardinal is the Determiner.
-        construction CardinalPremodifiedNominal: Nominal {
+        construction CardinalPremodifiedNominal: NominalCore {
             export NominalDependentPresent = Yes;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
@@ -3453,7 +3560,7 @@ constructions! {
         // Amounts remain singular measurements; the lexical mass noun does
         // not acquire a bare count-plural use. CGEL Ch. 5 §3.4, p. 354
         // distinguishes the singular conceptualization of a measured quantity.
-        construction CardinalMeasuredNominal: Nominal {
+        construction CardinalMeasuredNominal: NominalCore {
             export NominalDependentPresent = Yes;
             export NominalAgreementNumber = Head;
             export ScalarDenotation = Yes;
@@ -3520,7 +3627,7 @@ constructions! {
         }
         instance PostpositiveNominal<Result, Head: head, Modifier: modifier,
             HeadFeatures, Properties>: [
-            (Nominal, Self, AdjectivePhrase, NominalHeadFeatures,
+            (NominalCore, Nominal, AdjectivePhrase, NominalHeadFeatures,
                 PostpositiveNominalProperties),
             (NounPhrase, Self, ComparativeAdjectivePhrase, NoFeatures,
                 PostpositiveNounPhraseProperties),
@@ -3547,7 +3654,7 @@ constructions! {
             export PredicativeAdjunctUse = Yes;
         }
 
-        construction ParticipialPremodifier: Nominal {
+        construction ParticipialPremodifier: NominalCore {
             form [modifier: VerbalPremodifier, " ", head: Nominal];
             export NominalDependentPresent = Yes;
             require head.Targeting = No;
@@ -3589,13 +3696,13 @@ constructions! {
             require head.frame = ObjectName;
         }
 
-        construction NamedNominal: Nominal {
+        construction NamedNominal: NominalPostmodification {
             export BareGenitiveHost = No;
-            form [head: Nominal, " ", modifier: NamePredicate];
+            form [head: NominalPostmodification, " ", modifier: NamePredicate];
             export NominalDependentPresent = Yes;
         }
 
-        construction TargetedNominal: Nominal {
+        construction TargetedNominal: NominalCore {
             export NominalDependentPresent = Yes;
             export BarePrepositionUse = No;
             export NominalComplementMarker = None;
@@ -3606,9 +3713,9 @@ constructions! {
             export NominalAdjunctClass = None;
         }
 
-        construction PostmodifiedNominal: Nominal {
+        construction PostmodifiedNominal: NominalPostmodification {
             export BareGenitiveHost = No;
-            form [head: Nominal, " ", modifier: PrepositionPhrase];
+            form [head: NominalPostmodification, " ", modifier: PrepositionPhrase];
             require licence_modifier(modifier.PrepositionFunctionLicence) = Yes;
             require modifier.ComplementFunctionRestriction = None;
             require modifier.SelectedPrepositionUse = No;
@@ -4522,9 +4629,9 @@ constructions! {
             (GerundParticiple, Ordinary) => Yes,
             (PastParticiple, BarePassive) => Yes,
         }
-        construction ParticipialPostmodifiedNominal: Nominal {
+        construction ParticipialPostmodifiedNominal: NominalPostmodification {
             export BareGenitiveHost = No;
-            form [head: Nominal, " ", modifier: SecondaryVerbPhrase];
+            form [head: NominalPostmodification, " ", modifier: SecondaryVerbPhrase];
             require participial_postmodifier(modifier.form, modifier.ParticipialUse) = Yes;
             export NominalDependentPresent = Yes;
             export ScalarMeasurementHeadUse = head.ScalarMeasurementHeadUse;
@@ -4758,11 +4865,11 @@ constructions! {
             require predicate.person = Third;
         }
 
-        construction SubjectRelativeNominal: Nominal {
+        construction SubjectRelativeNominal: NominalPostmodification {
             require relative_number_chain(head.SubjectRelativeNumber, relative.number) = Yes;
             export SubjectRelativeNumber = deferred_relative_number(head.NominalAgreementNumber, relative.number);
             export BareGenitiveHost = No;
-            form [head: Nominal, " ", relative: SubjectRelativeClause];
+            form [head: NominalPostmodification, " ", relative: SubjectRelativeClause];
             export NominalDependentPresent = Yes;
             require nominal_relative_agreement(head.NominalAgreementNumber, head.number, relative.number) = Yes;
         }
@@ -4846,11 +4953,11 @@ constructions! {
             export RelativeGapKind = TemporalAdjunct;
         }
 
-        construction ObjectRelativeNominal: Nominal {
+        construction ObjectRelativeNominal: NominalPostmodification {
             require relative_head_licence(relative.RelativeGapKind,
                 head.RelativisableAdjunctClass) = Yes;
             export BareGenitiveHost = No;
-            form [head: Nominal, " ", relative: ObjectRelativeClause];
+            form [head: NominalPostmodification, " ", relative: ObjectRelativeClause];
             export NominalDependentPresent = Yes;
         }
 
@@ -5344,7 +5451,7 @@ constructions! {
         ] {}
 
 
-        construction SlashModifiedNominal: Nominal {
+        construction SlashModifiedNominal: NominalCore {
             form [modifier: SlashPair, " ", head: Nominal];
             require modifier.AdditiveModifierUse = No;
             require head.SlashPremodifierUse = Yes;
@@ -6041,7 +6148,7 @@ constructions! {
             require phrase.AdjectiveAttributiveOnlyUse = No;
         }
 
-        construction CorrelativePostpositiveNominal: Nominal {
+        construction CorrelativePostpositiveNominal: NominalCore {
             export BareGenitiveHost = No;
             form [head: Nominal, " ", modifier: CorrelativeAdjectivePhrase];
             export NominalDependentPresent = Yes;

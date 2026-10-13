@@ -28,7 +28,7 @@ fn assert_property_predication(
                     let mut coordinated_head = false;
                     head.visit(&mut |head_node| {
                         if let Reading::Coordination { category, .. } = head_node {
-                            assert_eq!(*category, Category::Nominal);
+                            assert_eq!(*category, Category::NominalCore);
                             coordinated_head = true;
                         }
                     })
@@ -201,16 +201,28 @@ fn clausal_single_property_and_slash_pair_controls_keep_their_roles() {
 fn independently_composed_property_predication_preserves_both_roundtrip_laws() {
     // Karn's Touch's constituent; assemble the coordinated head and the
     // quantificational Adjunct independently of the enclosing parsed Reading.
-    let noun = |owner| Reading::Noun {
+    let noun = |owner| Reading::NominalProjection {
         form: 0,
-        head: word(owner, WordForm::Singular),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(owner, WordForm::Singular),
+            }),
+        }),
     };
-    let head = Reading::Coordination {
-        category: Category::Nominal,
+    let head = Reading::NominalProjection {
         form: 0,
-        left: Box::new(noun("lexeme:CommonNoun/Power")),
-        coordinator: word("vocab:Coordinator/And", WordForm::Invariant),
-        right: Box::new(noun("lexeme:CommonNoun/Toughness")),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Coordination {
+                category: Category::NominalCore,
+                form: 0,
+                left: Box::new(noun("lexeme:CommonNoun/Power")),
+                coordinator: word("vocab:Coordinator/And", WordForm::Invariant),
+                right: Box::new(noun("lexeme:CommonNoun/Toughness")),
+            }),
+        }),
     };
     let comparison = common::readings(
         "equal to its mana value",

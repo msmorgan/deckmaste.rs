@@ -72,12 +72,17 @@ macro_rules! check_family {
         let base = $base;
         let coordinator = word("vocab:Coordinator/And", WordForm::Invariant, None);
         let binary = Reading::$binary {
-            category: $category,
+            category: if $category == Category::Nominal {
+                Category::NominalCore
+            } else {
+                $category
+            },
             form: 0,
             left: Box::new(base.clone()),
             coordinator: coordinator.clone(),
             right: Box::new(base.clone()),
         };
+        let binary = if $category == Category::Nominal { common::nominal(binary) } else { binary };
         assert_laws(&binary, &format!("{} and {}", $text, $text), $category);
         let end = Reading::$end {
             category: Category::$series,
@@ -87,11 +92,16 @@ macro_rules! check_family {
             right: Box::new(base.clone()),
         };
         let serial = Reading::$serial {
-            category: $category,
+            category: if $category == Category::Nominal {
+                Category::NominalCore
+            } else {
+                $category
+            },
             form: 0,
             left: Box::new(base),
             rest: Box::new(end),
         };
+        let serial = if $category == Category::Nominal { common::nominal(serial) } else { serial };
         assert_laws(
             &serial,
             &format!("{}, {}, and {}", $text, $text, $text),
@@ -109,9 +119,15 @@ fn independent_phrase_coordinations_preserve_structure_and_oxford_commas() {
         Some(Number::Plural),
     );
     creature.countability = Some(true);
-    let nominal = Reading::Noun {
+    let nominal = Reading::NominalProjection {
         form: 0,
-        head: creature,
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: creature,
+            }),
+        }),
     };
     let pp = Reading::PrepositionPhrase {
         form: 0,

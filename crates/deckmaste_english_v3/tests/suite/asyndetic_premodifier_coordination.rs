@@ -58,12 +58,24 @@ fn pair(left: Reading, right: Reading) -> Reading {
 }
 
 fn modified(modifier: Reading, head_owner: &str) -> Reading {
-    Reading::CoordinatedPremodifiedNominal {
+    Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(modifier),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word(head_owner, true),
+            head: Box::new(Reading::CoordinatedPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(modifier),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word(head_owner, true),
+                        }),
+                    }),
+                }),
+            }),
         }),
     }
 }
@@ -173,23 +185,47 @@ fn independently_constructed_three_members_have_one_grouping() {
 
 #[test]
 fn existing_syndetic_nominal_reading_is_preserved() {
-    let expected = Reading::Coordination {
-        category: Category::Nominal,
+    let expected = Reading::NominalProjection {
         form: 0,
-        left: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word("lexeme:type/artifact/non", true),
-        }),
-        coordinator: word("vocab:Coordinator/And", false),
-        right: Box::new(Reading::PremodifiedNominal {
-            form: 0,
-            modifier: Box::new(Reading::Adjective {
+            head: Box::new(Reading::Coordination {
+                category: Category::NominalCore,
                 form: 0,
-                head: word("vocab:ColorWord/Black/non", false),
-            }),
-            head: Box::new(Reading::Noun {
-                form: 0,
-                head: word("lexeme:type/creature", true),
+                left: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:type/artifact/non", true),
+                        }),
+                    }),
+                }),
+                coordinator: word("vocab:Coordinator/And", false),
+                right: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::BarrierPremodifiedNominal {
+                            form: 0,
+                            modifier: Box::new(Reading::Adjective {
+                                form: 0,
+                                head: word("vocab:ColorWord/Black/non", false),
+                            }),
+                            head: Box::new(Reading::NominalProjection {
+                                form: 0,
+                                head: Box::new(Reading::NominalCoreProjection {
+                                    form: 0,
+                                    head: Box::new(Reading::Noun {
+                                        form: 0,
+                                        head: word("lexeme:type/creature", true),
+                                    }),
+                                }),
+                            }),
+                        }),
+                    }),
+                }),
             }),
         }),
     };
@@ -202,9 +238,15 @@ fn existing_syndetic_nominal_reading_is_preserved() {
 
 #[test]
 fn royal_decree_keeps_its_coordinator_ending_nominal_list() {
-    let noun = |owner| Reading::Noun {
+    let noun = |owner| Reading::NominalProjection {
         form: 0,
-        head: word(owner, true),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(owner, true),
+            }),
+        }),
     };
     let coloured = |owner| Reading::PremodifiedNominal {
         form: 0,
@@ -230,20 +272,26 @@ fn royal_decree_keeps_its_coordinator_ending_nominal_list() {
             frame: None,
             countability: None,
         },
-        head: Box::new(Reading::SerialCoordination {
-            category: Category::Nominal,
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            left: Box::new(noun("lexeme:land_subtype/swamp")),
-            rest: Box::new(Reading::CoordinationSeriesContinuation {
-                category: Category::NominalSeries,
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                left: Box::new(noun("lexeme:land_subtype/mountain")),
-                rest: Box::new(Reading::CoordinationSeriesEnd {
-                    category: Category::NominalSeries,
+                head: Box::new(Reading::SerialCoordination {
+                    category: Category::NominalCore,
                     form: 0,
-                    left: Box::new(coloured("vocab:ColorWord/Black")),
-                    coordinator: word("vocab:Coordinator/Or", false),
-                    right: Box::new(coloured("vocab:ColorWord/Red")),
+                    left: Box::new(noun("lexeme:land_subtype/swamp")),
+                    rest: Box::new(Reading::CoordinationSeriesContinuation {
+                        category: Category::NominalSeries,
+                        form: 0,
+                        left: Box::new(noun("lexeme:land_subtype/mountain")),
+                        rest: Box::new(Reading::CoordinationSeriesEnd {
+                            category: Category::NominalSeries,
+                            form: 0,
+                            left: Box::new(coloured("vocab:ColorWord/Black")),
+                            coordinator: word("vocab:Coordinator/Or", false),
+                            right: Box::new(coloured("vocab:ColorWord/Red")),
+                        }),
+                    }),
                 }),
             }),
         }),

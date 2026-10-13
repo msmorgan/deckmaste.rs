@@ -28,22 +28,28 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
 }
 
 fn noun(owner: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 
@@ -109,16 +115,22 @@ fn a_status_modifier_keeps_its_existing_determiner_bearing_composition() {
         &Reading::TargetNounPhrase {
             form: 0,
             marker: invariant("vocab:TargetingMarker/Target", SurfaceCase::Declared),
-            head: Box::new(Reading::PremodifiedNominal {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(Reading::Adjective {
+                head: Box::new(Reading::NominalCoreProjection {
                     form: 0,
-                    head: invariant(
-                        "lexeme:keyword_ability/enchant/adjective",
-                        SurfaceCase::Declared,
-                    ),
+                    head: Box::new(Reading::BarrierPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(Reading::Adjective {
+                            form: 0,
+                            head: invariant(
+                                "lexeme:keyword_ability/enchant/adjective",
+                                SurfaceCase::Declared,
+                            ),
+                        }),
+                        head: Box::new(noun("lexeme:type/creature")),
+                    }),
                 }),
-                head: Box::new(noun("lexeme:type/creature")),
             }),
         },
     );
@@ -155,27 +167,41 @@ fn authentic_full_genitive_possessor_preserves_internal_structure() {
     let possessor = Reading::DeterminedNounPhrase {
         form: 0,
         determiner: invariant("vocab:FloatedQuantifier/Each", SurfaceCase::Declared),
-        head: Box::new(Reading::PremodifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            modifier: Box::new(Reading::IntransitiveAdjective {
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: {
-                    let mut head =
-                        invariant("vocab:AttributiveAdjective/Other", SurfaceCase::Declared);
-                    head.frame = Some(0);
-                    head
-                },
+                head: Box::new(Reading::BarrierPremodifiedNominal {
+                    form: 0,
+                    modifier: Box::new(Reading::IntransitiveAdjective {
+                        form: 0,
+                        head: {
+                            let mut head = invariant(
+                                "vocab:AttributiveAdjective/Other",
+                                SurfaceCase::Declared,
+                            );
+                            head.frame = Some(0);
+                            head
+                        },
+                    }),
+                    head: Box::new(noun("lexeme:CommonNoun/Player")),
+                }),
             }),
-            head: Box::new(noun("lexeme:CommonNoun/Player")),
         }),
     };
-    let head = Reading::PremodifiedNominal {
+    let head = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::Adjective {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: invariant("vocab:AttributiveAdjective/Untap", SurfaceCase::Declared),
+            head: Box::new(Reading::BarrierPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::Adjective {
+                    form: 0,
+                    head: invariant("vocab:AttributiveAdjective/Untap", SurfaceCase::Declared),
+                }),
+                head: Box::new(noun("lexeme:CommonNoun/Step")),
+            }),
         }),
-        head: Box::new(noun("lexeme:CommonNoun/Step")),
     };
     // Existing lexical turn-part ownership and compositional adjective + noun
     // are both retained.

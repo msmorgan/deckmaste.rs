@@ -63,14 +63,20 @@ fn choice(keywords: Reading) -> Reading {
     Reading::PossessiveNounPhrase {
         form: 0,
         possessor,
-        head: Box::new(Reading::SelectedComplementNominal {
-            form: 1,
-            head,
-            complement: Box::new(Reading::KeywordComplementPreposition {
-                category: Category::SelectedKeywordPreposition,
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                head: word("vocab:Preposition/Of"),
-                complement: Box::new(keywords),
+                head: Box::new(Reading::SelectedComplementNominal {
+                    form: 1,
+                    head,
+                    complement: Box::new(Reading::KeywordComplementPreposition {
+                        category: Category::SelectedKeywordPreposition,
+                        form: 0,
+                        head: word("vocab:Preposition/Of"),
+                        complement: Box::new(keywords),
+                    }),
+                }),
             }),
         }),
     }

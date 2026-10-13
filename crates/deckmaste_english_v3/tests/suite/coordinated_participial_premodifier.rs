@@ -41,12 +41,24 @@ fn participle(owner: &str) -> Reading {
 }
 
 fn nominal(modifier: Reading, owner: &str) -> Reading {
-    Reading::CoordinatedPremodifiedNominal {
+    Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(modifier),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word(owner, WordForm::Singular),
+            head: Box::new(Reading::CoordinatedPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(modifier),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word(owner, WordForm::Singular),
+                        }),
+                    }),
+                }),
+            }),
         }),
     }
 }

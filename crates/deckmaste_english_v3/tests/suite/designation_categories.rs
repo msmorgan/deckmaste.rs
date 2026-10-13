@@ -131,9 +131,15 @@ fn independently_constructed_nouns_and_adjectives_roundtrip_with_their_owners() 
             "city's blessing",
         ),
     ] {
-        let expected = Reading::Noun {
+        let expected = Reading::NominalProjection {
             form: 0,
-            head: word(owner, form, Some(true)),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word(owner, form, Some(true)),
+                }),
+            }),
         };
         expected.admit(common::lexicon()).unwrap();
         assert_eq!(expected.realize(common::lexicon()).unwrap(), surface);

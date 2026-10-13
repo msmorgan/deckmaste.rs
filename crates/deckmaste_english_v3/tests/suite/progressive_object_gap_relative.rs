@@ -147,7 +147,7 @@ fn ticket_witnesses_link_the_progressive_object_gap_to_the_antecedent() {
                     let Reading::ObjectRelativeNominal { head, relative, .. } = node else {
                         return false;
                     };
-                    assert_eq!(head.category(), Category::Nominal);
+                    assert_eq!(head.category(), Category::NominalPostmodification);
                     let Reading::ZeroObjectRelativeClause { predicate, .. } = relative.as_ref()
                     else {
                         return false;

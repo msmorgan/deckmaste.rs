@@ -97,7 +97,13 @@ fn cards() -> Reading {
         form: 0,
         head: Box::new(Reading::BareNounPhrase {
             form: 0,
-            head: Box::new(Reading::Noun { form: 0, head }),
+            head: Box::new(Reading::NominalProjection {
+                form: 0,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun { form: 0, head }),
+                }),
+            }),
         }),
     }
 }

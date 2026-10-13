@@ -180,9 +180,15 @@ fn independent_comparative_property_value_preserves_both_laws() {
     assert_laws(&quantity, "less than X", Category::PropertyValue);
     let value = Reading::MeasuredAttribute {
         form: 0,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:CommonNoun/ManaValue", WordForm::Singular),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:CommonNoun/ManaValue", WordForm::Singular),
+                }),
+            }),
         }),
         quantity: Box::new(quantity),
     };

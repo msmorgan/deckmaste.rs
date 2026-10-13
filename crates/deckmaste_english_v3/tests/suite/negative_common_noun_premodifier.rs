@@ -70,15 +70,27 @@ fn independently_constructed_negative_noun_keeps_its_identity_and_plural_head() 
         frame: None,
         countability: Some(true),
     };
-    let expected = Reading::NounPremodifiedNominal {
+    let expected = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(Reading::NounPremodifier {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word("lexeme:CommonNoun/Token/non", Number::Singular),
-        }),
-        head: Box::new(Reading::Noun {
-            form: 0,
-            head: word("lexeme:type/creature", Number::Plural),
+            head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(Reading::NounPremodifier {
+                    form: 0,
+                    head: word("lexeme:CommonNoun/Token/non", Number::Singular),
+                }),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word("lexeme:type/creature", Number::Plural),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     expected.admit(&LEXICON).unwrap();

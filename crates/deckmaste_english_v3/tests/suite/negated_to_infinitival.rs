@@ -214,9 +214,15 @@ fn independently_constructed_negated_complement_preserves_both_laws() {
                     head: Box::new(Reading::DeterminedNounPhrase {
                         form: 0,
                         determiner: word("vocab:SingularDemonstrative/This", WordForm::Invariant),
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: creature,
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: creature,
+                                }),
+                            }),
                         }),
                     }),
                 }))],

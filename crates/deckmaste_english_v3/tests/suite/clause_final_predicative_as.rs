@@ -129,9 +129,15 @@ fn independently_constructed_focused_predicative_roundtrips() {
                     head: Box::new(Reading::IndefiniteNounPhrase {
                         form: 0,
                         determiner: article,
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: noun,
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: noun,
+                                }),
+                            }),
                         }),
                     }),
                 }),

@@ -191,26 +191,32 @@ fn independently_assembled_participle_preserves_both_roundtrip_laws() {
                 countability: None,
             },
         }),
-        head: Box::new(Reading::ParticipialPostmodifiedNominal {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::ParticipialPostmodifiedNominal {
                 form: 0,
-                head: Word {
-                    value: LexicalReading::Word(LexicalValue {
-                        lexeme: "lexeme:CommonNoun/Damage".into(),
-                        form: WordForm::Singular,
-                        features: FeatureBundle {
-                            number: Some(Number::Singular),
-                            ..Default::default()
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: Word {
+                            value: LexicalReading::Word(LexicalValue {
+                                lexeme: "lexeme:CommonNoun/Damage".into(),
+                                form: WordForm::Singular,
+                                features: FeatureBundle {
+                                    number: Some(Number::Singular),
+                                    ..Default::default()
+                                },
+                                variant: 0,
+                                capitalization: SurfaceCase::Declared,
+                            }),
+                            frame: None,
+                            countability: Some(false),
                         },
-                        variant: 0,
-                        capitalization: SurfaceCase::Declared,
                     }),
-                    frame: None,
-                    countability: Some(false),
-                },
+                }),
+                modifier: Box::new(value),
             }),
-            modifier: Box::new(value),
         }),
     };
     measured.admit(&LEXICON).unwrap();

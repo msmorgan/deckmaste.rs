@@ -29,22 +29,28 @@ fn invariant(owner: &str, capitalization: SurfaceCase) -> Word {
 }
 
 fn noun(owner: &str) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: Word {
-            value: LexicalReading::Word(LexicalValue {
-                lexeme: owner.into(),
-                form: WordForm::Singular,
-                features: FeatureBundle {
-                    number: Some(Number::Singular),
-                    ..Default::default()
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: Word {
+                    value: LexicalReading::Word(LexicalValue {
+                        lexeme: owner.into(),
+                        form: WordForm::Singular,
+                        features: FeatureBundle {
+                            number: Some(Number::Singular),
+                            ..Default::default()
+                        },
+                        variant: 0,
+                        capitalization: SurfaceCase::Declared,
+                    }),
+                    frame: None,
+                    countability: Some(true),
                 },
-                variant: 0,
-                capitalization: SurfaceCase::Declared,
             }),
-            frame: None,
-            countability: Some(true),
-        },
+        }),
     }
 }
 
@@ -77,7 +83,7 @@ fn authentic_boundary_pp_keeps_its_bare_interval_structure() {
             head: invariant("vocab:Preposition/Until", SurfaceCase::Declared),
             complement: Box::new(Reading::BareBoundaryNominal {
                 form: 0,
-                head: match noun("lexeme:CommonNoun/End") {
+                head: match crate::common::into_nominal_core(noun("lexeme:CommonNoun/End")) {
                     Reading::Noun { head, .. } => head,
                     _ => unreachable!(),
                 },
@@ -86,7 +92,8 @@ fn authentic_boundary_pp_keeps_its_bare_interval_structure() {
                     form: 0,
                     phrase: Box::new(Reading::BareIntervalNominal {
                         form: 0,
-                        head: match noun("lexeme:CommonNoun/Turn") {
+                        head: match crate::common::into_nominal_core(noun("lexeme:CommonNoun/Turn"))
+                        {
                             Reading::Noun { head, .. } => head,
                             _ => unreachable!(),
                         },
@@ -102,7 +109,9 @@ fn independently_constructed_combat_intervals_roundtrip() {
     // Glyph of Destruction: "... until end of combat."
     // Cathedral Membrane: "... it blocked this combat."
     // Echo Circlet: "... an additional creature each combat."
-    let Reading::Noun { head, .. } = noun("lexeme:turn_part/combat") else {
+    let Reading::Noun { head, .. } =
+        crate::common::into_nominal_core(noun("lexeme:turn_part/combat"))
+    else {
         unreachable!()
     };
     let interval = Reading::BareIntervalNominal { form: 0, head };
@@ -117,7 +126,9 @@ fn independently_constructed_combat_intervals_roundtrip() {
             complement: Box::new(interval.clone()),
         },
     );
-    let Reading::Noun { head, .. } = noun("lexeme:CommonNoun/End") else {
+    let Reading::Noun { head, .. } =
+        crate::common::into_nominal_core(noun("lexeme:CommonNoun/End"))
+    else {
         unreachable!()
     };
     exact(

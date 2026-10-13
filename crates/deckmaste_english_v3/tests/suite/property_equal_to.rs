@@ -235,9 +235,15 @@ fn independently_composed_equality_property_preserves_both_laws() {
     assert_laws(&quantity, "equal to its toughness", Category::PropertyValue);
     let property = Reading::MeasuredAttribute {
         form: 0,
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalProjection {
             form: 0,
-            head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+            head: Box::new(Reading::NominalCoreProjection {
+                form: 0,
+                head: Box::new(Reading::Noun {
+                    form: 0,
+                    head: word("lexeme:CommonNoun/Power", WordForm::Singular),
+                }),
+            }),
         }),
         quantity: Box::new(quantity),
     };

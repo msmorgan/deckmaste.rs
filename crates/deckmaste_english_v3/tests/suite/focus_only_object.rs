@@ -182,22 +182,28 @@ fn independently_constructed_focused_np_roundtrips() {
         },
         head: Box::new(Reading::BareNounPhrase {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: Word {
-                    value: LexicalReading::Word(LexicalValue {
-                        lexeme: "lexeme:type/creature".into(),
-                        form: WordForm::Plural,
-                        features: FeatureBundle {
-                            number: Some(Number::Plural),
-                            ..FeatureBundle::default()
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: Word {
+                            value: LexicalReading::Word(LexicalValue {
+                                lexeme: "lexeme:type/creature".into(),
+                                form: WordForm::Plural,
+                                features: FeatureBundle {
+                                    number: Some(Number::Plural),
+                                    ..FeatureBundle::default()
+                                },
+                                variant: 0,
+                                capitalization: SurfaceCase::Declared,
+                            }),
+                            frame: None,
+                            countability: Some(true),
                         },
-                        variant: 0,
-                        capitalization: SurfaceCase::Declared,
                     }),
-                    frame: None,
-                    countability: Some(true),
-                },
+                }),
             }),
         }),
     };

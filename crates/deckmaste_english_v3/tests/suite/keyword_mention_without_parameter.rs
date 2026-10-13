@@ -43,14 +43,20 @@ fn bare(name: &str) -> Reading {
     }
 }
 fn noun(name: &str, number: Number) -> Reading {
-    Reading::Noun {
+    Reading::NominalProjection {
         form: 0,
-        head: word(
-            &format!("lexeme:CommonNoun/{name}"),
-            if number == Number::Singular { WordForm::Singular } else { WordForm::Plural },
-            Some(number),
-            SurfaceCase::Declared,
-        ),
+        head: Box::new(Reading::NominalCoreProjection {
+            form: 0,
+            head: Box::new(Reading::Noun {
+                form: 0,
+                head: word(
+                    &format!("lexeme:CommonNoun/{name}"),
+                    if number == Number::Singular { WordForm::Singular } else { WordForm::Plural },
+                    Some(number),
+                    SurfaceCase::Declared,
+                ),
+            }),
+        }),
     }
 }
 fn modifier(name: &str) -> Reading {
@@ -172,9 +178,15 @@ fn keyword_premodifiers_keep_keyword_identity_in_costs_and_abilities() {
         (
             "flashback cost",
             "flashback",
-            Reading::BareFramedNoun {
+            Reading::NominalProjection {
                 form: 0,
-                head: cost_head,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::BareFramedNoun {
+                        form: 0,
+                        head: cost_head,
+                    }),
+                }),
             },
         ),
         ("morph ability", "morph", noun("Ability", Number::Singular)),
@@ -183,10 +195,16 @@ fn keyword_premodifiers_keep_keyword_identity_in_costs_and_abilities() {
         exact(
             surface,
             Category::Nominal,
-            Reading::NounPremodifiedNominal {
+            Reading::NominalProjection {
                 form: 0,
-                modifier: Box::new(modifier(name)),
-                head: Box::new(head),
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                        form: 0,
+                        modifier: Box::new(modifier(name)),
+                        head: Box::new(head),
+                    }),
+                }),
             },
         );
     }
@@ -331,17 +349,29 @@ fn keyword_premodification_requires_the_head_permission() {
         ),
     };
     assert!(suffix.admit(common::lexicon()).is_err());
-    let bad = Reading::NounPremodifiedNominal {
+    let bad = Reading::NominalProjection {
         form: 0,
-        modifier: Box::new(modifier("flashback")),
-        head: Box::new(Reading::Noun {
+        head: Box::new(Reading::NominalCoreProjection {
             form: 0,
-            head: word(
-                "lexeme:type/creature",
-                WordForm::Singular,
-                Some(Number::Singular),
-                SurfaceCase::Declared,
-            ),
+            head: Box::new(Reading::BarrierNounPremodifiedNominal {
+                form: 0,
+                modifier: Box::new(modifier("flashback")),
+                head: Box::new(Reading::NominalProjection {
+                    form: 0,
+                    head: Box::new(Reading::NominalCoreProjection {
+                        form: 0,
+                        head: Box::new(Reading::Noun {
+                            form: 0,
+                            head: word(
+                                "lexeme:type/creature",
+                                WordForm::Singular,
+                                Some(Number::Singular),
+                                SurfaceCase::Declared,
+                            ),
+                        }),
+                    }),
+                }),
+            }),
         }),
     };
     assert!(bad.admit(common::lexicon()).is_err());

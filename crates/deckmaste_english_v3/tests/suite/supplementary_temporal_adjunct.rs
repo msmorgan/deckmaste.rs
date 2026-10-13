@@ -69,13 +69,19 @@ fn expected() -> Reading {
                                         WordForm::Invariant,
                                         Some(Number::Singular),
                                     ),
-                                    head: Box::new(Reading::Noun {
+                                    head: Box::new(Reading::NominalProjection {
                                         form: 0,
-                                        head: word(
-                                            "lexeme:CommonNoun/Turn",
-                                            WordForm::Singular,
-                                            None,
-                                        ),
+                                        head: Box::new(Reading::NominalCoreProjection {
+                                            form: 0,
+                                            head: Box::new(Reading::Noun {
+                                                form: 0,
+                                                head: word(
+                                                    "lexeme:CommonNoun/Turn",
+                                                    WordForm::Singular,
+                                                    None,
+                                                ),
+                                            }),
+                                        }),
                                     }),
                                 }),
                             }),
@@ -94,9 +100,19 @@ fn expected() -> Reading {
                     form: 0,
                     head: Box::new(Reading::BareNounPhrase {
                         form: 0,
-                        head: Box::new(Reading::Noun {
+                        head: Box::new(Reading::NominalProjection {
                             form: 0,
-                            head: word("lexeme:CommonNoun/Attacker", WordForm::Plural, None),
+                            head: Box::new(Reading::NominalCoreProjection {
+                                form: 0,
+                                head: Box::new(Reading::Noun {
+                                    form: 0,
+                                    head: word(
+                                        "lexeme:CommonNoun/Attacker",
+                                        WordForm::Plural,
+                                        None,
+                                    ),
+                                }),
+                            }),
                         }),
                     }),
                 }),

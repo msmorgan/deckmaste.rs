@@ -193,9 +193,15 @@ fn independently_constructed_torpor_orb_constituent_preserves_both_laws() {
         form: 0,
         head: Box::new(Reading::BareNounPhrase {
             form: 0,
-            head: Box::new(Reading::Noun {
+            head: Box::new(Reading::NominalProjection {
                 form: 0,
-                head: ability,
+                head: Box::new(Reading::NominalCoreProjection {
+                    form: 0,
+                    head: Box::new(Reading::Noun {
+                        form: 0,
+                        head: ability,
+                    }),
+                }),
             }),
         }),
     };
