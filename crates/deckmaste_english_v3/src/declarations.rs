@@ -866,7 +866,6 @@ constructions! {
             head PredicativeAdjunctUse, head SelectedPrepositionUse, head MatrixComplementRequirement,
             head InternalisedComplementMarker
         );
-        category FrequencyPhraseSeries();
         category CoordinatedFiniteClause(head GeneralCoordination);
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
@@ -1755,6 +1754,10 @@ constructions! {
 
         coordinable InfinitiveComplement using Standard {
             forms binary, serial, both, either, neither;
+        }
+
+        coordinable FrequencyPhrase using Standard {
+            forms binary, serial;
         }
 
         schema CoordinationSeriesEnd {
@@ -2915,7 +2918,6 @@ constructions! {
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
             (QuotedTextSeries, QuotedText),
-            (FrequencyPhraseSeries, FrequencyPhrase),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -2928,7 +2930,6 @@ constructions! {
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
             (QuotedTextSeries, QuotedText, Self),
-            (FrequencyPhraseSeries, FrequencyPhrase, Self),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -2938,7 +2939,6 @@ constructions! {
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
-            (FrequencyPhrase, Self, FrequencyPhraseSeries),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -3202,7 +3202,6 @@ constructions! {
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (FrequencyPhrase, Self),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
