@@ -61,8 +61,14 @@ analysis of the text.** Three cases are approved:
 - clause versus verb-phrase coordination of bare imperatives, where nothing
   distinguishes them.
 
-The gate for such a change is the analysis key: per unit, the set of keys is
-unchanged while the number of trees falls. Not decided, and therefore not
+The gate for such a change is a check that compares, per unit, the set of
+analyses before and after under exactly the equivalence being introduced and
+nothing wider: the set is unchanged while the number of trees falls. Each step
+gets its own check, as narrow as is sound. For modifier order it is a normal
+form of the Reading tree that ignores only the interleaving of commuting pre-
+and post-modifiers on one nominal head; which modifiers commute is a stated,
+reviewed list, and anything unlisted is a barrier. A general analysis key
+(head and function of every dependent) is built only when a step needs it. Not decided, and therefore not
 permitted: dropping the adjunct or postmodifier analysis of a preposition
 phrase that the verb's frame also selects.
 
@@ -108,8 +114,8 @@ costs dozens of lines is a defect in the authoring layer, to be fixed there.
 ## 5. The gate
 
 - A refactor keeps every reading digest identical.
-- A linguistic change loses no face, and is checked against the judgment set
-  and the analysis-key rule in section 2.
+- A linguistic change loses no face, and passes its step's check from
+  section 2.
 - The census check mode enforces both by failing; a report is not a gate.
 - The judgment set is the only tracked evidence: hand-written, one line per
   entry, no tree dumps. Nothing a tool emits is tracked.
