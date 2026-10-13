@@ -420,8 +420,8 @@ this step does not redesign their representation.
 
 ### Candidate dispositions at this prefix
 
-All 49 original candidates are accounted for below: four already converted,
-19 retained properties, and 26 pending conversion/eligibility review. Pending
+All 49 original candidates are accounted for below: 17 converted,
+23 retained properties, and nine pending class conversions. Pending
 means not implemented, not an assertion that a conversion has passed its gates.
 The table-output-domain check adds VerblessPredicateUse to the retained list;
 the initial inventory's table column had counted only inputs. No plugin/catalog
@@ -433,30 +433,30 @@ not justify a membership route on their own.
 
 | Original feature | Disposition | Reason / next work |
 |---|---|---|
-| QuantitativeExceptionUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| QuantitativeExceptionUse | Converted | Word reference: All. |
 | QuantificationalDeterminer | Retain property | Inputs to quantificational_number and quantificational_scalar_denotation. |
-| QuantificationalAdjunctUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| PrimaryNegation | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| QuantificationalAdjunctUse | Converted | Word reference: Each. |
+| PrimaryNegation | Converted | Policy requirement: head is Not. |
 | ObliqueMarker | Retain property | Inputs to oblique_number and whole_object_oblique_source exports. |
-| AdverbComplementClass | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| AdverbComplementClass | Converted | Word reference: For. |
 | FocusingModifierUse | Converted | Only word reference. |
 | ImmediatePostheadDependentUse | Retain property | Input to licensed_posthead_dependent; optional admission judgment. |
-| FusedHeadPostmodifierUse | Pending | Else occurs in an optional field; assess existing present-only word requirement. |
-| QuantitativeConjunctUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| MatrixComplementGovernor | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| FusedHeadPostmodifierUse | Converted | Present-only optional requirement: dependent is Else. |
+| QuantitativeConjunctUse | Converted | Word reference: Both. |
+| MatrixComplementGovernor | Converted | Word reference: Except. |
 | CompoundComplementMarker | Retain property | Input to selected_compound_complement. |
-| FiniteObjectGapComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| IrrealisClauseComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| ExtentMarker | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| FiniteObjectGapComplement | Converted | Word reference: As. |
+| IrrealisClauseComplement | Converted | Word reference: AsThough. |
+| ExtentMarker | Converted | Word reference: By. |
 | RelativeSubordinator | Converted | RelativeThat word reference. |
-| ProFormComplementUse | Pending | Review So eligibility: current generic Adverb inventory does not establish closed-word eligibility. |
+| ProFormComplementUse | Retain property | So is a core Adverb in the generic Adverb inventory, which does not establish closed-word eligibility; no singleton class. |
 | MatrixComparisonUse | Retain property | Both Yes and default No are read; ordinary Adverb admission uses No. |
 | ExistentialUse | Retain property | Dummy pronouns require Yes; ordinary nominative/accusative pronouns require default No. |
-| CardinalModifierUse | Pending | Review Exactly eligibility: current generic Adverb inventory does not establish closed-word eligibility. |
+| CardinalModifierUse | Retain property | Exactly is a core Adverb in the generic Adverb inventory, which does not establish closed-word eligibility; no singleton class. |
 | InfinitivalMarker | Converted | InfinitivalTo word reference. |
-| SecondaryNegation | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| CorrelativeKind | Pending | Three single-word values (Both, Either, Neither); assess selector replacements in schemas. |
-| QuotedComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| SecondaryNegation | Converted | Policy requirement: head is Not. |
+| CorrelativeKind | Converted | Word references: Both, Either, Neither. |
+| QuotedComplement | Converted | Word reference: With. |
 
 **Closed-word class candidates (10)**
 
@@ -484,11 +484,11 @@ not justify a membership route on their own.
 | VerblessPredicateUse | Retain property | Output domain of verbless_ordinary_frame_use, not merely a membership flag. |
 | VerblessComplementOmissionUse | Retain property | Input to verbless_ordinary_frame_use; also singleton Able. |
 | PastParticipialPremodifier | Retain property | Input to verbal_premodifier. |
-| BareSingularUse | Pending | Assess class on Defend plus plugin-derived enchant/equip/fortify adjectives; needs an actual plugin declaration route. |
+| BareSingularUse | Retain property | Retained grammatical permission: modifier.BareSingularUse = Yes states what licenses the bare singular NP. in BareSingularModifier would mostly rename it, not clarify the construction; no plugin route added. |
 | BoundKeyword | Retain property | Both Yes and No are read (bound suffix versus noun premodifier); positive membership does not replace both. |
 | CreatureSubtypeStem | Retain property | Input to licensed_creature_stem. |
 | CreatureSubtypeStemUse | Retain property | Input to licensed_creature_stem. |
-| IdentityUse | Pending | Assess name class; catalog-generated membership must be stated as data, not a hard-coded class name. |
+| IdentityUse | Retain property | Retained name use: head.IdentityUse = Name already distinguishes name-bearing Catalog entries. in ProperName would mostly rename that condition; no catalog route added. |
 | TaxonomicComplementUse | Retain property | Kind is an open-class noun and the only holder; no singleton class. |
 | SelectedTailLicence | Retain property | Default ParallelFrames and explicit DeclaredFrames are read by selected-frame expansion; a real lexical property. |
 | KeywordIndefiniteArticle | Retain property | Input to keyword_subject_article and keyword_subject_license; also singleton champion. |
@@ -525,3 +525,94 @@ This is a complete cleanup step. The ticket remains WIP: the need-dependent
 plugin/catalog data route, 26 pending candidate reviews/conversions and final
 landing note remain. The glossary already defines Closed Word and Lexical Class;
 READMEs and the seven unsupported frame findings are current for this prefix.
+
+## Phase 2: direct word references
+
+Completed all 15 pending direct-reference decisions. Thirteen features are
+replaced by 13 additional named words (16 bindings total); So and Exactly remain
+properties under the existing closed-class eligibility check. They are native
+core entries with Category Adverb and Source owners vocab:Adverb/So and
+vocab:Adverb/Exactly, not members of the functional adverb inventories accepted
+by that check. Neither an eligibility relaxation nor a singleton class is added.
+
+The removed features are QuantitativeExceptionUse, QuantificationalAdjunctUse,
+PrimaryNegation, SecondaryNegation, AdverbComplementClass,
+FusedHeadPostmodifierUse, QuantitativeConjunctUse, MatrixComplementGovernor,
+FiniteObjectGapComplement, IrrealisClauseComplement, ExtentMarker,
+CorrelativeKind and QuotedComplement. Their values and FeatureSource records
+leave the data; all other properties remain. Forms name their words directly;
+the optional Else field and shared negator policies use existing is requirements.
+The finite-gapped form alone names As; the ordinary finite-clause form keeps its
+table judgment. Both correlative Both and quantitative Both bind the same ID.
+
+Four tests are re-spelled: licences_and_positive_auxiliary_status_control_admission,
+named_irrealis_word_controls_admission_and_parsing (formerly declared_irrealis_permission_controls_admission_and_parsing),
+negation_requires_the_named_word (formerly negation_requires_the_declared_feature),
+and correlative_markers_keep_determinative_identity_and_nor_is_distinct.
+Identity perturbations retain spelling and other lexical data. The independently
+built irrealis Reading points to the perturbed, realizable lexeme before its
+admission is rejected; rejection is not merely a missing-word lookup. Original
+texts, controls and asserted outcomes are retained. No tests are removed or
+newly ignored, and no compiler capability is added.
+
+The two potential plugin/catalog classes are deliberately retained as properties
+under the owner's clarity rule. BareStatusNounPhrase currently says
+`require modifier.BareSingularUse = Yes`; `require modifier in BareSingularModifier`
+would rename the same grammatical permission without making its role plainer.
+CatalogName says `require head.IdentityUse = Name`; `require head in ProperName`
+would likewise rename an already explicit name-use condition. Neither warrants
+new source-declaration plumbing here. The eligibility check is unchanged.
+
+The first full census passed, but the independent optional-Else test found a
+real admission regression: generated optional-word admission enforced feature
+checks but omitted the separate lexical checks already enforced by parsing.
+The emitter now checks those same word/class memberships when a word is present;
+absence remains admissible. The original
+anywhere_else_goal::optional_dependent_and_locative_use_require_declared_licenses
+test is unchanged. The compiler runtime fixture additionally rejects independently
+constructed optional homographs, and a new test checks optional class membership
+with either separator position, including absence, parse and realization.
+This fixes an existing capability; it introduces no authoring construct.
+
+After the admission fix, the full identical-digests gate against the version-2
+baseline passes again: 32,828 unchanged faces, 30,794 read, 482,041 Readings,
+zero lost/gained/count/digest-only changes, incomplete faces or issues. The
+subset retains Nissa's 20 Readings. The completed step census was removed.
+
+Regenerated comparisons match 927 sorted rule contracts, 326 constructor records
+and 666 emitted shapes. Retired feature constraints are compared as their
+explicit word/class predicates. Their constant registers are checked to have
+one lexical reader, no export/table consumers and no release before that reader;
+only the subsequent lifetime of these retired registers is representation-specific.
+All surviving register releases remain compared. The structured comparison
+checks all 35,603 lexemes and all 19 replacement predicates extensionally,
+including absent values. It permits only the 17 cumulative feature/provenance
+retirements and the 46 previously approved dead values; 30 entries differ.
+Forms, variants, other properties and ordered frames match. The seven unsupported
+signatures and unmapped declarations are unchanged. The new inventory hash is
+c84e961550a48d6697542b391b3a967409f50ce7c9769e35910da09ad3e85df5.
+
+Authored declarations.rs is 6,071 lines (6,089 before this group; 6,093 at ticket
+start), with 167 authored features (180 before this group; 184 at ticket start),
+16 closed-word bindings and one four-member class. No production construction,
+Category, constructor name, field, form index or optional Category field changed.
+
+Full cargo test for deckmaste_construction_v3_core, deckmaste_construction_v3,
+deckmaste_english_v3, deckmaste_lexical_source and xtask passes: 1,848 passed,
+zero failed, two existing ignored. The compiler suites were rerun after extracting
+the optional-word check emitter: 143 passed, zero failed or ignored. Full clippy
+for all five crates with --tests -- -D warnings passes. Citation audit selects
+zero changed sites; zero noncompliant sites and zero stale citations (17,780).
+Assurance for this group: one added compiler runtime test, four re-spelled English
+tests, one existing compiler runtime test strengthened, zero restored, removed or
+newly ignored. The independent optional-Else regression test passes unchanged.
+
+This is a complete direct-reference group, not ticket completion. The final table
+currently has 17 converted candidates, 23 retained properties and nine pending
+class conversions: ComparativeDegreeModifierUse, AuxiliaryUse, FusedHeadUse,
+ComparativeQuantityUse, NoncorrelativeCoordination, NominalLicense,
+KeywordComplement, SuperlativeQuantifierUse and QuantitativeAdjectiveComplementUse.
+No plugin/catalog membership route is needed for those measured members. Finish
+the two class groups with their gates, update the final table and append the
+two-line landing note then. The glossary and READMEs are current for this prefix;
+the ticket remains WIP.

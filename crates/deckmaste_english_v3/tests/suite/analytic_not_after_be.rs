@@ -152,22 +152,24 @@ fn analytic_and_synthetic_pairs_keep_equal_readings() {
 
 #[test]
 fn licences_and_positive_auxiliary_status_control_admission() {
-    for (owner, feature, replacement) in [
-        ("vocab:PredicateNegator/Not", "PrimaryNegation", None),
-        ("core-verb:BeContracted", "AuxiliaryUse", Some("No")),
-        ("core-verb:BeContracted", "Polarity", Some("Negative")),
+    for (owner, replacement) in [
+        ("vocab:PredicateNegator/Not", None),
+        ("core-verb:BeContracted", Some(("AuxiliaryUse", "No"))),
+        ("core-verb:BeContracted", Some(("Polarity", "Negative"))),
     ] {
         let mut lexemes: Vec<_> = common::lexicon().lexemes().values().cloned().collect();
-        let features = &mut lexemes
+        let lexeme = lexemes
             .iter_mut()
             .find(|lexeme| lexeme.id.as_str() == owner)
-            .unwrap()
-            .properties
-            .features;
-        if let Some(value) = replacement {
-            features.insert(feature.into(), value.into());
+            .unwrap();
+        if let Some((feature, value)) = replacement {
+            lexeme
+                .properties
+                .features
+                .insert(feature.into(), value.into());
         } else {
-            features.remove(feature);
+            // Identical spelling and properties do not confer the named word's identity.
+            lexeme.id = "test:unnamed-not".into();
         }
         let lexicon = Lexicon::new(lexemes).unwrap();
         assert!(

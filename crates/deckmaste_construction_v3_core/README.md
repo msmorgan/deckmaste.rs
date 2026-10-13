@@ -629,7 +629,9 @@ lexical layer. Homographs with different lexeme IDs do not satisfy the check.
 A class may declare multiple Categories with `Preposition | Subordinator`;
 its membership requirement intersects the form's Category. Policies can use
 either requirement. An optional lexical field is checked only when present,
-as with its existing direct feature requirements. Unknown symbols, nonlexical
+as with its existing direct feature requirements. Parsing and admission of
+independently constructed Readings enforce both word and class constraints.
+Unknown symbols, nonlexical
 fields, incompatible Categories and duplicate names or identities are
 compilation errors.
 

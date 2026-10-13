@@ -222,17 +222,24 @@ fn independently_constructed_irrealis_preserves_value_and_leaf_order() {
 }
 
 #[test]
-fn declared_irrealis_permission_controls_admission_and_parsing() {
+fn named_irrealis_word_controls_admission_and_parsing() {
     let mut lexemes: Vec<_> = common::lexicon().lexemes().values().cloned().collect();
     lexemes
         .iter_mut()
         .find(|lexeme| lexeme.id == "vocab:Preposition/AsThough")
         .unwrap()
-        .properties
-        .features
-        .insert("IrrealisClauseComplement".into(), "No".into());
+        .id = "test:unnamed-as-though".into();
     let lexicon = deckmaste_lexical::Lexicon::new(lexemes).unwrap();
-    assert!(independent_irrealis().admit(&lexicon).is_err());
+    let mut independent = independent_irrealis();
+    let Reading::IrrealisClauseComplementPreposition { head, .. } = &mut independent else {
+        panic!("irrealis complement");
+    };
+    let LexicalReading::Word(value) = &mut head.value else {
+        panic!("lexical head");
+    };
+    value.lexeme = "test:unnamed-as-though".into();
+    assert_eq!(lexicon.realize(&head.value).unwrap(), "as though");
+    assert!(independent.admit(&lexicon).is_err());
     assert!(
         common::readings_with_lexicon(
             &lexicon,

@@ -13,13 +13,25 @@ constructions! {
         closed_word InfinitivalTo: Subordinator = "vocab:InfinitivalMarker/To";
         closed_word RelativeThat: Subordinator = "vocab:Subordinator/That";
         closed_word Only: Adverb = "vocab:FocusAdverb/Only";
+        closed_word All: Determinative = "vocab:FloatedQuantifier/All";
+        closed_word Each: Determinative = "vocab:FloatedQuantifier/Each";
+        closed_word Not: Adverb = "vocab:PredicateNegator/Not";
+        closed_word For: Preposition = "vocab:Preposition/For";
+        closed_word Else: Preposition = "vocab:Preposition/Else";
+        closed_word Both: Determinative = "vocab:FloatedQuantifier/Both";
+        closed_word Except: Preposition = "vocab:Preposition/Except";
+        closed_word As: Preposition = "vocab:Preposition/As";
+        closed_word AsThough: Preposition = "vocab:Preposition/AsThough";
+        closed_word By: Preposition = "vocab:Preposition/By";
+        closed_word Either: Determinative = "vocab:Determinative/Either";
+        closed_word Neither: Determinative = "vocab:Determinative/Neither";
+        closed_word With: Preposition = "vocab:Preposition/With";
 
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
         feature SuperlativeQuantifierUse { No, Yes } default No;
         feature DegreeUse { None, Head, Modifier } default None;
-        feature QuantitativeExceptionUse { No, Yes } default No;
         feature ComparativeDegreeModifierUse { No, Yes } default No;
         feature FrequencyUse { No, Yes } default No combine all;
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
@@ -80,10 +92,8 @@ constructions! {
             combine coordinated_nominal_agreement(coordinator.CoordinationKind, right.NominalAgreementNumber);
         feature DeterminerAgreementNumber { Nominal, Singular, SingularOrPlural } default Nominal combine coordinated_determiner_agreement;
         feature QuantificationalDeterminer { No, Yes } default No;
-        feature QuantificationalAdjunctUse { No, Yes } default No;
         feature AuxiliaryUse { No, Yes } default No;
         feature Polarity { Positive, Negative } default Positive;
-        feature PrimaryNegation { Yes }
         feature ObliqueMarker { No, Yes } default No;
         feature ObliqueNumber { None, Singular, Plural } default None
             combine coordinated_oblique(coordinator.CoordinationKind, left.ObliqueNumber, right.ObliqueNumber);
@@ -130,7 +140,6 @@ constructions! {
         table predicative_noun_phrase_complement(PrepositionComplement) -> Selection contains PredicativeNounPhrase => Yes;
         table intransitive_preposition_complement(PrepositionComplement) -> Selection contains Intransitive => Yes;
         feature AdjectiveComplementClass { None, Manner, ColorWord } default None combine coordinated_adjective_complement_class;
-        feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No combine all;
         // A focused conjunct blocks focus on the whole coordination.
         feature FocusedUse { No, Yes } default No combine any;
@@ -148,7 +157,6 @@ constructions! {
         feature PurposeAdjunctLicence { No, Yes } default Yes combine all;
         feature FusedHeadUse { No, Yes } default No;
         feature ImmediatePostheadDependentUse { No, Yes } default No;
-        feature FusedHeadPostmodifierUse { No, Yes } default No;
         table licensed_posthead_dependent(present, ImmediatePostheadDependentUse) -> Selection {
             (No, _) => Yes, (Yes, Yes) => Yes,
         }
@@ -156,7 +164,6 @@ constructions! {
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase, ExceptionQuantity } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
-        feature QuantitativeConjunctUse { No, Yes } default No;
         feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
@@ -175,7 +182,6 @@ constructions! {
         feature PrepositionFunctionLicence { Adjunct, Modifier, NounComplement, VerbComplement,
             PredicativeComplement, Compound, ComparativeComplement, PreposedAdjunct,
             Supplement, MedialSupplement } set combine coordinated_preposition_licence;
-        feature MatrixComplementGovernor { No, Yes } default No;
         feature MatrixComplementRequirement { None, Internalised, Nominal, Content } default None combine matrix_complement_concord;
         feature MatrixComplementLicence { None, Nominal, Content } default None combine matrix_host_concord;
         feature NominalExceptionComplementUse { No, Yes } default No combine all;
@@ -277,10 +283,8 @@ constructions! {
         table finite_clause_complement(FiniteClauseComplement) -> Selection {
             (Yes) => Yes, (Nonsequencing) => Yes,
         }
-        feature FiniteObjectGapComplement { No, Yes } default No;
         feature ComparativeObjectGapLicence { No, Yes } default No combine all;
         feature InterveningAdjunctLicence { No, Yes } default No combine all;
-        feature IrrealisClauseComplement { No, Yes } default No;
         feature VerblessClauseComplement { No, Yes, OvertSubject } default No;
         feature VerblessPredicateUse { No, Yes } default No;
         feature VerblessComplementOmissionUse { No, Yes } default No;
@@ -314,7 +318,6 @@ constructions! {
         }
         feature InternalisedComplementMarker { No, Yes } default No combine all;
         feature InternalisedComplementPresent { No, Yes } default No combine any;
-        feature ExtentMarker { Yes }
         feature LocativeUse { No, Yes } default No combine always No;
         feature AdjectiveOrigin { Ordinary, Participial } default Ordinary combine coordinated_adjective_origin;
         feature AdjectivePremodifierUse { No, Yes } default Yes combine all;
@@ -506,7 +509,6 @@ constructions! {
         table central_postauxiliary(CentralAdjunctLicence) -> Selection contains PostAuxiliary => Yes;
         table central_imperative(CentralAdjunctLicence) -> Selection contains Imperative => Yes;
         feature CentralAdjunctPosition { Preverbal, PostCopula, PostAuxiliary } default Preverbal;
-        feature SecondaryNegation { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
             QuantitativeDeterminer, Infinitive, PassiveNominal, PassiveInternalised } combine shared_frame_concord;
@@ -517,14 +519,12 @@ constructions! {
         feature GeneralCoordination { No, Yes } default Yes combine coordinator.GeneralCoordination;
         feature UnmarkedConjunctLicence { No, Yes } default Yes combine always Yes;
         feature NoncorrelativeCoordination { Yes, No }
-        feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
         // The default partial judgments reject like pairs; helpers use the total tables.
         feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed } combine unlike_predicative_kind;
         feature DepictiveKind { Adjectival, Participial, Mixed } combine unlike_depictive_kind;
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
-        feature QuotedComplement { Yes }
         feature QuotationStructure { Simple, Coordinated } combine always Coordinated;
         feature GrantedAbilityKind { Keyword, Quoted } combine combined_ability_kind;
         feature AbilityTermination { Complete, Unterminated } default Complete;
@@ -2080,9 +2080,8 @@ constructions! {
 
         schema EitherCoordination {
             head none;
-            form [marker: lexical(Determinative), " ", left: node, " ",
+            form [marker: lexical_word(Either), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
-            require marker.CorrelativeKind = Either;
             require coordinator.CorrelativeCoordinator = Or;
         }
 
@@ -2100,31 +2099,27 @@ constructions! {
 
         schema EitherSerialCoordination {
             head none;
-            form [marker: lexical(Determinative), " ", left: node, ", ", rest: node];
-            require marker.CorrelativeKind = Either;
+            form [marker: lexical_word(Either), " ", left: node, ", ", rest: node];
             require rest.CorrelativeCoordinator = Or;
         }
 
         schema BothCoordination {
             head none;
-            form [marker: lexical(Determinative), " ", left: node, " ",
+            form [marker: lexical_word(Both), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
-            require marker.CorrelativeKind = Both;
             require coordinator.CorrelativeCoordinator = And;
         }
 
         schema NeitherCoordination {
             head none;
-            form [marker: lexical(Determinative), " ", left: node, " ",
+            form [marker: lexical_word(Neither), " ", left: node, " ",
                 coordinator: lexical(Coordinator), " ", right: node];
-            require marker.CorrelativeKind = Neither;
             require coordinator.CorrelativeCoordinator = Nor;
         }
 
         schema NeitherSerialCoordination {
             head none;
-            form [marker: lexical(Determinative), " ", left: node, ", ", rest: node];
-            require marker.CorrelativeKind = Neither;
+            form [marker: lexical_word(Neither), " ", left: node, ", ", rest: node];
             require rest.CorrelativeCoordinator = Nor;
         }
 
@@ -2765,9 +2760,8 @@ constructions! {
         // the Subject. Clause attachment scopes over the whole Predicate.
         construction QuantifiedClause: FiniteClause {
             head predicate;
-            form [subject: NominativePhrase, " ", quantifier: lexical(Determinative),
+            form [subject: NominativePhrase, " ", quantifier: lexical_word(Each),
                 " ", predicate: FinitePredicate];
-            require quantifier.QuantificationalAdjunctUse = Yes;
             require subject.number = Plural;
             require predicate.CliticHost = Free;
             require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes;
@@ -2777,8 +2771,7 @@ constructions! {
         // CGEL Ch. 3 §2.1.5, p. 102: the adjunct can follow an auxiliary,
         // never a lexical verb. Copular be is auxiliary (Ch. 2 §3, p. 51).
         construction QuantifiedAuxiliaryHead: QuantifiedAuxiliaryHead {
-            form [head: lexical(Verb), " ", quantifier: lexical(Determinative)];
-            require quantifier.QuantificationalAdjunctUse = Yes;
+            form [head: lexical(Verb), " ", quantifier: lexical_word(Each)];
             require head.AuxiliaryUse = Yes;
             require head.number = Plural;
             export frame = head.frame;
@@ -2794,9 +2787,8 @@ constructions! {
         construction QuantifiedBareAuxiliaryPredicate: FinitePredicate {
             require licensed_auxiliary_pro_form(head.AuxiliaryProFormLicence,
                 complement.AuxiliaryComplementRealization) = Yes;
-            form [head: lexical(Verb), " ", quantifier: lexical(Determinative),
+            form [head: lexical(Verb), " ", quantifier: lexical_word(Each),
                 complement: BareComplement];
-            require quantifier.QuantificationalAdjunctUse = Yes;
             require head.frame = BareAuxiliary;
             require head.number = Plural;
             require licensed_auxiliary_complement(head.AuxiliaryEllipsisLicence,
@@ -3734,7 +3726,7 @@ constructions! {
             export UnitBearing = No;
             form [head: lexical(Determinative),
                 dependent: optional(lexical(Preposition), before(" "))]
-                require dependent.FusedHeadPostmodifierUse = Yes
+                require dependent is Else
                 require licensed_posthead_dependent(dependent.present,
                     head.ImmediatePostheadDependentUse) = Yes
                 require head.FusedHeadUse = Yes
@@ -4148,8 +4140,7 @@ constructions! {
             form [head: lexical(Preposition), " ", complement: FiniteClause]
                 require finite_clause_complement(head.FiniteClauseComplement) = Yes;
             // Orchestrator ruling R12f (2026-10-09), licensing detail.
-            form [head: lexical(Preposition), " ", complement: FiniteGappedClause]
-                require head.FiniteObjectGapComplement = Yes;
+            form [head: lexical_word(As), " ", complement: FiniteGappedClause];
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -4166,8 +4157,7 @@ constructions! {
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            form [head: lexical(Preposition), " ", complement: IrrealisClause];
-            require head.IrrealisClauseComplement = Yes;
+            form [head: lexical_word(AsThough), " ", complement: IrrealisClause];
             export LocativeUse = No;
             export InternalisedComplementMarker = No;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
@@ -4182,8 +4172,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             export ComplementFunctionRestriction = Adjunct;
-            form [head: lexical(Preposition), " ", complement: AdverbPhrase];
-            require head.AdverbComplementClass = Duration;
+            form [head: lexical_word(For), " ", complement: AdverbPhrase];
             require complement.DurationUse = Yes;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
@@ -4265,8 +4254,7 @@ constructions! {
             export InterveningAdjunctLicence = No;
             export ConnectiveAdjunctUse = No;
             export ComplementFunctionRestriction = None;
-            form [head: lexical(Preposition), " ", complement: PrepositionPhrase];
-            require head.MatrixComplementGovernor = Yes;
+            form [head: lexical_word(Except), " ", complement: PrepositionPhrase];
             require complement.MatrixComplementRequirement = None;
             export MatrixComplementRequirement = matrix_pp_requirement(
                 complement.InternalisedComplementMarker, complement.NominalExceptionComplementUse);
@@ -4671,9 +4659,8 @@ constructions! {
 
         construction QuantifiedSubjectRelative: SubjectRelativeClause {
             head predicate;
-            form [marker: lexical_word(RelativeThat), " ", quantifier: lexical(Determinative),
+            form [marker: lexical_word(RelativeThat), " ", quantifier: lexical_word(Each),
                 " ", predicate: FinitePredicate];
-            require quantifier.QuantificationalAdjunctUse = Yes;
             require predicate.CliticHost = Free;
             require predicate.number = Plural;
             require predicate.person = Third;
@@ -5121,10 +5108,9 @@ constructions! {
             head none;
             export DegreeUse = None;
             form [left: Cardinal, " ", coordinator: lexical(Coordinator), " ",
-                right: lexical(Determinative)];
+                right: lexical_word(Both)];
             require coordinator.CoordinationKind = Alternative;
             require coordinator.NoncorrelativeCoordination = Yes;
-            require right.QuantitativeConjunctUse = Yes;
             export DeterminerUse = right.DeterminerUse;
             export DeterminerAgreementNumber = right.DeterminerAgreementNumber;
             export Definiteness = Nondefinite;
@@ -5190,9 +5176,8 @@ constructions! {
         // CGEL Ch. 5 §11(f), p. 433: an exception PP depends on all.
         // AB1–AB3 license its quantity Complement and partitive-head use.
         construction ExceptionDeterminativePhrase: QuantitativeDeterminer {
-            form [head: lexical(Determinative), " ", exception: ExceptionPrepositionPhrase];
-            form [head: lexical(Determinative), " ", exception: ExceptionDegreePrepositionPhrase];
-            require head.QuantitativeExceptionUse = Yes;
+            form [head: lexical_word(All), " ", exception: ExceptionPrepositionPhrase];
+            form [head: lexical_word(All), " ", exception: ExceptionDegreePrepositionPhrase];
             export DegreeUse = None;
             export Definiteness = Nondefinite;
             export NominalAdjunctDependent = None;
@@ -5411,8 +5396,7 @@ constructions! {
         }
         // CGEL Ch. 8 §§5.2–5.3: scalar extent is selected by its lexical host.
         construction ScalarExtentComplement: ScalarExtentComplement {
-            form [marker: lexical(Preposition), " ", complement: ScalarExtentMeasure];
-            require marker.ExtentMarker = Yes;
+            form [marker: lexical_word(By), " ", complement: ScalarExtentMeasure];
         }
 
         construction MeasuredNounPhrase: NounPhrase {
@@ -5614,8 +5598,7 @@ constructions! {
         // predicand requirement is discharged only by MeasuredAttribute.
         construction QuantifiedComparativeAdjectivePhrase: ComparativeAdjectivePhrase {
             head value;
-            form [quantifier: lexical(Determinative), " ", value: ComparativeAdjectivePhrase];
-            require quantifier.QuantificationalAdjunctUse = Yes;
+            form [quantifier: lexical_word(Each), " ", value: ComparativeAdjectivePhrase];
             require value.PropertyEqualityForm = Unquantified;
             export PropertyEqualityForm = Quantified;
             export AdjectivePremodifierUse = No;
@@ -5708,10 +5691,10 @@ constructions! {
             form [head: lexical(Adverb)];
         }
         policy SecondaryNegatorLicence {
-            require head.SecondaryNegation = Yes;
+            require head is Not;
         }
         policy PrimaryNegatorLicence {
-            require head.PrimaryNegation = Yes;
+            require head is Not;
         }
         instance Negator<Result, Licence>: [
             (SecondaryNegatorHead, SecondaryNegatorLicence),
@@ -6030,8 +6013,7 @@ constructions! {
             export SourceModifierPresent = No;
             export WholeObjectSourcePresent = No;
             export NominalComplementMarker = None;
-            form [head: lexical(Preposition), " ", complement: GrantedAbility];
-            require head.QuotedComplement = Yes;
+            form [head: lexical_word(With), " ", complement: GrantedAbility];
             require complement.GrantedAbilityKind = Quoted;
             require licence_modifier(head.PrepositionFunctionLicence) = Yes;
             export PrepositionFunctionLicence = Modifier;

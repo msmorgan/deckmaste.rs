@@ -502,21 +502,33 @@ supplies finite clause status (Ch. 3 §§1.8.1–2, pp. 88–90). Gerund-partici
 and past participles remain nonfinite. Tensed lexical bundles retain their
 Number, Person, Tense, and Finiteness correlation.
 
-### Closed-word prototype
+### Closed-word references and lexical classes
 
-Infinitival *to*, relative *that* and restrictive *only* are named in their
-forms with `lexical_word`. Their historical lexeme IDs remain unchanged.
+Closed words are named in forms with `lexical_word`: infinitival *to*, relative
+*that*, restrictive *only*, *all*, *each*, *both*, *either*, *neither*, and the
+specific prepositions *for*, *except*, *as*, *as though*, *by* and *with*.
+The optional postmodifier uses `require dependent is Else`; both negator policies
+use `require head is Not`. An absent optional element remains admissible.
+The historical lexeme IDs, Categories and forms remain unchanged, including the
+two distinct *to* lexemes and the atomic multiword *as though*.
+
 The four prepositions *by*, *of*, *to* and *without* declare membership in
 `GerundClausePreposition`; the gerund-complement construction requires that
-class. All seven words have one home in lexical data, including their forms,
-properties and frames. The grammar binds names to the three directly referenced
-IDs and declares the class domain; the four members state membership in data.
+class. Words have one home in lexical data, including forms, properties and
+frames. The grammar only binds names to IDs and declares class domains.
 Callers pass `grammar::lexical_registry()` to the lexical-source loader for
-validation. The two *to* lexemes remain distinct.
+validation.
 
-`InfinitivalMarker`, `RelativeSubordinator`, `FocusingModifierUse` and
-`GerundClauseComplement` are no longer string-keyed features. Genuine lexical
-properties, including multi-valued judgments and default-driven permissions,
-remain features. Class memberships and feature domains are checked during
-loading; normalization and frame order are unchanged. The source adapter's
-legacy metadata keys remain explicitly recognized during this migration.
+Membership flags replaced by references leave the feature map. Genuine lexical
+properties, including table-fed judgments and default-driven permissions, remain
+features. *So* and *exactly* retain their properties: their existing generic
+Adverb inventories do not establish closed-word eligibility. Class memberships
+and feature domains are checked during loading; normalization and frame order
+are unchanged. The source adapter's retained metadata keys are listed in its
+README.
+
+`BareSingularUse` remains the modifier's permission to license a bare singular
+NP, and `IdentityUse = Name` remains the Catalog entry's declared name use.
+Replacing these with `in BareSingularModifier` and `in ProperName` would mostly
+rename the same conditions, so they do not justify new plugin/catalog membership
+plumbing in this ticket. No production class currently needs that route.

@@ -143,15 +143,13 @@ fn secondary_licence_does_not_supply_matrix_negation_or_the_to_not_alternant() {
 }
 
 #[test]
-fn negation_requires_the_declared_feature() {
+fn negation_requires_the_named_word() {
     let mut lexemes: Vec<_> = common::lexicon().lexemes().values().cloned().collect();
     lexemes
         .iter_mut()
         .find(|lexeme| lexeme.id.as_str() == "vocab:PredicateNegator/Not")
         .unwrap()
-        .properties
-        .features
-        .remove("SecondaryNegation");
+        .id = "test:unnamed-not".into();
     let lexicon = Lexicon::new(lexemes).unwrap();
     assert!(
         common::readings_with_lexicon(

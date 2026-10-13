@@ -460,6 +460,40 @@ fn optional_word_separator(separator: &str, preceding: bool) -> (TokenStream, To
     }
 }
 
+fn optional_word_checks(
+    ir: &Ir,
+    form: &crate::ir::Form,
+    field: usize,
+    word_slot: usize,
+    owner: &str,
+) -> TokenStream {
+    // Each field has its own helper, located through its surface slot.
+    let Build::Construction { slots, .. } = &ir.rules[form.rule].build else {
+        unreachable!()
+    };
+    let Symbol::Nonterminal(category) =
+        ir.rules[form.rule].symbols[slots[field]]
+    else {
+        unreachable!()
+    };
+    let rule = ir
+        .rules
+        .iter()
+        .find(|rule| {
+            rule.category == category
+                && matches!(rule.build, Build::PresentWord)
+        })
+        .unwrap();
+    let checks = rule.checks[word_slot].iter().map(|(feature, register)| {
+        let expected = rule.initial[*register].as_ref().unwrap();
+        quote!(if summary.values[#feature].as_ref() != Some(&#expected) { return Err(Error::Invalid(#owner, "optional lexical requirement")); })
+    });
+    let lexical_checks = rule.lexical_checks[word_slot].iter().map(|constraint| {
+        quote!(if summary.lexical_memberships.get(#constraint) != Some(&true) { return Err(Error::Invalid(#owner, "optional lexical requirement")); })
+    });
+    quote!(#(#checks)* #(#lexical_checks)*)
+}
+
 fn form_pieces(
     ir: &Ir,
     form: &crate::ir::Form,
@@ -546,38 +580,18 @@ fn form_pieces(
                         word.push(quote!(visitor(#binding);));
                     }
                     FieldType::OptionalLexical(_, separator, preceding) => {
-                        // Each field has its own helper, located through its surface slot.
-                        let Build::Construction { slots, .. } = &ir.rules[form.rule].build else {
-                            unreachable!()
-                        };
-                        let Symbol::Nonterminal(category) =
-                            ir.rules[form.rule].symbols[slots[*field]]
-                        else {
-                            unreachable!()
-                        };
-                        let rule = ir
-                            .rules
-                            .iter()
-                            .find(|rule| {
-                                rule.category == category
-                                    && matches!(rule.build, Build::PresentWord)
-                            })
-                            .unwrap();
                         let word_slot = usize::from(*preceding && !separator.is_empty());
+                        let checks = optional_word_checks(ir, form, *field, word_slot, owner);
                         let presence = ir
                             .features
                             .iter()
                             .position(|f| f.name == "present")
                             .unwrap();
-                        let checks = rule.checks[word_slot].iter().map(|(feature, register)| {
-                            let expected = rule.initial[*register].as_ref().unwrap();
-                            quote!(if summary.values[#feature].as_ref() != Some(&#expected) { return Err(Error::Invalid(#owner, "optional lexical requirement")); })
-                        });
                         let (add_separator, realize) =
                             optional_word_separator(separator, *preceding);
                         summaries[*field] = quote!(Some({ if let Some(child) = #binding {
                             let mut summary = cache.word(child, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?;
-                            #(#checks)*
+                            #checks
                             summary.values[#presence] = Some(FeatureValue::Custom(#presence, 1));
                             #add_separator
                             summary

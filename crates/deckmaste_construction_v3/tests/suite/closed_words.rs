@@ -14,12 +14,21 @@ constructions! {
         category Policy();
         category Member();
         category Optional();
+        category OptionalMember();
         policy Identity<x> { require x is Marker; }
         construction Direct: Direct { form [head: lexical_word(Marker)]; }
         construction Policy: Policy { form [head: lexical(Subordinator)]; use Identity(head); }
         construction Member: Member {
             form [head: lexical(Subordinator)];
             form [head: lexical(Preposition)];
+            require head in Markers;
+        }
+        construction OptionalMemberAfter: OptionalMember {
+            form ["(", head: optional(lexical(Subordinator), " "), ")"];
+            require head in Markers;
+        }
+        construction OptionalMemberBefore: OptionalMember {
+            form ["(", head: optional(lexical(Subordinator), before(" ")), ")"];
             require head in Markers;
         }
         construction Optional: Optional {
@@ -166,6 +175,35 @@ fn optional_identity_checks_absence_and_only_the_present_declared_word() {
     );
     assert_eq!(absent.realize(&lexicon).unwrap(), "()");
     assert_eq!(present.realize(&lexicon).unwrap(), "(to )");
+    let homograph = fixture::Reading::Optional {
+        form: 0,
+        head: Some(word("plugin:other")),
+    };
+    assert!(homograph.admit(&lexicon).is_err());
+    assert!(homograph.realize(&lexicon).is_err());
+}
+
+#[test]
+fn optional_class_checks_independent_readings_with_either_separator_position() {
+    let lexicon = lexicon();
+    for (before, text) in [(false, "(to )"), (true, "( to)")] {
+        let build = |head| if before {
+            fixture::Reading::OptionalMemberBefore { form: 0, head }
+        } else {
+            fixture::Reading::OptionalMemberAfter { form: 0, head }
+        };
+        let present = build(Some(word("plugin:other")));
+        assert_eq!(
+            readings(&lexicon, text, fixture::Category::OptionalMember),
+            BTreeSet::from([present.clone()])
+        );
+        assert_eq!(present.realize(&lexicon).unwrap(), text);
+        let nonmember = build(Some(word("old:marker")));
+        assert!(nonmember.admit(&lexicon).is_err());
+        assert!(nonmember.realize(&lexicon).is_err());
+        let absent = build(None);
+        assert_eq!(absent.realize(&lexicon).unwrap(), "()");
+    }
 }
 
 #[test]

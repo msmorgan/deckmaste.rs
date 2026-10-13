@@ -249,7 +249,14 @@ fn correlative_markers_keep_determinative_identity_and_nor_is_distinct() {
     ] {
         let entry = &LEXICON.lexemes()[owner];
         assert_eq!(entry.category, deckmaste_lexical::Category::Determinative);
-        assert_eq!(entry.properties.features["CorrelativeKind"], expected);
+        let registry = deckmaste_english_v3::grammar::lexical_registry();
+        let reference = registry
+            .words
+            .iter()
+            .find(|word| word.name == expected)
+            .unwrap();
+        assert_eq!(reference.id, entry.id);
+        assert_eq!(reference.category, entry.category);
     }
     let nor = &LEXICON.lexemes()["vocab:Coordinator/Nor"];
     assert_eq!(nor.category, deckmaste_lexical::Category::Coordinator);
