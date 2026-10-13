@@ -61,7 +61,7 @@ Readings before and after, zero issues. The combined baseline records 354,012
 normal forms over 75,412 units: 19,647 redundant trees under this equivalence.
 This is the instrument's measurement, not a grammar reduction yet.
 Bring to Light unit 0 has 10,200 trees / 6,800 normal forms; Slimefoot's Survey
-unit 0 has 10,368 / 7,776. The census wall times were 582.24 s and 672.53 s
+unit 0 has 10,368 / 7,776. The census wall times were 582 seconds 240 milliseconds and 672 seconds 530 milliseconds
 (four workers, other builds/tests running; not an isolated performance comparison).
 
 Twelve tests were added: association and member order; imperative level plus
