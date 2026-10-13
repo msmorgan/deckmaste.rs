@@ -14,3 +14,6 @@ quote = "1.0.45"
 syn = { version = "2.0.117", features = ["full", "extra-traits"] }
 ron = "0.12.1"
 
+
+[dev-dependencies]
+proc-macro2 = { version = "1.0.106", features = ["span-locations"] }

@@ -80,7 +80,8 @@ constructions! {
         feature Polarity { Positive, Negative } default Positive;
         feature PrimaryNegation { Yes }
         feature ObliqueMarker { No, Yes } default No;
-        feature ObliqueNumber { None, Singular, Plural } default None combine coordinated_oblique;
+        feature ObliqueNumber { None, Singular, Plural } default None
+            combine coordinated_oblique(coordinator.CoordinationKind, left.ObliqueNumber, right.ObliqueNumber);
         feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted combine coordinated_partitive_countability;
         feature CaseUse { Common, Nominative, Accusative, Genitive } combine common_case;
         feature Targeting { No, Yes } combine any;
@@ -127,6 +128,7 @@ constructions! {
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No combine all;
         feature FocusingModifierUse { Restrictive }
+        // A focused conjunct blocks focus on the whole coordination.
         feature FocusedUse { No, Yes } default No combine any;
         // CF8: two focused Adjuncts use the common member route exclusively.
         table ordinary_adjunct_coordination(FocusedUse, FocusedUse) -> Selection {
@@ -160,10 +162,6 @@ constructions! {
             (No) => No, (Yes) => Yes,
         }
         feature ComparativeModifierPresent { No, Yes } default No combine always No;
-        table implicit_comparative_concord(ImplicitComparativeUse, ImplicitComparativeUse)
-            -> ImplicitComparativeUse {
-            (Yes, Yes) => Yes, (_, _) => No,
-        }
         table comparative_modifier_present(ImplicitComparativeUse, ComparativeModifierPresent)
             -> ComparativeModifierPresent {
             (Yes, _) => Yes, (No, Yes) => Yes, (No, No) => No,
@@ -354,7 +352,9 @@ constructions! {
             (_, _) => Yes,
         }
         feature ScalarMeasurementHeadUse { No, Yes } default No combine always No;
-        feature PropertyValuePosition { None, Single, First, Second, Pair } default None combine coordinated_property_value_position;
+        feature PropertyValuePosition { None, Single, First, Second, Pair } default None
+            combine coordinated_property_value_position(
+                coordinator.CoordinationKind, left.PropertyValuePosition, right.PropertyValuePosition);
         feature PropertyEqualityForm { None, Unquantified, Quantified } default None;
         feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No combine coordinated_cardinal_measurement;
         feature MeasureKind { Scalar, Pair } combine same;
@@ -518,6 +518,7 @@ constructions! {
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
+        // The default partial judgments reject like pairs; helpers use the total tables.
         feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed } combine unlike_predicative_kind;
         feature DepictiveKind { Adjectival, Participial, Mixed } combine unlike_depictive_kind;
         feature NominalLicense { AnyNominal }
@@ -560,8 +561,11 @@ constructions! {
             head person, head CliticHost, head SourceComplementSelection
         );
         category FinitePredicate(
-            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head number combine same,
-            head person combine same, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            local NominalAdjunctHost,
+            local ClauseComplementBoundary combine always None,
+            head number combine same,
+            head person combine same,
+            head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
         category QuantifiedAuxiliaryHead(
@@ -580,8 +584,10 @@ constructions! {
             head SourceComplementSelection
         );
         category SecondaryVerbPhrase(
-            head ParticipialSupplementUse, local NominalAdjunctHost, local ClauseComplementBoundary combine always None,
-            head form combine same, head ParticipialUse, head InternalisedComplementPresent, head PurposeAdjunctLicence,
+            head ParticipialSupplementUse, local NominalAdjunctHost,
+            local ClauseComplementBoundary combine always None,
+            head form combine same,
+            head ParticipialUse, head InternalisedComplementPresent, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
         category FiniteDepictiveHost(
@@ -658,7 +664,7 @@ constructions! {
             head number combine determined_np_coordinate_number(
                 coordinator.CoordinationKind, left.number, right.number,
                 left.DeterminerAgreementNumber, right.DeterminerAgreementNumber),
-            head person combine coordinate_person,
+            head person combine coordinate_person(coordinator.CoordinationKind, left.person, right.person),
             head CaseUse,
             head Targeting,
             head BareGenitiveHost,
@@ -701,7 +707,8 @@ constructions! {
         category NamePredicate();
         category PrepositionPhrase(
             local PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
-            local NominalAdjunctHost, local ClauseComplementBoundary, head LocativeUse combine all,
+            local NominalAdjunctHost, local ClauseComplementBoundary,
+            head LocativeUse combine all,
             head PrepositionFunctionLicence, head ComplementFunctionRestriction, local ObliqueNumber,
             head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
             head PredicativeAdjunctUse, head ClauseInitialAdjunct, local FocusedUse,
@@ -719,23 +726,33 @@ constructions! {
         category SubjectRelativeClause(head number);
         category ObjectRelativeClause(head RelativeGapKind);
         category FiniteObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head number combine same,
-            head person combine same, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            local NominalAdjunctHost,
+            local ClauseComplementBoundary combine always None,
+            head number combine same,
+            head person combine same,
+            head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category BareObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head PurposeAdjunctLicence,
+            local NominalAdjunctHost,
+            local ClauseComplementBoundary combine always None,
+            head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category PastParticipleObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head PurposeAdjunctLicence,
+            local NominalAdjunctHost,
+            local ClauseComplementBoundary combine always None,
+            head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category GerundParticipleObjectGap(
             head ComparativeObjectGapLicence
         );
 
-        category Cardinal(head number combine cardinal_coordinate_number, head CardinalComplementUse);
+        category Cardinal(
+            head number combine cardinal_coordinate_number(coordinator.CoordinationKind, left.number, right.number),
+            head CardinalComplementUse
+        );
         category CardinalModifier();
         category SecondaryNegator();
         category SecondaryNegatorHead();
@@ -785,7 +802,10 @@ constructions! {
         category ComparativeAdjectivePhrase(
             head AdjectivePremodifierUse, head PropertyEqualityForm
         );
-        category DiscontinuousComparativeGovernor(head frame, head ImplicitComparativeUse);
+        category DiscontinuousComparativeGovernor(
+            head frame combine coordinated_discontinuous_frame,
+            head ImplicitComparativeUse
+        );
         category ComparativeDeterminerHead(
             head ComparativeDeterminerUse, head DeterminerUse, head NominalAdjunctDependent
         );
@@ -839,12 +859,15 @@ constructions! {
         );
         category InfinitiveComplement();
         category FiniteSelectedHead(
-            head number combine same, head person combine same, head FrameUse, head HeadCoordination, head CliticHost,
+            head number combine same,
+            head person combine same,
+            head FrameUse, head HeadCoordination, head CliticHost,
             head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
         category SecondarySelectedHead(
-            head form combine same, head FrameUse, head HeadCoordination, head AuxiliaryEllipsisLicence,
+            head form combine same,
+            head FrameUse, head HeadCoordination, head AuxiliaryEllipsisLicence,
             head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
@@ -868,7 +891,8 @@ constructions! {
         category CoordinatedFiniteClause(head GeneralCoordination);
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
         category SelectedPrepositionHead(
-            head LocativeUse combine all, head PrepositionFunctionLicence, head HeadCoordination,
+            head LocativeUse combine all,
+            head PrepositionFunctionLicence, head HeadCoordination,
             head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
             head PredicativeAdjunctUse, head PrepositionPhraseComplementMarker, head SourceComplementUse,
             head SourceModifierPresent, head WholeObjectSourcePresent, head SourceMarker
@@ -1617,6 +1641,8 @@ constructions! {
             forms binary, serial, both, either, neither;
             require ordinary_adjunct_coordination(left.FocusedUse, right.FocusedUse) = Yes;
             on binary, serial { combine UnmarkedConjunctLicence = left.UnmarkedConjunctLicence; }
+            // Overt ordinary joins copy the left conjunct's unmarked licence.
+            // Correlative results are licensed by their markers; their helpers need no licence.
             on correlative_helper { omit UnmarkedConjunctLicence; }
         }
 
@@ -1630,8 +1656,8 @@ constructions! {
             on helper { omit HeadCoordination; }
         }
 
-        // Predicate and clause coordinators do not require GeneralCoordination.
-        coordination_forms Clausal {
+        // These forms do not require the coordinator to license GeneralCoordination.
+        coordination_forms WithoutGeneralCoordinatorRequirement {
             binary Coordination;
             serial CoordinationSeriesEnd, CoordinationSeriesContinuation, SerialCoordination;
             correlative_helper CorrelativeSeriesEnd, CorrelativeSeriesContinuation;
@@ -1640,58 +1666,57 @@ constructions! {
             neither NeitherCoordination, NeitherSerialCoordination;
         }
 
-        coordinable FinitePredicate using Clausal {
+        coordinable FinitePredicate using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             require right.CliticHost = Free;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
-        coordinable SecondaryVerbPhrase using Clausal {
+        coordinable SecondaryVerbPhrase using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             helper SecondaryPredicateSeries;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
-        coordinable FiniteSelectedHead using Clausal {
+        coordinable FiniteSelectedHead using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             require right.CliticHost = Free;
             on helper { omit HeadCoordination; }
         }
 
-        coordinable SecondarySelectedHead using Clausal {
+        coordinable SecondarySelectedHead using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             on helper { omit HeadCoordination; }
         }
 
-        coordinable FiniteObjectGap using Clausal {
+        coordinable FiniteObjectGap using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             require right.CliticHost = Free;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
-        coordinable BareObjectGap using Clausal {
+        coordinable BareObjectGap using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
-        coordinable PastParticipleObjectGap using Clausal {
+        coordinable PastParticipleObjectGap using WithoutGeneralCoordinatorRequirement {
             forms binary, serial;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
-        coordinable Clause using Clausal {
+        coordinable Clause using WithoutGeneralCoordinatorRequirement {
             forms serial, either;
             on serial, correlative_helper {
                 combine UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
             }
             // A following series must be licensed as an unmarked conjunct.
-            on schema(CoordinationSeriesContinuation), schema(SerialCoordination),
-                schema(CorrelativeSeriesContinuation), schema(EitherSerialCoordination) {
+            on tail {
                 require right.UnmarkedConjunctLicence = Yes;
             }
         }
 
-        coordinable CoordinatedFiniteClause of FiniteClause using Clausal {
+        coordinable CoordinatedFiniteClause of FiniteClause using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, either;
             helper FiniteClauseSeries;
             correlative_helper CorrelativeFiniteClauseSeries;
@@ -3368,14 +3393,8 @@ constructions! {
             require discontinuous_governor_frame(head.frame, head.ImplicitComparativeUse) = Yes;
             export frame = head.frame;
         }
-        policy DiscontinuousGovernorConcord<Right, Source> {
-            export frame = coordinated_discontinuous_frame(left.frame, Right.frame);
-            export ImplicitComparativeUse = implicit_comparative_concord(
-                left.ImplicitComparativeUse, Right.ImplicitComparativeUse);
-        }
-        instance Coordination: DiscontinuousComparativeGovernor {
-            bind left, right = DiscontinuousComparativeGovernor;
-            use DiscontinuousGovernorConcord(right, coordinator);
+        coordinable DiscontinuousComparativeGovernor using WithoutGeneralCoordinatorRequirement {
+            forms binary;
         }
         construction ComparativeDeterminerHead: ComparativeDeterminerHead {
             form [head: lexical(Determinative)];

@@ -1,3 +1,12 @@
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
+use syn::Ident;
+use syn::Token;
+use syn::braced;
+use syn::parenthesized;
+use syn::parse::ParseStream;
+
 use super::Category;
 use super::Construction;
 use super::Declaration;
@@ -11,12 +20,6 @@ use super::TablePattern;
 use super::TableResult;
 use super::parse_directive;
 use super::reference;
-use std::collections::{BTreeMap, BTreeSet};
-use syn::Ident;
-use syn::Token;
-use syn::braced;
-use syn::parenthesized;
-use syn::parse::ParseStream;
 
 #[derive(Clone)]
 pub(crate) enum Combiner {
@@ -76,12 +79,10 @@ impl Template {
         matches!(self.role, Role::Continuation | Role::Complete)
     }
     fn matches(&self, context: &Context) -> bool {
-        if context.exact {
-            return self.name == context.name;
-        }
         match context.name.to_string().as_str() {
             "helper" => self.helper(),
             "result" => !self.helper(),
+            "tail" => self.tail(),
             "overt" => !self.tail(),
             "ordinary_overt" => !self.correlative && !self.tail(),
             "correlative" => self.correlative,
@@ -150,22 +151,12 @@ pub(super) fn parse_forms(input: ParseStream<'_>, name: Ident) -> syn::Result<Fo
 
 struct Context {
     name: Ident,
-    exact: bool,
 }
 
 fn context(input: ParseStream<'_>) -> syn::Result<Context> {
-    let name: Ident = input.parse()?;
-    if name == "schema" {
-        let inner;
-        parenthesized!(inner in input);
-        let name = inner.parse()?;
-        if !inner.is_empty() {
-            return Err(inner.error("expected one schema name"));
-        }
-        Ok(Context { name, exact: true })
-    } else {
-        Ok(Context { name, exact: false })
-    }
+    Ok(Context {
+        name: input.parse()?,
+    })
 }
 
 fn parse_scope(input: ParseStream<'_>) -> syn::Result<Scope> {
@@ -380,8 +371,6 @@ fn equations(
             let f = feature.to_string();
             let args = if inputs == [f.clone(), f.clone()] {
                 vec![left, right]
-            } else if inputs == ["CoordinationKind".to_owned(), f.clone(), f] {
-                vec![reference_to("coordinator", &table.inputs[0]), left, right]
             } else {
                 return Err(syn::Error::new(
                     name.span(),
@@ -459,7 +448,7 @@ fn select<'a>(item: &Coordinable, profile: &'a Forms) -> syn::Result<Vec<&'a Tem
         let matching: Vec<_> = profile
             .templates
             .iter()
-            .filter(|t| t.matches(name) && (!name.exact || !t.helper()))
+            .filter(|t| t.matches(name))
             .collect();
         if matching.is_empty() {
             return Err(syn::Error::new(
@@ -553,18 +542,20 @@ fn contract(
         if !scope.contexts.is_empty() && !scope.contexts.iter().any(|c| template.matches(c)) {
             continue;
         }
-        let rank = if scope.contexts.is_empty() {
-            1
-        } else if scope
-            .contexts
-            .iter()
-            .any(|c| c.exact && c.name == template.name)
-        {
-            3
-        } else {
-            2
-        };
+        let rank = if scope.contexts.is_empty() { 1 } else { 2 };
         for (feature, combiner) in &scope.combiners {
+            if combiner.is_some()
+                && !template.helper()
+                && !base.features.iter().any(|entry| entry.name == *feature)
+            {
+                return Err(syn::Error::new(
+                    feature.span(),
+                    format!(
+                        "feature {feature} is not on the {} interface in this coordinable block",
+                        item.category
+                    ),
+                ));
+            }
             if !assigned.insert((feature.to_string(), rank)) {
                 return Err(syn::Error::new(
                     feature.span(),
@@ -650,7 +641,8 @@ pub(super) fn elaborate(
             }
         }
     }
-    // These names are reserved so an authored table cannot replace strict combination.
+    // These names are reserved so an authored table cannot replace strict
+    // combination.
     if let Some(table) = declaration
         .tables
         .iter()
