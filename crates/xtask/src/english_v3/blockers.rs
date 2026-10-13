@@ -32,7 +32,7 @@ use crate::raw_corpus::load_selected;
 
 #[derive(Debug, Args)]
 pub struct BlockersArgs {
-    /// Complete schema-9 text census made with the current grammar and lexicon.
+    /// Complete schema-9 or schema-10 text census made with the current grammar and lexicon.
     #[arg(long)]
     census: PathBuf,
     /// Write every face verdict and the uncapped ranking as JSON.
@@ -417,17 +417,14 @@ fn read_input(path: &Path) -> Result<Input> {
         serde_json::from_reader(BufReader::new(std::fs::File::open(path)?))
             .with_context(|| format!("reading census {}", path.display()))?;
     ensure!(
-        value
-            .get("schema_version")
-            .and_then(serde_json::Value::as_u64)
-            == Some(super::report::SCHEMA_VERSION as u64),
-        "blockers: incompatible baseline; requires a schema-9 text census"
+        value["schema_version"] == 9 || value["schema_version"] == super::report::SCHEMA_VERSION,
+        "blockers: incompatible baseline; requires a schema-9 or schema-10 text census"
     );
     let input: Input = serde_json::from_value(value)
         .with_context(|| format!("reading census {}", path.display()))?;
     ensure!(
         input.field == SourceField::Text,
-        "blockers requires a schema-9 text census"
+        "blockers requires a schema-9 or schema-10 text census"
     );
     Ok(input)
 }
@@ -561,14 +558,16 @@ mod tests {
         let error = read_input(file.path()).err().unwrap().to_string();
         assert_eq!(
             error,
-            "blockers: incompatible baseline; requires a schema-9 text census"
+            "blockers: incompatible baseline; requires a schema-9 or schema-10 text census"
         );
-        let mut current = old;
-        current["schema_version"] = 9.into();
-        std::fs::write(file.path(), serde_json::to_vec(&current).unwrap()).unwrap();
-        let error = format!("{:#}", read_input(file.path()).err().unwrap());
-        assert!(!error.contains("incompatible baseline"), "{error}");
-        assert!(error.contains("missing field"), "{error}");
+        for version in [9, super::super::report::SCHEMA_VERSION] {
+            let mut current = old.clone();
+            current["schema_version"] = version.into();
+            std::fs::write(file.path(), serde_json::to_vec(&current).unwrap()).unwrap();
+            let error = format!("{:#}", read_input(file.path()).err().unwrap());
+            assert!(!error.contains("incompatible baseline"), "{error}");
+            assert!(error.contains("missing field"), "{error}");
+        }
     }
 
     #[test]

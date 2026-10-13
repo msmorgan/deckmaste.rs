@@ -553,3 +553,28 @@ identify a more informative class. In particular, `AuxiliaryUse` licenses only
 three entries in the two postmodified auxiliary constructions, not every
 auxiliary; `FusedHeadUse` licenses the particular *anywhere*/*this* path, not
 all determinatives with fused-head uses.
+
+### Nominal modifier-order check
+
+The census records a sorted set of SHA-256 normal-form fingerprints for each
+completely enumerated unit, separately from its unchanged Reading digest.
+`cargo xtask english-v3 diff BEFORE AFTER --check nominal-normal-forms` requires
+compatible source/context and units, complete enumeration, unchanged surrounding
+structure, no lost face, and equality of every unit's normal-form set. Old reports
+without the versioned sets cannot pass this check. Schema 9 remains readable for
+the ordinary `identical-digests` comparison; schema 10 adds the new instrument.
+
+A normal form preserves the whole Reading except the interleaving of approved
+pre- and postmodifier wrappers on one connected nominal-head chain. It retains
+ordered records on each side, every non-head field, lexical payload, form and
+Category, and recursively normalizes dependents. There is no global sorting or
+transparent-wrapper default. The seven wrappers and the initial commuting list
+live together in `xtask/src/english_v3/nominal_normal_form.rs`: colour words,
+nonlegendary, adjectival tapped, and card-type noun premodifiers. Unlisted uses
+are barriers, including nonred, enchanted and creature subtypes pending review.
+
+The implementation structurally reads the generated Debug tree encoding already
+used by census Reading identity. Unsupported syntax and changed known wrapper
+shapes fail; unknown constructors remain exact. The normal-form version must
+change if the equivalence or encoding changes. This restricted check licenses
+no coordination, gap, passive, selected-frame or general scope equivalence.
