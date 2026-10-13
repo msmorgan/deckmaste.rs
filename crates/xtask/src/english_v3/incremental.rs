@@ -41,7 +41,9 @@ impl Snapshot {
         let mut sources = BTreeMap::new();
         // Include the parser, compiler, lexical adapters, normalization and
         // their dependencies. A change outside the three supported lexical
-        // sources disables reuse rather than guessing its impact.
+        // sources disables reuse rather than guessing its impact. Grammar-owned
+        // closed words live in declarations.rs, so registry changes also
+        // disable reuse; they are not treated as data-only lexical edits.
         for directory in [
             "crates/deckmaste_english_v3/src",
             "crates/deckmaste_construction_v3/src",

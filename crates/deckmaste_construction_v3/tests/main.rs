@@ -1,5 +1,9 @@
 #[path = "suite/attachment.rs"]
 mod attachment;
+#[path = "suite/closed_words.rs"]
+mod closed_words;
+#[path = "suite/coordination.rs"]
+mod coordination;
 #[path = "suite/costs.rs"]
 mod costs;
 #[path = "suite/derived_features.rs"]
@@ -24,5 +28,3 @@ mod selected_frames;
 mod surface_features;
 #[path = "suite/table_requirements.rs"]
 mod table_requirements;
-#[path = "suite/coordination.rs"]
-mod coordination;

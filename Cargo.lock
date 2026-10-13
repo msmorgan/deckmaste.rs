@@ -648,6 +648,7 @@ version = "0.1.0"
 dependencies = [
  "deckmaste_catalogs",
  "deckmaste_data",
+ "deckmaste_english_v3",
  "deckmaste_lexical",
  "deckmaste_macro_def",
  "macro_ron",

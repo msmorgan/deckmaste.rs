@@ -497,3 +497,20 @@ Phrases constrain their heads by Word Form, and the imperative construction
 supplies finite clause status (Ch. 3 §§1.8.1–2, pp. 88–90). Gerund-participles
 and past participles remain nonfinite. Tensed lexical bundles retain their
 Number, Person, Tense, and Finiteness correlation.
+
+### Closed-word prototype
+
+Infinitival *to*, relative *that* and restrictive *only* are named in their
+forms with `lexical_word`. Their historical lexeme IDs remain unchanged.
+The four prepositions *by*, *of*, *to* and *without* declare membership in
+`GerundClausePreposition`; the gerund-complement construction requires that
+class. These seven invariant words are declared in the Rust grammar, supplied
+by callers through `grammar::lexical_registry()` to the lexical-source loader.
+Other vocabulary has not yet moved. The two *to* lexemes remain distinct.
+
+`InfinitivalMarker`, `RelativeSubordinator`, `FocusingModifierUse` and
+`GerundClauseComplement` are no longer string-keyed features. Genuine lexical
+properties, including multi-valued judgments and default-driven permissions,
+remain features. Class memberships and feature domains are checked during
+loading; normalization and frame order are unchanged. The source adapter's
+legacy metadata keys remain explicitly recognized during this migration.

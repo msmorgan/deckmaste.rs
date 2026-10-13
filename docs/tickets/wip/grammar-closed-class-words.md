@@ -149,3 +149,93 @@ ExpandedComparisonMarker judgment and separator-driving properties explicit in
 this slice. Then run compiler/loader regressions, full touched-crate tests and
 clippy, structured inventory and contract/shape comparisons, and the full digest
 gate before committing the prototype and pausing for Phase 2 review.
+
+### Phase 1 decision and prototype
+
+The owner selected the split model: `lexical_word(Word)` in a form for a single
+closed word, `require field in Class` for a class, and `require field is Word`
+when a policy owns the constraint. This supersedes the alternatives above.
+No class selector or Category-intersection syntax was added to forms.
+
+The prototype moves seven existing identities into Rust declarations: infinitival
+To, relative That, Only, and prepositional By, Of, To and Without. The latter
+four declare GerundClausePreposition membership. The four membership features
+InfinitivalMarker, RelativeSubordinator, FocusingModifierUse and
+GerundClauseComplement, together with their stored values/provenance, are removed.
+Other properties and core patches are retained. The empty FocusAdverb vocabulary
+group remains for the later whole-file migration.
+
+Callers pass `grammar::lexical_registry()` into `load_workspace`. The common
+lexical crate owns descriptors, with no production dependency from the loader to
+the grammar. Lexical-source tests supply the grammar registry through a test-only
+dependency. Words enter at the native declaration stage, before legacy core,
+plugins and normalization. Source data can supply class memberships directly or
+through `class_additions`, keyed by existing lexeme IDs, including plugin/catalog
+IDs. The loader checks those IDs, classes, Categories and real feature domains.
+The 33 measured adapter metadata keys remain explicitly recognized; their
+provenance does not grant grammar membership. Incremental capture already covers
+Rust grammar/compiler sources, so registry changes invalidate data-only reuse.
+
+The compiler lowers word/class constraints to finite lexical admission checks;
+no word identity is forwarded in constituent summaries. Single-word form
+selectors retain the existing lexical Category, fields and form index. Shared
+policies and mixed-Category classes use requirements. Direct optional-word
+requirements still apply only when present. The invariant-word prototype cannot
+yet declare inflected closed words or form overrides; those remain data-backed.
+No additional families have been converted.
+
+The structured comparison covers all 35,603 lexemes. IDs, forms, variants,
+non-migrated properties and frame order agree exactly; only the seven identified
+membership/provenance migrations differ. Each of the four new checks was also
+compared extensionally against its old flag on every lexeme, including absent
+flags and lexemes no corpus face uses. Unsupported frame signatures remain the
+same seven reported above. Evidence lives only under target/english-v3/.
+
+The first full census had identical Reading counts and line-level Reading
+digests but changed all covered face digests. The face-context encoding includes
+raw root Summary Debug, and the initial compiler unnecessarily allocated identity
+slots for By, Of, PrepositionalTo and Without even though no construction named
+them individually. Removing those unused checks restores the 200-slot layout;
+registry membership remains loader data. A compiler regression checks that
+unused registry members allocate no admission slots. Nissa, Worldsoul Speaker,
+the first reported failure, then matched its baseline face digest exactly.
+Neither the gate nor the context encoding was changed.
+
+Final full-corpus gate: identical digests on all 32,828 faces, with 30,794 read
+and 482,041 checked Readings; no incomplete faces or issues. The completed step
+census was deleted after the gate, retaining the original baseline. The sorted
+comparison also matches 927 rule contracts (including table/frame contracts,
+after explicit membership aliases and internal register renumbering), 326
+constructor records and 666 emitted struct/enum variant shapes. Fields, their
+order, form indices and optional category fields are unchanged.
+
+The lexical inventory hash changes once, from
+`8224cc4de830fcb532d621327146d32626320b41a0156463390281ab254bee64` to
+`bf8e0b103cb8519be4fbdb5544dc5d0b37a0e52715a6d3b12798490c8ad29f71`,
+accounted for by the structured comparison's explicit seven-entry allowlist.
+Authored declarations.rs changes from 6,093 to 6,122 lines; declared features
+184 to 180, lexical-only features 73 to 69, with seven closed_word declarations
+and one four-member lexical_class. Of the singleton findings, infinitival To,
+relative That and Only now use direct references; the other findings remain for
+Phase 2. No singleton lexical class was introduced.
+
+Final verification: full cargo test for deckmaste_lexical,
+deckmaste_lexical_source, deckmaste_construction_v3_core,
+deckmaste_construction_v3, deckmaste_english_v3 and xtask: 1,899 passed,
+zero failed, two pre-existing ignored. Full clippy --tests -- -D warnings passes
+for the same six crates. Citation audit has zero changed citation sites,
+format checking has zero noncompliant sites, and 17,780 citations have zero stale.
+
+Assurance: 17 added tests (eight compiler, four generated-runtime, five loader),
+one re-spelled (`gerund_complement_requires_declared_licence`, removing class
+membership instead of the retired flag, with the same rejection assertions),
+zero restored, zero newly ignored, zero removed. The existing ignored tests are
+`cost_notation_is_the_subject_of_the_licensed_locative_small_clause` (the separate
+MS4 governed Mana Phrase Subject route) and `macro_schema_census_count_matches_21`
+(the on-demand live-corpus schema census). Neither was changed.
+
+Phase 1 stops here for review. The remaining closed vocabulary, data-backed
+classes, default-sensitive flags and real lexical properties have not been
+converted; the measured inventory remains the Phase 2 worklist. Inflected
+closed-word declarations need explicit form/override support before those
+families can move. The ticket remains WIP and has no final landing note yet.

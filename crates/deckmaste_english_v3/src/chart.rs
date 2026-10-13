@@ -137,6 +137,7 @@ impl<G: Grammar> Chart<'_, G> {
                     (
                         lexeme.category,
                         LexicalFeatures::Word {
+                            lexeme_id: lexeme.id,
                             category: lexeme.category,
                             form: value.form,
                             features: &value.features,

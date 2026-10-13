@@ -10,7 +10,12 @@ fn loader_preserves_filesystem_and_decoding_sources_with_paths() {
     let path = root
         .path()
         .join("crates/deckmaste_lexical_source/lexicon/core.ron");
-    let error = load_workspace(root.path()).err().unwrap();
+    let error = load_workspace(
+        root.path(),
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )
+    .err()
+    .unwrap();
     match &error {
         LoadError::Io {
             path: actual,
@@ -25,7 +30,12 @@ fn loader_preserves_filesystem_and_decoding_sources_with_paths() {
     assert!(error.source().unwrap().is::<std::io::Error>());
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(&path, "(lexemes: [").unwrap();
-    let error = load_workspace(root.path()).err().unwrap();
+    let error = load_workspace(
+        root.path(),
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )
+    .err()
+    .unwrap();
     match &error {
         LoadError::Decode {
             path: actual,
@@ -59,7 +69,13 @@ fn loader_reports_unresolved_paradigm_identities() {
         "core_verb_paradigms: {\"core-verb:Missing\": (forms: [], frames: []),",
     );
     std::fs::write(path, text).unwrap();
-    match load_workspace(root.path()).err().unwrap() {
+    match load_workspace(
+        root.path(),
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )
+    .err()
+    .unwrap()
+    {
         LoadError::UnresolvedParadigms { owners } => assert_eq!(owners, ["core-verb:Missing"]),
         other => panic!("{other:?}"),
     }

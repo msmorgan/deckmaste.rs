@@ -1,3 +1,5 @@
+#[path = "closed_words.rs"]
+pub(crate) mod closed_words;
 #[path = "coordination.rs"]
 mod coordination;
 
@@ -20,6 +22,8 @@ pub(crate) struct Declaration {
     pub visibility: Visibility,
     pub module: Ident,
     pub categories: Vec<Category>,
+    pub words: Vec<closed_words::Word>,
+    pub lexical_classes: Vec<closed_words::Class>,
     pub features: Vec<Feature>,
     pub frames: Vec<(Ident, Frame)>,
     pub frame_categories: Vec<(Ident, Ident)>,
@@ -194,6 +198,8 @@ impl Parse for Declaration {
             visibility,
             module,
             categories: vec![],
+            words: vec![],
+            lexical_classes: vec![],
             features: vec![],
             frames: vec![],
             frame_categories: vec![],
@@ -223,6 +229,10 @@ impl Parse for Declaration {
                     }
                     body.parse::<Token![;]>()?;
                 }
+                "closed_word" => result.words.push(closed_words::parse_word(&body, name)?),
+                "lexical_class" => result
+                    .lexical_classes
+                    .push(closed_words::parse_class(&body, name)?),
                 "category" => {
                     let features;
                     parenthesized!(features in body);
@@ -316,6 +326,7 @@ impl Parse for Declaration {
         apply_policies(&mut result.constructions, &schema_fields, &policies)?;
         validate_schemas(&schemas)?;
         instantiate_schemas(&mut result.constructions, &schemas)?;
+        closed_words::elaborate(&mut result)?;
         Ok(result)
     }
 }
@@ -1238,21 +1249,7 @@ fn parse_directive(
         "export" => {
             let feature = contents.parse()?;
             contents.parse::<Token![=]>()?;
-            let lookahead = contents.fork();
-            let name: Ident = lookahead.parse()?;
-            let equation = if contents.peek2(Token![.])
-                || (name == "last" && lookahead.peek(syn::token::Paren))
-            {
-                Equation::Export(feature, reference(contents)?)
-            } else if contents.peek2(syn::token::Paren) {
-                let table = contents.parse()?;
-                let arguments;
-                parenthesized!(arguments in contents);
-                let arguments = arguments.parse_terminated(reference, Token![,])?;
-                Equation::ExportTable(feature, table, arguments.into_iter().collect())
-            } else {
-                Equation::ExportConstant(feature, contents.parse()?)
-            };
+            let equation = parse_export(contents, feature)?;
             construction.equations.push(equation);
         }
         "agree" => {
@@ -1263,20 +1260,7 @@ fn parse_directive(
                 .push(Equation::Agree(left, reference(contents)?));
         }
         "require" => {
-            let lookahead = contents.fork();
-            let name: Ident = lookahead.parse()?;
-            let equation = if contents.peek2(syn::token::Paren) && name != "last" {
-                let table = contents.parse()?;
-                let arguments;
-                parenthesized!(arguments in contents);
-                let arguments = arguments.parse_terminated(reference, Token![,])?;
-                contents.parse::<Token![=]>()?;
-                Equation::RequireTable(table, arguments.into_iter().collect(), contents.parse()?)
-            } else {
-                let left = reference(contents)?;
-                contents.parse::<Token![=]>()?;
-                Equation::Require(left, contents.parse()?)
-            };
+            let equation = parse_requirement(contents)?;
             construction.equations.push(equation);
         }
         _ => {
@@ -1290,6 +1274,62 @@ fn parse_directive(
         }
     }
     Ok(())
+}
+
+fn parse_requirement(contents: ParseStream<'_>) -> syn::Result<Equation> {
+    let lookahead = contents.fork();
+    let name: Ident = lookahead.parse()?;
+    Ok(if lookahead.peek(Token![in]) || lookahead.peek(Ident) {
+        let field: Ident = contents.parse()?;
+        let class = if contents.peek(Token![in]) {
+            contents.parse::<Token![in]>()?;
+            true
+        } else {
+            let keyword: Ident = contents.parse()?;
+            if keyword != "is" {
+                return Err(syn::Error::new(keyword.span(), "expected is or in"));
+            }
+            false
+        };
+        let target: Ident = contents.parse()?;
+        Equation::Require(
+            Reference {
+                field,
+                feature: closed_words::check_name(&target, class),
+                last: false,
+            },
+            Ident::new("Yes", target.span()),
+        )
+    } else if contents.peek2(syn::token::Paren) && name != "last" {
+        let table = contents.parse()?;
+        let arguments;
+        parenthesized!(arguments in contents);
+        let arguments = arguments.parse_terminated(reference, Token![,])?;
+        contents.parse::<Token![=]>()?;
+        Equation::RequireTable(table, arguments.into_iter().collect(), contents.parse()?)
+    } else {
+        let left = reference(contents)?;
+        contents.parse::<Token![=]>()?;
+        Equation::Require(left, contents.parse()?)
+    })
+}
+
+fn parse_export(contents: ParseStream<'_>, feature: Ident) -> syn::Result<Equation> {
+    let lookahead = contents.fork();
+    let name: Ident = lookahead.parse()?;
+    Ok(
+        if contents.peek2(Token![.]) || (name == "last" && lookahead.peek(syn::token::Paren)) {
+            Equation::Export(feature, reference(contents)?)
+        } else if contents.peek2(syn::token::Paren) {
+            let table = contents.parse()?;
+            let arguments;
+            parenthesized!(arguments in contents);
+            let arguments = arguments.parse_terminated(reference, Token![,])?;
+            Equation::ExportTable(feature, table, arguments.into_iter().collect())
+        } else {
+            Equation::ExportConstant(feature, contents.parse()?)
+        },
+    )
 }
 
 fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
@@ -1321,6 +1361,7 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
                 let category: Ident = arguments.parse()?;
                 let ty = match ty.to_string().as_str() {
                     "lexical" => FieldType::Lexical(category.to_string()),
+                    "lexical_word" => FieldType::Lexical(format!("@{category}")),
                     "selected_frame" => {
                         arguments.parse::<Token![,]>()?;
                         let kind: Ident = arguments.parse()?;

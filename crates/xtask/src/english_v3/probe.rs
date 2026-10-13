@@ -105,7 +105,10 @@ struct ProbeReport {
 
 pub(super) fn run(args: &ProbeArgs, data: &Path, output: &mut dyn Write) -> Result<()> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let sources = deckmaste_lexical_source::load_workspace(&root)?;
+    let sources = deckmaste_lexical_source::load_workspace(
+        &root,
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
     let grammar = environment.grammar();
@@ -294,9 +297,12 @@ mod tests {
     fn fragment_reports_validate_readings_and_recognition_only() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
         let lexicon = Lexicon::new(
-            deckmaste_lexical_source::load_workspace(&root)
-                .unwrap()
-                .lexemes,
+            deckmaste_lexical_source::load_workspace(
+                &root,
+                &deckmaste_english_v3::grammar::lexical_registry(),
+            )
+            .unwrap()
+            .lexemes,
         )
         .unwrap();
         let grammar = Grammar::with_lexicon(&lexicon);

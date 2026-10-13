@@ -5,6 +5,8 @@ use deckmaste_lexical::WordForm;
 /// Failure to load or reconcile authored lexical declarations.
 #[derive(Debug, thiserror::Error)]
 pub enum LoadError {
+    #[error("lexical registry: {0}")]
+    Registry(String),
     #[error("reading card-name source: {0}")]
     Oracle(#[from] deckmaste_data::scryfall::OracleCardReadError),
     #[error("{operation} {}: {source}", path.display())]

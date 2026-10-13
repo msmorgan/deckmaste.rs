@@ -600,3 +600,53 @@ ill-typed feature obligations and unsafe recursion. These are synthetic
 compiler witnesses. The generated interacting English slice and whole-grammar
 activation remain their own tickets; this crate adds no production English
 coverage or compatibility alias.
+
+### Closed words and lexical classes
+
+A form can name a grammar-declared closed word without fixing its surface:
+
+```rust
+closed_word InfinitivalTo: Subordinator {
+    id "vocab:InfinitivalMarker/To";
+    lemma "to";
+}
+lexical_class GerundClausePreposition: Preposition;
+closed_word By: Preposition {
+    id "vocab:Preposition/By";
+    lemma "by";
+    classes [GerundClausePreposition];
+}
+// In a construction or schema:
+form [marker: lexical_word(InfinitivalTo), " ", predicate: node];
+// Class restrictions retain the existing lexical Category of the field:
+require head in GerundClausePreposition;
+// A policy can constrain a single word without owning its caller's form:
+require marker is InfinitivalTo;
+```
+
+`lexical_word` retains a Word field with the declaration's lexical Category;
+constructor fields and form indices do not change. Identity is checked before
+composition, while spelling, capitalization and realization use the lexical
+layer. Homographs with different lexeme IDs do not satisfy the check. A class
+may declare multiple Categories with `Preposition | Subordinator`; its membership
+requirement intersects the form's Category. Policies can use either requirement.
+An optional lexical field is checked only when present, as with its existing
+direct feature requirements. Unknown symbols, nonlexical fields, incompatible
+Categories and duplicate word identities are compilation errors.
+
+The generated `lexical_registry()` returns common lexical descriptors for the
+caller to supply to the source loader. The grammar owns words and class domains;
+source data can join a class through `properties.classes` or a `class_additions`
+map from existing lexeme IDs to class names. The latter also supports plugin and
+catalog members without making their identities grammar symbols. The loader
+checks member IDs, class names, Categories and feature values. It retains a
+specific list of legacy adapter metadata separately from grammatical domains.
+Membership checks use finite internal admission slots, not string-keyed feature
+flags. Only checks used by constructions allocate slots; merely declaring a
+registry member does not. No lexical identity is forwarded in a constituent summary.
+
+The initial closed-word declaration supports invariant forms, optional
+`classes [...]`, and retained `properties { "key": "value" }`. Inflected word
+declarations and their form overrides are not part of this prototype. Existing
+data-backed words retain all their forms. Only core closed words belong in
+`closed_word`; open-class vocabulary remains source data.

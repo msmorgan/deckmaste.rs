@@ -16,6 +16,8 @@ use crate::parse::Propagation;
 use crate::parse::Reference;
 
 pub(crate) struct Ir {
+    pub words: Vec<crate::parse::closed_words::Word>,
+    pub lexical_classes: Vec<crate::parse::closed_words::Class>,
     pub visibility: Visibility,
     pub module: Ident,
     pub positional_capitalization: bool,
@@ -391,11 +393,62 @@ fn category_interface(
     Ok(interface)
 }
 
-pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
+fn lexical_domains(
+    declaration: &Declaration,
+    frames: &[(Ident, Frame)],
+) -> syn::Result<Vec<Domain>> {
     let mut features = validate_features(&declaration.features)?;
+    for name in declaration
+        .words
+        .iter()
+        .map(|w| crate::parse::closed_words::check_name(&w.name, false))
+        .chain(
+            declaration
+                .lexical_classes
+                .iter()
+                .map(|c| crate::parse::closed_words::check_name(&c.name, true)),
+        )
+    {
+        // Registry members need no admission slot unless a construction checks
+        // their identity or class. Membership alone is loader data.
+        let used = declaration.constructions.iter().any(|construction| {
+            construction.equations.iter().chain(construction.form_requirements.iter().flatten())
+                .any(|equation| matches!(equation, Equation::Require(reference, _) if reference.feature == name))
+        });
+        if !used {
+            continue;
+        }
+        features.push(Domain {
+            name: name.to_string(),
+            values: vec!["Yes".into()],
+            kind: DomainKind::Custom { default: None },
+        });
+    }
+    features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
+    Ok(features)
+}
+
+fn resolve_frame_categories(
+    declaration: &Declaration,
+    categories: &[Ident],
+) -> syn::Result<Vec<(Ident, usize)>> {
+    let mut frame_categories = Vec::new();
+    let mut source_categories = BTreeSet::new();
+    for (source, target) in &declaration.frame_categories {
+        reserve(&mut source_categories, source)?;
+        let target = categories
+            .iter()
+            .position(|name| name == target)
+            .ok_or_else(|| error(target, "unknown frame category projection"))?;
+        frame_categories.push((source.clone(), target));
+    }
+    Ok(frame_categories)
+}
+
+pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     let mut propagation = vec![];
     let frames = validate_frames(&declaration.frames)?;
-    features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
+    let features = lexical_domains(&declaration, &frames)?;
     let mut names = BTreeSet::new();
     let mut categories = vec![];
     let mut interfaces = vec![];
@@ -417,16 +470,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
             "at least one Construction is required",
         ));
     }
-    let mut frame_categories = Vec::new();
-    let mut source_categories = BTreeSet::new();
-    for (source, target) in &declaration.frame_categories {
-        reserve(&mut source_categories, source)?;
-        let target = categories
-            .iter()
-            .position(|name| name == target)
-            .ok_or_else(|| error(target, "unknown frame category projection"))?;
-        frame_categories.push((source.clone(), target));
-    }
+    let frame_categories = resolve_frame_categories(&declaration, &categories)?;
     let public_categories = categories.len();
     let category_index = |name: &str| categories.iter().position(|n| n == name);
     let mut constructors = vec![];
@@ -508,6 +552,8 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         });
     }
     let mut ir = Ir {
+        words: declaration.words,
+        lexical_classes: declaration.lexical_classes,
         visibility: declaration.visibility,
         module: declaration.module,
         positional_capitalization: declaration.capitalization.is_some(),

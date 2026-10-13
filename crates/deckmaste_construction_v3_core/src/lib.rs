@@ -40,3 +40,6 @@ mod inheritance_tests;
 
 #[cfg(test)]
 mod coordination_tests;
+
+#[cfg(test)]
+mod closed_word_tests;

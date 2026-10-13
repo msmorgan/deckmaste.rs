@@ -6,6 +6,7 @@
 mod card_names;
 mod compound;
 mod error;
+mod registry;
 pub use error::LoadError;
 
 mod legacy;
@@ -26,18 +27,25 @@ pub struct LexicalSources {
     pub unmapped: Vec<String>,
 }
 
-/// Loads the current authored lexical inventory from a workspace source tree.
+/// Loads authored source data and the caller's grammar-owned lexical registry.
+/// Registry words enter before legacy core, plugins and normalization; checked
+/// class memberships and grammatical property domains apply to the final inventory.
 ///
 /// # Errors
 /// Returns an error when a source cannot be read or normalized, an override
-/// has no target, or two declarations produce the same lexical identity.
-pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
+/// has no target, two declarations produce the same lexical identity, or a
+/// registry reference, membership Category or grammatical property value is invalid.
+pub fn load_workspace(
+    root: &Path,
+    registry: &deckmaste_lexical::LexicalRegistry,
+) -> Result<LexicalSources, LoadError> {
     let mut output = LexicalSources {
         lexemes: Vec::new(),
         unmapped: Vec::new(),
     };
     let mut native = native::load(root)?;
     output.lexemes.extend(native.lexemes);
+    output.lexemes.extend(registry.words.iter().cloned());
     legacy::core::load(root, &mut output, &mut native.core_verb_paradigms)?;
     if !native.core_verb_paradigms.is_empty() {
         return Err(LoadError::UnresolvedParadigms {
@@ -118,6 +126,7 @@ pub fn load_workspace(root: &Path) -> Result<LexicalSources, LoadError> {
             lexeme.surface_structure = SurfaceStructure::Multiword;
         }
     }
+    registry::apply(&mut output.lexemes, registry, native.class_additions)?;
     output.lexemes.sort_by_key(|left| left.id);
     if let Some(pair) = output
         .lexemes
@@ -158,7 +167,8 @@ mod tests {
         use deckmaste_lexical::Number;
         use deckmaste_lexical::WordForm;
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let sources = load_workspace(&root).unwrap();
+        let sources =
+            load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry()).unwrap();
         let parent = sources
             .lexemes
             .iter()
@@ -207,7 +217,8 @@ mod tests {
     #[test]
     fn discovered_source_tree_roundtrips_a_marked_lexeme_through_the_engine() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let sources = load_workspace(&root).unwrap();
+        let sources =
+            load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry()).unwrap();
         let authored = sources
             .lexemes
             .iter()
@@ -246,7 +257,8 @@ mod card_name_tests {
     #[test]
     fn legendary_shortened_names_are_reversible_scoped_variants_of_the_full_name() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let sources = load_workspace(&root).unwrap();
+        let sources =
+            load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry()).unwrap();
         for (full, short) in [
             ("Dina, Soul Steeper", "Dina"),
             ("King Darien XLVIII", "King Darien"),

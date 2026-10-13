@@ -179,6 +179,7 @@ impl Word {
                     return Err(Error::Invalid("lexical", "Category"));
                 }
                 grammar.project(::deckmaste_english_v3::LexicalFeatures::Word {
+                    lexeme_id: lexeme.id,
                     category,
                     form: value.form,
                     features: &value.features,

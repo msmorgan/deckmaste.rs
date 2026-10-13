@@ -15,7 +15,11 @@ fn nickname_catalog_preserves_the_complete_lexical_inventory() {
     let cached = CardNameNicknames::load(&root.join("data/gen/catalogs"), &corpus).unwrap();
     assert_eq!(cached.nicknames(), generated.nicknames());
 
-    let sources = deckmaste_lexical_source::load_workspace(&root).unwrap();
+    let sources = deckmaste_lexical_source::load_workspace(
+        &root,
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )
+    .unwrap();
     let mut reconstructed = sources.lexemes.clone();
     for lexeme in &mut reconstructed {
         if lexeme.source.path == "data/gen/catalogs/card-names.txt" {

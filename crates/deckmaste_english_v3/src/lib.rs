@@ -53,10 +53,11 @@ pub struct Production<C> {
     pub symbols: Vec<Symbol<C>>,
 }
 
-/// Declared grammatical information, without lexical identity or spelling.
+/// Declared lexical identity and grammatical information, without spelling.
 /// Alternatives in a lexical occurrence remain correlated in one bundle.
 pub enum LexicalFeatures<'a> {
     Word {
+        lexeme_id: deckmaste_lexical::LexemeId,
         category: Category,
         form: WordForm,
         features: &'a FeatureBundle,

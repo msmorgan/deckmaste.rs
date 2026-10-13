@@ -198,8 +198,8 @@ fn gerund_complement_requires_declared_licence() {
             .find(|lexeme| lexeme.id.as_str() == owner)
             .unwrap()
             .properties
-            .features
-            .remove("GerundClauseComplement");
+            .classes
+            .remove("GerundClausePreposition");
         let lexicon = deckmaste_lexical::Lexicon::new(lexemes).unwrap();
         assert!(
             common::readings_with_lexicon(&lexicon, text, Category::PrepositionPhrase).is_empty()

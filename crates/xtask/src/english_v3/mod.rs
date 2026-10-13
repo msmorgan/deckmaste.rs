@@ -128,7 +128,10 @@ pub fn run(args: &EnglishV3Args, output: &mut dyn Write) -> Result<()> {
     let started = Instant::now();
     let corpus = args.selection.load(&args.data)?;
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let sources = deckmaste_lexical_source::load_workspace(&root)?;
+    let sources = deckmaste_lexical_source::load_workspace(
+        &root,
+        &deckmaste_english_v3::grammar::lexical_registry(),
+    )?;
     let lexicon = Lexicon::new(sources.lexemes).context("indexing declared lexical inventory")?;
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
     let grammar = environment.grammar();

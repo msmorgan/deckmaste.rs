@@ -22,6 +22,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
     let count = ir.features.len();
     let positional_capitalization = ir.positional_capitalization;
     let grammar = grammar(ir);
+    let registry = lexical_registry(ir);
     let project = projection(ir);
     let ast = ast(ir);
     let materialize = materializer(ir);
@@ -37,6 +38,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
                 fn is_public(self) -> bool { matches!(self, #(Self::#public)|*) }
             }
             #grammar
+            #registry
             #project
             #ast
             #materialize
@@ -316,6 +318,14 @@ fn projection(ir: &Ir) -> TokenStream {
             }
             DomainKind::Custom { default } => {
                 let name = &domain.name;
+                if let Some(word) = ir.words.iter().find(|w| crate::parse::closed_words::check_name(&w.name, false) == name) {
+                    let id = &word.id;
+                    return Some(quote!(base.values[#index] = (_lexeme_id == #id).then_some(FeatureValue::Custom(#index, 0));));
+                }
+                if let Some(class) = ir.lexical_classes.iter().find(|c| crate::parse::closed_words::check_name(&c.name, true) == name) {
+                    let name = class.name.to_string();
+                    return Some(quote!(base.values[#index] = properties.classes.contains(#name).then_some(FeatureValue::Custom(#index, 0));));
+                }
                 let values = domain.values.iter().enumerate().map(
                     |(value, name)| quote!(#name => Some(FeatureValue::Custom(#index, #value))),
                 );
@@ -335,8 +345,8 @@ fn projection(ir: &Ir) -> TokenStream {
     let frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     quote! {
         fn project(features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
-            let (form, features, properties, surface) = match features {
-                ::deckmaste_english_v3::LexicalFeatures::Word { form, features, properties, surface, .. } => (form, features, properties, surface),
+            let (_lexeme_id, form, features, properties, surface) = match features {
+                ::deckmaste_english_v3::LexicalFeatures::Word { lexeme_id, form, features, properties, surface, .. } => (lexeme_id, form, features, properties, surface),
                 ::deckmaste_english_v3::LexicalFeatures::Numeral { value, notation, surface } => return project_numeral(value, notation, surface),
                 ::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface } => return vec![Summary::lexical(surface)],
             };
@@ -1118,4 +1128,38 @@ fn materializer(ir: &Ir) -> TokenStream {
         }
         #(#methods)*
     })
+}
+
+fn lexical_registry(ir: &Ir) -> TokenStream {
+    let words = ir.words.iter().map(|word| {
+        let id = &word.id;
+        let lemma = &word.lemma;
+        let category = &word.category;
+        let classes = word.classes.iter().map(ToString::to_string);
+        let properties = word.properties.iter().map(|(key, value)| quote!((#key.into(), #value.into())));
+        quote!({
+            let mut word = ::deckmaste_lexical::Lexeme::invariant(#id, #lemma,
+                ::deckmaste_lexical::Category::#category,
+                ::deckmaste_lexical::Source { kind: ::deckmaste_lexical::SourceKind::Core, path: file!().into(), owner: #id.into() });
+            word.properties.classes = [#(#classes.into()),*].into_iter().collect();
+            word.properties.features = [#(#properties),*].into_iter().collect();
+            word
+        })
+    });
+    let classes = ir.lexical_classes.iter().map(|class| {
+        let name = class.name.to_string();
+        let categories = &class.categories;
+        quote!(::deckmaste_lexical::LexicalClass { name: #name.into(), categories: vec![#(::deckmaste_lexical::Category::#categories),*] })
+    });
+    let properties = ir.features.iter().filter(|f| matches!(f.kind, DomainKind::Custom { .. } | DomainKind::Set) && !f.name.starts_with("__")).map(|domain| {
+        let name = &domain.name;
+        let values = &domain.values;
+        let set = matches!(domain.kind, DomainKind::Set);
+        quote!(::deckmaste_lexical::PropertyDomain { name: #name.into(), values: vec![#(#values.into()),*], set: #set })
+    });
+    quote! {
+        pub fn lexical_registry() -> ::deckmaste_lexical::LexicalRegistry {
+            ::deckmaste_lexical::LexicalRegistry { words: vec![#(#words),*], classes: vec![#(#classes),*], properties: vec![#(#properties),*] }
+        }
+    }
 }

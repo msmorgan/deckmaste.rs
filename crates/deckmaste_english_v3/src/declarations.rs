@@ -9,6 +9,44 @@ constructions! {
     pub mod grammar {
         capitalization Positional;
 
+        lexical_class GerundClausePreposition: Preposition;
+        closed_word InfinitivalTo: Subordinator {
+            id "vocab:InfinitivalMarker/To";
+            lemma "to";
+            properties { "Finiteness": "Nonfinite" };
+        }
+        closed_word RelativeThat: Subordinator {
+            id "vocab:Subordinator/That";
+            lemma "that";
+        }
+        closed_word Only: Adverb {
+            id "vocab:FocusAdverb/Only";
+            lemma "only";
+        }
+        closed_word By: Preposition {
+            id "vocab:Preposition/By";
+            lemma "by";
+            classes [GerundClausePreposition];
+        }
+        closed_word Of: Preposition {
+            id "vocab:Preposition/Of";
+            lemma "of";
+            classes [GerundClausePreposition];
+            properties { "BareLocativeComplement": "No", "PrepositionAttachment": "PostmodifierOnly", "PrepositionComplementKind": "RelationalComplement" };
+        }
+        closed_word PrepositionalTo: Preposition {
+            id "vocab:Preposition/To";
+            lemma "to";
+            classes [GerundClausePreposition];
+            properties { "BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement" };
+        }
+        closed_word Without: Preposition {
+            id "vocab:Preposition/Without";
+            lemma "without";
+            classes [GerundClausePreposition];
+        }
+
+
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
@@ -127,7 +165,6 @@ constructions! {
         feature AdjectiveComplementClass { None, Manner, ColorWord } default None combine coordinated_adjective_complement_class;
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No combine all;
-        feature FocusingModifierUse { Restrictive }
         // A focused conjunct blocks focus on the whole coordination.
         feature FocusedUse { No, Yes } default No combine any;
         // CF8: two focused Adjuncts use the common member route exclusively.
@@ -283,7 +320,6 @@ constructions! {
         table verbless_ordinary_frame_use(framing, VerblessComplementOmissionUse) -> VerblessPredicateUse {
             (Unframed, _) => Yes, (_, Yes) => Yes, (_, _) => No,
         }
-        feature GerundClauseComplement { Yes }
         feature ComplementFunctionRestriction { None, Adjunct, Compound, PreposedOrPredicative } default None combine coordinated_complement_function_restriction(left.ComplementFunctionRestriction, right.ComplementFunctionRestriction, left.PrepositionFunctionLicence, right.PrepositionFunctionLicence);
         table coordinated_complement_function_restriction(ComplementFunctionRestriction, ComplementFunctionRestriction,
             PrepositionFunctionLicence, PrepositionFunctionLicence)
@@ -316,7 +352,6 @@ constructions! {
         feature AdjectiveOrigin { Ordinary, Participial } default Ordinary combine coordinated_adjective_origin;
         feature AdjectivePremodifierUse { No, Yes } default Yes combine all;
         feature AdjectiveStructure { Simple, Complemented } combine coordinated_adjective_structure;
-        feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed } combine coordinated_participial_use;
         feature PastParticipialPremodifier { No, Yes } default No;
         feature AuxiliaryComplementRealization { Overt, Elided, ProForm }
@@ -504,7 +539,6 @@ constructions! {
         table central_postauxiliary(CentralAdjunctLicence) -> Selection contains PostAuxiliary => Yes;
         table central_imperative(CentralAdjunctLicence) -> Selection contains Imperative => Yes;
         feature CentralAdjunctPosition { Preverbal, PostCopula, PostAuxiliary } default Preverbal;
-        feature InfinitivalMarker { Yes }
         feature SecondaryNegation { Yes }
         feature FrameUse { Object, Predicative, Locative, Mana, Amount, Measure, SlashMeasure,
             GrantedAbility, AuxiliaryBare, AuxiliaryParticiple, AuxiliaryPerfect, ObjectName,
@@ -3991,8 +4025,7 @@ constructions! {
         // Adverbs can modify NPs, PPs and AdvPs. NP distribution follows FO1–FO3
         // in english-v3-focus-only-object (orchestrator ruling, 2026-10-10).
         schema FocusedPhrase {
-            form [modifier: lexical(Adverb), " ", head: node];
-            require modifier.FocusingModifierUse = Restrictive;
+            form [modifier: lexical_word(Only), " ", head: node];
             require head.FocusedUse = No;
         }
         policy FocusedPrepositionPermissions {
@@ -4206,7 +4239,7 @@ constructions! {
             export MatrixComplementRequirement = None;
             export NominalExceptionComplementUse = No;
             form [head: lexical(Preposition), " ", complement: SecondaryVerbPhrase];
-            require head.GerundClauseComplement = Yes;
+            require head in GerundClausePreposition;
             require complement.form = GerundParticiple;
             export PrepositionFunctionLicence = head.PrepositionFunctionLicence;
         }
@@ -4671,9 +4704,8 @@ constructions! {
 
         construction QuantifiedSubjectRelative: SubjectRelativeClause {
             head predicate;
-            form [marker: lexical(Subordinator), " ", quantifier: lexical(Determinative),
+            form [marker: lexical_word(RelativeThat), " ", quantifier: lexical(Determinative),
                 " ", predicate: FinitePredicate];
-            require marker.RelativeSubordinator = Yes;
             require quantifier.QuantificationalAdjunctUse = Yes;
             require predicate.CliticHost = Free;
             require predicate.number = Plural;
@@ -4765,9 +4797,8 @@ constructions! {
 
         construction SubjectRelativeClause: SubjectRelativeClause {
             head predicate;
-            form [marker: lexical(Subordinator), clitic_separator(predicate.CliticHost),
+            form [marker: lexical_word(RelativeThat), clitic_separator(predicate.CliticHost),
                 predicate: FinitePredicate];
-            require marker.RelativeSubordinator = Yes;
             require relative_clitic(predicate.CliticHost) = Yes;
             require predicate.person = Third;
         }
@@ -4825,9 +4856,8 @@ constructions! {
 
         construction ObjectRelativeClause: ObjectRelativeClause {
             head predicate;
-            form [marker: lexical(Subordinator), " ", subject: NominativePhrase,
+            form [marker: lexical_word(RelativeThat), " ", subject: NominativePhrase,
                 clitic_separator(predicate.CliticHost), predicate: FiniteObjectGap];
-            require marker.RelativeSubordinator = Yes;
             require finite_subject_number(subject.number, predicate.number, subject.DeterminerAgreementNumber) = Yes;
             agree subject.person = predicate.person;
             require clitic_subject(subject.SubjectStructure, predicate.CliticHost) = Yes;
@@ -5705,8 +5735,7 @@ constructions! {
         // A selected hollow internal Complement links its Object Gap to the Subject
         // (CGEL Ch. 14 §6.3(c), p. 1250); ordinary infinitivals keep a full predicate.
         schema ToInfinitive {
-            form [negator: optional(SecondaryNegator), marker: lexical(Subordinator), " ", predicate: node];
-            require marker.InfinitivalMarker = Yes;
+            form [negator: optional(SecondaryNegator), marker: lexical_word(InfinitivalTo), " ", predicate: node];
         }
         schema Negator {
             form [head: lexical(Adverb)];

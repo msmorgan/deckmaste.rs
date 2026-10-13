@@ -5,7 +5,12 @@ use std::path::Path;
 #[test]
 fn doubled_core_verbs_retain_their_authored_past_participles() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lexicon = Lexicon::new(load_workspace(&root).unwrap().lexemes).unwrap();
+    let lexicon = Lexicon::new(
+        load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry())
+            .unwrap()
+            .lexemes,
+    )
+    .unwrap();
     for (owner, surface) in [
         ("core-verb:Control", "controlled"),
         ("core-verb:Flip", "flipped"),

@@ -14,6 +14,8 @@ use crate::LoadError;
 pub(crate) struct Inventory {
     pub lexemes: Vec<Lexeme>,
     #[serde(default)]
+    pub class_additions: BTreeMap<String, Vec<String>>,
+    #[serde(default)]
     pub category_feature_defaults: BTreeMap<deckmaste_lexical::Category, BTreeMap<String, String>>,
     #[serde(default)]
     pub adjective_classes: Vec<AdjectiveClass>,
@@ -800,7 +802,12 @@ mod tests {
 
     fn workspace() -> Lexicon {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-        Lexicon::new(crate::load_workspace(&root).unwrap().lexemes).unwrap()
+        Lexicon::new(
+            crate::load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry())
+                .unwrap()
+                .lexemes,
+        )
+        .unwrap()
     }
 
     #[test]

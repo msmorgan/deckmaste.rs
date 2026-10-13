@@ -8,7 +8,12 @@ use deckmaste_lexical::{
 
 static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    Lexicon::new(crate::load_workspace(&root).unwrap().lexemes).unwrap()
+    Lexicon::new(
+        crate::load_workspace(&root, &deckmaste_english_v3::grammar::lexical_registry())
+            .unwrap()
+            .lexemes,
+    )
+    .unwrap()
 });
 
 fn entry(owner: &str) -> &'static Lexeme {

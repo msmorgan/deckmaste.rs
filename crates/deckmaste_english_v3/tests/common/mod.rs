@@ -18,9 +18,12 @@ use deckmaste_lexical::Lexicon;
 pub static LEXICON: LazyLock<Lexicon> = LazyLock::new(|| {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     Lexicon::new(
-        deckmaste_lexical_source::load_workspace(&root)
-            .unwrap()
-            .lexemes,
+        deckmaste_lexical_source::load_workspace(
+            &root,
+            &deckmaste_english_v3::grammar::lexical_registry(),
+        )
+        .unwrap()
+        .lexemes,
     )
     .unwrap()
 });

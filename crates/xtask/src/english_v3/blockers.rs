@@ -448,7 +448,13 @@ pub(super) fn run(args: &BlockersArgs, data: &Path, out: &mut dyn Write) -> Resu
         .map(|f| (f.identity.as_str(), f))
         .collect();
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let lexicon = Lexicon::new(deckmaste_lexical_source::load_workspace(&root)?.lexemes)?;
+    let lexicon = Lexicon::new(
+        deckmaste_lexical_source::load_workspace(
+            &root,
+            &deckmaste_english_v3::grammar::lexical_registry(),
+        )?
+        .lexemes,
+    )?;
     let environment = deckmaste_english_v3::grammar::GrammarEnvironment::new(&lexicon);
     let analysis_args = EnglishV3Args {
         command: None,

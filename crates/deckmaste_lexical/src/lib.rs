@@ -33,3 +33,6 @@ pub use crate::model::*;
 pub use crate::morphology::default_participle;
 pub use crate::numeral::NumeralCodec;
 pub use crate::numeral::ParseNumeralError;
+
+mod registry;
+pub use registry::{LexicalClass, LexicalRegistry, PropertyDomain};

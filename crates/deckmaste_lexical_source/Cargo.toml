@@ -18,4 +18,5 @@ ron = "0.12.1"
 serde = { version = "1.0.228", features = ["derive"] }
 
 [dev-dependencies]
+deckmaste_english_v3 = { path = "../deckmaste_english_v3" }
 tempfile = "3.27.0"
