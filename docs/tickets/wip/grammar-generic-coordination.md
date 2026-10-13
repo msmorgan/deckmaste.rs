@@ -139,9 +139,16 @@ their last users. Kind judgments remain named tables; predicative_adjunct_concor
 remains used elsewhere and was checked on all nine present/absent pairs.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+ComparativeGovernorHead replaces its binary instance and removes the last-user
+ComparativeGovernorComparison policy. DiscontinuousComparativeGovernor remains
+handwritten: its single binary instance omits GeneralCoordination, so a conversion
+would need a one-user profile or misleadingly reuse Clausal. The explicit instance
+and small concord policy state this more directly.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`vkotykos`, predicative family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`vkotykos`): does not apply yet.
+Census delta (`rymyyopy`, governor family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`rymyyopy`): does not apply yet.

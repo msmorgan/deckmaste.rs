@@ -132,6 +132,8 @@ GrantedAbility combines kind through its named table and restricts completed res
 
 DepictivePhrase and PredicativeComplement use different named kind judgments for helper summaries and completed results.
 
+ComparativeGovernorHead selects binary Standard coordination and retains its named comparison-marker judgment.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);
@@ -225,6 +227,10 @@ Elaboration retains constructor names, field order, form indices and `category`
 discriminators. Handwritten instances can coexist for other Categories.
 
 The following English structures intentionally remain handwritten:
+
+- DiscontinuousComparativeGovernor: its lone binary instance omits
+  GeneralCoordination. A one-user profile or a misleading Clausal binding would
+  obscure this small declaration.
 
 - Focused adjunct coordination: six result-only function features would each need
   a constant override and a helper omission. FocusedAdjunctConcord and

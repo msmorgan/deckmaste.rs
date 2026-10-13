@@ -366,7 +366,7 @@ constructions! {
         table matched_nonfinite_comparison(form, ComparativeComplementForm) -> Selection {
             (Plain, BareInfinitival) => Yes, (GerundParticiple, GerundParticipial) => Yes,
         }
-        feature ComparisonMarker { Equality, Ordering }
+        feature ComparisonMarker { Equality, Ordering } combine coordinated_comparison_marker;
         feature ExpandedComparisonMarker { Equality, Ordering }
         feature KeywordParameterClass { Nullary, Amount, Cost, Quality, Subject, Name, AmountCost,
             QualityCost, QualityAmount, Ability, Condition, CostPowerToughness, Instruction }
@@ -1739,6 +1739,10 @@ constructions! {
         coordinable PredicativeComplement using Standard {
             forms binary, serial;
             on helper { combine PredicativeKind = combined_predicative_kind; }
+        }
+
+        coordinable ComparativeGovernorHead using Standard {
+            forms binary;
         }
 
         schema CoordinationSeriesEnd {
@@ -3221,7 +3225,6 @@ constructions! {
             (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
         ] {
@@ -5588,11 +5591,6 @@ constructions! {
             (Equality, Equality) => Equality, (Equality, Ordering) => Ordering,
             (Ordering, Equality) => Ordering, (Ordering, Ordering) => Ordering,
         }
-        policy ComparativeGovernorComparison<Right, Source> {
-            export ComparisonMarker = coordinated_comparison_marker(
-                left.ComparisonMarker, Right.ComparisonMarker);
-        }
-
         construction ComparativeGovernorHead: ComparativeGovernorHead {
             export ComparisonMarker = marker.ComparisonMarker;
             form [head: lexical(Adjective), " ", marker: lexical(Preposition)];
