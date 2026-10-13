@@ -97,8 +97,10 @@ neither field order nor form indices, Reading shapes, admission, chart or runtim
 
 English coordination structure stays in grammar-owned schemas. The compiler
 binds their member Categories and derives feature equations and helper summaries.
-The prototype converts Nominal and NounPhrase; other families still use explicit
-instances until their conversion is verified.
+Nominal, NounPhrase and adjective coordination use this facility. Correlative
+adjectives bind AdjectivePhrase members to CorrelativeAdjectivePhrase results
+and explicitly name CorrelativeAdjectiveSeries. Other families still use
+explicit instances until their conversion is verified.
 
 ```rust
 feature Permission { No, Yes } default No combine all;

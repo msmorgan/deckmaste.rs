@@ -93,7 +93,7 @@ constructions! {
         feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted combine coordinated_partitive_countability;
         feature CaseUse { Common, Nominative, Accusative, Genitive } combine common_case;
         feature Targeting { No, Yes } combine any;
-        feature TargetingPremodifierUse { No, Yes } default No;
+        feature TargetingPremodifierUse { No, Yes } default No combine all;
         table targeting_premodifier(TargetingPremodifierUse, Targeting) -> Selection {
             (No, No) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
         }
@@ -132,7 +132,7 @@ constructions! {
         table preposition_phrase_complement(PrepositionComplement) -> Selection contains PrepositionPhrase => Yes;
         table predicative_noun_phrase_complement(PrepositionComplement) -> Selection contains PredicativeNounPhrase => Yes;
         table intransitive_preposition_complement(PrepositionComplement) -> Selection contains Intransitive => Yes;
-        feature AdjectiveComplementClass { None, Manner, ColorWord } default None;
+        feature AdjectiveComplementClass { None, Manner, ColorWord } default None combine coordinated_adjective_complement_class;
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
         feature FocusingModifierUse { Restrictive }
@@ -173,14 +173,10 @@ constructions! {
         feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
-        feature ImplicitComparativeUse { No, Yes } default No;
-        feature AdjectiveAttributiveOnlyUse { No, Yes } default No;
+        feature ImplicitComparativeUse { No, Yes } default No combine all;
+        feature AdjectiveAttributiveOnlyUse { No, Yes } default No combine any;
         table implicit_comparative_attributive_use(ImplicitComparativeUse) -> AdjectiveAttributiveOnlyUse {
             (No) => No, (Yes) => Yes,
-        }
-        table adjective_attributive_concord(AdjectiveAttributiveOnlyUse, AdjectiveAttributiveOnlyUse)
-            -> AdjectiveAttributiveOnlyUse {
-            (No, No) => No, (_, _) => Yes,
         }
         feature ComparativeModifierPresent { No, Yes } default No combine always No;
         table implicit_comparative_concord(ImplicitComparativeUse, ImplicitComparativeUse)
@@ -352,13 +348,9 @@ constructions! {
         feature InternalisedComplementPresent { No, Yes } default No;
         feature ExtentMarker { Yes }
         feature LocativeUse { No, Yes } default No combine always No;
-        feature AdjectiveOrigin { Ordinary, Participial } default Ordinary;
-        feature AdjectivePremodifierUse { No, Yes } default Yes;
-        table coordinated_adjective_premodifier(AdjectivePremodifierUse, AdjectivePremodifierUse)
-            -> AdjectivePremodifierUse {
-            (Yes, Yes) => Yes, (_, _) => No,
-        }
-        feature AdjectiveStructure { Simple, Complemented }
+        feature AdjectiveOrigin { Ordinary, Participial } default Ordinary combine coordinated_adjective_origin;
+        feature AdjectivePremodifierUse { No, Yes } default Yes combine all;
+        feature AdjectiveStructure { Simple, Complemented } combine coordinated_adjective_structure;
         feature RelativeSubordinator { Yes }
         feature ParticipialUse { Ordinary, BarePassive, Mixed }
         feature PastParticipialPremodifier { No, Yes } default No;
@@ -510,7 +502,7 @@ constructions! {
             (None, To) => Yes, (Of, To) => Yes, (To, None) => Yes, (To, Of) => Yes,
         }
         feature NounPremodifier { Yes, Attribute, Keyword, None }
-        feature PremodifierCoordination { No, Yes } default No;
+        feature PremodifierCoordination { No, Yes } default No combine always Yes;
         feature PremodifierCategory { Nominal, Adjectival, Verbal, Mixed }
         feature SyndeticPremodifier { No, Yes }
         table premodifier_category(PremodifierCategory, PremodifierCategory)
@@ -941,11 +933,6 @@ constructions! {
         category MeasurePhraseSeries(head MeasureKind, head UnitBearing);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
-        category AdjectivePhraseSeries(
-            head AdjectiveComplementClass, head AdjectiveAttributiveOnlyUse, head ImplicitComparativeUse,
-            head AdjectiveStructure, head AdjectiveOrigin, head AdjectivePremodifierUse,
-            head TargetingPremodifierUse, head PremodifierCoordination
-        );
         category PrepositionPhraseSeries(
             head PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
             head NominalAdjunctHost, head ClauseComplementBoundary, head LocativeUse,
@@ -1043,7 +1030,6 @@ constructions! {
             head SourceComplementSelection
         );
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
-        category CorrelativeAdjectiveSeries(head AdjectiveAttributiveOnlyUse, head CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(
             head number, head person, head CorrelativeCoordinator, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
@@ -1626,27 +1612,6 @@ constructions! {
             AdjectiveComplementClass) -> AdjectiveComplementClass {
             (ColorWord, ColorWord) => ColorWord, (Manner, Manner) => Manner, (_, _) => None,
         }
-        policy AdjectiveAttributiveConcord<Right, Source> {
-            export AdjectiveAttributiveOnlyUse = adjective_attributive_concord(
-                left.AdjectiveAttributiveOnlyUse, Right.AdjectiveAttributiveOnlyUse);
-        }
-        policy AdjectiveStructureMerge<Right, Source> {
-            export AdjectiveComplementClass = coordinated_adjective_complement_class(
-                left.AdjectiveComplementClass, Right.AdjectiveComplementClass);
-            export AdjectiveAttributiveOnlyUse = adjective_attributive_concord(
-                left.AdjectiveAttributiveOnlyUse, Right.AdjectiveAttributiveOnlyUse);
-            export ImplicitComparativeUse = implicit_comparative_concord(
-                left.ImplicitComparativeUse, Right.ImplicitComparativeUse);
-            export AdjectivePremodifierUse = coordinated_adjective_premodifier(
-                left.AdjectivePremodifierUse, Right.AdjectivePremodifierUse);
-            export PremodifierCoordination = Yes;
-            export AdjectiveOrigin = coordinated_adjective_origin(left.AdjectiveOrigin, Right.AdjectiveOrigin);
-            export AdjectiveStructure = coordinated_adjective_structure(left.AdjectiveStructure,
-                Right.AdjectiveStructure);
-            export TargetingPremodifierUse = coordinated_targeting_premodifier(
-                left.TargetingPremodifierUse, Right.TargetingPremodifierUse);
-        }
-
         policy PremodifierConcord<Right, Source> {
             require left.SyndeticPremodifier = No;
             require serial_premodifier_licence(left.PremodifierCategory,
@@ -2075,6 +2040,15 @@ constructions! {
 
         coordinable NounPhrase using Standard {
             forms binary, serial, both, either, neither;
+        }
+
+        coordinable AdjectivePhrase using Standard {
+            forms binary, serial;
+        }
+
+        coordinable CorrelativeAdjectivePhrase of AdjectivePhrase using Standard {
+            forms both, either, neither;
+            correlative_helper CorrelativeAdjectiveSeries;
         }
 
         schema CoordinationSeriesEnd {
@@ -3266,7 +3240,6 @@ constructions! {
             (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord, NoConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord, NoConcord),
-            (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
@@ -3307,7 +3280,6 @@ constructions! {
                 SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
@@ -3344,7 +3316,6 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
@@ -3634,7 +3605,6 @@ constructions! {
             (GrantedAbility, Self, GrantedAbilityCoordination),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord, NoConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
-            (AdjectivePhrase, Self, AdjectiveStructureMerge),
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
@@ -6447,7 +6417,6 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
@@ -6477,7 +6446,6 @@ constructions! {
                 SelectedFrameConcord),
             (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord),
-            (CorrelativeAdjectiveSeries, AdjectivePhrase, AdjectiveAttributiveConcord),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties),
@@ -6507,7 +6475,6 @@ constructions! {
                 SelectedFrameConcord),
             (CorrelativeSecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (CorrelativeAdjectiveSeries, AdjectivePhrase, Self, AdjectiveAttributiveConcord),
             (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
             (CorrelativeBareObjectGapSeries, BareObjectGap, Self, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
@@ -6534,7 +6501,6 @@ constructions! {
                 SharedFrameConcord),
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
@@ -6557,7 +6523,6 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
@@ -6582,7 +6547,6 @@ constructions! {
             (InfinitiveComplement, Self, NoConcord),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
@@ -6609,7 +6573,6 @@ constructions! {
                 SharedFrameConcord),
             (SecondarySelectedHead, Self, CorrelativeSecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (CorrelativeAdjectivePhrase, AdjectivePhrase, CorrelativeAdjectiveSeries, AdjectiveAttributiveConcord),
             (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
             (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {

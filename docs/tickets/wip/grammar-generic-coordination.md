@@ -53,5 +53,20 @@ member/result distinction. Other families remain pending their separate conversi
 and gate. Compiler tests cover the revised syntax and preserve the original
 strict-combiner runtime matrix.
 
-Census delta (`lqoyqlww`, revised prototype): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`lqoyqlww`): does not apply yet.
+## Phase 2 prefix
+
+AdjectivePhrase and CorrelativeAdjectivePhrase use two blocks, with the existing
+member/result distinction and the CorrelativeAdjectiveSeries name exception.
+Eleven rows and two helper interfaces are generated. AdjectiveStructureMerge,
+AdjectiveAttributiveConcord, adjective_attributive_concord and
+coordinated_adjective_premodifier have no remaining users and are removed.
+The 670 constructor/form contracts and 927 normalized admission contracts match
+the original baseline. The two removed tables also agree with strict primitive
+combination on all nine present/absent input pairs each. Existing hand-built
+Reading tests retain their constructor names, fields and assertions.
+
+Other families remain pending their separate conversion and gate. The explicit
+exceptions and Phase 2 stopping rule above still apply.
+
+Census delta (`sktrrzlm`, adjective family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`sktrrzlm`): does not apply yet.
