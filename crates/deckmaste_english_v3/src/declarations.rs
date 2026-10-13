@@ -523,7 +523,7 @@ constructions! {
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
         feature QuotedComplement { Yes }
-        feature QuotationStructure { Simple, Coordinated }
+        feature QuotationStructure { Simple, Coordinated } combine always Coordinated;
         feature GrantedAbilityKind { Keyword, Quoted } combine combined_ability_kind;
         feature AbilityTermination { Complete, Unterminated } default Complete;
         feature SentenceLineList { No, Yes }
@@ -848,7 +848,6 @@ constructions! {
             head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
-        category QuotedTextSeries();
         category FocusedAdjunctMember(
             head NominalAdjunctHost, head ClauseComplementBoundary,
             head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
@@ -867,7 +866,6 @@ constructions! {
             head InternalisedComplementMarker
         );
         category CoordinatedFiniteClause(head GeneralCoordination);
-        category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
         category SelectedPrepositionHead(
             head LocativeUse combine all, head PrepositionFunctionLicence, head HeadCoordination,
@@ -1760,6 +1758,11 @@ constructions! {
             forms binary, serial;
         }
 
+        coordinable QuotedText using Standard {
+            forms binary, serial, both, either, neither;
+            on helper { omit QuotationStructure; }
+        }
+
         schema CoordinationSeriesEnd {
             head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
@@ -2249,10 +2252,6 @@ constructions! {
         table quoted_ability_combination(GrantedAbilityKind, GrantedAbilityKind) -> Selection {
             (Keyword, Quoted) => Yes, (Quoted, Keyword) => Yes, (Quoted, Quoted) => Yes,
         }
-        policy CoordinatedQuotation<Right, Source> {
-            export QuotationStructure = Coordinated;
-        }
-
         construction ActivatedAbility: Ability {
             head body;
             export LabelKind = None;
@@ -2917,7 +2916,6 @@ constructions! {
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
-            (QuotedTextSeries, QuotedText),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -2929,7 +2927,6 @@ constructions! {
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
-            (QuotedTextSeries, QuotedText, Self),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -2938,7 +2935,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
-            (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -3201,7 +3197,6 @@ constructions! {
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
-            (QuotedText, Self, NoConcord, CoordinatedQuotation),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -5951,72 +5946,6 @@ constructions! {
             (Adjectival, Mixed) => Mixed,
             (Participial, Mixed) => Mixed,
             (Mixed, Mixed) => Mixed,
-        }
-
-        // Correlative prefixes: Both binary only; main Clause Either only.
-        // Nominal/AdjP deferred until pre-head placement is represented in summaries.
-        instance EitherCoordination<Result, Member, Agreement = NoConcord,
-            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (QuotedText, Self, NoConcord, CoordinatedQuotation),
-        ] {
-            bind left, right = Member;
-            use Agreement(right, coordinator);
-            use Properties(right, coordinator);
-            use BoundaryProperties;
-        }
-
-        instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
-            Status = NoConcord>: [
-            (CorrelativeQuotedTextSeries, QuotedText),
-        ] {
-            bind left, right = Member;
-            use Agreement(right, coordinator);
-            use Properties(right, coordinator);
-            use Status(right, coordinator);
-        }
-        instance CorrelativeSeriesContinuation<
-            Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord, Status = NoConcord>: [
-            (CorrelativeQuotedTextSeries, QuotedText, Self),
-        ] {
-            use Agreement(rest, rest);
-            use Properties(rest, rest);
-            use Status(rest, rest);
-        }
-        instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
-        ] {
-            use Agreement(rest, rest);
-            use Properties(rest, rest);
-            use BoundaryProperties;
-        }
-        instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (QuotedText, Self, NoConcord, CoordinatedQuotation),
-        ] {
-            bind left, right = Member;
-            use Agreement(right, coordinator);
-            use Properties(right, coordinator);
-            use BoundaryProperties;
-        }
-
-        instance NeitherCoordination<Result, Member, Agreement = NoConcord,
-            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (QuotedText, Self, NoConcord, CoordinatedQuotation),
-        ] {
-            bind left, right = Member;
-            use Agreement(right, coordinator);
-            use Properties(right, coordinator);
-            use BoundaryProperties;
-        }
-
-        instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
-            Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
-        ] {
-            use Agreement(rest, rest);
-            use Properties(rest, rest);
-            use BoundaryProperties;
         }
 
         // CGEL pp. 467–468: a genitive NP determines the following nominal.

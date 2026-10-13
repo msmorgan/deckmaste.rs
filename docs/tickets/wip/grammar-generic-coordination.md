@@ -49,11 +49,11 @@ Nominal and NounPhrase now use interface combiners and the grammar-owned Standar
 form profile. Their fifteen instance rows and three helper interfaces are
 compiler-generated; four policies and seven now-unused AND/OR tables are removed.
 The revised prototype implements the reviewed defaults, roles, helper names and
-member/result distinction. Other families remain pending their separate conversion
-and gate. Compiler tests cover the revised syntax and preserve the original
+member/result distinction. Phase 2 below records each subsequent family and its
+gate. Compiler tests cover the revised syntax and preserve the original
 strict-combiner runtime matrix.
 
-## Phase 2 prefix
+## Phase 2 conversions
 
 AdjectivePhrase and CorrelativeAdjectivePhrase use two blocks, with the existing
 member/result distinction and the CorrelativeAdjectiveSeries name exception.
@@ -176,9 +176,23 @@ FrequencyPhrase replaces 4 rows and one helper interface.
 No feature-combination policy or table is needed.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: QuotedText.
-The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
-AND/OR twins must go only as their last handwritten users convert.
+QuotedText replaces 11 rows and two helper interfaces. CoordinatedQuotation loses its last user;
+helpers omit QuotationStructure and results use always Coordinated.
+All 670 shape and 927 admission contracts match the baseline.
 
-Census delta (`rynpxyqp`, FrequencyPhrase family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`rynpxyqp`): does not apply yet.
+Every family is now converted or deliberately retained as documented above.
+The explicit exceptions above remain handwritten. Every removed policy and table
+lost its last user; Boolean tables with handwritten or non-coordination users remain.
+The seven now-empty correlative instance groups are removed; reusable schemas stay.
+
+Final validation keeps all 32,828 face digests identical to the original baseline.
+All 670 ordered shape contracts and 927 normalized admission contracts match.
+Full tests for construction core, construction macros, English v3 and xtask pass:
+1,728 passed, zero failed, two pre-existing ignores. Clippy with tests and denied
+warnings passes for all four crates; citation checks find no stale or noncompliant
+citations. The ticket adds twenty compiler/runtime tests; twelve prototype fixtures
+were re-spelled for the reviewed syntax. Existing hand-built English Reading tests
+are unchanged; no test was restored, removed, weakened or newly ignored.
+
+Census delta (`qtsosklq`): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`qtsosklq`): does not apply yet.

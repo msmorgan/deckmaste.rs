@@ -97,56 +97,20 @@ neither field order nor form indices, Reading shapes, admission, chart or runtim
 
 English coordination structure stays in grammar-owned schemas. The compiler
 binds their member Categories and derives feature equations and helper summaries.
-Nominal, NounPhrase, adjective, adverb and preposition coordination use this facility. Correlative
-adjectives bind AdjectivePhrase members to CorrelativeAdjectivePhrase results
-and explicitly name CorrelativeAdjectiveSeries. AdverbPhrase uses one admission
-requirement, copies UnmarkedConjunctLicence on ordinary forms, and omits it from
-correlative helpers; completed correlatives retain the feature default `always Yes`.
-PrepositionPhrase retains its ordinary-adjunct admission requirement and combines
-LocativeUse with `all`, overriding the feature default. SelectedPrepositionHead
-omits HeadCoordination from helpers; completed coordination supplies `always Yes`.
-Their multi-valued judgments remain named tables, including the four-argument
-complement-function judgment. Other families still use explicit instances until
-their conversion is verified.
+Regular English families use `coordinable` blocks; the exceptions
+listed below remain handwritten.
 
-FinitePredicate, SecondaryVerbPhrase and their selected heads use the grammar-owned
-Clausal profile: the same structural schemas without Standard’s GeneralCoordination
-requirement. Finite members require a free right-hand clitic host while retaining
-the left host. Predicate helpers omit result boundary features; selected-head
-helpers omit HeadCoordination. SecondaryPredicateSeries keeps its explicit name.
-FiniteObjectGap, BareObjectGap and PastParticipleObjectGap use the same profile and
-boundary omissions. The past-participle family selects only binary/serial forms.
-Clause serial/either forms retain a left-derived licence except at correlative
-completion; exact-schema contexts identify the four forms that require a licensed
-following series. CoordinatedFiniteClause binds FiniteClause members and explicitly
-names FiniteClauseSeries and CorrelativeFiniteClauseSeries. Both use Clausal;
-ClauseCoordination’s separate binary punctuation remains handwritten.
+The grammar's Standard profile requires GeneralCoordination at ordinary overt
+joins. Clausal uses the same schemas without that requirement for predicates,
+object gaps and clauses. Each Category selects its existing forms; profiles do
+not add forms implicitly beyond the helpers needed by those selections.
 
-Cardinal selects all Standard forms. Its number annotation retains
-cardinal_coordinate_number; the compiler carries CoordinationKind through helpers.
-CardinalComplementUse uses strict `all`.
-
-MeasurePhrase uses strict agreement for MeasureKind and the UnitBearing `any` default.
-
-GrantedAbility combines kind through its named table and restricts completed results with quoted_ability_combination.
-
-DepictivePhrase and PredicativeComplement use different named kind judgments for helper summaries and completed results.
-
-ComparativeGovernorHead selects binary Standard coordination and retains its named comparison-marker judgment.
-
-KeywordQualityPreposition agrees on KeywordMarker and retains the named number judgment.
-
-NounPremodifier and VerbalPremodifier select binary/serial Standard forms; the heterogeneous Premodifier paths remain explicit.
-
-ManaPhrase needs only its selected Standard forms.
-
-Amount needs only its selected Standard forms.
-
-KeywordPhrase needs only its selected Standard forms.
-
-InfinitiveComplement needs only its selected Standard forms.
-
-FrequencyPhrase needs only its selected Standard forms.
+Named tables retain multi-valued judgments, including noun-phrase and cardinal
+number, complement functions, and ability kinds. Depictive and predicative
+complements override their kind judgment for helpers. Granted abilities put
+quoted_ability_combination only on completed results. Helpers omit result-only
+features where the grammar requires that distinction, as with HeadCoordination
+and QuotationStructure.
 
 ```rust
 feature Permission { No, Yes } default No combine all;
@@ -249,7 +213,6 @@ The following English structures intentionally remain handwritten:
 - Focused adjunct coordination: six result-only function features would each need
   a constant override and a helper omission. FocusedAdjunctConcord and
   FocusedAdjunctFunction state the summary and result function more clearly.
-
 - ClauseCoordination's binary punctuation: two forms and a BareCoordination
   restriction, with its own constructor shape.
 - Irregular premodifier paths: unlike Categories and separate asyndetic/syndetic
