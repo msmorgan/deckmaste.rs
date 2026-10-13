@@ -216,6 +216,10 @@ discriminators. Handwritten instances can coexist for other Categories.
 
 The following English structures intentionally remain handwritten:
 
+- Focused adjunct coordination: six result-only function features would each need
+  a constant override and a helper omission. FocusedAdjunctConcord and
+  FocusedAdjunctFunction state the summary and result function more clearly.
+
 - ClauseCoordination's binary punctuation: two forms and a BareCoordination
   restriction, with its own constructor shape.
 - Irregular premodifier paths: unlike Categories and separate asyndetic/syndetic

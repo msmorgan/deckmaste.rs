@@ -112,13 +112,17 @@ UnmarkedConjunct, UnmarkedConjunctHead and MarkedConjunctSeries lose their last 
 All 670 shape and 927 admission contracts match; no additional compiler capability
 was needed.
 
-Remaining families are pending their separate conversion and gate: focused adjuncts,
-Cardinal, MeasurePhrase, GrantedAbility,
+Focused adjunct coordination remains handwritten: six result-only function
+features would each require a constant override and a helper omission. Keeping
+FocusedAdjunctConcord and FocusedAdjunctFunction avoids repeating that distinction.
+No grammar declaration changes in this decision.
+
+Remaining families are pending their separate conversion and gate: Cardinal, MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
 KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`zqomlvlu`, clause family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`zqomlvlu`): does not apply yet.
+Census delta (`oxlwpsut`, focused-adjunct decision): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`oxlwpsut`): does not apply yet.
