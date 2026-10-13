@@ -65,8 +65,21 @@ the original baseline. The two removed tables also agree with strict primitive
 combination on all nine present/absent input pairs each. Existing hand-built
 Reading tests retain their constructor names, fields and assertions.
 
-Other families remain pending their separate conversion and gate. The explicit
-exceptions and Phase 2 stopping rule above still apply.
+AdverbPhrase also uses one block: an ordinary-adjunct requirement, an ordinary-form
+licence override, and omission of that licence from correlative helpers. Eleven
+rows and two helper interfaces are generated. AdverbPermissions and its three
+last-user tables coordinated_frequency_use, coordinated_final_adjunct and
+coordinated_duration_use are removed; their present/absent domains were also
+exhaustively compared. All constructor and admission contracts remain identical.
 
-Census delta (`sktrrzlm`, adjective family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`sktrrzlm`): does not apply yet.
+Remaining families are pending their separate conversion and gate: PrepositionPhrase,
+SelectedPrepositionHead, finite/secondary predicates and selected heads, object gaps,
+Clause/FiniteClause, focused adjuncts, Cardinal, MeasurePhrase, GrantedAbility,
+DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
+NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
+KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedText.
+The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
+AND/OR twins must go only as their last handwritten users convert.
+
+Census delta (`qrnutumt`, adverb family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`qrnutumt`): does not apply yet.

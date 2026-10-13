@@ -16,11 +16,7 @@ constructions! {
         feature DegreeUse { None, Head, Modifier } default None;
         feature QuantitativeExceptionUse { No, Yes } default No;
         feature ComparativeDegreeModifierUse { No, Yes } default No;
-        feature FrequencyUse { No, Yes } default No;
-        table coordinated_frequency_use(FrequencyUse, FrequencyUse) -> FrequencyUse {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
+        feature FrequencyUse { No, Yes } default No combine all;
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
             (Multiplier, Definite, Other) => Yes, (Fraction, Definite, Other) => Yes,
@@ -134,7 +130,7 @@ constructions! {
         table intransitive_preposition_complement(PrepositionComplement) -> Selection contains Intransitive => Yes;
         feature AdjectiveComplementClass { None, Manner, ColorWord } default None combine coordinated_adjective_complement_class;
         feature AdverbComplementClass { Duration }
-        feature DurationUse { No, Yes } default No;
+        feature DurationUse { No, Yes } default No combine all;
         feature FocusingModifierUse { Restrictive }
         feature FocusedUse { No, Yes } default No combine any;
         // CF7: a focused coordinate blocks focus on the whole coordination.
@@ -146,7 +142,7 @@ constructions! {
         table ordinary_adjunct_coordination(FocusedUse, FocusedUse) -> Selection {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, No) => Yes,
         }
-        feature NominalAdjunctHost { No, Yes } default Yes;
+        feature NominalAdjunctHost { No, Yes } default Yes combine always Yes;
         feature PredicativeAdjunctUse { No, Yes } default No combine all;
         table predicative_adjunct_concord(PredicativeAdjunctUse, PredicativeAdjunctUse)
             -> PredicativeAdjunctUse {
@@ -548,8 +544,8 @@ constructions! {
             export NounPremodifier = coordinated_noun_premodifier(
                 left.NounPremodifier, Right.NounPremodifier);
         }
-        feature VPFinalAdjunct { Yes, No }
-        feature ClauseInitialAdjunct { Yes, No } default No;
+        feature VPFinalAdjunct { Yes, No } combine all;
+        feature ClauseInitialAdjunct { Yes, No } default No combine all;
         feature CardinalModifierUse { Yes, No } default No;
         feature CentralAdjunctLicence { Preverbal, PostCopula, PostAuxiliary, Imperative } set;
         table central_preverbal(CentralAdjunctLicence) -> Selection contains Preverbal => Yes;
@@ -960,10 +956,6 @@ constructions! {
             head PredicativeAdjunctUse, head SelectedPrepositionUse, head MatrixComplementRequirement,
             head InternalisedComplementMarker
         );
-        category AdverbPhraseSeries(
-            head NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
-            head UnmarkedConjunctLicence, head FocusedUse, head FrequencyUse
-        );
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(
@@ -1003,10 +995,6 @@ constructions! {
             head ClauseInitialAdjunct, head FocusedUse, head PrepositionPhraseComplementMarker,
             head SourceComplementUse, head SourceModifierPresent, head WholeObjectSourcePresent,
             head SourceMarker, head MatrixComplementRequirement, head NominalExceptionComplementUse
-        );
-        category CorrelativeAdverbPhraseSeries(
-            head NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
-            head FrequencyUse, head CorrelativeCoordinator, head FocusedUse
         );
         category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeCardinalSeries(
@@ -1630,18 +1618,6 @@ constructions! {
                 left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
         }
 
-        policy AdverbPermissions<Right, Source> {
-            export FrequencyUse = coordinated_frequency_use(left.FrequencyUse, Right.FrequencyUse);
-            export NominalAdjunctHost = Yes;
-            require ordinary_adjunct_coordination(left.FocusedUse, Right.FocusedUse) = Yes;
-            export FocusedUse = coordinated_focus(left.FocusedUse, Right.FocusedUse);
-            export VPFinalAdjunct = coordinated_final_adjunct(left.VPFinalAdjunct,
-                Right.VPFinalAdjunct);
-            export ClauseInitialAdjunct = coordinated_initial_adjunct(left.ClauseInitialAdjunct,
-                Right.ClauseInitialAdjunct);
-            export DurationUse = coordinated_duration_use(left.DurationUse, Right.DurationUse);
-        }
-
         policy CardinalAgreement<Right, Source> {
             export CardinalComplementUse = coordinated_cardinal_complement(left.CardinalComplementUse, Right.CardinalComplementUse);
             export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
@@ -2049,6 +2025,13 @@ constructions! {
         coordinable CorrelativeAdjectivePhrase of AdjectivePhrase using Standard {
             forms both, either, neither;
             correlative_helper CorrelativeAdjectiveSeries;
+        }
+
+        coordinable AdverbPhrase using Standard {
+            forms binary, serial, both, either, neither;
+            require ordinary_adjunct_coordination(left.FocusedUse, right.FocusedUse) = Yes;
+            on binary, serial { combine UnmarkedConjunctLicence = left.UnmarkedConjunctLicence; }
+            on correlative_helper { omit UnmarkedConjunctLicence; }
         }
 
         schema CoordinationSeriesEnd {
@@ -3241,7 +3224,6 @@ constructions! {
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord, NoConcord),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
             (FiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord, NoConcord, NoConcord),
@@ -3281,7 +3263,6 @@ constructions! {
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
             (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
             (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
@@ -3317,7 +3298,6 @@ constructions! {
             (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
             (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
             (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
@@ -3607,7 +3587,6 @@ constructions! {
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
             (BareObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
@@ -6307,18 +6286,8 @@ constructions! {
         }
 
 
-        table coordinated_final_adjunct(VPFinalAdjunct, VPFinalAdjunct) -> VPFinalAdjunct {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
-
         table coordinated_initial_adjunct(ClauseInitialAdjunct,
             ClauseInitialAdjunct) -> ClauseInitialAdjunct {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
-
-        table coordinated_duration_use(DurationUse, DurationUse) -> DurationUse {
             (Yes, Yes) => Yes,
             (_, _) => No,
         }
@@ -6407,7 +6376,6 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -6434,7 +6402,6 @@ constructions! {
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase,
                 SecondaryConjunctProperties),
             (CorrelativePrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (CorrelativeAdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase),
             (CorrelativeCardinalSeries, Cardinal, CardinalListEnd),
             (CorrelativeAmountSeries, Amount),
@@ -6463,7 +6430,6 @@ constructions! {
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, Self,
                 SecondaryConjunctProperties),
             (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
-            (CorrelativeAdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
             (CorrelativeCardinalSeries, Cardinal, Self, CardinalListEnd),
             (CorrelativeAmountSeries, Amount, Self),
@@ -6489,7 +6455,6 @@ constructions! {
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
@@ -6513,7 +6478,6 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -6537,7 +6501,6 @@ constructions! {
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -6561,7 +6524,6 @@ constructions! {
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
-            (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
