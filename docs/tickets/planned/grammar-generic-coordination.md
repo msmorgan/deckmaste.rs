@@ -1,5 +1,5 @@
 ---
-needs: [grammar-compiler-expressions-and-tables]
+needs: [grammar-dead-declarations-and-requirements]
 ---
 # Generic coordination with per-feature combiners
 
