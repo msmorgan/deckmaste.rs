@@ -650,15 +650,49 @@ fn synthetic_trees_preserve_attachment_lexeme_form_gap_and_barrier_scope() {
     // These are inputs to the tree normaliser, not claims that a parser should
     // admit either member of a pair.
     let noun = format!("Noun {{ form: 0, head: {} }}", synthetic_word("head-a"));
-    let inner = format!(
+    let dependent_on_left = format!(
         "Coordination {{ form: 0, category: Nominal, left: {}, coordinator: And, right: {noun} }}",
         synthetic_post(&noun, "Dependent")
     );
-    let outer = format!(
+    let dependent_on_right = format!(
         "Coordination {{ form: 0, category: Nominal, left: {noun}, coordinator: And, right: {} }}",
         synthetic_post(&noun, "Dependent")
     );
-    assert_ne!(encoded(&inner).unwrap(), encoded(&outer).unwrap());
+    assert_ne!(
+        encoded(&dependent_on_left).unwrap(),
+        encoded(&dependent_on_right).unwrap()
+    );
+    let other_noun = noun.replace("head-a", "head-b");
+    let red = synthetic_premodifier("vocab:ColorWord/Red", false);
+    let red_noun = synthetic_pre(&red, &noun);
+    let red_other_noun = synthetic_pre(&red, &other_noun);
+    let coordinate = |left: &str, right: &str| {
+        format!(
+            "Coordination {{ form: 0, category: Nominal, left: {left}, coordinator: And, right: {right} }}"
+        )
+    };
+    let post_on_head_a = coordinate(&synthetic_post(&red_noun, "Dependent"), &red_other_noun);
+    let post_on_head_b = coordinate(&red_noun, &synthetic_post(&red_other_noun, "Dependent"));
+    assert_eq!(
+        encoded(&post_on_head_a).unwrap(),
+        encoded(&coordinate(
+            &synthetic_pre(&red, &synthetic_post(&noun, "Dependent")),
+            &red_other_noun,
+        ))
+        .unwrap()
+    );
+    assert_eq!(
+        encoded(&post_on_head_b).unwrap(),
+        encoded(&coordinate(
+            &red_noun,
+            &synthetic_pre(&red, &synthetic_post(&other_noun, "Dependent")),
+        ))
+        .unwrap()
+    );
+    assert_ne!(
+        encoded(&post_on_head_a).unwrap(),
+        encoded(&post_on_head_b).unwrap()
+    );
     for replacement in [
         noun.replace("head-a", "head-b"),
         noun.replace("form: Plural", "form: Singular"),
@@ -782,6 +816,13 @@ case!(
     1
 );
 case!(
+    judgment_30,
+    "This creature gets +1/+1 for each other creature you control.",
+    Sentence,
+    1,
+    1
+);
+case!(
     each_does_not_prevent_attributive_other_from_commuting,
     "each other red creature you control",
     NounPhrase,
@@ -801,33 +842,37 @@ fn other_classification_excludes_non_simple_uses_and_distinct_lexemes() {
         .unwrap()
         .commuting_pre(false)
     );
-    for constructor in ["ComplementedAdjective", "Coordination", "Adjective"] {
-        let text = format!(
-            "{constructor} {{ form: 0, head: {}, complement: Than }}",
-            synthetic_word(id)
-        );
-        assert!(!Parser { input: &text }.tree().unwrap().commuting_pre(false));
-    }
+    let wrong_shape = format!(
+        "IntransitiveAdjective {{ form: 0, head: {}, complement: Than }}",
+        synthetic_word(id)
+    );
     assert!(
         !Parser {
-            input: &synthetic_premodifier(id, false)
+            input: &wrong_shape
         }
         .tree()
         .unwrap()
         .commuting_pre(false)
     );
+    for constructor in ["ComplementedAdjective", "Coordination", "Adjective"] {
+        let text = format!("{constructor} {{ form: 0, head: {} }}", synthetic_word(id));
+        assert!(
+            !Parser { input: &text }.tree().unwrap().commuting_pre(false),
+            "{constructor}"
+        );
+    }
     for id in [
         "vocab:Determinative/Another",
         "lexeme:CommonNoun/Other",
         "vocab:AttributiveAdjective/Same",
     ] {
+        let text = format!(
+            "IntransitiveAdjective {{ form: 0, head: {} }}",
+            synthetic_word(id)
+        );
         assert!(
-            !Parser {
-                input: &synthetic_premodifier(id, false)
-            }
-            .tree()
-            .unwrap()
-            .commuting_pre(false)
+            !Parser { input: &text }.tree().unwrap().commuting_pre(false),
+            "{id}"
         );
     }
 }
