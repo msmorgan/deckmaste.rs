@@ -203,25 +203,19 @@ fn existing_syndetic_nominal_reading_is_preserved() {
                     }),
                 }),
                 coordinator: word("vocab:Coordinator/And", false),
-                right: Box::new(Reading::NominalProjection {
+                right: Box::new(Reading::PremodifiedNominal {
                     form: 0,
-                    head: Box::new(Reading::NominalCoreProjection {
+                    modifier: Box::new(Reading::Adjective {
                         form: 0,
-                        head: Box::new(Reading::BarrierPremodifiedNominal {
+                        head: word("vocab:ColorWord/Black/non", false),
+                    }),
+                    head: Box::new(Reading::NominalProjection {
+                        form: 0,
+                        head: Box::new(Reading::NominalCoreProjection {
                             form: 0,
-                            modifier: Box::new(Reading::Adjective {
+                            head: Box::new(Reading::Noun {
                                 form: 0,
-                                head: word("vocab:ColorWord/Black/non", false),
-                            }),
-                            head: Box::new(Reading::NominalProjection {
-                                form: 0,
-                                head: Box::new(Reading::NominalCoreProjection {
-                                    form: 0,
-                                    head: Box::new(Reading::Noun {
-                                        form: 0,
-                                        head: word("lexeme:type/creature", true),
-                                    }),
-                                }),
+                                head: word("lexeme:type/creature", true),
                             }),
                         }),
                     }),

@@ -298,14 +298,10 @@ fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
                 .properties
                 .features
                 .get("NominalModifierOrder")
-                .map_or("Barrier", String::as_str),
-            "Barrier"
+                .map(String::as_str),
+            Some("Commuting")
         );
-        let mut base_properties = base.properties.clone();
-        let mut negative_properties = negative.properties.clone();
-        base_properties.features.remove("NominalModifierOrder");
-        negative_properties.features.remove("NominalModifierOrder");
-        assert_eq!(negative_properties, base_properties);
+        assert_eq!(negative.properties, base.properties);
         assert_eq!(
             paradigm(&owner),
             BTreeSet::from([(text.into(), WordForm::Invariant, FeatureBundle::default())])

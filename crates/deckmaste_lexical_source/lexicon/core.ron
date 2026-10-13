@@ -17,12 +17,14 @@
             "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
     ), (
-        // Assign after negative formation: positive colours do not license their derivatives.
+        // Assign after formation; only the reviewed negative words are listed.
         features: {"NominalModifierOrder": "Commuting"},
         members: [
             "vocab:ColorWord/Black", "vocab:ColorWord/Blue", "vocab:ColorWord/Colorless",
             "vocab:ColorWord/Green", "vocab:ColorWord/Monocolored", "vocab:ColorWord/Multicolored",
             "vocab:ColorWord/Red", "vocab:ColorWord/White",
+            "vocab:ColorWord/Black/non", "vocab:ColorWord/Blue/non",
+            "vocab:ColorWord/Green/non", "vocab:ColorWord/Red/non", "vocab:ColorWord/White/non",
             "vocab:PredicativeAdjective/Legendary/non",
         ],
     )],

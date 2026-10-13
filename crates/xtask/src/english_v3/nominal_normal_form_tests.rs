@@ -190,11 +190,11 @@ case!(
 );
 
 case!(
-    unlisted_nonred_is_a_barrier,
+    reviewed_nonred_commutes_with_relatives,
     "nonred creatures you control",
     NounPhrase,
-    2,
-    2
+    1,
+    1
 );
 case!(
     unlisted_enchanted_is_a_barrier,
@@ -385,6 +385,10 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
             3,
             "2b48ff9165ddecd677360be67aefe948248701b03b6db81a1bf7dfb7c8ba6273",
         ),
+        (
+            4,
+            "3f29a1d713f733a12e3af7668a9a9056fbf32128220ef70c0156d32ff7618f5f",
+        ),
     ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
@@ -487,7 +491,10 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
     assert!(admitted.contains("vocab:PredicativeAdjective/Legendary/non"));
     assert!(admitted.contains("lexeme:keyword_action/tap/adjective"));
     assert!(admitted.contains("lexeme:type/artifact"));
-    assert!(!admitted.contains("vocab:ColorWord/Red/non"));
+    for colour in ["White", "Blue", "Black", "Red", "Green"] {
+        assert!(admitted.contains(&format!("vocab:ColorWord/{colour}/non")));
+    }
+    assert!(!admitted.contains("lexeme:type/creature/non"));
     assert!(!admitted.contains("lexeme:type/artifact/non"));
 }
 
@@ -585,6 +592,40 @@ fn layer_lifts_do_not_interrupt_a_commuting_head_chain() {
         assert_eq!(
             old.normalize().unwrap(),
             new.adapt_layers().unwrap().normalize().unwrap()
+        );
+    }
+}
+
+#[test]
+fn negative_colours_remove_only_the_simple_modifier_order_twin() {
+    for colour in ["white", "blue", "black", "red", "green"] {
+        let text = format!("non{colour} creatures you control");
+        let values = readings(&text, Category::NounPhrase);
+        assert_eq!(values.len(), 1, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            1
+        );
+    }
+}
+
+#[test]
+fn negative_card_types_retain_their_modifier_scopes() {
+    for word in ["nonartifact", "noncreature"] {
+        let text = format!("{word} creatures you control");
+        let values = readings(&text, Category::NounPhrase);
+        assert_eq!(values.len(), 2, "{text}");
+        assert_eq!(
+            values
+                .iter()
+                .map(|r| fingerprint(r).unwrap())
+                .collect::<BTreeSet<_>>()
+                .len(),
+            2
         );
     }
 }

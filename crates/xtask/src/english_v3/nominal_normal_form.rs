@@ -10,7 +10,7 @@ use serde::Serialize;
 
 // Bump on every classification or normalization change and append the new
 // source identity to the version lock in the tests. Historical entries stay fixed.
-pub(super) const VERSION: usize = 3;
+pub(super) const VERSION: usize = 4;
 
 pub(super) fn source_sha256() -> String {
     // Compile the source into the binary: a disk edit after building must not
@@ -186,6 +186,11 @@ impl Tree {
                         | "vocab:ColorWord/Colorless"
                         | "vocab:ColorWord/Multicolored"
                         | "vocab:ColorWord/Monocolored"
+                        | "vocab:ColorWord/White/non"
+                        | "vocab:ColorWord/Blue/non"
+                        | "vocab:ColorWord/Black/non"
+                        | "vocab:ColorWord/Red/non"
+                        | "vocab:ColorWord/Green/non"
                         | "vocab:PredicativeAdjective/Legendary/non"
                         | "lexeme:keyword_action/tap/adjective"
                 )
