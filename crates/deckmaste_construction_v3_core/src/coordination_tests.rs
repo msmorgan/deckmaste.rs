@@ -13,7 +13,7 @@ fn grammar(interface: &TokenStream, block: &TokenStream) -> TokenStream {
         schema End { head none; form [left: node, ", + ", right: node]; }
         schema Continue { head none; form [left: node, ", ", rest: node]; }
         schema Complete { head none; form [left: node, ", ", rest: node]; }
-        coordination_forms Standard { binary Pair; series End, Continue, Complete; }
+        coordination_forms Standard { binary Pair; serial End, Continue, Complete; }
         coordinable A using Standard { #block }
     } }
 }
@@ -74,9 +74,9 @@ fn series_overrides_and_asymmetric_requirements_do_not_restate_regular_features(
     let d = normalized(grammar(
         &quote!(head Flag combine same),
         &quote! {
-            forms binary, serial; series Tail;
-            on series { combine Flag = No; require right.Flag = Yes; }
-            on Complete { require left.Flag = Yes; }
+            forms binary, serial; helper Tail;
+            on helper { combine Flag = always No; require right.Flag = Yes; }
+            on schema(Complete) { require left.Flag = Yes; }
         },
     ));
     for name in ["End", "Continue"] {
@@ -118,13 +118,13 @@ fn named_table_argument_order_and_coordinator_summary_survive_serial_elaboration
         feature Flag { No, Yes }
         feature Kind { Add, Alternative }
         table choose(Kind, Flag, Flag) -> Flag { (Add, Yes, No) => Yes, (_, _, _) => No, }
-        category A(Flag combine choose(source.Kind, right.Flag, left.Flag));
+        category A(Flag combine choose(coordinator.Kind, right.Flag, left.Flag));
         construction Atom: A { form ["x"]; export Flag = Yes; }
         schema End { head none; form [left: node, " ", coordinator: lexical(Coordinator), " ", right: node]; }
         schema Continue { head none; form [left: node, ", ", rest: node]; }
         schema Complete { head none; form [left: node, ", ", rest: node]; }
-        coordination_forms Standard { series End, Continue, Complete; }
-        coordinable A using Standard { forms serial; series Tail; }
+        coordination_forms Standard { serial End, Continue, Complete; }
+        coordinable A using Standard { forms serial; helper Tail; }
     } });
     let tail = d.categories.iter().find(|c| c.name == "Tail").unwrap();
     assert_eq!(
@@ -154,10 +154,10 @@ fn named_table_argument_order_and_coordinator_summary_survive_serial_elaboration
 #[test]
 fn series_can_omit_a_completed_only_summary() {
     normalized(grammar(
-        &quote!(head Flag combine Yes),
+        &quote!(head Flag combine always Yes),
         &quote! {
-            forms binary, serial; series Tail;
-            on series { omit Flag; }
+            forms binary, serial; helper Tail;
+            on helper { omit Flag; }
         },
     ));
 }
@@ -165,12 +165,11 @@ fn series_can_omit_a_completed_only_summary() {
 #[test]
 fn exact_template_override_wins_over_group_and_category_override() {
     let d = normalized(grammar(
-        &quote!(head Flag combine same),
+        &quote!(head Flag combine always Yes),
         &quote! {
-            forms binary, serial; series Tail;
-            combine Flag = Yes;
-            on series { combine Flag = No; }
-            on End { combine Flag = Yes; }
+            forms binary, serial; helper Tail;
+            on helper { combine Flag = always No; }
+            on schema(End) { combine Flag = always Yes; }
         },
     ));
     for (name, expected) in [
@@ -206,7 +205,7 @@ fn invalid_combination_domains_and_references_reject() {
     );
     rejects(
         grammar(&quote!(Flag combine bogus.Flag), &quote!(forms binary;)),
-        "left, right or source",
+        "left, right or coordinator",
     );
     rejects(
         quote! { mod g {
@@ -224,11 +223,11 @@ fn invalid_combination_domains_and_references_reject() {
 fn duplicate_overrides_unknown_contexts_and_invalid_omission_reject() {
     for (block, error) in [
         (
-            quote!(forms binary; combine Flag = Yes; combine Flag = No;),
+            quote!(forms binary; on binary { combine Flag = always Yes; combine Flag = always No; }),
             "duplicate combiner override",
         ),
         (
-            quote!(forms binary; on binary { combine Flag = Yes; } on complete { combine Flag = No; }),
+            quote!(forms binary; on binary { combine Flag = always Yes; } on result { combine Flag = always No; }),
             "same specificity",
         ),
         (
@@ -240,11 +239,17 @@ fn duplicate_overrides_unknown_contexts_and_invalid_omission_reject() {
             "omit applies only to series",
         ),
         (
-            quote!(forms serial; series Tail; on series { omit Missing; }),
+            quote!(forms serial; helper Tail; on helper { omit Missing; }),
             "cannot omit unknown",
         ),
-        (quote!(forms binary, Pair;), "duplicate coordination form"),
-        (quote!(forms serial;), "named series category"),
+        (
+            quote!(forms binary, schema(Pair);),
+            "duplicate coordination form",
+        ),
+        (
+            quote!(forms binary; combine Flag = always Yes;),
+            "belong in an on context",
+        ),
     ] {
         rejects(grammar(&quote!(Flag combine same), &block), error);
     }
@@ -258,8 +263,8 @@ fn helper_name_collisions_and_duplicate_generated_instances_reject() {
             schema End { form [left: node, "+", right: node]; }
             schema Continue { form [left: node, ",", rest: node]; }
             schema Complete { form [left: node, ",", rest: node]; }
-            coordination_forms P { series End, Continue, Complete; }
-            coordinable A using P { forms serial; series Tail; }
+            coordination_forms P { serial End, Continue, Complete; }
+            coordinable A using P { forms serial; helper Tail; }
         } },
         "series category already declared",
     );
@@ -298,7 +303,7 @@ fn generated_binary_emits_exactly_the_explicit_contract_for_every_combiner() {
             quote!(),
             quote! { export Flag = left.Flag; },
         ),
-        (quote!(No), quote!(), quote! { export Flag = No; }),
+        (quote!(always No), quote!(), quote! { export Flag = No; }),
     ] {
         let inferred = grammar(&quote!(head Flag combine #combiner), &quote!(forms binary;));
         let explicit = quote! { mod g {
@@ -345,12 +350,12 @@ fn correlative_helpers_preserve_marker_requirements_and_every_constructor_field(
             require rest.Marker = Alternative;
         }
         coordination_forms Correlatives {
-            correlative_series End, Continue;
-            correlative Either, EitherSerial;
+            correlative_helper End, Continue;
+            either Either, EitherSerial;
         }
         coordinable A using Correlatives {
-            forms Either, EitherSerial;
-            correlative_series Tail;
+            forms either;
+            correlative_helper Tail;
         }
     } });
     let either = d.constructions.iter().find(|c| c.name == "Either").unwrap();
@@ -389,4 +394,223 @@ fn correlative_helpers_preserve_marker_requirements_and_every_constructor_field(
         ("rest".into(), "Marker".into(), "Alternative".into())
     );
     assert!(serial.shared);
+}
+
+#[test]
+fn feature_defaults_category_overrides_and_context_overrides_have_ordered_precedence() {
+    for (annotation, contexts, expected) in [
+        (quote!(), quote!(), "No"),
+        (quote!(combine always Yes), quote!(), "Yes"),
+        (
+            quote!(combine always Yes),
+            quote!(on binary { combine Flag = always No; }),
+            "No",
+        ),
+    ] {
+        let d = normalized(quote! { mod g {
+            feature Flag { No, Yes } default No combine always No;
+            category A(head Flag #annotation);
+            construction Atom: A { head none; form ["x"]; export Flag = Yes; }
+            schema Pair { head none; form [left: node, "+", right: node]; }
+            coordination_forms P { binary Pair; }
+            coordinable A using P { forms binary; #contexts }
+        } });
+        let pair = d.constructions.iter().find(|c| c.name == "Pair").unwrap();
+        let parse::Equation::ExportConstant(f, value) = &pair.equations[0] else {
+            panic!("constant combination")
+        };
+        assert_eq!(
+            (f.to_string(), value.to_string()),
+            ("Flag".into(), expected.into())
+        );
+    }
+}
+
+#[test]
+fn constant_values_can_have_primitive_combiner_names() {
+    for value in [quote!(all), quote!(any), quote!(same)] {
+        let d = normalized(quote! { mod g {
+            feature Mode { all, any, same } combine always #value;
+            category A(Mode);
+            construction Atom: A { form ["x"]; export Mode = all; }
+            schema Pair { head none; form [left: node, "+", right: node]; }
+            coordination_forms P { binary Pair; }
+            coordinable A using P { forms binary; }
+        } });
+        let pair = d.constructions.iter().find(|c| c.name == "Pair").unwrap();
+        let parse::Equation::ExportConstant(_, actual) = &pair.equations[0] else {
+            panic!("always must be a constant")
+        };
+        assert_eq!(actual.to_string(), value.to_string());
+    }
+}
+
+#[test]
+fn inferred_tables_equal_explicit_arguments_with_and_without_coordinator() {
+    for (inputs, rows, args) in [
+        (
+            quote!(Flag, Flag),
+            quote!((Yes, Yes) => Yes, (_, _) => No,),
+            quote!(left.Flag, right.Flag),
+        ),
+        (
+            quote!(CoordinationKind, Flag, Flag),
+            quote!((Add, Yes, Yes) => Yes, (_, _, _) => No,),
+            quote!(coordinator.CoordinationKind, left.Flag, right.Flag),
+        ),
+    ] {
+        let grammar = |combiner| {
+            quote! { mod g {
+                feature Flag { No, Yes } combine #combiner;
+                feature CoordinationKind { Add, Alternative }
+                table choose(#inputs) -> Flag { #rows }
+                category A(Flag);
+                construction Atom: A { form ["x"]; export Flag = Yes; }
+                schema End { head none; form [left: node, coordinator: lexical(Coordinator), right: node]; }
+                schema Continue { head none; form [left: node, ",", rest: node]; }
+                schema Complete { head none; form [left: node, ",", rest: node]; }
+                coordination_forms P { serial End, Continue, Complete; }
+                coordinable A using P { forms serial; }
+            } }
+        };
+        assert_eq!(
+            compile(grammar(quote!(choose))).unwrap().to_string(),
+            compile(grammar(quote!(choose(#args)))).unwrap().to_string()
+        );
+    }
+}
+
+#[test]
+fn template_requirements_apply_only_to_selected_contexts() {
+    let d = normalized(quote! { mod g {
+        feature Flag { No, Yes } combine same;
+        category A(Flag);
+        construction Atom: A { form ["x"]; export Flag = Yes; }
+        schema Pair { head none; form [left: node, coordinator: lexical(Coordinator), right: node]; }
+        schema End { head none; form [left: node, coordinator: lexical(Coordinator), right: node]; }
+        schema Continue { head none; form [left: node, ",", rest: node]; }
+        schema Complete { head none; form [left: node, ",", rest: node]; }
+        coordination_forms P {
+            binary Pair; serial End, Continue, Complete;
+            on ordinary_overt { require coordinator.Flag = Yes; }
+        }
+        coordinable A using P { forms binary, serial; }
+    } });
+    for name in ["Pair", "End", "Continue", "Complete"] {
+        let c = d.constructions.iter().find(|c| c.name == name).unwrap();
+        let requirements: Vec<_> = c
+            .equations
+            .iter()
+            .filter_map(|e| match e {
+                parse::Equation::Require(r, v) => {
+                    Some((r.field.to_string(), r.feature.to_string(), v.to_string()))
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(
+            requirements,
+            if ["Pair", "End"].contains(&name) {
+                vec![("coordinator".into(), "Flag".into(), "Yes".into())]
+            } else {
+                vec![]
+            }
+        );
+    }
+    assert!(d.categories.iter().any(|c| c.name == "ASeries"));
+}
+
+#[test]
+fn distinct_member_and_result_categories_emit_the_explicit_contract() {
+    let common = quote! {
+        feature Flag { No, Yes } combine same;
+        category Member(Flag);
+        category Result(Flag);
+        construction Atom: Member { form ["x"]; export Flag = Yes; }
+        schema Pair { head none; form [left: node, "+", right: node]; }
+    };
+    let generated = quote! { mod g { #common
+        coordination_forms P { binary Pair; }
+        coordinable Result of Member using P { forms binary; }
+    } };
+    let explicit = quote! { mod g { #common
+        instance Pair: Result {
+            bind left, right = Member;
+            agree left.Flag = right.Flag;
+            export Flag = left.Flag;
+        }
+    } };
+    assert_eq!(
+        compile(generated).unwrap().to_string(),
+        compile(explicit).unwrap().to_string()
+    );
+}
+
+#[test]
+fn unused_category_annotations_irregular_inference_and_unknown_members_reject() {
+    rejects(
+        quote! { mod g {
+            feature Flag { No, Yes }
+            category A(Flag combine same);
+            construction Atom: A { form ["x"]; export Flag = Yes; }
+        } },
+        "combine annotation requires a coordinable block",
+    );
+    rejects(
+        quote! { mod g {
+            feature Flag { No, Yes } combine choose;
+            table choose(Flag) -> Flag { (Yes) => Yes, (No) => No, }
+            category A(Flag);
+            construction Atom: A { form ["x"]; export Flag = Yes; }
+            schema Pair { head none; form [left: node, "+", right: node]; }
+            coordination_forms P { binary Pair; }
+            coordinable A using P { forms binary; }
+        } },
+        "table shape needs explicit combiner arguments",
+    );
+    rejects(
+        quote! { mod g {
+            category A();
+            schema Pair { head none; form [left: node, "+", right: node]; }
+            coordination_forms P { binary Pair; }
+            coordinable A of Missing using P { forms binary; }
+        } },
+        "unknown coordination member category",
+    );
+}
+
+#[test]
+fn a_context_cannot_hide_a_missing_default_or_interface_combiner() {
+    rejects(
+        grammar(
+            &quote!(Flag),
+            &quote!(forms binary; on binary { combine Flag = always Yes; }),
+        ),
+        "requires a combiner",
+    );
+}
+
+#[test]
+fn template_contexts_reject_misspellings_and_combiner_overrides() {
+    for (context, error) in [
+        (
+            quote!(on Missing { require left.Flag = Yes; }),
+            "matches no template",
+        ),
+        (
+            quote!(on binary { combine Flag = always Yes; }),
+            "template contexts contain requirements",
+        ),
+    ] {
+        rejects(
+            quote! { mod g {
+                feature Flag { No, Yes } combine same;
+                category A(Flag);
+                schema Pair { head none; form [left: node, "+", right: node]; }
+                coordination_forms P { binary Pair; #context }
+                coordinable A using P { forms binary; }
+            } },
+            error,
+        );
+    }
 }

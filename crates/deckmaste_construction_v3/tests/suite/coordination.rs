@@ -4,8 +4,8 @@ use deckmaste_lexical::Lexicon;
 
 constructions! {
     pub mod fixture {
-        feature Flag { No, Yes }
-        category All(Flag combine all);
+        feature Flag { No, Yes } combine all;
+        category All(Flag);
         category Any(Flag combine any);
         category Same(Flag combine same);
         category YesOnly();

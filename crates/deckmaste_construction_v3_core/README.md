@@ -96,113 +96,101 @@ neither field order nor form indices, Reading shapes, admission, chart or runtim
 ## Coordination templates and combiners
 
 English coordination structure stays in grammar-owned schemas. The compiler
-binds their member Categories and derives their feature equations and series
-summaries. The English grammar currently uses this facility for Nominal and
-NounPhrase; other families remain explicit pending review of that prototype.
+binds their member Categories and derives feature equations and helper summaries.
+The prototype converts Nominal and NounPhrase; other families still use explicit
+instances until their conversion is verified.
 
 ```rust
-feature Permission { No, Yes } default No;
-category Nominal(head number combine same, head Permission combine all);
+feature Permission { No, Yes } default No combine all;
+category Nominal(head number combine same, head Permission);
 
-schema Pair {
-    head none;
-    form [left: node, " and ", right: node];
-}
-schema End {
-    head none;
-    form [left: node, ", and ", right: node];
-}
-schema Continue {
-    head none;
-    form [left: node, ", ", rest: node];
-}
-schema Complete {
-    head none;
-    form [left: node, ", ", rest: node];
-}
+schema Pair { head none; form [left: node, " and ", right: node]; }
+schema End { head none; form [left: node, ", and ", right: node]; }
+schema Continue { head none; form [left: node, ", ", rest: node]; }
+schema Complete { head none; form [left: node, ", ", rest: node]; }
 coordination_forms Standard {
     binary Pair;
-    series End, Continue, Complete;
+    serial End, Continue, Complete;
 }
-coordinable Nominal using Standard {
-    forms binary, serial;
-    series NominalSeries;
-}
+coordinable Nominal using Standard { forms binary, serial; }
 ```
 
-`combine` is independent of ordinary `head`/`local` propagation. Every generated
-interface entry needs a combiner. Explicit ordinary constructions continue to
-use their existing head and export rules. Combiners are:
+A feature's `combine` supplies the default for coordination, independently of
+`default` and ordinary `head`/`local` propagation. A Category interface annotation
+overrides that default; an `on` context overrides the Category choice. Every
+combined entry needs a combiner. A Category annotation without a `coordinable`
+block is an error. Ordinary constructions retain their existing export rules.
 
-- `all`: Yes exactly when both conjunct values are Yes; otherwise No.
-- `any`: Yes when either conjunct value is Yes; otherwise No.
-- `same`: require equality and retain that value.
-- A constant, such as `No`, or a reference, such as `left.CliticHost`.
-- A named table with explicit arguments, for example
-  `determined_np_coordinate_number(source.CoordinationKind, left.number,
+- `all`: Yes exactly when both inputs are Yes; otherwise No.
+- `any`: Yes when either input is Yes; otherwise No.
+- `same`: require equality and retain the value.
+- `always No` (or another value): export a constant without reading inputs.
+  Values named `all`, `any` or `same` remain unambiguous after `always`.
+- `left.CliticHost` (or another reference): copy that input.
+- A named table, such as `coordinated_oblique`: infer `(left.F, right.F)` for
+  inputs `(F, F)`, or `(coordinator.CoordinationKind, left.F, right.F)` for inputs
+  `(CoordinationKind, F, F)`, where F is the combined feature. Other signatures
+  need explicit arguments, for example
+  `determined_np_coordinate_number(coordinator.CoordinationKind, left.number,
   right.number, left.DeterminerAgreementNumber, right.DeterminerAgreementNumber)`.
 
-**All three primitive combiners are strict: an absent input rejects.** In
-particular, No/absent does not satisfy `all`, and Yes/absent does not satisfy
-`any`. These are feature-valued operations with today's table/agreement
-semantics, not three-valued predicates. `all`/`any` require an exact Yes/No
-feature domain. Named tables retain first-match, missing-row and absent-argument
-behaviour. Generated tables use the reserved `coordination_combine_` prefix.
+**`all`, `any` and `same` are strict: an absent input rejects.** No/absent does
+not satisfy `all`, and Yes/absent does not satisfy `any`. They are feature-valued
+operations, not three-valued predicates. `all`/`any` require an exact Yes/No
+domain. Named tables retain first-match, missing-row and absent-argument behavior.
+Generated tables use the reserved `coordination_combine_` prefix.
 
-References use `left`, `right` and `source`. At a serial join, `right` is the
-`rest` summary and `source` is its carried coordinator summary; at an end or
-binary join, `source` is the schema's `coordinator` field. This is the existing
-recursive structure, not a reassociation or flattening of conjuncts. Generic
-schema fields must use `left`/`right` or `left`/`rest`; marker fields, separators,
-lexical restrictions, form order and per-form requirements belong to the schema.
+References use `left`, `right` and `coordinator`. At a serial tail `right` is the
+`rest` helper summary, and `coordinator` is its carried coordinator summary.
+At a binary or end join it is the schema's `coordinator` field. Generic schema
+fields use `left`/`right` or `left`/`rest`; markers, separators, lexical
+restrictions, ordered forms and per-form requirements stay in the schemas.
 
-The form profile also accepts `correlative_series End, Continue;` and
-`correlative Binary[, Complete];`. A `forms` selection names `binary`, `serial`,
-or individual binary/complete schema names. A selected correlative completion
-adds the profile's correlative end/continuation and requires a named
-`correlative_series` Category. No unselected correlative pair or serial form is
-invented. For example English selects BothCoordination alone, but both
-EitherCoordination and EitherSerialCoordination. Its marker-feature requirements
-remain declared in those schemas.
+Profiles declare `binary Schema;`, `serial End, Continue, Result;`,
+`correlative_helper End, Continue;`, and `both`, `either` or `neither` followed
+by a binary schema and an optional serial result schema. Both `forms` and `on`
+use these role names. Selecting `either`, for example, selects precisely the
+binary and serial forms declared for that pair, automatically adding the shared
+correlative helpers when needed. `schema(Name)` is the exact-schema escape.
+No undeclared form or correlative pair is invented.
 
-The `coordinable` block can change only exceptional behaviour:
+Contexts also include `helper` (end/continuation), `result` (binary/completion),
+`correlative`, `overt` (joins with a coordinator field), and `ordinary_overt`
+(the ordinary binary and serial end). Profiles may place shared requirements
+in these contexts: English Standard states
+`on ordinary_overt { require coordinator.GeneralCoordination = Yes; }` once.
+A profile context must match a template, but need not match every Category's
+selection. A Category context must match a selected form.
 
 ```rust
 coordinable Nominal using Standard {
     forms binary, serial;
-    series NominalSeries;
     on serial { require left.UnmarkedConjunctLicence = Yes; }
-    on series { combine SomeSummary = No; omit CompletedOnlySummary; }
-    on End { require right.SomePermission = Yes; }
+    on helper { combine SomeSummary = always No; omit CompletedOnlySummary; }
+    on schema(End) { require right.SomePermission = Yes; }
 }
 ```
 
-This example illustrates scopes; its extra features must be declared in a real
-grammar. A block-level `combine Feature = ...;` overrides the interface choice
-for that Category. `on` accepts one or more comma-separated contexts: `series`
-(end/continuation), `complete` (binary/completion), `serial` (all non-binary
-joins), `binary`, `ordinary`, `correlative`, or an exact selected schema name.
-An exact-schema override wins over a group override, which wins over the
-block-level override and then the interface annotation. Conflicting overrides
-at the same specificity reject; requirements and agreements accumulate. A
-context matching no selected form rejects. There is no policy composition or
-Boolean requirement syntax.
+This illustrates scopes; the extra features need declarations in a real grammar.
+An exact-schema override wins over role-context overrides. Overlapping overrides
+at the same specificity reject; requirements and agreements accumulate. There
+is no block-level combiner tier, Boolean requirement syntax or policy composition.
 
-Helpers start with the Category's combined entries. `on series` can override,
-add, or `omit` entries without repeating the regular ones; omission cannot
-remove a completed Category's interface entry. Template exports add helper
-entries, such as CorrelativeCoordinator. Coordinator features read through a
-tail are carried automatically from its end. End and continuation must expose
-the same summary. Unknown references, duplicate generated Categories and
-instances, and missing/ill-typed combiners reject through elaboration and the
-existing admission checks.
+Helpers start with the Category's combined entries. Helper contexts can override,
+add or omit entries without repeating regular ones; completed entries cannot be
+omitted. Schema exports add helper entries, such as CorrelativeCoordinator.
+Coordinator features read through tails are carried automatically from the end.
+End and continuation must expose the same summary. Helper names default to
+`<Category>Series` and `Correlative<Category>Series`; `helper Name;` and
+`correlative_helper Name;` name exceptions.
 
-Elaboration produces ordinary shared schema instances. It retains their
-constructor names, ordered fields, form indices and `category` discriminators;
-handwritten instances can coexist for other Categories. The prototype uses one
-member/result Category per block. Distinct member/result mappings (for example
-correlative adjectives or focused adjuncts) are not implemented yet and retain
-their explicit instances.
+`coordinable Result of Member using Standard { ... }` binds conjuncts to Member
+and completed forms to Result; without `of`, both use the named Category.
+Result's interface supplies the combiners. Helper names derive from Result unless
+explicitly named. This supports correlative adjectives, coordinated finite
+clauses and focused adjuncts without changing their constructor contracts.
+Elaboration retains constructor names, field order, form indices and `category`
+discriminators. Handwritten instances can coexist for other Categories.
 
 The following English structures intentionally remain handwritten:
 
@@ -210,11 +198,12 @@ The following English structures intentionally remain handwritten:
   restriction, with its own constructor shape.
 - Irregular premodifier paths: unlike Categories and separate asyndetic/syndetic
   restrictions are clearer as explicit constructions.
+- SelectedComplementTail: `share_segments` is not a feature-summary combiner.
 - NumeralComparativeCoordination, AdjectivalScalarCoordination and
   CardinalDeterminativeCoordination: heterogeneous members with specialized
   lexical and distribution requirements.
-- MedialSupplementation: a supplement and its anchor/continuation have a
-  different structure from a binary or serial coordination.
+- MedialSupplementation: the anchor, supplement and continuation have a
+  different structure from these coordination templates.
 
 ## Frame declarations
 

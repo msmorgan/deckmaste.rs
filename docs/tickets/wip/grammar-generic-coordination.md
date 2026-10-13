@@ -17,17 +17,27 @@ At the prototype baseline, coordination was enumerated per category: 51 `*Series
 ## Settled authoring model (2026-10-12)
 
 Model B: structural forms, markers and separators remain grammar-owned reusable
-schemas. The compiler generates per-category instances and series summaries.
-Delete the replaced per-category rows, helper interfaces and concord boilerplate;
-retain the reusable schemas. Interface `combine` annotations are independent of
-`head`/`local`. `all`, `any` and `same` reject absent inputs. Real judgments remain
-named tables. Context overrides and asymmetric requirements belong to
-`coordinable`; no Boolean requirements or policy composition.
+schemas. The compiler generates per-category instances and helper summaries.
+Feature declarations supply default combiners; Category interface annotations
+are exceptions, independent of `head`/`local`. Context overrides take precedence.
+`all`, `any` and `same` reject absent inputs. Constants use `always Value`;
+real judgments remain named tables, with role-inferred arguments for regular
+signatures and explicit arguments otherwise. References use `left`, `right`
+and `coordinator`. No Boolean requirements or policy composition.
 
-Phase 1 is the Nominal/NounPhrase prototype only, followed by review before other
-families convert. Clause binary punctuation, irregular premodifier paths,
-heterogeneous scalar/determinative coordination and medial supplementation stay
-explicit. See the compiler README for syntax and prototype boundaries.
+Profiles and blocks share binary/serial/both/either/neither role names;
+`schema(Name)` is the exact-schema escape. Profiles can state common requirements
+once. Helpers have default names with explicit exceptions. Distinct member and
+result Categories use `coordinable Result of Member using Profile`.
+
+Phase 1's nominal prototype was reviewed independently at `onkkszmp`; equivalence
+and its full-corpus gate were confirmed. The revised prototype must pass the same
+gate and sorted-contract comparison before Phase 2 continues, one family per
+commit. Convert only families whose blocks remain clear with a few ordinary
+requirements/overrides/omissions and no additional compiler construct. A further
+compiler capability is a STOP; a prospective capability must serve at least
+three families. Leave exceptional structures handwritten and explain them in
+the compiler README.
 
 ## Gate
 
@@ -38,8 +48,10 @@ Every `readings_sha256` identical on every face, checked with the census check m
 Nominal and NounPhrase now use interface combiners and the grammar-owned Standard
 form profile. Their fifteen instance rows and three helper interfaces are
 compiler-generated; four policies and seven now-unused AND/OR tables are removed.
-Other families are unchanged. Phase 2 remains pending review; the prototype does
-not yet support distinct member/result Categories within one block.
+The revised prototype implements the reviewed defaults, roles, helper names and
+member/result distinction. Other families remain pending their separate conversion
+and gate. Compiler tests cover the revised syntax and preserve the original
+strict-combiner runtime matrix.
 
-Census delta (`onkkszmp`, phase 1): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`onkkszmp`): does not apply yet.
+Census delta (`lqoyqlww`, revised prototype): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`lqoyqlww`): does not apply yet.

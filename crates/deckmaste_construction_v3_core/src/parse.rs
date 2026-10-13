@@ -50,6 +50,7 @@ pub(crate) struct Feature {
     pub values: Vec<Ident>,
     pub default: Option<Ident>,
     pub set: bool,
+    pub combiner: Option<coordination::Combiner>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -301,17 +302,18 @@ impl Parse for Declaration {
             }
         }
         validate_policies(&policies)?;
-        apply_policies(&mut schemas, &mut [], &policies)?;
-        for schema in &mut schemas {
-            schema.uses.clear();
-        }
+        let schema_fields = schemas
+            .iter()
+            .map(|schema| (schema.name.to_string(), declared_fields(&schema.forms)))
+            .collect();
+        apply_policies(&mut schemas, &schema_fields, &policies)?;
         coordination::elaborate(&mut result, &schemas, &coordination_forms, &coordinable)?;
         result.constructions = expand_rows(
             std::mem::take(&mut result.constructions),
             &result.categories,
             &policies,
         )?;
-        apply_policies(&mut schemas, &mut result.constructions, &policies)?;
+        apply_policies(&mut result.constructions, &schema_fields, &policies)?;
         validate_schemas(&schemas)?;
         instantiate_schemas(&mut result.constructions, &schemas)?;
         Ok(result)
@@ -356,21 +358,31 @@ fn parse_feature(body: ParseStream<'_>, name: Ident) -> syn::Result<Feature> {
     let set = body.peek(Ident) && body.fork().parse::<Ident>()? == "set";
     if set {
         body.parse::<Ident>()?;
-        body.parse::<Token![;]>()?;
+        if body.peek(Token![;]) {
+            body.parse::<Token![;]>()?;
+        }
     }
     let default = if body.peek(Ident) && body.fork().parse::<Ident>()? == "default" {
         body.parse::<Ident>()?;
-        let value = body.parse()?;
-        body.parse::<Token![;]>()?;
-        Some(value)
+        Some(body.parse()?)
     } else {
         None
     };
+    let combiner = if body.peek(Ident) && body.fork().parse::<Ident>()? == "combine" {
+        body.parse::<Ident>()?;
+        Some(coordination::parse_combiner(body)?)
+    } else {
+        None
+    };
+    if default.is_some() || combiner.is_some() {
+        body.parse::<Token![;]>()?;
+    }
     Ok(Feature {
         name,
         values,
         default,
         set,
+        combiner,
     })
 }
 
@@ -710,15 +722,11 @@ fn validate_policies(policies: &[Construction]) -> syn::Result<()> {
 }
 
 fn apply_policies(
-    schemas: &mut [Construction],
-    constructions: &mut [Construction],
+    owners: &mut [Construction],
+    schema_fields: &std::collections::BTreeMap<String, std::collections::BTreeSet<String>>,
     policies: &[Construction],
 ) -> syn::Result<()> {
-    let schema_fields: std::collections::BTreeMap<_, _> = schemas
-        .iter()
-        .map(|schema| (schema.name.to_string(), declared_fields(&schema.forms)))
-        .collect();
-    for owner in schemas.iter_mut().chain(constructions.iter_mut()) {
+    for owner in owners {
         let fields = if owner.shared {
             schema_fields
                 .get(&owner.name.to_string())

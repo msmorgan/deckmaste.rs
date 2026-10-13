@@ -26,6 +26,7 @@ pub(crate) enum Combiner {
     Value(Ident),
     Copy(Reference),
     Table(Ident, Vec<Reference>),
+    InferredTable(Ident),
 }
 
 pub(super) fn parse_combiner(input: ParseStream<'_>) -> syn::Result<Combiner> {
@@ -47,7 +48,8 @@ pub(super) fn parse_combiner(input: ParseStream<'_>) -> syn::Result<Combiner> {
         "all" => Combiner::All,
         "any" => Combiner::Any,
         "same" => Combiner::Same,
-        _ => Combiner::Value(name),
+        "always" => Combiner::Value(input.parse()?),
+        _ => Combiner::InferredTable(name),
     })
 }
 
@@ -63,6 +65,7 @@ struct Template {
     name: Ident,
     role: Role,
     correlative: bool,
+    kind: String,
 }
 
 impl Template {
@@ -72,15 +75,17 @@ impl Template {
     fn tail(&self) -> bool {
         matches!(self.role, Role::Continuation | Role::Complete)
     }
-    fn matches(&self, context: &Ident) -> bool {
-        match context.to_string().as_str() {
-            "series" => self.helper(),
-            "complete" => !self.helper(),
-            "serial" => self.role != Role::Binary,
-            "binary" => self.role == Role::Binary,
-            "ordinary" => !self.correlative,
+    fn matches(&self, context: &Context) -> bool {
+        if context.exact {
+            return self.name == context.name;
+        }
+        match context.name.to_string().as_str() {
+            "helper" => self.helper(),
+            "result" => !self.helper(),
+            "overt" => !self.tail(),
+            "ordinary_overt" => !self.correlative && !self.tail(),
             "correlative" => self.correlative,
-            _ => self.name == *context,
+            _ => context.name == self.kind,
         }
     }
 }
@@ -88,15 +93,21 @@ impl Template {
 pub(super) struct Forms {
     name: Ident,
     templates: Vec<Template>,
+    scopes: Vec<Scope>,
 }
 
 pub(super) fn parse_forms(input: ParseStream<'_>, name: Ident) -> syn::Result<Forms> {
     let body;
     braced!(body in input);
     let mut templates = Vec::new();
+    let mut scopes = Vec::new();
     let mut seen = BTreeSet::new();
     while !body.is_empty() {
         let kind: Ident = body.parse()?;
+        if kind == "on" {
+            scopes.push(parse_scope(&body)?);
+            continue;
+        }
         let mut list = vec![body.parse::<Ident>()?];
         while body.peek(Token![,]) {
             body.parse::<Token![,]>()?;
@@ -104,14 +115,14 @@ pub(super) fn parse_forms(input: ParseStream<'_>, name: Ident) -> syn::Result<Fo
         }
         body.parse::<Token![;]>()?;
         let roles: &[Role] = match (kind.to_string().as_str(), list.len()) {
-            ("binary" | "correlative", 1) => &[Role::Binary],
-            ("series", 3) => &[Role::End, Role::Continuation, Role::Complete],
-            ("correlative_series", 2) => &[Role::End, Role::Continuation],
-            ("correlative", 2) => &[Role::Binary, Role::Complete],
+            ("binary" | "both" | "either" | "neither", 1) => &[Role::Binary],
+            ("serial", 3) => &[Role::End, Role::Continuation, Role::Complete],
+            ("correlative_helper", 2) => &[Role::End, Role::Continuation],
+            ("both" | "either" | "neither", 2) => &[Role::Binary, Role::Complete],
             _ => {
                 return Err(syn::Error::new(
                     kind.span(),
-                    "expected binary (one schema), series (end, continuation, complete), correlative_series (end, continuation), or correlative (binary, optional complete)",
+                    "expected binary (one schema), serial (end, continuation, result), correlative_helper (end, continuation), or both/either/neither (binary, optional serial result)",
                 ));
             }
         };
@@ -125,23 +136,69 @@ pub(super) fn parse_forms(input: ParseStream<'_>, name: Ident) -> syn::Result<Fo
             templates.push(Template {
                 name,
                 role: *role,
-                correlative: kind.to_string().starts_with("correlative"),
+                correlative: !matches!(kind.to_string().as_str(), "binary" | "serial"),
+                kind: kind.to_string(),
             });
         }
     }
-    Ok(Forms { name, templates })
+    Ok(Forms {
+        name,
+        templates,
+        scopes,
+    })
+}
+
+struct Context {
+    name: Ident,
+    exact: bool,
+}
+
+fn context(input: ParseStream<'_>) -> syn::Result<Context> {
+    let name: Ident = input.parse()?;
+    if name == "schema" {
+        let inner;
+        parenthesized!(inner in input);
+        let name = inner.parse()?;
+        if !inner.is_empty() {
+            return Err(inner.error("expected one schema name"));
+        }
+        Ok(Context { name, exact: true })
+    } else {
+        Ok(Context { name, exact: false })
+    }
+}
+
+fn parse_scope(input: ParseStream<'_>) -> syn::Result<Scope> {
+    let mut contexts = vec![context(input)?];
+    while input.peek(Token![,]) {
+        input.parse::<Token![,]>()?;
+        contexts.push(context(input)?);
+    }
+    let statements;
+    braced!(statements in input);
+    let mut scope = Scope {
+        contexts,
+        combiners: vec![],
+        requirements: vec![],
+    };
+    while !statements.is_empty() {
+        let keyword = statements.parse()?;
+        scope_directive(&statements, &keyword, &mut scope)?;
+    }
+    Ok(scope)
 }
 
 struct Scope {
-    contexts: Vec<Ident>,
+    contexts: Vec<Context>,
     combiners: Vec<(Ident, Option<Combiner>)>,
     requirements: Vec<Equation>,
 }
 
 pub(super) struct Coordinable {
     category: Ident,
+    member: Ident,
     profile: Ident,
-    forms: Vec<Ident>,
+    forms: Vec<Context>,
     series: Option<Ident>,
     correlative_series: Option<Ident>,
     scopes: Vec<Scope>,
@@ -210,7 +267,14 @@ pub(super) fn parse_coordinable(
     input: ParseStream<'_>,
     category: Ident,
 ) -> syn::Result<Coordinable> {
-    let using: Ident = input.parse()?;
+    let mut using: Ident = input.parse()?;
+    let member = if using == "of" {
+        let member = input.parse()?;
+        using = input.parse()?;
+        member
+    } else {
+        category.clone()
+    };
     if using != "using" {
         return Err(syn::Error::new(
             using.span(),
@@ -222,6 +286,7 @@ pub(super) fn parse_coordinable(
     braced!(body in input);
     let mut result = Coordinable {
         category,
+        member,
         profile,
         forms: vec![],
         series: None,
@@ -243,15 +308,15 @@ pub(super) fn parse_coordinable(
                         "duplicate forms selection",
                     ));
                 }
-                result.forms.push(body.parse()?);
+                result.forms.push(context(&body)?);
                 while body.peek(Token![,]) {
                     body.parse::<Token![,]>()?;
-                    result.forms.push(body.parse()?);
+                    result.forms.push(context(&body)?);
                 }
                 body.parse::<Token![;]>()?;
             }
-            "series" | "correlative_series" => {
-                let slot = if directive == "series" {
+            "helper" | "correlative_helper" => {
+                let slot = if directive == "helper" {
                     &mut result.series
                 } else {
                     &mut result.correlative_series
@@ -264,24 +329,12 @@ pub(super) fn parse_coordinable(
                 }
                 body.parse::<Token![;]>()?;
             }
-            "on" => {
-                let mut contexts = vec![body.parse()?];
-                while body.peek(Token![,]) {
-                    body.parse::<Token![,]>()?;
-                    contexts.push(body.parse()?);
-                }
-                let statements;
-                braced!(statements in body);
-                let mut scope = Scope {
-                    contexts,
-                    combiners: vec![],
-                    requirements: vec![],
-                };
-                while !statements.is_empty() {
-                    let keyword = statements.parse()?;
-                    scope_directive(&statements, &keyword, &mut scope)?;
-                }
-                result.scopes.push(scope);
+            "on" => result.scopes.push(parse_scope(&body)?),
+            "combine" => {
+                return Err(syn::Error::new(
+                    directive.span(),
+                    "combine overrides belong in an on context",
+                ));
             }
             _ => scope_directive(&body, &directive, &mut global)?,
         }
@@ -317,6 +370,26 @@ fn equations(
             table.clone(),
             args.clone(),
         )],
+        Combiner::InferredTable(name) => {
+            let table = declaration
+                .tables
+                .iter()
+                .find(|t| t.name == *name)
+                .ok_or_else(|| syn::Error::new(name.span(), "unknown feature table"))?;
+            let inputs: Vec<_> = table.inputs.iter().map(ToString::to_string).collect();
+            let f = feature.to_string();
+            let args = if inputs == [f.clone(), f.clone()] {
+                vec![left, right]
+            } else if inputs == ["CoordinationKind".to_owned(), f.clone(), f] {
+                vec![reference_to("coordinator", &table.inputs[0]), left, right]
+            } else {
+                return Err(syn::Error::new(
+                    name.span(),
+                    "table shape needs explicit combiner arguments",
+                ));
+            };
+            vec![Equation::ExportTable(feature.clone(), name.clone(), args)]
+        }
         Combiner::All | Combiner::Any => {
             let domain = declaration.features.iter().find(|f| f.name == *feature);
             if !domain.is_some_and(|f| {
@@ -386,22 +459,18 @@ fn select<'a>(item: &Coordinable, profile: &'a Forms) -> syn::Result<Vec<&'a Tem
         let matching: Vec<_> = profile
             .templates
             .iter()
-            .filter(|t| match name.to_string().as_str() {
-                "binary" => !t.correlative && t.role == Role::Binary,
-                "serial" => !t.correlative && t.role != Role::Binary,
-                _ => t.name == *name && !t.helper(),
-            })
+            .filter(|t| t.matches(name) && (!name.exact || !t.helper()))
             .collect();
         if matching.is_empty() {
             return Err(syn::Error::new(
-                name.span(),
+                name.name.span(),
                 "unknown coordination form selection",
             ));
         }
         for t in matching {
             if !selected.insert(t.name.to_string()) {
                 return Err(syn::Error::new(
-                    name.span(),
+                    name.name.span(),
                     "duplicate coordination form selection",
                 ));
             }
@@ -440,7 +509,7 @@ fn select<'a>(item: &Coordinable, profile: &'a Forms) -> syn::Result<Vec<&'a Tem
         for context in &scope.contexts {
             if !templates.iter().any(|t| t.matches(context)) {
                 return Err(syn::Error::new(
-                    context.span(),
+                    context.name.span(),
                     "coordination context matches no selected form",
                 ));
             }
@@ -455,21 +524,42 @@ fn contract(
     item: &Coordinable,
     template: &Template,
     base: &Category,
+    declaration: &Declaration,
+    profile: &Forms,
 ) -> syn::Result<(Combinations, Vec<Equation>)> {
     let mut values: BTreeMap<String, (Ident, Option<Combiner>, usize)> = base
         .features
         .iter()
-        .map(|f| (f.name.to_string(), (f.name.clone(), f.combiner.clone(), 0)))
+        .map(|f| {
+            let combiner = f.combiner.clone().or_else(|| {
+                declaration
+                    .features
+                    .iter()
+                    .find(|d| d.name == f.name)
+                    .and_then(|d| d.combiner.clone())
+            });
+            (f.name.to_string(), (f.name.clone(), combiner, 0))
+        })
         .collect();
+    if let Some((feature, _, _)) = values.values().find(|(_, combiner, _)| combiner.is_none()) {
+        return Err(syn::Error::new(
+            feature.span(),
+            "generated coordination requires a combiner for every interface entry",
+        ));
+    }
     let mut requirements = vec![];
     let mut assigned = BTreeSet::new();
-    for scope in &item.scopes {
+    for scope in profile.scopes.iter().chain(&item.scopes) {
         if !scope.contexts.is_empty() && !scope.contexts.iter().any(|c| template.matches(c)) {
             continue;
         }
         let rank = if scope.contexts.is_empty() {
             1
-        } else if scope.contexts.contains(&template.name) {
+        } else if scope
+            .contexts
+            .iter()
+            .any(|c| c.exact && c.name == template.name)
+        {
             3
         } else {
             2
@@ -535,6 +625,22 @@ pub(super) fn elaborate(
                 "duplicate coordination_forms",
             ));
         }
+        for scope in &profile.scopes {
+            if !scope.combiners.is_empty() {
+                return Err(syn::Error::new(
+                    profile.name.span(),
+                    "template contexts contain requirements, not combiner overrides",
+                ));
+            }
+            for context in &scope.contexts {
+                if !profile.templates.iter().any(|t| t.matches(context)) {
+                    return Err(syn::Error::new(
+                        context.name.span(),
+                        "coordination context matches no template",
+                    ));
+                }
+            }
+        }
         for template in &profile.templates {
             if !schemas.iter().any(|s| s.name == template.name) {
                 return Err(syn::Error::new(
@@ -569,11 +675,27 @@ pub(super) fn elaborate(
             .find(|c| c.name == item.category)
             .cloned()
             .ok_or_else(|| syn::Error::new(item.category.span(), "unknown coordinable category"))?;
+        if !declaration.categories.iter().any(|c| c.name == item.member) {
+            return Err(syn::Error::new(
+                item.member.span(),
+                "unknown coordination member category",
+            ));
+        }
         let profile = profiles
             .iter()
             .find(|p| p.name == item.profile)
             .ok_or_else(|| syn::Error::new(item.profile.span(), "unknown coordination_forms"))?;
         elaborate_category(declaration, schemas, item, profile, &base)?;
+    }
+    for category in &declaration.categories {
+        if !categories.contains(&category.name.to_string())
+            && category.features.iter().any(|f| f.combiner.is_some())
+        {
+            return Err(syn::Error::new(
+                category.name.span(),
+                "combine annotation requires a coordinable block",
+            ));
+        }
     }
     Ok(())
 }
@@ -588,25 +710,26 @@ fn elaborate_category(
     let selected = select(item, profile)?;
     let mut generated = vec![];
     let mut helpers = HelperInterfaces::new();
+    let mut carried = [BTreeMap::new(), BTreeMap::new()];
+    let ordinary_helper = item
+        .series
+        .clone()
+        .unwrap_or_else(|| Ident::new(&format!("{}Series", item.category), item.category.span()));
+    let correlative_helper = item.correlative_series.clone().unwrap_or_else(|| {
+        Ident::new(
+            &format!("Correlative{}Series", item.category),
+            item.category.span(),
+        )
+    });
     for template in &selected {
         let schema = schemas
             .iter()
             .find(|s| s.name == template.name)
             .expect("validated schema");
-        let helper = if template.correlative { &item.correlative_series } else { &item.series };
-        if template.role != Role::Binary && helper.is_none() {
-            return Err(syn::Error::new(
-                item.category.span(),
-                "serial forms require a named series category",
-            ));
-        }
-        let result = if template.helper() {
-            helper.as_ref().expect("checked helper")
-        } else {
-            &item.category
-        };
+        let helper = if template.correlative { &correlative_helper } else { &ordinary_helper };
+        let result = if template.helper() { helper } else { &item.category };
         let mut instance = empty_instance(template.name.clone(), result.clone());
-        let (combiners, requirements) = contract(item, template, base)?;
+        let (combiners, requirements) = contract(item, template, base, declaration, profile)?;
         for (feature, combiner) in combiners {
             instance
                 .equations
@@ -615,20 +738,24 @@ fn elaborate_category(
         instance.equations.extend(requirements);
         for equation in &mut instance.equations {
             for r in equation.references_mut() {
+                if template.tail() && r.field == "coordinator" {
+                    carried[usize::from(template.correlative)]
+                        .insert(r.feature.to_string(), r.feature.clone());
+                }
                 r.field = match r.field.to_string().as_str() {
                     "left" => r.field.clone(),
                     "right" => Ident::new(
                         if template.tail() { "rest" } else { "right" },
                         r.field.span(),
                     ),
-                    "source" => Ident::new(
+                    "coordinator" => Ident::new(
                         if template.tail() { "rest" } else { "coordinator" },
                         r.field.span(),
                     ),
                     _ => {
                         return Err(syn::Error::new(
                             r.field.span(),
-                            "combiner references use left, right or source",
+                            "combiner references use left, right or coordinator",
                         ));
                     }
                 };
@@ -640,9 +767,9 @@ fn elaborate_category(
                     && ty == "node"
                 {
                     let category = match field.to_string().as_str() {
-                        "left" => &item.category,
-                        "right" if !template.tail() => &item.category,
-                        "rest" if template.tail() => helper.as_ref().expect("checked helper"),
+                        "left" => &item.member,
+                        "right" if !template.tail() => &item.member,
+                        "rest" if template.tail() => helper,
                         _ => {
                             return Err(syn::Error::new(
                                 field.span(),
@@ -680,14 +807,7 @@ fn elaborate_category(
         }
         generated.push((*template, instance));
     }
-    carry_summaries(
-        declaration,
-        schemas,
-        item,
-        base,
-        &mut generated,
-        &mut helpers,
-    )?;
+    carry_summaries(schemas, &carried, &mut generated, &mut helpers);
     for (_, (name, features)) in helpers {
         if declaration.categories.iter().any(|c| c.name == name) {
             return Err(syn::Error::new(
@@ -716,33 +836,14 @@ fn elaborate_category(
 type HelperInterfaces = BTreeMap<String, (Ident, BTreeMap<String, Ident>)>;
 
 fn carry_summaries(
-    declaration: &mut Declaration,
     schemas: &[Construction],
-    item: &Coordinable,
-    base: &Category,
+    carried: &[BTreeMap<String, Ident>; 2],
     generated: &mut [(&Template, Construction)],
     helpers: &mut HelperInterfaces,
-) -> syn::Result<()> {
-    // A coordinator feature read through a tail must be carried by its series.
+) {
+    // A coordinator feature read through a tail must be carried by its helper.
     for correlative in [false, true] {
-        let mut carried = BTreeMap::new();
-        for (template, _) in generated.iter() {
-            if template.correlative != correlative || !template.tail() {
-                continue;
-            }
-            let (combiners, requirements) = contract(item, template, base)?;
-            let mut eqs = requirements;
-            for (feature, combiner) in combiners {
-                eqs.extend(equations(&feature, &combiner, declaration)?);
-            }
-            for e in &mut eqs {
-                for r in e.references_mut() {
-                    if r.field == "source" {
-                        carried.insert(r.feature.to_string(), r.feature.clone());
-                    }
-                }
-            }
-        }
+        let carried = &carried[usize::from(correlative)];
         for (template, instance) in generated.iter_mut() {
             if template.correlative != correlative || !template.helper() {
                 continue;
@@ -754,7 +855,7 @@ fn carry_summaries(
                 .iter()
                 .find(|s| s.name == template.name)
                 .expect("validated schema");
-            for (name, feature) in &carried {
+            for (name, feature) in carried {
                 if !instance
                     .equations
                     .iter()
@@ -773,6 +874,4 @@ fn carry_summaries(
             }
         }
     }
-
-    Ok(())
 }

@@ -45,12 +45,12 @@ constructions! {
             (Yes, Yes) => Yes,
             (_, _) => No,
         }
-        feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
+        feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified combine always Unspecified;
         feature NounPhraseStructure { Other, ProperName, IndefiniteArticle,
-            Predeterminer, UniversalPredeterminer } default Other;
-        feature DeterminerRequirement { No, Yes, Definite } default No;
-        feature NumberTransparency { No, Yes } default No;
-        feature SubjectRelativeNumber { None, Singular, Plural } default None;
+            Predeterminer, UniversalPredeterminer } default Other combine always Other;
+        feature DeterminerRequirement { No, Yes, Definite } default No combine coordinated_determiner_requirement;
+        feature NumberTransparency { No, Yes } default No combine all;
+        feature SubjectRelativeNumber { None, Singular, Plural } default None combine relative_number_concord;
         table relative_number_concord(SubjectRelativeNumber, SubjectRelativeNumber) -> SubjectRelativeNumber {
             (None, None) => None, (None, Singular) => Singular, (Singular, None) => Singular,
             (None, Plural) => Plural, (Plural, None) => Plural,
@@ -80,18 +80,19 @@ constructions! {
             (Plural, Plural, _, Nominal) => Yes,
             (_, SingularOrPlural, _, _) => Yes,
         }
-        feature NominalAgreementNumber { Head, Plural, SingularOrPlural } default Head;
-        feature DeterminerAgreementNumber { Nominal, Singular, SingularOrPlural } default Nominal;
+        feature NominalAgreementNumber { Head, Plural, SingularOrPlural } default Head
+            combine coordinated_nominal_agreement(coordinator.CoordinationKind, right.NominalAgreementNumber);
+        feature DeterminerAgreementNumber { Nominal, Singular, SingularOrPlural } default Nominal combine coordinated_determiner_agreement;
         feature QuantificationalDeterminer { No, Yes } default No;
         feature QuantificationalAdjunctUse { No, Yes } default No;
         feature AuxiliaryUse { No, Yes } default No;
         feature Polarity { Positive, Negative } default Positive;
         feature PrimaryNegation { Yes }
         feature ObliqueMarker { No, Yes } default No;
-        feature ObliqueNumber { None, Singular, Plural } default None;
-        feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted;
-        feature CaseUse { Common, Nominative, Accusative, Genitive }
-        feature Targeting { No, Yes }
+        feature ObliqueNumber { None, Singular, Plural } default None combine coordinated_oblique;
+        feature PartitiveCountability { Count, Mass, Unrestricted } default Unrestricted combine coordinated_partitive_countability;
+        feature CaseUse { Common, Nominative, Accusative, Genitive } combine common_case;
+        feature Targeting { No, Yes } combine any;
         feature TargetingPremodifierUse { No, Yes } default No;
         table targeting_premodifier(TargetingPremodifierUse, Targeting) -> Selection {
             (No, No) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
@@ -135,7 +136,7 @@ constructions! {
         feature AdverbComplementClass { Duration }
         feature DurationUse { No, Yes } default No;
         feature FocusingModifierUse { Restrictive }
-        feature FocusedUse { No, Yes } default No;
+        feature FocusedUse { No, Yes } default No combine any;
         // CF7: a focused coordinate blocks focus on the whole coordination.
         table coordinated_focus(FocusedUse, FocusedUse) -> FocusedUse {
             (No, No) => No,
@@ -146,7 +147,7 @@ constructions! {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, No) => Yes,
         }
         feature NominalAdjunctHost { No, Yes } default Yes;
-        feature PredicativeAdjunctUse { No, Yes } default No;
+        feature PredicativeAdjunctUse { No, Yes } default No combine all;
         table predicative_adjunct_concord(PredicativeAdjunctUse, PredicativeAdjunctUse)
             -> PredicativeAdjunctUse {
             (Yes, Yes) => Yes,
@@ -164,7 +165,7 @@ constructions! {
         table licensed_posthead_dependent(present, ImmediatePostheadDependentUse) -> Selection {
             (No, _) => Yes, (Yes, Yes) => Yes,
         }
-        feature ComparativePostmodifierUse { No, Yes } default No;
+        feature ComparativePostmodifierUse { No, Yes } default No combine always No;
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase, ExceptionQuantity } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
         feature ComparativeQuantityUse { No, Yes } default No;
@@ -181,7 +182,7 @@ constructions! {
             -> AdjectiveAttributiveOnlyUse {
             (No, No) => No, (_, _) => Yes,
         }
-        feature ComparativeModifierPresent { No, Yes } default No;
+        feature ComparativeModifierPresent { No, Yes } default No combine always No;
         table implicit_comparative_concord(ImplicitComparativeUse, ImplicitComparativeUse)
             -> ImplicitComparativeUse {
             (Yes, Yes) => Yes, (_, _) => No,
@@ -231,7 +232,7 @@ constructions! {
         table source_adjunct_admission(SourceComplementSelection, SourceMarker) -> Selection {
             (No, No) => Yes, (No, Yes) => Yes, (Yes, No) => Yes,
         }
-        feature SourceModifierPresent { No, Yes } default No;
+        feature SourceModifierPresent { No, Yes } default No combine any;
         table source_modifier_presence(SourceModifierPresent, SourceModifierPresent) -> SourceModifierPresent {
             (No, No) => No,
             (_, _) => Yes,
@@ -240,7 +241,7 @@ constructions! {
             (No, No) => No,
             (_, _) => Yes,
         }
-        feature WholeObjectSourcePresent { No, Yes } default No;
+        feature WholeObjectSourcePresent { No, Yes } default No combine any;
         table whole_object_source_presence(WholeObjectSourcePresent, WholeObjectSourcePresent) -> WholeObjectSourcePresent {
             (No, No) => No,
             (_, _) => Yes,
@@ -286,7 +287,7 @@ constructions! {
             -> PrepositionFunctionLicence intersection;
         frame_marker_licence Predicate(Preposition) = licence_verb_complement;
         feature RelativeGapKind { Object, TemporalAdjunct } default Object;
-        feature RelativisableAdjunctClass { None, Temporal } default None;
+        feature RelativisableAdjunctClass { None, Temporal } default None combine coordinated_relativisable_adjunct_class;
         table relative_head_licence(RelativeGapKind, RelativisableAdjunctClass) -> Selection {
             (Object, None) => Yes, (Object, Temporal) => Yes,
             (TemporalAdjunct, Temporal) => Yes,
@@ -350,7 +351,7 @@ constructions! {
         feature InternalisedComplementMarker { No, Yes } default No;
         feature InternalisedComplementPresent { No, Yes } default No;
         feature ExtentMarker { Yes }
-        feature LocativeUse { No, Yes } default No;
+        feature LocativeUse { No, Yes } default No combine always No;
         feature AdjectiveOrigin { Ordinary, Participial } default Ordinary;
         feature AdjectivePremodifierUse { No, Yes } default Yes;
         table coordinated_adjective_premodifier(AdjectivePremodifierUse, AdjectivePremodifierUse)
@@ -387,15 +388,15 @@ constructions! {
         }
         feature Clitic { No, Yes } default No;
         feature CliticHost { Free, Subject, PronounSubject }
-        feature SubjectStructure { Phrase, Pronoun }
+        feature SubjectStructure { Phrase, Pronoun } combine always Phrase;
         feature PredicateFrameUse { No, Yes } default Yes;
         feature ScalarVariable { Yes }
         feature ScalarSign { Absent, Plus, Hyphen, Minus } default Absent;
         table loyalty_sign(ScalarSign) -> Selection { (Plus) => Yes, (Minus) => Yes, }
         feature MeasureOperator { No, Yes } default No;
-        feature ScalarDenotation { No, Yes } default No;
-        feature MeasurePosition { None, Before } default None;
-        feature UnitBearing { No, Yes } default No;
+        feature ScalarDenotation { No, Yes } default No combine all;
+        feature MeasurePosition { None, Before } default None combine coordinated_measure_position;
+        feature UnitBearing { No, Yes } default No combine any;
         table nominal_unit_bearing(MeasurePosition) -> UnitBearing {
             (None) => No, (Before) => Yes,
         }
@@ -403,10 +404,10 @@ constructions! {
             (No, No) => No,
             (_, _) => Yes,
         }
-        feature ScalarMeasurementHeadUse { No, Yes } default No;
-        feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
+        feature ScalarMeasurementHeadUse { No, Yes } default No combine always No;
+        feature PropertyValuePosition { None, Single, First, Second, Pair } default None combine coordinated_property_value_position;
         feature PropertyEqualityForm { None, Unquantified, Quantified } default None;
-        feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No;
+        feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No combine coordinated_cardinal_measurement;
         feature MeasureKind { Scalar, Pair }
         feature MatrixComparisonUse { No, Yes } default No;
         feature ComparativeComplementForm { Nominal, BareInfinitival, GerundParticipial }
@@ -432,9 +433,9 @@ constructions! {
             (Symbols, None) => "", (Action, None) => ".", (Action, QuotedFullStop) => "",
         }
         feature NominalBareClass { None, Interval, Boundary }
-        feature NominalAdjunctClass { None, Temporal, Manner } default None;
-        feature SlashPremodifierUse { No, Yes } default Yes;
-        feature NominalDependentPresent { No, Yes } default No;
+        feature NominalAdjunctClass { None, Temporal, Manner } default None combine nominal_adjunct_concord;
+        feature SlashPremodifierUse { No, Yes } default Yes combine all;
+        feature NominalDependentPresent { No, Yes } default No combine any;
         feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal } default None;
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
@@ -450,7 +451,7 @@ constructions! {
         feature Selection { Yes }
         feature Function { Genitive }
         feature HostEnding { Default, PluralS }
-        feature BareGenitiveHost { No, Yes } default No;
+        feature BareGenitiveHost { No, Yes } default No combine always No;
         feature LabelKind { None, AbilityWord, FlavorWord }
         feature SymbolUse { Cost }
         feature ManaSymbolUse { No, Yes } default No;
@@ -479,12 +480,12 @@ constructions! {
             (Singular) => Singular, (Plural) => Plural,
         }
         feature IdentityUse { Name }
-        feature NominalComplementMarker { None, Of, To } default None;
+        feature NominalComplementMarker { None, Of, To } default None combine always None;
         feature TaxonomicComplementUse { No, Yes } default No;
         table nominal_complement_marker(NominalComplementMarker, NominalComplementMarker) -> Selection {
             (None, None) => Yes, (Of, Of) => Yes, (To, To) => Yes,
         }
-        feature BarePrepositionUse { No, Location, SpatialEdge } default No;
+        feature BarePrepositionUse { No, Location, SpatialEdge } default No combine always No;
         feature BareNominalComplement { No, Location, SpatialEdge } default No;
         table bare_preposition_use(BarePrepositionUse) -> Selection {
             (Location) => Yes, (SpatialEdge) => Yes,
@@ -492,7 +493,7 @@ constructions! {
         table bare_nominal_complement(BareNominalComplement, BarePrepositionUse) -> Selection {
             (Location, Location) => Yes, (SpatialEdge, SpatialEdge) => Yes,
         }
-        feature SelectedPrepositionUse { No, Yes } default No;
+        feature SelectedPrepositionUse { No, Yes } default No combine any;
         table selected_preposition_concord(SelectedPrepositionUse, SelectedPrepositionUse)
             -> SelectedPrepositionUse {
             (No, No) => No,
@@ -531,8 +532,8 @@ constructions! {
         table syndetic_premodifier_member(PremodifierCategory) -> Selection {
             (Adjectival) => Yes, (Verbal) => Yes,
         }
-        feature AttributePremodifierHead { No, Yes } default No;
-        feature KeywordPremodifierHead { No, Yes } default No;
+        feature AttributePremodifierHead { No, Yes } default No combine all;
+        feature KeywordPremodifierHead { No, Yes } default No combine all;
         table noun_premodifier_use(NounPremodifier) -> Selection {
             (Yes) => Yes, (Attribute) => Yes,
         }
@@ -574,7 +575,7 @@ constructions! {
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
         feature GeneralCoordination { No, Yes } default Yes;
-        feature UnmarkedConjunctLicence { No, Yes } default Yes;
+        feature UnmarkedConjunctLicence { No, Yes } default Yes combine always Yes;
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
@@ -678,43 +679,34 @@ constructions! {
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category Nominal(
-            head ComparativeModifierPresent combine No,
-            head AttributePremodifierHead combine all,
-            head KeywordPremodifierHead combine all,
+            head ComparativeModifierPresent,
+            head AttributePremodifierHead,
+            head KeywordPremodifierHead,
             head number combine same,
-            head NominalAgreementNumber combine coordinated_nominal_agreement(source.CoordinationKind, right.NominalAgreementNumber),
+            head NominalAgreementNumber,
             head countability combine same,
             head Targeting combine same,
-            head NominalAdjunctClass combine nominal_adjunct_concord(left.NominalAdjunctClass, right.NominalAdjunctClass),
-            local NominalDependentPresent combine any,
-            head RelativisableAdjunctClass combine coordinated_relativisable_adjunct_class(
-                left.RelativisableAdjunctClass,
-                right.RelativisableAdjunctClass),
-            head SlashPremodifierUse combine all,
-            head NumberTransparency combine all,
-            head ObliqueNumber combine coordinated_oblique(source.CoordinationKind, left.ObliqueNumber, right.ObliqueNumber),
-            head BareGenitiveHost combine No,
-            head DeterminerRequirement combine coordinated_determiner_requirement(
-                left.DeterminerRequirement,
-                right.DeterminerRequirement),
-            head MeasurePosition combine coordinated_measure_position(left.MeasurePosition, right.MeasurePosition),
-            local ScalarMeasurementHeadUse combine No,
-            local PropertyValuePosition combine coordinated_property_value_position(
-                source.CoordinationKind,
-                left.PropertyValuePosition,
-                right.PropertyValuePosition),
-            head CardinalMeasurementUse combine coordinated_cardinal_measurement(
-                left.CardinalMeasurementUse,
-                right.CardinalMeasurementUse),
-            head BarePrepositionUse combine No,
-            head NominalComplementMarker combine None,
-            head SelectedPrepositionUse combine any,
-            head PredicativeAdjunctUse combine all,
-            head ScalarDenotation combine all,
-            head SourceModifierPresent combine any,
-            head WholeObjectSourcePresent combine any,
-            head SubjectRelativeNumber combine relative_number_concord(left.SubjectRelativeNumber, right.SubjectRelativeNumber),
-            head UnmarkedConjunctLicence combine Yes
+            head NominalAdjunctClass,
+            local NominalDependentPresent,
+            head RelativisableAdjunctClass,
+            head SlashPremodifierUse,
+            head NumberTransparency,
+            head ObliqueNumber,
+            head BareGenitiveHost,
+            head DeterminerRequirement,
+            head MeasurePosition,
+            local ScalarMeasurementHeadUse,
+            local PropertyValuePosition,
+            head CardinalMeasurementUse,
+            head BarePrepositionUse,
+            head NominalComplementMarker,
+            head SelectedPrepositionUse,
+            head PredicativeAdjunctUse,
+            head ScalarDenotation,
+            head SourceModifierPresent,
+            head WholeObjectSourcePresent,
+            head SubjectRelativeNumber,
+            head UnmarkedConjunctLicence
         );
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
@@ -722,36 +714,29 @@ constructions! {
         category NounPremodifierSeries(head NounPremodifier, head PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(
-            head NominalDependentPresent combine Yes,
-            head PartitiveCountability combine coordinated_partitive_countability(
-                left.PartitiveCountability,
-                right.PartitiveCountability),
-            local NounPhraseStructure combine Other,
-            local FocusedUse combine any,
-            head UnitBearing combine any,
+            head NominalDependentPresent combine always Yes,
+            head PartitiveCountability,
+            local NounPhraseStructure,
+            local FocusedUse,
+            head UnitBearing,
             head number combine determined_np_coordinate_number(
-                source.CoordinationKind,
-                left.number,
-                right.number,
-                left.DeterminerAgreementNumber,
-                right.DeterminerAgreementNumber),
-            head person combine coordinate_person(source.CoordinationKind, left.person, right.person),
-            head CaseUse combine common_case(left.CaseUse, right.CaseUse),
-            head Targeting combine any,
-            head BareGenitiveHost combine No,
-            head SubjectStructure combine Phrase,
+                coordinator.CoordinationKind, left.number, right.number,
+                left.DeterminerAgreementNumber, right.DeterminerAgreementNumber),
+            head person combine coordinate_person,
+            head CaseUse,
+            head Targeting,
+            head BareGenitiveHost,
+            head SubjectStructure,
             head BarePrepositionUse combine same,
-            head SelectedPrepositionUse combine any,
-            head PredicativeAdjunctUse combine all,
-            head ScalarDenotation combine all,
-            head SourceModifierPresent combine any,
-            head WholeObjectSourcePresent combine any,
-            head DeterminerAgreementNumber combine coordinated_determiner_agreement(
-                left.DeterminerAgreementNumber,
-                right.DeterminerAgreementNumber),
-            head ComparativePostmodifierUse combine No,
-            head Definiteness combine Unspecified,
-            head LocativeUse combine No
+            head SelectedPrepositionUse,
+            head PredicativeAdjunctUse,
+            head ScalarDenotation,
+            head SourceModifierPresent,
+            head WholeObjectSourcePresent,
+            head DeterminerAgreementNumber,
+            head ComparativePostmodifierUse,
+            head Definiteness,
+            head LocativeUse
         );
         category NominativePhrase(
             head number, head person, head DeterminerAgreementNumber, head CaseUse, head SubjectStructure,
@@ -2069,36 +2054,27 @@ constructions! {
             require Source.GeneralCoordination = Yes;
         }
 
+        // left and right are conjuncts; at a serial tail right is the helper summary.
+        // coordinator is the overt marker, or its carried summary at a serial tail.
         coordination_forms Standard {
             binary Coordination;
-            series CoordinationSeriesEnd, CoordinationSeriesContinuation, SerialCoordination;
-            correlative_series CorrelativeSeriesEnd, CorrelativeSeriesContinuation;
-            correlative BothCoordination;
-            correlative EitherCoordination, EitherSerialCoordination;
-            correlative NeitherCoordination, NeitherSerialCoordination;
+            serial CoordinationSeriesEnd, CoordinationSeriesContinuation, SerialCoordination;
+            correlative_helper CorrelativeSeriesEnd, CorrelativeSeriesContinuation;
+            both BothCoordination;
+            either EitherCoordination, EitherSerialCoordination;
+            neither NeitherCoordination, NeitherSerialCoordination;
+            on ordinary_overt { require coordinator.GeneralCoordination = Yes; }
         }
 
         coordinable Nominal using Standard {
             forms binary, serial;
-            series NominalSeries;
-            on Coordination, CoordinationSeriesEnd {
-                require source.GeneralCoordination = Yes;
-            }
             // R15d/R15e: an asyndetic shared-head group cannot resegment
             // an unmarked member of a coordinator-ending Nominal list.
-            on serial {
-                require left.UnmarkedConjunctLicence = Yes;
-            }
+            on serial { require left.UnmarkedConjunctLicence = Yes; }
         }
 
         coordinable NounPhrase using Standard {
-            forms binary, serial, BothCoordination, EitherCoordination,
-                EitherSerialCoordination, NeitherCoordination, NeitherSerialCoordination;
-            series NounPhraseSeries;
-            correlative_series CorrelativeNounPhraseSeries;
-            on Coordination, CoordinationSeriesEnd {
-                require source.GeneralCoordination = Yes;
-            }
+            forms binary, serial, both, either, neither;
         }
 
         schema CoordinationSeriesEnd {
