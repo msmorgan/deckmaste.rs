@@ -130,6 +130,8 @@ MeasurePhrase uses strict agreement for MeasureKind and the UnitBearing `any` de
 
 GrantedAbility combines kind through its named table and restricts completed results with quoted_ability_combination.
 
+DepictivePhrase and PredicativeComplement use different named kind judgments for helper summaries and completed results.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);

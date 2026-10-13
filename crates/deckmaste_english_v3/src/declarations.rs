@@ -523,8 +523,8 @@ constructions! {
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
         feature CorrelativeCoordinator { And, Or, Nor }
-        feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed }
-        feature DepictiveKind { Adjectival, Participial, Mixed }
+        feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed } combine unlike_predicative_kind;
+        feature DepictiveKind { Adjectival, Participial, Mixed } combine unlike_depictive_kind;
         feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
         feature QuotedComplement { Yes }
@@ -610,7 +610,6 @@ constructions! {
         );
         category PredicativeComplement(head PredicativeKind, head PredicativeAdjunctUse);
         category DepictivePhrase(head DepictiveKind);
-        category DepictivePhraseSeries(head DepictiveKind);
         category Ellipsis(head form);
         category BareComplement(
             head AuxiliaryComplementRealization, head PurposeAdjunctLicence, head MatrixComplementLicence,
@@ -881,7 +880,6 @@ constructions! {
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category CoordinatedFiniteClause(head GeneralCoordination);
-        category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
         category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeAmountSeries(head CorrelativeCoordinator);
         category CorrelativeKeywordPhraseSeries(head CorrelativeCoordinator);
@@ -1565,28 +1563,6 @@ constructions! {
             (Alternative, _, Plural, _, _) => Plural,
         }
 
-        policy PredicativeListEnd<Right, Source> {
-            export PredicativeAdjunctUse = predicative_adjunct_concord(
-                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
-            export PredicativeKind = combined_predicative_kind(left.PredicativeKind,
-                Right.PredicativeKind);
-        }
-
-        policy DepictiveListEnd<Right, Source> {
-            export DepictiveKind = combined_depictive_kind(left.DepictiveKind, Right.DepictiveKind);
-        }
-
-        policy UnlikeDepictives<Right, Source> {
-            export DepictiveKind = unlike_depictive_kind(left.DepictiveKind, Right.DepictiveKind);
-        }
-
-        policy UnlikePredicatives<Right, Source> {
-            export PredicativeAdjunctUse = predicative_adjunct_concord(
-                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
-            export PredicativeKind = unlike_predicative_kind(left.PredicativeKind,
-                Right.PredicativeKind);
-        }
-
         // DR6: passive selected heads share an NP, preserving whether either
         // member licenses an Internalised Complement. Ordinary signatures still agree.
         table shared_frame_concord(FrameUse, FrameUse) -> FrameUse {
@@ -1753,6 +1729,16 @@ constructions! {
             on result {
                 require quoted_ability_combination(left.GrantedAbilityKind, right.GrantedAbilityKind) = Yes;
             }
+        }
+
+        coordinable DepictivePhrase using Standard {
+            forms binary, serial;
+            on helper { combine DepictiveKind = combined_depictive_kind; }
+        }
+
+        coordinable PredicativeComplement using Standard {
+            forms binary, serial;
+            on helper { combine PredicativeKind = combined_predicative_kind; }
         }
 
         schema CoordinationSeriesEnd {
@@ -2927,8 +2913,6 @@ constructions! {
             (QuotedTextSeries, QuotedText),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
-            (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
-            (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -2950,8 +2934,6 @@ constructions! {
             (QuotedTextSeries, QuotedText, Self),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
-            (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
-            (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -2970,8 +2952,6 @@ constructions! {
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
-            (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
-            (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -3244,8 +3224,6 @@ constructions! {
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
-            (DepictivePhrase, Self, UnlikeDepictives),
-            (PredicativeComplement, Self, UnlikePredicatives),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);

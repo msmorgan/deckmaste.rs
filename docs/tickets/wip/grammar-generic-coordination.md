@@ -133,9 +133,15 @@ and GrantedAbilityCoordination lose their last users. The completed-result quote
 ability requirement remains explicit; both judgment tables remain named.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: depictive/predicative complements, comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+DepictivePhrase and PredicativeComplement replace eight rows and two helpers.
+DepictiveListEnd, PredicativeListEnd, UnlikeDepictives and UnlikePredicatives lose
+their last users. Kind judgments remain named tables; predicative_adjunct_concord
+remains used elsewhere and was checked on all nine present/absent pairs.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`wrnwqoyv`, granted family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`wrnwqoyv`): does not apply yet.
+Census delta (`vkotykos`, predicative family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`vkotykos`): does not apply yet.
