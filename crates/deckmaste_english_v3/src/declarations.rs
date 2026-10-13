@@ -743,7 +743,7 @@ constructions! {
             head ComparativeObjectGapLicence
         );
 
-        category Cardinal(head number, head CardinalComplementUse);
+        category Cardinal(head number combine cardinal_coordinate_number, head CardinalComplementUse);
         category CardinalModifier();
         category SecondaryNegator();
         category SecondaryNegatorHead();
@@ -859,7 +859,6 @@ constructions! {
             head SourceComplementSelection
         );
         category ManaPhraseSeries();
-        category CardinalSeries(head number, head CoordinationKind, head CardinalComplementUse);
         category AmountSeries();
         category MeasurePhraseSeries(head MeasureKind, head UnitBearing);
         category KeywordPhraseSeries();
@@ -886,9 +885,6 @@ constructions! {
         category CoordinatedFiniteClause(head GeneralCoordination);
         category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
         category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
-        category CorrelativeCardinalSeries(
-            head number, head CorrelativeCoordinator, head CoordinationKind, head CardinalComplementUse
-        );
         category CorrelativeAmountSeries(head CorrelativeCoordinator);
         category CorrelativeMeasurePhraseSeries(
             head UnitBearing, head MeasureKind, head CorrelativeCoordinator
@@ -1471,19 +1467,6 @@ constructions! {
                 left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
         }
 
-        policy CardinalAgreement<Right, Source> {
-            export CardinalComplementUse = coordinated_cardinal_complement(left.CardinalComplementUse, Right.CardinalComplementUse);
-            export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
-                Right.number);
-        }
-
-        policy CardinalListEnd<Right, Source> {
-            export CardinalComplementUse = coordinated_cardinal_complement(left.CardinalComplementUse, Right.CardinalComplementUse);
-            export CoordinationKind = Source.CoordinationKind;
-            export number = cardinal_coordinate_number(Source.CoordinationKind, left.number,
-                Right.number);
-        }
-
         policy CoordinatedMeasureKind<Right, Source> {
             export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
             agree left.MeasureKind = Right.MeasureKind;
@@ -1766,6 +1749,10 @@ constructions! {
             forms binary, serial, either;
             helper FiniteClauseSeries;
             correlative_helper CorrelativeFiniteClauseSeries;
+        }
+
+        coordinable Cardinal using Standard {
+            forms binary, serial, both, either, neither;
         }
 
         schema CoordinationSeriesEnd {
@@ -2945,7 +2932,6 @@ constructions! {
             (VerbalPremodifierSeries, VerbalPremodifier),
             (NounPremodifierSeries, NounPremodifier, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase),
-            (CardinalSeries, Cardinal, CardinalListEnd),
             (AmountSeries, Amount),
             (MeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase),
@@ -2971,7 +2957,6 @@ constructions! {
             (VerbalPremodifierSeries, VerbalPremodifier, Self),
             (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase, Self),
-            (CardinalSeries, Cardinal, Self, CardinalListEnd),
             (AmountSeries, Amount, Self),
             (MeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase, Self),
@@ -2994,7 +2979,6 @@ constructions! {
             (VerbalPremodifier, Self, VerbalPremodifierSeries),
             (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
             (ManaPhrase, Self, ManaPhraseSeries),
-            (Cardinal, Self, CardinalSeries, CardinalAgreement),
             (Amount, Self, AmountSeries),
             (MeasurePhrase, Self, MeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, KeywordPhraseSeries),
@@ -3270,7 +3254,6 @@ constructions! {
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (ManaPhrase, Self),
-            (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
@@ -5062,14 +5045,9 @@ constructions! {
         }
 
         // DQ3: the Complement licence comes from the numeral's declared kind.
-        feature CardinalComplementUse { No, Yes } default No;
+        feature CardinalComplementUse { No, Yes } default No combine all;
         table cardinal_complement_use(numeral_kind) -> CardinalComplementUse {
             (Cardinal) => Yes, (Arabic) => Yes, (GroupedArabic) => Yes,
-        }
-        table coordinated_cardinal_complement(CardinalComplementUse, CardinalComplementUse)
-            -> CardinalComplementUse {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
         }
         policy ArithmeticCardinalPrepositionComplement {
             require head.MeasureOperator = Yes;
@@ -6047,7 +6025,6 @@ constructions! {
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
-            (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
@@ -6063,7 +6040,6 @@ constructions! {
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
             (CorrelativeManaPhraseSeries, ManaPhrase),
-            (CorrelativeCardinalSeries, Cardinal, CardinalListEnd),
             (CorrelativeAmountSeries, Amount),
             (CorrelativeMeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase),
@@ -6079,7 +6055,6 @@ constructions! {
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
-            (CorrelativeCardinalSeries, Cardinal, Self, CardinalListEnd),
             (CorrelativeAmountSeries, Amount, Self),
             (CorrelativeMeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
@@ -6093,7 +6068,6 @@ constructions! {
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
-            (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
             (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
@@ -6106,7 +6080,6 @@ constructions! {
         }
         instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
-            (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
@@ -6122,7 +6095,6 @@ constructions! {
         instance NeitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
-            (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
             (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
@@ -6138,7 +6110,6 @@ constructions! {
         instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
-            (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
             (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),

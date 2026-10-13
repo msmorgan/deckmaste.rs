@@ -117,12 +117,18 @@ features would each require a constant override and a helper omission. Keeping
 FocusedAdjunctConcord and FocusedAdjunctFunction avoids repeating that distinction.
 No grammar declaration changes in this decision.
 
-Remaining families are pending their separate conversion and gate: Cardinal, MeasurePhrase, GrantedAbility,
+Cardinal replaces eleven rows and two helpers with one block, its number-table
+annotation and the CardinalComplementUse default. CardinalAgreement, CardinalListEnd
+and coordinated_cardinal_complement lose their last users. The Boolean table was
+checked on all nine present/absent pairs; all 670 shape and 927 admission contracts
+match the baseline.
+
+Remaining families are pending their separate conversion and gate: MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
 KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`oxlwpsut`, focused-adjunct decision): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`oxlwpsut`): does not apply yet.
+Census delta (`nqwuwwmm`, cardinal family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`nqwuwwmm`): does not apply yet.
