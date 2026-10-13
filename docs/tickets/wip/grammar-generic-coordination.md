@@ -151,9 +151,14 @@ QualityPrepositionConcord loses its last user. KeywordMarker uses strict same;
 the multi-valued coordinated_quality judgment remains a named table.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+NounPremodifier and VerbalPremodifier replace eight rows and two helper interfaces.
+NounPremodifierConcord loses its last user; coordinated_noun_premodifier remains
+a named judgment. The separate irregular Premodifier paths stay handwritten.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`xpkvulqm`, quality family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`xpkvulqm`): does not apply yet.
+Census delta (`vpsvnrwr`, premodifier family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`vpsvnrwr`): does not apply yet.

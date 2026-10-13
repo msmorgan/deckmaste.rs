@@ -453,7 +453,7 @@ constructions! {
             (None, None) => Yes, (None, Of) => Yes, (Of, None) => Yes,
             (None, To) => Yes, (Of, To) => Yes, (To, None) => Yes, (To, Of) => Yes,
         }
-        feature NounPremodifier { Yes, Attribute, Keyword, None }
+        feature NounPremodifier { Yes, Attribute, Keyword, None } combine coordinated_noun_premodifier;
         feature PremodifierCoordination { No, Yes } default No combine always Yes;
         feature PremodifierCategory { Nominal, Adjectival, Verbal, Mixed }
         feature SyndeticPremodifier { No, Yes }
@@ -494,11 +494,6 @@ constructions! {
             (None, Attribute) => Attribute, (Attribute, None) => Attribute,
             (Keyword, Keyword) => Keyword, (Keyword, Yes) => Keyword,
             (Yes, Keyword) => Keyword, (Keyword, None) => Keyword, (None, Keyword) => Keyword,
-        }
-        policy NounPremodifierConcord<Right, Source> {
-            export PremodifierCoordination = Yes;
-            export NounPremodifier = coordinated_noun_premodifier(
-                left.NounPremodifier, Right.NounPremodifier);
         }
         feature VPFinalAdjunct { Yes, No } combine all;
         feature ClauseInitialAdjunct { Yes, No } default No combine all;
@@ -652,9 +647,7 @@ constructions! {
             head UnmarkedConjunctLicence
         );
         category VerbalPremodifier();
-        category VerbalPremodifierSeries();
         category NounPremodifier(head NounPremodifier, local PremodifierCoordination);
-        category NounPremodifierSeries(head NounPremodifier, head PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(
             head NominalDependentPresent combine always Yes,
@@ -1745,6 +1738,14 @@ constructions! {
         }
 
         coordinable KeywordQualityPreposition using Standard {
+            forms binary, serial;
+        }
+
+        coordinable NounPremodifier using Standard {
+            forms binary, serial;
+        }
+
+        coordinable VerbalPremodifier using Standard {
             forms binary, serial;
         }
 
@@ -2905,8 +2906,6 @@ constructions! {
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
-            (VerbalPremodifierSeries, VerbalPremodifier),
-            (NounPremodifierSeries, NounPremodifier, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase),
             (AmountSeries, Amount),
             (KeywordPhraseSeries, KeywordPhrase),
@@ -2924,8 +2923,6 @@ constructions! {
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
-            (VerbalPremodifierSeries, VerbalPremodifier, Self),
-            (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase, Self),
             (AmountSeries, Amount, Self),
             (KeywordPhraseSeries, KeywordPhrase, Self),
@@ -2940,8 +2937,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
-            (VerbalPremodifier, Self, VerbalPremodifierSeries),
-            (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
             (ManaPhrase, Self, ManaPhraseSeries),
             (Amount, Self, AmountSeries),
             (KeywordPhrase, Self, KeywordPhraseSeries),
@@ -3209,8 +3204,6 @@ constructions! {
                 require head.BoundKeyword = No;
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
-            (VerbalPremodifier, Self),
-            (NounPremodifier, Self, NounPremodifierConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (ManaPhrase, Self),
             (Amount, Self),
