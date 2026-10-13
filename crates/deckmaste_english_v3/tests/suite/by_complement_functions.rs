@@ -412,7 +412,7 @@ fn trusted_advisor_passive_extent_remains_a_selected_complement() {
 fn noctis_means_preserves_its_complete_gerund_participial_complement() {
     let other_costs = possessed(
         "vocab:PossessiveDeterminerPronoun/Their",
-        crate::common::nominal(Reading::BarrierPremodifiedNominal {
+        Reading::PremodifiedNominal {
             form: 0,
             modifier: Box::new(Reading::IntransitiveAdjective {
                 form: 0,
@@ -431,7 +431,7 @@ fn noctis_means_preserves_its_complete_gerund_participial_complement() {
                     Some(true),
                 ),
             })),
-        }),
+        },
     );
     let paying_costs = Reading::SelectedPredicate {
         category: Category::SecondaryVerbPhrase,

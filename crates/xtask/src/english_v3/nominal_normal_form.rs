@@ -10,7 +10,7 @@ use serde::Serialize;
 
 // Bump on every classification or normalization change and append the new
 // source identity to the version lock in the tests. Historical entries stay fixed.
-pub(super) const VERSION: usize = 6;
+pub(super) const VERSION: usize = 7;
 
 pub(super) fn source_sha256() -> String {
     // Compile the source into the binary: a disk edit after building must not
@@ -161,6 +161,12 @@ impl Tree {
             || self.field("form") != Some(&Self::Atom("0".into()))
         {
             return false;
+        }
+        // Bare other has an empty selected frame; complemented other than
+        // has a different constructor and is not part of this equivalence.
+        if !noun && name == "IntransitiveAdjective" {
+            return self.field("head").and_then(Self::word_id)
+                == Some("vocab:AttributiveAdjective/Other");
         }
         if name != if noun { "NounPremodifier" } else { "Adjective" } {
             return false;

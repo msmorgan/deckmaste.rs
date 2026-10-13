@@ -161,30 +161,24 @@ fn other_before_an_overt_noun_remains_an_adjective() {
         None,
     );
     adjective.frame = Some(0);
-    let expected = Reading::NominalProjection {
+    let expected = Reading::PremodifiedNominal {
         form: 0,
-        head: Box::new(Reading::NominalCoreProjection {
+        modifier: Box::new(Reading::IntransitiveAdjective {
             form: 0,
-            head: Box::new(Reading::BarrierPremodifiedNominal {
+            head: adjective,
+        }),
+        head: Box::new(Reading::NominalProjection {
+            form: 0,
+            head: Box::new(Reading::NominalCoreProjection {
                 form: 0,
-                modifier: Box::new(Reading::IntransitiveAdjective {
+                head: Box::new(Reading::Noun {
                     form: 0,
-                    head: adjective,
-                }),
-                head: Box::new(Reading::NominalProjection {
-                    form: 0,
-                    head: Box::new(Reading::NominalCoreProjection {
-                        form: 0,
-                        head: Box::new(Reading::Noun {
-                            form: 0,
-                            head: word(
-                                "lexeme:CommonNoun/Card",
-                                WordForm::Singular,
-                                Some(Number::Singular),
-                                Some(true),
-                            ),
-                        }),
-                    }),
+                    head: word(
+                        "lexeme:CommonNoun/Card",
+                        WordForm::Singular,
+                        Some(Number::Singular),
+                        Some(true),
+                    ),
                 }),
             }),
         }),

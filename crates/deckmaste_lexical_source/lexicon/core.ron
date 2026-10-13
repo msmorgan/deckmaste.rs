@@ -25,6 +25,7 @@
             "vocab:ColorWord/Red", "vocab:ColorWord/White",
             "vocab:ColorWord/Black/non", "vocab:ColorWord/Blue/non",
             "vocab:ColorWord/Green/non", "vocab:ColorWord/Red/non", "vocab:ColorWord/White/non",
+            "vocab:AttributiveAdjective/Other",
             "vocab:PredicativeAdjective/Legendary/non",
             "lexeme:keyword_ability/enchant/adjective", "lexeme:keyword_ability/equip/adjective",
         ],

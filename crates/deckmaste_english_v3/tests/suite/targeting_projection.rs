@@ -452,19 +452,13 @@ fn simple_adjective_above_targeting_preserves_the_single_nominal_projection() {
     // Felidar Savior: "each of up to two other target creatures you control".
     let mut other = word("vocab:AttributiveAdjective/Other");
     other.frame = Some(0);
-    let nominal = Reading::NominalProjection {
+    let nominal = Reading::PremodifiedNominal {
         form: 0,
-        head: Box::new(Reading::NominalCoreProjection {
+        modifier: Box::new(Reading::IntransitiveAdjective {
             form: 0,
-            head: Box::new(Reading::BarrierPremodifiedNominal {
-                form: 0,
-                modifier: Box::new(Reading::IntransitiveAdjective {
-                    form: 0,
-                    head: other,
-                }),
-                head: Box::new(targeted(creature(Number::Plural))),
-            }),
+            head: other,
         }),
+        head: Box::new(targeted(creature(Number::Plural))),
     };
     exact(
         "other target creatures",

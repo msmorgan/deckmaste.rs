@@ -70,23 +70,17 @@ fn during_untap_step() -> Reading {
             possessor: Box::new(Reading::DeterminedNounPhrase {
                 form: 0,
                 determiner: invariant("vocab:FloatedQuantifier/Each"),
-                head: Box::new(Reading::NominalProjection {
+                head: Box::new(Reading::PremodifiedNominal {
                     form: 0,
-                    head: Box::new(Reading::NominalCoreProjection {
+                    modifier: Box::new(Reading::IntransitiveAdjective {
                         form: 0,
-                        head: Box::new(Reading::BarrierPremodifiedNominal {
-                            form: 0,
-                            modifier: Box::new(Reading::IntransitiveAdjective {
-                                form: 0,
-                                head: {
-                                    let mut head = invariant("vocab:AttributiveAdjective/Other");
-                                    head.frame = Some(0);
-                                    head
-                                },
-                            }),
-                            head: Box::new(noun("lexeme:CommonNoun/Player")),
-                        }),
+                        head: {
+                            let mut head = invariant("vocab:AttributiveAdjective/Other");
+                            head.frame = Some(0);
+                            head
+                        },
                     }),
+                    head: Box::new(noun("lexeme:CommonNoun/Player")),
                 }),
             }),
             marker: invariant("vocab:Genitive/Default"),

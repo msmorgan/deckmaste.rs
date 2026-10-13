@@ -272,11 +272,24 @@ fn geths_summons_keeps_finite_as_as_an_adjunct() {
 fn master_biomancer_keeps_licensed_unlike_complement_coordination() {
     let text = "Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types.";
     let values = common::readings(text, Category::Document);
-    assert_eq!(values.len(), 72);
+    assert!(!values.is_empty());
+    let mut selected_coordination = false;
     for value in values {
+        value.visit(&mut |node| {
+            let Reading::SelectedPredicate { head, complements, .. } = node else { return; };
+            if !matches!(&head.value, LexicalReading::Word(word) if word.lexeme.as_str() == "core-verb:Enter") { return; }
+            let [FrameValue::Argument(complement)] = complements.as_slice() else { return; };
+            let Reading::Coordination { category: Category::PrepositionPhrase, left, right, .. } = complement.as_ref() else { return; };
+            selected_coordination |= left.realize(common::lexicon()).unwrap().starts_with("with a number of")
+                && right.realize(common::lexicon()).unwrap().starts_with("as a Mutant");
+        }).unwrap();
         value.admit(common::lexicon()).unwrap();
         assert_eq!(value.realize(common::lexicon()).unwrap(), text);
     }
+    assert!(
+        selected_coordination,
+        "Enter must admit the coordinated with/as complement"
+    );
 }
 
 #[test]

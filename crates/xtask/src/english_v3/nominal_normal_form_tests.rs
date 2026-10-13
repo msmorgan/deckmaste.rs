@@ -279,6 +279,10 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
             6,
             "be40c1d4c7838ea990789ad86b418f26b94a281838355e6ab264d5def59b2af3",
         ),
+        (
+            7,
+            "f0e9f5b0fd35c6a69dd681eabe8ae32c53ae54700c715070e215e218b9c6a32c",
+        ),
     ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
@@ -349,7 +353,13 @@ fn perilous_predicament_census_records_the_committed_normal_forms() {
 fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
     use deckmaste_lexical::Category as LexicalCategory;
     fn commuting_word(id: &str, noun: bool) -> bool {
-        let name = if noun { "NounPremodifier" } else { "Adjective" };
+        let name = if noun {
+            "NounPremodifier"
+        } else if id == "vocab:AttributiveAdjective/Other" {
+            "IntransitiveAdjective"
+        } else {
+            "Adjective"
+        };
         let debug = format!(
             "{name} {{ form: 0, head: Word {{ value: Word(Word {{ lexeme: Ident({id:?}) }}) }} }}"
         );
@@ -377,6 +387,9 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
         }
     }
     assert!(admitted.contains("vocab:ColorWord/Red"));
+    assert!(admitted.contains("vocab:AttributiveAdjective/Other"));
+    assert!(!admitted.contains("vocab:Determinative/Another"));
+    assert!(!admitted.contains("lexeme:CommonNoun/Other"));
     assert!(admitted.contains("vocab:PredicativeAdjective/Legendary/non"));
     assert!(admitted.contains("lexeme:keyword_action/tap/adjective"));
     for word in ["enchant", "equip"] {
@@ -655,15 +668,17 @@ fn synthetic_trees_preserve_attachment_lexeme_form_gap_and_barrier_scope() {
         assert_ne!(encoded(&noun).unwrap(), encoded(&replacement).unwrap());
     }
     let object_gap = format!(
-        "ObjectRelativeNominal {{ form: 0, head: {noun}, relative: ObjectGap {{ head: Predicate }} }}"
+        "ObjectRelativeNominal {{ form: 0, head: {noun}, relative: ZeroObjectRelativeClause {{ form: 0, subject: Subject, predicate: FiniteObjectGap {{ form: 0, head: Predicate }} }} }}"
     );
-    let subject_gap = object_gap.replace("ObjectGap", "SubjectGap");
+    let adjunct_gap = format!(
+        "ObjectRelativeNominal {{ form: 0, head: {noun}, relative: AdverbialGapRelativeClause {{ form: 0, clause: FiniteClause {{ form: 0, subject: Subject, predicate: Predicate }} }} }}"
+    );
     assert_ne!(
         encoded(&object_gap).unwrap(),
-        encoded(&subject_gap).unwrap()
+        encoded(&adjunct_gap).unwrap()
     );
     let cardinal = |head: &str| {
-        format!("CardinalPremodifiedNominal {{ form: 0, modifier: Three, head: {head} }}")
+        format!("CardinalPremodifiedNominal {{ form: 0, quantity: Three, head: {head} }}")
     };
     assert_ne!(
         encoded(&cardinal(&synthetic_post(&noun, "Restriction"))).unwrap(),
@@ -692,10 +707,10 @@ fn synthetic_order_twin_removal_preserves_the_set_but_distinct_tree_loss_does_no
         keys(&[a.clone(), different_head]),
         keys(std::slice::from_ref(&a))
     );
-    let inside = format!("CardinalPremodifiedNominal {{ form: 0, modifier: Three, head: {b} }}");
+    let inside = format!("CardinalPremodifiedNominal {{ form: 0, quantity: Three, head: {b} }}");
     let outside = synthetic_post(
         &format!(
-            "CardinalPremodifiedNominal {{ form: 0, modifier: Three, head: {} }}",
+            "CardinalPremodifiedNominal {{ form: 0, quantity: Three, head: {} }}",
             synthetic_pre(&modifier, noun)
         ),
         "Restriction",
@@ -757,4 +772,90 @@ fn a_derived_card_type_id_does_not_extend_the_reviewed_inventory() {
                 .commuting_pre(true)
         );
     }
+}
+
+case!(
+    reviewed_other_commutes_with_relatives,
+    "other red creatures you control",
+    NounPhrase,
+    1,
+    1
+);
+case!(
+    each_does_not_prevent_attributive_other_from_commuting,
+    "each other red creature you control",
+    NounPhrase,
+    1,
+    1
+);
+
+#[test]
+fn other_classification_excludes_non_simple_uses_and_distinct_lexemes() {
+    let id = "vocab:AttributiveAdjective/Other";
+    assert!(
+        Parser {
+            input: &synthetic_premodifier(id, false)
+                .replace("Adjective {", "IntransitiveAdjective {")
+        }
+        .tree()
+        .unwrap()
+        .commuting_pre(false)
+    );
+    for constructor in ["ComplementedAdjective", "Coordination", "Adjective"] {
+        let text = format!(
+            "{constructor} {{ form: 0, head: {}, complement: Than }}",
+            synthetic_word(id)
+        );
+        assert!(!Parser { input: &text }.tree().unwrap().commuting_pre(false));
+    }
+    assert!(
+        !Parser {
+            input: &synthetic_premodifier(id, false)
+        }
+        .tree()
+        .unwrap()
+        .commuting_pre(false)
+    );
+    for id in [
+        "vocab:Determinative/Another",
+        "lexeme:CommonNoun/Other",
+        "vocab:AttributiveAdjective/Same",
+    ] {
+        assert!(
+            !Parser {
+                input: &synthetic_premodifier(id, false)
+            }
+            .tree()
+            .unwrap()
+            .commuting_pre(false)
+        );
+    }
+}
+
+#[test]
+fn judgment_24_keeps_the_adjectival_state_and_verbal_passive() {
+    use deckmaste_lexical::LexicalReading;
+    let values = readings("This creature can't be blocked.", Category::Sentence);
+    assert_eq!(values.len(), 2);
+    let mut kinds = BTreeSet::new();
+    for reading in &values {
+        let mut state = false;
+        let mut passive = false;
+        reading.visit(&mut |node| match node {
+            Reading::IntransitiveAdjective { head, .. }
+                if matches!(&head.value, LexicalReading::Word(word) if word.lexeme.as_str() == "core-verb:Block/adjective") => state = true,
+            Reading::PassivePredicate { .. } => passive = true,
+            _ => {}
+        }).unwrap();
+        kinds.insert((state, passive));
+    }
+    assert_eq!(kinds, BTreeSet::from([(true, false), (false, true)]));
+    assert_eq!(
+        values
+            .iter()
+            .map(|r| fingerprint(r).unwrap())
+            .collect::<BTreeSet<_>>()
+            .len(),
+        2
+    );
 }

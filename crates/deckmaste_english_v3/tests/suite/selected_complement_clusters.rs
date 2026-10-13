@@ -128,23 +128,17 @@ fn any_target(other: bool) -> Reading {
         form: 0,
         determiner: invariant("vocab:Determinative/Any"),
         head: Box::new(if other {
-            Reading::NominalProjection {
+            Reading::PremodifiedNominal {
                 form: 0,
-                head: Box::new(Reading::NominalCoreProjection {
+                modifier: Box::new(Reading::IntransitiveAdjective {
                     form: 0,
-                    head: Box::new(Reading::BarrierPremodifiedNominal {
-                        form: 0,
-                        modifier: Box::new(Reading::IntransitiveAdjective {
-                            form: 0,
-                            head: {
-                                let mut head = invariant("vocab:AttributiveAdjective/Other");
-                                head.frame = Some(0);
-                                head
-                            },
-                        }),
-                        head: Box::new(target),
-                    }),
+                    head: {
+                        let mut head = invariant("vocab:AttributiveAdjective/Other");
+                        head.frame = Some(0);
+                        head
+                    },
                 }),
+                head: Box::new(target),
             }
         } else {
             target

@@ -857,87 +857,60 @@ mod tests {
 
     #[test]
     fn ticket_structural_probes_preserve_admission_and_account_for_every_unit() {
-        for (text, trees, counts, kinds) in [
+        for (text, kinds) in [
             (
                 "Destroy target creature with flying. Destroy target creature with flying.",
-                4,
-                vec![2, 2],
                 vec!["Sentence", "Sentence"],
             ),
             (
                 "{T}: Destroy target creature with flying. Draw a card.",
-                2,
-                vec![1, 2, 1],
                 vec!["Cost", "Sentence", "Sentence"],
             ),
             (
                 "Sacrifice a creature with flying: Draw a card.",
-                2,
-                vec![2, 1],
                 vec!["Cost", "Sentence"],
             ),
             (
                 "Choose one —\n• Draw a card.\n• Destroy target creature with flying.",
-                2,
-                vec![1, 1, 2],
                 vec!["Clause", "Sentence", "Sentence"],
             ),
             (
                 "Choose one —\n• Destroy target creature with flying. Draw a card.\n• Target creature is tapped.",
-                4,
-                vec![1, 2, 1, 2],
                 vec!["Clause", "Sentence", "Sentence", "Sentence"],
             ),
             (
                 "Choose a creature with flying —\n• Draw a card.\n• Gain 1 life.",
-                2,
-                vec![2, 1, 1],
                 vec!["Clause", "Sentence", "Sentence"],
             ),
             (
                 "Choose one.\n• First — Draw a card.\n• Second — Gain 1 life.",
-                1,
-                vec![1, 1, 1],
                 vec!["Sentence", "Sentence", "Sentence"],
             ),
-            ("Ward {2}, protection from red", 1, vec![1], vec!["Ability"]),
-            (
-                "Protection from creatures with flying",
-                2,
-                vec![2],
-                vec!["Ability"],
-            ),
+            ("Ward {2}, protection from red", vec!["Ability"]),
+            ("Protection from creatures with flying", vec!["Ability"]),
             (
                 "I — Draw a card.\nII — Destroy target creature with flying.",
-                2,
-                vec![1, 2],
                 vec!["Sentence", "Sentence"],
             ),
-            ("Level up {1}", 1, vec![1], vec!["Ability"]),
-            ("Level up {1}\nLEVEL 1-2\n2/2\nFlying", 0, vec![], vec![]),
-            ("{1}: Level 2\nThis creature has flying.", 0, vec![], vec![]),
+            ("Level up {1}", vec!["Ability"]),
+            ("Level up {1}\nLEVEL 1-2\n2/2\nFlying", vec![]),
+            ("{1}: Level 2\nThis creature has flying.", vec![]),
             (
                 "This creature has \"Destroy target creature with flying. Draw a card.\"",
-                2,
-                vec![2],
                 vec!["Sentence"],
             ),
             (
                 "Draw a card. (Destroy target creature with flying.)",
-                2,
-                vec![1, 2],
                 vec!["Sentence", "Sentence"],
             ),
-            ("", 1, vec![1], vec!["Document"]),
-            ("Draw a card", 0, vec![], vec![]),
+            ("", vec!["Document"]),
+            ("Draw a card", vec![]),
             (
                 "Draw a card.\nDestroy target creature with flying.",
-                2,
-                vec![1, 2],
                 vec!["Sentence", "Sentence"],
             ),
         ] {
-            check(text, Category::Document, trees, &counts, &kinds);
+            check_current(text, Category::Document, &kinds);
         }
         check(
             "Legendary Creature — Human Wizard",

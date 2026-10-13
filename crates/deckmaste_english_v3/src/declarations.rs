@@ -3253,6 +3253,7 @@ constructions! {
         }
 
         construction IntransitiveAdjective: AdjectivePhrase {
+            export NominalModifierOrder = head.NominalModifierOrder;
             export AdjectiveAttributiveOnlyUse = implicit_comparative_attributive_use(
                 head.ImplicitComparativeUse);
             form [head: lexical(Adjective)];

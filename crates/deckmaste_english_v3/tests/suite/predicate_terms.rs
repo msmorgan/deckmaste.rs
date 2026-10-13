@@ -25,7 +25,7 @@ fn predicate_and_event_terms_fill_the_attested_grammatical_roles() {
         (
             "Hellspur Posse Boss",
             "Other outlaws you control have haste.",
-            Category::Nominal,
+            Category::NominalCore,
             "outlaws",
         ),
         (

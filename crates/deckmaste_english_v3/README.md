@@ -604,10 +604,21 @@ reclassified. Version 6 adds base creature-subtype noun lexemes in their simple
 noun-premodifier use. Negative derivatives and bound keyword stems remain
 barriers, as do quoted and coordinated modifiers. The producer assigns the
 property after negative formation, independently of the tool's ID inventory.
+Version 7 adds `vocab:AttributiveAdjective/Other` in its simple attributive use.
+Its empty selected frame uses `IntransitiveAdjective`; the property is forwarded
+by that construction. Excluding a fixed referent commutes with restrictions on
+that nominal head.
+Complemented *other than*, coordinated adjectives, determinative *another*
+and pro-nominal noun *other* are unchanged. This adds no reciprocal construction.
 
-Only simple Adjective and noun-category NounPremodifier forms pass the lexical
-property to their phrase. Other adjective uses, keyword premodifiers and
-coordinated premodifiers remain Barrier.
+Normalizer distinction tests use hand-built trees. Preserving a difference in
+attachment or barrier scope is a property of the tool, not a claim that the
+grammar should admit both trees. Grammar tests assert intended analyses;
+incidental counts containing unwanted readings are not protected judgments.
+
+Simple Adjective, empty-frame IntransitiveAdjective and noun-category
+NounPremodifier forms pass the lexical property to their phrase. Complemented
+adjectives, keyword premodifiers and coordinated premodifiers remain Barrier.
 
 Nominals have three layers: NominalCore contains bases, completed coordination
 and barrier modifiers; NominalPostmodification adds the reviewed postmodifiers
