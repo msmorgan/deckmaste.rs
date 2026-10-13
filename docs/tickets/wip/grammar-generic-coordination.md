@@ -156,9 +156,13 @@ NounPremodifierConcord loses its last user; coordinated_noun_premodifier remains
 a named judgment. The separate irregular Premodifier paths stay handwritten.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+ManaPhrase replaces 11 rows and two helper interfaces.
+No feature-combination policy or table is needed.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`vpsvnrwr`, premodifier family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`vpsvnrwr`): does not apply yet.
+Census delta (`rqsxwzsu`, ManaPhrase family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`rqsxwzsu`): does not apply yet.
