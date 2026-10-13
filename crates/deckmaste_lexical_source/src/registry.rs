@@ -16,6 +16,34 @@ pub(crate) fn apply(
     if classes.len() != registry.classes.len() {
         return Err(fail("duplicate class declaration".into()));
     }
+    let mut names: BTreeSet<_> = classes.keys().copied().collect();
+    let mut ids = BTreeSet::new();
+    for reference in &registry.words {
+        if !names.insert(reference.name.as_str()) || !ids.insert(reference.id) {
+            return Err(fail("duplicate closed-word name or id".into()));
+        }
+        let word = lexemes
+            .iter()
+            .find(|word| word.id == reference.id)
+            .ok_or_else(|| {
+                fail(format!(
+                    "{}: unknown closed-word id {}",
+                    reference.name, reference.id
+                ))
+            })?;
+        if word.category != reference.category {
+            return Err(fail(format!(
+                "{}: closed-word Category mismatch",
+                reference.name
+            )));
+        }
+        if !core_closed_class(word) {
+            return Err(fail(format!(
+                "{}: reference requires a core closed-class lexeme",
+                reference.name
+            )));
+        }
+    }
     let properties: BTreeMap<_, _> = registry
         .properties
         .iter()
@@ -72,11 +100,34 @@ pub(crate) fn apply(
             }
         }
     }
-    let ids: BTreeSet<_> = registry.words.iter().map(|word| word.id).collect();
-    if ids.len() != registry.words.len() {
-        return Err(fail("duplicate closed-word id".into()));
-    }
     Ok(())
+}
+
+fn core_closed_class(word: &Lexeme) -> bool {
+    use deckmaste_lexical::{Category, SourceKind};
+    if word.source.kind != SourceKind::Core {
+        return false;
+    }
+    match word.category {
+        Category::Preposition
+        | Category::Determinative
+        | Category::Pronoun
+        | Category::Coordinator
+        | Category::Subordinator => true,
+        Category::Verb => word
+            .properties
+            .frames
+            .iter()
+            .any(|frame| frame.kind == "Auxiliary"),
+        Category::Adverb => [
+            "vocab:PredicateNegator/",
+            "vocab:FrequencyAdverb/",
+            "vocab:FocusAdverb/",
+        ]
+        .iter()
+        .any(|inventory| word.source.owner.starts_with(inventory)),
+        _ => false,
+    }
 }
 
 // Source-adapter metadata is retained during the staged migration. These keys
@@ -149,6 +200,94 @@ mod tests {
             ..LexicalRegistry::default()
         };
         (vec![word], registry)
+    }
+
+    fn reference(word: &Lexeme) -> deckmaste_lexical::ClosedWord {
+        deckmaste_lexical::ClosedWord {
+            name: "Word".into(),
+            id: word.id,
+            category: word.category,
+        }
+    }
+
+    #[test]
+    fn references_validate_existing_words_without_changing_them() {
+        let (mut words, mut registry) = fixture();
+        words[0].source.kind = SourceKind::Core;
+        registry.words.push(reference(&words[0]));
+        let expected = words.clone();
+        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        assert_eq!(words, expected);
+    }
+
+    #[test]
+    fn unknown_reference_ids_and_wrong_categories_are_errors() {
+        for category_mismatch in [false, true] {
+            let (mut words, mut registry) = fixture();
+            words[0].source.kind = SourceKind::Core;
+            let mut word = reference(&words[0]);
+            if category_mismatch {
+                word.category = Category::Subordinator;
+            } else {
+                word.id = "missing".into();
+            }
+            registry.words.push(word);
+            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+        }
+    }
+
+    #[test]
+    fn references_reject_noncore_sources_and_open_categories() {
+        for (kind, category) in [
+            (SourceKind::Plugin, Category::Preposition),
+            (SourceKind::Catalog, Category::Preposition),
+            (SourceKind::Core, Category::Noun),
+            (SourceKind::Core, Category::Verb),
+            (SourceKind::Core, Category::Adverb),
+            (SourceKind::Core, Category::Catalog),
+        ] {
+            let (mut words, mut registry) = fixture();
+            words[0].source.kind = kind;
+            words[0].category = category;
+            registry.words.push(reference(&words[0]));
+            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+        }
+    }
+
+    #[test]
+    fn closed_adverb_inventories_and_auxiliary_frames_establish_eligibility() {
+        let (mut words, mut registry) = fixture();
+        words[0].source.kind = SourceKind::Core;
+        words[0].source.owner = "vocab:FocusAdverb/Only".into();
+        words[0].category = Category::Adverb;
+        registry.words.push(reference(&words[0]));
+        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        words[0] = Lexeme::verb("core-verb:Be", "be", words[0].source.clone());
+        words[0].properties.frames.push(deckmaste_lexical::Frame {
+            kind: "Auxiliary".into(),
+            items: vec![],
+        });
+        registry.words[0] = reference(&words[0]);
+        let expected = words.clone();
+        apply(&mut words, &registry, BTreeMap::new()).unwrap();
+        assert_eq!(words, expected);
+    }
+
+    #[test]
+    fn reference_names_and_ids_are_unique_across_registry_declarations() {
+        for duplicate_id in [false, true] {
+            let (mut words, mut registry) = fixture();
+            words[0].source.kind = SourceKind::Core;
+            registry.words.push(reference(&words[0]));
+            let mut other = reference(&words[0]);
+            if duplicate_id {
+                other.name = "Other".into();
+            } else {
+                other.id = "different".into();
+            }
+            registry.words.push(other);
+            assert!(apply(&mut words, &registry, BTreeMap::new()).is_err());
+        }
     }
 
     #[test]

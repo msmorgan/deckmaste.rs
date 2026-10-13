@@ -1,7 +1,7 @@
 ---
 needs: [grammar-generic-coordination]
 ---
-# Closed-class words in the grammar crate, typed classes, checked references
+# Closed-word references, lexical classes, checked data membership
 
 Lexical distinctions reach syntax as untyped string flags today. 72 of 184 features are in no category interface, 37 of those are read at exactly one site, and 39 are written for exactly one holder in the lexicon, for example `InfinitivalMarker { Yes }` (held by *to*), `RelativeSubordinator { Yes }` (*that*), `FocusingModifierUse { Restrictive }` (*only*), `SelectedTailLicence` (*put*). `core.ron` carries about 192 per-lexeme patches of grammar-internal flag names, and an authored value outside a feature's domain silently becomes absent (`crates/deckmaste_construction_v3_core/src/emit.rs:317–331`).
 
@@ -305,3 +305,97 @@ Standalone audit builds give the prototype's synthesized words different
 `file!()` provenance paths; their reports are not retained as the baseline.
 The production inventory comparison, not that incidental build provenance,
 establishes lexicon equivalence.
+
+## Review follow-up: reference-only declarations
+
+The grammar now binds only three names to existing IDs:
+
+```rust
+closed_word InfinitivalTo: Subordinator = "vocab:InfinitivalMarker/To";
+closed_word RelativeThat: Subordinator = "vocab:Subordinator/That";
+closed_word Only: Adverb = "vocab:FocusAdverb/Only";
+lexical_class GerundClausePreposition: Preposition;
+```
+
+All seven prototype lexemes return to their original data homes and provenance:
+That, infinitival To, By and Without in core.ron; Only, Of and prepositional To
+in vocabulary.ron. The four prepositions state membership on their data entries;
+they need no individual grammar binding. Their existing properties and frame
+patches remain data. The four unread map keys deliberately remain for the next
+separate step. No vocabulary file is retired.
+
+`lexical_word` has a real FieldType variant, and `is`/`in` have a separate
+requirement variant. Lowering retains the same lexical fields and form indices;
+word/class admission checks no longer masquerade as grammatical features.
+The four hidden feature domains disappear (200 compiled slots become 196).
+Optional lexical requirements check only present words. The compiler rejects
+attempts to access the retired hidden feature names.
+
+Callers still pass the generated registry to the loader. It contains names,
+IDs, Categories and domains only, never lexemes. The loader validates reference
+existence, Category, unique names/IDs and core closed-class eligibility. Existing
+Core provenance and a closed lexical Category establish eligibility; Adverbs
+must come from PredicateNegator, FrequencyAdverb or FocusAdverb inventories,
+and Verbs must have an Auxiliary frame. Other open-class, plugin, catalog and
+card-name lexemes cannot become named word symbols. No eligibility flag was
+added. Existing data forms, including inflection and variants, require no new
+grammar declaration syntax.
+
+The compiler, grammar and loader READMEs describe the revised boundary; the
+Oracle English glossary defines Closed Word and Lexical Class. Plugin/catalog
+membership on the supplying declaration remains a later, need-dependent step:
+the existing class_additions adapter is not claimed as that implementation.
+
+The full identical-digests gate against the version-2 baseline passes on all
+32,828 faces: 30,794 read, 482,041 Readings, zero lost/gained/count/digest-only
+changes, incomplete faces or issues. Nissa's 20 Readings and unit/surrounding
+contracts also match in the subset check. Retiring four production feature slots
+now leaves every digest unchanged, confirming the earlier encoding repair.
+The completed step census was removed; the baseline remains under target.
+
+The sorted comparison matches all 927 rule contracts, 326 constructor records
+and 666 emitted shapes, using the same compiler for both declaration sets and
+explicit membership aliases. The private Rule/Summary representation now holds
+separate lexical checks; public Reading shapes, fields and forms are unchanged.
+The structured lexicon comparison matches all 35,603 entries against the original
+inventory, allowing only the four already-approved membership replacements on
+seven entries. Original provenance now matches exactly too. Each replacement
+predicate agrees with its former flag on every lexeme. The inventory hash is
+now 504777d9b027452b72c652ed61b9c01a51c258dc314ad377063dbc145ab1390e.
+
+The full suite caught three selected-frame regressions in the new representation:
+dynamic frame expansion rebuilt its existing per-symbol arrays but initially
+left lexical_checks at the template length. Longer selected frames consequently
+failed admission. Expansion now clears/truncates/appends lexical_checks with
+those arrays, retaining constraints on the selecting head. The original three
+selected-frame tests pass unchanged; no frame signatures or expectations were
+altered. This is separate from the seven unsupported signatures, which remain
+unchanged (Deal: MassNoun Complement; Enter: FrameComplement Complement and two
+Object Complement signatures; Put: two Object Complement signatures; plugin
+exile: ResultativeComplement Complement).
+
+Full cargo test passes for deckmaste_construction_v3_core,
+deckmaste_construction_v3, deckmaste_lexical, deckmaste_lexical_source,
+deckmaste_english_v3 and xtask: 1,907 passed, zero failed, two existing ignored.
+The compiler tests were also rerun after extracting register-release planning;
+all 92 pass. Full clippy --tests -- -D warnings passes for those six crates.
+Citation audit selects zero changed sites; formatting reports zero noncompliant
+sites, and all 17,780 citations are current.
+
+Assurance: seven added tests (two compiler, five loader), twelve re-spelled
+(eight compiler fixtures and four runtime fixtures now use reference-only
+bindings/data), zero removed and zero newly ignored. Three selected-frame
+regressions were fixed with their original tests unchanged; no deleted tests
+were restored. The two existing ignored subjects and their blockers are unchanged.
+Authored declarations.rs is 6,089 lines (6,093 at ticket start, 6,122 after the
+prototype), with 180 authored features (184 at ticket start), three closed-word
+bindings and one four-member class. No additional lexical property was retired
+in this step; only the four hidden compiler feature domains were removed.
+
+This is a complete, gate-passing declaration-redesign prefix. Remaining, in the
+owner's order: remove the four unread property keys and reduce metadata handling;
+implement a real plugin/catalog membership route only for a measured Phase 2
+need; convert the eligible families while retaining table/export-fed properties,
+default-driven flags and open-class singletons; finish the remaining dispositions
+and ticket note. The glossary and READMEs are current for the completed step.
+The ticket remains WIP; the final two-line landing note belongs to completion.

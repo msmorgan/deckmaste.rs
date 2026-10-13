@@ -631,6 +631,7 @@ impl Grammar {
                     rule.guards.clear();
                     rule.literals.clear();
                     rule.checks.clear();
+                    rule.lexical_checks.clear();
                     rule.release.clear();
                     for item in layout {
                         item.symbols(&mut shape, &mut rule, &self.programs[program].kind);
@@ -694,6 +695,7 @@ impl Grammar {
                     let original = &self.rules[template];
                     let mut rule = original.clone();
                     rule.checks.truncate(1);
+                    rule.lexical_checks.truncate(1);
                     rule.literals.truncate(1);
                     rule.release.truncate(1);
                     let canonical = self
@@ -1009,11 +1011,13 @@ impl FrameLayout {
             rule.guards.push(FrameGuard::Any);
             rule.literals.push(Some(" "));
             rule.checks.push(vec![]);
+            rule.lexical_checks.push(vec![]);
             rule.release.push(vec![]);
             symbols.push(symbol);
             rule.guards.push(guard);
             rule.literals.push(None);
             rule.checks.push(vec![]);
+            rule.lexical_checks.push(vec![]);
             rule.release.push(vec![]);
         }
         match self {
@@ -1023,6 +1027,7 @@ impl FrameLayout {
                 rule.guards.push(FrameGuard::Any);
                 rule.literals.push(None);
                 rule.checks.push(vec![]);
+                rule.lexical_checks.push(vec![]);
                 rule.release.push(vec![]);
             }
             Self::PostposedObject(category, requirements, modifier) => {

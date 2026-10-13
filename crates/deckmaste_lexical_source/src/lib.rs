@@ -28,8 +28,8 @@ pub struct LexicalSources {
 }
 
 /// Loads authored source data and the caller's grammar-owned lexical registry.
-/// Registry words enter before legacy core, plugins and normalization; checked
-/// class memberships and grammatical property domains apply to the final inventory.
+/// Word references, class memberships and grammatical property domains are
+/// checked against the final inventory; the registry never supplies lexemes.
 ///
 /// # Errors
 /// Returns an error when a source cannot be read or normalized, an override
@@ -45,7 +45,6 @@ pub fn load_workspace(
     };
     let mut native = native::load(root)?;
     output.lexemes.extend(native.lexemes);
-    output.lexemes.extend(registry.words.iter().cloned());
     legacy::core::load(root, &mut output, &mut native.core_verb_paradigms)?;
     if !native.core_verb_paradigms.is_empty() {
         return Err(LoadError::UnresolvedParadigms {

@@ -16,6 +16,7 @@ use crate::parse::Propagation;
 use crate::parse::Reference;
 
 pub(crate) struct Ir {
+    pub lexical_constraints: Vec<crate::parse::closed_words::Constraint>,
     pub words: Vec<crate::parse::closed_words::Word>,
     pub lexical_classes: Vec<crate::parse::closed_words::Class>,
     pub visibility: Visibility,
@@ -108,6 +109,7 @@ pub(crate) enum Piece {
 }
 
 pub(crate) struct Rule {
+    pub lexical_checks: Vec<Vec<usize>>,
     pub category: usize,
     pub symbols: Vec<Symbol>,
     pub checks: Vec<Vec<(usize, usize)>>,
@@ -398,32 +400,6 @@ fn lexical_domains(
     frames: &[(Ident, Frame)],
 ) -> syn::Result<Vec<Domain>> {
     let mut features = validate_features(&declaration.features)?;
-    for name in declaration
-        .words
-        .iter()
-        .map(|w| crate::parse::closed_words::check_name(&w.name, false))
-        .chain(
-            declaration
-                .lexical_classes
-                .iter()
-                .map(|c| crate::parse::closed_words::check_name(&c.name, true)),
-        )
-    {
-        // Registry members need no admission slot unless a construction checks
-        // their identity or class. Membership alone is loader data.
-        let used = declaration.constructions.iter().any(|construction| {
-            construction.equations.iter().chain(construction.form_requirements.iter().flatten())
-                .any(|equation| matches!(equation, Equation::Require(reference, _) if reference.feature == name))
-        });
-        if !used {
-            continue;
-        }
-        features.push(Domain {
-            name: name.to_string(),
-            values: vec!["Yes".into()],
-            kind: DomainKind::Custom { default: None },
-        });
-    }
     features[7].values = frames.iter().map(|(name, _)| name.to_string()).collect();
     Ok(features)
 }
@@ -527,6 +503,9 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         for form in &construction.forms {
             for (name, ty) in collect_fields(form, &construction.name)? {
                 match &ty {
+                    FieldType::LexicalWord(_) => {
+                        unreachable!("word selectors are elaborated before lowering")
+                    }
                     FieldType::SelectedFrame(_, _) => {}
                     FieldType::Lexical(category) | FieldType::OptionalLexical(category, _, _) => {
                         ron::from_str::<deckmaste_lexical_model::Category>(category)
@@ -552,6 +531,7 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
         });
     }
     let mut ir = Ir {
+        lexical_constraints: collect_lexical_constraints(&declaration),
         words: declaration.words,
         lexical_classes: declaration.lexical_classes,
         visibility: declaration.visibility,
@@ -588,6 +568,39 @@ pub(crate) fn validate(declaration: Declaration) -> syn::Result<Ir> {
     check_recursion(&ir)?;
     merge_schemas(&mut ir)?;
     Ok(ir)
+}
+
+fn collect_lexical_constraints(
+    declaration: &Declaration,
+) -> Vec<crate::parse::closed_words::Constraint> {
+    let mut lexical_constraints = Vec::new();
+    for equation in declaration.constructions.iter().flat_map(|c| {
+        c.equations
+            .iter()
+            .chain(c.form_requirements.iter().flatten())
+    }) {
+        if let Equation::RequireLexical(_, target) = equation
+            && !lexical_constraints.contains(target)
+        {
+            lexical_constraints.push(target.clone());
+        }
+    }
+    lexical_constraints
+}
+
+fn lexical_requirements(ir: &Ir, field: &Ident, obligations: &[Equation]) -> Vec<usize> {
+    obligations
+        .iter()
+        .filter_map(|e| match e {
+            Equation::RequireLexical(name, target) if name == field => Some(
+                ir.lexical_constraints
+                    .iter()
+                    .position(|c| c == target)
+                    .unwrap(),
+            ),
+            _ => None,
+        })
+        .collect()
 }
 
 fn validate_postposing(
@@ -795,6 +808,9 @@ fn head_source<'a>(
             .map(|(_, ty)| ty)
             .ok_or_else(|| error(&construction.name, &format!("unknown head field {head}")))?;
         match ty {
+            FieldType::LexicalWord(_) => {
+                unreachable!("word selectors are elaborated before lowering")
+            }
             FieldType::Lexical(_) | FieldType::One(_) => Ok((head, ty)),
             _ => Err(error(
                 &construction.name,
@@ -838,6 +854,9 @@ fn fill_exports(
             && let Some((head, ty)) = source
         {
             let accessible = match ty {
+                FieldType::LexicalWord(_) => {
+                    unreachable!("word selectors are elaborated before lowering")
+                }
                 FieldType::Lexical(_) => {
                     matches!(domain.kind, DomainKind::Custom { default: Some(_) })
                 }
@@ -896,6 +915,28 @@ fn validate_surface_obligations(construction: &crate::parse::Construction) -> sy
     Ok(())
 }
 
+fn release_registers(plan: &EquationPlan, checks: &[Vec<(usize, usize)>]) -> Vec<Vec<usize>> {
+    let mut release = vec![vec![]; checks.len()];
+    for register in 0..plan.initial.len() {
+        if !plan.exports.iter().any(|(_, r)| *r == register)
+            && !plan
+                .table_exports
+                .iter()
+                .any(|export| export.registers.contains(&register))
+            && !plan
+                .table_requirements
+                .iter()
+                .any(|requirement| requirement.registers.contains(&register))
+            && let Some(last) = checks
+                .iter()
+                .rposition(|c| c.iter().any(|(_, r)| *r == register))
+        {
+            release[last].push(register);
+        }
+    }
+    release
+}
+
 fn normalize(
     ir: &mut Ir,
     constructions: &[crate::parse::Construction],
@@ -952,16 +993,23 @@ fn normalize(
                 row_obligations.extend(selected_requirements);
                 let (optional_requirements, ordinary_obligations) =
                     optional_word_requirements(ir, index, &row_obligations)?;
-                let plan = equations(ir, index, interfaces, &ordinary_obligations)?;
+                let feature_obligations = ordinary_obligations
+                    .iter()
+                    .filter(|e| !matches!(e, Equation::RequireLexical(_, _)))
+                    .cloned()
+                    .collect::<Vec<_>>();
+                let plan = equations(ir, index, interfaces, &feature_obligations)?;
                 let scan_pieces = normalize_form(ir, index, interfaces, &expanded)?;
                 let mut symbols = vec![];
                 let mut slots = vec![0; ir.constructors[index].fields.len()];
                 let mut checks = vec![];
+                let mut lexical_checks = vec![];
                 for piece in &scan_pieces {
                     match piece {
                         Piece::Literal(text) => {
                             symbols.push(Symbol::Literal(text.clone()));
                             checks.push(vec![]);
+                            lexical_checks.push(vec![]);
                         }
                         Piece::SelectedLiteral { .. } => unreachable!(),
                         Piece::Field(field) => {
@@ -971,11 +1019,24 @@ fn normalize(
                             // Single constituent and lexical Categories belong
                             // to the selected form.
                             let ty = ir.constructors[index].fields[*field].1.clone();
+                            let lexical_requirements = lexical_requirements(
+                                ir,
+                                &ir.constructors[index].fields[*field].0,
+                                &row_obligations,
+                            );
+                            lexical_checks.push(
+                                if matches!(ty, FieldType::OptionalLexical(_, _, _)) {
+                                    vec![]
+                                } else {
+                                    lexical_requirements.clone()
+                                },
+                            );
                             symbols.push(surface_field_symbol(
                                 ir,
                                 &ty,
                                 &field_symbols[*field],
                                 optional_requirements.get(field).map_or(&[], Vec::as_slice),
+                                &lexical_requirements,
                                 &construction.name,
                             )?);
                             checks.push(
@@ -988,30 +1049,14 @@ fn normalize(
                         }
                     }
                 }
-                let mut release = vec![vec![]; symbols.len()];
-                for register in 0..plan.initial.len() {
-                    if !plan.exports.iter().any(|(_, r)| *r == register)
-                        && !plan
-                            .table_exports
-                            .iter()
-                            .any(|export| export.registers.contains(&register))
-                        && !plan
-                            .table_requirements
-                            .iter()
-                            .any(|requirement| requirement.registers.contains(&register))
-                        && let Some(last) = checks
-                            .iter()
-                            .rposition(|c| c.iter().any(|(_, r)| *r == register))
-                    {
-                        release[last].push(register);
-                    }
-                }
+                let release = release_registers(&plan, &checks);
                 let segments = segment_relation(construction, &ir.constructors[index], &slots)?;
                 let rule = ir.rules.len();
                 ir.rules.push(Rule {
                     category: ir.constructors[index].category,
                     symbols,
                     checks,
+                    lexical_checks,
                     initial: plan.initial.clone(),
                     boundary: construction.boundary.clone(),
                     onset: construction.onset.clone(),
@@ -1392,7 +1437,7 @@ fn equation_references(
                 refs.insert(resolve(l)?);
                 refs.insert(resolve(r)?);
             }
-            Equation::ExportConstant(_, _) => {}
+            Equation::ExportConstant(_, _) | Equation::RequireLexical(_, _) => {}
             Equation::ExportTable(_, _, arguments)
             | Equation::RequireTable(_, arguments, _)
             | Equation::RequireSelectedLiteral(_, arguments, _) => {
@@ -1496,6 +1541,9 @@ fn equations(
                 }
                 plan.exports.push((feature, groups[source]));
             }
+            Equation::RequireLexical(_, _) => {
+                unreachable!("lexical constraints are lowered separately")
+            }
             Equation::Require(reference, constant) => {
                 let source = position(reference)?;
                 let constant = value(ir, refs[source].1, constant)?;
@@ -1593,6 +1641,7 @@ fn helper(ir: &mut Ir, category: usize, symbols: Vec<Symbol>, build: Build) {
         category,
         symbols,
         checks: vec![vec![]; size],
+        lexical_checks: vec![vec![]; size],
         initial: vec![],
         boundary: None,
         onset: None,
@@ -1733,13 +1782,21 @@ fn surface_field_symbol(
     ty: &FieldType,
     fallback: &Symbol,
     requirements: &[(usize, TokenStream)],
+    lexical_requirements: &[usize],
     owner: &Ident,
 ) -> syn::Result<Symbol> {
     Ok(match ty {
+        FieldType::LexicalWord(_) => unreachable!("word selectors are elaborated before lowering"),
         FieldType::Lexical(category) => Symbol::Lexical(category.clone()),
-        FieldType::OptionalLexical(category, separator, preceding) => {
-            normalize_optional_word(ir, category, separator, *preceding, requirements, owner)?
-        }
+        FieldType::OptionalLexical(category, separator, preceding) => normalize_optional_word(
+            ir,
+            category,
+            separator,
+            *preceding,
+            requirements,
+            lexical_requirements,
+            owner,
+        )?,
         FieldType::One(category) => Symbol::Nonterminal(
             ir.categories
                 .iter()
@@ -1760,6 +1817,7 @@ fn normalize_optional_word(
     separator: &str,
     preceding: bool,
     requirements: &[(usize, TokenStream)],
+    lexical_requirements: &[usize],
     owner: &Ident,
 ) -> syn::Result<Symbol> {
     let category = ir.categories.len();
@@ -1789,6 +1847,7 @@ fn normalize_optional_word(
     let word_slot = usize::from(preceding && !separator.is_empty());
     helper(ir, category, symbols, Build::PresentWord);
     let rule = ir.rules.last_mut().unwrap();
+    rule.lexical_checks[word_slot] = lexical_requirements.to_vec();
     let mut constants = BTreeMap::<usize, String>::new();
     for (feature, constant) in requirements {
         if constants
@@ -1820,6 +1879,7 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)
         return Symbol::Lexical(category.clone());
     }
     let name = match ty {
+        FieldType::LexicalWord(_) => unreachable!("word selectors are elaborated before lowering"),
         FieldType::One(c) | FieldType::Optional(c) | FieldType::Repeated(c, _) => c,
         FieldType::Lexical(_)
         | FieldType::OptionalLexical(_, _, _)
@@ -1832,6 +1892,7 @@ fn normalize_field(ir: &mut Ir, ty: &FieldType, features: &[(usize, TokenStream)
     let category = ir.categories.len();
     ir.categories.push(format_ident!("__Constituent{category}"));
     match ty {
+        FieldType::LexicalWord(_) => unreachable!("word selectors are elaborated before lowering"),
         FieldType::Optional(_) => {
             helper(ir, category, vec![], Build::Absent);
             helper(

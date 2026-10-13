@@ -38,8 +38,10 @@
         (name: "From", surface: "from", features: {"BareLocativeComplement": "Yes", "PrepositionAttachment": "PostmodifierOnly", "PrepositionComplementKind": "SourceComplement"}),
         (name: "In", surface: "in", features: {"BareLocativeComplement": "Yes", "PrepositionAttachment": "AdjunctCapable", "PrepositionComplementKind": "InComplement"}),
         (name: "Into", surface: "into", features: {"BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement"}),
+        (name: "Of", surface: "of", classes: ["GerundClausePreposition"], features: {"BareLocativeComplement": "No", "PrepositionAttachment": "PostmodifierOnly", "PrepositionComplementKind": "RelationalComplement"}),
         (name: "On", surface: "on", features: {"BareLocativeComplement": "No", "PrepositionAttachment": "AdjunctCapable", "PrepositionComplementKind": "OnComplement"}),
         (name: "Onto", surface: "onto", features: {"BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement"}),
+        (name: "To", surface: "to", classes: ["GerundClausePreposition"], features: {"BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement"}),
         (name: "Under", surface: "under", features: {"BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement"}),
         (name: "With", surface: "with", features: {"BareLocativeComplement": "No", "PrepositionAttachment": "PostmodifierOnly", "PrepositionComplementKind": "UnrestrictedComplement"}),
     ])),
@@ -55,6 +57,7 @@
         (name: "Twice", surface: "twice", features: {}),
     ])),
     Vocab((name: "FocusAdverb", features: {}, members: [
+        (name: "Only", surface: "only", features: {}),
     ])),
     Vocab((name: "ScalarDegree", features: {}, members: [
         (name: "Equal", surface: "equal", features: {}),

@@ -3,7 +3,7 @@ use quote::quote;
 
 fn declaration(body: &proc_macro2::TokenStream) -> proc_macro2::TokenStream {
     quote! { mod g {
-        closed_word To: Subordinator { id "old:to"; lemma "to"; }
+        closed_word To: Subordinator = "old:to";
         lexical_class Marker: Subordinator | Preposition;
         category A();
         #body
@@ -96,11 +96,11 @@ fn lexical_constraints_reject_constituents_and_wrong_categories() {
 }
 
 #[test]
-fn declarations_reject_duplicate_ids_unknown_classes_and_open_nouns() {
+fn declarations_reject_duplicate_ids_owned_lexemes_and_invalid_categories() {
     for extra in [
-        quote!(closed_word Other: Subordinator { id "old:to"; lemma "other"; }),
+        quote!(closed_word Other: Subordinator = "old:to";),
         quote!(closed_word Other: Subordinator { id "other"; lemma "other"; classes [Missing]; }),
-        quote!(closed_word Other: Noun { id "other"; lemma "other"; }),
+        quote!(closed_word Other: Noun = "other";),
         quote!(lexical_class Other: Missing;),
     ] {
         assert!(compile(declaration(&quote!(#extra construction A: A { form []; }))).is_err());
@@ -110,7 +110,7 @@ fn declarations_reject_duplicate_ids_unknown_classes_and_open_nouns() {
 #[test]
 fn unused_registry_members_do_not_allocate_admission_slots() {
     let input = declaration(&quote! {
-        closed_word By: Preposition { id "old:by"; lemma "by"; classes [Marker]; }
+        closed_word By: Preposition = "old:by";
         construction A: A { form [head: lexical(Subordinator)]; require head in Marker; }
     });
     let ir = crate::ir::validate(syn::parse2(input.clone()).unwrap()).unwrap();
@@ -120,8 +120,23 @@ fn unused_registry_members_do_not_allocate_admission_slots() {
             .filter(|f| f.name.starts_with("__"))
             .map(|f| f.name.as_str())
             .collect::<Vec<_>>(),
-        ["__class_Marker"]
+        Vec::<&str>::new()
+    );
+    assert_eq!(
+        ir.lexical_constraints,
+        vec![parse::closed_words::Constraint::Class(syn::parse_quote!(
+            Marker
+        ))]
     );
     assert_eq!(ir.words.len(), 2);
     compile(input).unwrap();
+}
+
+#[test]
+fn word_and_class_constraints_are_not_grammatical_features() {
+    for feature in [quote!(__word_To), quote!(__class_Marker)] {
+        assert!(compile(declaration(&quote! {
+            construction A: A { form [head: lexical(Subordinator)]; require head.#feature = Yes; }
+        })).is_err());
+    }
 }

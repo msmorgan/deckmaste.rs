@@ -49,6 +49,8 @@ struct Vocab {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct VocabMember {
+    #[serde(default)]
+    classes: std::collections::BTreeSet<String>,
     name: String,
     surface: String,
     #[serde(default)]
@@ -181,6 +183,7 @@ fn export_vocab(vocab: Vocab, provenance_path: &str, output: &mut LexicalSources
             category,
             source(SourceKind::Core, provenance_path, &owner),
         );
+        lexeme.properties.classes = member.classes;
         lexeme.properties.features = defaults.clone();
         lexeme.properties.features.extend(member.features);
         match inventory.as_str() {

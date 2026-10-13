@@ -20,6 +20,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
     let categories = &ir.categories;
     let public = &categories[..ir.public_categories];
     let count = ir.features.len();
+    let lexical_count = ir.lexical_constraints.len();
     let positional_capitalization = ir.positional_capitalization;
     let grammar = grammar(ir);
     let registry = lexical_registry(ir);
@@ -31,6 +32,7 @@ pub(crate) fn emit(ir: &Ir) -> syn::Result<TokenStream> {
             #runtime
             #selected_runtime
             const FEATURE_COUNT: usize = #count;
+            const LEXICAL_CHECK_COUNT: usize = #lexical_count;
             const POSITIONAL_CAPITALIZATION: bool = #positional_capitalization;
             #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
             pub enum Category { #(#categories),* }
@@ -136,6 +138,7 @@ fn grammar(ir: &Ir) -> TokenStream {
         quote!(::deckmaste_english_v3::Production { category: Category::#category, symbols: vec![#(#symbols),*] })
     });
     let rules = ir.rules.iter().map(|rule| {
+        let lexical_checks = rule.lexical_checks.iter().map(|checks| quote!(vec![#(#checks),*]));
         let checks = rule.checks.iter().map(|checks| {
             let entries = checks
                 .iter()
@@ -196,6 +199,7 @@ fn grammar(ir: &Ir) -> TokenStream {
             literals: vec![#(#literals),*],
             onset: #onset,
             checks: vec![#(#checks),*],
+            lexical_checks: vec![#(#lexical_checks),*],
             initial: vec![#(#initial),*],
             exports: vec![#(#exports),*],
             table_exports: vec![#(#table_exports),*],
@@ -318,14 +322,6 @@ fn projection(ir: &Ir) -> TokenStream {
             }
             DomainKind::Custom { default } => {
                 let name = &domain.name;
-                if let Some(word) = ir.words.iter().find(|w| crate::parse::closed_words::check_name(&w.name, false) == name) {
-                    let id = &word.id;
-                    return Some(quote!(base.values[#index] = (_lexeme_id == #id).then_some(FeatureValue::Custom(#index, 0));));
-                }
-                if let Some(class) = ir.lexical_classes.iter().find(|c| crate::parse::closed_words::check_name(&c.name, true) == name) {
-                    let name = class.name.to_string();
-                    return Some(quote!(base.values[#index] = properties.classes.contains(#name).then_some(FeatureValue::Custom(#index, 0));));
-                }
                 let values = domain.values.iter().enumerate().map(
                     |(value, name)| quote!(#name => Some(FeatureValue::Custom(#index, #value))),
                 );
@@ -342,6 +338,19 @@ fn projection(ir: &Ir) -> TokenStream {
             }
             _ => None,
         });
+    let memberships = ir
+        .lexical_constraints
+        .iter()
+        .map(|constraint| match constraint {
+            crate::parse::closed_words::Constraint::Word(name) => {
+                let id = &ir.words.iter().find(|w| w.name == *name).unwrap().id;
+                quote!(_lexeme_id == #id)
+            }
+            crate::parse::closed_words::Constraint::Class(name) => {
+                let name = name.to_string();
+                quote!(properties.classes.contains(#name))
+            }
+        });
     let frames = ir.frames.iter().map(|(_, frame)| frame_tokens(frame));
     quote! {
         fn project(features: ::deckmaste_english_v3::LexicalFeatures<'_>) -> Vec<Summary> {
@@ -351,6 +360,7 @@ fn projection(ir: &Ir) -> TokenStream {
                 ::deckmaste_english_v3::LexicalFeatures::FlavorWord { surface } => return vec![Summary::lexical(surface)],
             };
             let mut base = Summary::lexical(surface);
+            base.lexical_memberships = vec![#(#memberships),*];
             #(#features)*
             base.values[5] = Some(FeatureValue::WordForm(form));
             base.values[10] = Some(FeatureValue::Framing(!properties.frames.is_empty()));
@@ -515,6 +525,9 @@ fn form_pieces(
                     continue;
                 }
                 let category_name = match ty {
+                    FieldType::LexicalWord(_) => {
+                        unreachable!("word selectors are elaborated before lowering")
+                    }
                     FieldType::Lexical(c)
                     | FieldType::OptionalLexical(c, _, _)
                     | FieldType::One(c)
@@ -524,7 +537,9 @@ fn form_pieces(
                 };
                 let check_category = quote!(if child.category() != Category::#category_name { return Err(Error::Invalid(#owner, "constituent Category")); });
                 match ty {
-                    FieldType::SelectedFrame(_, _) => unreachable!(),
+                    FieldType::LexicalWord(_) | FieldType::SelectedFrame(_, _) => {
+                        unreachable!("field must be lowered before emission")
+                    }
                     FieldType::Lexical(_) => {
                         summaries[*field] = quote!(Some(cache.word(#binding, grammar, lexicon, ::deckmaste_lexical::Category::#category_name)?));
                         write.push(quote!(output.word(#binding, lexicon)?;));
@@ -700,6 +715,9 @@ fn ast(ir: &Ir) -> TokenStream {
             .map(|i| format_ident!("__field{i}"))
             .collect();
         let types = constructor.fields.iter().map(|(_, ty)| match ty {
+            FieldType::LexicalWord(_) => {
+                unreachable!("word selectors are elaborated before lowering")
+            }
             FieldType::Lexical(_) => quote!(Word),
             FieldType::OptionalLexical(_, _, _) => quote!(Option<Word>),
             FieldType::SelectedFrame(_, _) => quote!(Vec<FrameValue>),
@@ -1051,6 +1069,7 @@ fn materializer(ir: &Ir) -> TokenStream {
                     if let Some(field) = slots.iter().position(|s| *s == dot) {
                         let binding = &values[field];
                         let conversion = match constructor.fields[field].1 {
+                            FieldType::LexicalWord(_) => unreachable!("word selectors are elaborated before lowering"),
                             FieldType::Lexical(_) => quote!(value.word()?),
                             FieldType::OptionalLexical(_, _, _) => quote!(value.optional_word()?),
                             FieldType::SelectedFrame(_, _) => quote!(return Err(Error::Internal)),
@@ -1133,25 +1152,16 @@ fn materializer(ir: &Ir) -> TokenStream {
 fn lexical_registry(ir: &Ir) -> TokenStream {
     let words = ir.words.iter().map(|word| {
         let id = &word.id;
-        let lemma = &word.lemma;
+        let name = word.name.to_string();
         let category = &word.category;
-        let classes = word.classes.iter().map(ToString::to_string);
-        let properties = word.properties.iter().map(|(key, value)| quote!((#key.into(), #value.into())));
-        quote!({
-            let mut word = ::deckmaste_lexical::Lexeme::invariant(#id, #lemma,
-                ::deckmaste_lexical::Category::#category,
-                ::deckmaste_lexical::Source { kind: ::deckmaste_lexical::SourceKind::Core, path: file!().into(), owner: #id.into() });
-            word.properties.classes = [#(#classes.into()),*].into_iter().collect();
-            word.properties.features = [#(#properties),*].into_iter().collect();
-            word
-        })
+        quote!(::deckmaste_lexical::ClosedWord { name: #name.into(), id: #id.into(), category: ::deckmaste_lexical::Category::#category })
     });
     let classes = ir.lexical_classes.iter().map(|class| {
         let name = class.name.to_string();
         let categories = &class.categories;
         quote!(::deckmaste_lexical::LexicalClass { name: #name.into(), categories: vec![#(::deckmaste_lexical::Category::#categories),*] })
     });
-    let properties = ir.features.iter().filter(|f| matches!(f.kind, DomainKind::Custom { .. } | DomainKind::Set) && !f.name.starts_with("__")).map(|domain| {
+    let properties = ir.features.iter().filter(|f| matches!(f.kind, DomainKind::Custom { .. } | DomainKind::Set)).map(|domain| {
         let name = &domain.name;
         let values = &domain.values;
         let set = matches!(domain.kind, DomainKind::Set);

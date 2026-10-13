@@ -21,6 +21,7 @@ pub enum FeatureValue {
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Summary {
+    lexical_memberships: Vec<bool>,
     values: Vec<Option<FeatureValue>>,
     frame_choice: Option<usize>,
     marker_class: Option<usize>,
@@ -34,6 +35,7 @@ impl Default for Summary {
     fn default() -> Self {
         Self {
             values: vec![None; FEATURE_COUNT],
+            lexical_memberships: vec![false; LEXICAL_CHECK_COUNT],
             frame_choice: None,
             marker_class: None,
             licensed_segments: vec![],
@@ -336,6 +338,7 @@ enum Boundary {
 
 #[derive(Clone)]
 struct Rule {
+    lexical_checks: Vec<Vec<usize>>,
     guards: Vec<FrameGuard>,
     segments: SegmentRule,
     boundary: Option<Boundary>,
@@ -352,6 +355,9 @@ struct Rule {
 impl Rule {
     fn advance(&self, dot: usize, state: &State, child: Option<&Summary>) -> Option<State> {
         let checks = self.checks.get(dot)?;
+        for &constraint in self.lexical_checks.get(dot)? {
+            if !child?.lexical_memberships.get(constraint).copied()? { return None; }
+        }
         if !self.guards.get(dot)?.admits(child) {
             return None;
         }

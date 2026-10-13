@@ -10,42 +10,9 @@ constructions! {
         capitalization Positional;
 
         lexical_class GerundClausePreposition: Preposition;
-        closed_word InfinitivalTo: Subordinator {
-            id "vocab:InfinitivalMarker/To";
-            lemma "to";
-            properties { "Finiteness": "Nonfinite" };
-        }
-        closed_word RelativeThat: Subordinator {
-            id "vocab:Subordinator/That";
-            lemma "that";
-        }
-        closed_word Only: Adverb {
-            id "vocab:FocusAdverb/Only";
-            lemma "only";
-        }
-        closed_word By: Preposition {
-            id "vocab:Preposition/By";
-            lemma "by";
-            classes [GerundClausePreposition];
-        }
-        closed_word Of: Preposition {
-            id "vocab:Preposition/Of";
-            lemma "of";
-            classes [GerundClausePreposition];
-            properties { "BareLocativeComplement": "No", "PrepositionAttachment": "PostmodifierOnly", "PrepositionComplementKind": "RelationalComplement" };
-        }
-        closed_word PrepositionalTo: Preposition {
-            id "vocab:Preposition/To";
-            lemma "to";
-            classes [GerundClausePreposition];
-            properties { "BareLocativeComplement": "No", "PrepositionAttachment": "SelectedOnly", "PrepositionComplementKind": "UnrestrictedComplement" };
-        }
-        closed_word Without: Preposition {
-            id "vocab:Preposition/Without";
-            lemma "without";
-            classes [GerundClausePreposition];
-        }
-
+        closed_word InfinitivalTo: Subordinator = "vocab:InfinitivalMarker/To";
+        closed_word RelativeThat: Subordinator = "vocab:Subordinator/That";
+        closed_word Only: Adverb = "vocab:FocusAdverb/Only";
 
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }

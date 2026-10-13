@@ -127,6 +127,7 @@ pub(crate) struct PolicyUse {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum FieldType {
     Lexical(String),
+    LexicalWord(Ident),
     OptionalLexical(String, String, bool),
     SelectedFrame(String, String),
     One(String),
@@ -155,6 +156,7 @@ pub(crate) enum Equation {
     ExportTable(Ident, Ident, Vec<Reference>),
     Agree(Reference, Reference),
     Require(Reference, Ident),
+    RequireLexical(Ident, closed_words::Constraint),
     RequireTable(Ident, Vec<Reference>, Ident),
     RequireSelectedLiteral(Ident, Vec<Reference>, String),
 }
@@ -767,17 +769,26 @@ fn apply_policies(
             }
             let mut equations = policy.equations.clone();
             for equation in &mut equations {
-                for reference in equation.references_mut() {
+                let fields_to_bind = if let Equation::RequireLexical(field, _) = equation {
+                    vec![field]
+                } else {
+                    equation
+                        .references_mut()
+                        .into_iter()
+                        .map(|reference| &mut reference.field)
+                        .collect::<Vec<_>>()
+                };
+                for field in fields_to_bind {
                     if let Some(index) = policy
                         .parameters
                         .iter()
-                        .position(|parameter| *parameter == reference.field)
+                        .position(|parameter| parameter == field)
                     {
-                        reference.field = application.arguments[index].clone();
+                        *field = application.arguments[index].clone();
                     }
-                    if !fields.contains(&reference.field.to_string()) {
+                    if !fields.contains(&field.to_string()) {
                         return Err(syn::Error::new(
-                            reference.field.span(),
+                            field.span(),
                             "policy reference must name a caller field",
                         ));
                     }
@@ -903,7 +914,7 @@ fn instantiate_schemas(
                     | FieldType::Repeated(category, _)
                     | FieldType::Lexical(category)
                     | FieldType::OptionalLexical(category, _, _) => category,
-                    FieldType::SelectedFrame(_, _) => continue,
+                    FieldType::LexicalWord(_) | FieldType::SelectedFrame(_, _) => continue,
                 };
                 if category != "node" {
                     continue;
@@ -1292,13 +1303,13 @@ fn parse_requirement(contents: ParseStream<'_>) -> syn::Result<Equation> {
             false
         };
         let target: Ident = contents.parse()?;
-        Equation::Require(
-            Reference {
-                field,
-                feature: closed_words::check_name(&target, class),
-                last: false,
+        Equation::RequireLexical(
+            field,
+            if class {
+                closed_words::Constraint::Class(target)
+            } else {
+                closed_words::Constraint::Word(target)
             },
-            Ident::new("Yes", target.span()),
         )
     } else if contents.peek2(syn::token::Paren) && name != "last" {
         let table = contents.parse()?;
@@ -1361,7 +1372,7 @@ fn parse_form(form: ParseStream<'_>) -> syn::Result<Vec<Part>> {
                 let category: Ident = arguments.parse()?;
                 let ty = match ty.to_string().as_str() {
                     "lexical" => FieldType::Lexical(category.to_string()),
-                    "lexical_word" => FieldType::Lexical(format!("@{category}")),
+                    "lexical_word" => FieldType::LexicalWord(category),
                     "selected_frame" => {
                         arguments.parse::<Token![,]>()?;
                         let kind: Ident = arguments.parse()?;
@@ -1448,7 +1459,24 @@ impl Equation {
             | Self::RequireTable(_, arguments, _)
             | Self::RequireSelectedLiteral(_, arguments, _) => arguments.iter_mut().collect(),
             Self::Agree(left, right) => vec![left, right],
-            Self::ExportConstant(_, _) => vec![],
+            Self::ExportConstant(_, _) | Self::RequireLexical(_, _) => vec![],
         }
+    }
+}
+
+#[cfg(test)]
+mod lexical_selector_tests {
+    use super::*;
+    use syn::parse::Parser;
+
+    #[test]
+    fn uninstantiated_selectors_have_a_distinct_ast_variant() {
+        let parts = parse_form
+            .parse2(quote::quote!(marker: lexical_word(To)))
+            .unwrap();
+        assert_eq!(parts.len(), 1);
+        let Part::Field(name, kind) = &parts[0] else { panic!("expected a field") };
+        assert_eq!(name, "marker");
+        assert_eq!(kind, &FieldType::LexicalWord(syn::parse_quote!(To)));
     }
 }

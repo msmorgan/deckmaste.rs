@@ -508,9 +508,11 @@ Infinitival *to*, relative *that* and restrictive *only* are named in their
 forms with `lexical_word`. Their historical lexeme IDs remain unchanged.
 The four prepositions *by*, *of*, *to* and *without* declare membership in
 `GerundClausePreposition`; the gerund-complement construction requires that
-class. These seven invariant words are declared in the Rust grammar, supplied
-by callers through `grammar::lexical_registry()` to the lexical-source loader.
-Other vocabulary has not yet moved. The two *to* lexemes remain distinct.
+class. All seven words have one home in lexical data, including their forms,
+properties and frames. The grammar binds names to the three directly referenced
+IDs and declares the class domain; the four members state membership in data.
+Callers pass `grammar::lexical_registry()` to the lexical-source loader for
+validation. The two *to* lexemes remain distinct.
 
 `InfinitivalMarker`, `RelativeSubordinator`, `FocusingModifierUse` and
 `GerundClauseComplement` are no longer string-keyed features. Genuine lexical

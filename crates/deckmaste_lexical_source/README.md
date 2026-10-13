@@ -70,3 +70,13 @@ catalogs check` checks this artifact together with the canonical line catalogs.
 Feature provisioning shares `data/` with the default checkout, so generation
 belongs to the catalog command rather than each workspace's provisioning hook.
 Regenerate after replacing the Oracle snapshot.
+
+Callers supply a lexical registry declaring closed-word references, lexical
+classes and grammatical property domains. The registry never supplies lexemes:
+each word's forms, properties and frames remain in its source data. A native
+lexeme states class membership in `properties.classes`; a vocabulary member
+states it in `classes`. Loading checks every referenced ID and Category, core
+closed-class eligibility, membership name and Category, and property value.
+Plugin/catalog words can be class members but cannot be closed-word symbols.
+The legacy ID-keyed `class_additions` map is checked too; it does not replace
+a plugin declaration's own membership route.

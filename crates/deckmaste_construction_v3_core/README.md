@@ -37,8 +37,8 @@ public Category root. There is no scanner callback or preferred Reading.
 The chart consumes complete, finite summaries. Authors can now declare Category-interface
 propagation and state only a Construction's changes; the compiler fills its
 exports before validating and lowering them. Generic coordination elaborates
-grammar-owned templates with per-interface combiners. Boolean requirements,
-policy composition and typed lexical classes remain future authoring work. Policies still cannot use other policies,
+grammar-owned templates with per-interface combiners. Boolean requirements and
+policy composition remain future authoring work. Policies still cannot use other policies,
 and repetition does not automatically fold member features. The governing record
 is `docs/decisions/english-lexical-analysis.md`.
 
@@ -76,8 +76,8 @@ Category (including computed surface features) is copied; otherwise its declared
 default is used. A lexical head may inherit **only features with declared
 defaults**: an absent lexical property already takes that default in lexical
 projection. Without a declared default, a lexical head requires an explicit
-export, including for builtin features. Typed lexical classes will refine this
-rule later. Constituent fallback is static, never a runtime repair of a missing
+export, including for builtin features. Constituent fallback is static, never
+a runtime repair of a missing
 inherited value. A local entry always uses its declared default, never the head.
 Without an applicable source or default, compilation names the Construction and
 missing feature.
@@ -603,19 +603,11 @@ coverage or compatibility alias.
 
 ### Closed words and lexical classes
 
-A form can name a grammar-declared closed word without fixing its surface:
+A form can name a core closed word without fixing its surface:
 
 ```rust
-closed_word InfinitivalTo: Subordinator {
-    id "vocab:InfinitivalMarker/To";
-    lemma "to";
-}
+closed_word InfinitivalTo: Subordinator = "vocab:InfinitivalMarker/To";
 lexical_class GerundClausePreposition: Preposition;
-closed_word By: Preposition {
-    id "vocab:Preposition/By";
-    lemma "by";
-    classes [GerundClausePreposition];
-}
 // In a construction or schema:
 form [marker: lexical_word(InfinitivalTo), " ", predicate: node];
 // Class restrictions retain the existing lexical Category of the field:
@@ -624,29 +616,41 @@ require head in GerundClausePreposition;
 require marker is InfinitivalTo;
 ```
 
+A closed-word declaration binds a name to an existing lexeme ID and Category.
+It does not define or synthesize a lexeme: forms, variants, properties, frames
+and class memberships all live in lexical data. For example, a native lexeme
+declares `properties: (classes: ["GerundClausePreposition"], ...)`; a vocabulary
+member declares `classes: ["GerundClausePreposition"]`.
+
 `lexical_word` retains a Word field with the declaration's lexical Category;
 constructor fields and form indices do not change. Identity is checked before
-composition, while spelling, capitalization and realization use the lexical
-layer. Homographs with different lexeme IDs do not satisfy the check. A class
-may declare multiple Categories with `Preposition | Subordinator`; its membership
-requirement intersects the form's Category. Policies can use either requirement.
-An optional lexical field is checked only when present, as with its existing
-direct feature requirements. Unknown symbols, nonlexical fields, incompatible
-Categories and duplicate word identities are compilation errors.
+composition, while inflection, spelling, capitalization and realization use the
+lexical layer. Homographs with different lexeme IDs do not satisfy the check.
+A class may declare multiple Categories with `Preposition | Subordinator`;
+its membership requirement intersects the form's Category. Policies can use
+either requirement. An optional lexical field is checked only when present,
+as with its existing direct feature requirements. Unknown symbols, nonlexical
+fields, incompatible Categories and duplicate names or identities are
+compilation errors.
 
-The generated `lexical_registry()` returns common lexical descriptors for the
-caller to supply to the source loader. The grammar owns words and class domains;
-source data can join a class through `properties.classes` or a `class_additions`
-map from existing lexeme IDs to class names. The latter also supports plugin and
-catalog members without making their identities grammar symbols. The loader
-checks member IDs, class names, Categories and feature values. It retains a
-specific list of legacy adapter metadata separately from grammatical domains.
-Membership checks use finite internal admission slots, not string-keyed feature
-flags. Only checks used by constructions allocate slots; merely declaring a
-registry member does not. No lexical identity is forwarded in a constituent summary.
+The generated `lexical_registry()` returns reference and domain declarations
+for callers to pass to the source loader. The loader checks that referenced
+IDs exist, have the declared Category and denote core closed-class lexemes.
+Existing Core provenance and the closed Categories establish eligibility.
+For Adverbs, the existing PredicateNegator, FrequencyAdverb and FocusAdverb
+vocabulary inventories establish it; for Verbs, an Auxiliary frame does.
+Other open-class words, plugin words, catalog words and card names cannot
+become word symbols. No additional eligibility flag is introduced.
 
-The initial closed-word declaration supports invariant forms, optional
-`classes [...]`, and retained `properties { "key": "value" }`. Inflected word
-declarations and their form overrides are not part of this prototype. Existing
-data-backed words retain all their forms. Only core closed words belong in
-`closed_word`; open-class vocabulary remains source data.
+The loader checks data membership against declared class names and Categories,
+and grammatical properties against their domains. Unknown IDs, class names,
+properties and out-of-domain values fail loading. The legacy `class_additions`
+map also accepts memberships by existing ID; it is not a plugin-declaration
+membership route. Source-adapter metadata is recognized separately during the
+staged migration.
+
+Word selectors and word/class constraints have distinct AST variants.
+Their admission checks are separate from grammatical feature slots and the
+string-keyed feature map; they cannot be read or exported as features.
+Only constraints used by constructions allocate membership checks.
+Constituent summaries do not forward lexical identity or class membership.

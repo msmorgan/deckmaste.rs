@@ -39,6 +39,14 @@ changing grammatical admission or erasing alternative Readings.
 An abstract lexical item underlying its inflected Word Forms. A lexical item
 may consist of several orthographic words, as in *mana value* and *mana cost*.
 
+**Closed Word** (project term):
+A core closed-class Lexeme that the grammar names individually because exactly
+one Lexeme can fill the relevant slot. Its Word Forms remain part of the lexicon.
+
+**Lexical Class** (project term):
+A declared group of Lexemes that share eligibility for a grammatical slot.
+Members retain their lexical Categories; membership does not identify a Word Form.
+
 **Compound Noun**:
 A noun Lexeme formed from two or more bases, as in *charge counter*; its
 constituents form a lexical unit rather than freely independent syntactic

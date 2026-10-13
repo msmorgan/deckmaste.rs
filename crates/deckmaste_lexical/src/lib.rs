@@ -35,4 +35,4 @@ pub use crate::numeral::NumeralCodec;
 pub use crate::numeral::ParseNumeralError;
 
 mod registry;
-pub use registry::{LexicalClass, LexicalRegistry, PropertyDomain};
+pub use registry::{ClosedWord, LexicalClass, LexicalRegistry, PropertyDomain};

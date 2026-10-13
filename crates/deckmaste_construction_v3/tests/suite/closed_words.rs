@@ -8,7 +8,7 @@ use std::collections::BTreeSet;
 
 constructions! {
     pub mod fixture {
-        closed_word Marker: Subordinator { id "old:marker"; lemma "to"; }
+        closed_word Marker: Subordinator = "old:marker";
         lexical_class Markers: Subordinator | Preposition;
         category Direct();
         category Policy();
@@ -29,8 +29,21 @@ constructions! {
     }
 }
 
+fn marker_lexeme() -> Lexeme {
+    Lexeme::invariant(
+        "old:marker",
+        "to",
+        Category::Subordinator,
+        Source {
+            kind: SourceKind::Core,
+            path: "fixture.ron".into(),
+            owner: "old:marker".into(),
+        },
+    )
+}
+
 fn lexicon() -> Lexicon {
-    let mut words = fixture::lexical_registry().words;
+    let mut words = vec![marker_lexeme()];
     let mut other = Lexeme::invariant(
         "plugin:other",
         "to",
@@ -157,7 +170,7 @@ fn optional_identity_checks_absence_and_only_the_present_declared_word() {
 
 #[test]
 fn word_selector_preserves_capitalization_and_surface_variants() {
-    let mut words = fixture::lexical_registry().words;
+    let mut words = vec![marker_lexeme()];
     words[0].forms[0].surfaces = Some(vec!["to".into(), "unto".into()]);
     let lexicon = Lexicon::new(words).unwrap();
     let mut head = word("old:marker");

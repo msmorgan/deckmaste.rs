@@ -272,6 +272,34 @@
         "vocab:Preposition/Without": {"ComplementFunctionRestriction": "Adjunct", "PrepositionFunctionLicence": "Adjunct|Modifier|PreposedAdjunct", "KeywordComplement": "Yes", "PrepositionComplement": "NounPhrase", "LocativeUse": "No"},
     },
     lexemes: [
+        (
+            id: "vocab:Subordinator/That", lemma: "that", category: Subordinator,
+            properties: (countability: [], features: {}, frames: [], classes: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Subordinator/That"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:InfinitivalMarker/To", lemma: "to", category: Subordinator,
+            properties: (countability: [], features: {"Finiteness": "Nonfinite"}, frames: [], classes: []),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:InfinitivalMarker/To"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:Preposition/By", lemma: "by", category: Preposition,
+            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition"]),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/By"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
+        (
+            id: "vocab:Preposition/Without", lemma: "without", category: Preposition,
+            properties: (countability: [], features: {}, frames: [], classes: ["GerundClausePreposition"]),
+            forms: [(form: Invariant, features: ())],
+            source: (kind: Core, path: "crates/deckmaste_lexical_source/lexicon/core.ron", owner: "vocab:Preposition/Without"),
+            capitalization: Initial, binding: Free, surface_structure: Word,
+        ),
         // AE1 adopts the nominal Preposition analysis proposed in
         // CGEL Ch. 7 §2.4, p. 615, n. 5 (orchestrator, 2026-10-10).
         (
