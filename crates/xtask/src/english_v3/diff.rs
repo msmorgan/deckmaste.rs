@@ -508,10 +508,15 @@ fn check_reports(
         );
     }
     if mode == CheckMode::NominalNormalForms {
+        let source = super::nominal_normal_form::source_sha256();
         for report in [before, after] {
             ensure!(
                 report["nominal_normal_form_version"] == super::nominal_normal_form::VERSION,
                 "normal-form comparison requires matching nominal_normal_form_version and a new baseline"
+            );
+            ensure!(
+                report["nominal_normal_form_source_sha256"].as_str() == Some(source.as_str()),
+                "normal-form comparison requires the current classification/normalization source hash; regenerate the baseline"
             );
         }
     }
@@ -967,6 +972,8 @@ mod check_tests {
     fn nominal_census() -> serde_json::Value {
         let mut report = census();
         report["nominal_normal_form_version"] = super::super::nominal_normal_form::VERSION.into();
+        report["nominal_normal_form_source_sha256"] =
+            super::super::nominal_normal_form::source_sha256().into();
         report["faces"][0]["surroundings_sha256"] = "surroundings".into();
         let unit = &mut report["faces"][0]["lines"][0];
         unit["category"] = "Sentence".into();
@@ -1016,6 +1023,32 @@ mod check_tests {
                 run_files(&before, &after, Some(CheckMode::NominalNormalForms)).is_err(),
                 "{pointer}"
             );
+        }
+    }
+
+    #[test]
+    fn nominal_check_rejects_stale_matchers_even_when_both_reports_agree() {
+        let current = nominal_census();
+        for (field, value) in [
+            ("nominal_normal_form_version", json!(1)),
+            ("nominal_normal_form_source_sha256", json!("0".repeat(64))),
+            ("nominal_normal_form_source_sha256", serde_json::Value::Null),
+        ] {
+            let mut stale = current.clone();
+            stale[field] = value;
+            for (before, after) in [(&stale, &current), (&current, &stale), (&stale, &stale)] {
+                let error = run_files(before, after, Some(CheckMode::NominalNormalForms))
+                    .unwrap_err()
+                    .to_string();
+                assert!(
+                    error.contains(if field.ends_with("version") {
+                        "nominal_normal_form_version"
+                    } else {
+                        "source hash"
+                    }),
+                    "{error}"
+                );
+            }
         }
     }
 

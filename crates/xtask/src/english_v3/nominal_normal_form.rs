@@ -8,7 +8,15 @@ use anyhow::{Context, Result, bail, ensure};
 use deckmaste_english_v3::grammar::Reading;
 use serde::Serialize;
 
-pub(super) const VERSION: usize = 1;
+// Bump on every classification or normalization change and append the new
+// source identity to the version lock in the tests. Historical entries stay fixed.
+pub(super) const VERSION: usize = 2;
+
+pub(super) fn source_sha256() -> String {
+    // Compile the source into the binary: a disk edit after building must not
+    // misidentify the matcher that actually produced a census.
+    crate::raw_corpus::digest(include_str!("nominal_normal_form.rs").as_bytes())
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 enum Tree {

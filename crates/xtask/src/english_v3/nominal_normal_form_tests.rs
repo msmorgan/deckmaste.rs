@@ -356,3 +356,74 @@ fn a_derived_card_type_id_does_not_extend_the_reviewed_inventory() {
     assert_eq!(ordinary.len(), 1);
     assert_eq!(derived.len(), 2);
 }
+
+#[test]
+fn normal_form_version_identifies_the_exact_reviewed_source() {
+    // Append a version when this source changes; never replace an old entry.
+    let versions = [(
+        2,
+        "9cacc5055c558101180b903645271e91874613e1ee4b8d29585755bb8c685e3e",
+    )];
+    assert_eq!(versions.last().unwrap().0, VERSION);
+    assert_eq!(
+        versions.last().unwrap().1,
+        source_sha256(),
+        "classification or normalization changed: bump VERSION and append its source hash"
+    );
+}
+
+#[test]
+fn perilous_predicament_census_records_two_distinct_normal_forms() {
+    use crate::english_v3::report::{Measurements, Report};
+    use crate::english_v3::tests::{args, selected_corpus};
+    use crate::english_v3::{analyze_cards, write_report};
+    use serde_json::json;
+
+    let text =
+        "Each opponent sacrifices an artifact creature and a nonartifact creature of their choice.";
+    let corpus = selected_corpus(
+        &serde_json::to_vec(&json!({"data": {
+            "Perilous Predicament": [{"name": "Perilous Predicament", "layout": "normal",
+                "legalities": {"vintage": "Legal"}, "text": text}]
+        }}))
+        .unwrap(),
+    );
+    let directory = tempfile::tempdir().unwrap();
+    let mut args = args(None);
+    let path = directory.path().join("baseline.json");
+    args.output = Some(path.clone());
+    let grammar = Grammar::with_lexicon(lexicon());
+    let faces = analyze_cards(&corpus.faces, lexicon(), &grammar, &args).unwrap();
+    let report = Report::new(
+        &args,
+        &corpus,
+        "test".into(),
+        vec![],
+        faces,
+        Measurements {
+            setup_wall_ns: 0,
+            corpus_wall_ns: 0,
+            host_load: None,
+        },
+    );
+    write_report(&args, &report, &mut Vec::new()).unwrap();
+    let baseline: serde_json::Value =
+        serde_json::from_reader(std::fs::File::open(path).unwrap()).unwrap();
+    assert_eq!(baseline["nominal_normal_form_version"], VERSION);
+    assert_eq!(
+        baseline["nominal_normal_form_source_sha256"],
+        source_sha256()
+    );
+    let face = &baseline["faces"][0];
+    assert_eq!(face["name"], "Perilous Predicament");
+    assert_eq!(face["lines"].as_array().unwrap().len(), 1);
+    let recorded: BTreeSet<String> =
+        serde_json::from_value(face["lines"][0]["nominal_normal_forms"].clone()).unwrap();
+    let computed: BTreeSet<_> = readings(text, Category::Sentence)
+        .iter()
+        .map(|r| fingerprint(r).unwrap())
+        .collect();
+    assert_eq!(computed.len(), 2);
+    assert_eq!(recorded.len(), 2);
+    assert_eq!(recorded, computed);
+}

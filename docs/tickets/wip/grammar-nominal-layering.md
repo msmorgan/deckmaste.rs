@@ -47,10 +47,10 @@ coordination are reviewed separately in the placement table below.
 Full corpus: 32,828 faces; 30,794 read; 2,034 unread; 75,412 units;
 482,041 Readings; zero incomplete enumerations or validation issues. Against
 `baseline-v2-closed-class.json`, `--check identical-digests` passed on all
-32,828 faces: no source, count or digest changes. The resulting
-`target/english-v3/nominal-baseline.json` is the normal-form baseline; the old
-workspace copy was deleted after this check (the original trunk file remains).
-The new `--check nominal-normal-forms` also passed over the full baseline.
+32,828 faces: no source, count or digest changes. The resulting version-1 `target/english-v3/nominal-baseline.json` was later
+found to predate the final derived-id guard; its normal-form sets are stale.
+Its raw Reading digests remain valid evidence. The corrected baseline and the
+source-identity guard are recorded below.
 
 An uncommitted scratch census build suppressed actual enumerated Readings
 before both digests were computed, without modifying saved fingerprints:
@@ -227,8 +227,9 @@ never globally rename Category values, since a category can distinguish a
 coordination host elsewhere. Preserve every other category/form value.
 
 Both the legacy Reading and the adapted layered Reading must produce the same
-version-1 normal-form encoding. The adapter extends recognized input shapes;
-it must not change the equivalence or require a new baseline. Reject unknown
+normal-form encoding. The adapter extends recognized input shapes without
+changing the equivalence. Under the source-identity guard, any normalizer edit
+requires a new version and an unchanged-grammar baseline before conversion. Reject unknown
 forms/fields of the new recognized nodes. Assert separately that the grammar
 admits and realizes the independently built **new** trees: adapting old trees
 is a comparison operation, not an admission bypass.
@@ -443,28 +444,26 @@ Paths are under `crates/deckmaste_english_v3/tests/`.
 - Citation checks: zero noncompliant strings, zero stale citations; diff audit
   found no changed citation sites.
 - Final subset recheck: Chief Engineer's raw digest, surrounding structure,
-  unit counts and normal-form sets equal the retained full baseline. The final
-  derived-id guard excludes a hypothetical card-type `/non` id; current data
-  has no such noun derivation (the two negative noun hosts are Token and combat).
+  unit counts and normal-form sets equal the retained full baseline for that
+  subset. This did not cover negative card-type nouns: the earlier claim that
+  they did not exist was wrong. The plugin type producer emits them through
+  `native::negative_lexeme`, independently of core.ron's two negative noun
+  formations. The retained census preceded the final `/non` guard.
 
 ### Expected effect and remaining review decisions
 
-The new full baseline measures **384,836 normal forms for 482,041 Readings**.
-There are **3,855 collapsing units on 3,635 faces**. Those units contain
-215,011 Readings and 117,806 normal forms; other units have no order duplicate
-under this restricted check. Thus **97,205 Readings (20.17%)** are removable if
-the canonical layered route admits a survivor for every normal form. Target
-counts are 75,412 unchanged units, 384,836 unchanged normal forms and 384,836
-Readings; face coverage stays 30,794 read / 2,034 unread. This is an exact
-upper bound on reduction under this equivalence, not a promise that every
-existing summary/admission interaction will permit the first routing attempt.
+The corrected conservative check measures **392,155 normal forms for 482,041
+Readings**. There are **3,480 collapsing units on 3,286 faces**. Those units
+contain 200,185 Readings and 110,299 normal forms. Thus **89,886 Readings
+(18.65%)** are removable if the layered route admits one survivor for every
+normal form. Target counts are 75,412 unchanged units, 392,155 unchanged normal
+forms and 392,155 Readings; face coverage stays 30,794 read / 2,034 unread.
 
-The largest potential reductions are Slimefoot's Survey (21,888), Nael, Avizoa
-Aeronaut (10,836), Bring to Light (5,256), Whiskervale Forerunner (4,608) and
-Osseous Sticktwister (3,608). These high-multiplicity witnesses should enter the
-first subset gate, alongside the 30 judgments and independent scope witnesses.
-A smaller tree set need not shrink the chart by the same percentage: the
-measurement concerns enumerated unit Readings.
+The five largest units contain 32,256, 17,640, 15,456, 11,520 and 7,216 trees
+respectively: Slimefoot's Survey, Nael, Avizoa Aeronaut, Bring to Light,
+Whiskervale Forerunner and Osseous Sticktwister. Their conservative normal-form
+counts are 10,368, 6,804, 10,200, 6,912 and 7,216. These witnesses belong in the
+first subset gate alongside the 30 judgments and independent scope witnesses.
 
 A scratch structural model enumerated all 21,845 application chains of length
 0–7 using approved pre/post modifiers and two barrier kinds. Its 14,840 normal
@@ -484,7 +483,7 @@ Decisions requested before Phase 3:
 3. Decide the three proposed whitelist extensions individually. Recommendation:
    approve their simple restrictive uses as bounded above, with a new versioned
    baseline **before** any conversion using them. Keeping all three deferred
-   still delivers the measured 97,205-tree opportunity.
+   still delivers the corrected 89,886-tree opportunity.
 4. Keep the policing features listed above for the initial conversion.
    Recommendation: yes; they still enforce admission outside nominal routing.
 
@@ -502,3 +501,56 @@ tree counts must be unchanged. The routing commit then moves the five post
 wrappers, all reset barriers and nominal coordination together. Review and
 iterate on small subsets inside that commit, but land only the complete,
 gate-passing component. Do not mistake a small textual edit for a closed family.
+
+
+## Corrected conservative baseline and source identity
+
+The owner approved correction of the stale Phase 1 baseline before layering.
+The whitelist stays exactly as committed: positive card-type noun modifiers
+commute; negative card-type nouns do not. The old census used a prefix-only
+matcher that also accepted `/non` derivatives. Its source hash reproduces that
+earlier implementation exactly. This was an evidence/versioning error, not a
+licensed equivalence change.
+
+Normal-form version 2 records the compiled classification/normalization source
+SHA-256 separately from the checkout snapshot. The normal-form gate requires
+both reports' version and hash to equal the running check's. A version-to-source
+lock test requires a new version for source edits. Incremental reuse rejects
+mismatched identities too, so copied sets cannot be relabelled as current.
+The Perilous Predicament regression writes a census baseline, reads its one
+unit back, and compares its two recorded normal forms with those computed
+independently from its Readings. Missing hashes, stale versions and equal but
+stale hashes on both reports are rejection tests.
+
+Negative card-type noun premodifiers occur in 1,024 units on 981 faces,
+containing 22,212 Readings. Of these, 390 units on 388 faces (16,261 Readings)
+have fewer normal forms under the erroneous prefix matcher: 8,402 versus
+15,721 conservatively, a difference of 7,319. Across all affected units the
+counts are 14,107 versus 21,426. They remain barriers. They are not included in
+the approved follow-up (negative colours, bare adjectival enchanted/equipped,
+and simple uncoordinated, unquoted creature-subtype noun modifiers).
+
+The approved layers are NominalCore, NominalPostmodification and Nominal with
+two unary lifts. NominalModifierOrder defaults to Barrier; the tool whitelist
+remains independent and agreement will be tested. Keep all policing features.
+The layer conversion and approved follow-up have not yet been applied.
+
+Correction verification (`putoonqn`): full unchanged-grammar census has 32,828
+faces, 30,794 read, 482,041 Readings, 75,412 units, 392,155 normal forms,
+247,973,895 chart items, zero incomplete enumerations and zero issues. Wall
+time is 560.579 s with four workers (old baseline 657.651 s; host load differs).
+`identical-digests` against the previous census passes on every face; the
+version-2 normal-form self-check passes. The old baseline is rejected by the
+normal-form gate for its version, then deleted. The retained baseline is
+`target/english-v3/nominal-baseline-v2.json`. Its Perilous Predicament unit has
+two normal forms, equal to the independent subset census.
+
+Full xtask tests: 484 passed, one existing ignore; clippy with tests and denied
+warnings passed. The extended incremental-loader test also passed after its
+additional stale/missing-hash cases were added. Assurance: three new tests,
+two existing tests extended; none deleted, weakened, newly ignored or restored.
+Citation checks: zero noncompliant strings, zero stale citations, no changed
+citation sites.
+
+Census delta (`putoonqn`, baseline correction only): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost faces none.
+Judgment set: does not apply yet.
