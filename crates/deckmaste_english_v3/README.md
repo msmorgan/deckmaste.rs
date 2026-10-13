@@ -583,3 +583,11 @@ used by census Reading identity. Unsupported syntax and changed known wrapper
 shapes fail; unknown constructors remain exact. The normal-form version must
 change if the equivalence or encoding changes. This restricted check licenses
 no coordination, gap, passive, selected-frame or general scope equivalence.
+
+The lexical property `NominalModifierOrder { Barrier, Commuting }` defaults to
+Barrier. The conservative Commuting inventory is declared in lexical data and
+its existing card-type producer. Negative derivation precedes classification,
+so a positive colour or card type does not automatically license its negative
+word. A test compares every loaded lexeme with the tool's independent reviewed
+inventory. Classification alone does not change admission or Reading shapes;
+the nominal layers will consume it in simple modifier phrases.

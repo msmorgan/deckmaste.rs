@@ -1048,6 +1048,21 @@ _Avoid_: Complement for the slot descriptor
 **Nominal**:
 An intermediate nominal constituent headed by a noun or noun-like element.
 
+**Nominal Modifier Order** (project term):
+A modifier use's permission to interchange premodifier and postmodifier
+application to the same nominal head: commuting or barrier.
+
+**Commuting Nominal Modifier** (project term):
+A reviewed modifier use for which interleaving premodifier and postmodifier
+applications to the same nominal head does not distinguish analyses. Order
+within each side, the modifier's own structure and the attachment head remain
+distinct.
+
+**Barrier Nominal Modifier** (project term):
+A nominal modifier use across which application order remains a distinction
+of analysis. Modifiers inside and outside its scope cannot be interchanged.
+A use not reviewed as commuting is a barrier.
+
 **Nominal Dependent Present** (project term):
 Whether a Nominal contains a Modifier or selected Complement in addition to
 its head; an outer Determiner is not such a dependent (CGEL, Ch. 8 §6.3, p. 698).

@@ -392,6 +392,7 @@ constructions! {
         feature NominalBareClass { None, Interval, Boundary }
         feature NominalAdjunctClass { None, Temporal, Manner } default None combine nominal_adjunct_concord;
         feature SlashPremodifierUse { No, Yes } default Yes combine all;
+        feature NominalModifierOrder { Barrier, Commuting } default Barrier;
         feature NominalDependentPresent { No, Yes } default No combine any;
         feature NominalAdjunctDependent { None, Demonstrative, Temporal, Definite, DeicticTemporal } default None;
         feature BareSingularUse { No, Yes } default No;

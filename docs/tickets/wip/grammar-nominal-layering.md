@@ -522,8 +522,10 @@ unit back, and compares its two recorded normal forms with those computed
 independently from its Readings. Missing hashes, stale versions and equal but
 stale hashes on both reports are rejection tests.
 
-Negative card-type noun premodifiers occur in 1,024 units on 981 faces,
-containing 22,212 Readings. Of these, 390 units on 388 faces (16,261 Readings)
+The difference between the stale prefix matcher and the conservative matcher
+identifies simple negative card-type noun premodifier uses in 1,024 units on
+981 faces, containing 22,212 Readings. This measures uses relevant to the
+modifier-order check, not every lexical occurrence of a negative card type. Of these, 390 units on 388 faces (16,261 Readings)
 have fewer normal forms under the erroneous prefix matcher: 8,402 versus
 15,721 conservatively, a difference of 7,319. Across all affected units the
 counts are 14,107 versus 21,426. They remain barriers. They are not included in
@@ -552,5 +554,63 @@ two existing tests extended; none deleted, weakened, newly ignored or restored.
 Citation checks: zero noncompliant strings, zero stale citations, no changed
 citation sites.
 
-Census delta (`putoonqn`, baseline correction only): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost faces none.
+## Conservative lexical classification preparation
+
+`NominalModifierOrder { Barrier, Commuting } default Barrier` is now declared
+as a lexical property. Positive colours and nonlegendary are assigned after
+negative adjective formation; adjectival tapped is split from the shared
+participial-adjective class. The existing card-type producer assigns Commuting
+to the positive noun after emitting its negative derivative. No lexeme id,
+form, variant or frame changes. No construction consumes the property yet;
+layer routing and Reading shapes are unchanged.
+
+The whole loaded-lexicon agreement test calls the independent normalizer's
+existing simple-use matcher; the matcher source and version stay unchanged.
+The colour provenance test retains its five existing colour witnesses, source,
+form and paradigm comparisons. Before: `negative.properties == base.properties`.
+After: compare the entire property records except NominalModifierOrder, and
+separately assert positive Commuting and negative default Barrier. Classes,
+countability, every other feature and all frames still compare exactly.
+This is one re-spelled test, not a weakened or deleted assertion.
+
+Remaining: add the reviewed layer adapter under a new version and take its
+unchanged-grammar baseline; convert the mutually recursive nominal routes and
+re-spell their shape tests; gate and assess chart/time; only then extend the
+commuting list with the separately approved additions and its own baseline.
+No policing feature has been removed. The ticket remains in progress.
+
+
+Classification census (`lynmlnrq`): 32,828 faces, 30,794 read, 482,041 Readings,
+75,412 units and 392,155 normal forms. The raw identical-digests gate passes
+against version 2. Chart items are unchanged at 247,973,895. Wall time is
+603.443 s versus 560.579 s (+7.6%), both four workers; the classification run
+also overlapped full tests. This is not a measurement of the still-unimplemented
+lifts. The approved follow-up has not begun.
+
+| Largest unit | Baseline trees | Preparation trees | Normal forms (both) |
+|---|---:|---:|---:|
+| Slimefoot's Survey, unit 0 | 32,256 | 32,256 | 10,368 |
+| Nael, Avizoa Aeronaut, unit 1 | 17,640 | 17,640 | 6,804 |
+| Bring to Light, unit 0 | 15,456 | 15,456 | 10,200 |
+| Whiskervale Forerunner, unit 0 | 11,520 | 11,520 | 6,912 |
+| Osseous Sticktwister, unit 1 | 7,216 | 7,216 | 7,216 |
+
+Both full-corpus gates pass on all 32,828 faces: identical raw digests and
+identical per-unit normal-form sets, with unchanged source, units and
+surrounding structure. The step census was deleted after its gates; only the
+corrected baseline is retained. Full tests: English 1,165 passed / one existing
+ignore; lexical source 100 passed; xtask 485 passed / one existing ignore.
+Clippy with tests and denied warnings passes for all three crates, including a
+final xtask check after moving the regression test's temporary census under
+`target/english-v3/`. The test also passed again at that location.
+
+Assurance for this preparation: one added inventory-agreement test; one
+re-spelled colour-provenance test; none removed, weakened, restored or newly
+ignored. Across the correction and preparation: four added tests, two existing
+incremental tests extended, one re-spelled. README and glossary describe the
+new property and commuting/barrier distinction. Citation checks remain clean.
+This is a complete preparatory prefix; no layer routing, lift or shape-test
+conversion has been applied, and no follow-up modifier has been added.
+
+Census delta (`lynmlnrq`, preparatory prefix): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost faces none.
 Judgment set: does not apply yet.

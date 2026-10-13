@@ -16,6 +16,15 @@
             "vocab:ColorWord/Black", "vocab:ColorWord/Red", "vocab:ColorWord/White",
             "vocab:ColorWord/Green", "vocab:ColorWord/Blue",
         ],
+    ), (
+        // Assign after negative formation: positive colours do not license their derivatives.
+        features: {"NominalModifierOrder": "Commuting"},
+        members: [
+            "vocab:ColorWord/Black", "vocab:ColorWord/Blue", "vocab:ColorWord/Colorless",
+            "vocab:ColorWord/Green", "vocab:ColorWord/Monocolored", "vocab:ColorWord/Multicolored",
+            "vocab:ColorWord/Red", "vocab:ColorWord/White",
+            "vocab:PredicativeAdjective/Legendary/non",
+        ],
     )],
     // Attested common nouns declare their own negative formation.
     negative_noun_formations: {
@@ -26,8 +35,12 @@
         features: {"AdjectiveOrigin": "Participial"},
         form: PastParticiple,
         members: [
-            "lexeme:keyword_action/tap", "lexeme:keyword_action/untap", "core-verb:Block",
+            "lexeme:keyword_action/untap", "core-verb:Block",
         ],
+    ), (
+        features: {"AdjectiveOrigin": "Participial", "NominalModifierOrder": "Commuting"},
+        form: PastParticiple,
+        members: ["lexeme:keyword_action/tap"],
     ), (
         features: {"AdjectiveOrigin": "Participial", "AdjectivePremodifierUse": "No"},
         form: PastParticiple,

@@ -286,7 +286,26 @@ fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
         assert_eq!(negative.category, Category::Adjective);
         assert_eq!(negative.source, base.source);
         assert_eq!(negative.forms, base.forms);
-        assert_eq!(negative.properties, base.properties);
+        assert_eq!(
+            base.properties
+                .features
+                .get("NominalModifierOrder")
+                .map(String::as_str),
+            Some("Commuting")
+        );
+        assert_eq!(
+            negative
+                .properties
+                .features
+                .get("NominalModifierOrder")
+                .map_or("Barrier", String::as_str),
+            "Barrier"
+        );
+        let mut base_properties = base.properties.clone();
+        let mut negative_properties = negative.properties.clone();
+        base_properties.features.remove("NominalModifierOrder");
+        negative_properties.features.remove("NominalModifierOrder");
+        assert_eq!(negative_properties, base_properties);
         assert_eq!(
             paradigm(&owner),
             BTreeSet::from([(text.into(), WordForm::Invariant, FeatureBundle::default())])

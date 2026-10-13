@@ -188,6 +188,14 @@ fn export_metadata(
             type_word.negative_prefix_join,
         ));
     }
+    // A card-type classifier commutes only in its positive noun use.
+    // Its negative derivative was emitted above and keeps the default barrier.
+    if normalized.identity().kind() == metadata::DeclarationKind::Type {
+        lexeme
+            .properties
+            .features
+            .insert("NominalModifierOrder".into(), "Commuting".into());
+    }
     if matches!(
         normalized.identity().kind(),
         metadata::DeclarationKind::Subtype(_)

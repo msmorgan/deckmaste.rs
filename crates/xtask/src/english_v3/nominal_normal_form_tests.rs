@@ -388,7 +388,9 @@ fn perilous_predicament_census_records_two_distinct_normal_forms() {
         }}))
         .unwrap(),
     );
-    let directory = tempfile::tempdir().unwrap();
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/english-v3");
+    std::fs::create_dir_all(&root).unwrap();
+    let directory = tempfile::tempdir_in(root).unwrap();
     let mut args = args(None);
     let path = directory.path().join("baseline.json");
     args.output = Some(path.clone());
@@ -426,4 +428,43 @@ fn perilous_predicament_census_records_two_distinct_normal_forms() {
     assert_eq!(computed.len(), 2);
     assert_eq!(recorded.len(), 2);
     assert_eq!(recorded, computed);
+}
+
+#[test]
+fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
+    use deckmaste_lexical::Category as LexicalCategory;
+    fn commuting_word(id: &str, noun: bool) -> bool {
+        let name = if noun { "NounPremodifier" } else { "Adjective" };
+        let debug = format!(
+            "{name} {{ form: 0, head: Word {{ value: Word(Word {{ lexeme: Ident({id:?}) }}) }} }}"
+        );
+        Parser { input: &debug }.tree().unwrap().commuting_pre(noun)
+    }
+    let mut admitted = BTreeSet::new();
+    for (id, lexeme) in lexicon().lexemes() {
+        let reviewed = match lexeme.category {
+            LexicalCategory::Adjective => commuting_word(id.as_str(), false),
+            LexicalCategory::Noun => commuting_word(id.as_str(), true),
+            _ => false,
+        };
+        let declared = lexeme
+            .properties
+            .features
+            .get("NominalModifierOrder")
+            .map_or("Barrier", String::as_str);
+        assert_eq!(
+            declared,
+            if reviewed { "Commuting" } else { "Barrier" },
+            "{id}"
+        );
+        if reviewed {
+            admitted.insert(id.to_string());
+        }
+    }
+    assert!(admitted.contains("vocab:ColorWord/Red"));
+    assert!(admitted.contains("vocab:PredicativeAdjective/Legendary/non"));
+    assert!(admitted.contains("lexeme:keyword_action/tap/adjective"));
+    assert!(admitted.contains("lexeme:type/artifact"));
+    assert!(!admitted.contains("vocab:ColorWord/Red/non"));
+    assert!(!admitted.contains("lexeme:type/artifact/non"));
 }
