@@ -707,5 +707,5 @@ the change introduces no citation sites. The full corpus gate ran on the final
 production grammar; subsequent edits only re-spelled tests and documentation.
 README and glossary are current for the conservative conversion.
 
-Census delta (conservative layers): faces read 30,794 → 30,794; Readings 482,041 → 392,155; lost faces none.
+Census delta (`ukzuxpux`, conservative layers): faces read 30,794 → 30,794; Readings 482,041 → 392,155; lost faces none.
 Judgment set: does not apply yet.
