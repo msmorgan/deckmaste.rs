@@ -565,6 +565,14 @@ coordination available under shared subjects, modals, auxiliaries and other
 wrappers, and leaves correlative coordination alone. Both admission and
 realization enforce the imperative restriction.
 
+The summary costs two authored interface entries and no handwritten exports or
+unary lifts. A structural predicate layer would put an extra lift on every
+noncoordinated predicate, or duplicate its producer routes; the summary is kept
+instead. Same-coordinator grouping remains admitted: the existing member
+Categories do not distinguish the exact outer coordinator, and excluding all
+coordinated left members would also exclude mixed-coordinator analyses. The
+normal-form check nevertheless identifies the reviewed grouping equivalence.
+
 ### Restricted Reading normal-form check
 
 The census records a sorted set of SHA-256 normal-form fingerprints for each

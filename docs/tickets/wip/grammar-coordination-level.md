@@ -17,7 +17,7 @@ It keeps distinct: subjects, modals, quantifiers, any dependent and the head it 
 ## The change
 
 - A chain of bare imperatives is coordinated as imperative clauses.
-- A chain joined by the same coordinator has one grouping: the existing serial forms where they apply, otherwise right-associated binary coordination.
+- Same-coordinator grouping remains in the gate equivalence. The owner subsequently limited grammar canonicalisation to an existing structural restriction without another policing feature; the measured 442 remaining twins are deliberately retained (see closure below).
 - Verb-phrase coordination is not disabled in general, and no global level convention is introduced: a shared subject, modal or auxiliary still coordinates below it.
 - Use the `coordinable` blocks, templates and existing summaries; no new compiler capability is expected. If one turns out to be needed, stop.
 
@@ -99,7 +99,7 @@ read before and after, no lost face or changed unit set. Readings fell from
 373,659 to 354,454 (19,205 removed); 1,981 faces decreased and none increased.
 The 75,412 units retain exactly their 354,012 normal forms. The retained census
 pair is `combined-baseline.json` and `after.json`; `imperative-gate.log` records
-the result. The remaining 442 redundant trees require the grouping step.
+the result. The remaining 442 redundant trees are grouping twins, deliberately retained under the owner's subsequent size constraint.
 
 | Unit (zero-based index) | Before | After | Normal forms, unchanged |
 | --- | ---: | ---: | ---: |
@@ -134,12 +134,66 @@ ignored Mana-symbol subject test with its named blocker. Full xtask tests:
 both crates with `--tests -- -D warnings` passed. README and glossary describe
 the gate and local predicate-coordination property.
 
-This is a complete gate-passing prefix, not a completed ticket. Remaining:
-impose canonical homogeneous grouping, rewrite its intended-analysis tests,
-run its full gate/tests/clippy, and finish the ticket. Attachment licensing,
-shared determiner/modifier/operator scope, finite-plus-imperative hybrids and
-Then/adversative reassociation were not changed. The existing Erode
-shared-subject tests were left unchanged; their scope questions belong later.
+## Closure and structural comparison — qvumruql
 
-Census delta (prefix wllxrvoo): 30,794 → 30,794 faces read; 373,659 → 354,454 Readings; lost faces none.
+The owner narrowed completion after the prefix: remove the remaining 442 grouping
+twins only through existing structure without another threaded policing feature;
+compare structural alternatives to the imperative flag and retain it if smaller.
+Both checks are complete. No further grammar or normaliser change was made.
+
+**Grouping: deliberately retained.** Coordination's schema binds both `left` and
+`right` to the same member Category; the generator's `of` chooses that member
+Category for both sides, not a left-only subset. A serial tail changes `right`
+to a helper, but its members are still the same Category. The current summaries
+have no exact root-coordinator identity. `ClauseCoordinationHost` distinguishes
+simple/coordinated, and `HeadCoordination` distinguishes no/yes; neither tells
+And from Or, AndOr, Then or But. `CoordinationKind` is also too coarse.
+
+Dropping binary forms loses two-member joins; dropping serial forms loses their
+punctuation. Requiring an uncoordinated left member would also ban mixed-marker
+bracketings that this gate protects, for example `(A or B) and C`. Existing
+NominalCore is not an uncoordinated subset (coordination itself produces it).
+The same issue applies to the other member Categories. Marker-specific category
+families could encode this state structurally, but they are new parallel grammar
+layers with repeated producer routes/lifts, not a restriction supplied by the
+existing structure. The practical small change would need exact-coordinator
+state in summaries, hence another policing feature. It is not worth 442 trees
+and is forbidden by the revised brief. The gate's grouping normalisation stays;
+no tests now claim that its remaining twins are different analyses.
+
+**Imperative flag: retained after comparison.** Counts below are of authored
+source; alternative line ranges are design estimates, not implemented changes.
+The inventory is seven explicit SecondaryVerbPhrase constructions and 31
+schema-instance result rows (38 noncoordination producer sites). Its interface
+has nine entries without the new flag; BarePredicate has three without it.
+
+| Design | Categories / lifts added | Authored cost and consequence |
+| --- | --- | --- |
+| Retained flag | 0 / 0 | Six lines: feature, two interface entries, one context override, one requirement and its comment. Zero handwritten `export` equations. Local on SecondaryVerbPhrase; head on BarePredicate. Generated ordinary/correlative series summaries also carry the feature. |
+| Noncoordinated predicate layer, Imperative directly accepts it | 1 / 1 | Roughly 15–25 added lines for a nine-entry interface, lift, split correlative/result declarations and revised imperative form/Plain requirement, plus retargeting 38 producer sites. Every noncoordinated predicate gets a lift when used as SecondaryVerbPhrase. Removes the BarePredicate wrapper under Imperative, requiring a changed Reading shape and gate adapter. |
+| Layer preserving the BarePredicate wrapper for imperative use | 2 / 2 | Roughly 25–40 added lines plus the 38 retargeted sites: separate restricted and general bare routes are needed because auxiliary complements must still accept coordinated predicates. One lift remains on every noncoordinated predicate. |
+| Separate result Category for binary/serial predicate coordination | 1 / at least 1 | Roughly 15–25 lines for the nine-entry result interface, block split and inclusion route, before changing consumers. Lifting that result back into SecondaryVerbPhrase lets the old Imperative accept it again, so this alone does not impose the restriction. Making SecondaryVerbPhrase the inclusive layer reduces to the preceding designs. |
+| Parallel restricted producers, no lifts | At least 1 / 0 | Duplicate the 38 noncoordination producer routes (31 instance rows and seven construction bodies), plus correlative routes/interface and an imperative-specific bare route. Estimated well over 100 authored lines; internal heads must still accept the broad Category so wrapper scope is preserved. This repeats the grammar to avoid one summary bit. |
+
+The layer with a ubiquitous lift is expressly excluded by the owner. The
+no-lift alternative is substantially larger and less clear. The existing flag
+is a root-construction distinction, reset by wrappers, not accumulated history;
+it remains a policing feature, but the smallest honest expression available
+without a new compiler capability. No alternative was implemented or presented
+as gate-proven.
+
+The README records both decisions; existing glossary entries for Reading Normal
+Form and Ordinary Predicate Coordination remain accurate. This closing commit
+changes documentation only, so the full raw/normal-form gate results and full
+English/xtask tests and clippy above remain applicable. No new tests were added,
+rewritten or retired at closure. No lexicon change was made anywhere in the ticket.
+
+The ticket is complete under the revised scope, ready for review, not integrated.
+Attachment licensing, shared determiner/modifier/operator scope,
+finite-plus-imperative hybrids and Then/adversative reassociation were not changed.
+The existing Erode shared-subject tests were left unchanged; their scope questions
+belong later. The 442 grouping twins are an explicit cost decision, not an
+unfinished implementation obligation.
+
+Census delta (wllxrvoo; unchanged at qvumruql): 30,794 → 30,794 faces read; 373,659 → 354,454 Readings; lost faces none.
 Judgment set: does not apply yet.
