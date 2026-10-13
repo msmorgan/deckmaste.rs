@@ -91,11 +91,8 @@ them.
   includes wrong readings, an exact tree for an analysis nobody endorses), is retired or
   rewritten to assert what is wanted. Say which, by name, and why.
 - A grammar test asserts the intended analysis. It asserts a count only when the count is the
-  claim: exactly one, or exactly the set of analyses each of which is endorsed (Seedborn Muse:
-  *during each other player's untap step* says either when to untap or when you control the
-  permanents; both stay, and telling them apart is a semantics judgment).
-- Never swap a value comparison for a `discriminant`/`matches!` check. Never `#[ignore]` without
-  naming the exact blocker.
+  claim: exactly one, or exactly the set of analyses each of which is endorsed.
+- Never `#[ignore]` without naming the exact blocker.
 - Report tests added, rewritten and retired, with a reason for each retirement.
 
 ## Tests for a landing
