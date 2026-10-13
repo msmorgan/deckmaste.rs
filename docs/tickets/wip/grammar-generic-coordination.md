@@ -72,8 +72,18 @@ last-user tables coordinated_frequency_use, coordinated_final_adjunct and
 coordinated_duration_use are removed; their present/absent domains were also
 exhaustively compared. All constructor and admission contracts remain identical.
 
-Remaining families are pending their separate conversion and gate: PrepositionPhrase,
-SelectedPrepositionHead, finite/secondary predicates and selected heads, object gaps,
+PrepositionPhrase and SelectedPrepositionHead replace fifteen instance rows and
+three helper interfaces with two blocks. LocativeUse overrides the feature default;
+selected-head helpers omit HeadCoordination. ObliquePrepositionConcord and
+PrepositionPermissions and SharedHeadStatus have no remaining users. Eight last-user Boolean tables
+are removed: complement_marker_concord, coordinated_focus,
+coordinated_initial_adjunct, coordinated_intervening_adjunct,
+coordinated_locative_use, nominal_exception_concord, selected_preposition_concord
+and source_modifier_presence. All thirteen table-to-primitive uses were compared
+on all nine present/absent input pairs; the 670 shape and 927 admission contracts
+remain identical. Multi-valued tables and tables with other users remain.
+
+Remaining families are pending their separate conversion and gate: finite/secondary predicates and selected heads, object gaps,
 Clause/FiniteClause, focused adjuncts, Cardinal, MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
@@ -81,5 +91,5 @@ KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedTex
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`qrnutumt`, adverb family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`qrnutumt`): does not apply yet.
+Census delta (`xwplqstz`, preposition family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`xwplqstz`): does not apply yet.

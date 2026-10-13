@@ -97,12 +97,17 @@ neither field order nor form indices, Reading shapes, admission, chart or runtim
 
 English coordination structure stays in grammar-owned schemas. The compiler
 binds their member Categories and derives feature equations and helper summaries.
-Nominal, NounPhrase, adjective and adverb coordination use this facility. Correlative
+Nominal, NounPhrase, adjective, adverb and preposition coordination use this facility. Correlative
 adjectives bind AdjectivePhrase members to CorrelativeAdjectivePhrase results
 and explicitly name CorrelativeAdjectiveSeries. AdverbPhrase uses one admission
 requirement, copies UnmarkedConjunctLicence on ordinary forms, and omits it from
 correlative helpers; completed correlatives retain the feature default `always Yes`.
-Other families still use explicit instances until their conversion is verified.
+PrepositionPhrase retains its ordinary-adjunct admission requirement and combines
+LocativeUse with `all`, overriding the feature default. SelectedPrepositionHead
+omits HeadCoordination from helpers; completed coordination supplies `always Yes`.
+Their multi-valued judgments remain named tables, including the four-argument
+complement-function judgment. Other families still use explicit instances until
+their conversion is verified.
 
 ```rust
 feature Permission { No, Yes } default No combine all;
