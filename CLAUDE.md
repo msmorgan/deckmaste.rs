@@ -84,15 +84,19 @@ them.
 
 ## Assurance
 
-- Never reach green by removing what could fail. A failing test whose subject still exists is
-  fixed in the code. A test whose subject is deliberately retired is **re-spelled** against the
-  replacement (same card, same asserted outcome), never deleted.
+- Never make a change pass by removing or weakening the check that would fail. If a test fails
+  and what it asserts is still wanted, fix the code. A genuine regression is a successful find:
+  fix it; stop only if the fix fails, leaves the ticket, or needs a decision.
+- A test that asserts something wrong, or pins incidental behaviour (a reading count that
+  includes wrong readings, an exact tree for an analysis nobody endorses), is retired or
+  rewritten to assert what is wanted. Say which, by name, and why.
+- A grammar test asserts the intended analysis. It asserts a count only when the count is the
+  claim: exactly one, or exactly the set of analyses each of which is endorsed (Seedborn Muse:
+  *during each other player's untap step* says either when to untap or when you control the
+  permanents; both stay, and telling them apart is a semantics judgment).
 - Never swap a value comparison for a `discriminant`/`matches!` check. Never `#[ignore]` without
   naming the exact blocker.
-- A genuine regression is a successful find: fix it; stop only if the fix fails, leaves the
-  ticket, or needs a ruling. Never integrate around it or weaken the test.
-- Report restored / re-spelled / ignored / added / removed counts; justify each removal by name.
-  (Origin: a 2026-09-02 landing deleted 164 tests and shipped six regressions.)
+- Report tests added, rewritten and retired, with a reason for each retirement.
 
 ## Tests for a landing
 
