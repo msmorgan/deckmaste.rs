@@ -53,8 +53,9 @@ their bare-imperative level twins normalize. The asyndetic premodifier use of
 SerialCoordination is explicitly outside this adapter (Waste Not exercised the
 shared schema name); focused adjuncts retain their exceptional helper name.
 
-The raw baseline and combined baseline are in
-`target/english-v3/coordination/{raw-baseline,combined-baseline}.json`.
+The combined baseline is in
+`target/english-v3/coordination/combined-baseline.json`. The raw predecessor
+census was deleted after the raw gate passed; `raw-gate.log` retains its result.
 Full raw digest identity passed on all 32,828 faces: 30,794 read and 373,659
 Readings before and after, zero issues. The combined baseline records 354,012
 normal forms over 75,412 units: 19,647 redundant trees under this equivalence.
@@ -83,8 +84,62 @@ schema census test. Clippy with `--tests -- -D warnings` passed. Citation audit
 had no changed citation sites; citation checks found no stale or noncompliant
 citations.
 
-Remaining: impose the bare-imperative Clause convention and canonical grouping
-in the grammar; update intended-analysis grammar tests; run the combined gate,
-full tests and clippy for each touched crate; record the final census delta.
-Attachment licensing, determiner/modifier scope and finite-plus-imperative
-hybrids remain outside this ticket.
+## Bare imperative level — wllxrvoo
+
+OrdinaryPredicateCoordination defaults to No. It is local on SecondaryVerbPhrase,
+head-propagated on BarePredicate, and set to Yes only for binary and serial
+SecondaryVerbPhrase coordination. Imperative requires No. Other verb-phrase
+constructions reset it locally, so coordination inside a modal, auxiliary or
+adjunct remains available; correlatives remain unchanged. This is six authored
+grammar lines, with no lexicon, compiler capability, constructor, field or form
+change. SupplementAnchorImperative is outside this change.
+
+The full `diff --check normal-forms` gate passed: 32,828 faces checked, 30,794
+read before and after, no lost face or changed unit set. Readings fell from
+373,659 to 354,454 (19,205 removed); 1,981 faces decreased and none increased.
+The 75,412 units retain exactly their 354,012 normal forms. The retained census
+pair is `combined-baseline.json` and `after.json`; `imperative-gate.log` records
+the result. The remaining 442 redundant trees require the grouping step.
+
+| Unit (zero-based index) | Before | After | Normal forms, unchanged |
+| --- | ---: | ---: | ---: |
+| Slimefoot's Survey 0 | 10,368 | 7,776 | 7,776 |
+| Bring to Light 0 | 10,200 | 6,800 | 6,800 |
+| Beneath the Sands 0 | 12 | 6 | 6 |
+| Deliberate 0 | 2 | 1 | 1 |
+| Deadly Dispute 1 | 2 | 1 | 1 |
+
+Added `bare_instruction_pairs_are_independently_constructible_coordinated_clauses`:
+And and Then pairs parse as exactly the independently built coordinated Clauses,
+which admit and realize; the old imperative-over-coordinated-predicates value
+rejects admission and realization, while standalone predicate coordination remains.
+Four tests were rewritten for their existing intended witnesses:
+
+- `beneath_the_sands_retains_the_final_link_in_a_flat_serial_list`: the final-link
+  constituent is ClauseSeries rather than SecondaryPredicateSeries; spans and
+  member assertions remain.
+- `cryptic_annelid_retains_marker_readings_without_an_unmarked_adverb_conjunct`:
+  remove the incidental count 11 (now 5); require readings and retain every
+  per-Reading coordinator/adverb distinction.
+- `selected_and_comparative_controls_gain_no_as_adjunct`: remove incidental
+  control counts (Counterbore 22 to 11; Aven Shrine 9 and Clone 5 unchanged);
+  require readings and retain all unwanted-as-adjunct exclusions.
+- `open_the_gates_preserves_coordination_without_card_as_a_coordinated_premodifier`:
+  remove the incidental count 20 (now 10); require readings and retain every
+  exclusion of Card as a noun premodifier.
+
+No whole test was retired. Full English tests: 1,166 passed, one pre-existing
+ignored Mana-symbol subject test with its named blocker. Full xtask tests:
+499 passed, one pre-existing ignored live-corpus macro census test. Clippy for
+both crates with `--tests -- -D warnings` passed. README and glossary describe
+the gate and local predicate-coordination property.
+
+This is a complete gate-passing prefix, not a completed ticket. Remaining:
+impose canonical homogeneous grouping, rewrite its intended-analysis tests,
+run its full gate/tests/clippy, and finish the ticket. Attachment licensing,
+shared determiner/modifier/operator scope, finite-plus-imperative hybrids and
+Then/adversative reassociation were not changed. The existing Erode
+shared-subject tests were left unchanged; their scope questions belong later.
+
+Census delta (prefix wllxrvoo): 30,794 → 30,794 faces read; 373,659 → 354,454 Readings; lost faces none.
+Judgment set: does not apply yet.

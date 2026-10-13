@@ -1554,6 +1554,11 @@ A verb's declared permission for right nonce-constituent coordinates to use
 different complete Verb Frames it declares. An Object + goal coordinate may
 include the Manner Complement its own frame selects.
 
+**Ordinary Predicate Coordination** (project term):
+At the verb-phrase level, whether a predicate's outermost Construction is
+noncorrelative Coordination. Coordination contained inside another Construction does not make that enclosing
+predicate an Ordinary Predicate Coordination.
+
 **Correlative Coordination**:
 A Coordination with a marker associated with its first Conjunct and a paired
 Coordinator, as in *both … and*, *either … or*, or *neither … nor*.

@@ -114,6 +114,7 @@ constructions! {
             (_, _) => No,
         }
         feature ClauseCoordinationHost { Simple, Coordinated } default Simple combine always Coordinated;
+        feature OrdinaryPredicateCoordination { No, Yes } default No combine always No;
         feature ClauseComplementBoundary { None, Finite, Verbless } default None combine coordinated_clause_complement_boundary;
         feature ConnectiveAdjunctUse { No, Yes } default No combine all;
         table nonconnective_trailing_adjunct_host(ClauseComplementBoundary) -> Selection {
@@ -586,6 +587,7 @@ constructions! {
             head SourceComplementSelection
         );
         category SecondaryVerbPhrase(
+            local OrdinaryPredicateCoordination,
             head ParticipialSupplementUse, local NominalAdjunctHost,
             local ClauseComplementBoundary combine always None,
             head form combine same,
@@ -602,6 +604,7 @@ constructions! {
             head SourceComplementSelection
         );
         category BarePredicate(
+            head OrdinaryPredicateCoordination,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category ParticipialPredicate(
@@ -1741,6 +1744,7 @@ constructions! {
 
         coordinable SecondaryVerbPhrase using WithoutGeneralCoordinatorRequirement {
             forms binary, serial, both, either, neither;
+            on binary, serial { combine OrdinaryPredicateCoordination = always Yes; }
             helper SecondaryPredicateSeries;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
@@ -2786,6 +2790,8 @@ constructions! {
         construction Imperative: Clause {
             head predicate;
             form [predicate: BarePredicate];
+            // Bare instruction lists coordinate their imperative Clauses.
+            require predicate.OrdinaryPredicateCoordination = No;
         }
 
         // CGEL Ch. 8 §20.1, p. 781: without a Subject, front and

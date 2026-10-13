@@ -554,6 +554,17 @@ three entries in the two postmodified auxiliary constructions, not every
 auxiliary; `FusedHeadUse` licenses the particular *anywhere*/*this* path, not
 all determinatives with fused-head uses.
 
+### Bare imperative coordination
+
+Ordinary instruction lists coordinate imperative Clauses. The local
+`OrdinaryPredicateCoordination` summary marks an ordinary binary or serial join
+at the root of a SecondaryVerbPhrase; other SecondaryVerbPhrase constructions
+reset it to No.
+BarePredicate carries it to Imperative, which requires No. This leaves predicate
+coordination available under shared subjects, modals, auxiliaries and other
+wrappers, and leaves correlative coordination alone. Both admission and
+realization enforce the imperative restriction.
+
 ### Restricted Reading normal-form check
 
 The census records a sorted set of SHA-256 normal-form fingerprints for each
