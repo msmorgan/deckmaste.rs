@@ -18,7 +18,8 @@ constructions! {
         feature ComparativeDegreeModifierUse { No, Yes } default No;
         feature FrequencyUse { No, Yes } default No;
         table coordinated_frequency_use(FrequencyUse, FrequencyUse) -> FrequencyUse {
-            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature PredeterminerUse { No, Multiplier, Fraction, UniversalQuantifier } default No;
         table predeterminer_host(PredeterminerUse, Definiteness, NounPhraseStructure) -> Selection {
@@ -41,7 +42,8 @@ constructions! {
         feature ParticipialSupplementUse { No, Yes } default No;
         table coordinated_participial_supplement(ParticipialSupplementUse, ParticipialSupplementUse)
             -> ParticipialSupplementUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature Definiteness { Unspecified, Nondefinite, Definite } default Unspecified;
         feature NounPhraseStructure { Other, ProperName, IndefiniteArticle,
@@ -96,7 +98,8 @@ constructions! {
         }
         table coordinated_targeting_premodifier(TargetingPremodifierUse, TargetingPremodifierUse)
             -> TargetingPremodifierUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature ClauseCoordinationHost { Simple, Coordinated } default Simple;
         feature ClauseComplementBoundary { None, Finite, Verbless } default None;
@@ -119,7 +122,8 @@ constructions! {
         }
         table connective_adjunct_concord(ConnectiveAdjunctUse, ConnectiveAdjunctUse)
             -> ConnectiveAdjunctUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature CoordinationKind { Additive, Alternative, Adversative }
         feature PrepositionComplement { NounPhrase, PredicativeNounPhrase, PrepositionPhrase, Intransitive } set;
@@ -134,7 +138,8 @@ constructions! {
         feature FocusedUse { No, Yes } default No;
         // CF7: a focused coordinate blocks focus on the whole coordination.
         table coordinated_focus(FocusedUse, FocusedUse) -> FocusedUse {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         // CF8: two focused Adjuncts use the common member route exclusively.
         table ordinary_adjunct_coordination(FocusedUse, FocusedUse) -> Selection {
@@ -144,12 +149,14 @@ constructions! {
         feature PredicativeAdjunctUse { No, Yes } default No;
         table predicative_adjunct_concord(PredicativeAdjunctUse, PredicativeAdjunctUse)
             -> PredicativeAdjunctUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature PurposeAdjunctLicence { No, Yes } default Yes;
         table coordinated_purpose_licence(PurposeAdjunctLicence, PurposeAdjunctLicence)
             -> PurposeAdjunctLicence {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature FusedHeadUse { No, Yes } default No;
         feature ImmediatePostheadDependentUse { No, Yes } default No;
@@ -217,7 +224,8 @@ constructions! {
         feature SourceComplementSelection { No, Yes } default No;
         table source_selection_union(SourceComplementSelection, SourceComplementSelection)
             -> SourceComplementSelection {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         // Orchestrator ruling RS2: a source-selected PP is a Complement.
         table source_adjunct_admission(SourceComplementSelection, SourceMarker) -> Selection {
@@ -225,14 +233,17 @@ constructions! {
         }
         feature SourceModifierPresent { No, Yes } default No;
         table source_modifier_presence(SourceModifierPresent, SourceModifierPresent) -> SourceModifierPresent {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table nominal_source_modifier(SourceModifierPresent, SourceMarker) -> SourceModifierPresent {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         feature WholeObjectSourcePresent { No, Yes } default No;
         table whole_object_source_presence(WholeObjectSourcePresent, WholeObjectSourcePresent) -> WholeObjectSourcePresent {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table whole_object_source_modifier(WholeObjectSourcePresent, WholeObjectSourcePresent, SourceMarker) -> WholeObjectSourcePresent {
             (No, No, No) => No, (Yes, _, _) => Yes,
@@ -243,7 +254,8 @@ constructions! {
             (No, _) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
         table coordinated_source_marker(SourceMarker, SourceMarker) -> SourceMarker {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table licensed_preposition_phrase_complement(PrepositionPhraseComplementLicence,
             SourceComplementUse, PrepositionPhraseComplementMarker) -> Selection {
@@ -255,7 +267,8 @@ constructions! {
         }
         table coordinated_source_complement_use(SourceComplementUse, SourceComplementUse)
             -> SourceComplementUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table selected_compound_complement(CompoundComplementMarker, NominalComplementMarker)
             -> Selection { (Of, Of) => Yes, }
@@ -292,12 +305,14 @@ constructions! {
         feature ComparativeObjectGapLicence { No, Yes } default No;
         table comparative_gap_concord(ComparativeObjectGapLicence, ComparativeObjectGapLicence)
             -> ComparativeObjectGapLicence {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature InterveningAdjunctLicence { No, Yes } default No;
         table coordinated_intervening_adjunct(InterveningAdjunctLicence, InterveningAdjunctLicence)
             -> InterveningAdjunctLicence {
-            (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature IrrealisClauseComplement { No, Yes } default No;
         feature VerblessClauseComplement { No, Yes, OvertSubject } default No;
@@ -362,11 +377,13 @@ constructions! {
         }
         table auxiliary_pro_form_concord(AuxiliaryProFormLicence,
             AuxiliaryProFormLicence) -> AuxiliaryProFormLicence {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table auxiliary_ellipsis_concord(AuxiliaryEllipsisLicence,
             AuxiliaryEllipsisLicence) -> AuxiliaryEllipsisLicence {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         feature Clitic { No, Yes } default No;
         feature CliticHost { Free, Subject, PronounSubject }
@@ -383,7 +400,8 @@ constructions! {
             (None) => No, (Before) => Yes,
         }
         table arithmetic_unit_bearing(UnitBearing, UnitBearing) -> UnitBearing {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         feature ScalarMeasurementHeadUse { No, Yes } default No;
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None;
@@ -477,11 +495,13 @@ constructions! {
         feature SelectedPrepositionUse { No, Yes } default No;
         table selected_preposition_concord(SelectedPrepositionUse, SelectedPrepositionUse)
             -> SelectedPrepositionUse {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table selected_preposition_complement(SelectedPrepositionUse, SelectedPrepositionUse)
             -> SelectedPrepositionUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table nominal_postmodifier_licence(NominalComplementMarker, NominalComplementMarker)
             -> Selection {
@@ -532,7 +552,8 @@ constructions! {
         }
         table coordinated_attribute_premodifier_head(AttributePremodifierHead,
             AttributePremodifierHead) -> AttributePremodifierHead {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table coordinated_keyword_premodifier_head(KeywordPremodifierHead,
             KeywordPremodifierHead) -> KeywordPremodifierHead {
@@ -1251,15 +1272,18 @@ constructions! {
         // Local complement selection, not the voice of an auxiliary chain.
         table complement_marker_concord(InternalisedComplementMarker,
             InternalisedComplementMarker) -> InternalisedComplementMarker {
-            (Yes, Yes) => Yes, (No, Yes) => No, (Yes, No) => No, (No, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table complement_presence(InternalisedComplementPresent,
             InternalisedComplementPresent) -> InternalisedComplementPresent {
-            (Yes, Yes) => Yes, (No, Yes) => Yes, (Yes, No) => Yes, (No, No) => No,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table internalised_complement_presence(InternalisedComplementPresent,
             InternalisedComplementMarker) -> InternalisedComplementPresent {
-            (Yes, Yes) => Yes, (No, Yes) => Yes, (Yes, No) => Yes, (No, No) => No,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table coordinated_participial_use(ParticipialUse, ParticipialUse) -> ParticipialUse {
             (Ordinary, Ordinary) => Ordinary,
@@ -1373,7 +1397,8 @@ constructions! {
         }
         table coordinated_transparency(NumberTransparency, NumberTransparency)
             -> NumberTransparency {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         table coordinated_oblique(CoordinationKind, ObliqueNumber, ObliqueNumber)
             -> ObliqueNumber {
@@ -1740,44 +1765,8 @@ constructions! {
         }
         table coordinated_property_value_position(CoordinationKind, PropertyValuePosition,
             PropertyValuePosition) -> PropertyValuePosition {
-            (Additive, None, None) => None, (Additive, None, Single) => None,
-            (Additive, None, First) => None, (Additive, None, Second) => None,
-            (Additive, None, Pair) => None, (Additive, Single, None) => None,
-            (Additive, Single, Single) => None, (Additive, Single, First) => None,
-            (Additive, Single, Second) => None, (Additive, Single, Pair) => None,
-            (Additive, First, None) => None, (Additive, First, Single) => None,
-            (Additive, First, First) => None, (Additive, First, Second) => Pair,
-            (Additive, First, Pair) => None, (Additive, Second, None) => None,
-            (Additive, Second, Single) => None, (Additive, Second, First) => None,
-            (Additive, Second, Second) => None, (Additive, Second, Pair) => None,
-            (Additive, Pair, None) => None, (Additive, Pair, Single) => None,
-            (Additive, Pair, First) => None, (Additive, Pair, Second) => None,
-            (Additive, Pair, Pair) => None, (Alternative, None, None) => None,
-            (Alternative, None, Single) => None, (Alternative, None, First) => None,
-            (Alternative, None, Second) => None, (Alternative, None, Pair) => None,
-            (Alternative, Single, None) => None, (Alternative, Single, Single) => None,
-            (Alternative, Single, First) => None, (Alternative, Single, Second) => None,
-            (Alternative, Single, Pair) => None, (Alternative, First, None) => None,
-            (Alternative, First, Single) => None, (Alternative, First, First) => None,
-            (Alternative, First, Second) => None, (Alternative, First, Pair) => None,
-            (Alternative, Second, None) => None, (Alternative, Second, Single) => None,
-            (Alternative, Second, First) => None, (Alternative, Second, Second) => None,
-            (Alternative, Second, Pair) => None, (Alternative, Pair, None) => None,
-            (Alternative, Pair, Single) => None, (Alternative, Pair, First) => None,
-            (Alternative, Pair, Second) => None, (Alternative, Pair, Pair) => None,
-            (Adversative, None, None) => None, (Adversative, None, Single) => None,
-            (Adversative, None, First) => None, (Adversative, None, Second) => None,
-            (Adversative, None, Pair) => None, (Adversative, Single, None) => None,
-            (Adversative, Single, Single) => None, (Adversative, Single, First) => None,
-            (Adversative, Single, Second) => None, (Adversative, Single, Pair) => None,
-            (Adversative, First, None) => None, (Adversative, First, Single) => None,
-            (Adversative, First, First) => None, (Adversative, First, Second) => None,
-            (Adversative, First, Pair) => None, (Adversative, Second, None) => None,
-            (Adversative, Second, Single) => None, (Adversative, Second, First) => None,
-            (Adversative, Second, Second) => None, (Adversative, Second, Pair) => None,
-            (Adversative, Pair, None) => None, (Adversative, Pair, Single) => None,
-            (Adversative, Pair, First) => None, (Adversative, Pair, Second) => None,
-            (Adversative, Pair, Pair) => None,
+            (Additive, First, Second) => Pair,
+            (_, _, _) => None,
         }
         table premodified_property_value_position(AdjectiveOrigin, PropertyValuePosition)
             -> PropertyValuePosition {
@@ -1869,11 +1858,13 @@ constructions! {
         }
 
         table coordinated_scalar_denotation(ScalarDenotation, ScalarDenotation) -> ScalarDenotation {
-            (Yes, Yes) => Yes, (No, No) => No, (No, Yes) => No, (Yes, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
 
         table coordinated_targeting(Targeting, Targeting) -> Targeting {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table coordinated_determiner_agreement(DeterminerAgreementNumber, DeterminerAgreementNumber)
             -> DeterminerAgreementNumber {
@@ -1975,7 +1966,8 @@ constructions! {
 
         table nominal_exception_concord(NominalExceptionComplementUse, NominalExceptionComplementUse)
             -> NominalExceptionComplementUse {
-            (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         policy ObliquePrepositionConcord<Right, Source> {
             export PartitiveCountability = coordinated_partitive_countability(left.PartitiveCountability, Right.PartitiveCountability);
@@ -5080,7 +5072,8 @@ constructions! {
         }
         table nominal_dependent_presence(NominalDependentPresent, NominalDependentPresent)
             -> NominalDependentPresent {
-            (No, No) => No, (No, Yes) => Yes, (Yes, No) => Yes, (Yes, Yes) => Yes,
+            (No, No) => No,
+            (_, _) => Yes,
         }
         table nominal_adjunct_concord(NominalAdjunctClass, NominalAdjunctClass)
             -> NominalAdjunctClass {
@@ -5527,7 +5520,8 @@ constructions! {
         }
         table coordinated_cardinal_complement(CardinalComplementUse, CardinalComplementUse)
             -> CardinalComplementUse {
-            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
         policy ArithmeticCardinalPrepositionComplement {
             require head.MeasureOperator = Yes;
@@ -5890,7 +5884,8 @@ constructions! {
 
         table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
             -> SlashPremodifierUse {
-            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
 
         construction SlashModifiedNominal: Nominal {
@@ -6430,29 +6425,24 @@ constructions! {
         }
         table coordinated_locative_use(LocativeUse, LocativeUse) -> LocativeUse {
             (Yes, Yes) => Yes,
-            (Yes, No) => No,
-            (No, Yes) => No,
-            (No, No) => No,
+            (_, _) => No,
         }
 
 
         table coordinated_final_adjunct(VPFinalAdjunct, VPFinalAdjunct) -> VPFinalAdjunct {
             (Yes, Yes) => Yes,
-            (Yes, No) => No,
-            (No, Yes) => No,
-            (No, No) => No,
+            (_, _) => No,
         }
 
         table coordinated_initial_adjunct(ClauseInitialAdjunct,
             ClauseInitialAdjunct) -> ClauseInitialAdjunct {
             (Yes, Yes) => Yes,
-            (Yes, No) => No,
-            (No, Yes) => No,
-            (No, No) => No,
+            (_, _) => No,
         }
 
         table coordinated_duration_use(DurationUse, DurationUse) -> DurationUse {
-            (Yes, Yes) => Yes, (Yes, No) => No, (No, Yes) => No, (No, No) => No,
+            (Yes, Yes) => Yes,
+            (_, _) => No,
         }
 
         table coordinated_adjective_structure(AdjectiveStructure,
