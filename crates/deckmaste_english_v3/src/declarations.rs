@@ -93,7 +93,7 @@ constructions! {
             (Yes, Yes) => Yes,
             (_, _) => No,
         }
-        feature ClauseCoordinationHost { Simple, Coordinated } default Simple;
+        feature ClauseCoordinationHost { Simple, Coordinated } default Simple combine always Coordinated;
         feature ClauseComplementBoundary { None, Finite, Verbless } default None combine coordinated_clause_complement_boundary;
         feature ConnectiveAdjunctUse { No, Yes } default No combine all;
         table nonconnective_trailing_adjunct_host(ClauseComplementBoundary) -> Selection {
@@ -518,7 +518,7 @@ constructions! {
         feature SelectedTailLicence { ParallelFrames, DeclaredFrames } default ParallelFrames;
         feature BareCoordination { No, Yes } default Yes;
         feature CommaCoordination { No, Yes } default No;
-        feature GeneralCoordination { No, Yes } default Yes;
+        feature GeneralCoordination { No, Yes } default Yes combine coordinator.GeneralCoordination;
         feature UnmarkedConjunctLicence { No, Yes } default Yes combine always Yes;
         feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeKind { Both, Either, Neither }
@@ -843,9 +843,6 @@ constructions! {
         category CardTypeContinuation();
         category Subtypes();
         category SubtypeContinuation();
-        category ClauseSeries(
-            head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
-        );
         category AdverbPhrase(
             local NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
             head UnmarkedConjunctLicence, local FocusedUse, head FrequencyUse
@@ -887,12 +884,7 @@ constructions! {
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category CoordinatedFiniteClause(head GeneralCoordination);
-        category FiniteClauseSeries(head GeneralCoordination);
         category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
-        category CorrelativeClauseSeries(
-            head ClauseCoordinationHost, head CorrelativeCoordinator, head UnmarkedConjunctLicence,
-            head SourceComplementSelection
-        );
         category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeCardinalSeries(
             head number, head CorrelativeCoordinator, head CoordinationKind, head CardinalComplementUse
@@ -911,7 +903,6 @@ constructions! {
             head PredicativeAdjunctUse, head PrepositionPhraseComplementMarker, head SourceComplementUse,
             head SourceModifierPresent, head WholeObjectSourcePresent, head SourceMarker
         );
-        category CorrelativeFiniteClauseSeries(head CorrelativeCoordinator, head GeneralCoordination);
 
         frame_category NounPhrase = AccusativePhrase;
         // Owner rulings HO1/HO4 and HO8 (2026-10-11): frame shape and
@@ -1657,34 +1648,6 @@ constructions! {
             (PassiveInternalised) => Yes, (_) => No,
         }
 
-        policy UnmarkedConjunctHead<Right, Source> {
-            export UnmarkedConjunctLicence = Yes;
-        }
-
-        policy MarkedConjunctSeries<Right, Source> {
-            require Right.UnmarkedConjunctLicence = Yes;
-            export UnmarkedConjunctLicence = Yes;
-        }
-
-        policy LeadingConjunct<Right, Source> {
-            export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
-        }
-
-        policy UnmarkedConjunct<Right, Source> {
-            require Right.UnmarkedConjunctLicence = Yes;
-            export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
-        }
-
-        policy CoordinatedClauseHost<Right, Source> {
-            export SourceComplementSelection = source_selection_union(
-                left.SourceComplementSelection, Right.SourceComplementSelection);
-            export ClauseCoordinationHost = Coordinated;
-        }
-
-        policy ClauseCoordinationProperties<Right, Source> {
-            export GeneralCoordination = Source.GeneralCoordination;
-        }
-
         policy GeneralCoordinatorDistribution<Right, Source> {
             require Source.GeneralCoordination = Yes;
         }
@@ -1785,6 +1748,24 @@ constructions! {
         coordinable PastParticipleObjectGap using Clausal {
             forms binary, serial;
             on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
+        }
+
+        coordinable Clause using Clausal {
+            forms serial, either;
+            on serial, correlative_helper {
+                combine UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
+            }
+            // A following series must be licensed as an unmarked conjunct.
+            on schema(CoordinationSeriesContinuation), schema(SerialCoordination),
+                schema(CorrelativeSeriesContinuation), schema(EitherSerialCoordination) {
+                require right.UnmarkedConjunctLicence = Yes;
+            }
+        }
+
+        coordinable CoordinatedFiniteClause of FiniteClause using Clausal {
+            forms binary, serial, either;
+            helper FiniteClauseSeries;
+            correlative_helper CorrelativeFiniteClauseSeries;
         }
 
         schema CoordinationSeriesEnd {
@@ -2958,7 +2939,6 @@ constructions! {
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
-            (ClauseSeries, Clause, LeadingConjunct, CoordinatedClauseHost, NoConcord),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
@@ -2973,7 +2953,6 @@ constructions! {
             (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
-            (FiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
         ] {
@@ -2986,7 +2965,6 @@ constructions! {
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
-            (ClauseSeries, Clause, Self, UnmarkedConjunct, CoordinatedClauseHost),
             (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
                 QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
@@ -3001,7 +2979,6 @@ constructions! {
             (GrantedAbilitySeries, GrantedAbility, Self, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
-            (FiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
             (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
         ] {
@@ -3011,7 +2988,6 @@ constructions! {
         instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
-            (Clause, Self, ClauseSeries, UnmarkedConjunct, CoordinatedClauseHost),
             (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
                 QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
@@ -3026,7 +3002,6 @@ constructions! {
             (GrantedAbility, Self, GrantedAbilitySeries, GrantedAbilityCoordination),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
-            (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
         ] {
@@ -3304,7 +3279,6 @@ constructions! {
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
-            (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
         ] {
@@ -6072,7 +6046,6 @@ constructions! {
         // Nominal/AdjP deferred until pre-head placement is represented in summaries.
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Clause, Self, UnmarkedConjunctHead, CoordinatedClauseHost),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -6080,7 +6053,6 @@ constructions! {
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
-            (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6090,7 +6062,6 @@ constructions! {
 
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, LeadingConjunct, CoordinatedClauseHost),
             (CorrelativeManaPhraseSeries, ManaPhrase),
             (CorrelativeCardinalSeries, Cardinal, CardinalListEnd),
             (CorrelativeAmountSeries, Amount),
@@ -6098,7 +6069,6 @@ constructions! {
             (CorrelativeKeywordPhraseSeries, KeywordPhrase),
             (CorrelativeQuotedTextSeries, QuotedText),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
-            (CorrelativeFiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6108,7 +6078,6 @@ constructions! {
         instance CorrelativeSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
-            (CorrelativeClauseSeries, Clause, Self, UnmarkedConjunct, CoordinatedClauseHost),
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
             (CorrelativeCardinalSeries, Cardinal, Self, CardinalListEnd),
             (CorrelativeAmountSeries, Amount, Self),
@@ -6116,7 +6085,6 @@ constructions! {
             (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
             (CorrelativeQuotedTextSeries, QuotedText, Self),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
-            (CorrelativeFiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -6124,7 +6092,6 @@ constructions! {
         }
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Clause, Self, CorrelativeClauseSeries, MarkedConjunctSeries, CoordinatedClauseHost),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Cardinal, Self, CorrelativeCardinalSeries, CardinalAgreement),
             (Amount, Self, CorrelativeAmountSeries),
@@ -6132,7 +6099,6 @@ constructions! {
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
-            (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);

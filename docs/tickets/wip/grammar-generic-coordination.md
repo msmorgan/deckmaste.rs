@@ -103,13 +103,22 @@ already checked with the predicate family). Shape and admission contracts match.
 The sweep also removes CoordinatorKindSummary, whose final preposition user was
 already converted.
 
-Remaining families are pending their separate conversion and gate:
-Clause/FiniteClause, focused adjuncts, Cardinal, MeasurePhrase, GrantedAbility,
+Clause serial/either forms and CoordinatedFiniteClause replace fifteen rows and
+four helper interfaces. ClauseCoordination binary punctuation stays handwritten.
+Clause tail requirements use exact-schema contexts; finite clauses bind FiniteClause
+members to CoordinatedFiniteClause results with their existing helper names.
+CoordinatedClauseHost, ClauseCoordinationProperties, LeadingConjunct,
+UnmarkedConjunct, UnmarkedConjunctHead and MarkedConjunctSeries lose their last users.
+All 670 shape and 927 admission contracts match; no additional compiler capability
+was needed.
+
+Remaining families are pending their separate conversion and gate: focused adjuncts,
+Cardinal, MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
 KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`lspvpvyr`, object-gap family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`lspvpvyr`): does not apply yet.
+Census delta (`zqomlvlu`, clause family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`zqomlvlu`): does not apply yet.
