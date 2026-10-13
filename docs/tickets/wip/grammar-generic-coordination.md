@@ -146,9 +146,14 @@ would need a one-user profile or misleadingly reuse Clausal. The explicit instan
 and small concord policy state this more directly.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+KeywordQualityPreposition replaces four rows and its helper interface.
+QualityPrepositionConcord loses its last user. KeywordMarker uses strict same;
+the multi-valued coordinated_quality judgment remains a named table.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`rymyyopy`, governor family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`rymyyopy`): does not apply yet.
+Census delta (`xpkvulqm`, quality family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`xpkvulqm`): does not apply yet.

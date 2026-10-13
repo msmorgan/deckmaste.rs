@@ -134,6 +134,8 @@ DepictivePhrase and PredicativeComplement use different named kind judgments for
 
 ComparativeGovernorHead selects binary Standard coordination and retains its named comparison-marker judgment.
 
+KeywordQualityPreposition agrees on KeywordMarker and retains the named number judgment.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);

@@ -389,14 +389,14 @@ constructions! {
         feature BareSingularUse { No, Yes } default No;
         feature RelativeUse { No, Yes } default No;
         feature ExistentialUse { No, Yes } default No;
-        feature KeywordMarker { None, Among, For, From, Onto, To, Into, At, With, Of, On, Under }
+        feature KeywordMarker { None, Among, For, From, Onto, To, Into, At, With, Of, On, Under } combine same;
         feature KeywordPayloadOrder { AfterHead, BeforeHead, BoundSuffix }
         feature BoundKeyword { No, Yes }
         feature CreatureSubtypeStem { No, Yes } default No;
         feature CreatureSubtypeStemUse { No, Yes } default No;
         feature KeywordSeparator { Space, Dash, SpacedDash }
         feature KeywordParameterSeparator { Space, Dash, SpacedDash }
-        feature KeywordQualityNumber { Any, Singular, Plural }
+        feature KeywordQualityNumber { Any, Singular, Plural } combine coordinated_quality;
         feature Selection { Yes }
         feature Function { Genitive }
         feature HostEnding { Default, PluralS }
@@ -800,7 +800,6 @@ constructions! {
         category SelectedKeywordPreposition(head NominalComplementMarker);
         category KeywordQuality(head KeywordQualityNumber);
         category KeywordQualityPreposition(head KeywordMarker, head KeywordQualityNumber);
-        category KeywordQualityPrepositionSeries(head KeywordMarker, head KeywordQualityNumber);
         category SelectedComplementTail(head HeadCoordination);
         category SelectedComplementTailSeries(head HeadCoordination);
         category KeywordContinuation();
@@ -1745,6 +1744,10 @@ constructions! {
             forms binary;
         }
 
+        coordinable KeywordQualityPreposition using Standard {
+            forms binary, serial;
+        }
+
         schema CoordinationSeriesEnd {
             head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
@@ -2393,12 +2396,6 @@ constructions! {
         policy PrimitiveRightTail<Right, Source> {
             require Right.HeadCoordination = No;
         }
-        policy QualityPrepositionConcord<Right, Source> {
-            agree left.KeywordMarker = Right.KeywordMarker;
-            export KeywordMarker = left.KeywordMarker;
-            export KeywordQualityNumber = coordinated_quality(left.KeywordQualityNumber,
-                Right.KeywordQualityNumber);
-        }
         construction AdjectivalKeywordQuality: KeywordQuality {
             head phrase;
             form [phrase: AdjectivePhrase];
@@ -2906,7 +2903,6 @@ constructions! {
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
-            (KeywordQualityPrepositionSeries, KeywordQualityPreposition, QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
             (VerbalPremodifierSeries, VerbalPremodifier),
@@ -2927,8 +2923,6 @@ constructions! {
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
-            (KeywordQualityPrepositionSeries, KeywordQualityPreposition, Self,
-                QualityPrepositionConcord),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
             (VerbalPremodifierSeries, VerbalPremodifier, Self),
             (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
@@ -2945,8 +2939,6 @@ constructions! {
         instance SerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
-            (KeywordQualityPreposition, Self, KeywordQualityPrepositionSeries,
-                QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
             (VerbalPremodifier, Self, VerbalPremodifierSeries),
             (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
@@ -3219,7 +3211,6 @@ constructions! {
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (VerbalPremodifier, Self),
             (NounPremodifier, Self, NounPremodifierConcord),
-            (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (ManaPhrase, Self),
             (Amount, Self),
