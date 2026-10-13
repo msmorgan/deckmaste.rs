@@ -93,7 +93,17 @@ complement_presence and coordinated_participial_supplement. Six Boolean-table us
 were compared on all nine present/absent pairs. All 670 shape and 927 admission
 contracts remain identical.
 
-Remaining families are pending their separate conversion and gate: object gaps,
+FiniteObjectGap, BareObjectGap and PastParticipleObjectGap replace twenty-six rows
+and five helper interfaces. Their right-only clitic requirement, boundary omissions
+and differing form sets remain explicit. FiniteGapConcord, BareGapConcord and
+NoClauseComplementBoundary have no remaining users. The last-user tables
+comparative_gap_concord and coordinated_purpose_licence are removed; strict all
+was compared with the former on all nine present/absent pairs (the latter was
+already checked with the predicate family). Shape and admission contracts match.
+The sweep also removes CoordinatorKindSummary, whose final preposition user was
+already converted.
+
+Remaining families are pending their separate conversion and gate:
 Clause/FiniteClause, focused adjuncts, Cardinal, MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
@@ -101,5 +111,5 @@ KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedTex
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`yqlwrwzy`, predicate family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`yqlwrwzy`): does not apply yet.
+Census delta (`lspvpvyr`, object-gap family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`lspvpvyr`): does not apply yet.

@@ -114,6 +114,8 @@ Clausal profile: the same structural schemas without Standard’s GeneralCoordin
 requirement. Finite members require a free right-hand clitic host while retaining
 the left host. Predicate helpers omit result boundary features; selected-head
 helpers omit HeadCoordination. SecondaryPredicateSeries keeps its explicit name.
+FiniteObjectGap, BareObjectGap and PastParticipleObjectGap use the same profile and
+boundary omissions. The past-participle family selects only binary/serial forms.
 
 ```rust
 feature Permission { No, Yes } default No combine all;

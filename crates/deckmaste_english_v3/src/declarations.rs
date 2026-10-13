@@ -140,11 +140,6 @@ constructions! {
             (_, _) => No,
         }
         feature PurposeAdjunctLicence { No, Yes } default Yes combine all;
-        table coordinated_purpose_licence(PurposeAdjunctLicence, PurposeAdjunctLicence)
-            -> PurposeAdjunctLicence {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
         feature FusedHeadUse { No, Yes } default No;
         feature ImmediatePostheadDependentUse { No, Yes } default No;
         feature FusedHeadPostmodifierUse { No, Yes } default No;
@@ -281,12 +276,7 @@ constructions! {
             (Yes) => Yes, (Nonsequencing) => Yes,
         }
         feature FiniteObjectGapComplement { No, Yes } default No;
-        feature ComparativeObjectGapLicence { No, Yes } default No;
-        table comparative_gap_concord(ComparativeObjectGapLicence, ComparativeObjectGapLicence)
-            -> ComparativeObjectGapLicence {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
+        feature ComparativeObjectGapLicence { No, Yes } default No combine all;
         feature InterveningAdjunctLicence { No, Yes } default No combine all;
         feature IrrealisClauseComplement { No, Yes } default No;
         feature VerblessClauseComplement { No, Yes, OvertSubject } default No;
@@ -737,16 +727,16 @@ constructions! {
         category SubjectRelativeClause(head number);
         category ObjectRelativeClause(head RelativeGapKind);
         category FiniteObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary, head number,
-            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head number combine same,
+            head person combine same, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category BareObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary, head PurposeAdjunctLicence,
+            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category PastParticipleObjectGap(
-            local NominalAdjunctHost, local ClauseComplementBoundary, head PurposeAdjunctLicence,
+            local NominalAdjunctHost, local ClauseComplementBoundary combine always None, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category GerundParticipleObjectGap(
@@ -896,18 +886,6 @@ constructions! {
         );
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
-        category FiniteObjectGapSeries(
-            head number, head person, head CliticHost, head PurposeAdjunctLicence,
-            head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
-        );
-        category BareObjectGapSeries(
-            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
-            head ComparativeObjectGapLicence
-        );
-        category PastParticipleObjectGapSeries(
-            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
-            head ComparativeObjectGapLicence
-        );
         category CoordinatedFiniteClause(head GeneralCoordination);
         category FiniteClauseSeries(head GeneralCoordination);
         category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
@@ -927,15 +905,6 @@ constructions! {
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
-        category CorrelativeFiniteObjectGapSeries(
-            head number, head person, head CorrelativeCoordinator, head CliticHost,
-            head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
-            head ComparativeObjectGapLicence
-        );
-        category CorrelativeBareObjectGapSeries(
-            head CorrelativeCoordinator, head PurposeAdjunctLicence, head MatrixComplementLicence,
-            head SourceComplementSelection, head ComparativeObjectGapLicence
-        );
         category SelectedPrepositionHead(
             head LocativeUse combine all, head PrepositionFunctionLicence, head HeadCoordination,
             head InternalisedComplementMarker, head NominalComplementMarker, head SelectedPrepositionUse,
@@ -1530,37 +1499,6 @@ constructions! {
             export MeasureKind = left.MeasureKind;
         }
 
-        policy CoordinatorKindSummary<Right, Source> {
-            export CoordinationKind = Source.CoordinationKind;
-        }
-
-        policy FiniteGapConcord<Right, Source> {
-            export PurposeAdjunctLicence = coordinated_purpose_licence(
-                left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
-            export MatrixComplementLicence = matrix_host_concord(
-                left.MatrixComplementLicence, Right.MatrixComplementLicence);
-            export SourceComplementSelection = source_selection_union(
-                left.SourceComplementSelection, Right.SourceComplementSelection);
-            require Right.CliticHost = Free;
-            export CliticHost = left.CliticHost;
-            agree left.number = Right.number;
-            agree left.person = Right.person;
-            export number = left.number;
-            export person = left.person;
-            export ComparativeObjectGapLicence = comparative_gap_concord(
-                left.ComparativeObjectGapLicence, Right.ComparativeObjectGapLicence);
-        }
-        policy BareGapConcord<Right, Source> {
-            export PurposeAdjunctLicence = coordinated_purpose_licence(
-                left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
-            export MatrixComplementLicence = matrix_host_concord(
-                left.MatrixComplementLicence, Right.MatrixComplementLicence);
-            export SourceComplementSelection = source_selection_union(
-                left.SourceComplementSelection, Right.SourceComplementSelection);
-            export ComparativeObjectGapLicence = comparative_gap_concord(
-                left.ComparativeObjectGapLicence, Right.ComparativeObjectGapLicence);
-        }
-
         policy NoConcord<Right, Source> {
 
         }
@@ -1737,11 +1675,6 @@ constructions! {
             export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
         }
 
-        policy NoClauseComplementBoundary {
-            export NominalAdjunctHost = Yes;
-            export ClauseComplementBoundary = None;
-        }
-
         policy CoordinatedClauseHost<Right, Source> {
             export SourceComplementSelection = source_selection_union(
                 left.SourceComplementSelection, Right.SourceComplementSelection);
@@ -1836,6 +1769,22 @@ constructions! {
         coordinable SecondarySelectedHead using Clausal {
             forms binary, serial, both, either, neither;
             on helper { omit HeadCoordination; }
+        }
+
+        coordinable FiniteObjectGap using Clausal {
+            forms binary, serial, both, either, neither;
+            require right.CliticHost = Free;
+            on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
+        }
+
+        coordinable BareObjectGap using Clausal {
+            forms binary, serial, both, either, neither;
+            on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
+        }
+
+        coordinable PastParticipleObjectGap using Clausal {
+            forms binary, serial;
+            on helper { omit NominalAdjunctHost; omit ClauseComplementBoundary; }
         }
 
         schema CoordinationSeriesEnd {
@@ -3024,9 +2973,6 @@ constructions! {
             (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
-            (FiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord, NoConcord, NoConcord),
-            (BareObjectGapSeries, BareObjectGap, BareGapConcord, NoConcord, NoConcord),
-            (PastParticipleObjectGapSeries, PastParticipleObjectGap, BareGapConcord, NoConcord, NoConcord),
             (FiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, PredicativeListEnd),
@@ -3055,9 +3001,6 @@ constructions! {
             (GrantedAbilitySeries, GrantedAbility, Self, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
-            (FiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
-            (BareObjectGapSeries, BareObjectGap, Self, BareGapConcord),
-            (PastParticipleObjectGapSeries, PastParticipleObjectGap, Self, BareGapConcord),
             (FiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
             (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
             (PredicativeComplementSeries, PredicativeComplement, Self, PredicativeListEnd),
@@ -3083,9 +3026,6 @@ constructions! {
             (GrantedAbility, Self, GrantedAbilitySeries, GrantedAbilityCoordination),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
-            (FiniteObjectGap, Self, FiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, BareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
-            (PastParticipleObjectGap, Self, PastParticipleObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, FiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
             (PredicativeComplement, Self, PredicativeComplementSeries, UnlikePredicatives),
@@ -3354,7 +3294,6 @@ constructions! {
             (NounPremodifier, Self, NounPremodifierConcord),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
-            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (ManaPhrase, Self),
             (Cardinal, Self, CardinalAgreement),
             (Amount, Self),
@@ -3365,8 +3304,6 @@ constructions! {
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
-            (BareObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
-            (PastParticipleObjectGap, Self, BareGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties, NoConcord),
             (DepictivePhrase, Self, UnlikeDepictives),
             (PredicativeComplement, Self, UnlikePredicatives),
@@ -6143,8 +6080,6 @@ constructions! {
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
-            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
@@ -6163,8 +6098,6 @@ constructions! {
             (CorrelativeKeywordPhraseSeries, KeywordPhrase),
             (CorrelativeQuotedTextSeries, QuotedText),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
-            (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, FiniteGapConcord),
-            (CorrelativeBareObjectGapSeries, BareObjectGap, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, NoConcord, ClauseCoordinationProperties),
         ] {
             bind left, right = Member;
@@ -6183,8 +6116,6 @@ constructions! {
             (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
             (CorrelativeQuotedTextSeries, QuotedText, Self),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
-            (CorrelativeFiniteObjectGapSeries, FiniteObjectGap, Self, FiniteGapConcord),
-            (CorrelativeBareObjectGapSeries, BareObjectGap, Self, BareGapConcord),
             (CorrelativeFiniteClauseSeries, FiniteClause, Self, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
@@ -6201,8 +6132,6 @@ constructions! {
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
             (CoordinatedFiniteClause, FiniteClause, CorrelativeFiniteClauseSeries, NoConcord, ClauseCoordinationProperties),
         ] {
             use Agreement(rest, rest);
@@ -6217,8 +6146,6 @@ constructions! {
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
-            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6235,8 +6162,6 @@ constructions! {
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
-            (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6253,8 +6178,6 @@ constructions! {
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
-            (FiniteObjectGap, Self, CorrelativeFiniteObjectGapSeries, FiniteGapConcord, NoConcord, NoClauseComplementBoundary),
-            (BareObjectGap, Self, CorrelativeBareObjectGapSeries, BareGapConcord, NoConcord, NoClauseComplementBoundary),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
