@@ -164,9 +164,13 @@ Amount replaces 11 rows and two helper interfaces.
 No feature-combination policy or table is needed.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+KeywordPhrase replaces 11 rows and two helper interfaces.
+No feature-combination policy or table is needed.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`swlmuytn`, Amount family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`swlmuytn`): does not apply yet.
+Census delta (`xolpmpvs`, KeywordPhrase family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`xolpmpvs`): does not apply yet.
