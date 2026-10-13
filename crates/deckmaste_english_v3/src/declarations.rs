@@ -529,7 +529,7 @@ constructions! {
         feature KeywordComplement { Yes }
         feature QuotedComplement { Yes }
         feature QuotationStructure { Simple, Coordinated }
-        feature GrantedAbilityKind { Keyword, Quoted }
+        feature GrantedAbilityKind { Keyword, Quoted } combine combined_ability_kind;
         feature AbilityTermination { Complete, Unterminated } default Complete;
         feature SentenceLineList { No, Yes }
         feature ModeListLayout { DashHeader, SentenceHeader }
@@ -831,7 +831,6 @@ constructions! {
         category Parenthetical();
         category QuotedText(head QuotationStructure);
         category GrantedAbility(head GrantedAbilityKind);
-        category GrantedAbilitySeries(head GrantedAbilityKind);
         category Mode(head LabelKind);
         category Modes(head ModeListLayout);
         category ModeContinuation();
@@ -1749,6 +1748,13 @@ constructions! {
             forms binary, serial, both, either, neither;
         }
 
+        coordinable GrantedAbility using Standard {
+            forms binary, serial;
+            on result {
+                require quoted_ability_combination(left.GrantedAbilityKind, right.GrantedAbilityKind) = Yes;
+            }
+        }
+
         schema CoordinationSeriesEnd {
             head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
@@ -2237,16 +2243,6 @@ constructions! {
         }
         table quoted_ability_combination(GrantedAbilityKind, GrantedAbilityKind) -> Selection {
             (Keyword, Quoted) => Yes, (Quoted, Keyword) => Yes, (Quoted, Quoted) => Yes,
-        }
-        policy GrantedAbilityConcord<Right, Source> {
-            export GrantedAbilityKind = combined_ability_kind(left.GrantedAbilityKind,
-                Right.GrantedAbilityKind);
-        }
-        policy GrantedAbilityCoordination<Right, Source> {
-            export GrantedAbilityKind = combined_ability_kind(left.GrantedAbilityKind,
-                Right.GrantedAbilityKind);
-            require quoted_ability_combination(left.GrantedAbilityKind,
-                Right.GrantedAbilityKind) = Yes;
         }
         policy CoordinatedQuotation<Right, Source> {
             export QuotationStructure = Coordinated;
@@ -2929,7 +2925,6 @@ constructions! {
             (AmountSeries, Amount),
             (KeywordPhraseSeries, KeywordPhrase),
             (QuotedTextSeries, QuotedText),
-            (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
             (DepictivePhraseSeries, DepictivePhrase, DepictiveListEnd),
@@ -2953,7 +2948,6 @@ constructions! {
             (AmountSeries, Amount, Self),
             (KeywordPhraseSeries, KeywordPhrase, Self),
             (QuotedTextSeries, QuotedText, Self),
-            (GrantedAbilitySeries, GrantedAbility, Self, GrantedAbilityConcord),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
             (DepictivePhraseSeries, DepictivePhrase, Self, DepictiveListEnd),
@@ -2974,7 +2968,6 @@ constructions! {
             (Amount, Self, AmountSeries),
             (KeywordPhrase, Self, KeywordPhraseSeries),
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
-            (GrantedAbility, Self, GrantedAbilitySeries, GrantedAbilityCoordination),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
             (DepictivePhrase, Self, DepictivePhraseSeries, UnlikeDepictives),
@@ -3248,7 +3241,6 @@ constructions! {
             (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (GrantedAbility, Self, GrantedAbilityCoordination),
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),

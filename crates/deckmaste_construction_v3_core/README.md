@@ -128,6 +128,8 @@ CardinalComplementUse uses strict `all`.
 
 MeasurePhrase uses strict agreement for MeasureKind and the UnitBearing `any` default.
 
+GrantedAbility combines kind through its named table and restricts completed results with quoted_ability_combination.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);

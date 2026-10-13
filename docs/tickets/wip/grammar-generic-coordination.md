@@ -128,9 +128,14 @@ loses its last user. arithmetic_unit_bearing remains used by arithmetic construc
 its nine present/absent pairs agree with the existing UnitBearing any default.
 All 670 shape and 927 admission contracts match the baseline.
 
-Remaining families are pending their separate conversion and gate: GrantedAbility, depictive/predicative complements, comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
+GrantedAbility replaces four rows and its helper interface. GrantedAbilityConcord
+and GrantedAbilityCoordination lose their last users. The completed-result quoted
+ability requirement remains explicit; both judgment tables remain named.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: depictive/predicative complements, comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`lunxqpyz`, measure family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`lunxqpyz`): does not apply yet.
+Census delta (`wrnwqoyv`, granted family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`wrnwqoyv`): does not apply yet.
