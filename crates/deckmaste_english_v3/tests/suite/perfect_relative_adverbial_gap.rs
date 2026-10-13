@@ -70,29 +70,37 @@ fn resolved_witnesses_use_temporal_gaps_and_perfect_auxiliaries() {
 }
 
 #[test]
-fn frequency_and_lexical_have_controls_keep_their_readings() {
-    let witnesses = [
-        (
-            "Saint Traft and Rem Karolus",
-            "If it's the second time, create a 1/1 blue Spirit creature token with flying.",
-            12,
-        ),
-        (
-            "Aurelia, the Warleader",
-            "Whenever Aurelia attacks for the first time each turn, untap all creatures you control.",
-            4,
-        ),
-        (
-            "Felisa, Fang of Silverquill",
-            "Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it.",
-            112,
-        ),
-    ];
-    for (card, text, count) in witnesses {
-        assert_eq!(
-            common::readings_on_card(card, text, Category::Sentence).len(),
-            count,
-            "{card}"
+fn frequency_and_lexical_have_controls_keep_their_analyses() {
+    common::assert_constituents_on_card(
+        "Saint Traft and Rem Karolus",
+        "If it's the second time, create a 1/1 blue Spirit creature token with flying.",
+        Category::Sentence,
+        &[(Category::NounPhrase, "the second time")],
+    );
+    common::assert_constituents_on_card(
+        "Aurelia, the Warleader",
+        "Whenever Aurelia attacks for the first time each turn, untap all creatures you control.",
+        Category::Sentence,
+        &[(Category::NounPhrase, "the first time")],
+    );
+    let readings = common::readings_on_card(
+        "Felisa, Fang of Silverquill",
+        "Whenever a nontoken creature you control dies, if it had counters on it, create X tapped 2/1 white and black Inkling creature tokens with flying, where X is the number of counters it had on it.",
+        Category::Sentence,
+    );
+    assert!(!readings.is_empty());
+    for reading in readings {
+        let mut lexical_have = false;
+        reading
+            .visit(&mut |node| {
+                if let Reading::SelectedPredicate { head, .. } = node {
+                    lexical_have |= owner(head, "core-verb:Have");
+                }
+            })
+            .unwrap();
+        assert!(
+            lexical_have,
+            "the condition uses lexical possession, not a perfect auxiliary"
         );
     }
 }

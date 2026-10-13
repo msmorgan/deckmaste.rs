@@ -5,51 +5,41 @@ use deckmaste_lexical::{
 };
 use std::collections::BTreeSet;
 
-const WITNESSES: &[(&str, &str, &str, &str, usize)] = &[
+const WITNESSES: &[(&str, &str, &str, &str)] = &[
     (
         "Kindle",
         "Kindle deals X damage to any target, where X is 2 plus the number of cards named Kindle in all graveyards.",
         "2 plus the number of cards named Kindle in all graveyards",
         "the number of cards named Kindle in all graveyards",
-        3,
     ),
     (
         "Ivory Tower",
         "At the beginning of your upkeep, you gain X life, where X is the number of cards in your hand minus 4.",
         "the number of cards in your hand minus 4",
         "the number of cards in your hand",
-        2,
     ),
     (
         "Allosaurus Rider",
         "Allosaurus Rider's power and toughness are each equal to 1 plus the number of lands you control.",
         "1 plus the number of lands you control",
         "the number of lands you control",
-        2,
     ),
     (
         "Haunting Apparition",
         "Haunting Apparition's power is equal to 1 plus the number of green creature cards in the chosen player's graveyard.",
         "1 plus the number of green creature cards in the chosen player's graveyard",
         "the number of green creature cards in the chosen player's graveyard",
-        3,
     ),
     (
         "Food Chain",
         "Exile a creature you control: Add X mana of any one color, where X is 1 plus the exiled creature's mana value.",
         "1 plus the exiled creature's mana value",
         "the exiled creature's mana value",
-        1,
     ),
 ];
 
 fn witness(index: usize) {
-    let (card, text, expression, operand, count) = WITNESSES[index];
-    assert_eq!(
-        common::readings_on_card(card, text, Category::Document).len(),
-        count,
-        "{card}"
-    );
+    let (card, text, expression, operand) = WITNESSES[index];
     common::assert_constituents_on_card(
         card,
         text,

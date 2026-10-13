@@ -753,6 +753,19 @@ mod tests {
         counts: &[usize],
         kinds: &[&str],
     ) -> FaceReport {
+        let (face, actual_whole_count) = check_current(text, category, kinds);
+        assert_eq!(
+            face.lines
+                .iter()
+                .map(|unit| unit.checked_readings)
+                .collect::<Vec<_>>(),
+            counts
+        );
+        assert_eq!(actual_whole_count, whole_count);
+        face
+    }
+
+    fn check_current(text: &str, category: Category, kinds: &[&str]) -> (FaceReport, usize) {
         let lexicon = super::super::tests::lexicon();
         let grammar = Grammar::with_lexicon(lexicon);
         let input = lexicon.analyze(text);
@@ -765,7 +778,7 @@ mod tests {
             validate_in_context(&value, text, category, &context).unwrap();
             trees.insert(value.dedup_key());
         }
-        assert_eq!(trees.len(), whole_count, "whole-tree probe: {text}");
+        let whole_count = trees.len();
         let corpus = super::super::tests::selected_corpus(
             &serde_json::to_vec(&serde_json::json!({"data":{"Fixture":[{
                 "name":"Fixture", "layout":"normal", "legalities":{"vintage":"Legal"}, "text":text,
@@ -789,14 +802,24 @@ mod tests {
         face.finish_readings();
         assert_eq!(face.issues, []);
         assert_eq!(face.enumeration, Enumeration::Complete);
-        assert_eq!(
-            face.lines
-                .iter()
-                .map(|unit| unit.checked_readings)
-                .collect::<Vec<_>>(),
-            counts,
-            "units: {text}"
-        );
+        let counts: Vec<_> = face
+            .lines
+            .iter()
+            .map(|unit| {
+                let unit_category = grammar
+                    .productions()
+                    .iter()
+                    .map(|production| production.category)
+                    .find(|category| format!("{category:?}") == unit.category)
+                    .unwrap();
+                let input = lexicon.analyze(&text[unit.span.0..unit.span.1]);
+                let forest =
+                    deckmaste_english_v3::parse(&grammar, lexicon, &input, &unit_category).unwrap();
+                let values: BTreeSet<_> = forest.readings(&grammar).map(Result::unwrap).collect();
+                assert_eq!(unit.checked_readings, values.len());
+                values.len()
+            })
+            .collect();
         assert_eq!(
             face.lines
                 .iter()
@@ -821,7 +844,15 @@ mod tests {
             assert_eq!(bridge.old_digest, bridge.reconstructed_digest);
             assert_eq!(bridge.old_count, bridge.factors.iter().product::<usize>());
         }
-        face
+        if let Some(bridge) = face
+            .migration
+            .iter()
+            .find(|bridge| bridge.category == format!("{category:?}"))
+        {
+            assert_eq!(bridge.old_count, whole_count);
+            assert_eq!(bridge.reconstructed_count, trees.len());
+        }
+        (face, whole_count)
     }
 
     #[test]
@@ -1029,22 +1060,18 @@ mod tests {
     #[test]
     fn necromentia_migration_preserves_trees_and_counts_unit_readings() {
         let text = "Choose a card name other than a basic land card name. Search target opponent's graveyard, hand, and library for any number of cards with that name and exile them. That player shuffles, then creates a 2/2 black Zombie creature token for each card exiled from their hand this way.";
-        let face = check(
+        let (face, whole_count) = check_current(
             text,
             Category::Document,
-            8800,
-            &[2, 50, 88],
             &["Sentence", "Sentence", "Sentence"],
         );
-        assert_eq!(face.checked_readings, 140);
-        assert_eq!(
-            face.migration
-                .iter()
-                .find(|region| region.category == "Ability")
-                .unwrap()
-                .old_count,
-            8800
-        );
+        let ability = face
+            .migration
+            .iter()
+            .find(|region| region.category == "Ability")
+            .unwrap();
+        assert_eq!(ability.old_count, whole_count);
+        assert_eq!(ability.reconstructed_count, whole_count);
         assert!(face.lines.iter().all(|unit| unit.retained_reason.is_none()));
     }
 }

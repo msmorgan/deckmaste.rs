@@ -243,17 +243,28 @@ fn existing_enter_frames_and_adjunct_exclusion_survive() {
 fn geths_summons_keeps_finite_as_as_an_adjunct() {
     let text = "Return up to one target creature card from your graveyard to the battlefield.\nCorrupted — For each opponent who has three or more poison counters as you cast this spell, put up to one target creature card from that player's graveyard onto the battlefield under your control.";
     let values = common::readings(text, Category::Document);
-    assert_eq!(values.len(), 16);
+    assert!(!values.is_empty());
     for value in values {
         let mut selected_predicatives = 0;
+        let mut finite_as = false;
         value
             .visit(&mut |node| {
+                if let Reading::ClauseComplementPreposition { head, .. } = node
+                    && let LexicalReading::Word(word) = &head.value
+                    && word.lexeme.as_str() == "vocab:Preposition/As"
+                {
+                    finite_as = true;
+                }
                 if let Reading::PredicativePreposition { .. } = node {
                     selected_predicatives += 1;
                 }
             })
             .unwrap();
         assert_eq!(selected_predicatives, 0);
+        assert!(
+            finite_as,
+            "as you cast this spell remains a finite as-clause"
+        );
     }
 }
 

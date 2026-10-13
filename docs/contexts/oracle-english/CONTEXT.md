@@ -1067,9 +1067,9 @@ within each side, the modifier's own structure and the attachment head remain
 distinct.
 
 **Barrier Nominal Modifier** (project term):
-A nominal modifier use across which application order remains a distinction
-of analysis. Modifiers inside and outside its scope cannot be interchanged.
-A use not reviewed as commuting is a barrier.
+A nominal modifier use whose application order is kept distinct because
+commuting equivalence has not been approved. This protection does not endorse
+every attachment or scope tree the grammar currently admits.
 
 **Nominal Dependent Present** (project term):
 Whether a Nominal contains a Modifier or selected Complement in addition to
