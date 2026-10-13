@@ -167,8 +167,8 @@ pub(super) struct Base {
     pub readings_digest_version: usize,
     pub decomposition_version: usize,
     pub context_version: usize,
-    pub nominal_normal_form_version: usize,
-    pub nominal_normal_form_source_sha256: String,
+    pub normal_form_version: usize,
+    pub normal_form_source_sha256: String,
     pub field: SourceField,
     pub input_sha256: String,
     pub support_filter: String,
@@ -189,9 +189,9 @@ impl Base {
             || json["readings_digest_version"] != super::report::READINGS_DIGEST_VERSION
             || json["decomposition_version"] != super::report::DECOMPOSITION_VERSION
             || json["context_version"] != super::report::CONTEXT_VERSION
-            || json["nominal_normal_form_version"] != super::nominal_normal_form::VERSION
-            || json["nominal_normal_form_source_sha256"].as_str()
-                != Some(super::nominal_normal_form::source_sha256().as_str())
+            || json["normal_form_version"] != super::reading_normal_form::VERSION
+            || json["normal_form_source_sha256"].as_str()
+                != Some(super::reading_normal_form::source_sha256().as_str())
             || json["incremental_snapshot"].is_null()
         {
             return Ok(None);
@@ -214,8 +214,8 @@ impl Base {
         {
             return Some("census or Readings digest version changed".into());
         }
-        if self.nominal_normal_form_version != super::nominal_normal_form::VERSION
-            || self.nominal_normal_form_source_sha256 != super::nominal_normal_form::source_sha256()
+        if self.normal_form_version != super::reading_normal_form::VERSION
+            || self.normal_form_source_sha256 != super::reading_normal_form::source_sha256()
         {
             return Some(
                 "normal-form version or classification/normalization source changed".into(),

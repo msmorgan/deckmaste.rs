@@ -30,6 +30,12 @@ Derivations of the same Reading are the same Reading; they are not an
 Ambiguity.
 _Avoid_: Reading for the proof rather than the analysis
 
+**Reading Normal Form** (project term):
+A representation of a Reading that identifies only explicitly reviewed
+structural alternatives as the same analysis. Equality of sets of normal forms
+protects those analyses when redundant trees are removed; it does not endorse
+every Reading the grammar admits.
+
 **Construction Cost** (project term):
 A nonnegative preference weight on a Construction. A Reading's total sums
 the costs of its Construction occurrences; lower totals rank earlier without

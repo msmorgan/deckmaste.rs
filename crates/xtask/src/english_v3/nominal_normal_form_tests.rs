@@ -283,6 +283,10 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
             7,
             "f0e9f5b0fd35c6a69dd681eabe8ae32c53ae54700c715070e215e218b9c6a32c",
         ),
+        (
+            8,
+            "b4ca9f9338ca1ed63151fa99ea7d2b020c988c3ff4de5e55469d8ba32339a85b",
+        ),
     ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
@@ -331,16 +335,13 @@ fn perilous_predicament_census_records_the_committed_normal_forms() {
     write_report(&args, &report, &mut Vec::new()).unwrap();
     let baseline: serde_json::Value =
         serde_json::from_reader(std::fs::File::open(path).unwrap()).unwrap();
-    assert_eq!(baseline["nominal_normal_form_version"], VERSION);
-    assert_eq!(
-        baseline["nominal_normal_form_source_sha256"],
-        source_sha256()
-    );
+    assert_eq!(baseline["normal_form_version"], VERSION);
+    assert_eq!(baseline["normal_form_source_sha256"], source_sha256());
     let face = &baseline["faces"][0];
     assert_eq!(face["name"], "Perilous Predicament");
     assert_eq!(face["lines"].as_array().unwrap().len(), 1);
     let recorded: BTreeSet<String> =
-        serde_json::from_value(face["lines"][0]["nominal_normal_forms"].clone()).unwrap();
+        serde_json::from_value(face["lines"][0]["normal_forms"].clone()).unwrap();
     let computed: BTreeSet<_> = readings(text, Category::Sentence)
         .iter()
         .map(|r| fingerprint(r).unwrap())
@@ -429,8 +430,14 @@ fn layer_adapter_preserves_old_records_and_barrier_scope() {
         encoded(&layered.replace("Creature", "Artifact")).unwrap()
     );
     for (name, fields) in [
-        ("Coordination", "left: A, coordinator: And, right: B"),
-        ("SerialCoordination", "left: A, rest: B"),
+        (
+            "Coordination",
+            r#"left: A, coordinator: Word { value: Word(Word { lexeme: Ident("vocab:Coordinator/And") }) }, right: B"#,
+        ),
+        (
+            "SerialCoordination",
+            r#"left: A, rest: CoordinationSeriesEnd { form: 0, category: NominalSeries, left: B, coordinator: Word { value: Word(Word { lexeme: Ident("vocab:Coordinator/And") }) }, right: C }"#,
+        ),
         (
             "DiscontinuousComparativeNominal",
             "governor: More, head: A, marker: Than, complement: B",
@@ -442,7 +449,11 @@ fn layer_adapter_preserves_old_records_and_barrier_scope() {
         assert_eq!(encoded(&old).unwrap(), encoded(&new).unwrap());
         assert_ne!(
             encoded(&old).unwrap(),
-            encoded(&old.replace("category: Nominal,", "category: NounPhrase,")).unwrap()
+            encoded(
+                &old.replace("category: Nominal,", "category: NounPhrase,")
+                    .replace("category: NominalSeries,", "category: NounPhraseSeries,")
+            )
+            .unwrap()
         );
         assert!(encoded(&new.replace("form: 0", "form: 1")).is_err());
         assert!(encoded(&new.replace("form: 0,", "form: 0, extra: X,")).is_err());
@@ -649,13 +660,14 @@ fn synthetic_post(head: &str, modifier: &str) -> String {
 fn synthetic_trees_preserve_attachment_lexeme_form_gap_and_barrier_scope() {
     // These are inputs to the tree normaliser, not claims that a parser should
     // admit either member of a pair.
+    let and = synthetic_word("vocab:Coordinator/And");
     let noun = format!("Noun {{ form: 0, head: {} }}", synthetic_word("head-a"));
     let dependent_on_left = format!(
-        "Coordination {{ form: 0, category: Nominal, left: {}, coordinator: And, right: {noun} }}",
+        "Coordination {{ form: 0, category: Nominal, left: {}, coordinator: {and}, right: {noun} }}",
         synthetic_post(&noun, "Dependent")
     );
     let dependent_on_right = format!(
-        "Coordination {{ form: 0, category: Nominal, left: {noun}, coordinator: And, right: {} }}",
+        "Coordination {{ form: 0, category: Nominal, left: {noun}, coordinator: {and}, right: {} }}",
         synthetic_post(&noun, "Dependent")
     );
     assert_ne!(
@@ -668,7 +680,7 @@ fn synthetic_trees_preserve_attachment_lexeme_form_gap_and_barrier_scope() {
     let red_other_noun = synthetic_pre(&red, &other_noun);
     let coordinate = |left: &str, right: &str| {
         format!(
-            "Coordination {{ form: 0, category: Nominal, left: {left}, coordinator: And, right: {right} }}"
+            "Coordination {{ form: 0, category: Nominal, left: {left}, coordinator: {and}, right: {right} }}"
         )
     };
     let post_on_head_a = coordinate(&synthetic_post(&red_noun, "Dependent"), &red_other_noun);

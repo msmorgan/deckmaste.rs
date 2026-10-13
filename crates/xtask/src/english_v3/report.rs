@@ -56,7 +56,7 @@ pub(super) struct LineReport {
     pub readings_sha256: Option<String>,
     pub enumeration: Enumeration,
     #[serde(default)]
-    pub nominal_normal_forms: Option<BTreeSet<String>>,
+    pub normal_forms: Option<BTreeSet<String>>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -397,8 +397,8 @@ pub(super) struct Report {
     readings_digest_version: usize,
     decomposition_version: usize,
     context_version: usize,
-    nominal_normal_form_version: usize,
-    nominal_normal_form_source_sha256: String,
+    normal_form_version: usize,
+    normal_form_source_sha256: String,
     count_semantics: &'static str,
     readings_digest_encoding: &'static str,
     reading_limit: Option<usize>,
@@ -499,8 +499,8 @@ impl Report {
             readings_digest_version: READINGS_DIGEST_VERSION,
             decomposition_version: DECOMPOSITION_VERSION,
             context_version: CONTEXT_VERSION,
-            nominal_normal_form_version: super::nominal_normal_form::VERSION,
-            nominal_normal_form_source_sha256: super::nominal_normal_form::source_sha256(),
+            normal_form_version: super::reading_normal_form::VERSION,
+            normal_form_source_sha256: super::reading_normal_form::source_sha256(),
             count_semantics: "enumerated unit Readings; face counts are sums, not Document-tree counts; read means syntactically admitted, not a correctness claim",
             readings_digest_encoding: "Version 2 retains version-1 validated tree keys and sorted fixed-width tree-set hashing within each unit. Ordered unit descriptors (category, half-open byte span, source hash, tree-set digest) are encoded as a JSON array with digest version 2. The face hashes a JSON array of decomposition version 2, that descriptor digest, and the validated surrounding-structure/root-constraint digest. Surroundings retain constructor structure and the root contract, but omit derived root-summary storage and its feature-slot layout. Complete, issue-free enumeration alone has an exact sum or complete digest; partial checked counts are separate. EmptyDocument is one whole unit. Several unambiguous units do not imply ambiguity. Debug identities are diagnostic within the recorded source tree.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
@@ -522,7 +522,7 @@ impl Report {
 pub(super) const DECOMPOSITION_VERSION: usize = 2;
 pub(super) const CONTEXT_VERSION: usize = 1;
 
-pub(super) const SCHEMA_VERSION: usize = 10;
+pub(super) const SCHEMA_VERSION: usize = 11;
 pub(super) const READINGS_DIGEST_VERSION: usize = 2;
 
 pub(super) fn chart_metrics(m: Metrics) -> BTreeMap<String, usize> {
@@ -717,7 +717,7 @@ mod line_tests {
             checked_readings: count,
             readings_sha256: Some(readings_digest(&BTreeSet::from([[key; 32]]))),
             enumeration: Enumeration::Complete,
-            nominal_normal_forms: None,
+            normal_forms: None,
         }
     }
 
@@ -815,7 +815,7 @@ mod descriptor_tests {
             checked_readings: 1,
             readings_sha256: Some(readings_digest(&BTreeSet::from([[7; 32]]))),
             enumeration: Enumeration::Complete,
-            nominal_normal_forms: None,
+            normal_forms: None,
         }];
         let original = face_digest(&units, Some("original-wrapper"));
         assert_ne!(original, face_digest(&units, Some("different-label")));

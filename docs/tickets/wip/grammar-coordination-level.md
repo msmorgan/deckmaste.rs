@@ -32,3 +32,59 @@ Under `CLAUDE.md`'s Assurance section: a test asserts the intended analysis, and
 ## Gate
 
 No face lost; per unit, the set of normal forms unchanged while tree count falls; full tests. Note: census delta (faces read and Readings before and after, lost faces none); the judgment-set line does not apply yet.
+
+## Gate implementation — mpxyuoyn
+
+The gate-only commit changes no grammar or lexicon declaration. Census schema 11
+records `normal_forms`, `normal_form_version` (8) and
+`normal_form_source_sha256`; `diff --check normal-forms` compares the combined
+nominal and coordination equivalence. Both reports must match the running
+version and compiled source hash. The source lock covers the parser, nominal
+adapter and coordination adapter. Complete enumeration, fixed unit boundaries
+and surrounding structure, no lost face, equal per-unit sets and nonincreasing
+per-unit tree counts are required. Schemas 9 and 10 remain usable for raw digest
+comparisons only.
+
+Grouping uses exact And, Or and AndOr lexeme IDs, keeps every ordered link and
+its punctuation and full lexical payload, and never reassociates Then or But.
+Bare Imperative/BarePredicate/SecondaryVerbPhrase chains normalize to Clause
+chains without crossing any other wrapper. Then and But retain grouping while
+their bare-imperative level twins normalize. The asyndetic premodifier use of
+SerialCoordination is explicitly outside this adapter (Waste Not exercised the
+shared schema name); focused adjuncts retain their exceptional helper name.
+
+The raw baseline and combined baseline are in
+`target/english-v3/coordination/{raw-baseline,combined-baseline}.json`.
+Full raw digest identity passed on all 32,828 faces: 30,794 read and 373,659
+Readings before and after, zero issues. The combined baseline records 354,012
+normal forms over 75,412 units: 19,647 redundant trees under this equivalence.
+This is the instrument's measurement, not a grammar reduction yet.
+Bring to Light unit 0 has 10,200 trees / 6,800 normal forms; Slimefoot's Survey
+unit 0 has 10,368 / 7,776. The census wall times were 582.24 s and 672.53 s
+(four workers, other builds/tests running; not an isolated performance comparison).
+
+Twelve tests were added: association and member order; imperative level plus
+grouping; Then level without reassociation; mixed markers/correlatives/categories;
+serial punctuation and helper identities; non-distribution of subjects, modals,
+quantifiers, dependents and gaps; exact lexical form/variant/capitalization;
+attachment and barrier scope during nominal reordering; changed-shape rejection;
+real imperative lists with one normal form; attachment during coordination
+flattening; and asyndetic premodifier preservation. A thirteenth test injects a
+removed grouping twin (pass) and a lost attachment class (failure) into the
+actual census diff gate. Existing incompatible-version/hash, incomplete-census,
+unit-boundary and surrounding-structure checks now cover the combined fields.
+
+Two older synthetic tests were re-spelled with lexical coordinator Words and
+proper series helpers: `layer_adapter_preserves_old_records_and_barrier_scope`
+and `synthetic_trees_preserve_attachment_lexeme_form_gap_and_barrier_scope`.
+Their equality/inequality assertions remain; no test was retired. Full
+`cargo test -p xtask`: 499 passed, one pre-existing ignored live-corpus macro
+schema census test. Clippy with `--tests -- -D warnings` passed. Citation audit
+had no changed citation sites; citation checks found no stale or noncompliant
+citations.
+
+Remaining: impose the bare-imperative Clause convention and canonical grouping
+in the grammar; update intended-analysis grammar tests; run the combined gate,
+full tests and clippy for each touched crate; record the final census delta.
+Attachment licensing, determiner/modifier scope and finite-plus-imperative
+hybrids remain outside this ticket.

@@ -1,4 +1,4 @@
-//! Restricted nominal modifier-order equivalence. This does not decide admission.
+//! Restricted nominal and coordination equivalences. This does not decide admission.
 //!
 //! The generated Reading Debug format is already the census's tree identity.
 //! Parse it losslessly into labelled records: strings, field order, constructors,
@@ -10,13 +10,22 @@ use serde::Serialize;
 
 // Bump on every classification or normalization change and append the new
 // source identity to the version lock in the tests. Historical entries stay fixed.
-pub(super) const VERSION: usize = 7;
+pub(super) const VERSION: usize = 8;
 
 pub(super) fn source_sha256() -> String {
     // Compile the source into the binary: a disk edit after building must not
     // misidentify the matcher that actually produced a census.
-    crate::raw_corpus::digest(include_str!("nominal_normal_form.rs").as_bytes())
+    crate::raw_corpus::digest(
+        concat!(
+            include_str!("reading_normal_form.rs"),
+            include_str!("coordination_normal_form.rs")
+        )
+        .as_bytes(),
+    )
 }
+
+#[path = "coordination_normal_form.rs"]
+mod coordination;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 enum Tree {
@@ -24,6 +33,12 @@ enum Tree {
     Call(String, Vec<Self>),
     Record(String, Vec<(String, Self)>),
     List(Vec<Self>),
+    Coordination {
+        category: String,
+        marker: String,
+        members: Vec<Self>,
+        links: Vec<Self>,
+    },
     Nominal {
         base: Box<Self>,
         pre: Vec<Self>,
@@ -310,7 +325,9 @@ impl Tree {
                     .collect::<Result<_>>()?,
             ),
             Self::Atom(_) => self,
-            Self::Nominal { .. } => bail!("normal form cannot be adapted twice"),
+            Self::Nominal { .. } | Self::Coordination { .. } => {
+                bail!("normal form cannot be adapted twice")
+            }
         })
     }
     fn normalize(self) -> Result<Self> {
@@ -365,16 +382,32 @@ impl Tree {
                     .map(|(n, v)| Ok((n, v.normalize()?)))
                     .collect::<Result<_>>()?,
             ),
+            Self::Coordination {
+                category,
+                marker,
+                members,
+                links,
+            } => Self::Coordination {
+                category,
+                marker,
+                members: members
+                    .into_iter()
+                    .map(Self::normalize)
+                    .collect::<Result<_>>()?,
+                links,
+            },
             Self::Nominal { .. } => bail!("normal form cannot be normalized twice"),
         })
     }
 }
 
-fn encoded(debug: &str) -> Result<Vec<u8>> {
+pub(super) fn encoded(debug: &str) -> Result<Vec<u8>> {
     let mut parser = Parser { input: debug };
     let tree = parser.tree()?;
     ensure!(parser.input.trim().is_empty(), "trailing Reading encoding");
-    Ok(serde_json::to_vec(&tree.adapt_layers()?.normalize()?)?)
+    Ok(serde_json::to_vec(
+        &coordination::normalize(tree.adapt_layers()?)?.normalize()?,
+    )?)
 }
 
 pub(super) fn fingerprint(reading: &Reading) -> Result<String> {

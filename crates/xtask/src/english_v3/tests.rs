@@ -969,8 +969,8 @@ fn incremental_base(
         readings_digest_version: super::report::READINGS_DIGEST_VERSION,
         decomposition_version: super::report::DECOMPOSITION_VERSION,
         context_version: super::report::CONTEXT_VERSION,
-        nominal_normal_form_version: super::nominal_normal_form::VERSION,
-        nominal_normal_form_source_sha256: super::nominal_normal_form::source_sha256(),
+        normal_form_version: super::reading_normal_form::VERSION,
+        normal_form_source_sha256: super::reading_normal_form::source_sha256(),
         field: args.field,
         input_sha256: corpus.snapshot_sha256.clone(),
         support_filter: crate::raw_corpus::SUPPORT_FILTER.into(),
@@ -1057,8 +1057,8 @@ fn grammar_policy_and_incomplete_base_changes_disable_incremental_reuse() {
                     "old grammar".into(),
                 );
             }
-            "normal_version" => base.nominal_normal_form_version = 1,
-            "normal_source" => base.nominal_normal_form_source_sha256 = "old matcher".into(),
+            "normal_version" => base.normal_form_version = 1,
+            "normal_source" => base.normal_form_source_sha256 = "old matcher".into(),
             "input" => base.input_sha256 = "different snapshot".into(),
             "samples" => base.samples_per_face += 1,
             "limited" => base.faces[0].enumeration = Enumeration::Limited,
@@ -1118,9 +1118,9 @@ fn base_json_roundtrip_and_old_schema_fallback_preserve_the_face_digests() {
     assert_eq!(mode.rechecked_faces, Vec::<String>::new());
     assert_eq!(comparable_faces(&copied), expected);
     for (field, value) in [
-        ("nominal_normal_form_version", json!(1)),
-        ("nominal_normal_form_source_sha256", json!("old matcher")),
-        ("nominal_normal_form_source_sha256", serde_json::Value::Null),
+        ("normal_form_version", json!(1)),
+        ("normal_form_source_sha256", json!("old matcher")),
+        ("normal_form_source_sha256", serde_json::Value::Null),
     ] {
         let mut stale = serde_json::to_value(&report).unwrap();
         stale[field] = value;

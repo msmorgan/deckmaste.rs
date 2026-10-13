@@ -145,7 +145,7 @@ impl UnitEnumeration<'_, '_> {
             checked_readings: 0,
             readings_sha256: None,
             enumeration: Enumeration::Complete,
-            nominal_normal_forms: None,
+            normal_forms: None,
         };
         let mut readings = forest
             .readings_from(
@@ -198,7 +198,17 @@ impl UnitEnumeration<'_, '_> {
                         result.issues.push(Issue::DuplicateReading);
                         continue;
                     }
-                    normal_forms.insert(super::nominal_normal_form::fingerprint(reading)?);
+                    normal_forms.insert(
+                        super::reading_normal_form::fingerprint(reading).with_context(|| {
+                            format!(
+                                "normal form on {} ({}) at {:?}: {}",
+                                result.name,
+                                result.id,
+                                bytes,
+                                &result.analyzed_source[bytes.clone()]
+                            )
+                        })?,
+                    );
                     for node in value.nodes.iter() {
                         if let Value::Reading(node) = &**node {
                             *result
@@ -237,7 +247,7 @@ impl UnitEnumeration<'_, '_> {
             report.enumeration = Enumeration::Failed;
         } else if report.enumeration == Enumeration::Complete {
             report.readings_sha256 = Some(super::report::readings_digest(&checked));
-            report.nominal_normal_forms = Some(normal_forms);
+            report.normal_forms = Some(normal_forms);
         }
         Ok((
             report,

@@ -554,26 +554,27 @@ three entries in the two postmodified auxiliary constructions, not every
 auxiliary; `FusedHeadUse` licenses the particular *anywhere*/*this* path, not
 all determinatives with fused-head uses.
 
-### Nominal modifier-order check
+### Restricted Reading normal-form check
 
 The census records a sorted set of SHA-256 normal-form fingerprints for each
 completely enumerated unit, separately from its unchanged Reading digest.
-`cargo xtask english-v3 diff BEFORE AFTER --check nominal-normal-forms` requires
+`cargo xtask english-v3 diff BEFORE AFTER --check normal-forms` requires
 compatible source/context and units, complete enumeration, unchanged surrounding
 structure, no lost face, and equality of every unit's normal-form set. Old reports
 without the versioned sets cannot pass this check. Both reports must also
 record the version and source SHA-256 of the running normalizer. That hash
 is compiled into the binary, not read from the checkout at census time. A
 version-to-source lock test requires a new version for classification or
-normalization edits; historical entries are retained. Schema 9 remains readable for
-the ordinary `identical-digests` comparison; schema 10 adds the new instrument.
+normalization edits; historical entries are retained. Schemas 9 and 10 remain readable for the ordinary `identical-digests` comparison;
+schema 11 records the combined instrument in `normal_forms`, with
+`normal_form_version` and `normal_form_source_sha256`.
 
-A normal form preserves the whole Reading except the interleaving of approved
+The nominal pass preserves the whole Reading except the interleaving of approved
 pre- and postmodifier wrappers on one connected nominal-head chain. It retains
 ordered records on each side, every non-head field, lexical payload, form and
 Category, and recursively normalizes dependents. There is no global sorting or
 transparent-wrapper default. The seven wrappers and the initial commuting list
-live together in `xtask/src/english_v3/nominal_normal_form.rs`: colour words,
+live together in `xtask/src/english_v3/reading_normal_form.rs`: colour words,
 nonlegendary, adjectival tapped, and positive card-type noun premodifiers.
 Negative card-type nouns such as nonartifact and noncreature remain barriers. Unlisted uses remain barriers; the subsequent reviewed additions are recorded below.
 
@@ -585,8 +586,26 @@ adapter: it removes exactly the two unary lifts, restores the two barrier
 constructor names, and restores NominalCore to Nominal only on Coordination,
 SerialCoordination, DiscontinuousComparativeNominal and PostpositiveNominal.
 These inverse mappings retain every payload and reject changed forms or fields;
-they do not admit a Reading or erase an arbitrary unary wrapper. This restricted check licenses
-no coordination, gap, passive, selected-frame or general scope equivalence.
+they do not admit a Reading or erase an arbitrary unary wrapper. Version 8 composes this nominal adapter with two restricted coordination
+normalizations. Ordinary joins with the exact coordinator IDs And, Or or AndOr
+become ordered chains at the same Category. Each link retains its full Word
+value and punctuation; mixed coordinators, correlatives and intervening
+constructions remain boundaries. Then and But keep their grouping. Serial
+helpers are consumed only under their matching result Category. The asyndetic
+shared-head premodifier use of SerialCoordination stays exact: it is not a
+chain joined by an overt coordinator.
+
+An Imperative directly over BarePredicate over SecondaryVerbPhrase coordination
+is represented as a Clause coordination of bare imperatives. This conversion
+also preserves Then and But links without reassociating them. It does not cross
+a subject, modal, auxiliary, negation, modifier, gap or any other wrapper.
+The check licenses no other level, attachment, gap, passive, selected-frame or
+scope equivalence. It requires each unit's tree count not to increase.
+
+The combined source lock covers both `reading_normal_form.rs` and
+`coordination_normal_form.rs`, including the parser and nominal layer adapter.
+Hand-built-tree tests protect all retained distinctions; fault injection checks
+that deleting a grouping twin passes and deleting an attachment class fails.
 
 The lexical property `NominalModifierOrder { Barrier, Commuting }` defaults to
 Barrier. The Commuting inventory is declared in lexical data and its existing

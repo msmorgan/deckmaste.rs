@@ -6,8 +6,8 @@ mod decomposition;
 mod diff;
 mod grep;
 mod incremental;
-mod nominal_normal_form;
 mod probe;
+mod reading_normal_form;
 mod report;
 mod validation;
 

@@ -1,6 +1,6 @@
 //! Face-by-face comparison of two census reports.
 //!
-//! Optional checks protect coverage, exact Readings, or nominal normal-form sets.
+//! Optional checks protect coverage, exact Readings, or reviewed normal-form sets.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -46,8 +46,8 @@ pub struct DiffArgs {
     lines: bool,
     /// Fail on incompatible/incomplete reports or lost coverage; identical-digests
     /// additionally requires every face's count and digest to be unchanged.
-    /// nominal-normal-forms requires unchanged per-unit normal-form sets and
-    /// surrounding structure, allowing only the reviewed nominal equivalence.
+    /// normal-forms requires unchanged per-unit normal-form sets and
+    /// surrounding structure, allowing only the reviewed nominal and coordination equivalences.
     #[arg(long, value_enum)]
     check: Option<CheckMode>,
 }
@@ -56,7 +56,7 @@ pub struct DiffArgs {
 enum CheckMode {
     NoLoss,
     IdenticalDigests,
-    NominalNormalForms,
+    NormalForms,
 }
 
 /// The per-face fields of a census report that the comparison reads. Unknown
@@ -436,7 +436,8 @@ fn require_current_versions(path: &Path) -> Result<serde_json::Value> {
         ("context_version", super::report::CONTEXT_VERSION),
     ] {
         ensure!(
-            json[field] == version || (field == "schema_version" && json[field] == 9),
+            json[field] == version
+                || (field == "schema_version" && (json[field] == 9 || json[field] == 10)),
             "comparison requires the new baseline and matching {field}; use --migration-from for the one re-baseline"
         );
     }
@@ -507,15 +508,15 @@ fn check_reports(
             "incompatible baseline: missing or different {field}"
         );
     }
-    if mode == CheckMode::NominalNormalForms {
-        let source = super::nominal_normal_form::source_sha256();
+    if mode == CheckMode::NormalForms {
+        let source = super::reading_normal_form::source_sha256();
         for report in [before, after] {
             ensure!(
-                report["nominal_normal_form_version"] == super::nominal_normal_form::VERSION,
-                "normal-form comparison requires matching nominal_normal_form_version and a new baseline"
+                report["normal_form_version"] == super::reading_normal_form::VERSION,
+                "normal-form comparison requires matching normal_form_version and a new baseline"
             );
             ensure!(
-                report["nominal_normal_form_source_sha256"].as_str() == Some(source.as_str()),
+                report["normal_form_source_sha256"].as_str() == Some(source.as_str()),
                 "normal-form comparison requires the current classification/normalization source hash; regenerate the baseline"
             );
         }
@@ -540,8 +541,8 @@ fn check_reports(
             "lost face {id} ({})",
             before["name"]
         );
-        if mode == CheckMode::NominalNormalForms {
-            check_nominal_units(id, before, after)?;
+        if mode == CheckMode::NormalForms {
+            check_normal_units(id, before, after)?;
         }
         if mode == CheckMode::IdenticalDigests {
             ensure!(
@@ -556,7 +557,7 @@ fn check_reports(
 }
 
 fn normal_set(unit: &serde_json::Value) -> Result<BTreeSet<&str>> {
-    let values = unit["nominal_normal_forms"]
+    let values = unit["normal_forms"]
         .as_array()
         .context("unit lacks normal-form set")?;
     let mut result = BTreeSet::new();
@@ -579,7 +580,7 @@ fn normal_set(unit: &serde_json::Value) -> Result<BTreeSet<&str>> {
     Ok(result)
 }
 
-fn check_nominal_units(
+fn check_normal_units(
     id: &str,
     before: &serde_json::Value,
     after: &serde_json::Value,
@@ -608,6 +609,10 @@ fn check_nominal_units(
                 && b["text_sha256"].is_string()
                 && b["text_sha256"] == a["text_sha256"],
             "incompatible unit boundaries or context on face {id}, unit {index}"
+        );
+        ensure!(
+            a["checked_readings"].as_u64() <= b["checked_readings"].as_u64(),
+            "tree count increased on face {id}, unit {index}"
         );
         let b = normal_set(b).with_context(|| format!("baseline face {id}, unit {index}"))?;
         let a = normal_set(a).with_context(|| format!("comparison face {id}, unit {index}"))?;
@@ -969,47 +974,81 @@ mod check_tests {
         })
     }
 
-    fn nominal_census() -> serde_json::Value {
+    fn normal_census() -> serde_json::Value {
         let mut report = census();
-        report["nominal_normal_form_version"] = super::super::nominal_normal_form::VERSION.into();
-        report["nominal_normal_form_source_sha256"] =
-            super::super::nominal_normal_form::source_sha256().into();
+        report["normal_form_version"] = super::super::reading_normal_form::VERSION.into();
+        report["normal_form_source_sha256"] =
+            super::super::reading_normal_form::source_sha256().into();
         report["faces"][0]["surroundings_sha256"] = "surroundings".into();
         let unit = &mut report["faces"][0]["lines"][0];
         unit["category"] = "Sentence".into();
         unit["text_sha256"] = "text".into();
-        unit["nominal_normal_forms"] = json!(["a".repeat(64)]);
+        unit["normal_forms"] = json!(["a".repeat(64)]);
         report
     }
 
     #[test]
-    fn nominal_check_accepts_only_surviving_equivalence_classes() {
-        let before = nominal_census();
+    fn coordination_fault_injection_keeps_a_twin_but_rejects_lost_attachment() {
+        fn join(left: &str, right: &str) -> String {
+            format!(
+                "Coordination {{ form: 0, category: NounPhrase, left: {left}, coordinator: Word {{ value: Word(Word {{ lexeme: Ident(\"vocab:Coordinator/And\") }}) }}, right: {right} }}"
+            )
+        }
+        fn report(trees: &[String]) -> serde_json::Value {
+            let mut report = normal_census();
+            let keys: BTreeSet<_> = trees
+                .iter()
+                .map(|tree| {
+                    crate::raw_corpus::digest(
+                        &super::super::reading_normal_form::encoded(tree).unwrap(),
+                    )
+                })
+                .collect();
+            report["faces"][0]["checked_readings"] = trees.len().into();
+            report["faces"][0]["exact_readings"] = trees.len().into();
+            report["faces"][0]["lines"][0]["checked_readings"] = trees.len().into();
+            report["faces"][0]["lines"][0]["normal_forms"] = json!(keys);
+            report
+        }
+        let left = join(&join("a", "b"), "c");
+        let right = join("a", &join("b", "c"));
+        let on_first = join("With { head: a, dependent: x }", "b");
+        let on_second = join("a", "With { head: b, dependent: x }");
+        let before = report(&[left, right.clone(), on_first.clone(), on_second.clone()]);
+        let survivor = report(&[right.clone(), on_first, on_second.clone()]);
+        run_files(&before, &survivor, Some(CheckMode::NormalForms)).unwrap();
+        let lost_attachment = report(&[right, on_second]);
+        assert!(run_files(&before, &lost_attachment, Some(CheckMode::NormalForms)).is_err());
+    }
+
+    #[test]
+    fn normal_form_check_accepts_only_surviving_equivalence_classes() {
+        let before = normal_census();
         let mut after = before.clone();
         after["faces"][0]["checked_readings"] = 1.into();
         after["faces"][0]["exact_readings"] = 1.into();
         after["faces"][0]["lines"][0]["checked_readings"] = 1.into();
         after["faces"][0]["readings_sha256"] = "different tree set".into();
         after["faces"][0]["lines"][0]["readings_sha256"] = "different tree set".into();
-        run_files(&before, &after, Some(CheckMode::NominalNormalForms)).unwrap();
+        run_files(&before, &after, Some(CheckMode::NormalForms)).unwrap();
         assert!(run_files(&before, &after, Some(CheckMode::IdenticalDigests)).is_err());
-        after["faces"][0]["lines"][0]["nominal_normal_forms"] = json!(["b".repeat(64)]);
-        assert!(run_files(&before, &after, Some(CheckMode::NominalNormalForms)).is_err());
+        after["faces"][0]["lines"][0]["normal_forms"] = json!(["b".repeat(64)]);
+        assert!(run_files(&before, &after, Some(CheckMode::NormalForms)).is_err());
     }
 
     #[test]
-    fn nominal_check_rejects_incomplete_missing_or_incompatible_evidence() {
-        let before = nominal_census();
+    fn normal_form_check_rejects_incomplete_missing_or_incompatible_evidence() {
+        let before = normal_census();
         for (pointer, value) in [
-            ("/nominal_normal_form_version", json!(0)),
+            ("/normal_form_version", json!(0)),
             ("/faces/0/lines/0/span", json!([0, 2])),
             ("/faces/0/lines/0/category", json!("Clause")),
             ("/faces/0/lines/0/text_sha256", json!("changed")),
             ("/faces/0/lines/0/enumeration", json!("limited")),
-            ("/faces/0/lines/0/nominal_normal_forms", json!(null)),
-            ("/faces/0/lines/0/nominal_normal_forms", json!([])),
+            ("/faces/0/lines/0/normal_forms", json!(null)),
+            ("/faces/0/lines/0/normal_forms", json!([])),
             (
-                "/faces/0/lines/0/nominal_normal_forms",
+                "/faces/0/lines/0/normal_forms",
                 json!(["a".repeat(64), "a".repeat(64)]),
             ),
             ("/faces/0/lines", json!([])),
@@ -1020,29 +1059,29 @@ mod check_tests {
             let mut after = before.clone();
             *after.pointer_mut(pointer).unwrap() = value;
             assert!(
-                run_files(&before, &after, Some(CheckMode::NominalNormalForms)).is_err(),
+                run_files(&before, &after, Some(CheckMode::NormalForms)).is_err(),
                 "{pointer}"
             );
         }
     }
 
     #[test]
-    fn nominal_check_rejects_stale_matchers_even_when_both_reports_agree() {
-        let current = nominal_census();
+    fn normal_form_check_rejects_stale_matchers_even_when_both_reports_agree() {
+        let current = normal_census();
         for (field, value) in [
-            ("nominal_normal_form_version", json!(1)),
-            ("nominal_normal_form_source_sha256", json!("0".repeat(64))),
-            ("nominal_normal_form_source_sha256", serde_json::Value::Null),
+            ("normal_form_version", json!(1)),
+            ("normal_form_source_sha256", json!("0".repeat(64))),
+            ("normal_form_source_sha256", serde_json::Value::Null),
         ] {
             let mut stale = current.clone();
             stale[field] = value;
             for (before, after) in [(&stale, &current), (&current, &stale), (&stale, &stale)] {
-                let error = run_files(before, after, Some(CheckMode::NominalNormalForms))
+                let error = run_files(before, after, Some(CheckMode::NormalForms))
                     .unwrap_err()
                     .to_string();
                 assert!(
                     error.contains(if field.ends_with("version") {
-                        "nominal_normal_form_version"
+                        "normal_form_version"
                     } else {
                         "source hash"
                     }),
@@ -1053,12 +1092,14 @@ mod check_tests {
     }
 
     #[test]
-    fn additive_schema_keeps_legacy_reading_digest_comparison_available() {
+    fn old_schemas_keep_only_raw_digest_comparison_available() {
         let before = census();
         let mut old = before.clone();
-        old["schema_version"] = 9.into();
-        run_files(&old, &before, Some(CheckMode::IdenticalDigests)).unwrap();
-        assert!(run_files(&old, &nominal_census(), Some(CheckMode::NominalNormalForms)).is_err());
+        for schema in [9, 10] {
+            old["schema_version"] = schema.into();
+            run_files(&old, &before, Some(CheckMode::IdenticalDigests)).unwrap();
+            assert!(run_files(&old, &normal_census(), Some(CheckMode::NormalForms)).is_err());
+        }
     }
 
     fn run_files(
@@ -1066,8 +1107,10 @@ mod check_tests {
         after: &serde_json::Value,
         check: Option<CheckMode>,
     ) -> Result<()> {
-        let b = tempfile::NamedTempFile::new()?;
-        let a = tempfile::NamedTempFile::new()?;
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../target/english-v3");
+        std::fs::create_dir_all(&root)?;
+        let b = tempfile::NamedTempFile::new_in(&root)?;
+        let a = tempfile::NamedTempFile::new_in(&root)?;
         std::fs::write(b.path(), serde_json::to_vec(before)?)?;
         std::fs::write(a.path(), serde_json::to_vec(after)?)?;
         run(
