@@ -1,7 +1,7 @@
 ---
 needs: [grammar-compiler-expressions-and-tables]
 ---
-# Dead declarations, wildcard tables, policy composition, Boolean requirements
+# Dead declarations and wildcard tables
 
 What remains of the authoring-layer work after every Category interface was converted to head and local modes. In this order, each step a commit that keeps every reading digest identical on every face (`cargo xtask english-v3 diff --check identical-digests`). The aim is a grammar that reads more clearly; a step that does not make it clearer is skipped and said so.
 
@@ -129,3 +129,7 @@ restored 0, re-spelled 0, newly ignored 0, added 0, removed 0.
 
 Census delta (`wumvkqzo`, prefix): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
 Judgment set (`wumvkqzo`): does not apply yet.
+
+## Not done, deliberately
+
+Steps 3 and 4 (policy composition, Boolean requirements) are dropped from this ticket rather than deferred into it. Nothing in the converted grammar currently needs a policy to use a policy, and the Boolean experiment found only two tables a predicate could replace exactly, at the cost of new absence and optional-element semantics in the compiler. Neither earns its place yet. If the coordination work or a later step shows a concrete need, it is specified then, with the decisions already recorded above.
