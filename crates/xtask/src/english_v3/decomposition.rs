@@ -388,20 +388,21 @@ pub(super) fn analyze(
             );
             Ok(())
         })?;
-        let root_summaries: BTreeSet<_> = forest
-            .roots()
-            .iter()
-            .map(|&node| format!("{:?}", forest.summary(node)))
-            .collect();
-        result.surroundings_sha256 = Some(digest(&serde_json::to_vec(&(
-            super::report::DECOMPOSITION_VERSION,
-            format!("{category:?}"),
-            surroundings,
-            root_summaries,
-            root_constraint_digest(),
-        ))?));
+        result.surroundings_sha256 = Some(surroundings_digest(category, &surroundings)?);
     }
     Ok(())
+}
+
+fn surroundings_digest(category: Category, surroundings: &[String]) -> Result<String> {
+    // Summaries are derived admission data, not Reading identity. Reconstructed
+    // values above still pass admission and the root constraint; hashing their
+    // summary storage would additionally expose the compiler's feature slots.
+    Ok(digest(&serde_json::to_vec(&(
+        super::report::DECOMPOSITION_VERSION,
+        format!("{category:?}"),
+        surroundings,
+        root_constraint_digest(),
+    ))?))
 }
 
 fn root_constraint_digest() -> &'static str {
@@ -708,6 +709,38 @@ pub(super) fn verify_migration(
 mod tests {
     use super::*;
     use crate::english_v3::report::Census;
+
+    #[test]
+    fn surrounding_digest_records_structure_and_root_contract() {
+        let structure = vec!["OrdinaryAbility(unit(Clause,0..12))".to_owned()];
+        let expected = digest(
+            &serde_json::to_vec(&(2, "Document", &structure, root_constraint_digest())).unwrap(),
+        );
+        assert_eq!(
+            surroundings_digest(Category::Document, &structure).unwrap(),
+            expected
+        );
+        assert_ne!(
+            surroundings_digest(Category::Clause, &structure).unwrap(),
+            expected
+        );
+        assert_ne!(
+            surroundings_digest(
+                Category::Document,
+                &["ActivatedAbility(unit(Clause,0..12))".into()]
+            )
+            .unwrap(),
+            expected,
+        );
+        assert_ne!(
+            surroundings_digest(
+                Category::Document,
+                &["OrdinaryAbility(unit(Clause,1..12))".into()]
+            )
+            .unwrap(),
+            expected,
+        );
+    }
 
     fn check(
         text: &str,

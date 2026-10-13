@@ -7,7 +7,7 @@ Lexical distinctions reach syntax as untyped string flags today. 72 of 184 featu
 
 ## Change
 
-- Closed-class words (determinatives, prepositions, coordinators, subordinators, auxiliaries, pronouns, negators) are declared in Rust in the grammar crate, with their class memberships, so a reference to anything else cannot compile. `crates/deckmaste_lexical_source/lexicon/vocabulary.ron` moves there and is deleted, taking its `provenance_path` with it. `verbs.ron` and the nouns in `core.ron` stay data.
+- Closed-word declarations in the grammar bind names to existing lexeme IDs and Categories; they do not define or synthesize lexemes. Every word has one home in lexicon data, including forms, properties and class membership. The review withdrew the earlier proposal to move `vocabulary.ron` into Rust and delete it. `vocabulary.ron`, `verbs.ron` and `core.ron` stay data. The loader checks reference eligibility from existing source/vocabulary evidence, Category agreement, unique names/IDs and declared membership classes.
 - Inventory first. List every `vocabulary.ron` declaration by destination and by direct-reference eligibility. The file also holds `PredicativeAdjective` (line 24), `ColorWord` (149), `Supertype` (216) and the `CommonNoun` lexeme (224), which are open-class and are not eligible for direct reference; each gets a stated destination (typed class reachable through frames, or data that stays). Closed-class material that lives elsewhere (patches in `core.ron`) is listed too. Open-class members stay out of the directly referenceable Rust type.
 - Loader boundary. The grammar crate depends on `deckmaste_lexical_source` only as a dev-dependency, and `deckmaste_lexical_source` does not depend on the grammar crate, so the Rust declarations cannot simply be read by the loader. The landing states who supplies them (for example the caller, `xtask` and the tests, passes them into the load; or a crate both depend on) with no dependency cycle, and keeps today's order: native declarations, then core, then plugins, then normalisation (`crates/deckmaste_lexical_source/src/lib.rs:39–50`). Callers, the lexical-source tests (`crates/deckmaste_lexical_source/tests/suite/errors.rs:53`) and the incremental-source accounting (`crates/xtask/src/english_v3/incremental.rs:15`) are updated.
 - The per-lexeme feature patches in `core.ron` become class memberships.
@@ -239,3 +239,69 @@ classes, default-sensitive flags and real lexical properties have not been
 converted; the measured inventory remains the Phase 2 worklist. Inflected
 closed-word declarations need explicit form/override support before those
 families can move. The ticket remains WIP and has no final landing note yet.
+
+## Review follow-up: digest encoding
+
+The review's declaration redesign is accepted: data owns each complete lexeme;
+`closed_word Name: Category = "existing-id";` only binds a checked reference.
+Membership stays on data members. The prototype's properties/lemma syntax and
+lexeme synthesis will be removed. The remaining work also includes the real
+word-selector AST, producer-based provenance validation, the four unread map
+keys, a tested plugin membership route where the measured classes need it,
+and the restricted Phase 2 conversions. Table/export-fed properties,
+default-sensitive properties and open-class singletons stay properties. No
+further authoring decision is pending.
+
+The first follow-up changes only the census's surrounding encoding. Decomposition
+encoding version 2 omits derived root-summary storage; unit Reading hashing
+remains version 2 and the root contract remains context version 1. The fixed
+surrounding constructors, lexical values, literal separators, unit boundaries
+and root-contract hash remain encoded. Every reconstructed surrounding Reading
+still passes admission and the root predicate. Summary slot layout is not a
+Reading distinction.
+
+An isolated audit executable under ignored target/english-v3 computes both
+encodings from each parse. Across all 32,828 faces, its legacy hashes match the
+saved census: 30,794 surrounding hashes, 75,412 unit digests and counts, 482,041
+Readings, and every face's status/count are unchanged. Independently rebuilding
+both face hashes accounts for every change solely through summary omission and
+the decomposition version tag. There are still 2,034 unread faces and zero
+incomplete faces or issues. Compact legacy contracts and the old census SHA-256
+are retained in ignored evidence; the superseded 1.1 GB census is removed.
+
+The sorted comparison still matches 927 rule contracts, 326 constructor records
+and 666 emitted shapes. The structured comparison still matches all 35,603
+lexemes under the prototype's seven explicitly recorded membership/provenance
+migrations; this follow-up changes no lexeme, feature or grammar declaration.
+The unsupported frame finding remains Deal ×1, Enter ×3, Put ×2 and plugin
+exile ×1. No frame is fixed or activated here.
+
+The slot-layout regression was reproduced in an isolated compiler build by
+restoring the unused generated `__word_By` feature (201 slots instead of 200).
+Its retirement changes every legacy surrounding hash on the 30,794 read faces,
+but no version-2 payload or digest. The full identical-digests gate passes for
+all 32,828 faces. This is a scratch-only retirement probe, not an additional
+production declaration or a Phase 2 conversion.
+
+Full tests for xtask and deckmaste_english_v3 pass: 1,605 passed, zero failed,
+two existing ignored. Clippy --tests -- -D warnings passes for both crates.
+Assurance for this step: one added test
+(`surrounding_digest_records_structure_and_root_contract`), zero restored,
+re-spelled, newly ignored or removed. Neither existing ignored test changed.
+Citation audit reports zero changed sites, zero noncompliant strings and
+17,780 checked citations with zero stale references.
+
+This is a completed digest-step prefix. The declaration redesign and all
+Phase 2 conversions remain pending; no additional property or data key has
+been removed. declarations.rs remains 6,122 lines with 180 authored features.
+The ticket remains WIP and has no final landing note yet.
+
+The production executable also passes the full version-2 identical-digests
+gate on all 32,828 faces and the legacy-unit/structure audit. Its report is the
+new `target/english-v3/closed-class-baseline.json`; no step census remains.
+The production lexical inventory hash remains
+`bf8e0b103cb8519be4fbdb5544dc5d0b37a0e52715a6d3b12798490c8ad29f71`.
+Standalone audit builds give the prototype's synthesized words different
+`file!()` provenance paths; their reports are not retained as the baseline.
+The production inventory comparison, not that incidental build provenance,
+establishes lexicon equivalence.

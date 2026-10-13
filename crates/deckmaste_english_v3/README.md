@@ -211,16 +211,20 @@ several one-Reading units are still unambiguous. An incomplete or failed face
 has no exact count or complete digest; its partial checked count is separate.
 Read means syntactically admitted, not a linguistic correctness claim.
 
-Schema 9, decomposition version 1, digest version 2 and context version 1
+Schema 9, decomposition version 2, digest version 2 and context version 1
 invalidate older incremental results. Within a unit, tree keys and sorted
 fixed-width tree-set hashing retain the old encoding. Each face's
 `readings_sha256` hashes versioned JSON encodings of the ordered unit descriptors
 and tree-set digests, plus its validated surrounding structure and root
 constraints. Surrounding encodings retain constructor names, Categories, forms,
 fixed lexical values and literal separators; compiler helpers are transparent.
+Root summaries are derived admission data and are not hashed: their slot count
+and order are compiler storage details. Every reconstructed surrounding Reading
+still passes admission and the root constraint. Unit Reading identities and
+surrounding constructor structure remain in the digest.
 Root-contract changes increment the context version. A label, header, wrapper or boundary change therefore changes the
-digest even if the unit trees stay identical. `readings_digest_version` and
-`readings_digest_encoding` specify the encoding. Complete, issue-free faces have a digest, including the empty Reading
+digest even if the unit trees stay identical. `decomposition_version`,
+`readings_digest_version` and `readings_digest_encoding` specify the encoding. Complete, issue-free faces have a digest, including the empty Reading
 set; limited or failed enumeration has null. The digest is diagnostic under the
 recorded tree's generated Debug encoding.
 

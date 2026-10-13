@@ -496,7 +496,7 @@ impl Report {
             decomposition_version: DECOMPOSITION_VERSION,
             context_version: CONTEXT_VERSION,
             count_semantics: "enumerated unit Readings; face counts are sums, not Document-tree counts; read means syntactically admitted, not a correctness claim",
-            readings_digest_encoding: "Version 2 retains version-1 validated tree keys and sorted fixed-width tree-set hashing within each unit. Ordered unit descriptors (category, half-open byte span, source hash, tree-set digest) are encoded as a JSON array with digest version 2. The face hashes a JSON array of decomposition version 1, that descriptor digest, and the validated surrounding-structure/root-constraint digest. Complete, issue-free enumeration alone has an exact sum or complete digest; partial checked counts are separate. EmptyDocument is one whole unit. Several unambiguous units do not imply ambiguity. Debug identities are diagnostic within the recorded source tree.",
+            readings_digest_encoding: "Version 2 retains version-1 validated tree keys and sorted fixed-width tree-set hashing within each unit. Ordered unit descriptors (category, half-open byte span, source hash, tree-set digest) are encoded as a JSON array with digest version 2. The face hashes a JSON array of decomposition version 2, that descriptor digest, and the validated surrounding-structure/root-constraint digest. Surroundings retain constructor structure and the root contract, but omit derived root-summary storage and its feature-slot layout. Complete, issue-free enumeration alone has an exact sum or complete digest; partial checked counts are separate. EmptyDocument is one whole unit. Several unambiguous units do not imply ambiguity. Debug identities are diagnostic within the recorded source tree.",
             reading_limit: args.reading_limit.map(std::num::NonZeroUsize::get),
             samples_per_face: args.samples_per_face,
             unmapped_sources,
@@ -513,7 +513,7 @@ impl Report {
     }
 }
 
-pub(super) const DECOMPOSITION_VERSION: usize = 1;
+pub(super) const DECOMPOSITION_VERSION: usize = 2;
 pub(super) const CONTEXT_VERSION: usize = 1;
 
 pub(super) const SCHEMA_VERSION: usize = 9;
