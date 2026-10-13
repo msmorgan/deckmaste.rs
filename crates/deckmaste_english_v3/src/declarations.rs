@@ -866,11 +866,9 @@ constructions! {
             head PredicativeAdjunctUse, head SelectedPrepositionUse, head MatrixComplementRequirement,
             head InternalisedComplementMarker
         );
-        category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category CoordinatedFiniteClause(head GeneralCoordination);
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
-        category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
         category SelectedPrepositionHead(
             head LocativeUse combine all, head PrepositionFunctionLicence, head HeadCoordination,
@@ -1752,6 +1750,10 @@ constructions! {
         }
 
         coordinable KeywordPhrase using Standard {
+            forms binary, serial, both, either, neither;
+        }
+
+        coordinable InfinitiveComplement using Standard {
             forms binary, serial, both, either, neither;
         }
 
@@ -2913,7 +2915,6 @@ constructions! {
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
             (QuotedTextSeries, QuotedText),
-            (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase),
         ] {
             bind left, right = Member;
@@ -2927,7 +2928,6 @@ constructions! {
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
             (QuotedTextSeries, QuotedText, Self),
-            (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
             (FrequencyPhraseSeries, FrequencyPhrase, Self),
         ] {
             use Agreement(rest, rest);
@@ -2938,7 +2938,6 @@ constructions! {
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
             (FrequencyPhrase, Self, FrequencyPhraseSeries),
         ] {
             use Agreement(rest, rest);
@@ -3203,7 +3202,6 @@ constructions! {
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, NoConcord),
             (FrequencyPhrase, Self),
         ] {
             bind left, right = Member;
@@ -5961,7 +5959,6 @@ constructions! {
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, NoConcord),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -5972,7 +5969,6 @@ constructions! {
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
             (CorrelativeQuotedTextSeries, QuotedText),
-            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -5983,7 +5979,6 @@ constructions! {
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
             (CorrelativeQuotedTextSeries, QuotedText, Self),
-            (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -5992,7 +5987,6 @@ constructions! {
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
@@ -6000,7 +5994,6 @@ constructions! {
         }
         instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, NoConcord),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6011,7 +6004,6 @@ constructions! {
         instance NeitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, NoConcord),
         ] {
             bind left, right = Member;
             use Agreement(right, coordinator);
@@ -6022,7 +6014,6 @@ constructions! {
         instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
-            (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
         ] {
             use Agreement(rest, rest);
             use Properties(rest, rest);
