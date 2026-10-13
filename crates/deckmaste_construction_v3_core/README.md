@@ -140,6 +140,8 @@ NounPremodifier and VerbalPremodifier select binary/serial Standard forms; the h
 
 ManaPhrase needs only its selected Standard forms.
 
+Amount needs only its selected Standard forms.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);

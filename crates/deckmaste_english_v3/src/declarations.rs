@@ -848,7 +848,6 @@ constructions! {
             head AuxiliaryProFormLicence, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
-        category AmountSeries();
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category FocusedAdjunctMember(
@@ -871,7 +870,6 @@ constructions! {
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category CoordinatedFiniteClause(head GeneralCoordination);
-        category CorrelativeAmountSeries(head CorrelativeCoordinator);
         category CorrelativeKeywordPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
@@ -1748,6 +1746,10 @@ constructions! {
         }
 
         coordinable ManaPhrase using Standard {
+            forms binary, serial, both, either, neither;
+        }
+
+        coordinable Amount using Standard {
             forms binary, serial, both, either, neither;
         }
 
@@ -2908,7 +2910,6 @@ constructions! {
             Properties = NoConcord, Distribution = GeneralCoordinatorDistribution>: [
             (SelectedComplementTailSeries, SelectedComplementTail, SelectedTailConcord,
                 PrimitiveRightTail),
-            (AmountSeries, Amount),
             (KeywordPhraseSeries, KeywordPhrase),
             (QuotedTextSeries, QuotedText),
             (InfinitiveComplementSeries, InfinitiveComplement, NoConcord),
@@ -2924,7 +2925,6 @@ constructions! {
             Properties = NoConcord>: [
             (PremodifierCoordination, Premodifier, Self, PremodifierConcord, AsyndeticPremodifierTail),
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
-            (AmountSeries, Amount, Self),
             (KeywordPhraseSeries, KeywordPhrase, Self),
             (QuotedTextSeries, QuotedText, Self),
             (InfinitiveComplementSeries, InfinitiveComplement, Self, NoConcord),
@@ -2937,7 +2937,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (PremodifierCoordination, Premodifier, Premodifier, PremodifierConcord),
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
-            (Amount, Self, AmountSeries),
             (KeywordPhrase, Self, KeywordPhraseSeries),
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, InfinitiveComplementSeries, NoConcord),
@@ -3204,7 +3203,6 @@ constructions! {
         }
         instance Coordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, Distribution = GeneralCoordinatorDistribution, BoundaryProperties = NoFeatures>: [
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
-            (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -5964,7 +5962,6 @@ constructions! {
         // Nominal/AdjP deferred until pre-head placement is represented in summaries.
         instance EitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -5977,7 +5974,6 @@ constructions! {
 
         instance CorrelativeSeriesEnd<Result, Member, Agreement = NoConcord, Properties = NoConcord,
             Status = NoConcord>: [
-            (CorrelativeAmountSeries, Amount),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase),
             (CorrelativeQuotedTextSeries, QuotedText),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
@@ -5990,7 +5986,6 @@ constructions! {
         instance CorrelativeSeriesContinuation<
             Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, Status = NoConcord>: [
-            (CorrelativeAmountSeries, Amount, Self),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
             (CorrelativeQuotedTextSeries, QuotedText, Self),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
@@ -6001,7 +5996,6 @@ constructions! {
         }
         instance EitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Amount, Self, CorrelativeAmountSeries),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
@@ -6011,7 +6005,6 @@ constructions! {
             use BoundaryProperties;
         }
         instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -6024,7 +6017,6 @@ constructions! {
 
         instance NeitherCoordination<Result, Member, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Amount, Self),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -6037,7 +6029,6 @@ constructions! {
 
         instance NeitherSerialCoordination<Result, Member: left, Tail: rest, Agreement = NoConcord,
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
-            (Amount, Self, CorrelativeAmountSeries),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
