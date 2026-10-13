@@ -10,7 +10,7 @@ Lexical distinctions reach syntax as untyped string flags today. 72 of 184 featu
 - Closed-word declarations in the grammar bind names to existing lexeme IDs and Categories; they do not define or synthesize lexemes. Every word has one home in lexicon data, including forms, properties and class membership. The review withdrew the earlier proposal to move `vocabulary.ron` into Rust and delete it. `vocabulary.ron`, `verbs.ron` and `core.ron` stay data. The loader checks reference eligibility from existing source/vocabulary evidence, Category agreement, unique names/IDs and declared membership classes.
 - Inventory first. List every `vocabulary.ron` declaration by destination and by direct-reference eligibility. The file also holds `PredicativeAdjective` (line 24), `ColorWord` (149), `Supertype` (216) and the `CommonNoun` lexeme (224), which are open-class and are not eligible for direct reference; each gets a stated destination (typed class reachable through frames, or data that stays). Closed-class material that lives elsewhere (patches in `core.ron`) is listed too. Open-class members stay out of the directly referenceable Rust type.
 - Loader boundary. The grammar crate depends on `deckmaste_lexical_source` only as a dev-dependency, and `deckmaste_lexical_source` does not depend on the grammar crate, so the Rust declarations cannot simply be read by the loader. The landing states who supplies them (for example the caller, `xtask` and the tests, passes them into the load; or a crate both depend on) with no dependency cycle, and keeps today's order: native declarations, then core, then plugins, then normalisation (`crates/deckmaste_lexical_source/src/lib.rs:39–50`). Callers, the lexical-source tests (`crates/deckmaste_lexical_source/tests/suite/errors.rs:53`) and the incremental-source accounting (`crates/xtask/src/english_v3/incremental.rs:15`) are updated.
-- The per-lexeme feature patches in `core.ron` become class memberships.
+- Eligible require-only membership patches become word references or class memberships. Table-fed properties, meaningful defaults, open-class singletons and permissions whose class spelling would not clarify the construction remain properties, as recorded in the final table.
 - The grammar refers directly only to core closed-class lexemes, by lexeme id, never by string literal; a direct reference is used when exactly one lexeme can fill the slot, a typed class when two or more can. The compiler checks every reference. Everything else (plugin terms, catalog entries, card names, open-class core words) reaches the grammar only through typed classes and frames.
 - The loader and compiler reject unknown ids, class names and values; anything newly rejected is fixed as its own change, not waved through. `unsupported_frames()` (`crates/deckmaste_construction_v3_core/src/selected_frame.rs.txt:275`, called only from tests) is called by the tool once and its result reported.
 - Report, as findings, every class with one member and every feature with one holder, and what was done with each.
@@ -418,11 +418,10 @@ or recognized metadata key. No provenance values or typed fields changed. The
 loader README lists all 25 remaining adapter annotations and typed-field mirrors;
 this step does not redesign their representation.
 
-### Candidate dispositions at this prefix
+### Final candidate dispositions
 
-All 49 original candidates are accounted for below: 17 converted,
-23 retained properties, and nine pending class conversions. Pending
-means not implemented, not an assertion that a conversion has passed its gates.
+All 49 original candidates are accounted for below: 21 converted and
+28 retained properties; none pending. Final validation is recorded at the end.
 The table-output-domain check adds VerblessPredicateUse to the retained list;
 the initial inventory's table column had counted only inputs. No plugin/catalog
 route is implemented by this cleanup step. BareSingularUse and IdentityUse are
@@ -462,23 +461,23 @@ not justify a membership route on their own.
 
 | Original feature | Disposition | Reason / next work |
 |---|---|---|
-| ComparativeDegreeModifierUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| AuxiliaryUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| FusedHeadUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| ComparativeQuantityUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| ComparativeDegreeModifierUse | Retain property | Any, Many, Much, No and Some have this degree-modifier permission; ComparativeDegreeDeterminative would restate that role without clarifying which words belong. |
+| AuxiliaryUse | Retain property | Only Be, BeContracted and HaveNegative carry this permission; Auxiliary would overstate the class and PostmodifiedAuxiliary would merely rename the construction permission. |
+| FusedHeadUse | Retain property | Anywhere and This license this particular fused-head path; FusedHeadDeterminative would imply a broader general class or merely rename the permission. |
+| ComparativeQuantityUse | Converted | ComparativeQuantifier names fewer, less and more at both reader sites. |
 | GerundClauseComplement | Converted | GerundClausePreposition class (By, Of, To, Without). |
 | RelativeUse | Retain property | Both Yes and default No are read; ordinary pronoun admission depends on No. |
 | BareCoordination | Retain property | Default Yes licenses words without a stored value; Then explicitly has No. |
-| NoncorrelativeCoordination | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| NominalLicense | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| KeywordComplement | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| NoncorrelativeCoordination | Converted | NoncorrelativeCoordinator names the five ordinary joining words and excludes Nor; other joining requirements remain. |
+| NominalLicense | Converted | DependentGenitivePronoun names the five possessors more precisely than AnyNominal; Genitive case is still required. |
+| KeywordComplement | Retain property | With and Without license the keyword complement; KeywordPreposition would restate the same complement permission, not clarify the policy. |
 
 **Lexicon-supplied class candidates (15)**
 
 | Original feature | Disposition | Reason / next work |
 |---|---|---|
-| SuperlativeQuantifierUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
-| QuantitativeAdjectiveComplementUse | Pending | Assess and convert the positive requirement using the existing word/class syntax, with all three equivalence gates. |
+| SuperlativeQuantifierUse | Converted | SuperlativeQuantifier names least, fewest and most across the two lexical Categories; form indices stay unchanged. |
+| QuantitativeAdjectiveComplementUse | Retain property | Least and Fewest license this complement; QuantitativeComplementAdjective would only rename the role. Reusing SuperlativeQuantifier would also include Most and require Category-dependent comparison rather than a direct membership replacement. |
 | ScalarComparativeUse | Retain property | Greater is an open-class adjective and the only holder; no singleton class. |
 | FrequencyUnit | Retain property | Time is an open-class noun and the only holder; no singleton class. |
 | VerblessPredicateUse | Retain property | Output domain of verbless_ordinary_frame_use, not merely a membership flag. |
@@ -616,3 +615,92 @@ No plugin/catalog membership route is needed for those measured members. Finish
 the two class groups with their gates, update the final table and append the
 two-line landing note then. The glossary and READMEs are current for this prefix;
 the ticket remains WIP.
+
+## Completion: lexical classes and admission coverage
+
+The final nine decisions complete the disposition table above. Converted
+ComparativeQuantityUse, NoncorrelativeCoordination, NominalLicense and
+SuperlativeQuantifierUse into ComparativeQuantifier, NoncorrelativeCoordinator,
+DependentGenitivePronoun and SuperlativeQuantifier. Their 16 members state
+membership on their vocabulary/native data declarations; the four flags and
+FeatureSource records are retired. Nor's explicit No is removed as well: every
+reader required Yes, and nonmembership preserves that exclusion.
+
+Retained ComparativeDegreeModifierUse, AuxiliaryUse, FusedHeadUse,
+KeywordComplement and QuantitativeAdjectiveComplementUse under the clarity
+rule. These state permissions at their reader sites; the proposed class names
+would largely restate the same roles. AuxiliaryUse's three holders do not define
+all auxiliaries, and Anywhere/This do not define all fused-head determinatives.
+The final total is 21 converted candidates and 28 retained properties. There
+are no pending candidates and no singleton classes. BareSingularUse and
+IdentityUse remain properties, so no plugin/catalog membership route is added.
+The glossary's Closed Word and Lexical Class definitions remain current.
+
+Three new compiler runtime tests independently construct accepted and rejected
+Readings for required word selectors, direct is/in requirements, policies,
+schema instances, policy use inside instances, optional is/in through policies
+and instances, and form-local constraints. They check admission and realization,
+plus parsing controls. Existing tests retain optional separator-before/after,
+absence, mixed Categories, capitalization and spelling-variant assertions.
+Optional lexical_word nesting is not a supported syntax: optional fields use
+an explicit lexical Category with is/in. No compiler capability was added.
+
+The earlier omission could have admitted and realized the wrong optional lexeme
+or class member in any construction, including requirements inherited from a
+policy/schema or confined to a particular form. A census of parsed Readings
+could miss all such false admissions because parsing already enforced the
+constraint. Required fields use Rule::advance, which checks lexical_checks;
+optional fields have the separate emitter path now exercised above. Dynamic
+selected-frame expansion maintains the same per-symbol array, covered by the
+previously repaired expansion and the unchanged selected-frame regressions.
+The added tests find no further regression.
+
+One English test is re-spelled in this step:
+correlative_markers_keep_determinative_identity_and_nor_is_distinct now checks
+NoncorrelativeCoordinator membership while retaining its identity, Category and
+CoordinationKind assertions. Assurance: three added tests, one re-spelled, zero
+restored, removed or newly ignored. No assertion was weakened.
+
+The seven unsupported frame signatures remain findings, not fixes: Deal's
+MassNoun Complement; Enter's FrameComplement Complement and two Object Complement
+signatures; Put's two Object Complement signatures; plugin exile's
+ResultativeComplement Complement. No frame was activated or reordered.
+
+Final full-corpus gate against the version-2 baseline: all 32,828 faces have
+identical digests; 30,794 read faces and 482,041 Readings before and after;
+zero lost, gained, count or digest-only changes, incomplete faces or issues.
+The subset retained Nissa's 20 Readings. The completed 1.1 GB step census was
+deleted after the gate; the baseline remains under target/english-v3.
+
+The sorted comparison matches 927 rule contracts, 326 constructor records and
+666 emitted shapes. The structured comparison checks all 35,603 lexemes and all
+23 replacement predicates on every entry, including absence. Cumulatively,
+only 21 identified flags/provenance and 46 dead map values are retired; 47
+entries differ. IDs, forms, variants, other properties and ordered frames match.
+All seven unsupported signatures and unmapped declarations are unchanged.
+The inventory hash changes from the direct-reference prefix's
+c84e961550a48d6697542b391b3a967409f50ce7c9769e35910da09ad3e85df5 to
+3d72e2c503c8f8d7f31cb7c6a537f091ec592ecc257f64757b47ea2f566398e2.
+
+Final authored declarations.rs: 6,071 lines (6,093 at ticket start), 163 features
+(184 at start), 16 reference-only closed words and five classes with 20 total
+memberships. This step adds four class declarations and removes four features,
+so its line count remains 6,071. Vocabulary stays data; no lexeme is synthesized
+by the grammar. The four deleted metadata keys remain BareLocativeComplement,
+PrepositionAttachment, PrepositionComplementKind and the infinitival marker's
+unread Finiteness map key; typed form finiteness is unchanged. The remaining
+25 fixed metadata keys and producer-owned provenance namespaces are documented
+in the lexical-source README.
+
+Full cargo test for deckmaste_construction_v3_core, deckmaste_construction_v3,
+deckmaste_lexical_source, deckmaste_english_v3 and xtask: 1,851 passed, zero
+failed, two pre-existing ignored with their blockers unchanged. All eight
+lexical-requirement runtime tests passed again after the test-only lint fix.
+Full clippy --tests -- -D warnings passes for all five crates. Citation audit
+selects zero changed sites; zero noncompliant strings and zero stale references
+among 17,780 citations. READMEs and the glossary are current. All requested
+candidate decisions and verification are complete; integration remains the
+owner's action, so this ticket stays in WIP until kata integrates it.
+
+Census delta (ryxnzzsu): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost none; identical digests on all 32,828 faces.
+Judgment set (ryxnzzsu): not applicable yet.

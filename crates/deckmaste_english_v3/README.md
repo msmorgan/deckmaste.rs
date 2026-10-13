@@ -532,3 +532,19 @@ NP, and `IdentityUse = Name` remains the Catalog entry's declared name use.
 Replacing these with `in BareSingularModifier` and `in ProperName` would mostly
 rename the same conditions, so they do not justify new plugin/catalog membership
 plumbing in this ticket. No production class currently needs that route.
+
+The data also declares `ComparativeQuantifier` (*fewer*, *less*, *more*),
+`SuperlativeQuantifier` (*fewest*, *least*, *most*), `DependentGenitivePronoun`
+(*her*, *his*, *its*, *their*, *your*), and `NoncorrelativeCoordinator`
+(*and*, *and/or*, *but*, *or*, *then*). Requirements name these word classes;
+separate case, agreement, selection and separator judgments still apply.
+The superlative class spans Adjective and Determinative; each form retains its
+own Category and index.
+
+`ComparativeDegreeModifierUse`, `AuxiliaryUse`, `FusedHeadUse`,
+`KeywordComplement` and `QuantitativeAdjectiveComplementUse` remain permissions.
+Their proposed class names would repeat the construction's role rather than
+identify a more informative class. In particular, `AuxiliaryUse` licenses only
+three entries in the two postmodified auxiliary constructions, not every
+auxiliary; `FusedHeadUse` licenses the particular *anywhere*/*this* path, not
+all determinatives with fused-head uses.

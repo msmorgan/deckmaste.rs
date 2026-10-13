@@ -262,11 +262,13 @@ fn correlative_markers_keep_determinative_identity_and_nor_is_distinct() {
     assert_eq!(nor.category, deckmaste_lexical::Category::Coordinator);
     assert_eq!(nor.properties.features["CoordinationKind"], "Alternative");
     assert_eq!(nor.properties.features["CorrelativeCoordinator"], "Nor");
-    assert_eq!(nor.properties.features["NoncorrelativeCoordination"], "No");
+    assert!(!nor.properties.classes.contains("NoncorrelativeCoordinator"));
     let inclusive = &LEXICON.lexemes()["vocab:Coordinator/AndOr"];
-    assert_eq!(
-        inclusive.properties.features["NoncorrelativeCoordination"],
-        "Yes"
+    assert!(
+        inclusive
+            .properties
+            .classes
+            .contains("NoncorrelativeCoordinator")
     );
     assert_eq!(
         inclusive.properties.features["CoordinationKind"],

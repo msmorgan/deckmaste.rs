@@ -10,6 +10,10 @@ constructions! {
         capitalization Positional;
 
         lexical_class GerundClausePreposition: Preposition;
+        lexical_class ComparativeQuantifier: Determinative;
+        lexical_class NoncorrelativeCoordinator: Coordinator;
+        lexical_class DependentGenitivePronoun: Pronoun;
+        lexical_class SuperlativeQuantifier: Adjective | Determinative;
         closed_word InfinitivalTo: Subordinator = "vocab:InfinitivalMarker/To";
         closed_word RelativeThat: Subordinator = "vocab:Subordinator/That";
         closed_word Only: Adverb = "vocab:FocusAdverb/Only";
@@ -30,7 +34,6 @@ constructions! {
         feature DeterminerUse { SingularCount, Unrestricted, PluralOrMass, PluralCount, Mass,
             Singular }
         feature DeterminerKind { Ordinary, Indefinite }
-        feature SuperlativeQuantifierUse { No, Yes } default No;
         feature DegreeUse { None, Head, Modifier } default None;
         feature ComparativeDegreeModifierUse { No, Yes } default No;
         feature FrequencyUse { No, Yes } default No combine all;
@@ -163,7 +166,6 @@ constructions! {
         feature ComparativePostmodifierUse { No, Yes } default No combine always No;
         feature QuantitativeComplement { None, Cardinal, CardinalPrepositionPhrase, AdjectivePhrase, ExceptionQuantity } default None;
         feature QuantitativeAdjectiveComplementUse { No, Yes } default No;
-        feature ComparativeQuantityUse { No, Yes } default No;
         feature ComparativeDeterminerUse { No, Yes } default No;
         feature ComparativeQuantityStructure { Coordinated, Headed }
         feature ScalarComparativeUse { No, Yes } default No;
@@ -518,12 +520,10 @@ constructions! {
         feature CommaCoordination { No, Yes } default No;
         feature GeneralCoordination { No, Yes } default Yes combine coordinator.GeneralCoordination;
         feature UnmarkedConjunctLicence { No, Yes } default Yes combine always Yes;
-        feature NoncorrelativeCoordination { Yes, No }
         feature CorrelativeCoordinator { And, Or, Nor }
         // The default partial judgments reject like pairs; helpers use the total tables.
         feature PredicativeKind { Adjectival, Nominal, Prepositional, Mixed } combine unlike_predicative_kind;
         feature DepictiveKind { Adjectival, Participial, Mixed } combine unlike_depictive_kind;
-        feature NominalLicense { AnyNominal }
         feature KeywordComplement { Yes }
         feature QuotationStructure { Simple, Coordinated } combine always Coordinated;
         feature GrantedAbilityKind { Keyword, Quoted } combine combined_ability_kind;
@@ -1792,7 +1792,7 @@ constructions! {
         schema CoordinationSeriesEnd {
             head none;
             form [left: node, ", ", coordinator: lexical(Coordinator), " ", right: node];
-            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator in NoncorrelativeCoordinator;
         }
 
         schema CoordinationSeriesContinuation {
@@ -1812,7 +1812,7 @@ constructions! {
             head none;
             form [left: node, coordination_separator(coordinator.CommaCoordination),
                 coordinator: lexical(Coordinator), " ", right: node];
-            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator in NoncorrelativeCoordinator;
         }
 
         schema CasePhrase {
@@ -2914,7 +2914,7 @@ constructions! {
             form [anchor: Clause, ", ", supplement: PrepositionPhrase, ", ",
                 coordinator: lexical(Coordinator), " ", continuation: Clause];
             require licence_medial_supplement(supplement.PrepositionFunctionLicence) = Yes;
-            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator in NoncorrelativeCoordinator;
             require anchor.terminal_punctuation = None;
             export UnmarkedConjunctLicence = anchor.UnmarkedConjunctLicence;
         }
@@ -2927,7 +2927,7 @@ constructions! {
             form [left: Clause, ", ", coordinator: lexical(Coordinator), " ", right: Clause];
             form [left: Clause, " ", coordinator: lexical(Coordinator), " ", right: Clause]
                 require coordinator.BareCoordination = Yes;
-            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator in NoncorrelativeCoordinator;
             export UnmarkedConjunctLicence = left.UnmarkedConjunctLicence;
         }
         instance CoordinationSeriesEnd<Result, Member, Agreement = NoConcord,
@@ -3347,7 +3347,7 @@ constructions! {
         construction SuperlativePremodifiedNominal: Nominal {
             form [modifier: lexical(Determinative), " ", head: Nominal];
             form [modifier: lexical(Adjective), " ", head: Nominal];
-            require modifier.SuperlativeQuantifierUse = Yes;
+            require modifier in SuperlativeQuantifier;
             require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
             require superlative_quantifier_license(modifier.DeterminerUse,
                 head.number, head.countability) = Yes;
@@ -5077,8 +5077,8 @@ constructions! {
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Determinative)];
             require marker.CoordinationKind = Alternative;
-            require marker.NoncorrelativeCoordination = Yes;
-            require right.ComparativeQuantityUse = Yes;
+            require marker in NoncorrelativeCoordinator;
+            require right in ComparativeQuantifier;
             export ComparativeQuantityStructure = Coordinated;
             export number = Plural;
         }
@@ -5099,7 +5099,7 @@ constructions! {
                 export number = Plural
                 export FrequencyUse = Yes;
             require modifier.ComparativeDegreeModifierUse = Yes;
-            require head.ComparativeQuantityUse = Yes;
+            require head in ComparativeQuantifier;
             export ComparativeQuantityStructure = Headed;
         }
 
@@ -5110,7 +5110,7 @@ constructions! {
             form [left: Cardinal, " ", coordinator: lexical(Coordinator), " ",
                 right: lexical_word(Both)];
             require coordinator.CoordinationKind = Alternative;
-            require coordinator.NoncorrelativeCoordination = Yes;
+            require coordinator in NoncorrelativeCoordinator;
             export DeterminerUse = right.DeterminerUse;
             export DeterminerAgreementNumber = right.DeterminerAgreementNumber;
             export Definiteness = Nondefinite;
@@ -5479,7 +5479,7 @@ constructions! {
             form [left: QuantityConjunct, " ", marker: lexical(Coordinator), " ",
                 right: lexical(Adjective)];
             require marker.CoordinationKind = Alternative;
-            require marker.NoncorrelativeCoordination = Yes;
+            require marker in NoncorrelativeCoordinator;
             require right.ScalarComparativeUse = Yes;
             require right.frame = Ordering;
         }
@@ -5972,7 +5972,7 @@ constructions! {
             export BarePrepositionUse = No;
             form [possessor: lexical(Pronoun), " ", head: Nominal];
             require possessor.case = Genitive;
-            require possessor.NominalLicense = AnyNominal;
+            require possessor in DependentGenitivePronoun;
             use NounPhraseHeadAgreement;
             require resolved_ordinary_relative_number(head.SubjectRelativeNumber, head.NominalAgreementNumber, head.number) = Yes;
             require nondefinite_determiner_requirement(head.DeterminerRequirement) = Yes;

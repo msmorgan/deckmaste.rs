@@ -656,3 +656,12 @@ Their admission checks are separate from grammatical feature slots and the
 string-keyed feature map; they cannot be read or exported as features.
 Only constraints used by constructions allocate membership checks.
 Constituent summaries do not forward lexical identity or class membership.
+
+Admission tests construct Readings independently of parsing for word selectors,
+`is` and `in`, required and optional fields, policies, schema instances (including
+policy arguments), and form-local constraints. Optional selectors are not a
+separate form syntax: declare an optional lexical Category and use `is` or `in`.
+An absent optional field passes; a present homograph or nonmember fails both
+admission and realization. This matters because optional-word emission has a
+separate path from ordinary rule advancement: testing only parsed Readings would
+miss a constraint omitted when checking independently supplied values.

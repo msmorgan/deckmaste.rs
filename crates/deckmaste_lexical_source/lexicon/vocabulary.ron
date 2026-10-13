@@ -49,8 +49,8 @@
         (name: "Anywhere", surface: "anywhere", features: {}),
     ])),
     Vocab((name: "ComparativeQuantifier", features: {}, members: [
-        (name: "Fewer", surface: "fewer", features: {}),
-        (name: "More", surface: "more", features: {}),
+        (classes: ["ComparativeQuantifier"], name: "Fewer", surface: "fewer", features: {}),
+        (classes: ["ComparativeQuantifier"], name: "More", surface: "more", features: {}),
     ])),
     Vocab((name: "FrequencyAdverb", features: {}, members: [
         (name: "Once", surface: "once", features: {}),
@@ -130,12 +130,12 @@
         (name: "Them", surface: "them", features: {}),
         (name: "You", surface: "you", features: {}),
     ])),
-    Vocab((name: "PossessiveDeterminerPronoun", features: {"BareDurationLicense": "MarkerRequired", "DeterminerNumber": "Both", "NominalLicense": "AnyNominal"}, members: [
-        (name: "Her", surface: "her", features: {}),
-        (name: "His", surface: "his", features: {}),
-        (name: "Its", surface: "its", features: {}),
-        (name: "Their", surface: "their", features: {}),
-        (name: "Your", surface: "your", features: {}),
+    Vocab((name: "PossessiveDeterminerPronoun", features: {"BareDurationLicense": "MarkerRequired", "DeterminerNumber": "Both"}, members: [
+        (classes: ["DependentGenitivePronoun"], name: "Her", surface: "her", features: {}),
+        (classes: ["DependentGenitivePronoun"], name: "His", surface: "his", features: {}),
+        (classes: ["DependentGenitivePronoun"], name: "Its", surface: "its", features: {}),
+        (classes: ["DependentGenitivePronoun"], name: "Their", surface: "their", features: {}),
+        (classes: ["DependentGenitivePronoun"], name: "Your", surface: "your", features: {}),
     ])),
     Vocab((name: "ReflexivePronoun", features: {}, members: [
         (name: "Himself", surface: "himself", features: {}),
