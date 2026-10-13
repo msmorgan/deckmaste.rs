@@ -3,7 +3,7 @@ needs: [grammar-dead-declarations-and-requirements]
 ---
 # Generic coordination with per-feature combiners
 
-Coordination is enumerated per category today: 51 `*Series` and `Correlative*` categories hold 295 of 714 interface entries (41%); 257 of 415 schema instances (62%) are coordination rows. Replace this with one declaration and per-feature combiners, generating the same construction and category names so readings do not change.
+At the prototype baseline, coordination was enumerated per category: 51 `*Series` and `Correlative*` categories held 289 of 676 interface entries (43%); 257 of 415 schema instances (62%) are coordination rows. Replace this with one declaration and per-feature combiners, generating the same construction and category names so readings do not change.
 
 ## Change
 
@@ -14,6 +14,32 @@ Coordination is enumerated per category today: 51 `*Series` and `Correlative*` c
 - Delete the per-category series and correlative declarations, schemas and instance rows the generator replaces.
 - The specification includes an inventory of the existing tests that construct coordination readings by hand (for example `crates/deckmaste_english_v3/tests/suite/correlatives.rs`, `correlative_adjectives.rs`, `correlative_finite_complements.rs`) and keeps each, re-spelled if its constructor must change, for the same witnesses; tests are never deleted to pass, and the landing reports restored, re-spelled, added and removed counts.
 
+## Settled authoring model (2026-10-12)
+
+Model B: structural forms, markers and separators remain grammar-owned reusable
+schemas. The compiler generates per-category instances and series summaries.
+Delete the replaced per-category rows, helper interfaces and concord boilerplate;
+retain the reusable schemas. Interface `combine` annotations are independent of
+`head`/`local`. `all`, `any` and `same` reject absent inputs. Real judgments remain
+named tables. Context overrides and asymmetric requirements belong to
+`coordinable`; no Boolean requirements or policy composition.
+
+Phase 1 is the Nominal/NounPhrase prototype only, followed by review before other
+families convert. Clause binary punctuation, irregular premodifier paths,
+heterogeneous scalar/determinative coordination and medial supplementation stay
+explicit. See the compiler README for syntax and prototype boundaries.
+
 ## Gate
 
 Every `readings_sha256` identical on every face, checked with the census check mode as an identical-digest landing. The landing updates `crates/deckmaste_construction_v3_core/README.md`. Note: census delta (none); the judgment-set line does not apply yet.
+
+## Phase 1 prototype
+
+Nominal and NounPhrase now use interface combiners and the grammar-owned Standard
+form profile. Their fifteen instance rows and three helper interfaces are
+compiler-generated; four policies and seven now-unused AND/OR tables are removed.
+Other families are unchanged. Phase 2 remains pending review; the prototype does
+not yet support distinct member/result Categories within one block.
+
+Census delta (`onkkszmp`, phase 1): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`onkkszmp`): does not apply yet.

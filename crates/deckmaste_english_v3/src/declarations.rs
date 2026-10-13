@@ -550,15 +550,6 @@ constructions! {
             (Keyword, Keyword) => Keyword, (Keyword, Yes) => Keyword,
             (Yes, Keyword) => Keyword, (Keyword, None) => Keyword, (None, Keyword) => Keyword,
         }
-        table coordinated_attribute_premodifier_head(AttributePremodifierHead,
-            AttributePremodifierHead) -> AttributePremodifierHead {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
-        table coordinated_keyword_premodifier_head(KeywordPremodifierHead,
-            KeywordPremodifierHead) -> KeywordPremodifierHead {
-            (Yes, Yes) => Yes, (_, _) => No,
-        }
         policy NounPremodifierConcord<Right, Source> {
             export PremodifierCoordination = Yes;
             export NounPremodifier = coordinated_noun_premodifier(
@@ -686,22 +677,81 @@ constructions! {
         category PerfectComplement(
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
-        category Nominal(head ComparativeModifierPresent, head AttributePremodifierHead, head KeywordPremodifierHead, head number, head NominalAgreementNumber, head countability, head Targeting, head NominalAdjunctClass, local NominalDependentPresent,
-            head RelativisableAdjunctClass, head SlashPremodifierUse,
-            head NumberTransparency, head ObliqueNumber, head BareGenitiveHost, head DeterminerRequirement, head MeasurePosition, local ScalarMeasurementHeadUse, local PropertyValuePosition, head CardinalMeasurementUse,
-            head BarePrepositionUse, head NominalComplementMarker, head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent, head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence);
+        category Nominal(
+            head ComparativeModifierPresent combine No,
+            head AttributePremodifierHead combine all,
+            head KeywordPremodifierHead combine all,
+            head number combine same,
+            head NominalAgreementNumber combine coordinated_nominal_agreement(source.CoordinationKind, right.NominalAgreementNumber),
+            head countability combine same,
+            head Targeting combine same,
+            head NominalAdjunctClass combine nominal_adjunct_concord(left.NominalAdjunctClass, right.NominalAdjunctClass),
+            local NominalDependentPresent combine any,
+            head RelativisableAdjunctClass combine coordinated_relativisable_adjunct_class(
+                left.RelativisableAdjunctClass,
+                right.RelativisableAdjunctClass),
+            head SlashPremodifierUse combine all,
+            head NumberTransparency combine all,
+            head ObliqueNumber combine coordinated_oblique(source.CoordinationKind, left.ObliqueNumber, right.ObliqueNumber),
+            head BareGenitiveHost combine No,
+            head DeterminerRequirement combine coordinated_determiner_requirement(
+                left.DeterminerRequirement,
+                right.DeterminerRequirement),
+            head MeasurePosition combine coordinated_measure_position(left.MeasurePosition, right.MeasurePosition),
+            local ScalarMeasurementHeadUse combine No,
+            local PropertyValuePosition combine coordinated_property_value_position(
+                source.CoordinationKind,
+                left.PropertyValuePosition,
+                right.PropertyValuePosition),
+            head CardinalMeasurementUse combine coordinated_cardinal_measurement(
+                left.CardinalMeasurementUse,
+                right.CardinalMeasurementUse),
+            head BarePrepositionUse combine No,
+            head NominalComplementMarker combine None,
+            head SelectedPrepositionUse combine any,
+            head PredicativeAdjunctUse combine all,
+            head ScalarDenotation combine all,
+            head SourceModifierPresent combine any,
+            head WholeObjectSourcePresent combine any,
+            head SubjectRelativeNumber combine relative_number_concord(left.SubjectRelativeNumber, right.SubjectRelativeNumber),
+            head UnmarkedConjunctLicence combine Yes
+        );
         category VerbalPremodifier();
         category VerbalPremodifierSeries();
         category NounPremodifier(head NounPremodifier, local PremodifierCoordination);
         category NounPremodifierSeries(head NounPremodifier, head PremodifierCoordination);
         category PartitiveModifier();
         category NounPhrase(
-            head NominalDependentPresent, head PartitiveCountability, local NounPhraseStructure,
-            local FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
-            head BareGenitiveHost, head SubjectStructure, head BarePrepositionUse,
-            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
-            head SourceModifierPresent, head WholeObjectSourcePresent, head DeterminerAgreementNumber,
-            head ComparativePostmodifierUse, head Definiteness, head LocativeUse
+            head NominalDependentPresent combine Yes,
+            head PartitiveCountability combine coordinated_partitive_countability(
+                left.PartitiveCountability,
+                right.PartitiveCountability),
+            local NounPhraseStructure combine Other,
+            local FocusedUse combine any,
+            head UnitBearing combine any,
+            head number combine determined_np_coordinate_number(
+                source.CoordinationKind,
+                left.number,
+                right.number,
+                left.DeterminerAgreementNumber,
+                right.DeterminerAgreementNumber),
+            head person combine coordinate_person(source.CoordinationKind, left.person, right.person),
+            head CaseUse combine common_case(left.CaseUse, right.CaseUse),
+            head Targeting combine any,
+            head BareGenitiveHost combine No,
+            head SubjectStructure combine Phrase,
+            head BarePrepositionUse combine same,
+            head SelectedPrepositionUse combine any,
+            head PredicativeAdjunctUse combine all,
+            head ScalarDenotation combine all,
+            head SourceModifierPresent combine any,
+            head WholeObjectSourcePresent combine any,
+            head DeterminerAgreementNumber combine coordinated_determiner_agreement(
+                left.DeterminerAgreementNumber,
+                right.DeterminerAgreementNumber),
+            head ComparativePostmodifierUse combine No,
+            head Definiteness combine Unspecified,
+            head LocativeUse combine No
         );
         category NominativePhrase(
             head number, head person, head DeterminerAgreementNumber, head CaseUse, head SubjectStructure,
@@ -876,14 +926,6 @@ constructions! {
             head InternalisedComplementPresent, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
-        category NounPhraseSeries(
-            head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
-            head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
-            head CoordinationKind, head BareGenitiveHost, head SubjectStructure, head BarePrepositionUse,
-            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
-            head SourceModifierPresent, head WholeObjectSourcePresent, head DeterminerAgreementNumber,
-            head ComparativePostmodifierUse, head Definiteness, head LocativeUse
-        );
         category AdverbPhrase(
             local NominalAdjunctHost, head VPFinalAdjunct, head ClauseInitialAdjunct, head DurationUse,
             head UnmarkedConjunctLicence, local FocusedUse, head FrequencyUse
@@ -914,17 +956,6 @@ constructions! {
         category MeasurePhraseSeries(head MeasureKind, head UnitBearing);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
-        category NominalSeries(
-            head ComparativeModifierPresent, head AttributePremodifierHead, head KeywordPremodifierHead,
-            head number, head NominalAgreementNumber, head countability, head Targeting,
-            head NominalAdjunctClass, head NominalDependentPresent, head RelativisableAdjunctClass,
-            head SlashPremodifierUse, head NumberTransparency, head ObliqueNumber, head CoordinationKind,
-            head BareGenitiveHost, head DeterminerRequirement, head MeasurePosition,
-            head ScalarMeasurementHeadUse, head PropertyValuePosition, head CardinalMeasurementUse,
-            head BarePrepositionUse, head NominalComplementMarker, head SelectedPrepositionUse,
-            head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent,
-            head WholeObjectSourcePresent, head SubjectRelativeNumber, head UnmarkedConjunctLicence
-        );
         category AdjectivePhraseSeries(
             head AdjectiveComplementClass, head AdjectiveAttributiveOnlyUse, head ImplicitComparativeUse,
             head AdjectiveStructure, head AdjectiveOrigin, head AdjectivePremodifierUse,
@@ -990,15 +1021,6 @@ constructions! {
             head ParticipialSupplementUse, head form, head ParticipialUse, head CorrelativeCoordinator,
             head InternalisedComplementPresent, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
-        );
-        category CorrelativeNounPhraseSeries(
-            head NominalDependentPresent, head PartitiveCountability, head NounPhraseStructure,
-            head FocusedUse, head UnitBearing, head number, head person, head CaseUse, head Targeting,
-            head CorrelativeCoordinator, head CoordinationKind, head BareGenitiveHost,
-            head SubjectStructure, head BarePrepositionUse, head SelectedPrepositionUse,
-            head PredicativeAdjunctUse, head ScalarDenotation, head SourceModifierPresent,
-            head WholeObjectSourcePresent, head DeterminerAgreementNumber, head ComparativePostmodifierUse,
-            head Definiteness, head LocativeUse
         );
         category CorrelativePrepositionPhraseSeries(
             head PartitiveCountability, head InterveningAdjunctLicence, head ConnectiveAdjunctUse,
@@ -1395,11 +1417,6 @@ constructions! {
             (Plural, Singular) => Plural,
             (None, Plural) => Plural, (Singular, Plural) => Singular, (Plural, Plural) => Plural,
         }
-        table coordinated_transparency(NumberTransparency, NumberTransparency)
-            -> NumberTransparency {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
         table coordinated_oblique(CoordinationKind, ObliqueNumber, ObliqueNumber)
             -> ObliqueNumber {
             (Additive, None, None) => None,
@@ -1694,16 +1711,6 @@ constructions! {
             export MeasureKind = left.MeasureKind;
         }
 
-        // R15d/R15e: an asyndetic shared-head group cannot resegment an
-        // unmarked member of a coordinator-ending Nominal list.
-        policy UnmarkedNominalConjunct<Right, Source> {
-            require left.UnmarkedConjunctLicence = Yes;
-        }
-        policy UnmarkedNominalSeriesConjunct<Right, Source> {
-            require left.UnmarkedConjunctLicence = Yes;
-            export CoordinationKind = Source.CoordinationKind;
-        }
-
         policy CoordinatorKindSummary<Right, Source> {
             export CoordinationKind = Source.CoordinationKind;
         }
@@ -1806,66 +1813,8 @@ constructions! {
             (DeterminerRequired, No) => No, (No, DeterminerRequired) => No,
             (DeterminerProjection, DeterminerProjection) => DeterminerProjection,
         }
-        policy NominalConcord<Right, Source> {
-            export ComparativeModifierPresent = No;
-            export UnmarkedConjunctLicence = Yes;
-            export SubjectRelativeNumber = relative_number_concord(left.SubjectRelativeNumber, Right.SubjectRelativeNumber);
-            export AttributePremodifierHead = coordinated_attribute_premodifier_head(
-                left.AttributePremodifierHead, Right.AttributePremodifierHead);
-            export KeywordPremodifierHead = coordinated_keyword_premodifier_head(
-                left.KeywordPremodifierHead, Right.KeywordPremodifierHead);
-            export NominalAgreementNumber = coordinated_nominal_agreement(
-                Source.CoordinationKind, Right.NominalAgreementNumber);
-            export PredicativeAdjunctUse = predicative_adjunct_concord(
-                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
-            export ScalarDenotation = coordinated_scalar_denotation(left.ScalarDenotation, Right.ScalarDenotation);
-            export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
-                Right.SelectedPrepositionUse);
-            export SourceModifierPresent = source_modifier_presence(left.SourceModifierPresent,
-                Right.SourceModifierPresent);
-            export WholeObjectSourcePresent = whole_object_source_presence(left.WholeObjectSourcePresent,
-                Right.WholeObjectSourcePresent);
-            export BarePrepositionUse = No;
-            export NominalComplementMarker = None;
-            export CardinalMeasurementUse = coordinated_cardinal_measurement(
-                left.CardinalMeasurementUse, Right.CardinalMeasurementUse);
-            export MeasurePosition = coordinated_measure_position(
-                left.MeasurePosition, Right.MeasurePosition);
-            export ScalarMeasurementHeadUse = No;
-            export PropertyValuePosition = coordinated_property_value_position(
-                Source.CoordinationKind, left.PropertyValuePosition, Right.PropertyValuePosition);
-            export DeterminerRequirement = coordinated_determiner_requirement(
-                left.DeterminerRequirement, Right.DeterminerRequirement);
-            export BareGenitiveHost = No;
-            export NumberTransparency = coordinated_transparency(left.NumberTransparency,
-                Right.NumberTransparency);
-            export ObliqueNumber = coordinated_oblique(Source.CoordinationKind,
-                left.ObliqueNumber, Right.ObliqueNumber);
-            agree left.Targeting = Right.Targeting;
-            agree left.countability = Right.countability;
-            agree left.number = Right.number;
-            export Targeting = left.Targeting;
-            export NominalDependentPresent = nominal_dependent_presence(left.NominalDependentPresent,
-                Right.NominalDependentPresent);
-            export NominalAdjunctClass = nominal_adjunct_concord(left.NominalAdjunctClass,
-                Right.NominalAdjunctClass);
-            export RelativisableAdjunctClass = coordinated_relativisable_adjunct_class(
-                left.RelativisableAdjunctClass, Right.RelativisableAdjunctClass);
-            export SlashPremodifierUse = slash_premodifier_concord(left.SlashPremodifierUse,
-                Right.SlashPremodifierUse);
-            export countability = left.countability;
-            export number = left.number;
-        }
 
-        table coordinated_scalar_denotation(ScalarDenotation, ScalarDenotation) -> ScalarDenotation {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
 
-        table coordinated_targeting(Targeting, Targeting) -> Targeting {
-            (No, No) => No,
-            (_, _) => Yes,
-        }
         table coordinated_determiner_agreement(DeterminerAgreementNumber, DeterminerAgreementNumber)
             -> DeterminerAgreementNumber {
             (Singular, Singular) => Singular, (Singular, Nominal) => Nominal,
@@ -1909,37 +1858,6 @@ constructions! {
             (Additive, _, _, _, _) => Plural,
             (Alternative, _, Singular, _, _) => Singular,
             (Alternative, _, Plural, _, _) => Plural,
-        }
-        policy NounCoordinationAgreement<Right, Source> {
-            export NominalDependentPresent = Yes;
-            export LocativeUse = No;
-            export PartitiveCountability = coordinated_partitive_countability(left.PartitiveCountability, Right.PartitiveCountability);
-            export NounPhraseStructure = Other;
-            export FocusedUse = coordinated_focus(left.FocusedUse, Right.FocusedUse);
-            export Definiteness = Unspecified;
-            export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
-            export ComparativePostmodifierUse = No;
-            export DeterminerAgreementNumber = coordinated_determiner_agreement(
-                left.DeterminerAgreementNumber, Right.DeterminerAgreementNumber);
-            export PredicativeAdjunctUse = predicative_adjunct_concord(
-                left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
-            export ScalarDenotation = coordinated_scalar_denotation(left.ScalarDenotation, Right.ScalarDenotation);
-            export SelectedPrepositionUse = selected_preposition_concord(left.SelectedPrepositionUse,
-                Right.SelectedPrepositionUse);
-            export SourceModifierPresent = source_modifier_presence(left.SourceModifierPresent,
-                Right.SourceModifierPresent);
-            export WholeObjectSourcePresent = whole_object_source_presence(left.WholeObjectSourcePresent,
-                Right.WholeObjectSourcePresent);
-            agree left.BarePrepositionUse = Right.BarePrepositionUse;
-            export BarePrepositionUse = left.BarePrepositionUse;
-            export SubjectStructure = Phrase;
-            export BareGenitiveHost = No;
-            export Targeting = coordinated_targeting(left.Targeting, Right.Targeting);
-            export number = determined_np_coordinate_number(Source.CoordinationKind,
-                left.number, Right.number, left.DeterminerAgreementNumber, Right.DeterminerAgreementNumber);
-            export person = coordinate_person(Source.CoordinationKind, left.person,
-                Right.person);
-            export CaseUse = common_case(left.CaseUse, Right.CaseUse);
         }
 
         policy PredicativeListEnd<Right, Source> {
@@ -2149,6 +2067,38 @@ constructions! {
 
         policy GeneralCoordinatorDistribution<Right, Source> {
             require Source.GeneralCoordination = Yes;
+        }
+
+        coordination_forms Standard {
+            binary Coordination;
+            series CoordinationSeriesEnd, CoordinationSeriesContinuation, SerialCoordination;
+            correlative_series CorrelativeSeriesEnd, CorrelativeSeriesContinuation;
+            correlative BothCoordination;
+            correlative EitherCoordination, EitherSerialCoordination;
+            correlative NeitherCoordination, NeitherSerialCoordination;
+        }
+
+        coordinable Nominal using Standard {
+            forms binary, serial;
+            series NominalSeries;
+            on Coordination, CoordinationSeriesEnd {
+                require source.GeneralCoordination = Yes;
+            }
+            // R15d/R15e: an asyndetic shared-head group cannot resegment
+            // an unmarked member of a coordinator-ending Nominal list.
+            on serial {
+                require left.UnmarkedConjunctLicence = Yes;
+            }
+        }
+
+        coordinable NounPhrase using Standard {
+            forms binary, serial, BothCoordination, EitherCoordination,
+                EitherSerialCoordination, NeitherCoordination, NeitherSerialCoordination;
+            series NounPhraseSeries;
+            correlative_series CorrelativeNounPhraseSeries;
+            on Coordination, CoordinationSeriesEnd {
+                require source.GeneralCoordination = Yes;
+            }
         }
 
         schema CoordinationSeriesEnd {
@@ -3328,7 +3278,6 @@ constructions! {
                 PrimitiveRightTail),
             (FinitePredicateSeries, FinitePredicate, FiniteConcord, NoConcord, NoConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, SecondaryConjunctProperties, NoConcord, NoConcord),
-            (NounPhraseSeries, NounPhrase, NounCoordinationAgreement, CoordinatorKindSummary),
             (VerbalPremodifierSeries, VerbalPremodifier),
             (NounPremodifierSeries, NounPremodifier, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase),
@@ -3341,7 +3290,6 @@ constructions! {
             (FiniteSelectedHeadSeries, FiniteSelectedHead, FiniteConcord, SelectedFrameConcord, NoConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, SecondaryConcord,
                 SelectedFrameConcord, NoConcord),
-            (NominalSeries, Nominal, NominalConcord, UnmarkedNominalSeriesConjunct),
             (AdjectivePhraseSeries, AdjectivePhrase, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, AdverbPermissions, LeadingConjunct),
@@ -3370,7 +3318,6 @@ constructions! {
             (SelectedComplementTailSeries, SelectedComplementTail, Self, SelectedTailConcord),
             (FinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (SecondaryPredicateSeries, SecondaryVerbPhrase, Self, SecondaryConjunctProperties),
-            (NounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement, CoordinatorKindSummary),
             (VerbalPremodifierSeries, VerbalPremodifier, Self),
             (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase, Self),
@@ -3384,7 +3331,6 @@ constructions! {
                 SelectedFrameConcord),
             (SecondarySelectedHeadSeries, SecondarySelectedHead, Self, SecondaryConcord,
                 SelectedFrameConcord),
-            (NominalSeries, Nominal, Self, NominalConcord, UnmarkedNominalSeriesConjunct),
             (AdjectivePhraseSeries, AdjectivePhrase, Self, AdjectiveStructureMerge),
             (PrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (AdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions, LeadingConjunct),
@@ -3410,7 +3356,6 @@ constructions! {
             (SelectedComplementTail, Self, SelectedComplementTailSeries, SelectedTailConcord),
             (FinitePredicate, Self, FinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryPredicateSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, NounPhraseSeries, NounCoordinationAgreement),
             (VerbalPremodifier, Self, VerbalPremodifierSeries),
             (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
             (ManaPhrase, Self, ManaPhraseSeries),
@@ -3423,7 +3368,6 @@ constructions! {
             (FiniteSelectedHead, Self, FiniteSelectedHeadSeries, FiniteConcord, SharedFrameConcord),
             (SecondarySelectedHead, Self, SecondarySelectedHeadSeries, SecondaryConcord,
                 SharedFrameConcord),
-            (Nominal, Self, NominalSeries, NominalConcord, UnmarkedNominalConjunct),
             (AdjectivePhrase, Self, AdjectivePhraseSeries, AdjectiveStructureMerge),
             (PrepositionPhrase, Self, PrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPhraseSeries, AdverbPermissions, LeadingConjunct),
@@ -3702,7 +3646,6 @@ constructions! {
             (NounPremodifier, Self, NounPremodifierConcord),
             (KeywordQualityPreposition, Self, QualityPrepositionConcord),
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
-            (NounPhrase, Self, NounCoordinationAgreement),
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoConcord, NoClauseComplementBoundary),
             (FiniteObjectGap, Self, FiniteGapConcord, NoConcord, NoConcord, NoClauseComplementBoundary),
@@ -3715,7 +3658,6 @@ constructions! {
             (GrantedAbility, Self, GrantedAbilityCoordination),
             (FiniteSelectedHead, Self, FiniteConcord, SharedFrameConcord, NoConcord),
             (SecondarySelectedHead, Self, SecondaryConcord, SharedFrameConcord, NoConcord),
-            (Nominal, Self, NominalConcord),
             (AdjectivePhrase, Self, AdjectiveStructureMerge),
             (ComparativeGovernorHead, Self, NoConcord, ComparativeGovernorComparison),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
@@ -5070,11 +5012,6 @@ constructions! {
         table posthead_dependent_presence(present) -> NominalDependentPresent {
             (No) => No, (Yes) => Yes,
         }
-        table nominal_dependent_presence(NominalDependentPresent, NominalDependentPresent)
-            -> NominalDependentPresent {
-            (No, No) => No,
-            (_, _) => Yes,
-        }
         table nominal_adjunct_concord(NominalAdjunctClass, NominalAdjunctClass)
             -> NominalAdjunctClass {
             (None, None) => None, (None, Temporal) => None, (None, Manner) => None,
@@ -5882,11 +5819,6 @@ constructions! {
             (PropertyValue),
         ] {}
 
-        table slash_premodifier_concord(SlashPremodifierUse, SlashPremodifierUse)
-            -> SlashPremodifierUse {
-            (Yes, Yes) => Yes,
-            (_, _) => No,
-        }
 
         construction SlashModifiedNominal: Nominal {
             form [modifier: SlashPair, " ", head: Nominal];
@@ -6528,7 +6460,6 @@ constructions! {
             (Clause, Self, UnmarkedConjunctHead, CoordinatedClauseHost),
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
@@ -6557,8 +6488,6 @@ constructions! {
             (CorrelativeFinitePredicateSeries, FinitePredicate, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase,
                 SecondaryConjunctProperties),
-            (CorrelativeNounPhraseSeries, NounPhrase, NounCoordinationAgreement,
-                CoordinatorKindSummary),
             (CorrelativePrepositionPhraseSeries, PrepositionPhrase, ObliquePrepositionConcord, CoordinatorKindSummary),
             (CorrelativeAdverbPhraseSeries, AdverbPhrase, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase),
@@ -6589,8 +6518,6 @@ constructions! {
             (CorrelativeFinitePredicateSeries, FinitePredicate, Self, FiniteConcord),
             (CorrelativeSecondaryVerbPhraseSeries, SecondaryVerbPhrase, Self,
                 SecondaryConjunctProperties),
-            (CorrelativeNounPhraseSeries, NounPhrase, Self, NounCoordinationAgreement,
-                CoordinatorKindSummary),
             (CorrelativePrepositionPhraseSeries, PrepositionPhrase, Self, ObliquePrepositionConcord, CoordinatorKindSummary),
             (CorrelativeAdverbPhraseSeries, AdverbPhrase, Self, AdverbPermissions),
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
@@ -6618,7 +6545,6 @@ constructions! {
             (Clause, Self, CorrelativeClauseSeries, MarkedConjunctSeries, CoordinatedClauseHost),
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
@@ -6644,7 +6570,6 @@ constructions! {
         instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
@@ -6670,7 +6595,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (FinitePredicate, Self, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, NounCoordinationAgreement),
             (PrepositionPhrase, Self, ObliquePrepositionConcord),
             (AdverbPhrase, Self, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self),
@@ -6696,7 +6620,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (FinitePredicate, Self, CorrelativeFinitePredicateSeries, FiniteConcord, NoConcord, NoClauseComplementBoundary),
             (SecondaryVerbPhrase, Self, CorrelativeSecondaryVerbPhraseSeries, SecondaryConjunctProperties, NoConcord, NoClauseComplementBoundary),
-            (NounPhrase, Self, CorrelativeNounPhraseSeries, NounCoordinationAgreement),
             (PrepositionPhrase, Self, CorrelativePrepositionPhraseSeries, ObliquePrepositionConcord),
             (AdverbPhrase, Self, CorrelativeAdverbPhraseSeries, AdverbPermissions, UnmarkedConjunctHead),
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),

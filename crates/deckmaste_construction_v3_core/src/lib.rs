@@ -37,3 +37,6 @@ mod tests;
 
 #[cfg(test)]
 mod inheritance_tests;
+
+#[cfg(test)]
+mod coordination_tests;

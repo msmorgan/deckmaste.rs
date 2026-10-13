@@ -36,9 +36,9 @@ public Category root. There is no scanner callback or preferred Reading.
 
 The chart consumes complete, finite summaries. Authors can now declare Category-interface
 propagation and state only a Construction's changes; the compiler fills its
-exports before validating and lowering them. Boolean requirements, policy
-composition, generic coordination with per-feature combiners, and typed lexical
-classes remain future authoring work. Policies still cannot use other policies,
+exports before validating and lowering them. Generic coordination elaborates
+grammar-owned templates with per-interface combiners. Boolean requirements,
+policy composition and typed lexical classes remain future authoring work. Policies still cannot use other policies,
 and repetition does not automatically fold member features. The governing record
 is `docs/decisions/english-lexical-analysis.md`.
 
@@ -58,7 +58,7 @@ construction ModifiedNominal: Nominal {
 Propagation belongs to each Category interface entry: `head Feature` inherits,
 `local Feature` takes its declared default, and an unqualified entry requires an
 explicit export. Features retain their domains and optional defaults. This
-per-entry syntax leaves room for later coordination combiners; none exist yet.
+per-entry syntax also accepts an independent coordination combiner, described below.
 
 A field named `head` is the head by convention. `head other;` selects another
 field; `head none;` declares explicit headlessness. A Category with any head-mode
@@ -92,6 +92,129 @@ Elaboration produces the existing reference/constant equations. The compiler sti
 checks complete, unique interface exports, accessible references, domains, table
 arities, contradictory requirements, surface retention and recursion. It changes
 neither field order nor form indices, Reading shapes, admission, chart or runtime.
+
+## Coordination templates and combiners
+
+English coordination structure stays in grammar-owned schemas. The compiler
+binds their member Categories and derives their feature equations and series
+summaries. The English grammar currently uses this facility for Nominal and
+NounPhrase; other families remain explicit pending review of that prototype.
+
+```rust
+feature Permission { No, Yes } default No;
+category Nominal(head number combine same, head Permission combine all);
+
+schema Pair {
+    head none;
+    form [left: node, " and ", right: node];
+}
+schema End {
+    head none;
+    form [left: node, ", and ", right: node];
+}
+schema Continue {
+    head none;
+    form [left: node, ", ", rest: node];
+}
+schema Complete {
+    head none;
+    form [left: node, ", ", rest: node];
+}
+coordination_forms Standard {
+    binary Pair;
+    series End, Continue, Complete;
+}
+coordinable Nominal using Standard {
+    forms binary, serial;
+    series NominalSeries;
+}
+```
+
+`combine` is independent of ordinary `head`/`local` propagation. Every generated
+interface entry needs a combiner. Explicit ordinary constructions continue to
+use their existing head and export rules. Combiners are:
+
+- `all`: Yes exactly when both conjunct values are Yes; otherwise No.
+- `any`: Yes when either conjunct value is Yes; otherwise No.
+- `same`: require equality and retain that value.
+- A constant, such as `No`, or a reference, such as `left.CliticHost`.
+- A named table with explicit arguments, for example
+  `determined_np_coordinate_number(source.CoordinationKind, left.number,
+  right.number, left.DeterminerAgreementNumber, right.DeterminerAgreementNumber)`.
+
+**All three primitive combiners are strict: an absent input rejects.** In
+particular, No/absent does not satisfy `all`, and Yes/absent does not satisfy
+`any`. These are feature-valued operations with today's table/agreement
+semantics, not three-valued predicates. `all`/`any` require an exact Yes/No
+feature domain. Named tables retain first-match, missing-row and absent-argument
+behaviour. Generated tables use the reserved `coordination_combine_` prefix.
+
+References use `left`, `right` and `source`. At a serial join, `right` is the
+`rest` summary and `source` is its carried coordinator summary; at an end or
+binary join, `source` is the schema's `coordinator` field. This is the existing
+recursive structure, not a reassociation or flattening of conjuncts. Generic
+schema fields must use `left`/`right` or `left`/`rest`; marker fields, separators,
+lexical restrictions, form order and per-form requirements belong to the schema.
+
+The form profile also accepts `correlative_series End, Continue;` and
+`correlative Binary[, Complete];`. A `forms` selection names `binary`, `serial`,
+or individual binary/complete schema names. A selected correlative completion
+adds the profile's correlative end/continuation and requires a named
+`correlative_series` Category. No unselected correlative pair or serial form is
+invented. For example English selects BothCoordination alone, but both
+EitherCoordination and EitherSerialCoordination. Its marker-feature requirements
+remain declared in those schemas.
+
+The `coordinable` block can change only exceptional behaviour:
+
+```rust
+coordinable Nominal using Standard {
+    forms binary, serial;
+    series NominalSeries;
+    on serial { require left.UnmarkedConjunctLicence = Yes; }
+    on series { combine SomeSummary = No; omit CompletedOnlySummary; }
+    on End { require right.SomePermission = Yes; }
+}
+```
+
+This example illustrates scopes; its extra features must be declared in a real
+grammar. A block-level `combine Feature = ...;` overrides the interface choice
+for that Category. `on` accepts one or more comma-separated contexts: `series`
+(end/continuation), `complete` (binary/completion), `serial` (all non-binary
+joins), `binary`, `ordinary`, `correlative`, or an exact selected schema name.
+An exact-schema override wins over a group override, which wins over the
+block-level override and then the interface annotation. Conflicting overrides
+at the same specificity reject; requirements and agreements accumulate. A
+context matching no selected form rejects. There is no policy composition or
+Boolean requirement syntax.
+
+Helpers start with the Category's combined entries. `on series` can override,
+add, or `omit` entries without repeating the regular ones; omission cannot
+remove a completed Category's interface entry. Template exports add helper
+entries, such as CorrelativeCoordinator. Coordinator features read through a
+tail are carried automatically from its end. End and continuation must expose
+the same summary. Unknown references, duplicate generated Categories and
+instances, and missing/ill-typed combiners reject through elaboration and the
+existing admission checks.
+
+Elaboration produces ordinary shared schema instances. It retains their
+constructor names, ordered fields, form indices and `category` discriminators;
+handwritten instances can coexist for other Categories. The prototype uses one
+member/result Category per block. Distinct member/result mappings (for example
+correlative adjectives or focused adjuncts) are not implemented yet and retain
+their explicit instances.
+
+The following English structures intentionally remain handwritten:
+
+- ClauseCoordination's binary punctuation: two forms and a BareCoordination
+  restriction, with its own constructor shape.
+- Irregular premodifier paths: unlike Categories and separate asyndetic/syndetic
+  restrictions are clearer as explicit constructions.
+- NumeralComparativeCoordination, AdjectivalScalarCoordination and
+  CardinalDeterminativeCoordination: heterogeneous members with specialized
+  lexical and distribution requirements.
+- MedialSupplementation: a supplement and its anchor/continuation have a
+  different structure from a binary or serial coordination.
 
 ## Frame declarations
 

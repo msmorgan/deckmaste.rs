@@ -24,3 +24,5 @@ mod selected_frames;
 mod surface_features;
 #[path = "suite/table_requirements.rs"]
 mod table_requirements;
+#[path = "suite/coordination.rs"]
+mod coordination;

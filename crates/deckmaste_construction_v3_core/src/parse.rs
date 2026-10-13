@@ -1,3 +1,6 @@
+#[path = "coordination.rs"]
+mod coordination;
+
 use deckmaste_lexical_model::Frame;
 use deckmaste_lexical_model::FrameItem;
 use deckmaste_lexical_model::FrameSlot;
@@ -29,14 +32,17 @@ pub(crate) struct Declaration {
     pub capitalization: Option<Ident>,
 }
 
+#[derive(Clone)]
 pub(crate) struct Category {
     pub name: Ident,
     pub features: Vec<InterfaceFeature>,
 }
 
+#[derive(Clone)]
 pub(crate) struct InterfaceFeature {
     pub name: Ident,
     pub propagation: Option<Propagation>,
+    pub combiner: Option<coordination::Combiner>,
 }
 
 pub(crate) struct Feature {
@@ -200,6 +206,8 @@ impl Parse for Declaration {
         };
         let mut schemas = Vec::new();
         let mut policies = Vec::new();
+        let mut coordination_forms = Vec::new();
+        let mut coordinable = Vec::new();
         while !body.is_empty() {
             let keyword: Ident = body.parse()?;
             let name: Ident = body.parse()?;
@@ -223,6 +231,10 @@ impl Parse for Declaration {
                     });
                     body.parse::<Token![;]>()?;
                 }
+                "coordination_forms" => {
+                    coordination_forms.push(coordination::parse_forms(&body, name)?);
+                }
+                "coordinable" => coordinable.push(coordination::parse_coordinable(&body, name)?),
                 "feature" => result.features.push(parse_feature(&body, name)?),
                 "frame_marker_licence" => {
                     parse_frame_marker_licence(&body, name, &mut result)?;
@@ -288,12 +300,17 @@ impl Parse for Declaration {
                 }
             }
         }
+        validate_policies(&policies)?;
+        apply_policies(&mut schemas, &mut [], &policies)?;
+        for schema in &mut schemas {
+            schema.uses.clear();
+        }
+        coordination::elaborate(&mut result, &schemas, &coordination_forms, &coordinable)?;
         result.constructions = expand_rows(
             std::mem::take(&mut result.constructions),
             &result.categories,
             &policies,
         )?;
-        validate_policies(&policies)?;
         apply_policies(&mut schemas, &mut result.constructions, &policies)?;
         validate_schemas(&schemas)?;
         instantiate_schemas(&mut result.constructions, &schemas)?;
@@ -311,7 +328,20 @@ fn interface_features(input: ParseStream<'_>) -> syn::Result<Vec<InterfaceFeatur
             _ => None,
         };
         let name = if propagation.is_some() { input.parse()? } else { first };
-        features.push(InterfaceFeature { name, propagation });
+        let combiner = if input.peek(Ident) {
+            let keyword: Ident = input.parse()?;
+            if keyword != "combine" {
+                return Err(syn::Error::new(keyword.span(), "expected combine"));
+            }
+            Some(coordination::parse_combiner(input)?)
+        } else {
+            None
+        };
+        features.push(InterfaceFeature {
+            name,
+            propagation,
+            combiner,
+        });
         if !input.is_empty() {
             input.parse::<Token![,]>()?;
         }
