@@ -3395,52 +3395,48 @@ constructions! {
                 modifier.PredicativeAdjunctUse, head.PredicativeAdjunctUse);
         }
 
-        construction NounPremodifiedNominal: Nominal {
-            require modifier.NominalModifierOrder = Commuting;
-            form [modifier: NounPremodifier, " ", head: Nominal];
+        policy NounPremodification {
             require licensed_noun_premodifier(modifier.NounPremodifier,
                 head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
             export NominalDependentPresent = Yes;
             export SelectedPrepositionUse = No;
             export PredicativeAdjunctUse = No;
             require head.Targeting = No;
+        }
+
+        construction NounPremodifiedNominal: Nominal {
+            require modifier.NominalModifierOrder = Commuting;
+            form [modifier: NounPremodifier, " ", head: Nominal];
+            use NounPremodification;
         }
 
         construction BarrierNounPremodifiedNominal: NominalCore {
             require modifier.NominalModifierOrder = Barrier;
             form [modifier: NounPremodifier, " ", head: Nominal];
-            require licensed_noun_premodifier(modifier.NounPremodifier,
-                head.AttributePremodifierHead, head.KeywordPremodifierHead) = Yes;
+            use NounPremodification;
+        }
+
+        policy AdjectivePremodification {
             export NominalDependentPresent = Yes;
-            export SelectedPrepositionUse = No;
-            export PredicativeAdjunctUse = No;
-            require head.Targeting = No;
+            export ComparativeModifierPresent = comparative_modifier_present(
+                modifier.ImplicitComparativeUse, head.ComparativeModifierPresent);
+            export PropertyValuePosition = premodified_property_value_position(
+                modifier.AdjectiveOrigin, head.PropertyValuePosition);
+            require modifier.AdjectiveStructure = Simple;
+            require modifier.AdjectivePremodifierUse = Yes;
+            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
         }
 
         construction PremodifiedNominal: Nominal {
             require modifier.NominalModifierOrder = Commuting;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
-            export NominalDependentPresent = Yes;
-            export ComparativeModifierPresent = comparative_modifier_present(
-                modifier.ImplicitComparativeUse, head.ComparativeModifierPresent);
-            export PropertyValuePosition = premodified_property_value_position(
-                modifier.AdjectiveOrigin, head.PropertyValuePosition);
-            require modifier.AdjectiveStructure = Simple;
-            require modifier.AdjectivePremodifierUse = Yes;
-            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+            use AdjectivePremodification;
         }
 
         construction BarrierPremodifiedNominal: NominalCore {
             require modifier.NominalModifierOrder = Barrier;
             form [modifier: AdjectivePhrase, " ", head: Nominal];
-            export NominalDependentPresent = Yes;
-            export ComparativeModifierPresent = comparative_modifier_present(
-                modifier.ImplicitComparativeUse, head.ComparativeModifierPresent);
-            export PropertyValuePosition = premodified_property_value_position(
-                modifier.AdjectiveOrigin, head.PropertyValuePosition);
-            require modifier.AdjectiveStructure = Simple;
-            require modifier.AdjectivePremodifierUse = Yes;
-            require targeting_premodifier(modifier.TargetingPremodifierUse, head.Targeting) = Yes;
+            use AdjectivePremodification;
         }
 
         table superlative_quantifier_license(DeterminerUse, number, countability) -> Selection {

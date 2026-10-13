@@ -614,6 +614,9 @@ and barrier modifiers; NominalPostmodification adds the reviewed postmodifiers
 and relatives; Nominal adds commuting premodifiers. NominalCoreProjection and
 NominalProjection lift between these categories and explicitly forward the
 three local slots. A barrier consumes a full Nominal and returns NominalCore,
-retaining both inside and outside scopes. The two premodifier constructions
-have complementary commuting/barrier routes. Existing policing features and
-requirements remain in place; the layers do not replace their external uses.
+retaining both inside and outside scopes. Adjective and noun premodification
+have complementary commuting/barrier routes. Each pair shares its requirements
+and exports through NounPremodification or AdjectivePremodification; its form,
+modifier-order requirement and constructor remain explicit. Existing policing
+features and requirements remain in place; the layers do not replace their
+external uses.
