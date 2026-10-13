@@ -10,7 +10,7 @@ use serde::Serialize;
 
 // Bump on every classification or normalization change and append the new
 // source identity to the version lock in the tests. Historical entries stay fixed.
-pub(super) const VERSION: usize = 2;
+pub(super) const VERSION: usize = 3;
 
 pub(super) fn source_sha256() -> String {
     // Compile the source into the binary: a disk edit after building must not
@@ -218,6 +218,86 @@ impl Tree {
                 .is_some_and(|m| m.commuting_pre(name == "NounPremodifiedNominal")))
         .then_some(pre))
     }
+    // Invert only the reviewed layer representation before comparing analyses.
+    // This pass precedes chain flattening so a lift cannot interrupt a chain.
+    fn adapt_layers(self) -> Result<Self> {
+        Ok(match self {
+            Self::Record(mut name, mut fields) => {
+                let expected: Option<&[&str]> = match name.as_str() {
+                    "NominalCoreProjection" | "NominalProjection" => Some(&["form", "head"]),
+                    "BarrierPremodifiedNominal" | "BarrierNounPremodifiedNominal" => {
+                        Some(&["form", "modifier", "head"])
+                    }
+                    _ => None,
+                };
+                if let Some(expected) = expected {
+                    ensure!(
+                        fields
+                            .iter()
+                            .map(|(n, _)| n.as_str())
+                            .eq(expected.iter().copied())
+                            && fields[0].1 == Self::Atom("0".into()),
+                        "normal-form adapter needs review: {name} shape changed"
+                    );
+                    if name.ends_with("Projection") {
+                        return fields.pop().unwrap().1.adapt_layers();
+                    }
+                    name.drain(.."Barrier".len());
+                }
+                let category_shape: Option<&[&str]> = match name.as_str() {
+                    "Coordination" => Some(&["form", "category", "left", "coordinator", "right"]),
+                    "SerialCoordination" => Some(&["form", "category", "left", "rest"]),
+                    "DiscontinuousComparativeNominal" => Some(&[
+                        "form",
+                        "category",
+                        "governor",
+                        "head",
+                        "marker",
+                        "complement",
+                    ]),
+                    "PostpositiveNominal" => Some(&["form", "category", "head", "modifier"]),
+                    _ => None,
+                };
+                if let Some(expected) = category_shape
+                    && fields
+                        .iter()
+                        .any(|(n, v)| n == "category" && *v == Self::Atom("NominalCore".into()))
+                {
+                    ensure!(
+                        fields
+                            .iter()
+                            .map(|(n, _)| n.as_str())
+                            .eq(expected.iter().copied())
+                            && fields[0].1 == Self::Atom("0".into()),
+                        "normal-form adapter needs review: {name} shape changed"
+                    );
+                    fields[1].1 = Self::Atom("Nominal".into());
+                }
+                Self::Record(
+                    name,
+                    fields
+                        .into_iter()
+                        .map(|(n, v)| Ok((n, v.adapt_layers()?)))
+                        .collect::<Result<_>>()?,
+                )
+            }
+            Self::Call(name, values) => Self::Call(
+                name,
+                values
+                    .into_iter()
+                    .map(Self::adapt_layers)
+                    .collect::<Result<_>>()?,
+            ),
+            Self::List(values) => Self::List(
+                values
+                    .into_iter()
+                    .map(Self::adapt_layers)
+                    .collect::<Result<_>>()?,
+            ),
+            Self::Atom(_) => self,
+            Self::Nominal { .. } => bail!("normal form cannot be adapted twice"),
+        })
+    }
     fn normalize(self) -> Result<Self> {
         if self.side()?.is_some() {
             let mut head = self;
@@ -279,7 +359,7 @@ fn encoded(debug: &str) -> Result<Vec<u8>> {
     let mut parser = Parser { input: debug };
     let tree = parser.tree()?;
     ensure!(parser.input.trim().is_empty(), "trailing Reading encoding");
-    Ok(serde_json::to_vec(&tree.normalize()?)?)
+    Ok(serde_json::to_vec(&tree.adapt_layers()?.normalize()?)?)
 }
 
 pub(super) fn fingerprint(reading: &Reading) -> Result<String> {

@@ -360,10 +360,16 @@ fn a_derived_card_type_id_does_not_extend_the_reviewed_inventory() {
 #[test]
 fn normal_form_version_identifies_the_exact_reviewed_source() {
     // Append a version when this source changes; never replace an old entry.
-    let versions = [(
-        2,
-        "9cacc5055c558101180b903645271e91874613e1ee4b8d29585755bb8c685e3e",
-    )];
+    let versions = [
+        (
+            2,
+            "9cacc5055c558101180b903645271e91874613e1ee4b8d29585755bb8c685e3e",
+        ),
+        (
+            3,
+            "2b48ff9165ddecd677360be67aefe948248701b03b6db81a1bf7dfb7c8ba6273",
+        ),
+    ];
     assert_eq!(versions.last().unwrap().0, VERSION);
     assert_eq!(
         versions.last().unwrap().1,
@@ -467,4 +473,98 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
     assert!(admitted.contains("lexeme:type/artifact"));
     assert!(!admitted.contains("vocab:ColorWord/Red/non"));
     assert!(!admitted.contains("lexeme:type/artifact/non"));
+}
+
+#[test]
+fn layer_adapter_preserves_old_records_and_barrier_scope() {
+    let legacy =
+        "PremodifiedNominal { form: 0, modifier: Other, head: Noun { form: 0, head: Creature } }";
+    let layered = "NominalProjection { form: 0, head: NominalCoreProjection { form: 0, head: BarrierPremodifiedNominal { form: 0, modifier: Other, head: NominalProjection { form: 0, head: NominalCoreProjection { form: 0, head: Noun { form: 0, head: Creature } } } } } }";
+    assert_eq!(encoded(legacy).unwrap(), encoded(layered).unwrap());
+    assert_ne!(
+        encoded(layered).unwrap(),
+        encoded(&layered.replace("Creature", "Artifact")).unwrap()
+    );
+    for (name, fields) in [
+        ("Coordination", "left: A, coordinator: And, right: B"),
+        ("SerialCoordination", "left: A, rest: B"),
+        (
+            "DiscontinuousComparativeNominal",
+            "governor: More, head: A, marker: Than, complement: B",
+        ),
+        ("PostpositiveNominal", "head: A, modifier: B"),
+    ] {
+        let old = format!("{name} {{ form: 0, category: Nominal, {fields} }}");
+        let new = old.replace("category: Nominal,", "category: NominalCore,");
+        assert_eq!(encoded(&old).unwrap(), encoded(&new).unwrap());
+        assert_ne!(
+            encoded(&old).unwrap(),
+            encoded(&old.replace("category: Nominal,", "category: NounPhrase,")).unwrap()
+        );
+        assert!(encoded(&new.replace("form: 0", "form: 1")).is_err());
+        assert!(encoded(&new.replace("form: 0,", "form: 0, extra: X,")).is_err());
+    }
+    for name in [
+        "NominalProjection",
+        "NominalCoreProjection",
+        "BarrierPremodifiedNominal",
+        "BarrierNounPremodifiedNominal",
+    ] {
+        assert!(encoded(&format!("{name} {{ form: 1, head: A }}")).is_err());
+        assert!(encoded(&format!("{name} {{ form: 0, head: A, extra: B }}")).is_err());
+    }
+    assert_ne!(
+        encoded("Unreviewed { form: 0, category: NominalCore, head: A }").unwrap(),
+        encoded("Unreviewed { form: 0, category: Nominal, head: A }").unwrap()
+    );
+}
+
+#[test]
+fn layer_lifts_do_not_interrupt_a_commuting_head_chain() {
+    fn lift_nouns(tree: Tree) -> Tree {
+        match tree {
+            Tree::Record(name, fields) => {
+                let record = Tree::Record(
+                    name.clone(),
+                    fields
+                        .into_iter()
+                        .map(|(n, v)| (n, lift_nouns(v)))
+                        .collect(),
+                );
+                if name == "Noun" {
+                    Tree::Record(
+                        "NominalProjection".into(),
+                        vec![
+                            ("form".into(), Tree::Atom("0".into())),
+                            (
+                                "head".into(),
+                                Tree::Record(
+                                    "NominalCoreProjection".into(),
+                                    vec![
+                                        ("form".into(), Tree::Atom("0".into())),
+                                        ("head".into(), record),
+                                    ],
+                                ),
+                            ),
+                        ],
+                    )
+                } else {
+                    record
+                }
+            }
+            Tree::Call(n, vs) => Tree::Call(n, vs.into_iter().map(lift_nouns).collect()),
+            Tree::List(vs) => Tree::List(vs.into_iter().map(lift_nouns).collect()),
+            t => t,
+        }
+    }
+    for reading in readings("red creatures you control", Category::NounPhrase) {
+        let debug = format!("{reading:?}");
+        let old = Parser { input: &debug }.tree().unwrap();
+        let new = lift_nouns(old.clone());
+        assert_ne!(old, new);
+        assert_eq!(
+            old.normalize().unwrap(),
+            new.adapt_layers().unwrap().normalize().unwrap()
+        );
+    }
 }

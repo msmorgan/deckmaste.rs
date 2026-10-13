@@ -581,7 +581,12 @@ are barriers, including nonred, enchanted and creature subtypes pending review.
 The implementation structurally reads the generated Debug tree encoding already
 used by census Reading identity. Unsupported syntax and changed known wrapper
 shapes fail; unknown constructors remain exact. The normal-form version must
-change if the equivalence or encoding changes. This restricted check licenses
+change if the equivalence or encoding changes. Version 3 adds the nominal-layer
+adapter: it removes exactly the two unary lifts, restores the two barrier
+constructor names, and restores NominalCore to Nominal only on Coordination,
+SerialCoordination, DiscontinuousComparativeNominal and PostpositiveNominal.
+These inverse mappings retain every payload and reject changed forms or fields;
+they do not admit a Reading or erase an arbitrary unary wrapper. This restricted check licenses
 no coordination, gap, passive, selected-frame or general scope equivalence.
 
 The lexical property `NominalModifierOrder { Barrier, Commuting }` defaults to

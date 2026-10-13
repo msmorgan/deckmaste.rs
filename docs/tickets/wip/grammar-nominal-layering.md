@@ -540,7 +540,7 @@ The layer conversion and approved follow-up have not yet been applied.
 Correction verification (`putoonqn`): full unchanged-grammar census has 32,828
 faces, 30,794 read, 482,041 Readings, 75,412 units, 392,155 normal forms,
 247,973,895 chart items, zero incomplete enumerations and zero issues. Wall
-time is 560.579 s with four workers (old baseline 657.651 s; host load differs).
+time is 560 s 579 ms with four workers (old baseline 657 s 651 ms; host load differs).
 `identical-digests` against the previous census passes on every face; the
 version-2 normal-form self-check passes. The old baseline is rejected by the
 normal-form gate for its version, then deleted. The retained baseline is
@@ -583,7 +583,7 @@ No policing feature has been removed. The ticket remains in progress.
 Classification census (`lynmlnrq`): 32,828 faces, 30,794 read, 482,041 Readings,
 75,412 units and 392,155 normal forms. The raw identical-digests gate passes
 against version 2. Chart items are unchanged at 247,973,895. Wall time is
-603.443 s versus 560.579 s (+7.6%), both four workers; the classification run
+603 s 443 ms versus 560 s 579 ms (+7.6%), both four workers; the classification run
 also overlapped full tests. This is not a measurement of the still-unimplemented
 lifts. The approved follow-up has not begun.
 
@@ -614,3 +614,27 @@ conversion has been applied, and no follow-up modifier has been added.
 
 Census delta (`lynmlnrq`, preparatory prefix): faces read 30,794 → 30,794; Readings 482,041 → 482,041; lost faces none.
 Judgment set: does not apply yet.
+
+## Layer adapter and version-3 baseline
+
+Version 3 adds only the reviewed inverse representation mapping: strip the two
+exact unary lifts; restore the two barrier constructor names; restore the old
+Nominal category on Coordination, SerialCoordination,
+DiscontinuousComparativeNominal and PostpositiveNominal only. Changed forms or
+fields of these new shapes fail closed. The independent conservative lexical
+inventory is unchanged. The source lock records
+`2b48ff9165ddecd677360be67aefe948248701b03b6db81a1bf7dfb7c8ba6273`.
+
+The unchanged-grammar baseline has 32,828 faces, 30,794 read, 482,041 trees,
+75,412 units, 392,155 normal forms and 247,973,895 chart items. The isolated
+four-worker census took 571 s 477 ms (host load 4.219 / 6.345 / 6.287), with
+no concurrent test or build command. The full identical-digests check against
+version 2 passes. A separate streaming comparison checks exact equality of
+all 75,412 per-unit normal-form sets across the version change; the normal-form
+gate deliberately refuses cross-version comparisons. Version 2 is then deleted;
+`target/english-v3/nominal-baseline-v3.json` is the conversion baseline.
+
+Assurance: two tests added (strict inverse mappings, nested lifts in a commuting
+chain), the version-lock test extended; no tests removed, weakened or newly
+ignored. Full xtask: 487 passed, one existing ignore. Clippy with tests and
+warnings denied passed; all 43 normal-form tests passed after the style fixes.
