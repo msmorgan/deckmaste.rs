@@ -83,7 +83,17 @@ and source_modifier_presence. All thirteen table-to-primitive uses were compared
 on all nine present/absent input pairs; the 670 shape and 927 admission contracts
 remain identical. Multi-valued tables and tables with other users remain.
 
-Remaining families are pending their separate conversion and gate: finite/secondary predicates and selected heads, object gaps,
+FinitePredicate, SecondaryVerbPhrase, FiniteSelectedHead and SecondarySelectedHead
+replace forty-four rows and eight helper interfaces. The grammar-owned Clausal
+profile retains their lack of a GeneralCoordination requirement. Right-only clitic
+requirements and helper omissions remain explicit. FiniteConcord, SecondaryConcord,
+SecondaryConjunctProperties, SelectedFrameConcord and SharedFrameConcord lose their
+last users, as do auxiliary_ellipsis_concord, auxiliary_pro_form_concord,
+complement_presence and coordinated_participial_supplement. Six Boolean-table uses
+were compared on all nine present/absent pairs. All 670 shape and 927 admission
+contracts remain identical.
+
+Remaining families are pending their separate conversion and gate: object gaps,
 Clause/FiniteClause, focused adjuncts, Cardinal, MeasurePhrase, GrantedAbility,
 DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
 NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
@@ -91,5 +101,5 @@ KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedTex
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`xwplqstz`, preposition family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`xwplqstz`): does not apply yet.
+Census delta (`yqlwrwzy`, predicate family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`yqlwrwzy`): does not apply yet.

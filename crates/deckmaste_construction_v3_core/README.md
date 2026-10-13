@@ -109,6 +109,12 @@ Their multi-valued judgments remain named tables, including the four-argument
 complement-function judgment. Other families still use explicit instances until
 their conversion is verified.
 
+FinitePredicate, SecondaryVerbPhrase and their selected heads use the grammar-owned
+Clausal profile: the same structural schemas without Standard’s GeneralCoordination
+requirement. Finite members require a free right-hand clitic host while retaining
+the left host. Predicate helpers omit result boundary features; selected-head
+helpers omit HeadCoordination. SecondaryPredicateSeries keeps its explicit name.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);
