@@ -151,14 +151,6 @@ constructions! {
             -> PurposeAdjunctLicence {
             (No, No) => No, (No, Yes) => No, (Yes, No) => No, (Yes, Yes) => Yes,
         }
-        policy PurposeConcord<Right, Source> {
-            export PurposeAdjunctLicence = coordinated_purpose_licence(
-                left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
-            export MatrixComplementLicence = matrix_host_concord(
-                left.MatrixComplementLicence, Right.MatrixComplementLicence);
-            export SourceComplementSelection = source_selection_union(
-                left.SourceComplementSelection, Right.SourceComplementSelection);
-        }
         feature FusedHeadUse { No, Yes } default No;
         feature ImmediatePostheadDependentUse { No, Yes } default No;
         feature FusedHeadPostmodifierUse { No, Yes } default No;
@@ -606,28 +598,26 @@ constructions! {
         category IrrealisClause();
         category IrrealisPredicate(head number, head person, head ScalarDenotation);
         category CentralAdverbSelectedHead(
-            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head frame
         );
         category ExistentialExtension();
         category DummyPronoun();
         category ExistentialPredicate(
-            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
-            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
-            head SourceComplementSelection
+            local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            head person, head CliticHost, head SourceComplementSelection
         );
         category FinitePredicate(
-            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            local NominalAdjunctHost, local ClauseComplementBoundary, head number,
             head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
         category QuantifiedAuxiliaryHead(
-            head Polarity, head number, head person, head frame, head CliticHost,
+            head number, head person, head frame, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category ScalarLocationPredicate(
-            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
-            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
         category BareScalarLocationPredicate(
@@ -643,7 +633,7 @@ constructions! {
             head MatrixComplementLicence, head SourceComplementSelection
         );
         category FiniteDepictiveHost(
-            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
         category SecondaryDepictiveHost(
@@ -694,8 +684,7 @@ constructions! {
         );
         category NominativePhrase(
             head number, head person, head DeterminerAgreementNumber, head CaseUse, head SubjectStructure,
-            head SelectedPrepositionUse, head PredicativeAdjunctUse, head ScalarDenotation,
-            head SourceModifierPresent, head WholeObjectSourcePresent
+            head ScalarDenotation
         );
         category AccusativePhrase(
             head NominalDependentPresent, head PartitiveCountability, head number, head person,
@@ -738,7 +727,7 @@ constructions! {
         category SubjectRelativeClause(head number);
         category ObjectRelativeClause(head RelativeGapKind);
         category FiniteObjectGap(
-            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
+            local NominalAdjunctHost, local ClauseComplementBoundary, head number,
             head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection, head ComparativeObjectGapLicence
         );
@@ -751,8 +740,7 @@ constructions! {
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category GerundParticipleObjectGap(
-            local ClauseComplementBoundary, head PurposeAdjunctLicence, head MatrixComplementLicence,
-            head SourceComplementSelection, head ComparativeObjectGapLicence
+            head ComparativeObjectGapLicence
         );
 
         category Cardinal(head number, head CardinalComplementUse);
@@ -761,7 +749,7 @@ constructions! {
         category SecondaryNegatorHead();
         category PrimaryNegator();
         category NegatedAuxiliaryHead(
-            head PredicateFrameUse, head Polarity, head number, head person, head CliticHost,
+            head PredicateFrameUse, head number, head person, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
             head frame
         );
@@ -803,7 +791,7 @@ constructions! {
         category MatrixComparativeComplement(head ComparisonMarker, head ComparativeComplementForm);
         category MatrixComparativePhrase(head ComparativeComplementForm);
         category ComparativeAdjectivePhrase(
-            head ComparisonMarker, head AdjectivePremodifierUse, head PropertyEqualityForm
+            head AdjectivePremodifierUse, head PropertyEqualityForm
         );
         category DiscontinuousComparativeGovernor(head frame, head ImplicitComparativeUse);
         category ComparativeDeterminerHead(
@@ -827,17 +815,14 @@ constructions! {
             head number, head person, head SubjectStructure, head DeterminerAgreementNumber
         );
         category ManaPassivePredicate(
-            head FrameUse, head HeadCoordination, head AuxiliaryProFormLicence,
-            head AuxiliaryEllipsisLicence, local NominalAdjunctHost, local ClauseComplementBoundary,
-            head form, head PurposeAdjunctLicence, head MatrixComplementLicence,
-            head SourceComplementSelection
+            head FrameUse, head HeadCoordination, head form, head PurposeAdjunctLicence,
+            head MatrixComplementLicence, head SourceComplementSelection
         );
         category ManaPassiveComplement(
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category FiniteManaPassivePredicate(
-            head Polarity, local NominalAdjunctHost, local ClauseComplementBoundary, head number,
-            head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence, head MatrixComplementLicence,
             head SourceComplementSelection
         );
         category ManaSymbol();
@@ -862,7 +847,7 @@ constructions! {
             head ClauseCoordinationHost, head UnmarkedConjunctLicence, head SourceComplementSelection
         );
         category FinitePredicateSeries(
-            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
         category SecondaryPredicateSeries(
@@ -884,7 +869,7 @@ constructions! {
         );
         category InfinitiveComplement();
         category FiniteSelectedHead(
-            head Polarity, head number, head person, head FrameUse, head HeadCoordination, head CliticHost,
+            head number, head person, head FrameUse, head HeadCoordination, head CliticHost,
             head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
@@ -894,7 +879,7 @@ constructions! {
             head SourceComplementSelection
         );
         category FiniteSelectedHeadSeries(
-            head Polarity, head number, head person, head FrameUse, head CliticHost,
+            head number, head person, head FrameUse, head CliticHost,
             head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection
         );
@@ -935,17 +920,17 @@ constructions! {
             head MatrixComplementRequirement, head NominalExceptionComplementUse
         );
         category FocusedAdjunctMember(
-            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head NominalAdjunctHost, head ClauseComplementBoundary,
             head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
             head SourceComplementUse
         );
         category FocusedAdjunctSeries(
-            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head NominalAdjunctHost, head ClauseComplementBoundary,
             head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
             head SourceComplementUse
         );
         category FocusedAdjunctCoordination(
-            head FocusedUse, head NominalAdjunctHost, head ClauseComplementBoundary,
+            head NominalAdjunctHost, head ClauseComplementBoundary,
             head ConnectiveAdjunctUse, head SourceMarker, head PrepositionPhraseComplementMarker,
             head SourceComplementUse, head PrepositionFunctionLicence, head ComplementFunctionRestriction,
             head PredicativeAdjunctUse, head SelectedPrepositionUse, head MatrixComplementRequirement,
@@ -958,7 +943,7 @@ constructions! {
         category InfinitiveComplementSeries();
         category FrequencyPhraseSeries();
         category FiniteObjectGapSeries(
-            head Polarity, head number, head person, head CliticHost, head PurposeAdjunctLicence,
+            head number, head person, head CliticHost, head PurposeAdjunctLicence,
             head MatrixComplementLicence, head SourceComplementSelection, head ComparativeObjectGapLicence
         );
         category BareObjectGapSeries(
@@ -977,7 +962,7 @@ constructions! {
             head SourceComplementSelection
         );
         category CorrelativeFinitePredicateSeries(
-            head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
+            head number, head person, head CorrelativeCoordinator, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
         category CorrelativeSecondaryVerbPhraseSeries(
@@ -1020,7 +1005,7 @@ constructions! {
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
         category CorrelativeFiniteSelectedHeadSeries(
-            head Polarity, head number, head person, head FrameUse, head CorrelativeCoordinator,
+            head number, head person, head FrameUse, head CorrelativeCoordinator,
             head CliticHost, head AuxiliaryEllipsisLicence, head AuxiliaryProFormLicence,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection
         );
@@ -1032,7 +1017,7 @@ constructions! {
         category CorrelativeAdjectivePhrase(head AdjectiveAttributiveOnlyUse);
         category CorrelativeAdjectiveSeries(head AdjectiveAttributiveOnlyUse, head CorrelativeCoordinator);
         category CorrelativeFiniteObjectGapSeries(
-            head Polarity, head number, head person, head CorrelativeCoordinator, head CliticHost,
+            head number, head person, head CorrelativeCoordinator, head CliticHost,
             head PurposeAdjunctLicence, head MatrixComplementLicence, head SourceComplementSelection,
             head ComparativeObjectGapLicence
         );
@@ -1093,7 +1078,6 @@ constructions! {
             export frame = head.frame;
             require head.AuxiliaryUse = Yes;
             require head.Polarity = Positive;
-            export Polarity = Negative;
             export CliticHost = clitic_host(head.Clitic, head.form, head.number, head.person);
             require head.finiteness = Finite;
             export number = head.number;
@@ -1192,17 +1176,6 @@ constructions! {
             (Plain) => Plain,
             (GerundParticiple) => GerundParticiple,
             (PastParticiple) => PastParticiple,
-        }
-
-        table coordinate_number(CoordinationKind, number, number) -> number {
-            (Additive, Singular, Singular) => Plural,
-            (Additive, Singular, Plural) => Plural,
-            (Additive, Plural, Singular) => Plural,
-            (Additive, Plural, Plural) => Plural,
-            (Alternative, Singular, Singular) => Singular,
-            (Alternative, Singular, Plural) => Plural,
-            (Alternative, Plural, Singular) => Singular,
-            (Alternative, Plural, Plural) => Plural,
         }
 
         // The ticket's corpus restriction retires single-referent additive
@@ -1561,12 +1534,6 @@ constructions! {
             export ParticipialUse = Ordinary;
         }
 
-        policy PurposeHostProjection {
-            export PurposeAdjunctLicence = head.PurposeAdjunctLicence;
-            export MatrixComplementLicence = head.MatrixComplementLicence;
-            export SourceComplementSelection = head.SourceComplementSelection;
-        }
-
         policy NoFeatures {
         }
 
@@ -1717,7 +1684,6 @@ constructions! {
         }
 
         policy FiniteConcord<Right, Source> {
-            export Polarity = left.Polarity;
             export PurposeAdjunctLicence = coordinated_purpose_licence(
                 left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
             export MatrixComplementLicence = matrix_host_concord(
@@ -1733,7 +1699,6 @@ constructions! {
         }
 
         policy FiniteGapConcord<Right, Source> {
-            export Polarity = left.Polarity;
             export PurposeAdjunctLicence = coordinated_purpose_licence(
                 left.PurposeAdjunctLicence, Right.PurposeAdjunctLicence);
             export MatrixComplementLicence = matrix_host_concord(
@@ -3490,7 +3455,6 @@ constructions! {
         // CF8 (orchestrator, 2026-10-10): like and unlike focused Adjuncts
         // share one member Category. Each form checks its own function licence.
         construction FocusedAdjunctMember: FocusedAdjunctMember {
-            export FocusedUse = Yes;
             require head.FocusedUse = Yes;
             form [head: PrepositionPhrase]
                 require licence_adjunct(head.PrepositionFunctionLicence) = Yes
@@ -3510,11 +3474,9 @@ constructions! {
         ] {
             require head.FocusedUse = Yes;
             require head.VPFinalAdjunct = Yes;
-            export FocusedUse = Yes;
             export NominalAdjunctHost = No;
         }
         policy FocusedAdjunctConcord<Right, Source> {
-            export FocusedUse = Yes;
             export NominalAdjunctHost = Right.NominalAdjunctHost;
             export ClauseComplementBoundary = coordinated_clause_complement_boundary(
                 left.ClauseComplementBoundary, Right.ClauseComplementBoundary);
@@ -5519,10 +5481,6 @@ constructions! {
             export person = Third;
             export CaseUse = Nominative;
             export SubjectStructure = Phrase;
-            export SelectedPrepositionUse = No;
-            export PredicativeAdjunctUse = No;
-            export SourceModifierPresent = No;
-            export WholeObjectSourcePresent = No;
             export ScalarDenotation = head.ScalarDenotation;
         }
         schema ScalarVariable {
