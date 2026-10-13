@@ -357,7 +357,7 @@ constructions! {
         feature PropertyValuePosition { None, Single, First, Second, Pair } default None combine coordinated_property_value_position;
         feature PropertyEqualityForm { None, Unquantified, Quantified } default None;
         feature CardinalMeasurementUse { No, DeterminerRequired, DeterminerProjection, Yes } default No combine coordinated_cardinal_measurement;
-        feature MeasureKind { Scalar, Pair }
+        feature MeasureKind { Scalar, Pair } combine same;
         feature MatrixComparisonUse { No, Yes } default No;
         feature ComparativeComplementForm { Nominal, BareInfinitival, GerundParticipial }
         table nonfinite_comparative_form(form) -> ComparativeComplementForm {
@@ -860,7 +860,6 @@ constructions! {
         );
         category ManaPhraseSeries();
         category AmountSeries();
-        category MeasurePhraseSeries(head MeasureKind, head UnitBearing);
         category KeywordPhraseSeries();
         category QuotedTextSeries();
         category FocusedAdjunctMember(
@@ -886,9 +885,6 @@ constructions! {
         category PredicativeComplementSeries(head PredicativeKind, head PredicativeAdjunctUse);
         category CorrelativeManaPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeAmountSeries(head CorrelativeCoordinator);
-        category CorrelativeMeasurePhraseSeries(
-            head UnitBearing, head MeasureKind, head CorrelativeCoordinator
-        );
         category CorrelativeKeywordPhraseSeries(head CorrelativeCoordinator);
         category CorrelativeQuotedTextSeries(head CorrelativeCoordinator);
         category CorrelativeInfinitiveComplementSeries(head CorrelativeCoordinator);
@@ -1467,12 +1463,6 @@ constructions! {
                 left.PredicativeAdjunctUse, Right.PredicativeAdjunctUse);
         }
 
-        policy CoordinatedMeasureKind<Right, Source> {
-            export UnitBearing = arithmetic_unit_bearing(left.UnitBearing, Right.UnitBearing);
-            agree left.MeasureKind = Right.MeasureKind;
-            export MeasureKind = left.MeasureKind;
-        }
-
         policy NoConcord<Right, Source> {
 
         }
@@ -1752,6 +1742,10 @@ constructions! {
         }
 
         coordinable Cardinal using Standard {
+            forms binary, serial, both, either, neither;
+        }
+
+        coordinable MeasurePhrase using Standard {
             forms binary, serial, both, either, neither;
         }
 
@@ -2933,7 +2927,6 @@ constructions! {
             (NounPremodifierSeries, NounPremodifier, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase),
             (AmountSeries, Amount),
-            (MeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase),
             (QuotedTextSeries, QuotedText),
             (GrantedAbilitySeries, GrantedAbility, GrantedAbilityConcord),
@@ -2958,7 +2951,6 @@ constructions! {
             (NounPremodifierSeries, NounPremodifier, Self, NounPremodifierConcord),
             (ManaPhraseSeries, ManaPhrase, Self),
             (AmountSeries, Amount, Self),
-            (MeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhraseSeries, KeywordPhrase, Self),
             (QuotedTextSeries, QuotedText, Self),
             (GrantedAbilitySeries, GrantedAbility, Self, GrantedAbilityConcord),
@@ -2980,7 +2972,6 @@ constructions! {
             (NounPremodifier, Self, NounPremodifierSeries, NounPremodifierConcord),
             (ManaPhrase, Self, ManaPhraseSeries),
             (Amount, Self, AmountSeries),
-            (MeasurePhrase, Self, MeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, KeywordPhraseSeries),
             (QuotedText, Self, QuotedTextSeries, NoConcord, CoordinatedQuotation),
             (GrantedAbility, Self, GrantedAbilitySeries, GrantedAbilityCoordination),
@@ -3255,7 +3246,6 @@ constructions! {
             (SelectedComplementTail, Self, SelectedTailConcord, PrimitiveRightTail),
             (ManaPhrase, Self),
             (Amount, Self),
-            (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (GrantedAbility, Self, GrantedAbilityCoordination),
@@ -6026,7 +6016,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
             (Amount, Self),
-            (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -6041,7 +6030,6 @@ constructions! {
             Status = NoConcord>: [
             (CorrelativeManaPhraseSeries, ManaPhrase),
             (CorrelativeAmountSeries, Amount),
-            (CorrelativeMeasurePhraseSeries, MeasurePhrase, CoordinatedMeasureKind),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase),
             (CorrelativeQuotedTextSeries, QuotedText),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement),
@@ -6056,7 +6044,6 @@ constructions! {
             Properties = NoConcord, Status = NoConcord>: [
             (CorrelativeManaPhraseSeries, ManaPhrase, Self),
             (CorrelativeAmountSeries, Amount, Self),
-            (CorrelativeMeasurePhraseSeries, MeasurePhrase, Self, CoordinatedMeasureKind),
             (CorrelativeKeywordPhraseSeries, KeywordPhrase, Self),
             (CorrelativeQuotedTextSeries, QuotedText, Self),
             (CorrelativeInfinitiveComplementSeries, InfinitiveComplement, Self),
@@ -6069,7 +6056,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Amount, Self, CorrelativeAmountSeries),
-            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),
@@ -6081,7 +6067,6 @@ constructions! {
         instance BothCoordination<Result, Member, Agreement = NoConcord, Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
             (Amount, Self),
-            (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -6096,7 +6081,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self),
             (Amount, Self),
-            (MeasurePhrase, Self, CoordinatedMeasureKind),
             (KeywordPhrase, Self),
             (QuotedText, Self, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, NoConcord),
@@ -6111,7 +6095,6 @@ constructions! {
             Properties = NoConcord, BoundaryProperties = NoFeatures>: [
             (ManaPhrase, Self, CorrelativeManaPhraseSeries),
             (Amount, Self, CorrelativeAmountSeries),
-            (MeasurePhrase, Self, CorrelativeMeasurePhraseSeries, CoordinatedMeasureKind),
             (KeywordPhrase, Self, CorrelativeKeywordPhraseSeries),
             (QuotedText, Self, CorrelativeQuotedTextSeries, NoConcord, CoordinatedQuotation),
             (InfinitiveComplement, Self, CorrelativeInfinitiveComplementSeries, NoConcord),

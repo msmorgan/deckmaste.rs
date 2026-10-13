@@ -123,12 +123,14 @@ and coordinated_cardinal_complement lose their last users. The Boolean table was
 checked on all nine present/absent pairs; all 670 shape and 927 admission contracts
 match the baseline.
 
-Remaining families are pending their separate conversion and gate: MeasurePhrase, GrantedAbility,
-DepictivePhrase/PredicativeComplement, comparative governors, quality prepositions,
-NounPremodifier/VerbalPremodifier, and the empty-interface ManaPhrase, Amount,
-KeywordPhrase, InfinitiveComplement and FrequencyPhrase families, plus QuotedText.
+MeasurePhrase replaces eleven rows and two helper interfaces. CoordinatedMeasureKind
+loses its last user. arithmetic_unit_bearing remains used by arithmetic constructions;
+its nine present/absent pairs agree with the existing UnitBearing any default.
+All 670 shape and 927 admission contracts match the baseline.
+
+Remaining families are pending their separate conversion and gate: GrantedAbility, depictive/predicative complements, comparative governors, quality prepositions, noun/verbal premodifiers, ManaPhrase, Amount, KeywordPhrase, InfinitiveComplement, FrequencyPhrase, QuotedText.
 The explicit exceptions and Phase 2 stopping rule above still apply. Remaining
 AND/OR twins must go only as their last handwritten users convert.
 
-Census delta (`nqwuwwmm`, cardinal family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
-Judgment set (`nqwuwwmm`): does not apply yet.
+Census delta (`lunxqpyz`, measure family): faces read 30,794 → 30,794; total Readings 482,041 → 482,041; lost faces: none.
+Judgment set (`lunxqpyz`): does not apply yet.

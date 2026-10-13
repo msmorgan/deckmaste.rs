@@ -126,6 +126,8 @@ Cardinal selects all Standard forms. Its number annotation retains
 cardinal_coordinate_number; the compiler carries CoordinationKind through helpers.
 CardinalComplementUse uses strict `all`.
 
+MeasurePhrase uses strict agreement for MeasureKind and the UnitBearing `any` default.
+
 ```rust
 feature Permission { No, Yes } default No combine all;
 category Nominal(head number combine same, head Permission);
