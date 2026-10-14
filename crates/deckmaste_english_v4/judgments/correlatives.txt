@@ -41,10 +41,4 @@
 +KeywordPhrase neither flying, haste, nor flying
 + either {W}, {U}, or {W}
 + neither {W}, {U}, nor {W}
-*NounPhrase cards nor cards
-*VerbPhrase attack nor block
-* {W} nor {U}
-* either {W} nor {U}
-* neither {W} or {U}
-*Clause neither you attack nor they attack
 +VerbPhrase both own and control cards => NounPhrase "cards" as Object of own; NounPhrase "cards" as Object of control

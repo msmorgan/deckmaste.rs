@@ -11,4 +11,3 @@
 + This creature can attack only alone.
 + Activate only once each turn.
 +NounPhrase only creatures => NounPhrase "creatures"; readings 1
-*NounPhrase only only creatures

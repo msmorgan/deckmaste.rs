@@ -11,8 +11,6 @@
 *NounPhrase one manas of any color
 * As an additional cost to casts this spell, sacrifice a creature.
 +NounPhrase two mana
-* As an additional cost to cast this spell sacrifice a creature.
-* Sacrifice as an additional cost to cast this spell a creature.
 + At the beginning of your upkeep, sacrifice a creature.
 + During your turn, sacrifice a creature.
 + You may exert this creature as it attacks.

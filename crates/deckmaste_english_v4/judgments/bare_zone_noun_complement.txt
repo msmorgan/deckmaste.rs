@@ -10,11 +10,8 @@
 +PrepositionPhrase in exile
 +PrepositionPhrase into exile
 +VerbPhrase put into exile
-*PrepositionPhrase of hand
 *PrepositionPhrase to hand
 *PrepositionPhrase from graveyard
-*PrepositionPhrase in library
-*PrepositionPhrase in top of your library
 *VerbPhrase put into graveyard
 *VerbPhrase put into top of your library
 +PrepositionPhrase in your hand

@@ -19,8 +19,6 @@
 +NounPhrase target black or red creature => AdjectivePhrase "black or red" as Modifier of creature
 +NounPhrase target attacking creature
 +NounPhrase target attacking creatures
-*Nominal attacking target creature
 +Nominal other target creatures
 +NounPhrase two other target creatures
-*NounPhrase other target creature
 +NounPhrase target players or planeswalkers => Nominal "players or planeswalkers" || NounPhrase "target players"; NounPhrase "planeswalkers"; readings 2

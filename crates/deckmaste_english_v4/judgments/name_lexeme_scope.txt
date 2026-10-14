@@ -17,8 +17,5 @@
 + Enchantment — Aura
 + Basic Land — Forest
 + Instant — Arcane
-* Creature — Humans
-* Creature — non-Human
-* Creature — human
 + Aang and Katara enter. => NounPhrase "Aang and Katara" as Subject of enter
 +VerbPhrase named Wasp

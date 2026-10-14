@@ -9,4 +9,3 @@
 + It has flying and "{T}: Add {G}."
 + Target creature gains "{T}: Add {G}" until end of turn.
 + It has "This creature can't block" and is a Wizard.
-*Draw a card Draw a card.

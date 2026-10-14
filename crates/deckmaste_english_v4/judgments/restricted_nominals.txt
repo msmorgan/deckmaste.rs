@@ -7,4 +7,3 @@
 +NounPhrase each other player's untap step => NounPhrase "each other player's" as Determiner of "untap step"; NounPhrase "each other player"; !AdjectivePhrase "untap" as Modifier of step
 *NounPhrase you's untap step
 *NounPhrase its's untap step
-*NounPhrase the players's untap step

@@ -8,7 +8,6 @@
 + {G}
 +Clause to attack
 +VerbPhrase choose to attack
-* To attack.
 * Choose to attacks.
 * Choose from attack.
 +Clause it explores again

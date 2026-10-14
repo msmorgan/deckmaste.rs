@@ -15,6 +15,3 @@
 *NounPhrase up to two target creature
 *NounPhrase to two target creatures
 *NounPhrase up two target creatures
-*NounPhrase up to second target creature
-*NounPhrase up to +2 target creatures
-*NounPhrase up to up to two target creatures

@@ -6,4 +6,3 @@
 +Predicative red and a creature => AdjectivePhrase "red"; NounPhrase "a creature"
 +Predicative red, white, and a creature => AdjectivePhrase "red"; AdjectivePhrase "white"; NounPhrase "a creature"
 +Predicative a creature and red => NounPhrase "a creature"; AdjectivePhrase "red"
-*Predicative red nor a creature

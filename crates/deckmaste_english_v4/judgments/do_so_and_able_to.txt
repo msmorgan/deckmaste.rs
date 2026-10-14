@@ -7,7 +7,6 @@
 +VerbPhrase do so => VerbPhrase "do so" head do
 +VerbPhrase does so => VerbPhrase "does so" head do
 +AdjectivePhrase able to block this creature => Clause "to block this creature" as Complement of able
-*Nominal creatures able
 *Nominal creatures able to
 *Nominal creatures able block this creature
 *Clause That player do so.

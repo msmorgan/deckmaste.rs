@@ -1,22 +1,16 @@
 # Coordination of phrases (binary and serial with the serial comma) and shared modifiers across coordinated phrases
 +Nominal creatures and creatures
 +Nominal creatures, creatures, and creatures
-*Nominal creatures, creatures and creatures
 +AdjectivePhrase green and green
 +AdjectivePhrase green, green, and green
-*AdjectivePhrase green, green and green
 +PrepositionPhrase among creatures and among creatures
 +PrepositionPhrase among creatures, among creatures, and among creatures
-*PrepositionPhrase among creatures, among creatures and among creatures
 +AdverbPhrase again and again
 +AdverbPhrase again, again, and again
-*AdverbPhrase again, again and again
 +Clause to attack and to attack
 +Clause to attack, to attack, and to attack
-*Clause to attack, to attack and to attack
 +NounPhrase three times and three times
 +NounPhrase three times, three times, and three times
-*NounPhrase three times, three times and three times
 + Exile target artifact or enchantment.
 +NounPhrase target blue or black creature => AdjectivePhrase "blue or black" as Modifier of creature
 +PrepositionPhrase from them or from you

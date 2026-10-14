@@ -9,6 +9,4 @@
 +KeywordPhrase Champion a Goblin or Shaman => NounPhrase "a Goblin or Shaman"; Nominal "Goblin or Shaman"
 +KeywordPhrase Champion a Treefolk or Warrior => NounPhrase "a Treefolk or Warrior"; Nominal "Treefolk or Warrior"
 +KeywordPhrase Enchant land
-*KeywordPhrase Champion a Elemental
-*KeywordPhrase Champion an creature
 *KeywordPhrase Champion a creatures

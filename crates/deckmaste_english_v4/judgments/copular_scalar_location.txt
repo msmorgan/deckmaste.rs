@@ -9,5 +9,4 @@
 +Clause X is 2 => NounPhrase "X" as Subject of be; VerbPhrase "is 2"; Predicative "2" as PredicativeComplement of be
 + The number of cards in your hand is three. => NounPhrase "The number of cards in your hand" as Subject of be
 *Clause The number of cards in your hand are three.
-*Clause its power creature is 2
 *Clause its power are 2

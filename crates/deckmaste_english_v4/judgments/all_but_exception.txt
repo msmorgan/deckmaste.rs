@@ -13,9 +13,6 @@
 + <card=Choice of Damnations> Target opponent chooses a number. You may have that player lose that much life. If you don't, that player sacrifices all but that many permanents of their choice. => DeterminerPhrase "all but that many" as Determiner of permanent
 + <card=Lily Bowen, Raging Grandma> At the beginning of your upkeep, double the number of +1/+1 counters on Lily Bowen if its power is 16 or less. Otherwise, remove all but one +1/+1 counter from it, then you gain 1 life for each +1/+1 counter removed this way. => DeterminerPhrase "all but one" as Determiner of counter
 +VerbPhrase <card=Aladdin's Lamp> put all but one of them on the bottom of your library in a random order, then draw a card => DeterminerPhrase "all but one"
-*NounPhrase each but one +1/+1 counter
-*NounPhrase every but one +1/+1 counter
-+NounPhrase all but one +1/+1 counters
 *NounPhrase all but that many permanent
 + If a source would deal damage to you, prevent that damage.
 + If a source would deal damage to you, prevent 1 damage.

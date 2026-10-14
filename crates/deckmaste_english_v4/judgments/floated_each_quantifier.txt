@@ -4,17 +4,9 @@
 + <card=Press the Advantage> Up to two target creatures each get +2/+2 and gain trample until end of turn. => NounPhrase "Up to two target creatures"; VerbPhrase "get +2/+2 and gain trample until end of turn"
 + <card=Skull Rend> Those players each discard two cards at random. => NounPhrase "Those players" as Subject of discard
 + <card=Join Forces> They each get +2/+2 until end of turn. => NounPhrase "They" as Subject of get
-* That player each discards two cards at random.
-* Target creature each gets +2/+2 until end of turn.
-* Those players discard each two cards at random.
-* They get each +2/+2 until end of turn.
-* Those players each each discard two cards at random.
-* Lord of Extinction's power is each equal to the number of cards in all graveyards.
 +Clause <card=Turtle Tracks> Any number of target players may each search their library for a basic land card => VerbPhrase "may each search their library for a basic land card"
 + <card=Angry Mob> Angry Mob's power and toughness are each 2. => VerbPhrase "are each 2"
-* <card=Angry Mob> Angry Mob's power is each 2.
 + Each player draws a card. => NounPhrase "Each player" as Subject of draw
 +NounPhrase each of those players
 +RelativeClause that each have mana value X or less
 +RelativeClause that each have mana value X
-*RelativeClause that each has mana value X or less

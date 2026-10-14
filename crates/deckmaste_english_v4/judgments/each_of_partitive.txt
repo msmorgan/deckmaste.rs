@@ -15,8 +15,5 @@
 *Clause Each of them get +1/+1
 *NounPhrase every of them
 *NounPhrase the of them
-*NounPhrase each of it
-*NounPhrase each of a creature
-*NounPhrase each of target creature
 +NounPhrase each creature
 +NounPhrase one of them

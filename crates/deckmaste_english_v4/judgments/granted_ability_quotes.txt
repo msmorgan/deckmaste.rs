@@ -5,7 +5,5 @@
 + When this creature enters, create a 1/1 red Satyr creature token with "This token can't block." => Nominal "1/1 red Satyr creature token"
 + Equipped creature gets +1/+1 and has reach and "Whenever this creature attacks, tap target creature an opponent controls."
 + All artifacts have "At the beginning of your upkeep, sacrifice this artifact unless you pay {2}."
-* It has "Sacrifice this token: Add {C}.
-* It has “Sacrifice this token: Add {C}."
 * It has "Sacrifice this token: {C} Add."
 + Whenever this creature attacks, it gains "this creature can't be blocked" until end of turn unless defending player sacrifices a creature of their choice. => Clause "this creature can't be blocked"

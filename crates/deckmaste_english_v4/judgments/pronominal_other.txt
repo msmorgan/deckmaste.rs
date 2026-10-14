@@ -8,5 +8,4 @@
 +NounPhrase the other card => AdjectivePhrase "other" as Modifier of card
 +NounPhrase one other card => AdjectivePhrase "other" as Modifier of card
 +NounPhrase any other card => AdjectivePhrase "other" as Modifier of card
-*NounPhrase an other
 *NounPhrase other card

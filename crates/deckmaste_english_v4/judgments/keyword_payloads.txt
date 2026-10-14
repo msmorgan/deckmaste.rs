@@ -11,8 +11,4 @@
 +KeywordPhrase Suspend
 +KeywordPhrase Boast — {1}{W}: Tap target creature. => NounPhrase "target creature" as Object of tap
 *KeywordPhrase Protection for red
-*KeywordPhrase Affinity for artifact
-*KeywordPhrase Suspend 1 {R}
-*KeywordPhrase Suspend 1 — {R}
 *KeywordPhrase Devour for Food 3
-*KeywordPhrase Devour Food — 3

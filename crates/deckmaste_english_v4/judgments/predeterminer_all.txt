@@ -22,10 +22,6 @@
 *NounPhrase all the card
 *NounPhrase both the card
 *NounPhrase both the damage
-*NounPhrase all a card
-*NounPhrase both a creature
-*NounPhrase all all the cards
-*NounPhrase both both the cards
 + All creatures get -1/-1. => NounPhrase "All creatures" as Subject of get
 + All the creatures get -1/-1. => NounPhrase "All the creatures" as Subject of get
 + Both the creatures get -1/-1. => NounPhrase "Both the creatures" as Subject of get

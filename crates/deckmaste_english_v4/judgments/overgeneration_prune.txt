@@ -8,5 +8,3 @@
 +NounPhrase each creature and planeswalker they control => RelativeClause "they control" gap "planeswalker" || RelativeClause "they control" gap "creature and planeswalker"; readings 2
 *One creature and planeswalker you control gain flying.
 + <card=Spore Cloud> Each attacking creature and each blocking creature doesn't untap during its controller's next untap step.
-* <card=Spore Cloud> Each attacking creature and each blocking creature don't untap during its controller's next untap step.
-*Each creature and each player gain flying.

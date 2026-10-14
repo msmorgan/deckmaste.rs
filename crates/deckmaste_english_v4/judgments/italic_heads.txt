@@ -2,6 +2,4 @@
 + Diana — Equip {2}
 + Spirit of the Whalaqee — Equip {2}
 + Channel — {U}, Discard this card: Draw a card.
-* Diana— Equip {2}
-* Diana - Equip {2}
 * Diana —

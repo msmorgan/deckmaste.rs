@@ -7,7 +7,6 @@
 +Nominal Assembly-Worker creature => Nominal "Assembly-Worker" as Modifier of creature
 +Nominal Time Lord creature card => Nominal "Time Lord" as Modifier of card; Nominal "creature" as Modifier of card
 +Nominal creature cards => Nominal "creature" as Modifier of card
-*Nominal creature in your graveyard card
 *Nominal creature target card
 +Nominal nonland permanent => Nominal "nonland" as Modifier of permanent
 +Nominal nonartifact creature => Nominal "nonartifact" as Modifier of creature
@@ -15,7 +14,6 @@
 +NounPhrase target nonland permanent => Nominal "nonland permanent"
 +Nominal instant or sorcery card => Nominal "instant or sorcery" as Modifier of card || Nominal "instant"; Nominal "sorcery card"; readings 2
 +Nominal artifact, creature, or enchantment card
-*Nominal instant nor sorcery
 +Nominal permanent card => Nominal "permanent" as Modifier of card
 +Nominal permanent cards => Nominal "permanent" as Modifier of card
 +Nominal permanent spell => Nominal "permanent" as Modifier of spell

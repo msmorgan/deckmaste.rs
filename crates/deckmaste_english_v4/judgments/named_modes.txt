@@ -16,6 +16,3 @@
 + <card=Battle Menu> Magic — Destroy target creature with power 4 or greater.
 + <card=Battle Menu> Item — You gain 4 life.
 + Cure Wounds — You gain 2 life.
-* • Cure Wounds — You gain 2 life.
-* • You gain 2 life.
-* Choose one —

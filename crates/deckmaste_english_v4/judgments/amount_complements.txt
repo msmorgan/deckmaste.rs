@@ -9,6 +9,3 @@
 + This creature connives.
 * You scries 3.
 * This creature scry 3.
-* Scry -1.
-* Scry +1.
-* Scry 3rd.

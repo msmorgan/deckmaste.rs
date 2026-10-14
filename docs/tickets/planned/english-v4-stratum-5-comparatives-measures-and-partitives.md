@@ -25,4 +25,13 @@ Implement **Stratum 5** in `crates/deckmaste_english_v4` per
   and `v is independently constructed and grammatical => v is a Reading of parse(render(v))`).
 - Stratum 0–5 judgment suite passes with zero regressions.
 
+
+Adjectival *less* (CGEL Ch. 13 §4.1.1, p. 1126) is missing from the lexicon:
+`closed_class.ron` declares *less* only as the determinative (the comparative
+of *little*, *less money*, *ten mistakes or less*). Oracle's scalar *power
+less than X* and *mana value 3 or less* contrast with adjectival *greater*
+(*greater than X*, *3 or greater*), so they need the adjective, as the
+judgments in `postpositive_comparative_property.txt` and
+`spelled_cardinal_scalar_measure.txt` assert.
+
 Standard constraints apply.

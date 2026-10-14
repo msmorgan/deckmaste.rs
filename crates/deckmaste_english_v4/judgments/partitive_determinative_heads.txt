@@ -48,12 +48,6 @@
 *NounPhrase the of them
 *NounPhrase no of them
 *NounPhrase none creatures
-*NounPhrase each of it
-*NounPhrase either of that mana
-*NounPhrase another of that mana
-*NounPhrase both of that mana
-*NounPhrase many of that mana
-*NounPhrase much of them
 + Remove all of them. => NounPhrase "all of them" as Object of remove; PrepositionPhrase "of them" as Complement of all
 + Destroy each of those creatures that are Walls. => NounPhrase "each of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of each; RelativeClause "that are Walls" as Modifier of creature
 + Destroy any of those creatures that are Walls. => NounPhrase "any of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of any; RelativeClause "that are Walls" as Modifier of creature

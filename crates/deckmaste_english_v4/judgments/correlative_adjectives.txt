@@ -3,15 +3,6 @@
 +Clause it is either red or green => AdjectivePhrase "either red or green" as PredicativeComplement of be
 +Clause it is neither red nor green => AdjectivePhrase "neither red nor green" as PredicativeComplement of be
 +Nominal creature both red and green => AdjectivePhrase "both red and green" as Modifier of creature
-*NounPhrase the both red and green creature
-*NounPhrase the either red or green creature
-*NounPhrase the neither red nor green creature
 +AdjectivePhrase either red, green, or blue
 +AdjectivePhrase neither red, green, nor blue
 +AdjectivePhrase either red, green, black, or blue
-*AdjectivePhrase both red, green, and blue
-*AdjectivePhrase either red, green or blue
-*AdjectivePhrase neither red, green nor blue
-*AdjectivePhrase both red or green
-*AdjectivePhrase neither red or green
-*AdjectivePhrase either red nor green

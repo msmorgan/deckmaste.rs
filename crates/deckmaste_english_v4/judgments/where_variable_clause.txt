@@ -8,7 +8,6 @@
 +Clause X is 2 => NounPhrase "X" as Subject of be; readings 1
 +PrepositionPhrase where X is its power => readings 1
 +PrepositionPhrase where X is the number of cards in your hand
-* This creature gets +X/+X until end of turn where X is its power.
 *PrepositionPhrase where X are its power
 *PrepositionPhrase where X be its power
 + Undergrowth — When this creature enters, choose up to one target creature you don't control with flying. This creature gets +X/+0 until end of turn, where X is the number of creature cards in your graveyard, then you may have this creature fight that creature. => Clause "This creature gets +X/+0 until end of turn, where X is the number of creature cards in your graveyard, then you may have this creature fight that creature"; Clause "This creature gets +X/+0 until end of turn"; PrepositionPhrase "where X is the number of creature cards in your graveyard"; Clause "X is the number of creature cards in your graveyard"; NounPhrase "the number of creature cards in your graveyard"; Clause "you may have this creature fight that creature"; !PrepositionPhrase "where X is the number of creature cards in your graveyard, then you may have this creature fight that creature"

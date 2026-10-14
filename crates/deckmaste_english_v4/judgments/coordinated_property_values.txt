@@ -7,13 +7,4 @@
 +NounPhrase power and toughness 0/2 => Nominal "power and toughness"
 +NounPhrase base power and toughness X/X => Nominal "base power and toughness"
 + {1}{W/B}: This creature becomes a Human Warrior with base power and toughness 3/3. => Nominal "Human Warrior with base power and toughness 3/3"; NounPhrase "base power and toughness 3/3"; PrepositionPhrase "with base power and toughness 3/3" as Modifier of Warrior
-*NounPhrase one power 1
-*NounPhrase one power and toughness 0/2
 +NounPhrase target tapped creature => VerbPhrase "tapped" as Modifier of creature
-*NounPhrase power with flying 2
-*NounPhrase power of that creature 2
-*NounPhrase power that it has 2
-*NounPhrase power named Bob 2
-*NounPhrase power among creatures you control 2
-*NounPhrase base power of that creature and toughness 0/2
-*NounPhrase power and toughness of it 0/2

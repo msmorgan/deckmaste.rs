@@ -4,8 +4,6 @@
 +NounPhrase a reach counter or a vigilance counter => NounPhrase "a reach counter"; NounPhrase "a vigilance counter"
 +NounPhrase a +1/+1 counter => Nominal "+1/+1 counter"
 +NounPhrase a -1/-1 counter => Nominal "-1/-1 counter"
-*NounPhrase an +1/+1 counter
-*NounPhrase an -1/-1 counter
 +NounPhrase a +1/+0 counter
 +NounPhrase a -0/-1 counter
 +NounPhrase a -0/-2 counter

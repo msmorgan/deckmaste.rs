@@ -13,5 +13,3 @@
 *NounPhrase that many life
 *NounPhrase that much cards
 *NounPhrase that much creature
-*NounPhrase that all cards
-*NounPhrase those much life

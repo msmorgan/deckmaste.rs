@@ -31,7 +31,8 @@ equals, none of whose Readings satisfies that entry, is `known-wrong-only`.
 <mark> [<card=NAME>] <text> [=> <assertions>]
 ```
 
-- **Mark.** `+` the text is grammatical; `*` it is not (no Reading at all).
+- **Mark.** `+` the text is grammatical; `*` it has no Reading at all (see
+  [What a negative entry may claim](#what-a-negative-entry-may-claim)).
   The text is parsed as the grammar's root unless the mark names a Category,
   as in `+NounPhrase` or `*PrepositionPhrase`.
 - **Card.** `<card=Seedborn Muse>` puts that card's names in scope, for a
@@ -64,6 +65,23 @@ phrase that its head does not select is an `Adjunct`, of a nominal a
 
 Assert a count only when the count is the claim: exactly one Reading, or
 exactly the set of analyses each of which is endorsed.
+
+## What a negative entry may claim
+
+The grammar parses Oracle text into Readings that keep the legitimate
+Ambiguity and no more; it does not validate templating. Text that Oracle
+would template differently (digits for a spelled number, a capital, a glyph,
+a missing comma, *if possible* for *if able*) may parse incidentally, and
+that is fine. A `*` entry therefore claims only a rejection that costs the
+grammar nothing: one that falls out of distinctions it needs anyway to analyse
+Oracle text, such as agreement, a head's selected frame, phrase-internal word
+order, or a word the lexical analysis does not know or does not have in scope.
+A rule, feature or production that would exist only to reject some text is
+never added, and no entry asks for one.
+
+Punctuation that the construction determines is never stored in a Reading.
+The separator between the keywords of a keyword line is the known exception:
+Oracle uses both commas and semicolons there, so a Reading keeps it.
 
 ## Conventions
 
@@ -99,12 +117,20 @@ Each was settled while adjudicating the migrated judgments.
 - A conjunct bears no function of its own; assert the function on the whole
   coordination. Coordinated nominals under a shared postmodifier are a
   `Nominal` (`Nominal "power and toughness"`).
+- An *as* phrase is a Complement only of a head whose frame selects it
+  (*count it as*); otherwise it is a predicative Adjunct, as in *activate only
+  as a sorcery*, *enter as a copy of*, *put it onto the stack as a copy*
+  (CGEL Ch. 4 §5.3, p. 263).
+- A name with a comma-set description (*create Angelo, a legendary ...
+  token*) is the name plus a supplement anchored to it: the name bears the
+  function, and the supplement is a constituent with no function of its own
+  (CGEL Ch. 15 §5, pp. 1350–1351).
 - A multiword term declared as one lexeme is atomic and is named by its
   quoted lemma (`as Modifier of "combat damage"`).
 - Full card names are in scope everywhere; `<card=...>` is needed only for a
   Shortened Name or a self-reference by name.
 - `*` holds when the text has no Reading for any reason, an undeclared word
-  included: an off-card Shortened Name is a valid negative.
+  included: an off-card Shortened Name is a free negative.
 
 ## Examples
 

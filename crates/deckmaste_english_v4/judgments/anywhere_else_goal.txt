@@ -7,6 +7,3 @@
 + <card=Nephalia Academy> If a spell or ability an opponent controls causes you to discard a card, you may reveal that card and put it on top of your library instead of putting it anywhere else. => NounPhrase "anywhere else" as Complement of put
 + <card=Storm Herald> When this creature enters, return any number of Aura cards from your graveyard to the battlefield attached to creatures you control. Exile those Auras at the beginning of your next end step. If those Auras would leave the battlefield, exile them instead of putting them anywhere else. => NounPhrase "anywhere else" as Complement of put
 + <card=From the Catacombs> Put target creature card from a graveyard onto the battlefield under your control with a corpse counter on it. You take the initiative. If that creature would leave the battlefield, exile it instead of putting it anywhere else. => NounPhrase "anywhere else" as Complement of put
-*NounPhrase this else
-*NounPhrase anywhere there
-+PrepositionPhrase else

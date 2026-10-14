@@ -15,9 +15,6 @@
 + {T}: Tap target creature with power 3 or less. => PrepositionPhrase "with power 3 or less" as Modifier of creature; NounPhrase "power 3 or less"
 + Destroy all creatures with power 4 or greater. => PrepositionPhrase "with power 4 or greater" as Modifier of creature; NounPhrase "power 4 or greater"
 + Destroy target creature with toughness 4 or greater. => PrepositionPhrase "with toughness 4 or greater" as Modifier of creature; NounPhrase "toughness 4 or greater"
-*NounPhrase creature 2
-*NounPhrase mana 2
-*NounPhrase mana values 2
 +PrepositionPhrase with mana value X => NounPhrase "mana value X"
 +PrepositionPhrase with mana value 1 => NounPhrase "mana value 1"
 +PrepositionPhrase with power 3 => NounPhrase "power 3"

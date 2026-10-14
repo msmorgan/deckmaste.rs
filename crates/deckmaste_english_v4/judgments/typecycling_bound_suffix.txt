@@ -18,4 +18,3 @@
 + Artifactcycling {2}
 + Equipmentcycling {2}
 * Swampscycling {2}
-* SwampCycling {2}

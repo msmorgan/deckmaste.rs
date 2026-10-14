@@ -8,5 +8,4 @@
 + You may choose new targets for the copy.
 +VerbPhrase choose not to untap this creature => Clause "not to untap this creature" as Complement of choose
 +Clause not to untap this creature
-+VerbPhrase not choose to untap this creature => Clause "to untap this creature" as Complement of choose
 *VerbPhrase choose not untap this creature

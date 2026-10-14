@@ -5,4 +5,3 @@
 + <card=Alluring Siren> {T}: Target creature an opponent controls attacks you this turn if able. => PrepositionPhrase "if able" as Adjunct of attack; Clause "able" as Complement of if
 + <card=Hustle> Target creature attacks or blocks this turn if able. => PrepositionPhrase "if able"; Clause "able" as Complement of if
 +PrepositionPhrase if able => Clause "able" as Complement of if
-*PrepositionPhrase if possible

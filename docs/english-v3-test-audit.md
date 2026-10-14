@@ -29,6 +29,14 @@ authorities' grounds was corrected or dropped, so a file can hold fewer lines
 than its tests yielded. Disagreements the authorities do not settle went to the
 owner.
 
+The grammar parses Oracle text; it does not validate templating
+(`crates/deckmaste_english_v4/judgments/README.md`, "What a negative entry may
+claim"). A migrated negative was kept only where its rejection falls out of
+distinctions the grammar needs anyway (agreement, selected frames,
+phrase-internal word order, lexical scope); 219 that would have needed a rule
+of their own (notation, capitalization, punctuation, hyphenation, word choice,
+correlative pairing) were dropped after migration, and 269 remain.
+
 ## Sentence tests
 
 ### `additional_slash_adjustment.rs` → `judgments/additional_slash_adjustment.txt` (12 lines)

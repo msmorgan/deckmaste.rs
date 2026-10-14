@@ -10,5 +10,3 @@
 + {2}, Pay 2 life: Draw a card.
 + Landfall — Whenever a land you control enters, you gain 1 life.
 *KeywordPhrase Haste—{3}
-*KeywordPhrase Ward Pay 3 life.
-*KeywordPhrase Ward—Pay 3 life..

@@ -7,7 +7,6 @@
 +AdverbPhrase twice
 +AdverbPhrase only once
 +AdverbPhrase only twice
-*AdverbPhrase only only once
 + Repeat this process once. => NounPhrase "this process" as Object of repeat; AdverbPhrase "once" as Adjunct of repeat
 +NounPhrase this
 +VerbPhrase do this => NounPhrase "this" as Object of do

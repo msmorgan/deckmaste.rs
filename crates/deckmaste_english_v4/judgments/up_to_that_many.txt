@@ -8,9 +8,6 @@
 +NounPhrase up to that many land cards => PrepositionPhrase "up to that many" as Determiner of card; readings 1
 *NounPhrase up to that many target creature
 *NounPhrase up to that many life
-*NounPhrase up to those many target creatures
-*NounPhrase up to that all target creatures
-*NounPhrase up to up to that many target creatures
 *NounPhrase to that many target creatures
 * Up to that many target creatures gains double strike until end of turn.
 + Return that many target permanents that player controls to their owner's hand. => DeterminerPhrase "that many" as Determiner of permanent

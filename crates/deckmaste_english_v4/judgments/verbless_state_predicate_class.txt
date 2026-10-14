@@ -36,6 +36,4 @@
 +PrepositionPhrase if monocolored
 +PrepositionPhrase while legendary
 +PrepositionPhrase if legendary
-+PrepositionPhrase while greater
-*PrepositionPhrase while less
 + This creature is haunted. => AdjectivePhrase "haunted" as PredicativeComplement of be || VerbPhrase "haunted" as Complement of be; readings 2

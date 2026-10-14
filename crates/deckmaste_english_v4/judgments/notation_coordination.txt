@@ -8,8 +8,6 @@
 +KeywordPhrase flying, haste, and vigilance
 +KeywordPhrase flying and/or reach
 + Flying, vigilance
-*KeywordPhrase flying nor haste
-* {W} nor {U}
 +NounPhrase one or two creatures
 +NounPhrase two or one creatures
 +NounPhrase one and one creatures

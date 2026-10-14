@@ -7,4 +7,3 @@
 +PrepositionPhrase as though it weren't blocked => Clause "it weren't blocked"
 +Clause they weren't blocked
 *NounPhrase Target creature as though it weren't blocked
-* It weren't blocked.

@@ -5,4 +5,3 @@
 + <card=Isilu, Carrier of Twilight> Each other nontoken creature you control has persist. => Nominal "nontoken" as Modifier of creature
 + <card=Thraben Watcher> Other nontoken creatures you control get +1/+1 and have vigilance. => Nominal "nontoken" as Modifier of creature
 +Nominal nontoken creatures => Nominal "nontoken" as Modifier of creature
-*Nominal non token creatures

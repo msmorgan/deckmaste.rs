@@ -20,7 +20,10 @@ Implement **Stratum 0** in `crates/deckmaste_english_v4` per
 - **Keyword-ability lines (`[CR#702.1]`):** Standalone and comma/semicolon-listed
   keyword abilities sourced from `keyword_abilities.ron`, parameterized by their
   catalog-declared frames (cost, amount, quality, dash cost, and bound stem
-  classes such as landwalk and typecycling).
+  classes such as landwalk and typecycling). The separator between keywords is
+  the one place Oracle does not determine its punctuation (commas and
+  semicolons both occur), so a Reading keeps it; everywhere else punctuation
+  follows from the construction and is never stored.
 - **Document and Ability Spines:**
   - Labelled abilities: `<AbilityWord | FlavorWord> — <Ability>` (`[CR#207.2c]`).
   - Modal headers and bulleted mode lists (`[CR#700.2]`), including costed modes.

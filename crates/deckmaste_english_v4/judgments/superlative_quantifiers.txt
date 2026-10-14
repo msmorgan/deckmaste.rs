@@ -8,8 +8,6 @@
 +NounPhrase most creatures => DeterminerPhrase "most" as Determiner of creature; readings 1
 *NounPhrase the most creature
 *NounPhrase the most card
-*NounPhrase a most creature
-*NounPhrase most most creatures
 + Each player who controls the most creatures investigates. Then destroy all creatures. => DeterminerPhrase "the most" as Determiner of creature
 + At the beginning of your upkeep, if a player controls more creatures than each other player, the player who controls the most creatures gains control of this creature. => DeterminerPhrase "the most" as Determiner of creature
 + Whenever this creature attacks, each player who controls the most lands sacrifices two lands of their choice. => DeterminerPhrase "the most" as Determiner of land
