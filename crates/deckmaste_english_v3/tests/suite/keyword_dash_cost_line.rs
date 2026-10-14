@@ -157,7 +157,8 @@ fn dash_parameters_retain_every_existing_cost_reading() {
 #[test]
 fn activated_costs_and_ability_words_keep_their_structure() {
     // The ticket's activated-ability and Landfall controls retain every
-    // constituent Reading.
+    // constituent Reading. A registered ability word is never also a flavor
+    // word, so Landfall heads its ability only as an ability word.
     let text = "{2}, Pay 2 life: Draw a card.";
     let actual: BTreeSet<_> = readings(text, Category::Ability)
         .into_iter()
@@ -175,35 +176,20 @@ fn activated_costs_and_ability_words_keep_their_structure() {
         Category::Ability,
     )
     .into_iter()
-    .flat_map(|body| {
-        [
-            Reading::AbilityWordHead {
-                form: 0,
-                head: Word {
-                    value: LexicalReading::Word(LexicalValue {
-                        lexeme: "catalog:ability-words.txt/Landfall".into(),
-                        form: WordForm::Invariant,
-                        features: FeatureBundle::default(),
-                        variant: 0,
-                        capitalization: SurfaceCase::Declared,
-                    }),
-                    frame: None,
-                    countability: None,
-                },
-                body: Box::new(body.clone()),
-            },
-            Reading::FlavorWordHead {
-                form: 0,
-                head: Word {
-                    value: LexicalReading::FlavorWord {
-                        label: "Landfall".into(),
-                    },
-                    frame: None,
-                    countability: None,
-                },
-                body: Box::new(body),
-            },
-        ]
+    .map(|body| Reading::AbilityWordHead {
+        form: 0,
+        head: Word {
+            value: LexicalReading::Word(LexicalValue {
+                lexeme: "catalog:ability-words.txt/Landfall".into(),
+                form: WordForm::Invariant,
+                features: FeatureBundle::default(),
+                variant: 0,
+                capitalization: SurfaceCase::Declared,
+            }),
+            frame: None,
+            countability: None,
+        },
+        body: Box::new(body),
     })
     .collect();
     assert_eq!(readings(text, Category::Ability), expected);

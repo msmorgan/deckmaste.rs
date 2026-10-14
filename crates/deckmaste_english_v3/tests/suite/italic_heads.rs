@@ -111,31 +111,18 @@ fn authentic_open_labels_preserve_independent_keyword_bodies() {
 }
 
 #[test]
-fn declared_ability_word_keeps_both_readings_and_favors_its_declared_analysis() {
+fn a_declared_ability_word_is_never_also_a_flavor_word() {
     // Mnemonic Sphere.
     let text = "Channel — {U}, Discard this card: Draw a card.";
     let actual = readings(text);
     assert!(!actual.is_empty());
-    let mut declared = 0;
-    let mut fallback = 0;
     for reading in &actual {
         check(text, reading);
-        match reading {
-            Reading::AbilityWordHead { body, .. } => {
-                declared += 1;
-                let alternative = flavor("Channel", *body.clone());
-                assert!(actual.contains(&alternative));
-                assert_eq!(
-                    alternative.total_cost().unwrap() - reading.total_cost().unwrap(),
-                    99
-                );
-            }
-            Reading::FlavorWordHead { .. } => fallback += 1,
-            other => panic!("unexpected label reading: {other:?}"),
-        }
+        let Reading::AbilityWordHead { body, .. } = reading else {
+            panic!("unexpected label reading: {reading:?}");
+        };
+        assert!(flavor("Channel", *body.clone()).admit(&LEXICON).is_err());
     }
-    assert_eq!(declared, fallback);
-    assert!(declared > 0);
 }
 
 #[test]

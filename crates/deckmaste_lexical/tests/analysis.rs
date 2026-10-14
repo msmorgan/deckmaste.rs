@@ -1015,8 +1015,10 @@ fn flavor_heads_are_lossless_open_labels_at_line_starts() {
     }
 }
 
+/// A registered ability word [CR#207.2c] or keyword [CR#702.1] is never
+/// also emitted as an open flavor-word label [CR#207.2d].
 #[test]
-fn declared_ability_words_keep_an_additional_open_flavor_reading() {
+fn a_registered_label_is_never_also_a_flavor_word() {
     let mut channel = invariant("lexeme:ability_word/channel", "Channel", Category::Keyword);
     channel
         .properties
@@ -1025,28 +1027,51 @@ fn declared_ability_words_keep_an_additional_open_flavor_reading() {
     let equip = invariant("lexeme:keyword_ability/equip", "Equip", Category::Keyword);
     let lexicon = Lexicon::new([channel, equip]).unwrap();
     // Mnemonic Sphere's ability head.
-    let analyzed = lexicon.analyze("Channel — {U}, Discard this card: Draw a card.");
-    assert_eq!(
-        at(&analyzed, 0, 9),
-        BTreeSet::from([LexicalReading::FlavorWord {
-            label: "Channel".into()
-        },])
-    );
-    assert!(
-        at(&analyzed, 0, 7)
-            .iter()
-            .any(|reading| matches!(reading, LexicalReading::Word(_)))
-    );
+    for text in [
+        "Channel — {U}, Discard this card: Draw a card.",
+        "Equip — {U}, Discard this card: Draw a card.",
+    ] {
+        let analyzed = lexicon.analyze(text);
+        assert!(
+            !analyzed
+                .matches
+                .iter()
+                .any(|found| matches!(found.reading, LexicalReading::FlavorWord { .. })),
+            "{text:?}"
+        );
+        assert!(
+            at(&analyzed, 0, if text.starts_with('C') { 7 } else { 5 })
+                .iter()
+                .any(|reading| matches!(reading, LexicalReading::Word(_)))
+        );
+    }
     assert!(matches!(
         lexicon.analyze_italic_head("Channel"),
         ItalicHead::AbilityWord(_)
     ));
-    assert_eq!(
+    assert!(matches!(
         lexicon.analyze_italic_head("Equip"),
-        ItalicHead::FlavorWord {
-            label: "Equip".into()
-        }
+        ItalicHead::Keyword(_)
+    ));
+    assert_eq!(
+        lexicon
+            .analyze("Diana — Equip {2}")
+            .matches
+            .iter()
+            .find_map(|found| match &found.reading {
+                LexicalReading::FlavorWord { label } => Some(label.as_str()),
+                _ => None,
+            }),
+        Some("Diana"),
+        "an unregistered label is still a flavor word",
     );
+    for label in ["Channel", "Equip"] {
+        let reading = LexicalReading::FlavorWord {
+            label: label.into(),
+        };
+        assert!(lexicon.realize(&reading).is_err(), "{label}");
+        assert!(lexicon.surface_features(&reading).is_err(), "{label}");
+    }
 }
 
 #[test]
@@ -1195,7 +1220,10 @@ fn independent_genitive_is_a_declared_pronoun_paradigm_cell() {
     }];
     let lexicon = Lexicon::new([pronoun]).unwrap();
     let expected = word("you", WordForm::IndependentGenitive, features);
-    assert_eq!(at(&lexicon.analyze("yours"), 0, 5), BTreeSet::from([expected.clone()]));
+    assert_eq!(
+        at(&lexicon.analyze("yours"), 0, 5),
+        BTreeSet::from([expected.clone()])
+    );
     assert_eq!(lexicon.realize(&expected).unwrap(), "yours");
 }
 
@@ -1225,7 +1253,14 @@ fn independent_genitive_requires_pronoun_genitive_features_and_explicit_spelling
     missing_number.forms[0].features.number = None;
     let mut missing_spelling = pronoun;
     missing_spelling.forms[0].surfaces = None;
-    for invalid in [wrong_category, wrong_case, verbal, missing_person, missing_number, missing_spelling] {
+    for invalid in [
+        wrong_category,
+        wrong_case,
+        verbal,
+        missing_person,
+        missing_number,
+        missing_spelling,
+    ] {
         assert!(Lexicon::new([invalid]).is_err());
     }
 }
