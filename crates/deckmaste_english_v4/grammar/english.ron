@@ -16,6 +16,8 @@
         "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice"], gap: true),
         "NounPhrase": (features: ["Number", "Person"]),
         "Nominal": (features: ["Number"]),
+        // A noun with its premodifiers only; Oracle possessors are never postmodified.
+        "BareNominal": (features: ["Number"]),
         "DeterminerPhrase": (),
         "PrepositionPhrase": (gap: true),
         "AdjectivePhrase": (),
@@ -71,8 +73,11 @@
         (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("head.Number", "Plural"), Require("$.Person", "Third")]),
         (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)]),
-        (name: "Possessor", lhs: "DeterminerPhrase", rhs: [Cat("possessor", "NounPhrase"), Word("marker", "Genitive")]),
-        (name: "Premodifier", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal")]),
+        (name: "DeterminedPossessor", lhs: "DeterminerPhrase",
+            rhs: [Cat("determiner", "DeterminerPhrase"), Cat("possessor", "BareNominal"), Word("marker", "Genitive")]),
+        (name: "BarePossessor", lhs: "DeterminerPhrase", rhs: [Cat("possessor", "BareNominal"), Word("marker", "Genitive")]),
+        (name: "Premodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")]),
+        (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")]),
         (name: "RelativePostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "RelativeClause")]),
         (name: "ParticipialPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "VerbPhrase")],
             equations: [Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive")]),
@@ -87,7 +92,7 @@
     schemas: [
         Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By")),
         Valence(head: Preposition, phrase: "PrepositionPhrase"),
-        Valence(head: Noun, phrase: "Nominal"),
+        Valence(head: Noun, phrase: "BareNominal"),
         Valence(head: Adjective, phrase: "AdjectivePhrase"),
         Valence(head: Determinative, phrase: "DeterminerPhrase"),
         // A complement costs nothing; a nominal postmodifier ranks before a

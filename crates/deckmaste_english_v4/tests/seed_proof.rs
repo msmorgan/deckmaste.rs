@@ -176,11 +176,13 @@ fn seedborn_muse_keeps_both_temporal_attachments() {
     let s = seed();
     let text = "Untap all permanents you control during each other player's untap step.";
     let during = "during each other player's untap step";
+    // Every Reading keeps `during ...` whole: an Oracle possessor is never
+    // postmodified, so `[all permanents you control during each other player]'s`
+    // is not a possessor.
     let mut sites: Vec<Vec<String>> = s
         .readings(text)
         .iter()
         .map(|r| s.hosts(r, during))
-        .filter(|hosts| !hosts.is_empty())
         .collect();
     sites.sort();
     sites.dedup();
@@ -200,7 +202,10 @@ fn intransitive_and_copular() {
     let copular = s.readings("The card is a creature.");
     assert_eq!(copular.len(), 1);
     assert!(s.has(&copular[0], "Predicative", "a creature"));
-    assert_eq!(s.readings("The cards is a creature."), Vec::<Reading>::new());
+    assert_eq!(
+        s.readings("The cards is a creature."),
+        Vec::<Reading>::new()
+    );
 }
 
 #[test]
@@ -296,7 +301,10 @@ fn right_node_raising_shares_a_complement() {
     assert_eq!(imperative.len(), 1);
     assert!(s.has(&imperative[0], "VerbPhrase", "Put into your hand or exile"));
     // Without a coordination, a postposed object is not admitted.
-    assert_eq!(s.readings("Put into your hand the card."), Vec::<Reading>::new());
+    assert_eq!(
+        s.readings("Put into your hand the card."),
+        Vec::<Reading>::new()
+    );
 }
 
 #[test]
