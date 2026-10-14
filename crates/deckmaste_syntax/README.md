@@ -18,8 +18,10 @@ It has no proc macros and no generated code: a grammar is data.
    text and returns a `Parse`: the Packed Forest, its `Metrics`, and vocabulary
    gaps. Constituents are packed by (Category, span, summary); a summary holds the
    Category's features, its Gap, and the engine-derived facts a parent may check.
-4. `Parse::readings()` enumerates whole trees, deduplicated and ranked by total
-   Production Cost; `derivation_count()` counts them without building them.
+4. `Parse::best_readings(k)` returns the `k` cheapest Readings by total
+   Production Cost, keeping only `k` trees per forest node, so it never builds
+   every attachment tree; `derivation_count()` counts trees without building
+   them. `readings()` builds them all and is for tests.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.
@@ -46,3 +48,12 @@ Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
 extraction works across finite, plain, progressive, perfect and passive forms with
 no per-form Productions.
+
+## Reading Normal Form
+
+`normal_form(reading)` identifies only the approved canonicalizations the
+engine derives: every grouping of a chain joined by one coordinator becomes one
+node listing its conjuncts and then the coordinator, and a Preposition Phrase
+attached as a Predicate adjunct to a head with a longer frame selecting it
+becomes that frame's complement. It endorses nothing; it lets two sets of
+Readings be compared under exactly those equivalences.
