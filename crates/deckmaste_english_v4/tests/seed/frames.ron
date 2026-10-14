@@ -32,7 +32,9 @@
         ],
         "prep:during": [(complement: NP, hosts: Predicate)],
         "prep:in": [(complement: NP, hosts: NominalAndPredicate)],
-        "prep:on": [(complement: NP, hosts: NominalAndPredicate)],
+        // Unselected `on` + NP only postmodifies a nominal in Oracle (`on your turn`
+        // always follows combat, a phase or a step); `put … on it` is a complement.
+        "prep:on": [(complement: NP, hosts: Nominal)],
         "prep:from": [(complement: NP, hosts: NominalAndPredicate)],
     },
 )

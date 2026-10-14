@@ -37,6 +37,10 @@ provenance), using the frame schema proven in
    defective English words, never for unattested corpus forms). Pronouns are
    declared with the features Oracle gives them: `you` is second person
    singular only (Oracle never addresses more than one player as `you`).
+   Each preposition's Host Categories come from corpus evidence, not open-domain
+   English: unselected `on` + NP is a Nominal postmodifier only (every
+   `on your turn` follows combat, a phase or a step; `put … on it` is a
+   complement). The seed's `in` and `from` hosts are unverified.
 4. **Registered Label Exclusivity:** An open flavor-word label never duplicates
    a registered ability word (`[CR#207.2c]`) or keyword (`[CR#702.1]`).
 5. **Catalog Validator & Grammar-Leak Lint:**
