@@ -469,18 +469,100 @@ def stepGameEventListWith (ops : StepOps) (drs : DRS) (evs : List GameEvent) : D
     let (d', e') := ops.ev d e
     (d', es ++ e')) (drs, [])
 
+def refuse (ok : Bool) (r : Refusal) : List Refusal := if ok then [] else [r]
+
+def ManaSymbol.ok : ManaSymbol → Bool
+  | .hybrid left right => halvesDistinct left right
+  | .phyrexian color second => phyrexianDistinct color second
+  | _ => true
+
+def ManaSymbol.check (m : ManaSymbol) : List Refusal := refuse m.ok .manaSymbolOk
+
+def ManaCost.check (c : ManaCost) : List Refusal := c.flatMap ManaSymbol.check
+
+def TypeLineChanges.hasWrites (c : TypeLineChanges) : Bool :=
+  c.supertypes.isSome || c.types.isSome || c.subtypes.isSome
+
+def TypeLineChanges.hasValues (c : TypeLineChanges) : Bool :=
+  hasAnyTypeCharacteristic (c.supertypes.getD []) (c.types.getD []) (c.subtypes.getD [])
+
+def TypeLineChanges.canonical (c : TypeLineChanges) : Bool :=
+  supersDistinct (c.supertypes.getD []) && typesDistinct (c.types.getD [])
+
+def CharacteristicEdit.writesLine : CharacteristicEdit → Bool
+  | .typeLine _ c => c.hasWrites
+  | _ => true
+
+def colorOpOk : QualityOp → ColorSpec → Bool
+  | .sets, _ => true
+  | _, .some [] => false
+  | _, _ => true
+
+def Predicate.qualityReadOk (p : Predicate) (fuel : Nat := 64) : Bool :=
+  match fuel with
+  | 0 => false
+  | n + 1 => match p with
+    | .bracketed body => body.qualityReadOk n
+    | .ofChosen _ _ | .ofYourChoice _ _ | .named _ | .shares _ _ _ => true
+    | _ => false
+termination_by structural fuel
+
+def CharacteristicEdit.shape : CharacteristicEdit → List Refusal
+  | .typeLine op c =>
+    refuse (op == .sets || !c.hasWrites || c.hasValues) .lineNonEmpty ++
+      refuse c.canonical .distinct
+  | .colors op cs => refuse cs.ok .distinct ++ refuse (colorOpOk op cs) .nonEmpty
+  | .chosenQuality _ q => refuse q.qualityReadOk .qualityRead
+  | _ => []
+
+def CharacteristicEdit.shapeAll (edits : List CharacteristicEdit) : List Refusal :=
+  edits.flatMap CharacteristicEdit.shape
+
+def kindCheck (expected : Kind) (found : Option Kind) : List Refusal :=
+  found.toList.flatMap fun k => refuse (k == expected) (.kindMismatch expected k)
+
+def KeywordParam.shape : KeywordParam → KeywordParamShape
+  | .cost _ => .cost
+  | .quality _ => .quality
+  | .subject _ => .subject
+  | .number _ => .number
+  | .deckCondition _ => .deckCondition
+  | .ability _ => .ability
+
+def keywordSchemaFor (k : KeywordLabel) (params : List KeywordParam) : Option KeywordSchema :=
+  (keywordSchemas k).find? (fun schema => schema.shapes == params.map KeywordParam.shape)
+
+def keywordParamFits (k : KeywordLabel) (params : List KeywordParam) : Bool :=
+  (keywordSchemaFor k params).isSome
+
+def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
+    (params : List KeywordParam) : List Refusal :=
+  (params.zipIdx).flatMap fun (param, i) =>
+    match param with
+    | .cost c => (ops.cost (enterOwnScope drs) c).2
+    | .quality p =>
+      let expected := ((schema[i]?).bind (·.qualityDomain)).getD (p.kindOr .object)
+      (ops.pred drs p).2 ++ kindCheck expected p.kind?
+    | .subject p => (ops.pred (enterOwnScope drs) p).2
+    | .number a => (ops.amt (enterOwnScope drs) a).2
+    | .deckCondition _ => []
+    | .ability a => ops.ab drs a
+
 def stepAbilitySelectionWith (ops : StepOps) (drs : DRS) (sel : AbilitySelection) : DRS × List Refusal :=
   match sel with
   | .specified als =>
-    (drs, als.foldl (fun es al =>
+    (drs, refuse (!als.isEmpty) .nonEmpty ++ als.foldl (fun es al =>
       match al with
       | .written ab => es ++ ops.ab drs ab
-      | .term _ => es) [])
+      | .term term => es ++ refuse term.known .knownKeywordTerm) [])
   | .allExcept (some p) => ops.pred drs p
-  | .family _ | .allExcept none | .printedAfter _ => (drs, [])
+  | .family family => (drs, refuse family.known .knownKeywordTerm)
+  | .printedAfter k => (drs, refuse (knownKeyword k) .knownKeywordTerm)
+  | .allExcept none => (drs, [])
 
 def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicEdit) : DRS × List Refusal :=
   match ed with
+  | .manaCost cost => (drs, (cost.map ManaCost.check).getD [])
   | .stat _ _ amt => ops.amt drs amt
   | .chosenQuality _ p => ops.pred drs p
   | .addedAbilities abs => stepAbilityListWith ops drs abs
@@ -494,10 +576,15 @@ def stepCharacteristicEditListWith (ops : StepOps) (drs : DRS) (eds : List Chara
 
 def stepCopyExceptWith (ops : StepOps) (drs : DRS) (ce : CopyExcept) : DRS × List Refusal :=
   match ce with
-  | .edits eds => stepCharacteristicEditListWith ops drs eds
+  | .edits eds =>
+    let (_, es) := stepCharacteristicEditListWith ops drs eds
+    (drs, es ++ refuse (!eds.isEmpty && eds.all CharacteristicEdit.writesLine) .lineNonEmpty ++
+      CharacteristicEdit.shapeAll eds)
   | .ability ab => (drs, ops.ab drs ab)
   | .thisAbility => (drs, [])
-  | .entersWithCounters amt _ _ => ops.amt drs amt
+  | .entersWithCounters amt kind _ =>
+    let (_, es) := ops.amt drs amt
+    (drs, es ++ refuse kind.known .knownCounter)
 
 def stepCopyExceptListWith (ops : StepOps) (drs : DRS) (ces : List CopyExcept) : DRS × List Refusal :=
   ces.foldl (fun (d, es) c =>
@@ -1617,7 +1704,9 @@ def stepOps : Nat → StepOps
         | .characteristicChange subj edits =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+            refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
+            CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, _, e2) := ops.np drs1 .other false src
@@ -1751,7 +1840,10 @@ def stepOps : Nat → StepOps
 
       ab := fun drs ab =>
         match ab with
-        | .keyword _ _ body => (stepAbilityListWith ops (enterOwnScope drs) body).2
+        | .keyword k params body =>
+          checkKeywordParamsWith ops drs ((keywordSchemaFor k params).getD []) params ++
+            (stepAbilityListWith ops (enterOwnScope drs) body).2 ++
+            refuse (keywordParamFits k params) (.keywordParamFits k)
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)
@@ -1846,5 +1938,12 @@ def StaticSpec.check (drs : DRS) (s : StaticSpec) : List Refusal :=
 
 def Ability.check (drs : DRS := DRS.ofList []) (a : Ability) : List Refusal :=
   checkAbility 64 drs a
+
+def NounPhrase.checkAt (expected : Option Kind) (drs : DRS)
+    (np : NounPhrase) : List Refusal :=
+  np.check drs ++ expected.toList.flatMap (fun k => kindCheck k np.kind?)
+
+def Predicate.checkAt (expected : Kind) (drs : DRS) (p : Predicate) : List Refusal :=
+  p.check drs ++ kindCheck expected p.kind?
 
 end Semantics
