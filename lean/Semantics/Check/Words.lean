@@ -1293,19 +1293,27 @@ def enterCaller (drs : DRS) : DRS :=
 
 /-- Restore the top `OwnScopeFrame` after evaluating an `inCaller` argument, unmasking any
 referents bound or introduced by that argument (`semantics-v3.md` §1.4). -/
-def leaveCaller (before after : DRS) : DRS :=
+def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :=
   match before.scopeStack with
   | [] => after
   | topFrame :: _ =>
-      let newlyBound := after.resolvedIds ++
-        (after.referents.filterMap fun r =>
-          match before.findById? r.id with
-          | some old => if r.idents != old.idents then some r.id else none
-          | none => some r.id)
+      let newlyBound := match unmaskIds with
+        | [] =>
+          if after.resolvedIds.isEmpty && after.nextId == before.nextId then []
+          else after.resolvedIds ++
+            (after.referents.filterMap fun r =>
+              if r.id ≥ before.nextId then some r.id
+              else match before.findById? r.id with
+                | some old => if r.idents != old.idents then some r.id else none
+                | none => some r.id)
+        | ids => ids ++ after.resolvedIds
+      let masked' := match newlyBound with
+        | [] => topFrame.maskedIds
+        | ids => topFrame.maskedIds.filter (!ids.elem ·)
       let addedPending := after.pendingRoles.drop topFrame.callerPending.length
       let topFrame' : OwnScopeFrame := {
         topFrame with
-        maskedIds     := topFrame.maskedIds.filter (!newlyBound.elem ·)
+        maskedIds     := masked'
         callerPending := after.pendingRoles
       }
       { after with

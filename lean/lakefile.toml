@@ -13,7 +13,7 @@ autoImplicit = false
 
 [[lean_lib]]
 name = "Semantics"
-roots = ["Semantics", "Semantics.Check"]
+roots = ["Semantics", "Semantics.Check", "Semantics.Macros", "Semantics.Macros.Declared", "Semantics.Macros.Checks"]
 
 # The card soundness gate's emitted cards (`cargo xtask lean check`): untracked,
 # regenerated per run, and deliberately OUTSIDE `defaultTargets` so

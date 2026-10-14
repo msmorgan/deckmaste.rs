@@ -9,6 +9,14 @@ Minimal core rules-as-data and registry-definition checking.
 
 namespace Semantics
 
+def Instruction.checkDefinition (drs : DRS) (body : Instruction) : List Refusal :=
+  match body with
+  | .ownScope (some deed) (.enact inner action becomes locus) =>
+    if deed == inner && action.eventHeadOk then
+      (Instruction.enact inner action becomes locus).check drs
+    else body.check drs
+  | _ => body.check drs
+
 def SbaRule.check (r : SbaRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let (drs2, e2) := stepCondition 64 drs1 r.when

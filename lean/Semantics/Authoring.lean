@@ -132,6 +132,12 @@ def elabFastMutual : CommandElab := fun stx => do
 initialize macroAttribute : TagAttribute ←
   registerTagAttribute `semantic_macro "A named, trusted semantic macro expansion."
 
+initialize definitionAttribute : TagAttribute ←
+  registerTagAttribute `semantic_definition "A rules-defined semantic declaration."
+
+initialize templateAttribute : TagAttribute ←
+  registerTagAttribute `semantic_template "A transparent semantic phrasing template."
+
 initialize expressionAttribute : TagAttribute ←
   registerTagAttribute `semantic_expression "Semantic expressions require macro authoring."
 
@@ -204,6 +210,34 @@ elab_rules : command
     elabCommand (← `(attribute [«semantic_macro», contextual_macro] $identifier:ident))
     let declaration ← resolveGlobalConstNoOverload identifier
     modifyEnv fun env => spliceSchemas.addEntry env (declaration, splices.map (·.getId))
+
+syntax (name := semanticDefinitionDecl) declModifiers "semantic_definition " declId
+  ppIndent(optDeclSig) declVal : command
+
+syntax (name := semanticTemplateDecl) declModifiers "semantic_template " declId
+  ppIndent(optDeclSig) declVal : command
+
+elab_rules : command
+  | `($mods:declModifiers semantic_definition $name:declId
+      $signature:optDeclSig $value:declVal) => do
+    elabCommand (← `($mods:declModifiers semantic_macro $name:declId
+      $signature:optDeclSig $value:declVal))
+    let identifier : TSyntax `ident := ⟨name.raw[0]⟩
+    let declaration ← resolveGlobalConstNoOverload identifier
+    liftTermElabM do
+      let info ← getConstInfo declaration
+      if let .defnInfo definition := info then
+        lambdaTelescope definition.value fun _ body => do
+          if (← whnf (← inferType body)).isConstOf `Semantics.Instruction then
+            unless (← whnf body).getAppFn.isConstOf `Semantics.Instruction.ownScope do
+              throwError "An Instruction Definition must establish its own Reference Scope"
+    elabCommand (← `(attribute [«semantic_definition»] $identifier:ident))
+  | `($mods:declModifiers semantic_template $name:declId
+      $signature:optDeclSig $value:declVal) => do
+    elabCommand (← `($mods:declModifiers semantic_macro $name:declId
+      $signature:optDeclSig $value:declVal))
+    let identifier : TSyntax `ident := ⟨name.raw[0]⟩
+    elabCommand (← `(attribute [«semantic_template»] $identifier:ident))
 
 /-- Every exposed primitive has a named declaration to which a spelling can attach.
 Internal expansion carriers are deliberately absent from this generated interface. -/

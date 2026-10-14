@@ -20,6 +20,7 @@ inductive RiderKind where
   deriving DecidableEq, Repr
 
 inductive Refusal where
+  | recursionLimit
   | lexicalScope
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
