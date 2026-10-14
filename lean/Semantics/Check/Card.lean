@@ -30,4 +30,28 @@ def Card.check : Card → List Refusal
     f.check ++ (bands.flatMap fun b => Ability.checkAll (DRS.ofList []) b.text)
   | .prototype f _ => f.check
 
+/-- A card with semantic validity and retained evidence of macro-only authoring. The
+elaborator connects the authoring tree to the input term before macro reduction. -/
+structure Spelled where
+  private mk ::
+  card : Card
+  authoring : Authoring.Form
+  onlyMacros : authoring.onlyMacros = true
+  ok : card.check = []
+
+open Lean Meta Elab Term in
+/-- `spelled <| card …` checks the authoring boundary and synthesizes both proofs. -/
+elab "spelled" " <| " card:term : term => do
+  let value ← elabTermEnsuringType card (mkConst ``Semantics.Card)
+  let form ← Authoring.inspect value
+  unless form.onlyMacros do
+    throwError "Card definitions must use semantic macros; raw constructors: {form.rawNames.eraseDups}"
+  let tree := toExpr form
+  let authored ← mkEq (mkApp (mkConst ``Authoring.Form.onlyMacros) tree) (mkConst ``Bool.true)
+  let onlyMacros ← mkDecideProof authored
+  let verdict := mkApp (mkConst ``Card.check) value
+  let valid ← mkEq verdict (mkApp (mkConst ``List.nil [Level.zero]) (mkConst ``Refusal))
+  let ok ← mkDecideProof valid
+  return mkAppN (mkConst ``Spelled.mk) #[value, tree, onlyMacros, ok]
+
 end Semantics
