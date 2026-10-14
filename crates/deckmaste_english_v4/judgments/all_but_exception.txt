@@ -15,7 +15,7 @@
 +VerbPhrase <card=Aladdin's Lamp> put all but one of them on the bottom of your library in a random order, then draw a card => DeterminerPhrase "all but one"
 *NounPhrase each but one +1/+1 counter
 *NounPhrase every but one +1/+1 counter
-*NounPhrase all but one +1/+1 counters
++NounPhrase all but one +1/+1 counters
 *NounPhrase all but that many permanent
 + If a source would deal damage to you, prevent that damage.
 + If a source would deal damage to you, prevent 1 damage.

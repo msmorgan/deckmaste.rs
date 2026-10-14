@@ -84,8 +84,8 @@
 +NounPhrase <card=Molten Sentry> tails => Nominal "tails"
 +PrepositionPhrase <card=Quarry Colossus> beneath the top X cards of that library
 +Clause <card=Marina Vendrell> Lock or unlock a door of target Room you control => VerbPhrase "Lock or unlock a door of target Room you control"
-+NounPhrase <card=Ghostly Dancers> a locked door of a Room you control => AdjectivePhrase "locked"
-+NounPhrase <card=Ghostly Keybearer> a locked door of up to one target Room you control => AdjectivePhrase "locked"
++NounPhrase <card=Ghostly Dancers> a locked door of a Room you control => VerbPhrase "locked"
++NounPhrase <card=Ghostly Keybearer> a locked door of up to one target Room you control => VerbPhrase "locked"
 +Clause <card=Ogre Enforcer> lethal damage dealt by a single source is marked on it
 +NounPhrase <card=Pyramids> all damage marked on it => VerbPhrase "marked on it" as Modifier of damage
 +NounPhrase <card=Barrensteppe Siege> Abzan

@@ -7,7 +7,7 @@
 +NounPhrase the number of cards you've drawn this turn minus one => NounPhrase "the number of cards you've drawn this turn"
 +AdjectivePhrase less than five => PrepositionPhrase "than five" as Complement of less
 +AdjectivePhrase less than seven => PrepositionPhrase "than seven" as Complement of less
-+AdjectivePhrase greater than four => PrepositionPhrase "than four" as Complement of greater
++AdjectivePhrase greater than four => PrepositionPhrase "than four" as Complement of great
 +AdjectivePhrase five or greater
 +AdjectivePhrase seven or greater
 +NounPhrase more than one creature => DeterminerPhrase "more than one" as Determiner of creature

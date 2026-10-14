@@ -120,7 +120,7 @@
 +AdjectivePhrase equal to 2 => PrepositionPhrase "to 2" as Complement of equal
 +AdjectivePhrase equal
 *AdjectivePhrase equal than 2
-+AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of greater
++AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of great
 + Flying
 + Flying, vigilance; haste
 + Ward {2}{U}

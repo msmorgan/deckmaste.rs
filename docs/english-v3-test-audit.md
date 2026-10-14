@@ -22,9 +22,12 @@ stem as the v3 file), its remainder retired with a reason.
 | `engine` | tests the v3 parsing engine, not English; see "Parser-engine tests" below |
 
 A `partly-migrated` test lists the number of judgment lines it yielded and the
-codes of its retired remainder. Migrated lines were adjudicated by two
-independent judges before landing; a line they rejected was corrected or
-dropped, so a file can hold fewer lines than its tests yielded.
+codes of its retired remainder. Migrated lines were adjudicated by
+independent judges (Claude Sonnet, then GPT-6-Astra as the second judge; an
+earlier Claude Haiku pass was advisory only); a line they rejected on the
+authorities' grounds was corrected or dropped, so a file can hold fewer lines
+than its tests yielded. Disagreements the authorities do not settle went to the
+owner.
 
 ## Sentence tests
 

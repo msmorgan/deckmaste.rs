@@ -1,7 +1,7 @@
 # Arithmetic modifier (`plus one`) inside a degree determiner phrase (`that many plus one`), and scalar arithmetic controls
-+ <card=Hardened Scales> If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead. => NounPhrase "that many plus one +1/+1 counters"; DeterminerPhrase "that many plus one" as Determiner of counter; PrepositionPhrase "plus one" as Modifier of many; Nominal "+1/+1 counters"#2
-+ <card=Conclave Mentor> If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on that creature instead. => NounPhrase "that many plus one +1/+1 counters"; DeterminerPhrase "that many plus one" as Determiner of counter; PrepositionPhrase "plus one" as Modifier of many; Nominal "+1/+1 counters"#2
-+NounPhrase that many plus one +1/+1 counters => DeterminerPhrase "that many plus one" as Determiner of counter
++ <card=Hardened Scales> If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on it instead. => NounPhrase "that many plus one +1/+1 counters"; DeterminerPhrase "that many plus one" as Determiner of "+1/+1 counter"; PrepositionPhrase "plus one" as Modifier of many; Nominal "+1/+1 counters"#2
++ <card=Conclave Mentor> If one or more +1/+1 counters would be put on a creature you control, that many plus one +1/+1 counters are put on that creature instead. => NounPhrase "that many plus one +1/+1 counters"; DeterminerPhrase "that many plus one" as Determiner of "+1/+1 counter"; PrepositionPhrase "plus one" as Modifier of many; Nominal "+1/+1 counters"#2
++NounPhrase that many plus one +1/+1 counters => DeterminerPhrase "that many plus one" as Determiner of "+1/+1 counter"
 *NounPhrase that many plus one +1/+1 counter
 *NounPhrase that many plus one life
 +DeterminerPhrase that many plus one

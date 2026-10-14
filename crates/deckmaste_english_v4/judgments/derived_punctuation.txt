@@ -1,5 +1,5 @@
 # Coordinated verb phrases and adjectives, a quoted ability, and keyword phrases with a dash, space or cost parameter
-+VerbPhrase Draw a card, then discard a card
++Clause Draw a card, then discard a card
 +AdjectivePhrase red and blue
 + Draw a card.
 + It has "Sacrifice this token: Add {C}."

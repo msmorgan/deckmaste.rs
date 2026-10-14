@@ -116,10 +116,12 @@ fn false_judgments_fail() {
 fn every_word_a_judgment_names_is_declared() {
     let env = LexicalEnvironment::load().unwrap();
     let lexemes = env.lexicon.lexemes();
+    // A card name is no lemma: *Greater Good* does not declare *greater*.
     let declared = |name: &str| {
-        lexemes
-            .iter()
-            .any(|(id, l)| id.as_str() == name || l.lemma.eq_ignore_ascii_case(name))
+        lexemes.iter().any(|(id, l)| {
+            id.as_str() == name
+                || !id.as_str().starts_with("name:") && l.lemma.eq_ignore_ascii_case(name)
+        })
     };
     let mut unknown = Vec::new();
     for (name, entries) in files() {

@@ -9,4 +9,4 @@
 + <card=From the Catacombs> Put target creature card from a graveyard onto the battlefield under your control with a corpse counter on it. You take the initiative. If that creature would leave the battlefield, exile it instead of putting it anywhere else. => NounPhrase "anywhere else" as Complement of put
 *NounPhrase this else
 *NounPhrase anywhere there
-*PrepositionPhrase else
++PrepositionPhrase else

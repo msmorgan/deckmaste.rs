@@ -8,4 +8,4 @@
 +NounPhrase the number of Slivers
 +NounPhrase any number
 +NounPhrase any number of target creatures you control => NounPhrase "target creatures you control"; RelativeClause "you control" as Modifier of creature || Nominal "number of target creatures"; RelativeClause "you control" as Modifier of number
-+NounPhrase any number of card of that type => NounPhrase "cards of that type"; PrepositionPhrase "of that type" as Modifier of card || Nominal "number of cards"; PrepositionPhrase "of that type" as Modifier of number
++NounPhrase any number of cards of that type => NounPhrase "cards of that type"; PrepositionPhrase "of that type" as Modifier of card || Nominal "number of cards"; PrepositionPhrase "of that type" as Modifier of number

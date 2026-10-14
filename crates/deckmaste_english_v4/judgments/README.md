@@ -70,9 +70,19 @@ exactly the set of analyses each of which is endorsed.
 These keep entries consistent where CGEL allows more than one presentation.
 Each was settled while adjudicating the migrated judgments.
 
-- A Gap's Antecedent is the Nominal the relative clause modifies, without its
-  determiner: `gap "permanents"` in *all permanents you control*,
-  `gap "first time"` in *the first time this ability has resolved*.
+- A Gap's Antecedent is the whole Nominal the relative clause modifies,
+  without its determiner: `gap "permanents"` in *all permanents you control*,
+  `gap "first time"` in *the first time this ability has resolved*,
+  `gap "mana of any type"` when the relative clause modifies that Nominal.
+- A Preposition Phrase its head's frame does not select is an `Adjunct` (or a
+  nominal `Modifier`), never a `Complement`: *return ... from your graveyard*,
+  *play with your hand revealed*.
+- *Up to* with a number is a `PrepositionPhrase` functioning as Determiner
+  (`PrepositionPhrase "up to two" as Determiner of card`); an independent
+  quantity is a fused-head `NounPhrase` (`NounPhrase "one" as Object of
+  choose` in *Choose one*).
+- Comparative and superlative forms are named by their lemma
+  (`as Complement of great` for *greater*).
 - A subjectless non-finite clause is asserted as `Clause` when infinitival
   *to* introduces it (`Clause "to cast this spell"`), and otherwise as its
   `VerbPhrase`: a gerund-participial or past-participial complement, adjunct

@@ -8,4 +8,4 @@
 + You may have this creature enter tapped.
 + Activate as a sorcery. => PrepositionPhrase "as a sorcery" as Adjunct of activate
 + Corrupted — For each opponent who has three or more poison counters as you cast this spell, put up to one target creature card from that player's graveyard onto the battlefield under your control. => PrepositionPhrase "as you cast this spell"; Clause "you cast this spell" as Complement of as
-+ Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types. => PrepositionPhrase "with a number of additional +1/+1 counters on it equal to this creature's power" as Complement of enter
++ Each other creature you control enters with a number of additional +1/+1 counters on it equal to this creature's power and as a Mutant in addition to its other types. => PrepositionPhrase "with a number of additional +1/+1 counters on it equal to this creature's power"
