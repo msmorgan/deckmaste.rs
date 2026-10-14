@@ -8,9 +8,12 @@ publish = false
 workspace = true
 
 [dependencies]
+deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
+deckmaste_lexical_source_v4 = { version = "0.1.0", path = "../deckmaste_lexical_source_v4" }
 deckmaste_syntax = { version = "0.1.0", path = "../deckmaste_syntax" }
+serde = { version = "1.0.228", features = ["derive"] }
+thiserror = { workspace = true }
 
 [dev-dependencies]
-deckmaste_lexical_source_v4 = { version = "0.1.0", path = "../deckmaste_lexical_source_v4" }
 ron = "0.12.1"

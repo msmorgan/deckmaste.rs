@@ -12,6 +12,7 @@ use xtask::cite::CiteArgs;
 use xtask::derive_cards::DeriveCardsArgs;
 use xtask::english::EnglishArgs;
 use xtask::english_v3::EnglishV3Args;
+use xtask::english_v4::EnglishV4Args;
 use xtask::expansions::ExpansionsArgs;
 use xtask::extract::ExtractArgs;
 use xtask::facts::FactsArgs;
@@ -74,6 +75,9 @@ enum Cmd {
     /// Measure all retained v3 readings of supported raw Oracle text.
     #[command(name = "english-v3")]
     EnglishV3(EnglishV3Args),
+    /// Stratify the corpus and run the English v4 census.
+    #[command(name = "english-v4")]
+    EnglishV4(EnglishV4Args),
     /// Analyze supported raw Oracle text against the independent lexicon.
     Lexical(LexicalArgs),
     /// Frame-layer tooling: compiled-frame dumps, `template:` upkeep, and
@@ -115,6 +119,10 @@ fn main() -> anyhow::Result<()> {
         Cmd::EnglishV3(args) => {
             let mut stdout = std::io::stdout().lock();
             xtask::english_v3::run(&args, &mut stdout)
+        }
+        Cmd::EnglishV4(args) => {
+            let mut stdout = std::io::stdout().lock();
+            xtask::english_v4::run(&args, &mut stdout)
         }
         Cmd::Lexical(args) => {
             let mut stdout = std::io::stdout().lock();

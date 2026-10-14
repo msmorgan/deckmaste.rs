@@ -602,10 +602,13 @@ dependencies = [
 name = "deckmaste_english_v4"
 version = "0.1.0"
 dependencies = [
+ "deckmaste_data",
  "deckmaste_lexical",
  "deckmaste_lexical_source_v4",
  "deckmaste_syntax",
  "ron",
+ "serde",
+ "thiserror",
 ]
 
 [[package]]
@@ -2371,9 +2374,11 @@ dependencies = [
  "deckmaste_data",
  "deckmaste_english",
  "deckmaste_english_v3",
+ "deckmaste_english_v4",
  "deckmaste_legacy_render",
  "deckmaste_lexical",
  "deckmaste_lexical_source",
+ "deckmaste_lexical_source_v4",
  "deckmaste_macro_def",
  "deckmaste_migrations",
  "deckmaste_plugin",

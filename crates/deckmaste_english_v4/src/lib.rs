@@ -30,3 +30,19 @@ pub fn grammar() -> Result<Grammar, LoadError> {
 pub fn bind(lexicon: &Lexicon, frames: &FrameCatalog) -> Result<CompiledGrammar, LoadError> {
     CompiledGrammar::bind(&grammar()?, lexicon, frames)
 }
+
+pub mod corpus;
+pub mod judgment;
+pub mod profile;
+
+/// The highest Complexity Stratum whose gate has been met, if any. Judgments
+/// at or below it are enforced, and the census reports a unit at or below it
+/// that is not read as a regression.
+pub const COMPLETED_STRATUM: Option<profile::Stratum> = None;
+
+/// The directory of the judgment set.
+#[must_use]
+pub fn judgments_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("judgments")
+}
+pub mod census;

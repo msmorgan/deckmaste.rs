@@ -1,0 +1,32 @@
+# The seed lexicon: active and passive complementation, same-head complement priority, Host Category attachment, extraction and Right Node Raising.
+
++ Destroy target creature. => NounPhrase "target creature" as Object of destroy; readings 1
++ Put the card into your hand. => NounPhrase "the card" as Object of put; PrepositionPhrase "into your hand" as Complement of put; readings 1
++ Search your library for a card. => NounPhrase "your library" as Object of search; PrepositionPhrase "for a card" as Complement of search; !PrepositionPhrase "for a card" as Adjunct of search; !PrepositionPhrase "for a card" as Modifier of library; readings 1
++ Destroy target creature with flying. => PrepositionPhrase "with flying" as Modifier of creature; !PrepositionPhrase "with flying" as Adjunct of destroy; readings 1
++ Exile target creature with a counter on it. => PrepositionPhrase "with a counter on it" as Modifier of creature || PrepositionPhrase "with a counter on it" as Adjunct of exile
++ Untap all permanents you control during each other player's untap step. => Clause "you control" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of untap || Clause "you control during each other player's untap step" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of control; readings 2
+
++ Creatures attack. => NounPhrase "Creatures" as Subject of attack; readings 1
++ The card is a creature. => NounPhrase "The card" as Subject of be; Predicative "a creature" as PredicativeComplement of be; readings 1
+* The cards is a creature.
+
++ The card is put into your hand. => NounPhrase "The card" as Subject of be; VerbPhrase "put into your hand" head put; PrepositionPhrase "into your hand" as Complement of put; readings 1
++ The creature is destroyed by the card. => VerbPhrase "destroyed by the card" head destroy; readings 1
++ Exile each card put into your hand. => VerbPhrase "put into your hand" as Modifier of card; readings 1
+
++ Exile the card you put into your hand. => Clause "you put into your hand" gap "card"; VerbPhrase "put into your hand" head put
++ Exile the card you are putting into your hand. => Clause "you are putting into your hand" gap "card"; VerbPhrase "putting into your hand" head put
++ Exile the card you have put into your hand. => Clause "you have put into your hand" gap "card"; VerbPhrase "put into your hand" head put
++ Exile the hand you put the card into. => Clause "you put the card into" gap "hand"; NounPhrase "the card" as Object of put
++ Exile the hand the card is put into. => Clause "the card is put into" gap "hand"
+
++ Each creature enters or leaves the battlefield. => VerbPhrase "enters or leaves" gap "the battlefield"; readings 1
++ Put into your hand or exile the card. => VerbPhrase "Put into your hand or exile" gap "the card"; readings 1
+* Put into your hand the card.
+
+* Put the card.
+* Destroy creature target.
+* Search your library for.
+* The card you put the card into your hand.
+* Each creature enter or leaves the battlefield.
