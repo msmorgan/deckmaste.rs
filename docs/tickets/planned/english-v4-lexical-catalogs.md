@@ -33,7 +33,9 @@ catalog files separated by domain, using the frame schema proven in
    file with its subcategorization frame.
 3. **Full Morphological Paradigms:** Every verb and noun receives its full
    grammatical paradigm (`Unavailable` is permitted only for genuinely
-   defective English words, never for unattested corpus forms).
+   defective English words, never for unattested corpus forms). Pronouns are
+   declared with the features Oracle gives them: `you` is second person
+   singular only (Oracle never addresses more than one player as `you`).
 4. **Registered Label Exclusivity:** An open flavor-word label never duplicates
    a registered ability word (`[CR#207.2c]`) or keyword (`[CR#702.1]`).
 5. **Catalog Validator & Grammar-Leak Lint:**
