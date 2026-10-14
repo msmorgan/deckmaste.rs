@@ -771,6 +771,64 @@ mimicked.
   `denoted_by` marker and the `Definition.*Term` projections, is retired.
   (Ruling, 2026-10-10, owner, Q80 option A;
   `semantics-v2-counter-annihilation-sba`.)
+- **Defense is a `Stat`; `Stat` and `CharacteristicStat` stay two enums.**
+  `Stat` gains `defense` [CR#310.4,310.4a], and `Stat.comparedType` maps it to
+  the battle card type beside loyalty's planeswalker. `Stat` is a readable
+  quantity (power, toughness, mana value, loyalty, defense) and
+  `CharacteristicStat` a settable characteristic; mana value is not among the
+  characteristics [CR#109.3], so the split is real and stays.
+  (Ruling, 2026-10-13, owner, Q81.)
+- **The printed-defense entry is a conferral on the battle card type.**
+  [CR#310.4b] is written on the battle card-type definition: it enters with
+  defense counters equal to `statOf(stat(defense), this)`, the same home and
+  shape as the planeswalker loyalty entry [CR#306.5b]. It is the witness the
+  `defense` axis exists for. (Ruling, 2026-10-13, owner, Q82.)
+- **Marked damage is a projection axis.** `ProjAxis.markedDamage` is the damage
+  marked on an object [CR#120.3e,120.6], and `statOf(markedDamage, x)` reads it.
+  The lethal-damage row [CR#704.5g] reads toughness greater than 0 and
+  `statOf(markedDamage, this)` at least `statOf(stat(toughness), this)`. Its
+  card witness is Pyramids ("damage marked on") if Vintage-legal and its text
+  fits, otherwise one of the "damage dealt to it this turn" faces (Tangled
+  Colony, Blazing Effigy). (Ruling, 2026-10-13, owner, Q83.)
+- **Deathtouch's state-based half reads a lookback to the last check.**
+  `GameEvent.stateBasedActionsChecked` names the check [CR#704.3], and the
+  [CR#704.5h] row reads a `LookbackClause` on
+  `damage(any, a source with deathtouch, this)` within
+  `between(stateBasedActionsChecked, now)`. Both lethal rows live where the
+  `planeswalkerLoyalty` rule does, a rule scoped to the creature card type,
+  with "destroy" as the instruction; regeneration replacing it is the engine's
+  business, as for the existing rows. Deathtouch's declaration stays empty
+  (2026-09-07), its rule living in the table, and [CR#702.2c] is a named
+  residue for the engine. (Ruling, 2026-10-13, owner, Q90.)
+- **A damage result is one row shape.** `DamageResult (kind : DamageKind)
+  (source : DamageAgent) (recipient : Predicate) (mode : ResultMode)
+  (does : Instruction)` [CR#120.3,120.4c]. Inside `does`, `thatMuch` is the
+  damage amount and the performer is the source's controller, or its owner if
+  it has no controller [CR#702.15b], read in context per the 2026-10-06
+  performer ruling, so there is no performer field. The planeswalker loyalty
+  [CR#120.3c] and battle defense [CR#120.3h] rows re-spell into it with the same
+  pinned outcomes, and `DamageResultRule` and its Rust mirror retire.
+  (Ruling, 2026-10-13, owner, Q86.)
+- **A keyword's damage result is its own static ability.**
+  `StaticSpec.damageResult (rule : DamageResult)`: wither is a static ability
+  [CR#702.80a], so its result is written `static(damageResult(...))`, and card
+  statics write the same node. The builtin rules table
+  (`RulesTables.damageResult`) holds the intrinsic rows of the same type: life
+  loss [CR#120.3a], loyalty [CR#120.3c], marking [CR#120.3e] and defense
+  [CR#120.3h]. Marking needs an instruction that marks damage, the counterpart
+  of `clearDamage` [CR#120.6], named in the names table.
+  (Ruling, 2026-10-13, owner, Q87.)
+- **`ResultMode` says what "instead" replaces.** `ResultMode = intrinsic |
+  instead (of : OutcomeSort) | inAddition`. `intrinsic` is only for the builtin
+  rows. `instead(of)` names the result it replaces (`instead(damageMarked)`,
+  `instead(lifeLost)`; `OutcomeSort` gains `damageMarked`) and applies only
+  while that result would still happen, so a source with both wither and infect
+  puts counters once [CR#120.3d]; `inAddition` adds. Archon of Coronation's
+  "damage doesn't cause you to lose life" is `instead(lifeLost)` with an empty
+  instruction. (Ruling, 2026-10-13, owner, Q88.)
+- **`semantics-v2-embed-candidates` is parked with the macros cutover.** It is
+  authoring sugar, so its `needs:` is `[lean-macros-cutover]`.
+  (Ruling, 2026-10-13, owner, Q85.)
 
 ## 8. Process
 

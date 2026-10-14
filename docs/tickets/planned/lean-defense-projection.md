@@ -7,14 +7,22 @@ Found by `lean-rules-tables` (2026-09-07): `CharacteristicStat` (what an effect
 *reads*, through `ProjAxis.stat`) is `power|toughness|manaValue|loyalty`. A
 battle's defense on the battlefield is its defense-counter count [CR#310.4c], so
 the counter read covers the state-based action [CR#704.5w] and the damage result
-[CR#120.3h] — both land in `Proofs/Rules.lean`. What has no spelling is the
-*printed* defense, and so the battle's intrinsic conferral [CR#310.4b] ("enters
-with a number of defense counters equal to its printed defense number"), the
-exact analogue of the planeswalker row [CR#306.5b] that `rules/grant/` writes.
+[CR#120.3h]. What has no spelling is the *printed* defense, and so the battle's
+intrinsic conferral [CR#310.4b], the exact analogue of the planeswalker row
+[CR#306.5b] that `rules/grant/` writes.
 
-Add `defense` to `Stat` with its citation [CR#310.4,310.4a], thread it through
-`Stat.comparedType` (→ `battle`) and every exhaustive read in `Check/`, mirror it
-in `crates/deckmaste_semantics_v2` (drift test), and add the battle conferral row
-to `Proofs/Rules.lean` beside `planeswalkerLoyalty`. Verify the axis against real
-card text that compares a battle's defense before settling the spelling.
-Standard constraints apply.
+Decided (2026-10-13, owner; `semantics-v2.md` §7, Q81, Q82):
+
+- `Stat` gains `defense` [CR#310.4,310.4a]; `Stat.comparedType` maps it to the
+  battle card type beside loyalty's planeswalker. `Stat` and `CharacteristicStat`
+  stay two enums: mana value is not a characteristic [CR#109.3], so the split is
+  real.
+- [CR#310.4b] is written as a conferral on the battle card-type definition: it
+  enters with defense counters equal to `statOf(stat(defense), this)`, the same
+  home and shape as the planeswalker loyalty entry. It is the witness the
+  `defense` axis exists for.
+
+Do: add `defense` to `Stat` with its citation, thread it through
+`Stat.comparedType` and every exhaustive read in `Check/`, mirror it in
+`crates/deckmaste_semantics_v2` (drift test), and add the battle conferral row
+beside `planeswalkerLoyalty` in `Proofs/Rules.lean`. Standard constraints apply.

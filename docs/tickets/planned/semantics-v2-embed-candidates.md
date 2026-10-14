@@ -1,6 +1,8 @@
 ---
-needs: [plugins-v2-dialect]
+needs: [lean-macros-cutover]
 ---
+**Parked with the macros cutover (Ruling, 2026-10-13, owner, Q85): authoring sugar.**
+
 **Which further constructors are injections.** Design-bearing; standard
 constraints apply.
 

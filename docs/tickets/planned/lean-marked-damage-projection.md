@@ -5,19 +5,32 @@ needs: []
 `lean-rules-tables` (2026-09-07): [CR#704.5g] reads the total damage marked on
 a creature and [CR#704.5h] reads whether a source with deathtouch has dealt it
 damage *since the last time state-based actions were checked*. Neither is
-spellable — `ProjAxis` has no marked-damage axis (`Stat` is
-`power|toughness|manaValue|loyalty`), and `Lookback` (`thisTurn`,
-`earlierThisTurn`, `thisCombat`, `lastTurn`, `thisGame`, `thisWay`,
-`triggering`) has no sweep-relative window. So `plugins/builtin/rules/sba/`'s
-`lethal-damage.ron` is the one v1 row `Proofs/Rules.lean`'s builtin table
-cannot carry.
+spellable: `ProjAxis` has no marked-damage axis, and no `GameEvent` names a
+state-based check for a `LookbackClause` window to end on. So
+`plugins/builtin/rules/sba/`'s `lethal-damage.ron` is the one v1 row
+`Proofs/Rules.lean`'s builtin table cannot carry.
 
-Add the marked-damage projection and the sweep-relative lookback to
-`lean/Semantics/`, with their citations, threading both through every read in
-`Check/` that matches the enum exhaustively; pin the two rows as `SbaRule`s in
+Decided (2026-10-13, owner; `semantics-v2.md` §7, Q83, Q90):
+
+- `ProjAxis.markedDamage` is the damage marked on an object [CR#120.3e,120.6];
+  `statOf(markedDamage, x)` reads it. The [CR#704.5g] row reads toughness > 0
+  and `statOf(markedDamage, this) ≥ statOf(stat(toughness), this)`. Card
+  witnesses: Pyramids ("damage marked on") if Vintage-legal and its text fits;
+  otherwise one of the "damage dealt to it this turn" faces (Tangled Colony,
+  Blazing Effigy).
+- `GameEvent.stateBasedActionsChecked` names the check [CR#704.3]. The
+  [CR#704.5h] row reads a `LookbackClause` (the `mk event within timing`
+  constructor of `Phrase.lean`) on `damage(any, a source with deathtouch, this)`
+  within `Duration.between(stateBasedActionsChecked, now)`.
+- Both lethal rows land in the same home as the existing `planeswalkerLoyalty`
+  rule (a rule scoped to the creature card type), with "destroy" as the
+  instruction; regeneration replacing it is the engine's business, as for the
+  existing rows. Deathtouch's declaration stays empty (2026-09-07): its rule
+  lives in the table. [CR#702.2c] (combat damage assignment) is a named residue
+  for the engine.
+
+Do: add the axis and the event with their citations, thread both through every
+exhaustive read in `Check/`, pin the two rows as `SbaRule`s in
 `Proofs/Rules.lean` beside the three that already prove, mirror both in
 `crates/deckmaste_semantics_v2` (drift test), and note in `lean/CONTRACTS.md`
-that the "Rules tables" gap is closed. Card evidence for the projection exists
-independently of the tables ("damage marked on it"), so verify the spelling
-against the corpus rather than against the rule alone. Standard constraints
-apply.
+that the "Rules tables" gap is closed. Standard constraints apply.
