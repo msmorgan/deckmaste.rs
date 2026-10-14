@@ -51,3 +51,8 @@ provenance), using the frame schema proven in
      a closed word or hardcoded identifier in grammar declarations.
 
 Standard constraints apply.
+
+Measured on `uvnzzxzo`.
+
+1. **Census delta**: does not apply yet; the census arrives with `english-v4-corpus-stratification-and-judgment-harness`.
+2. **Judgment set**: does not apply yet; the judgment set arrives with the same ticket.
