@@ -1,0 +1,8 @@
+# "get" taking an energy-symbol or counter object, and "get +N/+N" adjusting power and toughness
++ You get {E}{E}. => VerbPhrase "get {E}{E}" head get
++ <card=Scrapper Champion> When this creature enters, you get {E}{E}. => VerbPhrase "get {E}{E}" head get
++ <card=Phyresis Outbreak> Each opponent gets a poison counter. => NounPhrase "a poison counter" as Object of get
++ <card=Crypt Cobra> Whenever this creature attacks and isn't blocked, defending player gets a poison counter. => NounPhrase "a poison counter" as Object of get
++ <card=Vexing Radgull> Whenever this creature deals combat damage to a player, that player gets two rad counters if they don't have any rad counters. => NounPhrase "two rad counters" as Object of get
++VerbPhrase gets +1/+1 => VerbPhrase "gets +1/+1" head get
++ Creatures you control get +1/+1. => NounPhrase "Creatures you control" as Subject of get; RelativeClause "you control" gap "Creatures"

@@ -1,0 +1,21 @@
+# Coordination of notation units: mana symbols, keywords, and cardinal numerals agreeing with the following noun
++ {W}
++ {W} or {U}
++ {W}, {U}, or {B}
++ {W}{U}
++KeywordPhrase flying
++KeywordPhrase flying and haste
++KeywordPhrase flying, haste, and vigilance
++KeywordPhrase flying and/or reach
++ Flying, vigilance
+*KeywordPhrase flying nor haste
+* {W} nor {U}
++NounPhrase one or two creatures
++NounPhrase two or one creatures
++NounPhrase one and one creatures
++NounPhrase one or one creature
++NounPhrase one, two, or three creatures
+*NounPhrase one or two creature
+*NounPhrase two or one creature
+*NounPhrase one and one creature
+*NounPhrase one or one creatures

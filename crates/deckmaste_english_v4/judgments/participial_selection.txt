@@ -1,0 +1,5 @@
+# Perfect and passive auxiliary chains with participles (have been chosen, block or be blocked), where be plus a participle keeps both the verbal passive and the adjectival reading
++VerbPhrase have been chosen => VerbPhrase "been chosen" as Complement of have
++VerbPhrase have been exiled => VerbPhrase "been exiled" as Complement of have
++VerbPhrase block or be blocked => VerbPhrase "blocked" as Complement of be || AdjectivePhrase "blocked" as PredicativeComplement of be; readings 2
+*VerbPhrase be been destroyed

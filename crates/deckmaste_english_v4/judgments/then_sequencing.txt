@@ -1,0 +1,14 @@
+# Sequencing with ", then" in chains of bare imperatives (one analysis: coordinated imperative clauses), under a shared subject and modal, and "Then" as a connective adverb
++Clause Draw a card and discard a card => Clause "Draw a card"; Clause "discard a card"; readings 1
++Clause Draw a card, then discard a card => Clause "Draw a card"; Clause "discard a card"; readings 1
++ Draw a card and discard a card.
++ Draw a card. Then discard a card. => AdverbPhrase "Then" as Adjunct of discard; readings 1
++ Exile target creature you control, then return that card to the battlefield under its owner's control. => Clause "Exile target creature you control"; Clause "return that card to the battlefield under its owner's control"
++ {T}: Draw a card, then discard a card. => Clause "Draw a card"; Clause "discard a card"
++ Surveil 2, then draw two cards. => Clause "Surveil 2"; Clause "draw two cards"
++ Search your library for a basic land card, put it onto the battlefield tapped, then shuffle. => Clause "Search your library for a basic land card"; Clause "put it onto the battlefield tapped"; Clause "shuffle"
++ Its controller may search their library for a basic land card, put it onto the battlefield tapped, then shuffle. => VerbPhrase "may search their library for a basic land card, put it onto the battlefield tapped, then shuffle"; VerbPhrase "search their library for a basic land card, put it onto the battlefield tapped, then shuffle"
++ Its controller may search their library for a basic land card, put it onto the battlefield tapped, and shuffle. => VerbPhrase "may search their library for a basic land card, put it onto the battlefield tapped, and shuffle"; VerbPhrase "search their library for a basic land card, put it onto the battlefield tapped, and shuffle"
++ Tap it, then you may sacrifice an artifact or creature. => Clause "Tap it"; Clause "you may sacrifice an artifact or creature"
++ When this creature enters, scry 1, then scry 2, then scry 3. => Clause "scry 1"; Clause "scry 2"; Clause "scry 3"
++ Draw a card and then discard a card. => AdverbPhrase "then" as Adjunct of discard; readings 1

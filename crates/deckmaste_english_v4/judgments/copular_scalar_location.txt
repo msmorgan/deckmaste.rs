@@ -1,0 +1,13 @@
+# A copular clause whose subject is a scalar property ("its power is 2", "her power is 1 or less") with number concord
++Clause its power is 2 => NounPhrase "its power" as Subject of be; VerbPhrase "is 2"; Predicative "2" as PredicativeComplement of be
++Clause her power is 1 or less => NounPhrase "her power" as Subject of be; Predicative "1 or less" as PredicativeComplement of be
++Clause that creature's power is 0 or less => NounPhrase "that creature's power" as Subject of be; Predicative "0 or less" as PredicativeComplement of be
++Clause enchanted creature's power is 4 or greater => NounPhrase "enchanted creature's power" as Subject of be; Predicative "4 or greater" as PredicativeComplement of be
++Clause its mana value is 2 or less => NounPhrase "its mana value" as Subject of be; Predicative "2 or less" as PredicativeComplement of be
++Clause its power is 6 or greater => NounPhrase "its power" as Subject of be; Predicative "6 or greater" as PredicativeComplement of be
++Clause that spell's mana value is X => NounPhrase "that spell's mana value" as Subject of be; Predicative "X" as PredicativeComplement of be
++Clause X is 2 => NounPhrase "X" as Subject of be; VerbPhrase "is 2"; Predicative "2" as PredicativeComplement of be
++ The number of cards in your hand is three. => NounPhrase "The number of cards in your hand" as Subject of be
+*Clause The number of cards in your hand are three.
+*Clause its power creature is 2
+*Clause its power are 2

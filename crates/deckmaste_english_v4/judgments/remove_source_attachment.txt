@@ -1,0 +1,18 @@
+# The source of remove (from combat, from this land) as a complement, and the bare passive removed this way
++ <card=Saprazzan Cove> {T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way. => VerbPhrase "removed this way" as Modifier of counter
++ <card=Catti-brie of Mithral Hall> {1}, Remove all +1/+1 counters from Catti-brie: It deals X damage to target attacking or blocking creature an opponent controls, where X is the number of counter removed this way. => VerbPhrase "removed this way" as Modifier of counter
++ This effect doesn't remove this Aura. => NounPhrase "this Aura" as Object of remove
++ {T}: Untap target attacking creature an opponent controls and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
++ Whenever this creature becomes blocked, you may untap it and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
++ Untap target attacking creature and remove it from combat. Gain control of that creature until end of turn. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
++ Remove a counter from this land. => PrepositionPhrase "from this land" as Complement of remove; !PrepositionPhrase "from this land" as Adjunct of remove
++ Remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove
++ Draw a card during combat. => PrepositionPhrase "during combat" as Adjunct of draw
++ Remove all counters from target permanent. => PrepositionPhrase "from target permanent" as Complement of remove
++ Remove it from the game. => PrepositionPhrase "from the game" as Complement of remove
++ A counter was removed from this land. => PrepositionPhrase "from this land" as Complement of remove
++VerbPhrase removed
++ Remove any number of +1/+1 counters from among creatures you control. => PrepositionPhrase "from among creatures you control" as Complement of remove; RelativeClause "you control" gap "creatures"
++ Remove a +1/+1 counter from this creature for each card in target opponent's hand. => PrepositionPhrase "from this creature" as Complement of remove; PrepositionPhrase "for each card in target opponent's hand" as Adjunct of remove; !PrepositionPhrase "for each card in target opponent's hand" as Modifier of counter
++ You may cast spells from the top of your library by removing a counter from a creature you control in addition to paying their other costs. => PrepositionPhrase "from a creature you control" as Complement of remove; PrepositionPhrase "by removing a counter from a creature you control in addition to paying their other costs" as Adjunct of cast
++ For each color, return up to one target card of that color from your graveyard to your hand. Exile All Suns' Dawn. => NounPhrase "up to one target card of that color from your graveyard" as Object of return || PrepositionPhrase "from your graveyard" as Complement of return; PrepositionPhrase "to your hand" as Complement of return

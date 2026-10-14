@@ -1,0 +1,18 @@
+# Clausal negation with not after a form of be (contracted and uncontracted), in clauses with an NP, adjective or participial predicative complement
++ <card=Force of Negation> If it's not your turn, you may exile a blue card from your hand rather than pay this spell's mana cost.
++ <card=Eddymurk Crab> This creature enters tapped if it's not your turn.
++ <card=Glademuse> Whenever a player casts a spell, if it's not their turn, that player draws a card.
++ <card=Arcades Sabboth> Each untapped creature you control gets +0/+2 as long as it's not attacking.
++ <card=Desynchronization> Return each nonland permanent that's not historic to its owner's hand.
++ It's not your turn.
++ It's not a creature.
++ It's not legendary.
++ They're not legendary.
++ You're not the monarch.
++ It isn't your turn.
++ It isn't a creature.
++ They aren't legendary.
++ You aren't the monarch.
++ It's your turn.
++ It doesn't untap.
++ It is not your turn.

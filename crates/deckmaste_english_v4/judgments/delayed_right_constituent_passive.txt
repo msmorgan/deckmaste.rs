@@ -1,0 +1,21 @@
+# Coordinated passive participles ("dealt to and dealt by") sharing one right-hand noun phrase (right-node raising)
++ <card=Fog Bank> Prevent all combat damage that would be dealt to and dealt by this creature. => NounPhrase "this creature"; RelativeClause "that would be dealt to and dealt by this creature" as Modifier of "combat damage" gap "combat damage"
++ <card=Gaseous Form> Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature"; RelativeClause "that would be dealt to and dealt by enchanted creature" as Modifier of "combat damage" gap "combat damage"
++ <card=Maze of Ith> Prevent all combat damage that would be dealt to and dealt by that creature this turn. => NounPhrase "that creature"
++ <card=Kiora, the Crashing Wave> Until your next turn, prevent all damage that would be dealt to and dealt by target permanent an opponent controls. => NounPhrase "target permanent an opponent controls"; RelativeClause "an opponent controls" gap "permanent"
++ <card=Statecraft> Prevent all combat damage that would be dealt to and dealt by creatures you control. => NounPhrase "creatures you control"; RelativeClause "you control" gap "creatures"
+# complete controls
++ Prevent all combat damage that would be dealt to this creature and dealt by this creature.
++ Whenever this creature attacks or blocks a creature, destroy that creature.
++ Whenever this creature blocks or becomes blocked by a creature, destroy that creature.
++ Damage is dealt to this creature.
++ Prevent all combat damage that would be dealt to this creature.
++ Prevent all combat damage that would be dealt by this creature.
++ Prevent all combat damage that would be dealt to enchanted creature.
++ Prevent all combat damage that would be dealt by enchanted creature.
++ Prevent all combat damage that would be dealt to that creature this turn.
++ Prevent all combat damage that would be dealt by that creature this turn.
++ Until your next turn, prevent all damage that would be dealt to target permanent an opponent controls.
++ Until your next turn, prevent all damage that would be dealt by target permanent an opponent controls.
++ Prevent all combat damage that would be dealt to creatures you control.
++ Prevent all combat damage that would be dealt by creatures you control.

@@ -1,0 +1,6 @@
+# The pronoun you: second person, with singular verb agreement, in subject, coordinated and clausal positions
++NounPhrase you
++Clause you draw a card
+*Clause you draws a card
++NounPhrase you and target opponent
++Clause you discard your hand

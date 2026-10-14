@@ -1,0 +1,14 @@
+# Possessive determiner phrases (your hand, their hand) and their prepositional and clausal uses
++NounPhrase your hand
++NounPhrase your graveyard
++NounPhrase their hand
++NounPhrase the command zone
+*NounPhrase yours hand
+*NounPhrase they hand
+*NounPhrase your the hand
++PrepositionPhrase from your hand
++PrepositionPhrase from the command zone
++PrepositionPhrase from your hand or from the command zone => PrepositionPhrase "from your hand"; PrepositionPhrase "from the command zone"
++Clause you may discard your hand
++ You discard your hand.
+* You discards your hand.

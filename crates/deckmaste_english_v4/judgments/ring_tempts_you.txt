@@ -1,0 +1,11 @@
+# The keyword action "the Ring tempts you" as an ordinary finite clause (noun Ring, transitive verb tempt), and the designation Ring-bearer as a count noun
++ When this creature enters, the Ring tempts you. => Clause "the Ring tempts you"; NounPhrase "the Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
++ Whenever one or more creatures deal combat damage to you, each opponent sacrifices a creature of their choice that dealt combat damage to you this turn. The Ring tempts you. => Clause "The Ring tempts you"; NounPhrase "The Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
++ I — The Ring tempts you, then each player mills cards equal to your Ring-bearer's power. => NounPhrase "The Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
++ Whenever the Ring tempts you, draw a card. => Clause "the Ring tempts you"; NounPhrase "the Ring" as Subject of tempt; NounPhrase "you" as Object of tempt
++NounPhrase your Ring-bearer
++ Wraiths you control have protection from Ring-bearers. => Nominal "Ring-bearers"
++VerbPhrase tempts you => NounPhrase "you" as Object of tempt
++ Venture into the dungeon.
++ You become the monarch.
++ Put a +1/+1 counter on your commander.

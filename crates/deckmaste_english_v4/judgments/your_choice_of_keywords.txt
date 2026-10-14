@@ -1,0 +1,18 @@
+# "your choice of <keywords>": a nominal whose selected of-complement is a keyword or keyword alternatives; gain and lose take it as object
++NounPhrase your choice of flying => PrepositionPhrase "of flying" as Complement of choice; KeywordPhrase "flying"; !PrepositionPhrase "of flying" as Modifier of choice; readings 1
++NounPhrase your choice of deathtouch or lifelink => PrepositionPhrase "of deathtouch or lifelink" as Complement of choice; KeywordPhrase "deathtouch or lifelink"; !PrepositionPhrase "of deathtouch or lifelink" as Modifier of choice
++ <card=Orcish Medicine> Target creature gains your choice of lifelink or indestructible until end of turn. => NounPhrase "your choice of lifelink or indestructible" as Object of gain; PrepositionPhrase "of lifelink or indestructible" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of gain
++ <card=Alchemist's Gift> Target creature gets +1/+1 and gains your choice of deathtouch or lifelink until end of turn. => NounPhrase "your choice of deathtouch or lifelink" as Object of gain; PrepositionPhrase "of deathtouch or lifelink" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of gain || PrepositionPhrase "until end of turn" as Adjunct of get
++ <card=Shifting Ceratops> {G}: This creature gains your choice of reach, trample, or haste until end of turn. => NounPhrase "your choice of reach, trample, or haste" as Object of gain; PrepositionPhrase "of reach, trample, or haste" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of gain
++ <card=Golem Artisan> {2}: Target artifact creature gains your choice of flying, trample, or haste until end of turn. => NounPhrase "your choice of flying, trample, or haste" as Object of gain; PrepositionPhrase "of flying, trample, or haste" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of gain
++ <card=Walking Sponge> {T}: Target creature loses your choice of flying, first strike, or trample until end of turn. => NounPhrase "your choice of flying, first strike, or trample" as Object of lose; PrepositionPhrase "of flying, first strike, or trample" as Complement of choice; PrepositionPhrase "until end of turn" as Adjunct of lose
++NounPhrase your choice of double strike, protection from red, vigilance, or shadow => PrepositionPhrase "of double strike, protection from red, vigilance, or shadow" as Complement of choice; KeywordPhrase "double strike"; KeywordPhrase "protection from red"
++NounPhrase your choice of banding, flying, first strike, or trample => PrepositionPhrase "of banding, flying, first strike, or trample" as Complement of choice; KeywordPhrase "first strike"
++ Target creature gets +1/+1 and gains deathtouch or lifelink until end of turn.
++ Target creature gains deathtouch or lifelink until end of turn.
++ This creature enters with your choice of a reach counter or a vigilance counter on it.
++ When The Third Doctor enters, create your choice of a Clue token, a Food token, or a Treasure token.
++ Enchanted creature has flying, first strike, and vigilance.
++NounPhrase a spell with flying => PrepositionPhrase "with flying" as Modifier of spell
++NounPhrase your choice of a creature or a land
++ Put your choice of a +1/+1 counter or a flying counter on target creature.

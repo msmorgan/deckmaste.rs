@@ -1,0 +1,15 @@
+# Mana symbols as objects of add and pay; basic mana abilities
++ {W}
++ {U}{B}{R}{G}{C}
++ You may pay {B}.
++VerbPhrase pay {B}
++VerbPhrase pay {U}{U}
++VerbPhrase adds {G}
++VerbPhrase add {G}
++VerbPhrase pays {G}
++VerbPhrase pay {G}
++ {T}: Add {W}.
++ {T}: Add {B}.
++ {T}: Add {G}.
++ {T}: Add {C}{C}.
++ {T}: Add {C}.

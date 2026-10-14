@@ -1,0 +1,7 @@
+# Sentences inside named-mode abilities (a header sentence and the sentence body of each named mode)
++ <card=Barrensteppe Siege> At the beginning of your end step, put a +1/+1 counter on each creature you control. => RelativeClause "you control" gap "creature"
++ <card=Barrensteppe Siege> At the beginning of your end step, if a creature died under your control this turn, each opponent sacrifices a creature of their choice.
++ <card=Typhoid Mary, Fractured> Whenever Typhoid Mary attacks, choose one at random. If you discarded a card this turn, you choose one instead.
++ <card=Typhoid Mary, Fractured> Create a Treasure token.
++ <card=Typhoid Mary, Fractured> Draw a card.
++ <card=Typhoid Mary, Fractured> Each opponent loses 2 life and you gain 2 life.

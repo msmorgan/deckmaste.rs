@@ -1,0 +1,173 @@
+# Vocabulary added for Oracle text: verb, adjective, adverb, noun and name witnesses with their phrasal roles
++ <card=Lilah, Undefeated Slickshot> If you do, it becomes plotted. => AdjectivePhrase "plotted"
++Clause <card=Chef's Kiss> reselect the targets at random for the spell and the copy => NounPhrase "the targets" as Object of reselect
++Clause <card=Grip of Chaos> reselect its target at random => NounPhrase "its target" as Object of reselect
++ <card=Touch of the Eternal> At the beginning of your upkeep, count the number of permanents you control. => VerbPhrase "count the number of permanents you control"
++ <card=Chaos Moon> At the beginning of each upkeep, count the number of permanents. => VerbPhrase "count the number of permanents"
++ <card=Monastery Siege> As this enchantment enters, choose Khans or Dragons. => NounPhrase "Khans"
++ <card=Aerid Konstrari> When Aerid Konstrari enters or dies, create a Heartwood token. => Nominal "Heartwood"
++ <card=Hungering Puppetbeast> When this creature enters, create a Heartwood token. => Nominal "Heartwood"
++ <card=Invasion of Pyrulea> If it's a land or double-faced card, draw a card. => AdjectivePhrase "double-faced"
++ <card=Nick Fury, Agent of S.H.I.E.L.D.> If it's a double-faced card, you may transform it. => AdjectivePhrase "double-faced"
++Clause <card=Stangg> create Stangg Twin => NounPhrase "Stangg Twin"
++Clause <card=Gemini Engine> create a colorless Construct artifact creature token named Twin => NounPhrase "Twin"
++NounPhrase <card=Gemini Engine> a colorless Construct artifact creature token named Twin that's attacking => NounPhrase "Twin"
++ <card=Enkira, Hostile Scavenger> When Enkira, Hostile Scavenger enters, create two Walker tokens. => Nominal "Walker"
++ <card=Gisa's Favorite Shovel> If they do, you create a Walker token. => Nominal "Walker"
++ <card=Siren's Call> Creatures the active player controls attack this turn if able. => AdjectivePhrase "active"
++ <card=Belbe, Corrupted Observer> At the beginning of each postcombat main phase, the active player adds {C}{C} for each of your opponents who lost life this turn. => AdjectivePhrase "active"
++Clause <card=Powerful Broker> give that permanent or player another counter of that kind => VerbPhrase "give that permanent or player another counter of that kind"
++Clause <card=Etched Host Doombringer> an opponent protects it => VerbPhrase "protects it"
++Clause <card=Dáin Ironfoot> create a colorless Equipment artifact token named Axe => NounPhrase "Axe"
++Clause <card=Minsc, Beloved Ranger> create Boo => NounPhrase "Boo"
++ <card=Castle Doom> Create a 3/3 colorless Robot Villain artifact creature token named Doombot. => NounPhrase "Doombot"
++ <card=Doctor Doom> When Doctor Doom enters, create two 3/3 colorless Robot Villain artifact creature tokens named Doombot. => NounPhrase "Doombot"
++Clause <card=Mole Man, Moloid Master> create a 1/1 green Minion creature token named Moloid => NounPhrase "Moloid"
++Clause <card=Return of the Mole Man> Create X 1/1 green Minion creature tokens named Moloid => NounPhrase "Moloid"
++ <card=Search for Survivors> Reorder your graveyard at random. => NounPhrase "your graveyard" as Object of reorder
++Clause <card=Fossil Find> reorder your graveyard as you choose => NounPhrase "your graveyard" as Object of reorder
++Clause <card=U.S.Agent, John Walker> create a colorless Equipment artifact token named Sturdy Shield => NounPhrase "Sturdy Shield"
++Clause <card=Origin of Captain America> Create a colorless Equipment artifact token named Sturdy Shield => NounPhrase "Sturdy Shield"
++Clause <card=Goblin Game> all players reveal them simultaneously => AdverbPhrase "simultaneously"
++Clause <card=Goblin Welder> that player simultaneously sacrifices the artifact => AdverbPhrase "simultaneously" as Adjunct of sacrifice
++ <card=Breaking Wave> Simultaneously untap all tapped creatures and tap all untapped creatures. => AdverbPhrase "Simultaneously"
++PrepositionPhrase <card=Thanos, the Mad Titan> of the chosen quality => NounPhrase "the chosen quality"
++PrepositionPhrase <card=Mystic Barrier> in the last chosen direction => NounPhrase "the last chosen direction"
++PrepositionPhrase <card=Order of Succession> in the chosen direction => NounPhrase "the chosen direction"
++ <card=Pir's Whim> Each foe sacrifices an artifact or enchantment of their choice. => NounPhrase "Each foe"
++ <card=Virtus's Maneuver> Each foe sacrifices a creature of their choice. => NounPhrase "Each foe"
++ <card=Pain's Reward> Each player may bid life. => VerbPhrase "bid life"
++ <card=Mages' Contest> You and target spell's controller bid life. => VerbPhrase "bid life"
++PrepositionPhrase <card=Pain's Reward> with a bid of any number => NounPhrase "a bid of any number"
++PrepositionPhrase <card=Mages' Contest> with a bid => NounPhrase "a bid"
++NounPhrase <card=Pain's Reward> The bidding => Nominal "bidding"
++ <card=Mages' Contest> If you win the bidding, counter that spell. => NounPhrase "the bidding"
++Nominal <card=Narci, Fable Singer> chapter ability of a Saga you control => Nominal "chapter"
++NounPhrase <card=Mystic Barrier> the nearest opponent => AdjectivePhrase "nearest"
++ <card=Master of Ceremonies> For each player who chose money, you and that player each create a Treasure token. => NounPhrase "money"
++PrepositionPhrase <card=Expropriate> for time or money => NounPhrase "money"
++Clause <card=Elrond of the White Council> the voter chooses a creature they control => NounPhrase "the voter"
++Clause <card=Expropriate> choose a permanent owned by the voter and gain control of it => NounPhrase "the voter"
++NounPhrase <card=Narci, Fable Singer> the final chapter ability of a Saga you control => AdjectivePhrase "final"
++NounPhrase <card=Pain's Reward> the high bid => AdjectivePhrase "high"
++ <card=Pain's Reward> The high bidder loses life equal to the high bid and draws four cards. => NounPhrase "The high bidder"
++ <card=Mages' Contest> The high bidder loses life equal to the high bid. => NounPhrase "The high bidder"
++ <card=Fallaji Wayfarer> This ability doesn't affect its color identity. => VerbPhrase "affect its color identity"
++Clause <card=Undergrowth> this effect doesn't affect combat damage that would be dealt by red creatures => VerbPhrase "affect combat damage that would be dealt by red creatures"
++Clause <card=Ashen Ghoul> three or more creature cards are above this card => PrepositionPhrase "above this card"
++ <card=Ashen Ghoul> Activate only during your upkeep and only if three or more creature cards are above this card. => PrepositionPhrase "above this card"
++NounPhrase <card=Netherese Puzzle-Ward> a die's highest natural result => AdjectivePhrase "natural"
++ <card=Netherese Puzzle-Ward> Whenever you roll a die's highest natural result, draw a card. => AdjectivePhrase "natural"
++PrepositionPhrase <card=Ogre Enforcer> by lethal damage => AdjectivePhrase "lethal"
++NounPhrase <card=Zilortha, Strength Incarnate> Lethal damage dealt to creatures you control => AdjectivePhrase "Lethal"
++RelativeClause <card=Círdan the Shipwright> they received
++RelativeClause <card=Mob Verdict> an opponent received
++ <card=Karakyk Guardian> This creature has hexproof as long as it hasn't dealt damage yet. => AdverbPhrase "yet"
++ <card=Palladia-Mors, the Ruiner> Palladia-Mors has hexproof as long as it hasn't dealt damage yet. => AdverbPhrase "yet"
++Clause <card=Gollum, Scheming Guide> they guessed => VerbPhrase "guessed"
++NounPhrase <card=Fire Navy Trebuchet> a 2/1 colorless Construct artifact creature token with flying named Ballistic Boulder that's tapped and attacking => NounPhrase "Ballistic Boulder"
++NounPhrase <card=Ellie, Brick Master> a tapped 1/1 black Fungus Zombie creature token named Cordyceps Infected that's attacking that opponent => NounPhrase "Cordyceps Infected"
++NounPhrase <card=Abby, Merciless Soldier> 1/1 black Fungus Zombie creature tokens named Cordyceps Infected => NounPhrase "Cordyceps Infected"
++NounPhrase <card=Koma, Cosmos Serpent> a 3/3 blue Serpent creature token named Koma's Coil => NounPhrase "Koma's Coil"
++NounPhrase <card=Koma, World-Eater> four 3/3 blue Serpent creature tokens named Koma's Coil => NounPhrase "Koma's Coil"
++NounPhrase <card=Nurgle's Rot> a 1/3 black Demon creature token named Plaguebearer of Nurgle => NounPhrase "Plaguebearer of Nurgle"
++Clause <card=Marit Lage's Slumber> create Marit Lage => NounPhrase "Marit Lage"
++Clause <card=The Book of Vile Darkness> Create Vecna => NounPhrase "Vecna"
++NounPhrase <card=Hand of Vecna> a creature you control named Vecna => NounPhrase "Vecna"
++ <card=Gor Muldrak, Amphinologist> At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token. => Nominal "fewest creatures"
++NounPhrase <card=Gor Muldrak, Amphinologist> each player who controls the fewest creatures => Nominal "fewest creatures"
++ <card=The Seventh Doctor> If they guessed wrong, you may cast it without paying its mana cost. => AdverbPhrase "wrong"
++ <card=Liar's Pendulum> If you do and your opponent guessed wrong, draw a card. => AdverbPhrase "wrong"
++NounPhrase <card=Torment of Hailfire> the following process => AdjectivePhrase "following"
++PrepositionPhrase <card=Outlaws' Merriment> with those characteristics => NounPhrase "those characteristics"
++NounPhrase <card=Molten Sentry> heads => Nominal "heads"
++NounPhrase <card=Molten Sentry> tails => Nominal "tails"
++PrepositionPhrase <card=Quarry Colossus> beneath the top X cards of that library
++Clause <card=Marina Vendrell> Lock or unlock a door of target Room you control => VerbPhrase "Lock or unlock a door of target Room you control"
++NounPhrase <card=Ghostly Dancers> a locked door of a Room you control => AdjectivePhrase "locked"
++NounPhrase <card=Ghostly Keybearer> a locked door of up to one target Room you control => AdjectivePhrase "locked"
++Clause <card=Ogre Enforcer> lethal damage dealt by a single source is marked on it
++NounPhrase <card=Pyramids> all damage marked on it => VerbPhrase "marked on it" as Modifier of damage
++NounPhrase <card=Barrensteppe Siege> Abzan
++NounPhrase <card=Barrensteppe Siege> Mardu
++NounPhrase <card=Windcrag Siege> Jeskai
++NounPhrase <card=Hollowmurk Siege> Sultai
++NounPhrase <card=Glacierwood Siege> Temur
++PrepositionPhrase <card=Travel Through Caradhras> for Redhorn Pass or Mines of Moria => NounPhrase "Redhorn Pass"
++NounPhrase <card=Travel Through Caradhras> Redhorn Pass
++NounPhrase <card=Jace, Multiverse Architect> Jaces you control => Nominal "Jaces you control"
++PrepositionPhrase <card=Jace, Reality Sculptor> among Jaces you control => NounPhrase "Jaces you control"
++Clause <card=Rinoa Heartilly> create Angelo => NounPhrase "Angelo"
++NounPhrase <card=Rinoa Heartilly> Angelo
++NounPhrase <card=Kibo, Uktabi Prince> a colorless artifact token named Banana => NounPhrase "Banana"
++NounPhrase <card=Kibo, Uktabi Prince> Banana
++NounPhrase <card=Giant Caterpillar> a 1/1 green Insect creature token with flying named Butterfly => NounPhrase "Butterfly"
++NounPhrase <card=Giant Caterpillar> Butterfly
++NounPhrase <card=Tooth and Claw> a 3/1 red Beast creature token named Carnivore => NounPhrase "Carnivore"
++NounPhrase <card=Tooth and Claw> Carnivore
++NounPhrase <card=Scriv, the Obligator> a white Aura enchantment token named Contract => NounPhrase "Contract"
++NounPhrase <card=Scriv, the Obligator> Contract
++Clause <card=Mabel, Heir to Cragflame> create Cragflame => NounPhrase "Cragflame"
++NounPhrase <card=Mabel, Heir to Cragflame> Cragflame
++Clause <card=Rufus Shinra> create Darkstar => NounPhrase "Darkstar"
++NounPhrase <card=Rufus Shinra> Darkstar
++VerbPhrase <card=Honest Work> named Humble Merchant => NounPhrase "Humble Merchant"
++NounPhrase <card=Honest Work> Humble Merchant
++Clause <card=Helm of Kaldra> create Kaldra => NounPhrase "Kaldra"
++NounPhrase <card=Helm of Kaldra> Kaldra
++Clause <card=Tatsunari, Toad Rider> create Keimi => NounPhrase "Keimi"
++NounPhrase <card=Tatsunari, Toad Rider> Keimi
++NounPhrase <card=Wall of Kelp> a 0/1 blue Plant Wall creature token with defender named Kelp => NounPhrase "Kelp"
++NounPhrase <card=Wall of Kelp> Kelp
++NounPhrase <card=Kwia Vigorbloom> a colorless artifact token named Lotus => NounPhrase "Lotus"
++NounPhrase <card=Kwia Vigorbloom> Lotus
++NounPhrase <card=Weapons Manufacturing> a colorless artifact token named Munitions => NounPhrase "Munitions"
++NounPhrase <card=Weapons Manufacturing> Munitions
++Clause <card=Tamiyo, Compleated Sage> Create Tamiyo's Notebook => NounPhrase "Tamiyo's Notebook"
++NounPhrase <card=Tamiyo, Compleated Sage> Tamiyo's Notebook
++Clause <card=Ozox, the Clattering King> create Jumblebones => NounPhrase "Jumblebones"
++NounPhrase <card=Ozox, the Clattering King> Jumblebones
++NounPhrase <card=Svella, Ice Shaper> a colorless snow artifact token named Icy Manalith => NounPhrase "Icy Manalith"
++NounPhrase <card=Svella, Ice Shaper> Icy Manalith
++NounPhrase <card=Nahiri, the Lithomancer> a colorless Equipment artifact token named Stoneforged Blade => NounPhrase "Stoneforged Blade"
++NounPhrase <card=Nahiri, the Lithomancer> Stoneforged Blade
++NounPhrase <card=Rite of the Raging Storm> Creatures named Lightning Rager => NounPhrase "Lightning Rager"
++NounPhrase <card=Rite of the Raging Storm> Lightning Rager
++NounPhrase <card=Awakening of Vitu-Ghazi> a legendary 0/0 Elemental creature with haste named Vitu-Ghazi => NounPhrase "Vitu-Ghazi"
++NounPhrase <card=Awakening of Vitu-Ghazi> Vitu-Ghazi
++Clause <card=Mishra, Eminent One> its name is Mishra's Warform => NounPhrase "Mishra's Warform"
++NounPhrase <card=Mishra, Eminent One> Mishra's Warform
++Clause <card=Mechtitan Core> Create Mechtitan => NounPhrase "Mechtitan"
++NounPhrase <card=Mechtitan Core> Mechtitan
++Clause <card=Ka-Zar of the Savage Land> create Zabu => NounPhrase "Zabu"
++NounPhrase <card=Ka-Zar of the Savage Land> Zabu
++NounPhrase <card=Hornet Cannon> a 1/1 colorless Insect artifact creature token with flying and haste named Hornet => NounPhrase "Hornet"
++NounPhrase <card=Hornet Cannon> Hornet
++NounPhrase <card=Jungle Patrol> a token named Wood => NounPhrase "Wood"
++NounPhrase <card=Jungle Patrol> Wood
++Nominal <card=Rocket Launcher> recent turn => AdjectivePhrase "recent"
++AdjectivePhrase <card=Rocket Launcher> recent
++ <card=Reverse the Sands> Redistribute any number of players' life totals. => VerbPhrase "Redistribute any number of players' life totals"
++Clause <card=Reverse the Sands> Redistribute any number of players' life totals => VerbPhrase "Redistribute any number of players' life totals"
++Clause <card=The Deck of Many Things> subtract the number of cards in your hand => VerbPhrase "subtract the number of cards in your hand"
++ <card=The Deck of Many Things> Roll a d20 and subtract the number of cards in your hand. => VerbPhrase "subtract the number of cards in your hand"
++RelativeClause <card=Opposition Agent> they find
++VerbPhrase <card=Odric, Blood-Cursed> found among creatures you control
++Clause <card=Falcon, Winged Wonder> create Redwing => NounPhrase "Redwing"
++NounPhrase <card=Falcon, Winged Wonder> Redwing
++VerbPhrase <card=Toggo, Goblin Weaponsmith> named Rock => NounPhrase "Rock"
++NounPhrase <card=Toggo, Goblin Weaponsmith> Rock
++VerbPhrase <card=Preston Garvey, Minuteman> named Settlement => NounPhrase "Settlement"
++NounPhrase <card=Preston Garvey, Minuteman> Settlement
++VerbPhrase <card=Dragonbroods' Relic> named Reliquary Dragon => NounPhrase "Reliquary Dragon"
++NounPhrase <card=Dragonbroods' Relic> Reliquary Dragon
++VerbPhrase <card=Wirefly Hive> named Wirefly => NounPhrase "Wirefly"
++NounPhrase <card=Wirefly Hive> Wirefly
++VerbPhrase <card=Lita, Mechanical Engineer> named Zeppelin => NounPhrase "Zeppelin"
++NounPhrase <card=Lita, Mechanical Engineer> Zeppelin
++VerbPhrase <card=Pia Nalaar, Chief Mechanic> named Nalaar Aetherjet => NounPhrase "Nalaar Aetherjet"
++NounPhrase <card=Pia Nalaar, Chief Mechanic> Nalaar Aetherjet
++Clause <card=Tomb of Urami> Create Urami => NounPhrase "Urami"
++NounPhrase <card=Tomb of Urami> Urami
++VerbPhrase <card=Tuktuk the Explorer> named Tuktuk the Returned => NounPhrase "Tuktuk the Returned"
++NounPhrase <card=Tuktuk the Explorer> Tuktuk the Returned

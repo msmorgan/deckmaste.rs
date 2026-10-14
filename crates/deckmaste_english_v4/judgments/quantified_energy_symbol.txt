@@ -1,0 +1,11 @@
+# A quantified energy symbol ("six {E}", "X {E}") as an object, and bare energy symbols in costs and objects
++NounPhrase eight {E}
++ <card=Aethertide Whale> When this creature enters, you get six {E}. => NounPhrase "six {E}" as Object of get
++ <card=Aethersquall Ancient> Pay eight {E}: Return all other creatures to their owners' hands. Activate only as a sorcery. => NounPhrase "eight {E}" as Object of pay
++ <card=Roil Cartographer> {T}, Pay six {E}: Draw three cards. => NounPhrase "six {E}" as Object of pay
++ <card=Overclocked Electromancer> Whenever this creature deals combat damage to a creature, if that creature was dealt excess damage this turn, you get X {E}, where X is that excess damage. => NounPhrase "X {E}" as Object of get
++ <card=Nissa, Worldsoul Speaker> Landfall — Whenever a land you control enters, you get {E}{E}.
++ <card=Solstice Zealot> {T}, Pay {E}: Tap target creature.
++ <card=Inventor's Axe> Equip—Pay {E}{E}.
++ <card=Peema Aether-Seer> When this creature enters, you get an amount of {E} equal to the greatest power among creatures you control. => NounPhrase "an amount of {E} equal to the greatest power among creatures you control" as Object of get
++ <card=Aether Spike> You may pay any amount of {E}. => NounPhrase "any amount of {E}" as Object of pay

@@ -1,0 +1,18 @@
+# Complement and object roles of attested verbs and nominals: end, lose, remove, put (back, there, in any order), transform, surveil, and removal from combat
++ End the turn. => NounPhrase "the turn" as Object of end
++Clause steps end => VerbPhrase "end" head end
++VerbPhrase lose the flip => NounPhrase "the flip" as Object of lose
++NounPhrase your life total => Nominal "life total" head "life total"
++NounPhrase a mana ability => Nominal "mana ability" head ability
++VerbPhrase removed from this land => PrepositionPhrase "from this land" as Complement of remove
++VerbPhrase put them back => PrepositionPhrase "back" as Complement of put; NounPhrase "them" as Object of put
++VerbPhrase put them back in any order => PrepositionPhrase "back" as Complement of put; PrepositionPhrase "in any order"
++VerbPhrase put the rest back on top of your library in any order => NounPhrase "the rest" as Object of put; PrepositionPhrase "back on top of your library" as Complement of put; PrepositionPhrase "on top of your library" as Complement of back; PrepositionPhrase "in any order"
++ It was put there. => PrepositionPhrase "there" as Complement of put
++NounPhrase this game
++NounPhrase any time
++VerbPhrase transforms => VerbPhrase "transforms" head transform
++VerbPhrase transforms into a non-Human creature => PrepositionPhrase "into a non-Human creature" as Complement of transform
++VerbPhrase surveil => VerbPhrase "surveil" head surveil
++ Remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; NounPhrase "combat" as Complement of from
++VerbPhrase removed from combat => PrepositionPhrase "from combat" as Complement of remove; NounPhrase "combat" as Complement of from

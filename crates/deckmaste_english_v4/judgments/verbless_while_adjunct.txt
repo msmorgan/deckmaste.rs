@@ -1,0 +1,12 @@
+# "while" taking a verbless clause ("while saddled", "while tapped") or a finite clause as an adjunct of the predicate, and a stative if-able adjunct
++ <card=Gilded Ghoda> Whenever this creature attacks while saddled, create a Treasure token. => PrepositionPhrase "while saddled" as Adjunct of attack
++ <card=Alacrian Jaguar> Whenever this creature attacks while saddled, it gets +2/+2 until end of turn. => PrepositionPhrase "while saddled" as Adjunct of attack
++ <card=District Mascot> Whenever this creature attacks while saddled, put a +1/+1 counter on it. => PrepositionPhrase "while saddled" as Adjunct of attack
++ <card=Dracosaur Auxiliary> Whenever this creature attacks while saddled, it deals 2 damage to any target. => PrepositionPhrase "while saddled" as Adjunct of attack
++PrepositionPhrase while saddled
++ It has flying while tapped. => PrepositionPhrase "while tapped" as Adjunct of have
++ Whenever this creature attacks while it's saddled, it gets +2/+2 until end of turn. => PrepositionPhrase "while it's saddled" as Adjunct of attack
++ Whenever this creature attacks, draw a card.
++ This creature is saddled.
++ You may look at it while it's tapped. => PrepositionPhrase "while it's tapped" as Adjunct of look
++ This creature attacks each combat if able. => PrepositionPhrase "if able" as Adjunct of attack; NounPhrase "each combat" as Adjunct of attack

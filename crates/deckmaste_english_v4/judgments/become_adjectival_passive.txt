@@ -1,0 +1,12 @@
+# `become` with a participial adjective phrase as predicative complement (becomes blocked, becomes tapped)
++ Whenever this creature becomes blocked, defending player mills three cards. => VerbPhrase "becomes blocked"; AdjectivePhrase "blocked" as PredicativeComplement of become; readings 1
++ Whenever this creature blocks or becomes blocked by a creature, that creature loses first strike until end of turn. => VerbPhrase "blocks or becomes blocked by a creature"; AdjectivePhrase "blocked by a creature" as PredicativeComplement of become; PrepositionPhrase "by a creature" as Complement of block; NounPhrase "a creature" as Complement of by
++ Whenever this creature becomes blocked, defending player loses 4 life. => VerbPhrase "becomes blocked"; AdjectivePhrase "blocked" as PredicativeComplement of become; readings 1
++ Whenever this creature becomes blocked, it gets +1/+1 until end of turn. => VerbPhrase "becomes blocked"; AdjectivePhrase "blocked" as PredicativeComplement of become; readings 1
++ Whenever a creature you control becomes blocked, it gets +1/+1 until end of turn. => VerbPhrase "becomes blocked"; AdjectivePhrase "blocked" as PredicativeComplement of become; readings 1
++VerbPhrase becomes blocked => AdjectivePhrase "blocked" as PredicativeComplement of become; readings 1
++VerbPhrase becomes tapped => AdjectivePhrase "tapped" as PredicativeComplement of become; readings 1
++VerbPhrase becomes untapped => AdjectivePhrase "untapped" as PredicativeComplement of become; readings 1
++VerbPhrase becomes blocked by a creature => AdjectivePhrase "blocked by a creature" as PredicativeComplement of become
++AdjectivePhrase blocked by a creature => PrepositionPhrase "by a creature" as Complement of block; !PrepositionPhrase "by a creature" as Adjunct of block; readings 1
+*VerbPhrase becomes blocked a creature

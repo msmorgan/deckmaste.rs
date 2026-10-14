@@ -1,0 +1,14 @@
+# Bare imperative and finite uses of the keyword actions scry and connive with a numeric count, and subject-verb agreement
++ Scry 3.
++ Scry 2.
++ {T}: Scry 1.
++ You scry 3.
++ This creature scries 3.
++ Connive 2.
++ Connive.
++ This creature connives.
+* You scries 3.
+* This creature scry 3.
+* Scry -1.
+* Scry +1.
+* Scry 3rd.

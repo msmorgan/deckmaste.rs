@@ -1,0 +1,17 @@
+# Basic uncoordinated phrases (nominal, noun phrase, adjective, preposition, keyword, adverb, mana symbol), a to-infinitival and its selection by choose, and adverbs in clauses
++Nominal creatures
++NounPhrase creatures
++AdjectivePhrase green
++PrepositionPhrase among creatures
++KeywordPhrase flying
++AdverbPhrase again
++ {G}
++Clause to attack
++VerbPhrase choose to attack
+* To attack.
+* Choose to attacks.
+* Choose from attack.
++Clause it explores again
++Clause this creature can't attack alone
++Clause Otherwise, suspect it
++Clause Then draw a card

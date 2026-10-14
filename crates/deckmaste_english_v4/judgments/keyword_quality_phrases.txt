@@ -1,0 +1,3 @@
+# Coordinated from-phrases as the quality of the protection keyword
++KeywordPhrase Protection from artifacts or from the color of your choice => PrepositionPhrase "from artifacts"; PrepositionPhrase "from the color of your choice"; NounPhrase "the color of your choice"; PrepositionPhrase "of your choice" as Modifier of color
++KeywordPhrase Protection from colorless or from the color of your choice => PrepositionPhrase "from colorless"; AdjectivePhrase "colorless"; PrepositionPhrase "from the color of your choice"; readings 1

@@ -1,0 +1,21 @@
+# Keyword abilities mentioned without a parameter (as object of gain/have, complement of with, premodifier of cost or ability) and with their parameter (cost or amount)
++ <card=Epochrasite> When this creature dies, exile it with three time counters on it and it gains suspend. => KeywordPhrase "suspend" as Object of gain
++ <card=Compleat Devotion> Target creature you control gets +2/+2 until end of turn. If that creature has toxic, draw a card. => KeywordPhrase "toxic" as Object of have
++ <card=Flashback> Target instant or sorcery card in your graveyard gains flashback until end of turn. The flashback cost is equal to its mana cost. => KeywordPhrase "flashback" as Object of gain; KeywordPhrase "flashback" as Modifier of cost
++ <card=Young Deathclaws> Each creature card in your graveyard has scavenge. The scavenge cost is equal to its mana cost. => KeywordPhrase "scavenge" as Object of have; KeywordPhrase "scavenge" as Modifier of cost
++ <card=Rootcoil Creeper> {G}{U}, {T}, Exile this creature: Return target card with flashback you own from exile to your hand. => PrepositionPhrase "with flashback" as Modifier of card; !PrepositionPhrase "with flashback" as Adjunct of return
++PrepositionPhrase with flashback => KeywordPhrase "flashback" as Complement of with; readings 1
++ <card=Murasa Sproutling> When this creature enters, if it was kicked, return target card with a kicker ability from your graveyard to your hand. => KeywordPhrase "kicker" as Modifier of ability
++Nominal flashback cost => KeywordPhrase "flashback" as Modifier of cost; readings 1
++Nominal morph ability => KeywordPhrase "morph" as Modifier of ability; readings 1
++Nominal equip abilities => KeywordPhrase "equip" as Modifier of ability; readings 1
++KeywordPhrase flashback
++KeywordPhrase toxic
++KeywordPhrase suspend
++KeywordPhrase Suspend
++KeywordPhrase Flashback {2}{R}
++KeywordPhrase Cycling {2}
++KeywordPhrase Suspend 4—{1}{U}
++KeywordPhrase Toxic 1
++ Target creature gains flashback {2} until end of turn. => KeywordPhrase "flashback {2}" as Object of gain; !KeywordPhrase "flashback"
++ <card=Gavi, Nest Warden> You may pay {0} rather than pay the cycling cost of the first card you cycle each turn. => KeywordPhrase "cycling" as Modifier of cost || VerbPhrase "cycling" as Modifier of cost

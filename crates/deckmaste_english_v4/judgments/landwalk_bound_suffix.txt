@@ -1,0 +1,10 @@
+# Landwalk keywords (Swampwalk, Forestwalk, landwalk) as keyword phrases, and in running text
++KeywordPhrase Swampwalk => readings 1
++KeywordPhrase Forestwalk => readings 1
++KeywordPhrase Islandwalk => readings 1
++KeywordPhrase Mountainwalk => readings 1
++KeywordPhrase Plainswalk => readings 1
++KeywordPhrase Desertwalk => readings 1
++KeywordPhrase landwalk
++ <card=Goblin King> Other Goblins get +1/+1 and have mountainwalk. => KeywordPhrase "mountainwalk" as Object of have
++ <card=Veldrane of Sengir> Veldrane gets -3/-0 and gains forestwalk until end of turn. => KeywordPhrase "forestwalk" as Object of gain

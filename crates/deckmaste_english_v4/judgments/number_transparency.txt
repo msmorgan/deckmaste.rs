@@ -1,0 +1,11 @@
+# "any number of ..." and "the number of ...": number agreement follows the of-complement for "any number", and the head "number" for "the number"
++NounPhrase any number of target creatures => Nominal "number"; PrepositionPhrase "of target creatures"; NounPhrase "target creatures"
++Clause any number of target creatures become the color of your choice => NounPhrase "any number of target creatures" as Subject of become; NounPhrase "the color of your choice" as PredicativeComplement of become
+*Clause any number of target creatures becomes the color of your choice
++ <card=Sway of Illusion> Any number of target creatures become the color of your choice until end of turn. => NounPhrase "Any number of target creatures" as Subject of become
+*NounPhrase any number of target creature
+*Clause the number of Slivers become the color of your choice
++NounPhrase the number of Slivers
++NounPhrase any number
++NounPhrase any number of target creatures you control => NounPhrase "target creatures you control"; RelativeClause "you control" as Modifier of creature || Nominal "number of target creatures"; RelativeClause "you control" as Modifier of number
++NounPhrase any number of card of that type => NounPhrase "cards of that type"; PrepositionPhrase "of that type" as Modifier of card || Nominal "number of cards"; PrepositionPhrase "of that type" as Modifier of number

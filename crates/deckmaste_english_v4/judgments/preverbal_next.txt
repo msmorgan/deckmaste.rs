@@ -1,0 +1,12 @@
+# The adverb "next" as a preverbal adjunct of the verb in a trigger condition, versus attributive "next"
++ <card=Galvanic Iteration> When you next cast an instant or sorcery spell this turn, copy that spell. => AdverbPhrase "next" as Adjunct of cast
++ <card=The Clone Saga> When you next cast a creature spell this turn, copy it, except the copy isn't legendary. => AdverbPhrase "next" as Adjunct of cast
++ <card=All-Out Assault> When you next attack this turn, untap each creature you control. => AdverbPhrase "next" as Adjunct of attack
++ <card=Dual Strike> When you next cast an instant or sorcery spell with mana value 4 or less this turn, copy that spell. You may choose new targets for the copy. => AdverbPhrase "next" as Adjunct of cast
++ At the beginning of your next upkeep, draw a card.
++NounPhrase the next spell you cast this turn
++NounPhrase the next end step
++ The next time you cast a spell this turn, copy it. => RelativeClause "you cast a spell this turn" gap "time" || RelativeClause "you cast a spell" gap "time"
++ You also draw a card.
++ It still has flying.
++Clause you next cast a spell => AdverbPhrase "next" as Adjunct of cast

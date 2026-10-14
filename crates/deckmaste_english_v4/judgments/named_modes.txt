@@ -1,0 +1,21 @@
+# Flavor-word labelled ability lines (the bodies of named modes) and fragments that are not abilities
++ <card=Megaton's Fate> Disarm — Destroy target artifact. Create four Treasure tokens.
++ <card=Megaton's Fate> Detonate — Megaton's Fate deals 8 damage to each creature. Each player gets four rad counters.
++ <card=Dawnbringer Cleric> Cure Wounds — You gain 2 life.
++ <card=Dawnbringer Cleric> Dispel Magic — Destroy target enchantment.
++ <card=Dawnbringer Cleric> Gentle Repose — Exile target card from a graveyard.
++ <card=Cult of Skaro> Thay — Put a +1/+1 counter on each artifact creature you control.
++ <card=Cult of Skaro> Caan — Draw two cards.
++ <card=Cult of Skaro> Sec — Create a 3/3 black Dalek artifact creature token with menace.
++ <card=Cult of Skaro> Jast — Each opponent loses 4 life.
++ <card=Special Move> Jump Kick — Destroy target artifact.
++ <card=Special Move> Dash Attack — Put two +1/+1 counters on target attacking or blocking creature you control.
++ <card=Special Move> Foot Toss — Target creature you control deals damage equal to its power to any other target. Then sacrifice it.
++ <card=Battle Menu> Attack — Create a 2/2 white Knight creature token.
++ <card=Battle Menu> Ability — Target creature gets +0/+4 until end of turn.
++ <card=Battle Menu> Magic — Destroy target creature with power 4 or greater.
++ <card=Battle Menu> Item — You gain 4 life.
++ Cure Wounds — You gain 2 life.
+* • Cure Wounds — You gain 2 life.
+* • You gain 2 life.
+* Choose one —

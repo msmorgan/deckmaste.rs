@@ -1,0 +1,11 @@
+# Turn face up / face down, active with an object and passive
++ When this creature is turned face up, untap it.
++ When this creature is turned face up, destroy target land.
++ When this creature is turned face up, regenerate target creature.
++ Whenever a permanent is turned face up, put a +1/+1 counter on this creature.
++ Otherwise, you may turn a permanent you control face up. => NounPhrase "a permanent you control" as Object of turn
++ Turn this creature face up. => NounPhrase "this creature" as Object of turn
++ Turn this creature face down. => NounPhrase "this creature" as Object of turn
++VerbPhrase is turned face down
++VerbPhrase turn this creature face down => NounPhrase "this creature" as Object of turn
++VerbPhrase turned face up

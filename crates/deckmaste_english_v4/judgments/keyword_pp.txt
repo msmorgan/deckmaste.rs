@@ -1,0 +1,8 @@
+# "with"/"without" taking a keyword ability: a nominal modifier only
++PrepositionPhrase with flying => KeywordPhrase "flying" as Complement of with
++PrepositionPhrase without flying => KeywordPhrase "flying" as Complement of without
++PrepositionPhrase with first strike => KeywordPhrase "first strike" as Complement of with
++PrepositionPhrase with flying and haste => KeywordPhrase "flying and haste" as Complement of with
++ <card=Deluge> Tap all creatures without flying. => PrepositionPhrase "without flying" as Modifier of creature
++ <card=Moat> Creatures without flying can't attack. => PrepositionPhrase "without flying" as Modifier of creature
++ <card=Wallop> Destroy target blue or black creature with flying. => PrepositionPhrase "with flying" as Modifier of creature; !PrepositionPhrase "with flying" as Adjunct of destroy

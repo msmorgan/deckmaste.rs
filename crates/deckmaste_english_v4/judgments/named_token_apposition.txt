@@ -1,0 +1,12 @@
+# Named token creation: a proper name followed by an indefinite appositive description as the single object of "create"
++ <card=Rinoa Heartilly> When Rinoa Heartilly enters, create Angelo, a legendary 1/1 green and white Dog creature token. => NounPhrase "Angelo, a legendary 1/1 green and white Dog creature token" as Object of create; NounPhrase "Angelo"; NounPhrase "a legendary 1/1 green and white Dog creature token"; !NounPhrase "Angelo" as Object of create
++ <card=Minsc, Beloved Ranger> Create Boo, a legendary 1/1 red Hamster creature token with trample and haste. => NounPhrase "Boo, a legendary 1/1 red Hamster creature token with trample and haste" as Object of create; NounPhrase "Boo"; !NounPhrase "Boo" as Object of create
++ <card=Stangg> When Stangg enters, create Stangg Twin, a legendary 3/4 red and green Human Warrior creature token. => NounPhrase "Stangg Twin, a legendary 3/4 red and green Human Warrior creature token" as Object of create; NounPhrase "Stangg Twin"; NounPhrase "a legendary 3/4 red and green Human Warrior creature token"; !NounPhrase "Stangg Twin" as Object of create
++ <card=Tamiyo, Compleated Sage> Create Tamiyo's Notebook, a legendary colorless Book artifact token. => NounPhrase "Tamiyo's Notebook, a legendary colorless Book artifact token" as Object of create; NounPhrase "Tamiyo's Notebook"; !NounPhrase "Tamiyo's Notebook" as Object of create
++ <card=Tuktuk the Explorer> When Tuktuk the Explorer dies, create Tuktuk the Returned, a legendary 5/5 colorless Goblin Golem artifact creature token. => NounPhrase "Tuktuk the Returned, a legendary 5/5 colorless Goblin Golem artifact creature token" as Object of create; NounPhrase "Tuktuk the Returned"; !NounPhrase "Tuktuk the Returned" as Object of create
++ <card=Rinoa Heartilly> Create Angelo. => NounPhrase "Angelo" as Object of create
++ <card=Rinoa Heartilly> Create a legendary 1/1 green and white Dog creature token named Angelo.
++ <card=Rinoa Heartilly> Create a legendary 2/2 white and black Dog creature token.
++ <card=Stangg> Create a token named Stangg Twin.
++ <card=Stangg> Sacrifice Stangg when that token leaves the battlefield.
++NounPhrase Angelo, a legendary 1/1 green and white Dog creature token => NounPhrase "Angelo"; NounPhrase "a legendary 1/1 green and white Dog creature token"

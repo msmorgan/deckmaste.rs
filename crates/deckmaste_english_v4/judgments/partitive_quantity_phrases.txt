@@ -1,0 +1,14 @@
+# Partitive noun phrases whose head is a quantity determiner phrase ("two or more of those cards", "up to two of them", "that many of those tokens")
++NounPhrase two or more of those cards => DeterminerPhrase "two or more"; PrepositionPhrase "of those cards"; NounPhrase "those cards"
++NounPhrase one or more of your opponents => DeterminerPhrase "one or more"; PrepositionPhrase "of your opponents"; NounPhrase "your opponents"
++NounPhrase up to two of them => DeterminerPhrase "up to two"; PrepositionPhrase "of them"; readings 1
++NounPhrase that many of those tokens => DeterminerPhrase "that many"; PrepositionPhrase "of those tokens"; NounPhrase "those tokens"; readings 1
++NounPhrase 1 of that damage => PrepositionPhrase "of that damage"; NounPhrase "that damage"; readings 1
++NounPhrase twice that many of those tokens
++NounPhrase one of them => PrepositionPhrase "of them"; readings 1
++NounPhrase two of those cards => PrepositionPhrase "of those cards"; NounPhrase "those cards"; readings 1
++ <card=Urza's Armor> If a source would deal damage to you, prevent 1 of that damage. => NounPhrase "1 of that damage" as Object of prevent; PrepositionPhrase "of that damage"
++ <card=Scalpelexis> Whenever this creature deals combat damage to a player, that player exiles the top four cards of their library. If two or more of those cards have the same name, repeat this process. => NounPhrase "two or more of those cards" as Subject of have; PrepositionPhrase "of those cards"
++ <card=Mangara, the Diplomat> Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control, draw a card. => NounPhrase "two or more of those creatures"; PrepositionPhrase "of those creatures"
++ <card=The Mana Rig> {X}{X}{X}, {T}: Look at the top X cards of your library. Put up to two of them into your hand and the rest on the bottom of your library in a random order. => NounPhrase "up to two of them" as Object of put; PrepositionPhrase "of them"
++ <card=Parallel Lives> If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. => NounPhrase "twice that many of those tokens" as Object of create; PrepositionPhrase "of those tokens"

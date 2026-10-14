@@ -1,0 +1,14 @@
+# Landwalk and landcycling keywords premodified by a supertype or legendary (Snow forestwalk, Basic landcycling {1})
++KeywordPhrase Snow forestwalk
++KeywordPhrase Legendary landwalk
++KeywordPhrase Nonbasic landwalk
++KeywordPhrase Basic landcycling {1}
++KeywordPhrase Basic landcycling {1}{W}
++KeywordPhrase legendary landwalk
++KeywordPhrase Landcycling {2}
++KeywordPhrase Plainscycling {2}
++KeywordPhrase Swampcycling {2}
++KeywordPhrase Forestwalk
++KeywordPhrase Landwalk
++ Equipped creature has nonbasic landwalk. => KeywordPhrase "nonbasic landwalk"
++ First strike; legendary landwalk => KeywordPhrase "legendary landwalk"

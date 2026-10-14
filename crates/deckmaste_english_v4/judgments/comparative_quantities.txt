@@ -1,0 +1,31 @@
+# Comparative quantity determiners ("three or more", "more than one", "fewer than six") determining a counted nominal, with number agreement
++NounPhrase three or more creatures => DeterminerPhrase "three or more" as Determiner of creature
++NounPhrase one or more cards => DeterminerPhrase "one or more" as Determiner of card
++NounPhrase more than one creature => DeterminerPhrase "more than one" as Determiner of creature
++NounPhrase more than one spell => DeterminerPhrase "more than one" as Determiner of spell
++NounPhrase fewer than six creature cards => DeterminerPhrase "fewer than six" as Determiner of card
++NounPhrase fewer than six creature cards in your graveyard => DeterminerPhrase "fewer than six" as Determiner of card
++NounPhrase three creatures
++NounPhrase one card
++NounPhrase one creature
++NounPhrase one spell
++NounPhrase six creature cards
++ Whenever you attack with three or more creatures, you may pay {2}{R}. => DeterminerPhrase "three or more" as Determiner of creature
++ Whenever one or more cards leave your graveyard, create a 2/2 red and white Spirit creature token. => DeterminerPhrase "one or more" as Determiner of card
++ This creature can't be blocked by more than one creature. => DeterminerPhrase "more than one" as Determiner of creature
++ Each player can't cast more than one spell each turn. => DeterminerPhrase "more than one" as Determiner of spell
++DeterminerPhrase three or more
++DeterminerPhrase one or more
++DeterminerPhrase more than one
++DeterminerPhrase fewer than six
++DeterminerPhrase 0 or less
++Clause one or more cards leave your graveyard
+*Clause one or more cards leaves your graveyard
+*Clause one or more card leaves your graveyard
+*NounPhrase more than one creatures
+*NounPhrase one or more card
+*NounPhrase fewer than six creature card
+*NounPhrase up than two creatures
+*NounPhrase more to one creature
+*NounPhrase three nor more creatures
+*NounPhrase three or many creatures

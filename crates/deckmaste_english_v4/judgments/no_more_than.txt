@@ -1,0 +1,29 @@
+# Comparative determiner phrases "no more than N" / "more than twice": "no" modifies "more", "than" selects the count; agreement with the head noun
++DeterminerPhrase no more than one => PrepositionPhrase "than one"
++DeterminerPhrase no more than two => PrepositionPhrase "than two"
++NounPhrase no more than one creature => DeterminerPhrase "no more than one" as Determiner of creature; PrepositionPhrase "than one"; Nominal "creature"
++DeterminerPhrase any more than two
++DeterminerPhrase many more than two
++DeterminerPhrase much more than two
++DeterminerPhrase some more than two
++DeterminerPhrase no fewer than two
+*DeterminerPhrase every more than two
+*DeterminerPhrase the more than two
+*DeterminerPhrase none more than two
++AdverbPhrase more than twice => PrepositionPhrase "than twice"
++AdverbPhrase no more than twice => PrepositionPhrase "than twice"
++ Activate no more than twice each turn. => AdverbPhrase "twice" as Complement of than
++ Activate no more than three times each turn. => NounPhrase "three times" as Complement of than
+*AdverbPhrase no more than again
+*AdverbPhrase no more than secretly
+*NounPhrase no more than twice creatures
++ <card=Judoon Enforcers> No more than two creatures can attack you each combat. => DeterminerPhrase "No more than two" as Determiner of creature
++ <card=Crawlspace> No more than one creature can attack you each combat. => DeterminerPhrase "No more than one" as Determiner of creature
++ <card=Pit Imp> {B}: This creature gets +1/+0 until end of turn. Activate no more than twice each turn.
++ {B}, Pay 1 life: This creature gets +1/+0 until end of turn. Activate no more than three times each turn.
++ You can cast spells only during your turn and you can cast no more than two spells each turn. => DeterminerPhrase "no more than two" as Determiner of spell
+*NounPhrase no more than one creatures
+*NounPhrase no more than two creature
++NounPhrase no more than two creatures => DeterminerPhrase "no more than two" as Determiner of creature
++DeterminerPhrase more than one
++NounPhrase no creature

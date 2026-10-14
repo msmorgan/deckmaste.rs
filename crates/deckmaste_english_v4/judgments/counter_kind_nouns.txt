@@ -1,0 +1,30 @@
+# Counter-kind compound nouns (petrification counter, eon counters, ...) as nominals and as objects of put
++ <card=Xathrid Gorgon> Put a petrification counter on target creature. => Nominal "petrification counter"; NounPhrase "a petrification counter" as Object of put
++ <card=Flamewar, Streetwise Operative> Put an intel counter on each of them. => Nominal "intel counter"; NounPhrase "an intel counter" as Object of put
++ <card=Out of the Tombs> At the beginning of your upkeep, put two eon counters on this enchantment, then mill cards equal to the number of eon counters on it. => Nominal "eon counters"; Nominal "eon counters"#2
++ <card=The Magic Mirror> At the beginning of your upkeep, put a knowledge counter on The Magic Mirror, then draw a card for each knowledge counter on The Magic Mirror. => Nominal "knowledge counter"; Nominal "knowledge counter"#2
++ <card=Icatian Javelineers> This creature enters with a javelin counter on it. => Nominal "javelin counter"
++Nominal petrification counter
++Nominal petrification counters
++Nominal intel counter
++Nominal intel counters
++Nominal eon counter
++Nominal eon counters
++Nominal knowledge counter
++Nominal knowledge counters
++Nominal javelin counter
++Nominal javelin counters
++Nominal treasure counter
++Nominal treasure counters
++Nominal mine counter
++Nominal mine counters
++Nominal book counter
++Nominal book counters
++Nominal fire counter
++Nominal fire counters
++Nominal gold counter
++Nominal gold counters
++Nominal silver counter
++Nominal silver counters
++Nominal hope counter
++Nominal hope counters

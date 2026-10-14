@@ -1,0 +1,23 @@
+# Mana quantity nominals (one mana of any color, two mana in any combination of colors) and the additional-cost predicative as-phrase
++ {T}: Add one mana of any color. => NounPhrase "one mana of any color" as Object of add; Nominal "mana of any color"; PrepositionPhrase "of any color" as Modifier of mana; NounPhrase "any color"
++NounPhrase an additional one mana of any color => AdjectivePhrase "additional" as Modifier of mana; PrepositionPhrase "of any color" as Modifier of mana; NounPhrase "any color"
++NounPhrase an additional one mana of the chosen color => AdjectivePhrase "additional" as Modifier of mana; PrepositionPhrase "of the chosen color" as Modifier of mana; NounPhrase "the chosen color"
++ {T}: Add one mana of the chosen color. => Nominal "mana of the chosen color"; VerbPhrase "chosen" as Modifier of color
++VerbPhrase add one mana of any color => NounPhrase "one mana of any color" as Object of add
++NounPhrase two mana of any one color
++PrepositionPhrase as an additional cost to cast this spell => NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; AdjectivePhrase "additional" as Modifier of cost; Clause "to cast this spell" as Complement of cost
+*NounPhrase any two color
+*NounPhrase any one colors
+*NounPhrase one manas of any color
+* As an additional cost to casts this spell, sacrifice a creature.
++NounPhrase two mana
+* As an additional cost to cast this spell sacrifice a creature.
+* Sacrifice as an additional cost to cast this spell a creature.
++ At the beginning of your upkeep, sacrifice a creature.
++ During your turn, sacrifice a creature.
++ You may exert this creature as it attacks.
++ As an additional cost to cast this spell, discard a land card. => NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; Clause "to cast this spell"; VerbPhrase "discard a land card"
++ As an additional cost to cast this spell, discard a card or pay {5}. => NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; Clause "to cast this spell"; VerbPhrase "pay {5}"
++ As an additional cost to cast this spell, sacrifice a creature. => PrepositionPhrase "As an additional cost to cast this spell"; NounPhrase "an additional cost to cast this spell" as PredicativeComplement of as; Nominal "cost to cast this spell"; Clause "to cast this spell" as Complement of cost; VerbPhrase "cast this spell"
++ {2}, {T}, Sacrifice this artifact: Add two mana in any combination of colors. => NounPhrase "two mana in any combination of colors" as Object of add; Nominal "mana in any combination of colors"; PrepositionPhrase "in any combination of colors" as Modifier of mana; NounPhrase "any combination of colors"; PrepositionPhrase "of colors" as Complement of combination
++ {1}, {T}, Sacrifice this artifact: Add two mana of any one color. => NounPhrase "two mana of any one color" as Object of add; Nominal "mana of any one color"; PrepositionPhrase "of any one color" as Modifier of mana; NounPhrase "any one color"

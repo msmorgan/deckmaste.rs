@@ -1,0 +1,13 @@
+# Keyword lines with a quality and a cost (Equip legendary creature {1}), cost-only keywords, and marked quality keywords
++KeywordPhrase Equip legendary creature {1}
++KeywordPhrase Equip Knight {1}
++KeywordPhrase Equip Shaman, Warlock, or Wizard {1}
++KeywordPhrase Equip Human {1}
++KeywordPhrase Equip {1}
++KeywordPhrase Equip—Pay 3 life.
+*KeywordPhrase Craft {1}{U}
++KeywordPhrase Splice onto Arcane {1}{R}
++KeywordPhrase Affinity for artifacts
++KeywordPhrase Protection from legendary creatures
++NounPhrase equip costs => KeywordPhrase "equip" as Modifier of cost
++NounPhrase equip abilities => KeywordPhrase "equip" as Modifier of ability

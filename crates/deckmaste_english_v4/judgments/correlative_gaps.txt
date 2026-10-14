@@ -1,0 +1,20 @@
+# Correlative coordination (both..and, either..or, neither..nor) of transitive verb phrases sharing an object Gap in a contact relative clause, with pairing, list and concord constraints
++NounPhrase target permanent you both own and control => RelativeClause "you both own and control" gap "permanent"
++NounPhrase target permanent you neither own nor control => RelativeClause "you neither own nor control" gap "permanent"
++NounPhrase target permanent you either own or control
++NounPhrase target card you either own, control, or draw
++NounPhrase target card you neither own, control, nor draw
++NounPhrase target permanent that player both owns and controls
++NounPhrase target permanent that player either owns or controls
++NounPhrase target permanent that player neither owns nor controls
++NounPhrase target card that player either owns, controls, or draws
++NounPhrase target card that player neither owns, controls, nor draws
+*NounPhrase target permanent you both own or control
+*NounPhrase target permanent you either own nor control
+*NounPhrase target permanent you neither own or control
+*NounPhrase target card you both own, control, and draw
+*NounPhrase target permanent that player both owns or controls
+*NounPhrase target permanent that player either owns nor controls
+*NounPhrase target permanent that player neither owns or controls
+*NounPhrase target card that player both owns, controls, and draws
+*NounPhrase target permanent that player both owns and control

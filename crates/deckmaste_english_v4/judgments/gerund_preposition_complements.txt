@@ -1,0 +1,13 @@
+# Preposition phrases with a gerund-participial clause complement (without paying its mana cost, instead of putting it ...)
++ <card=Storm of Memories> You may cast it without paying its mana cost. => PrepositionPhrase "without paying its mana cost" as Adjunct of cast; VerbPhrase "paying its mana cost" as Complement of without
++ <card=Spellweaver Volute> You may cast the copy without paying its mana cost. => PrepositionPhrase "without paying its mana cost" as Adjunct of cast; VerbPhrase "paying its mana cost" as Complement of without; !PrepositionPhrase "without paying its mana cost" as Modifier of copy
++ <card=Spellweaver Volute> You may cast the copy.
++ <card=Knowledge Exploitation> You may cast that card without paying its mana cost. => PrepositionPhrase "without paying its mana cost" as Adjunct of cast; VerbPhrase "paying its mana cost" as Complement of without; !PrepositionPhrase "without paying its mana cost" as Modifier of card
++ <card=Syncopate> If that spell is countered this way, exile it instead of putting it into its owner's graveyard. => PrepositionPhrase "instead of putting it into its owner's graveyard" as Adjunct of exile; VerbPhrase "putting it into its owner's graveyard"
++ <card=The Five Doctors> If this spell was kicked, put those cards onto the battlefield instead of putting them into your hand. => PrepositionPhrase "instead of putting them into your hand" as Adjunct of put; VerbPhrase "putting them into your hand"
++PrepositionPhrase without paying its mana cost => VerbPhrase "paying its mana cost" as Complement of without; NounPhrase "its mana cost" as Object of pay
+*PrepositionPhrase without pay its mana cost
+*PrepositionPhrase without paid its mana cost
++NounPhrase creatures without flying => PrepositionPhrase "without flying" as Modifier of creature
++PrepositionPhrase instead of any other type
++ {3}{W}{W}: Attacking creatures you control get +X/+X until end of turn, where X is the number of attacking creatures. => PrepositionPhrase "of attacking creatures" as Complement of number; !VerbPhrase "attacking creatures"

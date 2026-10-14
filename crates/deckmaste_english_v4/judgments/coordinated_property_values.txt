@@ -1,0 +1,19 @@
+# Noun phrases naming a coordinated pair of properties with a slash-pair value (base power and toughness 0/2), their predicate and with-postmodifier uses, and ill-formed placements of the value
++ Enchanted creature has base power and toughness 0/2. => NounPhrase "base power and toughness 0/2"; Nominal "base power and toughness"
++ Other creatures have base power and toughness 1/1. => NounPhrase "base power and toughness 1/1"; Nominal "base power and toughness"
++ It has base power and toughness 4/4. => NounPhrase "base power and toughness 4/4"; Nominal "base power and toughness"
++ Until end of turn, that creature has base power and toughness 4/4 and gains all creature types. => NounPhrase "base power and toughness 4/4"; Nominal "base power and toughness"
++NounPhrase base power 0 => Nominal "base power"
++NounPhrase power and toughness 0/2 => Nominal "power and toughness"
++NounPhrase base power and toughness X/X => Nominal "base power and toughness"
++ {1}{W/B}: This creature becomes a Human Warrior with base power and toughness 3/3. => Nominal "Human Warrior with base power and toughness 3/3"; NounPhrase "base power and toughness 3/3"; PrepositionPhrase "with base power and toughness 3/3" as Modifier of Warrior
+*NounPhrase one power 1
+*NounPhrase one power and toughness 0/2
++NounPhrase target tapped creature => AdjectivePhrase "tapped"
+*NounPhrase power with flying 2
+*NounPhrase power of that creature 2
+*NounPhrase power that it has 2
+*NounPhrase power named Bob 2
+*NounPhrase power among creatures you control 2
+*NounPhrase base power of that creature and toughness 0/2
+*NounPhrase power and toughness of it 0/2

@@ -1,0 +1,13 @@
+# "card" as a noun modifier in nominals (card name, card type, card pool) and not as a coordinated modifier
++ <card=Crop Sigil> Activate only if there are four or more card types among cards in your graveyard. => Nominal "card" as Modifier of type
++ <card=Peer Past the Veil> Then draw X cards, where X is the number of card types among cards in your graveyard. => Nominal "card" as Modifier of type
++ <card=Deluge of Doom> All creatures get -X/-X until end of turn, where X is the number of card types among cards in your graveyard. => Nominal "card" as Modifier of type
++ <card=Memoricide> Choose a nonland card name.
++ <card=Curse of Silence> As this Aura enters, choose a card name. => Nominal "card" as Modifier of name
++Nominal card name => Nominal "card" as Modifier of name; readings 1
++Nominal card type => Nominal "card" as Modifier of type; readings 1
++Nominal card types => Nominal "card" as Modifier of type; readings 1
++Nominal card pool => Nominal "card" as Modifier of pool; readings 1
++ <card=Open the Gates> Search your library for a basic land card or Gate card, reveal it, put it into your hand, then shuffle. => Nominal "basic land card"; Nominal "Gate card"; !Nominal "card or Gate"
++ Choose a card type. => readings 1
++ Choose a card name. => readings 1

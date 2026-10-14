@@ -1,0 +1,14 @@
+# A mana symbol as the subject of a passive spent, with an infinitival purpose adjunct (to cast it)
++ When this creature enters, sacrifice it unless {U} was spent to cast it. => NounPhrase "{U}"; Clause "to cast it"
++ If {U} was spent to cast this spell, draw a card. => NounPhrase "{U}"; Clause "to cast this spell" as Adjunct of spend || NounPhrase "{U}"; Clause "to cast this spell" as Adjunct of be
++ When this creature enters, if {B} was spent to cast it, target player discards a card. => NounPhrase "{B}"; Clause "to cast it"
++ When you cast this spell, if {C} wasn't spent to cast it, target opponent may put a creature card from their hand onto the battlefield. => NounPhrase "{C}"; Clause "to cast it"
++ If {U}{B} was spent to cast this spell, search your library for a card, put that card into your graveyard, then shuffle. => NounPhrase "{U}{B}"; Clause "to cast this spell"
++ Draw a card if {G} was spent to cast this spell. => NounPhrase "{G}"; Clause "to cast this spell"
++ If no mana was spent to cast it, draw a card.
++ Mana from a Treasure was spent to cast it.
++ You spend mana.
++VerbPhrase spend {U}
++ You spend {U}.
+* {U}{B} were spent.
++Clause {U} was spent

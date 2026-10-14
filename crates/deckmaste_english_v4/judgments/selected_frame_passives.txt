@@ -1,0 +1,5 @@
+# Passive participles of "put", "deal" and "discard" keeping their selected object or marker complement, with the manner adjunct "this way"
++VerbPhrase put it onto the battlefield => NounPhrase "it" as Object of put; PrepositionPhrase "onto the battlefield" as Complement of put
++VerbPhrase put into a graveyard => PrepositionPhrase "into a graveyard" as Complement of put
++Nominal creature dealt damage this way => VerbPhrase "dealt damage this way" as Modifier of creature; NounPhrase "damage" as Object of deal; NounPhrase "this way" as Adjunct of deal
++NounPhrase each card discarded this way => VerbPhrase "discarded this way" as Modifier of card; NounPhrase "this way" as Adjunct of discard

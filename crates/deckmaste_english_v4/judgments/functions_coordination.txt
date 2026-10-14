@@ -1,0 +1,9 @@
+# Coordination of finite clauses as the complement of "if", and of unlike predicative complements (adjective phrase with noun phrase)
++PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
++PrepositionPhrase if you draw cards and they discard cards => Clause "you draw cards"; Clause "they discard cards"
++PrepositionPhrase if you draw cards, they discard cards, and creatures attack => Clause "you draw cards"; Clause "they discard cards"; Clause "creatures attack"
+*PrepositionPhrase if draw cards and they discard cards
++Predicative red and a creature => AdjectivePhrase "red"; NounPhrase "a creature"
++Predicative red, white, and a creature => AdjectivePhrase "red"; AdjectivePhrase "white"; NounPhrase "a creature"
++Predicative a creature and red => NounPhrase "a creature"; AdjectivePhrase "red"
+*Predicative red nor a creature

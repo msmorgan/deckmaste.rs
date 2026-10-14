@@ -1,0 +1,35 @@
+# Phase in and phase out: the particle is the complement of the verb phase
++ <card=Rainbow Efreet> {U}{U}: This creature phases out. => PrepositionPhrase "out" as Complement of phase; !PrepositionPhrase "out" as Adjunct of phase
++ <card=Reality Ripple> Target artifact, creature, or land phases out. => PrepositionPhrase "out" as Complement of phase
++ <card=Taniwha> At the beginning of your upkeep, all lands you control phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=March of Swirling Mist> Up to X target creatures phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Spatial Binding> Pay 1 life: Until your next upkeep, target permanent can't phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Spatial Binding> It can't phase in. => PrepositionPhrase "in" as Complement of phase
++ <card=Change of Plans> You may have any number of them phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Blink Dog> Teleport — {3}{W}: This creature phases out. => PrepositionPhrase "out" as Complement of phase
++ <card=Clever Concealment> Any number of target nonland permanents you control phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Creeping Inn> {4}: This creature phases out. => PrepositionPhrase "out" as Complement of phase
++ <card=Crystal Golem> At the beginning of your end step, this creature phases out. => PrepositionPhrase "out" as Complement of phase
++ <card=Divine Smite> Target creature or planeswalker an opponent controls phases out. If that permanent is black, exile it instead. => PrepositionPhrase "out" as Complement of phase
++ <card=Dream Fighter> Whenever this creature blocks or becomes blocked by a creature, this creature and that creature phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Ertai's Familiar> When this creature phases out or leaves the battlefield, mill three cards. => PrepositionPhrase "out" as Complement of phase
++ <card=Ertai's Familiar> {U}: Until your next upkeep, this creature can't phase out. => PrepositionPhrase "out" as Complement of phase
++ <card=Frenetic Efreet> {0}: Flip a coin. If you win the flip, this creature phases out. If you lose the flip, sacrifice this creature. => PrepositionPhrase "out" as Complement of phase
++ <card=Galadriel's Dismissal> Target creature phases out. If this spell was kicked, each creature target player controls phases out instead. => PrepositionPhrase "out" as Complement of phase
++ <card=Guardian of Faith> When this creature enters, any number of other target creatures you control phase out. => PrepositionPhrase "out" as Complement of phase
++VerbPhrase phase in => PrepositionPhrase "in" as Complement of phase
++VerbPhrase phase out => PrepositionPhrase "out" as Complement of phase
++VerbPhrase phases in => PrepositionPhrase "in" as Complement of phase
++VerbPhrase phases out => PrepositionPhrase "out" as Complement of phase
++VerbPhrase phased in => PrepositionPhrase "in" as Complement of phase
++VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
+* This creature phases out out.
+*NounPhrase phases out
++NounPhrase your main phase
++Nominal combat phase
++NounPhrase your main phases
++ This creature rounds up.
++ This creature rounds down.
++ Put that card back.
++ This creature can't block.
++ Put that card in your hand.

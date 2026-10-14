@@ -1,0 +1,36 @@
+# Indefinite article allomorphy (a/an by onset), count agreement, and sentence-initial capitalization
++NounPhrase a creature
++NounPhrase an artifact
+*NounPhrase an creature
+*NounPhrase a artifact
+*NounPhrase a creatures
+*NounPhrase an artifacts
+*NounPhrase a mana
+*NounPhrase an mana
+*NounPhrase a
+*NounPhrase an
++ Sacrifice an artifact
+* sacrifice an artifact
+* Sacrifice an Artifact
++NounPhrase an Aura
++NounPhrase an amount of {G}
++NounPhrase an 8/8 creature
++NounPhrase a 1/1 creature
++NounPhrase a +8/+8 creature
+*NounPhrase a 8/8 creature
+*NounPhrase an 1/1 creature
+*NounPhrase an +8/+8 creature
++NounPhrase Two target creatures
++PrepositionPhrase At the beginning
++PrepositionPhrase in a graveyard
++ Draw a card.
++ Draw the card.
+* draw the card.
+* Draw A card.
+* Draw a Card.
++ Flying, trample
+* Flying, Trample
+* flying, trample
++ Creatures have flying.
+* Creatures have Flying.
++ Creatures have "flying."

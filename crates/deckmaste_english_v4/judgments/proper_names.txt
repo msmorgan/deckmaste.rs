@@ -1,0 +1,3 @@
+# Card names as proper-name noun phrases
++NounPhrase Lightning Bolt
++NounPhrase Rift Bolt

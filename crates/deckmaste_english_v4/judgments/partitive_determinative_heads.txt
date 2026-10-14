@@ -1,0 +1,59 @@
+# Partitive determinative heads (any of, all of, either of, ...) with a selected of-complement; their agreement
++ {T}: Add one mana of any of the exiled card's colors. => NounPhrase "any of the exiled card's colors"; PrepositionPhrase "of the exiled card's colors" as Complement of any
++ {R}, {T}, Exert this land: Add {R}{R}. If any of that mana is spent on a creature spell, it gains haste until end of turn. => NounPhrase "any of that mana"; PrepositionPhrase "of that mana" as Complement of any
++ Whenever your opponents are dealt combat damage, if any of that damage was dealt by a Warrior, you draw a card and you lose 1 life. => NounPhrase "any of that damage"; PrepositionPhrase "of that damage" as Complement of any
++ {1}{U}: Put a hatchling counter on this creature. Then if there are five or more hatchling counters on it, remove all of them and transform it. => NounPhrase "all of them"; PrepositionPhrase "of them" as Complement of all
++ +1: Choose up to two target creatures. Until your next turn, whenever either of those creatures deals combat damage, you draw a card. => NounPhrase "either of those creatures"; PrepositionPhrase "of those creatures" as Complement of either
++NounPhrase all of them => PrepositionPhrase "of them" as Complement of all; readings 1
++NounPhrase both of them => PrepositionPhrase "of them" as Complement of both; readings 1
++NounPhrase each of them => PrepositionPhrase "of them" as Complement of each; readings 1
++NounPhrase another of them => PrepositionPhrase "of them" as Complement of another; readings 1
++NounPhrase any of them => PrepositionPhrase "of them" as Complement of any; readings 1
++NounPhrase either of them => PrepositionPhrase "of them" as Complement of either; readings 1
++NounPhrase neither of them => PrepositionPhrase "of them" as Complement of neither; readings 1
++NounPhrase some of them => PrepositionPhrase "of them" as Complement of some; readings 1
++NounPhrase most of them => PrepositionPhrase "of them" as Complement of most; readings 1
++NounPhrase many of them => PrepositionPhrase "of them" as Complement of many; readings 1
++NounPhrase more of them => PrepositionPhrase "of them" as Complement of more; readings 1
++NounPhrase fewer of them => PrepositionPhrase "of them" as Complement of fewer; readings 1
++NounPhrase none of them => PrepositionPhrase "of them" as Complement of none; readings 1
++NounPhrase any of that mana => PrepositionPhrase "of that mana" as Complement of any
++NounPhrase some of that mana => PrepositionPhrase "of that mana" as Complement of some
++NounPhrase all of that mana => PrepositionPhrase "of that mana" as Complement of all
++NounPhrase most of that mana => PrepositionPhrase "of that mana" as Complement of most
++NounPhrase much of that mana => PrepositionPhrase "of that mana" as Complement of much
++NounPhrase less of that mana => PrepositionPhrase "of that mana" as Complement of less
++NounPhrase more of that mana => PrepositionPhrase "of that mana" as Complement of more
++NounPhrase none of that mana => PrepositionPhrase "of that mana" as Complement of none
++ If any of those cards remain exiled, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
++ If any of those cards shares a card type, draw a card. => NounPhrase "any of those cards"; PrepositionPhrase "of those cards" as Complement of any
++NounPhrase any of those cards => PrepositionPhrase "of those cards" as Complement of any
++Clause All of them get +1/+1
++Clause Both of them get +1/+1
++Clause Many of them get +1/+1
++Clause Each of them gets +1/+1
++Clause Either of them gets +1/+1
++Clause Another of them gets +1/+1
++Clause Any of that mana is spent on a creature spell
++Clause Much of that mana is spent on a creature spell
+*Clause All of them gets +1/+1
+*Clause Both of them gets +1/+1
+*Clause Many of them gets +1/+1
+*Clause Each of them get +1/+1
+*Clause Either of them get +1/+1
+*Clause Another of them get +1/+1
+*Clause Any of that mana are spent on a creature spell
+*Clause Much of that mana are spent on a creature spell
+*NounPhrase every of them
+*NounPhrase the of them
+*NounPhrase no of them
+*NounPhrase none creatures
+*NounPhrase each of it
+*NounPhrase either of that mana
+*NounPhrase another of that mana
+*NounPhrase both of that mana
+*NounPhrase many of that mana
+*NounPhrase much of them
++ Remove all of them. => NounPhrase "all of them" as Object of remove; PrepositionPhrase "of them" as Complement of all
++ Destroy each of those creatures that are Walls. => NounPhrase "each of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of each; RelativeClause "that are Walls" as Modifier of creature
++ Destroy any of those creatures that are Walls. => NounPhrase "any of those creatures that are Walls" as Object of destroy; PrepositionPhrase "of those creatures that are Walls" as Complement of any; RelativeClause "that are Walls" as Modifier of creature

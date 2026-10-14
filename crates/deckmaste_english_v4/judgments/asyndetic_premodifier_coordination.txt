@@ -1,0 +1,10 @@
+# Asyndetic coordination of premodifiers sharing one head noun (`nonartifact, nonblack creature`)
++ <card=Terror> Destroy target nonartifact, nonblack creature. => Nominal "nonartifact, nonblack creature"
++ <card=Duress> You choose a noncreature, nonland card from it. => Nominal "noncreature, nonland card"
++ <card=Druidic Satchel> If it's a noncreature, nonland card, you gain 2 life. => Nominal "noncreature, nonland card"
++ <card=Victim of Night> Destroy target non-Vampire, non-Werewolf, non-Zombie creature. => Nominal "non-Vampire, non-Werewolf, non-Zombie creature"
++ <card=Filter Out> Return all noncreature, nonland permanents to their owners' hands. => Nominal "noncreature, nonland permanents"
++Nominal nonartifact, nonblack creature => Nominal "nonartifact, nonblack creature"; readings 1
++Nominal non-Vampire, non-Werewolf, non-Zombie creature => Nominal "non-Vampire, non-Werewolf, non-Zombie creature"; readings 1
++Nominal nonartifact and nonblack creature
++NounPhrase a Swamp, Mountain, black permanent, or red permanent => Nominal "black permanent"; Nominal "red permanent"

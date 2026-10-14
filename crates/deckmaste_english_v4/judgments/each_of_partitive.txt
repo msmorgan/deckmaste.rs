@@ -1,0 +1,22 @@
+# Partitive noun phrases headed by the determinative each (each of them, each of up to three target creatures)
++ Put a stun counter on each of them. => NounPhrase "each of them"; PrepositionPhrase "of them" as Complement of each; NounPhrase "them"
++ Put two stun counters on each of them. => NounPhrase "each of them"; PrepositionPhrase "of them" as Complement of each; NounPhrase "them"
++ Put a +1/+1 counter on each of up to three target creatures. => NounPhrase "each of up to three target creatures"; PrepositionPhrase "of up to three target creatures" as Complement of each; NounPhrase "up to three target creatures"
++ When this creature enters, put a +1/+1 counter on each of up to two other target creatures you control. => NounPhrase "each of up to two other target creatures you control"; PrepositionPhrase "of up to two other target creatures you control" as Complement of each; NounPhrase "up to two other target creatures you control"
++ You may play an additional land on each of your turns. => NounPhrase "each of your turns"; PrepositionPhrase "of your turns" as Complement of each; NounPhrase "your turns"
++ You have protection from each of your opponents. => NounPhrase "each of your opponents"; PrepositionPhrase "of your opponents" as Complement of each; NounPhrase "your opponents"
++ Return each of them to the battlefield with a necrodermis counter on it. => NounPhrase "each of them"; PrepositionPhrase "of them" as Complement of each; NounPhrase "them"
++PrepositionPhrase to each of up to three targets => NounPhrase "each of up to three targets"; PrepositionPhrase "of up to three targets" as Complement of each; NounPhrase "up to three targets"
++PrepositionPhrase for each of its colors => NounPhrase "each of its colors"; PrepositionPhrase "of its colors" as Complement of each; NounPhrase "its colors"
++PrepositionPhrase from each of your opponents => NounPhrase "each of your opponents"; PrepositionPhrase "of your opponents" as Complement of each; NounPhrase "your opponents"
++PrepositionPhrase on each of those creatures => NounPhrase "each of those creatures"; PrepositionPhrase "of those creatures" as Complement of each; NounPhrase "those creatures"
++NounPhrase each of them => readings 1
++Clause Each of them gets +1/+1 => NounPhrase "Each of them" as Subject of get
+*Clause Each of them get +1/+1
+*NounPhrase every of them
+*NounPhrase the of them
+*NounPhrase each of it
+*NounPhrase each of a creature
+*NounPhrase each of target creature
++NounPhrase each creature
++NounPhrase one of them

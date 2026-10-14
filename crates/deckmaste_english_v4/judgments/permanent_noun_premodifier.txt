@@ -1,0 +1,6 @@
+# The noun permanent as a premodifier of card (permanent card), including with other premodifiers and a postmodifying phrase
++ Choose target permanent card in your graveyard. => Nominal "permanent" as Modifier of card
++ If it's a permanent card, put it into your hand. => Nominal "permanent" as Modifier of card
++ Return all legendary permanent cards from your graveyard to the battlefield. => Nominal "permanent" as Modifier of card
++ That player may put a permanent card from their hand onto the battlefield. => Nominal "permanent" as Modifier of card
++ Search your library for an Elf permanent card, put it onto the battlefield, then shuffle. => Nominal "permanent" as Modifier of card

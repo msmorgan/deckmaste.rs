@@ -1,0 +1,20 @@
+# Comparative adjectives (lesser, greater, equal) as modifiers of property nouns, with and without a than-standard, and postpositive "N or greater"
++NounPhrase lesser mana value => AdjectivePhrase "lesser" as Modifier of "mana value"
++NounPhrase greater power => AdjectivePhrase "greater" as Modifier of power
++NounPhrase equal toughness => AdjectivePhrase "equal" as Modifier of toughness
++NounPhrase equal or lesser mana value => AdjectivePhrase "equal or lesser" as Modifier of "mana value"; AdjectivePhrase "equal"; AdjectivePhrase "lesser"
++NounPhrase equal or lesser power => AdjectivePhrase "equal or lesser" as Modifier of power; AdjectivePhrase "equal"; AdjectivePhrase "lesser"
++NounPhrase greater power than this creature => PrepositionPhrase "than this creature" as Complement of greater; NounPhrase "this creature" as Complement of than
++NounPhrase lesser mana value than it => PrepositionPhrase "than it" as Complement of lesser; NounPhrase "it" as Complement of than
++NounPhrase equal or lesser mana value than that spell => PrepositionPhrase "than that spell"; NounPhrase "that spell" as Complement of than
++ <card=Reinterpret> Counter target spell. You may cast a spell with equal or lesser mana value from your hand without paying its mana cost.
++ <card=Body Launderer> When this creature dies, return another target non-Rogue creature card with equal or lesser power from your graveyard to the battlefield.
++ <card=Prehistoric Pet> This creature can't be blocked by creatures with greater power.
++ <card=Rushed Rebirth> Choose target creature. When that creature dies this turn, search your library for a creature card with lesser mana value, put it onto the battlefield tapped, then shuffle.
++Clause <card=Conformer Shuriken> that creature has greater power than this creature
++NounPhrase power greater than 3 => AdjectivePhrase "greater than 3" as Modifier of power
++NounPhrase mana value less than or equal to X
++AdjectivePhrase 5 or greater
++AdjectivePhrase five or greater
++ <card=Amrou Kithkin> This creature can't be blocked by creatures with power 3 or greater. => NounPhrase "power 3 or greater"
++AdjectivePhrase equal to X => PrepositionPhrase "to X" as Complement of equal

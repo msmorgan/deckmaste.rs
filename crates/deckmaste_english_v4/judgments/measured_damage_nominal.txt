@@ -1,0 +1,15 @@
+# Numeral plus mass noun (3 damage, 3 mana) as a measured nominal, with "the next" and a relative-clause postmodifier
++ <card=Hold at Bay> Prevent the next 7 damage that would be dealt to any target this turn. => NounPhrase "the next 7 damage that would be dealt to any target this turn" as Object of prevent; RelativeClause "that would be dealt to any target this turn"
++ <card=Esper Battlemage> {W}, {T}: Prevent the next 2 damage that would be dealt to you this turn. => NounPhrase "the next 2 damage that would be dealt to you this turn" as Object of prevent; RelativeClause "that would be dealt to you this turn"
++ <card=Anoint> Prevent the next 3 damage that would be dealt to target creature this turn. => NounPhrase "the next 3 damage that would be dealt to target creature this turn" as Object of prevent; RelativeClause "that would be dealt to target creature this turn"
++ <card=Barbed Wire> {2}: Prevent the next 1 damage that would be dealt by this artifact this turn. => NounPhrase "the next 1 damage that would be dealt by this artifact this turn" as Object of prevent; RelativeClause "that would be dealt by this artifact this turn"
++ <card=Kitsune Healer> {T}: Prevent the next 1 damage that would be dealt to any target this turn. => NounPhrase "the next 1 damage that would be dealt to any target this turn" as Object of prevent; RelativeClause "that would be dealt to any target this turn"
++NounPhrase 3 damage => readings 1
++NounPhrase 3 mana => readings 1
++ Add 3 mana. => NounPhrase "3 mana" as Object of add; readings 1
++ Prevent 3 damage. => NounPhrase "3 damage" as Object of prevent; readings 1
++VerbPhrase deals 3 damage => NounPhrase "3 damage" as Object of deal; readings 1
++NounPhrase the next 3 mana
++NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn"
+*NounPhrase 3 damages
+*NounPhrase 3 manas

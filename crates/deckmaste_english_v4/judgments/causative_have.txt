@@ -1,0 +1,10 @@
+# Causative "have": an Object noun phrase and a bare-infinitival verb phrase Complement
++ Whenever a player casts a Kithkin spell, you may have target player lose 1 life. => NounPhrase "target player" as Object of have; VerbPhrase "lose 1 life" as Complement of have
++ Whenever a creature you control with a +1/+1 counter on it attacks, you may have that creature deal 1 damage to target player or planeswalker. => NounPhrase "that creature" as Object of have; VerbPhrase "deal 1 damage to target player or planeswalker" as Complement of have
++ Whenever this creature or another Ally you control enters, you may have Ally creatures you control gain vigilance until end of turn. => NounPhrase "Ally creatures you control" as Object of have; VerbPhrase "gain vigilance" as Complement of have || NounPhrase "Ally creatures you control" as Object of have; VerbPhrase "gain vigilance until end of turn" as Complement of have
++ Whenever another creature leaves the battlefield, you may have target player mill two cards. => NounPhrase "target player" as Object of have; VerbPhrase "mill two cards" as Complement of have
++ When this creature enters, you may have target opponent discard a card. => NounPhrase "target opponent" as Object of have; VerbPhrase "discard a card" as Complement of have
++ At the beginning of your end step, if you had a land enter the battlefield under your control this turn, venture into the dungeon. => NounPhrase "a land" as Object of have; VerbPhrase "enter the battlefield" as Complement of have || NounPhrase "a land" as Object of have; VerbPhrase "enter the battlefield under your control" as Complement of have || NounPhrase "a land" as Object of have; VerbPhrase "enter the battlefield under your control this turn" as Complement of have
++ Destroy target nonbasic land unless its controller has Lava Blister deal 6 damage to them. => NounPhrase "Lava Blister" as Object of have; VerbPhrase "deal 6 damage to them" as Complement of have
++VerbPhrase have target opponent discard a card => NounPhrase "target opponent" as Object of have; VerbPhrase "discard a card" as Complement of have
+*VerbPhrase have target opponent discards a card

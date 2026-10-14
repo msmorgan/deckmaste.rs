@@ -1,0 +1,8 @@
+# The verbless-clause conditional "if able" as an adjunct of the required action
++ <card=Ares, God of War> Ares attacks each combat if able. => PrepositionPhrase "if able" as Adjunct of attack; Clause "able" as Complement of if
++ <card=Jurin, Leading the Charge> Jurin must be blocked if able. => PrepositionPhrase "if able"; Clause "able" as Complement of if
++ <card=Tangle Angler> {G}: Target creature blocks this creature this turn if able. => PrepositionPhrase "if able" as Adjunct of block; Clause "able" as Complement of if
++ <card=Alluring Siren> {T}: Target creature an opponent controls attacks you this turn if able. => PrepositionPhrase "if able" as Adjunct of attack; Clause "able" as Complement of if
++ <card=Hustle> Target creature attacks or blocks this turn if able. => PrepositionPhrase "if able"; Clause "able" as Complement of if
++PrepositionPhrase if able => Clause "able" as Complement of if
+*PrepositionPhrase if possible

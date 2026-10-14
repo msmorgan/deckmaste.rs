@@ -1,0 +1,10 @@
+# Past participles as premodifiers of a nominal (the exiled card, the revealed cards, activated or triggered ability)
++ Return the exiled card to its owner's hand. => Nominal "exiled card"; VerbPhrase "exiled" as Modifier of card
++ You may play the exiled card this turn. => Nominal "exiled card"; VerbPhrase "exiled" as Modifier of card
++ You may copy the exiled card. => Nominal "exiled card"; VerbPhrase "exiled" as Modifier of card
++ Put the revealed cards on the bottom of your library in any order. => Nominal "revealed cards"; VerbPhrase "revealed" as Modifier of card
++ Return the exiled card to the battlefield under its owner's control. => Nominal "exiled card"; VerbPhrase "exiled" as Modifier of card
++Nominal triggered ability => VerbPhrase "triggered" as Modifier of ability
++Nominal discarded card => VerbPhrase "discarded" as Modifier of card
++Nominal milled cards => VerbPhrase "milled" as Modifier of card
++ Copy target activated or triggered ability you control. => VerbPhrase "activated or triggered" as Modifier of ability; VerbPhrase "activated"; VerbPhrase "triggered"

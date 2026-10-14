@@ -1,0 +1,17 @@
+# Frequency adverbs (once, twice, only once) and distributive temporal noun-phrase adjuncts (each turn) as separate adjuncts
++ Activate only once each turn. => AdverbPhrase "only once" as Adjunct of activate; AdverbPhrase "once"; NounPhrase "each turn" as Adjunct of activate; !NounPhrase "each turn" as Complement of activate
++ Do this only once each turn. => AdverbPhrase "only once" as Adjunct of do; AdverbPhrase "once"; NounPhrase "each turn" as Adjunct of do; NounPhrase "this" as Object of do; !NounPhrase "each turn" as Complement of do
++ Activate only once.
++ This ability triggers only twice each turn.
++AdverbPhrase once
++AdverbPhrase twice
++AdverbPhrase only once
++AdverbPhrase only twice
+*AdverbPhrase only only once
++ Repeat this process once. => NounPhrase "this process" as Object of repeat; AdverbPhrase "once" as Adjunct of repeat
++NounPhrase this
++VerbPhrase do this => NounPhrase "this" as Object of do
+*NounPhrase every
+*NounPhrase a
+*NounPhrase only
++NounPhrase each player who does => RelativeClause "who does" gap "player"; readings 1

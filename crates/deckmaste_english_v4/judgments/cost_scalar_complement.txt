@@ -1,0 +1,13 @@
+# `cost` with a scalar measure complement and an optional hollow infinitival (costs {1} less to cast)
++ <card=Wizard's Lightning> This spell costs {2} less to cast if you control a Wizard.
++ <card=Ghoultree> This spell costs {1} less to cast for each creature card in your graveyard.
++ <card=Herald of the Pantheon> Enchantment spells you cast cost {1} less to cast.
++ <card=Blossoming Tortoise> Activated abilities of lands you control cost {1} less to activate.
++ <card=Glowrider> Noncreature spells cost {1} more to cast.
++ <card=Inquisitive Glimmer> Unlock costs you pay cost {1} less.
++VerbPhrase cost {1} less
++VerbPhrase costs {1} less to cast
++VerbPhrase costs {0}
++VerbPhrase cost {1}{U} more to cast
+*VerbPhrase to costs
+* This spell cost {1} less to casts.

@@ -1,0 +1,15 @@
+# Coordinated verbs and auxiliaries sharing a following complement (right-node raising), agreement and form mismatches, and ordinary serial coordination
++VerbPhrase draw and discard cards => NounPhrase "cards" as Object of draw; NounPhrase "cards" as Object of discard
++VerbPhrase be and become legendary => AdjectivePhrase "legendary" as PredicativeComplement of be; AdjectivePhrase "legendary" as PredicativeComplement of become
++VerbPhrase may and can draw cards => NounPhrase "cards" as Object of draw
++VerbPhrase be and be drawn
+*VerbPhrase may and can drawing cards
+*VerbPhrase be and may drawn
+*VerbPhrase draw and drawing
+*VerbPhrase draws and discard
++VerbPhrase attacks, blocks, and enters
++VerbPhrase attack, block, and enter
++Clause attack, block, and enter => readings 1
++NounPhrase cards, cards, and cards
++VerbPhrase choose and choose one
++VerbPhrase choose and choose to attack => Clause "to attack" as Complement of choose

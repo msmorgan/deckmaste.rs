@@ -1,0 +1,18 @@
+# Bounded quantity "N or more/less" as a determiner phrase of a mass or count noun
++ <card=Abandoned Campground> This land enters tapped unless a player has 13 or less life. => NounPhrase "13 or less life" as Object of have; DeterminerPhrase "13 or less" as Determiner of life
++ <card=Divinity of Pride> This creature gets +4/+4 as long as you have 25 or more life. => NounPhrase "25 or more life" as Object of have; DeterminerPhrase "25 or more" as Determiner of life
++ <card=Innocent Bystander> Whenever this creature is dealt 3 or more damage, investigate. => NounPhrase "3 or more damage" as Object of deal; DeterminerPhrase "3 or more" as Determiner of damage
++ <card=Callous Giant> If a source would deal 3 or less damage to this creature, prevent that damage. => NounPhrase "3 or less damage" as Object of deal; DeterminerPhrase "3 or less" as Determiner of damage
++ <card=Dragonborn Champion> Whenever a source you control deals 5 or more damage to a player, draw a card. => NounPhrase "5 or more damage" as Object of deal; DeterminerPhrase "5 or more" as Determiner of damage
++NounPhrase 13 or less life => DeterminerPhrase "13 or less" as Determiner of life; !NounPhrase "13 or less"; readings 1
++NounPhrase 3 or more damage => DeterminerPhrase "3 or more" as Determiner of damage; !NounPhrase "3 or more"; readings 1
++NounPhrase five or more mana => DeterminerPhrase "five or more" as Determiner of mana; !NounPhrase "five or more"; readings 1
+# a mass-noun subject agrees in the singular
++Clause 4 or more damage was dealt to it this turn => NounPhrase "4 or more damage"; DeterminerPhrase "4 or more" as Determiner of damage
+*Clause 4 or more damage were dealt to it this turn
++NounPhrase 5 or more cards => DeterminerPhrase "5 or more" as Determiner of card
++NounPhrase 4 or more counters => DeterminerPhrase "4 or more" as Determiner of counter
++ A player has 13 life.
++ You have at least 7 life.
++ You have 5 or more cards in hand.
++NounPhrase mana value 3 or less

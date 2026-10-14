@@ -1,0 +1,11 @@
+# "from anywhere" (a source phrase whose complement is the determinative-headed noun phrase "anywhere"), and "anywhere other than ..."
++ <card=Brinebound Gift> If this Aura would be put into a graveyard from anywhere, exile it instead. => PrepositionPhrase "from anywhere"; NounPhrase "anywhere"
++ <card=Yawgmoth's Agenda> If a card would be put into your graveyard from anywhere, exile it instead. => PrepositionPhrase "from anywhere"; NounPhrase "anywhere"
++ <card=Planar Void> Whenever another card is put into a graveyard from anywhere, exile that card. => PrepositionPhrase "from anywhere"; NounPhrase "anywhere"
++ <card=Rest in Peace> If a card or token would be put into a graveyard from anywhere, exile it instead. => PrepositionPhrase "from anywhere"; NounPhrase "anywhere"
++ <card=Generous Soul> If Generous Soul would be put into a graveyard from anywhere, exile it instead. => PrepositionPhrase "from anywhere"; NounPhrase "anywhere"
++PrepositionPhrase from anywhere => NounPhrase "anywhere"
++NounPhrase anywhere
++NounPhrase anywhere other than your hand => AdjectivePhrase "other than your hand" as Modifier of anywhere
+# the comparative phrase may modify "anywhere" or "spells"
++ You may cast spells from anywhere other than your hand. => NounPhrase "anywhere other than your hand"; AdjectivePhrase "other than your hand" as Modifier of anywhere || AdjectivePhrase "other than your hand" as Modifier of spell

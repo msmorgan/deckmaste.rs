@@ -1,0 +1,12 @@
+# A property noun modified by a postpositive comparative (power less than ..., toughness greater than ...)
++ Creatures with power less than this creature's power can't block it. => PrepositionPhrase "with power less than this creature's power" as Modifier of creature; AdjectivePhrase "less than this creature's power" as Modifier of power
++ {B}, {T}: Destroy target creature with power less than this creature's power. => AdjectivePhrase "less than this creature's power" as Modifier of power
++ Creatures with power greater than the number of cards in your hand can't attack. => AdjectivePhrase "greater than the number of cards in your hand" as Modifier of power
++ {2}{C}: Each creature with toughness greater than its power can't block this turn. => AdjectivePhrase "greater than its power" as Modifier of toughness
++ You may cast a spell with mana value less than X from among them without paying its mana cost. => AdjectivePhrase "less than X"
++NounPhrase power less than or equal to the number of treasure counters on this enchantment => AdjectivePhrase "less than or equal to the number of treasure counters on this enchantment" as Modifier of power; NounPhrase "the number of treasure counters on this enchantment"
++AdjectivePhrase equal to its toughness => NounPhrase "its toughness"
++ Destroy target creature with power 3 or less. => PrepositionPhrase "with power 3 or less" as Modifier of creature || PrepositionPhrase "with power 3 or less" as Adjunct of destroy; readings 2
++ Its power is less than 3. => readings 1
++NounPhrase mana value less than X
++AdjectivePhrase less than X

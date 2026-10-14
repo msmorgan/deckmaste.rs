@@ -1,0 +1,10 @@
+# Bare temporal and manner nominal adjuncts (until end of turn, during combat, this turn, this way, each combat)
++PrepositionPhrase until end of turn
++PrepositionPhrase during combat
++PrepositionPhrase until end of combat
++NounPhrase this combat
++NounPhrase each combat
++NounPhrase this turn
++NounPhrase this way
+*NounPhrase this turns
++VerbPhrase died this turn => NounPhrase "this turn" as Adjunct of die

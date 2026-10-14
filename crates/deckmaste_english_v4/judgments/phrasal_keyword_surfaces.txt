@@ -1,0 +1,12 @@
+# Multiword keyword surfaces declared as one term, and keyword mentions as the complement of "with"
++ Choose a Background => KeywordPhrase "Choose a Background"
++ Doctor's companion => KeywordPhrase "Doctor's companion"
++ Partner—Friends forever => KeywordPhrase "Partner—Friends forever"
++ Partner—Character select => KeywordPhrase "Partner—Character select"
++ Partner—Father & son => KeywordPhrase "Partner—Father & son"
++ Partner—Survivors => KeywordPhrase "Partner—Survivors"
++ Partner => KeywordPhrase "Partner"
++ Choose a Background. => !KeywordPhrase "Choose a Background"
++PrepositionPhrase with doctor's companion => KeywordPhrase "doctor's companion" as Complement of with
++ <card=Rose Noble> Whenever you cast a Doctor spell or creature spell with doctor's companion, draw a card. => PrepositionPhrase "with doctor's companion"; KeywordPhrase "doctor's companion" as Complement of with; !PrepositionPhrase "with doctor's companion" as Adjunct of cast
++ <card=An Unearthly Child> I, II, III — Reveal cards from the top of your library until you reveal a Doctor card, a card with doctor's companion, or a Vehicle card. Put that card into your hand and the rest on the bottom of your library in a random order. => PrepositionPhrase "with doctor's companion" as Modifier of card; KeywordPhrase "doctor's companion" as Complement of with

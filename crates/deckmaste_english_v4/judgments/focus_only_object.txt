@@ -1,0 +1,14 @@
+# The focusing adverb "only" modifying a whole noun phrase (object or subject), as opposed to a focused adjunct or adverb
++ This creature can block only creatures with flying. => NounPhrase "only creatures with flying" as Object of block; NounPhrase "creatures with flying"
++ When this creature enters, change the target of target spell that targets only a single creature to this creature. => NounPhrase "only a single creature" as Object of target; NounPhrase "a single creature"
++ Whenever you cast an instant or sorcery spell that targets only this creature, you may pay {2}. => NounPhrase "only this creature" as Object of target; NounPhrase "this creature"
++ This effect reduces only the amount of colored mana you pay. => NounPhrase "only the amount of colored mana you pay" as Object of reduce; NounPhrase "the amount of colored mana you pay"
++ If target spell has only one target and that target is a creature, change that spell's target to another creature. => NounPhrase "only one target" as Object of have; NounPhrase "one target"
++ Only your opponents may activate this ability. => NounPhrase "only your opponents" as Subject of activate; NounPhrase "your opponents"
++ Activate only during your turn.
++ Activate only as a sorcery.
++ This creature can block only during your turn.
++ This creature can attack only alone.
++ Activate only once each turn.
++NounPhrase only creatures => NounPhrase "creatures"; readings 1
+*NounPhrase only only creatures

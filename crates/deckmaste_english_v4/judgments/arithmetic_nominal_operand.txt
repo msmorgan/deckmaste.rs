@@ -1,0 +1,16 @@
+# Arithmetic with plus/minus: a scalar nominal operand keeps its own noun-phrase structure
++ <card=Kindle> Kindle deals X damage to any target, where X is 2 plus the number of cards named Kindle in all graveyards. => NounPhrase "the number of cards named Kindle in all graveyards"
++ <card=Ivory Tower> At the beginning of your upkeep, you gain X life, where X is the number of cards in your hand minus 4. => NounPhrase "the number of cards in your hand"
++ <card=Allosaurus Rider> Allosaurus Rider's power and toughness are each equal to 1 plus the number of lands you control. => NounPhrase "the number of lands you control"
++ <card=Haunting Apparition> Haunting Apparition's power is equal to 1 plus the number of green creature cards in the chosen player's graveyard. => NounPhrase "the number of green creature cards in the chosen player's graveyard"
++ <card=Food Chain> Exile a creature you control: Add X mana of any one color, where X is 1 plus the exiled creature's mana value. => NounPhrase "the exiled creature's mana value"
++ the number of creatures on the battlefield plus the number of artifacts on the battlefield => NounPhrase "the number of creatures on the battlefield"; NounPhrase "the number of artifacts on the battlefield"
++ that much damage plus 2 => NounPhrase "that much damage"; DeterminerPhrase "that much" as Determiner of damage; Nominal "damage"
+# a chain of two operators keeps both bracketings
++ 1 plus the exiled creature's mana value minus 4 => readings 2
+# a scalar complement of be
++Clause <card=Banefire> X is 5 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 5 or more"; Predicative "5 or more" as PredicativeComplement of be
++Clause <card=Finale of Glory> X is 10 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 10 or more"; Predicative "10 or more" as PredicativeComplement of be
++Clause <card=Roku's Mastery> X is 4 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 4 or more"; Predicative "4 or more" as PredicativeComplement of be
++Clause <card=Silver Scrutiny> X is 3 or less => NounPhrase "X" as Subject of be; VerbPhrase "is 3 or less"; Predicative "3 or less" as PredicativeComplement of be
++Clause <card=Vision Quest> X is 4 or greater => NounPhrase "X" as Subject of be; VerbPhrase "is 4 or greater"; Predicative "4 or greater" as PredicativeComplement of be

@@ -1,0 +1,30 @@
+# Noun premodifiers (combat damage, defending player), plural genitives, at random, and non- colour adjectives
++ Whenever this Vehicle deals combat damage to a player, that player discards a card.
++Nominal combat damage
+*Nominal combats damage
++ Whenever this creature attacks, defending player loses 1 life and you gain 1 life.
++NounPhrase defending player
+*NounPhrase defend player
++ Return all permanents to their owners' hands. => PrepositionPhrase "to their owners' hands" as Complement of return
++NounPhrase their owners' hands => NounPhrase "their owners'" as Determiner of hand
+*NounPhrase their owners’ hands
+*NounPhrase their owner's' hands
+*NounPhrase their owner' hands
+*NounPhrase their owners hands
+*NounPhrase their owners's hands
+*NounPhrase their Mice' cards
++ {R/G}: Target spell can't be countered.
++ {R/P}: This creature gets +1/+0 until end of turn.
++ When this creature enters, discard a card at random.
++PrepositionPhrase at random => AdjectivePhrase "random" as Complement of at
++ Destroy target nonblack creature. => AdjectivePhrase "nonblack" as Modifier of creature
++AdjectivePhrase nonblack
++AdjectivePhrase nonred
++AdjectivePhrase nonwhite
++AdjectivePhrase nongreen
++AdjectivePhrase nonblue
+*AdjectivePhrase non-black
+*AdjectivePhrase non-red
+*AdjectivePhrase non-white
+*AdjectivePhrase non-green
+*AdjectivePhrase non-blue

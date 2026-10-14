@@ -1,0 +1,10 @@
+# Mana symbols as the head of an object nominal ("an additional {G}") and in costs and payments
++ <card=Crypt Ghast> Whenever you tap a Swamp for mana, add an additional {B}. => NounPhrase "an additional {B}" as Object of add
++ <card=Wild Growth> Whenever enchanted land is tapped for mana, its controller adds an additional {G}. => NounPhrase "an additional {G}" as Object of add
++ <card=Overgrowth> Whenever enchanted land is tapped for mana, its controller adds an additional {G}{G}. => NounPhrase "an additional {G}{G}" as Object of add
++ <card=Elvish Guidance> Whenever enchanted land is tapped for mana, its controller adds an additional {G} for each Elf on the battlefield. => NounPhrase "an additional {G}" as Object of add; PrepositionPhrase "for each Elf on the battlefield" as Adjunct of add
++ <card=Matterbending Mage> Whenever you cast a spell with {X} in its mana cost, this creature can't be blocked this turn. => PrepositionPhrase "with {X} in its mana cost"
++ <card=Gaddock Teeg> Noncreature spells with {X} in their mana costs can't be cast. => PrepositionPhrase "with {X} in their mana costs"
++ <card=Valleymaker> {T}, Sacrifice a Forest: Choose a player. That player adds {G}{G}{G}.
++ <card=Cabal Stronghold> {3}, {T}: Add {B} for each basic Swamp you control. => PrepositionPhrase "for each basic Swamp you control" as Adjunct of add; RelativeClause "you control" gap "basic Swamp"
++ You may pay {X}.

@@ -1,0 +1,8 @@
+# `except` prepositional adjuncts of the matrix verb phrase (blocked except by Walls, create ..., except it isn't legendary)
++ This creature can't be blocked except by Walls. => PrepositionPhrase "except by Walls" as Adjunct of block; PrepositionPhrase "by Walls" as Complement of except
++ Slivers can't be blocked except by Slivers. => PrepositionPhrase "except by Slivers" as Adjunct of block; PrepositionPhrase "by Slivers" as Complement of except
++ Enchanted creature can't be blocked except by artifact creatures and/or white creatures. => PrepositionPhrase "except by artifact creatures and/or white creatures" as Adjunct of block; PrepositionPhrase "by artifact creatures and/or white creatures" as Complement of except
++ Create a token that's a copy of target creature you control, except it isn't legendary. => PrepositionPhrase "except it isn't legendary" as Adjunct of create; Clause "it isn't legendary" as Complement of except
++ When this creature enters, each player sacrifices all lands they control except for three. => PrepositionPhrase "except for three"; PrepositionPhrase "for three" as Complement of except
++ Slivers can't be blocked by Slivers.
++VerbPhrase blocked except by Walls => PrepositionPhrase "except by Walls" as Adjunct of block

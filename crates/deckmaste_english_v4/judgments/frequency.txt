@@ -1,0 +1,10 @@
+# Frequency adverbial noun phrases (`X times`, `two times`, `one time`) as adjuncts of the verb phrase
++NounPhrase X times
++NounPhrase two times
++NounPhrase one time
+*NounPhrase one times
+*NounPhrase two time
++VerbPhrase explores X times => NounPhrase "X times" as Adjunct of explore
++ When this creature enters, it explores X times. => NounPhrase "X times" as Adjunct of explore
++VerbPhrase explores a card => NounPhrase "a card" as Object of explore
++VerbPhrase draws cards two times => NounPhrase "cards" as Object of draw; NounPhrase "two times" as Adjunct of draw

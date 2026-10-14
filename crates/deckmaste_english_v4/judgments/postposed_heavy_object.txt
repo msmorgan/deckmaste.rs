@@ -1,0 +1,18 @@
+# A heavy object postposed after the verb's other complements ("Return to your hand all cards ...")
++ Return to the battlefield all permanent cards in your graveyard that were put there from the battlefield this turn. => NounPhrase "all permanent cards in your graveyard that were put there from the battlefield this turn" as Object of return
++ Return to your hand all cards in your graveyard that you cycled or discarded this turn. => NounPhrase "all cards in your graveyard that you cycled or discarded this turn" as Object of return
++ Return to their owners' hands all creatures with toughness less than or equal to the number of Islands you control. => NounPhrase "all creatures with toughness less than or equal to the number of Islands you control" as Object of return
++ When this creature enters, return to your hand all cards in your graveyard that were put there from the battlefield this turn. => NounPhrase "all cards in your graveyard that were put there from the battlefield this turn" as Object of return
++ Return to its owner's hand each creature with power greater than the number of cards in its controller's hand. => NounPhrase "each creature with power greater than the number of cards in its controller's hand" as Object of return
++ <card=Moira, Urborg Haunt> Whenever Moira deals combat damage to a player, return to the battlefield target creature card in your graveyard that was put there from the battlefield this turn. => NounPhrase "target creature card in your graveyard that was put there from the battlefield this turn" as Object of return
++ Put onto the battlefield under your control all creature cards in all graveyards that were put there from the battlefield this turn. => NounPhrase "all creature cards in all graveyards that were put there from the battlefield this turn" as Object of put
++ Shuffle into your library all creature cards in your graveyard. => NounPhrase "all creature cards in your graveyard" as Object of shuffle
++ Return target creature card from your graveyard to the battlefield. => NounPhrase "target creature card" as Object of return
++ Return this card from your graveyard to your hand. => NounPhrase "this card" as Object of return
++ Return all creature cards in your graveyard to your hand. => NounPhrase "all creature cards in your graveyard" as Object of return
++ Put all creature cards in all graveyards that were put there from the battlefield this turn onto the battlefield under your control. => NounPhrase "all creature cards in all graveyards that were put there from the battlefield this turn" as Object of put
+* Return to your hand it.
++VerbPhrase put on it this way => NounPhrase "this way" as Adjunct of put; !NounPhrase "this way" as Object of put
++VerbPhrase put into a graveyard this turn => NounPhrase "this turn" as Adjunct of put; !NounPhrase "this turn" as Object of put
++ Return to the battlefield tapped all permanent cards in your graveyard that were put there from the battlefield this turn. => NounPhrase "all permanent cards in your graveyard that were put there from the battlefield this turn" as Object of return; AdjectivePhrase "tapped" as Adjunct of return
++ Return at random from your graveyard to your hand all creature cards in your graveyard. => NounPhrase "all creature cards in your graveyard" as Object of return; PrepositionPhrase "at random" as Adjunct of return

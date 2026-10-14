@@ -1,0 +1,12 @@
+# Counter-kind compound nouns ("charge counter", "+1/+1 counter") as nominals, with article form following pronunciation
++NounPhrase a charge counter => Nominal "charge counter"
++NounPhrase charge counters => Nominal "charge counters"
++NounPhrase a reach counter or a vigilance counter => NounPhrase "a reach counter"; NounPhrase "a vigilance counter"
++NounPhrase a +1/+1 counter => Nominal "+1/+1 counter"
++NounPhrase a -1/-1 counter => Nominal "-1/-1 counter"
+*NounPhrase an +1/+1 counter
+*NounPhrase an -1/-1 counter
++NounPhrase a +1/+0 counter
++NounPhrase a -0/-1 counter
++NounPhrase a -0/-2 counter
++NounPhrase a -1/-0 counter

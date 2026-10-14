@@ -1,0 +1,18 @@
+# Keyword abilities used as verbs (crew, mutate, soulbond, exploit, escape, haunt) and keyword designations used as adjectives
++Clause this creature crews a Vehicle => NounPhrase "a Vehicle" as Object of crew
++Clause This creature crews Vehicles => NounPhrase "Vehicles" as Object of crew
++Clause this creature mutates
++Clause this creature has mutated => VerbPhrase "mutated" as Complement of have
++Clause this creature is paired with another creature => PrepositionPhrase "with another creature" as Complement of pair
++Clause it's paired with a creature => PrepositionPhrase "with a creature" as Complement of pair
++Clause this creature exploits a creature => NounPhrase "a creature" as Object of exploit
++Clause it exploited that creature => NounPhrase "that creature" as Object of exploit
++Clause This creature escapes with a +1/+1 counter on it => PrepositionPhrase "with a +1/+1 counter on it" as Adjunct of escape
++Clause it escaped
++Clause the creature this card haunts dies => RelativeClause "this card haunts" gap "creature"
++Clause the creature it haunts dies => RelativeClause "it haunts" gap "creature"
++VerbPhrase mutates
++VerbPhrase mutated
++NounPhrase the exploited creature => VerbPhrase "exploited" as Modifier of creature
++Clause this creature becomes saddled => AdjectivePhrase "saddled" as PredicativeComplement of become
++Clause this creature is saddled => AdjectivePhrase "saddled" as PredicativeComplement of be

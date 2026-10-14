@@ -1,0 +1,21 @@
+# Polyhedral die nouns (d4 to d20) as the head of the object of roll, with ordinary die and dice controls
++ Roll a d4. => NounPhrase "a d4" as Object of roll
++ Roll two d4 and choose one result. => NounPhrase "two d4" as Object of roll
++ Roll a d6. => NounPhrase "a d6" as Object of roll
++ Roll two d6 and choose one result. => NounPhrase "two d6" as Object of roll
++ Roll a d8. => NounPhrase "a d8" as Object of roll
++ Roll two d8 and choose one result. => NounPhrase "two d8" as Object of roll
++ Roll a d10. => NounPhrase "a d10" as Object of roll
++ Roll two d10 and choose one result. => NounPhrase "two d10" as Object of roll
++ Roll a d12. => NounPhrase "a d12" as Object of roll
++ Roll two d12 and choose one result. => NounPhrase "two d12" as Object of roll
++VerbPhrase roll two d20 => NounPhrase "two d20" as Object of roll
++ Roll a d20. => NounPhrase "a d20" as Object of roll
++ Roll a six-sided die. => NounPhrase "a six-sided die" as Object of roll
++ Whenever you roll one or more dice, draw a card. => NounPhrase "one or more dice" as Object of roll
++Nominal d4
++Nominal d6
++Nominal d8
++Nominal d10
++Nominal d12
++Nominal d20

@@ -1,0 +1,9 @@
+# Prepositional complements and modifiers: coordinated onto/into clusters, instead of, with a keyword, from as source, and of-phrases
++VerbPhrase put that card onto the battlefield and the rest into your graveyard => NounPhrase "that card" as Object of put; PrepositionPhrase "onto the battlefield" as Complement of put; NounPhrase "the rest" as Object of put; PrepositionPhrase "into your graveyard" as Complement of put
++PrepositionPhrase instead of into your graveyard => PrepositionPhrase "into your graveyard"
++Nominal creature with flying => PrepositionPhrase "with flying" as Modifier of creature
++ Return target creature card from your graveyard to your hand. => PrepositionPhrase "from your graveyard" as Complement of return; !PrepositionPhrase "from your graveyard" as Adjunct of return
++PrepositionPhrase of the chosen type
++VerbPhrase aren't of the chosen type => PrepositionPhrase "of the chosen type" as PredicativeComplement of be
++NounPhrase Spells you cast of the chosen type => RelativeClause "you cast" gap "Spells"
++NounPhrase one of them of their choice

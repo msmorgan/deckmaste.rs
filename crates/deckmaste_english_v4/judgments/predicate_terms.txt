@@ -1,0 +1,10 @@
+# Predicate and event terms from Outlaws of Thunder Junction (historic, outlaw, commit a crime) as adjectives, nouns, premodifiers and verb phrases
++ <card=Artificer's Assistant> Whenever you cast a historic spell, scry 1. => AdjectivePhrase "historic" as Modifier of spell
++ <card=Jhoira's Familiar> Historic spells you cast cost {1} less to cast. => AdjectivePhrase "Historic" as Modifier of spell
++ <card=Hellspur Posse Boss> Other outlaws you control have haste. => Nominal "outlaws"
++ <card=Double Down> Whenever you cast an outlaw spell, copy that spell. => Nominal "outlaw" as Modifier of spell
++ <card=Patrolling Peacemaker> Whenever an opponent commits a crime, proliferate. => VerbPhrase "commits a crime"
++ <card=Intimidation Campaign> Whenever you commit a crime, you may return this enchantment to its owner's hand. => VerbPhrase "commit a crime"
++ <card=Shoot the Sheriff> Destroy target non-outlaw creature. => Nominal "non-outlaw" as Modifier of creature
++ <card=Nimble Brigand> This creature can't be blocked if you've committed a crime this turn. => VerbPhrase "committed a crime"
++Nominal outlaw

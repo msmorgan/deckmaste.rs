@@ -1,0 +1,13 @@
+# An additive modifier (additional, extra) in an adjustment complement and in ordinary count nominals
++ As long as equipped creature is a Human, it gets an additional +1/+0. => NounPhrase "an additional +1/+0" as Object of get
++ That creature gets an additional +4/+4 until end of turn unless any player pays {2}. => NounPhrase "an additional +4/+4" as Object of get
++ Enchanted creature gets an additional +2/+0 as long as you have no cards in hand. => NounPhrase "an additional +2/+0" as Object of get
++ It gets an additional -1/-1 until end of turn for each Desert you control. => NounPhrase "an additional -1/-1" as Object of get
++ As long as it's legendary, it gets an additional +2/+2. => NounPhrase "an additional +2/+2" as Object of get
++NounPhrase an additional +1/+0
++NounPhrase an extra +1/+0
+*NounPhrase a additional +1/+0
+*NounPhrase an +1/+0
++ It deals an additional 2 damage. => NounPhrase "an additional 2 damage" as Object of deal
++ It enters with an additional +1/+1 counter on it. => AdjectivePhrase "additional" as Modifier of counter
++ Draw an additional card. => NounPhrase "an additional card" as Object of draw; AdjectivePhrase "additional" as Modifier of card

@@ -1,0 +1,50 @@
+# Correlative coordination (both...and, either...or, neither...nor) of verb phrases, noun phrases, prepositional phrases, adverbs, to-infinitivals, keywords and mana symbols; serial either/neither with a final coordinator; malformed correlatives
++Clause either attack or block
++VerbPhrase both attacks and blocks
++VerbPhrase either attacks or blocks
++VerbPhrase neither attacks nor blocks
++VerbPhrase both attack and block
++VerbPhrase either attack or block
++VerbPhrase neither attack nor block
++NounPhrase both cards and cards
++NounPhrase either cards or cards
++NounPhrase neither cards nor cards
++PrepositionPhrase both among cards and among cards
++PrepositionPhrase either among cards or among cards
++PrepositionPhrase neither among cards nor among cards
++AdverbPhrase both again and again
++AdverbPhrase either again or again
++AdverbPhrase neither again nor again
++Clause both to attack and to block
++Clause either to attack or to block
++Clause neither to attack nor to block
++KeywordPhrase both flying and haste
++KeywordPhrase either flying or haste
++KeywordPhrase neither flying nor haste
++ both {W} and {U}
++ either {W} or {U}
++ neither {W} nor {U}
++Clause either attack, block, or attack
++VerbPhrase either attacks, blocks, or attacks
++VerbPhrase neither attacks, blocks, nor attacks
++VerbPhrase either attack, block, or attack
++VerbPhrase neither attack, block, nor attack
++NounPhrase either cards, cards, or cards
++NounPhrase neither cards, cards, nor cards
++PrepositionPhrase either among cards, among cards, or among cards
++PrepositionPhrase neither among cards, among cards, nor among cards
++AdverbPhrase either again, again, or again
++AdverbPhrase neither again, again, nor again
++Clause either to attack, to block, or to attack
++Clause neither to attack, to block, nor to attack
++KeywordPhrase either flying, haste, or flying
++KeywordPhrase neither flying, haste, nor flying
++ either {W}, {U}, or {W}
++ neither {W}, {U}, nor {W}
+*NounPhrase cards nor cards
+*VerbPhrase attack nor block
+* {W} nor {U}
+* either {W} nor {U}
+* neither {W} or {U}
+*Clause neither you attack nor they attack
++VerbPhrase both own and control cards => NounPhrase "cards" as Object of own; NounPhrase "cards" as Object of control

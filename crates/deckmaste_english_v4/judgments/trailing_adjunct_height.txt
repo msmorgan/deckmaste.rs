@@ -1,0 +1,34 @@
+# Attachment height of trailing adjuncts (if-, unless-, until-, without-phrases) to the predicate, to a coordination of clauses, or above a modal; the existential predicate carrying a trailing preposition phrase
++ <card=Goliath Daydreamer> Whenever this creature attacks, you may cast a spell from among cards you own in exile with dream counters on them without paying its mana cost.
++ <card=Goliath Daydreamer> Whenever you cast an instant or sorcery spell from your hand, exile that card with a dream counter on it instead of putting it into your graveyard as it resolves.
++ <card=Belladonna Took> Whenever a token you control enters, you gain 1 life if this is the first time this ability has resolved this turn. => PrepositionPhrase "if this is the first time this ability has resolved this turn" as Adjunct of gain
++ <card=Vizier of Deferment> When this creature enters, you may exile target creature if it attacked or blocked this turn. => PrepositionPhrase "if it attacked or blocked this turn" as Adjunct of exile || PrepositionPhrase "if it attacked or blocked this turn" as Adjunct of may
++ <card=Veil of Summer> Draw a card if an opponent has cast a blue or black spell this turn. => PrepositionPhrase "if an opponent has cast a blue or black spell this turn" as Adjunct of draw
++ <card=Wyluli Wolf> Target creature gets +1/+1 until end of turn. => PrepositionPhrase "until end of turn" as Adjunct of get
++ <card=Suffocation> Cast this spell only if you were dealt damage this turn by a red instant or sorcery spell. => PrepositionPhrase "only if you were dealt damage this turn by a red instant or sorcery spell" as Adjunct of cast
++ <card=Scarlet Witch, Chaotic Avenger> Then you may cast a Hero or noncreature spell from among cards exiled with Scarlet Witch without paying its mana cost. => PrepositionPhrase "without paying its mana cost" as Adjunct of cast || PrepositionPhrase "without paying its mana cost" as Adjunct of may
++ <card=Suffocation> Suffocation deals 4 damage to the controller of the last red instant or sorcery spell that dealt damage to you this turn. => RelativeClause "that dealt damage to you" gap "spell" || RelativeClause "that dealt damage to you this turn" gap "spell"
++ <card=Teething Wurmlet> If this is the first time this ability has resolved this turn, put a +1/+1 counter on this creature. => PrepositionPhrase "If this is the first time this ability has resolved this turn" as Adjunct of put
++ <card=Skyrider Patrol> When you do, put a +1/+1 counter on another target creature you control, and that creature gains flying until end of turn. => PrepositionPhrase "until end of turn" as Adjunct of gain || Clause "put a +1/+1 counter on another target creature you control, and that creature gains flying"
++ <card=Nissa of Shadowed Boughs> You may have it become a 3/3 Elemental creature with haste and menace until end of turn. => PrepositionPhrase "until end of turn" as Adjunct of may || PrepositionPhrase "until end of turn" as Adjunct of have || PrepositionPhrase "until end of turn" as Adjunct of become
++ <card=Skyrider Patrol> When you do, put a +1/+1 counter on another target creature you control, and that creature gains flying until end of turn if you control a creature. => Clause "put a +1/+1 counter on another target creature you control, and that creature gains flying until end of turn"; PrepositionPhrase "if you control a creature"
++ <card=Reckless Cohort> This creature attacks each combat if able unless you control another Ally. => PrepositionPhrase "unless you control another Ally" as Adjunct of attack
++ <card=Overload> Destroy target artifact if its mana value is 2 or less. If this spell was kicked, destroy that artifact if its mana value is 5 or less instead.
++ <card=Tifa, Martial Artist> Whenever one or more creatures you control with power 7 or greater deal combat damage to a player, untap all creatures you control. If it's the first combat phase of your turn, there is an additional combat phase after this phase.
++ <card=Shadow of the Second Sun> At the beginning of each of enchanted player's postcombat main phases, there is an additional beginning phase after this phase.
++ <card=Spelltwine> Exile target instant or sorcery card from your graveyard and target instant or sorcery card from an opponent's graveyard. Copy those cards. Cast the copies if able without paying their mana costs. Exile Spelltwine.
++ <card=Sphinx of the Second Sun> At the beginning of each of your postcombat main phases, there is an additional beginning phase after this phase.
++ <card=Moraug, Fury of Akoum> Each creature you control gets +1/+0 for each time it has attacked this turn.
++ <card=Moraug, Fury of Akoum> Landfall — Whenever a land you control enters, if it's your main phase, there's an additional combat phase after this phase. At the beginning of that combat, untap all creatures you control.
++ <card=Cyclonus, Cybertronian Fighter> Whenever Cyclonus deals combat damage to a player, convert it. If you do, there is an additional beginning phase after this phase.
++ <card=Marauding Maulhorn> This creature attacks each combat if able unless you control a creature named Advocate of the Beast.
++ <card=Raiyuu, Storm's Edge> Whenever a Samurai or Warrior you control attacks alone, untap it. If it's the first combat phase of the turn, there is an additional combat phase after this phase.
++ <card=Grim Reaper's Sprint> Morbid — This spell costs {3} less to cast if a creature died this turn.
++ <card=Grim Reaper's Sprint> When this Aura enters, untap each creature you control. If it's your main phase, there is an additional combat phase after this phase.
++ <card=Grim Reaper's Sprint> Enchanted creature gets +2/+2 and has haste.
++ <card=Y'shtola Rhul> At the beginning of your end step, exile target creature you control, then return it to the battlefield under its owner's control. Then if it's the first end step of the turn, there is an additional end step after this step.
++ <card=Great Train Heist> + {2}{R} — Untap all creatures you control. If it's your combat phase, there is an additional combat phase after this phase.
++ <card=Great Train Heist> + {2} — Creatures you control get +1/+0 and gain first strike until end of turn.
++ <card=Great Train Heist> + {R} — Choose target opponent. Whenever a creature you control deals combat damage to that player this turn, create a tapped Treasure token.
++ <card=Prohibit> Counter target spell if its mana value is 2 or less. If this spell was kicked, counter that spell if its mana value is 4 or less instead.
++Clause there is an additional combat phase after this phase => PrepositionPhrase "after this phase" as Adjunct of be

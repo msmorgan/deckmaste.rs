@@ -1,0 +1,12 @@
+# "the other" as a noun phrase headed by "other" (as in "one of them ... and the other"), versus "other" premodifying an overt noun
++NounPhrase the other => NounPhrase "the other" head other
++ <card=Nagging Thoughts> Look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. => NounPhrase "the other" as Object of put
++ <card=Sibsig Appraiser> When this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. => NounPhrase "the other" as Object of put
++ <card=Talas Lookout> When this creature dies, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. => NounPhrase "the other" as Object of put
++ <card=Tower Geist> When this creature enters, look at the top two cards of your library. Put one of them into your hand and the other into your graveyard. => NounPhrase "the other" as Object of put
++ <card=Write into Being> Manifest one of those cards, then put the other on the top or bottom of your library. => NounPhrase "the other" as Object of put
++NounPhrase the other card => AdjectivePhrase "other" as Modifier of card
++NounPhrase one other card => AdjectivePhrase "other" as Modifier of card
++NounPhrase any other card => AdjectivePhrase "other" as Modifier of card
+*NounPhrase an other
+*NounPhrase other card

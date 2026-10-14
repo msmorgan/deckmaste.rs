@@ -1,0 +1,8 @@
+# Negative prefix on a common noun (`nontoken`) as a noun premodifier of a nominal
++ <card=Hour of Reckoning> Destroy all nontoken creatures. => Nominal "nontoken" as Modifier of creature
++ <card=Swift Spiral> Exile target nontoken creature. => Nominal "nontoken" as Modifier of creature
++ <card=Rhythm of the Wild> Nontoken creatures you control have riot. => Nominal "Nontoken" as Modifier of creature
++ <card=Isilu, Carrier of Twilight> Each other nontoken creature you control has persist. => Nominal "nontoken" as Modifier of creature
++ <card=Thraben Watcher> Other nontoken creatures you control get +1/+1 and have vigilance. => Nominal "nontoken" as Modifier of creature
++Nominal nontoken creatures => Nominal "nontoken" as Modifier of creature
+*Nominal non token creatures

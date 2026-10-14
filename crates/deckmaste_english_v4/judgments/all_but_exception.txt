@@ -1,0 +1,24 @@
+# Exceptive "all but N" as a determiner phrase (all + but-PP) in prenominal and partitive NPs
++DeterminerPhrase all but 1 => PrepositionPhrase "but 1"
++DeterminerPhrase all but one => PrepositionPhrase "but one"
++DeterminerPhrase all but that many => PrepositionPhrase "but that many"
++PrepositionPhrase but 1 => NounPhrase "1" as Complement of but
++NounPhrase all but 1 life => DeterminerPhrase "all but 1" as Determiner of life
++NounPhrase all but one +1/+1 counter => DeterminerPhrase "all but one" as Determiner of counter
++NounPhrase all but that many permanents => DeterminerPhrase "all but that many" as Determiner of permanent
++NounPhrase all but 1 of that damage => DeterminerPhrase "all but 1"
++NounPhrase all but one of them => DeterminerPhrase "all but one"
++ <card=Soulgorger Orgg> When this creature enters, you lose all but 1 life. => DeterminerPhrase "all but 1" as Determiner of life
++ <card=Temple Altisaur> If a source would deal damage to another Dinosaur you control, prevent all but 1 of that damage. => DeterminerPhrase "all but 1"
++ <card=Choice of Damnations> Target opponent chooses a number. You may have that player lose that much life. If you don't, that player sacrifices all but that many permanents of their choice. => DeterminerPhrase "all but that many" as Determiner of permanent
++ <card=Lily Bowen, Raging Grandma> At the beginning of your upkeep, double the number of +1/+1 counters on Lily Bowen if its power is 16 or less. Otherwise, remove all but one +1/+1 counter from it, then you gain 1 life for each +1/+1 counter removed this way. => DeterminerPhrase "all but one" as Determiner of counter
++VerbPhrase <card=Aladdin's Lamp> put all but one of them on the bottom of your library in a random order, then draw a card => DeterminerPhrase "all but one"
+*NounPhrase each but one +1/+1 counter
+*NounPhrase every but one +1/+1 counter
+*NounPhrase all but one +1/+1 counters
+*NounPhrase all but that many permanent
++ If a source would deal damage to you, prevent that damage.
++ If a source would deal damage to you, prevent 1 damage.
++ Destroy one of them.
++ Whenever this creature attacks, tap all creatures defending player controls.
++ At the beginning of your upkeep, if you have 40 or more life, you win the game.

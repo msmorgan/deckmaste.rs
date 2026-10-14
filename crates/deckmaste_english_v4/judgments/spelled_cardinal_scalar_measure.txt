@@ -1,0 +1,16 @@
+# Spelled cardinals in arithmetic (one plus the number of ...), as comparison standards (less than five), and in comparative determiners (more than one creature)
++ <card=Journey On> Create X Map tokens, where X is one plus the number of opponents who control an artifact. => NounPhrase "the number of opponents who control an artifact"
++ <card=Welcome to Sweettooth> III — Put X +1/+1 counters on target creature you control, where X is one plus the number of Foods you control. => NounPhrase "the number of Foods you control"
++ <card=Boss's Chauffeur> This creature enters with a number of +1/+1 counters on it equal to one plus the number of other creatures you control. => NounPhrase "the number of other creatures you control"
++ <card=Mind Burst> Target player discards X cards, where X is one plus the number of cards named Mind Burst in all graveyards. => NounPhrase "the number of cards named Mind Burst in all graveyards"
++NounPhrase the number of cards in your hand plus one => NounPhrase "the number of cards in your hand"
++NounPhrase the number of cards you've drawn this turn minus one => NounPhrase "the number of cards you've drawn this turn"
++AdjectivePhrase less than five => PrepositionPhrase "than five" as Complement of less
++AdjectivePhrase less than seven => PrepositionPhrase "than seven" as Complement of less
++AdjectivePhrase greater than four => PrepositionPhrase "than four" as Complement of greater
++AdjectivePhrase five or greater
++AdjectivePhrase seven or greater
++NounPhrase more than one creature => DeterminerPhrase "more than one" as Determiner of creature
++NounPhrase fewer than seven cards => DeterminerPhrase "fewer than seven" as Determiner of card
++ <card=Burn at the Stake> Burn at the Stake deals damage to any target equal to three times the number of creatures tapped this way.
++ <card=Burn at the Stake> Burn at the Stake deals damage to any target equal to 3 times the number of creatures tapped this way.

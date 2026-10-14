@@ -1,0 +1,19 @@
+# Comparative and equality adjective phrases (equal to, less than, greater than, other than) with their complements
++ Target creature you control deals damage equal to its power to any target. => NounPhrase "damage equal to its power"; AdjectivePhrase "equal to its power"; NounPhrase "its power"; !PrepositionPhrase "to its power" as Modifier of damage; !PrepositionPhrase "to its power" as Adjunct of deal
++ You gain life equal to that card's power. => NounPhrase "life equal to that card's power"; AdjectivePhrase "equal to that card's power"; NounPhrase "that card's power"; !PrepositionPhrase "to that card's power" as Modifier of life; !PrepositionPhrase "to that card's power" as Adjunct of gain
++ Freedom Fighter Recruit's power is equal to the number of creatures you control. => AdjectivePhrase "equal to the number of creatures you control" as PredicativeComplement of be
++ Massive Raid deals damage to any target equal to the number of creatures you control. => AdjectivePhrase "equal to the number of creatures you control"
++AdjectivePhrase equal to its power => NounPhrase "its power"; readings 1
++AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power"; readings 1
++AdjectivePhrase less than this creature's power => readings 1
++ Whenever this creature attacks, you may return target creature to its owner's hand if its power is less than this creature's power. => AdjectivePhrase "less than this creature's power"
++ If that opponent's speed is greater than each other player's speed, reduce that opponent's speed by 1. => AdjectivePhrase "greater than each other player's speed"
++ Destroy target nonblack creature if its toughness is less than or equal to the number of cards in your graveyard. => AdjectivePhrase "less than or equal to the number of cards in your graveyard"
++ Whenever a creature an opponent controls dies, if its toughness was less than 1, draw a card. => AdjectivePhrase "less than 1"
++ Whenever you cast a spell other than your first spell each turn, put a +1/+1 counter on this creature. => NounPhrase "a spell other than your first spell"; AdjectivePhrase "other than your first spell"
++ Whenever equipped creature deals combat damage to a player, destroy all permanents other than this Equipment. => NounPhrase "all permanents other than this Equipment"; AdjectivePhrase "other than this Equipment"
++NounPhrase each other player's speed
++AdjectivePhrase other than this Equipment => readings 1
+*AdjectivePhrase other to this Equipment
+*AdjectivePhrase equal than its power
+*AdjectivePhrase less to its power

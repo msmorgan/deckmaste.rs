@@ -1,0 +1,20 @@
+# Superlative quantifiers most, fewest and least as premodifiers inside a definite noun phrase (the most creatures, the least life), bare most, and in-hand postmodifier attachment
++NounPhrase the most creatures => DeterminerPhrase "the most" as Determiner of creature; readings 1
++NounPhrase the most cards => DeterminerPhrase "the most" as Determiner of card; readings 1
++NounPhrase the most life => DeterminerPhrase "the most" as Determiner of life; readings 1
++NounPhrase the fewest lands => DeterminerPhrase "the fewest" as Determiner of land; readings 1
++NounPhrase the least life => DeterminerPhrase "the least" as Determiner of life; readings 1
++NounPhrase the least power => DeterminerPhrase "the least" as Determiner of power; readings 1
++NounPhrase most creatures => DeterminerPhrase "most" as Determiner of creature; readings 1
+*NounPhrase the most creature
+*NounPhrase the most card
+*NounPhrase a most creature
+*NounPhrase most most creatures
++ Each player who controls the most creatures investigates. Then destroy all creatures. => DeterminerPhrase "the most" as Determiner of creature
++ At the beginning of your upkeep, if a player controls more creatures than each other player, the player who controls the most creatures gains control of this creature. => DeterminerPhrase "the most" as Determiner of creature
++ Whenever this creature attacks, each player who controls the most lands sacrifices two lands of their choice. => DeterminerPhrase "the most" as Determiner of land
++ At the beginning of your upkeep, if a player has more life than each other player, the player with the most life gains control of this creature. => DeterminerPhrase "the most" as Determiner of life
++NounPhrase the player who has the most cards in hand => DeterminerPhrase "the most" as Determiner of card
++NounPhrase the player with the most life => DeterminerPhrase "the most" as Determiner of life
++NounPhrase the player with the most cards in hand => DeterminerPhrase "the most" as Determiner of card
++ <card=Witch-king, Bringer of Ruin> Whenever Witch-king attacks, defending player sacrifices a creature with the least power among creatures they control. => DeterminerPhrase "the least" as Determiner of power

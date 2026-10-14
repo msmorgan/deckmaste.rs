@@ -1,0 +1,12 @@
+# Activation-restriction sentences: only-focused prepositional adjuncts of "activate", singly and coordinated
++ Activate only as a sorcery and only once each turn. => PrepositionPhrase "only as a sorcery"
++ Activate only during your turn and only once each turn. => PrepositionPhrase "only during your turn"
++ Activate only if it has no time counters on it and only as a sorcery. => PrepositionPhrase "only if it has no time counters on it"; PrepositionPhrase "only as a sorcery"
++ Activate only if you control no creatures and only once each turn. => PrepositionPhrase "only if you control no creatures"
++ <card=Hakim, Loreweaver> Activate only during your upkeep and only if Hakim isn't enchanted. => PrepositionPhrase "only during your upkeep"; PrepositionPhrase "only if Hakim isn't enchanted"
++ Activate only as a sorcery. => PrepositionPhrase "only as a sorcery" as Adjunct of activate
++ Activate only once each turn.
++ Activate only if you control no creatures. => PrepositionPhrase "only if you control no creatures" as Adjunct of activate
++ Activate during your turn and during your upkeep.
++ Any player may activate this ability.
++ Only your opponents may activate this ability.

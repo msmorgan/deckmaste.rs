@@ -1,0 +1,8 @@
+# Except-phrases as adjuncts (with and without a comma, with a nominal or clause complement), from among, and malformed stacked prepositions
++ Destroy all creatures, except for Walls. => PrepositionPhrase "except for Walls" as Adjunct of destroy
++ Create a token that's a copy of target creature except it isn't legendary. => PrepositionPhrase "except it isn't legendary" as Adjunct of create; Clause "it isn't legendary" || PrepositionPhrase "except it isn't legendary" as Adjunct of be; Clause "it isn't legendary"
++ Slivers can't be blocked except by Slivers. => PrepositionPhrase "except by Slivers"
++ This creature has all activated abilities of the chosen permanent except for loyalty abilities. => PrepositionPhrase "except for loyalty abilities"
++ You may put a land card from among them into your hand. => PrepositionPhrase "from among them"; PrepositionPhrase "among them"
+* Exile a card of without paying its mana cost.
+*PrepositionPhrase of of paying its mana cost

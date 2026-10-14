@@ -1,0 +1,14 @@
+# "the next time ..." as a preposed temporal adjunct noun phrase whose relative clause has an adjunct gap
++ <card=Dazzling Reflection> The next time that creature would deal damage this turn, prevent that damage. => NounPhrase "The next time that creature would deal damage this turn" as Adjunct of prevent; RelativeClause "that creature would deal damage this turn" as Modifier of time gap "next time"
++ <card=Words of Waste> {1}: The next time you would draw a card this turn, each opponent discards a card instead. => NounPhrase "The next time you would draw a card this turn" as Adjunct of discard; RelativeClause "you would draw a card this turn" as Modifier of time gap "next time"
++ <card=New Way Forward> The next time a source of your choice would deal damage to you this turn, prevent that damage. => NounPhrase "The next time a source of your choice would deal damage to you this turn" as Adjunct of prevent; RelativeClause "a source of your choice would deal damage to you this turn" as Modifier of time gap "next time"
++ <card=Circle of Protection: Red> {1}: The next time a red source of your choice would deal damage to you this turn, prevent that damage. => NounPhrase "The next time a red source of your choice would deal damage to you this turn" as Adjunct of prevent; RelativeClause "a red source of your choice would deal damage to you this turn" as Modifier of time gap "next time"
++ <card=Words of Wilding> {1}: The next time you would draw a card this turn, create a 2/2 green Bear creature token instead. => NounPhrase "The next time you would draw a card this turn" as Adjunct of create; RelativeClause "you would draw a card this turn" as Modifier of time gap "next time"
++NounPhrase the next time
++NounPhrase the next time you would draw a card this turn => RelativeClause "you would draw a card this turn" as Modifier of time gap "next time"
++Clause This turn, each creature you control enters with an additional +1/+1 counter on it => NounPhrase "This turn" as Adjunct of enter; RelativeClause "you control" gap "creature"
++NounPhrase each time
++NounPhrase this turn
++NounPhrase each turn
++NounPhrase this way
++NounPhrase the first time you cast a spell each turn => RelativeClause "you cast a spell each turn" as Modifier of time gap "first time"

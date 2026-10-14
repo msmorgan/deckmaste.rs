@@ -1,0 +1,22 @@
+# "instead" in replacement effects: an intransitive preposition phrase beside a complete host clause, or a final connective over coordinated predicates
++PrepositionPhrase instead
+*PrepositionPhrase instead of
+*PrepositionPhrase instead any other type
++PrepositionPhrase instead of any other type => NounPhrase "any other type"
++ <card=Forbidden Crypt> If you would draw a card, return a card from your graveyard to your hand instead. => PrepositionPhrase "instead"
++ If you would draw a card, return a card from your graveyard to your hand.
++ <card=Burn the Accursed> If that creature would die this turn, exile it instead. => PrepositionPhrase "instead"
++ If that creature would die this turn, exile it.
++ <card=Soldevi Excavations> If this land would enter, sacrifice an untapped Island instead. => PrepositionPhrase "instead"
++ If this land would enter, sacrifice an untapped Island.
++ <card=Increasing Savagery> If this spell was cast from a graveyard, put ten +1/+1 counters on that creature instead. => PrepositionPhrase "instead"
++ If this spell was cast from a graveyard, put ten +1/+1 counters on that creature.
++ <card=Divine Resilience> If this spell was kicked, instead any number of target creatures you control gain indestructible until end of turn. => PrepositionPhrase "instead"
++ If this spell was kicked, any number of target creatures you control gain indestructible until end of turn.
++Clause instead, that card is revealed and put on the bottom of that player's library => PrepositionPhrase "instead"; VerbPhrase "is revealed and put on the bottom of that player's library"
+# the final connective may scope over the whole coordination or only its last conjunct
++Clause reveal Darksteel Colossus and shuffle it into its owner's library instead => PrepositionPhrase "instead"; Clause "reveal Darksteel Colossus and shuffle it into its owner's library" || PrepositionPhrase "instead"; Clause "shuffle it into its owner's library instead"
++ <card=Pariah> All damage that would be dealt to you is dealt to enchanted creature instead. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal; PrepositionPhrase "instead"
++ All damage that would be dealt to you is dealt to enchanted creature. => RelativeClause "that would be dealt to you" as Modifier of damage gap "damage"; PrepositionPhrase "to you" as Complement of deal
++ If you do, draw a card.
++ Mill three cards, then return a land card or Elf card from your graveyard to your hand. If you can't, draw a card.

@@ -1,0 +1,8 @@
+# The comparative "same ... as" with a postposed as-complement (same name as that land), and anaphoric "the same name" without as
++ Destroy target land and all other lands with the same name as that land. => Nominal "same name as that land"; NounPhrase "that land"
++ Exile target creature and all other creatures with the same name as that creature. => Nominal "same name as that creature"; NounPhrase "that creature"
++ Return target nonland permanent and all other permanents with the same name as that permanent to their owners' hands. => Nominal "same name as that permanent"; NounPhrase "that permanent"
++ <card=Circu, Dimir Lobotomist> Your opponents can't cast spells with the same name as a card exiled with Circu. => Nominal "same name as a card exiled with Circu"; NounPhrase "a card exiled with Circu"
++ Search its owner's graveyard, hand, and library for all cards with the same name as that card and exile them. => Nominal "same name as that card"; NounPhrase "that card"
++Nominal same name as that land => NounPhrase "that land"; readings 1
++ Discard two nonland cards with the same name: Draw four cards.

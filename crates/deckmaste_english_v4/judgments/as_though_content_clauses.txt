@@ -1,0 +1,10 @@
+# The preposition "as though" taking a finite or irrealis (were) clause, as a clause-level adjunct
++ You may cast spells as though they had flash. => PrepositionPhrase "as though they had flash"; Clause "they had flash"
++ You may cast Hero spells as though they had flash. => PrepositionPhrase "as though they had flash"; Clause "they had flash"
++ {W}: This creature can attack this turn as though it didn't have defender. => PrepositionPhrase "as though it didn't have defender"; Clause "it didn't have defender"
++ For each creature you control with no abilities, you may have that creature assign its combat damage as though it weren't blocked. => PrepositionPhrase "as though it weren't blocked"; Clause "it weren't blocked"
++ The next sorcery spell you cast this turn can be cast as though it had flash. => PrepositionPhrase "as though it had flash"; Clause "it had flash"
++PrepositionPhrase as though it weren't blocked => Clause "it weren't blocked"
++Clause they weren't blocked
+*NounPhrase Target creature as though it weren't blocked
+* It weren't blocked.

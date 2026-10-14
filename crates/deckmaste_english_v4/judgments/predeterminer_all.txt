@@ -1,0 +1,33 @@
+# The universal quantifiers "all" and "both" as predeterminers of a definite or possessive plural noun phrase, with number, definiteness, stacking and agreement constraints
++NounPhrase all the cards => NounPhrase "the cards"
++NounPhrase all those cards => NounPhrase "those cards"
++NounPhrase both the creatures => NounPhrase "the creatures"
++NounPhrase all the damage => NounPhrase "the damage"
++NounPhrase all your creatures => NounPhrase "your creatures"
++ <card=Tolarian Winds> Discard all the cards in your hand, then draw that many cards. => NounPhrase "all the cards in your hand" as Object of discard; NounPhrase "the cards in your hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in your hand" as Adjunct of discard
++ <card=Awaken the Erstwhile> Each player discards all the cards in their hand, then creates that many 2/2 black Zombie creature tokens. => NounPhrase "all the cards in their hand" as Object of discard; NounPhrase "the cards in their hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in their hand" as Adjunct of discard
++ <card=Robber Fly> Whenever this creature becomes blocked, defending player discards all the cards in their hand, then draws that many cards. => NounPhrase "all the cards in their hand" as Object of discard; NounPhrase "the cards in their hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in their hand" as Adjunct of discard
++ <card=Endurance> When this creature enters, up to one target player puts all the cards from their graveyard on the bottom of their library in a random order. => NounPhrase "all the cards from their graveyard" as Object of put; NounPhrase "the cards from their graveyard" || NounPhrase "all the cards" as Object of put; PrepositionPhrase "from their graveyard" as Adjunct of put
++ <card=Forgotten Creation> At the beginning of your upkeep, you may discard all the cards in your hand. => NounPhrase "all the cards in your hand" as Object of discard; NounPhrase "the cards in your hand" || NounPhrase "all the cards" as Object of discard; PrepositionPhrase "in your hand" as Adjunct of discard
++NounPhrase all cards in your hand
++NounPhrase the cards in your hand
++NounPhrase all other creatures
++NounPhrase all three cards
++NounPhrase all of the cards
++NounPhrase both creatures
++NounPhrase both of the cards
++NounPhrase twice that many cards
++NounPhrase half the cards
++ Each player discards the cards in their hand, then draws that many cards.
+*NounPhrase all the card
+*NounPhrase both the card
+*NounPhrase both the damage
+*NounPhrase all a card
+*NounPhrase both a creature
+*NounPhrase all all the cards
+*NounPhrase both both the cards
++ All creatures get -1/-1. => NounPhrase "All creatures" as Subject of get
++ All the creatures get -1/-1. => NounPhrase "All the creatures" as Subject of get
++ Both the creatures get -1/-1. => NounPhrase "Both the creatures" as Subject of get
+* All the creatures gets -1/-1.
+* Both the creatures gets -1/-1.

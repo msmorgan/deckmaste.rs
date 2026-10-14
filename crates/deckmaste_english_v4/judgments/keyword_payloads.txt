@@ -1,0 +1,18 @@
+# Keyword abilities with quality, amount, cost and ability payloads (Protection from red, Suspend 1—{R}, Devour Food 3, Boast)
++KeywordPhrase Protection from red
++KeywordPhrase Affinity for artifacts
++KeywordPhrase Enchant land
++KeywordPhrase Suspend 1—{R}
++KeywordPhrase Prototype {3}{G}{G} — 3/5
++KeywordPhrase Splice onto Arcane {G}
++KeywordPhrase Devour Food 3
++KeywordPhrase Devour land 3
++KeywordPhrase Devour artifact 1
++KeywordPhrase Suspend
++KeywordPhrase Boast — {1}{W}: Tap target creature. => NounPhrase "target creature" as Object of tap
+*KeywordPhrase Protection for red
+*KeywordPhrase Affinity for artifact
+*KeywordPhrase Suspend 1 {R}
+*KeywordPhrase Suspend 1 — {R}
+*KeywordPhrase Devour for Food 3
+*KeywordPhrase Devour Food — 3

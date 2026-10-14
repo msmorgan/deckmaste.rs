@@ -1,0 +1,26 @@
+# Targeted noun phrases (target creature, two target creatures with flying), their scope over modifiers and coordination
++NounPhrase target creature
++NounPhrase target creatures
++Nominal target creatures
++NounPhrase creatures
++NounPhrase target Equipment
++NounPhrase two target creatures
++NounPhrase two target creature cards
++NounPhrase target nonartifact creature
+*Nominal creature target card
++NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
++NounPhrase target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
++NounPhrase two target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
++NounPhrase target player's graveyard => NounPhrase "target player's" as Determiner of graveyard
++NounPhrase target creature's power and toughness => NounPhrase "target creature's"; Nominal "power and toughness"
++NounPhrase target artifact or enchantment => Nominal "artifact or enchantment"
++NounPhrase target artifact and target enchantment => NounPhrase "target artifact"; NounPhrase "target enchantment"
++NounPhrase one target creature
++NounPhrase target black or red creature => AdjectivePhrase "black or red" as Modifier of creature
++NounPhrase target attacking creature
++NounPhrase target attacking creatures
+*Nominal attacking target creature
++Nominal other target creatures
++NounPhrase two other target creatures
+*NounPhrase other target creature
++NounPhrase target players or planeswalkers => Nominal "players or planeswalkers" || NounPhrase "target players"; NounPhrase "planeswalkers"; readings 2

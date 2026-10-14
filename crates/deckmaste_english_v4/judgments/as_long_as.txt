@@ -1,0 +1,15 @@
+# The preposition "as long as" taking a finite clause, as a conditional adjunct of the predicate, and as the complement of the duration preposition "for"
++ This creature has flying as long as you control an artifact. => PrepositionPhrase "as long as you control an artifact" as Adjunct of have; readings 1
++ As long as you control a Dragon, this creature has flying. => PrepositionPhrase "As long as you control a Dragon" as Adjunct of have
++ This creature has deathtouch as long as you control a Liliana planeswalker. => PrepositionPhrase "as long as you control a Liliana planeswalker" as Adjunct of have
++ As long as this creature is untapped, it has protection from artifacts and from each color. => PrepositionPhrase "As long as this creature is untapped" as Adjunct of have
++ This creature has indestructible as long as it has defender. => PrepositionPhrase "as long as it has defender" as Adjunct of have
++ When this creature enters, gain control of target artifact for as long as you control this creature. => PrepositionPhrase "for as long as you control this creature" as Adjunct of gain; readings 1
++PrepositionPhrase as long as you control an artifact
++PrepositionPhrase As long as you control an artifact
++PrepositionPhrase for as long as you control this creature
+*PrepositionPhrase as long as that you control an artifact
+*PrepositionPhrase as long as control an artifact
+*PrepositionPhrase as long as controlling an artifact
+*PrepositionPhrase for as long to you control this creature
+*PrepositionPhrase for as long as that you control this creature

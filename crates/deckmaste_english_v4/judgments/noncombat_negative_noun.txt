@@ -1,0 +1,7 @@
+# The prefixed negative "noncombat" as a premodifier of the mass noun "damage"
++ Whenever an opponent is dealt noncombat damage, this creature gets +3/+0 until end of turn. => Nominal "noncombat" as Modifier of damage
++ Whenever a source you control deals noncombat damage to an opponent, you draw that many cards. => Nominal "noncombat" as Modifier of damage
++ Prevent all noncombat damage that would be dealt to creatures you control. => Nominal "noncombat" as Modifier of damage
++ Whenever an opponent is dealt noncombat damage, creatures you control get +1/+0 until end of turn. => Nominal "noncombat" as Modifier of damage
++ Whenever a source you control deals noncombat damage to an opponent, this creature gets +1/+0 and gains double strike until end of turn. => Nominal "noncombat" as Modifier of damage
++Nominal noncombat damage => Nominal "noncombat" as Modifier of damage

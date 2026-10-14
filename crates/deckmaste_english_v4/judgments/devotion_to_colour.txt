@@ -1,0 +1,15 @@
+# The noun "devotion" selecting a "to" prepositional complement naming colours, versus colour words as adjectival predicative complements
++NounPhrase your devotion to black => PrepositionPhrase "to black" as Complement of devotion; !PrepositionPhrase "to black" as Modifier of devotion
++NounPhrase your devotion to black and green => PrepositionPhrase "to black and green" as Complement of devotion
++ <card=Nylea's Disciple> When this creature enters, you gain life equal to your devotion to green. => PrepositionPhrase "to green" as Complement of devotion; !PrepositionPhrase "to green" as Modifier of devotion
++ <card=Tymaret, Chosen from Death> Tymaret's toughness is equal to your devotion to black. => PrepositionPhrase "to black" as Complement of devotion; !PrepositionPhrase "to black" as Modifier of devotion
++ <card=Gray Merchant of Asphodel> When this creature enters, each opponent loses X life, where X is your devotion to black. You gain life equal to the life lost this way. => PrepositionPhrase "to black" as Complement of devotion; !PrepositionPhrase "to black" as Modifier of devotion
++ <card=Master of Waves> When this creature enters, create a number of 1/0 blue Elemental creature tokens equal to your devotion to blue. => PrepositionPhrase "to blue" as Complement of devotion; !PrepositionPhrase "to blue" as Modifier of devotion
++ Your devotion to black is 5. => NounPhrase "Your devotion to black" as Subject of be; NounPhrase "5" as PredicativeComplement of be
++Clause X is your devotion to black => NounPhrase "your devotion to black" as PredicativeComplement of be
++NounPhrase your devotion to that color => PrepositionPhrase "to that color" as Complement of devotion; !PrepositionPhrase "to that color" as Modifier of devotion
++NounPhrase your devotion to each color and each combination of colors => PrepositionPhrase "to each color and each combination of colors" as Complement of devotion; !PrepositionPhrase "to each color and each combination of colors" as Modifier of devotion
+*NounPhrase your devotion to legendary
+*NounPhrase your devotion to black and legendary
++ Target spell or permanent becomes black. => AdjectivePhrase "black" as PredicativeComplement of become
++KeywordPhrase Protection from black

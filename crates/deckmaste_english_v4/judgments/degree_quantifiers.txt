@@ -1,0 +1,17 @@
+# Degree quantifiers "that much" and "that many" as determiner phrases heading a quantified noun phrase, with number and countability agreement
++ Whenever a noncreature source you control deals damage, you gain that much life. => DeterminerPhrase "that much" as Determiner of life; NounPhrase "that much life"
++ Whenever this creature deals damage, you gain that much life. => DeterminerPhrase "that much" as Determiner of life; NounPhrase "that much life"
++ Whenever this creature deals combat damage to a player, that player mills that many cards. => DeterminerPhrase "that many" as Determiner of card; NounPhrase "that many cards"
++ Whenever enchanted creature deals damage, this Aura deals that much damage to that creature. => DeterminerPhrase "that much" as Determiner of damage; NounPhrase "that much damage"
++ Whenever this creature is dealt damage, it deals that much damage to you. => DeterminerPhrase "that much" as Determiner of damage; NounPhrase "that much damage"
++NounPhrase that many cards => DeterminerPhrase "that many"; readings 1
++NounPhrase that much life => DeterminerPhrase "that much"; readings 1
++NounPhrase that much damage => DeterminerPhrase "that much"; readings 1
++DeterminerPhrase that many => readings 1
++DeterminerPhrase that much => readings 1
+*NounPhrase that many card
+*NounPhrase that many life
+*NounPhrase that much cards
+*NounPhrase that much creature
+*NounPhrase that all cards
+*NounPhrase those much life

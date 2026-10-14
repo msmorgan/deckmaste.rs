@@ -1,0 +1,24 @@
+# A card's Shortened Name is in scope only on that card's own text [CR#201.5c]; subtype nouns on type lines; full card names with "and" as one name
+* Chandra deals 2 damage to any target.
+* Jace draws two cards.
+* Ajani deals 2 damage to any target.
+* Gandalf deals 2 damage to any target.
+* Niv-Mizzet deals 1 damage to any target.
++ <card=Chandra, Pyromaster> Chandra deals 2 damage to any target. => NounPhrase "Chandra" as Subject of deal
++ <card=Jace, Cunning Castaway> Jace draws two cards. => NounPhrase "Jace" as Subject of draw
++ <card=Ajani Vengeant> Ajani deals 2 damage to any target. => NounPhrase "Ajani" as Subject of deal
++ <card=Gandalf the Grey> Gandalf deals 2 damage to any target. => NounPhrase "Gandalf" as Subject of deal
++ <card=Niv-Mizzet, Parun> Niv-Mizzet deals 1 damage to any target. => NounPhrase "Niv-Mizzet" as Subject of deal
++ Search your library for a Chandra planeswalker card.
++ Legendary Planeswalker — Chandra
++ Creature — Human Wizard
++ Artifact — Junk
++ Battle — Siege
++ Enchantment — Aura
++ Basic Land — Forest
++ Instant — Arcane
+* Creature — Humans
+* Creature — non-Human
+* Creature — human
++ Aang and Katara enter. => NounPhrase "Aang and Katara" as Subject of enter
++VerbPhrase named Wasp

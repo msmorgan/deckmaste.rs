@@ -1,0 +1,12 @@
+# Agreement of coordinated subjects with a singular determiner, relative-clause attachment to a coordinated nominal, and loyalty costs
++ −2: Draw a card.
++ +2: Draw a card.
++ 0: Draw a card.
++ Slivers can't be blocked by Walls. => PrepositionPhrase "by Walls" as Complement of block
++ Slivers can't be blocked except by Slivers.
+*Each creature and planeswalker that are tapped gains flying.
++NounPhrase each creature and planeswalker they control => RelativeClause "they control" gap "planeswalker" || RelativeClause "they control" gap "creature and planeswalker"; readings 2
+*One creature and planeswalker you control gain flying.
++ <card=Spore Cloud> Each attacking creature and each blocking creature doesn't untap during its controller's next untap step.
+* <card=Spore Cloud> Each attacking creature and each blocking creature don't untap during its controller's next untap step.
+*Each creature and each player gain flying.

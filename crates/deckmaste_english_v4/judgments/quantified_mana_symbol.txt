@@ -1,0 +1,14 @@
+# A quantified mana or energy symbol as a noun phrase object (six {G}, that many {E}, one or more {E})
++NounPhrase one or more {E}
++NounPhrase six {G}
++NounPhrase seven {R}
++NounPhrase that much {G}
++NounPhrase that many {E}
++NounPhrase eight {E}
++ <card=Castle Garenbrig> {2}{G}{G}, {T}: Add six {G}. => NounPhrase "six {G}" as Object of add
++ <card=Irencrag Feat> Add seven {R}. => NounPhrase "seven {R}" as Object of add
++ <card=Sakiko, Mother of Summer> Whenever a creature you control deals combat damage to a player, add that much {G}. => NounPhrase "that much {G}" as Object of add
++ <card=Sphinx of the Revelation> Whenever you gain life, you get that many {E}. => NounPhrase "that many {E}" as Object of get
++ <card=Pia Nalaar, Chief Mechanic> At the beginning of your end step, you may pay one or more {E}. => NounPhrase "one or more {E}" as Object of pay
++ Add {G}{G}{G}.
++ You get {E}{E}.

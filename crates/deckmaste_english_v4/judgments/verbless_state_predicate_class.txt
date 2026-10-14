@@ -1,0 +1,41 @@
+# State adjectives and participles as verbless complements of while/if (This creature attacks while tapped), and be + participle ambiguity
++ This creature attacks while saddled. => PrepositionPhrase "while saddled" as Adjunct of attack
++ This creature attacks while prepared. => PrepositionPhrase "while prepared" as Adjunct of attack
++ This creature attacks while tapped. => PrepositionPhrase "while tapped" as Adjunct of attack
++ This creature attacks while untapped. => PrepositionPhrase "while untapped" as Adjunct of attack
++ This creature attacks while blocked. => PrepositionPhrase "while blocked" as Adjunct of attack
++ This creature attacks while crewed. => PrepositionPhrase "while crewed" as Adjunct of attack
++ This creature attacks while exiled. => PrepositionPhrase "while exiled" as Adjunct of attack
++ This creature attacks while equipped. => PrepositionPhrase "while equipped" as Adjunct of attack
++ This creature attacks while enchanted. => PrepositionPhrase "while enchanted" as Adjunct of attack
++ This creature attacks while suspended. => PrepositionPhrase "while suspended" as Adjunct of attack
++ This creature attacks while haunted. => PrepositionPhrase "while haunted" as Adjunct of attack
++ This creature attacks while unblocked. => PrepositionPhrase "while unblocked" as Adjunct of attack
++ This creature attacks while unspent. => PrepositionPhrase "while unspent" as Adjunct of attack
++ This creature attacks while red. => PrepositionPhrase "while red" as Adjunct of attack
++ This creature attacks while monocolored. => PrepositionPhrase "while monocolored" as Adjunct of attack
++ This creature attacks while legendary. => PrepositionPhrase "while legendary" as Adjunct of attack
++ This creature gets +1/+1 while saddled. => PrepositionPhrase "while saddled" as Adjunct of get
++PrepositionPhrase while saddled
++PrepositionPhrase if saddled
++PrepositionPhrase while tapped
++PrepositionPhrase if tapped
++PrepositionPhrase while crewed
++PrepositionPhrase if crewed
++PrepositionPhrase while equipped
++PrepositionPhrase if equipped
++PrepositionPhrase while haunted
++PrepositionPhrase if haunted
++PrepositionPhrase while unblocked
++PrepositionPhrase if unblocked
++PrepositionPhrase while unspent
++PrepositionPhrase if unspent
++PrepositionPhrase while red
++PrepositionPhrase if red
++PrepositionPhrase while monocolored
++PrepositionPhrase if monocolored
++PrepositionPhrase while legendary
++PrepositionPhrase if legendary
+*PrepositionPhrase while greater
+*PrepositionPhrase while less
++ This creature is haunted. => AdjectivePhrase "haunted" as PredicativeComplement of be || VerbPhrase "haunted" as Complement of be; readings 2

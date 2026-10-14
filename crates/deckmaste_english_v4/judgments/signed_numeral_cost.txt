@@ -1,0 +1,6 @@
+# Loyalty-cost abilities with a signed numeral cost
++ <card=Ob Nixilis, the Hate-Twisted> −2: Destroy target creature.
++ <card=Kiora, Behemoth Beckoner> −1: Untap target permanent.
++ <card=Arlinn, Voice of the Pack> −2: Create a 2/2 green Wolf creature token.
++ <card=Jiang Yanggu, Wildcrafter> −1: Put a +1/+1 counter on target creature.
++ <card=Teyo, the Shieldmage> −2: Create a 0/3 white Wall creature token with defender. => PrepositionPhrase "with defender" as Modifier of token

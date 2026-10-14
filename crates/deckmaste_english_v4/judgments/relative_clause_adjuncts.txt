@@ -1,0 +1,3 @@
+# Prepositional adjunct after a contact relative clause: attachment to the matrix verb or to the relative clause's verb
++ <card=Seedborn Muse> Untap all permanents you control during each other player's untap step. => RelativeClause "you control" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of untap || PrepositionPhrase "during each other player's untap step" as Adjunct of control
++RelativeClause you control during each other player's untap step

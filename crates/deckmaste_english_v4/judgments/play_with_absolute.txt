@@ -1,0 +1,17 @@
+# "play with <NP> revealed": a with-absolute clause selected as a complement of "play", as opposed to a free with-adjunct of other verbs
++ <card=Telepathy> Your opponents play with their hands revealed. => PrepositionPhrase "with their hands revealed" as Complement of play; NounPhrase "their hands"; !PrepositionPhrase "with their hands revealed" as Adjunct of play
++ <card=Enduring Renewal> Play with your hand revealed. => PrepositionPhrase "with your hand revealed" as Complement of play; NounPhrase "your hand"; !PrepositionPhrase "with your hand revealed" as Adjunct of play
++ <card=Field of Dreams> Players play with the top card of their libraries revealed. => PrepositionPhrase "with the top card of their libraries revealed" as Complement of play; NounPhrase "the top card of their libraries"
++ <card=Future Sight> Play with the top card of your library revealed. => PrepositionPhrase "with the top card of your library revealed" as Complement of play; NounPhrase "the top card of your library"
++ <card=Sen Triplets> This turn, that player can't cast spells or activate abilities and plays with their hand revealed. => PrepositionPhrase "with their hand revealed" as Complement of play; NounPhrase "their hand"
++VerbPhrase <card=Stromgald Spy> have defending player play with their hand revealed => PrepositionPhrase "with their hand revealed" as Complement of play; NounPhrase "their hand"
++ You may play that card.
++ Play lands.
++ Players can't play lands.
++ Players attack.
++ You may look at that card with it revealed.
++ Players attack with their hands revealed. => PrepositionPhrase "with their hands revealed" as Adjunct of attack
++ It enters with a +1/+1 counter on it.
++ <card=Play with Fire> Play with Fire deals 2 damage to any target. => NounPhrase "Play with Fire" as Subject of deal
+*VerbPhrase play with able
+*VerbPhrase play with their hands revealing

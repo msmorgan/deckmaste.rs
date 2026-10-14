@@ -1,0 +1,11 @@
+# "last turn" as a temporal adjunct noun phrase of the clause, not an object or subject
++ <card=First Response> At the beginning of each upkeep, if you lost life last turn, create a 1/1 white Soldier creature token. => NounPhrase "last turn" as Adjunct of lose; !NounPhrase "last turn" as Object of lose
++ <card=Lambholt Elder> At the beginning of each upkeep, if no spells were cast last turn, transform this creature. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
++ <card=Silverpelt Werewolf> At the beginning of each upkeep, if a player cast two or more spells last turn, transform this creature. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
++ <card=Call of the Full Moon> At the beginning of each upkeep, if a player cast two or more spells last turn, sacrifice this Aura. => NounPhrase "last turn" as Adjunct of cast; !NounPhrase "last turn" as Object of cast
++ <card=Feast on the Fallen> At the beginning of each upkeep, if an opponent lost life last turn, put a +1/+1 counter on target creature you control. => NounPhrase "last turn" as Adjunct of lose; !NounPhrase "last turn" as Object of lose
++NounPhrase last turn
++AdjectivePhrase last
++NounPhrase the last time
++NounPhrase your last turn
++NounPhrase the last card

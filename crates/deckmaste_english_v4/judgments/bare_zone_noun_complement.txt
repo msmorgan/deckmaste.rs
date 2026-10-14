@@ -1,0 +1,24 @@
+# Zone nouns (hand, exile) as bare complements of in, from and into, and the cross-head attachment of a source phrase after a relative clause
++ <card=Sea Gate Wreckage> Activate only if you have no cards in hand. => PrepositionPhrase "in hand"
++ <card=Norin, Swift Survivalist> You may play that card from exile this turn. => PrepositionPhrase "from exile"
++ <card=Wild-Magic Sorcerer> The first spell you cast from exile each turn has cascade. => PrepositionPhrase "from exile"
++NounPhrase the first spell you cast from exile => PrepositionPhrase "from exile" as Adjunct of cast; RelativeClause "you cast from exile" || PrepositionPhrase "from exile" as Modifier of spell; RelativeClause "you cast"
++ <card=Umbris, Fear Manifest> Umbris gets +1/+1 for each card your opponents own in exile. => PrepositionPhrase "in exile"
++ <card=Ennis, Debate Moderator> At the beginning of your end step, if one or more cards were put into exile this turn, put a +1/+1 counter on Ennis. => PrepositionPhrase "into exile"
++PrepositionPhrase in hand
++PrepositionPhrase from exile
++PrepositionPhrase in exile
++PrepositionPhrase into exile
++VerbPhrase put into exile
+*PrepositionPhrase of hand
+*PrepositionPhrase to hand
+*PrepositionPhrase from graveyard
+*PrepositionPhrase in library
+*PrepositionPhrase in top of your library
+*VerbPhrase put into graveyard
+*VerbPhrase put into top of your library
++PrepositionPhrase in your hand
++PrepositionPhrase from your graveyard
++PrepositionPhrase into a graveyard
++PrepositionPhrase in their graveyards
++PrepositionPhrase on top of your library

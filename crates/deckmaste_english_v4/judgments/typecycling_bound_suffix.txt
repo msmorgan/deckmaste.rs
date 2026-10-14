@@ -1,0 +1,21 @@
+# Typecycling keywords (Swampcycling, Wizardcycling, landcycling) and plain Cycling
++KeywordPhrase Swampcycling {2}
++KeywordPhrase Plainscycling {2}
++KeywordPhrase Wizardcycling {2}
++KeywordPhrase Forestcycling {1}
++KeywordPhrase Mountaincycling {1}
++KeywordPhrase Islandcycling {1}
++KeywordPhrase Wizardcycling {3}
++KeywordPhrase Slivercycling {3}
++KeywordPhrase Halflingcycling {4}
++KeywordPhrase landcycling {1}
++KeywordPhrase Swampwalk
++KeywordPhrase Cycling {2}
++KeywordPhrase Cycling {1}
++KeywordPhrase Cycling {1}{W}
+* Wizardwalk
+* Sliverwalk
++ Artifactcycling {2}
++ Equipmentcycling {2}
+* Swampscycling {2}
+* SwampCycling {2}

@@ -1,0 +1,25 @@
+# Scalar property nouns (mana value, power, toughness) with a dependent value, and with-phrases that postmodify the target nominal
++NounPhrase mana value X
++NounPhrase mana value 1
++NounPhrase mana value 2 or less
++NounPhrase mana value 2
++NounPhrase power 3 or less
++NounPhrase power 3
++NounPhrase power 4 or greater
++NounPhrase power 4
++NounPhrase toughness 4 or greater
++NounPhrase toughness 4
++ Destroy target creature with mana value X. => PrepositionPhrase "with mana value X" as Modifier of creature; NounPhrase "mana value X"
++ Counter target spell with mana value 1. => PrepositionPhrase "with mana value 1" as Modifier of spell; NounPhrase "mana value 1"
++ Destroy target creature with mana value 2 or less. => PrepositionPhrase "with mana value 2 or less" as Modifier of creature; NounPhrase "mana value 2 or less"
++ {T}: Tap target creature with power 3 or less. => PrepositionPhrase "with power 3 or less" as Modifier of creature; NounPhrase "power 3 or less"
++ Destroy all creatures with power 4 or greater. => PrepositionPhrase "with power 4 or greater" as Modifier of creature; NounPhrase "power 4 or greater"
++ Destroy target creature with toughness 4 or greater. => PrepositionPhrase "with toughness 4 or greater" as Modifier of creature; NounPhrase "toughness 4 or greater"
+*NounPhrase creature 2
+*NounPhrase mana 2
+*NounPhrase mana values 2
++PrepositionPhrase with mana value X => NounPhrase "mana value X"
++PrepositionPhrase with mana value 1 => NounPhrase "mana value 1"
++PrepositionPhrase with power 3 => NounPhrase "power 3"
++PrepositionPhrase with mana value 2 or less => NounPhrase "mana value 2 or less"
++PrepositionPhrase with power 4 or greater => NounPhrase "power 4 or greater"

@@ -1,0 +1,12 @@
+# Negation inside a to-infinitival complement (choose not to untap), with its temporal adjunct attaching to either verb
++ <card=Rust Tick> You may choose not to untap this creature during your untap step. => Clause "not to untap this creature" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of choose || Clause "not to untap this creature during your untap step" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of untap
++ <card=Amber Prison> You may choose not to untap this artifact during your untap step. => Clause "not to untap this artifact" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of choose || Clause "not to untap this artifact during your untap step" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of untap
++ <card=Ice Floe> You may choose not to untap this land during your untap step. => Clause "not to untap this land" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of choose || Clause "not to untap this land during your untap step" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of untap
++ <card=Rubinia Soulsinger> You may choose not to untap Rubinia Soulsinger during your untap step. => Clause "not to untap Rubinia Soulsinger" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of choose || Clause "not to untap Rubinia Soulsinger during your untap step" as Complement of choose; PrepositionPhrase "during your untap step" as Adjunct of untap
++ You may untap this creature during your untap step.
++ This creature doesn't untap during your untap step.
++ You may choose new targets for the copy.
++VerbPhrase choose not to untap this creature => Clause "not to untap this creature" as Complement of choose
++Clause not to untap this creature
+*VerbPhrase not choose to untap this creature
+*VerbPhrase choose not untap this creature

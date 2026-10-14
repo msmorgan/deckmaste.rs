@@ -1,0 +1,10 @@
+# Bare status nominals (Equipped creature, enchanted land) without a determiner, and possessive genitives ('s) on a quantified possessor
++NounPhrase Equipped creature => VerbPhrase "Equipped" as Modifier of creature
++NounPhrase enchanted land => VerbPhrase "enchanted" as Modifier of land
++NounPhrase Enchanted land => VerbPhrase "Enchanted" as Modifier of land
++NounPhrase target enchanted creature => VerbPhrase "enchanted" as Modifier of creature
+*NounPhrase red creature
++NounPhrase each other player's untap step => NounPhrase "each other player's" as Determiner of "untap step"; NounPhrase "each other player"; !AdjectivePhrase "untap" as Modifier of step
+*NounPhrase you's untap step
+*NounPhrase its's untap step
+*NounPhrase the players's untap step

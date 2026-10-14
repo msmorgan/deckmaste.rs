@@ -1,0 +1,17 @@
+# Comparative quantifier determinatives (more, fewer, less) with a than-complement, agreeing with count/mass heads
++ <card=Sunstar Expansionist> When this creature enters, if an opponent controls more lands than you, create a Lander token. => NounPhrase "more lands than you" as Object of control
++ <card=Okina Nightwatch> As long as you have more cards in hand than each opponent, this creature gets +3/+3. => NounPhrase "more cards in hand than each opponent" as Object of have
++ <card=Unified Will> Counter target spell if you control more creatures than that spell's controller. => NounPhrase "more creatures than that spell's controller" as Object of control
++ <card=Even the Odds> Cast this spell only if you control fewer creatures than each opponent. => NounPhrase "fewer creatures than each opponent" as Object of control
++ <card=Survival Cache> You gain 2 life. Then if you have more life than an opponent, draw a card. => NounPhrase "more life than an opponent" as Object of have
++NounPhrase less life than an opponent
++NounPhrase more lands than you
+*NounPhrase more creature than you
+*NounPhrase fewer life than you
+*NounPhrase less lands than you
+*NounPhrase the more lands than you
+*NounPhrase a more life than you
+*NounPhrase more lands as you
++NounPhrase more than two lands => DeterminerPhrase "more than two" as Determiner of land
++NounPhrase a card with the same name as that card
++ Its power is greater than its toughness.

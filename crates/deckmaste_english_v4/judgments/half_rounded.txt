@@ -1,0 +1,16 @@
+# The fraction "half" as a predeterminer of a definite noun phrase, with a following "rounded up/down" participial supplement
++ <card=Grievous Wound> Whenever enchanted player is dealt damage, they lose half their life, rounded up. => NounPhrase "half their life" as Object of lose; NounPhrase "their life"; VerbPhrase "rounded up"
++ <card=Cut Your Losses> Target player mills half their library, rounded down. => NounPhrase "half their library" as Object of mill; NounPhrase "their library"; VerbPhrase "rounded down"; Clause "Target player mills half their library"
++ <card=Endless Ranks of the Dead> At the beginning of your upkeep, create X 2/2 black Zombie creature tokens, where X is half the number of Zombies you control, rounded down. => NounPhrase "half the number of Zombies you control"; NounPhrase "the number of Zombies you control"; VerbPhrase "rounded down"; Clause "X is half the number of Zombies you control"
++ <card=The Endstone> At the beginning of your end step, your life total becomes half your starting life total, rounded up. => NounPhrase "half your starting life total"; NounPhrase "your starting life total"; VerbPhrase "rounded up"
++ <card=Heartless Hidetsugu> {T}: Heartless Hidetsugu deals damage to each player equal to half that player's life total, rounded down. => NounPhrase "half that player's life total"; NounPhrase "that player's life total"; VerbPhrase "rounded down"; Clause "Heartless Hidetsugu deals damage to each player equal to half that player's life total"
++ <card=Malignus> Malignus's power and toughness are each equal to half the highest life total among your opponents, rounded up. => NounPhrase "half the highest life total among your opponents"; NounPhrase "the highest life total among your opponents"; VerbPhrase "rounded up"; Clause "Malignus's power and toughness are each equal to half the highest life total among your opponents"
++ That player loses half their life. => NounPhrase "half their life" as Object of lose
++NounPhrase half that player's life total => NounPhrase "that player's life total"
++ It deals double that damage instead.
++ Copy that spell twice.
++ Put twice that many +1/+1 counters on it.
++ Prevent double that damage.
++NounPhrase half your life
++Clause You lose half your life, rounded up => VerbPhrase "rounded up"
++ Pay half your life, rounded up => NounPhrase "half your life" as Object of pay; VerbPhrase "rounded up"

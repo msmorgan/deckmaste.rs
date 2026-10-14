@@ -1,0 +1,213 @@
+# Core clause, noun phrase, coordination, number, and keyword-line grammar of Oracle text
++ Draw cards.
++ You draw cards.
++ Each creature attacks.
++ Those creatures attack.
++ Draw cards from them.
++ If you draw cards, draw cards.
++ Draw cards. If you do, draw cards.
++ If you do, draw cards.
++ Creatures that attack draw cards. => RelativeClause "that attack" gap "Creatures"
++ Creatures you control attack. => RelativeClause "you control" gap "Creatures"
++ Creatures that you control attack. => RelativeClause "that you control" gap "Creatures"
++ Creatures you draw and discard attack. => RelativeClause "you draw and discard" gap "Creatures"
++ You and they draw cards.
++ You may draw cards.
++ Cards are drawn.
++ Cards have been drawn.
++ Target creature attacks.
++ Target white creatures attack.
+* Each creatures attack.
+* Those creature attacks.
+* Creatures attacks.
+* You draws cards.
+* Them draw cards.
+* Draw they.
+* Draw cards from they.
+* Creatures that attacks draw cards.
+* Creatures you controls attack.
+* Draw.
+* You may draws cards.
+* White target creatures attack.
+* .
+* If you do, .
+* Draw cards and .
++Nominal artifact named Powerstone Shard => VerbPhrase "named Powerstone Shard" as Modifier of artifact
++VerbPhrase named Powerstone Shard
++Nominal defending player
+*Nominal defend player
+*Nominal defends player
+*Nominal defending target player
++NounPhrase target defending player
++ Defending players attack.
++PrepositionPhrase in addition
++PrepositionPhrase in addition to other types
++NounPhrase the game
++NounPhrase games
++Clause no mana was spent
++ Artifacts named Powerstone Shard attack. => VerbPhrase "named Powerstone Shard" as Modifier of artifact
+*NounPhrase game
+*NounPhrase much game
+*Clause no mana was spended
++Nominal amount of {G}
++NounPhrase the amount of {G}
++NounPhrase amounts of {G}
++NounPhrase the amount of {G}{G}
++ Add the amount of {G}.
+*Nominal amount of
+*Nominal amount {G}
+*Nominal amount of {G}/
+*Nominal amount of {}
+*Nominal amount of {{G}}
+*NounPhrase much amount of {G}
++Clause you do
++ Draw two cards.
++ Draw thirteen cards.
++ Draw 1,000 cards.
++ Draw X cards.
++ Two creatures attack.
++ Two target creatures attack.
++ You gain 3 life.
++ You gain life equal to 3.
++ Surveil 2.
++ Surveil X.
++ Surveil 2 plus 2.
++ Creatures with power 3 attack.
++ Your maximum hand size is increased by two.
++ You gain X plus 3 life.
+* Draw two card.
+* Draw 2 cards.
+* Draw II cards.
+* Draw X card.
+* You gain three life.
+* Surveil two.
+* Surveil II.
+* Surveil 1000.
+* You gain life equal than 3.
+* You gain life greater to 3.
++AdjectivePhrase second
++ 1,000 minus X
+* 1000
++ Gain 1 life. => readings 1
++ +3/-2
++ 1/1
++ X/X
++ +3/+3
++ +X/-X
++ -0/+0
++ 0/1
++ 1,000/2
+* 1/
+* /1
+* 1/1/1
+* +-3/2
+* --3/2
+* 3/++2
+* 1 /1
+* 1/ 1
+* one/one
+* */*
+* 1000/2
++NounPhrase X 1/1 tokens => DeterminerPhrase "X" as Determiner of token
++NounPhrase X X/X tokens => DeterminerPhrase "X" as Determiner of token
++NounPhrase two +1/-1 creatures => DeterminerPhrase "two" as Determiner of creature
++ Target creature gets +3/+3.
++ Creatures get -1/-1.
+*NounPhrase X1/1 tokens
+*NounPhrase X 1/1/1 tokens
+* Target creature gets 3.
++VerbPhrase get +3/-2
++AdjectivePhrase equal to 2 => PrepositionPhrase "to 2" as Complement of equal
++AdjectivePhrase equal
+*AdjectivePhrase equal than 2
++AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of greater
++ Flying
++ Flying, vigilance; haste
++ Ward {2}{U}
++ Frenzy 2
++ Flying (Draw cards.)
++ {T}: Draw cards.
++ {2}{U}, Discard cards: Draw cards. Draw cards.
++ Landfall — If you draw cards, draw cards.
++ Draw cards. (Discard cards.) Draw cards.
++ Creatures have flying.
++ Creatures gain ward {2}.
++ Creatures have "Draw cards."
++ Creatures have "{T}: Draw cards."
++ Ward
++ Frenzy
+* Flying 2
+* Flying {2}
+* Ward two
+* Landfall
+* {two}: Draw cards.
+* {P}: Draw cards.
+* : Draw cards.
+* {T}, : Draw cards.
+* Flying, 
+* ()
+* Creatures have “Draw cards.".
++ Flying; ward {2}{T}
++KeywordPhrase ward
++ Spells that target target creatures attack. => RelativeClause "that target target creatures" gap "Spells"; NounPhrase "target creatures" as Object of target
++ Target creatures attack.
+* Spells that targets creatures attack.
++ Instant
++ Artifact Creature — Golem
++ Basic Snow Land — Island
++ Legendary Artifact Creature — Human Wizard
++ Enchantment Creature — Human Soldier
++ Kindred Instant — Elf
++ Battle — Siege
+* Legendary
+* Legendary — Elf
+* Creature Legendary — Elf
+* Elf — Creature
+* Creature —
+* Creature — Legendary
+* Creature Elf
+* creature — Elf
+* Creature - Elf
+* Creature — NoSuchSubtype
++Nominal amount equal to 2 => AdjectivePhrase "equal to 2" as Modifier of amount
+*NounPhrase an equal to 2 amount
++NounPhrase an amount equal to 2
++NounPhrase a white creature
+*NounPhrase a creature white
++NounPhrase the creature on the battlefield => PrepositionPhrase "on the battlefield" as Modifier of creature
++ Draw creatures on the battlefield.
++ You are on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
++ Cards are in the graveyard. => PrepositionPhrase "in the graveyard" as Complement of be
++ You aren't on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
++ Be on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
++PrepositionPhrase until you draw cards => Clause "you draw cards" as Complement of until
++PrepositionPhrase before you draw cards => Clause "you draw cards" as Complement of before
++PrepositionPhrase after you draw cards => Clause "you draw cards" as Complement of after
++PrepositionPhrase whenever you draw a card => Clause "you draw a card" as Complement of whenever
++PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
++PrepositionPhrase when you draw cards => Clause "you draw cards" as Complement of when
+*PrepositionPhrase with you draw cards
+*PrepositionPhrase that you draw cards
+*PrepositionPhrase whether you draw cards
+*PrepositionPhrase until draw cards
++ Until you draw cards, draw cards.
++Nominal creatures that attack => RelativeClause "that attack" gap "creatures"
++ You attack and they attack.
++ You attack, and they attack.
++ Draw cards, discard cards, and gain life.
++ You draw cards, discard cards, and gain life.
++ You and they attack.
++ You, they, and creatures attack.
++ Cards, creatures, artifacts, and lands are legendary.
++ Draw cards, creatures, and artifacts.
+* You, they, and creatures attacks.
+* Draw cards, creatures, and they.
+* You draws cards, discard cards, and gain life.
+* Draw cards, discard cards, and.
+* You draw cards, discard cards and gain life.
+* Draw cards, creatures or artifacts.
+* You attack, they attack and creatures attack.
++NounPhrase cards, creatures, artifacts, and lands => NounPhrase "creatures" || Nominal "cards, creatures, artifacts, and lands"
++Clause Draw cards
++Clause Cards are drawn
++ Cards are being drawn.

@@ -1,0 +1,14 @@
+# Cause as a complex-transitive verb: an Object noun phrase plus a to-infinitival Complement; relative clauses after coordinated or of-modified nominals keep their attachment ambiguity
++ Creatures entering don't cause abilities to trigger. => NounPhrase "abilities" as Object of cause; Clause "to trigger" as Complement of cause
++ Spells and abilities your opponents control can't cause you to sacrifice permanents. => NounPhrase "you" as Object of cause; Clause "to sacrifice permanents" as Complement of cause; NounPhrase "Spells and abilities your opponents control"; RelativeClause "your opponents control" gap "Spells and abilities" || NounPhrase "you" as Object of cause; Clause "to sacrifice permanents" as Complement of cause; NounPhrase "Spells and abilities your opponents control"; RelativeClause "your opponents control" gap "abilities"
++ When a spell or ability an opponent controls causes you to discard this card, return it to your hand. => NounPhrase "you" as Object of cause; Clause "to discard this card" as Complement of cause; NounPhrase "a spell or ability an opponent controls"; RelativeClause "an opponent controls" gap "spell or ability" || NounPhrase "you" as Object of cause; Clause "to discard this card" as Complement of cause; NounPhrase "a spell or ability an opponent controls"; RelativeClause "an opponent controls" gap "ability"
++ A player losing unspent mana causes that player to lose that much life. => NounPhrase "that player" as Object of cause; Clause "to lose that much life" as Complement of cause
++ If a creature dying causes a triggered ability of a permanent you control to trigger, that ability triggers an additional time. => NounPhrase "a triggered ability of a permanent you control" as Object of cause; Clause "to trigger" as Complement of cause; RelativeClause "you control" gap "permanent" || NounPhrase "a triggered ability of a permanent you control" as Object of cause; Clause "to trigger" as Complement of cause; RelativeClause "you control" gap "triggered ability of a permanent"
++ You may have it gain flying until end of turn.
++ You may have that player discard a card.
++ That ability triggers an additional time.
++ Target opponent chooses to sacrifice a creature.
++ Creatures entering have haste.
+*VerbPhrase cause abilities trigger
+*VerbPhrase cause abilities to triggers
++VerbPhrase cause abilities to trigger => NounPhrase "abilities" as Object of cause; Clause "to trigger" as Complement of cause; readings 1

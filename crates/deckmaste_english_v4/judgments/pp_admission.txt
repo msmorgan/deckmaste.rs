@@ -1,0 +1,11 @@
+# Prepositional phrases: of-PP as a nominal complement, selected extent and locative complements, and no detached "of" adjunct in "any number of"
++PrepositionPhrase of creatures => NounPhrase "creatures" as Complement of of
++Nominal creatures of creatures => PrepositionPhrase "of creatures" as Modifier of creature
++ Draw cards from them.
++ Until you draw cards, draw cards.
++ Your maximum hand size is increased by two. => PrepositionPhrase "by two" as Complement of increase
++ You gain X plus 3 life.
++Clause this creature remains on the battlefield => PrepositionPhrase "on the battlefield" as Complement of remain
++Nominal number of creatures => PrepositionPhrase "of creatures" as Complement of number
++ Distribute four +1/+1 counters among any number of target creatures. => !PrepositionPhrase "of target creatures" as Adjunct of distribute
++ Distribute X +1/+1 counters among any number of target creatures you control. => !PrepositionPhrase "of target creatures you control" as Adjunct of distribute

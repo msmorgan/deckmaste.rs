@@ -1,0 +1,12 @@
+# Bounded cardinal "at least N" as a determiner of its nominal, with number agreement following the cardinal
++ <card=Sokka, Lateral Strategist> Whenever Sokka and at least one other creature attack, draw a card. => NounPhrase "Sokka and at least one other creature" as Subject of attack; DeterminerPhrase "at least one" as Determiner of creature
++ <card=Glimmer Lens> Whenever equipped creature and at least one other creature attack, draw a card. => NounPhrase "equipped creature and at least one other creature" as Subject of attack; DeterminerPhrase "at least one" as Determiner of creature
++ <card=Svyelun of Sea and Sky> Svyelun has indestructible as long as you control at least two other Merfolk. => NounPhrase "at least two other Merfolk" as Object of control; DeterminerPhrase "at least two" as Determiner of Merfolk
++ <card=Renegade Reaper> If at least one Angel card is milled this way, you gain 4 life. => NounPhrase "at least one Angel card"; DeterminerPhrase "at least one" as Determiner of card
++ <card=Synchronized Eviction> This spell costs {2} less to cast if you control at least two creatures that share a creature type. => DeterminerPhrase "at least two" as Determiner of creature; RelativeClause "that share a creature type" as Modifier of creature
++NounPhrase at least one other creature => DeterminerPhrase "at least one" as Determiner of creature; !PrepositionPhrase "at least one other creature"
++NounPhrase at least two other Merfolk => DeterminerPhrase "at least two" as Determiner of Merfolk; !PrepositionPhrase "at least two other Merfolk"
+*NounPhrase at least one other creatures
+*NounPhrase at least two other creature
++NounPhrase at least 7 life => DeterminerPhrase "at least 7" as Determiner of life
++NounPhrase at least four mana => DeterminerPhrase "at least four" as Determiner of mana

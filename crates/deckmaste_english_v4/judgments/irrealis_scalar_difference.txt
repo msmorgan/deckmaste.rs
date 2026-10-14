@@ -1,0 +1,9 @@
+# Irrealis (as though) clauses with a measured comparative predicative, and explicit scalar comparisons
++ This creature crews Vehicles as though its power were 2 greater. => Clause "its power were 2 greater"; VerbPhrase "were 2 greater"; AdjectivePhrase "2 greater" as PredicativeComplement of be; NounPhrase "2" as Modifier of greater
++ This creature saddles Mounts and crews Vehicles as though its power were 2 greater. => Clause "its power were 2 greater"; VerbPhrase "were 2 greater"; AdjectivePhrase "2 greater" as PredicativeComplement of be; NounPhrase "2" as Modifier of greater
++ Whenever one or more Vehicles you control attack, create a 1/1 colorless Pilot creature token with "This token crews Vehicles as though its power were 2 greater." => Clause "its power were 2 greater"; VerbPhrase "were 2 greater"; AdjectivePhrase "2 greater" as PredicativeComplement of be; NounPhrase "2" as Modifier of greater
++AdjectivePhrase 2 greater
++Clause its power were 2
++ Its power is greater than 2. => AdjectivePhrase "greater than 2" as PredicativeComplement of be; PrepositionPhrase "than 2" as Complement of greater
++ Destroy target creature with power 4 or greater. => PrepositionPhrase "with power 4 or greater" as Modifier of creature
++ Its power is 2 greater. => AdjectivePhrase "2 greater" as PredicativeComplement of be

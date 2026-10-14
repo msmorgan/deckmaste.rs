@@ -1,0 +1,14 @@
+# Library-position noun phrases ("the top N cards of your library", "on top of / on the bottom of a library") as objects and selected locative destinations
++VerbPhrase look at the top four cards of your library => PrepositionPhrase "at the top four cards of your library" as Complement of look; NounPhrase "the top four cards of your library"; AdjectivePhrase "top" as Modifier of card; PrepositionPhrase "of your library" as Modifier of card
++VerbPhrase reveal the top four cards of your library => NounPhrase "the top four cards of your library" as Object of reveal
++VerbPhrase exile the top two cards of your library => NounPhrase "the top two cards of your library" as Object of exile
++VerbPhrase put the rest on top of that library in any order => NounPhrase "the rest" as Object of put; PrepositionPhrase "on top of that library" as Complement of put; PrepositionPhrase "in any order"
++VerbPhrase put the rest on the bottom of your library in a random order => NounPhrase "the rest" as Object of put; PrepositionPhrase "on the bottom of your library" as Complement of put; PrepositionPhrase "in a random order"
++PrepositionPhrase on top of that library => PrepositionPhrase "of that library" as Complement of top
+* Exile top of that library.
+* Top of that library draws cards.
++VerbPhrase put target nonland permanent on top of its owner's library => PrepositionPhrase "on top of its owner's library" as Complement of put; !PrepositionPhrase "on top of its owner's library" as Adjunct of put
++VerbPhrase put target artifact or enchantment on the bottom of its owner's library => PrepositionPhrase "on the bottom of its owner's library" as Complement of put; !PrepositionPhrase "on the bottom of its owner's library" as Adjunct of put
++ Whenever a +1/+1 counter is put on this creature, you may draw a card.
++ This creature can't have counters put on it.
++ Put two +1/+1 counters on target creature and two +1/+1 counters on another target creature. => NounPhrase "two +1/+1 counters" as Object of put; NounPhrase "two +1/+1 counters"#2 as Object of put; PrepositionPhrase "on target creature" as Complement of put; PrepositionPhrase "on another target creature" as Complement of put
