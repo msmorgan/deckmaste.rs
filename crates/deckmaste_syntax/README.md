@@ -35,7 +35,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant and, when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement. A preposition with an NP
-  complement also strands.
+  complement also strands; an Intransitive Preposition heads its phrase alone.
+  Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
+  objects, so they derive no passive or Gap.
 - `Adjunct { host, adjunct, side, host_kind }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category. Same-head complement priority is derived from the frames: a PP may not

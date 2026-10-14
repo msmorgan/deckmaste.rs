@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::LoadError;
 
 /// The kind of a Subcategorization Frame, named by the shape of its slots.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum FrameFamily {
     Intransitive,
     Monotransitive,
@@ -18,13 +18,25 @@ pub enum FrameFamily {
     Prepositional,
     Copular,
     Catenative,
+    /// An object and a predicative complement, as in *turn it face up*.
+    ComplexTransitive,
+    /// An object and a non-finite complement, as in *cause you to sacrifice*.
+    ComplexCatenative,
+    /// A content clause, as in *decide whether to flip again*.
+    ContentClause,
+    /// A numeric Amount, as in *scry 2*.
+    Amount,
+    /// A Nominal followed by an Amount, as in *amass Zombies 2*.
+    NominalAmount,
+    /// A Cost, as in *waterbend {3}*.
+    Cost,
     NounComplement,
     AdjectiveComplement,
     DeterminativeComplement,
 }
 
 /// The grammatical relation a Frame Slot bears to its head.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotRelation {
     Object,
     IndirectObject,
@@ -32,14 +44,14 @@ pub enum SlotRelation {
     PredicativeComplement,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum ClauseKind {
     Finite,
     Verbless,
 }
 
 /// What fills a Frame Slot.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotFill {
     NP,
     /// A Preposition Phrase headed by one of the listed prepositions.
@@ -52,10 +64,16 @@ pub enum SlotFill {
     KeywordPhrase,
     QuotedAbility,
     Nominal,
+    /// A numeral or variable naming how many, as in *scry 2* or *scry X*.
+    Amount,
+    /// A cost to pay, as in *waterbend {3}*.
+    Cost,
+    /// No Complement: an intransitive preposition, as *out* in *phase out*.
+    Intransitive,
 }
 
 /// A [`SlotFill`] without its markers: the key a grammar maps to a Category.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotKind {
     NP,
     PP,
@@ -68,6 +86,9 @@ pub enum SlotKind {
     KeywordPhrase,
     QuotedAbility,
     Nominal,
+    Amount,
+    Cost,
+    Intransitive,
 }
 
 impl SlotFill {
@@ -85,19 +106,22 @@ impl SlotFill {
             Self::KeywordPhrase => SlotKind::KeywordPhrase,
             Self::QuotedAbility => SlotKind::QuotedAbility,
             Self::Nominal => SlotKind::Nominal,
+            Self::Amount => SlotKind::Amount,
+            Self::Cost => SlotKind::Cost,
+            Self::Intransitive => SlotKind::Intransitive,
         }
     }
 }
 
 /// One position in a Subcategorization Frame.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct FrameSlot {
     pub relation: SlotRelation,
     pub fill: SlotFill,
 }
 
 /// An ordered list of the Complements a head licenses.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct Frame {
     pub family: FrameFamily,
     pub slots: Vec<FrameSlot>,
@@ -107,7 +131,10 @@ impl Frame {
     /// Whether the slot list has the shape its family names.
     #[must_use]
     pub fn is_well_formed(&self) -> bool {
-        use SlotRelation::{Complement, IndirectObject, Object, PredicativeComplement};
+        use SlotRelation::Complement;
+        use SlotRelation::IndirectObject;
+        use SlotRelation::Object;
+        use SlotRelation::PredicativeComplement;
         let shape: Vec<_> = self.slots.iter().map(|s| (s.relation, &s.fill)).collect();
         match self.family {
             FrameFamily::Intransitive => shape.is_empty(),
@@ -131,15 +158,46 @@ impl Frame {
                     SlotFill::ToInf | SlotFill::BareInf | SlotFill::Gerund
                 )]
             ),
+            FrameFamily::ComplexTransitive => matches!(
+                shape[..],
+                [
+                    (Object, SlotFill::NP),
+                    (PredicativeComplement, SlotFill::Pred)
+                ]
+            ),
+            FrameFamily::ComplexCatenative => matches!(
+                shape[..],
+                [
+                    (Object, SlotFill::NP),
+                    (Complement, SlotFill::ToInf | SlotFill::BareInf)
+                ]
+            ),
+            FrameFamily::ContentClause => {
+                matches!(
+                    shape[..],
+                    [(Complement, SlotFill::Clause(ClauseKind::Finite))]
+                )
+            }
+            FrameFamily::Amount => matches!(shape[..], [(Complement, SlotFill::Amount)]),
+            FrameFamily::NominalAmount => matches!(
+                shape[..],
+                [
+                    (Complement, SlotFill::Nominal),
+                    (Complement, SlotFill::Amount)
+                ]
+            ),
+            FrameFamily::Cost => matches!(shape[..], [(Complement, SlotFill::Cost)]),
             FrameFamily::NounComplement
             | FrameFamily::AdjectiveComplement
-            | FrameFamily::DeterminativeComplement => matches!(shape[..], [(Complement, _)]),
+            | FrameFamily::DeterminativeComplement => {
+                matches!(shape[..], [(Complement, fill)] if *fill != SlotFill::Intransitive)
+            }
         }
     }
 }
 
 /// Which hosts an unselected Preposition Phrase may modify (its Host Category).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum Hosts {
     ComplementOnly,
     Nominal,
@@ -163,7 +221,7 @@ impl Hosts {
 }
 
 /// One complement frame of a preposition with its Host Category.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct PrepositionFrame {
     pub complement: SlotFill,
     pub hosts: Hosts,

@@ -137,7 +137,7 @@ struct Draft {
     requires_coordination: Option<usize>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 enum Path {
     Mother(usize),
     Child(usize, usize),
@@ -700,11 +700,13 @@ impl<'a> Binder<'a> {
                     Symbol::Leaf(Test::PrepositionFrame(index)),
                     GapRule::Closed,
                 );
-                draft.child(
-                    "complement",
-                    self.slot_symbol(&frame.complement)?,
-                    GapRule::Transparent,
-                );
+                if frame.complement != SlotFill::Intransitive {
+                    draft.child(
+                        "complement",
+                        self.slot_symbol(&frame.complement)?,
+                        GapRule::Transparent,
+                    );
+                }
                 drafts.push(draft);
                 if gap_capable && frame.complement == SlotFill::NP {
                     let mut stranded = Draft::new(
@@ -804,7 +806,8 @@ impl<'a> Binder<'a> {
         Ok(drafts)
     }
 
-    /// One frame's phrase and, when `gappable`, a variant per extracted NP slot.
+    /// One frame's phrase and, when `gappable`, a variant per extracted NP
+    /// slot.
     #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence_family(
         &self,
