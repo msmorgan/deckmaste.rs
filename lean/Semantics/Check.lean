@@ -5,6 +5,7 @@ import Semantics.Check.Keywords
 import Semantics.Check.Refusal
 import Semantics.Check.Events
 import Semantics.Check.Phrase
+import Semantics.Check.Queries
 import Semantics.Check.EventContext
 import Semantics.Check.PhraseRules
 import Semantics.Check.Triggers
@@ -52,7 +53,7 @@ def exploreDef (subject : NounPhrase) : Instruction :=
         .doIf
           (.matches (.pro .bare .one) (.hasType .land))
           (.move (.pro .bare .one) .anywhere (some handZone) .departure (some .anEffect) [])
-          (some (.putCounters (.lit 1) (.printed (.named "p1p1"))
+          (some (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.inCaller (.laterMention "subject" subject)) .one true))
       ]
 
@@ -73,7 +74,7 @@ def conniveDef (subject : NounPhrase) : Instruction :=
             .move (.described (.a .unmarked) (.not (.hasType .land)))
               (.zones [handZone]) (some graveyardZone) .departure (some .anEffect) [],
             .thisWay⟩)
-          (.putCounters (.lit 1) (.printed (.named "p1p1"))
+          (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.inCaller (.laterMention "subject" subject)) .one true)
           none
       ]

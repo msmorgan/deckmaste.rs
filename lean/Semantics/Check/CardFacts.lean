@@ -175,4 +175,32 @@ def Ability.generalFormOf (k : KeywordLabel) : Ability → List Ability
 def keywordBodyFits (k : KeywordLabel) (body : List Ability) : Bool :=
   (body.flatMap (Ability.generalFormOf k)).all (keywordBodyPartFits k)
 
+def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
+  match fuel, p with
+  | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
+    b.writtenTypes n
+  | _ + 1, .hasType t => [t]
+  | n + 1, .and ps => ps.foldr (fun p ts => mergeTypes (p.writtenTypes n) ts) []
+  | n + 1, .or (p :: ps) =>
+    ps.foldl (fun ts p => commonTypes ts (p.writtenTypes n)) (p.writtenTypes n)
+  | _, _ => []
+termination_by structural fuel
+
+def Predicate.writtenTypesAll (ps : List Predicate) : List CardType :=
+  ps.foldr (fun p ts => mergeTypes p.writtenTypes ts) []
+
+def combineTypeAlts (left right : List (List CardType)) : List (List CardType) :=
+  left.flatMap fun l => right.map (mergeTypes l)
+
+def Predicate.headTyAlts (p : Predicate) (fuel : Nat := 64) : List (List CardType) :=
+  match fuel, p with
+  | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ => b.headTyAlts n
+  | n + 1, .and ps =>
+    ps.foldr (fun p alts => combineTypeAlts (p.headTyAlts n) alts) [[]]
+  | n + 1, .or ps => ps.flatMap (fun p => p.headTyAlts n)
+  | _ + 1, .hasType t => [[t]]
+  | _ + 1, .hasSubtype s => [s.type.toList]
+  | _, _ => [[]]
+termination_by structural fuel
+
 end Semantics

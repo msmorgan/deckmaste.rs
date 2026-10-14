@@ -13,6 +13,11 @@ which controls if a compressed definition here ever disagrees with it.
 **Player**:
 One of the people in the game ([CR#102.1]). A Player is not an Object.
 
+**Last Known Information (LKI)**:
+Information about a specific Object as it last existed in the public Zone where an Effect
+expected it to be. An Effect uses this information when the Object has left that Zone,
+including when the Effect moved it from a public Zone to a hidden Zone ([CR#608.2h]).
+
 **Object**:
 An ability on the stack, a card, a copy of a card, a token, a spell, a
 permanent, or an emblem ([CR#109.1]).

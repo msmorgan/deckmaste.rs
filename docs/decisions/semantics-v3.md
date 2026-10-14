@@ -153,6 +153,17 @@ A referent `r ∈ drs.referents` is **accessible** to an anaphor in a consuming 
 3. `r.payload` matches the anaphor's sort, carrier-word zone (`[CR#109.2,109.2a..109.2c,110.1]`: e.g., a bare permanent type requires `.battlefield`, `spell` requires `.stack`, `card` requires a non-battlefield/non-stack zone or zone-transition readback), and `<noun>` / `<verbed>` filter; and
 4. **Consuming-verb applicability (`[CR#109.2,701.21a]`):** The consuming verb or prepositional slot can apply to `r` in `r.payload.zone` and `r.payload.kind` (e.g., a creature that died is in `.graveyard` and cannot have counters put on it as a battlefield permanent or be sacrificed; this settles *Vampiric Embrace* by `J1` before ranking runs).
 
+**Characteristic reads and Last Known Information ([CR#608.2h]):** The carrier-word zone
+restriction in item 3 describes action slots. A characteristic read such as “its power” or
+“that creature’s toughness” may also select a visible departed permanent using its last
+battlefield type information. This does not change the referent’s current zone or admit it
+as the patient of a battlefield action. Ordinary `D′` and `AC>R1` ranking still applies:
+in *Kalitas, Bloodchief of Ghet* and *Broken Visage*, “its” selects the token and
+“that creature’s” selects the destroyed creature. *Vampiric Embrace* still excludes the dead
+creature from its counter-placement action. Clarified with the owner during the proof/card
+port: this is ordinary LKI phrasing, including “Destroy target creature. You gain life equal
+to its power.”
+
 #### Stage 2: Form-Specific Resolution Gate (`J2`, `D′`, `AC>R1`, and Principle A Reflexives)
 
 - **Clause-mates (`J2`, `docs/contexts/oracle-english/CONTEXT.md`):** Referent `r` is a **clause-mate** of an anaphor iff the anaphor occupies a direct argument slot (subject, direct object, or oblique complement) of the current verb and `(r.id, _) ∈ drs.pendingRoles` (i.e., `r` was introduced or re-mentioned as a direct co-argument of the same verb in `drs.currentClause`). Possessors (`controllerOf it`, `ownerOf it`, `its power`, `"Target creature's controller"`) and objects of small clauses (`counters on it`) are **not** direct co-arguments of the matrix verb (`badItAcrossOwnSlot`, *Weeping Angel*).
@@ -171,8 +182,14 @@ A referent `r ∈ drs.referents` is **accessible** to an anaphor in a consuming 
   4. **Recency (`R1`):** Among remaining candidates, pick the most recently introduced referent (maximizing `r.id`); refuse with `Refusal.anaphor reach plur 0` only if zero candidates remain.
 - **Stamped Action-Participle Referents (`the exiled card`, `the sacrificed creature`):**
   - Filter accessible referents by `<noun>`, plurality, and `.actedOn deed` stamp; require a unique match (`count == 1`), refusing with `Refusal.anaphor reach plur count` otherwise.
-- **Required Pins for the 11 Known-Wrong `AC>R1` Sites:**
-  - Under `AC>R1`, the following 11 corpus sites resolve silently to the wrong referent and **must** be pinned in `lean/Semantics/Proofs/` as requiring an explicit selector on the card:
+- **Required Pins for the 11 Previously Measured `AC>R1` Sites:**
+  - Each of the following 11 corpus sites **must** have a named witness in
+    `lean/Semantics/Proofs/` classifying its actual v3 behavior. Prove an explicit-selector
+    correction when raw wording misresolves; prove the intended raw resolution when stable
+    introduction IDs already fix it. The owner approved this correction during the port:
+    Eriette's full attachment event resolves correctly because re-mentioning the Aura does
+    not make its introduction ID newer than the attached permanent's.
+
     1. *Tahngarth, First Mate*
     2. *Unpredictable Cyclone*
     3. *Eriette, the Beguiler*

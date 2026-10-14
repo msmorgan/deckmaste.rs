@@ -5,8 +5,8 @@ needs: [lean-v3-definitions-and-templates]
 
 **Update `lean/Semantics/Proofs/` and `lean/Semantics/Cards/` to the
 `semantics-v3` spine and clean-sheet DRT checker, prove the `D′` and `AC>R1`
-witness theorems, flip the 6 resolved ambiguity pins, and pin the 11
-known-wrong `AC>R1` corpus sites.** Fourth implementation step of
+witness theorems, flip the 6 resolved ambiguity pins, and classify and pin the 11
+previously measured `AC>R1` corpus sites.** Fourth implementation step of
 [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md) (§1.5, §4).
 Standard constraints apply.
 
@@ -27,10 +27,15 @@ Standard constraints apply.
   - Retain the 6 true-tie / out-of-reach refusal pins (`P07`, `P08`, `P09`,
     `P12`, `P15`, `P16`) as `.anaphor` refusals.
   - None of the 21 measured ambiguity pins is deleted without a named replacement.
-- **Required pins for the 11 known-wrong `AC>R1` sites:**
-  - Add explicit pins in `lean/Semantics/Proofs/` demonstrating that under
-    `AC>R1`, the raw `"that <noun>"` wording resolves to the wrong referent and
-    must be authored with an explicit selector on:
+- **Required pins for the 11 previously measured `AC>R1` sites:**
+  - Retain a named witness for each site in `lean/Semantics/Proofs/`, classifying
+    the actual v3 result. Where the raw wording selects the wrong referent,
+    prove that failure and the explicit-selector correction. Where stable
+    referent identities already select correctly, prove that raw acceptance
+    and intended referent instead. The owner approved this correction after
+    the full Eriette attachment event proved correct under v3 introduction-ID
+    recency; the older measurement counted repeated mentions as newer.
+    Required sites:
     1. *Tahngarth, First Mate*
     2. *Unpredictable Cyclone*
     3. *Eriette, the Beguiler*

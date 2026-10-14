@@ -591,6 +591,10 @@ structure DRS where
   scopeStack    : List OwnScopeFrame := []
   pendingRoles  : List (ReferentId × GramRole) := []
   resolvedIds   : List ReferentId := []
+  relativeKind  : Option Kind := none
+  relativeBinder : Option ReferentId := none
+  relativeUses  : Nat := 0
+  characteristicRead : Bool := false
   deriving DecidableEq, Repr
 
 abbrev Bindings := DRS
@@ -1173,6 +1177,15 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
       pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
     | _ => false
 
+/-- A characteristic read may name a departed permanent by its former type
+[CR#608.2h]. This changes accessibility, not the referent's current zone. -/
+def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
+  reaches r pl b || match r, b.payload with
+    | .word w, .object ty zn (some st) og _ _ =>
+      b.det != .self && pl.isOne == b.plur.isOne && st.moved &&
+        verbedWordOk w st ty zn og
+    | _, _ => false
+
 /-- Stage 2 (`J2`): whether `id` is a clause-mate co-argument in the current clause. -/
 def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
   drs.pendingRoles.any fun (pid, _) => pid == id
@@ -1188,7 +1201,8 @@ def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
 - Stamped participles (`.verbed _ _ _`) filter by `J1` and require a unique match. -/
 def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
     List Referent :=
-  let j1 := drs.visibleReferents.filter (reaches r pl)
+  let j1 := drs.visibleReferents.filter
+    (if drs.characteristicRead then reachesCharacteristic r pl else reaches r pl)
   match r with
   | .bare | .atSlot _ =>
       let cands := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
