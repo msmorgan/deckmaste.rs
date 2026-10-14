@@ -4,9 +4,7 @@
 - **Supersedes (archived in `docs/archive/decisions/`):**
   - `docs/archive/decisions/semantics-v2.md`
   - `docs/archive/decisions/oracle-text-is-forward-anaphoric.md`
-  - `docs/archive/decisions/builtin-v2-macro-spelling-and-grammar.md`
-  - `docs/archive/decisions/workbench-ron-shaped-and-label-rulings.md`
-  - `docs/archive/decisions/card-authoring-binds-no-implicits.md`
+  - `docs/archive/decisions/idris-is-a-soundness-gate.md`
 
 ---
 
@@ -58,7 +56,7 @@ The following Idris-ported structures and passes are **deleted** from `lean/Sema
 - The nine hand-coded window macros in `lean/Semantics/Macros.lean` (`itPrior`, `itCondSubject`, `attachToIt`, `requireBlockIt`, `agentRef`, `itsOther`, `ownSubject`, `controllerSacrifices`, `lookedCards`).
 - The `MoveProfile` and `StepProfile` pre-passes that pre-computed positional stack shifts before stepping instructions.
 
-### 1.2 Discourse Referents (`ReferentId`, `Referent`, `DRS`)
+### 1.2 Discourse Referents (`ReferentId`, `Referent`, `OwnScopeFrame`, `DRS`)
 
 Every mention that introduces an entity, quantity, choice, or outcome into discourse creates a `Referent` with a stable `ReferentId` in the current Discourse Representation Structure (`DRS`):
 
@@ -82,24 +80,33 @@ structure Referent where
   payload         : Payload          -- One of the 7 non-retired Payload variants (.object, .player, .outcome, .pile, .quality, .letter, .turnRef)
   deriving DecidableEq, Repr
 
+structure OwnScopeFrame where
+  preEntryIds  : List ReferentId     -- Immutable snapshot of all ReferentIds present before entering this ownScope
+  maskedIds    : List ReferentId     -- Currently masked ReferentIds in this ownScope (preEntryIds minus performer and unmasked parameter IDs)
+  callerClause : Nat                 -- Caller's currentClause saved on entry
+  deriving DecidableEq, Repr
+
 structure DRS where
   referents     : List Referent
   nextId        : ReferentId := 0
   currentClause : Nat := 0
   performer     : Option ReferentId := none
-  callerMask    : Option (List ReferentId) := none
-  pendingRoles  : List (ReferentId × GramRole) := [] -- Direct-argument re-mentions buffered until nextClause
+  scopeStack    : List OwnScopeFrame := []           -- Stack of active Definition reference scopes (head = innermost ownScope)
+  pendingRoles  : List (ReferentId × GramRole) := [] -- Direct-argument mentions in currentClause (consulted by J2 and reflexives)
   deriving DecidableEq, Repr
 ```
 
 - **All 7 Domain `Payload` Variants in `DRS.referents`:** `Payload` retains `.object` (domain/kind, zone, `Stamp`, origin, size, possessor), `.player`, `.outcome (sort : OutcomeSort)` (all 15 `OutcomeSort`s for `thatMuch`, `thatMany`, `manaProduced`, `rollOutcome`, and `.damageMarked` `[CR#120.3d]`), `.pile`, `.quality` (`chosen` color/type/creature type/name), `.letter` (defined variable `X`), and `.turnRef` (`that turn`), while deleting `.parameterFrame`, `.masked`, and `.hidden`. Partitive sub-selections are identified by `r.det == .part`.
 - **Coordinated Noun Phrases (`.and` / `.or`):** Evaluating a coordinated noun phrase such as `.and [target artifact, target enchantment]` introduces one `Referent` per conjunct and returns `List ReferentId`. When bound to a parameter via `firstMention id`, `id` is attached to every member of that `List ReferentId` so `laterMention id` and post-action zone/status mutations update all coordinated referents uniformly (`[CR#608.2c]`).
-- **Foregrounding on Re-Mention & Clause Advancement (`nextClause`):**
-  - When an existing referent `r` is re-mentioned in a **direct verb argument slot** (`.subj`, `.obj`, or `.other`), the checker records `(r.id, slotRole)` in `drs.pendingRoles` (without mutating `r.clause` mid-clause, so `r` does not prematurely become a clause-mate of a sibling argument in the same clause; e.g., in `"Target creature's controller sacrifices it"`, evaluating the possessor `"Target creature's"` does not make the creature a `.subj` clause-mate of `"it"` in the `.obj` slot).
-  - Possessor mentions (`its controller`, `ownerOf(it)`, `its power`) and nested modifier mentions do **not** update `r.clause` or `r.role`.
-  - At the end of the clause (`nextClause`), buffered `pendingRoles` updates are applied (`r.clause := drs.currentClause`, `r.role := slotRole`), `drs.pendingRoles` is cleared, `drs.currentClause` is incremented, and `pronounResolved := false` is reset on all referents.
+- **Direct-Argument Tracking (`pendingRoles`), Clause-Mates, and Clause Advancement (`nextClause`):**
+  - When a referent `r` is introduced or re-mentioned in a **direct verb argument slot** (`.subj`, `.obj`, or `.other`), the checker records `(r.id, slotRole)` in `drs.pendingRoles`.
+  - Possessor mentions (`its controller`, `ownerOf(it)`, `its power`, `"Target creature's"`) and nested modifier mentions do **not** record in `drs.pendingRoles` and do **not** update `r.clause` or `r.role`.
+  - **Both `J2` (clause-mate exclusion) and Principle A reflexives (`itself`, `themselves`, `yourself`) consult `drs.pendingRoles` as well as `r.clause == drs.currentClause`:**
+    - If a previously introduced creature `r` is re-mentioned as the `.subj` of a new clause (`"It deals 2 damage to itself"` / `"It deals 2 damage to it"`), evaluating `"It"` in the `.subj` slot records `(r.id, .subj)` in `drs.pendingRoles`. When the `.obj` slot is evaluated in the same clause, `r` is recognized via `drs.pendingRoles` as the current clause's `.subj`—so `"itself"` succeeds (`Principle A`) and `"it"` excludes `r` as a clause-mate (`J2`).
+    - Conversely, in `"Target creature's controller sacrifices it"`, `"Target creature"` is introduced inside a possessor NP (not a direct verb argument slot, so `(r_creature.id, _)` is not in `drs.pendingRoles`, whereas `(r_controller.id, .subj)` is), so `"it"` in the `.obj` slot does not treat `r_creature` as a clause-mate and resolves to `r_creature`.
+  - At the end of the clause (`nextClause`), buffered `pendingRoles` updates are committed to `drs.referents` (`r.clause := drs.currentClause`, `r.role := slotRole`), `drs.pendingRoles` is cleared, `drs.currentClause` is incremented, and `pronounResolved := false` is reset on all referents.
 - **Zone-Change Identity Clearing (`moveIntro`, `[CR#400.7,400.7j]`):** When an object referent changes zone (`moveIntro`), the post-move referent receives a fresh `ReferentId` with `r.idents := []` (and `r.idents` is cleared on the departed referent), so any illegal post-move `laterMention` of the pre-move parameter `BindingId` is deterministically refused by the checker.
-- **Decidability contract:** `DRS` uses `List` and decidable equality throughout (`no` `Std.HashMap`), preserving `by decide` across all Lean proofs and `cargo xtask lean check`.
+- **Decidability contract and `by decide` reduction budget:** `DRS` uses `List` and decidable equality throughout (`no` `Std.HashMap`), preserving `by decide` across all Lean proofs and `cargo xtask lean check`. Before re-spelling the full proof and card bench in `lean-v3-proofs-and-cards`, `lean-v3-drt-checker` measures kernel `by decide` reduction on a representative multi-clause card and multi-step definition (`airbend`, `connive`, `explore`) to verify fast per-declaration reduction with zero `maxRecDepth` or `maxHeartbeats` increases.
 
 ### 1.3 Nested DRS Boxes and Quantifier Polarity
 
@@ -108,7 +115,7 @@ In DRT (Kamp & Reyle 1993), the logical force and forward accessibility of an in
 | DRS Box | Introducing Constructions | Indefinite (`a(...)` / `bare(...)`) Semantics | Accessibility Out of Box |
 |---|---|---|---|
 | **1. Top-Level Imperative Box** | Spell abilities, activated/triggered effect instructions (`sacrifice(a(creature))`) | Action-time existential choice (`[CR#608.2c]`) | Accessible to all subsequent clauses in the same paragraph (`drs` threads forward). |
-| **2. Duplex / Implicational Box (`K₁ ⇒ K₂`)** | Trigger event → effect (`when`/`whenever`), replacement event → replacement (`instead(would(...), ...)`), positive conditional → consequent (`if(did(...), thenBranch)`) | Universal quantification (`∀`) over matching events and participants (`[CR#603.2,614.1]`) | Referents introduced in the antecedent box `K₁` are **accessible** inside the consequent box `K₂` (`"Whenever a creature enters, it gets..."`, `"If you sacrificed a creature this turn, return it..."`), and closed after `K₂` (except in `if/then` when no `else` branch exists and Oracle text continues). |
+| **2. Duplex / Implicational Box (`K₁ ⇒ K₂`)** | Trigger event → effect (`when`/`whenever`), replacement event → replacement (`instead(would(...), ...)`), positive conditional → consequent (`if(did(...), thenBranch)`) | Universal quantification (`∀`) over matching events and participants (`[CR#603.2,614.1]`) | Referents introduced in the antecedent box `K₁` are **accessible** inside the consequent box `K₂` (`"Whenever a creature enters, it gets..."`, `"If you sacrificed a creature this turn, return it..."`), and closed after `K₂` (with a **provisional** empirical exception for `if/then` when no `else` branch exists and Oracle text continues, to be verified against the corpus in `lean-v3-drt-checker`). |
 | **3. Negated / Modal Prohibition Box (`¬K` / `¬◇K`)** | Deontic prohibition (`cant(subj, action)`), negated condition (`not(...)`, `unless(...)`), `else` branch of `if(cond, thenBranch, elseBranch)` with respect to `cond` | Universal prohibition ($\neg\Diamond\exists x = \Box\forall x\,\neg$, `[CR#101.2]`) | Referents introduced inside a negated or `cant` box are **closed** on exit and inaccessible to following sentences (nor accessible in `elseBranch` from a negated `cond`). |
 | **4. Distributive Loop Box (`∀x ∈ S : K`)** | `doForEach(collection, body)` | Universal distribution over the bound collection; introduces a singular loop referent (`plur = .one`, `role = .subj`) at quantifier header clause `C`, then advances `drs.currentClause` to `C + 1` before stepping `body` | Because the loop header is at clause `C` and `body` starts at clause `C + 1`, `it` in a direct verb argument slot inside `body` (e.g., `cast(it)` in `airbend`) is not excluded as a clause-mate (`J2`) and uniquely selects the loop referent (`clause = C`) over any outer antecedent (`clause < C`). Closed on loop exit while keeping mutations to outer referents. |
 | **5. Relative-Clause / Comparison Box** | `Predicate.did` (`did(..., which, ...)`), `Predicate.compareOver` (`comparesOwnStat`) | Binds `which` (or the comparison candidate) in a subordinate clause box (`currentClause + 1`) | Local to the relative/comparison clause; `ownMember` inside `compareOver` resolves to the outer candidate without needing `Window.top 1`; closed on exit. |
@@ -116,19 +123,20 @@ In DRT (Kamp & Reyle 1993), the logical force and forward accessibility of an in
 
 ### 1.4 Definition Reference Scope (`enterOwnScope`, `inCaller`, `leaveOwnScope`)
 
-In the AST, a `Definition` body is wrapped in `Instruction.ownScope` (with `NounPhrase.inCaller (firstMention id arg)` around each first-mentioned `NounPhrase` parameter). The checker evaluates them in exact tree order:
+In the AST, a `Definition` body is wrapped in `Instruction.ownScope` (with `NounPhrase.inCaller (firstMention id arg)` around each first-mentioned `NounPhrase` parameter). Nested `Definition` calls (e.g., `connive` calling `draw` and `discard`, or `forage` calling `exile` and `sacrifice`) push and pop `OwnScopeFrame` records on `drs.scopeStack`:
 
 1. **Scope Entry (`enterOwnScope` on entering `Instruction.ownScope`):**
-   - Records `callerMask := some (drs.referents.map (·.id))`, masking all pre-existing caller referents except the active `drs.performer` (if set by an enclosing `instruct(subj, ...)`).
-   - Advances `drs.currentClause` (`drs.currentClause + 1`).
+   - Captures `preEntryIds := drs.referents.map (·.id)` (an immutable snapshot of all referents existing prior to this `Definition` call) and `maskedIds := preEntryIds.filter (some · != drs.performer)`.
+   - Pushes `{ preEntryIds, maskedIds, callerClause := drs.currentClause }` onto `drs.scopeStack` and advances `drs.currentClause` (`drs.currentClause + 1`).
 2. **Caller-Scoped Argument Evaluation (`NounPhrase.inCaller`):**
-   - When `.inCaller inner` is encountered inside `ownScope`, the checker temporarily saves and clears `callerMask := none` to evaluate `inner` (`firstMention id arg`) in the unmasked caller `DRS`.
+   - When `.inCaller inner` is encountered while `drs.scopeStack = topFrame :: outerFrames`, the checker temporarily pops **only `topFrame`** (`drs.scopeStack := outerFrames`) to evaluate `inner` (`firstMention id arg`) in the immediate caller's visibility (so any referents masked by an enclosing `outerFrames` definition remain masked!).
    - `firstMention id arg` attaches `id : BindingId` to all `ReferentId`s (`List ReferentId`) introduced or resolved by `arg`.
-   - Before restoring `callerMask`, those bound `ReferentId`s are **removed from `callerMask`** so the parameter referents remain visible inside the `Definition` body while all other caller referents stay masked.
+   - When `topFrame` is restored onto `drs.scopeStack`, those bound `ReferentId`s are removed from `topFrame.maskedIds` (while `topFrame.preEntryIds` remains untouched) so the parameter referents are visible inside the `Definition` body while all other caller referents remain masked.
 3. **Scope Exit (`leaveOwnScope` on exiting `Instruction.ownScope`):**
-   - **Closes definition-internal scratch referents:** Any referent introduced inside the definition body that is a partitive sub-selection (`r.det == .part` from `someOf` / `choose`) or a definition-local player binding (`Payload.player` not present in `callerMask`) is dropped on exit so internal mechanics do not pollute the caller's discourse.
-   - **Unmasks caller referents with argument mutations preserved:** Caller referents in `callerMask` are unmasked (`callerMask := none`), with any zone changes, status changes, or `.actedOn deed` stamps applied to the passed argument referents (or their post-zone-change successor objects `[CR#400.7,400.7j]`) carried into the caller's `DRS`.
-   - **Exports outcome referents:** All non-scratch referents produced during the definition body—including `.outcome` (all 15 `OutcomeSort`s), `.pile`, `.quality`, `.letter`, `.turnRef`, and primary `.object` outcomes (tokens from `create`/`investigate`/`amass`/`incubate`, cards moved/revealed/searched/milled/drawn/scried)—remain in the caller's `DRS` with `clause := callerClause` and `role := .obj`, ready for downstream anaphora (`"Investigate. Sacrifice that token..."`, `"Destroy target creature. It can't be regenerated."`).
+   - Pops `topFrame` from `drs.scopeStack` (restoring `outerFrames` directly if nested inside an outer `Definition`).
+   - **Closes definition-internal scratch referents:** Any referent introduced during `topFrame` (`r.id ∉ topFrame.preEntryIds`) that is a partitive sub-selection (`r.det == .part` from `someOf` / `choose`) or a definition-local player binding (`Payload.player`) is dropped on exit—using the immutable `topFrame.preEntryIds` rather than `maskedIds` so a player passed as a parameter (`r.id ∈ topFrame.preEntryIds`) is never misclassified as a disposable local player binding.
+   - **Preserves argument mutations:** Any zone changes, status changes, or `.actedOn deed` stamps applied to the passed argument referents (or their post-zone-change successor objects `[CR#400.7,400.7j]`) remain in `drs.referents`.
+   - **Exports outcome referents:** All non-scratch referents produced during `topFrame` (`r.id ∉ topFrame.preEntryIds`)—including `.outcome` (all 15 `OutcomeSort`s), `.pile`, `.quality`, `.letter`, `.turnRef`, and primary `.object` outcomes (tokens from `create`/`investigate`/`amass`/`incubate`, cards moved/revealed/searched/milled/drawn/scried)—remain in `drs.referents` with `clause := topFrame.callerClause` and `role := .obj`, ready for downstream anaphora (`"Investigate. Sacrifice that token..."`, `"Destroy target creature. It can't be regenerated."`).
 
 ### 1.5 Anaphor Resolution Rules (`J1`, `J2`, `D′`, `AC>R1`, and Reflexives)
 
@@ -137,18 +145,18 @@ Every anaphoric `NounPhrase` (`it`, `them`, `they`, `itself`, `themselves`, `you
 #### Stage 1: Accessibility Filter (`J1`)
 
 A referent `r ∈ drs.referents` is **accessible** to an anaphor in a consuming verb slot iff:
-1. `r.id` is not masked by `callerMask`;
+1. `r.id` is not masked by any active `OwnScopeFrame` on `drs.scopeStack` (`∀ f ∈ drs.scopeStack, r.id ∉ f.maskedIds`);
 2. `r.plur` agrees with the anaphor's grammatical number (`.one` for `it` / `itself` / `that <noun>`, `.many` for `them` / `they` / `themselves` / `those <nouns>`, or unfixed when reading a number-neutral description);
 3. `r.payload` matches the anaphor's sort, carrier-word zone (`[CR#109.2,109.2a..109.2c,110.1]`: e.g., a bare permanent type requires `.battlefield`, `spell` requires `.stack`, `card` requires a non-battlefield/non-stack zone or zone-transition readback), and `<noun>` / `<verbed>` filter; and
 4. **Consuming-verb applicability (`[CR#109.2,701.21a]`):** The consuming verb or prepositional slot can apply to `r` in `r.payload.zone` and `r.payload.kind` (e.g., a creature that died is in `.graveyard` and cannot have counters put on it as a battlefield permanent or be sacrificed; this settles *Vampiric Embrace* by `J1` before ranking runs).
 
 #### Stage 2: Form-Specific Resolution Gate (`J2`, `D′`, `AC>R1`, and Principle A Reflexives)
 
-- **Clause-mates (`J2`, `docs/contexts/oracle-english/CONTEXT.md`):** Referent `r` is a **clause-mate** of an anaphor iff `r.clause == drs.currentClause` and the anaphor occupies a direct argument slot (subject, direct object, or oblique complement) of the same verb. Possessors (`controllerOf it`, `ownerOf it`, `its power`) and objects of small clauses (`counters on it`) are **not** clause-mates of the matrix verb (`badItAcrossOwnSlot`, *Weeping Angel*).
+- **Clause-mates (`J2`, `docs/contexts/oracle-english/CONTEXT.md`):** Referent `r` is a **clause-mate** of an anaphor iff the anaphor occupies a direct argument slot (subject, direct object, or oblique complement) of the current verb and `(r.id, _) ∈ drs.pendingRoles` (i.e., `r` was introduced or re-mentioned as a direct co-argument of the same verb in `drs.currentClause`). Possessors (`controllerOf it`, `ownerOf it`, `its power`, `"Target creature's controller"`) and objects of small clauses (`counters on it`) are **not** direct co-arguments of the matrix verb (`badItAcrossOwnSlot`, *Weeping Angel*).
 - **Reflexive Pronouns (`NounPhrase.refl (pl : Plurality)` — `itself`, `themselves`, `yourself`, Principle A):**
-  - Exact complement of `J2`: requires an accessible clause-mate subject (`r.clause == drs.currentClause && r.role == .subj`) agreeing with `pl` (e.g., `"Target creature deals 2 damage to itself"`). Refuses with `.anaphor` if no clause-mate `.subj` matches.
+  - Exact complement of `J2`: requires an accessible clause-mate subject (`(r.id, .subj) ∈ drs.pendingRoles`) agreeing with `pl` (covering both newly introduced subjects like `"Target creature deals 2 damage to itself"` and re-mentioned subjects like `"It deals 2 damage to itself"`). Refuses with `.anaphor` if no clause-mate `.subj` matches.
 - **Rule `D′` — Bare Non-Reflexive Pronouns (`it`, `them`, `they`):**
-  1. Exclude clause-mates (`J2`).
+  1. Exclude clause-mates (`J2`, i.e., any `r` with `(r.id, _) ∈ drs.pendingRoles` when the pronoun is in a direct verb argument slot).
   2. Among remaining accessible referents, select those in the **nearest clause** (maximizing `r.clause`).
   3. Within that clause, rank by `GramRole`: `.subj` beats `.obj`, which beats `.other`.
   4. If a single referent strictly wins (`winners.length == 1`), resolve to `r`, mark `r.pronounResolved := true` in `drs.currentClause`, and buffer `(r.id, slotRole)` in `drs.pendingRoles` if in a direct argument slot.
@@ -188,11 +196,11 @@ File role is declared explicitly by the top-level wrapper in each file, never in
 | **Parameter Identity (`firstMention` / `laterMention`)** | Always enabled for `NounPhrase` parameters (supporting `List ReferentId` for coordinated NPs). | Enabled whenever a `NounPhrase` parameter is mentioned $>1$ time in the template body (`firstMention` on first occurrence, `laterMention` on subsequent occurrences before any zone change). |
 | **Law Gate** | Checked as an independent unit by `cargo xtask lean definitions`. | Checked at every card or `Definition` call site that expands it. |
 
-### 2.1 Complete Classification of Keyword Actions as `Definition`s
+### 2.1 Complete Classification of In-Scope Keyword Actions as `Definition`s
 
-Every CR §701 keyword action—whether its body is a single atomic `.enact` or a multi-step expansion—is a **`Definition`**:
+Every Vintage-playable CR §701 keyword action—whether its body is a single atomic `.enact` or a multi-step expansion—is a **`Definition`** (Planechase/Archenemy actions remain permanently out of scope and Un-set Contraption/Attraction actions remain deferred per `CLAUDE.md` "Scope"):
 
-- **Atomic CR §701 keyword actions (promoted from `Template`/macro to `Definition`):** `activate` `[CR#701.2]`, `attach` `[CR#701.3]`, `cast` `[CR#701.4]`, `counter` `[CR#701.5]`, `create` `[CR#701.6]`, `destroy` `[CR#701.8]`, `discard` `[CR#701.9]`, `exchange` `[CR#701.12]`, `exile` `[CR#701.13]`, `fight` `[CR#701.14]`, `goad` `[CR#701.15]`, `regenerate` `[CR#701.19]`, `reveal` `[CR#701.20]`, `sacrifice` `[CR#701.21]`, `search` `[CR#701.23]`, `shuffle` `[CR#701.24]`, `tap` `[CR#701.26a]`, `untap` `[CR#701.26b]`, `transform` `[CR#701.27]`, `convert` `[CR#701.28]`, `fateseal` `[CR#701.29]`, `clash` `[CR#701.30]`, `planeswalk` `[CR#701.31]`, `setInMotion` `[CR#701.32]`, `abandon` `[CR#701.33]`, `proliferate` `[CR#701.34]`, `detain` `[CR#701.35]`, `populate` `[CR#701.36]`, `monstrosity` `[CR#701.37]`, `vote` `[CR#701.38]`, `meld` `[CR#701.42]`, `exert` `[CR#701.43]`, `assemble` `[CR#701.45]`, `rollVisitAttractions` `[CR#701.49]`, `openAttraction` `[CR#701.51]`, `rollPlanarDie` `[CR#701.52]`, `cloak` `[CR#701.58]`, `suspect` `[CR#701.60]`, `plot` `[CR#701.62]`.
+- **Atomic CR §701 keyword actions (promoted from `Template`/macro to `Definition`):** `activate` `[CR#701.2]`, `attach` `[CR#701.3]`, `cast` `[CR#701.4]`, `counter` `[CR#701.5]`, `create` `[CR#701.6]`, `destroy` `[CR#701.8]`, `discard` `[CR#701.9]`, `exchange` `[CR#701.12]`, `exile` `[CR#701.13]`, `fight` `[CR#701.14]`, `goad` `[CR#701.15]`, `regenerate` `[CR#701.19]`, `reveal` `[CR#701.20]`, `sacrifice` `[CR#701.21]`, `search` `[CR#701.23]`, `shuffle` `[CR#701.24]`, `tap` `[CR#701.26a]`, `untap` `[CR#701.26b]`, `transform` `[CR#701.27]`, `convert` `[CR#701.28]`, `fateseal` `[CR#701.29]`, `clash` `[CR#701.30]`, `proliferate` `[CR#701.34]`, `detain` `[CR#701.35]`, `populate` `[CR#701.36]`, `monstrosity` `[CR#701.37]`, `vote` `[CR#701.38]`, `meld` `[CR#701.42]`, `exert` `[CR#701.43]`, `cloak` `[CR#701.58]`, `suspect` `[CR#701.60]`, `plot` `[CR#701.62]`.
 - **Composite / multi-step CR §701 keyword actions (`Definition`):** `doublePower` / `doubleToughness` / `doublePT` / `doubleLifeTotal` / `doubleCountersOn` `[CR#701.10]`, `triplePower` / `tripleToughness` / `triplePT` `[CR#701.11]`, `investigate` `[CR#701.16]`, `mill` `[CR#701.17]`, `play` `[CR#701.18]`, `scry` `[CR#701.22]`, `surveil` `[CR#701.25]`, `bolster` `[CR#701.39]`, `manifest` `[CR#701.40]`, `support` `[CR#701.41]`, `explore` `[CR#701.44]`, `amass` `[CR#701.47]`, `learn` `[CR#701.48]`, `connive` `[CR#701.50]`, `incubate` `[CR#701.53]`, `theRingTemptsYou` `[CR#701.54]`, `faceVillainousChoice` `[CR#701.55]`, `timeTravel` `[CR#701.56]`, `discover` `[CR#701.57]`, `collectEvidence` `[CR#701.59]`, `forage` `[CR#701.61]`, `manifestDread` `[CR#701.63]`, `endure` `[CR#701.64]`, `airbend` `[CR#701.65]`, `earthbend` `[CR#701.66]`, `waterbend` `[CR#701.67]`, `firebend` `[CR#701.68]`.
 - **Intrinsic `.enact` Rule:** When checking the body of an atomic `Definition` whose expansion is a direct `.enact (.action name ...)` call, the checker strips the outer `.ownScope` wrapper of that self-definition so its direct effect on the passed arguments is checked and exported without double-wrapping.
 
@@ -321,7 +329,7 @@ Of the 27 domain `GameEvent` constructors in `semantics-v2` (`lean/Semantics/Phr
 | `attacksWith (player, attackers, defender)` | `does(player, attackWith(attackers, defender))` | Player-subject combat action (`"Whenever you attack with one or more creatures"`). |
 | `combat (subject, role)` | `does(attacker, attack(defender))`<br>`does(blocker, block(attacker))`<br>`does(attacker, attackUnblocked(defender))` | Active (`does(b, block(a))`), passive (`does(any, block(a))` = *"becomes blocked"*), or `by`-passive (`does(by(b), block(a))` = *"becomes blocked by B"*); `attackUnblocked` `[CR#509.1h]`. |
 | `becomesTarget (subject, by)` | `does(by, target(subject))` | Adds `Instruction.target (subject : NounPhrase)` (`[CR#115.1]`), used by both `"Whenever ~ becomes the target of..."` (`does(by(src), target(this))`) and deontic shroud/hexproof (`cant(by(src), target(this))`). |
-| `zoneChange (subject, from_, to, at, cause)` | `does(any, move(subject, from_, to, at, cause))` | `MoveMode` carries `from_ : EventSource` (`.anywhere`, `.zones`, `.anywhereBut`), `at : ObservationPoint` (`.arrival` for `enters` vs `.departure` for `dies` / `leaves`, `[CR#603.6a,603.6c,603.10a]`), and `cause : Option Causing`. |
+| `zoneChange (subject, from_, to, at, cause)` | `does(any, move(subject, from_, to, at, cause))` | `MoveMode` carries `from_ : EventSource` (`.anywhere`, `.zones`, `.anywhereBut`), `at : ObservationPoint` (`.arrival` for `enters` vs `.departure` for `dies` / `leaves`, `[CR#700.4,603.6a,603.6c,603.10a]`), and `cause : Option Causing`. `die(subject)` (`[CR#700.4]`), `enter(subject)`, and `leave(subject)` are `Template`s expanding to `move(subject, .zones [.battlefield], .graveyard, .departure, none)` etc., so both triggers (`does(any, die(a(creature)))`) and lookbacks (`did(any, die(a(creature)), thisTurn)`) share the single `Instruction.move` AST primitive. |
 | `damage (kind, source, recipient, amount)` | `does(source, dealDamage(amount, recipient, kind))` | `dealDamage` carries `kind : DamageKind` (`.any`, `.combat`, `.noncombat`). Active (`does(src, ...)`), passive (`does(any, ...)` = *"is dealt damage"*), or `by`-passive (`does(by(src), ...)`). |
 | `lifeChange (direction, player, amount)` | `does(player, changeLife(direction, amount))` | `gainLife` / `loseLife` templates expand to `changeLife`. |
 | `draws (player, cards)` | `does(player, draw(cards))` | Uses `Instruction.draw`. |
@@ -406,7 +414,7 @@ structure DidClause where
 Used uniformly across all three lookback sites:
 1. **`Condition.did (clause : DidClause)`** (replaces `Condition.happened`, dropping the unused `gap : Option Duration` parameter):
    - `"if you sacrificed a creature this turn"` → `did(you, sacrifice(a(creature)), thisTurn)`
-   - `"if a creature died this turn"` → `did(any, die(a(creature)), thisTurn)`
+   - `"if a creature died this turn"` → `did(any, die(a(creature)), thisTurn)` (where the `die(subject)` template `[CR#700.4]` expands to `Instruction.move(subject, .zones [.battlefield], .graveyard, .departure, none)`, matching `does(any, die(a(creature)))` in §3.6)
 2. **`Predicate.did (clause : DidClause)`** (replaces `Predicate.happenedTo`, using `NounPhrase.which` in the relativized argument slot):
    - `"creatures that attacked this turn"` → `and([creature, did(which, attack(any), thisTurn)])`
    - `"each card exiled this way"` → `and([card, did(any, exile(which), thisWay)])`
@@ -427,3 +435,47 @@ The transition to `semantics-v3` is decomposed into the following ordered ticket
 5. **`semantics-v3-dsl-and-plugins`**: Create `crates/deckmaste_semantics_v3` and `plugins_v3/` (including the `v3` DSL parser/emitter for `Definition(...)` and `Template(...)` files, `any`, and the unified spine) and port the `xtask lean` gates. Absorbs `lean-macros-cutover`, `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
 6. **`plugins-v2-canon`** (updated to target `plugins_v3/`): Author the full canon card and rules-table corpus in `plugins_v3/`, gate-checked by Lean, and retire the hand-written `lean/Semantics/Cards/` bench (`lean-hand-bench-retirement`).
 7. **`lowering-v2`** (updated to build `crates/deckmaste_lowering_v3`) and **`semantics-v2-parity`** (updated to compare `v1` vs. `v3`), culminating in **`semantics-v1-cutover`** (retiring `v1` and `v2` scaffolding in favor of `v3`).
+
+---
+
+## 5. Standing Domain Mechanisms Carried Forward from `semantics-v2`
+
+Because `docs/archive/` is excluded from agent search, the domain mechanisms and rulings settled during `semantics-v2` that remain in force unchanged (modulo the `semantics-v3` spine and DRT checker above) are recorded here so this ADR is self-contained:
+
+- **Layer Contract & Left-to-Right Discourse Threading (`semantics-v2` §§1–3, §7):**
+  - Constructions occupy their surface English positions with no prenex target hoisting or positional slot indices; all hoisting and slot indexing belong to lowering.
+  - Constructor arguments are evaluated in textual left-to-right order. Delayed triggers read prior referents as settled particulars (`[CR#603.7c]`) while targeting in their own event (`[CR#603.3d,601.2c]`). Activated-ability effects read cost mentions filtered to public current zones (`[CR#400.2,400.7j]`).
+  - **Joined-kind bindings (`Payload.join`, `semantics-v2` §3):** A binding at a joined kind holds both halves' records side by side so its kind is the join of its halves' kinds and demonstrative echoes copy the pair (`kind-index-joins-union-marking-is-spelling.md`).
+  - **Checker Charter (`[CR#101.3,609.3]`):** The Lean checker verifies that references resolve, terms are well-kinded, and card frames are well-formed (the 14 card-frame rules `cardLine` through `prototypeFrame`); it is not a runtime rules engine for impossible instructions.
+  - **Stat Changes (`StaticSpec.ptModification`, `[CR#613.4b,613.4c]`):** Two-stat P/T changes (`"<subject> gets +P/+T"`, `"has base power and toughness P/T"`) use one `StaticSpec.ptModification subject power toughness` node so the subject is written and evaluated once; single-stat changes use `StaticSpec.modification`.
+  - **Counter Kinds, Designations, and Deeds as Declared Names (`[CR#122.1,122.1a,122.1b,731.1]`):** `CounterKind.named name`, `DesignationLabel.named name`, `Deed.action name`, and `Deed.ofAbility name` carry their declaration's name verbatim. A counter declaration states what **one** counter confers (`boost(up(1), up(1))`, `grants(flying)`). Each declaration registers its name as a term-level macro while the registry holds its `Definition` record apart for facts generation and `cargo xtask lean definitions` (Ruling 2026-10-10, Q80).
+  - **No Chooser on `choose` and No Taker on `addTurnPart` (`[CR#500.7..500.9]`):** Both `choose` and `addTurnPart` (`extraTurn`, `additionalPhase`, `additionalStep`) are performed by the active performer (`drs.performer` / `"you"`).
+- **Cost Substitutes (`ManaSubstitute`, `[CR#702.51a,702.66a,702.126a,701.67a]`):**
+  - `ManaSubstitute (action : Instruction) (pays : List PipPaid)` (`PipPaid = generic | ofColor (color)`) models `"For each [generic | colored] mana in ..., you may <act> rather than pay that mana"` (convoke, delve, improvise, waterbend), carried by `StaticSpec.paySubstitute` on a spell or `Cost.withSubstitute` on a named cost.
+- **Piles (`Pile`, `PileFace`, `[CR#700.3b,700.3c,401.2,404.2,406.4]`):**
+  - A `Pile` is a library (face down), a graveyard (face up), `"that pile"`, or a face-down exile pile, supporting `slice (end) (amount) (pile)`, `run (end) (stop) (pile)`, `place (end) (pile)`, and `shuffle (pile)` (with bare `"shuffle"` = `shuffle(library(actor))` `[CR#701.24a]`).
+- **Temporal Suite (`Timing`, `Duration`, `UsageLimit`, `TurnRef`, `[CR#307.5,117.1d,611.2b,602.5b]`):**
+  - `TurnRef = current | previous | next (player) | each (player) | later | that`.
+  - `Timing` combines `inPart (part) (whose) (which)`, `relativeToEvent (before | after) (event)`, `whileDoing (event)`, and `onlyIf (condition)` under `and`/`or`/`not` (with `asSorcery` over main phase + your turn + empty stack `[CR#307.5]`, and instant speed `onlyIf(hasPriority(you))` `[CR#117.1d]`).
+  - `Duration` is `between (start : Option GameEvent) (end : Option GameEvent)` (using `beginningOf`, `endOf`, `now`, `stateBasedActionsChecked`) or `forAsLongAs (condition)` `[CR#611.2b]`.
+  - `UsageLimit` is `(times) (per : Period)` where `Period = turn | yourTurn | game | part (TurnPart) | thisObject` `[CR#602.5b,702.177a]`.
+- **Face-Down Specs, Special Actions, and Move Riders (`[CR#406.3a,708.2,702.37a,702.168a,116.1,614.1c]`):**
+  - `FaceDown (characteristics : Option Characteristics)` is `none` for face-down exile and `some` for face-down spells/permanents (morph, disguise, manifest, cloak), used by `Instruction.turnFaceDown`, `EntryRider.faceDown`, `PilePlacement.faceDown`, and `PlayPayment.faceDown`.
+  - `StaticSpec.specialAction (when : Option Timing) (cost : Cost) (does : Instruction)` models special actions `[CR#116.1]`.
+  - `MoveRider = entry (EntryRider) | placement (PilePlacement)` separates battlefield entry riders from non-battlefield pile placements (`[CR#614.1c,401.4,406.3]`).
+- **Modal Choices (`StaticSpec.modeChoice`, `[CR#700.2d,700.2h,700.2i,702.42a,702.120a,702.172a,702.183a]`):**
+  - `chooseModes` carries mode quantity, per-mode costs (spree, tiered), and optional pawprint weights (`Quantity.worth`). `StaticSpec.modeChoice (change : ModeChange)` modifies a spell's `chooseModes` via `allInstead` (entwine), `extraModesCost` (escalate), `setQuantity` (spree, tiered), `repeatable`, and `notChosenBefore`.
+- **Off-Stack Statics (`StaticSpec.asEvent`, `StaticSpec.whileHolds`, `[CR#604.1,603.7a,603.7g,614.1c]`):**
+  - `StaticSpec.asEvent (event) (does)` models `"as [event], do"` (dash, blitz, warp, devour, riot, tribute, unleash, amplify, Aura mandatory entry attachment `[CR#303.4f]`), and `StaticSpec.whileHolds (condition) (does)` models state statics (ascend, storied, daybound/nightbound `[CR#702.131b,702.145b,702.195a]`).
+- **Characteristic Sharing & Group Agreement (`Predicate.shares`, `NounPhrase.agree`, `[CR#201.2a,201.2c,105.2,205.3m]`):**
+  - `Predicate.shares (axis) (agreement : share | differ) (with)` checks whether an object shares at least one value (`share`) or none (`differ`) on `axis` with `with`. `NounPhrase.agree (axis) (agreement) (group)` constrains a group selection to mutually share or differ on `axis`.
+- **Linked-Ability Readback & Declared Relations (`LinkedFacet`, `LinkSource`, `[CR#607.2a,607.2d,607.2i,702.33e,702.55b,702.95b,702.99b]`):**
+  - `LinkSource` identifies linked costs/abilities (including `byDeed (verb)` `[CR#607.2a]` and multi-part keyword regimes like gift `[CR#702.174a,702.174b]`), and `LinkedFacet` reads back `paid`, `timesPaid`, `chosenPlayer`, `objects (verb)`, and `taken`. Named object-to-object links (haunt, soulbond, cipher) use `Definition.relation` with `relate`, `related`, and `counterpart`.
+- **Spell Copies, Text-Changing Effects, and Ability Qualifiers (`[CR#707.10c,612.1,613.1c,113.10a,702.165c,702.169b]`):**
+  - Spell-copy keywords (storm, casualty, replicate, epic, conspire) write `may(chooseNewTargets(...))` unconditionally (`[CR#707.10c]`).
+  - Text-changing effects (cleave, overload, splice, word replacements `[CR#612.1,613.1c,702.47a,702.96a,702.148a]`) use `StaticSpec.textChange (subject) (change)` (`removeBracketed`, `targetToEach`, `appendTextOf`, `replaceWord`) over `Predicate.bracketed` and `Instruction.bracketed`.
+  - `KeywordParam.ability` and `Ability.qualified (ability) (timing) (limit) (guard) (from)` model abilities printed with and restricted by a keyword (backup `printedAfter`, saddle, exhaust `[CR#113.10a,702.165c,702.169b..702.169d,702.177a]`).
+- **Subtype Rules, Conferrals, and Counter Annihilation (`[CR#301.5,301.6,303.4a,303.4c,704.5m,704.5n,704.5q,704.5s,714.2d,714.3a,714.3c]`):**
+  - `Enchant` owns its spell target restriction, legal-host permission, and entry attachment `[CR#702.5a,303.4a,303.4c,303.4f]`.
+  - Subtype and counter state-based actions live as `Conferral.stateBased (when) (then_)` on their definitions (Aura `[CR#704.5m]`, Equipment/Fortification `[CR#704.5n]`, Saga `[CR#704.5s]` using `ProjAxis.chapter` `[CR#714.2d]` and `Conferral.turnBased` `[CR#714.3c]`, and `+1/+1`/`-1/-1` counter annihilation on `m1m1Counter` `[CR#704.5q,122.3]` using `Amount.aggregateOf .min` / `smallerOf`).
+

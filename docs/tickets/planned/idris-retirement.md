@@ -25,7 +25,7 @@ idris-check`, `cargo xtask facts generate/check/labels` in their Idris form
 first, only the `.idr` output path goes), `cargo xtask map idris` and
 `map idris-dead` (add `map lean` for the Lean constructors first, or fold it
 into the same landing), the `idr` entry in `cite-config.json` and
-`crates/xtask/src/coverage.rs`, and `docs/idris-workbench-closure-tables.md`.
+`crates/xtask/src/coverage.rs`, and `docs/archive/idris-workbench-closure-tables.md`.
 The `rs`-side doc comments that cite `idris/src/Semantics.idr` constructors
 (`deckmaste_core` and `deckmaste_semantics` `action.rs`, `continuous.rs`,
 `stat_value.rs`; `deckmaste_engine` `activate.rs`, `trigger.rs`) are

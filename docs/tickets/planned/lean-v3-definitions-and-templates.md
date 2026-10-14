@@ -23,7 +23,7 @@ implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semant
     `convert` `[CR#701.28]`, `fateseal` `[CR#701.29]`, `clash` `[CR#701.30]`,
     `proliferate` `[CR#701.34]`, `detain` `[CR#701.35]`, `populate` `[CR#701.36]`,
     `monstrosity` `[CR#701.37]`, `vote` `[CR#701.38]`, `meld` `[CR#701.42]`,
-    `exert` `[CR#701.43]`, `assemble` `[CR#701.45]`, `cloak` `[CR#701.58]`,
+    `exert` `[CR#701.43]`, `cloak` `[CR#701.58]`,
     `suspect` `[CR#701.60]`, `plot` `[CR#701.62]` and multi-step actions like
     `double*` `[CR#701.10]`, `triple*` `[CR#701.11]`, `investigate` `[CR#701.16]`,
     `mill` `[CR#701.17]`, `scry` `[CR#701.22]`, `surveil` `[CR#701.25]`,

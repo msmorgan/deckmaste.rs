@@ -89,7 +89,11 @@ Retain the non-action `GameEvent` constructors specified in
 - `becomesTarget` (adding `Instruction.target (subject : NounPhrase)` `[CR#115.1]`,
   shared with deontic shroud/hexproof `cant(by(src), target(this))`),
 - `zoneChange` (`MoveMode` carries `from_ : EventSource` and `at : ObservationPoint`
-  `.arrival | .departure` `[CR#603.6a,603.6c,603.10a]`),
+  `.arrival | .departure` `[CR#700.4,603.6a,603.6c,603.10a]`; `die(subject)`,
+  `enter(subject)`, and `leave(subject)` are `Template`s expanding to
+  `Instruction.move(subject, .zones [.battlefield], .graveyard, .departure, none)`
+  etc., so both triggers and lookbacks use the single `Instruction.move` AST
+  primitive),
 - `damage` (`dealDamage` with `kind : DamageKind`), `lifeChange` (`changeLife`),
   `draws` (`draw`), `searchesLibrary` (`search`), `createsTokens` (`create`),
 - `counterEvent` (`putCounters` / `removeCounters` carrying `CounterBatch`,

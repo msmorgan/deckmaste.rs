@@ -15,7 +15,7 @@ folds over property reads. Keep selection separate from measurement and
 preserve numeric regimes and surrounding references. Authoring macros would
 hide the binder.
 
-First establish how this fits the [layer contract](../../decisions/semantics-v2.md#1-the-layer-contract):
+First establish how this fits the [layer contract](../../decisions/semantics-v3.md#5-standing-domain-mechanisms-carried-forward-from-semantics-v2):
 constructions stay in surface positions, and hoisting/indexing belongs to
 lowering. A locally scoped member binder is not permission for prenex binders
 or positional core reads in the semantics workbench. Show concrete terms,

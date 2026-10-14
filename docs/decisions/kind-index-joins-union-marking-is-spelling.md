@@ -85,10 +85,10 @@ authoring-time error rather than model unsoundness.
 
 ## Tracked references
 
-- [Workbench closure tables](../idris-workbench-closure-tables.md) — the
+- [Workbench closure tables](../archive/idris-workbench-closure-tables.md) — the
   campaign's measured closure and slot inventory; the per-site union
   translation is carried by the workbench union-family tickets.
-- [Semantics v2](semantics-v2.md) — the workbench contract this shape lands in.
+- [Semantics v3](semantics-v3.md) (superseding [Semantics v2](../archive/decisions/semantics-v2.md)) — the workbench contract this shape lands in.
 - [Macros are declarative](macros-are-declarative.md) — the typed-template
   doctrine the card language's functions are headed for.
 - [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md)

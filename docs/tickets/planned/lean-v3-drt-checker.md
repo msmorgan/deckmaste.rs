@@ -29,11 +29,17 @@ apply.
     conjunct and return `List ReferentId`; `firstMention id` attaches `id` to
     every referent in that list so `laterMention id` and post-action mutations
     apply to all coordinated referents `[CR#608.2c]`.
-  - **Foregrounding on re-mention (`pendingRoles`) and `nextClause`:** Re-mentioning
-    an existing referent in a direct verb argument slot (`.subj`, `.obj`, `.other`)
-    buffers `(r.id, slotRole)` in `drs.pendingRoles` and applies `(r.clause :=
-    drs.currentClause, r.role := slotRole)` at `nextClause` (never mid-clause, and
-    never on possessor or nested modifier mentions).
+  - **Direct-argument tracking (`pendingRoles`), clause-mates, and `nextClause`:**
+    Introducing or re-mentioning a referent in a direct verb argument slot
+    (`.subj`, `.obj`, `.other`) records `(r.id, slotRole)` in `drs.pendingRoles`
+    (never on possessor or nested modifier mentions). Both `J2` (clause-mate
+    exclusion) and Principle A reflexives consult `drs.pendingRoles` in the
+    current clause (so in `"It deals 2 damage to itself"`, the re-mentioned
+    subject `"It"` records `(r.id, .subj) ∈ drs.pendingRoles`, licensing
+    `"itself"` and excluding `"it"` in the object slot). At `nextClause`,
+    `pendingRoles` updates are committed (`r.clause := drs.currentClause`,
+    `r.role := slotRole`), `pendingRoles` is cleared, `currentClause` is
+    incremented, and `pronounResolved := false` is reset.
   - **Zone-change identity clearing (`moveIntro`, `[CR#400.7,400.7j]`):** When a
     referent changes zone, clear `r.idents := []` on both the departed and
     post-move referents so any post-move `laterMention` of a pre-move parameter
@@ -61,7 +67,9 @@ apply.
      in the paragraph `[CR#608.2c]`.
   2. Duplex / implicational box (`when`/`whenever`, `instead`/`would`, positive
      `if`/`did`): referents introduced in the antecedent box are accessible in
-     the consequent box `[CR#603.2,614.1]`.
+     the consequent box `[CR#603.2,614.1]` and closed on exit (with a
+     **provisional** empirical exception for `if/then` when no `else` branch
+     exists and Oracle text continues, to be verified against corpus cases here).
   3. Negated / modal prohibition box (`cant`, `not`, `unless`, `else` branch with
      respect to a negated condition): referents introduced inside are closed on
      exit and cannot be read by subsequent sentences `[CR#101.2]`.
@@ -75,26 +83,30 @@ apply.
      evidence) and resolving `ownMember` inside `compareOver` to the outer
      candidate without `Window.top 1`.
   6. Definition Reference Scope (`enterOwnScope` / `inCaller` / `leaveOwnScope`,
-     `semantics-v3.md` §1.4): `enterOwnScope` masks caller referents via
-     `callerMask := some (drs.referents.map (·.id))`; `.inCaller` temporarily
-     unmasks `callerMask` to evaluate `firstMention id arg` in the caller's DRS
-     and removes the bound `List ReferentId` from `callerMask`; `leaveOwnScope`
-     closes `r.det == .part` and definition-local `.player` scratch referents,
-     unmasks caller referents with argument mutations preserved, and exports
-     outcome referents (`.outcome`, `.pile`, `.quality`, `.letter`, `.turnRef`,
-     and primary `.object` outcomes) with `clause := callerClause` and `role := .obj`.
+     `semantics-v3.md` §1.4): pushes/pops `OwnScopeFrame` records (`preEntryIds`,
+     `maskedIds`, `callerClause`) on `drs.scopeStack : List OwnScopeFrame`.
+     `.inCaller` temporarily pops only the top frame (`topFrame`) to evaluate
+     `firstMention id arg` in the immediate caller's visibility (keeping any
+     outer definition frames' `maskedIds` enforced) and removes the bound
+     `List ReferentId` from `topFrame.maskedIds` while keeping
+     `topFrame.preEntryIds` immutable. `leaveOwnScope` pops `topFrame`, closes
+     scratch referents introduced during `topFrame` (`r.id ∉ topFrame.preEntryIds`
+     with `r.det == .part` or `Payload.player`), preserves argument mutations,
+     and exports outcome referents (`r.id ∉ topFrame.preEntryIds`) with
+     `clause := topFrame.callerClause` and `role := .obj`.
 - **Anaphor Resolution Rules (`semantics-v3.md` §1.5):**
-  - **Accessibility (`J1`):** Filters unmasked referents by number agreement,
-    sort, carrier-word zone `[CR#109.2,109.2a..109.2c,110.1]`, `<noun>` /
-    `<verbed>` match, and consuming-verb domain/zone applicability
+  - **Accessibility (`J1`):** Filters referents not masked by any frame in
+    `drs.scopeStack` (`∀ f ∈ drs.scopeStack, r.id ∉ f.maskedIds`) by number
+    agreement, sort, carrier-word zone `[CR#109.2,109.2a..109.2c,110.1]`,
+    `<noun>` / `<verbed>` match, and consuming-verb domain/zone applicability
     `[CR#109.2,701.21a]`.
-  - **Clause-mates (`J2`):** Co-arguments of the same verb (`r.clause ==
-    drs.currentClause` at direct verb argument slots). Possessors (`controllerOf
-    it`, `its power`) and small-clause objects (`counters on it`) are not
-    clause-mates.
+  - **Clause-mates (`J2`):** Co-arguments of the same verb (`(r.id, _) ∈
+    drs.pendingRoles` when the anaphor is in a direct verb argument slot).
+    Possessors (`controllerOf it`, `its power`, `"Target creature's controller"`)
+    and small-clause objects (`counters on it`) are not clause-mates.
   - **Reflexives (`NounPhrase.refl (pl : Plurality)` — Principle A):** Exact
     complement of `J2`; requires an accessible clause-mate `.subj`
-    (`r.clause == drs.currentClause && r.role == .subj`).
+    (`(r.id, .subj) ∈ drs.pendingRoles`).
   - **Bare pronouns (`it`, `them`, `they` — Rule `D′`):** Excludes clause-mates
     (`J2`); picks the nearest clause (`max r.clause`), breaking ties by
     `GramRole` (`.subj < .obj < .other`); refuses with
@@ -107,8 +119,12 @@ apply.
   - **Stamped participle phrases (`the exiled card`, `the sacrificed creature`):**
     Requires a unique accessible referent matching `<noun>`, plurality, and
     `.actedOn deed`.
-- **Nothing `decide` cannot reduce:** All `DRS` operations stay on `List` with
-  `DecidableEq`.
+- **Nothing `decide` cannot reduce (with reduction budget gate):** All `DRS`
+  operations stay on `List` with `DecidableEq`. Measure kernel `by decide`
+  reduction on a representative multi-clause card and multi-step definition
+  (`airbend`, `connive`, `explore`) before re-spelling the full bench in
+  `lean-v3-proofs-and-cards`, verifying fast reduction with zero `maxRecDepth`
+  or `maxHeartbeats` increases.
 
 ## Proof
 
@@ -118,6 +134,9 @@ apply.
   `Check/EventContext.lean`, `Check/Events.lean`, `Check/Triggers.lean`,
   `Check/AbilityRules.lean`, `Check/Abilities.lean`, `Check/Card.lean`, and
   `Check/Rules.lean`).
+- Kernel `by decide` reduction on a representative multi-clause card and
+  multi-step definition (`airbend`, `connive`, `explore`) succeeds with default
+  `maxRecDepth` and `maxHeartbeats`.
 - `shiftAddress`, `operandAddress`, `closeOperandAddress`, `bindingAt`,
   `setBindingAt`, `Payload.parameterFrame`, `Payload.masked`, `Payload.hidden`,
   `Refusal.unusedCapture`, `MoveProfile`, and `StepProfile` are gone from

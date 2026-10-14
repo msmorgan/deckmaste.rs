@@ -308,12 +308,12 @@ greatly simplify the checker and macro layer when solved together:
 - **Authoritative ADR:** [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md),
   updated [`docs/decisions/README.md`](../../decisions/README.md),
   [`CLAUDE.md`](../../../CLAUDE.md), and [`lean/CONTRACTS.md`](../../../lean/CONTRACTS.md).
-- **Archived superseded docs (`docs/archive/`, excluded from search via `.ignore` and `.agentignore` and from `cite-config.json`):**
+- **Archived superseded docs (`docs/archive/`, excluded from search via `.ignore` and from `cite-config.json`):**
   `semantics-v2.md`, `oracle-text-is-forward-anaphoric.md`,
-  `builtin-v2-macro-spelling-and-grammar.md`,
-  `workbench-ron-shaped-and-label-rulings.md`,
-  `card-authoring-binds-no-implicits.md`, `idris-is-a-soundness-gate.md`, and
-  `idris-workbench-closure-tables.md`.
+  `idris-is-a-soundness-gate.md`, and `idris-workbench-closure-tables.md`
+  (while keeping `builtin-v2-macro-spelling-and-grammar.md`,
+  `card-authoring-binds-no-implicits.md`, and
+  `workbench-ron-shaped-and-label-rulings.md` active in `docs/decisions/`).
 - **Deleted 15 obsolete v2/Idris/workbench tickets (with useful residues folded into the absorbing `v3` tickets):**
   - Folded into `lean-v3-action-clause-spine`: `lean-constructor-collapse`, `plugins-v2-menace-bound-helper`
   - Folded into `lean-v3-drt-checker`: `lean-checker-binding-ids`

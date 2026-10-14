@@ -38,6 +38,14 @@ requires explicit review rather than an opportunistic refactor.
   `would`/`instead`, `cant`/`must`/`may`/`gatedBy`, `did`/`tally`, `by`, `any`,
   `which`), executed Lean-first and mirrored into `deckmaste_semantics_v3` and
   `plugins_v3/`.
+- [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md)
+  — Macro `spelling` templates, `grammar` contributions, normalized parser
+  environment, and catalog-line ↔ filename bijection.
+- [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
+  Card authoring binds no implicit parameters; core constructors take every
+  field required.
+- [Workbench RON-shaped and label rulings](workbench-ron-shaped-and-label-rulings.md)
+  — Registry label and RON-shaped syntax rulings.
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —
   Semantics takes the join lattice; the marked union constructions are
   spelling-boundary knowledge.
