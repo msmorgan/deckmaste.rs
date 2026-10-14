@@ -311,3 +311,107 @@ fn best_readings_do_not_enumerate_every_attachment() {
     }
     println!("{:?}", parse.forest.metrics());
 }
+
+#[test]
+fn both_laws_hold_over_the_forest_without_enumeration() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let text = "See the man on the hill with the telescope in the card.";
+    let parse = grammar.parse(&lexicon, text);
+    assert_eq!(parse.verify_realization(&lexicon), Ok(()));
+    let readings = parse.readings();
+    for reading in &readings {
+        let again = grammar.parse(&lexicon, &grammar.realize(reading, &lexicon).unwrap());
+        assert!(again.contains(reading), "{reading:#?}");
+    }
+    // A tree with one word swapped is not in the forest.
+    let swapped: Reading = ron::from_str(
+        &ron::to_string(&readings[0])
+            .unwrap()
+            .replace("\"n:hill\"", "\"n:card\""),
+    )
+    .unwrap();
+    assert_ne!(swapped, readings[0]);
+    assert!(!parse.contains(&swapped));
+}
+
+#[test]
+fn law_one_faults_are_found_in_the_forest() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    // Parsing skips whitespace, so these have Readings; realization writes
+    // single spaces, so none of them round-trips.
+    for (text, fault) in [
+        (
+            "See the man  on the hill.",
+            deckmaste_syntax::RealizationFault::Spacing { at: 11 },
+        ),
+        ("See the man on the hill .", deckmaste_syntax::RealizationFault::Spacing { at: 23 }),
+        (" See the man.", deckmaste_syntax::RealizationFault::Edge),
+    ] {
+        let parse = grammar.parse(&lexicon, text);
+        assert!(parse.derivation_count() > 0, "{text}");
+        assert_eq!(parse.verify_realization(&lexicon), Err(fault), "{text}");
+    }
+}
+
+#[test]
+fn constituents_carry_span_function_and_head() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let text = "See the man with the telescope.";
+    let mut hosts = Vec::new();
+    for reading in readings(&grammar, &lexicon, text) {
+        let (realized, constituents) = grammar.constituents(&reading, &lexicon).unwrap();
+        assert_eq!(realized, text);
+        let pp = constituents
+            .iter()
+            .find(|c| c.category == "PrepositionPhrase")
+            .unwrap();
+        assert_eq!(&text[pp.span.clone()], "with the telescope");
+        assert_eq!(pp.head.map(|h| h.as_str().to_owned()).as_deref(), Some("p:with"));
+        let host = &constituents[pp.parent.unwrap()];
+        hosts.push((
+            pp.function.clone(),
+            host.category.clone(),
+            host.head.as_ref().map(|h| h.as_str().to_owned()),
+            text[host.span.clone()].to_owned(),
+        ));
+    }
+    hosts.sort();
+    assert_eq!(
+        hosts,
+        [
+            (
+                "adjunct".to_owned(),
+                "VerbPhrase".to_owned(),
+                Some("v:see".to_owned()),
+                "See the man with the telescope".to_owned()
+            ),
+            (
+                "modifier".to_owned(),
+                "Nominal".to_owned(),
+                Some("n:man".to_owned()),
+                "man with the telescope".to_owned()
+            ),
+        ]
+    );
+}
+
+#[test]
+fn a_phrase_parses_and_admits_as_its_own_category() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let analyzed = lexicon.analyze("the man on the hill");
+    let parse = grammar.parse_category(&analyzed, "NounPhrase").unwrap();
+    let readings = parse.readings();
+    assert_eq!(readings.len(), 1);
+    assert_eq!(parse.admit(&readings[0], &lexicon), Ok(()));
+    assert_eq!(
+        grammar.admit_category(&readings[0], &lexicon, "NounPhrase"),
+        Ok(())
+    );
+    assert!(grammar.admit(&readings[0], &lexicon).is_err());
+    assert_eq!(parse.verify_realization(&lexicon), Ok(()));
+    assert!(grammar.parse_category(&analyzed, "Nonesuch").is_none());
+}

@@ -62,6 +62,8 @@ pub(crate) struct Production {
     pub id: String,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
+    /// The name of each child: its grammatical function in the mother.
+    pub names: Vec<String>,
     pub gaps: Vec<GapRule>,
     pub cost: u32,
     /// Constant bindings of each variable.
@@ -173,6 +175,7 @@ pub(crate) fn resolve(
         }
     }
     let head = children.iter().position(|(name, ..)| name == "head");
+    let names = children.iter().map(|(name, ..)| name.clone()).collect();
     let (rhs, gaps) = children.into_iter().map(|(_, s, g)| (s, g)).unzip();
     if introduces != Gap::None && !grammar.category_gap[lhs] {
         return Err("introduces a gap on a category that cannot contain one".to_owned());
@@ -181,6 +184,7 @@ pub(crate) fn resolve(
         id,
         lhs,
         rhs,
+        names,
         gaps,
         cost,
         constants,

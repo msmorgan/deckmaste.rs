@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::ops::Range;
 
+use deckmaste_lexical::AnalyzedText;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 
@@ -29,6 +30,7 @@ pub struct Metrics {
 
 #[derive(Debug, Clone)]
 pub(crate) struct Leaf {
+    pub start: usize,
     pub end: usize,
     pub reading: LexicalReading,
     pub facts: LeafFacts,
@@ -47,6 +49,7 @@ pub(crate) struct Item {
     pub production: usize,
     pub dot: usize,
     pub start: usize,
+    pub end: usize,
     pub state: State,
     /// (previous item, last child) alternatives.
     pub families: Vec<(Option<usize>, ChildRef)>,
@@ -88,6 +91,10 @@ impl PackedForest {
 #[derive(Debug)]
 pub struct Parse<'g> {
     pub(crate) grammar: &'g CompiledGrammar,
+    /// The Category parsed for.
+    pub(crate) root: usize,
+    /// The analyzed text, as chars.
+    pub(crate) tokens: Vec<char>,
     pub forest: PackedForest,
     /// Words no declared lexeme spells, as char ranges.
     pub vocabulary_gaps: Vec<Range<usize>>,
@@ -96,9 +103,31 @@ pub struct Parse<'g> {
 impl CompiledGrammar {
     /// Parses `text` as the grammar's root Category.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
     pub fn parse<'g>(&'g self, lexicon: &Lexicon, text: &str) -> Parse<'g> {
-        let analyzed = lexicon.analyze(text);
+        self.parse_analyzed(&lexicon.analyze(text))
+    }
+
+    /// Parses an already analyzed text, such as one analyzed with a card's
+    /// names in scope, as the grammar's root Category.
+    #[must_use]
+    pub fn parse_analyzed<'g>(&'g self, analyzed: &AnalyzedText) -> Parse<'g> {
+        self.run(analyzed, self.root)
+    }
+
+    /// Parses an analyzed text as the named Category, or `None` when the
+    /// grammar has no such Category.
+    #[must_use]
+    pub fn parse_category<'g>(
+        &'g self,
+        analyzed: &AnalyzedText,
+        category: &str,
+    ) -> Option<Parse<'g>> {
+        let root = self.categories.iter().position(|c| c == category)?;
+        Some(self.run(analyzed, root))
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
+    fn run<'g>(&'g self, analyzed: &AnalyzedText, root: usize) -> Parse<'g> {
         let tokens = &analyzed.tokens;
         let n = tokens.len();
         let skip = |mut p: usize| {
@@ -113,6 +142,7 @@ impl CompiledGrammar {
             if let Some(facts) = self.leaf_facts(&found.reading) {
                 by_start[found.start].push(forest.leaves.len());
                 forest.leaves.push(Leaf {
+                    start: found.start,
                     end: found.end,
                     reading: found.reading.clone(),
                     facts,
@@ -142,6 +172,7 @@ impl CompiledGrammar {
                     production,
                     dot,
                     start,
+                    end,
                     state: key.4.clone(),
                     families: Vec::new(),
                 });
@@ -154,7 +185,7 @@ impl CompiledGrammar {
             }
         };
 
-        for &p in &self.by_lhs[self.root] {
+        for &p in &self.by_lhs[root] {
             predicted.insert((0, p));
             add(
                 &mut forest,
@@ -295,7 +326,7 @@ impl CompiledGrammar {
         forest.roots = (0..forest.nodes.len())
             .filter(|&i| {
                 let node = &forest.nodes[i];
-                node.category == self.root
+                node.category == root
                     && node.start == 0
                     && skip(node.end) == n
                     && node.summary.gap == crate::Gap::None
@@ -303,6 +334,8 @@ impl CompiledGrammar {
             .collect();
         Parse {
             grammar: self,
+            root,
+            tokens: tokens.clone(),
             forest,
             vocabulary_gaps: analyzed.unknown_words(),
         }

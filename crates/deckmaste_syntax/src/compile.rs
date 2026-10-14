@@ -17,6 +17,7 @@ use crate::frames::FrameFamily;
 use crate::frames::PrepositionFrame;
 use crate::frames::SlotFill;
 use crate::frames::SlotKind;
+use crate::frames::SlotRelation;
 use crate::grammar::Equation;
 use crate::grammar::Grammar;
 use crate::grammar::HostKind;
@@ -653,11 +654,17 @@ impl<'a> Binder<'a> {
                     prepositions: None,
                     host: Some(*host_kind),
                 };
+                // CGEL: an unselected dependent of a nominal is a Modifier, of
+                // a predicate an Adjunct.
+                let function = match host_kind {
+                    HostKind::Nominal => "modifier",
+                    HostKind::Predicate => "adjunct",
+                };
                 let (h, a) = if *side == Side::After {
                     let h = draft.child("head", host_symbol, GapRule::Transparent);
-                    (h, draft.child("adjunct", adjunct_symbol, GapRule::Closed))
+                    (h, draft.child(function, adjunct_symbol, GapRule::Closed))
                 } else {
-                    let a = draft.child("adjunct", adjunct_symbol, GapRule::Closed);
+                    let a = draft.child(function, adjunct_symbol, GapRule::Closed);
                     (draft.child("head", host_symbol, GapRule::Transparent), a)
                 };
                 draft.host_check = Some((h, a, *host_kind));
@@ -765,7 +772,7 @@ impl<'a> Binder<'a> {
             // Active, with every NP slot optionally extracted.
             let active = voice_value("Active")?;
             drafts.extend(
-                self.valence_family(lhs, &name, index, cost, &slots, None, active, gappable)?,
+                self.valence_family(lhs, &name, index, cost, &slots, 0, None, active, gappable)?,
             );
             if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
                 && matches!(slots.first(), Some(SlotFill::NP))
@@ -791,6 +798,7 @@ impl<'a> Binder<'a> {
                         index,
                         cost,
                         &rest,
+                        1,
                         agent.then_some(by),
                         Some(passive_voice),
                         gappable,
@@ -807,7 +815,8 @@ impl<'a> Binder<'a> {
     }
 
     /// One frame's phrase and, when `gappable`, a variant per extracted NP
-    /// slot.
+    /// slot. `slots` are the frame's slots from `first_slot` on (a passive
+    /// drops the Object), plus a trailing agent NP when `by` is given.
     #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence_family(
         &self,
@@ -816,6 +825,7 @@ impl<'a> Binder<'a> {
         frame: usize,
         cost: u32,
         slots: &[&SlotFill],
+        first_slot: usize,
         by: Option<LexemeId>,
         voice: Option<(usize, u16)>,
         gappable: bool,
@@ -853,8 +863,9 @@ impl<'a> Binder<'a> {
                     draft.child("agent", self.slot_symbol(fill)?, GapRule::Closed);
                     continue;
                 }
+                let relation = self.out.frames[frame].slots[first_slot + i].relation;
                 draft.child(
-                    &format!("slot{i}"),
+                    relation_name(relation),
                     self.slot_symbol(fill)?,
                     GapRule::Transparent,
                 );
@@ -1036,4 +1047,14 @@ fn check_closed(lexicon: &Lexicon, id: &LexemeId, context: &str) -> Result<(), L
         )));
     }
     Ok(())
+}
+
+/// The child name of a Frame Slot: the grammatical function it bears.
+fn relation_name(relation: SlotRelation) -> &'static str {
+    match relation {
+        SlotRelation::Object => "object",
+        SlotRelation::IndirectObject => "indirect_object",
+        SlotRelation::Complement => "complement",
+        SlotRelation::PredicativeComplement => "predicative_complement",
+    }
 }

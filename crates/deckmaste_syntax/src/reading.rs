@@ -5,7 +5,10 @@ use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashMap;
 
+use std::ops::Range;
+
 use deckmaste_lexical::Binding;
+use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use serde::Deserialize;
@@ -265,8 +268,36 @@ impl CompiledGrammar {
     /// # Errors
     /// The first violation found.
     pub fn admit(&self, reading: &Reading, lexicon: &Lexicon) -> Result<(), AdmissionError> {
+        self.admit_as(reading, lexicon, self.root)
+    }
+
+    /// Admission without parsing as the named Category instead of the root.
+    ///
+    /// # Errors
+    /// The first violation found, or [`AdmissionError::Root`] when the grammar
+    /// has no such Category.
+    pub fn admit_category(
+        &self,
+        reading: &Reading,
+        lexicon: &Lexicon,
+        category: &str,
+    ) -> Result<(), AdmissionError> {
+        let root = self
+            .categories
+            .iter()
+            .position(|c| c == category)
+            .ok_or_else(|| AdmissionError::Root(category.to_owned()))?;
+        self.admit_as(reading, lexicon, root)
+    }
+
+    pub(crate) fn admit_as(
+        &self,
+        reading: &Reading,
+        lexicon: &Lexicon,
+        root: usize,
+    ) -> Result<(), AdmissionError> {
         let (category, summary) = self.summarize(reading, lexicon)?;
-        if category != self.root || summary.gap != Gap::None {
+        if category != root || summary.gap != Gap::None {
             return Err(AdmissionError::Root(self.categories[category].clone()));
         }
         Ok(())
@@ -342,25 +373,119 @@ impl CompiledGrammar {
     /// Productions.
     pub fn realize(&self, reading: &Reading, lexicon: &Lexicon) -> Result<String, AdmissionError> {
         let mut atoms = Vec::new();
-        self.atoms(reading, lexicon, &mut atoms)?;
-        let mut out = String::new();
-        let mut glue_next = true;
-        for (text, binding, punct) in atoms {
-            let glue = glue_next || punct || matches!(binding, Binding::Suffix | Binding::Bound);
-            if !glue {
-                out.push(' ');
-            }
-            out.push_str(&text);
-            glue_next = matches!(binding, Binding::Prefix | Binding::Bound) && !punct;
-        }
-        Ok(out)
+        self.atoms(reading, lexicon, &mut atoms, &mut |_, _| {})?;
+        Ok(join(&atoms).0)
     }
 
+    /// Every Constituent of a Reading in preorder, located in its
+    /// realization, which is returned with them.
+    ///
+    /// # Errors
+    /// As [`CompiledGrammar::realize`].
+    pub fn constituents(
+        &self,
+        reading: &Reading,
+        lexicon: &Lexicon,
+    ) -> Result<(String, Vec<Constituent>), AdmissionError> {
+        let mut atoms = Vec::new();
+        let mut spans: Vec<(usize, usize)> = Vec::new();
+        self.atoms(reading, lexicon, &mut atoms, &mut |index, range| {
+            if index == spans.len() {
+                spans.push(range);
+            } else {
+                spans[index] = range;
+            }
+        })?;
+        let (text, offsets) = join(&atoms);
+        let mut out = Vec::new();
+        self.locate(reading, None, String::new(), &mut out);
+        for (constituent, &(first, last)) in out.iter_mut().zip(&spans) {
+            constituent.span = if first == last {
+                let at = offsets.get(first).map_or(text.len(), |r| r.start);
+                at..at
+            } else {
+                offsets[first].start..offsets[last - 1].end
+            };
+        }
+        Ok((text, out))
+    }
+
+    /// Preorder Constituents without spans; `atoms` fills the spans in the
+    /// same order.
+    fn locate(
+        &self,
+        reading: &Reading,
+        parent: Option<usize>,
+        function: String,
+        out: &mut Vec<Constituent>,
+    ) {
+        let Reading::Node(node) = reading else {
+            return;
+        };
+        let index = out.len();
+        out.push(Constituent {
+            category: node.category.clone(),
+            span: 0..0,
+            function,
+            parent,
+            head: self.head_lexeme(reading),
+            gap: node.gap,
+        });
+        let names = self.child_names(node);
+        for (child, name) in node.children.iter().zip(names) {
+            self.locate(child, Some(index), name, out);
+        }
+    }
+
+    /// The names of a node's children, in order: the grammatical function
+    /// each bears in it.
+    fn child_names(&self, node: &ReadingNode) -> Vec<String> {
+        self.by_id.get(&node.production).map_or_else(Vec::new, |&p| {
+            let production = &self.productions[p];
+            production
+                .rhs
+                .iter()
+                .zip(&production.names)
+                .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(_)))
+                .map(|(_, name)| name.clone())
+                .collect()
+        })
+    }
+
+    /// The lexeme reached by following `head` children down from `reading`.
+    #[must_use]
+    pub fn head_lexeme(&self, reading: &Reading) -> Option<LexemeId> {
+        match reading {
+            Reading::Leaf(LexicalReading::Word(value)) => Some(value.lexeme),
+            Reading::Leaf(_) => None,
+            Reading::Node(node) => {
+                let names = self.child_names(node);
+                let at = names.iter().position(|n| n == "head")?;
+                self.head_lexeme(node.children.get(at)?)
+            }
+        }
+    }
+
+    /// Pushes a Reading's atoms (text, binding, punctuation) in order, and
+    /// reports each node's preorder index with its atom range.
     fn atoms(
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
         out: &mut Vec<(String, Binding, bool)>,
+        located: &mut dyn FnMut(usize, (usize, usize)),
+    ) -> Result<(), AdmissionError> {
+        let mut next = 0;
+        self.atoms_from(reading, lexicon, out, located, &mut next)
+    }
+
+    fn atoms_from(
+        &self,
+        reading: &Reading,
+        lexicon: &Lexicon,
+        out: &mut Vec<(String, Binding, bool)>,
+        located: &mut dyn FnMut(usize, (usize, usize)),
+        next: &mut usize,
     ) -> Result<(), AdmissionError> {
         match reading {
             Reading::Leaf(value) => {
@@ -379,6 +504,10 @@ impl CompiledGrammar {
                     .by_id
                     .get(&node.production)
                     .ok_or_else(|| AdmissionError::UnknownProduction(node.production.clone()))?;
+                let me = *next;
+                *next += 1;
+                let first = out.len();
+                located(me, (first, first));
                 let mut children = node.children.iter();
                 for symbol in &self.productions[index].rhs {
                     if let Symbol::Punct(c) = symbol {
@@ -388,11 +517,58 @@ impl CompiledGrammar {
                             production: node.production.clone(),
                             reason: "missing child".to_owned(),
                         })?;
-                        self.atoms(child, lexicon, out)?;
+                        self.atoms_from(child, lexicon, out, located, next)?;
                     }
                 }
+                located(me, (first, out.len()));
             }
         }
         Ok(())
     }
+}
+
+/// One Constituent of a Reading, as [`CompiledGrammar::constituents`] locates
+/// it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Constituent {
+    pub category: String,
+    /// Byte range in the realized text.
+    pub span: Range<usize>,
+    /// Its name in its mother's Production: the grammatical function it
+    /// bears there (`subject`, `object`, `modifier`, ...); empty for the
+    /// root.
+    pub function: String,
+    /// Preorder index of its mother.
+    pub parent: Option<usize>,
+    /// The lexeme reached through its `head` children.
+    pub head: Option<LexemeId>,
+    pub gap: Gap,
+}
+
+/// Joins atoms with the spacing their bindings call for, returning the text
+/// and each atom's byte range in it.
+pub(crate) fn join(atoms: &[(String, Binding, bool)]) -> (String, Vec<Range<usize>>) {
+    let mut out = String::new();
+    let mut ranges = Vec::with_capacity(atoms.len());
+    let mut glue_next = true;
+    for (text, binding, punct) in atoms {
+        if !(glue_next || *punct || glues_before(*binding)) {
+            out.push(' ');
+        }
+        let start = out.len();
+        out.push_str(text);
+        ranges.push(start..out.len());
+        glue_next = glues_after(*binding) && !punct;
+    }
+    (out, ranges)
+}
+
+/// Whether an atom with this binding attaches to the atom before it.
+pub(crate) fn glues_before(binding: Binding) -> bool {
+    matches!(binding, Binding::Suffix | Binding::Bound)
+}
+
+/// Whether an atom with this binding attaches to the atom after it.
+pub(crate) fn glues_after(binding: Binding) -> bool {
+    matches!(binding, Binding::Prefix | Binding::Bound)
 }

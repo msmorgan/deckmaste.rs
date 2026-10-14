@@ -25,6 +25,21 @@ It has no proc macros and no generated code: a grammar is data.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.
+6. `parse_analyzed(analyzed)` parses a text already analyzed (for example with a
+   card's names in scope); `parse_category(analyzed, category)` parses it as any
+   Category, and `Parse::admit` admits at the Category the Parse was made for.
+7. Both round-trip laws are checked without enumerating trees:
+   `Parse::verify_realization(lexicon)` proves law 1 for every Reading in the
+   forest by checking each reachable leaf's spelling and the spacing of every
+   pair of atoms adjacent in some Derivation; `Parse::contains(reading)` decides
+   law 2's membership by walking the forest along the Reading.
+8. `constituents(reading, lexicon)` lists a Reading's Constituents in preorder
+   with their spans in its realization, their mother, their head lexeme (through
+   `head` children) and their name in the mother's Production. A child's name
+   is its grammatical function: `subject`, `head`, `object`, `complement`,
+   `predicative_complement` (from the Frame Slot's relation in derived valence
+   phrases), `modifier` (an unselected dependent of a nominal) or `adjunct` (of
+   a predicate).
 
 ## Schemas
 
