@@ -1267,6 +1267,7 @@ fn overlay() -> Vec<Row> {
         Row { label: "Riot", ..D },
         Row {
             label: "Ripple",
+            definition: &[(Category::Triggered, Some(Regime::AtCasting))],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,

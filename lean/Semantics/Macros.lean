@@ -1469,9 +1469,14 @@ semantic_template manyCountersPutByEffect (subject : NounPhrase) : GameEvent :=
 /-- "<who> puts one or more counters on <subject>" -/
 semantic_template manyBareCountersPutBy (who subject : NounPhrase) : GameEvent :=
   .does (.actor who) (.putCounters .anyAmount .anyKind subject .many false)
+/-- A token-creation event, retaining its creator, controller, and effect restriction. -/
+semantic_template tokenCreationEvent (tokens : NounPhrase) (byEffect : Bool)
+    (by_ under : Option NounPhrase) : GameEvent :=
+  .does (match by_ with | some creator => .by creator | none => .any)
+    (.createObject .anyAmount (.token (.copyOf tokens []) []) byEffect under)
 /-- "one or more tokens would be created" -/
 semantic_template tokensCreated (tokens : NounPhrase) : GameEvent :=
-  .does .any (.createObject .anyAmount (.token (.copyOf tokens []) []) false none)
+  tokenCreationEvent tokens false none none
 /-- "you roll a die and the result is <q>" -/
 semantic_template youRollResultIn (quantity : Quantity) : GameEvent :=
   .does (.actor .you) (.rollDice (.lit 1) (.sides 6) .one (.resultIn quantity))
@@ -1480,7 +1485,7 @@ semantic_template youRollHighestNatural : GameEvent :=
   .does (.actor .you) (.rollDice (.lit 1) (.sides 6) .one .highestNatural)
 /-- "one or more tokens would be created under <under>'s control by an effect" -/
 semantic_template tokensCreatedByEffectUnder (tokens under : NounPhrase) : GameEvent :=
-  .does .any (.createObject .anyAmount (.token (.copyOf tokens []) []) true (some under))
+  tokenCreationEvent tokens true none (some under)
 semantic_template blocks (subject : NounPhrase) (blocked : Option NounPhrase) : GameEvent :=
   .does (.actor subject) (.block (blocked.getD .any))
 semantic_template becomesBlocked (subject : NounPhrase) (by_ : Option NounPhrase) : GameEvent :=

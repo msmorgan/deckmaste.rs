@@ -243,7 +243,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "recover", argumentSchemas := [[⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true, definition := [⟨.triggered, none⟩] },
     { word := .named "reinforce", argumentSchemas := [[⟨.number, none⟩, ⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true, definition := [⟨.activated, none⟩] },
     { word := .named "riot", argumentSchemas := [[]], definition := [⟨.static, none⟩] },
-    { word := .named "ripple", argumentSchemas := [[⟨.number, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, regime := some .atCasting },
+    { word := .named "ripple", argumentSchemas := [[⟨.number, none⟩]], functionsOnStack := true, onInstantOrSorceryCard := true, definition := [⟨.triggered, some .atCasting⟩], regime := some .atCasting },
     { word := .named "scavenge", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true, definition := [⟨.activated, none⟩] },
     { word := .named "solved", argumentSchemas := [[⟨.ability, none⟩]], definition := [⟨.static, none⟩, ⟨.triggered, none⟩, ⟨.activated, none⟩] },
     { word := .named "soulbond", argumentSchemas := [[]], definition := [⟨.triggered, none⟩, ⟨.triggered, none⟩] },
