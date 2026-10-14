@@ -35,42 +35,42 @@ const STRUCT_MEMBER: &str = "";
 const PAIRS: &[(&str, &str, &str)] = &[
     (
         "Words",
-        include_str!("../../../lean/Semantics/Words.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Words.lean"),
         include_str!("../src/words.rs"),
     ),
     (
         "Events",
-        include_str!("../../../lean/Semantics/Events.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Events.lean"),
         include_str!("../src/events.rs"),
     ),
     (
         "Phrase",
-        include_str!("../../../lean/Semantics/Phrase.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Phrase.lean"),
         include_str!("../src/phrase.rs"),
     ),
     (
         "Triggers",
-        include_str!("../../../lean/Semantics/Triggers.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Triggers.lean"),
         include_str!("../src/triggers.rs"),
     ),
     (
         "Abilities",
-        include_str!("../../../lean/Semantics/Abilities.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Abilities.lean"),
         include_str!("../src/abilities.rs"),
     ),
     (
         "Card",
-        include_str!("../../../lean/Semantics/Card.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Card.lean"),
         include_str!("../src/card.rs"),
     ),
     (
         "Rules",
-        include_str!("../../../lean/Semantics/Rules.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Rules.lean"),
         include_str!("../src/rules.rs"),
     ),
     (
         "Check/FactTypes",
-        include_str!("../../../lean/Semantics/Check/FactTypes.lean"),
+        include_str!("../../../lean/archive/SemanticsV2/Check/FactTypes.lean"),
         include_str!("../src/facts.rs"),
     ),
 ];

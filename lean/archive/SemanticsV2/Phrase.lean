@@ -1,0 +1,506 @@
+import Semantics.Words
+import Semantics.Events
+
+/-!
+# Semantics.Phrase
+
+The phrase grammar: zones, predicates, noun phrases, amounts, quantities, and conditions.
+Port of `idris/src/Experimental/Phrase.idr`, syntax only, reshaped: no `bs` or `Kind`
+indices (both are inferred by the checker), and no constructor whose meaning is a
+composition of others (`permanent` is `inZone battlefield`, the combat predicates are one
+constructor over `CombatRelation`, the two stat reads are one over `ProjAxis`).
+
+A `NounPhrase` denotes one entity or a collection, by its number; CONTEXT.md's Reference and
+Selection are what it denotes, not two spellings.
+-/
+
+namespace Semantics
+
+/-- Which version of a zone-changing object supplies the event pattern's characteristics
+[CR#603.10,603.10a]. -/
+inductive ObservationPoint where
+  | before | after
+  deriving DecidableEq, Repr
+
+mutual
+  /-- Ordered inputs to a semantic binding scope; each input is read once. -/
+  inductive CaptureInput where
+    | subject (expression : NounPhrase)
+    | value (expression : Amount)
+
+  /-- Whose zone: "your graveyard", or a bare zone name. -/
+  inductive ZoneScope where
+    | bare
+    | possessedBy (possessor : NounPhrase)
+
+  /-- A pile: objects grouped in a zone, in order, the pile itself not an object
+  [CR#700.3,700.3b]. Grouping neither moves its objects nor reorders them [CR#700.3c]. Its face,
+  not its zone, decides who may look at it: the two zone piles fix theirs, and a pile an
+  instruction makes takes the face that instruction gives it. -/
+  inductive Pile where
+    /-- "<whose> library", kept face down [CR#401.2]. -/
+    | library (whose : ZoneScope)
+    /-- "<whose> graveyard", kept face up and still ordered [CR#404.2,700.3c]. -/
+    | graveyard (whose : ZoneScope)
+    /-- "that pile": the pile an instruction just made, with the face it was given. -/
+    | that
+    /-- The face-down cards exiled with `source`, kept as their own pile [CR#406.4]. -/
+    | exiledWith (source : NounPhrase)
+
+  inductive ZoneExpr where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : ZoneExpr)
+    | inCaller (scope : Nat) (body : ZoneExpr)
+    | zone (zone : Zone) (scope : ZoneScope)
+    /-- "On top of <pile>", "on the bottom of <pile>": a move destination at one end of a pile.
+    The move's riders say how the moved objects are ordered there, how deep, and whether the
+    other end may be chosen instead. -/
+    | place (end_ : LibraryEnd) (pile : Pile)
+    /-- "From wherever it is": a move's origin that names no zone, as exile's is
+    [CR#701.13a]. -/
+    | wherever
+
+  /-- Where a name comes from: printed or chosen. "With the same name as …" is Sharing on the
+  name axis, `Predicate.shares .cardName .share`. -/
+  inductive NameSource where
+    | printed (name : String)
+    | chosen
+
+  /-- What a choice ranges over. -/
+  inductive ChoiceDomain where
+    | nameOfCard (predicate : Predicate)
+    | colorOtherThan (color : Color)
+    | typeOtherThan (subtype : Subtype)
+    | basicTypesOnly
+    | nonbasicTypesOnly
+    | number (quantity : Quantity)
+    | players (predicate : Predicate)
+    /-- "choose flying or trample": an ability chosen among named keywords. -/
+    | abilitiesAmong (keywords : List KeywordTerm)
+
+  inductive EventSource where
+    | anywhere
+    | zones (zones : List ZoneExpr)
+    | anywhereBut (zones : List ZoneExpr)
+
+  /-- A historical event whose gap denotes the entity being described. -/
+  inductive LookbackClause where
+    /-- The event, within a span of the game ("this turn", "last turn", "this game"), and
+    optionally only when a timing held as it happened ("cast when a sorcery couldn't have
+    been" [CR#307.5a]). -/
+    | mk (event : GameEvent) (within : Duration) (timing : Option Timing)
+    /-- The event the enclosing instruction caused: "the cards discarded this way". It names
+    an occurrence, not a span. -/
+    | thisWay (event : GameEvent)
+    /-- The event that triggered the enclosing ability [CR#603.2]. It names an occurrence, not
+    a span. -/
+    | triggering (event : GameEvent)
+
+  /-- Which turn a timing or duration names. `that` reads back the turn an earlier phrase
+  named ("that turn"); there is no "this", which names an object. -/
+  inductive TurnRef where
+    | current
+    | previous
+    /-- The next turn, or the next of `player`'s turns. -/
+    | next (player : Option NounPhrase)
+    /-- Each turn, or each of `player`'s turns. -/
+    | each (player : Option NounPhrase)
+    /-- A turn after the current one [CR#702.170d]. -/
+    | later
+    | that
+
+  /-- When a player may act, or when a trigger or replacement applies. With no timing written,
+  a player may act any time they have priority [CR#117.1a]. -/
+  inductive Timing where
+    /-- During `part` of the turn `which` names, whose turn it is being `whose`'s. -/
+    | inPart (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | relativeToEvent (side : EventSide) (event : GameEvent)
+    /-- "while …": an event underway. -/
+    | whileDoing (event : GameEvent)
+    | onlyIf (condition : Condition)
+    | and (conjuncts : List Timing)
+    | or (disjuncts : List Timing)
+    | not (timing : Timing)
+
+  /-- How long an effect lasts, or the span a lookback reads. With no duration stated, an
+  effect lasts until the game ends [CR#611.2a]. -/
+  inductive Duration where
+    /-- Bounded by two optional events: "until end of turn" has only an end, "on a later turn"
+    only a start [CR#702.170d]. A history window ends at `GameEvent.now`. -/
+    | between (start : Option GameEvent) (end_ : Option GameEvent)
+    | forAsLongAs (condition : Condition) -- [CR#611.2b]
+
+  /-- A Linked Facet: what a linked ability reads back about its Link Source [CR#607.2a]. -/
+  inductive LinkedFacet where
+    /-- colors of mana spent to cast it [CR#702.44a] -/
+    | colorsSpent
+    /-- mana spent to pay the total cost [CR#601.2h] -/
+    | manaValueSpent
+    /-- [CR#702.33c..702.33d] -/
+    | timesPaid (which : LinkSource)
+    /-- "was kicked" [CR#702.33d], optionally within a span ("this turn") -/
+    | readback (which : LinkSource) (within : Option Duration)
+    /-- "the player chosen as [which] was paid": the choice an additional cost makes, read
+    back by the ability linked to it [CR#702.174a,607.2d,607.2i] -/
+    | chosenPlayer (which : LinkSource)
+    /-- The objects `deed` acted on as `which` was paid or resolved, as the printed text numbers
+    them: "the sacrificed creature", "the exiled cards", "creatures it devoured"
+    [CR#607.2a,702.82b]. -/
+    | objects (which : LinkSource) (deed : Deed) (plurality : Plurality)
+    /-- Whether the choice `which` offered was taken: "if tribute wasn't paid" reads it false
+    [CR#702.104b]. -/
+    | taken (which : LinkSource)
+
+  inductive Predicate where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Predicate)
+    | inCaller (scope : Nat) (body : Predicate)
+    | hasType (type : CardType)
+    | hasSubtype (subtype : Subtype)
+    | hasSupertype (supertype : Supertype)
+    | anyPlayer
+    | opponent
+    | chosenPlayer (ref : ChoiceRef)
+    | qualityNoun (sort : QualitySort) (domain : Option ChoiceDomain)
+    | counterKindOn (subject : NounPhrase)
+    | ofChosen (ref : ChoiceRef) (sort : QualitySort)
+    | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
+    | hasKeyword (keyword : KeywordTerm)
+    | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
+    | castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))
+    | castFrom (zone : ZoneExpr)
+    | wasCast
+    | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
+    | happenedTo (lookback : LookbackClause)
+    | colorIs (color : Color)
+    | colorCount (comparator : Comparator) (count : Nat)
+    | named (source : NameSource)
+    /-- Sharing: the member and `with_` have at least one value in common on `axis` (`share`)
+    or none (`differ`) [CR#201.2a,201.2c,105.2,205.3m]. On the name axis it is not equality:
+    an object with two names shares a name with an object that has either [CR#201.2a]. -/
+    | shares (axis : QualitySort) (agreement : Agreement) (with_ : NounPhrase)
+    | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
+    /-- The member stands in the Relation `label` as its first side, with `counterpart` as the
+    second, or with anything when `counterpart` is none: "paired", "paired with it", "encoded
+    on that creature" [CR#702.95b,702.99b]. -/
+    | related (label : RelationLabel) (counterpart : Option NounPhrase)
+    | attachment (side : AttachmentSide) (word : Option AttachWord)
+        (counterpart : Option NounPhrase)
+    | isCard
+    | isToken
+    | isEmblem
+    | isCopyOfACard
+    /-- The whole single double-faced permanent has this side up [CR#701.27g]. -/
+    | currentFace (side : CardFaceSide)
+    | hasStatus (status : Status)
+    | hasCounters (kind : Option CounterKind)
+    | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
+    | superlative (op : AggregateOp) (axis : ProjAxis) (domain : Predicate)
+    /-- A vote stands only where a spell or ability instructed players to vote [CR#701.38a]. -/
+    | withMostVotes
+    | choseExtreme (op : AggregateOp)
+    | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
+    | inZone (zone : ZoneExpr)
+    | inPile (pile : NounPhrase)
+    | exiledWith (source : NounPhrase)
+    | and (conjuncts : List Predicate)
+    /-- Disjuncts of different kinds join: "creature or player" denotes either. -/
+    | or (disjuncts : List Predicate)
+    | not (predicate : Predicate)
+    /-- Rules text printed in square brackets, kept in place so a Text Change can find it
+    [CR#702.148a]: transparent, it means what `predicate` means. -/
+    | bracketed (predicate : Predicate)
+    | other
+    | notChosen
+    | otherThan (anchor : NounPhrase)
+    | coinCameUp (face : CoinFace)
+    | isSource
+    | manaCostHas (symbol : ManaSymbol)
+    | abilityHead (class_ : AbilityClass)
+    | abilityOf (source : NounPhrase)
+    | activatedBy (activator : NounPhrase)
+    | isManaAbility
+    | targets (subject : NounPhrase) (extent : TargetExtent)
+
+  inductive DetPhrase where
+    | target (quantity : Quantity)
+    | a (mode : ChoiceMode)
+    /-- "each …": a group, resolution-time [CR#608.2] -/
+    | each
+    | all
+    | the
+    | count (quantity : Quantity) (mode : Option ChoiceMode)
+    /-- the bare plural: a description, no determiner [CR#109.2] -/
+    | bare
+
+  /-- A color, written, "the chosen color", or an object's color ("that creature's color"). -/
+  inductive ColorTerm where
+    | lit (color : Color)
+    | chosen (ref : ChoiceRef)
+    /-- The color of `object` [CR#105.2]: a Mana Substitute's colored pip reads the acted-on
+    object back ("mana of that creature's color" [CR#702.51a]). -/
+    | colorOf (object : NounPhrase)
+
+  /-- The mana type a "tapped for mana of …" trigger specifies [CR#106.12a]: colorless, or a
+  color written or chosen; the six types of [CR#106.1b]. -/
+  inductive ManaTypeTerm where
+    | colorless
+    | ofColor (color : ColorTerm)
+
+  inductive NounPhrase where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : NounPhrase)
+    | inCaller (scope : Nat) (body : NounPhrase)
+    /-- The participant bound by the nearest lookback, viewed one entity at a time. -/
+    | gap (kind : Kind)
+    /-- the source, by self-name or "this spell" [CR#113.7] -/
+    | this
+    | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
+    | asMarker (marker : MarkerWord) (subject : NounPhrase)
+    | resolvedPermanent (spell : NounPhrase)
+    /-- The new object `subject` turns into at its next zone change, named before the change
+    happens: "the permanent this spell becomes" [CR#400.7]. -/
+    | becomes (subject : NounPhrase)
+    | theGrantor (marker : MarkerWord)
+    | you
+    /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],
+    unless an enclosing `Instruction.act` hands the instruction to another player or to a
+    permanent, which it then is. -/
+    | actor
+    | combatPlayer (role : CombatRole)
+    | playerGroup (group : PlayerGroupWord)
+    | described (determiner : DetPhrase) (predicate : Predicate)
+    | eachOf (group : NounPhrase)
+    | and (phrases : List NounPhrase)
+    | or (phrases : List NounPhrase)
+    /-- "The top N cards of <pile>": `amount` objects from one end of a pile, an ordered group
+    [CR#700.3c]. -/
+    | slice (end_ : LibraryEnd) (amount : Amount) (pile : Pile)
+    /-- "Cards from the top of <pile> until a <stop> card": the run of objects taken one at a
+    time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
+    | run (end_ : LibraryEnd) (stop : Predicate) (pile : Pile)
+    | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
+    /-- Agreement: the members of `group` share, or do not share, a value on `axis` ("two
+    creatures that share a creature type"), a constraint on the selection, not a predicate on
+    one member. -/
+    | agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase)
+    | theRest (kind : Kind) (plurality : Plurality)
+    | pileOf (count : SliceCount) (by_ : Option NounPhrase)
+    /-- A pronoun: what it reaches for, its number, and the window it resolves in. -/
+    | pro (reach : Reach) (plurality : Plurality) (window : Window)
+    /-- A macro body's first mention of a referent parameter: the argument, checked and
+    introduced where it stands, with the binding it introduces or resolves recorded under the
+    Binding Identity `id`. -/
+    | firstMention (id : BindingId) (phrase : NounPhrase)
+    /-- A later mention of the same parameter: the binding recorded under `id`, read back by that
+    identity rather than by a pronoun search. `phrase` is the argument again, kept only for its
+    structural facts (its kind, whether it is "you" or the source); it is never checked or
+    introduced a second time, so it selects nothing. -/
+    | laterMention (id : BindingId) (phrase : NounPhrase)
+    | attachHost (word : AttachWord) (head : NounWord)
+    | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
+    | designated (designation : DesignationLabel) (whose : NounPhrase)
+    /-- A Linked Facet of the subject that names a player or objects, read back by the ability
+    linked to its source: "the player chosen as its gift cost was paid", "the sacrificed
+    creature" [CR#607.2a,607.2d,607.2i]. -/
+    | paid (facet : LinkedFacet) (subject : NounPhrase)
+    /-- The object on the second side of the Relation `label` whose first side is `subject`:
+    "the creature it haunts" [CR#702.55b]. -/
+    | counterpart (label : RelationLabel) (subject : NounPhrase)
+    | oneEachOf (roles : List Predicate) (pool : NounPhrase)
+
+  inductive Amount where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Amount)
+    | inCaller (scope : Nat) (body : Amount)
+    | parameter (scope index : Nat) (shape : AmountShape)
+    | lit (value : Int)
+    | statOf (axis : ProjAxis) (subject : NounPhrase)
+    | countOf (group : NounPhrase)
+    | aggregate (op : AggregateOp) (axis : ProjAxis) (group : NounPhrase)
+    | paid (facet : LinkedFacet) (subject : NounPhrase)
+    | eventTally (op : TallyOp) (subject : NounPhrase) (lookback : LookbackClause)
+    | thatMuch
+    | chosenNumber (ref : ChoiceRef)
+    | votesFor (label : VoteLabel)
+    | theOutcome (sort : OutcomeSort)
+    | coinsShowing (face : CoinFace)
+    | greatestStoredMatch (subject : NounPhrase)
+    | groupSize
+    | theDifference
+    | letter (letter : Letter)
+    | arith (op : ArithOp) (left right : Amount)
+    | devotion (player : NounPhrase) (color : ColorTerm) (second : Option ColorTerm)
+    | half (rounding : RoundMode) (amount : Amount)
+    | aggregateOver (op : AggregateOp) (domain : Predicate) (body : Amount)
+    /-- An aggregate over listed amounts rather than over a group or a domain: "the smaller of
+    the number of +1/+1 and −1/−1 counters on it" [CR#704.5q] is `min` over the two counts,
+    "whichever is greater" `max`. -/
+    | aggregateOf (op : AggregateOp) (amounts : List Amount)
+    | distinctCount (axis : KindAxis) (domain : NounPhrase)
+    | upTo (bound : Amount)
+
+  inductive Quantity where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Quantity)
+    | inCaller (scope : Nat) (body : Quantity)
+    | range (low high : Option Nat)
+    | upToOf (amount : Amount)
+    | exactlyOf (amount : Amount)
+    /-- "Up to N {P} worth of modes": any modes whose weights total at most `n` [CR#700.2i]. -/
+    | worth (n : Nat)
+
+  inductive SliceCount where
+    | counted (quantity : Quantity)
+    | whole
+    /-- "Any number of them with total <axis> <comparator> <bound>": as many as the chooser
+    likes, so long as the sum of `axis` over the chosen ones compares to `bound`
+    [CR#701.59a]. -/
+    | totalling (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
+  inductive Door where
+    | thisDoor
+    | doorOf (state : Option LockState) (room : NounPhrase)
+
+  /-- Which roll results a trigger watches. -/
+  inductive RollWatch where
+    | anyResult
+    | resultIn (quantity : Quantity)
+    | highestNatural
+
+
+  inductive Condition where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : Condition)
+    | inCaller (scope : Nat) (body : Condition)
+    | duringPart (part : TurnPart) (whose : Option NounPhrase)
+    /-- "if there is a …" -/
+    | exists_ (subject : NounPhrase)
+    | happened (subject : NounPhrase) (lookback : LookbackClause)
+    | gameIs (designation : DesignationLabel)
+    | noHolder (designation : DesignationLabel)
+    | matches (subject : NounPhrase) (predicate : Predicate)
+    | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
+    | dealtThisWay (predicate : Predicate)
+    | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
+    | preventedFromSource (predicate : Predicate)
+    | flipCalled (caller : NounPhrase) (call : FlipCall)
+    | flipFace (face : CoinFace)
+    | voteLead (label : VoteLabel) (orTied : Bool)
+    | anyResultIs (comparator : Comparator) (bound : Amount)
+    | rolledDoubles
+    /-- `player` has priority [CR#117.1a]. A mana ability may be activated without it
+    [CR#117.1d], so instant speed is written with this condition. -/
+    | hasPriority (player : NounPhrase)
+    | not (condition : Condition)
+    | and (conjuncts : List Condition)
+    | or (disjuncts : List Condition)
+
+  inductive GameEvent where
+    | withBindings (scope : Nat) (inputs : List CaptureInput) (body : GameEvent)
+    | inCaller (scope : Nat) (body : GameEvent)
+    | zoneChange (subject : NounPhrase) (from_ : Option EventSource)
+        (to : Option ZoneExpr) (observation : ObservationPoint)
+    | draws (player : NounPhrase)
+    | losesGame (player : NounPhrase)
+    /-- "attacks", "attacks you", "blocks", "becomes blocked by …": an object's combat event,
+    with the counterpart the sentence names. -/
+    | combat (relation : CombatRelation) (subject : NounPhrase) (counterpart : Option NounPhrase)
+    /-- "you attack with one or more creatures". -/
+    | attacksWith (player : NounPhrase) (defender : Option NounPhrase) (attackers : NounPhrase)
+    | attachment (move : AttachMove) (subject : NounPhrase) (host : NounPhrase)
+    | damage (kind : DamageKind) (source : Option NounPhrase) (patient : Option NounPhrase)
+    /-- The beginning of `part` of the turn `which` names, whose turn it is being `whose`'s. -/
+    | beginningOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    /-- The present moment, where a history window ends. -/
+    | now
+    | casts (player : NounPhrase) (spell : Option NounPhrase) (from_ : Option EventSource)
+    | becomesTarget (subject : NounPhrase) (by_ : NounPhrase)
+    | statusEvent (subject : NounPhrase) (status : Status)
+    /-- The game gains a designation: "it becomes night" [CR#731.1]. -/
+    | gameBecomes (designation : DesignationLabel)
+    | stateHolds (condition : Condition)
+    | counterEvent (move : CounterMove) (kind : Option CounterKind) (subject : NounPhrase)
+        (batch : CounterBatch) (by_ : Option NounPhrase) (byEffect : Bool)
+    | tokensCreated (tokens : NounPhrase) (byEffect : Bool) (by_ : Option NounPhrase)
+        (under : Option NounPhrase)
+    | chapterMark (chapters : List ChapterNumber)
+    | activates (player : NounPhrase) (ability : NounPhrase)
+    | statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount)
+    | flipsCoin (player : NounPhrase) (call : Option FlipCall)
+    /-- `sides = none` is "whenever you roll a die", any die. -/
+    | rollsDice (player : NounPhrase) (batch : DiceBatch) (sides : Option Nat) (watch : RollWatch)
+    | paysCost (player : Option NounPhrase) (outcome : PaymentOutcome) (whose : NounPhrase)
+        (keyword : KeywordLabel)
+    | paysLife (player : NounPhrase)
+    | lifeChanges (player : NounPhrase) (move : LifeMove)
+    | verbedEvent (agent : Option NounPhrase) (verb : Deed) (patient : Option NounPhrase)
+        (becomes : Option Predicate) (locus : Option ZoneExpr)
+    /-- A mana ability with {T} in its cost resolving and producing mana [CR#106.12a]. -/
+    | tappedForMana (player : Option NounPhrase) (source : NounPhrase)
+        (type : Option ManaTypeTerm)
+    | unlocksDoor (player : NounPhrase) (door : Door)
+    | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
+    | triggers (ability : NounPhrase)
+    | commitsCrime (player : NounPhrase)
+    | causes (cause : Causing) (event : GameEvent)
+
+  inductive Causing where
+    | source (source : NounPhrase)
+    | event (event : GameEvent)
+    | anEffect
+end
+
+/-! `DecidableEq` does not derive for a nested mutual block; `BEq` and `Repr` do. -/
+deriving instance Repr, BEq for ColorTerm, ManaTypeTerm, CaptureInput, ZoneScope, Pile, ZoneExpr,
+  NameSource, ChoiceDomain, EventSource, LookbackClause, TurnRef, Timing, Duration, LinkedFacet,
+  Predicate, DetPhrase, NounPhrase, Amount, Quantity, SliceCount, Door, RollWatch, Condition,
+  GameEvent, Causing
+
+inductive SearchScope where
+  | oneZone (zone : ZoneExpr)
+  | someZones (whose : Option NounPhrase) (zones : List Zone)
+  deriving Repr, BEq
+
+inductive FlipScope where
+  | count (amount : Amount)
+  | per (each : NounPhrase)
+  deriving Repr, BEq
+
+inductive IgnoredOutcomes where
+  | extreme (extreme : RollExtreme)
+  | allBut (extreme : RollExtreme)
+  | chosen (chooser : Option NounPhrase) (amount : Amount)
+  deriving Repr, BEq
+
+inductive Ballot where
+  | byLabel (options : List VoteLabel)
+  | byCandidate (candidates : NounPhrase)
+  deriving Repr, BEq
+
+inductive Exposed where
+  | cards (cards : NounPhrase)
+  | zone (zone : ZoneExpr)
+  | choice (sort : ChoiceSort)
+  deriving Repr, BEq
+
+inductive VisibleThing where
+  | topOfLibrary
+  | wholeHand
+  | objects (objects : NounPhrase)
+  deriving Repr, BEq
+
+end Semantics
+
+attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
+  Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition Semantics.Duration
+  Semantics.Timing
+
+classify_semantic_syntax
+
+attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.gap
+  Semantics.NounPhrase.firstMention Semantics.NounPhrase.laterMention
+  Semantics.Quantity.withBindings Semantics.Quantity.inCaller
+  Semantics.ZoneExpr.withBindings Semantics.ZoneExpr.inCaller
+  Semantics.Condition.withBindings Semantics.Condition.inCaller
+  Semantics.NounPhrase.withBindings Semantics.NounPhrase.inCaller
+  Semantics.GameEvent.withBindings Semantics.GameEvent.inCaller
+  Semantics.CaptureInput Semantics.Amount.parameter
+  Semantics.Amount.withBindings Semantics.Amount.inCaller
+  Semantics.Predicate.withBindings Semantics.Predicate.inCaller
+
+attribute [semantic_literal] Semantics.Amount.lit
