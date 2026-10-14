@@ -11,6 +11,7 @@ mod chart;
 mod compile;
 pub mod frames;
 pub mod grammar;
+mod normal_form;
 mod reading;
 mod step;
 

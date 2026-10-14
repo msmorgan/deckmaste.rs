@@ -975,7 +975,7 @@ impl<'a> Binder<'a> {
     }
 }
 
-fn frame_name(phrase: &str, frame: &Frame) -> String {
+pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {
     let slots: Vec<String> = frame
         .slots
         .iter()

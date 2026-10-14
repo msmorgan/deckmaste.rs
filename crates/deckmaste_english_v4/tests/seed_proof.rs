@@ -361,3 +361,84 @@ fn chart_and_forest_sizes() {
         );
     }
 }
+
+fn node(reading: &Reading) -> &ReadingNode {
+    reading.node().expect("a node")
+}
+
+#[test]
+fn normal_form_identifies_same_head_complement_priority() {
+    use deckmaste_syntax::frames::{Frame, FrameFamily, FrameSlot, SlotFill, SlotRelation};
+    let s = seed();
+    let complement = s.readings("Search your library for a card.").remove(0);
+    let sentence = node(&complement);
+    let vp = node(&sentence.children[0]);
+    // Hand-build the analysis same-head priority excludes: the monotransitive
+    // frame with `for a card` as an unselected predicate adjunct.
+    let monotransitive = ReadingNode {
+        production: "Valence:VerbPhrase/Monotransitive(NP)".to_owned(),
+        selected_frame: Some(Frame {
+            family: FrameFamily::Monotransitive,
+            slots: vec![FrameSlot {
+                relation: SlotRelation::Object,
+                fill: SlotFill::NP,
+            }],
+        }),
+        children: vp.children[..2].to_vec(),
+        ..vp.clone()
+    };
+    let adjunct = ReadingNode {
+        production: "Adjunct:VerbPhrase+PrepositionPhrase/After/Predicate".to_owned(),
+        selected_frame: None,
+        children: vec![Reading::Node(monotransitive), vp.children[2].clone()],
+        ..vp.clone()
+    };
+    let excluded = Reading::Node(ReadingNode {
+        children: vec![Reading::Node(adjunct)],
+        ..sentence.clone()
+    });
+    assert!(s.grammar.admit(&excluded, &s.lexicon).is_err());
+    assert_eq!(
+        s.grammar.normal_form(&excluded),
+        s.grammar.normal_form(&complement)
+    );
+}
+
+#[test]
+fn normal_form_identifies_groupings_of_one_coordinator() {
+    let s = seed();
+    let serial = s
+        .readings("Destroy target creature, exile target creature, or untap target creature.")
+        .remove(0);
+    let binary = s
+        .readings("Destroy target creature or exile target creature.")
+        .remove(0);
+    // Hand-build `[[Destroy … or exile …] or untap …]` from the parsed parts.
+    let top = node(&node(&serial).children[0]);
+    let tail = node(&top.children[1]);
+    let nested = ReadingNode {
+        production: "Coordination:VerbPhrase/binary".to_owned(),
+        children: vec![
+            node(&binary).children[0].clone(),
+            tail.children[1].clone(),
+            tail.children[2].clone(),
+        ],
+        ..top.clone()
+    };
+    let nested = Reading::Node(ReadingNode {
+        children: vec![Reading::Node(nested)],
+        ..node(&serial).clone()
+    });
+    assert!(
+        s.grammar.admit(&nested, &s.lexicon).is_err(),
+        "one tree per chain"
+    );
+    let normal = s.grammar.normal_form(&serial);
+    assert_eq!(s.grammar.normal_form(&nested), normal);
+    let chain = node(&node(&normal).children[0]);
+    assert_eq!(
+        chain.children.len(),
+        4,
+        "three conjuncts and the coordinator"
+    );
+}
