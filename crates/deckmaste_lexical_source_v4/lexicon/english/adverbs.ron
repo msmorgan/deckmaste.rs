@@ -1,3 +1,51 @@
+// Adverbs and the clause positions Oracle text puts them in.
 [
+    // *it explores, then it explores again*
+    (lemma: "again", positions: [End]),
+    // *Also put a +1/+1 counter on that creature*; *it also gains trample*
+    (lemma: "also", positions: [Front, Central]),
+    (lemma: "already", positions: [Central]),
+    // The degree adverb of scalar equality (CGEL p. 1130): *twice as much*.
+    (lemma: "as", positions: [Phrasal]),
+    (lemma: "continuously", positions: [End]),
+    (lemma: "correctly", positions: [End]),
+    // *differently named lands*
+    (lemma: "differently", positions: [Phrasal]),
+    // *a creature card directly above it*
+    (lemma: "directly", positions: [Phrasal]),
+    (lemma: "evenly", positions: [End]),
+    (lemma: "exactly", positions: [Phrasal]),
+    // *so far this turn*
+    (lemma: "far", positions: [End]),
+    (lemma: "fully", positions: [Central]),
+    // *how those creatures block*; *how many cards*
+    (lemma: "how", positions: [Front, Phrasal]),
+    // *Immediately after the draft*
+    (lemma: "immediately", positions: [Phrasal]),
+    // *just beneath the top X cards*
+    (lemma: "just", positions: [Phrasal]),
+    (lemma: "likewise", positions: [Central]),
+    // The degree adverb of analytic superlatives (CGEL p. 1122): *most common*.
+    (lemma: "most", positions: [Phrasal]),
+    // *it's not legendary*; *cards not named ...*
+    (lemma: "not", positions: [Central, Phrasal]),
+    // *Once each turn, you may ...*; *Activate only once each turn*
+    (lemma: "once", positions: [Front, End]),
+    // *can only*; *Activate only as a sorcery*; *Only creatures ... can block*
+    (lemma: "only", positions: [Central, Phrasal]),
+    (lemma: "originally", positions: [Central]),
+    (lemma: "otherwise", positions: [Front]),
+    (lemma: "previously", positions: [Central]),
+    // *most recently cast*
+    (lemma: "recently", positions: [Central]),
+    (lemma: "secretly", positions: [Central]),
+    // *that player simultaneously untaps*; *reveal them simultaneously*
+    (lemma: "simultaneously", positions: [Central, End]),
+    // *do so* (its complement use has no Frame Family yet); *so far*
+    (lemma: "so", positions: [End, Phrasal]),
+    (lemma: "still", positions: [Central]),
     (lemma: "then", positions: [Front]),
+    // *copy that spell twice*; *deals twice that much damage*
+    (lemma: "twice", positions: [End, Phrasal]),
+    (lemma: "yet", positions: [End]),
 ]

@@ -1,10 +1,97 @@
 // Core closed-class vocabulary: the only words a grammar may name.
 (
+    // CGEL's determinatives (Ch. 5 §4, p. 356) as Oracle uses them. Number
+    // (this/those) and grade (many/more/most) are not features of a
+    // determinative here, so each attested form is its own lemma.
     determinatives: [
-        (lemma: "the"),
         (lemma: "a", spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
+        (lemma: "all", frames: [Complement(PP(["of"]))]),
+        (lemma: "another", frames: [Complement(PP(["of"]))]),
+        (lemma: "any", frames: [Complement(PP(["of"]))]),
+        // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
+        (lemma: "anywhere"),
+        (lemma: "both", frames: [Complement(PP(["of"]))]),
+        (lemma: "each", frames: [Complement(PP(["of"]))]),
+        (lemma: "either", frames: [Complement(PP(["of"]))]),
+        (lemma: "every"),
+        (lemma: "everything"),
+        (lemma: "fewer", frames: [Complement(PP(["than"]))]),
+        (lemma: "fewest"),
+        (lemma: "least"),
+        (lemma: "less", frames: [Complement(PP(["than"]))]),
+        (lemma: "many", frames: [Complement(PP(["of"]))]),
+        (lemma: "more", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
+        (lemma: "most"),
+        (lemma: "much", frames: [Complement(PP(["of"]))]),
+        (lemma: "neither"),
+        (lemma: "no"),
+        // The independent form of *no* (CGEL p. 356).
+        (lemma: "none", frames: [Complement(PP(["of"]))]),
+        (lemma: "some"),
+        (lemma: "that"),
+        (lemma: "the"),
+        (lemma: "this"),
+        (lemma: "those"),
+        (lemma: "which"),
+        (lemma: "whichever"),
     ],
+    // Reflexives are Lexemes of their own: the schema has no reflexive Word
+    // Form. They fill only non-subject positions, hence Accusative.
     pronouns: [
+        (lemma: "he", forms: [
+            (person: Third, number: Singular, case: Nominative, surfaces: "he"),
+            (person: Third, number: Singular, case: Accusative, surfaces: "him"),
+            (person: Third, number: Singular, case: Genitive, surfaces: "his"),
+            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "his"),
+        ]),
+        (lemma: "himself", forms: [
+            (person: Third, number: Singular, case: Accusative, surfaces: "himself"),
+        ]),
+        (lemma: "it", forms: [
+            (person: Third, number: Singular, case: Nominative, surfaces: "it"),
+            (person: Third, number: Singular, case: Accusative, surfaces: "it"),
+            (person: Third, number: Singular, case: Genitive, surfaces: "its"),
+        ]),
+        (lemma: "itself", forms: [
+            (person: Third, number: Singular, case: Accusative, surfaces: "itself"),
+        ]),
+        (lemma: "she", forms: [
+            (person: Third, number: Singular, case: Nominative, surfaces: "she"),
+            (person: Third, number: Singular, case: Accusative, surfaces: "her"),
+            (person: Third, number: Singular, case: Genitive, surfaces: "her"),
+            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "hers"),
+        ]),
+        // Existential dummy *there*; it agrees with the displaced subject.
+        (lemma: "there", forms: [
+            (person: Third, number: Singular, case: Nominative, surfaces: "there"),
+            (person: Third, number: Plural, case: Nominative, surfaces: "there"),
+        ]),
+        // Oracle *they* refers to one player or to several objects, but as the
+        // source of subject-verb agreement it is plural only (CGEL p. 494):
+        // *each player sacrifices a creature they control*.
+        (lemma: "they", forms: [
+            (person: Third, number: Plural, case: Nominative, surfaces: "they"),
+            (person: Third, number: Singular, case: Accusative, surfaces: "them"),
+            (person: Third, number: Plural, case: Accusative, surfaces: "them"),
+            (person: Third, number: Singular, case: Genitive, surfaces: "their"),
+            (person: Third, number: Plural, case: Genitive, surfaces: "their"),
+            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "theirs"),
+            (form: IndependentGenitive, person: Third, number: Plural, case: Genitive, surfaces: "theirs"),
+        ]),
+        // Relative *which* does not inflect for case.
+        (lemma: "which", forms: [
+            (person: Third, number: Singular, surfaces: "which"),
+            (person: Third, number: Plural, surfaces: "which"),
+        ]),
+        // *Whose* is the genitive of relative *who* and *which* alike (CGEL p. 1050).
+        (lemma: "who", forms: [
+            (person: Third, number: Singular, case: Nominative, surfaces: "who"),
+            (person: Third, number: Plural, case: Nominative, surfaces: "who"),
+            (person: Third, number: Singular, case: Accusative, surfaces: "whom"),
+            (person: Third, number: Plural, case: Accusative, surfaces: "whom"),
+            (person: Third, number: Singular, case: Genitive, surfaces: "whose"),
+            (person: Third, number: Plural, case: Genitive, surfaces: "whose"),
+        ]),
         // Oracle "you" is always one player.
         (lemma: "you", forms: [
             (person: Second, number: Singular, case: Nominative, surfaces: "you"),
@@ -12,12 +99,18 @@
             (person: Second, number: Singular, case: Genitive, surfaces: "your"),
             (form: IndependentGenitive, person: Second, number: Singular, case: Genitive, surfaces: "yours"),
         ]),
+        (lemma: "yourself", forms: [
+            (person: Second, number: Singular, case: Accusative, surfaces: "yourself"),
+        ]),
     ],
-    coordinators: ["and", "or"],
-    subordinators: ["that"],
+    coordinators: ["and", "and/or", "but", "nor", "or"],
+    // CGEL's subordinators (Ch. 11 §8.1, p. 1011) plus infinitival *to*; the
+    // other traditional "subordinating conjunctions" are prepositions.
+    subordinators: ["that", "to", "whether"],
+    // Negative auxiliaries are named by their plain-person present form.
     auxiliaries: [
         (lemma: "be", third_singular: "is", preterite: "were", past_participle: "been",
-            irrealis: "were",
+            gerund: "being", irrealis: "were",
             forms: [
                 (form: Present, person: First, number: Singular, surfaces: "am"),
                 (form: Present, person: Second, surfaces: "are"),
@@ -26,10 +119,69 @@
                 (form: Preterite, person: Third, number: Singular, surfaces: "was"),
             ],
             frames: [Copular]),
-        (lemma: "have", third_singular: "has", past: "had", gerund: "having", frames: [Monotransitive]),
+        (lemma: "aren't", third_singular: "isn't", preterite: "weren't", irrealis: "weren't",
+            forms: [
+                (form: Preterite, person: First, number: Singular, surfaces: "wasn't"),
+                (form: Preterite, person: Third, number: Singular, surfaces: "wasn't"),
+            ],
+            finite_only: true, negative: true, frames: [Copular]),
         (lemma: "can", preterite: "could", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "can't", preterite: "couldn't", finite_only: true, negative: true,
+            frames: [Catenative(BareInf)]),
+        // Pro-form *if you do*; *do this only once each turn*.
+        (lemma: "do", third_singular: "does", preterite: "did", past_participle: "done",
+            frames: [Intransitive, Monotransitive]),
+        (lemma: "don't", third_singular: "doesn't", preterite: "didn't", finite_only: true,
+            negative: true, frames: [Catenative(BareInf), Intransitive]),
+        // *you may have target player reveal their hand*
+        (lemma: "have", third_singular: "has", past: "had",
+            frames: [Monotransitive, Catenative(ToInf), ComplexCatenative(BareInf)]),
+        // Only the perfect auxiliary (*hasn't been chosen*), which the grammar
+        // names; no frame selects a past participle.
+        (lemma: "haven't", third_singular: "hasn't", preterite: "hadn't",
+            finite_only: true, negative: true),
+        // Contracted auxiliaries are bound to their host (CGEL Ch. 18 §6.2,
+        // pp. 1613–1616): *you've*, *you're*, *it's*.
+        (lemma: "'ve", third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
+            forms: [
+                (form: Present, person: First, surfaces: ["'ve", "’ve"]),
+                (form: Present, person: Second, surfaces: ["'ve", "’ve"]),
+                (form: Present, person: Third, number: Plural, surfaces: ["'ve", "’ve"]),
+            ]),
+        (lemma: "'re", third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
+            forms: [
+                (form: Present, person: First, number: Singular, surfaces: ["'m", "’m"]),
+                (form: Present, person: First, number: Plural, surfaces: ["'re", "’re"]),
+                (form: Present, person: Second, surfaces: ["'re", "’re"]),
+                (form: Present, person: Third, number: Plural, surfaces: ["'re", "’re"]),
+            ],
+            frames: [Copular]),
+        (lemma: "may", preterite: "might", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "must", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "will", preterite: "would", finite_only: true, frames: [Catenative(BareInf)]),
     ],
-    affixes: [(name: "non", spellings: ["non", "non-"], binding: Prefix)],
-    clitics: [(name: "genitive", spellings: ["'s", "’s"], binding: Suffix)],
-    symbols: ["{T}"],
+    affixes: [(name: "non", spellings: ["non", "non-", "Non", "Non-"], binding: Prefix)],
+    // The plural genitive is the same clitic, spelled with the apostrophe alone.
+    clitics: [(name: "genitive", spellings: ["'s", "’s", "'", "’"], binding: Suffix)],
+    // [CR#107.4,107.5,107.6,107.14,107.18]; numerical symbols as printed on
+    // in-scope cards. Planechase {CHAOS} and {PW} and Un-set symbols are out of scope.
+    symbols: [
+        "{T}", "{Q}", "{E}", "{S}", "{X}",
+        "{W}", "{U}", "{B}", "{R}", "{G}", "{C}",
+        "{0}", "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}", "{8}", "{9}", "{10}",
+        "{11}", "{12}", "{13}", "{14}", "{15}", "{16}", "{20}",
+        "{W/U}", "{W/B}", "{U/B}", "{U/R}", "{B/R}", "{B/G}", "{R/G}", "{R/W}", "{G/W}", "{G/U}",
+        "{2/W}", "{2/U}", "{2/B}", "{2/R}", "{2/G}",
+        "{C/W}", "{C/U}", "{C/B}", "{C/R}", "{C/G}",
+        "{W/P}", "{U/P}", "{B/P}", "{R/P}", "{G/P}",
+        "{W/U/P}", "{W/B/P}", "{U/B/P}", "{U/R/P}", "{B/R/P}",
+        "{B/G/P}", "{R/G/P}", "{R/W/P}", "{G/W/P}", "{G/U/P}",
+        // Any Phyrexian mana symbol, in rules text [CR#107.4g].
+        "{H}",
+        // The pawprint symbol [CR#107.18].
+        "{P}",
+        // The marker of a level symbol, printed `LEVEL 1-3` or `LEVEL 4+`
+        // [CR#107.8,711.2a,711.2b]; its range is numeral notation.
+        "LEVEL",
+    ],
 )

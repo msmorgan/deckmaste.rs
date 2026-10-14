@@ -1,58 +1,202 @@
 // Prepositions with their complement frames and, per frame, the Host
 // Categories an unselected phrase may modify in Oracle English.
+//
+// CGEL's prepositions include the traditional "subordinating conjunctions"
+// that head clauses (if, unless, when, ...; Ch. 11 §8.1, pp. 1011-1012) and
+// the intransitive ones (back, there, phase *out*; Ch. 7 §2.4, pp. 612-615).
+// *Out of*, *instead of*, *up to* and *from among* are a preposition with a PP
+// complement, not complex prepositions (pp. 616, 624-625).
+//
+// A Nominal complement is a bare singular count nominal: *until end of turn*,
+// *in addition to*, *on top of*. A Pred complement is CGEL's preposition +
+// adjective idiom: *at random*, *in common* (p. 626).
 [
-    (lemma: "about", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "above", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "across", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "after", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "against", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "among", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "as", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "at", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "before", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "behind", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "below", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "beneath", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "beside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "between", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "beyond", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "by", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "down", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "during", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "except", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "for", frames: [(complement: NP, hosts: Predicate)]),
-    (lemma: "from", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "in", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "inside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "instead of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    // *a creature card directly above it*
+    (lemma: "above", frames: [(complement: NP, hosts: Nominal)]),
+    // *an additional combat phase after this phase*; *After this main phase, ...*
+    (lemma: "after", frames: [
+        (complement: NP, hosts: NominalAndPredicate),
+        (complement: FiniteClause, hosts: Predicate),
+    ]),
+    // *the greatest power among creatures you control*
+    (lemma: "among", frames: [(complement: NP, hosts: Nominal)]),
+    // *Activate only as a sorcery*; *as it enters*; *as part of casting a spell*
+    (lemma: "as", frames: [
+        (complement: NP, hosts: Predicate),
+        (complement: FiniteClause, hosts: Predicate),
+        (complement: Nominal, hosts: Predicate),
+    ]),
+    // Prepositional idiom licensing a content clause (CGEL p. 971).
+    (lemma: "as long as", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    // Compound preposition (CGEL pp. 1151-1152): *as though it had flash*.
+    (lemma: "as though", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    // *at the beginning of*; *at end of combat*; *discard a card at random*
+    (lemma: "at", frames: [
+        (complement: NP, hosts: Predicate),
+        (complement: Nominal, hosts: Predicate),
+        (complement: Pred, hosts: Predicate),
+    ]),
+    // *put them back*; *put it back on top of your library*
+    (lemma: "back", frames: [
+        (complement: Intransitive, hosts: ComplementOnly),
+        (complement: PP(["on"]), hosts: ComplementOnly),
+    ]),
+    // *Cast this spell only before attackers are declared*; Nominal:
+    // *the player's life total before the damage was dealt* (Soul Burn).
+    (lemma: "before", frames: [
+        (complement: NP, hosts: Predicate),
+        (complement: FiniteClause, hosts: NominalAndPredicate),
+    ]),
+    // *the colors below* (Cryptic Spires); *reduce their speed below 1*
+    (lemma: "below", frames: [
+        (complement: NP, hosts: ComplementOnly),
+        (complement: Intransitive, hosts: Nominal),
+    ]),
+    // *into its owner's library just beneath the top X cards*
+    (lemma: "beneath", frames: [(complement: NP, hosts: Predicate)]),
+    // *choose a number between 0 and 5*
+    (lemma: "between", frames: [(complement: NP, hosts: Nominal)]),
+    // *for each target beyond the first*
+    (lemma: "beyond", frames: [(complement: NP, hosts: Nominal)]),
+    // Exception: *all but the bottom card of each opponent's library*.
+    (lemma: "but", frames: [(complement: NP, hosts: Nominal)]),
+    // The passive agent is the grammar's; *reduce that opponent's speed by 1*.
+    (lemma: "by", frames: [
+        (complement: NP, hosts: ComplementOnly),
+        (complement: Gerund, hosts: Predicate),
+    ]),
+    // *rounded down*; *exile it face down*
+    (lemma: "down", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
+    (lemma: "during", frames: [(complement: NP, hosts: Predicate)]),
+    // Postmodifies compound determinatives (CGEL p. 615 n. 5): *anywhere else*.
+    (lemma: "else", frames: [(complement: Intransitive, hosts: Nominal)]),
+    // *all abilities except mana abilities*; *except it's a 4/4 black Zombie*;
+    // *can't be blocked except by Spirits*; *except for basic lands*
+    (lemma: "except", frames: [
+        (complement: NP, hosts: Nominal),
+        (complement: FiniteClause, hosts: Predicate),
+        (complement: PP(["by", "during", "for"]), hosts: NominalAndPredicate),
+    ]),
+    // *don't lose the game for having 0 or less life*; *Do the same for
+    // flying, first strike, ...*; *for as long as you control this creature*
+    (lemma: "for", frames: [
+        (complement: NP, hosts: Predicate),
+        (complement: Gerund, hosts: Predicate),
+        (complement: KeywordPhrase, hosts: Predicate),
+        (complement: PP(["as long as"]), hosts: Predicate),
+    ]),
+    // *cast spells ... from the top of your library*; *a card you own from
+    // outside the game*; *from among them*
+    (lemma: "from", frames: [
+        (complement: NP, hosts: NominalAndPredicate),
+        (complement: PP(["among", "outside"]), hosts: NominalAndPredicate),
+    ]),
+    // *If you do, ...*; *attacks each combat if able*
+    (lemma: "if", frames: [
+        (complement: FiniteClause, hosts: Predicate),
+        (complement: VerblessClause, hosts: Predicate),
+    ]),
+    // *cards in your graveyard*; *Put the rest ... in a random order*;
+    // *cards in hand*; *is a Ninja in addition to its other types*;
+    // *have a creature type in common*; *phases in*
+    (lemma: "in", frames: [
+        (complement: NP, hosts: NominalAndPredicate),
+        (complement: Nominal, hosts: NominalAndPredicate),
+        (complement: Pred, hosts: Predicate),
+        (complement: Intransitive, hosts: ComplementOnly),
+    ]),
+    // *cards you've drafted this draft round, including this card*
+    (lemma: "including", frames: [(complement: NP, hosts: Nominal)]),
+    // Compound preposition (CGEL p. 622): *exile it instead*;
+    // *instead of putting it into your graveyard*.
+    (lemma: "instead", frames: [
+        (complement: Intransitive, hosts: Predicate),
+        (complement: PP(["of"]), hosts: Predicate),
+    ]),
     (lemma: "into", frames: [(complement: NP, hosts: ComplementOnly)]),
-    (lemma: "like", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "near", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "off", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "on", frames: [(complement: NP, hosts: Nominal)]),
+    // *5 minus X damage*
+    (lemma: "minus", frames: [(complement: NP, hosts: Nominal)]),
+    // Temporal intransitive preposition (CGEL p. 615): *Those creatures are now
+    // attacking that player.*
+    (lemma: "now", frames: [(complement: Intransitive, hosts: Predicate)]),
+    // *a creature of the chosen type*; *end of turn*; *instead of putting*
+    (lemma: "of", frames: [
+        (complement: NP, hosts: Nominal),
+        (complement: Nominal, hosts: ComplementOnly),
+        (complement: Gerund, hosts: ComplementOnly),
+    ]),
+    // *put it on top of its owner's library*
+    (lemma: "on", frames: [
+        (complement: NP, hosts: Nominal),
+        (complement: Nominal, hosts: ComplementOnly),
+    ]),
     (lemma: "onto", frames: [(complement: NP, hosts: ComplementOnly)]),
-    (lemma: "out", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "out of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "outside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "over", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "past", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "rather than", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "since", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "than", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "through", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "throughout", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "to", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "toward", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "under", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "underneath", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "until", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "up", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "upon", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    // *phase out*
+    (lemma: "out", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
+    // *cards you own outside the game*
+    (lemma: "outside", frames: [(complement: NP, hosts: NominalAndPredicate)]),
+    // *trample over planeswalkers*
+    (lemma: "over", frames: [(complement: NP, hosts: ComplementOnly)]),
+    // *the number of Elves you control plus the number of Elf cards*
+    (lemma: "plus", frames: [(complement: NP, hosts: Nominal)]),
+    // Not coordinative, since it can be fronted (CGEL p. 1317): *If you control
+    // a Forest, rather than pay this spell's mana cost, you may ...*;
+    // *its toughness rather than its power*; *by paying {X} rather than paying*.
+    (lemma: "rather than", frames: [
+        (complement: NP, hosts: Nominal),
+        (complement: BareInf, hosts: Predicate),
+        (complement: Gerund, hosts: Predicate),
+    ]),
+    // *controlled continuously since the beginning of the turn*
+    (lemma: "since", frames: [(complement: NP, hosts: Predicate)]),
+    // Selected by comparatives: *greater than 2*; *more lands than you*.
+    (lemma: "than", frames: [
+        (complement: NP, hosts: ComplementOnly),
+        (complement: FiniteClause, hosts: ComplementOnly),
+    ]),
+    // *was put there from anywhere*
+    (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
+    // Always selected: *return it to its owner's hand*; *in addition to paying*.
+    (lemma: "to", frames: [
+        (complement: NP, hosts: ComplementOnly),
+        (complement: Gerund, hosts: ComplementOnly),
+    ]),
+    // *enters under an opponent's control*; *a noncreature permanent under
+    // your control* (Cobra Trap)
+    (lemma: "under", frames: [(complement: NP, hosts: NominalAndPredicate)]),
+    (lemma: "unless", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    // *until your next turn*; *until end of turn*; *until you reveal a land card*
+    (lemma: "until", frames: [
+        (complement: NP, hosts: Predicate),
+        (complement: Nominal, hosts: Predicate),
+        (complement: FiniteClause, hosts: Predicate),
+    ]),
+    // *rounded up*; *up to two target creatures* is a determiner-function PP
+    // (CGEL p. 357), not a modifier.
+    (lemma: "up", frames: [
+        (complement: Intransitive, hosts: ComplementOnly),
+        (complement: PP(["to"]), hosts: ComplementOnly),
+    ]),
+    (lemma: "when", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    (lemma: "whenever", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    // *, where X is the number of ...* (CGEL p. 971)
+    (lemma: "where", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    // *while you control*; *attacks while saddled*; *while scrying*
+    (lemma: "while", frames: [
+        (complement: FiniteClause, hosts: Predicate),
+        (complement: VerblessClause, hosts: Predicate),
+        (complement: Gerund, hosts: Predicate),
+    ]),
     (lemma: "with", frames: [
         (complement: KeywordPhrase, hosts: Nominal),
         (complement: NP, hosts: NominalAndPredicate),
+        (complement: QuotedAbility, hosts: Nominal),
     ]),
-    (lemma: "within", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
-    (lemma: "without", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    // *each creature without a +1/+1 counter on it*; *creatures without
+    // flying*; *cast it without paying its mana cost*
+    (lemma: "without", frames: [
+        (complement: NP, hosts: Nominal),
+        (complement: KeywordPhrase, hosts: Nominal),
+        (complement: Gerund, hosts: Predicate),
+    ]),
 ]
