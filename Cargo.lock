@@ -768,6 +768,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_syntax"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_lexical",
+ "ron",
+ "serde",
+ "thiserror",
+]
+
+[[package]]
 name = "deckmaste_tui"
 version = "0.1.0"
 dependencies = [
