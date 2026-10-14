@@ -145,6 +145,7 @@ inductive Refusal where
   [CR#602.5b]. -/
   | qualifiedLimit
   | deedFits
+  | eventHead
   | verbPatientOk
   | verbedVoiceOk
   | verbBecomesOk

@@ -1343,21 +1343,25 @@ def recordHead (id : BindingId) : List Referent → List Referent
   | b :: bs => { b with idents := mergeIdents b.idents [id] } :: bs
   | [] => []
 
-/-- Apply an update to the most recent visible referent recorded under `id`. -/
+/-- Apply an update to all visible referents recorded under `id`. -/
 def overIdentity (f : Referent → Referent) (id : BindingId) (drs : DRS) : DRS :=
-  match identityBinding id drs with
-  | some b => drs.updateById b.id f
-  | none => drs
+  { drs with referents := drs.referents.map fun r =>
+      if drs.isVisible r.id && r.idents.contains id then
+        let updated := f r
+        { updated with id := r.id }
+      else r }
 
 /-! ## `NounResult` -/
 
 /-- A noun evaluation result: the updated `DRS`, the `ReferentId` of the introduced or resolved
-head referent (if any), its `Referent` value, and the referents introduced by this phrase. -/
+head referent (if any), its `Referent` value, the `ReferentId`s of coordinated conjuncts, and the
+referents introduced by this phrase. -/
 structure NounResult where
   context   : DRS
   refId     : Option ReferentId
   value     : Option Referent
   additions : List Referent := []
+  refIds    : List ReferentId := []
   deriving DecidableEq, Repr
 
 def NounResult.introduced (_drs : DRS) (result : NounResult) : List Referent :=
@@ -1370,7 +1374,8 @@ def introducedNounResult (drs : DRS) (additions : List Referent) (ownsHead : Boo
   { context   := context
     refId     := head.map (·.id)
     value     := head
-    additions := stamped }
+    additions := stamped
+    refIds    := (head.map (·.id)).toList }
 
 /-- A containing noun publishes its own mentions over the child's updated context. -/
 def NounResult.prepend (child : NounResult) (additions : List Referent)
@@ -1389,17 +1394,17 @@ def NounResult.withValue (result : NounResult) (fallback : Referent)
     | none => result.additions
   { result with value := some value, context, additions }
 
-/-- A first mention's result: record the referent introduced or resolved by `result` under `id`. -/
+/-- A first mention's result: record the referent(s) introduced or resolved by `result` under `id`. -/
 def NounResult.recordIdentity (id : BindingId) (result : NounResult) : NounResult :=
-  match result.refId with
-  | none => result
-  | some rid =>
-    let context := recordIdentityById id result.context rid
+  let ids := if result.refIds.isEmpty then result.refId.toList else result.refIds
+  if ids.isEmpty then result
+  else
+    let context := ids.foldl (recordIdentityById id) result.context
     let additions := result.additions.map fun r =>
-      if r.id == rid then { r with idents := mergeIdents r.idents [id] } else r
+      if ids.elem r.id then { r with idents := mergeIdents r.idents [id] } else r
     { result with
       context   := context
-      value     := (context.findById? rid).or result.value
+      value     := (result.refId >>= context.findById?).or result.value
       additions := additions }
 
 /-! ## Filtering a `DRS` -/
