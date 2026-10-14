@@ -451,6 +451,7 @@ structure ActorShape where
   ascribable   : Bool
   twoParties   : Bool
   opponentOnly : Bool
+  ability      : Bool := false
   refIds       : List ReferentId := []
   deriving DecidableEq, Repr
 
