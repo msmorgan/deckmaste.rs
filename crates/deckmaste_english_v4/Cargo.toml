@@ -12,4 +12,5 @@ deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 deckmaste_syntax = { version = "0.1.0", path = "../deckmaste_syntax" }
 
 [dev-dependencies]
+deckmaste_lexical_source_v4 = { version = "0.1.0", path = "../deckmaste_lexical_source_v4" }
 ron = "0.12.1"

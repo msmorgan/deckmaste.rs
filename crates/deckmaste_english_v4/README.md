@@ -7,8 +7,10 @@ into `deckmaste_syntax`.
 
 The grammar names Categories, features, Schemas and core closed-class lexemes
 only. Vocabulary and Subcategorization Frames come from the lexical environment
-the caller binds it with; until `deckmaste_lexical_source_v4` exists, the only
-environment is the seed in `tests/seed/`.
+the caller binds it with: the seed in `tests/seed/` for the seed proof, and
+`deckmaste_lexical_source_v4`'s core lexicon and Catalogs for the strata.
+`tests/catalog_leak.rs` checks that the grammar names only core closed-class
+lexemes of that lexicon and that none of its own names spells a catalog item.
 
 ## Seed proof
 
@@ -23,5 +25,5 @@ per seed sentence.
 
 ## Not yet here
 
-Catalogs (`english-v4-lexical-catalogs`), unit splitting, reminder-text stripping,
+Unit splitting, reminder-text stripping,
 the census and complexity strata (`english-v4-corpus-stratification-and-judgment-harness`).

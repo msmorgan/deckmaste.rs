@@ -603,6 +603,7 @@ name = "deckmaste_english_v4"
 version = "0.1.0"
 dependencies = [
  "deckmaste_lexical",
+ "deckmaste_lexical_source_v4",
  "deckmaste_syntax",
  "ron",
 ]
