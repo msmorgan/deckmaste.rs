@@ -6,6 +6,7 @@ members = [
     "crates/deckmaste_card",
     "crates/deckmaste_catalogs",
     "crates/deckmaste_english_v3",
+    "crates/deckmaste_english_v4",
     "crates/deckmaste_construction_v3_core",
     "crates/deckmaste_construction_v3",
     "crates/deckmaste_lexical",

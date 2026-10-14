@@ -1,0 +1,38 @@
+// Seed Subcategorization Frames, in active voice only.
+(
+    frames: {
+        "verb:attack": [(family: Intransitive, slots: [])],
+        "verb:destroy": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:exile": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:control": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:enter": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:leave": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:untap": [(family: Monotransitive, slots: [(relation: Object, fill: NP)])],
+        "verb:put": [(family: TransitiveWithPP, slots: [
+            (relation: Object, fill: NP),
+            (relation: Complement, fill: PP(["prep:into", "prep:onto"])),
+        ])],
+        "verb:search": [
+            (family: Monotransitive, slots: [(relation: Object, fill: NP)]),
+            (family: TransitiveWithPP, slots: [
+                (relation: Object, fill: NP),
+                (relation: Complement, fill: PP(["prep:for"])),
+            ]),
+        ],
+        "verb:be": [(family: Copular, slots: [(relation: PredicativeComplement, fill: Pred)])],
+        "verb:get": [(family: Copular, slots: [(relation: PredicativeComplement, fill: Pred)])],
+    },
+    prepositions: {
+        "prep:into": [(complement: NP, hosts: ComplementOnly)],
+        "prep:onto": [(complement: NP, hosts: ComplementOnly)],
+        "prep:for": [(complement: NP, hosts: Predicate)],
+        "prep:with": [
+            (complement: KeywordPhrase, hosts: Nominal),
+            (complement: NP, hosts: NominalAndPredicate),
+        ],
+        "prep:during": [(complement: NP, hosts: Predicate)],
+        "prep:in": [(complement: NP, hosts: NominalAndPredicate)],
+        "prep:on": [(complement: NP, hosts: NominalAndPredicate)],
+        "prep:from": [(complement: NP, hosts: NominalAndPredicate)],
+    },
+)

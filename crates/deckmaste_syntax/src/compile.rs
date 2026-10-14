@@ -691,7 +691,7 @@ impl<'a> Binder<'a> {
             for index in used {
                 let frame = &self.out.preposition_frames[index];
                 let mut draft = Draft::new(
-                    format!("Valence:{phrase}/{:?}", frame.complement),
+                    format!("Valence:{phrase}/{:?}@{:?}", frame.complement, frame.hosts),
                     lhs,
                     cost,
                 );
@@ -708,7 +708,10 @@ impl<'a> Binder<'a> {
                 drafts.push(draft);
                 if gap_capable && frame.complement == SlotFill::NP {
                     let mut stranded = Draft::new(
-                        format!("Valence:{phrase}/{:?}/gap0", frame.complement),
+                        format!(
+                            "Valence:{phrase}/{:?}@{:?}/gap0",
+                            frame.complement, frame.hosts
+                        ),
                         lhs,
                         cost,
                     );
@@ -892,11 +895,7 @@ impl<'a> Binder<'a> {
             host: None,
         };
         let agree_all = |draft: &mut Draft, conjuncts: &[usize]| {
-            let number = self.out.features.iter().position(|f| f == "Number");
             for &feature in &self.out.category_features[lhs] {
-                if Some(feature) == number {
-                    continue;
-                }
                 for &c in conjuncts {
                     draft
                         .equations

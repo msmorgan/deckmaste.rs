@@ -1,0 +1,99 @@
+// The Oracle English grammar data file. It names Categories, features,
+// Schemas and core closed-class lexemes only: every other word, and every
+// Subcategorization Frame, comes from the lexical environment it is bound to.
+(
+    root: "Sentence",
+    features: {
+        "Number": ["Singular", "Plural"],
+        "Person": ["First", "Second", "Third"],
+        "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
+        "Voice": ["Active", "Passive"],
+    },
+    categories: {
+        "Sentence": (),
+        "Clause": (gap: true),
+        "RelativeClause": (),
+        "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice"], gap: true),
+        "NounPhrase": (features: ["Number", "Person"]),
+        "Nominal": (features: ["Number"]),
+        "DeterminerPhrase": (),
+        "PrepositionPhrase": (gap: true),
+        "AdjectivePhrase": (),
+        "Predicative": (),
+        "KeywordPhrase": (),
+    },
+    closed_words: {
+        "Be": "verb:be",
+        "Have": "verb:have",
+        "By": "prep:by",
+        "Genitive": "clitic:genitive",
+    },
+    lexical_classes: {
+        "Coordinator": ["coord:and", "coord:or"],
+    },
+    slot_categories: {
+        NP: "NounPhrase",
+        PP: "PrepositionPhrase",
+        Pred: "Predicative",
+        KeywordPhrase: "KeywordPhrase",
+        Nominal: "Nominal",
+    },
+    productions: [
+        // Sentences: a bare imperative or a declarative clause.
+        (name: "Imperative", lhs: "Sentence", rhs: [Cat("clause", "VerbPhrase"), Punct('.')],
+            equations: [Require("clause.VerbForm", "Plain")]),
+        (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')]),
+        (name: "SubjectPredicate", lhs: "Clause",
+            rhs: [Cat("subject", "NounPhrase"), Cat("head", "VerbPhrase")],
+            equations: [
+                Agree("subject.Number", "head.Number"),
+                Agree("subject.Person", "head.Person"),
+                Require("head.VerbForm", "Finite"),
+            ],
+            transparent: ["head"]),
+
+        // Auxiliaries take a verb phrase complement through which a Gap passes.
+        (name: "Progressive", lhs: "VerbPhrase", rhs: [Word("head", "Be"), Cat("complement", "VerbPhrase")],
+            equations: [Require("complement.VerbForm", "GerundParticiple"), Agree("$.Voice", "complement.Voice")],
+            transparent: ["complement"]),
+        (name: "Perfect", lhs: "VerbPhrase", rhs: [Word("head", "Have"), Cat("complement", "VerbPhrase")],
+            equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Active"),
+                Require("$.Voice", "Active")],
+            transparent: ["complement"]),
+        (name: "Passive", lhs: "VerbPhrase", rhs: [Word("head", "Be"), Cat("complement", "VerbPhrase")],
+            equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Passive"),
+                Require("$.Voice", "Passive")],
+            transparent: ["complement"]),
+
+        // Noun phrases.
+        (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
+            equations: [Require("$.Person", "Third")]),
+        (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
+            equations: [Require("head.Number", "Plural"), Require("$.Person", "Third")]),
+        (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)]),
+        (name: "Possessor", lhs: "DeterminerPhrase", rhs: [Cat("possessor", "NounPhrase"), Word("marker", "Genitive")]),
+        (name: "Premodifier", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "Nominal")]),
+        (name: "RelativePostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "RelativeClause")]),
+        (name: "ParticipialPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "VerbPhrase")],
+            equations: [Require("modifier.VerbForm", "PastParticiple"), Require("modifier.Voice", "Passive")]),
+        // A contact relative: a finite clause with an object Gap.
+        (name: "ContactRelative", lhs: "RelativeClause", rhs: [Cat("clause", "Clause")],
+            equations: [Require("clause.Gap", "NP")]),
+
+        (name: "NominalPredicative", lhs: "Predicative", rhs: [Cat("head", "NounPhrase")]),
+        (name: "AdjectivalPredicative", lhs: "Predicative", rhs: [Cat("head", "AdjectivePhrase")]),
+        (name: "Keyword", lhs: "KeywordPhrase", rhs: [Lex("head", Keyword)]),
+    ],
+    schemas: [
+        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By")),
+        Valence(head: Preposition, phrase: "PrepositionPhrase"),
+        Valence(head: Noun, phrase: "Nominal"),
+        Valence(head: Adjective, phrase: "AdjectivePhrase"),
+        Valence(head: Determinative, phrase: "DeterminerPhrase"),
+        // A complement costs nothing; a nominal postmodifier ranks before a
+        // predicate adjunct.
+        Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
+        Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator"),
+    ],
+)
