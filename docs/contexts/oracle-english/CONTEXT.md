@@ -205,12 +205,23 @@ entry reserves it for the printed line
 
 **Keyword Line**:
 A line formed from one or more keyword-ability surfaces with their prescribed
-parameters and associated reminder text.
+Keyword Parameters and associated reminder text.
+
+**Keyword Parameter** (project term):
+What a Keyword Ability takes with its name on a Keyword Line: an amount (*bushido
+2*), a cost after a space (*equip {2}*) or after an em dash (*ward—Pay 3 life*
+[CR#702.21a]), a Keyword Quality, a card name (*partner with …*), an ability
+after an em dash, or power and toughness after an em dash (*prototype {1}{B} —
+1/1*); a condition or another keyword may follow an em dash as well. A keyword
+may declare several alternative lists of Keyword Parameters, and a keyword with
+none stands alone.
 
 **Keyword Quality** (project term):
-The expression a parameterized Keyword Ability takes as its quality argument, on
-a keyword line or in a grant — *black* in *protection from black*, *artifacts*
-in *affinity for artifacts*.
+The Keyword Parameter a parameterized Keyword Ability takes as its quality
+argument, on a keyword line or in a grant — *black* in *protection from black*
+[CR#702.16a], *artifacts* in *affinity for artifacts*. It is written after the
+keyword, after the preposition the keyword selects if any, or before it (*Goblin
+offering*).
 
 **Bound Keyword Surface** (project term):
 The surface a Keyword Ability contributes as a suffix bound to its Keyword
@@ -220,32 +231,46 @@ _Avoid_: Prefix for the Keyword Quality it binds to
 
 **Bound Keyword Stem** (project term):
 The noun stem forming a Keyword Quality bound to a Bound Keyword Surface, as
-*island* in *islandwalk*, derived from the keyword's declared stem class.
+*island* in *islandwalk*. It is drawn from the kind of type the keyword binds
+to — a land type, a creature type, any subtype, a card type or a supertype
+[CR#702.14a,702.29e].
+
+**Keyword Variant** (project term):
+A keyword ability the Comprehensive Rules define as a variant of another keyword
+ability, with its own keyword name and its own Keyword Parameters, as megamorph
+is a variant of morph [CR#702.37b] and typecycling of cycling [CR#702.29e]. The
+*partner—[text]* abilities are variants of partner [CR#702.124i,702.124n]. A
+grant of a keyword that has variants grants each appropriate variant [CR#702.1c].
+_Avoid_: Variant for a casual game format such as the Commander variant
 
 **Italic Head** (project term):
 The italicized run that opens some abilities, followed by an em dash. It is
-either an Ability Word or a Flavor Word; neither has any rules meaning, so the
-Italic Head is a realization device and never changes what the ability it heads
-says.
+either an Ability Word or a Flavor Word, neither of which has any rules meaning,
+so the Italic Head is a realization device and never changes what the ability it
+heads says; a run spelled by a declared Keyword Ability is that keyword, and is
+neither.
 
 **Ability Word**:
-One of the italicized words the Comprehensive Rules list [CR#207.2c], written
-as an Italic Head to tie together abilities with similar functionality. The
-inventory is closed and declared, so an Ability Word is ordinary declared
-vocabulary.
+One of the italicized words the Comprehensive Rules list [CR#207.2c], or a
+further word printed on Vintage-legal cards that the list omits, written as an
+Italic Head to tie together abilities with similar functionality. The inventory
+is closed and declared, so an Ability Word is ordinary declared vocabulary, a
+registered label.
 _Avoid_: Keyword Ability, which has rules meaning and its own CR entry
 
 **Flavor Word**:
 An Italic Head the Comprehensive Rules do not list [CR#207.2d], tailored to the
 one ability it heads. Nothing enumerates the Flavor Words, so a Flavor Word is
 an open slot whose label is the italic run captured verbatim, never a declared
-inventory member.
+inventory member. A run that is a registered label, whether an Ability Word or a
+Keyword Ability, is never also a Flavor Word.
 _Avoid_: Flavor Text, the italicized artistic text below the rules text
 [CR#207.2b]
 
 **Shortened Name**:
 A shortened spelling printed on a card in place of its full name that refers to
-that same card [CR#201.5c].
+that same card [CR#201.5c]. It is derived from the full name and admitted only
+in the text of the card whose name it shortens.
 _Avoid_: nickname
 
 **Name Number** (project term):
@@ -378,6 +403,12 @@ Ch. 14 §1.2, pp. 1176–1178).
 A nonfinite Clause selected by a catenative verb, with a Complement function
 distinct from Object or predicative Complement (CGEL, Ch. 14 §1.2,
 pp. 1176–1177).
+
+**Complex Catenative Construction**:
+A Catenative Construction with an intervening Noun Phrase between the matrix and
+subordinate verbs, functioning as Complement of one of them, usually as the
+matrix verb's Object, as in *cause you to sacrifice*; a simple catenative
+construction has none (CGEL, Ch. 14 §1.2, p. 1177; §3, p. 1200).
 
 **Voice**:
 The grammatical organization of a predication's participants, including the
@@ -673,6 +704,12 @@ Phrase in *as a copy* does (CGEL, Ch. 7 §5.1, pp. 636–637).
 The expression of which a property or role is predicated by a predicative
 Complement (CGEL, Ch. 7 §5.1, p. 637).
 
+**Complex-Transitive Clause**:
+A Clause whose verb takes both an Object and an object-oriented predicative
+Complement, as in *turn it face up*; with only a predicative Complement it is
+complex-intransitive. The Object is the Predicand of the predicative Complement
+(CGEL, Ch. 4 §1.1, p. 217).
+
 **Measure Phrase**:
 A phrase expressing an extent or scalar value, including arithmetic
 combinations and comparisons with other values.
@@ -680,6 +717,19 @@ combinations and comparisons with other values.
 **Measure Complement**:
 A Complement that supplies a quantity or extent licensed by its head.
 _Avoid_: Numerative
+
+**Amount Complement** (project term):
+A Complement realized by a numeral or variable stating a number, as *2* in
+*scry 2* or *X* in *scry X*. It selects no Object, so it has no passive Valence
+Alternation. The Game Model's Amount is the semantic expression such a
+Complement may denote; the Amount Complement is its syntactic realization.
+_Avoid_: Amount for the Complement itself; Object for a numeral
+
+**Cost Complement** (project term):
+A Complement realized by a Cost [CR#118.1], as *{3}* in *waterbend {3}* or *{2}*
+in *equip {2}*. Its realization is composed of Cost Component Forms. It selects
+no Object, so it has no passive Valence Alternation.
+_Avoid_: Object for a Cost
 
 **Scalar Change Extent Complement**:
 A Complement expressing how far a value changes along a scale, licensed by an
@@ -717,6 +767,15 @@ comparison
 **Adjunct**:
 An optional dependent that modifies a Clause or Verb Phrase without being
 selected as a Complement by its head.
+
+**Adjunct Position**:
+Where an Adjunct stands in its Clause: front, before the Subject; central,
+between the Subject and a lexical verb, or after the first auxiliary; end, after
+the verb and perhaps some or all of its dependents (CGEL, Ch. 8 §20.1,
+pp. 779–780; Ch. 6 §7.1, p. 575). An Adverb that modifies an adjective, adverb,
+determinative or numeral inside its phrase, rather than a Clause, has a
+phrasal position instead, outside this three-way contrast (CGEL, Ch. 6 §5.1,
+pp. 562–563).
 
 **Connective Adjunct**:
 An Adjunct relating its Clause to surrounding text or context, such as
@@ -875,6 +934,15 @@ nonfinite ones. It is not an Inflectional Form.
 **Tense**:
 The grammatical marking of temporal location relative to a reference point. It
 is distinct from Finiteness and from the Word Form that realizes it.
+
+**Grade**:
+The inflectional distinction among plain, comparative and superlative forms,
+which many Adjectives and a few Adverbs have and verbs and nouns lack (CGEL,
+Ch. 6 §2.2, p. 533). Comparative and superlative forms are declared as
+Adjectives of their own, each bearing its Grade. Analytic comparatives and
+superlatives are formed with the degree adverbs *more* and *most*, and *inner*
+and *outer* are derived Adjectives, not Grades of a preposition (CGEL, Ch. 6
+§2.2, pp. 533–534).
 
 **Inflectional Form**:
 A morphological form of a Verb Lexeme, such as plain, third-person-singular
