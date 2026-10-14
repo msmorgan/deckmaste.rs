@@ -1,0 +1,5 @@
+// Predefined tokens [CR#111.10].
+[
+    (rule: "111.10a", name: "Treasure", subtype: "Treasure"),
+    (rule: "111.10j", name: "Cursed Role", subtype: "Role", names: ["Cursed"]),
+]

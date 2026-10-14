@@ -1,0 +1,5 @@
+// Keyword abilities [CR#702.1] and their parameters on a keyword line.
+[
+    (rule: "702.9", name: "Flying", lemma: "flying"),
+    (rule: "702.14", name: "Landwalk", lemma: "landwalk", bound: (surface: "walk", stems: [LandType])),
+]

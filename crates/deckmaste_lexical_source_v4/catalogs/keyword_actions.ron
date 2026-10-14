@@ -1,0 +1,5 @@
+// Keyword actions [CR#701.1] and their active Subcategorization Frames.
+[
+    (rule: "701.8", name: "Destroy", verbs: [(lemma: "destroy", frames: [Monotransitive])]),
+    (rule: "701.22", name: "Scry", verbs: [(lemma: "scry", frames: [Amount])]),
+]

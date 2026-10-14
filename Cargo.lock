@@ -668,6 +668,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "deckmaste_lexical_source_v4"
+version = "0.1.0"
+dependencies = [
+ "deckmaste_lexical",
+ "deckmaste_syntax",
+ "ron",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
 name = "deckmaste_lowering"
 version = "0.1.0"
 dependencies = [

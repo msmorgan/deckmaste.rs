@@ -1,0 +1,35 @@
+// Core closed-class vocabulary: the only words a grammar may name.
+(
+    determinatives: [
+        (lemma: "the"),
+        (lemma: "a", spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
+    ],
+    pronouns: [
+        // Oracle "you" is always one player.
+        (lemma: "you", forms: [
+            (person: Second, number: Singular, case: Nominative, surfaces: "you"),
+            (person: Second, number: Singular, case: Accusative, surfaces: "you"),
+            (person: Second, number: Singular, case: Genitive, surfaces: "your"),
+            (form: IndependentGenitive, person: Second, number: Singular, case: Genitive, surfaces: "yours"),
+        ]),
+    ],
+    coordinators: ["and", "or"],
+    subordinators: ["that"],
+    auxiliaries: [
+        (lemma: "be", third_singular: "is", preterite: "were", past_participle: "been",
+            irrealis: "were",
+            forms: [
+                (form: Present, person: First, number: Singular, surfaces: "am"),
+                (form: Present, person: Second, surfaces: "are"),
+                (form: Present, number: Plural, surfaces: "are"),
+                (form: Preterite, person: First, number: Singular, surfaces: "was"),
+                (form: Preterite, person: Third, number: Singular, surfaces: "was"),
+            ],
+            frames: [Copular]),
+        (lemma: "have", third_singular: "has", past: "had", gerund: "having", frames: [Monotransitive]),
+        (lemma: "can", preterite: "could", finite_only: true, frames: [Catenative(BareInf)]),
+    ],
+    affixes: [(name: "non", spellings: ["non", "non-"], binding: Prefix)],
+    clitics: [(name: "genitive", spellings: ["'s", "’s"], binding: Suffix)],
+    symbols: ["{T}"],
+)

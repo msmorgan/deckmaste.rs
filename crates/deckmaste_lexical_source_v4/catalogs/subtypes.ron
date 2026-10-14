@@ -1,0 +1,8 @@
+// Subtypes by family [CR#205.3].
+{
+    Artifact: ["Treasure"],
+    Creature: ["Goblin", (lemma: "Elf", plural: "Elves")],
+    Enchantment: ["Role"],
+    Land: ["Island", (lemma: "Plains", plural: "Plains")],
+    Planeswalker: ["Jace"],
+}

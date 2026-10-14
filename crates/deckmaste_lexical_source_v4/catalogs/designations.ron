@@ -1,0 +1,4 @@
+// Designations (docs/designations.md).
+[
+    (rule: "725.1", name: "Monarch", nouns: ["monarch"]),
+]

@@ -1,0 +1,426 @@
+//! Builds Lexemes and Subcategorization Frames from authored entries.
+
+use std::collections::BTreeMap;
+
+use deckmaste_lexical::Binding;
+use deckmaste_lexical::Capitalization;
+use deckmaste_lexical::Category;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::Finiteness;
+use deckmaste_lexical::FormDeclaration;
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexemeId;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::Person;
+use deckmaste_lexical::Source;
+use deckmaste_lexical::SourceKind;
+use deckmaste_lexical::SurfaceStructure;
+use deckmaste_lexical::WordForm;
+use deckmaste_syntax::FrameCatalog;
+use deckmaste_syntax::frames::ClauseKind;
+use deckmaste_syntax::frames::Frame;
+use deckmaste_syntax::frames::FrameFamily;
+use deckmaste_syntax::frames::FrameSlot;
+use deckmaste_syntax::frames::PrepositionFrame;
+use deckmaste_syntax::frames::SlotFill;
+use deckmaste_syntax::frames::SlotRelation::Complement;
+use deckmaste_syntax::frames::SlotRelation::IndirectObject;
+use deckmaste_syntax::frames::SlotRelation::Object;
+use deckmaste_syntax::frames::SlotRelation::PredicativeComplement;
+
+use crate::SourceError;
+use crate::schema::AdjectiveEntry;
+use crate::schema::Catenation;
+use crate::schema::FillSpec;
+use crate::schema::FrameSpec;
+use crate::schema::NounEntry;
+use crate::schema::PrepositionFrameSpec;
+use crate::schema::VerbEntry;
+
+/// Lexemes and frames gathered from every data file, with frames still naming
+/// prepositions by lemma until every preposition is known.
+#[derive(Default)]
+pub(crate) struct Builder {
+    pub(crate) lexemes: Vec<Lexeme>,
+    frames: Vec<(LexemeId, Category, Vec<FrameSpec>, String)>,
+    prepositions: Vec<(LexemeId, Vec<PrepositionFrameSpec>, String)>,
+}
+
+pub(crate) fn source(kind: SourceKind, path: &str, owner: &str) -> Source {
+    Source {
+        kind,
+        path: path.to_owned(),
+        owner: owner.to_owned(),
+    }
+}
+
+/// Words separated by spaces are one multiword Lexeme.
+pub(crate) fn structured(mut lexeme: Lexeme) -> Lexeme {
+    if lexeme.surface_structure == SurfaceStructure::Word && lexeme.lemma.contains(' ') {
+        lexeme.surface_structure = SurfaceStructure::Multiword;
+    }
+    lexeme
+}
+
+fn replace(
+    lexeme: &mut Lexeme,
+    form: WordForm,
+    person: Option<Person>,
+    number: Option<Number>,
+    surfaces: &[String],
+) -> bool {
+    let mut found = false;
+    for slot in &mut lexeme.forms {
+        if slot.form == form
+            && person.is_none_or(|p| slot.features.person == Some(p))
+            && number.is_none_or(|n| slot.features.number == Some(n))
+        {
+            slot.surfaces = Some(surfaces.to_vec());
+            found = true;
+        }
+    }
+    found
+}
+
+impl Builder {
+    pub(crate) fn push(&mut self, lexeme: Lexeme) {
+        self.lexemes.push(structured(lexeme));
+    }
+
+    pub(crate) fn frames(&mut self, id: LexemeId, category: Category, frames: &[FrameSpec]) {
+        if !frames.is_empty() {
+            let owner = id.to_string();
+            self.frames.push((id, category, frames.to_vec(), owner));
+        }
+    }
+
+    pub(crate) fn verb(
+        &mut self,
+        id: &str,
+        entry: &VerbEntry,
+        source: Source,
+    ) -> Result<(), SourceError> {
+        let invalid = |reason: &str| SourceError::Invalid(format!("verb `{id}`: {reason}"));
+        if entry.frames.is_empty() {
+            return Err(invalid(
+                "a verb declares at least one Subcategorization Frame",
+            ));
+        }
+        let mut lexeme = Lexeme::verb(id, &entry.lemma, source);
+        if entry.finite_only {
+            lexeme.forms.retain(|slot| {
+                slot.form == WordForm::Present
+                    || (slot.form == WordForm::Preterite
+                        && (entry.preterite.is_some() || entry.past.is_some()))
+            });
+        }
+        if entry.finite_only && (entry.past_participle.is_some() || entry.gerund.is_some()) {
+            return Err(invalid("a finite-only verb has no participles"));
+        }
+        let past: &[WordForm] = if entry.finite_only {
+            &[WordForm::Preterite]
+        } else {
+            &[WordForm::Preterite, WordForm::PastParticiple]
+        };
+        let third = (Some(Person::Third), Some(Number::Singular));
+        let fields = [
+            (&[WordForm::Present][..], &entry.third_singular, third),
+            (past, &entry.past, (None, None)),
+            (&[WordForm::Preterite][..], &entry.preterite, (None, None)),
+            (
+                &[WordForm::PastParticiple][..],
+                &entry.past_participle,
+                (None, None),
+            ),
+            (
+                &[WordForm::GerundParticiple][..],
+                &entry.gerund,
+                (None, None),
+            ),
+        ];
+        for (forms, spellings, (person, number)) in fields {
+            let Some(spellings) = spellings else { continue };
+            for form in forms {
+                if !replace(&mut lexeme, *form, person, number, &spellings.to_vec()) {
+                    return Err(invalid(&format!("no {form:?} slot to spell")));
+                }
+            }
+        }
+        if let Some(irrealis) = &entry.irrealis {
+            for person in [Person::First, Person::Third] {
+                lexeme.forms.push(FormDeclaration {
+                    form: WordForm::Irrealis,
+                    features: FeatureBundle {
+                        number: Some(Number::Singular),
+                        person: Some(person),
+                        finiteness: Some(Finiteness::Finite),
+                        ..FeatureBundle::default()
+                    },
+                    surfaces: Some(irrealis.to_vec()),
+                });
+            }
+        }
+        for slot in &entry.forms {
+            if !replace(
+                &mut lexeme,
+                slot.form,
+                slot.person,
+                slot.number,
+                &slot.surfaces.to_vec(),
+            ) {
+                return Err(invalid(&format!("no {:?} slot to spell", slot.form)));
+            }
+        }
+        if entry.negative {
+            lexeme
+                .properties
+                .features
+                .insert("Polarity".to_owned(), "Negative".to_owned());
+        }
+        let id = lexeme.id;
+        self.push(lexeme);
+        self.frames(id, Category::Verb, &entry.frames);
+        Ok(())
+    }
+
+    pub(crate) fn noun(&mut self, id: &str, entry: &NounEntry, source: Source) {
+        let mut lexeme = Lexeme::noun(id, &entry.lemma, entry.countability.clone(), source);
+        if let Some(plural) = &entry.plural {
+            replace(&mut lexeme, WordForm::Plural, None, None, &plural.to_vec());
+        }
+        let id = lexeme.id;
+        self.push(lexeme);
+        self.frames(id, Category::Noun, &entry.frames);
+    }
+
+    pub(crate) fn adjective(&mut self, prefix: &str, entry: &AdjectiveEntry, source: &Source) {
+        let grades = [
+            (Some(&entry.lemma), None),
+            (entry.comparative.as_ref(), Some("Comparative")),
+            (entry.superlative.as_ref(), Some("Superlative")),
+        ];
+        for (lemma, grade) in grades {
+            let Some(lemma) = lemma else { continue };
+            let mut lexeme = Lexeme::invariant(
+                format!("{prefix}:{lemma}"),
+                lemma,
+                Category::Adjective,
+                source.clone(),
+            );
+            if let Some(grade) = grade {
+                lexeme
+                    .properties
+                    .features
+                    .insert("Grade".to_owned(), grade.to_owned());
+            }
+            let id = lexeme.id;
+            self.push(lexeme);
+            if grade.is_none() {
+                self.frames(id, Category::Adjective, &entry.frames);
+            }
+        }
+    }
+
+    pub(crate) fn preposition(
+        &mut self,
+        lemma: &str,
+        frames: &[PrepositionFrameSpec],
+        source: Source,
+    ) {
+        let lexeme = Lexeme::invariant(
+            format!("prep:{lemma}"),
+            lemma,
+            Category::Preposition,
+            source,
+        );
+        let id = lexeme.id;
+        self.push(lexeme);
+        self.prepositions
+            .push((id, frames.to_vec(), id.to_string()));
+    }
+
+    /// Validates and indexes everything gathered, resolving preposition lemmas.
+    pub(crate) fn finish(self) -> Result<(Vec<Lexeme>, FrameCatalog), SourceError> {
+        let mut ids = BTreeMap::new();
+        for lexeme in &self.lexemes {
+            if ids.insert(lexeme.id, lexeme).is_some() {
+                return Err(SourceError::Invalid(format!(
+                    "`{}` is declared twice",
+                    lexeme.id
+                )));
+            }
+        }
+        let preposition = |lemma: &String, owner: &str| -> Result<LexemeId, SourceError> {
+            let id = LexemeId::new(&format!("prep:{lemma}"));
+            if ids.contains_key(&id) {
+                Ok(id)
+            } else {
+                Err(SourceError::Invalid(format!(
+                    "`{owner}` names `{lemma}`, which is not a declared preposition"
+                )))
+            }
+        };
+        let fill = |spec: &FillSpec, owner: &str| -> Result<SlotFill, SourceError> {
+            Ok(match spec {
+                FillSpec::NP => SlotFill::NP,
+                FillSpec::PP(lemmas) => SlotFill::PP(
+                    lemmas
+                        .iter()
+                        .map(|lemma| preposition(lemma, owner))
+                        .collect::<Result<_, _>>()?,
+                ),
+                FillSpec::Pred => SlotFill::Pred,
+                FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
+                FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
+                FillSpec::ToInf => SlotFill::ToInf,
+                FillSpec::BareInf => SlotFill::BareInf,
+                FillSpec::Gerund => SlotFill::Gerund,
+                FillSpec::KeywordPhrase => SlotFill::KeywordPhrase,
+                FillSpec::QuotedAbility => SlotFill::QuotedAbility,
+                FillSpec::Nominal => SlotFill::Nominal,
+                FillSpec::Amount => SlotFill::Amount,
+                FillSpec::Cost => SlotFill::Cost,
+                FillSpec::Intransitive => SlotFill::Intransitive,
+            })
+        };
+        let mut catalog = FrameCatalog::default();
+        for (id, category, specs, owner) in &self.frames {
+            let mut frames = Vec::new();
+            for spec in specs {
+                let slot = |relation, fill| FrameSlot { relation, fill };
+                let pp = |lemmas: &Vec<String>| {
+                    Ok::<_, SourceError>(SlotFill::PP(
+                        lemmas
+                            .iter()
+                            .map(|lemma| preposition(lemma, owner))
+                            .collect::<Result<_, _>>()?,
+                    ))
+                };
+                let (family, slots) = match spec {
+                    FrameSpec::Intransitive => (FrameFamily::Intransitive, vec![]),
+                    FrameSpec::Monotransitive => (
+                        FrameFamily::Monotransitive,
+                        vec![slot(Object, SlotFill::NP)],
+                    ),
+                    FrameSpec::Ditransitive => (
+                        FrameFamily::Ditransitive,
+                        vec![
+                            slot(IndirectObject, SlotFill::NP),
+                            slot(Object, SlotFill::NP),
+                        ],
+                    ),
+                    FrameSpec::TransitiveWithPP(lemmas) => (
+                        FrameFamily::TransitiveWithPP,
+                        vec![slot(Object, SlotFill::NP), slot(Complement, pp(lemmas)?)],
+                    ),
+                    FrameSpec::Prepositional(lemmas) => (
+                        FrameFamily::Prepositional,
+                        vec![slot(Complement, pp(lemmas)?)],
+                    ),
+                    FrameSpec::Copular => (
+                        FrameFamily::Copular,
+                        vec![slot(PredicativeComplement, SlotFill::Pred)],
+                    ),
+                    FrameSpec::Catenative(catenation) => (
+                        FrameFamily::Catenative,
+                        vec![slot(
+                            Complement,
+                            match catenation {
+                                Catenation::ToInf => SlotFill::ToInf,
+                                Catenation::BareInf => SlotFill::BareInf,
+                                Catenation::Gerund => SlotFill::Gerund,
+                            },
+                        )],
+                    ),
+                    FrameSpec::Amount => (
+                        FrameFamily::Amount,
+                        vec![slot(Complement, SlotFill::Amount)],
+                    ),
+                    FrameSpec::NominalAmount => (
+                        FrameFamily::NominalAmount,
+                        vec![
+                            slot(Complement, SlotFill::Nominal),
+                            slot(Complement, SlotFill::Amount),
+                        ],
+                    ),
+                    FrameSpec::Cost => (FrameFamily::Cost, vec![slot(Complement, SlotFill::Cost)]),
+                    FrameSpec::Complement(spec) => (
+                        match category {
+                            Category::Noun => FrameFamily::NounComplement,
+                            Category::Adjective => FrameFamily::AdjectiveComplement,
+                            Category::Determinative => FrameFamily::DeterminativeComplement,
+                            _ => {
+                                return Err(SourceError::Invalid(format!(
+                                    "`{owner}`: only a noun, adjective or determinative declares a bare Complement frame"
+                                )));
+                            }
+                        },
+                        vec![slot(Complement, fill(spec, owner)?)],
+                    ),
+                };
+                let verb_family = !matches!(spec, FrameSpec::Complement(_));
+                if verb_family != (*category == Category::Verb) {
+                    return Err(SourceError::Invalid(format!(
+                        "`{owner}`: {spec:?} is not a frame of a {category:?}"
+                    )));
+                }
+                let frame = Frame { family, slots };
+                if !frame.is_well_formed() {
+                    return Err(SourceError::Invalid(format!(
+                        "`{owner}`: {spec:?} does not have the shape of its family"
+                    )));
+                }
+                if frames.contains(&frame) {
+                    return Err(SourceError::Invalid(format!(
+                        "`{owner}` declares {spec:?} twice"
+                    )));
+                }
+                frames.push(frame);
+            }
+            catalog.frames.insert(*id, frames);
+        }
+        for (id, specs, owner) in &self.prepositions {
+            let mut frames = Vec::new();
+            for spec in specs {
+                let frame = PrepositionFrame {
+                    complement: fill(&spec.complement, owner)?,
+                    hosts: spec.hosts,
+                };
+                if frames
+                    .iter()
+                    .any(|f: &PrepositionFrame| f.complement == frame.complement)
+                {
+                    return Err(SourceError::Invalid(format!(
+                        "`{owner}` declares a {:?} complement twice",
+                        spec.complement
+                    )));
+                }
+                frames.push(frame);
+            }
+            catalog.prepositions.insert(*id, frames);
+        }
+        Ok((self.lexemes, catalog))
+    }
+}
+
+/// A Lexeme of a closed-class or catalog category, spelled exactly.
+pub(crate) fn exact(id: &str, lemma: &str, category: Category, source: Source) -> Lexeme {
+    let mut lexeme = Lexeme::invariant(id, lemma, category, source);
+    lexeme.capitalization = Capitalization::Exact;
+    lexeme
+}
+
+/// A bound Lexeme with its Spelling Variants.
+pub(crate) fn bound(
+    id: &str,
+    lemma: &str,
+    category: Category,
+    spellings: &[String],
+    binding: Binding,
+    source: Source,
+) -> Lexeme {
+    let mut lexeme = exact(id, lemma, category, source);
+    lexeme.forms[0].surfaces = Some(spellings.to_vec());
+    lexeme.binding = binding;
+    lexeme
+}

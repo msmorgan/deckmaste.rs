@@ -1,0 +1,58 @@
+// Prepositions with their complement frames and, per frame, the Host
+// Categories an unselected phrase may modify in Oracle English.
+[
+    (lemma: "about", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "above", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "across", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "after", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "against", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "among", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "as", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "at", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "before", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "behind", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "below", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "beneath", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "beside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "between", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "beyond", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "by", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "down", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "during", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "except", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "for", frames: [(complement: NP, hosts: Predicate)]),
+    (lemma: "from", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "in", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "inside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "instead of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "into", frames: [(complement: NP, hosts: ComplementOnly)]),
+    (lemma: "like", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "near", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "off", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "on", frames: [(complement: NP, hosts: Nominal)]),
+    (lemma: "onto", frames: [(complement: NP, hosts: ComplementOnly)]),
+    (lemma: "out", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "out of", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "outside", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "over", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "past", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "rather than", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "since", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "than", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "through", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "throughout", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "to", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "toward", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "under", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "underneath", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "until", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "up", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "upon", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "with", frames: [
+        (complement: KeywordPhrase, hosts: Nominal),
+        (complement: NP, hosts: NominalAndPredicate),
+    ]),
+    (lemma: "within", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+    (lemma: "without", frames: [(complement: NP, hosts: ComplementOnly)]), // PLACEHOLDER
+]

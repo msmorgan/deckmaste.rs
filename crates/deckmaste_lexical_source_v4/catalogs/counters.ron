@@ -1,0 +1,5 @@
+// Counter kinds [CR#122.1].
+[
+    (kind: "+1/+1", rule: "122.1a"),
+    (kind: "charge"),
+]

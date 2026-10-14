@@ -1,0 +1,6 @@
+// Core verbs and their active Subcategorization Frames. Keyword actions
+// [CR#701.1] live in catalogs/keyword_actions.ron.
+[
+    (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithPP(["into", "onto"])]),
+    (lemma: "control", past: "controlled", gerund: "controlling", frames: [Monotransitive]),
+]

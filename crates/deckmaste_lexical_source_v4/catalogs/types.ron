@@ -1,0 +1,5 @@
+// Card types and supertypes [CR#205.2a,205.4a].
+(
+    card_types: ["artifact", "creature", "land", (lemma: "sorcery", plural: "sorceries")],
+    supertypes: ["basic", "legendary"],
+)
