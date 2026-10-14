@@ -276,3 +276,38 @@ fn load_errors() {
         other => panic!("{other:?}"),
     }
 }
+
+#[test]
+fn best_readings_are_the_cheapest_prefix() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let parse = grammar.parse(
+        &lexicon,
+        "See the man on the hill with the telescope in the card.",
+    );
+    let all = parse.readings();
+    for k in [1, 3, 14, 20] {
+        assert_eq!(parse.best_readings(k), all[..k.min(all.len())]);
+    }
+}
+
+#[test]
+fn best_readings_do_not_enumerate_every_attachment() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let mut text = "See the man".to_owned();
+    for _ in 0..5 {
+        text.push_str(" on the hill with the telescope");
+    }
+    text.push('.');
+    let parse = grammar.parse(&lexicon, &text);
+    // V NP and ten PPs: the eleventh Catalan number of trees.
+    assert_eq!(parse.derivation_count(), 58_786);
+    let best = parse.best_readings(2);
+    assert_eq!(best.len(), 2);
+    for reading in &best {
+        assert_eq!(grammar.admit(reading, &lexicon), Ok(()));
+        assert_eq!(grammar.realize(reading, &lexicon).unwrap(), text);
+    }
+    println!("{:?}", parse.forest.metrics());
+}

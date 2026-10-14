@@ -119,30 +119,38 @@ impl Parse<'_> {
     }
 
     /// Every Reading, deduplicated and ranked by total Production Cost, then
-    /// by a deterministic order. Enumeration is for tests and display; it
-    /// builds every tree, so callers bound it by the forest's size.
+    /// by a deterministic order. This builds every tree; outside tests, use
+    /// [`Parse::best_readings`] or [`Parse::derivation_count`].
     #[must_use]
     pub fn readings(&self) -> Vec<Reading> {
+        self.ranked(None)
+    }
+
+    /// The `k` cheapest Readings by total Production Cost. Each forest node
+    /// keeps only its `k` cheapest trees, so the work is bounded by `k` and
+    /// the forest's size, never by the number of attachment trees.
+    #[must_use]
+    pub fn best_readings(&self, k: usize) -> Vec<Reading> {
+        self.ranked(Some(k))
+    }
+
+    fn ranked(&self, limit: Option<usize>) -> Vec<Reading> {
         let mut memo = HashMap::new();
         let mut active = BTreeSet::new();
         let mut all = BTreeSet::new();
         for &root in &self.forest.roots {
-            all.extend(self.node_trees(root, &mut memo, &mut active));
+            all.extend(self.node_trees(root, limit, &mut memo, &mut active));
         }
-        let mut ranked: Vec<(u64, Reading)> = all
-            .into_iter()
-            .map(|r| (self.grammar.cost(&r), r))
-            .collect();
-        ranked.sort();
-        ranked.into_iter().map(|(_, r)| r).collect()
+        truncate(all, limit).into_iter().map(|(_, r)| r).collect()
     }
 
     fn node_trees(
         &self,
         node: usize,
-        memo: &mut HashMap<usize, Vec<Reading>>,
+        limit: Option<usize>,
+        memo: &mut HashMap<usize, Vec<(u64, Reading)>>,
         active: &mut BTreeSet<usize>,
-    ) -> Vec<Reading> {
+    ) -> Vec<(u64, Reading)> {
         if let Some(trees) = memo.get(&node) {
             return trees.clone();
         }
@@ -154,19 +162,22 @@ impl Parse<'_> {
         let mut trees = BTreeSet::new();
         for &(production, item) in &packed.families {
             let p = &grammar.productions[production];
-            for children in self.item_sequences(item, memo, active) {
-                trees.insert(Reading::Node(ReadingNode {
-                    production: p.id.clone(),
-                    category: grammar.categories[p.lhs].clone(),
-                    features: grammar.feature_map(p.lhs, &packed.summary),
-                    gap: packed.summary.gap,
-                    selected_frame: p.frame.map(|f| grammar.frames[f].clone()),
-                    children,
-                }));
+            for (cost, children) in self.item_sequences(item, limit, memo, active) {
+                trees.insert((
+                    cost + u64::from(p.cost),
+                    Reading::Node(ReadingNode {
+                        production: p.id.clone(),
+                        category: grammar.categories[p.lhs].clone(),
+                        features: grammar.feature_map(p.lhs, &packed.summary),
+                        gap: packed.summary.gap,
+                        selected_frame: p.frame.map(|f| grammar.frames[f].clone()),
+                        children,
+                    }),
+                ));
             }
         }
         active.remove(&node);
-        let trees: Vec<Reading> = trees.into_iter().collect();
+        let trees = truncate(trees, limit);
         memo.insert(node, trees.clone());
         trees
     }
@@ -174,36 +185,43 @@ impl Parse<'_> {
     fn item_sequences(
         &self,
         item: usize,
-        memo: &mut HashMap<usize, Vec<Reading>>,
+        limit: Option<usize>,
+        memo: &mut HashMap<usize, Vec<(u64, Reading)>>,
         active: &mut BTreeSet<usize>,
-    ) -> Vec<Vec<Reading>> {
-        let mut out = Vec::new();
+    ) -> Vec<(u64, Vec<Reading>)> {
+        let mut out = BTreeSet::new();
         for &(previous, child) in &self.forest.items[item].families {
             let prefixes = match previous {
-                Some(p) => self.item_sequences(p, memo, active),
-                None => vec![Vec::new()],
+                Some(p) => self.item_sequences(p, limit, memo, active),
+                None => vec![(0, Vec::new())],
             };
-            let lasts: Vec<Option<Reading>> = match child {
+            let lasts: Vec<(u64, Option<Reading>)> = match child {
                 ChildRef::Node(n) => self
-                    .node_trees(n, memo, active)
+                    .node_trees(n, limit, memo, active)
                     .into_iter()
-                    .map(Some)
+                    .map(|(c, r)| (c, Some(r)))
                     .collect(),
-                ChildRef::Leaf(l) => {
-                    vec![Some(Reading::Leaf(self.forest.leaves[l].reading.clone()))]
-                }
-                ChildRef::Punct => vec![None],
+                ChildRef::Leaf(l) => vec![(
+                    0,
+                    Some(Reading::Leaf(self.forest.leaves[l].reading.clone())),
+                )],
+                ChildRef::Punct => vec![(0, None)],
             };
-            for prefix in &prefixes {
-                for last in &lasts {
+            for (prefix_cost, prefix) in &prefixes {
+                for (last_cost, last) in &lasts {
                     let mut sequence = prefix.clone();
                     sequence.extend(last.clone());
-                    out.push(sequence);
+                    out.insert((prefix_cost + last_cost, sequence));
                 }
             }
         }
-        out
+        truncate(out, limit)
     }
+}
+
+/// The cheapest `limit` entries of an ordered set, or all of them.
+fn truncate<T: Ord>(set: BTreeSet<(u64, T)>, limit: Option<usize>) -> Vec<(u64, T)> {
+    set.into_iter().take(limit.unwrap_or(usize::MAX)).collect()
 }
 
 impl CompiledGrammar {
