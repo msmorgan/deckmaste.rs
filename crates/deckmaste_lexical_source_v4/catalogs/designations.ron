@@ -1,4 +1,49 @@
-// Designations (docs/designations.md).
+// Designations (docs/designations.md) that Vintage-playable cards can hold.
+// Out of scope: planar controller [CR#311.5] (Plane cards) and archenemy [CR#904.2a]
+// (Archenemy format). A lemma is declared once, as a noun or as an adjective.
 [
-    (rule: "725.1", name: "Monarch", nouns: ["monarch"]),
+    (rule: "[CR#310.9]", name: "Protector", nouns: ["protector"]),
+    (rule: "[CR#701.15b]", name: "Goaded", adjectives: ["goaded"]),
+    (rule: "[CR#701.37b]", name: "Monstrous", adjectives: ["monstrous"]),
+    (rule: "[CR#701.54b]", name: "Ring-bearer", nouns: ["Ring-bearer"]),
+    (rule: "[CR#701.60b]", name: "Suspected", adjectives: ["suspected"]),
+    (rule: "[CR#701.64b]", name: "Harnessed", adjectives: ["harnessed"]),
+    (rule: "[CR#702.112b]", name: "Renowned", adjectives: ["renowned"]),
+    // The city's blessing is a singular, uncountable name: "you have the city's blessing".
+    (
+        rule: "[CR#702.131c]",
+        name: "City's blessing",
+        nouns: [(lemma: "city's blessing", countability: [Mass])],
+    ),
+    // The sector designations [CR#702.158b] are not named on any in-scope card yet.
+    (
+        rule: "[CR#702.158b]",
+        name: "Sector",
+        nouns: [
+            "alpha sector",
+            "beta sector",
+            "gamma sector",
+        ],
+    ),
+    (rule: "[CR#702.171b]", name: "Saddled", adjectives: ["saddled"]),
+    (rule: "[CR#702.195b]", name: "Enduring story", nouns: ["enduring story"]),
+    // "left half unlocked" and "right half unlocked" are the unlocked designations;
+    // Oracle names them by the adjective ("unlocked doors").
+    (rule: "[CR#709.5c]", name: "Unlocked", adjectives: ["unlocked"]),
+    (rule: "[CR#716.2b]", name: "Level", nouns: ["level"]),
+    (rule: "[CR#719.3b]", name: "Solved", adjectives: ["solved"]),
+    // "unprepared" is the lost state [CR#722.3b].
+    (rule: "[CR#722.3a]", name: "Prepared", adjectives: ["prepared", "unprepared"]),
+    (rule: "[CR#725.1]", name: "Monarch", nouns: ["monarch"]),
+    (rule: "[CR#726.1]", name: "Initiative", nouns: ["initiative"]),
+    // Day and night are uncountable: "it becomes day".
+    (
+        rule: "[CR#731.1]",
+        name: "Day and night",
+        nouns: [
+            (lemma: "day", countability: [Mass]),
+            (lemma: "night", countability: [Mass]),
+        ],
+    ),
+    (rule: "[CR#903.3]", name: "Commander", nouns: ["commander"]),
 ]

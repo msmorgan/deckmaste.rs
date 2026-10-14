@@ -34,6 +34,38 @@ impl Spellings {
     }
 }
 
+/// A rule of the Comprehensive Rules, written as a citation: `[CR#701.8]`.
+/// The citation tool checks it like any other.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd)]
+#[serde(try_from = "String")]
+pub struct Rule(String);
+
+impl Rule {
+    /// The rule number alone, without the citation brackets.
+    #[must_use]
+    pub fn number(&self) -> &str {
+        &self.0
+    }
+}
+
+impl TryFrom<String> for Rule {
+    type Error = String;
+
+    fn try_from(citation: String) -> Result<Self, String> {
+        citation
+            .strip_prefix("[CR#")
+            .and_then(|rest| rest.strip_suffix(']'))
+            .filter(|number| {
+                !number.is_empty()
+                    && number
+                        .chars()
+                        .all(|c| c.is_ascii_alphanumeric() || c == '.')
+            })
+            .map(|number| Self(number.to_owned()))
+            .ok_or_else(|| format!("`{citation}` is not one rule written as a bracketed CR citation"))
+    }
+}
+
 /// What fills a Frame Slot, with prepositions named by lemma.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub enum FillSpec {
@@ -72,6 +104,12 @@ pub enum FrameSpec {
     Prepositional(Vec<String>),
     Copular,
     Catenative(Catenation),
+    /// An object and a predicative complement: *turn it face up*.
+    ComplexTransitive,
+    /// An object and a non-finite complement: *cause you to sacrifice*.
+    ComplexCatenative(Catenation),
+    /// A content clause: *decide whether to flip again*.
+    ContentClause,
     Amount,
     NominalAmount,
     Cost,
@@ -123,6 +161,12 @@ pub struct VerbEntry {
     /// A negative form of an auxiliary (*can't*, *doesn't*).
     #[serde(default)]
     pub negative: bool,
+    /// A contracted auxiliary bound to its host (*'ve* in *you've*).
+    #[serde(default)]
+    pub binding: Option<Binding>,
+    /// Every verb has a frame, except an auxiliary the grammar names as a
+    /// Closed Word or Lexical Class member (perfect *have*, *hasn't*, *'ve*).
+    #[serde(default)]
     pub frames: Vec<FrameSpec>,
 }
 
@@ -333,11 +377,16 @@ pub type Subtypes = BTreeMap<SubtypeFamily, Vec<NounDecl>>;
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KeywordAction {
-    /// The rule that defines it, such as `701.8`.
-    pub rule: String,
+    /// The rule that defines it, such as `[CR#701.8]`.
+    pub rule: Rule,
     /// The CR's name for it, such as `Destroy`.
     pub name: String,
+    #[serde(default)]
     pub verbs: Vec<VerbEntry>,
+    /// Nouns that realize it: the instruction *Monstrosity 3* [CR#701.37a],
+    /// or *the Ring* that tempts you [CR#701.54a].
+    #[serde(default)]
+    pub nouns: Vec<NounDecl>,
 }
 
 /// One parameter a keyword ability takes on a keyword line.
@@ -358,6 +407,12 @@ pub enum KeywordParameter {
     QualityBefore,
     /// A card name after the preposition named, if any: *partner with …*.
     Name(Option<String>),
+    /// An ability after an em dash, which the keyword labels: *boast — {1}: …*.
+    DashAbility,
+    /// Power and toughness after an em dash: *prototype {1}{B} — 1/1*.
+    DashPowerToughness,
+    /// Another keyword after an em dash: *modular—sunburst*.
+    DashKeyword,
 }
 
 /// The noun stems a Bound Keyword Surface binds to.
@@ -382,7 +437,7 @@ pub struct BoundSurface {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KeywordAbility {
-    pub rule: String,
+    pub rule: Rule,
     pub name: String,
     pub lemma: String,
     /// Alternative parameter lists; empty means the keyword stands alone.
@@ -390,6 +445,21 @@ pub struct KeywordAbility {
     pub parameters: Vec<Vec<KeywordParameter>>,
     #[serde(default)]
     pub bound: Option<BoundSurface>,
+    /// Keywords the rule defines as variants, each its own Keyword Lexeme:
+    /// *megamorph* [CR#702.37b], *partner—Friends forever* [CR#702.124i].
+    #[serde(default)]
+    pub variants: Vec<KeywordVariant>,
+    /// Verbs the rule defines for acting with the keyword: *cycle*, *crew*.
+    #[serde(default)]
+    pub verbs: Vec<VerbEntry>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct KeywordVariant {
+    pub lemma: String,
+    #[serde(default)]
+    pub parameters: Vec<Vec<KeywordParameter>>,
 }
 
 /// Where an ability word is listed.
@@ -415,14 +485,14 @@ pub struct CounterKind {
     pub kind: String,
     /// The rule that names it, when the CR does.
     #[serde(default)]
-    pub rule: Option<String>,
+    pub rule: Option<Rule>,
 }
 
 /// A designation and the nouns and adjectives that name it.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Designation {
-    pub rule: String,
+    pub rule: Rule,
     pub name: String,
     #[serde(default)]
     pub nouns: Vec<NounDecl>,
@@ -434,7 +504,7 @@ pub struct Designation {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct TurnPart {
-    pub rule: String,
+    pub rule: Rule,
     pub noun: NounDecl,
 }
 
@@ -443,7 +513,7 @@ pub struct TurnPart {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Token {
-    pub rule: String,
+    pub rule: Rule,
     pub name: String,
     pub subtype: String,
     #[serde(default)]

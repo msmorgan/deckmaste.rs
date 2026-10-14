@@ -1,5 +1,240 @@
-// Keyword actions [CR#701.1] and their active Subcategorization Frames.
+// Keyword actions [CR#701.1] and their active Subcategorization Frames, in CR order.
+//
+// Left out: Set in Motion [CR#701.32] and Abandon [CR#701.33] (Archenemy only), and Open an
+// Attraction [CR#701.51] and Roll to Visit Your Attractions [CR#701.52] (Un-only).
 [
-    (rule: "701.8", name: "Destroy", verbs: [(lemma: "destroy", frames: [Monotransitive])]),
-    (rule: "701.22", name: "Scry", verbs: [(lemma: "scry", frames: [Amount])]),
+    (rule: "[CR#701.2]", name: "Activate", verbs: [
+        // Intransitive: "Activate only as a sorcery."
+        (lemma: "activate", frames: [Monotransitive, Intransitive]),
+    ]),
+    (rule: "[CR#701.3]", name: "Attach", verbs: [
+        (lemma: "attach", frames: [TransitiveWithPP(["to"])]),
+        // [CR#701.3d]
+        (lemma: "unattach", frames: [Monotransitive, TransitiveWithPP(["from"])]),
+    ]),
+    (rule: "[CR#701.4]", name: "Behold", verbs: [
+        (lemma: "behold", past: "beheld", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.5]", name: "Cast", verbs: [
+        (lemma: "cast", past: "cast", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.6]", name: "Counter", verbs: [
+        (lemma: "counter", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.7]", name: "Create", verbs: [
+        (lemma: "create", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.8]", name: "Destroy", verbs: [
+        (lemma: "destroy", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.9]", name: "Discard", verbs: [
+        (lemma: "discard", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.10]", name: "Double", verbs: [
+        (lemma: "double", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.11]", name: "Triple", verbs: [
+        (lemma: "triple", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.12]", name: "Exchange", verbs: [
+        (lemma: "exchange", frames: [Monotransitive, TransitiveWithPP(["with"])]),
+    ]),
+    (rule: "[CR#701.13]", name: "Exile", verbs: [
+        (lemma: "exile", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.14]", name: "Fight", verbs: [
+        // Intransitive: "Whenever one or more creatures you control fight".
+        (lemma: "fight", past: "fought", frames: [Monotransitive, Intransitive]),
+    ]),
+    (rule: "[CR#701.15]", name: "Goad", verbs: [
+        (lemma: "goad", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.16]", name: "Investigate", verbs: [
+        (lemma: "investigate", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.17]", name: "Mill", verbs: [
+        (lemma: "mill", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.18]", name: "Play", verbs: [
+        // Intransitive: "Your opponents play with their hands revealed."
+        (lemma: "play", frames: [Monotransitive, Intransitive]),
+    ]),
+    (rule: "[CR#701.19]", name: "Regenerate", verbs: [
+        (lemma: "regenerate", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.20]", name: "Reveal", verbs: [
+        (lemma: "reveal", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.21]", name: "Sacrifice", verbs: [
+        (lemma: "sacrifice", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.22]", name: "Scry", verbs: [
+        // Monotransitive: "If you would scry a number of cards, scry that many cards plus one".
+        (lemma: "scry", frames: [Amount, Intransitive, Monotransitive]),
+    ]),
+    (rule: "[CR#701.23]", name: "Search", verbs: [
+        // Prepositional: "If you searched for a creature card".
+        (lemma: "search", frames: [TransitiveWithPP(["for"]), Monotransitive, Prepositional(["for"])]),
+    ]),
+    (rule: "[CR#701.24]", name: "Shuffle", verbs: [
+        (lemma: "shuffle", frames: [Intransitive, Monotransitive, TransitiveWithPP(["into"])]),
+    ]),
+    (rule: "[CR#701.25]", name: "Surveil", verbs: [
+        (lemma: "surveil", past: "surveilled", gerund: "surveilling", frames: [Amount, Intransitive]),
+    ]),
+    (rule: "[CR#701.26]", name: "Tap and Untap", verbs: [
+        (lemma: "tap", past: "tapped", gerund: "tapping", frames: [Monotransitive]),
+        // Intransitive: "doesn't untap during its controller's untap step".
+        (lemma: "untap", past: "untapped", gerund: "untapping", frames: [Monotransitive, Intransitive]),
+    ]),
+    (rule: "[CR#701.27]", name: "Transform", verbs: [
+        (lemma: "transform", frames: [Monotransitive, Intransitive, Prepositional(["into"])]),
+    ]),
+    (rule: "[CR#701.28]", name: "Convert", verbs: [
+        (lemma: "convert", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.29]", name: "Fateseal", verbs: [
+        (lemma: "fateseal", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.30]", name: "Clash", verbs: [
+        (lemma: "clash", frames: [Prepositional(["with"]), Intransitive]),
+    ]),
+    (rule: "[CR#701.31]", name: "Planeswalk", verbs: [
+        // In scope through "You may planeswalk." on Vintage-legal cards.
+        (lemma: "planeswalk", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.34]", name: "Proliferate", verbs: [
+        (lemma: "proliferate", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.35]", name: "Detain", verbs: [
+        (lemma: "detain", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.36]", name: "Populate", verbs: [
+        (lemma: "populate", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.37]", name: "Monstrosity", nouns: [
+        // The verbless instruction "Monstrosity 3." [CR#701.37a]
+        (lemma: "monstrosity", frames: [Complement(Amount)]),
+    ]),
+    (rule: "[CR#701.38]", name: "Vote", verbs: [
+        (lemma: "vote", frames: [Prepositional(["for"]), Intransitive]),
+    ]),
+    (rule: "[CR#701.39]", name: "Bolster", verbs: [
+        (lemma: "bolster", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.40]", name: "Manifest", verbs: [
+        (lemma: "manifest", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.41]", name: "Support", verbs: [
+        (lemma: "support", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.42]", name: "Meld", verbs: [
+        (lemma: "meld", frames: [TransitiveWithPP(["into"])]),
+    ]),
+    (rule: "[CR#701.43]", name: "Exert", verbs: [
+        (lemma: "exert", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.44]", name: "Explore", verbs: [
+        // Monotransitive: "Whenever a creature you control explores a land card".
+        (lemma: "explore", frames: [Intransitive, Monotransitive]),
+    ]),
+    (rule: "[CR#701.45]", name: "Assemble", verbs: [
+        // In scope through Steamflogger Boss [CR#701.45a].
+        (lemma: "assemble", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.46]", name: "Adapt", verbs: [
+        (lemma: "adapt", frames: [Amount, Intransitive]),
+    ]),
+    (rule: "[CR#701.47]", name: "Amass", verbs: [
+        (lemma: "amass", frames: [NominalAmount]),
+    ]),
+    (rule: "[CR#701.48]", name: "Learn", verbs: [
+        (lemma: "learn", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.49]", name: "Venture into the Dungeon", verbs: [
+        // A head verb with a free complement: "venture into [quality]" [CR#701.49d].
+        (lemma: "venture", frames: [Prepositional(["into"])]),
+    ]),
+    (rule: "[CR#701.50]", name: "Connive", verbs: [
+        (lemma: "connive", frames: [Intransitive, Amount]),
+    ]),
+    (rule: "[CR#701.53]", name: "Incubate", verbs: [
+        (lemma: "incubate", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.54]", name: "The Ring Tempts You", verbs: [
+        // A whole clause; its verb takes the player as object: "the Ring tempts them" [CR#701.54c].
+        (lemma: "tempt", frames: [Monotransitive]),
+    ], nouns: [
+        // The emblem named The Ring [CR#701.54c].
+        "Ring",
+    ]),
+    (rule: "[CR#701.55]", name: "Face a Villainous Choice", verbs: [
+        // A head verb with a free object: "face that choice" [CR#701.55c].
+        (lemma: "face", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.56]", name: "Time Travel", verbs: [
+        (lemma: "time travel", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.57]", name: "Discover", verbs: [
+        (lemma: "discover", frames: [Amount, Intransitive]),
+    ]),
+    (rule: "[CR#701.58]", name: "Cloak", verbs: [
+        (lemma: "cloak", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.59]", name: "Collect Evidence", verbs: [
+        // A head verb with the object "evidence": "collect evidence 4", and the passive
+        // "whether evidence was collected" [CR#701.59c].
+        (lemma: "collect", frames: [NominalAmount, Monotransitive]),
+    ]),
+    (rule: "[CR#701.60]", name: "Suspect", verbs: [
+        (lemma: "suspect", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.61]", name: "Forage", verbs: [
+        (lemma: "forage", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.62]", name: "Manifest Dread", verbs: [
+        // A fixed phrase inflected on its head: "manifests dread" [CR#701.62b].
+        (
+            lemma: "manifest dread",
+            third_singular: "manifests dread",
+            past: "manifested dread",
+            gerund: "manifesting dread",
+            frames: [Intransitive],
+        ),
+    ]),
+    (rule: "[CR#701.63]", name: "Endure", verbs: [
+        (lemma: "endure", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.64]", name: "Harness", verbs: [
+        (lemma: "harness", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.65]", name: "Airbend", verbs: [
+        // Past forms follow the head verb "bend".
+        (lemma: "airbend", past: "airbent", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.66]", name: "Earthbend", verbs: [
+        (lemma: "earthbend", past: "earthbent", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.67]", name: "Waterbend", verbs: [
+        (lemma: "waterbend", past: "waterbent", frames: [Cost]),
+    ]),
+    (rule: "[CR#701.68]", name: "Blight", verbs: [
+        (lemma: "blight", frames: [Amount]),
+    ]),
+    (rule: "[CR#701.69]", name: "Heal", verbs: [
+        (lemma: "heal", frames: [Monotransitive]),
+    ]),
+    (rule: "[CR#701.70]", name: "Recruit", verbs: [
+        (lemma: "recruit", frames: [Intransitive]),
+    ]),
+    (rule: "[CR#701.71]", name: "Empower Jace", verbs: [
+        // A fixed phrase inflected on its head.
+        (
+            lemma: "empower Jace",
+            third_singular: "empowers Jace",
+            past: "empowered Jace",
+            gerund: "empowering Jace",
+            frames: [Amount],
+        ),
+    ]),
 ]

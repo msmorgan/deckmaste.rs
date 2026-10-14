@@ -1,4 +1,4 @@
-//! Card names [CR#201.5] and their Shortened Names [CR#201.5c].
+//! Card names [CR#201.1] and their Shortened Names [CR#201.5c].
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;

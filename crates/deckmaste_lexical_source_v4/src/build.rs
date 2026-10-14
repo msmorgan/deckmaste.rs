@@ -1,6 +1,6 @@
 //! Builds Lexemes and Subcategorization Frames from authored entries.
 
-use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::Capitalization;
@@ -23,6 +23,7 @@ use deckmaste_syntax::frames::FrameFamily;
 use deckmaste_syntax::frames::FrameSlot;
 use deckmaste_syntax::frames::PrepositionFrame;
 use deckmaste_syntax::frames::SlotFill;
+use deckmaste_syntax::frames::SlotRelation;
 use deckmaste_syntax::frames::SlotRelation::Complement;
 use deckmaste_syntax::frames::SlotRelation::IndirectObject;
 use deckmaste_syntax::frames::SlotRelation::Object;
@@ -101,12 +102,20 @@ impl Builder {
         source: Source,
     ) -> Result<(), SourceError> {
         let invalid = |reason: &str| SourceError::Invalid(format!("verb `{id}`: {reason}"));
-        if entry.frames.is_empty() {
+        let auxiliary = source.kind == SourceKind::Core && source.path == crate::CLOSED_CLASS;
+        if entry.frames.is_empty() && !auxiliary {
             return Err(invalid(
                 "a verb declares at least one Subcategorization Frame",
             ));
         }
+        if entry.binding.is_some() && !auxiliary {
+            return Err(invalid("only a contracted auxiliary is bound"));
+        }
         let mut lexeme = Lexeme::verb(id, &entry.lemma, source);
+        if let Some(binding) = entry.binding {
+            lexeme.binding = binding;
+            lexeme.capitalization = deckmaste_lexical::Capitalization::Exact;
+        }
         if entry.finite_only {
             lexeme.forms.retain(|slot| {
                 slot.form == WordForm::Present
@@ -241,135 +250,21 @@ impl Builder {
 
     /// Validates and indexes everything gathered, resolving preposition lemmas.
     pub(crate) fn finish(self) -> Result<(Vec<Lexeme>, FrameCatalog), SourceError> {
-        let mut ids = BTreeMap::new();
+        let mut ids = BTreeSet::new();
         for lexeme in &self.lexemes {
-            if ids.insert(lexeme.id, lexeme).is_some() {
+            if !ids.insert(lexeme.id) {
                 return Err(SourceError::Invalid(format!(
                     "`{}` is declared twice",
                     lexeme.id
                 )));
             }
         }
-        let preposition = |lemma: &String, owner: &str| -> Result<LexemeId, SourceError> {
-            let id = LexemeId::new(&format!("prep:{lemma}"));
-            if ids.contains_key(&id) {
-                Ok(id)
-            } else {
-                Err(SourceError::Invalid(format!(
-                    "`{owner}` names `{lemma}`, which is not a declared preposition"
-                )))
-            }
-        };
-        let fill = |spec: &FillSpec, owner: &str| -> Result<SlotFill, SourceError> {
-            Ok(match spec {
-                FillSpec::NP => SlotFill::NP,
-                FillSpec::PP(lemmas) => SlotFill::PP(
-                    lemmas
-                        .iter()
-                        .map(|lemma| preposition(lemma, owner))
-                        .collect::<Result<_, _>>()?,
-                ),
-                FillSpec::Pred => SlotFill::Pred,
-                FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
-                FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
-                FillSpec::ToInf => SlotFill::ToInf,
-                FillSpec::BareInf => SlotFill::BareInf,
-                FillSpec::Gerund => SlotFill::Gerund,
-                FillSpec::KeywordPhrase => SlotFill::KeywordPhrase,
-                FillSpec::QuotedAbility => SlotFill::QuotedAbility,
-                FillSpec::Nominal => SlotFill::Nominal,
-                FillSpec::Amount => SlotFill::Amount,
-                FillSpec::Cost => SlotFill::Cost,
-                FillSpec::Intransitive => SlotFill::Intransitive,
-            })
-        };
+        let resolver = Resolver { ids: &ids };
         let mut catalog = FrameCatalog::default();
         for (id, category, specs, owner) in &self.frames {
             let mut frames = Vec::new();
             for spec in specs {
-                let slot = |relation, fill| FrameSlot { relation, fill };
-                let pp = |lemmas: &Vec<String>| {
-                    Ok::<_, SourceError>(SlotFill::PP(
-                        lemmas
-                            .iter()
-                            .map(|lemma| preposition(lemma, owner))
-                            .collect::<Result<_, _>>()?,
-                    ))
-                };
-                let (family, slots) = match spec {
-                    FrameSpec::Intransitive => (FrameFamily::Intransitive, vec![]),
-                    FrameSpec::Monotransitive => (
-                        FrameFamily::Monotransitive,
-                        vec![slot(Object, SlotFill::NP)],
-                    ),
-                    FrameSpec::Ditransitive => (
-                        FrameFamily::Ditransitive,
-                        vec![
-                            slot(IndirectObject, SlotFill::NP),
-                            slot(Object, SlotFill::NP),
-                        ],
-                    ),
-                    FrameSpec::TransitiveWithPP(lemmas) => (
-                        FrameFamily::TransitiveWithPP,
-                        vec![slot(Object, SlotFill::NP), slot(Complement, pp(lemmas)?)],
-                    ),
-                    FrameSpec::Prepositional(lemmas) => (
-                        FrameFamily::Prepositional,
-                        vec![slot(Complement, pp(lemmas)?)],
-                    ),
-                    FrameSpec::Copular => (
-                        FrameFamily::Copular,
-                        vec![slot(PredicativeComplement, SlotFill::Pred)],
-                    ),
-                    FrameSpec::Catenative(catenation) => (
-                        FrameFamily::Catenative,
-                        vec![slot(
-                            Complement,
-                            match catenation {
-                                Catenation::ToInf => SlotFill::ToInf,
-                                Catenation::BareInf => SlotFill::BareInf,
-                                Catenation::Gerund => SlotFill::Gerund,
-                            },
-                        )],
-                    ),
-                    FrameSpec::Amount => (
-                        FrameFamily::Amount,
-                        vec![slot(Complement, SlotFill::Amount)],
-                    ),
-                    FrameSpec::NominalAmount => (
-                        FrameFamily::NominalAmount,
-                        vec![
-                            slot(Complement, SlotFill::Nominal),
-                            slot(Complement, SlotFill::Amount),
-                        ],
-                    ),
-                    FrameSpec::Cost => (FrameFamily::Cost, vec![slot(Complement, SlotFill::Cost)]),
-                    FrameSpec::Complement(spec) => (
-                        match category {
-                            Category::Noun => FrameFamily::NounComplement,
-                            Category::Adjective => FrameFamily::AdjectiveComplement,
-                            Category::Determinative => FrameFamily::DeterminativeComplement,
-                            _ => {
-                                return Err(SourceError::Invalid(format!(
-                                    "`{owner}`: only a noun, adjective or determinative declares a bare Complement frame"
-                                )));
-                            }
-                        },
-                        vec![slot(Complement, fill(spec, owner)?)],
-                    ),
-                };
-                let verb_family = !matches!(spec, FrameSpec::Complement(_));
-                if verb_family != (*category == Category::Verb) {
-                    return Err(SourceError::Invalid(format!(
-                        "`{owner}`: {spec:?} is not a frame of a {category:?}"
-                    )));
-                }
-                let frame = Frame { family, slots };
-                if !frame.is_well_formed() {
-                    return Err(SourceError::Invalid(format!(
-                        "`{owner}`: {spec:?} does not have the shape of its family"
-                    )));
-                }
+                let frame = resolver.frame(spec, *category, owner)?;
                 if frames.contains(&frame) {
                     return Err(SourceError::Invalid(format!(
                         "`{owner}` declares {spec:?} twice"
@@ -383,7 +278,7 @@ impl Builder {
             let mut frames = Vec::new();
             for spec in specs {
                 let frame = PrepositionFrame {
-                    complement: fill(&spec.complement, owner)?,
+                    complement: resolver.fill(&spec.complement, owner)?,
                     hosts: spec.hosts,
                 };
                 if frames
@@ -400,6 +295,162 @@ impl Builder {
             catalog.prepositions.insert(*id, frames);
         }
         Ok((self.lexemes, catalog))
+    }
+}
+
+/// Resolves authored frames against the declared Lexemes.
+struct Resolver<'a> {
+    ids: &'a BTreeSet<LexemeId>,
+}
+
+fn slot(relation: SlotRelation, fill: SlotFill) -> FrameSlot {
+    FrameSlot { relation, fill }
+}
+
+fn catenation(catenation: Catenation) -> SlotFill {
+    match catenation {
+        Catenation::ToInf => SlotFill::ToInf,
+        Catenation::BareInf => SlotFill::BareInf,
+        Catenation::Gerund => SlotFill::Gerund,
+    }
+}
+
+impl Resolver<'_> {
+    fn preposition(&self, lemma: &str, owner: &str) -> Result<LexemeId, SourceError> {
+        let id = LexemeId::new(&format!("prep:{lemma}"));
+        if self.ids.contains(&id) {
+            Ok(id)
+        } else {
+            Err(SourceError::Invalid(format!(
+                "`{owner}` names `{lemma}`, which is not a declared preposition"
+            )))
+        }
+    }
+
+    fn pp(&self, lemmas: &[String], owner: &str) -> Result<SlotFill, SourceError> {
+        Ok(SlotFill::PP(
+            lemmas
+                .iter()
+                .map(|lemma| self.preposition(lemma, owner))
+                .collect::<Result<_, _>>()?,
+        ))
+    }
+
+    fn fill(&self, spec: &FillSpec, owner: &str) -> Result<SlotFill, SourceError> {
+        Ok(match spec {
+            FillSpec::NP => SlotFill::NP,
+            FillSpec::PP(lemmas) => self.pp(lemmas, owner)?,
+            FillSpec::Pred => SlotFill::Pred,
+            FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
+            FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
+            FillSpec::ToInf => SlotFill::ToInf,
+            FillSpec::BareInf => SlotFill::BareInf,
+            FillSpec::Gerund => SlotFill::Gerund,
+            FillSpec::KeywordPhrase => SlotFill::KeywordPhrase,
+            FillSpec::QuotedAbility => SlotFill::QuotedAbility,
+            FillSpec::Nominal => SlotFill::Nominal,
+            FillSpec::Amount => SlotFill::Amount,
+            FillSpec::Cost => SlotFill::Cost,
+            FillSpec::Intransitive => SlotFill::Intransitive,
+        })
+    }
+
+    /// The engine Frame an authored frame of a `category` head declares.
+    fn frame(
+        &self,
+        spec: &FrameSpec,
+        category: Category,
+        owner: &str,
+    ) -> Result<Frame, SourceError> {
+        let (family, slots) = match spec {
+            FrameSpec::Intransitive => (FrameFamily::Intransitive, vec![]),
+            FrameSpec::Monotransitive => (
+                FrameFamily::Monotransitive,
+                vec![slot(Object, SlotFill::NP)],
+            ),
+            FrameSpec::Ditransitive => (
+                FrameFamily::Ditransitive,
+                vec![
+                    slot(IndirectObject, SlotFill::NP),
+                    slot(Object, SlotFill::NP),
+                ],
+            ),
+            FrameSpec::TransitiveWithPP(lemmas) => (
+                FrameFamily::TransitiveWithPP,
+                vec![
+                    slot(Object, SlotFill::NP),
+                    slot(Complement, self.pp(lemmas, owner)?),
+                ],
+            ),
+            FrameSpec::Prepositional(lemmas) => (
+                FrameFamily::Prepositional,
+                vec![slot(Complement, self.pp(lemmas, owner)?)],
+            ),
+            FrameSpec::Copular => (
+                FrameFamily::Copular,
+                vec![slot(PredicativeComplement, SlotFill::Pred)],
+            ),
+            FrameSpec::Catenative(kind) => (
+                FrameFamily::Catenative,
+                vec![slot(Complement, catenation(*kind))],
+            ),
+            FrameSpec::ComplexTransitive => (
+                FrameFamily::ComplexTransitive,
+                vec![
+                    slot(Object, SlotFill::NP),
+                    slot(PredicativeComplement, SlotFill::Pred),
+                ],
+            ),
+            FrameSpec::ComplexCatenative(kind) => (
+                FrameFamily::ComplexCatenative,
+                vec![
+                    slot(Object, SlotFill::NP),
+                    slot(Complement, catenation(*kind)),
+                ],
+            ),
+            FrameSpec::ContentClause => (
+                FrameFamily::ContentClause,
+                vec![slot(Complement, SlotFill::Clause(ClauseKind::Finite))],
+            ),
+            FrameSpec::Amount => (
+                FrameFamily::Amount,
+                vec![slot(Complement, SlotFill::Amount)],
+            ),
+            FrameSpec::NominalAmount => (
+                FrameFamily::NominalAmount,
+                vec![
+                    slot(Complement, SlotFill::Nominal),
+                    slot(Complement, SlotFill::Amount),
+                ],
+            ),
+            FrameSpec::Cost => (FrameFamily::Cost, vec![slot(Complement, SlotFill::Cost)]),
+            FrameSpec::Complement(fill) => {
+                let family = match category {
+                    Category::Noun => FrameFamily::NounComplement,
+                    Category::Adjective => FrameFamily::AdjectiveComplement,
+                    Category::Determinative => FrameFamily::DeterminativeComplement,
+                    _ => {
+                        return Err(SourceError::Invalid(format!(
+                            "`{owner}`: only a noun, adjective or determinative declares a bare Complement frame"
+                        )));
+                    }
+                };
+                (family, vec![slot(Complement, self.fill(fill, owner)?)])
+            }
+        };
+        let verb_family = !matches!(spec, FrameSpec::Complement(_));
+        if verb_family != (category == Category::Verb) {
+            return Err(SourceError::Invalid(format!(
+                "`{owner}`: {spec:?} is not a frame of a {category:?}"
+            )));
+        }
+        let frame = Frame { family, slots };
+        if !frame.is_well_formed() {
+            return Err(SourceError::Invalid(format!(
+                "`{owner}`: {spec:?} does not have the shape of its family"
+            )));
+        }
+        Ok(frame)
     }
 }
 

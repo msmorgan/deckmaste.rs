@@ -1,5 +1,27 @@
-// Predefined tokens [CR#111.10].
+// Predefined tokens [CR#111.10a..111.10x]: the subtype that names each token and any
+// token names it introduces.
 [
-    (rule: "111.10a", name: "Treasure", subtype: "Treasure"),
-    (rule: "111.10j", name: "Cursed Role", subtype: "Role", names: ["Cursed"]),
+    (rule: "[CR#111.10a]", name: "Treasure", subtype: "Treasure"),
+    (rule: "[CR#111.10b]", name: "Food", subtype: "Food"),
+    (rule: "[CR#111.10c]", name: "Gold", subtype: "Gold"),
+    (rule: "[CR#111.10d]", name: "Walker", subtype: "Zombie", names: ["Walker"]),
+    (rule: "[CR#111.10e]", name: "Shard", subtype: "Shard"),
+    (rule: "[CR#111.10f]", name: "Clue", subtype: "Clue"),
+    (rule: "[CR#111.10g]", name: "Blood", subtype: "Blood"),
+    (rule: "[CR#111.10h]", name: "Powerstone", subtype: "Powerstone"),
+    // The back face of an Incubator token is named Phyrexian Token.
+    (rule: "[CR#111.10i]", name: "Incubator", subtype: "Incubator", names: ["Phyrexian Token"]),
+    (rule: "[CR#111.10j]", name: "Cursed Role", subtype: "Role", names: ["Cursed"]),
+    (rule: "[CR#111.10k]", name: "Monster Role", subtype: "Role", names: ["Monster"]),
+    (rule: "[CR#111.10m]", name: "Royal Role", subtype: "Role", names: ["Royal"]),
+    (rule: "[CR#111.10n]", name: "Sorcerer Role", subtype: "Role", names: ["Sorcerer"]),
+    (rule: "[CR#111.10p]", name: "Virtuous Role", subtype: "Role", names: ["Virtuous"]),
+    (rule: "[CR#111.10q]", name: "Wicked Role", subtype: "Role", names: ["Wicked"]),
+    (rule: "[CR#111.10r]", name: "Young Hero Role", subtype: "Role", names: ["Young Hero"]),
+    (rule: "[CR#111.10s]", name: "Map", subtype: "Map"),
+    (rule: "[CR#111.10t]", name: "Junk", subtype: "Junk"),
+    (rule: "[CR#111.10u]", name: "Lander", subtype: "Lander"),
+    (rule: "[CR#111.10v]", name: "Mutagen", subtype: "Mutagen"),
+    (rule: "[CR#111.10w]", name: "Vibranium", subtype: "Vibranium"),
+    (rule: "[CR#111.10x]", name: "Heartwood", subtype: "Heartwood"),
 ]

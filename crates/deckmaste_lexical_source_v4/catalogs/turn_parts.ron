@@ -1,4 +1,28 @@
-// Phases and steps [CR#500.1].
+// Phases and steps [CR#500.1,501.1,506.1,512.1], each named as Oracle text names it.
+// `turn` itself is core vocabulary. The rule is the first rule of the phase or step.
 [
-    (rule: "503.1", noun: "upkeep"),
+    // Phases.
+    (rule: "[CR#501.1]", noun: "beginning phase"),
+    (rule: "[CR#505.1]", noun: "main phase"),
+    (rule: "[CR#505.1]", noun: "precombat main phase"),
+    (rule: "[CR#505.1]", noun: "postcombat main phase"),
+    (rule: "[CR#506.1]", noun: "combat phase"),
+    (rule: "[CR#512.1]", noun: "ending phase"),
+
+    // Steps.
+    (rule: "[CR#502.1]", noun: "untap step"),
+    // Oracle also names the step by the bare noun: "at the beginning of your upkeep".
+    (rule: "[CR#503.1]", noun: "upkeep"),
+    (rule: "[CR#503.1]", noun: "upkeep step"),
+    (rule: "[CR#504.1]", noun: "draw step"),
+    // "at the beginning of combat" and "at end of combat" name the step without "step".
+    (rule: "[CR#507.1]", noun: (lemma: "beginning of combat", countability: [Mass])),
+    (rule: "[CR#507.1]", noun: "beginning of combat step"),
+    (rule: "[CR#508.1]", noun: "declare attackers step"),
+    (rule: "[CR#509.1]", noun: "declare blockers step"),
+    (rule: "[CR#510.1]", noun: "combat damage step"),
+    (rule: "[CR#511.1]", noun: (lemma: "end of combat", countability: [Mass])),
+    (rule: "[CR#511.1]", noun: "end of combat step"),
+    (rule: "[CR#513.1]", noun: "end step"),
+    (rule: "[CR#514.1]", noun: "cleanup step"),
 ]

@@ -92,7 +92,7 @@ pub const FILES: [(&str, &str); 15] = [
     (TOKENS, include_str!("../catalogs/tokens.ron")),
 ];
 
-const CLOSED_CLASS: &str = "lexicon/english/closed_class.ron";
+pub(crate) const CLOSED_CLASS: &str = "lexicon/english/closed_class.ron";
 const PREPOSITIONS: &str = "lexicon/english/prepositions.ron";
 const VERBS: &str = "lexicon/english/verbs.ron";
 const NOUNS: &str = "lexicon/english/nouns.ron";
@@ -293,14 +293,19 @@ impl Sources {
         ] {
             for entry in entries {
                 let id = format!("{prefix}:{}", entry.name);
-                builder.push(bound(
+                let mut lexeme = bound(
                     &id,
                     &entry.spellings[0],
                     category,
                     &entry.spellings,
                     entry.binding,
                     core(CLOSED_CLASS, &id),
-                ));
+                );
+                // A prefix opens a sentence as readily as its host: *Nonland*.
+                if category == Category::Affix {
+                    lexeme.capitalization = deckmaste_lexical::Capitalization::Initial;
+                }
+                builder.push(lexeme);
             }
         }
         for symbol in &closed.symbols {
@@ -385,48 +390,7 @@ impl Sources {
                 .map(|family| format!("{family:?}Type"))
                 .collect();
         }
-        for action in &self.keyword_actions {
-            for verb in &action.verbs {
-                let id = format!("action:{}", verb.lemma);
-                builder.verb(&id, verb, catalog(KEYWORD_ACTIONS, &action.rule))?;
-            }
-        }
-        let mut stems = std::collections::BTreeSet::new();
-        for ability in &self.keyword_abilities {
-            let id = format!("keyword:{}", ability.lemma);
-            let mut lexeme = Lexeme::invariant(
-                &id,
-                &ability.lemma,
-                Category::Keyword,
-                catalog(KEYWORD_ABILITIES, &ability.rule),
-            );
-            lexeme.surface_structure = SurfaceStructure::Opaque;
-            builder.push(lexeme);
-            if let Some(surface) = &ability.bound {
-                builder.push(bound(
-                    &format!("{id}:bound"),
-                    &surface.surface,
-                    Category::Keyword,
-                    std::slice::from_ref(&surface.surface),
-                    Binding::Suffix,
-                    catalog(KEYWORD_ABILITIES, &ability.rule),
-                ));
-                for class in &surface.stems {
-                    stems.extend(self.stems(*class));
-                }
-            }
-        }
-        for stem in stems {
-            let id = format!("stem:{stem}");
-            builder.push(bound(
-                &id,
-                &stem,
-                Category::Noun,
-                std::slice::from_ref(&stem),
-                Binding::Prefix,
-                catalog(KEYWORD_ABILITIES, &id),
-            ));
-        }
+        self.keywords(builder)?;
         for word in &self.ability_words {
             let id = format!("ability_word:{}", word.lemma);
             let mut lexeme = Lexeme::invariant(
@@ -465,7 +429,11 @@ impl Sources {
             for decl in &designation.nouns {
                 let entry = decl.entry();
                 let id = format!("designation:{}", entry.lemma);
-                builder.noun(&id, &entry, catalog(DESIGNATIONS, &designation.rule));
+                builder.noun(
+                    &id,
+                    &entry,
+                    catalog(DESIGNATIONS, designation.rule.number()),
+                );
             }
             for lemma in &designation.adjectives {
                 let id = format!("designation:{lemma}");
@@ -473,14 +441,14 @@ impl Sources {
                     &id,
                     lemma,
                     Category::Adjective,
-                    catalog(DESIGNATIONS, &designation.rule),
+                    catalog(DESIGNATIONS, designation.rule.number()),
                 ));
             }
         }
         for part in &self.turn_parts {
             let entry = part.noun.entry();
             let id = format!("turn_part:{}", entry.lemma);
-            builder.noun(&id, &entry, catalog(TURN_PARTS, &part.rule));
+            builder.noun(&id, &entry, catalog(TURN_PARTS, part.rule.number()));
         }
         for token in &self.tokens {
             if !subtypes.contains_key(&token.subtype) {
@@ -495,9 +463,73 @@ impl Sources {
                     &id,
                     name,
                     Category::Catalog,
-                    catalog(TOKENS, &token.rule),
+                    catalog(TOKENS, token.rule.number()),
                 ));
             }
+        }
+        Ok(())
+    }
+
+    /// Keyword actions and keyword abilities, with their variants, verbs,
+    /// Bound Keyword Surfaces and stems.
+    fn keywords(&self, builder: &mut Builder) -> Result<(), SourceError> {
+        let catalog = |path: &str, owner: &str| source(SourceKind::Catalog, path, owner);
+        for action in &self.keyword_actions {
+            let owner = action.rule.number();
+            for verb in &action.verbs {
+                let id = format!("action:{}", verb.lemma);
+                builder.verb(&id, verb, catalog(KEYWORD_ACTIONS, owner))?;
+            }
+            for decl in &action.nouns {
+                let entry = decl.entry();
+                let id = format!("action:{}", entry.lemma);
+                builder.noun(&id, &entry, catalog(KEYWORD_ACTIONS, owner));
+            }
+        }
+        let mut stems = std::collections::BTreeSet::new();
+        for ability in &self.keyword_abilities {
+            let owner = ability.rule.number();
+            let lemmas = std::iter::once(&ability.lemma)
+                .chain(ability.variants.iter().map(|variant| &variant.lemma));
+            for lemma in lemmas {
+                let id = format!("keyword:{lemma}");
+                let mut lexeme = Lexeme::invariant(
+                    &id,
+                    lemma,
+                    Category::Keyword,
+                    catalog(KEYWORD_ABILITIES, owner),
+                );
+                lexeme.surface_structure = SurfaceStructure::Opaque;
+                builder.push(lexeme);
+            }
+            for verb in &ability.verbs {
+                let id = format!("keyword_verb:{}", verb.lemma);
+                builder.verb(&id, verb, catalog(KEYWORD_ABILITIES, owner))?;
+            }
+            if let Some(surface) = &ability.bound {
+                builder.push(bound(
+                    &format!("keyword:{}:bound", ability.lemma),
+                    &surface.surface,
+                    Category::Keyword,
+                    std::slice::from_ref(&surface.surface),
+                    Binding::Suffix,
+                    catalog(KEYWORD_ABILITIES, owner),
+                ));
+                for class in &surface.stems {
+                    stems.extend(self.stems(*class));
+                }
+            }
+        }
+        for stem in stems {
+            let id = format!("stem:{stem}");
+            builder.push(bound(
+                &id,
+                &stem,
+                Category::Noun,
+                std::slice::from_ref(&stem),
+                Binding::Prefix,
+                catalog(KEYWORD_ABILITIES, &id),
+            ));
         }
         Ok(())
     }
