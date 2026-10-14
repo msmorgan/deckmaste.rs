@@ -914,6 +914,32 @@ mutual
         let (drs2, e2) := stepAmount fuel drs1 val
         (drs2, e1 ++ e2)
       | .stateHolds c => stepCondition fuel drs c
+      | .triggers ab optOf optBy =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true ab
+        let (drs2, e2) := match optOf with
+          | some o => let (d', _, e) := stepNounPhrase fuel drs1 .other false o; (d', e)
+          | none => (drs1, [])
+        let (drs3, e3) := match optBy with
+          | some b => let (d', _, e) := stepNounPhrase fuel drs2 .other false b; (d', e)
+          | none => (drs2, [])
+        (drs3, e1 ++ e2 ++ e3)
+      | .nthOccurrence _ _ ev => stepGameEvent fuel drs ev
+      | .causes c ev =>
+        let (drs1, e1) := stepCausing fuel drs c
+        let (drs2, e2) := stepGameEvent fuel drs1 ev
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepCausing (fuel : Nat) (drs : DRS) (c : Causing) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match c with
+      | .source src =>
+        let (drs', _, e) := stepNounPhrase fuel drs .other false src
+        (drs', e)
+      | .event ev => stepGameEvent fuel drs ev
+      | .anEffect => (drs, [])
   termination_by structural fuel
 
   def stepWouldClause (fuel : Nat) (drs : DRS) (wc : WouldClause) : DRS × List Refusal :=
@@ -1049,6 +1075,29 @@ mutual
       | ed :: rest =>
         let (drs1, e1) := stepCharacteristicEdit fuel drs ed
         let (drs2, e2) := stepCharacteristicEditList fuel drs1 rest
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepCopyExcept (fuel : Nat) (drs : DRS) (ce : CopyExcept) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ce with
+      | .edits eds => stepCharacteristicEditList fuel drs eds
+      | .ability ab => (drs, checkAbility fuel drs ab)
+      | .thisAbility => (drs, [])
+      | .entersWithCounters amt _ _ => stepAmount fuel drs amt
+  termination_by structural fuel
+
+  def stepCopyExceptList (fuel : Nat) (drs : DRS) (ces : List CopyExcept) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ces with
+      | [] => (drs, [])
+      | c :: rest =>
+        let (drs1, e1) := stepCopyExcept fuel drs c
+        let (drs2, e2) := stepCopyExceptList fuel drs1 rest
         (drs2, e1 ++ e2)
   termination_by structural fuel
 
@@ -1201,6 +1250,152 @@ mutual
         (drs2, e1 ++ e2 ++ e3)
   termination_by structural fuel
 
+  def stepProducedMana (fuel : Nat) (drs : DRS) (pm : ProducedMana) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match pm with
+      | .asPrintedCost subj | .producedByEvent subj | .couldProduce subj
+      | .amongColorsOf subj | .lastNoted subj =>
+        let (drs', _, e) := stepNounPhrase fuel drs .other false subj
+        (drs', e)
+      | _ => (drs, [])
+  termination_by structural fuel
+
+  def stepSpendPurpose (fuel : Nat) (drs : DRS) (sp : SpendPurpose) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match sp with
+      | .toCast p | .toActivate (some p) => stepPredicate fuel drs p
+      | .toActivate none | .toPay _ => (drs, [])
+  termination_by structural fuel
+
+  def stepSpendPurposeList (fuel : Nat) (drs : DRS) (sps : List SpendPurpose) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match sps with
+      | [] => (drs, [])
+      | sp :: rest =>
+        let (drs1, e1) := stepSpendPurpose fuel drs sp
+        let (drs2, e2) := stepSpendPurposeList fuel drs1 rest
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepManaRider (fuel : Nat) (drs : DRS) (mr : ManaRider) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match mr with
+      | .spendOnly sps | .spendNotOn sps => stepSpendPurposeList fuel drs sps
+      | .onSpent _ _ sp says =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true sp
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) says
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepManaRiderList (fuel : Nat) (drs : DRS) (mrs : List ManaRider) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match mrs with
+      | [] => (drs, [])
+      | mr :: rest =>
+        let (drs1, e1) := stepManaRider fuel drs mr
+        let (drs2, e2) := stepManaRiderList fuel drs1 rest
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepPipPaidList (fuel : Nat) (drs : DRS) (ps : List PipPaid) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ps with
+      | [] => (drs, [])
+      | .generic :: rest => stepPipPaidList fuel drs rest
+      | .ofColor ct :: rest =>
+        let (drs1, e1) := stepColorTerm fuel drs ct
+        let (drs2, e2) := stepPipPaidList fuel drs1 rest
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepManaSubstitute (fuel : Nat) (drs : DRS) (ms : ManaSubstitute) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      let (drs1, e1) := stepInstruction fuel .postEvent .obj drs ms.action
+      let (drs2, e2) := stepPipPaidList fuel drs1 ms.pays
+      (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepCostShift (fuel : Nat) (drs : DRS) (cs : CostShift) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match cs with
+      | .less amt optFl =>
+        let (drs1, e1) := stepAmount fuel drs amt
+        let (drs2, e2) := match optFl with | some fl => stepAmount fuel drs1 fl | none => (drs1, [])
+        (drs2, e1 ++ e2)
+      | .more amt => stepAmount fuel drs amt
+      | .bySymbols (.lit _) _ _ => (drs, [])
+      | .bySymbols (.manaCostOf obj) _ _ =>
+        let (drs', _, e) := stepNounPhrase fuel drs .other false obj
+        (drs', e)
+  termination_by structural fuel
+
+  def stepDamageAgent (fuel : Nat) (drs : DRS) (da : DamageAgent) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match da with
+      | .unattributed => (drs, [])
+      | .dealtBy src =>
+        let (drs', _, e) := stepNounPhrase fuel drs .subj true src
+        (drs', e)
+  termination_by structural fuel
+
+  def stepDamageScope (fuel : Nat) (drs : DRS) (ds : DamageScope) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ds with
+      | .everywhere => (drs, [])
+      | .toRecipient rec =>
+        let (drs', _, e) := stepNounPhrase fuel drs .obj true rec
+        (drs', e)
+  termination_by structural fuel
+
+  def stepPreventCut (fuel : Nat) (drs : DRS) (pc : PreventCut) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match pc with
+      | .all | .half _ => (drs, [])
+      | .some amt | .shield amt | .allBut amt => stepAmount fuel drs amt
+  termination_by structural fuel
+
+  def stepDamageOp (fuel : Nat) (drs : DRS) (dop : DamageOp) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match dop with
+      | .prevent cut optAlso =>
+        let (drs1, e1) := stepPreventCut fuel drs cut
+        let drs2 := drs1.push (outcomeB .damagePrevented) .other false
+        let (drs3, e2) := match optAlso with
+          | some inst => stepInstruction fuel .postEvent .obj (nextClause drs2) inst
+          | none => (drs2, [])
+        (drs3, e1 ++ e2)
+      | .redirect cut to =>
+        let (drs1, e1) := stepPreventCut fuel drs cut
+        let (drs2, _, e2) := stepNounPhrase fuel drs1 .other true to
+        (drs2, e1 ++ e2)
+      | .scale (.multiplied _) | .scale (.halved _) => (drs, [])
+      | .scale (.shifted _ amt) => stepAmount fuel drs amt
+  termination_by structural fuel
+
   def stepInstruction (fuel : Nat) (phase : StepPhase) (patientRole : GramRole) (drs : DRS) (inst : Instruction) : DRS × List Refusal :=
     match fuel with
     | 0 => (drs, [])
@@ -1239,15 +1434,27 @@ mutual
         let (drs2, _, e2) := stepNounPhrase fuel drs1 patientRole true recipient
         let drs3 := drs2.push (outcomeB .damageDealt) .other false
         (drs3, e1 ++ e2)
-      | .markDamage subj amt =>
+      | .markDamage subj amt | .skipUntap subj amt =>
         let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, e2) := stepAmount fuel drs1 amt
         (drs2, e1 ++ e2)
+      | .skipPart _ cnt | .addTurnPart _ _ cnt _ => stepAmount fuel drs cnt
       | .clearDamage subj | .turnOver subj | .turnFaceDown subj _
-      | .target subj | .changeControl subj | .gainDesignation subj _ =>
+      | .target subj | .changeControl subj | .chooseNewTargets subj =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
         let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
         (drs2, e1)
+      | .tapForMana perm optType =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true perm
+        let (drs2, e2) := match optType with
+          | some (.ofColor ct) => stepColorTerm fuel drs1 ct
+          | _ => (drs1, [])
+        (drs2, e1 ++ e2)
+      | .gainDesignation subj _ optDur =>
+        let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
+        let (drs2, e2) := match optDur with | some d => stepDuration fuel drs1 d | none => (drs1, [])
+        let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed else drs2
+        (drs3, e1 ++ e2)
       | .doAndForbid body _ subj =>
         let (drs1, e1) := stepInstruction fuel phase patientRole drs body
         let (drs2, _, e2) := stepNounPhrase fuel drs1 .other true subj
@@ -1292,16 +1499,17 @@ mutual
         let drs3 := if phase == .postEvent then drs2.push pileRef .other false else drs1
         let e2 := if facesFit faces piles then [] else [.facesFit]
         (drs3, e1 ++ e2)
-      | .relate subj _ cp | .merge subj cp _ =>
+      | .relate subj _ cp | .merge subj cp _ | .copyTargets subj cp =>
         let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, _, e2) := stepNounPhrase fuel drs1 .other true cp
         (drs2, e1 ++ e2)
-      | .choose first chosen _ =>
+      | .choose first chosen _ optWhen =>
         let (drs1, e1) := match first with
           | some f => let (d, _, e) := stepNounPhrase fuel drs .subj true f; (d, e)
           | none => (drs, [])
         let (drs2, _, e2) := stepNounPhrase fuel drs1 patientRole true chosen
-        (drs2, e1 ++ e2)
+        let (drs3, e3) := match optWhen with | some t => stepTiming fuel drs2 t | none => (drs2, [])
+        (drs3, e1 ++ e2 ++ e3)
       | .vote first _ ballot =>
         let (drs1, e1) := match first with
           | some f => let (d, _, e) := stepNounPhrase fuel drs .subj true f; (d, e)
@@ -1309,16 +1517,29 @@ mutual
         let (drs2, e2) := stepBallot fuel drs1 ballot
         let drs3 := drs2.push (outcomeB .voteHeld) .other false
         (drs3, e1 ++ e2)
-      | .move subj from_ to riders _ _ =>
+      | .move subj from_ to _ optCause riders =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, e2) := stepEventSource fuel drs1 from_
         let (drs3, e3) := match to with | some z => stepZoneExpr fuel drs2 z | none => (drs2, [])
-        let (drs4, e4) := stepEntryRiderList fuel drs3 riders
+        let (drs4, e4) := match optCause with | some c => stepCausing fuel drs3 c | none => (drs3, [])
+        let (drs5, e5) := stepMoveRiderList fuel drs4 riders
         let destZone := to.bind (·.sort)
-        let drs5 := if phase == .postEvent then
-          applyZoneMove drs4 refIds inst.inferredDeed destZone
-        else drs4
-        (drs5, e1 ++ e2 ++ e3 ++ e4)
+        let drs6 := if phase == .postEvent then
+          applyZoneMove drs5 refIds inst.inferredDeed destZone
+        else drs5
+        (drs6, e1 ++ e2 ++ e3 ++ e4 ++ e5)
+      | .copy _ subj times exs =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true subj
+        let (drs2, e2) := stepAmount fuel drs1 times
+        let (drs3, e3) := stepCopyExceptList fuel drs2 exs
+        let drs4 := if phase == .postEvent then
+          let copyRef : Referent := {
+            det := .the, plur := .one,
+            payload := .object [] (some .stack) (mkStamp (some (.core .copy)) (some .stack) false) (some .copy) none none
+          }
+          drs3.push copyRef patientRole true
+        else drs3
+        (drs4, e1 ++ e2 ++ e3)
       | .changeLife delta =>
         let (drs1, e1) := stepDelta fuel drs delta
         let drs2 := match delta.outcome with
@@ -1326,6 +1547,11 @@ mutual
           | none => drs1
         (drs2, e1)
       | .exchange ex => stepExchanged fuel drs ex
+      | .addMana amt prod riders =>
+        let (drs1, e1) := stepAmount fuel drs amt
+        let (drs2, e2) := stepProducedMana fuel drs1 prod
+        let (drs3, e3) := stepManaRiderList fuel drs2 riders
+        (drs3, e1 ++ e2 ++ e3)
       | .draw amt =>
         let (drs1, e1) := stepAmount fuel drs amt
         let drs2 := if phase == .postEvent then
@@ -1399,24 +1625,27 @@ mutual
         let (drs1, e1) := stepStaticSpec fuel drs spec
         let (drs2, e2) := match dur with | some d => stepDuration fuel drs1 d | none => (drs1, [])
         (drs2, e1 ++ e2)
-      | .createObject cnt spec _ =>
+      | .createObject cnt spec _ optUnder =>
         let (drs1, e1) := stepAmount fuel drs cnt
         let (drs2, e2) := stepCreationSpec fuel drs1 spec
-        let drs3 := if phase == .postEvent then
+        let (drs3, e3) := match optUnder with
+          | some u => let (d', _, e) := stepNounPhrase fuel drs2 .other false u; (d', e)
+          | none => (drs2, [])
+        let drs4 := if phase == .postEvent then
           let tokRef : Referent := {
             det := .the, plur := .one,
             payload := .object [.creature] (some .battlefield) (mkStamp (some (.action "create")) (some .battlefield) false) (some .token) none none
           }
-          drs2.push tokRef patientRole true
-        else drs2
-        (drs3, e1 ++ e2)
-      | .putCounters amt ks on =>
+          drs3.push tokRef patientRole true
+        else drs3
+        (drs4, e1 ++ e2 ++ e3)
+      | .putCounters amt ks on _ _ =>
         let (drs1, e1) := stepAmount fuel drs amt
         let (drs2, e2) := stepCounterKindSource fuel drs1 ks
         let (drs3, _, e3) := stepNounPhrase fuel drs2 patientRole true on
         let drs4 := drs3.push (outcomeB .countersPut) .other false
         (drs4, e1 ++ e2 ++ e3)
-      | .removeCounters optQ optKs from_ _ =>
+      | .removeCounters optQ optKs from_ _ _ =>
         let (drs1, e1) := match optQ with | some q => stepQuantity fuel drs q | none => (drs, [])
         let (drs2, e2) := match optKs with | some ks => stepCounterKindSource fuel drs1 ks | none => (drs1, [])
         let (drs3, _, e3) := stepNounPhrase fuel drs2 patientRole true from_
@@ -1427,11 +1656,12 @@ mutual
         let (drs2, e2) := stepAmount fuel drs1 amt
         let (drs3, _, e3) := stepNounPhrase fuel drs2 patientRole true among
         (drs3, e1 ++ e2 ++ e3)
-      | .moveCounters amt optKs src =>
+      | .moveCounters amt optKs src dst =>
         let (drs1, e1) := stepAmount fuel drs amt
         let (drs2, e2) := match optKs with | some ks => stepCounterKindSource fuel drs1 ks | none => (drs1, [])
         let (drs3, _, e3) := stepNounPhrase fuel drs2 patientRole true src
-        (drs3, e1 ++ e2 ++ e3)
+        let (drs4, _, e4) := stepNounPhrase fuel drs3 .other true dst
+        (drs4, e1 ++ e2 ++ e3 ++ e4)
       | .doubleCounters on =>
         let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true on
         (drs1, e1)
@@ -1489,6 +1719,29 @@ mutual
         let (drs1, e1) := stepQuantity fuel drs q
         let (drs2, e2) := stepModeList fuel drs1 modes
         (drs2, e1 ++ e2)
+      | .delay ev alts optDur body =>
+        let (drs1, e1) := stepGameEvent fuel drs ev
+        let (_, eAlts) := stepGameEventList fuel drs alts
+        let (drs2, e2) := match optDur with | some d => stepDuration fuel drs1 d | none => (drs1, [])
+        let (drs3, e3) := stepInstruction fuel phase .obj (nextClause drs2) body
+        (drs3, e1 ++ eAlts ++ e2 ++ e3)
+      | .replace repld repl =>
+        let (drs1, e1) := stepInstruction fuel .preEvent patientRole drs repld
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) repl
+        (drs2, e1 ++ e2)
+      | .holdUntil inst ev =>
+        let (drs1, e1) := stepInstruction fuel phase patientRole drs inst
+        let (drs2, e2) := stepGameEvent fuel drs1 ev
+        (drs2, e1 ++ e2)
+      | .triggerReflexively body trig =>
+        let (drs1, e1) := stepInstruction fuel phase patientRole drs body
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) trig
+        (drs2, e1 ++ e2)
+      | .triggerThisWay body ev trig =>
+        let (drs1, e1) := stepInstruction fuel phase patientRole drs body
+        let (drs2, e2) := stepGameEvent fuel (nextClause drs1) ev
+        let (drs3, e3) := stepInstruction fuel .postEvent .obj (nextClause drs2) trig
+        (drs3, e1 ++ e2 ++ e3)
       | .procedure _ subj pay res from_ of_ =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, e2) := stepPlayPayment fuel drs1 pay
@@ -1543,6 +1796,10 @@ mutual
       | .under ctrl =>
         let (drs', _, errs) := stepNounPhrase fuel drs .other false ctrl
         (drs', errs)
+      | .asCopyOf _ src exs =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .other false src
+        let (drs2, e2) := stepCopyExceptList fuel drs1 exs
+        (drs2, e1 ++ e2)
   termination_by structural fuel
 
   def stepEntryRiderList (fuel : Nat) (drs : DRS) (rs : List EntryRider) : DRS × List Refusal :=
@@ -1557,12 +1814,60 @@ mutual
         (drs2, e1 ++ e2)
   termination_by structural fuel
 
+  def stepPilePlacement (fuel : Nat) (drs : DRS) (pp : PilePlacement) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match pp with
+      | .inOrder _ | .nthFromEnd _ | .orOtherEnd | .faceDown _ => (drs, [])
+      | .withCounters amt ks _ =>
+        let (drs1, e1) := stepAmount fuel drs amt
+        let (drs2, e2) := stepCounterKindSource fuel drs1 ks
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepMoveRider (fuel : Nat) (drs : DRS) (mr : MoveRider) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match mr with
+      | .entry r => stepEntryRider fuel drs r
+      | .placement pp => stepPilePlacement fuel drs pp
+  termination_by structural fuel
+
+  def stepMoveRiderList (fuel : Nat) (drs : DRS) (mrs : List MoveRider) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match mrs with
+      | [] => (drs, [])
+      | mr :: rest =>
+        let (drs1, e1) := stepMoveRider fuel drs mr
+        let (drs2, e2) := stepMoveRiderList fuel drs1 rest
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepTokenSpec (fuel : Nat) (drs : DRS) (ts : TokenSpec) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ts with
+      | .written _ | .asThose | .doubleFaced _ _ => (drs, [])
+      | .copyOf src exs =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .other false src
+        let (drs2, e2) := stepCopyExceptList fuel drs1 exs
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
   def stepCreationSpec (fuel : Nat) (drs : DRS) (spec : CreationSpec) : DRS × List Refusal :=
     match fuel with
     | 0 => (drs, [])
     | fuel + 1 =>
       match spec with
-      | .token _ riders => stepEntryRiderList fuel drs riders
+      | .token ts riders =>
+        let (drs1, e1) := stepTokenSpec fuel drs ts
+        let (drs2, e2) := stepEntryRiderList fuel drs1 riders
+        (drs2, e1 ++ e2)
       | .emblem _ abs => stepAbilityList fuel drs abs
   termination_by structural fuel
 
@@ -1590,6 +1895,10 @@ mutual
         (drs2, e1 ++ e2)
       | .perform inst => stepInstruction fuel .postEvent .obj drs inst
       | .compound cs | .or cs => stepCostList fuel drs cs
+      | .withSubstitute c sub =>
+        let (drs1, e1) := stepCost fuel drs c
+        let (drs2, e2) := stepManaSubstitute fuel drs1 sub
+        (drs2, e1 ++ e2)
   termination_by structural fuel
 
   def stepCostList (fuel : Nat) (drs : DRS) (cs : List Cost) : DRS × List Refusal :=
@@ -1633,9 +1942,22 @@ mutual
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         let (drs2, e2) := stepAmount fuel drs1 amt
         (drs2, e1 ++ e2)
-      | .ptSwitch subj =>
+      | .ptSwitch subj | .manaRetention subj _ | .partSkip subj _ | .combatant subj =>
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         (drs1, e1)
+      | .costShift subj sh =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, e2) := stepCostShift fuel drs1 sh
+        (drs2, e1 ++ e2)
+      | .altCost subj optCost =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, e2) := match optCost with | some c => stepCost fuel drs1 c | none => (drs1, [])
+        (drs2, e1 ++ e2)
+      | .addedCost c _ _ => stepCost fuel drs c
+      | .paySubstitute subj sub =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, e2) := stepManaSubstitute fuel drs1 sub
+        (drs2, e1 ++ e2)
       | .letterDefinition l amt =>
         let (drs1, e1) := stepAmount fuel drs amt
         (defineLetter l drs1, e1)
@@ -1643,14 +1965,25 @@ mutual
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         let e2 := checkAbility fuel drs1 ab
         (drs1, e1 ++ e2)
-      | .abilityGrantFrom subj _ src | .abilityGrantSelected subj src =>
+      | .abilityGrantFrom subj _ src optEx =>
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         let (drs2, _, e2) := stepNounPhrase fuel drs1 .other false src
-        (drs2, e1 ++ e2)
+        let (drs3, e3) := match optEx with | some p => stepPredicate fuel drs2 p | none => (drs2, [])
+        (drs3, e1 ++ e2 ++ e3)
+      | .abilityGrantSelected subj src sel =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, _, e2) := stepNounPhrase fuel drs1 .other false src
+        let (drs3, e3) := stepAbilitySelection fuel drs2 sel
+        (drs3, e1 ++ e2 ++ e3)
       | .characteristicChange subj edits =>
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         let (drs2, e2) := stepCharacteristicEditList fuel drs1 edits
         (drs2, e1 ++ e2)
+      | .copyChange subj src exs =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, _, e2) := stepNounPhrase fuel drs1 .other false src
+        let (drs3, e3) := stepCopyExceptList fuel drs2 exs
+        (drs3, e1 ++ e2 ++ e3)
       | .retention spec subj =>
         let (drs1, e1) := stepStaticSpec fuel drs spec
         let (drs2, _, e2) := stepNounPhrase fuel drs1 .other false subj
@@ -1681,9 +2014,6 @@ mutual
         let drs3 := drs2.push choiceRef .other false
         (drs3, e1 ++ e2)
       | .modeChoice mc => stepModeChange fuel drs mc
-      | .combatant subj =>
-        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
-        (drs1, e1)
       | .cant subj action _ =>
         let headErr := if action.eventHeadOk then [] else [.eventHead]
         let (drs1, e1) := stepSubjectBefore fuel drs subj
@@ -1703,7 +2033,7 @@ mutual
         let (drs3, e3) := stepInstruction fuel .postEvent subj.patientRole drs2 action
         let (drs4, e4) := stepSubjectAfter fuel drs3 subj
         (drs4, headErr ++ e1 ++ e2 ++ e3 ++ e4)
-      | .instead ev repl tm =>
+      | .instead ev repl tm _ _ =>
         let (drs1, e1) := stepWouldClause fuel drs ev
         let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) repl
         let (_, e3) := match tm with | some t => stepTiming fuel drs2 t | none => (drs2, [])
@@ -1716,6 +2046,20 @@ mutual
           let (drs3, e3) := stepInstruction fuel .postEvent source.patientRole drs2 does
           let (_, e4) := stepSubjectAfter fuel drs3 source
           (drs, e1 ++ e2 ++ e3 ++ e4)
+      | .damageRule _ da ds dop _ =>
+        let (drs1, e1) := stepDamageAgent fuel drs da
+        let (drs2, e2) := stepDamageScope fuel drs1 ds
+        let (drs3, e3) := stepDamageOp fuel drs2 dop
+        (drs3, e1 ++ e2 ++ e3)
+      | .preventionBan _ (.described da ds) _ =>
+        let (drs1, e1) := stepDamageAgent fuel drs da
+        let (drs2, e2) := stepDamageScope fuel drs1 ds
+        (drs2, e1 ++ e2)
+      | .preventionBan _ .thatDamage _ => (drs, [])
+      | .additionalTriggers ev q =>
+        let (drs1, e1) := stepGameEvent fuel drs ev
+        let (drs2, e2) := stepQuantity fuel drs1 q
+        (drs2, e1 ++ e2)
       | .conditional spec cond _ =>
         let (drs1, e1) := stepCondition fuel drs cond
         let (drs2, e2) := stepStaticSpec fuel (nextClause drs1) spec
@@ -1787,6 +2131,8 @@ mutual
         let (drs1, e1) := match tm with | some t => stepTiming fuel drs t | none => (drs, [])
         let (_, e2) := stepInstruction fuel .postEvent .obj drs1 inst
         e1 ++ e2
+      | .mayBeginOnBattlefield | .thatAbility _ => []
+      | .alsoForKeywords inner _ | .italicHead _ inner => checkAbility fuel drs inner
       | .qualified inner tm _ guard _ =>
         let e1 := checkAbility fuel drs inner
         let (_, e2) := match tm with | some t => stepTiming fuel drs t | none => (drs, [])

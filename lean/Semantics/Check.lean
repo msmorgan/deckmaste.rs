@@ -51,9 +51,9 @@ def exploreDef (subject : NounPhrase) : Instruction :=
         .expose .reveal (.cards (.slice .top (.lit 1) (.library (.possessedBy .you)))),
         .doIf
           (.matches (.pro .bare .one) (.hasType .land))
-          (.move (.pro .bare .one) .anywhere (some handZone) [] true .departure)
+          (.move (.pro .bare .one) .anywhere (some handZone) .departure (some .anEffect) [])
           (some (.putCounters (.lit 1) (.printed (.named "p1p1"))
-            (.inCaller (.laterMention "subject" subject))))
+            (.inCaller (.laterMention "subject" subject)) .one true))
       ]
 
 theorem explore_def_sound :
@@ -67,14 +67,14 @@ def conniveDef (subject : NounPhrase) : Instruction :=
       .sequentially [
         .draw (.lit 1),
         .move (.described (.a .unmarked) (.and [.isCard, .inZone handZone]))
-          (.zones [handZone]) (some graveyardZone) [] true .departure,
+          (.zones [handZone]) (some graveyardZone) .departure (some .anEffect) [],
         .doIf
           (.did ⟨.actor .you,
             .move (.described (.a .unmarked) (.not (.hasType .land)))
-              (.zones [handZone]) (some graveyardZone) [] true .departure,
+              (.zones [handZone]) (some graveyardZone) .departure (some .anEffect) [],
             .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1"))
-            (.inCaller (.laterMention "subject" subject)))
+            (.inCaller (.laterMention "subject" subject)) .one true)
           none
       ]
 
@@ -87,7 +87,7 @@ def airbendDef (subject : NounPhrase) : Instruction :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" subject))
-        .anywhere (some exileZone) [] true .departure,
+        .anywhere (some exileZone) .departure (some .anEffect) [],
       .establish
         (.may (.actor .you)
           (.procedure .cast
@@ -106,7 +106,7 @@ def postMoveLaterMentionRefused : Instruction :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" targetCreature))
-        .anywhere (some exileZone) [] true .departure,
+        .anywhere (some exileZone) .departure (some .anEffect) [],
       .setStatus .tapped (.inCaller (.laterMention "subject" targetCreature))
     ]
 
@@ -159,14 +159,14 @@ def kalitasReplacement : Ability :=
       (.would .any
         (.move (.described (.a .unmarked)
             (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) .opponent)]))
-          (.zones [.zone .battlefield .bare]) (some graveyardZone) [] true .departure))
+          (.zones [.zone .battlefield .bare]) (some graveyardZone) .departure (some .anEffect) []))
       (.sequentially [
-        .move (.pro (.word (.type .creature)) .one) .anywhere (some exileZone) [] true .departure,
+        .move (.pro (.word (.type .creature)) .one) .anywhere (some exileZone) .departure (some .anEffect) [],
         .createObject (.lit 1)
-          (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }⟩) [])
-          true
+          (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) [])
+          true none
       ])
-      none
+      none .repeatedly none
 
 theorem kalitas_replacement_sound :
     kalitasReplacement.check = [] := by decide
@@ -176,7 +176,7 @@ theorem kalitas_replacement_sound :
 def sacrificeDrawActivated : Ability :=
   .activated
     (.perform (.enact (.action "sacrifice")
-      (.move aCreature (.zones [.zone .battlefield .bare]) (some graveyardZone) [] true .departure)
+      (.move aCreature (.zones [.zone .battlefield .bare]) (some graveyardZone) .departure (some .anEffect) [])
       none none))
     (.draw (.statOf (.stat .power) (.pro .bare .one)))
     none none none none
@@ -234,8 +234,8 @@ def sliceCFactOrFictionPin : Ability :=
       .instruct (.described (.a .unmarked) .opponent)
         (.separateIntoPiles (.pro .bare .many) 2 []),
       .move (.described .all (.and [.isCard, .inPile (.pileOf (.counted (.range (some 1) (some 1))) none)]))
-        .anywhere (some handZone) [] true .departure,
-      .move (.theRest .pile .one) .anywhere (some graveyardZone) [] true .departure
+        .anywhere (some handZone) .departure (some .anEffect) [],
+      .move (.theRest .pile .one) .anywhere (some graveyardZone) .departure (some .anEffect) []
     ]
 
 theorem slice_c_fact_or_fiction_pin_sound :
@@ -250,10 +250,30 @@ def sliceDVoteAndChoicePin : Ability :=
       .vote (some .you) .openly (.byLabel ["grace", "condemnation"]),
       .draw (.votesFor "grace"),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
-        (.zones [.zone .battlefield .bare]) (some handZone) [] true .departure
+        (.zones [.zone .battlefield .bare]) (some handZone) .departure (some .anEffect) []
     ]
 
 theorem slice_d_vote_and_choice_pin_sound :
     sliceDVoteAndChoicePin.check = [] := by decide
 
+/-- Slice E pin (copying + `chooseNewTargets` + damage prevention + `theOutcome .damagePrevented`):
+`"Copy target instant or sorcery spell. You may choose new targets for the copy. Prevent the next 3 damage that would be dealt to any target this turn, then draw cards equal to the damage prevented this way."` -/
+def sliceECopyAndPreventPin : Ability :=
+  .spell none <|
+    .sequentially [
+      .copy .fromStack
+        (.described (.target (.range (some 1) (some 1))) (.or [.hasType .instant, .hasType .sorcery]))
+        (.lit 1) [],
+      .chooseNewTargets (.pro (.word .copy) .one),
+      .establish
+        (.damageRule .any .unattributed .everywhere
+          (.prevent (.shield (.lit 3)) (some (.draw (.theOutcome .damagePrevented))))
+          .nextTimeOnly)
+        (some (.between none (some (.endOf .turn none .current))))
+    ]
+
+theorem slice_e_copy_and_prevent_pin_sound :
+    sliceECopyAndPreventPin.check = [] := by decide
+
 end Semantics.Check.CorePins
+
