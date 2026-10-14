@@ -960,17 +960,13 @@ mod tests {
     }
 
     #[test]
-    fn ability_word_label_alternatives_keep_the_current_whole_unit_and_proposed_sentence() {
+    fn an_ability_word_label_decomposes_to_its_sentence() {
+        // A registered Ability Word is never also a Flavor Word, so the label
+        // has one analysis and nothing retains the labelled whole.
         let text = "Landfall — Whenever a land you control enters, you get {E}{E}.";
-        let face = check(text, Category::Document, 2, &[2], &["Ability"]);
-        assert_eq!(
-            face.lines[0].retained_reason.as_deref(),
-            Some("alternative-wrapper")
-        );
-        assert_eq!(
-            face.lines[0].proposed_parts,
-            [("Sentence".into(), (13, text.len()))]
-        );
+        let face = check(text, Category::Document, 1, &[1], &["Sentence"]);
+        assert_eq!(face.lines[0].retained_reason, None);
+        assert_eq!(face.lines[0].span, (13, text.len()));
         assert_eq!(face.helper_fallbacks, 0);
     }
 
