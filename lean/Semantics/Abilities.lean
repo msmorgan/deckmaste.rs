@@ -26,6 +26,26 @@ inductive NameSource where
   | chosen
   deriving DecidableEq, Repr
 
+structure TypeLineChanges where
+  supertypes : Option (List Supertype) := none
+  types : Option (List CardType) := none
+  subtypes : Option (List Subtype) := none
+  retained : Option CardType := none
+  deriving DecidableEq, Repr
+
+inductive CharacteristicStat where
+  | power | toughness | loyalty | defense
+  deriving DecidableEq, Repr
+
+inductive QualityOp where
+  | adds | sets | loses
+  deriving DecidableEq, Repr
+
+inductive TextWord where
+  | color (color : Color)
+  | basicLandType (subtype : Subtype)
+  deriving DecidableEq, Repr
+
 open scoped Semantics.Authoring
 
 mutual
@@ -114,6 +134,15 @@ mutual
     | isToken
     | hasStatus (status : Status)
     | hasCounters (kind : Option CounterKind)
+    | counterKindOn (subject : NounPhrase)
+    | hasKeyword (keyword : KeywordTerm)
+    | colorCount (comparator : Comparator) (count : Nat)
+    | shares (axis : QualitySort) (agreement : Agreement) (with_ : NounPhrase)
+    | abilityHead (class_ : AbilityClass)
+    | abilityOf (source : NounPhrase)
+    | activatedBy (activator : NounPhrase)
+    | isManaAbility
+    | targets (subject : NounPhrase) (extent : TargetExtent)
     | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
     | inZone (zone : ZoneExpr)
@@ -167,6 +196,7 @@ mutual
     | becomes (subject : NounPhrase)
     | theGrantor (marker : MarkerWord)
     | combatPlayer (role : CombatRole)
+    | agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase)
     | attachHost (word : AttachWord) (head : NounWord)
     | designated (designation : DesignationLabel) (whose : NounPhrase)
     | counterpart (label : RelationLabel) (subject : NounPhrase)
@@ -214,6 +244,7 @@ mutual
     | does (subj : Subject) (action : Instruction)
     | beginningOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
     | endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount)
     | gameBecomes (designation : DesignationLabel)
     | chapterMark (chapters : List ChapterNumber)
     | stateBasedActionsChecked
@@ -254,8 +285,42 @@ mutual
     | thisDoor
     | doorOf (state : Option LockState) (room : NounPhrase)
 
+  inductive DividedVerb where
+    | damage (source : NounPhrase)
+    | counters (kind : CounterKind)
+
+  inductive AbilityLost where
+    | written (ability : Ability)
+    | term (keyword : KeywordTerm)
+
+  inductive AbilitySelection where
+    | specified (abilities : List AbilityLost)
+    | family (class_ : AbilityClass)
+    | allExcept (except : Option Predicate)
+    | printedAfter (keyword : KeywordLabel)
+
+  inductive CharacteristicEdit where
+    | typeLine (op : QualityOp) (changes : TypeLineChanges)
+    | name (op : QualityOp) (name : String)
+    | manaCost (cost : Option ManaCost)
+    | colors (op : QualityOp) (colors : ColorSpec)
+    | stat (op : QualityOp) (axis : CharacteristicStat) (amount : Amount)
+    | everyTypeOf (op : QualityOp) (space : SubtypeSpace)
+    | chosenQuality (op : QualityOp) (quality : Predicate)
+    | addedAbilities (abilities : List Ability)
+    | removedAbilities (selection : AbilitySelection)
+
+  inductive TextChange where
+    | removeBracketed
+    | targetToEach
+    | appendTextOf (source : NounPhrase)
+    | replaceWord (sorts : List QualitySort) (from_ : Option TextWord) (to : Option TextWord)
+    | exchangeWith (other : NounPhrase)
+
   inductive CounterKindSource where
     | printed (kind : CounterKind)
+    | chosen (menu : List CounterKind)
+    | distinctChosen (menu : List CounterKind)
     | bound
     | those
     | own
@@ -316,8 +381,16 @@ mutual
     | inCaller (body : StaticSpec)
     | modification (subject : NounPhrase) (stat : Stat) (delta : Delta Amount)
     | ptModification (subject : NounPhrase) (power : Delta Amount) (toughness : Delta Amount)
+    | ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount)
+    | ptSwitch (subject : NounPhrase)
     | letterDefinition (letter : Letter) (amount : Amount)
     | abilityGrant (subject : NounPhrase) (ability : Ability)
+    | abilityGrantFrom (subject : NounPhrase) (classes : List AbilityClass) (source : NounPhrase)
+    | abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
+    | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
+    | retention (spec : StaticSpec) (subject : NounPhrase)
+    | addsTarget (subject : NounPhrase) (description : Predicate)
+    | textChange (subject : NounPhrase) (change : TextChange)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     | entryRider (subject : NounPhrase) (rider : EntryRider)
     | combatant (subject : NounPhrase)
@@ -373,8 +446,10 @@ mutual
     | attackUnblocked (defender : Option NounPhrase)
     | attackWith (attackers : NounPhrase) (defender : Option NounPhrase)
     | block (attacker : NounPhrase)
+    | target (subject : NounPhrase)
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
     | changeControl (subject : NounPhrase)
+    | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
     | unlock (door : Door)
     | setGameDesignation (designation : DesignationLabel)
@@ -394,6 +469,9 @@ mutual
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase) (batch : CounterBatch)
+    | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
+    | moveCounters (amount : Amount) (kind : Option CounterKindSource) (source : NounPhrase)
+    | doubleCounters (on : NounPhrase)
     | enact (verb : Deed) (instruction : Instruction) (becomes : Option Predicate)
         (locus : Option ZoneExpr)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)

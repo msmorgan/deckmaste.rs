@@ -210,4 +210,19 @@ def weepingAngelCombatPin : Ability :=
 theorem weeping_angel_combat_pin_sound :
     weepingAngelCombatPin.check = [] := by decide
 
+/-- Slice B pin (counters + characteristic modification + pronoun/demonstrative):
+`"Double the number of counters on target creature, then it becomes a Dragon in addition to its other types until end of turn."` -/
+def sliceBCountersAndCharPin : Ability :=
+  .spell none <|
+    .sequentially [
+      .doubleCounters targetCreature,
+      .establish
+        (.characteristicChange (.pro .bare .one)
+          [.typeLine .adds { subtypes := some [.of .creature "Dragon"] }])
+        (some (.between none (some (.endOf .turn none .current))))
+    ]
+
+theorem slice_b_counters_and_char_pin_sound :
+    sliceBCountersAndCharPin.check = [] := by decide
+
 end Semantics.Check.CorePins

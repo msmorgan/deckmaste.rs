@@ -312,7 +312,8 @@ mutual
     | .inCombat _ (some cp) | .hasDesignation _ (some cp) | .related _ (some cp) =>
       let (drs', _, errs) := stepNounPhrase drs .other false cp
       (drs', errs)
-    | .exiledWith src | .otherThan src =>
+    | .counterKindOn src | .shares _ _ src | .abilityOf src
+    | .activatedBy src | .targets src _ | .exiledWith src | .otherThan src =>
       let (drs', _, errs) := stepNounPhrase drs .other false src
       (drs', errs)
     | .and ps | .or ps => stepPredicateList drs ps
@@ -452,7 +453,7 @@ mutual
       let rid := drs1.nextId
       let drs2 := drs1.push ref role inArgSlot
       (drs2, [rid], e1)
-    | .asMarker _ subj | .resolvedPermanent subj | .becomes subj | .counterpart _ subj =>
+    | .asMarker _ subj | .resolvedPermanent subj | .becomes subj | .counterpart _ subj | .agree _ _ subj =>
       let (drs1, _, e1) := stepNounPhrase drs .other false subj
       let ref : Referent := {
         det := .the, plur := .one,
@@ -682,6 +683,10 @@ mutual
       (drs', errs)
     | .beginningOf _ none _ | .endOf _ none _
     | .gameBecomes _ | .chapterMark _ | .stateBasedActionsChecked | .now => (drs, [])
+    | .statBecomes subj _ val =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepAmount drs1 val
+      (drs2, e1 ++ e2)
     | .stateHolds c => stepCondition drs c
   termination_by structural ev
 
@@ -726,6 +731,67 @@ mutual
       let (drs', _, e) := stepNounPhrase drs .other false room
       (drs', e)
 
+  def stepDividedVerb (drs : DRS) (v : DividedVerb) : DRS × List Refusal :=
+    match v with
+    | .damage src =>
+      let (drs', _, e) := stepNounPhrase drs .other false src
+      (drs', e)
+    | .counters _ => (drs, [])
+
+  def stepCounterKindSource (drs : DRS) (k : CounterKindSource) : DRS × List Refusal :=
+    match k with
+    | .sameAs src =>
+      let (drs', _, e) := stepNounPhrase drs .other false src
+      (drs', e)
+    | _ => (drs, [])
+
+  def stepAbilityLost (drs : DRS) (al : AbilityLost) : DRS × List Refusal :=
+    match al with
+    | .written ab => (drs, checkAbility drs ab)
+    | .term _ => (drs, [])
+  termination_by structural al
+
+  def stepAbilityLostList (drs : DRS) (als : List AbilityLost) : DRS × List Refusal :=
+    match als with
+    | [] => (drs, [])
+    | a :: rest =>
+      let (drs1, e1) := stepAbilityLost drs a
+      let (drs2, e2) := stepAbilityLostList drs1 rest
+      (drs2, e1 ++ e2)
+  termination_by structural als
+
+  def stepAbilitySelection (drs : DRS) (sel : AbilitySelection) : DRS × List Refusal :=
+    match sel with
+    | .specified als => stepAbilityLostList drs als
+    | .allExcept (some p) => stepPredicate drs p
+    | .family _ | .allExcept none | .printedAfter _ => (drs, [])
+  termination_by structural sel
+
+  def stepCharacteristicEdit (drs : DRS) (ed : CharacteristicEdit) : DRS × List Refusal :=
+    match ed with
+    | .stat _ _ amt => stepAmount drs amt
+    | .chosenQuality _ p => stepPredicate drs p
+    | .addedAbilities abs => stepAbilityList drs abs
+    | .removedAbilities sel => stepAbilitySelection drs sel
+    | _ => (drs, [])
+  termination_by structural ed
+
+  def stepCharacteristicEditList (drs : DRS) (eds : List CharacteristicEdit) : DRS × List Refusal :=
+    match eds with
+    | [] => (drs, [])
+    | ed :: rest =>
+      let (drs1, e1) := stepCharacteristicEdit drs ed
+      let (drs2, e2) := stepCharacteristicEditList drs1 rest
+      (drs2, e1 ++ e2)
+  termination_by structural eds
+
+  def stepTextChange (drs : DRS) (tc : TextChange) : DRS × List Refusal :=
+    match tc with
+    | .appendTextOf src | .exchangeWith src =>
+      let (drs', _, e) := stepNounPhrase drs .other false src
+      (drs', e)
+    | .removeBracketed | .targetToEach | .replaceWord .. => (drs, [])
+
   def stepInstruction (phase : StepPhase) (patientRole : GramRole) (drs : DRS)
       (inst : Instruction) : DRS × List Refusal :=
     match inst with
@@ -767,10 +833,14 @@ mutual
       let (drs2, e2) := stepAmount drs1 amt
       (drs2, e1 ++ e2)
     | .clearDamage subj | .turnOver subj | .turnFaceDown subj _
-    | .changeControl subj | .gainDesignation subj _ =>
+    | .target subj | .changeControl subj | .gainDesignation subj _ =>
       let (drs1, refIds, e1) := stepNounPhrase drs patientRole true subj
       let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
       (drs2, e1)
+    | .doAndForbid body _ subj =>
+      let (drs1, e1) := stepInstruction phase patientRole drs body
+      let (drs2, _, e2) := stepNounPhrase drs1 .other true subj
+      (drs2, e1 ++ e2)
     | .setStatus _ subj =>
       let (drs1, refIds, e1) := stepNounPhrase drs patientRole true subj
       let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
@@ -859,16 +929,31 @@ mutual
         drs2.push tokRef patientRole true
       else drs2
       (drs3, e1 ++ e2)
-    | .putCounters amt _ on =>
+    | .putCounters amt ks on =>
       let (drs1, e1) := stepAmount drs amt
-      let (drs2, _, e2) := stepNounPhrase drs1 patientRole true on
-      let drs3 := drs2.push (outcomeB .countersPut) .other false
-      (drs3, e1 ++ e2)
-    | .removeCounters optQ _ from_ _ =>
+      let (drs2, e2) := stepCounterKindSource drs1 ks
+      let (drs3, _, e3) := stepNounPhrase drs2 patientRole true on
+      let drs4 := drs3.push (outcomeB .countersPut) .other false
+      (drs4, e1 ++ e2 ++ e3)
+    | .removeCounters optQ optKs from_ _ =>
       let (drs1, e1) := match optQ with | some q => stepQuantity drs q | none => (drs, [])
-      let (drs2, _, e2) := stepNounPhrase drs1 patientRole true from_
-      let drs3 := drs2.push (outcomeB .countersRemoved) .other false
-      (drs3, e1 ++ e2)
+      let (drs2, e2) := match optKs with | some ks => stepCounterKindSource drs1 ks | none => (drs1, [])
+      let (drs3, _, e3) := stepNounPhrase drs2 patientRole true from_
+      let drs4 := drs3.push (outcomeB .countersRemoved) .other false
+      (drs4, e1 ++ e2 ++ e3)
+    | .distribute v amt among =>
+      let (drs1, e1) := stepDividedVerb drs v
+      let (drs2, e2) := stepAmount drs1 amt
+      let (drs3, _, e3) := stepNounPhrase drs2 patientRole true among
+      (drs3, e1 ++ e2 ++ e3)
+    | .moveCounters amt optKs src =>
+      let (drs1, e1) := stepAmount drs amt
+      let (drs2, e2) := match optKs with | some ks => stepCounterKindSource drs1 ks | none => (drs1, [])
+      let (drs3, _, e3) := stepNounPhrase drs2 patientRole true src
+      (drs3, e1 ++ e2 ++ e3)
+    | .doubleCounters on =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true on
+      (drs1, e1)
     | .pay cost _ _ whose _ =>
       let (drs1, e1) := match whose with
         | some w => let (d, _, e) := stepNounPhrase drs .subj true w; (d, e)
@@ -941,7 +1026,10 @@ mutual
       let (drs', _, e) := stepNounPhrase drs .other true defn
       (drs', e)
     | .entersAttacking none => (drs, [])
-    | .withCounters amt _ _ => stepAmount drs amt
+    | .withCounters amt ks _ =>
+      let (drs1, e1) := stepAmount drs amt
+      let (drs2, e2) := stepCounterKindSource drs1 ks
+      (drs2, e1 ++ e2)
     | .under ctrl =>
       let (drs', _, errs) := stepNounPhrase drs .other false ctrl
       (drs', errs)
@@ -1007,6 +1095,13 @@ mutual
       let (drs2, e2) := stepDelta drs1 p
       let (drs3, e3) := stepDelta drs2 t
       (drs3, e1 ++ e2 ++ e3)
+    | .ptDefinition subj _ amt =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepAmount drs1 amt
+      (drs2, e1 ++ e2)
+    | .ptSwitch subj =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      (drs1, e1)
     | .letterDefinition l amt =>
       let (drs1, e1) := stepAmount drs amt
       (defineLetter l drs1, e1)
@@ -1014,6 +1109,26 @@ mutual
       let (drs1, _, e1) := stepNounPhrase drs .subj true subj
       let e2 := checkAbility drs1 ab
       (drs1, e1 ++ e2)
+    | .abilityGrantFrom subj _ src | .abilityGrantSelected subj src =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, _, e2) := stepNounPhrase drs1 .other false src
+      (drs2, e1 ++ e2)
+    | .characteristicChange subj edits =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepCharacteristicEditList drs1 edits
+      (drs2, e1 ++ e2)
+    | .retention spec subj =>
+      let (drs1, e1) := stepStaticSpec drs spec
+      let (drs2, _, e2) := stepNounPhrase drs1 .other false subj
+      (drs2, e1 ++ e2)
+    | .addsTarget subj desc =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepPredicate drs1 desc
+      (drs2, e1 ++ e2)
+    | .textChange subj tc =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepTextChange drs1 tc
+      (drs2, e1 ++ e2)
     | .controlGrant player subj =>
       let (drs1, _, e1) := stepNounPhrase drs .subj true player
       let (drs2, _, e2) := stepNounPhrase drs1 .obj true subj

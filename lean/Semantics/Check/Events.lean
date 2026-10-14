@@ -45,13 +45,14 @@ def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
   | _ + 1, .dealDamage .. | _ + 1, .markDamage .. | _ + 1, .clearDamage ..
   | _ + 1, .setStatus .. | _ + 1, .turnOver .. | _ + 1, .turnFaceDown ..
   | _ + 1, .combat .. | _ + 1, .attack .. | _ + 1, .attackUnblocked .. | _ + 1, .attackWith .. | _ + 1, .block ..
-  | _ + 1, .attachment .. | _ + 1, .changeControl ..
+  | _ + 1, .target .. | _ + 1, .attachment .. | _ + 1, .changeControl ..
   | _ + 1, .gainDesignation .. | _ + 1, .unlock .. | _ + 1, .setGameDesignation ..
   | _ + 1, .commitCrime | _ + 1, .conclude .. | _ + 1, .drawGame | _ + 1, .restartGame
   | _ + 1, .relate ..
   | _ + 1, .choose .. | _ + 1, .changeLife .. | _ + 1, .draw ..
   | _ + 1, .expose .. | _ + 1, .createObject ..
   | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
+  | _ + 1, .distribute .. | _ + 1, .moveCounters .. | _ + 1, .doubleCounters ..
   | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. => true
   | _ + 1, _ => false
 termination_by structural fuel
@@ -65,7 +66,8 @@ def Instruction.eventHasMagnitude (e : Instruction) (fuel : Nat := 16) : Bool :=
       body.eventHasMagnitude n
   | _ + 1, .dealDamage .. | _ + 1, .markDamage ..
   | _ + 1, .changeLife (.up _) | _ + 1, .changeLife (.down _)
-  | _ + 1, .pay .. | _ + 1, .draw .. | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
+  | _ + 1, .pay .. | _ + 1, .draw ..
+  | _ + 1, .putCounters .. | _ + 1, .removeCounters .. | _ + 1, .distribute .. | _ + 1, .moveCounters ..
   | _ + 1, .createObject .. => true
   | _ + 1, _ => false
 termination_by structural fuel
@@ -80,7 +82,7 @@ def GameEvent.facts (ev : GameEvent) (fuel : Nat := 16) : EventFacts :=
   | 0, _ => {}
   | n + 1, .inCaller body => body.facts n
   | _ + 1, .does _ action => { hasMagnitude := action.eventHasMagnitude }
-  | _ + 1, .beginningOf .. | _ + 1, .endOf ..
+  | _ + 1, .beginningOf .. | _ + 1, .endOf .. | _ + 1, .statBecomes ..
   | _ + 1, .gameBecomes .. | _ + 1, .chapterMark .. | _ + 1, .stateBasedActionsChecked
   | _ + 1, .now | _ + 1, .stateHolds .. => {}
 termination_by structural fuel
