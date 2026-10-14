@@ -82,10 +82,13 @@ implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semant
 
 ## Proof
 
-- Targeted macro and declaration build gate passes cleanly:
-  `lake build Semantics.Macros Semantics.Authoring` (covering
-  `lean/Semantics/Macros.lean`, `lean/Semantics/Macros/Primitives.lean`,
-  `lean/Semantics/Macros/Declared.lean`, and `lean/Semantics/Authoring.lean`).
+- Port `lean/Semantics/Macros.lean`, `lean/Semantics/Macros/Primitives.lean`,
+  `lean/Semantics/Macros/Declared.lean`, and `lean/Semantics/Authoring.lean`
+  from `lean/archive/SemanticsV2/` onto the `v3` AST and `DRS` checker, and add
+  `"Semantics.Macros"` and `"Semantics.Macros.Declared"` back to `roots` in
+  `lean/lakefile.toml`.
+- `./lean/scripts/build` and `lake build --wfail Semantics.Authoring` pass
+  cleanly with zero warnings.
 - The 9 hand-coded window macros in `lean/Semantics/Macros.lean` are retired or
   reduced to ordinary pronoun/parameter templates with zero `Window` arguments,
   and `comparesOwnStat` / `dealDamageOwnPower` no longer use `Window.top`.

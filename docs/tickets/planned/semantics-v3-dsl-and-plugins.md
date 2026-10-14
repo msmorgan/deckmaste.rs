@@ -40,10 +40,14 @@ Standard constraints apply.
     `any`, `which`, bare numerals, and positional/named arguments parse and
     format directly without RON's one-embed-per-enum and struct/vec injection
     restrictions.
-- **`xtask lean` gates on `v3`:**
-  - Point `cargo xtask lean check`, `cargo xtask lean definitions`, and
-    `cargo xtask lean macros` at `crates/deckmaste_semantics_v3` and
-    `plugins_v3/` with `--deny-drift` enforced.
+- **`xtask lean` gates on `v3` and `v2` retirement:**
+  - Point `cargo xtask lean check`, `cargo xtask lean definitions`,
+    `cargo xtask lean macros`, and `cargo xtask facts check` at
+    `crates/deckmaste_semantics_v3` and `plugins_v3/` with `--deny-drift`
+    enforced.
+  - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
+    this ticket (`plugins_v2/builtin/` is deleted once `deckmaste_lexical_source`
+    / `deckmaste_macro_def` is repointed at `plugins_v3/builtin/`).
 
 ## Folded Residues from Retired `v2` Surface Tickets
 
@@ -80,6 +84,8 @@ Standard constraints apply.
 
 ## Proof
 
+- `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` are deleted from the
+  workspace.
 - `cargo test -p deckmaste_semantics_v3 -p xtask` and
   `cargo clippy -p deckmaste_semantics_v3 -p xtask --tests -- -D warnings` pass.
 - `cargo xtask lean check`, `cargo xtask lean definitions`, and

@@ -58,11 +58,13 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 ## Crate fates (semantics_v3)
 
 Authority: `docs/decisions/semantics-v3.md`. `semantics-v3` is executed Lean-first in
-`lean/Semantics/` and then mirrored into `deckmaste_semantics_v3` and `plugins_v3/`.
-Deletion-bound at parity: `deckmaste_semantics`, `deckmaste_semantics_v2`, `deckmaste_lowering`,
+`lean/Semantics/` and then mirrored into `deckmaste_semantics_v3` and `plugins_v3/` (which deletes
+`deckmaste_semantics_v2` and `plugins_v2/canon/` immediately; `plugins_v2/builtin/` deletes once
+`deckmaste_lexical_source` is repointed at `v3`).
+Deletion-bound at parity (`semantics-v1-cutover`): `deckmaste_semantics`, `deckmaste_lowering`,
 `deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs` rehomed), `idris/`,
-`plugins/builtin`, `plugins/canon`, `plugins_v2/`. Never copy v2/v3 work back into v1, and add no
-new v1 registries.
+`plugins/builtin`, `plugins/canon`. Never copy v2/v3 work back into v1, and add no new v1
+registries.
 
 ## Terminology
 

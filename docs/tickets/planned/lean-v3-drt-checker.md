@@ -128,12 +128,15 @@ apply.
 
 ## Proof
 
-- Targeted checker build gate passes cleanly: `lake build Semantics.Check`
-  (covering `Check/FactTypes.lean`, `Check/Facts.lean`, `Check/Words.lean`,
-  `Check/Refusal.lean`, `Check/PhraseRules.lean`, `Check/Phrase.lean`,
-  `Check/EventContext.lean`, `Check/Events.lean`, `Check/Triggers.lean`,
-  `Check/AbilityRules.lean`, `Check/Abilities.lean`, `Check/Card.lean`, and
-  `Check/Rules.lean`).
+- Port `lean/Semantics/Check/*.lean` and `lean/Semantics/Check.lean` from
+  `lean/archive/SemanticsV2/Check/` onto the `v3` AST and `DRS` checker, and add
+  `"Semantics.Check"` to `roots` in `lean/lakefile.toml`.
+- `./lean/scripts/build` (`lake build --wfail`) passes cleanly across
+  `Semantics` and `Semantics.Check` (`Check/FactTypes.lean`, `Check/Facts.lean`,
+  `Check/Words.lean`, `Check/Refusal.lean`, `Check/PhraseRules.lean`,
+  `Check/Phrase.lean`, `Check/EventContext.lean`, `Check/Events.lean`,
+  `Check/Triggers.lean`, `Check/AbilityRules.lean`, `Check/Abilities.lean`,
+  `Check/Card.lean`, and `Check/Rules.lean`).
 - Kernel `by decide` reduction on a representative multi-clause card and
   multi-step definition (`airbend`, `connive`, `explore`) succeeds with default
   `maxRecDepth` and `maxHeartbeats`.

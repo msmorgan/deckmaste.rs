@@ -1,17 +1,19 @@
 ---
 needs: [semantics-v3-parity]
 ---
-**Retire v1 and intermediate v2 scaffolding (updated 2026-10-14 per
-[`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).** Delete
-the set `semantics-v2.md` and `semantics-v3.md` enumerate
-(`deckmaste_semantics`, `deckmaste_semantics_v2`, `deckmaste_lowering`,
+**Retire v1 scaffolding and rename `_v3` to canonical names (updated 2026-10-14
+per [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).**
+Delete the `v1` set (`deckmaste_semantics`, `deckmaste_lowering`,
 `deckmaste_legacy_render`, `deckmaste_plugin` with `deck.rs` and
-`provenance.rs` rehomed, `idris/`, `plugins/builtin`, `plugins/canon`,
-`plugins_v2/`, the `deckmaste_spelling` splice machinery), rename
-`deckmaste_semantics_v3` to `deckmaste_semantics`, `deckmaste_lowering_v3` to
-`deckmaste_lowering`, and `plugins_v3/` to `plugins/`, drop the symlink, and
-re-point `deckmaste_migrations`. Coordinate with `idris-retirement` and the
-retirement of the legacy English stack. Standard constraints apply.
+`provenance.rs` rehomed, `idris/`, `plugins/builtin`, `plugins/canon`, and the
+`deckmaste_spelling` splice machinery; `deckmaste_semantics_v2` and
+`plugins_v2/canon/` are retired in `semantics-v3-dsl-and-plugins`, and
+`plugins_v2/builtin/` is retired once `deckmaste_lexical_source` is repointed at
+`v3`), rename `deckmaste_semantics_v3` to `deckmaste_semantics`,
+`deckmaste_lowering_v3` to `deckmaste_lowering`, and `plugins_v3/` to
+`plugins/`, drop the symlink, and re-point `deckmaste_migrations`. Coordinate
+with `idris-retirement` and the retirement of the legacy English stack. Standard
+constraints apply.
 
 The Idris card gate retires here with Idris itself (user ruling,
 2026-09-06; routed from `lean-card-soundness-gate`): delete

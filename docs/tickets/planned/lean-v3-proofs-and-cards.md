@@ -60,6 +60,12 @@ Standard constraints apply.
 
 ## Proof
 
+- Port `lean/Semantics/Cards/*.lean`, `lean/Semantics/Cards.lean`,
+  `lean/Semantics/Proofs/*.lean`, and `lean/Semantics/Proofs.lean` once from
+  `lean/archive/SemanticsV2/` onto the finished `v3` spine, checker, and macros,
+  and restore `defaultTargets = ["Semantics", "SemanticsCards", "SemanticsProofs"]`
+  in `lean/lakefile.toml`.
+- Delete `lean/archive/SemanticsV2/` once all proofs and cards are ported.
 - `lean/scripts/build` (`lake build --wfail`) succeeds across all jobs with zero
   warnings and zero `sorry`.
 - Every card in `lean/Semantics/Cards/` and every theorem in

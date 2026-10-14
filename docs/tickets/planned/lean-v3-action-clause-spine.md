@@ -119,13 +119,26 @@ Retain the non-action `GameEvent` constructors specified in
   `entryChoice` and `attachmentChoice` self-contained without blocking on a
   general as-event instruction.
 
+- **Staged Lean Build (`lean/archive/SemanticsV2/` and `lakefile.toml`):**
+  - Relocate the `v2` downstream modules (`lean/Semantics/Check`,
+    `lean/Semantics/Check.lean`, `lean/Semantics/Macros`,
+    `lean/Semantics/Macros.lean`, `lean/Semantics/Authoring.lean`,
+    `lean/Semantics/Cards`, `lean/Semantics/Cards.lean`,
+    `lean/Semantics/Proofs`, `lean/Semantics/Proofs.lean`, plus a reference
+    copy of the `v2` syntax modules) into an inert reference directory
+    `lean/archive/SemanticsV2/` outside `lean/lakefile.toml`.
+  - Set `defaultTargets = ["Semantics"]` and `roots = ["Semantics"]` in
+    `lean/lakefile.toml` so `./lean/scripts/build` (`lake build --wfail`)
+    compiles only the `v3` syntax root without throwaway intermediate migrations
+    of `Check/`, `Macros/`, `Cards/`, and `Proofs/`.
+
 ## Proof
 
-- Targeted syntax build gate passes cleanly:
-  `lake build Semantics.Words Semantics.Phrase Semantics.Events Semantics.Triggers Semantics.Abilities Semantics.Rules Semantics.MacroParameters`
-  (downstream `Check/`, `Macros/`, `Proofs/`, and `Cards/` modules are updated
-  in `lean-v3-drt-checker`, `lean-v3-definitions-and-templates`, and
-  `lean-v3-proofs-and-cards`).
+- `./lean/scripts/build` (`lake build --wfail`, with `defaultTargets = ["Semantics"]`
+  and `roots = ["Semantics"]` in `lean/lakefile.toml`) passes cleanly with zero
+  warnings across `Semantics.Words`, `Semantics.Phrase`, `Semantics.Events`,
+  `Semantics.Triggers`, `Semantics.Abilities`, `Semantics.Card`,
+  `Semantics.Rules`, and `Semantics.MacroParameters`.
 - `GameEvent`, `StaticSpec`, `DidClause` (`did`), `Subject`, `AnyValue`, and
   `NounPhrase.which` match `semantics-v3.md` §3, and `Window` and `withBindings`
-  are gone from the syntax modules.
+  are gone from `lean/Semantics/`.
