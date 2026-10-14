@@ -10,6 +10,6 @@ Minimal core instruction, cost, static-spec, and ability stepping re-exports.
 namespace Semantics
 
 def Cost.check (drs : DRS) (c : Cost) : List Refusal :=
-  (stepCost drs c).2
+  (stepCost 64 drs c).2
 
 end Semantics

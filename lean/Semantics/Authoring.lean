@@ -63,6 +63,71 @@ mutual
     | form :: forms => form.rawNames ++ Forms.rawNames forms
 end
 
+private opaque FinalizeContext : Type
+
+/-- Elaborate a mutual inductive block with all standard recursors, `casesOn`, `noConfusion`, and
+`below`, omitting the eager `mkBRecOn`, `SizeOf`, and injectivity-theorem loops across all nested
+occurrences (`mkBRecOn` can be invoked on demand for individual spine types). -/
+private unsafe def runFastInductives (inductives : Array (Modifiers × Syntax)) : CommandElabM Unit := do
+  let env ← getEnv
+  let checkNoConflicts ← IO.ofExcept <| env.evalConst
+    (Array InductiveElabStep1 → Bool → CommandElabM Unit)
+    Options.empty
+    "_private.Lean.Elab.MutualInductive.0.Lean.Elab.Command.checkNoInductiveNameConflicts".toName
+  let mkInductiveDecl ← IO.ofExcept <| env.evalConst
+    (Array Expr → Array InductiveElabStep1 → TermElabM FinalizeContext)
+    Options.empty
+    "_private.Lean.Elab.MutualInductive.0.Lean.Elab.Command.mkInductiveDecl".toName
+  let elabInductiveViewsFinalize ← IO.ofExcept <| env.evalConst
+    (Array InductiveView → FinalizeContext → CommandElabM Unit)
+    Options.empty
+    "_private.Lean.Elab.MutualInductive.0.Lean.Elab.Command.elabInductiveViewsFinalize".toName
+  let elabInductiveViewsPostprocessing ← IO.ofExcept <| env.evalConst
+    (Array InductiveView → CommandElabM Unit)
+    Options.empty
+    "_private.Lean.Elab.MutualInductive.0.Lean.Elab.Command.elabInductiveViewsPostprocessing".toName
+  let elabs ← runTermElabM fun _ => inductives.mapM fun (modifiers, stx) => mkInductiveView modifiers stx
+  checkNoConflicts elabs false
+  elabs.forM fun e => checkValidInductiveModifier e.view.modifiers
+  liftTermElabM <| elabs.forM fun e =>
+    withRef e.view.ref <| Term.applyAttributesAt e.view.declName e.view.modifiers.attrs .beforeElaboration
+  let res ← runTermElabM fun vars => do
+    let view0 := elabs[0]!.view
+    Term.withDeclName view0.declName <| withRef view0.ref <| withExporting (isExporting := !isPrivateName view0.declName) do
+      let res ← mkInductiveDecl vars elabs
+      let declNames := elabs.map (·.view.declName)
+      compileDecls declNames
+      withoutExporting (when := view0.ctors.any fun x => isPrivateName x.declName) do
+        for n in declNames do
+          mkCasesOn n
+          mkRecOn n
+          mkCtorIdx n
+          mkCtorElim n
+          mkNoConfusion n
+          mkBelow n
+      for e in elabs do
+        enableRealizationsForConst e.view.declName
+        for ctor in e.view.ctors do
+          enableRealizationsForConst ctor.declName
+      pure res
+  let views := elabs.map (·.view)
+  elabInductiveViewsFinalize views res
+  elabInductiveViewsPostprocessing views
+
+@[implemented_by runFastInductives]
+private opaque fastInductives (inductives : Array (Modifiers × Syntax)) : CommandElabM Unit
+
+@[scoped command_elab Lean.Parser.Command.mutual]
+def elabFastMutual : CommandElab := fun stx => do
+  if ← isMutualInductive stx then
+    let mut inductives := #[]
+    for elem in stx[1].getArgs do
+      let modifiers ← elabModifiers ⟨elem[0]⟩
+      inductives := inductives.push (modifiers, elem[1])
+    fastInductives inductives
+  else
+    throwUnsupportedSyntax
+
 
 initialize macroAttribute : TagAttribute ←
   registerTagAttribute `semantic_macro "A named, trusted semantic macro expansion."
