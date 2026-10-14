@@ -64,11 +64,12 @@ mutual
   def Predicate.kind? : Predicate → Option Kind
     | .inCaller body | .bracketed body | .not body => body.kind?
     | .anyPlayer | .opponent => some .player
+    | .hasDesignation d _ => d.holder
     | .compare axes _ _ => (axes.head?).map (·.scope)
     | .compareOver dom _ _ _ => dom.kind?
     | .and ps => Predicate.kindOfAny ps
     | .or ps => Predicate.kindOfAll ps
-    | .hasPossessor _ _ | .did _ | .other => none
+    | .hasPossessor _ _ | .did _ | .other | .otherThan _ | .isSource => none
     | _ => some .object
 
   def Predicate.kindOfAny : List Predicate → Option Kind
@@ -91,7 +92,8 @@ def Predicate.kindOr (d : Kind) (p : Predicate) : Kind := p.kind?.getD d
 
 def NounPhrase.kind? : NounPhrase → Option Kind
   | .inCaller body | .firstMention _ body | .laterMention _ body => body.kind?
-  | .you | .actor | .playerGroup _ | .possessorOf _ _ => some .player
+  | .you | .actor | .playerGroup _ | .possessorOf _ _ | .combatPlayer _ => some .player
+  | .designated d _ => d.holder
   | .described _ p => p.kind?
   | .pro r _ => some r.kind
   | .theRest k _ => some k
@@ -131,7 +133,9 @@ mutual
     | .inZone z => z.sort
     | .hasType t => if t.permanent then some .battlefield else none
     | .hasSubtype s => if (s.type.map CardType.permanent).getD false then some .battlefield else none
-    | .isToken => some .battlefield
+    | .isToken | .inCombat .. | .attachment .. => some .battlefield
+    | .isEmblem => some .command
+    | .exiledWith _ => some .exile
     | .hasStatus s => if s.word then some .battlefield else none
     | .and ps => Predicate.seedZoneAll ps
     | _ => none
@@ -305,6 +309,12 @@ mutual
       let (drs3, e3) := stepAmount drs2 b
       (drs3, e1 ++ e2 ++ e3)
     | .inZone z => stepZoneExpr drs z
+    | .inCombat _ (some cp) | .hasDesignation _ (some cp) | .related _ (some cp) =>
+      let (drs', _, errs) := stepNounPhrase drs .other false cp
+      (drs', errs)
+    | .exiledWith src | .otherThan src =>
+      let (drs', _, errs) := stepNounPhrase drs .other false src
+      (drs', errs)
     | .and ps | .or ps => stepPredicateList drs ps
     | _ => (drs, [])
   termination_by structural p
@@ -422,9 +432,46 @@ mutual
       let rid := drs1.nextId
       let drs2 := drs1.push ref role inArgSlot
       (drs2, [rid], e1)
+    | .combatPlayer _ =>
+      let ref : Referent := { det := .the, plur := .one, payload := .player false }
+      let rid := drs.nextId
+      let drs' := drs.push ref role inArgSlot
+      (drs', [rid], [])
     | .paid facet subj =>
       let (drs1, _, e1) := stepNounPhrase drs .other false subj
       let ref := facet.binding
+      let rid := drs1.nextId
+      let drs2 := drs1.push ref role inArgSlot
+      (drs2, [rid], e1)
+    | .asType t subj _ =>
+      let (drs1, _, e1) := stepNounPhrase drs .other false subj
+      let ref : Referent := {
+        det := .the, plur := .one,
+        payload := .object [t] (if t.permanent then some .battlefield else none) none none none none
+      }
+      let rid := drs1.nextId
+      let drs2 := drs1.push ref role inArgSlot
+      (drs2, [rid], e1)
+    | .asMarker _ subj | .resolvedPermanent subj | .becomes subj | .counterpart _ subj =>
+      let (drs1, _, e1) := stepNounPhrase drs .other false subj
+      let ref : Referent := {
+        det := .the, plur := .one,
+        payload := .object [] (some .battlefield) none none none none
+      }
+      let rid := drs1.nextId
+      let drs2 := drs1.push ref role inArgSlot
+      (drs2, [rid], e1)
+    | .theGrantor _ | .attachHost _ _ =>
+      let ref : Referent := {
+        det := .the, plur := .one,
+        payload := .object [] (some .battlefield) none none none none
+      }
+      let rid := drs.nextId
+      let drs' := drs.push ref role inArgSlot
+      (drs', [rid], [])
+    | .designated d whose =>
+      let (drs1, _, e1) := stepNounPhrase drs .other false whose
+      let ref := kindBinding (d.holder.getD .object)
       let rid := drs1.nextId
       let drs2 := drs1.push ref role inArgSlot
       (drs2, [rid], e1)
@@ -524,6 +571,10 @@ mutual
       let (drs1, e1) := stepAmount drs l
       let (drs2, e2) := stepAmount drs1 r
       (drs2, e1 ++ e2)
+    | .gameIs _ | .noHolder _ => (drs, [])
+    | .hasPriority p =>
+      let (drs', _, errs) := stepNounPhrase drs .subj true p
+      (drs', errs)
     | .not inner =>
       let (_, errs) := stepCondition drs inner
       (drs, errs)
@@ -629,7 +680,8 @@ mutual
     | .beginningOf _ (some who) _ | .endOf _ (some who) _ =>
       let (drs', _, errs) := stepNounPhrase drs .subj true who
       (drs', errs)
-    | .beginningOf _ none _ | .endOf _ none _ | .now => (drs, [])
+    | .beginningOf _ none _ | .endOf _ none _
+    | .gameBecomes _ | .chapterMark _ | .stateBasedActionsChecked | .now => (drs, [])
     | .stateHolds c => stepCondition drs c
   termination_by structural ev
 
@@ -652,6 +704,27 @@ mutual
       let (drs2, e2) := stepWouldClauseList drs1 rest
       (drs2, e1 ++ e2)
   termination_by structural cs
+
+  def stepCombatParticipation (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
+    match cp with
+    | .attacking (some defn) =>
+      let (drs', _, e) := stepNounPhrase drs .other true defn
+      (drs', e)
+    | .attacking none | .blocked _ | .outsideCombat => (drs, [])
+
+  def stepCombatUpdate (drs : DRS) (cu : CombatUpdate) : DRS × List Refusal :=
+    match cu with
+    | .participation state => stepCombatParticipation drs state
+    | .blocking _ atk =>
+      let (drs', _, e) := stepNounPhrase drs .other true atk
+      (drs', e)
+
+  def stepDoor (drs : DRS) (d : Door) : DRS × List Refusal :=
+    match d with
+    | .thisDoor => (drs, [])
+    | .doorOf _ room =>
+      let (drs', _, e) := stepNounPhrase drs .other false room
+      (drs', e)
 
   def stepInstruction (phase : StepPhase) (patientRole : GramRole) (drs : DRS)
       (inst : Instruction) : DRS × List Refusal :=
@@ -689,17 +762,48 @@ mutual
       let (drs2, _, e2) := stepNounPhrase drs1 patientRole true recipient
       let drs3 := drs2.push (outcomeB .damageDealt) .other false
       (drs3, e1 ++ e2)
+    | .markDamage subj amt =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true subj
+      let (drs2, e2) := stepAmount drs1 amt
+      (drs2, e1 ++ e2)
+    | .clearDamage subj | .turnOver subj | .turnFaceDown subj _
+    | .changeControl subj | .gainDesignation subj _ =>
+      let (drs1, refIds, e1) := stepNounPhrase drs patientRole true subj
+      let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
+      (drs2, e1)
     | .setStatus _ subj =>
       let (drs1, refIds, e1) := stepNounPhrase drs patientRole true subj
       let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
       (drs2, e1)
-    | .attack (some defn) =>
+    | .combat subj upd =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true subj
+      let (drs2, e2) := stepCombatUpdate drs1 upd
+      (drs2, e1 ++ e2)
+    | .attack (some defn) | .attackUnblocked (some defn) =>
       let (drs1, _, e1) := stepNounPhrase drs patientRole true defn
       (drs1, e1)
-    | .attack none => (drs, [])
+    | .attack none | .attackUnblocked none => (drs, [])
+    | .attackWith atks optDef =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true atks
+      let (drs2, e2) := match optDef with
+        | some d => let (d', _, e) := stepNounPhrase drs1 .other true d; (d', e)
+        | none => (drs1, [])
+      (drs2, e1 ++ e2)
     | .block atk =>
       let (drs1, _, e1) := stepNounPhrase drs patientRole true atk
       (drs1, e1)
+    | .attachment _ subj optHost =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true subj
+      let (drs2, e2) := match optHost with
+        | some h => let (d', _, e) := stepNounPhrase drs1 .other true h; (d', e)
+        | none => (drs1, [])
+      (drs2, e1 ++ e2)
+    | .unlock d => stepDoor drs d
+    | .setGameDesignation _ | .commitCrime | .conclude _ | .drawGame | .restartGame => (drs, [])
+    | .relate subj _ cp =>
+      let (drs1, _, e1) := stepNounPhrase drs patientRole true subj
+      let (drs2, _, e2) := stepNounPhrase drs1 .other true cp
+      (drs2, e1 ++ e2)
     | .choose first chosen _ =>
       let (drs1, e1) := match first with
         | some f => let (d, _, e) := stepNounPhrase drs .subj true f; (d, e)
@@ -832,7 +936,11 @@ mutual
 
   def stepEntryRider (drs : DRS) (r : EntryRider) : DRS × List Refusal :=
     match r with
-    | .entersAs _ | .faceDown _ => (drs, [])
+    | .entersAs _ | .entersTransformed | .entersMelded _ | .faceDown _ => (drs, [])
+    | .entersAttacking (some defn) =>
+      let (drs', _, e) := stepNounPhrase drs .other true defn
+      (drs', e)
+    | .entersAttacking none => (drs, [])
     | .withCounters amt _ _ => stepAmount drs amt
     | .under ctrl =>
       let (drs', _, errs) := stepNounPhrase drs .other false ctrl
@@ -906,6 +1014,17 @@ mutual
       let (drs1, _, e1) := stepNounPhrase drs .subj true subj
       let e2 := checkAbility drs1 ab
       (drs1, e1 ++ e2)
+    | .controlGrant player subj =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true player
+      let (drs2, _, e2) := stepNounPhrase drs1 .obj true subj
+      (drs2, e1 ++ e2)
+    | .entryRider subj r =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      let (drs2, e2) := stepEntryRider drs1 r
+      (drs2, e1 ++ e2)
+    | .combatant subj =>
+      let (drs1, _, e1) := stepNounPhrase drs .subj true subj
+      (drs1, e1)
     | .cant subj action _ =>
       let headErr := if action.eventHeadOk then [] else [.eventHead]
       let (drs1, e1) := stepSubjectBefore drs subj

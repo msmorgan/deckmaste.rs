@@ -117,6 +117,15 @@ mutual
     | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
     | inZone (zone : ZoneExpr)
+    | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
+    | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
+    | related (label : RelationLabel) (counterpart : Option NounPhrase)
+    | attachment (side : AttachmentSide) (word : Option AttachWord)
+    | isEmblem
+    | currentFace (side : CardFaceSide)
+    | exiledWith (source : NounPhrase)
+    | otherThan (anchor : NounPhrase)
+    | isSource
     | and (conjuncts : List Predicate)
     | or (disjuncts : List Predicate)
     | not (predicate : Predicate)
@@ -152,6 +161,15 @@ mutual
     | laterMention (id : BindingId) (phrase : NounPhrase)
     | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
     | paid (facet : LinkedFacet) (subject : NounPhrase)
+    | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
+    | asMarker (marker : MarkerWord) (subject : NounPhrase)
+    | resolvedPermanent (spell : NounPhrase)
+    | becomes (subject : NounPhrase)
+    | theGrantor (marker : MarkerWord)
+    | combatPlayer (role : CombatRole)
+    | attachHost (word : AttachWord) (head : NounWord)
+    | designated (designation : DesignationLabel) (whose : NounPhrase)
+    | counterpart (label : RelationLabel) (subject : NounPhrase)
     | any
 
   inductive Amount where
@@ -184,6 +202,9 @@ mutual
     | did (clause : DidClause)
     | matches (subject : NounPhrase) (predicate : Predicate)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
+    | gameIs (designation : DesignationLabel)
+    | noHolder (designation : DesignationLabel)
+    | hasPriority (player : NounPhrase)
     | not (condition : Condition)
     | and (conjuncts : List Condition)
     | or (disjuncts : List Condition)
@@ -193,6 +214,9 @@ mutual
     | does (subj : Subject) (action : Instruction)
     | beginningOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
     | endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
+    | gameBecomes (designation : DesignationLabel)
+    | chapterMark (chapters : List ChapterNumber)
+    | stateBasedActionsChecked
     | now
     | stateHolds (condition : Condition)
 
@@ -216,6 +240,19 @@ mutual
     timing : Option Timing
 
   -- ## Instructions, Static Specs, Costs, and Abilities
+
+  inductive CombatParticipation where
+    | attacking (defender : Option NounPhrase)
+    | blocked (value : Bool)
+    | outsideCombat
+
+  inductive CombatUpdate where
+    | participation (state : CombatParticipation)
+    | blocking (move : AttachMove) (attacker : NounPhrase)
+
+  inductive Door where
+    | thisDoor
+    | doorOf (state : Option LockState) (room : NounPhrase)
 
   inductive CounterKindSource where
     | printed (kind : CounterKind)
@@ -281,6 +318,9 @@ mutual
     | ptModification (subject : NounPhrase) (power : Delta Amount) (toughness : Delta Amount)
     | letterDefinition (letter : Letter) (amount : Amount)
     | abilityGrant (subject : NounPhrase) (ability : Ability)
+    | controlGrant (player : NounPhrase) (subject : NounPhrase)
+    | entryRider (subject : NounPhrase) (rider : EntryRider)
+    | combatant (subject : NounPhrase)
     | cant (subj : Subject) (action : Instruction) (mods : DeonticMods)
     | must (subj : Subject) (action : Instruction) (mods : DeonticMods)
     | may (subj : Subject) (action : Instruction) (mods : DeonticMods)
@@ -295,6 +335,9 @@ mutual
 
   inductive EntryRider where
     | entersAs (status : Status)
+    | entersAttacking (defender : Option NounPhrase)
+    | entersTransformed
+    | entersMelded (into : String)
     | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
     | under (controller : NounPhrase)
     | faceDown (spec : FaceDown)
@@ -320,9 +363,26 @@ mutual
     | ownScope (deed : Option Deed) (body : Instruction)
     | bracketed (instruction : Instruction)
     | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : DamageKind)
+    | markDamage (subject : NounPhrase) (amount : Amount)
+    | clearDamage (subject : NounPhrase)
     | setStatus (status : Status) (subject : NounPhrase)
+    | turnOver (subject : NounPhrase)
+    | turnFaceDown (subject : NounPhrase) (spec : FaceDown)
+    | combat (subject : NounPhrase) (update : CombatUpdate)
     | attack (defender : Option NounPhrase)
+    | attackUnblocked (defender : Option NounPhrase)
+    | attackWith (attackers : NounPhrase) (defender : Option NounPhrase)
     | block (attacker : NounPhrase)
+    | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
+    | changeControl (subject : NounPhrase)
+    | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
+    | unlock (door : Door)
+    | setGameDesignation (designation : DesignationLabel)
+    | commitCrime
+    | conclude (verb : OutcomeVerb)
+    | drawGame
+    | restartGame
+    | relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase)
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
     | move (subject : NounPhrase) (from_ : EventSource) (to : Option ZoneExpr)
         (riders : List EntryRider) (byEffect : Bool) (departed : ObservationPoint)

@@ -195,4 +195,19 @@ theorem own_scope_action_event_head_admitted :
     (GameEvent.does (.actor aCreature) (exploreDef aCreature)).check
       (DRS.ofList []) = [] := by decide
 
+/-- Slice A pin (*Weeping Angel*-style combat trigger + attachment/status):
+`"Whenever a creature attacks you, tap it and attach target Equipment to that creature."` -/
+def weepingAngelCombatPin : Ability :=
+  .triggered
+    (.does (.actor aCreature) (.attack (some .you))) [] none [] none none none
+    (.sequentially [
+      .setStatus .tapped (.pro .bare .one),
+      .attachment .attached
+        (.described (.target (.range (some 1) (some 1))) (.hasSubtype (.of .artifact "Equipment")))
+        (some (.pro (.word (.type .creature)) .one))
+    ])
+
+theorem weeping_angel_combat_pin_sound :
+    weepingAngelCombatPin.check = [] := by decide
+
 end Semantics.Check.CorePins
