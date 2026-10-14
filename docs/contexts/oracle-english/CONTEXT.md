@@ -70,6 +70,16 @@ be carried as one item without constructing a product of its members. Packing
 preserves every distinction that can affect a parent's admissibility and keeps
 correlated alternatives correlated.
 
+**Chart** (project term):
+The record of every partial and complete Derivation found for each span of an
+expression during parsing.
+
+**Packed Forest** (project term):
+The shared representation of all Readings of an expression in which each
+Constituent occurs once per Category, span and grammatical summary, with its
+alternative Derivations grouped under it by Packing.
+_Avoid_: parse tree for the whole forest
+
 **Preference** (project term):
 An optional, non-destructive ranking annotated over already-admitted Readings. A
 Preference can order alternatives and name a representative; it can neither add
@@ -595,10 +605,35 @@ pp. 1382–1384).
 A dependent licensed (subcategorized) by its head (CGEL, Ch. 4 §1.2,
 pp. 219–222).
 
+**Subcategorization Frame**:
+An ordered lexical schema describing the Complements and fixed markers a head
+licenses. Verbs, prepositions, nouns, adjectives and determinatives may each
+declare Subcategorization Frames.
+_Avoid_: Verb Phrase for the schema; frame for an instantiated phrase
+
 **Verb Frame**:
-An ordered lexical schema describing the complements and fixed markers a verb
-licenses.
+A Subcategorization Frame of a verb.
 _Avoid_: Verb Phrase for the schema; Verb Frame for an instantiated phrase
+
+**Frame Family** (project term):
+The kind of a Subcategorization Frame, named by the shape of its Frame Slots,
+such as intransitive, monotransitive, ditransitive or copular.
+
+**Selected Frame** (project term):
+The one Subcategorization Frame of its head that a Constituent realizes.
+
+**Host Category** (project term):
+A Category that an unselected Preposition Phrase may modify in Oracle English,
+declared for each pairing of a preposition with one of its Complement frames:
+a Nominal (as Postmodifier), a Predicate (as Adjunct), both, or neither, in
+which case the phrase occurs only as a Complement.
+
+**Valence Alternation** (project term):
+A systematic relation between the Complement realizations of one
+Subcategorization Frame, such as active and passive Voice, Extraction of a
+Complement to leave a Gap, or a Shared Complement under Right Node Raising.
+Valence Alternations follow from a head's active frames; they are never
+declared per lexeme.
 
 **Frame Slot** (project term):
 One position in a lexical subcategorization frame: the grammatical relation the
