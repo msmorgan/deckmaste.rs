@@ -119,6 +119,16 @@ mutual
     | objects (which : LinkSource) (deed : Deed) (plurality : Plurality)
     | taken (which : LinkSource)
 
+  inductive ChoiceDomain where
+    | nameOfCard (predicate : Predicate)
+    | colorOtherThan (color : Color)
+    | typeOtherThan (subtype : Subtype)
+    | basicTypesOnly
+    | nonbasicTypesOnly
+    | number (quantity : Quantity)
+    | players (predicate : Predicate)
+    | abilitiesAmong (keywords : List KeywordTerm)
+
   inductive Predicate where
     | inCaller (body : Predicate)
     | hasType (type : CardType)
@@ -126,6 +136,11 @@ mutual
     | hasSupertype (supertype : Supertype)
     | anyPlayer
     | opponent
+    | chosenPlayer (ref : ChoiceRef)
+    | qualityNoun (sort : QualitySort) (domain : Option ChoiceDomain)
+    | counterKindOn (subject : NounPhrase)
+    | ofChosen (ref : ChoiceRef) (sort : QualitySort)
+    | ofYourChoice (sort : QualitySort) (domain : Option ChoiceDomain)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
     | did (clause : DidClause)
     | colorIs (color : Color)
@@ -134,7 +149,6 @@ mutual
     | isToken
     | hasStatus (status : Status)
     | hasCounters (kind : Option CounterKind)
-    | counterKindOn (subject : NounPhrase)
     | hasKeyword (keyword : KeywordTerm)
     | colorCount (comparator : Comparator) (count : Nat)
     | shares (axis : QualitySort) (agreement : Agreement) (with_ : NounPhrase)
@@ -144,6 +158,9 @@ mutual
     | isManaAbility
     | targets (subject : NounPhrase) (extent : TargetExtent)
     | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
+    | superlative (op : AggregateOp) (axis : ProjAxis) (domain : Predicate)
+    | withMostVotes
+    | choseExtreme (op : AggregateOp)
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
     | inZone (zone : ZoneExpr)
     | inPile (pile : NounPhrase)
@@ -154,7 +171,9 @@ mutual
     | isEmblem
     | currentFace (side : CardFaceSide)
     | exiledWith (source : NounPhrase)
+    | notChosen
     | otherThan (anchor : NounPhrase)
+    | coinCameUp (face : CoinFace)
     | isSource
     | and (conjuncts : List Predicate)
     | or (disjuncts : List Predicate)
@@ -170,6 +189,11 @@ mutual
     | the
     | count (quantity : Quantity) (mode : Option ChoiceMode)
     | bare
+
+  inductive ColorTerm where
+    | lit (color : Color)
+    | chosen (ref : ChoiceRef)
+    | colorOf (object : NounPhrase)
 
   inductive NounPhrase where
     | inCaller (body : NounPhrase)
@@ -211,11 +235,24 @@ mutual
     | lit (value : Int)
     | statOf (axis : ProjAxis) (subject : NounPhrase)
     | countOf (group : NounPhrase)
+    | aggregate (op : AggregateOp) (axis : ProjAxis) (group : NounPhrase)
+    | paid (facet : LinkedFacet) (subject : NounPhrase)
     | tally (clause : DidClause) (mode : TallyMode)
     | thatMuch
+    | chosenNumber (ref : ChoiceRef)
+    | votesFor (label : VoteLabel)
     | theOutcome (sort : OutcomeSort)
+    | coinsShowing (face : CoinFace)
+    | greatestStoredMatch (subject : NounPhrase)
+    | groupSize
+    | theDifference
     | letter (letter : Letter)
     | arith (op : ArithOp) (left right : Amount)
+    | devotion (player : NounPhrase) (color : ColorTerm) (second : Option ColorTerm)
+    | half (rounding : RoundMode) (amount : Amount)
+    | aggregateOver (op : AggregateOp) (domain : Predicate) (body : Amount)
+    | aggregateOf (op : AggregateOp) (amounts : List Amount)
+    | distinctCount (axis : KindAxis) (domain : NounPhrase)
     | upTo (bound : Amount)
     | anyAmount
 
@@ -224,11 +261,17 @@ mutual
     | range (low high : Option Nat)
     | upToOf (amount : Amount)
     | exactlyOf (amount : Amount)
+    | worth (n : Nat)
 
   inductive SliceCount where
     | counted (quantity : Quantity)
     | whole
     | totalling (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
+
+  inductive RollWatch where
+    | anyResult
+    | resultIn (quantity : Quantity)
+    | highestNatural
 
   inductive Condition where
     | inCaller (body : Condition)
@@ -237,6 +280,14 @@ mutual
     | did (clause : DidClause)
     | matches (subject : NounPhrase) (predicate : Predicate)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
+    | dealtThisWay (predicate : Predicate)
+    | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
+    | preventedFromSource (predicate : Predicate)
+    | flipCalled (caller : NounPhrase) (call : FlipCall)
+    | flipFace (face : CoinFace)
+    | voteLead (label : VoteLabel) (orTied : Bool)
+    | anyResultIs (comparator : Comparator) (bound : Amount)
+    | rolledDoubles
     | gameIs (designation : DesignationLabel)
     | noHolder (designation : DesignationLabel)
     | hasPriority (player : NounPhrase)
@@ -255,6 +306,19 @@ mutual
     | stateBasedActionsChecked
     | now
     | stateHolds (condition : Condition)
+
+  inductive FlipScope where
+    | count (amount : Amount)
+    | per (each : NounPhrase)
+
+  inductive IgnoredOutcomes where
+    | extreme (extreme : RollExtreme)
+    | allBut (extreme : RollExtreme)
+    | chosen (chooser : Option NounPhrase) (amount : Amount)
+
+  inductive Ballot where
+    | byLabel (options : List VoteLabel)
+    | byCandidate (candidates : NounPhrase)
 
   inductive Exposed where
     | cards (cards : NounPhrase)
@@ -348,6 +412,14 @@ mutual
     | sameAs (source : NounPhrase)
     | anyKind
 
+  inductive Repetition where
+    | again
+    | moreTimes (times : Amount)
+    | anyNumber
+    | untilCond (condition : Condition)
+    | againExcludingChosen
+    | fixed (times : Amount) (body : Instruction)
+
   structure Characteristics where
     name : Option String := none
     cost : Option ManaCost := none
@@ -414,6 +486,9 @@ mutual
     | textChange (subject : NounPhrase) (change : TextChange)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     | entryRider (subject : NounPhrase) (rider : EntryRider)
+    | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
+        (domain : Option ChoiceDomain) (disclosure : Disclosure)
+    | modeChoice (change : ModeChange)
     | combatant (subject : NounPhrase)
     | cant (subj : Subject) (action : Instruction) (mods : DeonticMods)
     | must (subj : Subject) (action : Instruction) (mods : DeonticMods)
@@ -427,6 +502,13 @@ mutual
     | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
     | asEvent (event : GameEvent) (does : Instruction)
     | whileHolds (condition : Condition) (does : Instruction)
+
+  inductive ModeChange where
+    | allInstead (cost : Option Cost) (condition : Option Condition)
+    | extraModesCost (cost : Cost)
+    | setQuantity (quantity : Quantity)
+    | repeatable
+    | notChosenBefore (within : Duration)
 
   inductive EntryRider where
     | entersAs (status : Status)
@@ -459,6 +541,10 @@ mutual
     | compound (costs : List Cost)
     | or (costs : List Cost)
     | itsManaCost
+
+  structure RollRow where
+    results : Quantity
+    instruction : Instruction
 
   inductive CreationSpec where
     | token (spec : TokenSpec) (riders : List EntryRider)
@@ -494,6 +580,7 @@ mutual
     | relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase)
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
     | revealChoices (sort : HiddenSort)
+    | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
     | move (subject : NounPhrase) (from_ : EventSource) (to : Option ZoneExpr)
         (riders : List EntryRider) (byEffect : Bool) (departed : ObservationPoint)
     | changeLife (delta : Delta Amount)
@@ -502,6 +589,13 @@ mutual
     | expose (verb : ExposeVerb) (exposed : Exposed)
     | search (scope : SearchScope) (quantity : Quantity) (predicate : Predicate)
     | shuffle (pile : Pile)
+    | flipCoins (count : FlipScope) (call : Option FlipCall) (outcome : Option CoinFace)
+    | rollDice (count : Amount) (sides : DieSides) (batch : DiceBatch) (watch : RollWatch)
+    | applyResultsTable (rows : List RollRow)
+    | ignoreOutcomes (which : IgnoredOutcomes)
+    | shiftResult (direction : Option ShiftDir) (amount : Amount)
+    | storeResults (on : NounPhrase)
+    | rerollStored (quantity : Quantity) (whose : NounPhrase)
     | establish (spec : StaticSpec) (duration : Option Duration)
     | createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool)
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
@@ -517,10 +611,16 @@ mutual
     | instruct (subj : NounPhrase) (action : Instruction)
     | withContinuation (policy : ContinuationPolicy) (body : Instruction)
         (ifDid : Option Instruction) (ifNot : Option Instruction)
+    | doOnlyIf (instruction : Instruction) (condition : Condition) (otherwise : Option Instruction)
+    | limited (instruction : Instruction) (limit : UsageLimit)
     | doIf (condition : Condition) (instruction : Instruction) (otherwise : Option Instruction)
     | doForEach (group : NounPhrase) (body : Instruction)
+    | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)
+        (body : Instruction)
+    | repeat_ (repetition : Repetition)
     | sequentially (steps : List Instruction)
     | simultaneously (steps : List Instruction)
+    | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Instruction))
     | procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
         (resulting : Option Predicate) (from_ : Option EventSource) (of_ : Option NounPhrase)
     | merge (subject : NounPhrase) (onto : NounPhrase) (position : MergePosition)

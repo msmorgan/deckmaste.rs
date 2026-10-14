@@ -241,4 +241,19 @@ def sliceCFactOrFictionPin : Ability :=
 theorem slice_c_fact_or_fiction_pin_sound :
     sliceCFactOrFictionPin.check = [] := by decide
 
+/-- Slice D pin (vote outcome + quality choice + `ofChosen` resolution):
+`"Choose a color. Starting with you, each player votes for grace or condemnation. Draw a card for each grace vote."` -/
+def sliceDVoteAndChoicePin : Ability :=
+  .spell none <|
+    .sequentially [
+      .establish (.choice .entry .you (.quality .color) none .openly) none,
+      .vote (some .you) .openly (.byLabel ["grace", "condemnation"]),
+      .draw (.votesFor "grace"),
+      .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
+        (.zones [.zone .battlefield .bare]) (some handZone) [] true .departure
+    ]
+
+theorem slice_d_vote_and_choice_pin_sound :
+    sliceDVoteAndChoicePin.check = [] := by decide
+
 end Semantics.Check.CorePins

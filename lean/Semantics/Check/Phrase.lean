@@ -70,9 +70,12 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .not body => body.kind? n
-  | _ + 1, .anyPlayer | _ + 1, .opponent => some .player
+  | _ + 1, .anyPlayer | _ + 1, .opponent | _ + 1, .chosenPlayer _ | _ + 1, .choseExtreme _ => some .player
+  | _ + 1, .qualityNoun q _ => some (.quality q)
+  | _ + 1, .counterKindOn _ => some (.quality .counterKind)
   | _ + 1, .hasDesignation d _ => d.holder
   | _ + 1, .compare axes _ _ => (axes.head?).map (·.scope)
+  | n + 1, .superlative _ ax dom => dom.kind? n <|> some ax.scope
   | n + 1, .compareOver dom _ _ _ => dom.kind? n
   | n + 1, .and ps => ps.findSome? (·.kind? n)
   | n + 1, .or ps =>
@@ -81,7 +84,8 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
       | some k, some k' => some (joinKinds k k')
       | some k, none => some k
       | none, k' => k') none
-  | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .otherThan _ | _ + 1, .isSource => none
+  | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen
+  | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _ => none
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -117,7 +121,7 @@ def Predicate.seedTy (p : Predicate) (fuel : Nat := 32) : List CardType :=
   | n + 1, .inCaller body | n + 1, .bracketed body => body.seedTy n
   | _ + 1, .hasType t => [t]
   | _ + 1, .hasSubtype s => s.type.toList
-  | n + 1, .compareOver dom _ _ _ => dom.seedTy n
+  | n + 1, .superlative _ _ dom | n + 1, .compareOver dom _ _ _ => dom.seedTy n
   | n + 1, .and ps => ps.foldr (fun q acc => mergeTypes (q.seedTy n) acc) []
   | _ + 1, .or [] => []
   | n + 1, .or [q] => q.seedTy n
@@ -299,6 +303,30 @@ mutual
         (drs2, e1 ++ e2)
   termination_by structural fuel
 
+  def stepChoiceDomain (fuel : Nat) (drs : DRS) (cd : ChoiceDomain) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match cd with
+      | .nameOfCard p | .players p => stepPredicate fuel drs p
+      | .number q => stepQuantity fuel drs q
+      | .colorOtherThan _ | .typeOtherThan _ | .basicTypesOnly | .nonbasicTypesOnly | .abilitiesAmong _ => (drs, [])
+  termination_by structural fuel
+
+  def stepColorTerm (fuel : Nat) (drs : DRS) (ct : ColorTerm) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ct with
+      | .lit _ => (drs, [])
+      | .chosen ref =>
+        let n := countChoice (.quality .color) drs
+        (drs, if ref.ok n then [] else [.choiceRef ref (.quality .color) n])
+      | .colorOf obj =>
+        let (drs', _, errs) := stepNounPhrase fuel drs .other false obj
+        (drs', errs)
+  termination_by structural fuel
+
   def stepPredicate (fuel : Nat) (drs : DRS) (p : Predicate) : DRS × List Refusal :=
     match fuel with
     | 0 => (drs, [])
@@ -308,6 +336,14 @@ mutual
         let (callerDrs, errs) := stepPredicate fuel (enterCaller drs) body
         (leaveCaller drs callerDrs, errs)
       | .bracketed body | .not body => stepPredicate fuel drs body
+      | .chosenPlayer ref =>
+        let n := countChoice .player drs
+        (drs, if ref.ok n then [] else [.choiceRef ref .player n])
+      | .qualityNoun _ (some dom) | .ofYourChoice _ (some dom) => stepChoiceDomain fuel drs dom
+      | .qualityNoun _ none | .ofYourChoice _ none => (drs, [])
+      | .ofChosen ref q =>
+        let n := countChoice (.quality q) drs
+        (drs, if ref.ok n then [] else [.choiceRef ref (.quality q) n])
       | .hasPossessor _ np =>
         let (drs', _, errs) := stepNounPhrase fuel drs .other false np
         (drs', errs)
@@ -321,6 +357,13 @@ mutual
         let (_, errs) := stepDidClause fuel subDrs' clause
         (drs, errs)
       | .compare _ _ b => stepAmount fuel drs b
+      | .superlative _ _ dom => stepPredicate fuel drs dom
+      | .withMostVotes =>
+        let n := countOutcomes .voteHeld drs
+        (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
+      | .choseExtreme _ =>
+        let drs' := drs.push (outcomeB .namedNumber) .other false
+        (drs', if countManys (.quality .number) drs != 0 then [] else [.numberChoiceInScope])
       | .compareOver dom m _ b =>
         let (drs1, e1) := stepPredicate fuel drs dom
         let (drs2, e2) := stepAmount fuel drs1 m
@@ -337,6 +380,7 @@ mutual
       | .activatedBy src | .targets src _ | .exiledWith src | .otherThan src =>
         let (drs', _, errs) := stepNounPhrase fuel drs .other false src
         (drs', errs)
+      | .coinCameUp _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
       | .and ps | .or ps => stepPredicateList fuel drs ps
       | _ => (drs, [])
   termination_by structural fuel
@@ -605,7 +649,8 @@ mutual
         let (callerDrs, errs) := stepAmount fuel (enterCaller drs) body
         (leaveCaller drs callerDrs, errs)
       | .lit _ | .anyAmount => (drs, [])
-      | .statOf _ subj | .countOf subj =>
+      | .statOf _ subj | .countOf subj | .aggregate _ _ subj
+      | .paid _ subj | .greatestStoredMatch subj | .distinctCount _ subj =>
         let (drs', _, errs) := stepNounPhrase fuel drs .other false subj
         (drs', errs)
       | .tally clause mode =>
@@ -614,15 +659,52 @@ mutual
         (drs, e1 ++ e2)
       | .thatMuch =>
         if countAmountOutcomes drs == 1 then (drs, []) else (drs, [.quantOutcomeInScope (countAmountOutcomes drs)])
+      | .chosenNumber ref =>
+        let n := countChoice (.quality .number) drs
+        (drs, if ref.ok n then [] else [.choiceRef ref (.quality .number) n])
+      | .votesFor _ =>
+        let n := countOutcomes .voteHeld drs
+        (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
       | .theOutcome s =>
         if outcomeInScope s drs then (drs, []) else (drs, [.outcomeInScope s (countOutcomes s drs)])
+      | .coinsShowing _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
+      | .groupSize =>
+        let n := countManysAny drs
+        (drs, if n == 1 then [] else [.groupSizeInScope n])
+      | .theDifference =>
+        let n := countGaps drs
+        (drs, if n == 1 then [] else [.gapInScope n])
       | .letter l =>
         if anyOpenLetter l drs then (drs, []) else (drs, [.openLetter l])
       | .arith _ l r =>
         let (drs1, e1) := stepAmount fuel drs l
         let (drs2, e2) := stepAmount fuel drs1 r
         (drs2, e1 ++ e2)
-      | .upTo b => stepAmount fuel drs b
+      | .devotion pl c optSec =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .other false pl
+        let (drs2, e2) := stepColorTerm fuel drs1 c
+        let (drs3, e3) := match optSec with | some d => stepColorTerm fuel drs2 d | none => (drs2, [])
+        (drs3, e1 ++ e2 ++ e3)
+      | .half _ inner | .upTo inner => stepAmount fuel drs inner
+      | .aggregateOver _ dom body =>
+        let (drs1, e1) := stepPredicate fuel drs dom
+        let k := dom.kindOr .object
+        let drs2 := drs1.push (bindFor drs1 .the .one k dom) .other false
+        let (drs3, e2) := stepAmount fuel drs2 body
+        (drs3, e1 ++ e2)
+      | .aggregateOf _ as => stepAmountList fuel drs as
+  termination_by structural fuel
+
+  def stepAmountList (fuel : Nat) (drs : DRS) (as : List Amount) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match as with
+      | [] => (drs, [])
+      | a :: rest =>
+        let (drs1, e1) := stepAmount fuel drs a
+        let (drs2, e2) := stepAmountList fuel drs1 rest
+        (drs2, e1 ++ e2)
   termination_by structural fuel
 
   def stepQuantity (fuel : Nat) (drs : DRS) (q : Quantity) : DRS × List Refusal :=
@@ -634,7 +716,7 @@ mutual
         let (callerDrs, errs) := stepQuantity fuel (enterCaller drs) body
         (leaveCaller drs callerDrs, errs)
       | .range (some lo) (some hi) => (drs, if lo ≤ hi then [] else [.wellFormedQ])
-      | .range _ _ => (drs, [])
+      | .range _ _ | .worth _ => (drs, [])
       | .upToOf a | .exactlyOf a => stepAmount fuel drs a
   termination_by structural fuel
 
@@ -662,6 +744,31 @@ mutual
         let (drs1, e1) := stepAmount fuel drs l
         let (drs2, e2) := stepAmount fuel drs1 r
         (drs2, e1 ++ e2)
+      | .dealtThisWay pred =>
+        let (drs1, e1) := stepPredicate fuel drs pred
+        (drs1, e1 ++ (if damageDealtInScope drs then [] else [.damageDealtInScope]))
+      | .choseThisWay who pred =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true who
+        let (drs2, e2) := stepPredicate fuel drs1 pred
+        (drs2, e1 ++ e2)
+      | .preventedFromSource pred =>
+        let (drs1, e1) := stepPredicate fuel drs pred
+        let n := countOutcomes .damagePrevented drs
+        (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .damagePrevented n]))
+      | .flipCalled caller _ =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true caller
+        (drs1, e1 ++ (if coinFlipInScope drs then [] else [.coinFlipInScope]))
+      | .flipFace _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
+      | .voteLead _ _ =>
+        let n := countOutcomes .voteHeld drs
+        (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
+      | .anyResultIs _ bound =>
+        let (drs1, e1) := stepAmount fuel drs bound
+        let n := countOutcomes .rollResult drs
+        (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .rollResult n]))
+      | .rolledDoubles =>
+        let n := countOutcomes .rollResult drs
+        (drs, if n == 1 then [] else [.outcomeInScope .rollResult n])
       | .gameIs _ | .noHolder _ => (drs, [])
       | .hasPriority p =>
         let (drs', _, errs) := stepNounPhrase fuel drs .subj true p
@@ -1002,6 +1109,98 @@ mutual
         (drs2, e1 ++ e2)
   termination_by structural fuel
 
+  def stepFlipScope (fuel : Nat) (drs : DRS) (fs : FlipScope) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match fs with
+      | .count a => stepAmount fuel drs a
+      | .per np =>
+        let (drs', _, e) := stepNounPhrase fuel drs .other false np
+        (drs', e)
+  termination_by structural fuel
+
+  def stepIgnoredOutcomes (fuel : Nat) (drs : DRS) (io : IgnoredOutcomes) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match io with
+      | .extreme _ | .allBut _ => (drs, [])
+      | .chosen optChooser amt =>
+        let (drs1, e1) := match optChooser with
+          | some c => let (d, _, e) := stepNounPhrase fuel drs .subj true c; (d, e)
+          | none => (drs, [])
+        let (drs2, e2) := stepAmount fuel drs1 amt
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepBallot (fuel : Nat) (drs : DRS) (b : Ballot) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match b with
+      | .byLabel _ => (drs, [])
+      | .byCandidate np =>
+        let (drs', _, e) := stepNounPhrase fuel drs .obj true np
+        (drs', e)
+  termination_by structural fuel
+
+  def stepRollRowList (fuel : Nat) (drs : DRS) (rows : List RollRow) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match rows with
+      | [] => (drs, [])
+      | ⟨q, inst⟩ :: rest =>
+        let (drs1, e1) := stepQuantity fuel drs q
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) inst
+        let (drs3, e3) := stepRollRowList fuel drs2 rest
+        (drs3, e1 ++ e2 ++ e3)
+  termination_by structural fuel
+
+  def stepRepetition (fuel : Nat) (drs : DRS) (rep : Repetition) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match rep with
+      | .again | .anyNumber | .againExcludingChosen => (drs, [])
+      | .moreTimes times => stepAmount fuel drs times
+      | .untilCond cond => stepCondition fuel drs cond
+      | .fixed times body =>
+        let (drs1, e1) := stepAmount fuel drs times
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) body
+        let drs3 := drs2.push (outcomeB .repeatCount) .other false
+        (drs3, e1 ++ e2)
+  termination_by structural fuel
+
+  def stepModeChange (fuel : Nat) (drs : DRS) (mc : ModeChange) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match mc with
+      | .allInstead optCost optCond =>
+        let (drs1, e1) := match optCost with | some c => stepCost fuel drs c | none => (drs, [])
+        let (drs2, e2) := match optCond with | some cond => stepCondition fuel drs1 cond | none => (drs1, [])
+        (drs2, e1 ++ e2)
+      | .extraModesCost c => stepCost fuel drs c
+      | .setQuantity q => stepQuantity fuel drs q
+      | .repeatable => (drs, [])
+      | .notChosenBefore dur => stepDuration fuel drs dur
+  termination_by structural fuel
+
+  def stepModeList (fuel : Nat) (drs : DRS) (modes : List (Option Cost × Option Nat × Instruction)) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match modes with
+      | [] => (drs, [])
+      | (optCost, _, inst) :: rest =>
+        let (drs1, e1) := match optCost with | some c => stepCost fuel drs c | none => (drs, [])
+        let (drs2, e2) := stepInstruction fuel .postEvent .obj (nextClause drs1) inst
+        let (_, e3) := stepModeList fuel drs rest
+        (drs2, e1 ++ e2 ++ e3)
+  termination_by structural fuel
+
   def stepInstruction (fuel : Nat) (phase : StepPhase) (patientRole : GramRole) (drs : DRS) (inst : Instruction) : DRS × List Refusal :=
     match fuel with
     | 0 => (drs, [])
@@ -1103,6 +1302,13 @@ mutual
           | none => (drs, [])
         let (drs2, _, e2) := stepNounPhrase fuel drs1 patientRole true chosen
         (drs2, e1 ++ e2)
+      | .vote first _ ballot =>
+        let (drs1, e1) := match first with
+          | some f => let (d, _, e) := stepNounPhrase fuel drs .subj true f; (d, e)
+          | none => (drs, [])
+        let (drs2, e2) := stepBallot fuel drs1 ballot
+        let drs3 := drs2.push (outcomeB .voteHeld) .other false
+        (drs3, e1 ++ e2)
       | .move subj from_ to riders _ _ =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, e2) := stepEventSource fuel drs1 from_
@@ -1155,6 +1361,40 @@ mutual
         let (drs1, e1) := stepPile fuel drs pile
         let drs2 := if phase == .postEvent then afterShuffle drs1 else drs1
         (drs2, e1)
+      | .flipCoins count _ _ =>
+        let (drs1, e1) := stepFlipScope fuel drs count
+        let drs2 := drs1.push (outcomeB .coinFlipped) .other false
+        (drs2, e1)
+      | .rollDice count _ _ watch =>
+        let (drs1, e1) := stepAmount fuel drs count
+        let (drs2, e2) := match watch with
+          | .anyResult | .highestNatural => (drs1, [])
+          | .resultIn q => stepQuantity fuel drs1 q
+        let drs3 := drs2.push (outcomeB .rollResult) .other false
+        (drs3, e1 ++ e2)
+      | .applyResultsTable rows =>
+        let cnt := countOutcomes .rollResult drs
+        let e0 := if cnt == 1 then [] else [.outcomeInScope .rollResult cnt]
+        let (drs1, e1) := stepRollRowList fuel drs rows
+        (drs1, e0 ++ e1)
+      | .ignoreOutcomes which =>
+        let (drs1, e1) := stepIgnoredOutcomes fuel drs which
+        let e2 := if ignorableInScope drs1 then [] else [.ignorableFor]
+        (drs1, e1 ++ e2)
+      | .shiftResult _ amt =>
+        let (drs1, e1) := stepAmount fuel drs amt
+        let cnt := countOutcomes .rollResult drs1
+        let e2 := if cnt == 1 then [] else [.outcomeInScope .rollResult cnt]
+        (drs1, e1 ++ e2)
+      | .storeResults on =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true on
+        let cnt := countOutcomes .rollResult drs1
+        let e2 := if cnt == 1 then [] else [.outcomeInScope .rollResult cnt]
+        (drs1, e1 ++ e2)
+      | .rerollStored q whose =>
+        let (drs1, e1) := stepQuantity fuel drs q
+        let (drs2, _, e2) := stepNounPhrase fuel drs1 .other false whose
+        (drs2, e1 ++ e2)
       | .establish spec dur =>
         let (drs1, e1) := stepStaticSpec fuel drs spec
         let (drs2, e2) := match dur with | some d => stepDuration fuel drs1 d | none => (drs1, [])
@@ -1206,6 +1446,12 @@ mutual
         let (drs2, e2) := match ifDid with | some b => stepInstruction fuel phase .obj (nextClause drs1) b | none => (drs1, [])
         let (_, e3) := match ifNot with | some b => stepInstruction fuel phase .obj (nextClause drs1) b | none => (drs1, [])
         (drs2, e1 ++ e2 ++ e3)
+      | .doOnlyIf inst cond otherwise =>
+        let (drs1, e1) := stepInstruction fuel phase patientRole drs inst
+        let (drs2, e2) := stepCondition fuel drs1 cond
+        let (_, e3) := match otherwise with | some b => stepInstruction fuel phase .obj (nextClause drs2) b | none => (drs2, [])
+        (drs2, e1 ++ e2 ++ e3)
+      | .limited inst _ => stepInstruction fuel phase patientRole drs inst
       | .doIf cond thenInst elseInst =>
         let (drs1, e1) := stepCondition fuel drs cond
         let (drs2, e2) := stepInstruction fuel phase .obj (nextClause drs1) thenInst
@@ -1227,8 +1473,22 @@ mutual
         let (drs3, e2) := stepInstruction fuel phase .obj (nextClause drs2) body
         let closedDrs : DRS := { drs3 with referents := drs3.referents.filter (·.id < preLoopMaxId) }
         (closedDrs, e1 ++ e2)
+      | .doForEachKind _ dom q body =>
+        let (drs1, e1) := match dom with
+          | some d => let (d', _, e) := stepNounPhrase fuel drs .other false d; (d', e)
+          | none => (drs, [])
+        let preLoopMaxId := drs1.nextId
+        let drs2 := drs1.push { det := .each, plur := .one, payload := .quality q } .other false
+        let (drs3, e2) := stepInstruction fuel phase .obj (nextClause drs2) body
+        let closedDrs : DRS := { drs3 with referents := drs3.referents.filter (·.id < preLoopMaxId) }
+        (closedDrs, e1 ++ e2)
+      | .repeat_ rep => stepRepetition fuel drs rep
       | .sequentially steps => stepInstructionSeq fuel phase drs steps
       | .simultaneously steps => stepInstructionSimul fuel phase drs steps
+      | .chooseModes q modes =>
+        let (drs1, e1) := stepQuantity fuel drs q
+        let (drs2, e2) := stepModeList fuel drs1 modes
+        (drs2, e1 ++ e2)
       | .procedure _ subj pay res from_ of_ =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, e2) := stepPlayPayment fuel drs1 pay
@@ -1411,6 +1671,16 @@ mutual
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         let (drs2, e2) := stepEntryRider fuel drs1 r
         (drs2, e1 ++ e2)
+      | .choice _ subj q dom _ =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
+        let (drs2, e2) := match dom with | some d => stepChoiceDomain fuel drs1 d | none => (drs1, [])
+        let choiceRef : Referent := {
+          det := .the, plur := .one,
+          payload := match q with | .player => .player true | .quality qs => .quality qs
+        }
+        let drs3 := drs2.push choiceRef .other false
+        (drs3, e1 ++ e2)
+      | .modeChoice mc => stepModeChange fuel drs mc
       | .combatant subj =>
         let (drs1, _, e1) := stepNounPhrase fuel drs .subj true subj
         (drs1, e1)
