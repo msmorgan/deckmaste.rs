@@ -63,8 +63,15 @@ apply.
     (creating post-zone-change referents where `[CR#400.7,400.7j]` applies) and
     introduces post-completion product referents.
 - **Explicit nested DRS boxes (`semantics-v3.md` §1.3–1.4):**
-  1. Top-level imperative box: `a(...)` persists across sequential instructions
-     in the paragraph `[CR#608.2c]`.
+  1. Top-level imperative and activated `cost : effect` box: `a(...)` persists
+     across sequential instructions in the paragraph `[CR#608.2c]`. Across an
+     activated ability's colon (`Ability.activated`, `StaticSpec.specialAction`),
+     `Cost.perform(action)` steps `action` in `StepPhase.postEvent` with
+     `drs.performer` = activator, filters cost-introduced referents to public
+     current zones (`publicOnly`, `[CR#400.2,400.7j]`), and runs `nextClause` at
+     the colon `:` so `"Sacrifice a creature: Draw cards equal to its power"`
+     resolves `"its"`, `"that creature"`, and `"the sacrificed creature"` via
+     `D′`, `AC>R1`, and `.actedOn`.
   2. Duplex / implicational box (`when`/`whenever`, `instead`/`would`, positive
      `if`/`did`): referents introduced in the antecedent box are accessible in
      the consequent box `[CR#603.2,614.1]` and closed on exit (with a
@@ -94,6 +101,16 @@ apply.
      with `r.det == .part` or `Payload.player`), preserves argument mutations,
      and exports outcome referents (`r.id ∉ topFrame.preEntryIds`) with
      `clause := topFrame.callerClause` and `role := .obj`.
+- **Closed event and deontic head-gating (`semantics-v3.md` §3.6–3.7):**
+  - `Check/Events.lean` gates `action` inside `does(subj, action)`,
+    `would(subj, action)`, and `did(subj, action, within)` to the event-capable
+    `Instruction` heads in `semantics-v3.md` Table 3.6A plus
+    `Instruction.ownScope (some (.action name)) body` (`[CR#701.22b]`), refusing
+    control-flow and compound imperative instructions (`sequentially`, `doIf`,
+    `doForEach`, `chooseModes`, `establish`, etc.).
+  - `Check/Abilities.lean` gates `action` inside `cant`, `must`, `may`, and
+    `gatedBy` to the deontic-capable `Instruction` heads matching
+    `core::DeonticAction` plus `ownScope (some (.action name))`.
 - **Anaphor Resolution Rules (`semantics-v3.md` §1.5):**
   - **Accessibility (`J1`):** Filters referents not masked by any frame in
     `drs.scopeStack` (`∀ f ∈ drs.scopeStack, r.id ∉ f.maskedIds`) by number

@@ -15,25 +15,28 @@ executed Lean-first in `lean/Semantics/`. Standard constraints apply.
   is represented once as an `Instruction` (bare infinitive verb phrase:
   `sacrifice(a(creature))`, `destroy(this)`, `attack(any)`, `block(this)`,
   `draw(2)`, `dealDamage(3, anyTarget)`, `putCounters(1, p1p1, this)`).
-- **Six clause moods without double-wrapping:**
+- **Seven action-clause contexts without double-wrapping:**
   1. **2p Imperative (`Instruction`):** bare `action` (implicit Actor is `"you"`
      or the enclosing `instruct` performer `[CR#109.5]`).
   2. **3p Imperative (`Instruction`):** `instruct (subj : NounPhrase) (action : Instruction)`
      (replaces `Instruction.act`; e.g., `instruct(target(opponent), sacrifice(a(creature)))`,
      `instruct(that(creature), explore)` `[CR#701.44a]`).
-  3. **Trigger / Event (`GameEvent`):** `does (subj : Subject) (action : Instruction)`
-     (collapses 20 of the 29 `GameEvent` constructors into `does`).
-  4. **Replacement (`StaticSpec`):** `instead (event : WouldClause) (replacement : Instruction) ...`
+  3. **Action Cost (`Cost`):** `Cost.perform (action : Instruction)` (`"Sacrifice
+     a creature: Draw a card"` → `activated(perform(sacrifice(a(creature))),
+     draw(a(card)))` `[CR#602.2b,118.1]`).
+  4. **Trigger / Event (`GameEvent`):** `does (subj : Subject) (action : Instruction)`
+     (collapses 17 of the 27 domain `GameEvent` constructors into `does`).
+  5. **Replacement (`StaticSpec`):** `instead (event : WouldClause) (replacement : Instruction) ...`
      where `WouldClause` is `would (subj : Subject) (action : Instruction)` (or
      `wouldAny : List WouldClause` for disjunctive replacement events `[CR#614.1]`).
      Never double-wrapped in `does`.
-  5. **Deontic (`StaticSpec`):** `cant`, `must`, `may`, and `gatedBy (cost : Cost)`,
+  6. **Deontic (`StaticSpec`):** `cant`, `must`, `may`, and `gatedBy (cost : Cost)`,
      each taking `(subj : Subject) (action : Instruction) (mods : DeonticMods := {})`
      (where `DeonticMods` holds `bound : Option CountBound`, `asThough : Option AsThough`,
      `rider : DeonticRider`, `except : Option Cause` `[CR#702.13b,702.145b]`).
      Deletes `StaticSpec.deonticRule`, `Role`, `DeonticPatient`, `DeedComplement`,
      and `CoreDeed.haveCountersPutOn`.
-  6. **Lookback (`Condition` / `Predicate` / `Amount`):** `DidClause` =
+  7. **Lookback (`Condition` / `Predicate` / `Amount`):** `DidClause` =
      `did (subj : Subject) (action : Instruction) (within : LookbackSpan)` where
      `LookbackSpan` is `.duration (d : Duration) (timing : Option Timing := none) | .thisWay | .triggering`.
      - `Condition.did (clause : DidClause)` replaces `Condition.happened` (dropping
@@ -45,6 +48,12 @@ executed Lean-first in `lean/Semantics/`. Standard constraints apply.
      - `Amount.tally (clause : DidClause) (mode : TallyMode)` replaces
        `Amount.eventTally`, where `TallyMode` is `.events` (`"the number of times..."`)
        or `.quantity` (`"the number of cards..."` / `"the amount of life..."`).
+- **Keyword-action `Deed` identity on `Instruction.ownScope` (`[CR#701.22b]`):**
+  - `Instruction.ownScope (deed : Option Deed := none) (body : Instruction)`
+    carries the optional `Deed` identity (`some (.action name)`) of a CR §701
+    keyword-action `Definition` so both `does`/`would`/`did`/`cant` and
+    `deckmaste_lowering_v3` (`core::Action::Composite` and `core::EventFilter::Act`)
+    see the keyword action's `Deed` alongside its expanded body.
 - **Voice and `Subject` (`Subject.actor | .any | .by`):**
   - `Subject.actor (np : NounPhrase)` (coerced/elided from `NounPhrase`): active
     voice (`"Whenever you sacrifice a creature"` → `does(you, sacrifice(a(creature)))`).
@@ -65,10 +74,10 @@ executed Lean-first in `lean/Semantics/`. Standard constraints apply.
 - **Retire `Window` and `withBindings` from syntax (`Words.lean`, `Phrase.lean`, `Events.lean`, `Abilities.lean`, `MacroParameters.lean`):**
   - Remove `Window` (`whole`, `parameter`, `top`, `below`, `introduced`,
     `outsideIntroduced`), `Instruction.withBindings`, `StaticSpec.withBindings`,
-    `CaptureInput`, and `Amount.parameter` (`MacroParameters.lean:29`), including
-    the `Window` field on `NounPhrase.pro` and `ChoiceMode.theirChoice`
-    (`Events.lean:61`). Parameter identity uses `firstMention` / `laterMention`
-    `BindingId`.
+    `Cost.withBindings`, `CaptureInput`, and `Amount.parameter`
+    (`MacroParameters.lean:29`), including the `Window` field on `NounPhrase.pro`
+    and `ChoiceMode.theirChoice` (`Events.lean:61`). Parameter identity uses
+    `firstMention` / `laterMention` `BindingId`.
 
 ## Exact `GameEvent` Mapping (All 27 Domain Constructors Accounted For)
 

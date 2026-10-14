@@ -36,8 +36,13 @@ implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semant
     `firebend` `[CR#701.68]`), all CR §702 keyword abilities, and all registry
     definitions (`CounterKind`, `Subtype`, `Designation`, `Relation`,
     `AbilityWord`, `FlavorWord`, `TurnPart`, `Type`).
-    - Evaluated in their own Reference Scope (`ownScope`) with caller-evaluated
-      arguments (`inCaller`) and `firstMention`/`laterMention` parameter identity.
+    - Evaluated in their own Reference Scope (`Instruction.ownScope (some (.action name)) body`)
+      with caller-evaluated arguments (`inCaller`) and `firstMention`/`laterMention`
+      parameter identity, preserving the keyword action's `Deed.action name`
+      header so `does`/`would`/`did`/`cant` and `deckmaste_lowering_v3`
+      (`core::Action::Composite` `[CR#701.22b]` and `core::EventFilter::Act`)
+      read the keyword action's deed and caller-captured arguments directly from
+      the `ownScope` header.
     - When checking the definition law of an atomic `Definition` whose body is a
       direct `.enact` of itself, the checker strips the outer `.ownScope` so its
       effect on the parameter referents is verified directly.
