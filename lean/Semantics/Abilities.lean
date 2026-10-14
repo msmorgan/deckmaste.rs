@@ -146,6 +146,7 @@ mutual
     | compare (axes : List ProjAxis) (comparator : Comparator) (bound : Amount)
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
     | inZone (zone : ZoneExpr)
+    | inPile (pile : NounPhrase)
     | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
     | hasDesignation (designation : DesignationLabel) (holder : Option NounPhrase)
     | related (label : RelationLabel) (counterpart : Option NounPhrase)
@@ -182,8 +183,10 @@ mutual
     | and (phrases : List NounPhrase)
     | or (phrases : List NounPhrase)
     | slice (end_ : LibraryEnd) (amount : Amount) (pile : Pile)
+    | run (end_ : LibraryEnd) (stop : Predicate) (pile : Pile)
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
     | theRest (kind : Kind) (plurality : Plurality)
+    | pileOf (count : SliceCount) (by_ : Option NounPhrase)
     | pro (reach : Reach) (plurality : Plurality)
     | refl (plurality : Plurality)
     | firstMention (id : BindingId) (phrase : NounPhrase)
@@ -200,6 +203,7 @@ mutual
     | attachHost (word : AttachWord) (head : NounWord)
     | designated (designation : DesignationLabel) (whose : NounPhrase)
     | counterpart (label : RelationLabel) (subject : NounPhrase)
+    | oneEachOf (roles : List Predicate) (pool : NounPhrase)
     | any
 
   inductive Amount where
@@ -224,6 +228,7 @@ mutual
   inductive SliceCount where
     | counted (quantity : Quantity)
     | whole
+    | totalling (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
 
   inductive Condition where
     | inCaller (body : Condition)
@@ -280,6 +285,22 @@ mutual
   inductive CombatUpdate where
     | participation (state : CombatParticipation)
     | blocking (move : AttachMove) (attacker : NounPhrase)
+
+  inductive SearchScope where
+    | oneZone (zone : ZoneExpr)
+    | someZones (whose : Option NounPhrase) (zones : List Zone)
+
+  inductive VisibleThing where
+    | topOfLibrary
+    | wholeHand
+    | objects (objects : NounPhrase)
+
+  inductive Exchanged where
+    | lifeTotals (parties : NounPhrase)
+    | controlOf (left right : NounPhrase)
+    | cardsAcross (left right : NounPhrase)
+    | zones (left right : ZoneExpr)
+    | values (left right : Amount)
 
   inductive Door where
     | thisDoor
@@ -401,6 +422,7 @@ mutual
     | instead (event : WouldClause) (replacement : Instruction) (timing : Option Timing)
     | damageResult (rule : DamageResult)
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
+    | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
     | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
     | asEvent (event : GameEvent) (does : Instruction)
@@ -414,6 +436,17 @@ mutual
     | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
     | under (controller : NounPhrase)
     | faceDown (spec : FaceDown)
+
+  inductive PilePlacement where
+    | inOrder (arrangement : Arrangement)
+    | nthFromEnd (ordinal : Ordinal)
+    | orOtherEnd
+    | faceDown (spec : FaceDown)
+    | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
+
+  inductive MoveRider where
+    | entry (rider : EntryRider)
+    | placement (placement : PilePlacement)
 
   inductive Cost where
     | inCaller (body : Cost)
@@ -457,13 +490,18 @@ mutual
     | conclude (verb : OutcomeVerb)
     | drawGame
     | restartGame
+    | separateIntoPiles (group : NounPhrase) (piles : Nat) (faces : List PileFace)
     | relate (subject : NounPhrase) (label : RelationLabel) (counterpart : NounPhrase)
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
+    | revealChoices (sort : HiddenSort)
     | move (subject : NounPhrase) (from_ : EventSource) (to : Option ZoneExpr)
         (riders : List EntryRider) (byEffect : Bool) (departed : ObservationPoint)
     | changeLife (delta : Delta Amount)
+    | exchange (exchanged : Exchanged)
     | draw (amount : Amount)
     | expose (verb : ExposeVerb) (exposed : Exposed)
+    | search (scope : SearchScope) (quantity : Quantity) (predicate : Predicate)
+    | shuffle (pile : Pile)
     | establish (spec : StaticSpec) (duration : Option Duration)
     | createObject (count : Amount) (spec : CreationSpec) (byEffect : Bool)
     | putCounters (amount : Amount) (kind : CounterKindSource) (on : NounPhrase)
@@ -485,6 +523,7 @@ mutual
     | simultaneously (steps : List Instruction)
     | procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
         (resulting : Option Predicate) (from_ : Option EventSource) (of_ : Option NounPhrase)
+    | merge (subject : NounPhrase) (onto : NounPhrase) (position : MergePosition)
 
   inductive KeywordParam where
     | cost (cost : Cost)

@@ -48,12 +48,13 @@ def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
   | _ + 1, .target .. | _ + 1, .attachment .. | _ + 1, .changeControl ..
   | _ + 1, .gainDesignation .. | _ + 1, .unlock .. | _ + 1, .setGameDesignation ..
   | _ + 1, .commitCrime | _ + 1, .conclude .. | _ + 1, .drawGame | _ + 1, .restartGame
-  | _ + 1, .relate ..
-  | _ + 1, .choose .. | _ + 1, .changeLife .. | _ + 1, .draw ..
-  | _ + 1, .expose .. | _ + 1, .createObject ..
+  | _ + 1, .separateIntoPiles .. | _ + 1, .relate ..
+  | _ + 1, .choose .. | _ + 1, .revealChoices .. | _ + 1, .changeLife ..
+  | _ + 1, .exchange .. | _ + 1, .draw ..
+  | _ + 1, .expose .. | _ + 1, .search .. | _ + 1, .shuffle .. | _ + 1, .createObject ..
   | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
   | _ + 1, .distribute .. | _ + 1, .moveCounters .. | _ + 1, .doubleCounters ..
-  | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. => true
+  | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. | _ + 1, .merge .. => true
   | _ + 1, _ => false
 termination_by structural fuel
 

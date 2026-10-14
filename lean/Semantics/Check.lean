@@ -225,4 +225,20 @@ def sliceBCountersAndCharPin : Ability :=
 theorem slice_b_counters_and_char_pin_sound :
     sliceBCountersAndCharPin.check = [] := by decide
 
+/-- Slice C pin (library slice + pile split + `pileOf` + `inPile` + `theRest`):
+`"Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."` -/
+def sliceCFactOrFictionPin : Ability :=
+  .spell none <|
+    .sequentially [
+      .expose .reveal (.cards (.slice .top (.lit 5) (.library (.possessedBy .you)))),
+      .instruct (.described (.a .unmarked) .opponent)
+        (.separateIntoPiles (.pro .bare .many) 2 []),
+      .move (.described .all (.and [.isCard, .inPile (.pileOf (.counted (.range (some 1) (some 1))) none)]))
+        .anywhere (some handZone) [] true .departure,
+      .move (.theRest .pile .one) .anywhere (some graveyardZone) [] true .departure
+    ]
+
+theorem slice_c_fact_or_fiction_pin_sound :
+    sliceCFactOrFictionPin.check = [] := by decide
+
 end Semantics.Check.CorePins

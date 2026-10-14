@@ -49,7 +49,7 @@ def DetPhrase.plur : DetPhrase → Plurality
 
 def SliceCount.plur : SliceCount → Plurality
   | .counted q => q.plur
-  | .whole => .many
+  | .whole | .totalling .. => .many
 
 def Pile.sort : Pile → Option Zone
   | .library _ => some .library
@@ -92,6 +92,7 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   | 0, _ => some .object
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.kind? n
   | _ + 1, .you | _ + 1, .actor | _ + 1, .playerGroup _ | _ + 1, .possessorOf _ _ | _ + 1, .combatPlayer _ => some .player
+  | _ + 1, .pileOf _ _ => some .pile
   | _ + 1, .designated d _ => d.holder
   | _ + 1, .described _ p => p.kind?
   | _ + 1, .pro r _ => some r.kind
@@ -153,10 +154,10 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | 0, _ => .one
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
   | _ + 1, .described d _ => d.plur
-  | _ + 1, .someOf c _ _ => c.plur
+  | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
   | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
   | _ + 1, .slice _ (.lit 1) _ => .one
-  | _ + 1, .slice .. => .many
+  | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
   | _ + 1, .and _ => .many
   | n + 1, .or (x :: _) => x.plur n
   | _ + 1, .playerGroup .allPlayers | _ + 1, .playerGroup .yourOpponents | _ + 1, .playerGroup .yourTeam => .many
@@ -326,6 +327,9 @@ mutual
         let (drs3, e3) := stepAmount fuel drs2 b
         (drs3, e1 ++ e2 ++ e3)
       | .inZone z => stepZoneExpr fuel drs z
+      | .inPile pile =>
+        let (drs', _, errs) := stepNounPhrase fuel drs .other false pile
+        (drs', errs)
       | .inCombat _ (some cp) | .hasDesignation _ (some cp) | .related _ (some cp) =>
         let (drs', _, errs) := stepNounPhrase fuel drs .other false cp
         (drs', errs)
@@ -365,6 +369,7 @@ mutual
       match sc with
       | .counted q => stepQuantity fuel drs q
       | .whole => (drs, [])
+      | .totalling _ _ b => stepAmount fuel drs b
   termination_by structural fuel
 
   def stepNounPhrase (fuel : Nat) (drs : DRS) (role : GramRole) (inArgSlot : Bool) (np : NounPhrase) : DRS × List ReferentId × List Refusal :=
@@ -443,6 +448,50 @@ mutual
         let ref : Referent := {
           det := .the, plur := .many,
           payload := .object [] p.sort none none none none
+        }
+        let rid := drs2.nextId
+        let drs3 := drs2.push ref role inArgSlot
+        (drs3, [rid], e1 ++ e2)
+      | .run _ stop p =>
+        let (drs1, e1) := stepPredicate fuel drs stop
+        let (drs2, e2) := stepPile fuel drs1 p
+        let stoppedRef : Referent := {
+          det := .part, plur := .one,
+          payload := .object stop.seedTy p.sort none none (some 1) none
+        }
+        let stoppedId := drs2.nextId
+        let drs3 := drs2.push stoppedRef .other false
+        let runRef : Referent := {
+          det := .the, plur := .many,
+          payload := .object [] p.sort none none none none
+        }
+        let runId := drs3.nextId
+        let drs4 := drs3.push runRef role inArgSlot
+        (drs4, [runId, stoppedId], e1 ++ e2)
+      | .pileOf q optBy =>
+        let (drs1, e1) := stepSliceCount fuel drs q
+        let (drs2, e2) := match optBy with
+          | some b => let (d', _, e) := stepNounPhrase fuel drs1 .other false b; (d', e)
+          | none => (drs1, [])
+        let zn := zoneOfReach (.word .pile) .many drs2
+        let fc := faceOfReach (.word .pile) .many drs2
+        let ref : Referent := {
+          det := .part, plur := q.plur,
+          payload := .pile zn none fc
+        }
+        let rid := drs2.nextId
+        let drs3 := drs2.push ref role inArgSlot
+        let n := countReach (.word .pile) .many drs2
+        let e3 := if n == 1 then [] else [.anaphor (.word .pile) .many n]
+        (drs3, [rid], e1 ++ e2 ++ e3)
+      | .oneEachOf roles pool =>
+        let (drs1, e1) := stepPredicateList fuel drs roles
+        let (drs2, poolIds, e2) := stepNounPhrase fuel drs1 .other false pool
+        let poolZone := (poolIds.head?.bind (drs2.findById?)).bind (·.zone)
+        let poolTy := (poolIds.head?.bind (drs2.findById?)).map (·.ty) |>.getD []
+        let ref : Referent := {
+          det := .a, plur := .many,
+          payload := .object poolTy poolZone none none none none
         }
         let rid := drs2.nextId
         let drs3 := drs2.push ref role inArgSlot
@@ -907,6 +956,52 @@ mutual
       | .removeBracketed | .targetToEach | .replaceWord .. => (drs, [])
   termination_by structural fuel
 
+  def stepSearchScope (fuel : Nat) (drs : DRS) (sc : SearchScope) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match sc with
+      | .oneZone z => stepZoneExpr fuel drs z
+      | .someZones (some whose) _ =>
+        let (drs', _, e) := stepNounPhrase fuel drs .other false whose
+        (drs', e)
+      | .someZones none _ => (drs, [])
+  termination_by structural fuel
+
+  def stepVisibleThing (fuel : Nat) (drs : DRS) (vt : VisibleThing) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match vt with
+      | .topOfLibrary | .wholeHand => (drs, [])
+      | .objects np =>
+        let (drs', _, e) := stepNounPhrase fuel drs .obj true np
+        (drs', e)
+  termination_by structural fuel
+
+  def stepExchanged (fuel : Nat) (drs : DRS) (ex : Exchanged) : DRS × List Refusal :=
+    match fuel with
+    | 0 => (drs, [])
+    | fuel + 1 =>
+      match ex with
+      | .lifeTotals parties =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .obj true parties
+        let drs2 := (drs1.push (outcomeB .lifeGained) .other false).push (outcomeB .lifeLost) .other false
+        (drs2, e1)
+      | .controlOf l r | .cardsAcross l r =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .obj true l
+        let (drs2, _, e2) := stepNounPhrase fuel drs1 .other true r
+        (drs2, e1 ++ e2)
+      | .zones l r =>
+        let (drs1, e1) := stepZoneExpr fuel drs l
+        let (drs2, e2) := stepZoneExpr fuel drs1 r
+        (drs2, e1 ++ e2)
+      | .values l r =>
+        let (drs1, e1) := stepAmount fuel drs l
+        let (drs2, e2) := stepAmount fuel drs1 r
+        (drs2, e1 ++ e2)
+  termination_by structural fuel
+
   def stepInstruction (fuel : Nat) (phase : StepPhase) (patientRole : GramRole) (drs : DRS) (inst : Instruction) : DRS × List Refusal :=
     match fuel with
     | 0 => (drs, [])
@@ -986,8 +1081,19 @@ mutual
           | none => (drs1, [])
         (drs2, e1 ++ e2)
       | .unlock d => stepDoor fuel drs d
-      | .setGameDesignation _ | .commitCrime | .conclude _ | .drawGame | .restartGame => (drs, [])
-      | .relate subj _ cp =>
+      | .setGameDesignation _ | .commitCrime | .conclude _ | .drawGame | .restartGame | .revealChoices _ => (drs, [])
+      | .separateIntoPiles grp piles faces =>
+        let (drs1, grpIds, e1) := stepNounPhrase fuel drs patientRole true grp
+        let grpZone := (grpIds.head?.bind (drs1.findById?)).bind (·.zone)
+        let drs2 := partsClosed drs1
+        let pileRef : Referent := {
+          det := .the, plur := .many,
+          payload := .pile grpZone (some piles) (pileMentionFace faces)
+        }
+        let drs3 := if phase == .postEvent then drs2.push pileRef .other false else drs1
+        let e2 := if facesFit faces piles then [] else [.facesFit]
+        (drs3, e1 ++ e2)
+      | .relate subj _ cp | .merge subj cp _ =>
         let (drs1, _, e1) := stepNounPhrase fuel drs patientRole true subj
         let (drs2, _, e2) := stepNounPhrase fuel drs1 .other true cp
         (drs2, e1 ++ e2)
@@ -1013,6 +1119,7 @@ mutual
           | some out => drs1.push (outcomeB out) .other false
           | none => drs1
         (drs2, e1)
+      | .exchange ex => stepExchanged fuel drs ex
       | .draw amt =>
         let (drs1, e1) := stepAmount fuel drs amt
         let drs2 := if phase == .postEvent then
@@ -1031,6 +1138,23 @@ mutual
           (drs2, e1)
         | .zone z => stepZoneExpr fuel drs z
         | .choice _ => (drs, [])
+      | .search sc q p =>
+        let (drs1, e1) := stepSearchScope fuel drs sc
+        let (drs2, e2) := stepQuantity fuel drs1 q
+        let (drs3, e3) := stepPredicate fuel drs2 p
+        let scZone := match sc with | .oneZone z => z.sort | .someZones _ _ => none
+        let drs4 := if phase == .postEvent then
+          let foundRef : Referent := {
+            det := .a, plur := q.plur,
+            payload := .object p.seedTy scZone (mkStamp (some (.action "search")) none false) none none none
+          }
+          drs3.push foundRef patientRole true
+        else drs3
+        (drs4, e1 ++ e2 ++ e3)
+      | .shuffle pile =>
+        let (drs1, e1) := stepPile fuel drs pile
+        let drs2 := if phase == .postEvent then afterShuffle drs1 else drs1
+        (drs2, e1)
       | .establish spec dur =>
         let (drs1, e1) := stepStaticSpec fuel drs spec
         let (drs2, e2) := match dur with | some d => stepDuration fuel drs1 d | none => (drs1, [])
@@ -1325,6 +1449,10 @@ mutual
       | .conditional spec cond _ =>
         let (drs1, e1) := stepCondition fuel drs cond
         let (drs2, e2) := stepStaticSpec fuel (nextClause drs1) spec
+        (drs2, e1 ++ e2)
+      | .visibility _ player what =>
+        let (drs1, _, e1) := stepNounPhrase fuel drs .subj true player
+        let (drs2, e2) := stepVisibleThing fuel drs1 what
         (drs2, e1 ++ e2)
       | .conjunction optSubj parts =>
         let (drs1, e1) := match optSubj with
