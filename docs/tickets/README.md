@@ -186,8 +186,8 @@ measured on. No other ticket carries a landing record.
 A ticket that lands before an instrument exists says which line does not apply
 yet. A ticket that changes census semantics, adds an instrument or completes a
 compiler capability updates the affected crate README in the same landing
-(`crates/deckmaste_english_v3/README.md` for the grammar and the census,
-`crates/deckmaste_construction_v3_core/README.md` for the compiler).
+(`crates/deckmaste_english_v4/README.md` for the grammar and the census,
+`crates/deckmaste_construction_v4_core/README.md` for the compiler).
 
 ## Census
 

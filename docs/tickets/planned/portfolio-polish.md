@@ -27,9 +27,9 @@ Final pass:
    checklist so the proof is repeatable rather than "worked on my machine."
 2. **README claims audit.** Check every externally visible claim against that
    run. Retire ci.yml gap comments that closed. Soften or fix the chart-parser
-   framing (the chart grammar currently tops out at `Sentence`; the
-   ability/document layer is hand-written recursive descent) unless the
-   derived-grammar program has moved the boundary by then.
+   framing (the v1 chart grammar tops out at `Sentence`; the ability/document
+   layer is hand-written recursive descent) unless `english-v4` has replaced it
+   by then.
 3. **Regression sweep.** Run `kata kanban check`, the complete citation
    toolchain, the Idris baseline, the noncanon fixed-seed suite, and the
    work-log-vocabulary grep from `comment-reviewer-hotspots`.

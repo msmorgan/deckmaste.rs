@@ -1,9 +1,9 @@
 ---
-needs: []
+needs: [english-v4-cutover-v3]
 ---
 # A cheap test selector to replace the retired derived gate
 
-Priority: LOW. The user (2026-10-07): 'at this time it's wayyyy too much extra shit'. Do not schedule before the english-v3 production cutover.
+Priority: LOW. The user (2026-10-07): 'at this time it's wayyyy too much extra shit'. Do not schedule before `english-v4-cutover-v3`.
 
 ## Why
 
@@ -13,7 +13,7 @@ it. Two failure modes made it a tax:
 
 1. Any change to `xtask` itself pulled xtask's whole test suite into the gate,
    including the `lean_check` tests that run real `lake` builds (15+ minutes).
-2. A change to a low-level crate (e.g. `deckmaste_construction_v3_core`)
+2. A change to a low-level crate (e.g. `deckmaste_syntax`)
    rebuilt and tested nearly the whole workspace, with no caching between
    landings.
 
@@ -32,7 +32,7 @@ Requirements for a replacement, not a design:
   changed, or a content-hash cache of passing test results keyed by the test
   binary's input fingerprint, so an unchanged test binary is never re-run).
 - Exclude slow suites (`lean_check`, `slow-tests`) unless their own inputs
-  (`lean/`, `plugins_v2`, the Lean checker code) changed.
+  (`lean/`, `plugins_v3`, the Lean checker code) changed.
 - Run in well under a minute for a typical grammar or lexicon landing on an
   idle host.
 - Print the exact command list it will run before running it, so an agent can

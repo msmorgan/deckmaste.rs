@@ -8,12 +8,14 @@ Delete the `v1` set (`deckmaste_semantics`, `deckmaste_lowering`,
 `provenance.rs` rehomed, `idris/`, `plugins/builtin`, `plugins/canon`, and the
 `deckmaste_spelling` splice machinery; `deckmaste_semantics_v2` and
 `plugins_v2/canon/` are retired in `semantics-v3-dsl-and-plugins`, and
-`plugins_v2/builtin/` is retired once `deckmaste_lexical_source` is repointed at
-`v3`), rename `deckmaste_semantics_v3` to `deckmaste_semantics`,
-`deckmaste_lowering_v3` to `deckmaste_lowering`, and `plugins_v3/` to
-`plugins/`, drop the symlink, and re-point `deckmaste_migrations`. Coordinate
-with `idris-retirement` and the retirement of the legacy English stack. Standard
-constraints apply.
+`plugins_v2/builtin/` and `deckmaste_lexical_source` are retired in
+`english-v4-cutover-v3`), rename `deckmaste_semantics_v3` to
+`deckmaste_semantics`, `deckmaste_lowering_v3` to `deckmaste_lowering`, and
+`plugins_v3/` to `plugins/`, drop the symlink, and re-point
+`deckmaste_migrations`. Coordinate with `idris-retirement` and
+`english-v4-final-suffix-cutover` (which deletes legacy v1 `deckmaste_english`,
+drops `_v4` suffixes, and moves `catalogs/mtg/*.ron` into `plugins/` metadata).
+Standard constraints apply.
 
 The Idris card gate retires here with Idris itself (user ruling,
 2026-09-06; routed from `lean-card-soundness-gate`): delete

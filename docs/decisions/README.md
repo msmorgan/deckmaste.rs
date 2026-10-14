@@ -30,17 +30,20 @@ requires explicit review rather than an opportunistic refactor.
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md) — One
   semantics grammar; English relates two-way via spelling, core derives
   one-way via lowering.
-- [English grammar](english-lexical-analysis.md) — The one governing record for
-  `deckmaste_english_v3`: engine contract, Readings, words, gate and size.
+- [English grammar: lexical analysis, Readings, and how the grammar is kept small](english-lexical-analysis.md)
+  — Engine contract, round-trip laws, Reading normal forms, and how words reach
+  the grammar.
+- [English v4](english-v4.md) — The governing record for
+  `deckmaste_syntax`, `deckmaste_english_v4`, and
+  `deckmaste_lexical_source_v4`: data-driven schema/production engine,
+  frame-driven complementation, CR-catalog separation, stratified buildout, and
+  two-stage cutover.
 - [Semantics v3](semantics-v3.md) — Clean-sheet DRT checker (`DRS`,
   `ReferentId`, nested boxes, `J1`, `J2`, `D′`, `AC>R1`), `Definition` vs.
   `Template` split, and Unified Action-Clause Spine (`instruct`, `does`,
   `would`/`instead`, `cant`/`must`/`may`/`gatedBy`, `did`/`tally`, `by`, `any`,
   `which`), executed Lean-first and mirrored into `deckmaste_semantics_v3` and
   `plugins_v3/`.
-- [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md)
-  — Macro `spelling` templates, `grammar` contributions, normalized parser
-  environment, and catalog-line ↔ filename bijection.
 - [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
   Card authoring binds no implicit parameters; core constructors take every
   field required.

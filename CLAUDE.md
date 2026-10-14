@@ -46,25 +46,32 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 
 ## English grammar
 
-- `deckmaste_english_v3` is the active grammar; read
-  `docs/decisions/english-lexical-analysis.md` before implementing, planning, reviewing or
-  accounting for it. It defines what a Reading is, how words reach the grammar, the gate and the
-  size rule; this file does not restate them.
-- Vocabulary and verbs live in `deckmaste_lexical_source/lexicon`. No new work in the legacy
-  `deckmaste_english` stack.
-- Corpus work iterates on a subset (`cargo xtask english-v3 <selector>`) and verifies once with
-  `--all`. Attestation checks use `cargo xtask english-v3 grep`, never raw `rg` over Scryfall.
+- Authorities: `docs/decisions/english-lexical-analysis.md` and `docs/decisions/english-v4.md`.
+  Read them before implementing, planning, reviewing or accounting for the English grammar
+  (`deckmaste_english_v4`), syntax engine (`deckmaste_syntax`), or lexical catalogs
+  (`deckmaste_lexical_source_v4`).
+- No word enumerated by the CR as a catalog item (including all `[CR#701.1]` keyword actions) may
+  appear directly in grammar declarations (`schema` or `production`); vocabulary and complement
+  frames live in the domain catalogs of `deckmaste_lexical_source_v4` (and later `plugins_v3/`).
+- No new work in `deckmaste_english_v3`, `deckmaste_construction_v3*`, `deckmaste_lexical_source`,
+  or the legacy `deckmaste_english` stack.
 
-## Crate fates (semantics_v3)
+## Crate fates (semantics_v3 and english_v4)
 
-Authority: `docs/decisions/semantics-v3.md`. `semantics-v3` is executed Lean-first in
-`lean/Semantics/` and then mirrored into `deckmaste_semantics_v3` and `plugins_v3/` (which deletes
-`deckmaste_semantics_v2` and `plugins_v2/canon/` immediately; `plugins_v2/builtin/` deletes once
-`deckmaste_lexical_source` is repointed at `v3`).
-Deletion-bound at parity (`semantics-v1-cutover`): `deckmaste_semantics`, `deckmaste_lowering`,
-`deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs` rehomed), `idris/`,
-`plugins/builtin`, `plugins/canon`. Never copy v2/v3 work back into v1, and add no new v1
-registries.
+Authorities: `docs/decisions/semantics-v3.md` and `docs/decisions/english-v4.md`.
+- `semantics-v3` is executed Lean-first in `lean/Semantics/` and mirrored into
+  `deckmaste_semantics_v3` and `plugins_v3/` (deleting `deckmaste_semantics_v2` and
+  `plugins_v2/canon/` immediately).
+- `english-v4` is built alongside `v3` in `deckmaste_syntax`, `deckmaste_lexical_source_v4`, and
+  `deckmaste_english_v4`. At `english-v4-cutover-v3`, `deckmaste_english_v3`,
+  `deckmaste_construction_v3*`, `deckmaste_lexical_source`, and `plugins_v2/builtin/` are deleted.
+- Deletion-bound at parity (`semantics-v1-cutover` and `english-v4-final-suffix-cutover`):
+  `deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
+  (`deck.rs` and `provenance.rs` rehomed), `deckmaste_english` (v1),
+  `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, `deckmaste_features`,
+  `idris/`, `plugins/builtin`, `plugins/canon`, after which the `_v4` suffixes on
+  `deckmaste_english_v4` and `deckmaste_lexical_source_v4` are dropped. Never copy v2/v3/v4 work
+  back into v1, and add no new v1 registries.
 
 ## Terminology
 

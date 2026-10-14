@@ -1,13 +1,11 @@
 # English grammar: lexical analysis, Readings, and how the grammar is kept small
 
-Replaced 2026-10-12. This is the one governing record for `deckmaste_english_v3`.
-It has no amendment log: when a rule changes, this text changes. English is an
-independent parsing project with no interaction with Semantics.
+Updated 2026-10-14 for `deckmaste_syntax` and `deckmaste_english_v4` (paired with [`docs/decisions/english-v4.md`](./english-v4.md)). It has no amendment log: when a rule changes, this text changes. The syntax layer (`deckmaste_syntax` and `deckmaste_english_v4`) has no dependency on Game Model semantics; downstream CxG spelling and `deckmaste_semantics_v3` consume its packed parse forest.
 
 ## 1. The engine contract
 
 **Lexical analysis is independent of the grammar.** Input is analysed without
-construction-directed scanning. Each alternative identifies a declared Lexeme,
+production-directed scanning. Each alternative identifies a declared Lexeme,
 its lexical Category, Word Form, correlated grammatical features and its
 provenance. Analyses come only from declared vocabulary and its default or
 overridden morphology; an unknown word is reported as a vocabulary gap, never
@@ -50,51 +48,74 @@ reported count is a sum over its units.
 A Reading is one whole tree enumerated from the packed forest. Two Readings are
 the same only if they are the same tree.
 
-Multiple Readings are successful parsing. A cost may rank Readings for
-presentation; it never decides admission and never removes one.
+Multiple Readings are successful parsing. `Production Cost` may rank Readings
+for presentation; it never decides admission and never removes one.
 
-**The grammar may stop producing a tree that is not a different grammatical
-analysis of the text.** Three cases are approved:
+**The grammar avoids producing distinct trees for the same grammatical analysis
+of the text.** Four canonicalizations are approved:
 
-- the order in which modifiers are applied to one head;
+- the order in which commuting pre- and post-modifiers are applied to one
+  nominal head (from a stated, reviewed list; anything unlisted is a barrier);
 - the grouping within a chain joined by the same coordinator;
 - clause versus verb-phrase coordination of bare imperatives, where nothing
-  distinguishes them.
+  distinguishes them;
+- **same-head complement priority:** when a head's selected subcategorization
+  frame licenses a preposition phrase as a complement, that same head instance
+  does not also attach the same preposition phrase as an unselected adjunct.
 
-The gate for such a change is a check that compares, per unit, the set of
-analyses before and after under exactly the equivalence being introduced and
-nothing wider: the set is unchanged while the number of trees falls. Each step
-gets its own check, as narrow as is sound. For modifier order it is a normal
-form of the Reading tree that ignores only the interleaving of commuting pre-
-and post-modifiers on one nominal head; which modifiers commute is a stated,
-reviewed list, and anything unlisted is a barrier. A general analysis key
-(head and function of every dependent) is built only when a step needs it. Not decided, and therefore not
-permitted: dropping the adjunct or postmodifier analysis of a preposition
-phrase that the verb's frame also selects.
+Whenever a grammar change introduces or tightens a structural canonicalization,
+its gate compares, per unit, the set of Reading Normal Forms before and after
+under that exact equivalence and nothing wider: the set of analyses is
+unchanged while the number of trees falls.
+
+**Cross-head attachment ambiguity is retained in the packed forest.** While each
+`(preposition, complement_frame)` pair declares its unselected host categories
+(so unselected `for + NP` is a clause/predicate adjunct rather than a free
+nominal postmodifier, and `with + KeywordPhrase` is a nominal postmodifier
+only), when a phrase's declared host categories genuinely match more than one
+head along the right spine, both attachments are retained:
+- a `with + NP` phrase that can either postmodify an object nominal or modify
+  the matrix predicate (`"Exile target creature with a +1/+1 counter on it"`);
+- a right-spine temporal adjunct that can modify either a matrix predicate or
+  an embedded relative-clause predicate (`[[Seedborn Muse]]`).
 
 Settled analyses:
 
 - *Be* plus a participle keeps both the adjectival (state) and the verbal
   passive (action) Reading. Both are attested.
-- A multiword game term that a plugin declares as one term is atomic.
+- A multiword game term that a plugin or catalog declares as one term is atomic.
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
 
 **Wrong analyses.** A face is read when a correct analysis is among its
 Readings; wrong Readings beside a correct one are tolerated, because not every
-one can be eliminated. A face whose Readings are all known to be wrong is not
-covered, and is reported separately from read and unread. A newly admitted wrong
-Reading is a defect, never a gain. No ruling accepts a known-wrong analysis as
-coverage.
+one can be eliminated in syntax alone. A face whose Readings are all known to
+be wrong is not covered, and is reported separately from read and unread. A
+newly admitted wrong Reading is a defect, never a gain. No ruling accepts a
+known-wrong analysis as coverage.
 
-**Attestation is provenance, never a filter.** A declaration admits its whole
-linguistic class whether or not cards exercise every member. A productive
-pattern is licensed for its class, not for the word that witnessed it.
+**Morphological and valence completeness vs. controlled-register syntax.** Every
+declared verb and noun receives its full English inflectional paradigm, and
+every declared complement frame automatically receives its active, passive,
+gapped, and shared-complement derivations whether or not cards exercise every
+combination. Syntactic schemas and unselected host categories, by contrast,
+model the controlled technical register of **Oracle English**
+(`docs/oracle-style-guide.md`), not unrestricted open-domain English. *The
+Cambridge Grammar of the English Language* (CGEL) supplies standard grammatical
+terminology and constituent structure; it does not always contain the
+Oracle-appropriate attachment rule and is never used to force open-domain
+ambiguities (such as *"I found a book for my children"* licensing unselected
+`for + NP` on arbitrary nouns, or *"I saw a man with a telescope"* licensing
+`with + KeywordPhrase` as a verb adjunct) into the Oracle grammar.
 
 ## 3. How words reach the grammar
 
-Content words enter only through lexemes: plugin terms, catalog entries, card
-names and open-class core words reach the grammar through typed lexical classes
-and frames, never by name.
+Content words and all Comprehensive Rules catalog items enter only through
+lexemes: plugin terms, catalog entries (including all Vintage-legal keyword
+actions [CR#701.1], keyword abilities [CR#702.1], ability words [CR#207.2c],
+card types, supertypes and subtypes [CR#205.2a,205.3,205.4a], counters
+[CR#122.1], turn parts [CR#500.1], and designations), card names [CR#201.5] and
+open-class core words reach the grammar through typed lexical classes and
+subcategorization frames, never by name in the grammar data file.
 
 Core closed-class words (determinatives, prepositions, coordinators,
 subordinators, auxiliaries, pronouns, negators) may be referenced directly, by
@@ -106,29 +127,35 @@ Unknown ids, class names and values are load errors.
 
 ## 4. The authoring rule
 
-An author states what a construction changes; the compiler derives the rest.
-Complete feature summaries are the compiler's output, not the author's input.
-A new feature, a new coordinable category or a new lexical distinction that
-costs dozens of lines is a defect in the authoring layer, to be fixed there.
+An author states what a schema or production changes; the syntax engine
+(`deckmaste_syntax`) derives the rest at load time from the grammar data file.
+Complete feature summaries and valence alternations (active, passive,
+slash-gap extraction, and right-node raising) are the engine's compiled
+productions from declared complement frames, not the author's manual input. A
+new feature, a new coordinable category or a new lexical distinction that costs
+dozens of lines is a defect in the schema/compilation layer, to be fixed there.
 
 ## 5. The gate
 
-- A refactor keeps every reading digest identical.
-- A linguistic change loses no face, and passes its step's check from
-  section 2.
-- The census check mode enforces both by failing; a report is not a gate.
-- The judgment set is the only tracked evidence: hand-written, one line per
-  entry, no tree dumps. Nothing a tool emits is tracked.
-- Whether an analysis is right is decided by two independent judges citing
-  CGEL or `docs/oracle-style-guide.md` verbatim; the owner sees disagreements.
+- Completing Complexity Stratum $k$ (`0..=7` in [`docs/decisions/english-v4.md`](./english-v4.md))
+  requires 100% coverage of all non-deferred corpus units in Strata $0..=k$
+  with both round-trip laws holding and zero `known-wrong-only` units counted as
+  read.
+- The judgment set is the only tracked linguistic test evidence: hand-written,
+  one line per entry, no tree dumps. Nothing a tool emits is tracked.
+- Whether an analysis is right is decided against the controlled Oracle English
+  register (`docs/oracle-style-guide.md` and [`docs/decisions/english-v4.md`](./english-v4.md),
+  using CGEL for standard terminology and constituent structure) by two
+  independent judges; the owner sees disagreements.
 
 ## 6. Size
 
-The aim is a clean, concise, correct grammar. Line count is a reasonable
-measurement of that and is not a target: nothing enforces it, and no landing
-is required to lower or record it.
+The aim is a clean, concise, correct grammar. Line count is a review smell test
+and is not a mechanical target: nothing enforces a hard cap, and no landing is
+required to lower or record it.
 
-About 2,400 grammar lines at 98% coverage has existed, so a grammar several
-times that size is a defect. It is fixed by better abstractions (section 4),
-not by counting. The rule for resuming coverage work is decided when that
-step is reached.
+A concise grammar data file (on the order of ~2,500 lines, ~40 features, ~60
+categories at full corpus coverage) is the expected scale; a grammar several
+times that size—or one that pushes equivalent complexity into `deckmaste_syntax`
+or `deckmaste_lexical_source_v4`—is a design defect. It is fixed by better
+schema abstractions (section 4), not by counting or by policing flags.

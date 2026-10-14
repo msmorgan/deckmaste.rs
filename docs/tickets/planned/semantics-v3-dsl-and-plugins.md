@@ -46,8 +46,9 @@ Standard constraints apply.
     `crates/deckmaste_semantics_v3` and `plugins_v3/` with `--deny-drift`
     enforced.
   - Delete `crates/deckmaste_semantics_v2` and `plugins_v2/canon/` as part of
-    this ticket (`plugins_v2/builtin/` is deleted once `deckmaste_lexical_source`
-    / `deckmaste_macro_def` is repointed at `plugins_v3/builtin/`).
+    this ticket (`plugins_v2/builtin/` and `deckmaste_lexical_source` are
+    deleted in `english-v4-cutover-v3`, and the MTG lexical catalogs move into
+    `plugins_v3/` metadata in `english-v4-final-suffix-cutover`).
 
 ## Folded Residues from Retired `v2` Surface Tickets
 

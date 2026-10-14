@@ -91,7 +91,7 @@ authoring-time error rather than model unsoundness.
 - [Semantics v3](semantics-v3.md) (superseding [Semantics v2](../archive/decisions/semantics-v2.md)) — the workbench contract this shape lands in.
 - [Macros are declarative](macros-are-declarative.md) — the typed-template
   doctrine the card language's functions are headed for.
-- [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md)
-  — macro `spelling` as the typed phrase shape such phrasings are declared as.
+- [English v4](english-v4.md) (superseding [Builtin-v2 macro spelling and grammar](../archive/decisions/builtin-v2-macro-spelling-and-grammar.md))
+  — lexical frames and typed phrase templates.
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md) — the layer
   split the union facts are sorted against.
