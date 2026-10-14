@@ -1,5 +1,5 @@
 ---
-needs: [lowering-v2]
+needs: [lowering-v3]
 ---
 **The cutover finish line (updated 2026-10-14 per
 [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).** A

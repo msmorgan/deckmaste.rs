@@ -103,8 +103,8 @@ values without importing legacy parser types; they are not extra parser routes.
 Unfinished tickets that leave the parser implicit: `builtin-v2-spelling-frame-consumer`
 ("generated English AST"), `builtin-v2-english-card-consumer` (closure-wide
 parser environment), `spelling-engine-requirements` (English AST),
-`plugins-v2-canon` (English parser), and the design-gated
-`semantics-v2-english-translation` (raw English AST). Resolve these references
+`plugins-v3-canon` (English parser), and the design-gated
+`semantics-v3-english-translation` (raw English AST). Resolve these references
 to the retained-Reading v3 contract when they are claimed. The
 `parse-subject-filter-stringly-channels` mention concerns the separate semantic
 `filter::parse_phrase` path; it is not a `deckmaste_english` consumer.

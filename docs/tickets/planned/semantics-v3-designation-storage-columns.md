@@ -1,5 +1,5 @@
 ---
-needs: [lowering-v2]
+needs: [lowering-v3]
 ---
 **[port-required: semantics-v3] Rehome the designation storage columns the
 declarations used to carry (`plugins_v3/` / `deckmaste_semantics_v3`).**

@@ -38,7 +38,7 @@ Rather than retrofitting these changes incrementally onto `semantics_v2` and `pl
 2. **Phase 2 — `deckmaste_semantics_v3` and `plugins_v3/` Cutover:**
    - Once the Lean specification and proof suite are settled and green, create `crates/deckmaste_semantics_v3` and `plugins_v3/` mirroring the proven `lean/Semantics/` AST and `Definition` / `Template` declarations.
    - Evaluate replacing `macro_ron` with a purpose-built `v3` DSL parser (`deckmaste_dsl_v3`) if cleaner for `Definition(...)` / `Template(...)` headers, polymorphic `any`, bare literals, and positional/named arguments without RON's structural workarounds.
-   - Build `crates/deckmaste_lowering_v3` (`semantics-v3` → `deckmaste_core`), pass the `semantics-v2-parity` ratchet and slow-test suite, and execute `semantics-v1-cutover`.
+   - Build `crates/deckmaste_lowering_v3` (`semantics-v3` → `deckmaste_core`), pass the `semantics-v3-parity` ratchet and slow-test suite, and execute `semantics-v1-cutover`.
    - **Deletion-bound at parity (`semantics-v1-cutover`):** `deckmaste_semantics`, `deckmaste_semantics_v2`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs` rehomed), `idris/`, `plugins/builtin`, `plugins/canon`, and `plugins_v2/`. Never copy `v2`/`v3` work back into `v1`, and add no new `v1` registries.
 
 ---
@@ -433,8 +433,8 @@ The transition to `semantics-v3` is decomposed into the following ordered ticket
 3. **`lean-v3-definitions-and-templates`**: Enforce the explicit `Definition` vs. `Template` split across Lean declarations and macros, promoting atomic CR §701 keyword actions to `Definition`s (`ownScope` + `inCaller`), stripping outer `ownScope` on intrinsic `.enact`, retiring the 9 hand-coded window macros, and resolving `airbend` (`[CR#701.65a]`, absorbing `semantics-v2-per-member-handoff`) and `ripple` (`[CR#702.60a]`).
 4. **`lean-v3-proofs-and-cards`**: Re-spell `lean/Semantics/Proofs/` and `lean/Semantics/Cards/` onto the `semantics-v3` spine and DRT checker, prove the `D′` and `AC>R1` witness lemmas, flip the 6 resolved ambiguity pins, and add the 11 known-wrong `AC>R1` exception pins.
 5. **`semantics-v3-dsl-and-plugins`**: Create `crates/deckmaste_semantics_v3` and `plugins_v3/` (including the `v3` DSL parser/emitter for `Definition(...)` and `Template(...)` files, `any`, and the unified spine) and port the `xtask lean` gates. Absorbs `lean-macros-cutover`, `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates`.
-6. **`plugins-v2-canon`** (updated to target `plugins_v3/`): Author the full canon card and rules-table corpus in `plugins_v3/`, gate-checked by Lean, and retire the hand-written `lean/Semantics/Cards/` bench (`lean-hand-bench-retirement`).
-7. **`lowering-v2`** (updated to build `crates/deckmaste_lowering_v3`) and **`semantics-v2-parity`** (updated to compare `v1` vs. `v3`), culminating in **`semantics-v1-cutover`** (retiring `v1` and `v2` scaffolding in favor of `v3`).
+6. **`plugins-v3-canon`** (updated to target `plugins_v3/`): Author the full canon card and rules-table corpus in `plugins_v3/`, gate-checked by Lean, and retire the hand-written `lean/Semantics/Cards/` bench (`lean-hand-bench-retirement`).
+7. **`lowering-v3`** (updated to build `crates/deckmaste_lowering_v3`) and **`semantics-v3-parity`** (updated to compare `v1` vs. `v3`), culminating in **`semantics-v1-cutover`** (retiring `v1` and `v2` scaffolding in favor of `v3`).
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-needs: [plugins-v2-canon]
+needs: [plugins-v3-canon]
 ---
 **[port-required: semantics-v3] Shrink the hand-written `lean/Semantics/Cards/`
 bench to zero.** Each `Spelled` card there is a stand-in for a canon card not

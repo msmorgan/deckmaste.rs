@@ -1,5 +1,5 @@
 ---
-needs: [plugins-v2-canon]
+needs: [plugins-v3-canon]
 ---
 **Create `crates/deckmaste_lowering_v3`: `semantics_v3` to `core` (updated
 2026-10-14 per [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).**

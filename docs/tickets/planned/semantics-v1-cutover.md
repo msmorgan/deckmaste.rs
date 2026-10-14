@@ -1,5 +1,5 @@
 ---
-needs: [semantics-v2-parity]
+needs: [semantics-v3-parity]
 ---
 **Retire v1 and intermediate v2 scaffolding (updated 2026-10-14 per
 [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md)).** Delete
@@ -18,4 +18,4 @@ The Idris card gate retires here with Idris itself (user ruling,
 `crates/deckmaste_plugin/src/idris_emit.rs`, `crates/xtask/src/idris_check.rs`,
 the `IdrisCheck` command, every `plugins/*/idris-check-baseline.ron`, and
 the CI `idris` job. `idris-check --differential` has no successor to build
-before this point; `semantics-v2-parity` is the v2 cross-check.
+before this point; `semantics-v3-parity` is the v3 cross-check.
