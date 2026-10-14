@@ -9,10 +9,6 @@ live in the recursive phrase model; their facts are checked in `Check/Events`.
 
 namespace Semantics
 
-/-- The deeds a deontic rule ranges over ("can't attack or block"): each is a core rules deed,
-a declared keyword action, or the verb a keyword ability defines. -/
-abbrev Deeds := List Deed
-
 inductive CounterMove where
   | put | removed
   deriving DecidableEq, Repr
@@ -37,8 +33,11 @@ inductive LifeMove where
   | up | down
   deriving DecidableEq, Repr
 
-inductive TallyOp where
-  | count | sum
+/-- Whether a lookback tally counts event occurrences ("the number of times…") or sums the
+quantity acted on ("the number of cards…", "the amount of life…"). -/
+inductive TallyMode where
+  | events
+  | quantity
   deriving DecidableEq, Repr
 
 inductive ReplUse where
@@ -49,6 +48,16 @@ inductive DamageKind where
   | any | combatOnly | noncombatOnly
   deriving DecidableEq, Repr
 
+instance : AnyValue DamageKind where
+  any := .any
+
+/-- How a damage result combines with the other results of damage [CR#120.3d]. -/
+inductive ResultMode where
+  | intrinsic
+  | instead (of_ : OutcomeSort)
+  | inAddition
+  deriving DecidableEq, Repr
+
 inductive CondMarking where
   | asLongAs | unless_ | ifSo
   deriving DecidableEq, Repr
@@ -56,11 +65,11 @@ inductive CondMarking where
 /-- How "a …" chooses. -/
 inductive ChoiceMode where
   | unmarked
-  /-- "of their choice": the chooser is read in a window of the stack, so a clause's own
-  subject shadows any player named before it. -/
-  | theirChoice (window : Window)
+  | theirChoice
   | atRandom
   | yourChoice
   deriving DecidableEq, Repr
 
 end Semantics
+
+attribute [semantic_expression] Semantics.ResultMode

@@ -14,6 +14,13 @@ tables, not enums: the grammar carries the mechanism, the tables carry the set.
 
 namespace Semantics
 
+/-- Polymorphic wildcard value (`any`) across action-clause subjects, noun phrases, amounts,
+counter kinds, dice, roll watches, zones, damage kinds, and timings. -/
+class AnyValue (α : Type) where
+  any : α
+
+export AnyValue (any)
+
 /-- [CR#205.2a] A dungeon begins outside the game and is never a permanent or a spell
 [CR#309.2,309.2c]; it is a card type all the same, and the `dungeon` type declaration names it. -/
 inductive CardType where
@@ -28,8 +35,9 @@ inductive Procedure where
   | activate | cast | play
   deriving DecidableEq, Repr
 
+/-- An object's numeric characteristic or calculated value [CR#109.3,202.3,208.1,306.5,310.4,310.4a]. -/
 inductive Stat where
-  | power | toughness | manaValue | loyalty
+  | power | toughness | manaValue | loyalty | defense
   deriving DecidableEq, Repr
 
 inductive PlayerStat where
@@ -65,7 +73,6 @@ inductive Kind where
   | player
   | quality (sort : QualitySort)
   | outcome
-  | gap
   | letter (letter : Letter)
   | turnRef
   /-- A pile of objects; the pile itself is not an object [CR#700.3b]. -/
@@ -93,8 +100,10 @@ inductive KindAxis where
   | colorPair
   deriving DecidableEq, Repr
 
+/-- The sort of an action outcome read back by `thatMuch`, `thatMany`, or `ResultMode.instead`
+[CR#120.3d]. -/
 inductive OutcomeSort where
-  | damageDealt | lifeGained | lifeLost | countersPut | damagePrevented | rollResult
+  | damageDealt | damageMarked | lifeGained | lifeLost | countersPut | damagePrevented | rollResult
   | coinFlipped | diceRolled | namedNumber | repeatCount | countersRemoved
   | manaAdded | manaProduced | ceilingShortfall | voteHeld
   deriving DecidableEq, Repr
@@ -114,15 +123,6 @@ inductive RollExtreme where
 inductive Plurality where
   | one | many
   deriving DecidableEq, Repr
-
-/-- Static number facts carried by a typed parameter read and checked against its binding. -/
-structure AmountShape where
-  exact : Option Nat
-  nonZero : Bool
-  plurality : Plurality
-  read : Bool
-  literal : Bool
-  deriving DecidableEq, Repr, BEq
 
 /-- Sharing on an axis: at least one value in common (`share`), or none (`differ`)
 [CR#201.2a,201.2c,105.2,205.3m]. -/
@@ -233,11 +233,12 @@ declares, so a deed of that source is keyed by the declaration's name verbatim (
 abbrev KeywordActionLabel := String
 
 /-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
-[CR#508.1,509.1] and the other actions the rules define in their own sections. Closed, so a law
-matches them structurally instead of naming a lexeme. -/
+[CR#508.1,509.1], tapping a permanent for mana [CR#106.12a], and the other actions the rules
+define in their own sections. Closed, so a law matches them structurally instead of naming a
+lexeme. -/
 inductive CoreDeed where
   | attack | block | target | copy | draw | gainLife | loseGame | winGame | spend | trigger
-  | put | return_ | gainControl | unlock | fullyUnlock
+  | put | return_ | gainControl | unlock | fullyUnlock | tapForMana
   deriving DecidableEq, Repr
 
 /-- A condition that causes a state-based action [CR#704.1]. -/
@@ -264,11 +265,15 @@ inductive ChoiceSort where
   | player
   deriving DecidableEq, Repr
 
-/-- Which die a roll instruction names. -/
+/-- Which die a roll instruction or trigger names. -/
 inductive DieSides where
   | sides (sides : Nat)
   | thoseDice
+  | anyDie
   deriving DecidableEq, Repr
+
+instance : AnyValue DieSides where
+  any := .anyDie
 
 inductive ChoiceRef where
   | theChoice | theLatestChoice
@@ -316,21 +321,8 @@ inductive SlotCarrier where
   | permanent | card | spell
   deriving DecidableEq, Repr
 
-/-- Structural facts retained by a captured subject, independent of its current properties. -/
-structure NounShape where
-  kind : Kind
-  ability : Bool
-  isYou : Bool
-  selfDefined : Bool
-  ascribable : Bool
-  twoParties : Bool
-  opponentOnly : Bool
-  bareThis : Bool
-  deriving DecidableEq, Repr
-
 /-- How a pronoun is written: what it reaches back for. -/
 inductive Reach where
-  | parameter (shape : NounShape)
   | bare
   | atSlot (slot : SlotCarrier)
   | tokenBorn
@@ -346,17 +338,6 @@ parameter records the binding it introduces or resolves, and by which the body's
 of that parameter read it back. It is a name, fixed when the mention is checked, never a stack
 position: pushing and removing other bindings does not change which binding it names. -/
 abbrev BindingId := String
-
-/-- The stretch of the antecedent stack a pronoun resolves in. -/
-inductive Window where
-  | whole
-  /-- A generated subject read in its lexical macro scope. -/
-  | parameter (scope index : Nat)
-  | top (depth : Nat)
-  | below (depth : Nat)
-  | introduced (pattern : List Kind)
-  | outsideIntroduced (pattern : List Kind)
-  deriving DecidableEq, Repr
 
 inductive EntryCounterMark where
   | fresh | additional | fewer
@@ -463,20 +444,10 @@ inductive SubtypeSpace where
   | basicLand | land | creature
   deriving DecidableEq, Repr
 
-/-- Which side of a deed a deontic rule speaks about. -/
-inductive Role where
-  | agent | patient
-  deriving DecidableEq, Repr
-
 inductive PayTimes where
   | once
   | anyNumberOfTimes
   | upTo (times : Nat)
-  deriving DecidableEq, Repr
-
-inductive ManaUnit where
-  | generic
-  | run (cost : ManaCost)
   deriving DecidableEq, Repr
 
 inductive CostNamed where
@@ -578,6 +549,8 @@ inductive ProjAxis where
   | playerStat (stat : PlayerStat)
   | counter (kind : CounterKind)
   | anyCounter (kind : Kind)
+  /-- Damage marked on a permanent [CR#120.3e,120.6,704.5g]. -/
+  | markedDamage
   /-- The chapter numbers of an object's own chapter abilities [CR#714.2a,714.2d]: a Saga
   projects one per chapter ability it has, and a chapter ability projects its own. Several
   values or none, so it is read through a fold: "the final chapter number" is the greatest of
@@ -588,21 +561,10 @@ inductive ProjAxis where
 /-- A Saga's chapter, counted from I [CR#714.2a]. -/
 abbrev ChapterNumber := Nat
 
-/-- Each status category always has exactly one of its two values [CR#110.5]. -/
-inductive StatusCat where
-  | tap | flip | face | phase
-  deriving DecidableEq, Repr
-
-/-- The Idris `StatusVal : StatusCat → Type`, unindexed; `category` recovers the index. -/
+/-- Physical permanent statuses across the four status categories [CR#110.5]. -/
 inductive Status where
   | tapped | untapped | flipped | unflipped | faceUp | faceDown | phasedIn | phasedOut
   deriving DecidableEq, Repr
-
-def Status.category : Status → StatusCat
-  | .tapped | .untapped => .tap
-  | .flipped | .unflipped => .flip
-  | .faceUp | .faceDown => .face
-  | .phasedIn | .phasedOut => .phase
 
 inductive ColorSpec where
   | some (colors : List Color)
@@ -638,9 +600,7 @@ inductive EventSide where
 
 end Semantics
 
-attribute [semantic_expression] Semantics.Window Semantics.Delta
-
-attribute [internal_expansion] Semantics.Window
+attribute [semantic_expression] Semantics.Delta
 
 namespace Semantics
 
