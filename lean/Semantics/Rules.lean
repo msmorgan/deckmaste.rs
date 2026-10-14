@@ -26,7 +26,6 @@ structure SbaRule where
   scope : Predicate
   when : Condition
   then_ : Instruction
-  deriving Repr, BEq
 
 /-- A rules-defined conferral, authored under `rules/grant/`: *every object matching `scope`
 has `confer`*. There is no `when`, because a conferred ability carries its own conditionality —
@@ -36,17 +35,6 @@ takes. -/
 structure ConferralRule where
   scope : Predicate
   confer : Ability
-  deriving Repr, BEq
-
-/-- A rules-defined damage result, authored under `rules/damage/`: *damage dealt to a
-permanent matching `recipient` removes that many `remove` counters from it* — [CR#120.3c] for
-a planeswalker's loyalty, [CR#120.3h] for a battle's defense. The count is always the damage
-event's own amount ("that many"), so there is no amount to write, and the result is additive
-with the others damage has [CR#120.3]. -/
-structure DamageResultRule where
-  recipient : Predicate
-  remove : CounterKind
-  deriving Repr, BEq
 
 /-- One entry of the predefined-token catalog [CR#111.10], authored under `tokens/`: the name
 an effect creating the token writes ("create a Treasure token") and the characteristics the
@@ -57,7 +45,6 @@ being named in advance; the effect that creates it may still modify or add to th
 structure PredefinedToken where
   name : String
   token : CharacteristicBundle
-  deriving Repr, BEq
 
 /-- What a registry definition supplies to everything it names [CR#113.12,305.6]: an intrinsic
 ability, an ability-free continuous property, a state-based action, or a turn-based action.
@@ -83,7 +70,6 @@ inductive Conferral where
   | stateBased (when : Condition) (then_ : Instruction)
   /-- A turn-based action the definition puts on every object it names [CR#703.1]. -/
   | turnBased (part : TurnPart) (then_ : Instruction)
-  deriving Repr, BEq
 
 /-- What one registry declaration MEANS: the rules content the declared name stands for. A
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's
@@ -132,7 +118,6 @@ inductive Definition where
   ability and read by others, with the kind of each side. The label is the declaration's own
   name; the declaration meta-macro writes it, never the author. -/
   | relation (label : RelationLabel) (left : Kind) (right : Kind)
-  deriving Repr, BEq
 
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a
 counter declaration's name is its `CounterKind` (`.named "m1m1Counter"`), a subtype's its
@@ -147,7 +132,6 @@ them under `tokens/` rather than `rules/`. -/
 structure RulesTables where
   sba : List SbaRule := []
   conferral : List ConferralRule := []
-  damageResult : List DamageResultRule := []
-  deriving Repr, BEq
+  damageResult : List DamageResult := []
 
 end Semantics

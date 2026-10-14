@@ -14,14 +14,12 @@ joint-choice device the face checker reads). -/
 structure CardFace where
   characteristics : Characteristics
   choices : List QualitySort := []
-  deriving Repr, BEq
 
 /-- One half of a split card whose halves share a type line: its own name, cost, and text. -/
 structure SharedLineHalf where
   name : String
   cost : Option ManaCost := none
   text : List Ability := []
-  deriving Repr, BEq
 
 /-- [CR#711.2a] a closed band, [CR#711.2b] the open last band. -/
 inductive LevelRange where
@@ -36,14 +34,12 @@ structure LevelBand where
   text : List Ability := []
   power : Option Amount := none
   toughness : Option Amount := none
-  deriving Repr, BEq
 
 /-- [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box. -/
 structure PrototypeFrame where
   cost : Option ManaCost := none
   power : Option Amount := none
   toughness : Option Amount := none
-  deriving Repr, BEq
 
 inductive Card where
   | singleFaced (face : CardFace)
@@ -57,6 +53,5 @@ inductive Card where
   | leveler (inner : CardFace) (bands : List LevelBand)
   /-- [CR#718.1] the inset frame's second set: a mana cost and a power/toughness box. -/
   | prototype (inner : CardFace) (alternative : PrototypeFrame)
-  deriving Repr, BEq
 
 end Semantics
