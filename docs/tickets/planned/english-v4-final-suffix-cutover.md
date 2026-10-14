@@ -17,7 +17,7 @@ Execute Cutover 2 of [`docs/decisions/english-v4.md`](../../decisions/english-v4
    - `deckmaste_lexical_source_v4` → `deckmaste_lexical_source`
    - (`deckmaste_syntax` already has its canonical unversioned name.)
 3. **Migrate MTG Catalogs to `plugins/` Metadata:**
-   - Move the MTG domain lexical and frame declarations (`catalogs/mtg/*.ron`)
+   - Move the MTG Catalog declarations (`catalogs/*.ron`)
      into the metadata of the corresponding `plugins/` (`v3`) DSL declarations,
      leaving core English vocabulary in `deckmaste_lexical_source`.
 

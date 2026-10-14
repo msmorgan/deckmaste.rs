@@ -16,8 +16,8 @@
    - Loads a declarative grammar data file of **Schemas** and **Productions** at runtime (eliminating proc-macro Rust codegen and multi-hundred-variant `enum Reading` recompilations).
    - Compiles lexical subcategorization frames into derived valence productions (Active, Passive, Slash/Gap across all verb forms, and Right-Node Raising) and runs the table-driven Earley chart, packed parse forest, Reading normal-form / decomposition checks, and bidirectional surface realization.
    - Note on terminology: **Construction** is reserved for the Construction Grammar (CxG) **spelling** layer that pairs syntactic form with `semantics_v3` meaning. Purely syntactic grammar declarations use **Schema** (a high-level template that expands into productions) and **Production** (an individual grammar rule).
-2. **`deckmaste_lexical_source_v4` (Domain & Lexical Catalogs Crate):**
-   - Owns clean RON lexical and subcategorization-frame catalogs separated by English and MTG domains, reading only `data/gen/catalogs/card-names.txt` from `data/` and decoupling completely from `plugins_v2/builtin`.
+2. **`deckmaste_lexical_source_v4` (Core Lexicon & Catalogs Crate):**
+   - Owns clean RON core English vocabulary and MTG catalogs, each with its subcategorization frames, reading only `data/gen/catalogs/card-names.txt` from `data/` and decoupling completely from `plugins_v2/builtin`.
 3. **`deckmaste_english_v4` (Oracle English Grammar & Corpus Crate):**
    - Owns the Oracle English grammar data file, binds it with `deckmaste_lexical_source_v4` into `deckmaste_syntax`, and owns Oracle-English-specific logic: attachment-choosing heuristics (`Production Cost` ranking), reminder-text stripping, card-face and unit splitting, corpus census execution, and complexity-stratum profiling (moving heavy corpus analysis out of `crates/xtask` so `xtask` is a thin CLI wrapper).
 
@@ -100,18 +100,18 @@ An **Adjunct** (on a clause/VP) or **Modifier** (on a nominal/NP) is not subcate
 
 ---
 
-## 5. Self-Contained Lexical Catalogs (`deckmaste_lexical_source_v4`)
+## 5. Self-Contained Core Lexicon and Catalogs (`deckmaste_lexical_source_v4`)
 
-To unblock the retirement of `plugins_v2/builtin` and avoid `deckmaste_lexical_source`'s 4-layer salvage pipeline, `deckmaste_lexical_source_v4` owns clean, uniform RON catalog files organized by domain:
+To unblock the retirement of `plugins_v2/builtin` and avoid `deckmaste_lexical_source`'s 4-layer salvage pipeline, `deckmaste_lexical_source_v4` owns clean, uniform RON files. Core English vocabulary is not a Catalog: it is declared with Core provenance, which is what lets the grammar name its closed-class words; Catalog entries carry Catalog provenance and never appear in the grammar.
 
-- **English Catalogs (`catalogs/english/`):**
+- **Core English Lexicon (`lexicon/english/`):**
   - `closed_class.ron` (pronouns, determinatives, coordinators, auxiliaries/modals, clitics, symbols)
   - `prepositions.ron` (prepositions, their complement frames, and their per-frame unselected host-category distribution in Oracle English)
   - `verbs.ron` (non-keyword English verbs and their active complement frames)
   - `nouns.ron` (common nouns, countability, and optional complement frames)
   - `adjectives.ron` (adjectives and optional complement frames)
   - `adverbs.ron` (adverbs and clause-position class)
-- **MTG Domain Catalogs (`catalogs/mtg/`):**
+- **MTG Catalogs (`catalogs/`):**
   - `types.ron` (`[CR#205.2a,205.4a]` card types and supertypes)
   - `subtypes.ron` (`[CR#205.3]` artifact, battle, creature/kindred, enchantment, land, planeswalker, and spell subtypes)
   - `keyword_actions.ron` (`[CR#701.1]` keyword-action verbs/clauses and their complement frames)
@@ -122,9 +122,9 @@ To unblock the retirement of `plugins_v2/builtin` and avoid `deckmaste_lexical_s
   - Reads **only** `data/gen/catalogs/card-names.txt` (and shortened self-reference nicknames `[CR#201.5,201.5c]`).
   - Zero dependency on `plugins_v2/builtin`, `deckmaste_macro_def`, or other `data/gen/catalogs/*.txt` files at runtime.
 - **Full Morphological Paradigms (Attestation Is Provenance, Never a Filter):**
-  - Every verb and noun in a catalog receives its full grammatical inflectional paradigm (present 3sg, preterite, gerund-participle, past participle, plain; singular, plural) unless the word is genuinely defective in English. Absence of an inflected form in the current printed card corpus is never grounds to mark an inflection `Unavailable`.
+  - Every declared verb and noun receives its full grammatical inflectional paradigm (present 3sg, preterite, gerund-participle, past participle, plain; singular, plural) unless the word is genuinely defective in English. Absence of an inflected form in the current printed card corpus is never grounds to mark an inflection `Unavailable`.
 - **Future `plugins/` Migration:**
-  - Once `english_v4` and `semantics-v1-cutover` are complete, the `catalogs/mtg/*.ron` declarations move 1-to-1 into the metadata of the corresponding `plugins/` (`v3`) DSL declarations.
+  - Once `english_v4` and `semantics-v1-cutover` are complete, the `catalogs/*.ron` declarations move 1-to-1 into the metadata of the corresponding `plugins/` (`v3`) DSL declarations.
 
 ---
 
@@ -169,4 +169,4 @@ Rather than reactive blocker recon across 32,828 cards, the entire Vintage-legal
 4. **Cutover 2 (`english-v4-final-suffix-cutover`):** After `semantics-v1-cutover` retires the legacy v1 consumers and renames `plugins_v3/` → `plugins/`:
    - Delete legacy suffixless `deckmaste_english`, `deckmaste_construction_compiler`, `deckmaste_constructions_macro`, and `deckmaste_features`.
    - Drop all `_v4` suffixes (`deckmaste_english_v4` → `deckmaste_english`, `deckmaste_lexical_source_v4` → `deckmaste_lexical_source`; `deckmaste_syntax` already has its final unversioned name).
-   - Move the `catalogs/mtg/*.ron` lexical declarations into `plugins/` declaration metadata.
+   - Move the `catalogs/*.ron` lexical declarations into `plugins/` declaration metadata.

@@ -14,7 +14,7 @@ Delete the `v1` set (`deckmaste_semantics`, `deckmaste_lowering`,
 `plugins_v3/` to `plugins/`, drop the symlink, and re-point
 `deckmaste_migrations`. Coordinate with `idris-retirement` and
 `english-v4-final-suffix-cutover` (which deletes legacy v1 `deckmaste_english`,
-drops `_v4` suffixes, and moves `catalogs/mtg/*.ron` into `plugins/` metadata).
+drops `_v4` suffixes, and moves `catalogs/*.ron` into `plugins/` metadata).
 Standard constraints apply.
 
 The Idris card gate retires here with Idris itself (user ruling,

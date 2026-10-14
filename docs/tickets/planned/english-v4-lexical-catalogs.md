@@ -1,17 +1,18 @@
 ---
 needs: [english-v4-compiler-and-runtime]
 ---
-# Build `deckmaste_lexical_source_v4` with self-contained English and MTG domain catalogs
+# Build `deckmaste_lexical_source_v4` with the core English lexicon and the MTG catalogs
 
 Create `crates/deckmaste_lexical_source_v4` owning clean, human-authored RON
-catalog files separated by domain, using the frame schema proven in
+files for the core English lexicon (Core provenance) and the Catalogs (Catalog
+provenance), using the frame schema proven in
 `english-v4-compiler-and-runtime`, per [`docs/decisions/english-v4.md`](../../decisions/english-v4.md)
 (§2, §5):
 
-- `catalogs/english/`: `closed_class.ron`, `prepositions.ron` (with complement
+- `lexicon/english/`: `closed_class.ron`, `prepositions.ron` (with complement
   frames and unselected host-category distribution), `verbs.ron`, `nouns.ron`,
   `adjectives.ron`, `adverbs.ron`.
-- `catalogs/mtg/`: `types.ron` (`[CR#205.2a,205.4a]`), `subtypes.ron`
+- `catalogs/`: `types.ron` (`[CR#205.2a,205.4a]`), `subtypes.ron`
   (`[CR#205.3]`), `keyword_actions.ron` (`[CR#701.1]`), `keyword_abilities.ron`
   (`[CR#702.1]`), `ability_words.ron` (`[CR#207.2c]`, including Vintage-legal
   printed ability words omitted by the CR list such as `Corrupted`),
@@ -29,7 +30,7 @@ catalog files separated by domain, using the frame schema proven in
    `sacrifice`, `tap`, `untap`, `counter`, `create`, `reveal`, `search`,
    `shuffle`, `fight`, `regenerate`, `attach`, `unattach`, `scry`, `mill`,
    `goad`, `proliferate`, `populate`, `investigate`, `explore`, `connive`,
-   `amass`, `surveil`, etc.)—lives in its corresponding `catalogs/mtg/*.ron`
+   `amass`, `surveil`, etc.)—lives in its corresponding `catalogs/*.ron`
    file with its subcategorization frame.
 3. **Full Morphological Paradigms:** Every verb and noun receives its full
    grammatical paradigm (`Unavailable` is permitted only for genuinely
@@ -42,7 +43,7 @@ catalog files separated by domain, using the frame schema proven in
    - Unit test verifying 100% coverage of Vintage-legal CR catalog inventories
      (and Scryfall's `data/catalogs/ability-words.json` for `ability_words.ron`)
      and complete morphological paradigms.
-   - Structural lint verifying that no word from `catalogs/mtg/*.ron` appears as
+   - Structural lint verifying that no word from `catalogs/*.ron` appears as
      a closed word or hardcoded identifier in grammar declarations.
 
 Standard constraints apply.

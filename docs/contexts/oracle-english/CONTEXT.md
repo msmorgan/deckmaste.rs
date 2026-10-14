@@ -183,6 +183,15 @@ fallback rather than its authority.
 
 ## Oracle Text Box, Catalogs, and Notation
 
+**Catalog** (project term):
+An extensible inventory of things the Comprehensive Rules define by
+enumeration, such as card types, supertypes and subtypes
+[CR#205.2a,205.3,205.4a],
+keyword actions [CR#701.1], keyword abilities [CR#702.1] and ability words
+[CR#207.2c], together with card names and their shortened names [CR#201.5c].
+Core English vocabulary, closed-class or open-class, is never a Catalog.
+_Avoid_: catalog for core English vocabulary or for any lexical data file
+
 **Document**:
 Structured rules text for one text box or independently named face portion,
 including its sentences, keyword lines, and editorial boundaries.
