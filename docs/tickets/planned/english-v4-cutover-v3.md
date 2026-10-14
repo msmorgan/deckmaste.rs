@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-7-discourse-and-long-tail]
+needs: [english-v4-stratum-7-discourse-and-long-tail, english-v4-syntax-engine-obligations]
 ---
 # Cutover 1: Switch to `english_v4` and delete `v3` and `plugins_v2/builtin`
 
@@ -14,7 +14,9 @@ Execute Cutover 1 of [`docs/decisions/english-v4.md`](../../decisions/english-v4
      identified from `crates/deckmaste_english_v3/tests/suite/` is asserted in
      the `deckmaste_english_v4` judgment suite, and report the retired `v3`
      wave test files (those pinning `v3` AST constructor shapes, policing flags,
-     or exact reading counts) with their retirement reasons.
+     or exact reading counts) with their retirement reasons. The per-test
+     record is `docs/english-v3-test-audit.md`; its `lexical-v3` gaps must be
+     closed or ruled out before deletion.
    - Delete `crates/deckmaste_english_v3`, `crates/deckmaste_construction_v3`,
      `crates/deckmaste_construction_v3_core`, `crates/deckmaste_lexical_source`,
      `crates/deckmaste_macro_def` (once no crate depends on it), and

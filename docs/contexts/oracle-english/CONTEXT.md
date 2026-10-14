@@ -103,6 +103,50 @@ One annotated unit of a surface, carrying whether it is an ordinary word, an
 opening or closing delimiter, a symbol, or a line boundary. The annotation is
 structural metadata, never inferred from the spelling.
 
+## Corpus, Census, and Strata
+
+**Corpus Unit** (project term):
+The smallest span of the supported corpus that the Census counts: one Type Line,
+or one paragraph line of a Card Face's rules text with its reminder text
+removed. A face's count is the sum over its Corpus Units.
+_Avoid_: ability for the unit (one line may hold several), face for the unit
+
+**Census** (project term):
+The measurement of every Corpus Unit against the grammar. A unit is read when it
+has an admitted Reading and both round-trip laws hold; known-wrong-only when it
+has Readings but a Judgment shows every one of them wrong; otherwise unread.
+_Avoid_: coverage for a count that includes known-wrong-only units
+
+**Complexity Stratum** (project term):
+One of eight cumulative levels of syntactic complexity, numbered 0 to 7, that
+partition the Corpus Units; each owns a set of Syntactic Families.
+_Avoid_: wave, tier
+
+**Max-Stratum Composition Rule** (project term):
+A Corpus Unit belongs to the highest Complexity Stratum that owns any Syntactic
+Family it contains.
+
+**Completed Stratum** (project term):
+The highest Complexity Stratum whose gate has been met: every non-deferred Corpus
+Unit at or below it is read.
+
+**Syntactic Family** (project term):
+A named syntactic pattern owned by one Complexity Stratum, such as a keyword
+line, a contact relative or a trigger clause, recognized in a Corpus Unit from
+its Lexical Analysis.
+_Avoid_: construction family (a Construction pairs form with meaning)
+
+**Syntactic Skeleton** (project term):
+A Corpus Unit with each open-class Catalog item replaced by a placeholder naming
+its Catalog, so that units of the same shape compare equal.
+
+**Judgment** (project term):
+A hand-written assertion, adjudicated against the Oracle register, that an
+expression is or is not grammatical, optionally with its Constituents, heads,
+grammatical functions, Gaps and endorsed Ambiguity. The judgment set is the only
+tracked linguistic test evidence.
+_Avoid_: golden, snapshot, tree dump
+
 ## Lexicon and Morphology
 
 **Lexeme**:

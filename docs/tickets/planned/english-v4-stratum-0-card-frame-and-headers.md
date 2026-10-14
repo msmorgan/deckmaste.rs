@@ -3,6 +3,15 @@ needs: [english-v4-corpus-stratification-and-judgment-harness]
 ---
 # Stratum 0: Card frame, type lines, keyword-ability lines, and ability headers
 
+First, bind the grammar to the full lexical environment
+(`deckmaste_lexical_source_v4::LexicalEnvironment::load()`): until it binds,
+the census reports every unit unread with reason `Unbound`. The first binding
+error is that the frameless auxiliaries (perfect *have*, *'ve*, *haven't*) are
+not named by the grammar; the catalogs' frames also need slot Categories the
+seed grammar lacks (Amount, Cost, finite and verbless Clause, `ToInf`,
+`BareInf`, Gerund, QuotedAbility). Declare what Stratum 0 needs; a slot Category
+for a later Stratum may be declared without Productions until that Stratum.
+
 Implement **Stratum 0** in `crates/deckmaste_english_v4` per
 [`docs/decisions/english-v4.md`](../../decisions/english-v4.md) (§3, §6.1):
 

@@ -43,3 +43,8 @@ lost when `v3` is retired.
      independent judges.
 
 Standard constraints apply.
+
+Measured on `wvnlxuux`.
+
+1. **Census delta**: no census existed before. After: 0 of 32,828 faces read and 0 Readings; all 92,934 units are unread (`Unbound`) because the grammar does not yet bind to the full lexical environment, Stratum 0's first task. Lost faces: none.
+2. **Judgment set**: `seed.txt` holds, 25 of 25, on the seed lexicon; the 3,057 migrated entries parse and name only declared words, and all are pending (no Stratum completed).
