@@ -176,6 +176,7 @@ impl Draft {
 }
 
 impl<'a> Binder<'a> {
+    #[expect(clippy::too_many_lines, reason = "validation in declaration order")]
     fn new(
         grammar: &'a Grammar,
         lexicon: &'a Lexicon,
@@ -242,7 +243,7 @@ impl<'a> Binder<'a> {
         let mut lexemes = BTreeMap::new();
         for (id, lexeme) in lexicon.lexemes() {
             lexemes.insert(
-                id.clone(),
+                *id,
                 LexemeFacts {
                     category: lexeme.category,
                     binding: lexeme.binding,
@@ -288,7 +289,7 @@ impl<'a> Binder<'a> {
         {
             for fill in frame {
                 if let SlotFill::PP(list) = fill {
-                    referenced.extend(list.iter().cloned());
+                    referenced.extend(list.iter().copied());
                 }
             }
         }
@@ -313,13 +314,13 @@ impl<'a> Binder<'a> {
                         && let Some(last) = longer.slots.last()
                         && let SlotFill::PP(list) = &last.fill
                     {
-                        preps.extend(list.iter().cloned());
+                        preps.extend(list.iter().copied());
                     }
                 }
                 if !preps.is_empty() {
                     preps.sort();
                     preps.dedup();
-                    extensions.insert((id.clone(), selected), preps);
+                    extensions.insert((*id, selected), preps);
                 }
             }
         }
@@ -405,13 +406,13 @@ impl<'a> Binder<'a> {
     fn word(&self, name: &str) -> Result<LexemeId, LoadError> {
         self.closed_words
             .get(name)
-            .cloned()
+            .copied()
             .ok_or_else(|| invalid(format!("unknown closed word `{name}`")))
     }
 
     fn coordinator_test(&self, name: &str) -> Result<Test, LoadError> {
         if let Some(id) = self.closed_words.get(name) {
-            return Ok(Test::Word(id.clone()));
+            return Ok(Test::Word(*id));
         }
         self.class_names
             .get(name)
@@ -785,7 +786,7 @@ impl<'a> Binder<'a> {
                         index,
                         cost,
                         &rest,
-                        agent.then_some(by.clone()),
+                        agent.then_some(by),
                         Some(passive_voice),
                         gappable,
                     )? {
@@ -842,7 +843,7 @@ impl<'a> Binder<'a> {
                 if Some(i) == agent_slot
                     && let Some(by) = &by
                 {
-                    draft.child("by", Symbol::Leaf(Test::Word(by.clone())), GapRule::Closed);
+                    draft.child("by", Symbol::Leaf(Test::Word(*by)), GapRule::Closed);
                     draft.child("agent", self.slot_symbol(fill)?, GapRule::Closed);
                     continue;
                 }
@@ -876,6 +877,7 @@ impl<'a> Binder<'a> {
         })
     }
 
+    #[expect(clippy::many_single_char_names, reason = "conjunct positions")]
     fn coordination(
         &self,
         category: &str,

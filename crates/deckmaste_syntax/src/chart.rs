@@ -96,6 +96,7 @@ pub struct Parse<'g> {
 impl CompiledGrammar {
     /// Parses `text` as the grammar's root Category.
     #[must_use]
+    #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
     pub fn parse<'g>(&'g self, lexicon: &Lexicon, text: &str) -> Parse<'g> {
         let analyzed = lexicon.analyze(text);
         let tokens = &analyzed.tokens;
@@ -240,11 +241,11 @@ impl CompiledGrammar {
                             }
                         }
                     }
-                    Symbol::Leaf(test) => {
+                    Symbol::Leaf(leaf_test) => {
                         let at = skip(position);
                         for &leaf in &by_start[at] {
                             let facts = &forest.leaves[leaf].facts;
-                            if !self.leaf_matches(test, facts) {
+                            if !self.leaf_matches(leaf_test, facts) {
                                 continue;
                             }
                             let view = ChildView::Leaf(facts);
@@ -267,10 +268,15 @@ impl CompiledGrammar {
                     }
                     Symbol::Punct(c) => {
                         let at = skip(position);
-                        if at < n && tokens[at] == *c {
-                            let state = production
-                                .accept(self, &forest.items[id].state, dot, &ChildView::Punct)
-                                .expect("punctuation binds no feature");
+                        if at < n
+                            && tokens[at] == *c
+                            && let Some(state) = production.accept(
+                                self,
+                                &forest.items[id].state,
+                                dot,
+                                &ChildView::Punct,
+                            )
+                        {
                             add(
                                 &mut forest,
                                 &mut sets,

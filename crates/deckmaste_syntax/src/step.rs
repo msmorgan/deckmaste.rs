@@ -84,7 +84,6 @@ pub(crate) type Key = (Option<usize>, usize);
 
 /// Builds a Production from resolved equations by unifying paths into variables.
 #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
-#[expect(clippy::type_complexity, reason = "one internal call shape")]
 pub(crate) fn resolve(
     grammar: &CompiledGrammar,
     id: String,
@@ -99,6 +98,13 @@ pub(crate) fn resolve(
     distinct_coordinator: Vec<usize>,
     requires_coordination: Option<usize>,
 ) -> Result<Production, String> {
+    fn find(parent: &mut [usize], mut x: usize) -> usize {
+        while parent[x] != x {
+            parent[x] = parent[parent[x]];
+            x = parent[x];
+        }
+        x
+    }
     let mut keys: Vec<Key> = Vec::new();
     let mut parent: Vec<usize> = Vec::new();
     let mut constant: Vec<Option<u16>> = Vec::new();
@@ -114,13 +120,6 @@ pub(crate) fn resolve(
         constant.push(None);
         keys.len() - 1
     };
-    fn find(parent: &mut [usize], mut x: usize) -> usize {
-        while parent[x] != x {
-            parent[x] = parent[parent[x]];
-            x = parent[x];
-        }
-        x
-    }
     for (path, target) in equations {
         let a = var(&mut keys, &mut parent, &mut constant, path);
         match target {
@@ -149,18 +148,15 @@ pub(crate) fn resolve(
     }
     // Renumber roots densely.
     let mut roots = Vec::new();
-    let mut slot_of = vec![0; keys.len()];
-    for i in 0..keys.len() {
-        let r = find(&mut parent, i);
-        let slot = match roots.iter().position(|&x| x == r) {
-            Some(s) => s,
-            None => {
+    let slot_of: Vec<usize> = (0..keys.len())
+        .map(|i| {
+            let r = find(&mut parent, i);
+            roots.iter().position(|&x| x == r).unwrap_or_else(|| {
                 roots.push(r);
                 roots.len() - 1
-            }
-        };
-        slot_of[i] = slot;
-    }
+            })
+        })
+        .collect();
     let constants = roots.iter().map(|&r| constant[r]).collect();
     let mut child_vars = vec![Vec::new(); children.len()];
     let mut mother_vars = vec![None; grammar.category_features[lhs].len()];
@@ -340,7 +336,7 @@ impl Production {
                 if self.distinct_coordinator.contains(&position)
                     && let Some(c) = &summary.coordinator
                 {
-                    next.conjunct_coordinators.push(c.clone());
+                    next.conjunct_coordinators.push(*c);
                 }
                 if self.coordinator == Some(position) {
                     next.coordinator.clone_from(&summary.coordinator);
@@ -354,8 +350,7 @@ impl Production {
                         next.host_extensions.clone_from(&summary.extensions);
                     }
                     if position == adjunct {
-                        next.adjunct_preposition =
-                            summary.preposition.as_ref().map(|(p, _)| p.clone());
+                        next.adjunct_preposition = summary.preposition.as_ref().map(|(p, _)| *p);
                     }
                 }
             }
@@ -364,14 +359,14 @@ impl Production {
                     next.coordinator.clone_from(&leaf.lexeme);
                 }
                 if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
-                    next.preposition = leaf.lexeme.clone().map(|l| (l, *frame));
+                    next.preposition = leaf.lexeme.map(|l| (l, *frame));
                 }
                 if let (Symbol::Leaf(Test::Frame(frame)), Some(lexeme)) =
                     (&self.rhs[position], &leaf.lexeme)
                 {
                     next.extensions = grammar
                         .extensions
-                        .get(&(lexeme.clone(), *frame))
+                        .get(&(*lexeme, *frame))
                         .cloned()
                         .unwrap_or_default();
                 }
@@ -413,9 +408,9 @@ impl Production {
                 .map(|var| var.and_then(|v| state.vars[v]))
                 .collect(),
             gap,
-            preposition: if coordinated { None } else { state.preposition.clone() },
+            preposition: if coordinated { None } else { state.preposition },
             extensions: if coordinated { Vec::new() } else { state.extensions.clone() },
-            coordinator: state.coordinator.clone(),
+            coordinator: state.coordinator,
         })
     }
 }
@@ -466,7 +461,7 @@ impl CompiledGrammar {
                     }
                 }
                 Some(LeafFacts {
-                    lexeme: Some(value.lexeme.clone()),
+                    lexeme: Some(value.lexeme),
                     category: facts.category,
                     features,
                 })
