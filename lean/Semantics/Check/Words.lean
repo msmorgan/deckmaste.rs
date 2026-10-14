@@ -576,9 +576,10 @@ def Referent.sameCore (a b : Referent) : Bool :=
 
 /-- Explicit Reference Scope frame for `Instruction.ownScope` (`semantics-v3.md` §1.2, §1.4). -/
 structure OwnScopeFrame where
-  preEntryIds  : List ReferentId
-  maskedIds    : List ReferentId
-  callerClause : Nat
+  preEntryIds   : List ReferentId
+  maskedIds     : List ReferentId
+  callerClause  : Nat
+  callerPending : List (ReferentId × GramRole) := []
   deriving DecidableEq, Repr
 
 /-- Discourse Representation Structure (`semantics-v3.md` §1.2). -/
@@ -1268,9 +1269,10 @@ def enterOwnScope (drs : DRS) : DRS :=
     if r.isActorFrame || drs.performer == some r.id || actorIds.elem r.id then none
     else some r.id
   let frame : OwnScopeFrame := {
-    preEntryIds  := preIds
-    maskedIds    := masked
-    callerClause := drs.currentClause
+    preEntryIds   := preIds
+    maskedIds     := masked
+    callerClause  := drs.currentClause
+    callerPending := drs.pendingRoles
   }
   { drs with
     scopeStack    := frame :: drs.scopeStack
@@ -1286,6 +1288,7 @@ def enterCaller (drs : DRS) : DRS :=
       { drs with
         scopeStack    := outerFrames
         currentClause := topFrame.callerClause
+        pendingRoles  := topFrame.callerPending
         resolvedIds   := [] }
 
 /-- Restore the top `OwnScopeFrame` after evaluating an `inCaller` argument, unmasking any
@@ -1299,14 +1302,16 @@ def leaveCaller (before after : DRS) : DRS :=
           match before.findById? r.id with
           | some old => if r.idents != old.idents then some r.id else none
           | none => some r.id)
+      let addedPending := after.pendingRoles.drop topFrame.callerPending.length
       let topFrame' : OwnScopeFrame := {
         topFrame with
-        maskedIds := topFrame.maskedIds.filter (!newlyBound.elem ·)
+        maskedIds     := topFrame.maskedIds.filter (!newlyBound.elem ·)
+        callerPending := after.pendingRoles
       }
       { after with
         scopeStack    := topFrame' :: after.scopeStack
         currentClause := before.currentClause
-        pendingRoles  := before.pendingRoles ++ after.pendingRoles
+        pendingRoles  := before.pendingRoles ++ addedPending
         resolvedIds   := before.resolvedIds }
 
 /-- Close an own Reference Scope (`Instruction.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
@@ -1326,7 +1331,7 @@ def leaveOwnScope (drs : DRS) : DRS :=
       { drs with
         referents     := kept
         scopeStack    := outerFrames
-        pendingRoles  := []
+        pendingRoles  := topFrame.callerPending
         currentClause := topFrame.callerClause }
 
 /-! ## Binding Identity (`firstMention` / `laterMention`) -/

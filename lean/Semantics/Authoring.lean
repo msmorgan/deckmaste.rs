@@ -153,8 +153,6 @@ initialize spliceSchemas : SimplePersistentEnvExtension (Name × Array Name) (Na
     addImportedFn := mkStateFromImportedEntries addSpliceSchema {}
   }
 
-/-- A parameter whose subject or numeric value is captured at this expansion. -/
-syntax (name := captureMode) "capture " term : term
 /-- A supplied expression or parameterized body retaining its caller's scope. -/
 syntax (name := spliceMode) "splice " term : term
 
@@ -173,48 +171,30 @@ elab_rules : command
   | `($mods:declModifiers semantic_macro $name:declId $signature:optDeclSig $value:declVal) => do
     let context ← `(bracketedBinder| [Semantics.MacroContext])
     let mut binders := #[context.raw]
-    let mut captures : Array (TSyntax `ident) := #[]
     let mut splices : Array (TSyntax `ident) := #[]
     for binder in signature.raw[0].getArgs do
       let mut binder := binder
       if binder[2].getNumArgs == 2 then
         let annotated := binder[2][1]
-        if annotated.isOfKind ``captureMode || annotated.isOfKind ``spliceMode then
-          let mut type := annotated[1]
-          let isSplice := annotated.isOfKind ``spliceMode
-          if isSplice then
-            let resultType : Term := ⟨type⟩
-            type := (← `(term| macro_splice_type% $resultType)).raw
+        if annotated.isOfKind ``spliceMode then
+          let resultType : Term := ⟨annotated[1]⟩
+          let type := (← `(term| macro_splice_type% $resultType)).raw
           binder := binder.setArg 2 (binder[2].setArg 1 type)
           for identifier in binder[1].getArgs do
             unless identifier.isIdent do throwErrorAt identifier "Macro parameters must be named"
-            if isSplice then splices := splices.push ⟨identifier⟩
-            else captures := captures.push ⟨identifier⟩
+            splices := splices.push ⟨identifier⟩
       binders := binders.push binder
     let signature : TSyntax ``Lean.Parser.Command.optDeclSig :=
       ⟨signature.raw.setArg 0 (mkNullNode binders)⟩
     let mut value := value
-    if !captures.isEmpty || !splices.isEmpty then
+    if !splices.isEmpty then
       unless value.raw.isOfKind ``Parser.Command.declValSimple do
         throwErrorAt value "A parameterized macro uses `:=` with one expansion body"
-      let scope := mkIdent (← liftCoreM (mkFreshUserName `macroScope))
-      let inputs := mkIdent (← liftCoreM (mkFreshUserName `macroInputs))
-      let inputFn := mkIdent `Semantics.MacroCapture.input
-      let readFn := mkIdent `Semantics.MacroCapture.read
-      let bindFn := mkIdent `Semantics.MacroExpansion.bind
       let closeFn := mkIdent `Semantics.MacroSplice.close
-      let sourceInputs ← captures.mapM fun identifier =>
-        `(term| $inputFn $identifier)
-      let body : Term := ⟨value.raw[1]⟩
-      let mut body ← `(term| $bindFn $scope $inputs $body)
+      let mut body : Term := ⟨value.raw[1]⟩
       for identifier in splices.reverse do
-        body ← `(term| let $identifier := $closeFn $scope $identifier; $body)
-      for (identifier, index) in captures.zipIdx |>.reverse do
-        let index := Syntax.mkNumLit (toString index)
-        body ← `(term| let $identifier := $readFn $scope $index $identifier; $body)
+        body ← `(term| let $identifier := $closeFn $identifier; $body)
       body ← `(term|
-        let $scope := (inferInstance : Semantics.MacroContext).depth
-        let $inputs := [$sourceInputs,*]
         letI : Semantics.MacroContext :=
           Semantics.MacroContext.child (inferInstance : Semantics.MacroContext)
         $body)

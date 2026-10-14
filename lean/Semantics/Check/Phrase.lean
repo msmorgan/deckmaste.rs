@@ -194,7 +194,7 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
         let newPayload := match r.payload with
           | .object ty oldZn oldProv orig sz poss =>
             let prov := match deed with
-              | some v => mkStamp (some v) (destZone <|> oldZn) (oldZn == some .battlefield)
+              | some v => mkStamp (some v) oldZn destZone.isSome
               | none => oldProv
             .object ty (destZone <|> oldZn) prov orig sz poss
           | other => other
@@ -211,8 +211,11 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
     refIds.foldl (fun d rid =>
       d.updateById rid fun r =>
         let newPayload := match r.payload with
-          | .object ty zn _ orig sz poss =>
-            .object ty zn (mkStamp (some v) zn (zn == some .battlefield)) orig sz poss
+          | .object ty zn oldProv orig sz poss =>
+            let newStamp := match oldProv with
+              | some ⟨_, wasPerm, moved⟩ => some ⟨v, wasPerm, moved⟩
+              | none => mkStamp (some v) zn false
+            .object ty zn newStamp orig sz poss
           | other => other
         { r with payload := newPayload }) drs
 
@@ -1413,10 +1416,12 @@ mutual
         (outDrs, errs)
       | .bracketed body => stepInstruction fuel phase patientRole drs body
       | .enact verb body becomes locus =>
+        let preIds := drs.pendingRoles.map Prod.fst
         let (drs1, e1) := stepInstruction fuel phase patientRole drs body
+        let actedIds := (drs1.pendingRoles.map Prod.fst).filter (!preIds.elem ·)
+        let drs1 := if phase == .postEvent then applyInPlaceStamp drs1 actedIds (some verb) else drs1
         let (drs2, e2) := match becomes with | some p => stepPredicate fuel drs1 p | none => (drs1, [])
         let (drs3, e3) := match locus with | some z => stepZoneExpr fuel drs2 z | none => (drs2, [])
-        let _ := verb
         (drs3, e1 ++ e2 ++ e3)
       | .instruct subj body =>
         let (drs1, refIds, e1) := stepNounPhrase fuel drs .subj true subj
