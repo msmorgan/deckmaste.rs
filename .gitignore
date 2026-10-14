@@ -20,6 +20,8 @@
 # wires it as a PreToolUse command, so a checkout without it would point at a
 # missing script.
 !/.claude/hooks/
+# Claude Code's scheduled-wakeup lock is session state, whatever the global ignore says.
+/.claude/scheduled_tasks.lock
 # The Lean gates' emitted terms (`cargo xtask lean-check`, `cargo xtask
 # definition-check`):
 # generated per run from `plugins_v2/`, never committed.
