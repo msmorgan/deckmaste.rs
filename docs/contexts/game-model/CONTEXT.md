@@ -593,11 +593,16 @@ A singular semantic expression that denotes one Object or Player in context.
 Amounts and collections are not References.
 
 **Reference Scope** (project term):
-The mentions available to a Reference under its containing grammatical
-construction. An ordinary pronoun requires a unique compatible antecedent in
-that scope; an explicit shared-subject reference belongs to its owning clause.
-A historical-event predicate binds the entity it describes locally; a nested
-historical-event predicate establishes its own scope.
+The mentions accessible to a Reference under its containing grammatical
+construction and discourse box ([CR#109.2,701.21a]). Within that accessible
+set, a bare pronoun excludes clause-mates and selects the antecedent in the
+nearest clause, breaking ties by grammatical role (subject over object over
+other) and refusing a remaining tie; a demonstrative noun phrase excludes
+clause-mates and what a bare pronoun in the same clause resolved to, then
+selects the most recent compatible antecedent; a stamped participle phrase
+requires a unique compatible antecedent. A Definition body establishes its own
+Reference Scope over its bound parameters and active Actor; a historical-event
+predicate binds the entity it describes (`which`) locally.
 _Avoid_: author-chosen numeric stack depth
 
 **Binding Identity** (project term):

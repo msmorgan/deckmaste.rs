@@ -1,11 +1,19 @@
 ---
-needs: []
+needs: [semantics-v3-dsl-and-plugins]
 ---
-**Retire `idris/src/Cards.idr` by migrating its coverage into a RON acceptance
-corpus.** Card correctness is now gated by re-emitting each Rust/RON card to
-`Semantics.idr` and typechecking (`cargo xtask idris-check`); the hand-authored
-Idris card list is a typecheck-only leaf superseded by that path. 2026-07-19
-deep-dive.
+**[port-required: semantics-v3] Retire `idris/src/Cards.idr` by migrating its
+71-card coverage inventory into `lean/Semantics/Cards/` and `plugins_v3/`.**
+Preserves the 38-canonizable / 22-blocked card breakdown (including the 13
+unbuilt-mechanic cards — Time Walk, Mindslaver, Vodalian Illusionist, Pine
+Walker, Iona, Steely Resolve, Cavern of Souls, Meddling Mage, Citadel Siege,
+Outpost Siege, Mind Bend, Furnace of Rath, Doubling Season — and **Donate**'s
+mixed-kind multi-target + rest-of-game layer-2 control-shift [CR#611.2a,613.1b,611.2c]
+notes) for `semantics-v3`.
+
+**Historical scope (2026-07-19):** Retire `idris/src/Cards.idr` by migrating its
+coverage into a RON acceptance corpus. Card correctness is now gated by Lean
+(`cargo xtask lean check`); the hand-authored Idris card list is a
+typecheck-only leaf superseded by that path.
 
 ## Why it's safe, and the one catch
 

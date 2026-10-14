@@ -1,6 +1,10 @@
 ---
 needs: [filter-permanent-of-type-subtype]
 ---
+**[port-required: semantics-v3 (contingent on open DSL question in
+`semantics-v3-dsl-and-plugins`)]** Stands if `macro_ron` stays; retires or
+ports to `deckmaste_dsl_v3` if a purpose-built `v3` DSL replaces `macro_ron`.
+
 **Memoize macro invocation/expansion during plugin load so the `Arc<Subtype>` /
 `Arc<TypeDef>` filter payloads (from `filter-permanent-of-type-subtype`) are
 actually SHARED across cards, not re-allocated per reference site.** Once the

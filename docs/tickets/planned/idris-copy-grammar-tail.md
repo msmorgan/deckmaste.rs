@@ -1,7 +1,14 @@
 ---
-needs: [core-copy-grammar]
+needs: [lean-v3-action-clause-spine, core-copy-grammar]
 ---
-Finish the two deferred pieces of the Idris copy-grammar parity that Task 8 left as
+**[port-required: semantics-v3] Port the two deferred copy-grammar parity pieces
+(`EnterRider::AsCopy` arrival carrier and `CopyException::Retain` [CR#707.9c,707.9d]
++ `AdditionalEffect(EnterRider)` [CR#707.9e]) to `lean/Semantics/` and
+`deckmaste_semantics_v3`.** Preserves the copy-exception doctrine: copy
+exceptions are modeled as separate higher-layer modifications alongside
+`BecomeCopyOf`, never bundled into `BecomeCopyOf`/`Copy` arguments.
+
+Finish the two deferred pieces of the copy-grammar parity that Task 8 left as
 documented Gaps. Task 8 unified copy onto existing constructors — `Action.Copy : Reference b
 AnObject -> List (Modification b) -> Action b` (bare token copy = `Copy r []`) and
 `BecomeCopyOf : Reference -> Modification`, with copy exceptions modeled as SEPARATE

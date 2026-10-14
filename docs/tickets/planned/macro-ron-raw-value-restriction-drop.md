@@ -1,6 +1,10 @@
 ---
 needs: []
 ---
+**[port-required: semantics-v3 (contingent on open DSL question in
+`semantics-v3-dsl-and-plugins`)]** Stands if `macro_ron` is retained in `v3`;
+retires if a purpose-built `v3` DSL (`deckmaste_dsl_v3`) replaces `macro_ron`.
+
 **Close the one remaining site where an argument's restriction is dropped:
 `deserialize_newtype_struct`'s raw-value capture.** Everywhere else the
 restriction bit rides on the argument text itself (`Arg { text, restricted }`),

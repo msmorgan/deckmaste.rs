@@ -1,6 +1,14 @@
 ---
 needs: [macro-author-surface]
 ---
+**[port-required: semantics-v3 (contingent on open DSL question in
+`semantics-v3-dsl-and-plugins`)]** `v1`-stack (`deckmaste_semantics` /
+`macro_ron`) indexed-target-slot elaboration design. Note that in `semantics-v3`
+(`docs/decisions/semantics-v3.md` §0.1), in-situ `NounPhrase::Target` is the
+native surface and lowering (`deckmaste_lowering_v3`) performs target slot
+hoisting/indexing; this ticket stands only if `v1` `macro_ron` elaboration is
+built before `semantics-v1-cutover` retires `v1`.
+
 **Inline target sugar and scope elaboration: the explicit indexed binder
 stays the semantic normal form; sugar is accepted input.** Design:
 `docs/decisions/semantics-spelling-lowering.md` (§7, §9). Normalization

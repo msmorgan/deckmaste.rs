@@ -1,22 +1,24 @@
 ---
-needs: []
+needs: [lean-v3-action-clause-spine]
 ---
-**Damage results become one row shape, with keywords as statics.** Replaces the
-narrow `DamageResultRule`. Decided 2026-10-13 (owner; `semantics-v2.md` §7,
-Q86, Q87, Q88). Standard constraints apply; expect conflicts at refresh with
-`lean-stat-projections` (both touch `Rules.lean`, `Proofs/Rules.lean`, Words
-and the Rust mirror).
+**[port-required: semantics-v3] Damage results become one row shape on the
+`semantics-v3` spine, with keywords as statics.** Replaces the narrow
+`DamageResultRule`. Decided 2026-10-13 (owner; `semantics-v3.md` §3.7;
+archived `semantics-v2.md` §7, Q86, Q87, Q88). Standard constraints apply.
 
-## Shape (Q86)
+## Shape (Q86, ported to `semantics-v3`)
 
-`DamageResult (kind : DamageKind) (source : DamageAgent) (recipient : Predicate)
-(mode : ResultMode) (does : Instruction)` [CR#120.3,120.4c]. Inside `does`,
-`thatMuch` is the damage amount and the performer is the source's controller,
-or its owner if it has no controller [CR#702.15b], read in context (the
-2026-10-06 performer ruling; no performer field). The two existing rows
-(planeswalker loyalty [CR#120.3c], battle defense [CR#120.3h]) re-spell into it
-and their pins re-spell with the same outcome. `DamageResultRule` and its Rust
-mirror retire.
+`DamageResult (kind : DamageKind) (source : Subject) (recipient : Predicate)
+(mode : ResultMode) (does : Instruction)` [CR#120.3,120.4c]. Under the
+`semantics-v3` Unified Action-Clause Spine (`docs/decisions/semantics-v3.md`
+§3.2), `source` uses `Subject` (`Subject.any` or `Subject.by np` / `Subject.actor np`
+instead of a separate `DamageAgent` enum) and `does : Instruction` is already
+the spine's own action shape. Inside `does`, `thatMuch` is the damage amount
+and the performer is the source's controller, or its owner if it has no
+controller [CR#702.15b], read in context (the 2026-10-06 performer ruling; no
+performer field). The two existing rows (planeswalker loyalty [CR#120.3c],
+battle defense [CR#120.3h]) re-spell into it and their pins re-spell with the
+same outcome. `DamageResultRule` and its Rust mirror retire.
 
 ## Home (Q87)
 

@@ -1,23 +1,23 @@
 ---
-needs: []
+needs: [lean-v3-proofs-and-cards]
 ---
-**Add a read-only xtask check that compares every workbench card witness's
-printed frame to `data/derived/cards.jsonl`.** Cleanroom review 2026-09-03,
-R7, ruled in scope now.
+**[port-required: semantics-v3] Add a read-only xtask check that compares every
+Lean workbench card witness's printed frame to `data/derived/cards.jsonl`.**
+Cleanroom review 2026-09-03, R7, ruled in scope now; port from Idris
+`Macros.card` to Lean card witnesses in `lean/Semantics/Cards/` (`semantics-v3`).
 
-Nothing today compares a `Macros.card "Name" cost supers line text stats`
-witness (`Macros.idr:216–222`) to the corpus, so the 21 wrong printed frames
-in F3 typecheck. The check compares **data, not rendering**: name → printed
-mana cost, P/T box, supertypes, type line. The `rendering-is-not-the-
-workbench` ruling rules out diffing bench text against oracle text; comparing
-printed characteristics is not that, and this ticket does not do it.
+Nothing today compares a Lean card witness in `lean/Semantics/Cards/` to the
+corpus, so wrong printed frames in bench witnesses typecheck. The check
+compares **data, not rendering**: name → printed mana cost, P/T box,
+supertypes, type line. The `rendering-is-not-the-workbench` ruling rules out
+diffing bench text against oracle text; comparing printed characteristics is
+not that, and this ticket does not do it.
 
 ## Shape
 
-A new `cargo xtask` subcommand beside `map` and `idris-check`
-(`crates/xtask/src/`, registered in the `Cmd` enum in
-`crates/xtask/src/bin/cargo-xtask.rs`). It parses the `Macros.card` witness
-headers out of the workbench bench source, looks each name up in
+A new `cargo xtask` subcommand beside `map` (`crates/xtask/src/`, registered in
+the `Cmd` enum in `crates/xtask/src/bin/cargo-xtask.rs`). It parses the card
+witness headers out of `lean/Semantics/Cards/`, looks each name up in
 `data/derived/cards.jsonl`, and reports every mismatch as `card — field:
 bench=… corpus=…`. Read-only: it writes nothing, and it runs from the
 workspace root so a feature workspace's symlinked `data` resolves.

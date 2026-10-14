@@ -1,6 +1,17 @@
 ---
-needs: []
+needs: [lean-v3-drt-checker]
 ---
+**[port-required: semantics-v3] Port the coalesced-payer derivation from an
+`anyTarget` slot ([CR#118.12a,115.4,109.4]) to the `lean/Semantics/` DRT
+checker (`semantics-v3`).** In `"deals damage to any target unless that player
+pays"` (e.g. *Rhystic Lightning*), the resolution-time toll [CR#118.12a] names a
+single payer derived from an `anyTarget` slot [CR#115.4] two ways: a
+permanent's controller [CR#109.4], or — when the target is a player — that
+player directly. Ensure `lean/Semantics/Check/` and `deckmaste_semantics_v3`
+typecheck this payer read cleanly.
+
+### Historical context (Idris soundness core)
+
 Teach the Idris soundness core to derive a coalesced payer from an `AnyTarget` slot, so
 "deals damage to any target unless that player pays" cards typecheck. The
 `Reference::Coalesce` fixture (`plugins/testing/cards/Rhystic-toll DealDamage.ron`) models

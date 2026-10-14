@@ -282,3 +282,65 @@ without paying, then move <the rest> onto the bottom in any order)`:
 
 The resolution rules here may settle the second; the first needs the reveal
 row to stamp what it reveals. Either one gives ripple its body.
+
+## Architectural resolution and ticket decomposition (2026-10-14)
+
+Designing the clean-sheet DRT checker surfaced two coupled invariants that
+greatly simplify the checker and macro layer when solved together:
+
+1. **`Definition` vs. `Template` split:** Rules-defined vocabulary (all CR §701
+   keyword actions — atomic and composite — CR §702 keyword abilities, and
+   registry definitions) are `Definition`s evaluated in their own Reference
+   Scope (`ownScope` + `inCaller`), whereas Oracle phrasing helpers are
+   transparent `Template`s evaluated in the caller's DRS scope (retaining
+   `firstMention`/`laterMention` parameter identity when a parameter is
+   mentioned $>1$ time before a zone change).
+2. **Unified Action-Clause Spine:** Every game action is defined once as an
+   `Instruction`, and the six clause moods embed `(subj : Subject, action :
+   Instruction)` directly (`instruct`, `does`, `instead(would(...))`,
+   `cant`/`must`/`may`/`gatedBy`, `did` + `tally`), with `Subject` encoding
+   active (`np`), unspecified-agent passive (`any`), and explicit-agent passive
+   (`by(np)`), `any : α` (`AnyValue`) across wildcardable slots, and `which`
+   (`NounPhrase.which`) replacing `NounPhrase.gap` in relative clauses.
+
+### Landed in this ticket
+
+- **Authoritative ADR:** [`docs/decisions/semantics-v3.md`](../../decisions/semantics-v3.md),
+  updated [`docs/decisions/README.md`](../../decisions/README.md),
+  [`CLAUDE.md`](../../../CLAUDE.md), and [`lean/CONTRACTS.md`](../../../lean/CONTRACTS.md).
+- **Archived superseded docs (`docs/archive/`, excluded from search via `.ignore` and `.agentignore` and from `cite-config.json`):**
+  `semantics-v2.md`, `oracle-text-is-forward-anaphoric.md`,
+  `builtin-v2-macro-spelling-and-grammar.md`,
+  `workbench-ron-shaped-and-label-rulings.md`,
+  `card-authoring-binds-no-implicits.md`, `idris-is-a-soundness-gate.md`, and
+  `idris-workbench-closure-tables.md`.
+- **Deleted 15 obsolete v2/Idris/workbench tickets (with useful residues folded into the absorbing `v3` tickets):**
+  - Folded into `lean-v3-action-clause-spine`: `lean-constructor-collapse`, `plugins-v2-menace-bound-helper`
+  - Folded into `lean-v3-drt-checker`: `lean-checker-binding-ids`
+  - Folded into `lean-v3-definitions-and-templates`: `semantics-v2-per-member-handoff`
+  - Folded into `semantics-v3-dsl-and-plugins`: `lean-macros-cutover`, `plugins-v2-bodies-through-helpers`, `semantics-v2-embed-candidates`
+  - Purely obsolete Idris/workbench scaffolding deleted: `docs-workbench-drift`, `idris-distinct-position-proof`, `idris-emittables-drift-control`, `idris-composite-card-types`, `idris-emit-twoface-card`, `idris-event-model-coverage-gaps`, `workbench-obligation-cycle-totality`, and `workbench-segment-indexed-telescope`.
+- **Ported / marked `[port-required: semantics-v3]` on tickets holding design decisions for unimplemented keywords and mechanisms:**
+  - `semantics-v2-damage-results` (`DamageResult` with `source : Subject`, `does : Instruction`), `lean-marked-damage-projection` (`ProjAxis.markedDamage` + `did` lookback to `stateBasedActionsChecked`), `lean-defense-projection` (`Stat.defense`), `plugins-v2-canon`, `lean-hand-bench-retirement`, `lowering-v2`, `semantics-v2-parity`, `semantics-v1-cutover`, `semantics-v2-designation-storage-columns`, `semantics-v2-english-translation`, `lean-core-action-provenance`, `lean-core-as-event-instructions`, `workbench-last-shapes` (Alaundo, `"all cards with the same name"`, linked-exile law, Vedalken Squirrel-Whacker, Tahngarth), `workbench-corpus-frame-gate`, `research-deed-subjects`, `idris-mirror-enum-gaps` (`"doesn't untap"` = `cant`, `EnterRider` inventory, `Linked`, `Arrangement`), `idris-retire-cards-idr` (71-card coverage inventory + Donate), `idris-copy-grammar-tail` (copy-exception doctrine), and `idris-coalesce-payer` (`anyTarget` toll payer coalescence).
+  - Marked `[port-required: semantics-v3 (contingent on open DSL question in semantics-v3-dsl-and-plugins)]`: `macro-ron-raw-value-restriction-drop`, `macro-ron-single-pass`, `macro-keyword-templates`, `memoize-macro-invocations`, `macro-collision-diagnostic`, and `target-sugar-elaboration`.
+- **Glossary & Style Guide amendments:** Updated **Reference Scope** in
+  [`docs/contexts/game-model/CONTEXT.md`](../../contexts/game-model/CONTEXT.md),
+  **Clause-mate** in
+  [`docs/contexts/oracle-english/CONTEXT.md`](../../contexts/oracle-english/CONTEXT.md),
+  and the corpus-measured **Pronouns** and **This, that, those, and the chosen**
+  rules in [`docs/oracle-style-guide.md`](../../oracle-style-guide.md) §5.
+- **Lean-first `semantics-v3` implementation tickets (`docs/tickets/planned/`):**
+  1. `lean-v3-action-clause-spine` — Refactor `lean/Semantics/` syntax onto the
+     Unified Action-Clause Spine and retire `Window` and `withBindings`.
+  2. `lean-v3-drt-checker` — Replace `Bindings`, positional stack addresses, and
+     `MoveProfile`/`StepProfile` in `lean/Semantics/Check/` with the clean-sheet
+     `DRS` and the `J1`, `J2`, `D′`, and `AC>R1` resolution gates.
+  3. `lean-v3-definitions-and-templates` — Enforce the `Definition` vs.
+     `Template` split in Lean, retire the 9 hand-coded window macros, and land
+     the `airbend` (`[CR#701.65a]`) and `ripple` (`[CR#702.60a]`) bodies.
+  4. `lean-v3-proofs-and-cards` — Re-spell `lean/Semantics/Proofs/` and
+     `lean/Semantics/Cards/`, prove the DRT witness lemmas, flip the 6 resolved
+     ambiguity pins, and add the 11 known-wrong `AC>R1` exception pins.
+  5. `semantics-v3-dsl-and-plugins` — Create `crates/deckmaste_semantics_v3` and
+     `plugins_v3/` mirroring the proven Lean v3 specification.
+

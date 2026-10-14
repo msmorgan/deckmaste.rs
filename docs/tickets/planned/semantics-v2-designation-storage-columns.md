@@ -1,7 +1,8 @@
 ---
 needs: [lowering-v2]
 ---
-**Rehome the designation storage columns the v2 declarations used to carry.**
+**[port-required: semantics-v3] Rehome the designation storage columns the
+declarations used to carry (`plugins_v3/` / `deckmaste_semantics_v3`).**
 `facts-generator-sheds-v1` (2026-09-07) retyped every
 `plugins_v2/builtin/macros/stubs/designations/*.ron` body from the v1
 `DesignationDecl(definition: Stored(scope, shape, uniqueness, persistence))`
@@ -10,7 +11,8 @@ onto the `deckmaste_semantics_v2::facts` mirror of
 `shape`, `uniqueness` or `persistence`, so those three dropped out of the tree.
 Seventeen of the nineteen rows existed only there — `plugins/builtin` (v1)
 declares only `Commander` and `Monarch` — so this ticket is the record of what
-was dropped and the decision of where it goes when an engine needs it.
+was dropped and the decision of where it goes in `semantics-v3` (`plugins_v3/`)
+when an engine needs it.
 
 `scope` survives as `DesignationFacts.scope`; an `Enum` shape survives as one
 `DesignationFacts` row per member (`DayNight` → "day"/"night", `Sector` →

@@ -1,16 +1,17 @@
 ---
-needs: []
+needs: [lean-v3-proofs-and-cards]
 ---
-**Close the five shapes the residue sweep stopped on.** Residue of
-`workbench-witness-sweep-residues` (2026-09-04); each STOP carries its
-exact goal in that ticket's landing record.
+**[port-required: semantics-v3] Close the five card/semantics shapes the
+residue sweep stopped on.** Residue of `workbench-witness-sweep-residues`
+(2026-09-04); each STOP carries its exact goal in that ticket's landing
+record. Port to `lean/Semantics/` (`semantics-v3`, `docs/decisions/semantics-v3.md`):
 
 - **Alaundo the Seer.** The granted ability's "it" has no antecedent inside
   the grant; decide whether a granted ability's subject is published to
-  the grant's own reads.
+  the grant's own DRT scope (`DRS`).
 - **"All cards with the same name."** No mandatory-`all` `Quantity` arm —
   "all" is a determiner over a description; add the determiner reading
-  through `Described` and bench the card.
+  through `Described` and bench the card in `lean/Semantics/Cards/`.
 - **The card-level linked-exile law.** `ExiledWith` uniquifies by the
   linked-ability rule [CR#607.2a], but the tree cannot check that the same
   card carries the exiling ability (it needs a traversal over the card's
@@ -23,6 +24,5 @@ exact goal in that ticket's landing record.
   whole once the granted-ability read (first bullet) lands.
 
 Size: M. Done when: each bullet is landed or its refusal is ruled with the
-rule named; the named cards read their printed text in full; build at its
-module count. Standard constraints apply, including the RON-shaped
-constraint.
+rule named; the named cards read their printed text in full; `lean/scripts/build`
+passes clean. Standard constraints apply.

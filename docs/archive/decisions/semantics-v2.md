@@ -1,5 +1,16 @@
 # Semantics v2 — the encoded-English shape
 
+> **Superseded in part by [Semantics v3](semantics-v3.md) (2026-10-14):** The
+> positional `Bindings` stack, `Window`, `withBindings`, `CaptureInput`,
+> `MoveProfile`/`StepProfile`, `Instruction.act`, action-duplicating
+> `GameEvent` / `StaticSpec` / `LookbackClause` constructors, and
+> directory-based macro scoping are superseded by the three pillars of
+> [Semantics v3](semantics-v3.md) (Clean-Sheet DRT Checker, `Definition` vs.
+> `Template` split, and Unified Action-Clause Spine), executed Lean-first and
+> then brought to `crates/deckmaste_semantics_v3` and `plugins_v3/`. Sections of
+> this document not amended there (§1 layer contract, §2 forward reading order,
+> §7 checker charter and moved-referent readback) remain in force.
+
 Decision: 2026-09-06 (draft 2026-08-07). §§1–7 fix the target shape of
 the semantics layer — the form the macro and card rewrite aims at — and the
 rules for growing it; §§10–16 fix how that layer lands as Rust and how v1

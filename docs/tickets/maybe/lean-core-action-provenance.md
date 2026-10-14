@@ -1,11 +1,11 @@
 ---
 needs: []
 ---
-# Design shared action provenance descriptions
+# Design shared action provenance descriptions (`semantics-v3` port)
 
 Parked by the user on 2026-09-06. Investigate sharing descriptors for `castBy`,
 `castFrom`, `wasCast`, and corresponding activation reads without reducing
-all of them to `happenedTo`.
+all of them to `Predicate.did` (`happenedTo`).
 
 The required distinctions are a currently proposed action, the action
 associated with the current object incarnation, and a historical occurrence.
@@ -18,7 +18,7 @@ spurious references.
 
 Before implementation, show concrete before/after terms and checker scope
 traces for all three situations. Record an amendment to the
-[binding and context-data contract](../../decisions/semantics-v2.md#2-binding-and-scope)
+[DRT and action-clause contract](../../decisions/semantics-v3.md#1-pillar-1-clean-sheet-drt-checker-leansemanticscheck)
 that explains what information is represented, which parts are projections,
 and how the reads are licensed. The amendment must settle the necessary
 distinctions, not assume a new fold-state class or state machine in advance.

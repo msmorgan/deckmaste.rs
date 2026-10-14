@@ -580,18 +580,40 @@ refer to an established named character (`he`, `him`, `his`, `she`, `her`).
 Reserve that treatment for a specific character whose identity supports it;
 use object pronouns for generic creatures and permanents.
 
+When more than one prior noun phrase agrees in number and domain, `it` is clear
+only when one antecedent is the prominent participant of the nearest preceding
+clause—its grammatical subject over its direct object, and its direct object
+over an oblique phrase—or when the other candidate is another argument of the
+pronoun's own verb (`Another target creature blocks it this turn if able`,
+where `it` cannot be the blocker). A possessor (`that creature's owner shuffles
+it`) or a prepositional host (`put a +1/+1 counter on it`) is not a co-argument
+of the verb and may corefer with the clause's subject or object.
+
 Repeat a noun or name instead of stacking ambiguous pronouns. After a sentence
-names a source, target, controller, and owner, replace an ambiguous `it` with
-`that creature`, `that player`, `the exiled card`, or the source's short name.
+names a source, target, controller, and owner, or when two antecedents share
+the same clause and grammatical role, replace an ambiguous `it` with `that
+creature`, `that player`, `the exiled card`, `the creature you control`, or the
+source's short name.
 
 #### This, that, those, and the chosen
 
 Use `this` for the source or the current temporal context: `this creature`,
 `this ability`, `this turn`. Use `that` or `those` for an antecedent established
-by the preceding instruction:
+by an earlier clause or instruction:
 
 > Exile target creature. Return that card to the battlefield ...  
 > Tap up to two target creatures. Those creatures don't untap ...
+
+When two compatible antecedents are in view, `that [noun]` excludes other
+arguments of its own verb (`Each creature you control deals 1 damage to that
+creature`) and any antecedent already picked up by `it` or `its` in the same
+clause (`Create a black Vampire creature token. Its power is equal to that
+creature's power`), then refers to the most recently introduced compatible
+`[noun]`. Do not use `that [noun]` to reach across a newer compatible `[noun]`
+introduced inside a modifier or parallel clause (`a creature dealt damage by
+enchanted creature this turn` followed by `that creature` when the dying
+creature is meant); use a participial or relational description (`the creature
+that died`, `the creature you control`) instead.
 
 Use `the chosen [quality]` after an explicit choice: `the chosen color`, `the
 chosen type`, `the chosen name`. Use `the exiled card` only when exactly one

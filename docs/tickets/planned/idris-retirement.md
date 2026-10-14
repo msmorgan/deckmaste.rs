@@ -1,5 +1,5 @@
 ---
-needs: [ci-lean-gate, lean-card-soundness-gate, entailments-table-without-idris, docs-lean-is-the-workbench, tickets-idris-sweep, idris-retire-cards-idr]
+needs: [ci-lean-gate, lean-card-soundness-gate, idris-retire-cards-idr, entailments-table-without-idris, docs-lean-is-the-workbench, tickets-idris-sweep]
 ---
 **Retire the Idris workbench.** Decision (2026-09-05): the Lean 4 workbench
 under `lean/` is the successor of the Idris 2 workbench under `idris/`; the
@@ -10,13 +10,13 @@ coordinator; its `needs` are the dependencies, in the order they unblock:
 1. `ci-lean-gate`: Lean is built in CI at all.
 2. `lean-card-soundness-gate`: the card-data gate (`idris-check`,
    `idris_emit.rs`, per-plugin baselines) has a Lean successor.
-3. `entailments-table-without-idris`: the engine's entailment table is emitted
+3. `idris-retire-cards-idr`: the 71-card coverage inventory in `Cards.idr` is
+   migrated into `semantics-v3` (`lean/Semantics/Cards/` and `plugins_v3/`).
+4. `entailments-table-without-idris`: the engine's entailment table is emitted
    without `EmitTables.idr`.
-4. `docs-lean-is-the-workbench`: prose names the right workbench; the ADR is
+5. `docs-lean-is-the-workbench`: prose names the right workbench; the ADR is
    recorded.
-5. `tickets-idris-sweep`: live tickets no longer gate on or deliver into Idris.
-6. `idris-retire-cards-idr` (existing): the hand-authored Idris card list is
-   migrated to a RON corpus.
+6. `tickets-idris-sweep`: live tickets no longer gate on or deliver into Idris.
 
 Then, in this ticket's own landing: delete `idris/` (48 `.idr` files, 47,518
 lines, two `.ipkg`, six scripts, `VERIFY.md`), the CI `idris` job, `cargo xtask

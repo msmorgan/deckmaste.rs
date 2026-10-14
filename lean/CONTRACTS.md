@@ -1,5 +1,14 @@
 # Checker contracts
 
+> **Target architecture (2026-10-14):** [Semantics v3](../docs/decisions/semantics-v3.md)
+> specifies the clean-sheet DRT checker (`DRS`, `ReferentId`, nested DRS boxes,
+> `J1` accessibility, `J2` clause-mate exclusion, `D′` bare-pronoun resolution,
+> and `AC>R1` demonstrative resolution), the explicit `Definition` vs.
+> `Template` split, and the Unified Action-Clause Spine (`instruct`, `does`,
+> `would`, `cant`/`must`/`may`/`gatedBy`, `did`, `by`, `any`, `which`) that
+> replace the `Bindings` stack, `Window`, and strict `countReach == 1` rules
+> described below as the `lean-v3-*` tickets land.
+
 The Lean model is a prototype. Its authority is rules correctness and internal
 consistency, not compatibility with previous checker behavior. Tests that encode
 obsolete shapes or incorrect laws must be corrected with an explanation and

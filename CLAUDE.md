@@ -55,13 +55,14 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
 - Corpus work iterates on a subset (`cargo xtask english-v3 <selector>`) and verifies once with
   `--all`. Attestation checks use `cargo xtask english-v3 grep`, never raw `rg` over Scryfall.
 
-## Crate fates (semantics_v2)
+## Crate fates (semantics_v3)
 
-Authority: `docs/decisions/semantics-v2.md` §§10–16. `deckmaste_semantics_v2` mirrors the Lean
-syntax over `plugins_v2/` and depends on `macro_ron` alone. Deletion-bound at parity:
-`deckmaste_semantics`, `deckmaste_lowering`, `deckmaste_legacy_render`, `deckmaste_plugin`
-(`deck.rs` and `provenance.rs` rehomed), `idris/`, `plugins/builtin`, `plugins/canon`. Never copy
-v2 work back into v1, and add no new v1 registries.
+Authority: `docs/decisions/semantics-v3.md`. `semantics-v3` is executed Lean-first in
+`lean/Semantics/` and then mirrored into `deckmaste_semantics_v3` and `plugins_v3/`.
+Deletion-bound at parity: `deckmaste_semantics`, `deckmaste_semantics_v2`, `deckmaste_lowering`,
+`deckmaste_legacy_render`, `deckmaste_plugin` (`deck.rs` and `provenance.rs` rehomed), `idris/`,
+`plugins/builtin`, `plugins/canon`, `plugins_v2/`. Never copy v2/v3 work back into v1, and add no
+new v1 registries.
 
 ## Terminology
 

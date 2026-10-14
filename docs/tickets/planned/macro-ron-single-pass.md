@@ -3,6 +3,11 @@ needs: []
 ---
 # Parse each plugins_v2 declaration once at startup
 
+**[port-required: semantics-v3 (contingent on open DSL question in
+`semantics-v3-dsl-and-plugins`)]** Stands (targeting `plugins_v3/`) if
+`macro_ron` stays; retires if a purpose-built `v3` DSL (`deckmaste_dsl_v3`)
+replaces `macro_ron` with a single-pass loader.
+
 **Priority: LOW.** Gains are minimal once `english-v3-test-binary-consolidation` lands (one process per package instead of about 94). User's priority call, 2026-10-07.
 
 ## Why

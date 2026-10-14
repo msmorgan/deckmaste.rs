@@ -22,9 +22,7 @@ requires explicit review rather than an opportunistic refactor.
 - [Types grant capabilities](types-grant-capabilities.md) — Current
   characteristics positively grant the capabilities subsystems consume.
 - [Lean is the workbench](lean-is-the-workbench.md) — Active semantics modeling
-  and theorem-form pins; Idris is reference only. The Rust card gate is pending.
-- [Idris is a soundness gate](idris-is-a-soundness-gate.md) — Superseded for
-  workbench choice; its legacy emitter remains until the Lean card gate lands.
+  and theorem-form pins; Idris is reference only.
 - [Macro templates are bidirectional](macro-templates-are-bidirectional.md) —
   One typed template drives both rendering and parsing.
 - [State-based actions are data](state-based-actions-are-data.md) — Ordinary
@@ -32,26 +30,20 @@ requires explicit review rather than an opportunistic refactor.
 - [Semantics, spelling, lowering](semantics-spelling-lowering.md) — One
   semantics grammar; English relates two-way via spelling, core derives
   one-way via lowering.
-- [Builtin-v2 macro spelling and grammar](builtin-v2-macro-spelling-and-grammar.md) —
-  Open plugin macros own positional semantic frames and the lexical facts
-  needed to parse them.
 - [English grammar](english-lexical-analysis.md) — The one governing record for
   `deckmaste_english_v3`: engine contract, Readings, words, gate and size.
-- [Semantics v2](semantics-v2.md) — Semantics encodes surface English in
-  situ and lowering owns all rearrangement; `deckmaste_semantics_v2` mirrors
-  the Lean syntax over the `plugins_v2` format, and v1 retires at parity.
+- [Semantics v3](semantics-v3.md) — Clean-sheet DRT checker (`DRS`,
+  `ReferentId`, nested boxes, `J1`, `J2`, `D′`, `AC>R1`), `Definition` vs.
+  `Template` split, and Unified Action-Clause Spine (`instruct`, `does`,
+  `would`/`instead`, `cant`/`must`/`may`/`gatedBy`, `did`/`tally`, `by`, `any`,
+  `which`), executed Lean-first and mirrored into `deckmaste_semantics_v3` and
+  `plugins_v3/`.
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —
   Semantics takes the join lattice; the marked union constructions are
   spelling-boundary knowledge.
-- [Oracle text is forward-anaphoric](oracle-text-is-forward-anaphoric.md) —
-  Every anaphor resolves backward over the reading-order prefix; the lifting
-  devices are lowering's job.
-- [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
-  A card applies constructors and card-language functions positionally; a
-  wrapping macro fills every optional slot and proof.
 - [Core is explicit regions](core-explicit-regions.md) — Every core binding
   is a declared param or numbered def; references are register reads;
   lowering resolves once.
-- [The workbench is RON-shaped](workbench-ron-shaped-and-label-rulings.md) —
-  Every workbench construction is re-emittable RON; labels stay open over
-  tables derived from the stubs.
+
+Superseded historical decision records live in [`docs/archive/decisions/`](../archive/decisions/)
+and are not active authority.

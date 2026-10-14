@@ -1,6 +1,23 @@
 ---
-needs: []
+needs: [lean-v3-action-clause-spine]
 ---
+**[port-required: semantics-v3] Port the CR rulings and enum-parity decisions
+below from the retired Idris mirror inventory into `lean/Semantics/` and
+`deckmaste_semantics_v3`.** Specifically preserve and verify in `semantics-v3`:
+- **`"Doesn't untap"` is `cant` (`CantHappen`), not a replacement effect**
+  ([CR#614.17,502.3]; Winter Orb, Static Orb, exert [CR#701.43a], Frost Titan
+  unify under `cant(any, untap(subject))` in `semantics-v3` §3.4).
+- **`EnterRider` inventory** (`Tapped`, `WithCounters`, `UnderControlOf`,
+  `UnderOwnersControl`, `AsCopy` [CR#707.9], `Attacking`, and `FaceDown`).
+- **`Reference::Linked` (`exiledWith`)** [CR#607], **`Arrangement`**
+  (`AnyOrder` owner-default [CR#401.4] vs. `ChosenOrder` explicit chooser),
+  **`Type::Dungeon`** [CR#300.1], **`ObjectKind::CardCopy`** [CR#109.1], and
+  **`DesignationScope::Game`**.
+- **Sanctioned engine-only exclusions** (`Duration::ForThisEvent`,
+  `Count::ManaAvailable`, `Ability::Innate` [CR#113.12]).
+
+### Historical context (2026-07-19 Idris/Rust drift audit)
+
 Structural drift between the Idris model (`idris/src/Semantics.idr`) and the Rust
 semantics grammar (`deckmaste_semantics` — the mirror reattached there in
 `idris-mirror-semantics`, which left this inventory untouched by design),

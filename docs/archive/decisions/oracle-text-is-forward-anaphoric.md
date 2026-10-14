@@ -4,7 +4,7 @@
 > `lean/`; Idris paths below are historical. See
 > [Lean is the workbench](lean-is-the-workbench.md).
 >
-> Superseded as the target (2026-10-07): clause 3's counted uniqueness, the "NOT a preference" passage and the reserved clause-recency give way to the measured rules in [Semantics v2](semantics-v2.md) §7, "Anaphor resolution: measured rules replace the strict rule as the target"; the checker keeps them until `lean-drt-anaphora-refactor` lands.
+> Superseded as the target (2026-10-07; specified 2026-10-14 in [Semantics v3](semantics-v3.md) §1): clause 2's positional `delta ++ bs` stack and clause 3's counted uniqueness (`countBy == 1`), the "NOT a preference" passage, and the reserved clause-recency give way to the Clean-Sheet DRT Checker (`DRS`, `ReferentId`, nested DRS boxes, and the measured resolution rules `D′` for bare pronouns and `AC>R1` for demonstratives after `J1` accessibility and `J2` clause-mate exclusion) in [Semantics v3](semantics-v3.md) §1 and [Semantics v2](semantics-v2.md) §7.
 
 ## Decision
 

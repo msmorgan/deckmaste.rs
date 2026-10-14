@@ -1,6 +1,11 @@
 ---
 needs: [macro-author-surface]
 ---
+**[port-required: semantics-v3 (contingent on open DSL question in
+`semantics-v3-dsl-and-plugins`)]** `v1`-stack / `macro_ron` design; stands if
+`macro_ron` stays in `v3`, or retires if a purpose-built `v3` DSL replaces
+`macro_ron` and `semantics-v1-cutover` deletes `deckmaste_semantics` (v1).
+
 **Registration-time collision diagnostic: a macro whose name equals a
 variant of any kind it registers under is an ERROR, killing the
 silent-dead-macro footgun.** Design:
