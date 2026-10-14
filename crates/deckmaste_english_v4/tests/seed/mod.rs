@@ -173,7 +173,8 @@ pub fn lexicon() -> Lexicon {
         noun("counter", Core),
         invariant("keyword", "flying", Category::Keyword, Keyword),
         invariant("adjective", "other", Category::Adjective, Core),
-        pronoun("you", Second, None),
+        // Oracle "you" is always one player.
+        pronoun("you", Second, Some(Singular)),
         pronoun("it", Third, Some(Singular)),
     ];
     for word in ["the", "a", "your", "each", "all", "target", "any"] {

@@ -176,16 +176,15 @@ fn seedborn_muse_keeps_both_temporal_attachments() {
     let s = seed();
     let text = "Untap all permanents you control during each other player's untap step.";
     let during = "during each other player's untap step";
-    // Every Reading keeps `during ...` whole: an Oracle possessor is never
-    // postmodified, so `[all permanents you control during each other player]'s`
-    // is not a possessor.
+    // Exactly one Reading per attachment site. Every Reading keeps `during ...`
+    // whole: an Oracle possessor is never postmodified, so
+    // `[all permanents you control during each other player]'s` is not a possessor.
     let mut sites: Vec<Vec<String>> = s
         .readings(text)
         .iter()
         .map(|r| s.hosts(r, during))
         .collect();
     sites.sort();
-    sites.dedup();
     assert_eq!(
         sites,
         [
