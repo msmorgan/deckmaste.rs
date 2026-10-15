@@ -25,4 +25,17 @@ provenance, scoped like a Shortened Name to that card's own faces when the
 name is not otherwise a card name, and give anchor words the label analysis
 Ability Words have.
 
+In the choice that offers them (*choose Khans or Dragons*), anchor words are
+metalinguistic NPs: what is chosen is the word itself (CGEL Ch. 5 §8, p. 401;
+[CR#614.12c]). The judgments' `NounPhrase "Khans"` assertions stand. The
+Object of *choose* stays an ordinary NP (*choose a creature you control*,
+*choose a color*); only option words (anchor words, *odd or even*, *left or
+right*, …) form a metalinguistic NP, so no arbitrary nominal gets that
+reading.
+
 Standard constraints apply.
+
+Measured on `zumvxplz`.
+
+1. **Census delta**: unchanged, as the grammar does not yet bind to the full lexical environment (Stratum 0's first task). Before and after: 0 of 32,828 faces read and 0 Readings; all 92,934 units unread (`Unbound`). Lost faces: none.
+2. **Judgment set**: `seed.txt` holds; 0 entries enforced and 2,834 pending (no Stratum completed). Two pending entries now name their card, since their names are scoped: *named Axe* (Iron Hills Blacksmith) and *named Wasp* (The Hive).
