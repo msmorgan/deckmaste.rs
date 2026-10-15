@@ -331,6 +331,7 @@ private theorem performedReplacementResultTakesPriorityOverItsDiceCount :
     Instruction.check prospective (.rollDice .thatMuch .thoseDice .many .anyResult) = [] ∧
       countOutcomes .diceRolled performed = 1 ∧
       countOutcomes .rollResult performed = 1 ∧
-      Amount.check performed (.theOutcome .rollResult) = [] := by decide
+      Amount.check performed (.theOutcome .rollResult) = [] ∧
+      Condition.check performed (.anyResultIs .atLeast (.lit 1)) = [] := by decide
 
 end Semantics

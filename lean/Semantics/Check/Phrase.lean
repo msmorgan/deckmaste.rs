@@ -2113,7 +2113,7 @@ def stepOps : Nat → StepOps
         | .anyResultIs _ bound =>
           let (drs1, e1) := ops.amt drs bound
           let actual := countOutcomes .rollResult drs
-            let n := if actual == 0 then countOutcomes .diceRolled drs else actual
+          let n := if actual == 0 then countOutcomes .diceRolled drs else actual
           (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .rollResult n]))
         | .rolledDoubles =>
           let n := countOutcomes .rollResult drs
