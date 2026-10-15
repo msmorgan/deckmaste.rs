@@ -319,7 +319,6 @@ impl Sources {
                     entry.binding,
                     core(CLOSED_CLASS, &id),
                 );
-                // A prefix opens a sentence as readily as its host: *Nonland*.
                 if category == Category::Affix {
                     lexeme.capitalization = deckmaste_lexical::Capitalization::Initial;
                 }

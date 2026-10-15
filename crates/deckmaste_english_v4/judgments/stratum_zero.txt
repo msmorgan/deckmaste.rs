@@ -25,10 +25,10 @@
 + Uncharted marvel — Destroy a creature. => NounPhrase "a creature" as Object of destroy
 + {2}{U}, {T}: Destroy a creature. => Cost "{2}{U}, {T}"; NounPhrase "a creature" as Object of destroy
 + {Q}, {E}{E}: Destroy a creature. => Cost "{Q}, {E}{E}"
-+ [+2]: Destroy a creature. => Cost "[+2]"
++ [+2]: Destroy a creature. => ActivationCost "[+2]"
 * [-2]: Destroy a creature.
-+ [−2]: Destroy a creature. => Cost "[−2]"
-+ [0]: Destroy a creature. => Cost "[0]"
++ [−2]: Destroy a creature. => ActivationCost "[−2]"
++ [0]: Destroy a creature. => ActivationCost "[0]"
 * [2+]: Destroy a creature.
 + Choose one — => NounPhrase "one" as Object of choose
 + Choose one or both — => NounPhrase "one or both" as Object of choose
@@ -46,9 +46,9 @@
 + {W}{U}: Level 2
 * {W}{U}: Level
 + Prototype {1}{B} — 1/1 => Measure "1/1"
-+ −2: Destroy a creature. => Cost "−2"
-+ +2: Destroy a creature. => Cost "+2"
-+ 0: Destroy a creature. => Cost "0"
++ −2: Destroy a creature. => ActivationCost "−2"
++ +2: Destroy a creature. => ActivationCost "+2"
++ 0: Destroy a creature. => ActivationCost "0"
 * -2: Destroy a creature.
 * Destroy a creature —
 * Choose a creature —
@@ -60,3 +60,7 @@
 * {T}: Flying, vigilance
 * Enchant two creature
 + Enchant two creatures
++ {1}{G}, {T}: Choose one — => NounPhrase "one" as Object of choose
+* Ward 0
+* Equip +1
++ Escape—Sacrifice a creature.

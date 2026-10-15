@@ -129,3 +129,6 @@ Notation symbols declare their classes in `closed_class.ron`; the loader does
 not infer their category from their spelling. Pawprint quantities are distinct
 from cost-symbol sequences. Bound keyword stem patterns project a Quality with
 its permitted type premodifiers inside that Quality.
+
+The `non` prefix declares only its hyphenated and unhyphenated spellings;
+sentence-initial capitalization is derived, not duplicated as spelling variants.

@@ -235,3 +235,19 @@ fn chapter_modal_scope_has_one_analysis_and_costed_modes_use_corpus_markers() {
         parse.verify_realization(&env.lexicon).unwrap();
     }
 }
+
+#[test]
+fn activated_modal_abilities_and_mixed_costs_have_one_analysis() {
+    let env = LexicalEnvironment::load().unwrap();
+    let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
+    for text in [
+        "{1}{G}, {T}: Choose one —",
+        "{1}{G}, {T}: Choose one —\n• Destroy a creature.\n• Exile a creature.",
+        "{T}, Sacrifice a creature: Destroy a creature.",
+        "{1}, {T}, Sacrifice a creature: Destroy a creature.",
+    ] {
+        let parse = grammar.parse(&env.lexicon, text);
+        assert_eq!(parse.derivation_count(), 1, "{text}");
+        parse.verify_realization(&env.lexicon).unwrap();
+    }
+}

@@ -27,6 +27,18 @@ fn each_unit_takes_the_highest_stratum_of_its_families() {
         (UnitKind::Line, "Flying, haste", 0, "KeywordLine"),
         (UnitKind::Line, "Swampwalk", 0, "KeywordLine"),
         (UnitKind::Line, "Choose one —", 0, "ModalHeader"),
+        (
+            UnitKind::Line,
+            "{1}{G}, {T}: Choose one —",
+            0,
+            "ModalHeader",
+        ),
+        (
+            UnitKind::Line,
+            "Sacrifice a creature: Choose one —",
+            1,
+            "ModalHeader",
+        ),
         (UnitKind::Line, "LEVEL 1-3", 0, "LevelHeader"),
         (UnitKind::Line, "4/4", 0, "NumeralLine"),
         (UnitKind::Line, "{T}: Add {G}.", 1, "SymbolCost"),

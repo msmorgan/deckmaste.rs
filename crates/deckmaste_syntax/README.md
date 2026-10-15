@@ -90,8 +90,9 @@ Noun Phrase into the modal-selection construction.
 sequences. These bindings are applied by both realization and the packed-forest
 law checker. Paragraph boundaries are explicit terminals, never skipped as
 interword whitespace. `Numeral` and `UnsignedNumeral` select numeral notation;
-`FreeLex` excludes bound stems from independent word positions. Bare valence
-phrases likewise require free words. Flavor Word leaves use the lexical layer's
+`Integer` selects an exact Arabic numeral value without treating it as
+punctuation. `FreeLex` excludes bound stems from independent word positions.
+Bare valence phrases likewise require free words. Flavor Word leaves use the lexical layer's
 registered-label exclusion and realization.
 
 ## Reading Normal Form

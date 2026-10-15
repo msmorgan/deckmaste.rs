@@ -504,6 +504,9 @@ impl<'a> Binder<'a> {
                         host: None,
                     },
                 ),
+                SymbolDecl::Integer(name, value) => {
+                    (name.as_str(), Symbol::Leaf(Test::Integer(*value)))
+                }
                 SymbolDecl::UnsignedNumeral(name, notation) => {
                     (name.as_str(), Symbol::Leaf(Test::Numeral(*notation, true)))
                 }

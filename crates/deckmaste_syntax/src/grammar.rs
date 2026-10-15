@@ -93,6 +93,8 @@ pub enum SymbolDecl {
     /// A numeral in a specific notation.
     Numeral(String, deckmaste_lexical::Numeral),
     UnsignedNumeral(String, deckmaste_lexical::Numeral),
+    /// An Arabic numeral with a specified integer value.
+    Integer(String, i32),
     /// Any word of a lexical Category.
     Lex(String, deckmaste_lexical::Category),
     FreeLex(String, deckmaste_lexical::Category),

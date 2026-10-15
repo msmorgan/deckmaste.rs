@@ -118,6 +118,15 @@ the grammar accepts that source form as well as bracketed symbol notation.
 
 Costed modes use the corpus's Spree plus marker, pawprint quantities, or a
 bulleted Flavor Word followed by its cost. A Saga chapter scopes over the modal
-ability, not separately over its header. Activation effects select instructions,
-so nested cost colons and bare keyword lists are rejected. Bound-keyword
-premodifiers belong to the Keyword Quality before the suffix and cost.
+ability, not separately over its header. Activation effects select sentences
+or modal abilities, so nested cost colons and bare keyword lists are rejected.
+A symbol-cost-prefixed modal header is a Stratum 0 fragment; a verbal cost
+raises its profile to the cost’s Stratum. Bound-keyword premodifiers belong to
+the Keyword Quality before the suffix and cost.
+
+`ActivationCost` includes loyalty notation; keyword parameters select `Cost`,
+which excludes it. Numeric zero in a neutral loyalty symbol remains a numeral
+leaf. Mixed costs use one right-recursive structure, preventing duplicate trees
+from overlapping symbol and verbal cost alternatives. Modal selection with
+adjuncts or relatives belongs to the corresponding later strata; the current
+quantity grammar does not claim those forms.

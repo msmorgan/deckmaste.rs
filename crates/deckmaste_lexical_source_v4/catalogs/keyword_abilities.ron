@@ -252,7 +252,7 @@
     (rule: "[CR#702.135]", name: "Afterlife", lemma: "afterlife", parameters: [[Amount]]),
     (rule: "[CR#702.136]", name: "Riot", lemma: "riot"),
     (rule: "[CR#702.137]", name: "Spectacle", lemma: "spectacle", parameters: [[Cost]]),
-    (rule: "[CR#702.138]", name: "Escape", lemma: "escape", parameters: [[DashCost]],
+    (rule: "[CR#702.138]", name: "Escape", lemma: "escape", parameters: [[DashNonManaCost]],
         verbs: [
             (lemma: "escape", frames: [Intransitive]),
         ],

@@ -160,7 +160,7 @@
         (lemma: "must", finite_only: true, frames: [Catenative(BareInf)]),
         (lemma: "will", preterite: "would", finite_only: true, frames: [Catenative(BareInf)]),
     ],
-    affixes: [(name: "non", spellings: ["non", "non-", "Non", "Non-"], binding: Prefix)],
+    affixes: [(name: "non", spellings: ["non", "non-"], binding: Prefix)],
     // The plural genitive is the same clitic, spelled with the apostrophe alone.
     clitics: [(name: "genitive", spellings: ["'s", "’s", "'", "’"], binding: Suffix)],
     // [CR#107.4,107.5,107.6,107.14,107.18]; numerical symbols as printed on

@@ -100,7 +100,8 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
                 | SymbolDecl::Cat(child, name)
                 | SymbolDecl::Word(child, name)
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
-                SymbolDecl::UnsignedNumeral(child, _)
+                SymbolDecl::Integer(child, _)
+                | SymbolDecl::UnsignedNumeral(child, _)
                 | SymbolDecl::FreeLex(child, _)
                 | SymbolDecl::Numeral(child, _)
                 | SymbolDecl::Lex(child, _) => names.push(child),

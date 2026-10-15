@@ -531,8 +531,20 @@ impl<'e> Profiler<'e> {
         let (head, rest) = (&tokens[..dash], &tokens[dash + 1..]);
         if rest.is_empty() {
             families.insert(MODAL_HEADER);
-            if !modal_choice(head) {
-                clause(head, true, families);
+            let selection = if let Some(colon) = head.iter().position(|t| t.is_punct(':')) {
+                families.insert(ACTIVATED);
+                let cost = &head[..colon];
+                if is_notation(cost) {
+                    families.insert(SYMBOL_COST);
+                } else {
+                    clause(cost, true, families);
+                }
+                &head[colon + 1..]
+            } else {
+                head
+            };
+            if !modal_choice(selection) {
+                clause(selection, true, families);
             }
             return Vec::new();
         }

@@ -37,6 +37,7 @@ pub(crate) enum Test {
     Lexical(LexicalCategory),
     FreeLexical(LexicalCategory),
     Numeral(deckmaste_lexical::Numeral, bool),
+    Integer(i32),
     Word(LexemeId),
     Class(usize),
     Words(std::collections::BTreeSet<LexemeId>),
@@ -434,6 +435,10 @@ impl CompiledGrammar {
             Test::FreeLexical(category) => {
                 leaf.category == *category
                     && facts.is_some_and(|f| f.binding == deckmaste_lexical::Binding::Free)
+            }
+            Test::Integer(value) => {
+                leaf.integer == Some(*value)
+                    && leaf.notation == Some(deckmaste_lexical::Numeral::Arabic(false))
             }
             Test::Numeral(notation, unsigned) => {
                 leaf.notation == Some(*notation)

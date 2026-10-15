@@ -18,3 +18,15 @@ fn the_environment_loads() {
         .collect();
     assert!(ids.contains(&"action:destroy".to_owned()), "{ids:?}");
 }
+
+#[test]
+fn capitalized_prefix_has_one_lexical_analysis() {
+    let environment = LexicalEnvironment::load().unwrap();
+    for (text, prefix_end) in [("Nonbasic", 3), ("Non-basic", 4)] {
+        let analyzed = environment.lexicon.analyze(text);
+        let prefixes: Vec<_> = analyzed.matches.iter().filter(|found| {
+            found.start == 0 && found.end == prefix_end && matches!(&found.reading, LexicalReading::Word(value) if value.lexeme.as_str() == "affix:non")
+        }).collect();
+        assert_eq!(prefixes.len(), 1, "{text}: {prefixes:?}");
+    }
+}
