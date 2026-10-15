@@ -7,7 +7,6 @@
 +Nominal Assembly-Worker creature => Nominal "Assembly-Worker" as Modifier of creature
 +Nominal Time Lord creature card => Nominal "Time Lord" as Modifier of card; Nominal "creature" as Modifier of card
 +Nominal creature cards => Nominal "creature" as Modifier of card
-*Nominal creature target card
 +Nominal nonland permanent => Nominal "nonland" as Modifier of permanent
 +Nominal nonartifact creature => Nominal "nonartifact" as Modifier of creature
 +Nominal non-Vampire creature => Nominal "non-Vampire" as Modifier of creature

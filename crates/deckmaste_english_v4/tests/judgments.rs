@@ -50,7 +50,11 @@ fn judgments_at_or_below_the_completed_stratum_hold() {
     let mut failures = Vec::new();
     for (_, entries) in files.iter().filter(|(name, _)| name != "seed.txt") {
         for entry in entries {
-            let analyzed = env.lexicon.analyze(&entry.text);
+            let analyzed = env.lexicon.analyze_source_scoped(
+                &entry.text,
+                None,
+                &deckmaste_english_v4::judgment::scope(entry),
+            );
             let stratum = profiler.profile(UnitKind::Line, &analyzed).stratum;
             if COMPLETED_STRATUM.is_none_or(|done| stratum > done) {
                 pending += 1;

@@ -461,6 +461,10 @@ impl<'e> Profiler<'e> {
                 start = dash + 1;
                 continue;
             }
+            if head.iter().all(|t| t.class_is(Class::CardType)) {
+                // A type line (`Creature — Elf`) has no label.
+                return 0;
+            }
             let mut families = BTreeSet::new();
             self.spine(&tokens[start..], &mut families);
             return if families.contains(&LABEL) { dash } else { 0 };
@@ -492,6 +496,10 @@ impl<'e> Profiler<'e> {
         }
         if !tokens.is_empty() && tokens.iter().all(|t| t.numeral() || !t.is_word()) {
             families.insert(NUMERAL_LINE);
+            return;
+        }
+        if is_type_line(&tokens) {
+            families.insert(TYPE_LINE);
             return;
         }
         let payload = self.spine(&tokens, families);
@@ -592,6 +600,17 @@ fn is_notation(tokens: &[Tok<'_>]) -> bool {
             Tok::Word { .. } => t.only_class(&[Class::Symbol, Class::Number]),
             Tok::Unknown(_) => false,
         })
+}
+
+/// Supertypes and card types, optionally followed by `—` and subtypes.
+fn is_type_line(tokens: &[Tok<'_>]) -> bool {
+    let (types, subtypes) = match tokens.iter().position(|t| t.is_punct('—')) {
+        Some(dash) => (&tokens[..dash], &tokens[dash + 1..]),
+        None => (tokens, &[][..]),
+    };
+    !types.is_empty()
+        && types.iter().all(|t| t.class_is(Class::CardType))
+        && subtypes.iter().all(|t| t.class_is(Class::Subtype))
 }
 
 /// `Choose one`, `Choose one or more`, `Choose any number`: a modal header

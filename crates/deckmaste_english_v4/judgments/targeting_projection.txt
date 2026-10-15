@@ -7,7 +7,6 @@
 +NounPhrase two target creatures
 +NounPhrase two target creature cards
 +NounPhrase target nonartifact creature
-*Nominal creature target card
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature
 +NounPhrase two target creatures with flying => PrepositionPhrase "with flying" as Modifier of creature

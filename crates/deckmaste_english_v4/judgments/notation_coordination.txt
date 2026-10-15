@@ -16,4 +16,3 @@
 *NounPhrase one or two creature
 *NounPhrase two or one creature
 *NounPhrase one and one creature
-*NounPhrase one or one creatures

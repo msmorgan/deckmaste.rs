@@ -342,7 +342,8 @@ fn parse_assertion(text: &str) -> Result<Assertion, String> {
 }
 
 /// The card names an entry puts in scope.
-fn scope(entry: &Judgment) -> BTreeSet<LexemeId> {
+#[must_use]
+pub fn scope(entry: &Judgment) -> BTreeSet<LexemeId> {
     entry.card.iter().map(|c| card_name_lexeme(c)).collect()
 }
 

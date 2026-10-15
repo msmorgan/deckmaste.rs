@@ -137,6 +137,9 @@ fn reviewed_misplacements_stay_fixed() {
         // A genitive is not a contracted copula; *turn* after *of* is a noun.
         ("Return target creature to its owner's hand.", 1),
         ("Target creature gains flying until end of turn.", 1),
+        // A type line profiled as a line (as in the judgment set) is Stratum 0.
+        ("Artifact Creature — Golem", 0),
+        ("Instant", 0),
         // A depictive participle is not a postmodifier.
         ("Put target creature card from a graveyard onto the battlefield tapped.", 1),
         ("Rather than pay this spell's mana cost, you may sacrifice a Forest.", 4),

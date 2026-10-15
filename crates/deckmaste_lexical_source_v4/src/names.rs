@@ -22,32 +22,40 @@ pub fn shortened_names(name: &str, vocabulary: &Lexicon) -> Vec<String> {
     let comma = name.split_once(',').map(|(head, _)| head);
     let mut candidates: Vec<&str> = comma.into_iter().collect();
     let head = comma.unwrap_or(name);
-    for separator in [" the ", " of "] {
+    for separator in [" the ", " of ", " and "] {
         if let Some((before, _)) = head.split_once(separator) {
             candidates.push(before);
         }
     }
     if comma.is_none()
-        && candidates.is_empty()
-        && let Some((first, _)) = name.split_once(' ')
+        && let Some((before, last)) = head.rsplit_once(' ')
+        && deckmaste_lexical::NumeralCodec::parse(deckmaste_lexical::Numeral::Roman, last).is_ok()
     {
-        candidates.push(first);
+        candidates.push(before);
     }
     let mut names: Vec<String> = Vec::new();
-    for candidate in candidates {
+    let accept = |names: &mut Vec<String>, candidate: &str| {
         let candidate = candidate.trim();
         // A name ends in a capitalized word, never in *and* or *the*.
-        if !candidate
+        if candidate
             .rsplit(' ')
             .next()
             .is_some_and(|last| last.starts_with(char::is_uppercase))
-            || candidate == name
-            || names.iter().any(|n| n == candidate)
-            || spelled_by_other_vocabulary(candidate, vocabulary)
+            && candidate != name
+            && !names.iter().any(|n| n == candidate)
+            && !spelled_by_other_vocabulary(candidate, vocabulary)
         {
-            continue;
+            names.push(candidate.to_owned());
         }
-        names.push(candidate.to_owned());
+    };
+    for candidate in candidates {
+        accept(&mut names, candidate);
+    }
+    if comma.is_none()
+        && names.is_empty()
+        && let Some((first, _)) = name.split_once(' ')
+    {
+        accept(&mut names, first);
     }
     names
 }

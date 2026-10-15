@@ -28,7 +28,8 @@ fn shortened_names_are_derived_from_the_full_name() {
         // Any other declared word is not a name for the card.
         ("Sliver Queen", &[]),
         ("Goblin Guide", &[]),
-        ("Shang-Chi and the Ten Rings", &[]),
+        ("Shang-Chi and the Ten Rings", &["Shang-Chi"]),
+        ("King Darien XLVIII", &["King Darien"]),
         ("Counterspell", &[]),
     ] {
         assert_eq!(shortened_names(name, &vocabulary), expected, "{name}");

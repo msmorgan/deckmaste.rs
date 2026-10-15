@@ -62,6 +62,7 @@
         frames: [Monotransitive, Copular]),
     (lemma: "give", preterite: "gave", past_participle: "given",
         frames: [Monotransitive, Ditransitive]),
+    (lemma: "group", frames: [TransitiveWithPP(["into"])]),
     (lemma: "guess", frames: [Intransitive, Monotransitive, ContentClause]),
     (lemma: "hide", preterite: "hid", past_participle: "hidden", frames: [Monotransitive]),
     (lemma: "ignore", frames: [Monotransitive]),

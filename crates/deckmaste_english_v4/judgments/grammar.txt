@@ -28,7 +28,6 @@
 * Creatures you controls attack.
 * Draw.
 * You may draws cards.
-* White target creatures attack.
 * .
 * If you do, .
 * Draw cards and .
@@ -37,7 +36,6 @@
 +Nominal defending player
 *Nominal defend player
 *Nominal defends player
-*Nominal defending target player
 +NounPhrase target defending player
 + Defending players attack.
 +PrepositionPhrase in addition

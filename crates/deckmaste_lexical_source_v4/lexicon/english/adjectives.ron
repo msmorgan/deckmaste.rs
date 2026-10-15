@@ -37,6 +37,7 @@
     (lemma: "low", comparative: "lower", superlative: "lowest"),
     "maximum",
     "minimum",
+    "modal",
     "natural",
     (lemma: "near", comparative: "nearer", superlative: "nearest"),
     "negative",

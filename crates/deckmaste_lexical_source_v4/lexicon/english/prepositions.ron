@@ -119,11 +119,13 @@
     // Temporal intransitive preposition (CGEL p. 615): *Those creatures are now
     // attacking that player.*
     (lemma: "now", frames: [(complement: Intransitive, hosts: Predicate)]),
-    // *a creature of the chosen type*; *end of turn*; *instead of putting*
+    // *a creature of the chosen type*; *end of turn*; *instead of putting*;
+    // *your choice of flying, first strike, or trample*
     (lemma: "of", frames: [
         (complement: NP, hosts: Nominal),
         (complement: Nominal, hosts: ComplementOnly),
         (complement: Gerund, hosts: ComplementOnly),
+        (complement: KeywordPhrase, hosts: ComplementOnly),
     ]),
     // *put it on top of its owner's library*
     (lemma: "on", frames: [
