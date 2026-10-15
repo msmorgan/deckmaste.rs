@@ -37,7 +37,8 @@ theorem ownStatWithOuter :
     NounPhrase.checkAt (some .object) (powerAfter outer) it = [] := by decide
 
 theorem ownStatKeepsCreature :
-    (firstReach .bare .one (powerAfter outer)).map (·.ty) = some [.creature] := by decide
+    (firstReach .bare .one (powerAfter outer)).map (·.ty) = some [.creature] ∧
+      (firstReach .bare .one (powerAfter outer)).map (·.id) = some 2 := by decide
 
 theorem attachWithoutOuterLetter :
     Instruction.check (DRS.ofList [creatureBinding]) (attachToIt artifactX) = [] := by decide

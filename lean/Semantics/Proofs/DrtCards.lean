@@ -170,4 +170,64 @@ theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
     out.2 = [] ∧ out.1.visibleReferents.any
       (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
 
+private def createdCreature : Instruction :=
+  .createObject (.lit 1)
+    (.token (.written { characteristics := { types := [.creature] } }) []) true none
+
+private def creatureCreationLoop : Instruction :=
+  .doForEach (.described .all (.hasType .creature)) createdCreature
+
+theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
+    let out := stepInstruction 12 .postEvent .obj (DRS.ofList []) creatureCreationLoop
+    let groups := out.1.visibleReferents.filter (·.createdResult)
+    out.2 = [] ∧ groups.map (·.id) = [3] ∧ groups.map (·.plur) = [.many] ∧
+      groups.all (fun ref => ref.idents.isEmpty && ref.payload.size.isNone) = true ∧
+      (out.1.findById? 1).isNone = true ∧ (out.1.findById? 2).isNone = true ∧
+      NounPhrase.checkAt (some .object) (nextClause out.1) (those .token) = [] := by decide +kernel
+
+theorem aTokenMentionIsNotACreationResult :
+    let mention := Instruction.putCounters (.lit 1) (.printed p1p1Counter)
+      (.described (.a .unmarked) (.isToken)) .one true
+    let out := stepInstruction 12 .postEvent .obj (DRS.ofList [])
+      (.doForEach (.described .all (.hasType .creature)) mention)
+    out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧
+      (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
+
+theorem prospectiveCreationDoesNotPublishALoopResult :
+    let out := stepInstruction 12 .preEvent .obj (DRS.ofList []) creatureCreationLoop
+    out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧
+      (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
+
+theorem nestedCreationLoopsRetainOnlyTheirFreshAggregate :
+    let out := stepInstruction 16 .postEvent .obj (DRS.ofList [])
+      (.doForEach (.described .all (.hasType .land)) creatureCreationLoop)
+    let groups := out.1.visibleReferents.filter (·.createdResult)
+    out.2 = [] ∧ groups.length = 1 ∧ groups.all (fun ref => ref.plur == .many) = true ∧
+      (resolveCandidates (.word .token) .one (nextClause out.1)).isEmpty = true ∧
+      NounPhrase.checkAt (some .object) (nextClause out.1) (those .token) = [] := by decide +kernel
+
+theorem creationResultsKeepTheirActualDestinationAfterAMove :
+    let moved := Instruction.sequentially [createdCreature,
+      .move (.pro .bare .one) (.zones [battlefield]) (some exileZone) .departure none []]
+    let out := stepInstruction 16 .postEvent .obj (DRS.ofList [])
+      (.doForEach (.described .all (.hasType .creature)) moved)
+    let groups := out.1.visibleReferents.filter (·.createdResult)
+    out.2 = [] ∧ groups.length = 1 ∧
+      groups.all (fun ref => ref.zone == some .exile && !ref.counterMemoryAvailable) = true ∧
+      (stepInstruction 8 .postEvent .obj (nextClause out.1)
+        (.setStatus .tapped (those .token))).2 = [.anaphor (.word .token) .many 0] := by decide +kernel
+
+
+theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
+    let initial := nextClause ((stepInstruction 8 .postEvent .obj (DRS.ofList []) createdCreature).1)
+    let out := stepInstruction 12 .postEvent .obj initial
+      (.doForEach (.described .all (.hasType .creature))
+        (.move (.pro (.word .token) .one) (.zones [battlefield])
+          (some exileZone) .departure none []))
+    let created := out.1.visibleReferents.filter (·.createdResult)
+    out.2 = [] ∧ created.map (·.id) = [3] ∧ created.map (·.plur) = [.one] ∧
+      created.all (fun ref => ref.zone == some .exile) = true ∧
+      (out.1.findById? 0).isNone = true ∧ (out.1.findById? 2).isNone = true ∧
+      (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
+
 end Semantics.Proofs.DrtCards

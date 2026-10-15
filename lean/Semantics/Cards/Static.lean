@@ -212,7 +212,7 @@ def humility : Spelled := spelled <| .singleFaced
 /-- Tahngarth, First Mate -/
 def tahngarthAttacksThatJoin : Instruction := Primitives.Instruction.becomeAttacking thisCreature (some thatJoin)
 theorem okTahngarthAttacksThatJoin :
-    Instruction.check ((stepInstruction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) tahngarthHeader).1) tahngarthChoosesDefender).1)
+    Instruction.check (nextClause ((stepInstruction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) tahngarthHeader).1) tahngarthChoosesDefender).1))
       tahngarthAttacksThatJoin = [] := by
   decide
 

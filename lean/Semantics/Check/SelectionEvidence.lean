@@ -305,4 +305,32 @@ private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
         (stepInstruction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.lit 1)))) none none)).1 = 0 := by decide
 
+private theorem oneDiceBatchHasOneNumericResultRead :
+    let batch := DRS.ofList [outcomeB .diceRolled]
+    let out := (stepAmount 64 batch (.theOutcome .rollResult)).1
+    Amount.check batch (.theOutcome .rollResult) = [] ∧
+      countOutcomes .diceRolled out = 1 ∧ countOutcomes .rollResult out = 0 ∧
+      countAmountOutcomes out = 1 ∧ Amount.check out .thatMuch = [] ∧
+      Amount.check batch (.theOutcome .repeatCount) = [.outcomeInScope .repeatCount 0] := by decide
+
+private theorem numericDiceResultRequiresOneUnambiguousRoll :
+    Amount.check (DRS.ofList []) (.theOutcome .rollResult) = [.outcomeInScope .rollResult 0] ∧
+    Amount.check (DRS.ofList [outcomeB .diceRolled, outcomeB .diceRolled])
+      (.theOutcome .rollResult) = [.outcomeInScope .rollResult 2] ∧
+    Amount.check (DRS.ofList [outcomeB .rollResult, outcomeB .rollResult])
+      (.theOutcome .rollResult) = [.outcomeInScope .rollResult 2] ∧
+    Amount.check (DRS.ofList [outcomeB .diceRolled, outcomeB .rollResult])
+      (.theOutcome .rollResult) = [] ∧
+    Amount.check (DRS.ofList [outcomeB .rollResult]) (.theOutcome .rollResult) = [] ∧
+    countOutcomes .diceRolled (DRS.ofList [outcomeB .rollResult]) = 0 := by decide
+
+private theorem performedReplacementResultTakesPriorityOverItsDiceCount :
+    let prospective := DRS.ofList [outcomeB .diceRolled]
+    let performed := (stepInstruction 64 .postEvent .obj prospective
+      (.rollDice .thatMuch .thoseDice .many .anyResult)).1
+    Instruction.check prospective (.rollDice .thatMuch .thoseDice .many .anyResult) = [] ∧
+      countOutcomes .diceRolled performed = 1 ∧
+      countOutcomes .rollResult performed = 1 ∧
+      Amount.check performed (.theOutcome .rollResult) = [] := by decide
+
 end Semantics

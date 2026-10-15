@@ -2011,7 +2011,13 @@ def stepOps : Nat → StepOps
           let n := countOutcomes .voteHeld drs
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
         | .theOutcome s =>
-          if outcomeInScope s drs then (drs, []) else (drs, [.outcomeInScope s (countOutcomes s drs)])
+          if s == .rollResult then
+            -- A dice batch has one numeric result read, without publishing a second outcome.
+            let actual := countOutcomes .rollResult drs
+            let n := if actual == 0 then countOutcomes .diceRolled drs else actual
+            (drs, if n == 1 then [] else [.outcomeInScope .rollResult n])
+          else if outcomeInScope s drs then (drs, [])
+          else (drs, [.outcomeInScope s (countOutcomes s drs)])
         | .coinsShowing _ => (drs, if coinFlipInScope drs then [] else [.coinFlipInScope])
         | .groupSize =>
           let n := match drs.groupSizeScope with
@@ -2106,7 +2112,8 @@ def stepOps : Nat → StepOps
           (drs, if n == 1 then [] else [.outcomeInScope .voteHeld n])
         | .anyResultIs _ bound =>
           let (drs1, e1) := ops.amt drs bound
-          let n := countOutcomes .rollResult drs + countOutcomes .diceRolled drs
+          let actual := countOutcomes .rollResult drs
+            let n := if actual == 0 then countOutcomes .diceRolled drs else actual
           (drs1, e1 ++ (if n == 1 then [] else [.outcomeInScope .rollResult n]))
         | .rolledDoubles =>
           let n := countOutcomes .rollResult drs
@@ -2759,7 +2766,8 @@ def stepOps : Nat → StepOps
             pendingRoles := drs3.pendingRoles.filter (fun mention => keptIds.contains mention.1)
             resolvedIds := drs3.resolvedIds.filter keptIds.contains }
           let closed := publishLoopChoiceHistory (leaveSelectionScope drs1 closedDrs) drs3
-          let output := publishLoopTargetResults closed drs3 outerIds
+          let targets := publishLoopTargetResults closed drs3 outerIds
+          let output := publishLoopCreatedResults targets drs3 outerIds
           (output, e1 ++ pluralityErrors ++ e2)
         | .doForEachKind axis dom q body =>
           let (drs1, e1) := match dom with
@@ -2776,7 +2784,8 @@ def stepOps : Nat → StepOps
             pendingRoles := drs3.pendingRoles.filter (fun mention => outerIds.contains mention.1)
             resolvedIds := drs3.resolvedIds.filter outerIds.contains }
           let closed := publishLoopChoiceHistory (leaveSelectionScope drs1 closedDrs) drs3
-          let output := publishLoopTargetResults closed drs3 outerIds
+          let targets := publishLoopTargetResults closed drs3 outerIds
+          let output := publishLoopCreatedResults targets drs3 outerIds
           (output, e1 ++ e2 ++ refuse (axis.sort == some q) .kindAxisSort ++
             refuse (dom.isSome || axis.closed) .kindDomainOk)
         | .repeat_ rep => stepRepetitionWith ops drs rep

@@ -21,6 +21,7 @@ def CreationSpec.createdReferent (spec : CreationSpec) (countPlur performerPlur 
     | .token ts _ => (createdTokenTypes sourceTypes ts, Zone.battlefield, some Origin.token)
     | .emblem _ _ => ([], Zone.command, none)
   { det := .a
+    createdResult := true
     plur := outputPlur performerPlur countPlur
     payload := .object types (some zone) none origin none none }
 

@@ -552,6 +552,7 @@ structure Referent where
   targets         : List Kind := []
   attachmentHost  : Bool := false
   announcedTargetResult : Bool := false
+  createdResult : Bool := false
   librarySearchResult : Bool := false
   counterMemoryAvailable : Bool := true
   deriving DecidableEq, Repr

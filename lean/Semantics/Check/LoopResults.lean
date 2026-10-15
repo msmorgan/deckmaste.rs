@@ -18,4 +18,15 @@ def publishLoopTargetResults (closed : DRS) (body : DRS)
         announcedTargetResult := true
       } .obj true) closed
 
+
+def publishLoopCreatedResults (closed : DRS) (body : DRS)
+    (outerIds : List ReferentId) : DRS :=
+  (body.referents.filter (fun ref => ref.createdResult &&
+    !outerIds.contains ref.id)).reverse.foldl (fun state ref =>
+      state.push {
+        det := .the, plur := .many, payload := ref.payload.targetGroup,
+        counterMemoryAvailable := ref.counterMemoryAvailable,
+        createdResult := true
+      } .obj true) closed
+
 end Semantics

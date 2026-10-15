@@ -87,4 +87,33 @@ theorem controlGrantRecordsItsPatientIdentity :
     errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧
       refs.map (·.id) = (after.referents.filter (fun r => r.det == .target)).map (·.id) := by decide
 
+private def existingTarget : Referent :=
+  { det := .target, plur := .one,
+    payload := .object [.creature, .artifact] (some .battlefield) none none (some 1) none }
+private def existingTargetContext : DRS := DRS.ofList [existingTarget]
+
+theorem existingReferenceIsAdmitted :
+    Instruction.check existingTargetContext (controllerSacrifices it) = [] := by decide
+
+theorem existingReferenceIsNotIntroducedAgain :
+    let after := (stepInstruction 64 .postEvent .obj existingTargetContext
+      (controllerSacrifices it)).1
+    after.visibleReferents.countP (fun ref => ref.kind == .object) = 1 ∧
+      after.visibleReferents.countP (fun ref => ref.det == .target) = 1 ∧
+      (after.findById? 0).isNone = true ∧
+      (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 3 ∧
+      (after.findById? 3).bind (·.zone) = some .graveyard := by decide
+
+theorem reflexiveFollowUpRemainsAvailable :
+    instruction.reflexEncloseUse = .reflexive := by decide
+
+theorem riderReadsTheStampedPatient :
+    let patient := theVerbed (.action "sacrifice") .one (some .card) .thisWay
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause afterSacrifice) .obj true patient
+    Instruction.check (DRS.ofList [])
+      (.withContinuation .required instruction (some (.expose .reveal (.cards patient))) none) = [] ∧
+      errors = [] ∧ ids = [3] ∧
+      (ids.filterMap after.findById?).map (fun ref => (ref.zone, ref.ty)) =
+        [(some .graveyard, [.creature, .artifact])] := by decide
+
 end Semantics.Proofs.ControllerSacrifice
