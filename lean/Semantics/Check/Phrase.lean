@@ -119,6 +119,7 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   | 0, _ => some .object
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.kind? n
   | _ + 1, .you | _ + 1, .actor | _ + 1, .playerGroup _ | _ + 1, .possessorOf _ _ | _ + 1, .combatPlayer _ => some .player
+  | n + 1, .someOf _ _ group => group.kind? n
   | _ + 1, .pileOf _ _ => some .pile
   | _ + 1, .attachHost _ word => some word.kind
   | n + 1, .or alternatives =>
@@ -362,6 +363,7 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
     match state.findById? oldId with
     | none => state
     | some old =>
+      if state.historicalReferentIds.contains oldId then state else
       let payload : Option Payload := match old.payload with
         | .object ty oldZone _ orig size poss =>
           some (.object ty destZone (mkStamp deed oldZone true) orig size
@@ -851,10 +853,16 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | _ => match clauseActorKind action, actorShape? drs1 with
         | some expected, some shape => kindCheck expected (some shape.kind)
         | _, _ => []
-    let (drs2, e2) := ops.inst .postEvent subj.patientRole { drs1 with actionPattern := true } action
+    let historical : DRS := {
+      drs1 with
+      actionPattern := true
+      historicalReferentIds := drs.referents.map (·.id) }
+    let (drs2, e2) := ops.inst .postEvent subj.patientRole historical action
     let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action) (match action.scopeBody with | .target _ => true | _ => false)
     let (drs4, e4) := stepLookbackSpanWith ops drs3 within
-    ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
+    ({ drs4 with
+        actionPattern := drs.actionPattern
+        historicalReferentIds := drs.historicalReferentIds }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
 
 def stepCausingWith (ops : StepOps) (drs : DRS) (c : Causing) : DRS × List Refusal :=
   match c with
@@ -1193,6 +1201,7 @@ def stepIgnoredOutcomesWith (ops : StepOps) (drs : DRS) (io : IgnoredOutcomes) :
 
 def stepBallotWith (ops : StepOps) (drs : DRS) (b : Ballot) : DRS × List Refusal :=
   match b with
+  | .anyBallot => (drs, refuse drs.actionPattern .concreteBallot)
   | .byLabel labels => (drs, refuse (ballotLabelsOk labels) .ballotLabelsOk)
   | .byCandidate np =>
     let (drs', _, e) := ops.np drs .obj true np
@@ -1205,6 +1214,19 @@ def stepRollRowListWith (ops : StepOps) (drs : DRS) (rows : List RollRow) : DRS 
     let (d2, e2) := ops.inst .postEvent .obj (nextClause d1) inst
     (d2, es ++ e1 ++ refuse q.nonZero .nonZeroQ ++ refuse q.literal .quantLiteral ++ e2))
       (drs, [])
+
+def Instruction.hasRepeatedPayment (instruction : Instruction) (fuel : Nat := 32) : Bool :=
+  match fuel, instruction with
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body =>
+    body.hasRepeatedPayment n
+  | _ + 1, .pay _ times .paid _ _ => times != .once
+  | _, _ => false
+termination_by structural fuel
+
+def finishEachSubject (subject : NounPhrase) (ids : List ReferentId) (drs : DRS) : DRS :=
+  if subject.det == some .each then
+    ids.foldl (fun context id => context.updateById id (fun ref => { ref with plur := .many })) drs
+  else drs
 
 def stepRepetitionWith (ops : StepOps) (drs : DRS) (rep : Repetition) : DRS × List Refusal :=
   match rep with
@@ -1342,8 +1364,14 @@ def stepDamageOpWith (ops : StepOps) (drs : DRS) (dop : DamageOp) : DRS × List 
   | .scale (.multiplied _) | .scale (.halved _) => (drs, [])
   | .scale (.shifted _ amt) => ops.amt drs amt
 
-def stepEntryRiderWith (ops : StepOps) (drs : DRS) (r : EntryRider) : DRS × List Refusal :=
-  match r with
+private def stepEntryRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : EntryRider) : DRS × List Refusal :=
+  match fuel with
+  | 0 => (drs, [.recursionLimit])
+  | fuel + 1 =>
+   match r with
+  | .inCaller body =>
+    let (out, errors) := stepEntryRiderFuel ops fuel (enterCaller drs) body
+    (leaveCaller drs out, errors)
   | .entersAs _ | .entersTransformed | .entersMelded _ | .faceDown _ => (drs, [])
   | .entersAttacking (some defn) =>
     let (drs', _, e) := ops.np drs .other true defn
@@ -1360,6 +1388,11 @@ def stepEntryRiderWith (ops : StepOps) (drs : DRS) (r : EntryRider) : DRS × Lis
     let (drs1, _, e1) := ops.np drs .other false src
     let (drs2, e2) := stepCopyExceptListWith ops drs1 exs
     (drs2, e1 ++ e2)
+
+termination_by structural fuel
+
+def stepEntryRiderWith (ops : StepOps) (drs : DRS) (r : EntryRider) : DRS × List Refusal :=
+  stepEntryRiderFuel ops 64 drs r
 
 def stepEntryRiderListWith (ops : StepOps) (drs : DRS) (rs : List EntryRider) : DRS × List Refusal :=
   rs.foldl (fun (d, es) r =>
@@ -2643,12 +2676,16 @@ def stepOps : Nat → StepOps
           let (drs1, ids, e1) := ops.np drs patientRole true on
           let kind := ((ids.head?.bind drs1.findById?).map (·.kind)).getD (on.kindIn drs1 .object)
           (drs1, e1 ++ refuse (counterHolderKind kind) .counterHolderKind ++ refuse on.perMemberOk .perMember)
-        | .pay cost _ _ whose _ =>
+        | .pay cost times outcome whose keyword =>
           let (drs1, e1) := match whose with
             | some w => let (d, _, e) := ops.np drs .subj true w; (d, e)
             | none => (drs, [])
           let (drs2, e2) := ops.cost drs1 cost
-          (drs2, e1 ++ e2)
+          let repeated := (Instruction.pay cost times outcome whose keyword).hasRepeatedPayment
+          let out := if phase == .postEvent && repeated then
+              drs2.push (outcomeB .repeatCount) .other false
+            else drs2
+          (out, e1 ++ e2)
         | .withContinuation policy body ifDid ifNot =>
           let (drs1, e1) := ops.inst phase patientRole (nextClause drs) body
           let (drs2, e2) := match ifDid with
@@ -2667,7 +2704,8 @@ def stepOps : Nat → StepOps
                 (evidence.chosen || evidence.sourceGroup.any drs.isVisible)) |>.eraseDups
             else drs.selectionEvidence
           let shortfalls := if policy == .optional then drs1.referents.filter (fun ref =>
-              ref.id >= drs.nextId && ref.payload == .outcome .ceilingShortfall)
+              ref.id >= drs.nextId && (ref.payload == .outcome .ceilingShortfall ||
+                (body.hasRepeatedPayment && ref.payload == .outcome .repeatCount)))
             else []
           ({ drs with
               referents := shortfalls ++ drs.referents
@@ -2698,7 +2736,8 @@ def stepOps : Nat → StepOps
             let (_, e3) := ops.inst phase .obj (nextClause drs) el
             (drs, e1 ++ e2 ++ e3)
         | .doForEach grp body =>
-          let (drs1, grpIds, e1) := ops.np drs .other false grp
+          let (read, grpIds, e1) := ops.np { drs with characteristicRead := true } .other false grp
+          let drs1 := { read with characteristicRead := drs.characteristicRead }
           let pluralityErrors := refuse (grp.plur == .many || grp.det == some .each) .plural
           let group := grpIds.head?.bind drs1.findById?
           let drs1 := grpIds.foldl (fun state id =>
@@ -2809,14 +2848,14 @@ def stepOps : Nat → StepOps
           let (callerDrs, errs) := ops.spec (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
         | .modification subj _ d =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
+          let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepDeltaWith ops drs1 d
-          (drs2, e1 ++ e2)
+          (finishEachSubject subj ids drs2, e1 ++ e2)
         | .ptModification subj p t =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
+          let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepDeltaWith ops drs1 p
           let (drs3, e3) := stepDeltaWith ops drs2 t
-          (drs3, e1 ++ e2 ++ e3)
+          (finishEachSubject subj ids drs3, e1 ++ e2 ++ e3)
         | .ptDefinition subj _ amt =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := ops.amt drs1 amt

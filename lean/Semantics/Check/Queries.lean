@@ -214,5 +214,21 @@ private theorem kindLoopPublishesChoiceHistoryWithoutItsLocalCreature :
       (resolveCandidates (.word (.type .creature)) .one result.1).isEmpty = true ∧
       countParts .object result.1 = 0 ∧ countChoice (.quality .number) result.1 = 0 := by decide +kernel
 
+
+private theorem wildcardBallotIsOnlyAnActionPattern :
+    let initial := DRS.ofList []
+    (stepBallotWith (stepOps 8) initial .anyBallot).2 = [.concreteBallot] ∧
+      (stepBallotWith (stepOps 8) { initial with actionPattern := true } .anyBallot).2 = [] ∧
+      (stepBallotWith (stepOps 8) initial (.byLabel [])).2 = [.ballotLabelsOk] := by decide
+
+private theorem entryRiderReadsItsWholeCallerArgument :
+    let caller := nextClause (DRS.ofList [{ det := .a, plur := .one, payload := .player false, id := 7 }])
+    let inner := enterOwnScope caller
+    let player := NounPhrase.pro (.word .player) .one
+    let rider := EntryRider.entersAttacking (some player)
+    let result := stepEntryRiderWith (stepOps 8) inner (.inCaller rider)
+    (stepEntryRiderWith (stepOps 8) inner rider).2 = [.anaphor (.word .player) .one 0] ∧
+      result.2 = [] ∧ (result.1.findById? 7).map (·.payload) = some (.player false) := by decide +kernel
+
 end Check.QueryPins
 end Semantics

@@ -612,6 +612,7 @@ structure DRS where
   /-- The current action describes an event or permission pattern. -/
   actionPattern : Bool := false
   characteristicRead : Bool := false
+  historicalReferentIds : List ReferentId := []
   groupSizeScope : Option (List ReferentId) := none
   selectionEvidence : List SelectionEvidence := []
   selectionScope : Nat := 0

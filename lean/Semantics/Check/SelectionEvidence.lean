@@ -262,4 +262,47 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
         (.gatedBy tollCost (.actor (.described .all (.hasType .creature)))
           (.attack none) { rider := .noRider })).1.groupSizeScope = none := by decide
 
+private theorem eachModificationHasAMemberViewAndAPluralResult :
+    let subject := NounPhrase.described .each (.hasType .creature)
+    let modification := StaticSpec.ptModification subject
+      (.up (.statOf (.stat .power) (.pro .bare .one))) (.up (.lit 1))
+    let out := (stepStaticSpec 64 (DRS.ofList []) modification).1
+    StaticSpec.check (DRS.ofList []) modification = [] ∧
+      countManys .object out = 1 ∧ countOnes .object out = 0 ∧
+      NounPhrase.check (nextClause out) (.pro (.word (.type .creature)) .many) = [] ∧
+      NounPhrase.check (nextClause out) (.pro (.word (.type .creature)) .one) =
+        [.anaphor (.word (.type .creature)) .one 0] ∧
+      Instruction.check (DRS.ofList []) (.sequentially [
+        .establish (.ptModification subject (.up (.letter .x)) (.up (.letter .x))) none,
+        .establish (.letterDefinition .x (.distinctCount .color
+          (.pro (.word (.type .creature)) .many))) none]) = [] := by decide
+
+private def repeatedManaPayment : Instruction :=
+  .pay (.mana [.simple (.generic 2), .simple (.specific (.of .black))]) .anyNumberOfTimes .paid none none
+
+private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
+    let offered := Instruction.withContinuation .optional repeatedManaPayment none none
+    let out := (stepInstruction 64 .postEvent .obj (DRS.ofList []) offered).1
+    Instruction.check (DRS.ofList []) offered = [] ∧
+      countOutcomes .repeatCount out = 1 ∧ countOnes .object out = 0 ∧
+      Amount.check out .thatMuch = [] ∧
+      Instruction.check (DRS.ofList [])
+        (.triggerReflexively offered
+          (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
+            (.asType .creature .this none) .many true)) = [] := by decide
+
+private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
+    let mana := Cost.mana [.simple (.generic 1)]
+    let once := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (.pay mana .once .paid none none)).1
+    let unpaid := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (.pay mana .anyNumberOfTimes .unpaid none none)).1
+    let prospective := (stepInstruction 64 .preEvent .obj (DRS.ofList []) repeatedManaPayment).1
+    Amount.check once .thatMuch = [.quantOutcomeInScope 0] ∧
+      Amount.check unpaid .thatMuch = [.quantOutcomeInScope 0] ∧
+      Amount.check prospective .thatMuch = [.quantOutcomeInScope 0] ∧
+      countOutcomes .repeatCount
+        (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+          (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.lit 1)))) none none)).1 = 0 := by decide
+
 end Semantics

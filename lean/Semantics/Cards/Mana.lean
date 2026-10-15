@@ -695,7 +695,7 @@ theorem okCausticBroncoLoss : Instruction.check (DRS.ofList []) causticBroncoLos
 /-- Dark Fortress -/
 def darkFortressMana : Ability :=
   activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Instruction.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black], [.of .red]]) [])
-    (Primitives.Condition.or [ happened (Primitives.Instruction.move (relative .object) Primitives.EventSource.anywhere (some battlefield) .arrival none []) (Primitives.Subject.actor thisLand) soFarThisTurn,
+    (Primitives.Condition.or [ happened (Primitives.Instruction.move thisLand Primitives.EventSource.anywhere (some battlefield) .arrival none []) Primitives.Subject.any soFarThisTurn,
            exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ])
 theorem okDarkFortressMana : Ability.check (DRS.ofList []) darkFortressMana = [] := by decide
 

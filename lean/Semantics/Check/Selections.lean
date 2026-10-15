@@ -30,9 +30,12 @@ def SliceCount.exact : SliceCount → Option Nat
 
 def selectionPayload (types : List CardType) (group : Option Referent)
     (count : SliceCount) : Payload :=
-  .object (mergeTypes (group.map Referent.ty |>.getD []) types)
-    (group.bind Referent.zone) none none count.exact
-    (group.bind (fun ref => ref.payload.possessor))
+  match (group.map (fun (ref : Referent) => ref.payload) : Option Payload) with
+  | some (.player chosen) => .player chosen
+  | _ =>
+    .object (mergeTypes (group.map Referent.ty |>.getD []) types)
+      (group.bind Referent.zone) none none count.exact
+      (group.bind (fun ref => ref.payload.possessor))
 
 def slicePayload (zone : Option Zone) (amount : Amount) : Payload :=
   .object [] zone none none amount.exact none

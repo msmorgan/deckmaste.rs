@@ -890,20 +890,20 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Instruction :=
   | .action "destroy" =>
     .ownScope (some (.action "destroy"))
       (.enact (.action "destroy")
-        (.move patient (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
+        (.move (.inCaller patient) (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
         none none)
   | .action "sacrifice" =>
     .ownScope (some (.action "sacrifice"))
       (.enact (.action "sacrifice")
-        (.move patient (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
+        (.move (.inCaller patient) (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
         none none)
   | .action "regenerate" =>
     .ownScope (some (.action "regenerate"))
-      (.enact (.action "regenerate") (.clearDamage patient) none none)
+      (.enact (.action "regenerate") (.clearDamage (.inCaller patient)) none none)
   | .action "counter" =>
     .ownScope (some (.action "counter"))
       (.enact (.action "counter")
-        (.move patient (.zones [.zone .stack .bare]) (some (.zone .graveyard .bare)) .arrival none [])
+        (.move (.inCaller patient) (.zones [.zone .stack .bare]) (some (.zone .graveyard .bare)) .arrival none [])
         none none)
   | .action "cast" => .procedure .cast patient .itsOwnCost none none none
   | .action "play" => .procedure .play patient .itsOwnCost none none none
@@ -1201,7 +1201,7 @@ semantic_template mayBlockAdditional (subject : NounPhrase) (quantity : Quantity
     { bound := some (.additional quantity), rider := .noRider }
 /-- "<who> may vote an additional time" -/
 semantic_template mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .may (.actor who) (vote .openly (.byLabel []))
+  .may (.actor who) (vote .openly .anyBallot)
     { bound := some (.additional quantity), rider := .noRider }
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 semantic_template maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
@@ -1510,7 +1510,23 @@ semantic_template lastCounterRemoved (kind : CounterKind) (subject : NounPhrase)
   .does .any (.removeCounters none (some (.printed kind)) subject .emptying false)
 /-- "<subject> regenerates": the verb as an event. -/
 semantic_template regenerates (subject : NounPhrase) : GameEvent :=
-  .does .any (regenerate subject)
+  .does .any (regenerationApplication subject)
+
+private theorem regenerationEventUsesTheApplication :
+    regenerates thisCreature = .does .any (regenerationApplication thisCreature) := rfl
+
+private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
+    let event := regenerates thisCreature
+    let applied := (stepGameEvent 64 (DRS.ofList []) event).1
+    let shield := (stepInstruction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
+    GameEvent.check (DRS.ofList []) event = [] ∧
+      countOnes .object applied = 1 ∧
+      (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
+        some (.object, some .battlefield) ∧
+      countOnes .object shield = 0 ∧
+      Instruction.check (DRS.ofList [])
+        (.triggerThisWay (regenerate thisCreature) event
+          (.putCounters (.lit 1) (.printed (.named "m1m1Counter")) it .many true)) = [] := by decide
 
 /-- Copy exceptions retain their own edit block; added abilities remain copy-specific. -/
 semantic_template copyCharacteristics (c : Characteristics) (typesAdded : Bool) : List CopyExcept :=

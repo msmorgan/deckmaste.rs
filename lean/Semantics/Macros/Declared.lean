@@ -2659,7 +2659,7 @@ semantic_template maySpendAsThough (who : Semantics.NounPhrase) (what : Semantic
 
 /-- `instructions/mayVoteAdditional.ron` -/
 semantic_template mayVoteAdditional (who : Semantics.NounPhrase) (quantity : Semantics.Quantity) : Semantics.StaticSpec :=
-  (Semantics.StaticSpec.may (Semantics.Subject.actor who) (Semantics.Macros.vote Semantics.Disclosure.openly (Semantics.Ballot.byLabel [])) ({ bound := (some (Semantics.CountBound.additional quantity)), asThough := none, rider := Semantics.DeonticRider.noRider, except := none } : Semantics.DeonticMods))
+  (Semantics.StaticSpec.may (Semantics.Subject.actor who) (Semantics.Macros.vote Semantics.Disclosure.openly Semantics.Ballot.anyBallot) ({ bound := (some (Semantics.CountBound.additional quantity)), asThough := none, rider := Semantics.DeonticRider.noRider, except := none } : Semantics.DeonticMods))
 
 /-- `instructions/meldInto.ron` -/
 semantic_template meldInto (subject : Semantics.NounPhrase) (into : String) : Semantics.Instruction :=

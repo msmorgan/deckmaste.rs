@@ -492,6 +492,7 @@ mutual
     | chosen (chooser : Option NounPhrase) (amount : Amount)
 
   inductive Ballot where
+    | anyBallot
     | byLabel (options : List VoteLabel)
     | byCandidate (candidates : NounPhrase)
 
@@ -906,6 +907,7 @@ mutual
   /-- How a permanent arrives on the battlefield: from a move, a token's creation, or a static
   entry rider. -/
   inductive EntryRider where
+    | inCaller (body : EntryRider)
     | entersAs (status : Status)
     | entersAttacking (defender : Option NounPhrase)
     | entersTransformed
@@ -1189,6 +1191,9 @@ instance : Coe NounPhrase Subject where
 
 instance : AnyValue NounPhrase where
   any := .any
+
+instance : AnyValue Ballot where
+  any := .anyBallot
 
 instance : AnyValue Cost where
   any := .anyCost

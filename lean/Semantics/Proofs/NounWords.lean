@@ -136,4 +136,32 @@ theorem verbedTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (s
       verbedWordOk (.ofType (.copied word) ty) st remembered zone origin := by
   simp only [verbedWordOk, Bool.and_right_comm]
 
+private def selectedOpponent : NounPhrase :=
+  .someOf (.counted (exactly 1)) none (allOf .opponent)
+
+theorem playerSubsetRetainsItsGroupKindAndIdentity :
+    let (after, ids, errors) := stepNounPhrase 64 (DRS.ofList []) .other false selectedOpponent
+    errors = [] ∧ ids = [1] ∧ selectedOpponent.kind? = some .player ∧
+      (after.findById? 0).map (fun ref => (ref.kind, ref.plur)) =
+        some (.player, .many) ∧
+      (after.findById? 1).map (fun ref => (ref.kind, ref.plur, ref.det, ref.payload)) =
+        some (.player, .one, .part, .player false) ∧
+      after.selectionEvidence =
+        [{ kind := .player, sourceGroup := some 0, chosen := false, scope := 0 }] := by decide
+
+theorem playerSubsetCanPerformAPlayerInstruction :
+    Instruction.check (DRS.ofList []) (instruct selectedOpponent (draw (.lit 1))) = [] := by
+  decide
+
+theorem playerSubsetCannotFillAnObjectContext :
+    NounPhrase.checkAt (some .object) (DRS.ofList []) selectedOpponent =
+      [.kindMismatch .object .player] := by decide
+
+theorem objectSubsetRetainsItsTypeZoneAndExactSize :
+    let (after, ids, errors) := stepNounPhrase 64 (DRS.ofList []) .other false
+      (.someOf (.counted (exactly 1)) none (allOf creature))
+    errors = [] ∧ ids = [1] ∧
+      (after.findById? 1).map (·.payload) =
+        some (.object [.creature] (some .battlefield) none none (some 1) none) := by decide
+
 end Semantics.Proofs.NounWords

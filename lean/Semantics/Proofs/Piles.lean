@@ -171,17 +171,16 @@ theorem okCascade : Ability.check (DRS.ofList []) cascadeExpansion = [] := by de
 
 /-- Ripple [CR#702.60a]: "you may reveal the top four cards of your library … you may cast any of
 those cards with the same name as this spell without paying their mana costs, then put all
-revealed cards not cast this way on the bottom of your library in any order." The reveal deed
-stamps nothing it revealed, so "revealed cards" reads nothing; ripple stays bodyless until
-`lean-drt-anaphora-refactor`. -/
-theorem badRippleRevealedCards :
+revealed cards not cast this way on the bottom of your library in any order." The reveal result
+remains accessible through the cast selection and subsequent move. -/
+theorem rippleRevealedCardsRemainAccessible :
     Instruction.check (DRS.ofList [])
       (Primitives.Instruction.offer (revealCards (.slice .top (.lit 4) (library .actor)))
         (some (.sequentially
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
             (.move (allFromAmong (.not Declared.wasCast) (theVerbed (.action "reveal") .many)) .anywhere (some onBottom) .arrival none [.placement (.inOrder .anyOrder)]) ])) none)
-      = [.anaphor (.verbed (.action "reveal") none .attributive) .many 0] := by
+      = [] := by
   decide
 
 theorem nestedStaticConditionals :

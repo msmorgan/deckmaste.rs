@@ -114,7 +114,7 @@ namespace Semantics.Macros.Primitives.Instruction
 semantic_definition create (count : Amount) (token : TokenSpec) (riders : List EntryRider) :
     Semantics.Instruction :=
   .ownScope (some (.action "create"))
-    (.enact (.action "create") (.createObject (.inCaller count) (.token (.inCaller token) riders) true none) none none)
+    (.enact (.action "create") (.createObject (.inCaller count) (.token (.inCaller token) (riders.map EntryRider.inCaller)) true none) none none)
 
 semantic_template getEmblem (abilities : List Ability) : Semantics.Instruction :=
   .createObject (.lit 1) (.emblem none abilities) true none

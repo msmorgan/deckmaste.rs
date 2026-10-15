@@ -125,4 +125,49 @@ theorem conditionalModificationDoesNotExportAnIndefiniteSubject :
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).isEmpty = true := by decide
 
+theorem prohibitionsReadTheirCallerScopedSpellParameter :
+    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a spell)).1)
+    let out := stepStaticSpec 16 announced (objectCant (.action "counter") (that .spell))
+    out.2 = [] ∧ (out.1.findById? 0).map (·.zone) = some (some .stack) := by decide
+
+theorem prohibitionsReadTheirCallerScopedPermanentParameter :
+    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a creature)).1)
+    (["destroy", "sacrifice", "regenerate"].map fun name =>
+      (stepStaticSpec 16 announced (objectCant (.action name) (that (.type .creature)))).2) =
+      [[], [], []] := by decide
+
+theorem prohibitionsStillRefuseMissingCallerParameters :
+    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (that .spell)) =
+      [.anaphor (.word .spell) .one 0] := by decide
+
+theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
+    let dead := (stepInstruction 16 .postEvent .obj (DRS.ofList [])
+      (destroy (allOf creature))).1
+    let out := stepInstruction 16 .postEvent .obj (nextClause dead)
+      (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw (.lit 1))))
+    out.2 = [] ∧ (out.1.visibleReferents.filter (fun ref => ref.kind == .object)).all
+      (fun ref => ref.zone == some .graveyard) = true := by decide +kernel
+
+theorem historicalIterationDoesNotPermitTappingDepartedPermanents :
+    let dead := (stepInstruction 16 .postEvent .obj (DRS.ofList [])
+      (destroy (allOf creature))).1
+    (stepInstruction 16 .postEvent .obj (nextClause dead)
+      (.doForEach (those .permanent) (tap it))).2 = [.deedFits] := by decide +kernel
+
+theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
+    let initial := nextClause ((stepGameEvent 16 (DRS.ofList [])
+      (Primitives.GameEvent.enters thisCreature none)).1)
+    let original := initial.referents.head?.map (·.id)
+    let out := stepCondition 16 initial
+      (.did ⟨.any, .move it (.zones [graveyardOf .you]) (some battlefield) .arrival none [],
+        .triggering⟩)
+    out.2 = [] ∧ (original.bind out.1.findById?).map (·.zone) = some (some .battlefield) ∧
+      out.1.historicalReferentIds = [] := by decide +kernel
+
+theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
+    let out := stepCondition 16 (DRS.ofList [])
+      (.did ⟨.any, destroy (a creature), .duration soFarThisTurn none⟩)
+    out.2 = [] ∧ out.1.visibleReferents.any
+      (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
+
 end Semantics.Proofs.DrtCards

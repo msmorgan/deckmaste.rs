@@ -74,10 +74,14 @@ def IgnoredOutcomes.numberSlots : IgnoredOutcomes → List (Amount × NumberRegi
 
 /-- A rider's own slots: how many counters it enters with, a count [CR#107.1b]. The copy
 exceptions of `asCopyOf` declare their own. -/
-def EntryRider.numberSlots : EntryRider → List (Amount × NumberRegime)
-  | .entersAs _ | .entersAttacking _ | .entersTransformed | .entersMelded _ => []
-  | .withCounters amount _ _ => [(amount, .clamped)]
-  | .under _ | .asCopyOf _ _ _ | .faceDown _ => []
+def EntryRider.numberSlots (value : EntryRider) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
+  match fuel, value with
+  | 0, _ => []
+  | n + 1, .inCaller body => body.numberSlots n
+  | _ + 1, .withCounters amount _ _ => [(amount, .clamped)]
+  | _ + 1, .entersAs _ | _ + 1, .entersAttacking _ | _ + 1, .entersTransformed
+  | _ + 1, .entersMelded _ | _ + 1, .under _ | _ + 1, .asCopyOf _ _ _ | _ + 1, .faceDown _ => []
+termination_by structural fuel
 
 def EntryRider.ridersSlots : List EntryRider → List (Amount × NumberRegime)
   | [] => []

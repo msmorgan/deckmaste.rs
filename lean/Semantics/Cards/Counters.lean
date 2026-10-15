@@ -130,8 +130,8 @@ def kratosStoicFather : Ability :=
 theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
-    (happened (Primitives.Instruction.move (Primitives.NounPhrase.asMarker .permanent (relative
-      .object)) (Primitives.EventSource.zones [battlefield]) (some graveyard) .departure none []) (Primitives.Subject.actor (a creature)) soFarThisTurn)
+    (happened (Primitives.Instruction.move (a creature)
+      (Primitives.EventSource.zones [battlefield]) (some graveyard) .departure none []) Primitives.Subject.any soFarThisTurn)
     (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
