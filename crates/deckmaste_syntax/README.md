@@ -12,7 +12,7 @@ It has no proc macros and no generated code: a grammar is data.
    `deckmaste_lexical::Lexicon` and a `FrameCatalog` of Subcategorization Frames.
    Binding validates every name, rejects policing feature names (`…Use`,
    `…Licence`, `…License`, `…Present`, `…Restriction`), and rejects any Closed Word
-   or Lexical Class member that is not a core closed-class lexeme, so catalog
+   or explicitly named Lexical Class member that is not a core closed-class lexeme, so catalog
    vocabulary such as keyword actions can never appear in a grammar.
 3. `parse(lexicon, text)` runs an Earley chart over the lexical analysis of the
    text and returns a `Parse`: the Packed Forest, its `Metrics`, and vocabulary
@@ -67,6 +67,25 @@ Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
 extraction works across finite, plain, progressive, perfect and passive forms with
 no per-form Productions.
+
+## Lexical classes and notation
+
+`typed_classes` names classes whose membership comes from the lexical
+environment's declared properties, including Catalog entries. Empty and
+singleton classes are reported. The grammar never enumerates their members.
+`Parameters` compiles the catalog's ordered parameter patterns around a head:
+slots select grammar Categories; markers, bound stems and head identities stay
+in the catalog. Noun notation parameters support indexed headers by the same
+mechanism as keyword parameters.
+
+`Mark` specifies structural punctuation and its attachment at either edge;
+`Attached` attaches a constituent at its outer boundaries, for adjacent symbol
+sequences. These bindings are applied by both realization and the packed-forest
+law checker. Paragraph boundaries are explicit terminals, never skipped as
+interword whitespace. `Numeral` and `UnsignedNumeral` select numeral notation;
+`FreeLex` excludes bound stems from independent word positions. Bare valence
+phrases likewise require free words. Flavor Word leaves use the lexical layer's
+registered-label exclusion and realization.
 
 ## Reading Normal Form
 

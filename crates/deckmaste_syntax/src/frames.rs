@@ -75,6 +75,11 @@ pub enum SlotFill {
 /// A [`SlotFill`] without its markers: the key a grammar maps to a Category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotKind {
+    Quality,
+    Ability,
+    Condition,
+    Measure,
+    Name,
     NP,
     PP,
     Pred,
@@ -232,6 +237,9 @@ pub struct PrepositionFrame {
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct FrameCatalog {
+    /// Ordered parameter patterns, including the position of the head.
+    #[serde(default)]
+    pub parameters: BTreeMap<LexemeId, Vec<Vec<ParameterPart>>>,
     #[serde(default)]
     pub frames: BTreeMap<LexemeId, Vec<Frame>>,
     #[serde(default)]
@@ -253,4 +261,14 @@ impl FrameCatalog {
         }
         Ok(catalog)
     }
+}
+
+/// One component of a catalog-declared parameter pattern.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
+pub enum ParameterPart {
+    Head,
+    Slot(SlotKind),
+    Word(LexemeId),
+    Words(Vec<LexemeId>),
+    Mark(char, deckmaste_lexical::Binding),
 }

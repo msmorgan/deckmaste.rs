@@ -24,6 +24,9 @@ pub struct Grammar {
     /// Lexical Classes by grammar name, each listing core closed-class lexeme ids.
     #[serde(default)]
     pub lexical_classes: BTreeMap<String, Vec<String>>,
+    /// Classes whose membership is declared by the lexical environment.
+    #[serde(default)]
+    pub typed_classes: Vec<String>,
     /// The Category that fills each kind of Frame Slot.
     #[serde(default)]
     pub slot_categories: BTreeMap<SlotKind, String>,
@@ -85,14 +88,22 @@ pub(crate) fn default_cost() -> u32 {
 pub enum SymbolDecl {
     /// A Constituent of a Category.
     Cat(String, String),
+    /// A constituent attached at its outer boundaries (for symbol sequences).
+    Attached(String, String, deckmaste_lexical::Binding),
+    /// A numeral in a specific notation.
+    Numeral(String, deckmaste_lexical::Numeral),
+    UnsignedNumeral(String, deckmaste_lexical::Numeral),
     /// Any word of a lexical Category.
     Lex(String, deckmaste_lexical::Category),
+    FreeLex(String, deckmaste_lexical::Category),
     /// The Closed Word of that grammar name.
     Word(String, String),
     /// Any member of the Lexical Class of that grammar name.
     Class(String, String),
     /// Literal punctuation: it may decide an analysis but is not stored in a Reading.
     Punct(char),
+    /// Structural punctuation with explicit attachment to adjacent atoms.
+    Mark(char, deckmaste_lexical::Binding),
 }
 
 /// A feature equation over `$.Feature` (the mother) or `child.Feature` paths.
@@ -107,6 +118,13 @@ pub enum Equation {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum SchemaDecl {
+    /// Catalog-declared ordered parameter patterns around a lexical head.
+    Parameters {
+        head: deckmaste_lexical::Category,
+        phrase: String,
+        #[serde(default)]
+        binding: Option<deckmaste_lexical::Binding>,
+    },
     /// Frame-driven phrases headed by every lexeme of a lexical Category.
     Valence {
         head: deckmaste_lexical::Category,

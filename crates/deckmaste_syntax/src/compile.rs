@@ -111,6 +111,7 @@ fn invalid(message: impl Into<String>) -> LoadError {
 
 struct Binder<'a> {
     grammar: &'a Grammar,
+    catalog: &'a FrameCatalog,
     out: CompiledGrammar,
     closed_words: BTreeMap<String, LexemeId>,
     class_names: BTreeMap<String, usize>,
@@ -181,7 +182,7 @@ impl<'a> Binder<'a> {
     fn new(
         grammar: &'a Grammar,
         lexicon: &'a Lexicon,
-        catalog: &FrameCatalog,
+        catalog: &'a FrameCatalog,
     ) -> Result<Self, LoadError> {
         let mut report = LoadReport::default();
         let features: Vec<String> = grammar.features.keys().cloned().collect();
@@ -351,9 +352,29 @@ impl<'a> Binder<'a> {
             classes.push(set);
         }
 
+        for name in &grammar.typed_classes {
+            if class_names.contains_key(name) {
+                return Err(invalid(format!("duplicate lexical class `{name}`")));
+            }
+            class_names.insert(name.clone(), classes.len());
+            let members: BTreeSet<_> = lexicon
+                .lexemes()
+                .iter()
+                .filter(|(_, l)| l.properties.classes.contains(name))
+                .map(|(id, _)| *id)
+                .collect();
+            if members.len() < 2 {
+                report.warnings.push(format!(
+                    "lexical class `{name}` has {} member(s); a class needs two or more",
+                    members.len()
+                ));
+            }
+            classes.push(members);
+        }
         let by_lhs = vec![Vec::new(); categories.len()];
         Ok(Self {
             grammar,
+            catalog,
             out: CompiledGrammar {
                 categories,
                 category_features,
@@ -468,11 +489,30 @@ impl<'a> Binder<'a> {
                 SymbolDecl::Cat(name, category) => (
                     name.as_str(),
                     Symbol::Cat {
+                        binding: None,
                         category: self.category(category).map_err(context)?,
                         prepositions: None,
                         host: None,
                     },
                 ),
+                SymbolDecl::Attached(name, category, binding) => (
+                    name.as_str(),
+                    Symbol::Cat {
+                        category: self.category(category).map_err(context)?,
+                        binding: Some(*binding),
+                        prepositions: None,
+                        host: None,
+                    },
+                ),
+                SymbolDecl::UnsignedNumeral(name, notation) => {
+                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation, true)))
+                }
+                SymbolDecl::Numeral(name, notation) => {
+                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation, false)))
+                }
+                SymbolDecl::FreeLex(name, category) => {
+                    (name.as_str(), Symbol::Leaf(Test::FreeLexical(*category)))
+                }
                 SymbolDecl::Lex(name, category) => {
                     (name.as_str(), Symbol::Leaf(Test::Lexical(*category)))
                 }
@@ -486,7 +526,8 @@ impl<'a> Binder<'a> {
                         || context(invalid(format!("unknown class `{class}`"))),
                     )?)),
                 ),
-                SymbolDecl::Punct(c) => ("", Symbol::Punct(*c)),
+                SymbolDecl::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
+                SymbolDecl::Punct(c) => ("", Symbol::Punct(*c, Binding::Suffix)),
             };
             let gap = if let Some(gap) = required_gaps.remove(name) {
                 GapRule::Require(gap)
@@ -558,7 +599,7 @@ impl<'a> Binder<'a> {
                 self.out.category_features[*category].contains(&feature)
             }
             Symbol::Leaf(_) => self.out.projected.contains(&Some(feature)),
-            Symbol::Punct(_) => false,
+            Symbol::Punct(..) => false,
         }
     }
 
@@ -624,6 +665,11 @@ impl<'a> Binder<'a> {
 
     fn schema(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         match schema {
+            SchemaDecl::Parameters {
+                head,
+                phrase,
+                binding,
+            } => self.parameters(*head, phrase, *binding),
             SchemaDecl::Valence {
                 head,
                 phrase,
@@ -645,11 +691,13 @@ impl<'a> Binder<'a> {
                     *cost,
                 );
                 let host_symbol = Symbol::Cat {
+                    binding: None,
                     category: host_id,
                     prepositions: None,
                     host: None,
                 };
                 let adjunct_symbol = Symbol::Cat {
+                    binding: None,
                     category: adjunct_id,
                     prepositions: None,
                     host: Some(*host_kind),
@@ -676,6 +724,78 @@ impl<'a> Binder<'a> {
                 cost,
             } => self.coordination(category, coordinators, *cost),
         }
+    }
+
+    fn parameters(
+        &self,
+        head: LexicalCategory,
+        phrase: &str,
+        binding: Option<Binding>,
+    ) -> Result<Vec<Draft>, LoadError> {
+        use crate::frames::ParameterPart;
+        let lhs = self.category(phrase)?;
+        let mut drafts = Vec::new();
+        for (id, patterns) in &self.catalog.parameters {
+            let facts =
+                self.out.lexemes.get(id).ok_or_else(|| {
+                    invalid(format!("parameter pattern names unknown lexeme `{id}`"))
+                })?;
+            if facts.category != head || binding.is_some_and(|b| b != facts.binding) {
+                continue;
+            }
+            for (index, parts) in patterns.iter().enumerate() {
+                if parts
+                    .iter()
+                    .filter(|p| matches!(p, ParameterPart::Head))
+                    .count()
+                    != 1
+                {
+                    return Err(invalid(format!(
+                        "parameter pattern of `{id}` needs one head"
+                    )));
+                }
+                let mut draft = Draft::new(format!("Parameters:{phrase}/{id}/{index}"), lhs, 0);
+                for part in parts {
+                    let (name, symbol) = match part {
+                        ParameterPart::Head => ("head", Symbol::Leaf(Test::Word(*id))),
+                        ParameterPart::Slot(kind) => (
+                            "complement",
+                            Symbol::Cat {
+                                binding: None,
+                                category: self.slot_category(*kind)?,
+                                prepositions: None,
+                                host: None,
+                            },
+                        ),
+                        ParameterPart::Word(word) => {
+                            if !self.out.lexemes.contains_key(word) {
+                                return Err(invalid(format!("unknown parameter marker `{word}`")));
+                            }
+                            ("marker", Symbol::Leaf(Test::Word(*word)))
+                        }
+                        ParameterPart::Words(words) => {
+                            if words.is_empty()
+                                || words
+                                    .iter()
+                                    .any(|word| !self.out.lexemes.contains_key(word))
+                            {
+                                return Err(invalid(format!(
+                                    "invalid parameter word class of `{id}`"
+                                )));
+                            }
+                            (
+                                "complement",
+                                Symbol::Leaf(Test::Words(words.iter().copied().collect())),
+                            )
+                        }
+                        ParameterPart::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
+                    };
+                    draft.child(name, symbol, GapRule::Closed);
+                }
+                drafts.push(draft);
+            }
+        }
+        Ok(drafts)
     }
 
     fn valence(
@@ -752,7 +872,11 @@ impl<'a> Binder<'a> {
         }
         if head != LexicalCategory::Verb {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
-            bare.child("head", Symbol::Leaf(Test::Lexical(head)), GapRule::Closed);
+            bare.child(
+                "head",
+                Symbol::Leaf(Test::FreeLexical(head)),
+                GapRule::Closed,
+            );
             drafts.push(bare);
         }
         let voice = self.out.features.iter().position(|f| f == "Voice");
@@ -885,6 +1009,7 @@ impl<'a> Binder<'a> {
 
     fn slot_symbol(&self, fill: &SlotFill) -> Result<Symbol, LoadError> {
         Ok(Symbol::Cat {
+            binding: None,
             category: self.slot_category(fill.kind())?,
             prepositions: match fill {
                 SlotFill::PP(list) => Some(list.clone()),
@@ -904,6 +1029,7 @@ impl<'a> Binder<'a> {
         let lhs = self.category(category)?;
         let coordinator = self.coordinator_test(coordinators)?;
         let conjunct = || Symbol::Cat {
+            binding: None,
             category: lhs,
             prepositions: None,
             host: None,
@@ -939,13 +1065,14 @@ impl<'a> Binder<'a> {
             ))
         })?;
         let tail_symbol = Symbol::Cat {
+            binding: None,
             category: tail,
             prepositions: None,
             host: None,
         };
         let mut serial = Draft::new(format!("Coordination:{category}/serial"), lhs, cost);
         let a = serial.child("first", conjunct(), GapRule::Shared);
-        serial.child("", Symbol::Punct(','), GapRule::Closed);
+        serial.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
         let t = serial.child("rest", tail_symbol.clone(), GapRule::Shared);
         serial.coordinator = Some(t);
         serial.distinct_coordinator = vec![a];
@@ -953,7 +1080,7 @@ impl<'a> Binder<'a> {
         drafts.push(serial);
         let mut more = Draft::new(format!("Coordination:{category}/serial-more"), tail, 0);
         let a = more.child("first", conjunct(), GapRule::Shared);
-        more.child("", Symbol::Punct(','), GapRule::Closed);
+        more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
         let t = more.child("rest", tail_symbol, GapRule::Shared);
         more.coordinator = Some(t);
         more.distinct_coordinator = vec![a];
@@ -961,7 +1088,7 @@ impl<'a> Binder<'a> {
         drafts.push(more);
         let mut end = Draft::new(format!("Coordination:{category}/serial-end"), tail, 0);
         let a = end.child("first", conjunct(), GapRule::Shared);
-        end.child("", Symbol::Punct(','), GapRule::Closed);
+        end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
         let c = end.child("coordinator", Symbol::Leaf(coordinator), GapRule::Closed);
         let b = end.child("last", conjunct(), GapRule::Shared);
         end.coordinator = Some(c);
@@ -976,6 +1103,7 @@ impl<'a> Binder<'a> {
             raising.child(
                 "shared",
                 Symbol::Cat {
+                    binding: None,
                     category: np,
                     prepositions: None,
                     host: None,

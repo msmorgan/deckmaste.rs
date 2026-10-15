@@ -107,8 +107,8 @@
 + Creatures gain ward {2}.
 + Creatures have "Draw cards."
 + Creatures have "{T}: Draw cards."
-+ Ward
-+ Frenzy
++KeywordPhrase Ward
++KeywordPhrase Frenzy
 * Flying 2
 * Flying {2}
 * Landfall

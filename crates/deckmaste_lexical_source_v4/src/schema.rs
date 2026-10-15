@@ -176,6 +176,9 @@ pub struct VerbEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NounEntry {
+    /// Ordered notation parameters, for indexed headings.
+    #[serde(default)]
+    pub parameters: Vec<Vec<deckmaste_syntax::frames::ParameterPart>>,
     pub lemma: String,
     #[serde(default = "count")]
     pub countability: Vec<Countability>,
@@ -202,6 +205,7 @@ impl NounDecl {
     pub fn entry(&self) -> NounEntry {
         match self {
             Self::Lemma(lemma) => NounEntry {
+                parameters: Vec::new(),
                 lemma: lemma.clone(),
                 countability: count(),
                 plural: None,
@@ -288,6 +292,8 @@ pub struct PrepositionEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DeterminativeEntry {
+    #[serde(default)]
+    pub number: Option<Number>,
     pub lemma: String,
     /// Spelling Variants, when the lemma is not the only spelling.
     #[serde(default)]

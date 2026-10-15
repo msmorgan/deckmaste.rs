@@ -1,0 +1,44 @@
+# Card-frame syntax, keyword parameter frames, and outer spines over seed payloads.
++ Legendary Artifact Creature — Golem => TypeLine "Legendary Artifact Creature — Golem"
++ Basic Snow Land — Island => TypeLine "Basic Snow Land — Island"
+* Creature Legendary — Elf
+* Legendary
+* Creature —
+* Creature — Elf — Druid
++ Flying, vigilance; trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
++ Flying; vigilance, trample => KeywordPhrase "Flying"; KeywordPhrase "vigilance"; KeywordPhrase "trample"
+* Flying,
+* Flying;; vigilance
+* Flying {2}
+* Ward
++ Ward {2}
++ Equip—{3}
++ Equip legendary creature {1} => Quality "legendary creature"
++ Enchant creature without flying => PrepositionPhrase "without flying" as Modifier of creature
++ Swampwalk => KeywordPhrase "Swampwalk"
++ Nonbasic landwalk => KeywordPhrase "Nonbasic landwalk"
++ Basic landcycling {1}{W} => KeywordPhrase "Basic landcycling {1}{W}"
+* Goblinwalk
+* Nonflying
++ Landfall — Destroy a creature. => NounPhrase "a creature" as Object of destroy
++ Uncharted marvel — Destroy a creature. => NounPhrase "a creature" as Object of destroy
++ {2}{U}, {T}: Destroy a creature. => Cost "{2}{U}, {T}"; NounPhrase "a creature" as Object of destroy
++ {Q}, {E}{E}: Destroy a creature. => Cost "{Q}, {E}{E}"
++ [+2]: Destroy a creature. => Cost "[+2]"
++ [-2]: Destroy a creature. => Cost "[-2]"
++ [−2]: Destroy a creature. => Cost "[−2]"
++ [0]: Destroy a creature. => Cost "[0]"
+* [2+]: Destroy a creature.
++ Choose one — => NounPhrase "one" as Object of choose
++ Choose one or both — => NounPhrase "one or both" as Object of choose
++ • Destroy a creature. => NounPhrase "a creature" as Object of destroy
++ • {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
++ I, II — Flying => KeywordPhrase "Flying"
++ III — Uncharted marvel — Flying => KeywordPhrase "Flying"
++ Artifact landcycling {2} => KeywordPhrase "Artifact landcycling {2}"
++ I, II — Choose one — => NounPhrase "one" as Object of choose
++ LEVEL 1-3
++ LEVEL 4+
++ {W}{U}: Level 2
+* {W}{U}: Level
++ Prototype {1}{B} — 1/1 => Measure "1/1"

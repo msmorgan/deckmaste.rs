@@ -100,19 +100,53 @@ impl Parse<'_> {
         let mut edges = BTreeSet::new();
         for &(previous, child) in &self.forest.items[item].families {
             let last: BTreeSet<Edges> = match child {
-                ChildRef::Node(n) => self.node_edges(n, lexicon, memo)?,
+                ChildRef::Node(n) => {
+                    let edges = self.node_edges(n, lexicon, memo)?;
+                    let state = &self.forest.items[item];
+                    if let crate::step::Symbol::Cat {
+                        binding: Some(binding),
+                        ..
+                    } = &self.grammar.productions[state.production].rhs[state.dot - 1]
+                    {
+                        edges
+                            .into_iter()
+                            .map(|(before, after)| {
+                                (
+                                    before || glues_before(*binding),
+                                    after || glues_after(*binding),
+                                )
+                            })
+                            .collect()
+                    } else {
+                        edges
+                    }
+                }
                 ChildRef::Leaf(l) => {
                     let binding = self.leaf_binding(l, lexicon)?;
                     BTreeSet::from([(glues_before(binding), glues_after(binding))])
                 }
-                ChildRef::Punct => BTreeSet::from([(true, false)]),
+                ChildRef::Punct => {
+                    let state = &self.forest.items[item];
+                    let crate::step::Symbol::Punct(_, binding) =
+                        &self.grammar.productions[state.production].rhs[state.dot - 1]
+                    else {
+                        unreachable!()
+                    };
+                    BTreeSet::from([(glues_before(*binding), glues_after(*binding))])
+                }
             };
             let Some(previous) = previous else {
                 edges.extend(last);
                 continue;
             };
             let at = self.forest.items[previous].end;
-            let space = self.space_after(at);
+            let symbol = &self.grammar.productions[self.forest.items[item].production].rhs
+                [self.forest.items[item].dot - 1];
+            let space = if matches!(symbol, crate::step::Symbol::Punct(c, _) if c.is_whitespace()) {
+                Some(false)
+            } else {
+                self.space_after(at)
+            };
             for (first, before) in self.item_edges(previous, lexicon, memo)? {
                 for &(attaches, after) in &last {
                     let glue = before || attaches;

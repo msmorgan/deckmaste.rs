@@ -69,8 +69,25 @@ cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<ce
 prints the summary and writes the full per-unit report to
 `target/english-v4/strata.json` (untracked). `--check` fails on a regression.
 
-Until the full lexical environment binds to the grammar (Stratum 0's first
-task), every unit is unread with reason `Unbound`.
+The full lexical environment binds. Stratum 0 covers Type Lines, complete
+keyword lists and non-clausal parameters, symbolic costs and structured
+headers. `Document` composes lines with explicit paragraph boundaries. Outer
+ability spines are also checked over seed clauses; later clausal syntax remains
+pending at its own Stratum.
+
+The profiler recognizes bound stems and preposed qualities without treating
+keyword verbs as keyword heads. A relative after a numeral (*two that share …*)
+belongs to Stratum 3 even inside a keyword parameter.
+
+A `KeywordPhrase` distinguishes supplied parameters from an omitted-parameter
+mention. Keyword lists require supplied parameters; noun modifiers and selected
+keyword complements can use mentions. Comma and semicolon keyword separators
+are distinct Productions, so their Readings retain the permitted spelling
+choice. Other punctuation and symbol attachment are derived from structure.
+
+The load report identifies the one-member `RangeMarker` lexical class: it
+contains the level-range notation marker. This keeps the marker's spelling in
+the lexical environment; it is not an attachment-policing feature.
 
 ## Judgment set
 
@@ -78,7 +95,11 @@ task), every unit is unread with reason `Unbound`.
 per entry. `tests/judgments.rs` always enforces `seed.txt` on the seed lexicon
 and enforces every other entry whose text profiles at or below
 `COMPLETED_STRATUM`; the rest are pending. Every evaluated entry also checks
-both round-trip laws on each of its Readings. The census uses the same entries
+both round-trip laws on each of its Readings. `stratum_zero.txt` is also
+always enforced in full, including its outer spines over seed clauses.
+`tests/stratum_zero.rs` independently constructs keyword-list Readings with
+both separators, checks multiline document boundaries, and proves that a new
+catalog keyword's parameters bind without changing the grammar. The census uses the same entries
 to find known-wrong-only units.
 
 The judgments migrated from `deckmaste_english_v3`'s test suite, and the reason

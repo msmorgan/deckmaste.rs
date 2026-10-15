@@ -573,14 +573,20 @@ fn keyword_line<'e>(payload: &[Tok<'e>], families: &mut BTreeSet<Family>) -> boo
         .collect();
     // A keyword, or a bound keyword after its stem (*Swamp*·*walk*).
     let keyword_at = |item: &[Tok<'_>]| {
-        if item[0].class_is(Class::KeywordAbility) {
-            Some(1)
-        } else {
-            (item.len() > 1
-                && item[0].only_class(&[Class::Subtype, Class::CardType, Class::CardName])
-                && item[1].class_is(Class::KeywordAbility))
-            .then_some(2)
-        }
+        item.iter().enumerate().find_map(|(i, token)| {
+            (token.class_is(Class::KeywordAbility)
+                && token.has(Category::Keyword)
+                && item[..i].iter().all(|t| {
+                    t.class_is(Class::CardType)
+                        || t.class_is(Class::Subtype)
+                        || t.has(Category::Affix)
+                        || t.alts().iter().any(|a| {
+                            a.lexeme
+                                .is_some_and(|l| l.binding == deckmaste_lexical::Binding::Prefix)
+                        })
+                }))
+            .then_some(i + 1)
+        })
     };
     let is_keyword_line = !items.is_empty() && items.iter().all(|item| keyword_at(item).is_some());
     if is_keyword_line {
@@ -811,7 +817,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         }
         if t.is(Category::Subordinator, "that") {
             let after = next(i);
-            if previous(i).is_some_and(Tok::nominal)
+            if previous(i).is_some_and(|p| p.nominal() || p.numeral())
                 && after.is_some_and(|n| {
                     n.finite_verb() || n.has(Category::Pronoun) || n.has(Category::Determinative)
                 })

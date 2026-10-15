@@ -88,6 +88,7 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
     names.extend(grammar.categories.keys().map(String::as_str));
     names.extend(grammar.closed_words.keys().map(String::as_str));
     names.extend(grammar.lexical_classes.keys().map(String::as_str));
+    names.extend(grammar.typed_classes.iter().map(String::as_str));
     names.extend(grammar.slot_categories.values().map(String::as_str));
     for production in &grammar.productions {
         names.push(&production.name);
@@ -95,16 +96,21 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
         names.extend(production.transparent.iter().map(String::as_str));
         for symbol in &production.rhs {
             match symbol {
-                SymbolDecl::Cat(child, name)
+                SymbolDecl::Attached(child, name, _)
+                | SymbolDecl::Cat(child, name)
                 | SymbolDecl::Word(child, name)
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
-                SymbolDecl::Lex(child, _) => names.push(child),
-                SymbolDecl::Punct(_) => {}
+                SymbolDecl::UnsignedNumeral(child, _)
+                | SymbolDecl::FreeLex(child, _)
+                | SymbolDecl::Numeral(child, _)
+                | SymbolDecl::Lex(child, _) => names.push(child),
+                SymbolDecl::Punct(_) | SymbolDecl::Mark(..) => {}
             }
         }
     }
     for schema in &grammar.schemas {
         match schema {
+            SchemaDecl::Parameters { phrase, .. } => names.push(phrase),
             SchemaDecl::Valence {
                 phrase, passive, ..
             } => {

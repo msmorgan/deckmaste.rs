@@ -70,6 +70,7 @@ fn spelled_by_other_vocabulary(candidate: &str, vocabulary: &Lexicon) -> bool {
         };
         found.start == 0
             && found.end == whole
+            && vocabulary.lexemes()[&value.lexeme].binding == deckmaste_lexical::Binding::Free
             && !vocabulary.lexemes()[&value.lexeme]
                 .properties
                 .classes

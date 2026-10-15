@@ -657,26 +657,36 @@ fn flavor_word_matches(tokens: &[char], matches: &mut Vec<LexicalMatch>) {
         if start != 0 && tokens[start - 1] != '\n' {
             continue;
         }
-        // NM3: the bullet belongs to Mode, outside its Flavor Word label.
-        let start = if tokens[start..].starts_with(&['•', ' ']) { start + 2 } else { start };
+        // Bullets and chapter numerals belong to the enclosing ability.
+        let mut start = if tokens[start..].starts_with(&['•', ' ']) { start + 2 } else { start };
         let line_end = tokens[start..]
             .iter()
             .position(|ch| ch.is_control())
             .map_or(tokens.len(), |offset| start + offset);
-        let Some(offset) = tokens[start..line_end]
+        while let Some(offset) = tokens[start..line_end]
             .windows(2)
             .position(|pair| pair == [' ', '—'])
-        else {
-            continue;
-        };
-        let dash = start + offset + 1;
-        let label: String = tokens[start..dash - 1].iter().collect();
-        if valid_flavor_label(&label) {
-            matches.push(LexicalMatch {
-                start,
-                end: dash + 1,
-                reading: LexicalReading::FlavorWord { label },
-            });
+        {
+            let dash = start + offset + 1;
+            let label: String = tokens[start..dash - 1].iter().collect();
+            let chapters = label
+                .split(", ")
+                .all(|part| crate::NumeralCodec::parse(crate::Numeral::Roman, part).is_ok());
+            if chapters {
+                start = dash + 1;
+                if tokens.get(start) == Some(&' ') {
+                    start += 1;
+                }
+                continue;
+            }
+            if valid_flavor_label(&label) {
+                matches.push(LexicalMatch {
+                    start,
+                    end: dash + 1,
+                    reading: LexicalReading::FlavorWord { label },
+                });
+            }
+            break;
         }
     }
 }

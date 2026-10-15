@@ -119,3 +119,16 @@ fn an_anchor_word_is_a_registered_label_on_the_cards_that_print_it() {
         }
     }
 }
+
+#[test]
+fn chapter_numerals_are_not_labels_and_can_precede_one() {
+    let environment = LexicalEnvironment::load().unwrap();
+    assert_eq!(
+        flavor_labels(&environment, "I, II — Flying"),
+        Vec::<String>::new()
+    );
+    assert_eq!(
+        flavor_labels(&environment, "III — Uncharted marvel — Flying"),
+        ["Uncharted marvel"]
+    );
+}

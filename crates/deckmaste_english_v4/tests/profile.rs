@@ -141,12 +141,19 @@ fn reviewed_misplacements_stay_fixed() {
         ("Artifact Creature — Golem", 0),
         ("Instant", 0),
         // A depictive participle is not a postmodifier.
-        ("Put target creature card from a graveyard onto the battlefield tapped.", 1),
-        ("Rather than pay this spell's mana cost, you may sacrifice a Forest.", 4),
+        (
+            "Put target creature card from a graveyard onto the battlefield tapped.",
+            1,
+        ),
+        (
+            "Rather than pay this spell's mana cost, you may sacrifice a Forest.",
+            4,
+        ),
         ("Put a +1/+1 counter on any number of target creatures.", 5),
         ("All creatures able to block this creature do so.", 7),
         ("III — Hall of Sorrow — Draw two cards.", 1),
         ("It's still a land.", 2),
+        ("Craft with two that share a card type {6}", 3),
     ] {
         let (found, families) = profile(&env, UnitKind::Line, text);
         assert_eq!(found, stratum, "{text}: {families:?}");

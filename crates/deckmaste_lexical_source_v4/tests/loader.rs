@@ -63,6 +63,7 @@ fn a_frame_belongs_to_its_head_category() {
     let mut sources = Sources::load().unwrap();
     sources.nouns.push(NounDecl::Entry(
         deckmaste_lexical_source_v4::schema::NounEntry {
+            parameters: Vec::new(),
             lemma: "frobnication".to_owned(),
             countability: vec![deckmaste_lexical::Countability::Count],
             plural: None,

@@ -223,7 +223,8 @@ impl Sources {
         let mut builder = Builder::default();
         self.core(&mut builder)?;
         self.catalogs(&mut builder)?;
-        let (lexemes, frames) = builder.finish()?;
+        let (lexemes, mut frames) = builder.finish()?;
+        self.parameter_patterns(&mut frames);
         check_core_and_catalogs_disjoint(&lexemes)?;
         Ok((lexemes, frames))
     }
@@ -257,6 +258,7 @@ impl Sources {
                 core(CLOSED_CLASS, &id),
             );
             lexeme.forms[0].surfaces.clone_from(&entry.spellings);
+            lexeme.forms[0].features.number = entry.number;
             lexeme.article_onsets.clone_from(&entry.article_onsets);
             builder.push(lexeme);
             builder.frames(id.as_str().into(), Category::Determinative, &entry.frames);
@@ -326,12 +328,21 @@ impl Sources {
         }
         for symbol in &closed.symbols {
             let id = format!("symbol:{symbol}");
-            builder.push(exact(
+            let mut lexeme = exact(
                 &id,
                 symbol,
                 Category::Symbol,
                 source(SourceKind::Symbol, CLOSED_CLASS, &id),
-            ));
+            );
+            let class = if symbol.starts_with('{') {
+                "BracedSymbol"
+            } else if symbol == "LEVEL" {
+                "RangeMarker"
+            } else {
+                "Variable"
+            };
+            lexeme.properties.classes.insert(class.into());
+            builder.push(lexeme);
         }
         for entry in &self.prepositions {
             let id = format!("prep:{}", entry.lemma);
@@ -370,6 +381,13 @@ impl Sources {
             let entry = decl.entry();
             let id = format!("type:{}", entry.lemma);
             builder.noun(&id, &entry, catalog(TYPES, &id));
+            builder
+                .lexemes
+                .last_mut()
+                .unwrap()
+                .properties
+                .classes
+                .insert("CardType".into());
         }
         for lemma in &self.types.supertypes {
             let id = format!("supertype:{lemma}");
@@ -379,6 +397,11 @@ impl Sources {
                 Category::Adjective,
                 catalog(TYPES, &id),
             ));
+        }
+        for lexeme in &mut builder.lexemes {
+            if lexeme.id.as_str().starts_with("supertype:") {
+                lexeme.properties.classes.insert("Supertype".into());
+            }
         }
         let mut subtypes =
             std::collections::BTreeMap::<String, (NounDecl, Vec<SubtypeFamily>)>::new();
@@ -404,27 +427,15 @@ impl Sources {
             lexeme.properties.classes = families
                 .iter()
                 .map(|family| format!("{family:?}Type"))
+                .chain(std::iter::once("Subtype".to_owned()))
                 .collect();
         }
         self.keywords(builder)?;
-        for word in &self.ability_words {
-            let id = format!("ability_word:{}", word.lemma);
-            let mut lexeme = Lexeme::invariant(
-                &id,
-                &word.lemma,
-                Category::Keyword,
-                catalog(ABILITY_WORDS, &id),
-            );
-            lexeme.surface_structure = SurfaceStructure::Opaque;
-            lexeme
-                .properties
-                .features
-                .insert("LabelKind".to_owned(), "AbilityWord".to_owned());
-            builder.push(lexeme);
-        }
+        self.ability_labels(builder);
         for counter in &self.counters {
             let id = format!("counter:{}", counter.kind);
             let entry = schema::NounEntry {
+                parameters: Vec::new(),
                 lemma: format!("{} counter", counter.kind),
                 countability: vec![deckmaste_lexical::Countability::Count],
                 plural: None,
@@ -513,6 +524,26 @@ impl Sources {
 
     /// Every card a card scope names is a card, and no Introduced Name is
     /// one.
+    fn ability_labels(&self, builder: &mut Builder) {
+        let catalog = |path: &str, owner: &str| source(SourceKind::Catalog, path, owner);
+        for word in &self.ability_words {
+            let id = format!("ability_word:{}", word.lemma);
+            let mut lexeme = Lexeme::invariant(
+                &id,
+                &word.lemma,
+                Category::Keyword,
+                catalog(ABILITY_WORDS, &id),
+            );
+            lexeme.surface_structure = SurfaceStructure::Opaque;
+            lexeme
+                .properties
+                .features
+                .insert("LabelKind".to_owned(), "AbilityWord".to_owned());
+            lexeme.properties.classes.insert("AbilityWord".into());
+            builder.push(lexeme);
+        }
+    }
+
     fn check_card_scopes(
         &self,
         lexemes: &[Lexeme],
@@ -568,6 +599,22 @@ impl Sources {
                     catalog(KEYWORD_ABILITIES, owner),
                 );
                 lexeme.surface_structure = SurfaceStructure::Opaque;
+                let parameters = if lemma == &ability.lemma {
+                    &ability.parameters
+                } else {
+                    &ability
+                        .variants
+                        .iter()
+                        .find(|v| &v.lemma == lemma)
+                        .unwrap()
+                        .parameters
+                };
+                if !parameters.is_empty() && parameters.iter().all(|p| !p.is_empty()) {
+                    lexeme
+                        .properties
+                        .classes
+                        .insert("ParameterizedKeyword".into());
+                }
                 builder.push(lexeme);
             }
             for verb in &ability.verbs {
@@ -598,8 +645,102 @@ impl Sources {
                 Binding::Prefix,
                 catalog(KEYWORD_ABILITIES, &id),
             ));
+            builder.lexemes.last_mut().unwrap().capitalization =
+                deckmaste_lexical::Capitalization::Initial;
         }
         Ok(())
+    }
+
+    fn parameter_patterns(&self, frames: &mut FrameCatalog) {
+        use deckmaste_syntax::frames::ParameterPart;
+        use deckmaste_syntax::frames::SlotKind;
+        use schema::KeywordParameter;
+        let convert = |parameters: &[KeywordParameter]| {
+            let mut parts = vec![ParameterPart::Head];
+            for parameter in parameters {
+                match parameter {
+                    KeywordParameter::Amount => parts.push(ParameterPart::Slot(SlotKind::Amount)),
+                    KeywordParameter::Cost => parts.push(ParameterPart::Slot(SlotKind::Cost)),
+                    KeywordParameter::QualityBefore => {
+                        parts.insert(0, ParameterPart::Slot(SlotKind::Quality));
+                    }
+                    KeywordParameter::Quality(prep) | KeywordParameter::Name(prep) => {
+                        if let Some(prep) = prep {
+                            parts.push(ParameterPart::Word(format!("prep:{prep}").as_str().into()));
+                        }
+                        parts.push(ParameterPart::Slot(
+                            if matches!(parameter, KeywordParameter::Name(_)) {
+                                SlotKind::Name
+                            } else {
+                                SlotKind::Quality
+                            },
+                        ));
+                    }
+                    KeywordParameter::DashCost
+                    | KeywordParameter::DashCondition
+                    | KeywordParameter::DashAbility
+                    | KeywordParameter::DashPowerToughness
+                    | KeywordParameter::DashKeyword => {
+                        parts.push(ParameterPart::Mark(
+                            '—',
+                            if matches!(
+                                parameter,
+                                KeywordParameter::DashCost
+                                    | KeywordParameter::DashCondition
+                                    | KeywordParameter::DashKeyword
+                            ) {
+                                Binding::Bound
+                            } else {
+                                Binding::Free
+                            },
+                        ));
+                        parts.push(ParameterPart::Slot(match parameter {
+                            KeywordParameter::DashCost => SlotKind::Cost,
+                            KeywordParameter::DashCondition => SlotKind::Condition,
+                            KeywordParameter::DashAbility => SlotKind::Ability,
+                            KeywordParameter::DashPowerToughness => SlotKind::Measure,
+                            _ => SlotKind::KeywordPhrase,
+                        }));
+                    }
+                }
+            }
+            parts
+        };
+        for ability in &self.keyword_abilities {
+            for (lemma, parameters) in std::iter::once((&ability.lemma, &ability.parameters))
+                .chain(ability.variants.iter().map(|v| (&v.lemma, &v.parameters)))
+            {
+                let patterns = if parameters.is_empty() {
+                    vec![vec![ParameterPart::Head]]
+                } else {
+                    parameters.iter().map(|p| convert(p)).collect()
+                };
+                frames
+                    .parameters
+                    .insert(format!("keyword:{lemma}").as_str().into(), patterns);
+            }
+            if let Some(bound) = &ability.bound {
+                let patterns =
+                    frames.parameters[format!("keyword:{}", ability.lemma).as_str()].clone();
+                let stems: std::collections::BTreeSet<_> = bound
+                    .stems
+                    .iter()
+                    .flat_map(|class| self.stems(*class))
+                    .map(|stem| deckmaste_lexical::LexemeId::new(&format!("stem:{stem}")))
+                    .collect();
+                let bound_patterns = patterns
+                    .into_iter()
+                    .map(|mut parts| {
+                        parts.insert(0, ParameterPart::Words(stems.iter().copied().collect()));
+                        parts
+                    })
+                    .collect();
+                frames.parameters.insert(
+                    format!("keyword:{}:bound", ability.lemma).as_str().into(),
+                    bound_patterns,
+                );
+            }
+        }
     }
 
     /// The lowercase noun stems of a [`StemClass`].

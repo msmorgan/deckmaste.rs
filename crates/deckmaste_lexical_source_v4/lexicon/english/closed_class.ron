@@ -4,7 +4,7 @@
     // (this/those) and grade (many/more/most) are not features of a
     // determinative here, so each attested form is its own lemma.
     determinatives: [
-        (lemma: "a", spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
+        (lemma: "a", number: Singular, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
         (lemma: "all", frames: [Complement(PP(["of"]))]),
         (lemma: "another", frames: [Complement(PP(["of"]))]),
         (lemma: "any", frames: [Complement(PP(["of"]))]),

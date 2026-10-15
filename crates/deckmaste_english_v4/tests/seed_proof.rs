@@ -17,7 +17,10 @@ struct Seed {
 
 fn seed() -> Seed {
     let lexicon = seed::lexicon();
-    let grammar = deckmaste_english_v4::bind(&lexicon, &seed::frames()).unwrap();
+    let mut specification = deckmaste_english_v4::grammar().unwrap();
+    // These independent Reading builders exercise Sentence, below Document.
+    specification.root = "Sentence".into();
+    let grammar = CompiledGrammar::bind(&specification, &lexicon, &seed::frames()).unwrap();
     Seed { lexicon, grammar }
 }
 

@@ -45,3 +45,6 @@ Implement **Stratum 0** in `crates/deckmaste_english_v4` per
 - Zero CR-cataloged words appear directly in the grammar data file.
 
 Standard constraints apply.
+
+Census delta (`nyzzqtss`): faces read 0 → 2,354; total Readings 0 → 52,471; lost faces: none. Stratum 0: 47,670/47,670 read, zero known-wrong-only, unread, or law failures.
+Judgment set (`nyzzqtss`): 193 enforced pass, 2,684 higher-stratum entries pending; seed and Stratum 0 spine suites pass; independent adjudication pending.

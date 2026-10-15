@@ -42,6 +42,8 @@ use crate::schema::VerbEntry;
 /// prepositions by lemma until every preposition is known.
 #[derive(Default)]
 pub(crate) struct Builder {
+    parameters:
+        std::collections::BTreeMap<LexemeId, Vec<Vec<deckmaste_syntax::frames::ParameterPart>>>,
     pub(crate) lexemes: Vec<Lexeme>,
     frames: Vec<(LexemeId, Category, Vec<FrameSpec>, String)>,
     prepositions: Vec<(LexemeId, Vec<PrepositionFrameSpec>, String)>,
@@ -200,6 +202,9 @@ impl Builder {
         let id = lexeme.id;
         self.push(lexeme);
         self.frames(id, Category::Noun, &entry.frames);
+        if !entry.parameters.is_empty() {
+            self.parameters.insert(id, entry.parameters.clone());
+        }
     }
 
     pub(crate) fn adjective(&mut self, prefix: &str, entry: &AdjectiveEntry, source: &Source) {
@@ -260,7 +265,10 @@ impl Builder {
             }
         }
         let resolver = Resolver { ids: &ids };
-        let mut catalog = FrameCatalog::default();
+        let mut catalog = FrameCatalog {
+            parameters: self.parameters,
+            ..FrameCatalog::default()
+        };
         for (id, category, specs, owner) in &self.frames {
             let mut frames = Vec::new();
             for spec in specs {

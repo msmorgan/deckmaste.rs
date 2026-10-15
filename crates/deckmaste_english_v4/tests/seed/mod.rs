@@ -188,10 +188,26 @@ pub fn lexicon() -> Lexicon {
     for word in ["and", "or"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
+    // The seed shares the closed auxiliary inventory required for binding.
+    let (closed, _) = deckmaste_lexical_source_v4::Sources::load()
+        .unwrap()
+        .vocabulary()
+        .unwrap();
+    lexemes.extend(closed.into_iter().filter(|l| {
+        matches!(
+            l.id.as_str(),
+            "verb:'ve" | "verb:haven't" | "det:both" | "det:more" | "det:everything"
+        )
+    }));
     Lexicon::new(lexemes).expect("seed lexicon")
 }
 
 #[must_use]
 pub fn frames() -> FrameCatalog {
-    FrameCatalog::from_ron_str(FRAMES).expect("seed frames")
+    let mut frames = FrameCatalog::from_ron_str(FRAMES).expect("seed frames");
+    frames.parameters.insert(
+        "keyword:flying".into(),
+        vec![vec![deckmaste_syntax::frames::ParameterPart::Head]],
+    );
+    frames
 }

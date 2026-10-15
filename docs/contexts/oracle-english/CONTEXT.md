@@ -262,6 +262,12 @@ after an em dash, or power and toughness after an em dash (*prototype {1}{B} —
 may declare several alternative lists of Keyword Parameters, and a keyword with
 none stands alone.
 
+**Keyword Mention** (project term):
+A reference to a Keyword Ability by name, which may omit the Keyword Parameters
+required on its Keyword Line, as *flashback* in *with flashback* or *flashback
+cost* [CR#702.1a,702.1d]. A mention and a complete keyword-ability surface are
+both Keyword Phrases; only the latter supplies an ability on a Keyword Line.
+
 **Keyword Quality** (project term):
 The Keyword Parameter a parameterized Keyword Ability takes as its quality
 argument, on a keyword line or in a grant — *black* in *protection from black*

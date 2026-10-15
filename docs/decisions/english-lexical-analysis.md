@@ -34,6 +34,10 @@ features and retained spelling variants; computed source positions are not
 identity. No source-buffer echo or opaque catch-all leaf counts as realization.
 Punctuation may decide an analysis, but its presence is not stored in a Reading;
 realization derives it from structure.
+The exception is the separator in a keyword-ability list: Oracle permits both
+commas and semicolons here, so the Reading retains that spelling distinction
+to satisfy the round-trip laws. This does not license retaining punctuation
+whose spelling is determined by the construction.
 
 **Facts about the input.** The supported corpus is the Vintage-playable cards
 (legal or restricted), excluding Scryfall `set_type: funny`. Balanced

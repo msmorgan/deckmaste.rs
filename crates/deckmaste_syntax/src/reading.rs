@@ -307,7 +307,7 @@ impl CompiledGrammar {
         let mut state = production.start();
         for (position, symbol) in production.rhs.iter().enumerate() {
             let next = match symbol {
-                Symbol::Punct(_) => production.accept(self, &state, position, &ChildView::Punct),
+                Symbol::Punct(..) => production.accept(self, &state, position, &ChildView::Punct),
                 Symbol::Leaf(test) => {
                     let Some(Reading::Leaf(value)) = children.next() else {
                         return Err(reject("expected a lexical leaf"));
@@ -431,7 +431,7 @@ impl CompiledGrammar {
                     .rhs
                     .iter()
                     .zip(&production.names)
-                    .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(_)))
+                    .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(..)))
                     .map(|(_, name)| name.clone())
                     .collect()
             })
@@ -495,14 +495,28 @@ impl CompiledGrammar {
                 located(me, (first, first));
                 let mut children = node.children.iter();
                 for symbol in &self.productions[index].rhs {
-                    if let Symbol::Punct(c) = symbol {
-                        out.push((c.to_string(), Binding::Free, true));
+                    if let Symbol::Punct(c, binding) = symbol {
+                        out.push((c.to_string(), *binding, false));
                     } else {
                         let child = children.next().ok_or_else(|| AdmissionError::Rejected {
                             production: node.production.clone(),
                             reason: "missing child".to_owned(),
                         })?;
+                        let first = out.len();
                         self.atoms_from(child, lexicon, out, located, next)?;
+                        if let Symbol::Cat {
+                            binding: Some(binding),
+                            ..
+                        } = symbol
+                        {
+                            if glues_before(*binding) {
+                                out[first].1 = with_before(out[first].1);
+                            }
+                            if glues_after(*binding) {
+                                let last = out.len() - 1;
+                                out[last].1 = with_after(out[last].1);
+                            }
+                        }
                     }
                 }
                 located(me, (first, out.len()));
@@ -556,4 +570,11 @@ pub(crate) fn glues_before(binding: Binding) -> bool {
 /// Whether an atom with this binding attaches to the atom after it.
 pub(crate) fn glues_after(binding: Binding) -> bool {
     matches!(binding, Binding::Prefix | Binding::Bound)
+}
+
+pub(crate) fn with_before(binding: Binding) -> Binding {
+    if glues_after(binding) { Binding::Bound } else { Binding::Suffix }
+}
+pub(crate) fn with_after(binding: Binding) -> Binding {
+    if glues_before(binding) { Binding::Bound } else { Binding::Prefix }
 }

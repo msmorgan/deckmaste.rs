@@ -131,7 +131,7 @@ impl CompiledGrammar {
         let tokens = &analyzed.tokens;
         let n = tokens.len();
         let skip = |mut p: usize| {
-            while p < n && tokens[p].is_whitespace() {
+            while p < n && tokens[p].is_whitespace() && tokens[p] != '\n' && tokens[p] != '\r' {
                 p += 1;
             }
             p
@@ -297,8 +297,8 @@ impl CompiledGrammar {
                             }
                         }
                     }
-                    Symbol::Punct(c) => {
-                        let at = skip(position);
+                    Symbol::Punct(c, _) => {
+                        let at = if c.is_whitespace() { position } else { skip(position) };
                         if at < n
                             && tokens[at] == *c
                             && let Some(state) = production.accept(

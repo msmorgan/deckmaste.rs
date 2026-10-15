@@ -144,5 +144,31 @@ fn every_word_a_judgment_names_is_declared() {
             }
         }
     }
-    assert!(unknown.is_empty(), "not a lemma or lexeme id:\n{}", unknown.join("\n"));
+    assert!(
+        unknown.is_empty(),
+        "not a lemma or lexeme id:\n{}",
+        unknown.join("\n")
+    );
+}
+
+#[test]
+fn stratum_zero_spines_hold_over_seed_payloads() {
+    let env = LexicalEnvironment::load().unwrap();
+    let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
+    let judge = Judge {
+        grammar: &grammar,
+        lexicon: &env.lexicon,
+    };
+    let (_, entries) = files()
+        .into_iter()
+        .find(|(name, _)| name == "stratum_zero.txt")
+        .unwrap();
+    let failures: Vec<_> = entries
+        .iter()
+        .filter_map(|entry| match judge.evaluate(entry) {
+            Outcome::Holds => None,
+            Outcome::Fails(why) => Some(format!("{}: {} — {why}", entry.location, entry.text)),
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

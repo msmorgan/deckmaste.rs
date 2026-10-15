@@ -35,8 +35,11 @@ pub(crate) enum GapRule {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Test {
     Lexical(LexicalCategory),
+    FreeLexical(LexicalCategory),
+    Numeral(deckmaste_lexical::Numeral, bool),
     Word(LexemeId),
     Class(usize),
+    Words(std::collections::BTreeSet<LexemeId>),
     /// A lexeme that declares this Subcategorization Frame.
     Frame(usize),
     /// A preposition that declares this complement frame.
@@ -47,13 +50,14 @@ pub(crate) enum Test {
 pub(crate) enum Symbol {
     Cat {
         category: usize,
+        binding: Option<deckmaste_lexical::Binding>,
         /// A selected `PP` slot: the phrase's preposition must be one of these.
         prepositions: Option<Vec<LexemeId>>,
         /// An unselected adjunct: a phrase with a preposition must admit this host.
         host: Option<HostKind>,
     },
     Leaf(Test),
-    Punct(char),
+    Punct(char, deckmaste_lexical::Binding),
 }
 
 /// A compiled Production.
@@ -217,6 +221,8 @@ pub(crate) struct Summary {
 /// A lexical leaf as a child sees it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LeafFacts {
+    pub integer: Option<i32>,
+    pub notation: Option<deckmaste_lexical::Numeral>,
     pub lexeme: Option<LexemeId>,
     pub category: LexicalCategory,
     pub features: Vec<(usize, u16)>,
@@ -425,7 +431,16 @@ impl CompiledGrammar {
         let facts = leaf.lexeme.as_ref().and_then(|l| self.lexemes.get(l));
         match test {
             Test::Lexical(category) => leaf.category == *category,
+            Test::FreeLexical(category) => {
+                leaf.category == *category
+                    && facts.is_some_and(|f| f.binding == deckmaste_lexical::Binding::Free)
+            }
+            Test::Numeral(notation, unsigned) => {
+                leaf.notation == Some(*notation)
+                    && (!unsigned || leaf.integer.is_some_and(|n| n >= 0))
+            }
             Test::Word(id) => leaf.lexeme.as_ref() == Some(id),
+            Test::Words(words) => leaf.lexeme.is_some_and(|id| words.contains(&id)),
             Test::Class(class) => leaf
                 .lexeme
                 .as_ref()
@@ -465,17 +480,29 @@ impl CompiledGrammar {
                     }
                 }
                 Some(LeafFacts {
+                    integer: None,
+                    notation: None,
                     lexeme: Some(value.lexeme),
                     category: facts.category,
                     features,
                 })
             }
-            LexicalReading::Numeral { .. } => Some(LeafFacts {
+            LexicalReading::Numeral {
+                value, notation, ..
+            } => Some(LeafFacts {
+                integer: Some(*value),
+                notation: Some(*notation),
                 lexeme: None,
                 category: LexicalCategory::Numeral,
                 features: Vec::new(),
             }),
-            LexicalReading::FlavorWord { .. } => None,
+            LexicalReading::FlavorWord { .. } => Some(LeafFacts {
+                integer: None,
+                notation: None,
+                lexeme: None,
+                category: LexicalCategory::FlavorWord,
+                features: Vec::new(),
+            }),
         }
     }
 }

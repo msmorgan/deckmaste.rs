@@ -30,7 +30,8 @@
     // "left half unlocked" and "right half unlocked" are the unlocked designations;
     // Oracle names them by the adjective ("unlocked doors").
     (rule: "[CR#709.5c]", name: "Unlocked", adjectives: ["unlocked"]),
-    (rule: "[CR#716.2b]", name: "Level", nouns: ["level"]),
+    // The indexed Class header uses this noun with a numeral [CR#716.2a].
+    (rule: "[CR#716.2b]", name: "Level", nouns: [(lemma: "level", parameters: [[Head, Slot(Amount)]])]),
     (rule: "[CR#719.3b]", name: "Solved", adjectives: ["solved"]),
     // "unprepared" is the lost state [CR#722.3b].
     (rule: "[CR#722.3a]", name: "Prepared", adjectives: ["prepared", "unprepared"]),

@@ -81,10 +81,13 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
   words carry `LabelKind: AbilityWord`. A registered label is never also
   analyzed as an open Flavor Word.
 - A keyword ability's parameters on a keyword line (`Amount`, `Cost`,
-  `DashCost`, `Quality(Some("from"))`, …) are catalog data in `Sources`, for the
-  keyword-line schemas of Stratum 0. A Bound Keyword Surface (*walk*,
+  `DashCost`, `Quality(Some("from"))`, …) bind into `FrameCatalog::parameters`
+  for the syntax engine's `Parameters` schema. Nouns can declare ordered
+  notation parameters too, as the indexed noun in a Class header does. A Bound Keyword Surface (*walk*,
   *cycling*) is a suffix Lexeme, and its stems (*island*, *wizard*) are prefix
-  `stem:` Lexemes drawn from the declared stem classes.
+  `stem:` Lexemes drawn from the declared stem classes. Stems admit initial
+  capitalization but are never independent nouns or collisions that suppress
+  Shortened Names.
 - A counter kind is the compound noun `<kind> counter`; measured kinds
   (`+1/+1 counter`) are measured compounds.
 - Card names are opaque `Catalog`-category Lexemes. Each card's Shortened Names
