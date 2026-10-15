@@ -76,7 +76,7 @@ private theorem thatTurnNeedsExactlyOneReferent :
       ([.turnAntecedent 0], [], [.turnAntecedent 2]) := by decide
 
 private theorem turnOwnersMustBePlayersAtEveryEntry :
-    let owner : NounPhrase := .described .the (.hasType .creature)
+    let owner : NounPhrase := .asType .creature .this none
     let refused := [Refusal.kindMismatch .player .object]
     (stepGameEvent 64 (DRS.ofList []) (.beginningOf .upkeep (some owner) .current)).2 =
         refused ∧
@@ -105,6 +105,14 @@ private theorem unpaidKeywordPaymentIsAPattern :
       (.pay .anyCost .once .unpaid none (some (.named "cumulativeUpkeep")))
     (stepGameEvent 64 (DRS.ofList []) event).2 = [] ∧
       (stepGameEvent 64 (DRS.ofList []) event).1.actionPattern = false := by decide
+
+private theorem comparisonMemberIsLocalToItsMeasure :
+    let member : NounPhrase := .pro (.word .player) .one
+    let good : Predicate := .compareOver .opponent (.devotion member (.lit .red) none) .greater (.lit 0)
+    let bad : Predicate := .compareOver .opponent (.lit 0) .greater (.devotion member (.lit .red) none)
+    (stepPredicate 64 (DRS.ofList []) good).2 = [] ∧
+      (stepPredicate 64 (DRS.ofList []) bad).2 = [.anaphor (.word .player) .one 0] ∧
+      (stepPredicate 64 (DRS.ofList []) good).1.visibleReferents.map (·.payload) = [.gap] := by decide
 
 end Check.QueryPins
 end Semantics

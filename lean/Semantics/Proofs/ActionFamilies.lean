@@ -138,8 +138,12 @@ theorem clearDamageDoesNotPublishDamageDealt :
     outcomeReferents (instructionResult (DRS.ofList []) (.clearDamage (target creature))) = [] := by decide
 
 
-theorem movingThisAbilityRetainsAbilityIdentity :
-    (instructionResult (DRS.ofList []) (.move thisAbility .anywhere (some exileZone) .arrival none [])).sameReferents (DRS.ofList [({ det := .self, plur := .one, payload := .ability none (some .exile), idents := [] } : Referent)]) = true := by decide
+theorem movingThisAbilityAllocatesFreshIdentity :
+    let after := instructionResult (DRS.ofList [])
+      (.move thisAbility .anywhere (some exileZone) .arrival none [])
+    after.findById? 0 = none ∧
+      after.visibleReferents.map (fun r => (r.id, r.payload, r.idents)) =
+        [(1, .ability none (some .exile), [])] := by decide
 
 
 private def operandKey (i : Nat) : BindingId := "operand." ++ toString i

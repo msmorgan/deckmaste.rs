@@ -2,6 +2,7 @@ import Semantics.Abilities
 import Semantics.Check.Refusal
 import Semantics.Check.Events
 import Semantics.Check.Keywords
+import Semantics.Check.CardFacts
 
 namespace Semantics
 
@@ -155,5 +156,62 @@ def LinkedFacet.localChecks (asEntity : Bool) (facet : LinkedFacet) : List Refus
     match facet with
     | .chosenPlayer source => localRefuse facet.choiceFound (.linkedChoiceInScope source)
     | _ => []
+
+inductive EncloseUse where
+  | agentless
+  | notOneAction
+  | notYetTaken
+  | reflexive
+  deriving DecidableEq, Repr
+
+def EncloseUse.admitsReflex : EncloseUse → Bool
+  | .reflexive => true
+  | _ => false
+
+def Instruction.reflexEncloseUse (instruction : Instruction) (fuel : Nat := 64) : EncloseUse :=
+  match fuel, instruction with
+  | 0, _ => .notOneAction
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.reflexEncloseUse n
+  | _ + 1, .skipPart .. | _ + 1, .addTurnPart .turn .. => .notYetTaken
+  | _ + 1, .establish spec _ =>
+    match spec.scopeBody with
+    | .controlGrant .. => .reflexive
+    | _ => .agentless
+  | _ + 1, .pay .. | _ + 1, .enact .. | _ + 1, .separateIntoPiles ..
+  | _ + 1, .chooseNewTargets .. | _ + 1, .createObject .. | _ + 1, .putCounters ..
+  | _ + 1, .removeCounters .. | _ + 1, .moveCounters .. | _ + 1, .doubleCounters ..
+  | _ + 1, .move .. | _ + 1, .turnFaceDown .. | _ + 1, .expose .. | _ + 1, .addMana ..
+  | _ + 1, .draw .. | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .search ..
+  | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
+  | _ + 1, .rerollStored .. | _ + 1, .procedure .. | _ + 1, .relate .. | _ + 1, .merge .. => .reflexive
+  | n + 1, .withContinuation _ body none _ => body.reflexEncloseUse n
+  | n + 1, .instruct _ body | n + 1, .limited body _ | n + 1, .doOnlyIf body _ _ => body.reflexEncloseUse n
+  | _ + 1, .repeat_ (.fixed _ body) =>
+    match body.scopeBody with
+    | .pay .. => .reflexive
+    | .withContinuation .optional payment none _ =>
+      match payment.scopeBody with
+      | .pay .. => .reflexive
+      | _ => .notOneAction
+    | _ => .notOneAction
+  | _ + 1, .applyResultsTable .. | _ + 1, .withContinuation .. | _ + 1, .doIf ..
+  | _ + 1, .doForEach .. | _ + 1, .doForEachKind .. | _ + 1, .repeat_ ..
+  | _ + 1, .sequentially .. | _ + 1, .simultaneously .. | _ + 1, .chooseModes ..
+  | _ + 1, .replace .. | _ + 1, .triggerReflexively .. | _ + 1, .triggerThisWay .. => .notOneAction
+  | _ + 1, .delay .. | _ + 1, .holdUntil .. => .notYetTaken
+  | _, _ => .agentless
+
+def Instruction.thisWayOutcomeOk (instruction : Instruction) (fuel : Nat := 64) : Bool :=
+  match fuel, instruction with
+  | 0, _ => false
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body
+  | n + 1, .withContinuation _ body _ _ | n + 1, .instruct _ body
+  | n + 1, .limited body _ => body.thisWayOutcomeOk n
+  | _ + 1, .delay .. => false
+  | _, _ => true
+
+def ifDoneArmed : Option Instruction → Option Instruction → Bool
+  | none, none => false
+  | _, _ => true
 
 end Semantics

@@ -98,4 +98,10 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
     selected.map (·.ty) = [[.enchantment]] ∧
       selected.map (·.id) = [after.nextId - 1] := by decide
 
+theorem optionalBodyReadsItsEnclosingPlayer :
+    Instruction.check (DRS.ofList [])
+      (instruct (target .opponent)
+        (Primitives.Instruction.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
+  decide
+
 end Semantics.Proofs.ReferenceScopes

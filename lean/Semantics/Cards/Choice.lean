@@ -253,7 +253,7 @@ def eagerConstruct : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Eager Construct", cost := some [generic 2], types := [.artifact, .creature],
       subtypes := [creatureType "Construct"],
-      text := [when (Primitives.GameEvent.enters thisCreature none) (instruct (each Primitives.Predicate.anyPlayer) (offer (instruct they (scry (.lit 1)))))],
+      text := [when (Primitives.GameEvent.enters thisCreature none) (instruct (each Primitives.Predicate.anyPlayer) (offer (scry (.lit 1))))],
       power := stat 2, toughness := stat 2 } }
 
 /-- Rune Snag -/
@@ -907,7 +907,7 @@ def tidalFlats : Spelled := spelled <| .singleFaced
       text :=
         [ activated (Primitives.Cost.mana [pip .blue, pip .blue])
             (Primitives.Instruction.doForEach (each (Primitives.Predicate.and [creature, attacking, Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "flying")))]))
-              (instruct (controllerOf it) (Primitives.Instruction.offer (instruct they (Primitives.Instruction.pay (Primitives.Cost.mana [generic 1]) .once .paid none none)) none
+              (instruct (controllerOf it) (Primitives.Instruction.offer (Primitives.Instruction.pay (Primitives.Cost.mana [generic 1]) .once .paid none none) none
                 (some (gain
                   (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
                                  Primitives.Predicate.inCombat .blockerOf (some (that (.type .creature))) ]))
@@ -997,7 +997,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
         [ keyword (.named "trample"),
           keywordCosting (.named "echo") (Primitives.Cost.mana [generic 0]),
           when (Primitives.GameEvent.does Primitives.Subject.any (Primitives.Instruction.pay Primitives.Cost.anyCost .once .paid (some thisCreature) (some (.named "echo"))))
-            (instruct (each Primitives.Predicate.opponent) (offer (instruct they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 3)))))) ],
+            (instruct (each Primitives.Predicate.opponent) (offer (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 3))))) ],
       power := stat 6, toughness := stat 6 } }
 
 /-- Memory Plunder -/
@@ -1186,9 +1186,9 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisCreature none)
             (instruct (each Primitives.Predicate.opponent) (offer
               (Primitives.Instruction.sequentially
-                [ instruct they (Primitives.Instruction.search (oneZone (Primitives.ZoneExpr.zone .library (Primitives.ZoneScope.possessedBy they))) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic])),
+                [ Primitives.Instruction.search (oneZone (Primitives.ZoneExpr.zone .library (Primitives.ZoneScope.possessedBy they))) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic]),
                   putOntoBattlefieldTapped (theVerbed (.action "search") .one),
-                  instruct they shuffle ]))) ],
+                  shuffle ]))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Verity Circle -/

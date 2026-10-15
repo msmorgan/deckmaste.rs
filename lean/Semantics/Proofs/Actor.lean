@@ -777,16 +777,16 @@ says; "whenever a player explores" is refused, while a player still bolsters. -/
 theorem exploreEventTakesAPermanent :
     GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) explore) = [] ∧
       GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) explore)
-        = [.kindMismatch .object .player] ∧
+        = [.kindMismatch .object .player, .possessorKind .controller .player,
+            .counterSourceScope] ∧
       GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) (Declared.bolster (.lit 1)))
         = [] := by
   decide
 
-/-- A handoff to `this` publishes nothing, as a handoff to "you" publishes nothing: the
-permanent is in view only inside the body. -/
+/-- The source and its controller remain accessible after the handoff, along with the drawn card. -/
 theorem handedToThisPublishesSourceAndController :
     shape (instructionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf actor) (draw (.lit 1)))))
-      = [(.player, .one, .the), (.object, .one, .the)] := by
+      = [(.object, .one, .the), (.player, .one, .the), (.object, .one, .the)] := by
   decide
 
 theorem amassBareItSelectsChosenArmy :

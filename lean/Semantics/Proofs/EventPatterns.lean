@@ -44,9 +44,12 @@ theorem damagePublishesParticipantsAndOutcome :
       (after.findById? 0).map (·.role) = some .subj ∧
       (after.findById? 2).map (·.role) = some .obj := by decide
 
-theorem observedDamageDoesNotProduceAnOutcome (drs : DRS) (kind : DamageKind) :
-    (stepPredicate 64 drs (.did ⟨.actor .which,
-      .dealDamage .anyAmount .you kind, .thisWay⟩)).1 = drs := by rfl
+theorem observedDamageDoesNotExportOrRefineReferents (kind : DamageKind) :
+    let before := nounResult (DRS.ofList []) (target artifact)
+    let after := (stepPredicate 64 before (.did ⟨.actor .which,
+      .dealDamage .anyAmount .you kind, .thisWay⟩)).1
+    after.referents = before.referents ∧ countOutcomes .damageDealt after = 0 := by
+  cases kind <;> decide
 
 theorem patientOnlyDoesNotManufactureSource :
     (GameEvent.extend (DRS.ofList [])

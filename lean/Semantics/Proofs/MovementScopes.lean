@@ -102,4 +102,10 @@ theorem explicitCallerArgumentPreservesAuxiliaryPlayer :
     let after := leaveOwnScope (leaveCaller inner argument [1])
     after.referents.map (·.id) = [1, 0] := by decide
 
+theorem typeViewPreservesMovedIdentityAndZone :
+    let (after, ids, errors) := stepNounPhrase 64 moved .other false
+      (.asType .creature (.pro (.word .card) .one) none)
+    errors = [] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
+      after.referents.map (·.zone) = [some .exile] := by decide
+
 end Semantics.Proofs.MovementScopes

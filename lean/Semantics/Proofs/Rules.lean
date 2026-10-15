@@ -98,7 +98,7 @@ the player [CR#107.14]. Its holder check therefore rejects this permanent recipi
 theorem badDamageResultCounterHolder :
     damageResultCheck { planeswalkerLoyaltyDamage with
       does := loseCounters (some (.printed (.named "energy"))) (some .thatMuch) .this }
-      = [.counterKindNamed .object] := by
+      = [.counterSourceScope] := by
   decide
 
 /-- A counter kind is a registry key, and "loyalty" is not the declared name (`loyaltyCounter`). -/

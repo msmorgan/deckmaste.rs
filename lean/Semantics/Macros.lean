@@ -1367,15 +1367,15 @@ end Actor
 semantic_definition explore : Instruction :=
   .ownScope (some (.action "explore"))
     (.enact (.action "explore")
-      (.doIf (exists_ (.and [.isCard, .inZone (.zone .library (.possessedBy .you))]))
+      (.instruct (controllerOf (.firstMention "explore.permanent" .actor))
         (.sequentially
-          [ revealCards (.slice .top (.lit 1) (library .you)),
+          [ revealCards (.slice .top (.lit 1) (library .actor)),
             .doIf (.matches (that .card) land)
-              (move (that .card) yourHand)
+              (move (that .card) (.zone .hand (.possessedBy (ownerOf (that .card)))))
               (some (.sequentially
-                [ .putCounters (.lit 1) (.printed p1p1Counter) .actor .one true,
-                  offer (move (that .card) graveyard) ])) ])
-        none)
+                [ .putCounters (.lit 1) (.printed p1p1Counter)
+                    (.laterMention "explore.permanent" .actor) .one true,
+                  offer (move (that .card) graveyard) ])) ]))
       none none)
 
 /-- "<performer> connives [N]" (`Definition`, [CR#701.50a,701.50d]): loops over

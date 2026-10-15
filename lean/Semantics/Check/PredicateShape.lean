@@ -245,4 +245,14 @@ private theorem typeDisjunctionIsNotTypeConjunction :
     Predicate.contradictionFree [.or [.hasType .instant, .hasType .creature],
       .inZone (.zone .battlefield .bare)] = true := by decide
 
+def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.uniquifies n
+  | _ + 1, .chosenPlayer _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
+  | _ + 1, .exiledWith _ | _ + 1, .related _ (some _) => true
+  | _ + 1, .castBy _ rank => rank.isSome
+  | n + 1, .and predicates => predicates.any (·.uniquifies n)
+  | _, _ => false
+termination_by structural fuel
+
 end Semantics

@@ -83,12 +83,14 @@ theorem badThemAmbig :
           .setStatus .tapped them ]) = [.anaphor .bare .many 2] := by
   decide
 
-theorem badInnerAmbig :
+theorem recentSecondOpponentIsSelected :
+    let combat := instruct (target (.and [creature, .hasPossessor .controller anOpponent]))
+      (fight (target (.and [creature, .hasPossessor .controller anOpponent])))
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) combat).1
     Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ instruct (target (.and [creature, .hasPossessor .controller anOpponent]))
-            (fight (target (.and [creature, .hasPossessor .controller anOpponent]))),
-          instruct (that .player) (loseLife (.lit 1)) ]) = [.anaphor (.word .player) .one 2] := by
+      (.sequentially [combat, instruct (that .player) (loseLife (.lit 1))]) = [] ∧
+      (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) = [3] ∧
+      (after.findById? 3).map (·.kind) = some .player := by
   decide
 
 /-- "A creature doesn't untap during your untap step." -/

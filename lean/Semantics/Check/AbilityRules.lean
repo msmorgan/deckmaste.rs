@@ -139,7 +139,7 @@ private theorem cardTextThreadsChoicesButIndependentAbilitiesDoNot :
 private theorem choiceNeedsAnIndefiniteOrSelectingPhrase :
     Instruction.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] ∧
       Instruction.check (DRS.ofList [])
-        (.choose none (.described .the .anyPlayer) .openly none) = [.choiceClause] := by decide
+        (.choose none (.described .the (.superlative .max (.playerStat .lifeTotal) .anyPlayer)) .openly none) = [.choiceClause] := by decide
 
 private theorem cardTextDoesNotExportOrdinaryObjectMentions :
     Ability.checkText (DRS.ofList [])

@@ -919,4 +919,41 @@ def dread : Spelled := spelled <| .singleFaced
             (instruct (Primitives.NounPhrase.possessorOf .owner it) (shuffleInto it)) ],
       power := stat 6, toughness := stat 6 } }
 
+private semantic_template creatureDamagedByAttachedHostThisTurn (attachment : AttachWord) : NounPhrase :=
+  a (.and [creature,
+    .did ⟨.actor (.attachHost attachment (.type .creature)),
+      .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
+
+/-- Vampiric Embrace. -/
+def vampiricEmbrace : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Vampiric Embrace", cost := some [generic 2, pip .black, pip .black],
+      types := [.enchantment], subtypes := [enchantmentType "Aura"],
+      text :=
+        [ keywordSubject (.named "enchant") creature,
+          Primitives.Ability.static (getsPt
+            (Primitives.NounPhrase.attachHost .enchanted (.type .creature))
+            (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2))),
+          Primitives.Ability.static (Primitives.StaticSpec.abilityGrant
+            (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (keyword (.named "flying"))),
+          whenever (Primitives.GameEvent.dies (creatureDamagedByAttachedHostThisTurn .enchanted))
+            (Primitives.Instruction.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
+              (that (.type .creature)) .many true) ] } }
+
+/-- Scythe of the Wretched. -/
+def scytheOfTheWretched : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Scythe of the Wretched", cost := some [generic 2], types := [.artifact],
+      subtypes := [artifactType "Equipment"],
+      text :=
+        [ Primitives.Ability.static (getsPt
+            (Primitives.NounPhrase.attachHost .equipped (.type .creature))
+            (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2))),
+          whenever (Primitives.GameEvent.dies (creatureDamagedByAttachedHostThisTurn .equipped))
+            (Primitives.Instruction.sequentially
+              [ returnTo (that .card) battlefield
+                  [Primitives.MoveRider.entry (Primitives.EntryRider.under Primitives.NounPhrase.you)],
+                Primitives.Instruction.attachTo thisEquipment (that (.type .creature)) ]),
+          keywordCosting (.named "equip") (Primitives.Cost.mana [generic 4]) ] } }
+
 end Semantics.Cards

@@ -24,8 +24,10 @@ Standard constraints apply.
   - Re-spell the 6 ambiguity pins resolved by `D′` and `AC>R1` as positive
     acceptances asserting the intended referent from
     `docs/evidence/anaphora-measurement-2026-10-06/key_pins.txt`.
-  - Retain the 6 true-tie / out-of-reach refusal pins (`P07`, `P08`, `P09`,
-    `P12`, `P15`, `P16`) as `.anaphor` refusals.
+  - Retain the true-tie / out-of-reach refusal pins (`P07`, `P08`, `P09`,
+    `P15`, `P16`) as `.anaphor` refusals.
+  - Replace P12’s obsolete v2 ambiguity expectation with a positive v3 witness
+    selecting the second opponent by `AC>R1`, including the selected referent identity.
   - None of the 21 measured ambiguity pins is deleted without a named replacement.
 - **Required pins for the 11 previously measured `AC>R1` sites:**
   - Retain a named witness for each site in `lean/Semantics/Proofs/`, classifying
