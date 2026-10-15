@@ -461,6 +461,16 @@ pub(crate) fn exact(id: &str, lemma: &str, category: Category, source: Source) -
     lexeme
 }
 
+/// A Lexeme whose spellings are in scope only on `cards`.
+pub(crate) fn card_scoped(mut lexeme: Lexeme, cards: &[String]) -> Lexeme {
+    lexeme.card_scoped_surfaces = [lexeme.lemma.clone()].into();
+    lexeme.card_scope = cards
+        .iter()
+        .map(|card| crate::names::card_name_id(card))
+        .collect();
+    lexeme
+}
+
 /// A bound Lexeme with its Spelling Variants.
 pub(crate) fn bound(
     id: &str,

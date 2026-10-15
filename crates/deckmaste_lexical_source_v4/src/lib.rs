@@ -24,15 +24,18 @@ use serde::de::DeserializeOwned;
 
 use crate::build::Builder;
 use crate::build::bound;
+use crate::build::card_scoped;
 use crate::build::exact;
 use crate::build::source;
 pub use crate::names::shortened_names;
 use crate::schema::AbilityWord;
 use crate::schema::AdjectiveDecl;
 use crate::schema::AdverbEntry;
+use crate::schema::AnchorWord;
 use crate::schema::ClosedClass;
 use crate::schema::CounterKind;
 use crate::schema::Designation;
+use crate::schema::IntroducedName;
 use crate::schema::KeywordAbility;
 use crate::schema::KeywordAction;
 use crate::schema::NounDecl;
@@ -59,7 +62,7 @@ pub enum SourceError {
 }
 
 /// Every data file of this crate, by path, embedded at build time.
-pub const FILES: [(&str, &str); 15] = [
+pub const FILES: [(&str, &str); 17] = [
     (
         CLOSED_CLASS,
         include_str!("../lexicon/english/closed_class.ron"),
@@ -90,6 +93,11 @@ pub const FILES: [(&str, &str); 15] = [
     (DESIGNATIONS, include_str!("../catalogs/designations.ron")),
     (TURN_PARTS, include_str!("../catalogs/turn_parts.ron")),
     (TOKENS, include_str!("../catalogs/tokens.ron")),
+    (
+        INTRODUCED_NAMES,
+        include_str!("../catalogs/introduced_names.ron"),
+    ),
+    (ANCHOR_WORDS, include_str!("../catalogs/anchor_words.ron")),
 ];
 
 pub(crate) const CLOSED_CLASS: &str = "lexicon/english/closed_class.ron";
@@ -107,6 +115,8 @@ const COUNTERS: &str = "catalogs/counters.ron";
 const DESIGNATIONS: &str = "catalogs/designations.ron";
 const TURN_PARTS: &str = "catalogs/turn_parts.ron";
 const TOKENS: &str = "catalogs/tokens.ron";
+const INTRODUCED_NAMES: &str = "catalogs/introduced_names.ron";
+const ANCHOR_WORDS: &str = "catalogs/anchor_words.ron";
 /// The card-name catalog, relative to the repository root.
 pub const CARD_NAMES: &str = "data/gen/catalogs/card-names.txt";
 
@@ -144,6 +154,8 @@ pub struct Sources {
     pub designations: Vec<Designation>,
     pub turn_parts: Vec<TurnPart>,
     pub tokens: Vec<Token>,
+    pub introduced_names: Vec<IntroducedName>,
+    pub anchor_words: Vec<AnchorWord>,
 }
 
 /// A Lexicon and the Subcategorization Frames of its Lexemes.
@@ -196,6 +208,8 @@ impl Sources {
             designations: parse(DESIGNATIONS)?,
             turn_parts: parse(TURN_PARTS)?,
             tokens: parse(TOKENS)?,
+            introduced_names: parse(INTRODUCED_NAMES)?,
+            anchor_words: parse(ANCHOR_WORDS)?,
         })
     }
 
@@ -222,7 +236,9 @@ impl Sources {
     pub fn environment(&self, card_names: &str) -> Result<LexicalEnvironment, SourceError> {
         let (mut lexemes, frames) = self.vocabulary()?;
         let vocabulary = Lexicon::new(lexemes.clone())?;
-        lexemes.extend(names::card_names(card_names, &vocabulary));
+        let card_names = names::card_names(card_names, &vocabulary);
+        self.check_card_scopes(&lexemes, &card_names)?;
+        lexemes.extend(card_names);
         Ok(LexicalEnvironment {
             lexicon: Lexicon::new(lexemes)?,
             frames,
@@ -465,6 +481,58 @@ impl Sources {
                     Category::Catalog,
                     catalog(TOKENS, token.rule.number()),
                 ));
+            }
+        }
+        for introduced in &self.introduced_names {
+            let id = format!("introduced_name:{}", introduced.name);
+            let lexeme = exact(
+                &id,
+                &introduced.name,
+                Category::Catalog,
+                catalog(INTRODUCED_NAMES, &introduced.name),
+            );
+            builder.push(card_scoped(lexeme, &introduced.cards));
+        }
+        for anchor in &self.anchor_words {
+            let id = format!("anchor_word:{}", anchor.word);
+            let mut lexeme = exact(
+                &id,
+                &anchor.word,
+                Category::Keyword,
+                catalog(ANCHOR_WORDS, &anchor.word),
+            );
+            lexeme.surface_structure = SurfaceStructure::Opaque;
+            lexeme
+                .properties
+                .features
+                .insert("LabelKind".to_owned(), "AnchorWord".to_owned());
+            builder.push(card_scoped(lexeme, &anchor.cards));
+        }
+        Ok(())
+    }
+
+    /// Every card a card scope names is a card, and no Introduced Name is
+    /// one.
+    fn check_card_scopes(
+        &self,
+        lexemes: &[Lexeme],
+        card_names: &[Lexeme],
+    ) -> Result<(), SourceError> {
+        let cards: std::collections::BTreeSet<_> = card_names.iter().map(|card| card.id).collect();
+        for lexeme in lexemes {
+            if let Some(card) = lexeme.card_scope.iter().find(|card| !cards.contains(*card)) {
+                return Err(SourceError::Invalid(format!(
+                    "`{}` is scoped to `{card}`, which is not a card name",
+                    lexeme.id
+                )));
+            }
+        }
+        for introduced in &self.introduced_names {
+            if cards.contains(&names::card_name_id(&introduced.name)) {
+                return Err(SourceError::Invalid(format!(
+                    "introduced name `{}` is a card name, already in scope everywhere",
+                    introduced.name
+                )));
             }
         }
         Ok(())

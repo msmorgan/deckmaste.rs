@@ -62,7 +62,9 @@ impl TryFrom<String> for Rule {
                         .all(|c| c.is_ascii_alphanumeric() || c == '.')
             })
             .map(|number| Self(number.to_owned()))
-            .ok_or_else(|| format!("`{citation}` is not one rule written as a bracketed CR citation"))
+            .ok_or_else(|| {
+                format!("`{citation}` is not one rule written as a bracketed CR citation")
+            })
     }
 }
 
@@ -518,4 +520,21 @@ pub struct Token {
     pub subtype: String,
     #[serde(default)]
     pub names: Vec<String>,
+}
+
+/// A name a card's own text gives an object that is not a card name, with the
+/// cards whose text uses it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct IntroducedName {
+    pub name: String,
+    pub cards: Vec<String>,
+}
+
+/// An Anchor Word [CR#614.12c] with the cards that print it.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnchorWord {
+    pub word: String,
+    pub cards: Vec<String>,
 }

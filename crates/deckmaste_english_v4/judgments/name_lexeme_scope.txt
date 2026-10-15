@@ -18,4 +18,4 @@
 + Basic Land — Forest
 + Instant — Arcane
 + Aang and Katara enter. => NounPhrase "Aang and Katara" as Subject of enter
-+VerbPhrase named Wasp
++VerbPhrase <card=The Hive> named Wasp

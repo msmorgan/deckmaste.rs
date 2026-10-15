@@ -2,6 +2,7 @@
 //! registered ability word [CR#207.2c] or keyword ability [CR#702.1].
 
 use deckmaste_lexical::ItalicHead;
+use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_lexical_source_v4::Sources;
@@ -76,5 +77,45 @@ fn an_unregistered_label_is_a_flavor_word() {
             [label],
             "{label}"
         );
+    }
+}
+
+#[test]
+fn an_anchor_word_is_a_registered_label_on_the_cards_that_print_it() {
+    let environment = LexicalEnvironment::load().unwrap();
+    let sources = Sources::load().unwrap();
+    for anchor in &sources.anchor_words {
+        let line = format!("• {} — Draw a card.", anchor.word);
+        assert!(
+            matches!(
+                environment.lexicon.analyze_italic_head(&anchor.word),
+                ItalicHead::AnchorWord(_)
+            ),
+            "anchor word {}",
+            anchor.word
+        );
+        for card in &anchor.cards {
+            let scope = [LexemeId::new(&format!("name:{card}"))].into();
+            let analyzed = environment
+                .lexicon
+                .analyze_source_scoped(&line, None, &scope);
+            assert!(
+                !analyzed
+                    .matches
+                    .iter()
+                    .any(|found| matches!(found.reading, LexicalReading::FlavorWord { .. })),
+                "{} on {card}",
+                anchor.word
+            );
+            assert!(
+                analyzed.matches.iter().any(|found| matches!(
+                    &found.reading,
+                    LexicalReading::Word(value)
+                        if value.lexeme == format!("anchor_word:{}", anchor.word).as_str()
+                )),
+                "{} on {card}",
+                anchor.word
+            );
+        }
     }
 }

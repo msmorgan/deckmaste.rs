@@ -2,6 +2,7 @@
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::SourceKind;
@@ -76,6 +77,12 @@ fn spelled_by_other_vocabulary(candidate: &str, vocabulary: &Lexicon) -> bool {
     })
 }
 
+/// The Lexeme id of a card name.
+#[must_use]
+pub fn card_name_id(name: &str) -> LexemeId {
+    LexemeId::new(&format!("name:{name}"))
+}
+
 /// One Lexeme per card name, each with its Shortened Names in its own card's
 /// scope only.
 pub(crate) fn card_names(text: &str, vocabulary: &Lexicon) -> Vec<Lexeme> {
@@ -84,9 +91,8 @@ pub(crate) fn card_names(text: &str, vocabulary: &Lexicon) -> Vec<Lexeme> {
         .map(str::trim)
         .filter(|name| !name.is_empty() && seen.insert(*name))
         .map(|name| {
-            let id = format!("name:{name}");
             let mut lexeme = exact(
-                &id,
+                card_name_id(name).as_str(),
                 name,
                 Category::Catalog,
                 source(SourceKind::Catalog, CARD_NAMES, name),

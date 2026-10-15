@@ -232,8 +232,10 @@ An extensible inventory of things the Comprehensive Rules define by
 enumeration, such as card types, supertypes and subtypes
 [CR#205.2a,205.3,205.4a],
 keyword actions [CR#701.1], keyword abilities [CR#702.1] and ability words
-[CR#207.2c], together with card names and their shortened names [CR#201.5c].
-Core English vocabulary, closed-class or open-class, is never a Catalog.
+[CR#207.2c], together with card names and their shortened names [CR#201.5c],
+the Introduced Names card text gives objects and the Anchor Words it offers
+[CR#614.12c]. Core English vocabulary, closed-class or open-class, is never a
+Catalog.
 _Avoid_: catalog for core English vocabulary or for any lexical data file
 
 **Document**:
@@ -291,8 +293,8 @@ _Avoid_: Variant for a casual game format such as the Commander variant
 The italicized run that opens some abilities, followed by an em dash. It is
 either an Ability Word or a Flavor Word, neither of which has any rules meaning,
 so the Italic Head is a realization device and never changes what the ability it
-heads says; a run spelled by a declared Keyword Ability is that keyword, and is
-neither.
+heads says; a run spelled by a declared Keyword Ability or Anchor Word is that
+keyword or Anchor Word, and is neither.
 
 **Ability Word**:
 One of the italicized words the Comprehensive Rules list [CR#207.2c], or a
@@ -311,11 +313,29 @@ Keyword Ability, is never also a Flavor Word.
 _Avoid_: Flavor Text, the italicized artistic text below the rules text
 [CR#207.2b]
 
+**Anchor Word**:
+A word naming one of the choices a replacement effect offers as a permanent
+enters, heading the bulleted ability that the permanent has while that choice
+stands; that ability is linked to the one that offers the choice
+[CR#614.12c,607.2m]. It is printed in roman type, so it is no Italic Head, but
+like an Ability Word it is a registered label and never a Flavor Word; it is in
+scope only on the cards that print it.
+_Avoid_: anchor, which is a Supplement's anchor; Flavor Word
+
 **Shortened Name**:
 A shortened spelling printed on a card in place of its full name that refers to
 that same card [CR#201.5c]. It is derived from the full name and admitted only
 in the text of the card whose name it shortens.
 _Avoid_: nickname
+
+**Introduced Name** (project term):
+A name a card's own text gives an object that is not the name of any card: the
+name of a token the card creates [CR#111.4] (*create Marit Lage, a legendary
+20/20 black Avatar creature token*), or of a permanent or copy the card changes
+(*She's a land named Moon*). It is in scope only in the text of the cards that
+use it. A name that is also a card's name is that card's name, in scope
+everywhere.
+_Avoid_: token name, which also covers the predefined tokens' names [CR#111.10]
 
 **Name Number** (project term):
 The declared grammatical Number of a full Name for Agreement. It describes

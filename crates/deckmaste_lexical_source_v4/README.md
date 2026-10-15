@@ -33,6 +33,8 @@ authored type.
 | `catalogs/designations.ron` | Catalog | `designation:` |
 | `catalogs/turn_parts.ron` | Catalog | `turn_part:` |
 | `catalogs/tokens.ron` | Catalog | `token:` |
+| `catalogs/introduced_names.ron` | Catalog | `introduced_name:` |
+| `catalogs/anchor_words.ron` | Catalog | `anchor_word:` |
 | `data/gen/catalogs/card-names.txt` (read at load) | Catalog | `name:` |
 
 Only Core vocabulary may be named by a grammar (`deckmaste_syntax` rejects any
@@ -90,6 +92,11 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
   or ` of `, else its first word), dropped when another declaration already
   spells them unless that is a planeswalker type, and admitted only in that
   card's own scope.
+- Introduced Names (*Marit Lage*, *Moon*) and Anchor Words [CR#614.12c]
+  (*Khans*, *Mirran*) list the cards whose text uses them and are admitted
+  only in those cards' scope. Introduced Names are opaque `Catalog`-category
+  Lexemes and never card names; Anchor Words are `Keyword`-category Lexemes
+  with `LabelKind: AnchorWord`, registered labels like Ability Words.
 
 ## Tests
 
@@ -98,8 +105,8 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `data/catalogs/ability-words.json`), with the out-of-scope and Un-set items
 named in the test. `paradigms` checks full paradigms and that every lexical
 value realizes and analyzes back. `labels`, `names` and `loader` cover
-registered-label exclusivity, Shortened Name scope and the loader's
-rejections. The grammar-leak lint lives with the grammar, in
+registered-label exclusivity, Shortened Name, Introduced Name and Anchor Word
+scope and the loader's rejections. The grammar-leak lint lives with the grammar, in
 `deckmaste_english_v4/tests/catalog_leak.rs`.
 
 ## Not here

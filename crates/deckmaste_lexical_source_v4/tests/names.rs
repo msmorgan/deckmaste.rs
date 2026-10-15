@@ -61,3 +61,63 @@ fn a_shortened_name_is_in_scope_only_on_its_own_card() {
         LexicalReading::Word(value) if value.lexeme == gisela
     )));
 }
+
+/// Whether `text` analyzes, whole, as `lexeme` with `scope`'s cards in scope.
+fn spells(environment: &LexicalEnvironment, text: &str, lexeme: &str, scope: &[&str]) -> bool {
+    let scope: BTreeSet<LexemeId> = scope
+        .iter()
+        .map(|card| LexemeId::new(&format!("name:{card}")))
+        .collect();
+    let analyzed = environment
+        .lexicon
+        .analyze_source_scoped(text, None, &scope);
+    let whole = analyzed.tokens.len();
+    analyzed.matches.iter().any(|found| {
+        found.start == 0
+            && found.end == whole
+            && matches!(&found.reading, LexicalReading::Word(value) if value.lexeme == lexeme)
+    })
+}
+
+#[test]
+fn an_introduced_name_is_in_scope_only_on_the_cards_that_use_it() {
+    let environment = LexicalEnvironment::load().unwrap();
+    for (name, card) in [
+        ("Marit Lage", "Dark Depths"),
+        ("Marit Lage", "Marit Lage's Slumber"),
+        ("Icingdeath, Frost Tongue", "Icingdeath, Frost Tyrant"),
+        ("Tuktuk the Returned", "Tuktuk the Explorer"),
+        ("Moon", "Princess Yue"),
+    ] {
+        let id = format!("introduced_name:{name}");
+        assert!(spells(&environment, name, &id, &[card]), "{name} on {card}");
+        assert!(!spells(&environment, name, &id, &[]), "{name} elsewhere");
+        assert!(
+            !spells(&environment, name, &id, &["Vampire Hexmage"]),
+            "{name} on another card"
+        );
+    }
+    // Its spelling is exact.
+    assert!(!spells(
+        &environment,
+        "moon",
+        "introduced_name:Moon",
+        &["Princess Yue"]
+    ));
+}
+
+#[test]
+fn every_introducing_card_admits_its_introduced_names() {
+    let environment = LexicalEnvironment::load().unwrap();
+    let sources = Sources::load().unwrap();
+    for introduced in &sources.introduced_names {
+        let id = format!("introduced_name:{}", introduced.name);
+        for card in &introduced.cards {
+            assert!(
+                spells(&environment, &introduced.name, &id, &[card]),
+                "{} on {card}",
+                introduced.name
+            );
+        }
+    }
+}

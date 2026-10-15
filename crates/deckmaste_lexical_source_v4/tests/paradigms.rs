@@ -121,7 +121,8 @@ fn oracle_you_is_one_player() {
 }
 
 /// Every lexical value realizes to a spelling that analyzes back to the same
-/// value, with Shortened Names in their own card's scope.
+/// value, on the cards whose scope admits it: its own card for a Shortened
+/// Name, the introducing cards for an Introduced Name or an Anchor Word.
 #[test]
 fn every_value_realizes_and_analyzes_back() {
     let environment = LexicalEnvironment::load().unwrap();
@@ -129,7 +130,9 @@ fn every_value_realizes_and_analyzes_back() {
     for value in lexicon.values() {
         let reading = LexicalReading::Word(value.clone());
         let surface = lexicon.realize(&reading).unwrap();
-        let scope: BTreeSet<LexemeId> = [value.lexeme].into();
+        let cards = &lexicon.lexemes()[&value.lexeme].card_scope;
+        let scope: BTreeSet<LexemeId> =
+            if cards.is_empty() { [value.lexeme].into() } else { cards.clone() };
         let analyzed = lexicon.analyze_source_scoped(&surface, None, &scope);
         let whole = analyzed.tokens.len();
         assert!(

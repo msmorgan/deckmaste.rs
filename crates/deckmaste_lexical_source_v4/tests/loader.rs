@@ -1,6 +1,7 @@
 //! The loader rejects declarations that would break the catalog contract.
 
 use deckmaste_lexical_source_v4::Sources;
+use deckmaste_lexical_source_v4::schema::AnchorWord;
 use deckmaste_lexical_source_v4::schema::FrameSpec;
 use deckmaste_lexical_source_v4::schema::NounDecl;
 use deckmaste_lexical_source_v4::schema::VerbEntry;
@@ -77,4 +78,36 @@ fn an_identity_is_declared_once() {
     let noun = sources.nouns[0].clone();
     sources.nouns.push(noun);
     rejects(&sources, "is declared twice");
+}
+
+#[test]
+fn a_card_scope_names_cards_and_an_introduced_name_is_none() {
+    let card_names = "Dark Depths\nMarit Lage's Slumber\nCitadel Siege\n";
+    let mut sources = Sources::load().unwrap();
+    sources
+        .introduced_names
+        .retain(|name| name.name == "Marit Lage");
+    sources.anchor_words.clear();
+    sources.environment(card_names).unwrap();
+
+    let mut stray = sources.clone();
+    stray.introduced_names[0]
+        .cards
+        .push("Not a Card".to_owned());
+    let error = stray.environment(card_names).unwrap_err().to_string();
+    assert!(error.contains("which is not a card name"), "{error}");
+
+    let mut stray = sources.clone();
+    stray.anchor_words.push(AnchorWord {
+        word: "Khans".to_owned(),
+        cards: vec!["Not a Card".to_owned()],
+    });
+    let error = stray.environment(card_names).unwrap_err().to_string();
+    assert!(error.contains("which is not a card name"), "{error}");
+
+    let error = sources
+        .environment(&format!("{card_names}Marit Lage\n"))
+        .unwrap_err()
+        .to_string();
+    assert!(error.contains("is a card name"), "{error}");
 }

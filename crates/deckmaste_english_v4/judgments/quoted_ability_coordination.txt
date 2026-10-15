@@ -2,7 +2,7 @@
 + Equipped creature has "You may look at the top card of your library any time" and "Whenever this creature attacks, it explores."
 + −4: You get an emblem with "Artifact creatures you control get +1/+1" and "Artifact spells you cast cost {1} less to cast."
 + When this creature enters, each opponent creates a 1/1 red Pirate creature token with "This token can't block" and "Creatures you control attack each combat if able."
-+ When this creature enters, create a colorless Equipment artifact token named Axe with "Equipped creature gets +1/+0" and equip {2}.
++ <card=Iron Hills Blacksmith> When this creature enters, create a colorless Equipment artifact token named Axe with "Equipped creature gets +1/+0" and equip {2}.
 + Equipped creature has "Whenever you draw a card, this creature gets +1/+1 and gains flying until end of turn" and "{4}: Draw a card."
 + It has "{T}: Draw a card" and "{T}: Add {G}."
 + It has "{T}: Add {G}" and flying.

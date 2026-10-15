@@ -1,0 +1,38 @@
+// Anchor words [CR#614.12c]: the words naming the two choices a replacement effect offers as a
+// permanent enters, each heading the bulleted ability linked to that choice [CR#607.2m]. Each lists
+// the cards that print it, which are the only cards on which it is in scope.
+[
+    (word: "Abzan", cards: ["Barrensteppe Siege", "Hollowmurk Siege"]),
+    (word: "Believe", cards: ["Phenomenon Investigators"]),
+    (word: "Brotherhood", cards: ["Struggle for Project Purity"]),
+    (word: "Doubt", cards: ["Phenomenon Investigators"]),
+    (
+        word: "Dragons",
+        cards: [
+            "Citadel Siege",
+            "Frontier Siege",
+            "Monastery Siege",
+            "Outpost Siege",
+            "Palace Siege",
+        ],
+    ),
+    (word: "Enclave", cards: ["Struggle for Project Purity"]),
+    (word: "Jeskai", cards: ["Frostcliff Siege", "Windcrag Siege"]),
+    (
+        word: "Khans",
+        cards: [
+            "Citadel Siege",
+            "Frontier Siege",
+            "Monastery Siege",
+            "Outpost Siege",
+            "Palace Siege",
+        ],
+    ),
+    (word: "Legion", cards: ["Battle of Hoover Dam"]),
+    (word: "Mardu", cards: ["Barrensteppe Siege", "Windcrag Siege"]),
+    (word: "Mirran", cards: ["Mirrodin Besieged"]),
+    (word: "NCR", cards: ["Battle of Hoover Dam"]),
+    (word: "Phyrexian", cards: ["Mirrodin Besieged"]),
+    (word: "Sultai", cards: ["Glacierwood Siege", "Hollowmurk Siege"]),
+    (word: "Temur", cards: ["Frostcliff Siege", "Glacierwood Siege"]),
+]
