@@ -20,7 +20,7 @@
     // *can't cause you to sacrifice or exile creature tokens*
     (lemma: "cause", frames: [ComplexCatenative(ToInf)]),
     (lemma: "change", frames: [Intransitive, Monotransitive, TransitiveWithPP(["to"])]),
-    (lemma: "choose", parameters: [[Head, ProjectedSlot(ChoiceQuantity, NP, Object)]], preterite: "chose", past_participle: "chosen",
+    (lemma: "choose", preterite: "chose", past_participle: "chosen",
         frames: [Intransitive, Monotransitive, Catenative(ToInf)]),
     (lemma: "circle", frames: [Monotransitive]),
     // *whichever comes first*; *come under your control*; *coins come up heads*

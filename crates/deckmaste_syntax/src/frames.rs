@@ -76,7 +76,6 @@ pub enum SlotFill {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotKind {
     TypeModifier,
-    ChoiceQuantity,
     NonManaCost,
     Quality,
     Ability,
@@ -271,8 +270,6 @@ impl FrameCatalog {
 pub enum ParameterPart {
     Head,
     Slot(SlotKind),
-    /// A restricted constituent projected to a phrase, with its grammatical relation.
-    ProjectedSlot(SlotKind, SlotKind, SlotRelation),
     Word(LexemeId),
     Words(Vec<LexemeId>),
     /// A word set with recursive premodification, projected as a constituent.

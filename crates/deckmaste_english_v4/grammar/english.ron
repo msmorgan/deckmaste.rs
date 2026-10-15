@@ -18,7 +18,6 @@
         "ModalAbility": (),
         "SymbolCosts": (),
         "ActivationCost": (),
-        "ModalSelection": (features: ["VerbForm"]),
         "NonManaCost": (),
         "Mode": (),
         "ModeEffect": (),
@@ -84,7 +83,7 @@
     typed_classes: ["CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint"],
     slot_categories: {
         TypeModifier: "TypeModifier",
-        ChoiceQuantity: "ChoiceQuantity", NonManaCost: "NonManaCost",
+        NonManaCost: "NonManaCost",
         Quality: "Quality", Name: "Name", Ability: "Ability", Condition: "Condition", Measure: "Measure",
         NP: "NounPhrase",
         PP: "PrepositionPhrase",
@@ -123,7 +122,7 @@
 
         (name: "TextSymbols", lhs: "Document", rhs: [Cat("head", "Symbols")]),
         (name: "QuantifiedSymbols", lhs: "NounPhrase", rhs: [Numeral("quantity", Cardinal), Cat("head", "Symbols")]),
-        (name: "GroupedNumericAmount", lhs: "Amount", rhs: [UnsignedNumeral("head", Arabic(true))]),
+        (name: "GroupedNumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(true))]),
         (name: "UnsignedMeasureAmount", lhs: "SignedAmount", rhs: [Cat("head", "Amount")]),
         (name: "PositiveMeasureAmount", lhs: "SignedAmount", rhs: [Mark('+', Prefix), Cat("head", "Amount")]),
         (name: "NegativeMeasureAmount", lhs: "SignedAmount", rhs: [Mark('-', Prefix), Cat("head", "Amount")]),
@@ -161,7 +160,7 @@
         (name: "MultipleCardTypes", lhs: "CardTypes", rhs: [Class("first", "CardType"), Cat("rest", "CardTypes")], equations: [Require("first.Number", "Singular")]),
         (name: "SingleSubtype", lhs: "Subtypes", rhs: [Class("head", "Subtype")], equations: [Require("head.Number", "Singular")]),
         (name: "MultipleSubtypes", lhs: "Subtypes", rhs: [Class("first", "Subtype"), Cat("rest", "Subtypes")], equations: [Require("first.Number", "Singular")]),
-        (name: "NumericAmount", lhs: "Amount", rhs: [UnsignedNumeral("head", Arabic(false))]),
+        (name: "NumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(false))]),
         (name: "VariableAmount", lhs: "Amount", rhs: [Class("head", "Variable")]),
         (name: "SingleSymbol", lhs: "Symbols", rhs: [Class("head", "BracedSymbol")]),
         (name: "SymbolSequence", lhs: "Symbols", rhs: [Class("first", "BracedSymbol"), Attached("rest", "Symbols", Suffix)]),
@@ -170,8 +169,8 @@
         (name: "CostSequence", lhs: "SymbolCosts", rhs: [Cat("first", "Symbols"), Punct(','), Cat("rest", "SymbolCosts")]),
         (name: "NegativeLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('−', Prefix), Cat("amount", "Amount")]),
         (name: "PositiveLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('+', Prefix), Cat("amount", "Amount")]),
-        (name: "ZeroLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Integer("amount", 0)]),
-        (name: "LoyaltyCost", lhs: "ActivationCost", rhs: [Mark('[', Prefix), Integer("amount", 0), Punct(']')]),
+        (name: "ZeroLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Cat("amount", "Amount")]),
+        (name: "LoyaltyCost", lhs: "ActivationCost", rhs: [Mark('[', Prefix), Cat("amount", "Amount"), Punct(']')]),
         (name: "UnicodeNegativeLoyaltyCost", lhs: "ActivationCost", rhs: [Mark('[', Prefix), Mark('−', Bound), Cat("amount", "Amount"), Punct(']')]),
         (name: "PositiveLoyaltyCost", lhs: "ActivationCost", rhs: [Mark('[', Prefix), Mark('+', Bound), Cat("amount", "Amount"), Punct(']')]),
         (name: "VerbalCost", lhs: "NonManaCost", rhs: [Cat("head", "VerbPhrase")], equations: [Require("head.VerbForm", "Plain")]),
@@ -181,6 +180,7 @@
         (name: "LabelledAbility", lhs: "Ability", rhs: [Class("label", "AbilityWord"), Mark('—', Free), Cat("head", "Ability")]),
         (name: "FlavorLabelledAbility", lhs: "Ability", rhs: [Lex("label", FlavorWord), Cat("head", "Ability")]),
         (name: "ModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("head", "Ability")]),
+        (name: "CostedModeBullet", lhs: "Mode", rhs: [Mark('•', Free), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "PlusCostedMode", lhs: "Mode", rhs: [Mark('+', Free), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "LabelledCostedMode", lhs: "Mode", rhs: [Mark('•', Free), Lex("label", FlavorWord), Cat("cost", "Cost"), Mark('—', Free), Cat("head", "ModeEffect")]),
         (name: "PawprintMode", lhs: "Mode", rhs: [Cat("quantity", "Pawprints"), Mark('—', Free), Cat("head", "ModeEffect")]),
@@ -200,7 +200,7 @@
         (name: "SingleChapter", lhs: "Chapters", rhs: [Numeral("head", Roman)]),
         (name: "ChapterSequence", lhs: "Chapters", rhs: [Numeral("first", Roman), Punct(','), Cat("rest", "Chapters")]),
         (name: "ChapterAbility", lhs: "Ability", rhs: [Cat("chapters", "Chapters"), Mark('—', Free), Cat("head", "Ability")]),
-        (name: "ChoiceHeader", lhs: "ModalHeader", rhs: [Cat("head", "ModalSelection"), Mark('—', Free)], equations: [Require("head.VerbForm", "Plain")]),
+        (name: "ChoiceHeader", lhs: "ModalHeader", rhs: [Cat("head", "VerbPhrase"), Mark('—', Free)], equations: [Require("head.VerbForm", "Plain")]),
 
         // Sentences: a bare imperative or a declarative clause.
         (name: "Imperative", lhs: "Sentence", rhs: [Cat("clause", "VerbPhrase"), Punct('.')],
@@ -251,7 +251,6 @@
 
     ],
     schemas: [
-        Parameters(head: Verb, phrase: "ModalSelection"),
         Parameters(head: Noun, phrase: "IndexedNominal"),
         Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free)),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),

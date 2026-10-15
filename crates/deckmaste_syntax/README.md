@@ -76,24 +76,16 @@ singleton classes are reported. The grammar never enumerates their members.
 `Parameters` compiles the catalog's ordered parameter patterns around a head:
 slots select grammar Categories; markers, bound stems and head identities stay
 in the catalog. Noun notation parameters support indexed headers by the same
-mechanism as keyword parameters. Verbal parameter patterns also support lexical
-construction signatures, such as modal selection. `ProjectedSlot` projects a
-restricted constituent into its phrase category and assigns a grammatical
-relation. Its private parser category keeps the restricted derivations separate
-from the unrestricted phrase, while the Reading retains the public phrase
-category. `ModifiedWords` similarly builds a restricted word set with recursive
-premodification inside its projected category. This lets a quantity be a Noun Phrase Object without admitting every
-Noun Phrase into the modal-selection construction.
+mechanism as keyword parameters. `ModifiedWords` builds a restricted word set with recursive
+premodification inside its projected category.
 
 `Mark` specifies structural punctuation and its attachment at either edge;
 `Attached` attaches a constituent at its outer boundaries, for adjacent symbol
 sequences. These bindings are applied by both realization and the packed-forest
 law checker. Paragraph boundaries are explicit terminals, never skipped as
-interword whitespace. `Numeral` and `UnsignedNumeral` select numeral notation;
-`Integer` selects an exact Arabic numeral value without treating it as
-punctuation. `FreeLex` excludes bound stems from independent word positions.
-Bare valence phrases likewise require free words. Flavor Word leaves use the lexical layer's
-registered-label exclusion and realization.
+interword whitespace. `Numeral` selects numeral notation; `FreeLex` excludes bound stems
+from independent word positions. Bare valence phrases likewise require free words.
+Flavor Word leaves use the lexical layer's registered-label exclusion and realization.
 
 ## Reading Normal Form
 

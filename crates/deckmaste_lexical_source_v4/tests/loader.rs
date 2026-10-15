@@ -8,7 +8,6 @@ use deckmaste_lexical_source_v4::schema::VerbEntry;
 
 fn verb(lemma: &str, frames: Vec<FrameSpec>) -> VerbEntry {
     VerbEntry {
-        parameters: Vec::new(),
         lemma: lemma.to_owned(),
         third_singular: None,
         past: None,

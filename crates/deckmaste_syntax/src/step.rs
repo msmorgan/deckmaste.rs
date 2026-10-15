@@ -36,8 +36,7 @@ pub(crate) enum GapRule {
 pub(crate) enum Test {
     Lexical(LexicalCategory),
     FreeLexical(LexicalCategory),
-    Numeral(deckmaste_lexical::Numeral, bool),
-    Integer(i32),
+    Numeral(deckmaste_lexical::Numeral),
     Word(LexemeId),
     Class(usize),
     Words(std::collections::BTreeSet<LexemeId>),
@@ -436,14 +435,7 @@ impl CompiledGrammar {
                 leaf.category == *category
                     && facts.is_some_and(|f| f.binding == deckmaste_lexical::Binding::Free)
             }
-            Test::Integer(value) => {
-                leaf.integer == Some(*value)
-                    && leaf.notation == Some(deckmaste_lexical::Numeral::Arabic(false))
-            }
-            Test::Numeral(notation, unsigned) => {
-                leaf.notation == Some(*notation)
-                    && (!unsigned || leaf.integer.is_some_and(|n| n >= 0))
-            }
+            Test::Numeral(notation) => leaf.notation == Some(*notation),
             Test::Word(id) => leaf.lexeme.as_ref() == Some(id),
             Test::Words(words) => leaf.lexeme.is_some_and(|id| words.contains(&id)),
             Test::Class(class) => leaf

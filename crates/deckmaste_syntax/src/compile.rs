@@ -504,14 +504,8 @@ impl<'a> Binder<'a> {
                         host: None,
                     },
                 ),
-                SymbolDecl::Integer(name, value) => {
-                    (name.as_str(), Symbol::Leaf(Test::Integer(*value)))
-                }
-                SymbolDecl::UnsignedNumeral(name, notation) => {
-                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation, true)))
-                }
                 SymbolDecl::Numeral(name, notation) => {
-                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation, false)))
+                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation)))
                 }
                 SymbolDecl::FreeLex(name, category) => {
                     (name.as_str(), Symbol::Leaf(Test::FreeLexical(*category)))
@@ -783,39 +777,6 @@ impl<'a> Binder<'a> {
                                 host: None,
                             },
                         ),
-                        ParameterPart::ProjectedSlot(source, target, relation) => {
-                            let source = self.slot_category(*source)?;
-                            let target = self.slot_category(*target)?;
-                            // A private category limits this slot's derivations while
-                            // retaining the projected phrase's public category name.
-                            let projected = self.private_category(target);
-                            let mut projection = Draft::new(
-                                format!("{}/Projection{}", draft.id, draft.children.len()),
-                                projected,
-                                0,
-                            );
-                            projection.child(
-                                "head",
-                                Symbol::Cat {
-                                    category: source,
-                                    binding: None,
-                                    prepositions: None,
-                                    host: None,
-                                },
-                                GapRule::Closed,
-                            );
-                            drafts.push(projection);
-                            let name = relation_name(*relation);
-                            (
-                                name,
-                                Symbol::Cat {
-                                    category: projected,
-                                    binding: None,
-                                    prepositions: None,
-                                    host: None,
-                                },
-                            )
-                        }
                         ParameterPart::Word(word) => {
                             if !self.out.lexemes.contains_key(word) {
                                 return Err(invalid(format!("unknown parameter marker `{word}`")));

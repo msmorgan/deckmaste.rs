@@ -155,60 +155,22 @@ fn document_indentation_is_not_admitted_as_unrealizable_whitespace() {
 }
 
 #[test]
-fn independently_constructed_modal_selection_projects_a_quantity_object() {
+fn modal_choice_headers_have_one_analysis_and_round_trip() {
     let env = LexicalEnvironment::load().unwrap();
     let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
-    let quantity = node(
-        "CardinalChoice",
-        "ChoiceQuantity",
-        vec![Reading::Leaf(LexicalReading::Numeral {
-            value: 1,
-            notation: deckmaste_lexical::Numeral::Cardinal,
-            capitalization: SurfaceCase::Declared,
-        })],
-    );
-    let object = node(
-        "Parameters:ModalSelection/verb:choose/0/Projection1",
-        "NounPhrase",
-        vec![quantity],
-    );
-    let head = Reading::Leaf(LexicalReading::Word(LexicalValue {
-        lexeme: "verb:choose".into(),
-        form: WordForm::Plain,
-        features: FeatureBundle::default(),
-        variant: 0,
-        capitalization: SurfaceCase::Initial,
-    }));
-    let mut selection = node(
-        "Parameters:ModalSelection/verb:choose/0",
-        "ModalSelection",
-        vec![head, object],
-    );
-    if let Reading::Node(n) = &mut selection {
-        n.features.insert("VerbForm".into(), "Plain".into());
-    }
-    let reading = node(
-        "TextModalHeader",
-        "Document",
-        vec![node("ChoiceHeader", "ModalHeader", vec![selection])],
-    );
-    grammar.admit(&reading, &env.lexicon).unwrap();
-    let text = grammar.realize(&reading, &env.lexicon).unwrap();
-    assert_eq!(text, "Choose one —");
-    assert!(grammar.parse(&env.lexicon, &text).contains(&reading));
-    for invalid in [
-        "Destroy a creature —",
-        "Choose a creature —",
-        "Choose everything —",
-        "Choose one or everything —",
-        "Choose more —",
-        "Destroy a creature —\n• Exile a creature.",
+    for choice in [
+        "Choose one —",
+        "Choose one or both —",
+        "Choose one or more —",
     ] {
-        assert_eq!(
-            grammar.parse(&env.lexicon, invalid).derivation_count(),
-            0,
-            "{invalid}"
-        );
+        let parse = grammar.parse(&env.lexicon, choice);
+        assert_eq!(parse.derivation_count(), 1, "{choice}");
+        parse.verify_realization(&env.lexicon).unwrap();
+        let readings = parse.best_readings(1);
+        assert_eq!(readings.len(), 1, "{choice}");
+        grammar.admit(&readings[0], &env.lexicon).unwrap();
+        let text = grammar.realize(&readings[0], &env.lexicon).unwrap();
+        assert_eq!(text, choice);
     }
 }
 

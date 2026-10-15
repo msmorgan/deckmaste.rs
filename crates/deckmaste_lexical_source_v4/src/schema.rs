@@ -136,9 +136,6 @@ pub struct FormOverride {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VerbEntry {
-    /// Ordered parameters of a catalog-declared construction.
-    #[serde(default)]
-    pub parameters: Vec<Vec<deckmaste_syntax::frames::ParameterPart>>,
     pub lemma: String,
     /// The third-person singular present.
     #[serde(default)]

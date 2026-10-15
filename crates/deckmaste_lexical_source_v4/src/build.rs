@@ -191,9 +191,6 @@ impl Builder {
         let id = lexeme.id;
         self.push(lexeme);
         self.frames(id, Category::Verb, &entry.frames);
-        if !entry.parameters.is_empty() {
-            self.parameters.insert(id, entry.parameters.clone());
-        }
         Ok(())
     }
 

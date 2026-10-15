@@ -108,27 +108,24 @@ The judgments migrated from `deckmaste_english_v3`'s test suite, and the reason
 each remaining v3 test retires, are recorded in
 [`docs/english-v3-test-audit.md`](../../docs/english-v3-test-audit.md).
 
-Modal selection is a catalog-declared construction of *choose*, whose quantity
-projects to a Noun Phrase Object. Ordinary verb phrases cannot introduce mode
-lists. Keyword catalogs distinguish dashed verbal/composite costs from
-space-separated mana costs; mandatory dash forms such as suspend retain their
-catalog punctuation. The pinned Vintage corpus uses Unicode minus in all 520
-negative loyalty lines (no ASCII hyphen-minus), without display brackets;
-the grammar accepts that source form as well as bracketed symbol notation.
+Modal headers take an imperative verb phrase followed by a dash (*Choose one —*),
+with ordinary verb frames selecting their objects. Keyword catalogs distinguish
+dashed verbal/composite costs from space-separated mana costs; mandatory dash
+forms such as suspend retain their catalog punctuation. The pinned Vintage
+corpus uses Unicode minus in all 520 negative loyalty lines (no ASCII hyphen-minus),
+without display brackets; the grammar accepts that source form as well as
+bracketed symbol notation.
 
-Costed modes use the corpus's Spree plus marker, pawprint quantities, or a
-bulleted Flavor Word followed by its cost. A Saga chapter scopes over the modal
-ability, not separately over its header. Activation effects select sentences
-or modal abilities, so nested cost colons and bare keyword lists are rejected.
-A symbol-cost-prefixed modal header is a Stratum 0 fragment; a verbal cost
-raises its profile to the cost’s Stratum. Bound-keyword premodifiers belong to
-the Keyword Quality before the suffix and cost.
+Costed modes use bulleted costs, the corpus's Spree plus marker, pawprint
+quantities, or a bulleted Flavor Word followed by its cost. A Saga chapter
+scopes over the modal ability, not separately over its header. Activation
+effects select sentences or modal abilities, so nested cost colons and bare
+keyword lists are rejected. A symbol-cost-prefixed modal header is a Stratum 0
+fragment; a verbal cost raises its profile to the cost’s Stratum. Bound-keyword
+premodifiers belong to the Keyword Quality before the suffix and cost.
 
 `ActivationCost` includes loyalty notation; keyword parameters select `Cost`,
 which excludes it. Numeric zero in a neutral loyalty symbol remains a numeral
 leaf. Mixed costs use one right-recursive structure, preventing duplicate trees
 from overlapping symbol and verbal cost alternatives. Modal selection with
-adjuncts or relatives belongs to the corresponding later strata; the current
-quantity grammar does not claim those forms. Adjuncts can use authored
-productions; a relative modifying the projected quantity will require a catalog
-pattern or syntax-engine support.
+adjuncts or relatives belongs to the corresponding later strata.
