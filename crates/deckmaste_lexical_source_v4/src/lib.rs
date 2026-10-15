@@ -319,6 +319,8 @@ impl Sources {
                     entry.binding,
                     core(CLOSED_CLASS, &id),
                 );
+                // Initial capitalization belongs to the affix, so sentence-initial
+                // forms need no duplicate capitalized catalog spellings.
                 if category == Category::Affix {
                     lexeme.capitalization = deckmaste_lexical::Capitalization::Initial;
                 }

@@ -50,5 +50,5 @@ none with ASCII `-`) and omits display brackets. Accept its `+N:`, `−N:`, and
 
 Standard constraints apply.
 
-Census delta (`nyzzqtss`): faces read 0 → 2,354; total Readings 0 → 52,471; lost faces: none. Stratum 0: 47,670/47,670 read, zero known-wrong-only, unread, or law failures.
-Judgment set (`nyzzqtss`): 193 enforced pass, 2,684 higher-stratum entries pending; seed and Stratum 0 spine suites pass; independent adjudication pending.
+Census delta (`wqwkonuy`): faces read 0 → 2,363; total Readings 0 → 52,590; lost faces: none. Stratum 0: 47,674/47,674 read, zero known-wrong-only, unread, or law failures.
+Judgment set (`wqwkonuy`): 200 enforced pass, 2,699 higher-stratum entries pending; seed and Stratum 0 spine suites pass; all 65 Stratum 0 judgments independently endorsed by Sol and Opus.

@@ -129,4 +129,6 @@ which excludes it. Numeric zero in a neutral loyalty symbol remains a numeral
 leaf. Mixed costs use one right-recursive structure, preventing duplicate trees
 from overlapping symbol and verbal cost alternatives. Modal selection with
 adjuncts or relatives belongs to the corresponding later strata; the current
-quantity grammar does not claim those forms.
+quantity grammar does not claim those forms. Adjuncts can use authored
+productions; a relative modifying the projected quantity will require a catalog
+pattern or syntax-engine support.
