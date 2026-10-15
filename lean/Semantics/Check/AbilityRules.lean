@@ -27,43 +27,88 @@ private def instructionTextChoices (instruction : Instruction) (fuel : Nat := 64
   | _+1, _ => []
 termination_by structural fuel
 
-private def costTextChoices (drs : DRS) (cost : Cost) : List ChoiceSort :=
+private def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
+  sorts.foldl (fun context sort => context.push sort.binding .other false) drs
+
+private def publicCostResult (ref : Referent) : Bool :=
+  !ref.isActorFrame && ref.isPublic &&
+    (match ref.payload with
+     | .object .. | .pile .. => ref.zone.isSome
+     | _ => true)
+
+private def costTextContext (drs : DRS) (cost : Cost) : DRS :=
   let out := (stepCost 64 drs cost).1
-  (out.referents.filter (fun ref => ref.id ≥ drs.nextId)).reverse.filterMap fun ref =>
-    match ref.payload with
-    | .quality q => some (.quality q)
-    | .player true => some .player
-    | _ => none
+  let additions := out.visibleReferents.filter fun ref =>
+    ref.id ≥ drs.nextId && publicCostResult ref
+  nextClause { drs with
+    referents := additions ++ drs.referents,
+    nextId := Nat.max drs.nextId out.nextId,
+    currentClause := Nat.max drs.currentClause out.currentClause }
 
-private def staticTextChoices (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) : List ChoiceSort :=
+private def staticTextContext (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) : DRS :=
   match fuel, spec with
-  | 0, _ => []
-  | n+1, .inCaller body => staticTextChoices drs body n
-  | _+1, .choice _ _ sort _ _ => [sort]
-  | n+1, .conjunction _ parts => parts.flatMap (fun part => staticTextChoices drs part n)
-  | _+1, .addedCost cost _ _ => costTextChoices drs cost
-  | _+1, .asEvent _ action | _+1, .whileHolds _ action => instructionTextChoices action
-  | _+1, _ => []
+  | 0, _ => drs
+  | n+1, .inCaller body => staticTextContext drs body n
+  | _+1, .choice _ _ sort _ _ => publishTextChoices drs [sort]
+  | n+1, .conjunction _ parts =>
+    parts.foldl (fun context part => staticTextContext context part n) drs
+  | _+1, .addedCost cost _ _ => costTextContext drs cost
+  | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
+    publishTextChoices drs (instructionTextChoices action)
+  | _+1, _ => drs
 termination_by structural fuel
 
-private def abilityTextChoices (drs : DRS) (ability : Ability) (fuel : Nat := 64) : List ChoiceSort :=
+/-- Choices and public additional-cost results available to later lines of card text. -/
+def Ability.textContext (drs : DRS) (ability : Ability) (fuel : Nat := 64) : DRS :=
   match fuel, ability with
-  | 0, _ => []
+  | 0, _ => drs
   | _+1, .activated _ action _ _ _ _ | _+1, .triggered _ _ _ _ _ _ _ action
-  | _+1, .spell _ action => instructionTextChoices action
-  | _+1, .static spec => staticTextChoices drs spec
+  | _+1, .spell _ action => publishTextChoices drs (instructionTextChoices action)
+  | _+1, .static spec => staticTextContext drs spec
   | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _ =>
-    abilityTextChoices drs body n
-  | _+1, _ => []
+    Ability.textContext drs body n
+  | _+1, _ => drs
 termination_by structural fuel
 
-/-- Each card-text line can read the choices announced by earlier lines. -/
+/-- Each card-text line can read prior choices and public additional-cost results. -/
 def Ability.checkText (drs : DRS) (abilities : List Ability) : List Refusal :=
   (abilities.foldl (fun (context, errors) ability =>
     let errors := errors ++ Ability.check context ability
-    let context := (abilityTextChoices context ability).foldl
-      (fun context sort => context.push sort.binding .other false) context
-    (context, errors)) (drs, [])).2
+    (Ability.textContext context ability, errors)) (drs, [])).2
+
+private def additionalTapGroupCost : Cost :=
+  .perform (.ownScope (some (.action "tap"))
+    (.enact (.action "tap")
+      (.setStatus .tapped (.described (.count (.range (some 0) none) none)
+        (.and [.hasType .creature, .inZone (.zone .battlefield .bare)]))) none none))
+
+private def additionalTapGroup : Ability :=
+  .static (.addedCost additionalTapGroupCost false .once)
+
+private def additionalHiddenGroup : Ability :=
+  .static (.addedCost
+    (.perform (.move
+      (.described (.count (.range (some 0) none) none)
+        (.and [.isCard, .inZone (.zone .hand .bare)]))
+      (.zones [.zone .hand .bare]) (some (.zone .library .bare)) .arrival none []))
+    false .once)
+
+private theorem additionalCostPublishesTheActualGroupIdentity :
+    let initial := DRS.ofList [{ det := .the, plur := .one, payload := .quality .color, id := 7 }]
+    let actual := (stepCost 64 initial additionalTapGroupCost).1
+    let published := Ability.textContext initial additionalTapGroup
+    let reach := Reach.verbed (.action "tap") none .attributive
+    let actualIds := (resolveCandidates reach .many actual).map (·.id)
+    let publishedIds := (resolveCandidates reach .many published).map (·.id)
+    actualIds = [8] ∧ publishedIds = actualIds ∧ published.nextId = actual.nextId ∧
+      (published.findById? 7).map (·.payload) = some (.quality .color) ∧
+      Ability.checkText initial [additionalTapGroup, .spell none (.draw .groupSize)] = [] ∧
+      Ability.checkAll initial [additionalTapGroup, .spell none (.draw .groupSize)] =
+        [.groupSizeInScope 0] := by decide
+
+private theorem additionalCostDoesNotPublishAHiddenGroup :
+    Ability.checkText (DRS.ofList [])
+      [additionalHiddenGroup, .spell none (.draw .groupSize)] = [.groupSizeInScope 0] := by decide
 
 def CopyExcept.check (drs : DRS) (exception : CopyExcept) : List Refusal :=
   (stepCopyExceptWith (stepOps 64) drs exception).2

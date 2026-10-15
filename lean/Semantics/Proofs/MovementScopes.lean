@@ -1,6 +1,6 @@
-import Semantics.Check.Phrase
+import Semantics.Macros
 
-open Semantics
+open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.MovementScopes
 
@@ -102,10 +102,10 @@ theorem explicitCallerArgumentPreservesAuxiliaryPlayer :
     let after := leaveOwnScope (leaveCaller inner argument [1])
     after.referents.map (·.id) = [1, 0] := by decide
 
-theorem typeViewPreservesMovedIdentityAndZone :
+theorem typeViewRefusesMovedPronounWithoutChangingItsZone :
     let (after, ids, errors) := stepNounPhrase 64 moved .other false
       (.asType .creature (.pro (.word .card) .one) none)
-    errors = [] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
+    errors = [.ascribable] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
       after.referents.map (·.zone) = [some .exile] := by decide
 
 private def moveOuter : Instruction :=
@@ -162,5 +162,25 @@ theorem explicitSourceCarrierSuppliesItsZone :
     let spell := (stepNounPhrase 64 (DRS.ofList []) .other false (.asMarker .spell .this)).1
     creature.referents.map (·.zone) = [some .battlefield] ∧
       spell.referents.map (·.zone) = [some .stack] := by decide
+
+theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
+    let searched := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (searchLibraryFor (exactly 1) instantOrSorcery)).1
+    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause searched)
+      (.sequentially [revealCards it, shuffle])
+    let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
+    errors = [] ∧ beforeIds.length = 1 ∧
+      (resolveCandidates .bare .one (nextClause after)).map (·.id) = beforeIds := by decide
+
+theorem revealedTopCardDoesNotAcquireSearchProvenance :
+    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (.sequentially [revealCards (topSlice (.lit 1)), shuffle])
+    errors = [] ∧ resolveCandidates .bare .one (nextClause after) = [] := by decide
+
+theorem zoneMoveClearsSearchProvenance :
+    let searched := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (searchLibraryFor (exactly 1) instantOrSorcery)).1
+    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause searched) (move it hand)
+    errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
 
 end Semantics.Proofs.MovementScopes

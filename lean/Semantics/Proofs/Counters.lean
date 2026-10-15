@@ -41,12 +41,32 @@ theorem badChosenCounterKindRead :
 theorem okAscribedSelf :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature .this none) = [] := by decide
 
-theorem typeViewRefinesTheSelectedTargetInPlace :
-    let noun := NounPhrase.asType .creature (target creature) none
-    let after := (stepNounPhrase 64 (DRS.ofList []) .other false noun).1
-    NounPhrase.checkAt (some .object) (DRS.ofList []) noun = [] ∧
+theorem badAscribedTarget :
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature (target creature) none)
+      = [.ascribable] := by decide
+
+theorem namedSelfTypeViewRetainsItsSelectedIdentity :
+    let before := (stepNounPhrase 64 (DRS.ofList []) .other false
+      (.firstMention "view.subject" .this)).1
+    let noun := NounPhrase.asType .creature (.laterMention "view.subject" .this) none
+    let after := (stepNounPhrase 64 before .other false noun).1
+    NounPhrase.checkAt (some .object) before noun = [] ∧
+      after.nextId = before.nextId ∧
       after.visibleReferents.map (·.id) = [0] ∧
-      (after.findById? 0).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) := by decide
+      (identityBinding "view.subject" after).map (fun r => (r.id, r.ty)) = some (0, [.creature]) := by decide
+
+theorem badMarkerOnTarget :
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asMarker .spell (target creature)) =
+      [.ascribable] := by decide
+
+theorem namedSelfMarkerViewRetainsItsSelectedIdentity :
+    let before := (stepNounPhrase 64 (DRS.ofList []) .other false
+      (.firstMention "marker.subject" .this)).1
+    let noun := NounPhrase.asMarker .spell (.laterMention "marker.subject" .this)
+    let after := (stepNounPhrase 64 before .other false noun).1
+    NounPhrase.checkAt (some .object) before noun = [] ∧
+      after.nextId = before.nextId ∧
+      (identityBinding "marker.subject" after).map (fun r => (r.id, r.zone)) = some (0, some .stack) := by decide
 
 /-- "creature you control that isn't attacking" -/
 theorem okConsistentConjunction :
@@ -116,14 +136,41 @@ theorem okRemoveCounterFromTarget :
       = [] := by
   decide
 
-theorem counterRemovalReadsTheFreshMovedCard :
+theorem badRemoveCountersDead :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [destroy (target creature),
+        .removeCounters (some (exactly 1)) (some p11) it .one true]) = [.counterMemory] := by decide
+
+theorem destructionPreservesMovedCardIdentityWithoutCounterMemory :
     let destroyed := destroy (target creature)
     let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) destroyed).1
-    Instruction.check (DRS.ofList [])
-      (.sequentially [destroyed, .removeCounters (some (exactly 1)) (some p11) it .one true]) = [] ∧
-      after.findById? 0 = none ∧
+    after.findById? 0 = none ∧
       (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
       (after.findById? 1).map (fun r => (r.zone, r.idents)) = some (some .graveyard, []) := by decide
+
+theorem newCountersOnMovedCardCanBeRemoved :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [destroy (target creature),
+        .putCounters (.lit 1) p11 (that .card) .one true,
+        .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [] := by decide
+
+theorem badMoveCountersFromDeadCreature :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [destroy (target creature),
+        .moveCounters (.lit 1) (some p11) it thisCreature]) = [.counterMemory] := by decide
+
+theorem zeroCountersDoNotRestoreMovedCounterMemory :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [destroy (target creature),
+        .putCounters (.lit 0) p11 (that .card) .one true,
+        .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [.counterMemory] := by decide
+
+theorem countersPlacedDuringMoveCanBeRemoved :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [
+        .move (target creature) .anywhere (some exileZone) .arrival none
+          [.placement (.withCounters (.lit 1) p11 .fresh)],
+        .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [] := by decide
 
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :
@@ -303,7 +350,7 @@ theorem okLastBoostCounterRemoved :
 theorem badLastPoisonCounterRemoved :
     Ability.check (DRS.ofList [])
       (when (lastCounterRemoved (.named "poison") thisCreature) (draw (.lit 1)))
-      = [.counterKindNamed .object] := by
+      = [.counterSourceScope] := by
   decide
 
 /-- "Put a charge counter on this artifact." -/

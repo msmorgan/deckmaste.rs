@@ -551,6 +551,8 @@ structure Referent where
   pronounResolved : Bool := false
   targets         : List Kind := []
   attachmentHost  : Bool := false
+  librarySearchResult : Bool := false
+  counterMemoryAvailable : Bool := true
   deriving DecidableEq, Repr
 
 abbrev Binding := Referent
@@ -575,11 +577,19 @@ def Referent.isGap (b : Referent) : Bool :=
 def Referent.sameCore (a b : Referent) : Bool :=
   a.det == b.det && a.plur == b.plur && a.payload == b.payload && a.idents == b.idents
 
+structure SelectionEvidence where
+  kind : Kind
+  sourceGroup : Option ReferentId := none
+  chosen : Bool := false
+  scope : Nat
+  deriving DecidableEq, Repr
+
 /-- Explicit Reference Scope frame for `Instruction.ownScope` (`semantics-v3.md` §1.2, §1.4). -/
 structure OwnScopeFrame where
   preEntryIds   : List ReferentId
   maskedIds     : List ReferentId
   callerClause  : Nat
+  callerSelectionScope : Nat := 0
   callerPending : List (ReferentId × GramRole) := []
   callerReferentIds : List ReferentId := []
   deriving DecidableEq, Repr
@@ -600,6 +610,9 @@ structure DRS where
   /-- The current action describes an event or permission pattern. -/
   actionPattern : Bool := false
   characteristicRead : Bool := false
+  selectionEvidence : List SelectionEvidence := []
+  selectionScope : Nat := 0
+  nextSelectionScope : Nat := 1
   deriving DecidableEq, Repr
 
 abbrev Bindings := DRS
@@ -852,7 +865,34 @@ def countParts (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
     b.det == .part && Kind.lte k b.kind).length
 
-def theRestOk (k : Kind) (drs : DRS) : Bool := countGroups k drs ≤ 1 && countParts k drs != 0
+def DRS.recordSelection (drs : DRS) (kind : Kind) (sourceGroup : Option ReferentId)
+    (chosen : Bool) : DRS :=
+  { drs with selectionEvidence :=
+      { kind, sourceGroup, chosen, scope := drs.selectionScope } :: drs.selectionEvidence }
+
+def DRS.choiceWasPossible (drs : DRS) (kind : Kind) : Bool :=
+  drs.selectionEvidence.any (fun evidence => evidence.scope == drs.selectionScope &&
+    evidence.chosen && Kind.lte kind evidence.kind)
+
+def DRS.subsetWasPossible (drs : DRS) (kind : Kind) : Bool :=
+  drs.selectionEvidence.any (fun evidence => evidence.scope == drs.selectionScope &&
+    Kind.lte kind evidence.kind && evidence.sourceGroup.any (fun id =>
+      drs.isVisible id && (drs.findById? id).any (fun ref => objGroup kind ref)))
+
+def enterSelectionScope (drs : DRS) : DRS :=
+  { drs with
+    selectionScope := drs.nextSelectionScope
+    nextSelectionScope := drs.nextSelectionScope + 1 }
+
+def leaveSelectionScope (before after : DRS) : DRS :=
+  { after with
+    selectionScope := before.selectionScope
+    nextSelectionScope := max before.nextSelectionScope after.nextSelectionScope
+    selectionEvidence := after.selectionEvidence.filter (fun evidence =>
+      evidence.scope != after.selectionScope) }
+
+def theRestOk (k : Kind) (drs : DRS) : Bool :=
+  countGroups k drs ≤ 1 && (countParts k drs != 0 || drs.subsetWasPossible k)
 
 def partsTaken (k : Kind) (drs : DRS) : Nat :=
   drs.visibleReferents.foldl (fun acc b =>
@@ -870,7 +910,7 @@ def countedGroupSize (k : Kind) (drs : DRS) : Option Nat :=
   loop drs.visibleReferents
 
 def theOtherOk (k : Kind) (drs : DRS) : Bool :=
-  theRestOk k drs &&
+  countGroups k drs ≤ 1 && countParts k drs != 0 &&
     (match countedGroupSize k drs with
      | none => false
      | some n => n == partsTaken k drs + 1)
@@ -1157,7 +1197,8 @@ def markFirst (q : Referent → Bool) (ty : List CardType) (drs : DRS) : DRS :=
 
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
-  | .object _ (some .library) (some st) _ _ _ => st.feature == some .librarySearch
+  | .object _ (some .library) (some st) _ _ _ =>
+    b.librarySearchResult || st.feature == some .librarySearch
   | .object _ (some .library) none _ _ _ => false
   | _ => true
 
@@ -1301,9 +1342,10 @@ def enterOwnScope (drs : DRS) : DRS :=
     preEntryIds   := preIds
     maskedIds     := masked
     callerClause  := drs.currentClause
+    callerSelectionScope := drs.selectionScope
     callerPending := drs.pendingRoles
   }
-  { drs with
+  { (enterSelectionScope drs) with
     scopeStack    := frame :: drs.scopeStack
     pendingRoles  := []
     currentClause := drs.currentClause + 1 }
@@ -1317,6 +1359,7 @@ def enterCaller (drs : DRS) : DRS :=
       { drs with
         scopeStack    := outerFrames
         currentClause := topFrame.callerClause
+        selectionScope := topFrame.callerSelectionScope
         pendingRoles  := topFrame.callerPending
         resolvedIds   := [] }
 
@@ -1346,6 +1389,7 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
       { after with
         scopeStack    := topFrame' :: after.scopeStack
         currentClause := before.currentClause
+        selectionScope := before.selectionScope
         pendingRoles  := addedPending ++ before.pendingRoles
         resolvedIds   := before.resolvedIds }
 
@@ -1366,6 +1410,9 @@ def leaveOwnScope (drs : DRS) : DRS :=
       { drs with
         referents     := kept
         scopeStack    := outerFrames
+        selectionEvidence := drs.selectionEvidence.filter (fun evidence =>
+          evidence.scope != drs.selectionScope)
+        selectionScope := topFrame.callerSelectionScope
         pendingRoles  := topFrame.callerPending
         currentClause := topFrame.callerClause }
 

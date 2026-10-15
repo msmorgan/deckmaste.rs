@@ -181,6 +181,11 @@ The same information-read boundary covers possessors: after destroying a permane
 instruction acts on that player; the lookup does not make the destroyed permanent available
 to a later battlefield action. *Destructive Revelry* exercises this distinction.
 
+Counter removal cannot read counters across a zone change: the new object's identity may be
+available, but its old counters ceased to exist ([CR#400.7,122.2]). Removal or transfer from
+that moved referent is refused until an instruction or entry/placement rider establishes new
+counters on it. This does not impose a battlefield-only restriction on counters.
+
 #### Stage 2: Form-Specific Resolution Gate (`J2`, `D′`, `AC>R1`, and Principle A Reflexives)
 
 - **Clause-mates (`J2`, `docs/contexts/oracle-english/CONTEXT.md`):** Referent `r` is a **clause-mate** of an anaphor iff the anaphor occupies a direct argument slot (subject, direct object, or oblique complement) of the current verb and `(r.id, _) ∈ drs.pendingRoles` (i.e., `r` was introduced or re-mentioned as a direct co-argument of the same verb in `drs.currentClause`). Possessors (`controllerOf it`, `ownerOf it`, `its power`, `"Target creature's controller"`) and objects of small clauses (`counters on it`) are **not** direct co-arguments of the matrix verb (`badItAcrossOwnSlot`, *Weeping Angel*).

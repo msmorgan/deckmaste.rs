@@ -344,7 +344,7 @@ theorem okOpponentWithMoreLands : Predicate.checkAt .player (DRS.ofList []) oppo
   decide
 
 def bioplasmCardTest : Condition := Primitives.Condition.matches itCard creature
-theorem okBioplasmCardTest : Condition.check bioplasmAfterExile bioplasmCardTest = [] := by decide
+theorem okBioplasmCardTest : Condition.check (nextClause bioplasmAfterExile) bioplasmCardTest = [] := by decide
 
 /-- Blessed Respite -/
 def blessedRespiteShuffle : Instruction :=
@@ -391,7 +391,12 @@ theorem bioplasmNoTypedRead :
   decide
 theorem bioplasmExiledCardHasNoType :
     tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterExile = [] := by decide
-def bioplasmAfterTest : Bindings := (stepCondition 512 bioplasmAfterExile bioplasmCardTest).1
+def bioplasmAfterTest : Bindings := (stepCondition 512 (nextClause bioplasmAfterExile) bioplasmCardTest).1
+theorem bioplasmTypeTestPreservesExiledIdentity :
+    let reach := Reach.verbed (.action "exile") none .attributive
+    let before := resolveCandidates reach .one bioplasmAfterExile
+    let after := resolveCandidates reach .one bioplasmAfterTest
+    before.length = 1 ∧ after.map (·.id) = before.map (·.id) := by decide
 theorem bioplasmTestRemarksType :
     tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterTest = [.creature] := by decide
 theorem bioplasmTestKeepsCardSlot : countReach (.atSlot .card) .one bioplasmAfterTest = 1 := by

@@ -83,7 +83,7 @@ theorem okMoveToExile :
 theorem okLookbackObjectDied :
     Ability.check (DRS.ofList [])
       (.triggered (.does .any (.move thisCreature .anywhere (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨.any, (.move (.asMarker .permanent (a creature)) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
+        (some (.did ⟨.any, (.move (a creature) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
             = [] := by
   decide
 
@@ -91,7 +91,7 @@ theorem okLookbackObjectDied :
 theorem badLookbackPlayerDied :
     Ability.check (DRS.ofList [])
       (.triggered (.does .any (.move thisCreature .anywhere (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨.any, (.move (.asMarker .permanent .you) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw
+        (some (.did ⟨.any, (.move .you (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw
           (.lit 1)))
       = [.kindLte .player (.join .object .pile)] := by
   decide
@@ -121,7 +121,7 @@ theorem badHappenedToObjectCast :
 /-- "each opponent who died this turn" -/
 theorem badHappenedToPlayerDied :
     NounPhrase.checkAt (some .player) (DRS.ofList [])
-      (each (.and [.opponent, (.did ⟨.any, (.move (.asMarker .permanent .which) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindLte .player (.join .object .pile)] := by
+      (each (.and [.opponent, (.did ⟨.any, (.move .which (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindLte .player (.join .object .pile)] := by
   decide
 
 /-- "Choose a creature you control." -/
@@ -207,7 +207,7 @@ theorem okTokenCreationLookbackComplement :
 /-- "creature that was dealt damage by this creature this turn" -/
 theorem okDamageTakenComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨(.actor thisCreature), (.dealDamage .anyAmount (.asMarker .permanent .which) .any), (.duration soFarThisTurn none)⟩) = [] := by
+      (.did ⟨(.actor thisCreature), (.dealDamage .anyAmount .which .any), (.duration soFarThisTurn none)⟩) = [] := by
   decide
 
 /-- "if you've cast a creature spell this turn" -/
@@ -248,7 +248,7 @@ theorem okOriginPayloadInvolving :
 
 /-- "… that died this turn." -/
 theorem okDeathLookbackWithoutOrigin :
-    Predicate.checkAt .object (DRS.ofList []) (.did ⟨.any, (.move (.asMarker .permanent .which) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.did ⟨.any, (.move .which (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩) = [] := by decide
 
 /-- "… that was put into a graveyard from the battlefield this turn." -/
 theorem okPlacementIntoGraveyard :
@@ -461,7 +461,7 @@ theorem badDeathSum :
 
 /-- "creature that died this turn" -/
 theorem okObjectDeathLookbackSubject :
-    Predicate.checkAt .object (DRS.ofList []) (.did ⟨.any, (.move (.asMarker .permanent .which) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.did ⟨.any, (.move .which (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩) = [] := by decide
 
 /-- "creature that won a coin flip this turn" -/
 theorem badCreatureWonFlip :
