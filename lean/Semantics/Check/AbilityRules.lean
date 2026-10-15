@@ -141,4 +141,23 @@ private theorem choiceNeedsAnIndefiniteOrSelectingPhrase :
       Instruction.check (DRS.ofList [])
         (.choose none (.described .the .anyPlayer) .openly none) = [.choiceClause] := by decide
 
+private theorem cardTextDoesNotExportOrdinaryObjectMentions :
+    Ability.checkText (DRS.ofList [])
+      [.spell none (.choose none (.described (.a .unmarked) (.hasType .creature)) .openly none),
+       .spell none (.changeControl (.pro .bare .one))] = [.anaphor .bare .one 0] := by decide
+
+private theorem selectedPlayerCanBeReadWithinTheSameInstruction :
+    Instruction.check (DRS.ofList [])
+      (.sequentially
+        [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,
+         .draw (.devotion (.described .the (.chosenPlayer .theChoice)) (.lit .red) none)]) = [] := by decide
+
+private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
+    Ability.check (DRS.ofList [qualityB .color])
+      (.static (.abilityGrant .any
+        (.keyword (.named "protection") [.quality (.ofChosen .theChoice .color)] []))) = [] ∧
+      Ability.check (DRS.ofList [kindBinding .object])
+        (.static (.abilityGrant .any (.spell none (.changeControl (.pro .bare .one))))) =
+          [.anaphor .bare .one 0] := by decide
+
 end Semantics

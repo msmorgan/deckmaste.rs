@@ -17,10 +17,17 @@ def NounPhrase.ty (drs : DRS) (phrase : NounPhrase) : List CardType :=
   | [] => []
   | first :: rest => first.ty.filter fun type => rest.all (fun ref => ref.ty.contains type)
 
+private def commonZone : Payload → Option Zone
+  | .join left right =>
+    let zone := commonZone left
+    if commonZone right == zone then zone else none
+  | payload => payload.zone
+
 def NounPhrase.zone (drs : DRS) (phrase : NounPhrase) : Option Zone :=
   match phraseReferents drs phrase with
   | [] => none
-  | first :: rest => if rest.all (fun ref => ref.zone == first.zone) then first.zone else none
+  | first :: rest => if rest.all (fun ref => commonZone ref.payload == commonZone first.payload) then
+      commonZone first.payload else none
 
 namespace Check.QueryPins
 

@@ -3871,7 +3871,7 @@ semantic_definition counter (arg0 : Semantics.NounPhrase) : Semantics.Instructio
 
 /-- `keyword_actions/create.ron` -/
 semantic_definition create (arg0 : Semantics.Amount) (arg1 : Semantics.TokenSpec) : Semantics.Instruction :=
-  (Semantics.Instruction.ownScope (some (Semantics.Deed.action "create")) (Semantics.Instruction.enact (Semantics.Deed.action "create") (Semantics.Instruction.createObject (Semantics.Amount.inCaller arg0) (Semantics.CreationSpec.token arg1 []) true none) none none))
+  (Semantics.Instruction.ownScope (some (Semantics.Deed.action "create")) (Semantics.Instruction.enact (Semantics.Deed.action "create") (Semantics.Instruction.createObject (Semantics.Amount.inCaller arg0) (Semantics.CreationSpec.token (Semantics.TokenSpec.inCaller arg1) []) true none) none none))
 
 /-- `keyword_actions/destroy.ron` -/
 semantic_definition destroy (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=

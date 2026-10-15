@@ -65,4 +65,37 @@ theorem damageOwnPowerWithoutOuter :
 theorem damageOwnPowerWithOuter :
     Instruction.check outer (dealDamageOwnPower creatureX (target creature)) = [] := by decide
 
+private def playerLoop : Instruction :=
+  .doForEach (each .anyPlayer)
+    (choose (target (.and [permanent, .hasPossessor .controller they])))
+
+theorem loopPlayerRetainsPlayerKind :
+    Instruction.check (DRS.ofList []) playerLoop = [] := by decide
+
+theorem loopExportsPluralGroupWithoutSingularMember :
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) playerLoop).1
+    (resolveCandidates (.word .player) .many (nextClause after)).length = 1 ∧
+      resolveCandidates (.word .player) .one (nextClause after) = [] := by decide
+
+theorem optionalBranchesDoNotExportCreatedObjects :
+    let branch := Primitives.Instruction.offer (gainLife (.lit 1))
+      (some (create (.lit 1) (creatureToken 1 1 [.white] [])))
+      (some (create (.lit 2) (creatureToken 1 1 [.white] [])))
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) branch).1
+    resolveCandidates (.word (.type .creature)) .one (nextClause after) = [] := by decide
+
+theorem sourceTypeRefinesOneIdentity :
+    let after := (stepNounPhrase 64 (DRS.ofList []) .subj true thisCreature).1
+    after.referents.map (fun ref => (ref.id, ref.ty)) = [(0, [.creature])] ∧
+      after.nextId = 1 := by decide
+
+theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
+    let before := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (destroy (target creature))).1
+    let after := (stepCondition 64 (nextClause before)
+      (.not (.matches thisEnchantment creature))).1
+    let selected := resolveCandidates .bare .one (nextClause after)
+    selected.map (·.ty) = [[.enchantment]] ∧
+      selected.map (·.id) = [after.nextId - 1] := by decide
+
 end Semantics.Proofs.ReferenceScopes

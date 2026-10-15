@@ -748,6 +748,8 @@ mutual
     | printedAfter (keyword : KeywordLabel)
 
   inductive TokenSpec where
+    /-- A token specification supplied by the immediate caller of a Definition. -/
+    | inCaller (body : TokenSpec)
     /-- The creating spell or ability defines the token's characteristic values [CR#111.3] and
     sets its name and subtypes [CR#111.4]. -/
     | written (characteristics : CharacteristicBundle)

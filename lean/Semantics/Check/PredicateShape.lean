@@ -181,6 +181,60 @@ def Predicate.contradictionFree (ps : List Predicate) : Bool :=
     !(fs.any Predicate.isPermanentHead && anyNonPermanentTy fs)
 
 
+def Predicate.negatable (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.negatable n
+  | _ + 1, .anyPlayer | _ + 1, .chosenPlayer _ | _ + 1, .qualityNoun _ none
+  | _ + 1, .counterKindOn _ | _ + 1, .isSource => false
+  | _, _ => true
+termination_by structural fuel
+
+def Predicate.says (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .not body => body.says n
+  | n + 1, .and predicates => predicates.any (fun p => p.says n)
+  | _, _ => true
+termination_by structural fuel
+
+def Amount.read (amount : Amount) (fuel : Nat := 32) : Bool :=
+  match fuel, amount with
+  | n + 1, .inCaller body => body.read n
+  | _ + 1, .lit _ | _ + 1, .arith _ _ _ | _ + 1, .thatMuch | _ + 1, .chosenNumber _
+  | _ + 1, .groupSize | _ + 1, .half _ _ | _ + 1, .upTo _ => false
+  | _ + 1, .theOutcome sort => sort.comparable
+  | _, _ => true
+termination_by structural fuel
+
+def Predicate.roleSubtype (predicate : Predicate) (fuel : Nat := 32) : Option Subtype :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.roleSubtype n
+  | _ + 1, .hasSubtype sub => some sub
+  | _, _ => none
+termination_by structural fuel
+
+def rolesDistinct : List Predicate → Bool
+  | [] => true
+  | predicate :: rest =>
+    !(rest.any fun candidate => match predicate.roleSubtype, candidate.roleSubtype with
+      | some left, some right => left == right
+      | _, _ => false) && rolesDistinct rest
+
+def rolesOk (roles : List Predicate) : Bool := !roles.isEmpty && rolesDistinct roles
+
+def Condition.isAnd (condition : Condition) (fuel : Nat := 32) : Bool :=
+  match fuel, condition with
+  | n + 1, .inCaller body => body.isAnd n
+  | _ + 1, .and _ => true
+  | _, _ => false
+termination_by structural fuel
+
+def Condition.isOr (condition : Condition) (fuel : Nat := 32) : Bool :=
+  match fuel, condition with
+  | n + 1, .inCaller body => body.isOr n
+  | _ + 1, .or _ => true
+  | _, _ => false
+termination_by structural fuel
+
 private theorem cardAndTokenContradictThroughScopes :
     Predicate.contradictionFree [.inCaller (.and [.isCard, .isToken])] = false := by decide
 
