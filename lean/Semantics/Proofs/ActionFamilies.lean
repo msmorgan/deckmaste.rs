@@ -142,8 +142,8 @@ theorem movingThisAbilityAllocatesFreshIdentity :
     let after := instructionResult (DRS.ofList [])
       (.move thisAbility .anywhere (some exileZone) .arrival none [])
     after.findById? 0 = none ∧
-      after.visibleReferents.map (fun r => (r.id, r.payload, r.idents)) =
-        [(1, .ability none (some .exile), [])] := by decide
+      after.visibleReferents.map (fun r => (r.id, r.det, r.plur, r.payload, r.idents)) =
+        [(1, .the, .one, .ability none (some .exile), [])] := by decide
 
 
 private def operandKey (i : Nat) : BindingId := "operand." ++ toString i

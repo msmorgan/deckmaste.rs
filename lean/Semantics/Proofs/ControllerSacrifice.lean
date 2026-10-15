@@ -41,6 +41,12 @@ theorem laterCardReadIsAdmitted :
 theorem nestedDescriptionIsAdmitted :
     Instruction.check (DRS.ofList []) nestedInstruction = [] := by decide
 
+theorem nestedSubjectPublishesExactlyItsFourParticipants :
+    (stepNounPhrase 64 (DRS.ofList []) .subj true (controllerOf nestedSubject)).1.referents.map
+      (fun ref => (ref.id, ref.kind, ref.zone, ref.ty)) =
+      [(3, .player, none, []), (2, .object, some .battlefield, [.creature]),
+        (1, .player, none, []), (0, .object, some .battlefield, [.artifact])] := by decide
+
 theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
     (stepInstruction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1.referents.countP
       (·.det == .target) = 2 := by decide

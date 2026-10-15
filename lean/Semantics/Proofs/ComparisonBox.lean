@@ -32,4 +32,130 @@ theorem comparisonCandidateDoesNotEscapeIntoTheBoundOrEnclosingContext :
           (.statOf (.stat .power) (.pro (.word (.type .creature)) .one))) =
         [.anaphor (.word (.type .creature)) .one 0] := by decide
 
+private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    rs.foldl (fun acc r => Nat.max acc r.clause) clause = clause := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    have hr := older r (by simp)
+    have ht : ∀ r ∈ rs, r.clause < clause := by
+      intro r h
+      exact older r (by simp [h])
+    simp only [List.foldl_cons, Nat.max_eq_left (Nat.le_of_lt hr)]
+    exact ih ht
+
+private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    rs.filter (fun r => r.clause == clause) = [] := by
+  induction rs with
+  | nil => rfl
+  | cons r rs ih =>
+    have hr := older r (by simp)
+    have ht : ∀ r ∈ rs, r.clause < clause := by
+      intro r h
+      exact older r (by simp [h])
+    simp [Nat.ne_of_lt hr, ih ht]
+
+private def candidate (clause id : Nat) : Referent := {
+  det := .the, plur := .one, clause, id, role := .other,
+  payload := .object [.creature] (some .battlefield) none none none none }
+
+private theorem candidateWins (rs : List Referent) (clause id : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    resolveCandidates .bare .one
+      { referents := candidate clause id :: rs, characteristicRead := true } =
+        [candidate clause id] := by
+  have filteredOlder : ∀ r ∈ rs.filter (reachesCharacteristic .bare .one), r.clause < clause := by
+    intro r h
+    exact older r (List.mem_filter.mp h).1
+  have visible : (DRS.visibleReferents {
+      referents := candidate clause id :: rs, characteristicRead := true }) =
+      candidate clause id :: rs := by
+    apply List.filter_eq_self.mpr
+    intro r _
+    rfl
+  have eligible : reachesCharacteristic .bare .one (candidate clause id) = true := by rfl
+  unfold resolveCandidates
+  dsimp only
+  rw [visible]
+  simp only [Bool.false_eq_true, ↓reduceIte,
+    show ((none : Option Zone) == some .battlefield) = false from rfl,
+    Bool.false_and, Bool.or_false, List.filter_cons, eligible]
+  simp only [List.foldl_cons, show (candidate clause id).clause = clause from rfl, Nat.zero_max,
+    olderClauseMaximum _ _ filteredOlder, BEq.rfl, ↓reduceIte,
+    olderClauseFilter _ _ filteredOlder, List.foldl_nil]
+  rfl
+
+private def comparisonContext (drs : DRS) : DRS :=
+  (nextClause drs).push (bindFor drs .the .one .object (.hasType .creature)) .other false
+
+private theorem comparisonErrors (n : Nat) (drs : DRS) :
+    ((stepOps (n + 4)).pred drs
+      (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
+        .atLeast (.lit 1))).2 =
+    ((stepOps (n + 3)).amt (comparisonContext drs)
+      (.statOf (.stat .power) (.pro .bare .one))).2 := by
+  change [] ++ [] ++ ((stepOps (n + 3)).amt (comparisonContext drs)
+    (.statOf (.stat .power) (.pro .bare .one))).2 ++ [] = _
+  simp only [List.nil_append, List.append_nil]
+
+private theorem proStep (n : Nat) (drs : DRS) :
+    (stepOps (n + 1)).np drs .other false (.pro .bare .one) =
+      let winners := resolveCandidates .bare .one drs
+      match winners with
+      | [w] => (drs.recordMention w.id .other false true, [w.id], [])
+      | _ => (drs, [], [.anaphor .bare .one winners.length]) := by rfl
+
+private theorem powerErrors (n : Nat) (drs : DRS) :
+    ((stepOps (n + 2)).amt drs (.statOf (.stat .power) (.pro .bare .one))).2 =
+      let selected := (stepOps (n + 1)).np { drs with characteristicRead := true }
+        .other false (.pro .bare .one)
+      let refs := selected.2.1.filterMap selected.1.findById?
+      refuse (statHeadTysOk .power (refs.filterMap fun ref =>
+        if ref.ty.isEmpty then none else some ref.ty)) .statHeadTysOk ++
+        selected.2.2 ++ kindCheck .object ((refs.head?).map (·.kind)) ++
+        refuse (!(refs.any (fun r => r.plur != .one))) .singular := by rfl
+
+private theorem powerOnCandidate (n : Nat) (rs : List Referent) (clause id : Nat)
+    (current next : Nat) (kind : Option Kind)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    ((stepOps (n + 2)).amt {
+      referents := candidate clause id :: rs, currentClause := current,
+      nextId := next, relativeKind := kind }
+      (.statOf (.stat .power) (.pro .bare .one))).2 = [] := by
+  have winners := candidateWins rs clause id older
+  change resolveCandidates .bare .one {
+    referents := candidate clause id :: rs, characteristicRead := true,
+    currentClause := current, nextId := next, relativeKind := kind } = _ at winners
+  rw [powerErrors, proStep, winners]
+  simp [DRS.recordMention, DRS.findById?, candidate]
+  exact ⟨rfl, rfl, rfl⟩
+
+/-- The comparison checker succeeds in every outer context whose referents belong to the
+current or an earlier clause. The subordinate candidate, rather than any outer object,
+supplies its own power. -/
+theorem comparisonScopeIgnoresEveryEarlierOuterContext (rs : List Referent) (c id : Nat)
+    (older : ∀ r ∈ rs, r.clause ≤ c) :
+    Predicate.checkAt .object { referents := rs, currentClause := c, nextId := id }
+      (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
+        .atLeast (.lit 1)) = [] := by
+  change (stepPredicate 64 {
+      referents := rs, currentClause := c, nextId := id, relativeKind := some .object }
+    (.compareOver (.hasType .creature) (.statOf (.stat .power) (.pro .bare .one))
+      .atLeast (.lit 1))).2 ++ [] = []
+  rw [stepPredicate, comparisonErrors 60]
+  let normalized := rs.map (fun r => { r with pronounResolved := false })
+  have normalizedOlder : ∀ r ∈ normalized, r.clause < c + 1 := by
+    intro r member
+    obtain ⟨original, mem, rfl⟩ := List.mem_map.mp member
+    exact Nat.lt_succ_of_le (older original mem)
+  have contextEq : comparisonContext {
+      referents := rs, currentClause := c, nextId := id, relativeKind := some .object } = {
+      referents := candidate (c + 1) id :: normalized,
+      currentClause := c + 1, nextId := id + 1, relativeKind := some .object } := by rfl
+  rw [contextEq, powerOnCandidate 61 normalized (c + 1) id (c + 1) (id + 1)
+    (some .object) normalizedOlder]
+  rfl
+
 end Semantics.Proofs.ComparisonBox
