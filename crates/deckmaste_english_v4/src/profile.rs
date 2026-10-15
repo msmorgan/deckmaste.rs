@@ -38,7 +38,7 @@ pub type Stratum = u8;
 pub const MAX_STRATUM: Stratum = 7;
 
 /// A Syntactic Family: a named syntactic pattern owned by one Stratum.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Serialize)]
 pub struct Family {
     pub stratum: Stratum,
     pub name: &'static str,
@@ -104,7 +104,7 @@ const ARITHMETIC_WORDS: &[&str] = &[
 ];
 
 /// The open-class catalog a word comes from, or `Core`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
 pub enum Class {
     Core,
     CardName,
@@ -553,9 +553,9 @@ impl<'e> Profiler<'e> {
                 .join(" ");
             match self.env.lexicon.analyze_italic_head(&text) {
                 ItalicHead::Keyword(_) => families.insert(KEYWORD_DASH),
-                ItalicHead::AbilityWord(_) | ItalicHead::FlavorWord { .. } => {
-                    families.insert(LABEL)
-                }
+                ItalicHead::AbilityWord(_)
+                | ItalicHead::AnchorWord(_)
+                | ItalicHead::FlavorWord { .. } => families.insert(LABEL),
             };
         }
         rest.to_vec()

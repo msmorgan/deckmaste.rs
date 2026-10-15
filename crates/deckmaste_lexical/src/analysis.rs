@@ -34,6 +34,10 @@ pub enum LexicalError {
 pub enum ItalicHead {
     /// The run is spelled by a declared Ability Word [CR#207.2c].
     AbilityWord(LexicalValue),
+    /// A declared Anchor Word spells the run [CR#614.12c]. Printed in roman
+    /// type, it is no Italic Head, but like an Ability Word it is a registered
+    /// label, never a Flavor Word.
+    AnchorWord(LexicalValue),
     /// A declared Keyword Ability spells the run [CR#702.1]. It is neither an
     /// Ability Word nor a Flavor Word.
     Keyword(LexicalValue),
@@ -295,8 +299,8 @@ impl Lexicon {
                     }
                 }
             }
-            if !lexeme.card_scoped_surfaces.is_subset(&realized_surfaces) {
-                return Err(error("card scope has no declared spelling"));
+            if let Some(reason) = card_scope_defect(&lexeme, &realized_surfaces) {
+                return Err(error(reason));
             }
             if lexeme
                 .onsets
@@ -402,8 +406,13 @@ impl Lexicon {
         match reading {
             LexicalReading::FlavorWord { label } => {
                 // A registered label is never a Flavor Word, so neither
-                // analysis nor realization admits one.
-                if !valid_flavor_label(label) || self.registered_label(label).is_some() {
+                // analysis nor realization admits one. Realization has no
+                // card scope, so only a label registered everywhere refuses.
+                if !valid_flavor_label(label)
+                    || self
+                        .registered_label(label, Some(&BTreeSet::new()))
+                        .is_some()
+                {
                     return Err(LexicalError::UnlicensedValue);
                 }
                 Ok(format!("{label} —"))
@@ -439,35 +448,45 @@ impl Lexicon {
     /// Analyzes an italic run written at the head of an ability
     /// [CR#207.2c,207.2d].
     ///
-    /// A run no declared Ability Word spells is not a vocabulary gap here: it
-    /// is a flavor word, and the label is the run verbatim. Nothing
+    /// A run no registered label spells is not a vocabulary gap here: it is
+    /// a flavor word, and the label is the run verbatim. Nothing
     /// enumerates flavor words, so this is the only open slot the lexicon
     /// reports rather than an unknown word.
     #[must_use]
     pub fn analyze_italic_head(&self, run: &str) -> ItalicHead {
-        match self.registered_label(run) {
-            Some(value) if self.is_ability_word(&value) => ItalicHead::AbilityWord(value),
-            Some(value) => ItalicHead::Keyword(value),
+        match self.registered_label(run, None) {
+            Some(value) => match self.label_kind(&value) {
+                Some("AbilityWord") => ItalicHead::AbilityWord(value),
+                Some("AnchorWord") => ItalicHead::AnchorWord(value),
+                _ => ItalicHead::Keyword(value),
+            },
             None => ItalicHead::FlavorWord {
                 label: run.to_owned(),
             },
         }
     }
 
-    fn is_ability_word(&self, value: &LexicalValue) -> bool {
+    /// The `LabelKind` a registered label declares: `AbilityWord` or
+    /// `AnchorWord`; a Keyword Ability declares none.
+    fn label_kind(&self, value: &LexicalValue) -> Option<&str> {
         self.lexemes[&value.lexeme]
             .properties
             .features
             .get("LabelKind")
             .map(String::as_str)
-            == Some("AbilityWord")
     }
 
     /// The registered label that spells all of `label`: a Keyword-category
-    /// Lexeme, which is either an Ability Word [CR#207.2c] or a Keyword
-    /// Ability [CR#702.1]. Ability Words are preferred. A registered label is
-    /// never also an open Flavor Word.
-    fn registered_label(&self, label: &str) -> Option<LexicalValue> {
+    /// Lexeme, which is an Ability Word [CR#207.2c], an Anchor Word
+    /// [CR#614.12c] or a Keyword Ability [CR#702.1]. A declared label kind is
+    /// preferred to a Keyword Ability. A registered label is never also an
+    /// open Flavor Word. With a `scope`, a card-scoped label registers only
+    /// on the cards that admit it; without one, every label registers.
+    fn registered_label(
+        &self,
+        label: &str,
+        scope: Option<&BTreeSet<crate::LexemeId>>,
+    ) -> Option<LexicalValue> {
         let mut node = 0;
         for ch in label.chars() {
             node = *self.trie[node].children.get(&ch)?;
@@ -475,11 +494,26 @@ impl Lexicon {
         let mut registered: Vec<&LexicalValue> = self.trie[node]
             .values
             .iter()
+            .filter(|(value, _, card_scoped)| {
+                !card_scoped || scope.is_none_or(|scope| self.in_card_scope(&value.lexeme, scope))
+            })
             .map(|(value, _, _)| value)
             .filter(|value| self.lexemes[&value.lexeme].category == Category::Keyword)
             .collect();
-        registered.sort_by_key(|value| !self.is_ability_word(value));
+        registered.sort_by_key(|value| self.label_kind(value).is_none());
         registered.first().map(|value| (*value).clone())
+    }
+
+    /// Whether a card in `scope` admits the card-scoped spellings of
+    /// `lexeme`: one of its `card_scope`, or the Lexeme itself when that is
+    /// empty.
+    fn in_card_scope(&self, lexeme: &crate::LexemeId, scope: &BTreeSet<crate::LexemeId>) -> bool {
+        let cards = &self.lexemes[lexeme].card_scope;
+        if cards.is_empty() {
+            scope.contains(lexeme)
+        } else {
+            !cards.is_disjoint(scope)
+        }
     }
 
     #[must_use]
@@ -511,7 +545,7 @@ impl Lexicon {
                 };
                 node = *next;
                 for (value, binding, card_scoped) in &self.trie[node].values {
-                    if *card_scoped && !scope.contains(&value.lexeme) {
+                    if *card_scoped && !self.in_card_scope(&value.lexeme, scope) {
                         continue;
                     }
                     candidates.push((
@@ -574,7 +608,9 @@ impl Lexicon {
         numeral_matches(&tokens, &mut matches);
         flavor_word_matches(&tokens, &mut matches);
         matches.retain(|found| match &found.reading {
-            LexicalReading::FlavorWord { label } => self.registered_label(label).is_none(),
+            LexicalReading::FlavorWord { label } => {
+                self.registered_label(label, Some(scope)).is_none()
+            }
             _ => true,
         });
         AnalyzedText {
@@ -583,6 +619,18 @@ impl Lexicon {
             tokens,
             matches,
         }
+    }
+}
+
+/// Why a Lexeme's card scope is malformed: a card-scoped spelling it does not
+/// declare, or cards that admit no card-scoped spelling.
+fn card_scope_defect(lexeme: &Lexeme, realized: &BTreeSet<String>) -> Option<&'static str> {
+    if !lexeme.card_scoped_surfaces.is_subset(realized) {
+        Some("card scope has no declared spelling")
+    } else if !lexeme.card_scope.is_empty() && lexeme.card_scoped_surfaces.is_empty() {
+        Some("card scope has no card-scoped spelling")
+    } else {
+        None
     }
 }
 

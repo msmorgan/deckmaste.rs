@@ -1,4 +1,5 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
 
 use serde::Deserialize;
 use serde::Serialize;
@@ -85,9 +86,15 @@ pub struct Lexeme {
     pub binding: Binding,
     #[serde(default)]
     pub surface_structure: SurfaceStructure,
-    /// Surface variants admitted only in the declaring card's lexical scope.
+    /// Surface variants admitted only in the lexical scope of a card in
+    /// `card_scope`.
     #[serde(default)]
     pub card_scoped_surfaces: BTreeSet<String>,
+    /// The cards whose own text admits `card_scoped_surfaces`: the cards
+    /// that introduce an Introduced Name or an Anchor Word. Empty means the
+    /// Lexeme's own card, as for a Shortened Name [CR#201.5c].
+    #[serde(default)]
+    pub card_scope: BTreeSet<crate::LexemeId>,
     /// Per-spelling pronunciation overrides, before positional capitalization.
     #[serde(default)]
     pub onsets: BTreeMap<String, crate::Onset>,
@@ -118,6 +125,7 @@ impl Lexeme {
             capitalization: Capitalization::Initial,
             binding: Binding::Free,
             card_scoped_surfaces: BTreeSet::new(),
+            card_scope: BTreeSet::new(),
             onsets: BTreeMap::new(),
             article_onsets: BTreeMap::new(),
             surface_structure: if matches!(

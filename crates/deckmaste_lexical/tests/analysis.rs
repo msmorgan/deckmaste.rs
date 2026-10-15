@@ -1053,6 +1053,7 @@ fn a_registered_label_is_never_also_a_flavor_word() {
         lexicon.analyze_italic_head("Equip"),
         ItalicHead::Keyword(_)
     ));
+
     assert_eq!(
         lexicon
             .analyze("Diana — Equip {2}")
@@ -1072,6 +1073,41 @@ fn a_registered_label_is_never_also_a_flavor_word() {
         assert!(lexicon.realize(&reading).is_err(), "{label}");
         assert!(lexicon.surface_features(&reading).is_err(), "{label}");
     }
+}
+
+#[test]
+fn an_anchor_word_is_a_registered_label_on_the_cards_that_admit_it() {
+    let mut khans = invariant("anchor_word:Khans", "Khans", Category::Keyword);
+    khans.capitalization = Capitalization::Exact;
+    khans
+        .properties
+        .features
+        .insert("LabelKind".into(), "AnchorWord".into());
+    khans.card_scoped_surfaces.insert("Khans".into());
+    khans.card_scope = BTreeSet::from([LexemeId::new("name:Citadel Siege")]);
+    let lexicon = Lexicon::new([khans]).unwrap();
+    assert!(matches!(
+        lexicon.analyze_italic_head("Khans"),
+        ItalicHead::AnchorWord(_)
+    ));
+    let text = "• Khans — At the beginning of combat on your turn, draw a card.";
+    let readings = |scope: &[&str]| {
+        let scope = scope.iter().map(|card| LexemeId::new(card)).collect();
+        let analyzed = lexicon.analyze_source_scoped(text, None, &scope);
+        (
+            at(&analyzed, 2, 7)
+                .iter()
+                .any(|reading| matches!(reading, LexicalReading::Word(_))),
+            analyzed
+                .matches
+                .iter()
+                .any(|found| matches!(found.reading, LexicalReading::FlavorWord { .. })),
+        )
+    };
+    // On its own card, the anchor word is the label and never a Flavor Word.
+    assert_eq!(readings(&["name:Citadel Siege"]), (true, false));
+    // Elsewhere nothing declares the run, so it is an open Flavor Word.
+    assert_eq!(readings(&[]), (false, true));
 }
 
 #[test]
@@ -1171,6 +1207,38 @@ fn serialized_surface_scope_filters_matching_and_keeps_realization() {
     card.card_scoped_surfaces
         .insert("undeclared spelling".into());
     assert!(Lexicon::new([card]).is_err());
+}
+
+#[test]
+fn a_card_scope_admits_spellings_on_the_cards_it_names() {
+    let mut token = invariant(
+        "introduced_name:Marit Lage",
+        "Marit Lage",
+        Category::Catalog,
+    );
+    token.capitalization = Capitalization::Exact;
+    token.card_scoped_surfaces.insert("Marit Lage".into());
+    token.card_scope = BTreeSet::from([
+        LexemeId::new("name:Dark Depths"),
+        LexemeId::new("name:Marit Lage's Slumber"),
+    ]);
+    let lexicon = Lexicon::new([token.clone()]).unwrap();
+    let found = |scope: &[&str]| {
+        let scope = scope.iter().map(|card| LexemeId::new(card)).collect();
+        lexicon
+            .analyze_source_scoped("Marit Lage", None, &scope)
+            .matches
+            .iter()
+            .any(|m| matches!(&m.reading, LexicalReading::Word(v) if v.lexeme == token.id))
+    };
+    assert!(found(&["name:Dark Depths"]));
+    assert!(found(&["name:Marit Lage's Slumber"]));
+    assert!(!found(&[]));
+    assert!(!found(&["name:Vampire Hexmage"]));
+    // The Lexeme's own identity is not one of the cards that admit it.
+    assert!(!found(&["introduced_name:Marit Lage"]));
+    token.card_scoped_surfaces.clear();
+    assert!(Lexicon::new([token]).is_err());
 }
 
 #[test]
