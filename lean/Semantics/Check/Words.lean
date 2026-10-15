@@ -614,6 +614,7 @@ structure DRS where
   actionPattern : Bool := false
   characteristicRead : Bool := false
   historicalReferentIds : List ReferentId := []
+  historicalMoveFrom : Option Zone := none
   groupSizeScope : Option (List ReferentId) := none
   selectionEvidence : List SelectionEvidence := []
   selectionScope : Nat := 0
@@ -1267,8 +1268,10 @@ def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
 - Stamped participles (`.verbed _ _ _`) filter by `J1` and require a unique match. -/
 def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
     List Referent :=
-  let j1 := drs.visibleReferents.filter
-    (if drs.characteristicRead then reachesCharacteristic r pl else reaches r pl)
+  let j1 := drs.visibleReferents.filter fun ref =>
+    (if drs.characteristicRead then reachesCharacteristic r pl ref else reaches r pl ref) ||
+      (drs.historicalMoveFrom == some .battlefield &&
+        drs.historicalReferentIds.contains ref.id && reachesCharacteristic r pl ref)
   match r with
   | .bare | .atSlot _ =>
       let cands := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1

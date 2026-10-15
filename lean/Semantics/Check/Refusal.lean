@@ -24,7 +24,6 @@ inductive Refusal where
   /-- A performed payment requires a specified cost. -/
   | concreteCost
   | concreteBallot
-  | lexicalScope
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
   | kindMismatch (expected found : Kind)
@@ -89,7 +88,6 @@ inductive Refusal where
   | bindingless
   | ignorableFor
   | readAmount
-  | keepsOuter
   /- local well-formedness -/
   | nonZeroQ
   | wellFormedQ
@@ -119,11 +117,7 @@ inductive Refusal where
   | amtNonZero
   | tallyOk
   | statHeadTysOk
-  | complementPlain
-  | complementSourced
-  | complementWritten
   | lookbackSubject
-  | lookbackComplement
   | lookbackLocus
   | durationPossessor
   | quantLiteral
@@ -135,7 +129,6 @@ inductive Refusal where
   | kindAxisSort
   /- tables -/
   | knownAct (v : Deed)
-  | knownKeyword (k : KeywordLabel)
   | knownKeywordTerm
   | knownCounter
   | linkedFacetNamed
@@ -150,7 +143,6 @@ inductive Refusal where
   | qualifiedLimit
   | deedFits
   | eventHead
-  | verbPatientOk
   | verbedVoiceOk
   | verbBecomesOk
   /-- A handoff names neither a player nor a permanent [CR#110.1]. -/
@@ -179,12 +171,9 @@ inductive Refusal where
   | reflexEnclosure
   | thisWayOutcome
   | ifDoneArmed
-  | enactKeepsOuter
   | producedRuns
   | colorCountOk
   | twoParties
-  | additionUnnamed
-  | copyBundle
   | lineNonEmpty
   | kindAmountOk
   | counterSourceScope

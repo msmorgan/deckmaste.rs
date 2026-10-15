@@ -199,7 +199,8 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
   | _ + 1, .described d _ => d.plur
   | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
-  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
+  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl
+  | _ + 1, .paid (.objects _ _ pl) _ => pl
   | n + 1, .slice _ (.lit 1) (.library (.possessedBy who))
   | n + 1, .slice _ (.lit 1) (.graveyard (.possessedBy who)) => who.plur n
   | _ + 1, .slice _ (.lit 1) _ => .one
@@ -249,6 +250,25 @@ def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _ + 1, .pro _ plur => plur != .one
   | _ + 1, .paid (.objects _ _ plur) _ => plur != .one
   | _ + 1, phrase => phrase.det == some .target
+  | _, _ => false
+termination_by structural fuel
+
+def NounPhrase.countableGroup (phrase : NounPhrase) : Bool :=
+  phrase.det == some .bare || phrase.det == some .count || phrase.groupMention
+
+def NounPhrase.existentialMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+  match fuel, phrase with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body => body.existentialMention n
+  | _ + 1, .agree _ _ group => group.det == some .count || group.det == some .target
+  | _ + 1, phrase => phrase.det == some .bare
+  | _, _ => false
+termination_by structural fuel
+
+def NounPhrase.pileMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+  match fuel, phrase with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body
+  | n + 1, .laterMention _ body => body.pileMention n
+  | _ + 1, .pileOf .. | _ + 1, .pro (.word .pile) _ => true
   | _, _ => false
 termination_by structural fuel
 
@@ -1132,10 +1152,14 @@ def stepTextChangeWith (ops : StepOps) (drs : DRS) (tc : TextChange) : DRS × Li
 def stepSearchScopeWith (ops : StepOps) (drs : DRS) (sc : SearchScope) : DRS × List Refusal :=
   match sc with
   | .oneZone z => stepZoneExprWith ops drs z
-  | .someZones (some whose) _ =>
-    let (drs', _, e) := ops.np drs .other false whose
-    (drs', e)
-  | .someZones none _ => (drs, [])
+  | .someZones whose zones =>
+    let (out, errors) := match whose with
+      | some owner =>
+        let (out, ids, errors) := ops.np drs .other false owner
+        (out, errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind)))
+      | none => (drs, [])
+    (out, errors ++ refuse (zones.length >= 2 && zones.eraseDups.length == zones.length)
+      .atLeastTwoZones)
 
 def stepVisibleThingWith (ops : StepOps) (drs : DRS) (vt : VisibleThing) : DRS × List Refusal :=
   match vt with
@@ -1278,7 +1302,8 @@ def stepProducedManaWith (ops : StepOps) (drs : DRS) (pm : ProducedMana) : DRS �
 def stepSpendPurposeWith (ops : StepOps) (drs : DRS) (sp : SpendPurpose) : DRS × List Refusal :=
   match sp with
   | .toCast p | .toActivate (some p) => ops.pred drs p
-  | .toActivate none | .toPay _ => (drs, [])
+  | .toActivate none => (drs, [])
+  | .toPay cost => (drs, refuse cost.nameable .costNameable)
 
 def stepSpendPurposeListWith (ops : StepOps) (drs : DRS) (sps : List SpendPurpose) : DRS × List Refusal :=
   sps.foldl (fun (d, es) sp =>
@@ -1605,8 +1630,9 @@ def stepOps : Nat → StepOps
           (out, headErrors ++ counterpartErrors)
         | .inZone z => stepZoneExprWith ops drs z
         | .inPile pile =>
-          let (drs', _, errs) := ops.np drs .other false pile
-          (drs', errs)
+          let (out, ids, errors) := ops.np drs .other false pile
+          (out, errors ++ kindCheck .pile ((ids.head?.bind out.findById?).map (·.kind)) ++
+            refuse pile.pileMention .pileMention)
         | .hasDesignation label holder =>
           let kind := drs.relativeKind.getD .object
           let (out, errors) := match holder with
@@ -1992,9 +2018,13 @@ def stepOps : Nat → StepOps
             (ids.filterMap out.findById?).any (fun ref => ref.plur == .many)
           (out, errors ++ refuse (axis.scope == kind) (.projScope kind) ++
             refuse (plural || axis == .chapter) .plural)
-        | .countOf subj | .greatestStoredMatch subj =>
-          let (drs', _, errs) := ops.np drs .other false subj
-          (drs', errs)
+        | .countOf subj =>
+          let (out, _, errors) := ops.np drs .other false subj
+          (out, errors ++ refuse (subj.plur == .many) .plural ++
+            refuse subj.countableGroup .countableGroup)
+        | .greatestStoredMatch subj =>
+          let (out, _, errors) := ops.np drs .other false subj
+          (out, errors)
         | .distinctCount axis subj =>
           let (out, _, errs) := ops.np drs .other false subj
           (out, errs ++ refuse axis.ok .kindAxisSort)
@@ -2031,10 +2061,10 @@ def stepOps : Nat → StepOps
         | .letter l =>
           let drs' := (introducedLetters l drs).foldl (fun d r => d.push r .other false) drs
           (drs', [])
-        | .arith _ l r =>
+        | .arith op l r =>
           let (drs1, e1) := ops.amt drs l
           let (drs2, e2) := ops.amt drs1 r
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ e2 ++ refuse (op != .times || l.nonZero) .amtNonZero)
         | .devotion pl c optSec =>
           let (drs1, ids, e1) := ops.np drs .other false pl
           let e1 := e1 ++ kindCheck .player ((ids.head?.bind drs1.findById?).map (·.kind)) ++
@@ -2067,8 +2097,8 @@ def stepOps : Nat → StepOps
           (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
         | .duringPart _ none => (drs, [])
         | .exists_ subj =>
-          let (drs', _, errs) := ops.np drs .subj true subj
-          (drs', errs)
+          let (out, _, errors) := ops.np drs .subj true subj
+          (out, errors ++ refuse subj.existentialMention .existentialMention)
         | .did clause =>
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
@@ -2082,7 +2112,8 @@ def stepOps : Nat → StepOps
             | some expected, some r => kindCheck expected (some r.kind)
             | _, _ => []
           let subjectOk := ids.all fun id =>
-            id < drs.nextId || (drs1.findById? id).any (fun ref => ref.det == .the)
+            id < drs.nextId || (drs1.findById? id).any (fun ref => ref.det == .the) ||
+              drs1.scopeStack.head?.any (fun frame => frame.callerReferentIds.contains id)
           (refined, e1 ++ e2 ++ kindErrors ++ refuse subjectOk .testSubject ++
             refuse pred.says .predSays)
         | .compareAmt l _ r =>
@@ -2470,7 +2501,13 @@ def stepOps : Nat → StepOps
           let drs3 := drs2.push (outcomeB .voteHeld) .other false
           (drs3, e1 ++ e2 ++ refuse (first.isNone || actorPlurality drs == .many) .choiceOrder)
         | .move subj from_ to _ optCause riders =>
-          let (drs1, refIds, e1) := ops.np drs patientRole true subj
+          let historicalOrigin := match from_ with
+            | .zones zones => zones.any (fun zone => zone.sort == some .battlefield)
+            | _ => false
+          let readContext := if drs.actionPattern && historicalOrigin then
+            { drs with historicalMoveFrom := some .battlefield } else drs
+          let (selected, refIds, e1) := ops.np readContext patientRole true subj
+          let drs1 := { selected with historicalMoveFrom := drs.historicalMoveFrom }
           let actualKind := (refIds.head?.bind drs1.findById?).map (·.kind)
           let moveKind := Kind.join .object .pile
           let e1 := e1 ++ actualKind.toList.flatMap (fun kind =>
@@ -3130,7 +3167,9 @@ def stepOps : Nat → StepOps
         | .alsoForKeywords inner keywords =>
           ops.ab drs inner ++ refuse inner.keywordExtendable .keywordExtendable ++
             refuse (keywordListOk inner keywords) .keywordListOk
-        | .italicHead _ inner => ops.ab drs inner
+        | .italicHead _ inner =>
+          let plain := match inner with | .italicHead .. => false | _ => true
+          ops.ab drs inner ++ refuse plain .notWordHeaded
         | .qualified inner tm limit guard _ =>
           let e1 := ops.ab drs inner
           let (_, e2) := match tm with | some t => stepTimingWith ops drs t | none => (drs, [])

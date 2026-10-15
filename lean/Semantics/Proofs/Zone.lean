@@ -189,9 +189,9 @@ theorem badAgentedAgentlessAct :
 /-- "1 life for each creature" -/
 theorem okForEachOne : Amount.check (DRS.ofList []) (forEach 1 creature) = [] := by decide
 
-/-- "0 life for each creature": a zero coefficient is a valid amount. -/
-theorem zeroTimesCreatureCountIsAnAmount :
-    Amount.check (DRS.ofList []) (forEach 0 creature) = [] := by decide
+/-- "0 life for each creature" does not supply a nonzero per-member multiplier. -/
+theorem badForEachZero :
+    Amount.check (DRS.ofList []) (forEach 0 creature) = [.amtNonZero] := by decide
 
 /-- "creature on the battlefield" -/
 theorem okConsistentZoneConjunct :

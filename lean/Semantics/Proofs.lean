@@ -22,6 +22,7 @@ import Semantics.Proofs.FaceDown
 import Semantics.Proofs.Faces
 import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.GiftVariants
+import Semantics.Proofs.HistoricalMove
 import Semantics.Proofs.InstructionForms
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.KeywordAbilityCensus
@@ -41,6 +42,7 @@ import Semantics.Proofs.OffStack
 import Semantics.Proofs.Piles
 import Semantics.Proofs.Possessor
 import Semantics.Proofs.ReferenceScopes
+import Semantics.Proofs.RefusalReachability
 import Semantics.Proofs.Rules
 import Semantics.Proofs.Sharing
 import Semantics.Proofs.SpellCopies

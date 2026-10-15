@@ -145,10 +145,9 @@ theorem okScopedAmass : Instruction.check (DRS.ofList []) scopedAmass = [] := by
 theorem okScopedAmassHandedOff : Instruction.check (DRS.ofList []) (instruct (target .opponent) scopedAmass) = [] := by
   decide
 
-/-- The inferred pin the scope ticket asked for: the literal body with no scope, after "destroy
-target creature", is refused as the explicit-agent `amass` is (`badAmassBareItAfterDestroy`):
-its bare "that creature" and "it" see the destroyed creature as a second antecedent. -/
-theorem badLiteralAmassAfterDestroy :
+/-- After destroying a creature, literal amass selects its own Army: the destroyed
+creature is outside the battlefield domain of the Army read. -/
+theorem literalAmassAfterDestroyReadsItsArmy :
     Instruction.check (DRS.ofList [])
       (.sequentially [destroy (target creature), instruct (controllerOf it) literalAmass])
       = [] := by

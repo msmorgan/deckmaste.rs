@@ -654,9 +654,8 @@ semantic_definition fight (other : NounPhrase) : Instruction :=
   .ownScope (some (.action "fight"))
     (.enact (.action "fight")
       (.doIf (.and [
-        .exists_ (.firstMention "fight.0" (.inCaller other)),
-        .matches (.firstMention "fight.source" .actor) creature,
-        .matches (.laterMention "fight.0" (.inCaller other)) creature])
+        .matches (.firstMention "fight.0" (.inCaller other)) creature,
+        .matches (.firstMention "fight.source" .actor) creature])
         (.simultaneously [
           .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
             (.inCaller (.laterMention "fight.0" other)) .any,
