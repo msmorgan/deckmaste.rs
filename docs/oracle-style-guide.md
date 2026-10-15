@@ -212,8 +212,9 @@ Apply capitalization at the point where each formal category is defined:
 
 - for card types, supertypes, and subtypes, see [Types, subtypes, and
   supertypes](#7-types-subtypes-and-supertypes-as-nouns-and-modifiers); and
-- for keyword abilities, keyword actions, ability words, flavor words, and
-  rules-defined designations, see [Keywords and labels](#14-keywords-labels-and-reminder-text).
+- for keyword abilities, keyword actions, ability words, flavor words, anchor
+  words, and rules-defined designations, see [Keywords and
+  labels](#14-keywords-labels-and-reminder-text).
 
 ### 3. Punctuation and glyphs
 
@@ -354,8 +355,8 @@ marks:
 
 > Equipped creature has "Whenever this creature attacks, draw a card."
 
-Do not put card names, token names, colors, creature types, mode labels, or
-named counters in quotation marks. Quotes are appropriate when rules text
+Do not put card names, token names, colors, creature types, mode labels, anchor
+words, or named counters in quotation marks. Quotes are appropriate when rules text
 mentions literal wording, as in `effects that say "destroy"`.
 
 If quoted rules text itself quotes an ability, use straight single quotation
@@ -1504,14 +1505,16 @@ instructions:
 > Choose one. If you control a commander as you cast this spell, you may choose
 > both instead.
 
-Use labeled modes when the card calls for names:
+Use labeled modes when the card calls for names. Each label is a flavor word:
 
-> • Khans — [Effect.]  
-> • Dragons — [Effect.]
+> Whenever equipped creature attacks, choose one —  
+> • Bull Rush — It gains double strike until end of turn.  
+> • Summon — Create Phobos, a legendary 3/2 red Horse creature token.
 
 The bullet and label are both followed by spaces; the label's em dash is
-spaced. State `You may choose the same mode more than once.` only when repetition
-is intended.
+spaced. Bullets headed by anchor words are not modes; see [Anchor
+words](#anchor-words). State `You may choose the same mode more than once.`
+only when repetition is intended.
 
 A trigger or activated effect may introduce a dash-ended header on the same
 line:
@@ -2107,6 +2110,13 @@ Use these fixed shapes for how a permanent enters:
 > As this artifact enters, choose a color.  
 > This creature enters as a copy of any creature on the battlefield.
 
+When the choice is between two abilities, name each by its anchor word in the
+choice and head each ability with it (see [Anchor words](#anchor-words)):
+
+> As this enchantment enters, choose Khans or Dragons.  
+> • Khans — [Ability.]  
+> • Dragons — [Ability.]
+
 Use `As`, not `When`, when the choice or modification must exist as the object
 enters. Use `When [it] enters` for an effect that triggers after entry. Write
 `enters with`, not `enters the battlefield with`, for the ordinary modifier.
@@ -2184,7 +2194,7 @@ by two or more creatures`.
 
 ### 14. Keywords, labels, and reminder text
 
-#### Keep the four systems separate
+#### Keep the five systems separate
 
 Use the formal category assigned by the Comprehensive Rules; do not infer the
 category from typography alone.
@@ -2195,11 +2205,14 @@ category from typography alone.
 | keyword action | Conjugate the approved verb or verb phrase in ordinary sentence grammar: `Scry 2.`; `This creature explores.` |
 | ability word | Set the approved catalog label in italics before a spaced em dash: `Landfall — ...`. |
 | flavor word | Set the approved bespoke label in italics before a spaced em dash: `Heavy Power Hammer — ...`. |
+| anchor word | Name the choice as the permanent enters, then set the same word in roman type after a bullet and before a spaced em dash: `• Khans — ...`. |
 
 The Comprehensive Rules catalogs keyword abilities [CR#702.1] and keyword
 actions [CR#701.1]. Ability words label groups of functionally similar
 abilities [CR#207.2c]; flavor words label one particular ability [CR#207.2d].
-Neither kind of italic label supplies rules meaning.
+Neither kind of italic label supplies rules meaning. An anchor word does: the
+ability it heads applies only if that word was chosen as the permanent entered
+[CR#614.12c].
 
 Apply a spaced em dash only when the assigned formal category requires it. A
 spaced dash does not establish a category; a rules-defined keyword signature
@@ -2300,6 +2313,30 @@ its bespoke label:
 Because a flavor word is bespoke, punctuation within it may be expressive.
 That freedom stops at the em dash; the rules text after it follows ordinary
 Oracle style.
+
+#### Anchor words
+
+An anchor word names one of two abilities a permanent may enter with
+[CR#614.12c]. The ability that offers the choice names both anchor words, and
+each anchor word then heads its ability on a bulleted line, followed by a spaced
+em dash. Unlike an ability word or flavor word, it is set in roman type, not
+italics:
+
+> As this enchantment enters, choose Mirran or Phyrexian.  
+> • Mirran — Whenever you cast an artifact spell, create a 1/1 colorless Myr
+> artifact creature token.  
+> • Phyrexian — At the beginning of your end step, draw a card, then discard a
+> card. Then if there are fifteen or more artifact cards in your graveyard,
+> target opponent loses the game.
+
+Spell an anchor word identically in the choice and at the head of its ability,
+capitalized as a name in both places (`Khans`, `NCR`, `Believe`), and do not
+put it in quotation marks. Unlike an ability word, an anchor word has rules
+meaning: `[Anchor word] — [ability]` means the permanent has that ability as
+long as that word was chosen as it entered, and each such ability is linked to
+the ability that offers the choice [CR#614.12c,607.2m]. The bulleted abilities
+are not modes [CR#700.2]; do not give them a modal header or end the choice
+with an em dash.
 
 #### Reminder text
 
