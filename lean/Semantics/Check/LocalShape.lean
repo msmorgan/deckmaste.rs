@@ -214,4 +214,13 @@ def ifDoneArmed : Option Instruction → Option Instruction → Bool
   | none, none => false
   | _, _ => true
 
+def Quantity.modesFit (quantity : Quantity) (count : Nat) (fuel : Nat := 32) : Bool :=
+  match fuel, quantity with
+  | n + 1, .inCaller body => body.modesFit count n
+  | _ + 1, .range none none => true
+  | _ + 1, .range _ (some upper) => upper ≤ count
+  | _ + 1, .range (some lower) none => lower ≤ count
+  | _, _ => true
+termination_by structural fuel
+
 end Semantics

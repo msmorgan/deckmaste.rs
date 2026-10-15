@@ -217,12 +217,13 @@ theorem okFatesealTwo :
 
 "Connive N" [CR#701.50a,701.50d]: the permanent's controller draws N cards, discards N cards,
 and puts a +1/+1 counter on the permanent for each nonland card discarded this way. The
-`plugins_v3` helper `discardThenForEachNonland` reads the discarded cards back by identity. -/
+loop includes a single discarded card without forming a singular partitive phrase. -/
 
 private def conniveDiscards (discarded : NounPhrase) : Instruction :=
   .sequentially
     [ Actor.discard (.firstMention "conniveDiscards.discarded" discarded),
-      .doForEach (allFromAmong (.not land) (theVerbed (.action "discard") discarded.plur))
+      .doForEach (allOf (.and [.not land, .isCard,
+        .did ⟨.any, Actor.discard .which, .thisWay⟩]))
         (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) .one true) ]
 
 private def conniveBy (amount : Amount) : Instruction :=

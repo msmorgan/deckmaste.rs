@@ -93,7 +93,7 @@ theorem badLookbackPlayerDied :
       (.triggered (.does .any (.move thisCreature .anywhere (some battlefield) .arrival none [])) [] none [] none none
         (some (.did ⟨.any, (.move (.asMarker .permanent .you) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw
           (.lit 1)))
-      = [.kindMismatch .object .player] := by
+      = [.kindLte .player (.join .object .pile)] := by
   decide
 
 theorem badLookbackObjectCast :
@@ -121,7 +121,7 @@ theorem badHappenedToObjectCast :
 /-- "each opponent who died this turn" -/
 theorem badHappenedToPlayerDied :
     NounPhrase.checkAt (some .player) (DRS.ofList [])
-      (each (.and [.opponent, (.did ⟨.any, (.move (.asMarker .permanent .which) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindMismatch .object .player] := by
+      (each (.and [.opponent, (.did ⟨.any, (.move (.asMarker .permanent .which) (.zones [battlefield]) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindLte .player (.join .object .pile)] := by
   decide
 
 /-- "Choose a creature you control." -/

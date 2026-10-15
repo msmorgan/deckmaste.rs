@@ -46,13 +46,14 @@ theorem okThatCreatureAfterAttack :
       = [] := by
   decide
 
-/-- The Idris pin refutes the anaphor. -/
-theorem badThatCreatureIsSelf :
+theorem selfAttackPublishesItsCreature :
+    let event := attacks thisCreature
+    let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
-      (whenever (attacks thisCreature)
-        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
-      = [.anaphor (.word (.type .creature)) .one 0] := by
-  decide
+      (whenever event
+        (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn))) = [] ∧
+      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "the last Intervention counter is removed from this enchantment by you" -/
 theorem okAnnouncingRemovalAgent :

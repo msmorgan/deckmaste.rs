@@ -114,5 +114,19 @@ private theorem comparisonMemberIsLocalToItsMeasure :
       (stepPredicate 64 (DRS.ofList []) bad).2 = [.anaphor (.word .player) .one 0] ∧
       (stepPredicate 64 (DRS.ofList []) good).1.visibleReferents.map (·.payload) = [.gap] := by decide
 
+private theorem enchantedPlayerAndTypedAttachmentCounterparts :
+    (stepPredicate 64 { relativeKind := some .player }
+      (.attachment .host (some .enchanted) none)).2 = [] ∧
+      (stepPredicate 64 { relativeKind := some .player }
+        (.attachment .host (some .equipped) none)).2 = [.kindLte .player .object] ∧
+      (stepPredicate 64 { relativeKind := some .player }
+        (.attachment .host (some .fortified) none)).2 = [.kindLte .player .object] ∧
+      (stepPredicate 64 { relativeKind := some .object }
+        (.attachment .host none (some .you))).2 = [.kindMismatch .object .player] := by decide
+
+private theorem attachmentHostModifierDoesNotOverrideThePlayerHead :
+    Predicate.kind? (.and [.attachment .host (some .enchanted) none, .anyPlayer]) =
+      some .player := by decide
+
 end Check.QueryPins
 end Semantics

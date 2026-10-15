@@ -74,23 +74,24 @@ theorem okAltHeaderAgreeingReadback :
       = [] := by
   decide
 
-/-- The Idris pin refutes the anaphor. The subject is written once, so it is refused once (the
-two-modification spelling, which re-read it, is
-`GetsBothDeltas.badAltHeaderMixedReadbackTwoHalves`). -/
-theorem badAltHeaderMixedReadback :
+theorem alternateHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (.triggered (blocks thisCreature none)
         [becomesBlocked thisCreature (some (a creature))] none [] none none none
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
-      = [.anaphor (.word (.type .creature)) .one 0] := by
+      = [] ∧
+      (firstReach (.word (.type .creature)) .one
+        (nextClause (GameEvent.extend (DRS.ofList []) (blocks thisCreature none)))).map (·.id) = some 0 := by
   decide
 
-theorem badThreeArmHeaderReadback :
+theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (.triggered (attacks thisCreature)
         [blocks thisCreature none, .does (.by (a spell)) (.target thisCreature)] none [] none none none
         (Instruction.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each .opponent) .any)))
-      = [.anaphor (.word (.type .creature)) .one 0] := by
+      = [] ∧
+      (firstReach (.word (.type .creature)) .one
+        (nextClause (GameEvent.extend (DRS.ofList []) (attacks thisCreature)))).map (·.id) = some 0 := by
   decide
 
 theorem badJoinedHeaderReadback :

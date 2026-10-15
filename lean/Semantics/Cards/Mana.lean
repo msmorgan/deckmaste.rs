@@ -825,8 +825,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           keyword (.named "vigilance"),
           triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (Primitives.Condition.not (happened (Primitives.Instruction.procedure .cast (((some
-              (a spell))).getD .any) Primitives.PlayPayment.itsOwnCost none (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])) none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn))
+            (Primitives.Condition.not (happened (Primitives.Instruction.procedure .cast (((a spell))) Primitives.PlayPayment.itsOwnCost none (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])) none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn))
             (Primitives.Instruction.draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 

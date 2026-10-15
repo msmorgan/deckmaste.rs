@@ -511,30 +511,34 @@ theorem badAdditionalPartWithoutSubjectOrOuterContext :
     Instruction.check (DRS.ofList []) (Primitives.Instruction.addTurnPart .upkeep none (lifeTotalOf they) none)
       = [.anaphor (.word .player) .one 0] := by decide
 
-/-- Nested amounts leave their most recent mention first, followed by the outer context. -/
+/-- Nested amounts preserve the identities and kinds of their introduced targets. -/
 theorem okExtraTurnNestedAmountOrder :
-    (instructionResult [qualityB .color]
-      (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))).sameReferents (DRS.ofList [turnRefB, ({ det := .target, plur := .one, payload := .player false, idents := [] } : Referent),
-         ({ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none (some 1), idents := [] } : Referent),
-         qualityB .color]) = true := by decide
+    let after := instructionResult [qualityB .color]
+      (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+    after.visibleReferents.map (fun r => (r.id, r.kind)) =
+      [(3, .turnRef), (2, .player), (1, .object), (0, .quality .color)] ∧
+      (after.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem okSkipNextNestedAmountOrder :
-    (instructionResult (DRS.ofList [])
-      (.skipPart .drawStep
-        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))).sameReferents (DRS.ofList [({ det := .target, plur := .one, payload := .player false, idents := [] } : Referent),
-         ({ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none (some 1), idents := [] } : Referent)]) = true := by decide
+    let after := instructionResult (DRS.ofList [])
+      (.skipPart .drawStep (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+    after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okAdditionalPartNestedAmountOrder :
-    (instructionResult (DRS.ofList [])
+    let after := instructionResult (DRS.ofList [])
       (Primitives.Instruction.addTurnPart .upkeep none
-        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none)).sameReferents (DRS.ofList [({ det := .target, plur := .one, payload := .player false, idents := [] } : Referent),
-         ({ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none (some 1), idents := [] } : Referent)]) = true := by decide
+        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none)
+    after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okUntapNestedAmountOrder :
-    (instructionResult (DRS.ofList [])
-      (.skipUntap .this
-        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))).sameReferents (DRS.ofList [({ det := .target, plur := .one, payload := .player false, idents := [] } : Referent),
-         ({ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none (some 1), idents := [] } : Referent)]) = true := by decide
+    let after := instructionResult (DRS.ofList [])
+      (.skipUntap .this (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+    after.visibleReferents.map (fun r => (r.id, r.kind)) =
+      [(2, .player), (1, .object), (0, .object)] ∧
+      (after.findById? 1).map (·.ty) = some [.creature] ∧
+      (after.findById? 0).map (·.ty) = some [] := by decide
 
 /-! ## The temporal sorts (`semantics-v2-temporal-suite`)
 

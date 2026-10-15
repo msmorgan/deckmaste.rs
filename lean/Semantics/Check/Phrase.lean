@@ -104,7 +104,8 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
       | some k, none => some k
       | none, k' => k') none
   | _ + 1, .hasPossessor _ _ | _ + 1, .did _ | _ + 1, .other | _ + 1, .notChosen
-  | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _ => none
+  | _ + 1, .otherThan _ | _ + 1, .isSource | _ + 1, .withMostVotes | _ + 1, .coinCameUp _
+  | _ + 1, .attachment .host _ _ => none
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -264,6 +265,30 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+  match fuel, phrase with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body
+  | n + 1, .asType _ body _ | n + 1, .asMarker _ body => body.eventAgentOk n
+  | _ + 1, .you | _ + 1, .this | _ + 1, .actor | _ + 1, .pro ..
+  | _ + 1, .which | _ + 1, .refl _ | _ + 1, .laterMention .. | _ + 1, .playerGroup _ => true
+  | _, _ => false
+termination_by structural fuel
+
+def NounPhrase.tokenPhrase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
+  match fuel, phrase with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body => body.tokenPhrase n
+  | _ + 1, .described (.count _ _) predicate | _ + 1, .described (.a _) predicate => predicate.seedsToken
+  | _, _ => false
+termination_by structural fuel
+
+def TokenSpec.eventSourceOk (spec : TokenSpec) (fuel : Nat := 32) : Bool :=
+  match fuel, spec with
+  | n + 1, .inCaller body => body.eventSourceOk n
+  | _ + 1, .copyOf source _ => source.tokenPhrase
+  | _ + 1, _ => true
+  | _, _ => false
+termination_by structural fuel
+
 def predicateOfKind (k : Kind) (p : Predicate) : Predicate :=
   match p with
   | .or ps => .or (ps.filter (fun p => p.kind?.all (· == k)))
@@ -274,7 +299,7 @@ def predicatePayload (drs : DRS) (k : Kind) (p : Predicate) (fuel : Nat := 64) :
   | 0, _ => .gap
   | _ + 1, .object =>
     let p := predicateOfKind .object p
-    if p.seedsAbility then .ability none (some .stack)
+    if p.seedsAbility then .ability none (p.explicitZone.orElse (fun _ => some .stack))
     else .object p.seedTy (p.phraseZone .object) none
       (if p.seedsToken then some .token else none) none (p.seedPossessor drs)
   | _ + 1, .player => .player false
@@ -405,7 +430,9 @@ def stepZoneScopeWith (ops : StepOps) (drs : DRS) (s : ZoneScope) : DRS × List 
 def stepPileWith (ops : StepOps) (drs : DRS) (p : Pile) : DRS × List Refusal :=
   match p with
   | .library s | .graveyard s => stepZoneScopeWith ops drs s
-  | .that => (drs, [])
+  | .that =>
+    let (out, _, errors) := ops.np drs .other false (.pro (.word .pile) .one)
+    (out, errors)
   | .exiledWith src =>
     let (drs', _, errs) := ops.np drs .other false src
     (drs', errs)
@@ -511,9 +538,21 @@ def stepColorTermWith (ops : StepOps) (drs : DRS) (ct : ColorTerm) : DRS × List
     let (drs', _, errs) := ops.np drs .other false obj
     (drs', errs)
 
-def stepDetPhraseWith (ops : StepOps) (drs : DRS) (d : DetPhrase) : DRS × List Refusal :=
-  match d with
-  | .target q | .count q _ => stepQuantityWith ops drs q
+def choiceModeChecks (drs : DRS) : ChoiceMode → List Refusal
+  | .theirChoice =>
+    let count := countChoosers drs
+    refuse (count == 1) (.chooserInScope count)
+  | _ => []
+
+def stepDetPhraseWith (ops : StepOps) (drs : DRS) (det : DetPhrase) : DRS × List Refusal :=
+  match det with
+  | .target quantity =>
+    let (out, errors) := stepQuantityWith ops drs quantity
+    (out, refuse quantity.nonZero .nonZeroQ ++ errors)
+  | .count quantity mode =>
+    let (out, errors) := stepQuantityWith ops drs quantity
+    (out, refuse quantity.nonZero .nonZeroQ ++ errors ++ mode.toList.flatMap (choiceModeChecks drs))
+  | .a mode => (drs, choiceModeChecks drs mode)
   | _ => (drs, [])
 
 def stepSliceCountWith (ops : StepOps) (drs : DRS) (sc : SliceCount) : DRS × List Refusal :=
@@ -536,13 +575,17 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
     (drs2, e1)
   | .any | .by _ => (drs, [])
 
-def stepSubjectAfterWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × List Refusal :=
+def stepSubjectAfterWith (ops : StepOps) (drs : DRS) (s : Subject)
+    (expectedKind : Option Kind := none) : DRS × List Refusal :=
   match s with
   | .actor _ => (dropActorFrame drs, [])
   | .any => (drs, [])
   | .by np =>
-    let (drs', _, e) := ops.np drs .other true np
-    (drs', e)
+    let (drs', ids, e) := ops.np drs .other true np
+    let kindErrors := match expectedKind, (ids.head?.bind drs'.findById?).map (·.kind) with
+      | some expected, some actual => refuse (expected == actual) (.kindMismatch expected actual)
+      | _, _ => []
+    (drs', e ++ kindErrors)
 
 def durationPossessorOk : Option NounPhrase → Bool
   | none => true
@@ -613,6 +656,11 @@ def stepLookbackSpanWith (ops : StepOps) (drs : DRS) (sp : LookbackSpan) : DRS �
 def kindCheck (expected : Kind) (found : Option Kind) : List Refusal :=
   found.toList.flatMap fun k => refuse (k == expected) (.kindMismatch expected k)
 
+private def attachmentHostKindCheck (word : Option AttachWord) (kind : Kind) : List Refusal :=
+  refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)) ++
+    refuse (word.elim true (fun word => word == .enchanted || Kind.lte kind .object))
+      (.kindLte kind .object)
+
 def stepAsThoughWith (ops : StepOps) (drs : DRS) (asThough : AsThough) :
     DRS × List Refusal :=
   match asThough with
@@ -629,6 +677,23 @@ private def stepDeonticAsThoughWith (ops : StepOps) (drs : DRS) (mods : DeonticM
   match mods.asThough with
   | none => (drs, [])
   | some asThough => stepAsThoughWith ops drs asThough
+
+def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Instruction) : List Refusal :=
+  let agent := match subject with | .any => none | .actor noun | .by noun => some noun
+  let agentRead := agent.all NounPhrase.eventAgentOk
+  match action.scopeBody with
+  | .putCounters _ _ _ _ byEffect | .removeCounters _ _ _ _ byEffect =>
+    refuse agentRead .eventAgent ++
+      refuse (!(byEffect && agent.isSome)) .causedByOk
+  | .createObject _ spec byEffect under =>
+    let tokenErrors := match spec with
+      | .token token _ => refuse token.eventSourceOk .tokenPhrase
+      | .emblem .. => []
+    let underKind := under.map (fun noun => noun.kindIn drs .player)
+    kindCheck .player underKind ++ tokenErrors ++
+      refuse (agentRead && under.all (fun noun => noun.plur == .one && noun.eventAgentOk) &&
+        !(byEffect && agent.isSome)) .verbedVoiceOk
+  | _ => []
 
 def deedAgentDomain (deed : Deed) : Option EntityDomain :=
   deedFacts deed >>= fun facts => facts.agentRole.sort.map (·.domain)
@@ -660,7 +725,8 @@ def Instruction.performed (action : Instruction) : Bool :=
 
 def clauseActorKind (action : Instruction) : Option Kind :=
   match action.scopeBody with
-  | .draw _ | .procedure .. | .flipCoins .. | .rollDice .. => some .player
+  | .draw _ | .procedure .. | .flipCoins .. | .rollDice ..
+  | .createObject .. | .putCounters .. | .removeCounters .. => some .player
   | .dealDamage .. => some .object
   | _ => none
 
@@ -679,9 +745,9 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         | some expected, some shape => kindCheck expected (some shape.kind)
         | _, _ => []
     let (drs2, e2) := ops.inst .postEvent subj.patientRole { drs1 with actionPattern := true } action
-    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj
+    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action)
     let (drs4, e4) := stepLookbackSpanWith ops drs3 within
-    ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4)
+    ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
 
 def stepCausingWith (ops : StepOps) (drs : DRS) (c : Causing) : DRS × List Refusal :=
   match c with
@@ -697,9 +763,14 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
   | _ + 1, .would subj action =>
     let headErr := if action.eventHeadOk then [] else [.eventHead]
     let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+    let actorErrors := match action.scopeBody with
+      | .draw _ => []
+      | _ => match clauseActorKind action, actorShape? drs1 with
+        | some expected, some shape => kindCheck expected (some shape.kind)
+        | _, _ => []
     let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj
-    ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3)
+    let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action)
+    ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ eventVoiceChecks drs subj action)
   | n + 1, .wouldAny cs =>
     cs.foldl (fun (d, es) c =>
       let (d', e') := stepWouldClauseWith ops d c n
@@ -916,13 +987,30 @@ def stepVisibleThingWith (ops : StepOps) (drs : DRS) (vt : VisibleThing) : DRS �
     let (drs', _, e) := ops.np drs .obj true np
     (drs', e)
 
+private def insertReferentById (ref : Referent) : List Referent → List Referent
+  | [] => [ref]
+  | first :: rest =>
+    if ref.id >= first.id then ref :: first :: rest
+    else first :: insertReferentById ref rest
+
+private def twoPartiesOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
+  match fuel, np with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body
+  | n + 1, .laterMention _ body => twoPartiesOk body n
+  | _ + 1, .and [left, right] => left.plur == .one && right.plur == .one
+  | _ + 1, .described (.target quantity) _
+  | _ + 1, .described (.count quantity _) _ => quantity.exact == some 2
+  | _, _ => false
+termination_by structural fuel
+
 def stepExchangedWith (ops : StepOps) (drs : DRS) (ex : Exchanged) : DRS × List Refusal :=
   let (out, errors) :=
     match ex with
     | .lifeTotals parties =>
-      let (drs1, _, e1) := ops.np drs .obj true parties
+      let (drs1, ids, e1) := ops.np drs .obj true parties
+      let kind := (ids.head?.bind drs1.findById?).map (·.kind) |>.getD (parties.kindIn drs1 .player)
       let drs2 := (drs1.push (outcomeB .lifeGained) .other false).push (outcomeB .lifeLost) .other false
-      (drs2, e1)
+      (drs2, e1 ++ kindCheck .player (some kind) ++ refuse (twoPartiesOk parties) .twoParties)
     | .controlOf l r | .cardsAcross l r =>
       let (drs1, _, e1) := ops.np drs .obj true l
       let (drs2, _, e2) := ops.np drs1 .other true r
@@ -986,16 +1074,24 @@ def stepModeChangeWith (ops : StepOps) (drs : DRS) (mc : ModeChange) : DRS × Li
     let (drs2, e2) := match optCond with | some cond => ops.cond drs1 cond | none => (drs1, [])
     (drs2, e1 ++ e2)
   | .extraModesCost c => ops.cost drs c
-  | .setQuantity q => stepQuantityWith ops drs q
+  | .setQuantity q =>
+    let (out, errors) := stepQuantityWith ops drs q
+    (out, errors ++ refuse q.nonZero .nonZeroQ)
   | .repeatable => (drs, [])
   | .notChosenBefore dur => stepDurationWith ops drs dur
 
-def stepModeListWith (ops : StepOps) (drs : DRS) (modes : List (Option Cost × Option Nat × Instruction)) : DRS × List Refusal :=
-  modes.foldl (fun (d, es) (optCost, _, inst) =>
-    let (d1, e1) := match optCost with | some c => ops.cost drs c | none => (drs, [])
-    let (d2, e2) := ops.inst .postEvent .obj (nextClause d1) inst
-    let _ := d
-    (d2, es ++ e1 ++ e2)) (drs, [])
+def stepModeListWith (ops : StepOps) (drs : DRS)
+    (modes : List (Option Cost × Option Nat × Instruction)) : DRS × List Refusal :=
+  modes.foldl (fun (out, errors) (cost, _, instruction) =>
+    let branch := { drs with nextId := out.nextId }
+    let (afterCost, costErrors) := match cost with
+      | some cost => ops.cost branch cost
+      | none => (branch, [])
+    let (afterBody, bodyErrors) := ops.inst .postEvent .obj (nextClause afterCost) instruction
+    ({ drs with nextId := max out.nextId afterBody.nextId }, errors ++ costErrors ++ bodyErrors)) (drs, [])
+
+def actorPlurality (drs : DRS) : Plurality :=
+  ((drs.referents.find? Referent.isActorFrame).map (·.plur)).getD .one
 
 def stepProducedManaWith (ops : StepOps) (drs : DRS) (pm : ProducedMana) : DRS × List Refusal :=
   let (out, errors) :=
@@ -1234,7 +1330,7 @@ def stepOps : Nat → StepOps
         | .bracketed body => ops.pred drs body
         | .not body =>
           let (out, errors) := ops.pred drs body
-          (out, errors ++ refuse body.negatable .negatable)
+          ({ drs with nextId := out.nextId }, errors ++ refuse body.negatable .negatable)
         | .chosenPlayer ref =>
           let n := countChoice .player drs
           (drs, if ref.ok n then [] else [.choiceRef ref .player n])
@@ -1243,7 +1339,8 @@ def stepOps : Nat → StepOps
         | .qualityNoun _ none | .ofYourChoice _ none => (drs, [])
         | .ofChosen ref q =>
           let n := countChoice (.quality q) drs
-          (drs, if ref.ok n then [] else [.choiceRef ref (.quality q) n])
+          (drs, refuse q.chosenReadOk (.chosenQualityRead q) ++
+            (if ref.ok n then [] else [.choiceRef ref (.quality q) n]))
         | .hasPossessor _ np =>
           let (drs', _, errs) := ops.np drs .other false np
           (drs', errs ++ refuse np.soleHolderOk .soleHolder)
@@ -1292,6 +1389,22 @@ def stepOps : Nat → StepOps
           let out := { bounded with referents := boundAdditions ++ domainAdditions ++ inherited }
           (out.push gapB .other false, refuse kind.phrasal (.phrasal kind) ++
             domainErrors ++ measureErrors ++ boundErrors)
+        | .attachment side word counterpart =>
+          let kind := drs.relativeKind.getD .object
+          let headErrors := match side with
+            | .host => attachmentHostKindCheck word kind
+            | .attachment => kindCheck kind (some .object)
+          let (out, counterpartErrors) := match counterpart with
+            | none => (drs, [])
+            | some counterpart =>
+              let (out, ids, errors) := ops.np drs .other false counterpart
+              let counterpartKind := ((ids.head?.bind out.findById?).map (·.kind)).getD
+                (counterpart.kindIn out .object)
+              let kindErrors := match side with
+                | .host => kindCheck .object (some counterpartKind)
+                | .attachment => attachmentHostKindCheck word counterpartKind
+              (out, errors ++ kindErrors)
+          (out, headErrors ++ counterpartErrors)
         | .inZone z => stepZoneExprWith ops drs z
         | .inPile pile =>
           let (drs', _, errs) := ops.np drs .other false pile
@@ -1328,15 +1441,20 @@ def stepOps : Nat → StepOps
           let kind := drs.relativeKind.getD .object
           (drs, refuse (coinFlipInScope drs) .coinFlipInScope ++
             refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
-        | .and ps | .or ps =>
+        | .and ps =>
           let headKind := p.kind? <|> drs.relativeKind
           let (out, errs) := ps.foldl (fun (d, es) q =>
             let (d', e') := ops.pred { d with relativeKind := headKind } q
             (d', es ++ e')) (drs, [])
-          let shapeErrors := match p with
-            | .and _ => refuse (Predicate.contradictionFree ps) .contradictionFree
-            | _ => []
-          ({ out with relativeKind := drs.relativeKind }, errs ++ shapeErrors)
+          ({ out with relativeKind := drs.relativeKind },
+            errs ++ refuse (Predicate.contradictionFree ps) .contradictionFree)
+        | .or ps =>
+          let headKind := p.kind? <|> drs.relativeKind
+          let (nextId, errors) := ps.foldl (fun (nextId, errors) alternative =>
+            let (branch, branchErrors) := ops.pred
+              { drs with nextId, relativeKind := headKind } alternative
+            (branch.nextId, errors ++ branchErrors)) (drs.nextId, [])
+          ({ drs with nextId }, errors)
         | _ => (drs, []),
 
       np := fun drs role inArgSlot np =>
@@ -1384,7 +1502,9 @@ def stepOps : Nat → StepOps
           let ref := bindFor drs2 detP.det detP.plur (pred.kindOr .object) pred
           let rid := drs2.nextId
           let drs3 := drs2.push ref role inArgSlot
-          (drs3, [rid], e1 ++ e2 ++ refuse (detP.det != .the || pred.uniquifies) .uniquifying)
+          let targetErrors := if detP.det == .target then
+            refuse (pred.kindOr .object).targetable (.targetable (pred.kindOr .object)) else []
+          (drs3, [rid], e1 ++ e2 ++ targetErrors ++ refuse (detP.det != .the || pred.uniquifies) .uniquifying)
         | .and ns =>
           ns.foldl (fun (d, ids, es) n =>
             let (d', ids', e') := ops.np d role inArgSlot n
@@ -1396,7 +1516,7 @@ def stepOps : Nat → StepOps
           let ref : Referent := { det := .each, plur := .one, payload }
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
-          (drs2, [rid], e1 ++ refuse (grp.plur == .many) .plural ++ refuse grp.groupMention .groupMention)
+          (drs2, [rid], e1 ++ refuse (grp.plur == .many || grp.det == some .each) .plural ++ refuse grp.groupMention .groupMention)
         | .someOf sc optP grp =>
           let (drs1, e1) := stepSliceCountWith ops drs sc
           let (drs2, e2) := match optP with
@@ -1683,8 +1803,8 @@ def stepOps : Nat → StepOps
           let (callerDrs, errs) := ops.cond (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
         | .duringPart _ (some who) =>
-          let (drs', _, errs) := ops.np drs .other false who
-          (drs', errs)
+          let (drs', ids, errs) := ops.np drs .other false who
+          (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
         | .duringPart _ none => (drs, [])
         | .exists_ subj =>
           let (drs', _, errs) := ops.np drs .subj true subj
@@ -1778,8 +1898,8 @@ def stepOps : Nat → StepOps
               | some expected, some shape => kindCheck expected (some shape.kind)
               | _, _ => []
           let (drs2, e2) := ops.inst .postEvent subj.patientRole { drs1 with actionPattern := true } action
-          let (drs3, e3) := stepSubjectAfterWith ops drs2 subj
-          ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ actorErrors ++ e2 ++ e3)
+          let (drs3, e3) := stepSubjectAfterWith ops drs2 subj (clauseActorKind action)
+          ({ drs3 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ actorErrors ++ e2 ++ e3 ++ eventVoiceChecks drs subj action)
         | .beginningOf _ whose turn | .endOf _ whose turn =>
           let (drs1, errors) := match whose with
             | none => (drs, [])
@@ -1874,7 +1994,8 @@ def stepOps : Nat → StepOps
             { drs1 with referents := drs1.referents.map fun r =>
                 if refIds.contains r.id then { r with plur := .one } else r }
             else drs1
-          let drs2 := memberDrs.push { det := .the, plur := .one, payload := .actor shape } .other false
+          let framePlur := if subj.det == some .each then Plurality.many else subj.plur
+          let drs2 := memberDrs.push { det := .the, plur := framePlur, payload := .actor shape } .other false
           let (drs3, e2) := ops.inst phase .obj drs2 body
           let out := dropActorFrame drs3
           let out := if memberWise then
@@ -1891,7 +2012,9 @@ def stepOps : Nat → StepOps
         | .dealDamage amt recipient _ =>
           let (drs1, e1) := ops.amt drs amt
           let (drs2, _, e2) := ops.np drs1 patientRole true recipient
-          let drs3 := drs2.push (outcomeB .damageDealt) .other false
+          let outcome := if phase == .preEvent && !drs.actionPattern then
+            OutcomeSort.namedNumber else .damageDealt
+          let drs3 := drs2.push (outcomeB outcome) .other false
           (drs3, e1 ++ e2 ++ refuse recipient.perMemberOk .perMember)
         | .markDamage subj amt | .skipUntap subj amt =>
           let (drs1, _, e1) := ops.np drs patientRole true subj
@@ -1900,12 +2023,18 @@ def stepOps : Nat → StepOps
         | .skipPart _ cnt => ops.amt drs cnt
         | .addTurnPart part _ cnt _ =>
           let (out, errors) := ops.amt drs cnt
+          let actorErrors := match actorShape? drs with
+            | some actor => kindCheck .player (some actor.kind)
+            | none => []
           let out := if part == .turn then out.push turnRefB .other false else out
-          (out, errors)
+          (out, errors ++ actorErrors)
         | .turnFaceDown subj _ =>
           let (out, ids, errs) := ops.np drs patientRole true subj
           (out, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)))
-        | .clearDamage subj | .turnOver subj
+        | .clearDamage subj | .turnOver subj =>
+          let (out, ids, errors) := ops.np drs patientRole true subj
+          let kind := (ids.head?.bind out.findById?).map (·.kind) |>.getD (subj.kindIn out .object)
+          (out, errors ++ kindCheck .object (some kind))
         | .target subj | .changeControl subj | .chooseNewTargets subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
@@ -1935,8 +2064,9 @@ def stepOps : Nat → StepOps
           (drs2, e1 ++ e2)
         | .setStatus _ subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
+          let kind := (refIds.head?.bind drs1.findById?).map (·.kind) |>.getD (subj.kindIn drs1 .object)
           let drs2 := if phase == .postEvent then applyInPlaceStamp drs1 refIds inst.inferredDeed else drs1
-          (drs2, e1)
+          (drs2, e1 ++ kindCheck .object (some kind))
         | .combat subj upd =>
           let (drs1, _, e1) := ops.np drs patientRole true subj
           let (drs2, e2) := stepCombatUpdateWith ops drs1 upd
@@ -1954,12 +2084,22 @@ def stepOps : Nat → StepOps
         | .block atk =>
           let (drs1, _, e1) := ops.np drs patientRole true atk
           (drs1, e1)
-        | .attachment _ subj optHost =>
-          let (drs1, _, e1) := ops.np drs patientRole true subj
+        | .attachment movement subj optHost =>
+          let (drs1, ids, e1) := ops.np drs patientRole true subj
+          let subjectKind := ((ids.head?.bind drs1.findById?).map (·.kind)).getD
+            (subj.kindIn drs1 .object)
           let (drs2, e2) := match optHost with
-            | some h => let (d', _, e) := ops.np drs1 .other true h; (d', e)
+            | some host =>
+              let (out, ids, errors) := ops.np drs1 .other true host
+              let hostKind := ((ids.head?.bind out.findById?).map (·.kind)).getD
+                (host.kindIn out .object)
+              let hostErrors := match movement with
+                | .attached => refuse (Kind.lte hostKind (.join .object .player))
+                    (.kindLte hostKind (.join .object .player))
+                | .unattached => kindCheck .object (some hostKind)
+              (out, errors ++ hostErrors)
             | none => (drs1, [])
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ kindCheck .object (some subjectKind) ++ e2)
         | .unlock d => stepDoorWith ops drs d
         | .setGameDesignation _ | .commitCrime | .conclude _ | .drawGame | .restartGame | .revealChoices _ => (drs, [])
         | .separateIntoPiles grp piles faces =>
@@ -1991,7 +2131,8 @@ def stepOps : Nat → StepOps
               | _ => ref) drs2
             else drs2
           let (drs3, e3) := match optWhen with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
-          (drs3, e1 ++ e2 ++ refuse chosen.agentChoosable .choiceClause ++ e3)
+          (drs3, e1 ++ e2 ++ refuse chosen.agentChoosable .choiceClause ++
+            refuse (first.isNone || actorPlurality drs == .many) .choiceOrder ++ e3)
         | .vote first _ ballot =>
           let (drs1, e1) := match first with
             | some f => let (d, _, e) := ops.np drs .subj true f; (d, e)
@@ -2001,7 +2142,10 @@ def stepOps : Nat → StepOps
           (drs3, e1 ++ e2)
         | .move subj from_ to _ optCause riders =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
-          let e1 := e1 ++ kindCheck .object ((refIds.head?.bind drs1.findById?).map (·.kind))
+          let actualKind := (refIds.head?.bind drs1.findById?).map (·.kind)
+          let moveKind := Kind.join .object .pile
+          let e1 := e1 ++ actualKind.toList.flatMap (fun kind =>
+            refuse (Kind.lte kind moveKind) (.kindLte kind moveKind))
           let (drs2, e2) := stepEventSourceWith ops drs1 from_
           let (drs3, e3) := match to with | some z => stepZoneExprWith ops drs2 z | none => (drs2, [])
           let (drs4, e4) := match optCause with | some c => stepCausingWith ops drs3 c | none => (drs3, [])
@@ -2096,7 +2240,8 @@ def stepOps : Nat → StepOps
             | .anyResult | .highestNatural => (drs1, [])
             | .resultIn q => stepQuantityWith ops drs1 q
           let drs4 := if drs.actionPattern then
-            if batch == .many then drs2.push (outcomeB .diceRolled) .other false else drs2
+            if batch == .many then drs2.push (outcomeB .diceRolled) .other false
+            else drs2.push (outcomeB .rollResult) .other false
           else drs2.push (outcomeB .rollResult) .other false
           (drs4, e1 ++ e2 ++ sides.localChecks drs ++ watch.localChecks ++
             refuse count.nonZero .nonZeroQ)
@@ -2199,12 +2344,14 @@ def stepOps : Nat → StepOps
                 refuse (ifDoneArmed ifDid ifNot) .ifDoneArmed
           ({ drs with nextId := max drs2.nextId drs3.nextId }, e1 ++ e2 ++ e3 ++ policyErrors)
         | .doOnlyIf inst cond otherwise =>
-          let (drs1, e1) := ops.inst phase patientRole drs inst
-          let (drs2, e2) := ops.cond drs1 cond
-          let (drs3, e3) := match otherwise with
-            | some b => ops.inst phase .obj (nextClause drs) b
-            | none => (drs, [])
-          ({ drs with nextId := max drs2.nextId drs3.nextId }, e1 ++ e2 ++ e3)
+          let (performed, e1) := ops.inst phase patientRole drs inst
+          let (announced, _) := ops.inst .preEvent patientRole drs inst
+          let (condition, e2) := ops.cond (nextClause announced) cond
+          let (alternative, e3) := match otherwise with
+            | some body => ops.inst phase .obj (nextClause condition) body
+            | none => (condition, [])
+          let nextId := max performed.nextId (max condition.nextId alternative.nextId)
+          ({ drs with nextId }, e1 ++ e2 ++ e3)
         | .limited inst limit =>
           let (out, errors) := ops.inst phase patientRole drs inst
           let (out', limitErrors) := stepUsageLimitWith ops out limit
@@ -2238,7 +2385,7 @@ def stepOps : Nat → StepOps
             resolvedIds := drs3.resolvedIds.filter keptIds.contains
             performer := drs1.performer }
           (closedDrs, e1 ++ pluralityErrors ++ e2)
-        | .doForEachKind _ dom q body =>
+        | .doForEachKind axis dom q body =>
           let (drs1, e1) := match dom with
             | some d => let (d', _, e) := ops.np drs .other false d; (d', e)
             | none => (drs, [])
@@ -2246,7 +2393,8 @@ def stepOps : Nat → StepOps
           let drs2 := drs1.push { det := .each, plur := .one, payload := .quality q } .other false
           let (drs3, e2) := ops.inst phase .obj (nextClause drs2) body
           let closedDrs : DRS := { drs3 with referents := drs3.referents.filter (·.id < preLoopMaxId) }
-          (closedDrs, e1 ++ e2)
+          (closedDrs, e1 ++ e2 ++ refuse (axis.sort == some q) .kindAxisSort ++
+            refuse (dom.isSome || axis.closed) .kindDomainOk)
         | .repeat_ rep => stepRepetitionWith ops drs rep
         | .sequentially steps =>
           match steps with
@@ -2258,12 +2406,19 @@ def stepOps : Nat → StepOps
               (d', es ++ e')) (drs1, e1)
         | .simultaneously steps =>
           steps.foldl (fun (d, es) step =>
-            let (d', e') := ops.inst phase .obj d step
-            (d', es ++ e')) (drs, refuse (!steps.isEmpty) .nonEmpty)
+            let deferred := d.referents.filter fun ref =>
+              ref.id >= drs.nextId && (match ref.payload with | .outcome _ => true | _ => false)
+            let deferredIds := deferred.map (·.id)
+            let announced := { d with
+              referents := d.referents.filter (fun ref => !deferredIds.contains ref.id) }
+            let (out, errors) := ops.inst phase .obj announced step
+            let refs := deferred.foldr insertReferentById out.referents
+            ({ out with referents := refs }, es ++ errors)) (drs, refuse (!steps.isEmpty) .nonEmpty)
         | .chooseModes q modes =>
           let (drs1, e1) := stepQuantityWith ops drs q
           let (drs2, e2) := stepModeListWith ops drs1 modes
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ refuse q.nonZero .nonZeroQ ++
+            refuse (modes.length ≥ 2) .atLeastTwo ++ refuse (q.modesFit modes.length) .modesFit ++ e2)
         | .delay ev alts optDur body =>
           let (drs1, e1) := ops.ev drs ev
           let (_, eAlts) := stepGameEventListWith ops drs alts
@@ -2398,7 +2553,8 @@ def stepOps : Nat → StepOps
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
           let (drs1, e1) := stepSubjectBeforeWith ops drs subj
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-          let e2 := e2 ++ refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
+          let e2 := e2 ++ refuse (deonticDeedFits drs1 drs2 action subj.patientRole) .deedFits ++
+            refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
           let (drs3, e3) := stepDeonticAsThoughWith ops drs2 mods
           let (_, e4) := stepSubjectAfterWith ops drs3 subj
           (drs, headErr ++ e1 ++ e2 ++ e3 ++ e4)
@@ -2406,7 +2562,8 @@ def stepOps : Nat → StepOps
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
           let (drs1, e1) := stepSubjectBeforeWith ops drs subj
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
-          let e2 := e2 ++ refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
+          let e2 := e2 ++ refuse (deonticDeedFits drs1 drs2 action subj.patientRole) .deedFits ++
+            refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
           let (drs3, e3) := stepDeonticAsThoughWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
           ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
@@ -2418,7 +2575,8 @@ def stepOps : Nat → StepOps
           let drs1 := { withPayer with referents := withPayer.referents.filter (·.id != payerId) }
           let (drs2, e2) := stepSubjectBeforeWith ops (nextClause drs1) subj
           let (drs3, e3) := ops.inst .preEvent subj.patientRole { drs2 with actionPattern := true } action
-          let e3 := e3 ++ refuse (deonticPatientOk drs2 drs3 action subj.patientRole) .deonticPatientOk
+          let e3 := e3 ++ refuse (deonticDeedFits drs2 drs3 action subj.patientRole) .deedFits ++
+            refuse (deonticPatientOk drs2 drs3 action subj.patientRole) .deonticPatientOk
           let (drs4, e4) := stepDeonticAsThoughWith ops drs3 mods
           let (drs5, e5) := stepSubjectAfterWith ops drs4 subj
           ({ drs5 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4 ++ e5)
@@ -2448,7 +2606,8 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := stepDamageAgentWith ops drs da
           let (drs2, e2) := stepDamageScopeWith ops drs1 ds
           (drs2, e1 ++ e2)
-        | .preventionBan _ .thatDamage _ => (drs, [])
+        | .preventionBan _ .thatDamage _ =>
+          (drs, refuse (damageDealtInScope drs) .damageDealtInScope)
         | .additionalTriggers ev q =>
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := stepQuantityWith ops drs1 q

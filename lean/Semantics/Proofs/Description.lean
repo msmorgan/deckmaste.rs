@@ -329,15 +329,14 @@ theorem badOtherwiseReadsLeadingArm :
       = [.anaphor .bare .one 0] := by
   decide
 
-theorem badLeadingConditionAntecedent :
+theorem noElseConditionExportsItsOpponent :
+    let conditional := .doIf (.compareAmt (lifeTotalOf .you) .less
+      (lifeTotalOf anOpponent)) (gainLife (.lit 6)) none
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) conditional).1
     Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ .doIf (.compareAmt (lifeTotalOf .you) .less
-                     (lifeTotalOf anOpponent))
-            (gainLife (.lit 6)) none,
-          instruct (that .player) (loseLife (.lit 1)) ])
-      = [.anaphor (.word .player) .one 0] := by
-  decide
+      (.sequentially [conditional, instruct (that .player) (loseLife (.lit 1))]) = [] ∧
+      (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) = [1] ∧
+      (after.findById? 1).map (·.kind) = some .player := by decide
 
 /-- "If you control an artifact and an enchantment, …" -/
 theorem okFlatConjunction :

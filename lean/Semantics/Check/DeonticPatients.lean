@@ -1,5 +1,6 @@
 import Semantics.Check.CardFacts
 import Semantics.Check.Words
+import Semantics.Check.Events
 
 namespace Semantics
 
@@ -13,5 +14,51 @@ def deonticPatientOk (before after : DRS) (action : Instruction)
       else after.pendingRoles
     !(mentions.any fun (id, role) => role == patientRole && actors.contains id)
   | _ => true
+
+def Instruction.deonticDeed (action : Instruction) (fuel : Nat := 32) : Option Deed :=
+  match fuel, action with
+  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope none body => body.deonticDeed n
+  | _ + 1, .ownScope (some deed) _ | _ + 1, .enact deed _ _ _ => some deed
+  | _ + 1, .procedure .cast .. => some (.action "cast")
+  | _ + 1, .procedure .activate .. => some (.action "activate")
+  | _ + 1, .procedure .play .. => some (.action "play")
+  | _ + 1, .attack .. => some (.core .attack)
+  | _ + 1, .block .. => some (.core .block)
+  | _ + 1, .conclude .loseGame => some (.core .loseGame)
+  | _ + 1, .conclude .winGame => some (.core .winGame)
+  | _ + 1, .setStatus .tapped _ => some (.action "tap")
+  | _ + 1, .setStatus .untapped _ => some (.action "untap")
+  | _ + 1, .target _ => some (.core .target)
+  | _, _ => none
+
+def deonticReferentFits (deed : Deed) (isAgent : Bool) (ref : Referent)
+    (checkZone : Bool := true) : Bool :=
+  let ability := match ref.payload with | .ability .. => true | _ => false
+  if deed == .core .attack && !isAgent && ref.kind == .player then true
+  else deedFits [deed] isAgent ref.kind ability [ref.ty] (if checkZone then ref.zone else none)
+
+def deonticDeedFits (before after : DRS) (action : Instruction)
+    (patientRole : GramRole) : Bool :=
+  match action.deonticDeed with
+  | none => true
+  | some deed =>
+    let actorIds := ((actorShape? before).map (·.refIds)).getD []
+    let actorOk := match actorShape? before with
+      | some shape =>
+        deedKindOk deed true shape.kind &&
+          actorIds.all (fun id => (before.findById? id).elim true (fun ref => deonticReferentFits deed true ref))
+      | none => match action.scopeBody with
+        | .conclude .. => false
+        | _ => true
+    let mentions := if after.currentClause == before.currentClause then
+        after.pendingRoles.take (after.pendingRoles.length - before.pendingRoles.length)
+      else after.pendingRoles
+    let patientIds := (mentions.filterMap fun (id, role) =>
+      if role == patientRole && !actorIds.contains id then some id else none).eraseDups
+    let checkPatientZone := match action.scopeBody with
+      | .procedure .. => false
+      | _ => true
+    actorOk && patientIds.all (fun id =>
+      (after.findById? id).elim true (fun ref => deonticReferentFits deed false ref checkPatientZone))
 
 end Semantics

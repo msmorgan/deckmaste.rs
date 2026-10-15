@@ -1344,8 +1344,7 @@ def marketGnome : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Gnome"],
       text :=
         [ when (Primitives.GameEvent.dies thisCreature) (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]),
-          triggeredWhile (Primitives.GameEvent.does Primitives.Subject.any (exile (((some
-            thisCreature)).getD .any)))
+          triggeredWhile (Primitives.GameEvent.does Primitives.Subject.any (exile ((thisCreature))))
             (whileDoing (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Instruction.procedure .activate (a (Primitives.Predicate.abilityHead (.keyword (.named "craft")))) Primitives.PlayPayment.itsOwnCost none none none)))
             (Primitives.Instruction.sequentially [gainLife (.lit 1), Primitives.Instruction.draw (.lit 1)]) ],
       power := stat 0, toughness := stat 3 } }

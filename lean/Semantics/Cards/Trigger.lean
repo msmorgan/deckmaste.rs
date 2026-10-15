@@ -221,7 +221,7 @@ def chubToad : Spelled := spelled <| .singleFaced
 def gigglingSkitterspikeTriggers : List GameEvent :=
   [blocks thisCreature none, Primitives.GameEvent.does (Primitives.Subject.actor (a spell)) (Primitives.Instruction.target thisCreature)]
 theorem okGigglingSkitterspikeTriggers :
-    GameEvent.checkAll [] gigglingSkitterspikeTriggers = [] := by decide
+    GameEvent.checkAll (DRS.ofList []) gigglingSkitterspikeTriggers = [] := by decide
 
 /-- Naban, Dean of Iteration -/
 def nabanDeanOfIteration : Spelled := spelled <| .singleFaced
@@ -576,11 +576,9 @@ def commandersInsignia : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (getsPt (allOf creatureYouControl)
-            (Primitives.Delta.up (eventCount (Primitives.Instruction.procedure .cast (((some
-              (Primitives.NounPhrase.asMarker .spell yourCommander))).getD .any) Primitives.PlayPayment.itsOwnCost none (some
+            (Primitives.Delta.up (eventCount (Primitives.Instruction.procedure .cast (((Primitives.NounPhrase.asMarker .spell yourCommander))) Primitives.PlayPayment.itsOwnCost none (some
               (Primitives.EventSource.zones [commandZone])) none) (Primitives.Subject.actor Primitives.NounPhrase.you) thisGame))
-            (Primitives.Delta.up (eventCount (Primitives.Instruction.procedure .cast (((some
-              (Primitives.NounPhrase.asMarker .spell yourCommander))).getD .any) Primitives.PlayPayment.itsOwnCost none (some
+            (Primitives.Delta.up (eventCount (Primitives.Instruction.procedure .cast (((Primitives.NounPhrase.asMarker .spell yourCommander))) Primitives.PlayPayment.itsOwnCost none (some
               (Primitives.EventSource.zones [commandZone])) none) (Primitives.Subject.actor Primitives.NounPhrase.you) thisGame)))
               ] } }
 
