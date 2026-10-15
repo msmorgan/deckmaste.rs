@@ -1,0 +1,217 @@
+import Semantics.Macros
+import Semantics.Check.Card
+
+/-!
+# Semantics.Proofs.Static
+
+Port of `idris/src/Experimental/Proofs/Static.idr`: the pins of the Static family, in theorem
+form, each closed by `decide`. The names and the sentences are the Idris ones.
+-/
+
+open Semantics Semantics.Macros
+
+namespace Semantics.Proofs.Static
+
+/-- "This creature gets +2/+0 as long as this creature is attacking." -/
+theorem okGetsBattlefieldSubject :
+    Ability.check (DRS.ofList [])
+      (.static
+        (onlyWhile (getsPt thisCreature (.up (.lit 2)) (.up (.lit 0)))
+          (.matches thisCreature attacking))) = [] := by
+  decide
+
+/-- "That creature gets +2/+0 as long as this creature is attacking." The Idris pin refutes
+the anaphor. The subject is written once, so it is refused once (the two-modification spelling, which re-read it, is
+`GetsBothDeltas.badThatCreatureIsCondSubjectTwoHalves`). -/
+theorem badThatCreatureIsCondSubject :
+    Ability.check (DRS.ofList [])
+      (.static
+        (onlyWhile (getsPt (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)))
+          (.matches thisCreature attacking)))
+      = [.anaphor (.word (.type .creature)) .one 0] := by
+  decide
+
+/-- "Equipped creature gets +1/+1." -/
+theorem okEquippedCreature :
+    Ability.check (DRS.ofList [])
+      (.static (getsPt (.attachHost .equipped (.type .creature)) (.up (.lit 1)) (.up (.lit 1))))
+      = [] := by
+  decide
+
+/-- "You can't lose the game." -/
+theorem okUntargetedOutcomeGate :
+    Ability.check (DRS.ofList []) (.static (playerCant (.core .loseGame) .you)) = [] := by decide
+
+/-- "where X is the number of creatures you control." -/
+theorem okSingleStaticXRider :
+    StaticSpec.check (DRS.ofList [])
+      (.conjunction none
+        [ .modification thisCreature .power (.up (.letter .x)),
+          .modification thisCreature .toughness (.up (.lit 0)),
+          .letterDefinition .x (countOf creatureYouControl) ]) = [] := by
+  decide
+
+theorem badDoubleStaticRider :
+    StaticSpec.check (DRS.ofList [])
+      (.conjunction none
+        [ .modification thisCreature .power (.up (.letter .x)),
+          .modification thisCreature .toughness (.up (.lit 0)),
+          .letterDefinition .x (countOf creatureYouControl),
+          .letterDefinition .x (countOf creature) ]) = [.openLetter .x] := by
+  decide
+
+/-- "power and toughness are each equal to the number of creatures you control" -/
+theorem okSelfDefinedPt :
+    StaticSpec.check (DRS.ofList []) (.ptDefinition thisCreature .bothEach (countOf creatureYouControl)) = [] :=
+        by
+  decide
+
+theorem badGrantedPtDefinition :
+    StaticSpec.check (DRS.ofList [])
+      (.ptDefinition (.attachHost .enchanted (.type .creature)) .bothEach (lifeTotalOf .you))
+      = [.selfDefinedOk] := by
+  decide
+
+/-- "Creatures you control get +1/+1 until end of turn." -/
+theorem okContinuousClause :
+    Instruction.check (DRS.ofList [])
+      (.establish (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))
+        (some untilEndOfTurn)) = [] := by
+  decide
+
+/-- "You become the monarch." -/
+theorem okBecomesMonarch :
+    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "monarch") none) = [] := by decide
+
+/-- "You become goaded." The Idris pin refutes the scope; a player is not a holder of it
+either. -/
+theorem badGoadedPlayer :
+    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "goaded") none)
+      = [.designationScope (.named "goaded"), .designationHolder (.named "goaded") .player] := by
+  decide
+
+/-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
+theorem okBecomesMonstrous :
+    Instruction.check (DRS.ofList []) (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
+  decide
+
+/-- The commander is held by a card, not granted to an object, so the scope and holder
+refusals land. That a rule confers it and no instruction may is a game rule the checker does not
+assert (`lean-checker-sweep-game-rules`). -/
+theorem badGainsCommander :
+    Instruction.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander") none)
+      = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object] := by
+  decide
+
+/-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
+theorem okGetsAnEnduringStory :
+    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "enduringStory") none) = [] := by
+  decide
+
+/-- "Each land you control becomes a 2/2 creature. It's still a land." -/
+theorem okStillALand :
+    StaticSpec.check (DRS.ofList [])
+      (Primitives.StaticSpec.qualityChange (allOf land) .sets
+        (.bundle { characteristics :=
+                   { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
+          (some .land))) = [] := by
+  decide
+
+/-- "Target creature gets +1/+0." -/
+theorem okSingletonCoordination :
+    StaticSpec.check (DRS.ofList []) (.conjunction none [.modification (target creature) .power (.up (.lit 1))])
+      = [] := by
+  decide
+
+/-- a coordination of no statements -/
+theorem badEmptyCoordination : StaticSpec.check (DRS.ofList []) (.conjunction none []) = [.nonEmpty] := by decide
+
+/-- Explicit controlled permanents, controlled spells, and owned cards outside the battlefield. -/
+theorem okSingleExtension :
+    StaticSpec.check (DRS.ofList [])
+      (Primitives.StaticSpec.qualityChange
+        (Primitives.NounPhrase.and [
+              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds (.everyTypeOf .creature)) = [] := by decide
+
+/-- "If you would draw a card, draw two cards instead." -/
+theorem okDrawReplacement :
+    StaticSpec.check (DRS.ofList []) (.instead (.would (.actor .you) (.draw .anyAmount)) (draw (.lit 2)) none
+        .repeatedly none)
+      = [] := by
+  decide
+
+/-- "unless you control an artifact" -/
+theorem okUnlessOverNegatedCondition :
+    StaticSpec.check (DRS.ofList [])
+      (.conditional (.altCost .this none)
+        (.not (exists_ (.and [artifact, .hasPossessor .controller .you]))) .unless_) = [] := by
+  decide
+
+theorem badUnlessConjunction :
+    StaticSpec.check (DRS.ofList [])
+      (.conditional (.altCost .this none)
+        (.and
+          [ exists_ (.and [artifact, .hasPossessor .controller .you]),
+            exists_ (.and [enchantment, .hasPossessor .controller .you]) ]) .unless_)
+      = [.markingOk] := by
+  decide
+
+/-- "This creature blocks an attacking creature." -/
+theorem okCreatureBecomesBlocking :
+    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking thisCreature (a (.and [creature, attacking])))
+      = [] := by
+  decide
+
+/-- "Target land blocks an attacking creature.": a land an effect has made a creature blocks
+[CR#205.1b,509.1a]. -/
+theorem okLandBecomesBlocking :
+    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking (target land) (a (.and [creature, attacking])))
+      = [] := by
+  decide
+
+/-- "This creature blocks target planeswalker." -/
+theorem badBecomesBlockingPlaneswalker :
+    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking thisCreature (target (.hasType .planeswalker)))
+      = [.deedNounOk (.core .block)] := by
+  decide
+
+/-- "this creature gets +1/+0" -/
+theorem okAddPtUpward :
+    StaticSpec.check (DRS.ofList []) (.modification thisCreature .power (.up (.lit 1))) = [] := by decide
+
+/-- "During target opponent's next turn, …" -/
+theorem okSingularNextTurnDuration :
+    Duration.check (DRS.ofList []) (duringNextTurnOf (target .opponent)) = [] := by decide
+
+/-- "During each opponent's next turn, ...": the boundaries name whose turn, so a plural possessor
+is the duration-possessor refusal of the unified boundary (was `.singular` on the retired
+`Duration.duringNextTurnOf`). -/
+theorem badPluralNextTurnDuration :
+    Duration.check (DRS.ofList []) (duringNextTurnOf (each .opponent)) = [.durationPossessor] := by decide
+
+/-- "Target opponent skips all combat phases of their next turn." -/
+theorem okSkipDuringTheirNextTurn :
+    Instruction.check (DRS.ofList [])
+      (establishThroughout (.partSkip (target .opponent) .combat) (duringNextTurnOf (that
+          .player)))
+      = [] := by
+  decide
+
+/-- "You skip all combat phases of their next turn.": the bench macro writes the unbound
+"their" at both of the turn's boundaries, its beginning and its end, and each is refused (the
+RON helper captures it once; a `Duration` has no binding scope to capture it in Lean). -/
+theorem badSkipDuringUnboundNextTurn :
+    Instruction.check (DRS.ofList []) (establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that
+        .player)))
+      = [.anaphor (.word .player) .one 0, .anaphor (.word .player) .one 0] := by
+  decide
+
+/-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the
+bench. -/
+theorem opponentsCantGainLife :
+    StaticSpec.check (DRS.ofList []) (playerCant (.core .gainLife) (.playerGroup .yourOpponents)) = [] := by
+  decide
+
+end Semantics.Proofs.Static

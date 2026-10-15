@@ -1,0 +1,301 @@
+import Semantics.Macros
+import Semantics.Check.Card
+
+open Semantics Semantics.Macros
+
+namespace Semantics.Proofs.ActionFamilies
+
+private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
+  let result := stepNounPhrase 64 drs .other false noun
+  result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
+
+private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
+  (stepInstruction 64 .postEvent .obj drs instruction).1
+
+private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
+  (stepNounPhrase 64 drs .other false noun).1
+
+private def outcomeReferents (drs : DRS) : List Referent :=
+  drs.referents.filter fun ref => match ref.payload with | .outcome _ => true | _ => false
+
+theorem okBlockednessWithoutChangingBlockingRelations :
+    Instruction.check (DRS.ofList []) (.combat thisCreature (.participation (.blocked false))) = [] := by decide
+
+theorem okRemoveAttackedPlaneswalkerFromCombat :
+    Instruction.check (DRS.ofList []) (.combat (.asType .planeswalker .this none)
+      (.participation .outsideCombat)) = [] := by decide
+
+theorem okRemoveAttackedBattleFromCombat :
+    Instruction.check (DRS.ofList []) (.combat (.asType .battle .this none)
+      (.participation .outsideCombat)) = [] := by decide
+
+theorem okAttachToPlayer :
+    Instruction.check (DRS.ofList []) (.attachment .attached thisAura (some .you)) = [] := by decide
+
+theorem okDetachWithoutKnowingOldHost :
+    Instruction.check (DRS.ofList []) (.attachment .unattached thisArtifact none) = [] := by decide
+
+theorem okExtraTurnPublishesTurnReference :
+    TurnRef.check (instructionResult (DRS.ofList []) (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
+  decide
+
+/-- "Target creature takes an extra turn after this one." An extra turn is taken by a player
+[CR#500.7]: the turn's taker is the player the instruction is handed to, and a permanent is
+not one. -/
+theorem badExtraTurnWithoutPlayer :
+    Instruction.check (DRS.ofList []) (instruct (target creature) (.addTurnPart .turn none (.lit 1) none))
+      = [.kindMismatch .player .object] := by decide
+
+def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword (.named "haste")))]
+
+theorem okCreateSeveralEmblems :
+    Instruction.check (DRS.ofList []) (.createObject (.lit 2) (.emblem none emblemAbilities) true none) = [] := by decide
+
+theorem okEmblemPublication :
+    (instructionResult (DRS.ofList [])
+      (.createObject (.lit 1) (.emblem none emblemAbilities) true none)).sameReferents
+      (DRS.ofList [({ det := .a, plur := .one, payload := .object [] (some .command) none none none } : Referent)]) = true := by decide
+
+theorem copiedTokenUsesItsSelectedSourceRatherThanANeighbor :
+    let source := nounResult (DRS.ofList []) (.firstMention "token.source" (target artifact))
+    let before := nounResult source (target creature)
+    let after := instructionResult before (.createObject (.lit 1)
+      (.token (.copyOf (.laterMention "token.source" .any) []) []) true none)
+    (after.findById? 0).map (·.ty) = some [.artifact] ∧
+      (after.findById? 1).map (·.ty) = some [.creature] ∧
+      (after.findById? before.nextId).map (·.payload) =
+        some (.object [.artifact] (some .battlefield) none (some .token) none none) := by decide
+
+
+private def exiledAbility : DRS :=
+  instructionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some exileZone) .arrival none [])
+
+private def graveyardAbility : DRS :=
+  instructionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none [])
+
+theorem exiledAbilityKeepsItsLocation :
+    nounZone exiledAbility (that .ability) = some .exile := by decide
+
+theorem exiledAbilityRemainsAnAbilityReference :
+    NounPhrase.checkAt none exiledAbility (that .ability) = [] := by decide
+
+theorem exiledAbilityIsNotAStackReference :
+    NounPhrase.checkAt none exiledAbility (that .stack) = [.anaphor (.word .stack) .one 0] := by decide
+
+theorem exiledAbilityIsNotASpellOrCard :
+    NounPhrase.checkAt none exiledAbility (that .spell) = [.anaphor (.word .spell) .one 0] ∧
+    NounPhrase.checkAt none exiledAbility (that .card) = [.anaphor (.word .card) .one 0] := by decide
+
+theorem movementPublishesItsRequiredDestination :
+    nounZone graveyardAbility (that .ability) = some .graveyard := by decide
+
+theorem movementAcceptsAnAbilitySubject :
+    Instruction.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none []) = [] := by decide
+
+theorem graveyardDestinationAcceptsCounterRiders :
+    Instruction.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none [.placement (.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
+
+theorem pronounMovePreservesCopyOriginAndOuterBindings :
+    (instructionResult (DRS.ofList [
+      { det := .the, plur := .one, payload := .ability (some .copy) },
+      { det := .the, plur := .one, payload := .player false }])
+      (.move (that .ability) .anywhere (some graveyard) .arrival none [])).sameReferents
+      (DRS.ofList [
+        { det := .the, plur := .one, payload := .ability (some .copy) (some .graveyard) },
+        { det := .the, plur := .one, payload := .player false }]) = true := by decide
+
+theorem abilityUnionRetainsCommonLocation :
+    (unionPayload (.ability none (some .exile)) (.ability none (some .exile))).map
+      (fun pair => pair.2.zone) = some (some .exile) := by decide
+
+theorem abilityUnionDoesNotInventACommonLocation :
+    (unionPayload (.ability none (some .exile)) (.ability none (some .stack))).map
+      (fun pair => pair.2.zone) = some none := by decide
+
+theorem mixedUnionRetainsCommonLocation :
+    (unionPayload (.ability none (some .exile))
+      (.object [] (some .exile) none none none)).map
+      (fun pair => pair.2.zone) = some (some .exile) := by decide
+
+theorem abilityElementRetainsItsLocation :
+    nounZone (DRS.ofList []) (.eachOf (allOf (.and [.abilityHead .anyActivated, .inZone exileZone]))) = some .exile := by decide
+
+
+/-- Marked damage remains even when a permanent stops being a creature [CR#120.6]. -/
+theorem clearDamageAdmitsALand :
+    Instruction.check (DRS.ofList []) (.clearDamage (target land)) = [] := by decide
+
+theorem clearDamageRejectsAPlayer :
+    Instruction.check (DRS.ofList []) (.clearDamage .you) =
+      [.kindMismatch .object .player] := by decide
+
+theorem clearDamagePublishesItsSubject :
+    NounPhrase.checkAt (some .object) (instructionResult (DRS.ofList []) (.clearDamage (target creature))) it =
+      [] := by decide
+
+
+theorem clearDamageDoesNotPublishDamageDealt :
+    outcomeReferents (instructionResult (DRS.ofList []) (.clearDamage (target creature))) = [] := by decide
+
+
+theorem movingThisAbilityRetainsAbilityIdentity :
+    (instructionResult (DRS.ofList []) (.move thisAbility .anywhere (some exileZone) .arrival none [])).sameReferents (DRS.ofList [({ det := .self, plur := .one, payload := .ability none (some .exile), idents := [] } : Referent)]) = true := by decide
+
+
+private def operandKey (i : Nat) : BindingId := "operand." ++ toString i
+
+private def operand (i : Nat) : NounPhrase := .laterMention (operandKey i) .any
+
+private def operandContext (drs : DRS) (operands : List NounPhrase) : DRS :=
+  operands.zipIdx.foldl (fun context (noun, i) =>
+    (stepNounPhrase 64 context .other false (.firstMention (operandKey i) noun)).1) drs
+
+private def operandIdentity (drs : DRS) (i : Nat) : Option ReferentId :=
+  (drs.visibleReferents.find? (fun ref => ref.idents.contains (operandKey i))).map (·.id)
+
+private def movedOperand (drs : DRS) (subject : NounPhrase) (to : Option Zone) : DRS :=
+  (stepInstruction 64 .postEvent .obj drs
+    (.move subject .anywhere (to.map fun zone => .zone zone .bare) .arrival none [])).1
+
+/-- Equal-looking target phrases name two objects, rather than one shared payload. -/
+theorem distinctOperandsHaveDistinctIdentities :
+    let bs := operandContext (DRS.ofList []) [target creature, target creature]
+    (operandIdentity bs 0, operandIdentity bs 1) = (some 0, some 1) := by decide
+
+theorem capturesDoNotDuplicateOrdinaryPronounCandidates :
+    countReach .bare .one (operandContext (DRS.ofList []) [target creature]) = 1 := by decide
+
+theorem captureUpdatesTheOriginalReference :
+    let bs := operandContext (DRS.ofList []) [target creature, target creature]
+    let moved := movedOperand bs (operand 0) (some .exile)
+    (firstReach (.word .card) .one moved).bind (·.zone) = some .exile ∧
+      (moved.findById? 1).bind (·.zone) = some .battlefield ∧
+      (moved.visibleReferents.filter (fun ref => ref.zone == some .exile)).length = 1 ∧
+      operandIdentity moved 0 = none := by decide
+
+theorem laterMentionsDoNotShiftCapturedOperands :
+    let bs := operandContext (DRS.ofList []) [target creature]
+    let more := nounResult bs (target land)
+    (((more.findById? 0).map (·.ty)).getD [], nounZone more (operand 0)) = ([.creature], some .battlefield) := by decide
+
+/-- X already exists: a later target's X does not create a second numeric definition. -/
+theorem captureUsesActualNumericIntroductions :
+    let bs : DRS := [letterB .x, ({ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none, idents := [] } : Referent)]
+    let old : NounPhrase := .pro .bare .one 
+    let second := target (.and [creature, .compare [.stat .power] .eq (.letter .x)])
+    let bound := operandContext bs [old, second]
+    (operandIdentity bound 0, operandIdentity bound 1) = (some 0, some 2) := by decide
+
+theorem nestedCaptureUpdatesTheOuterOperand :
+    let outer := operandContext (DRS.ofList []) [target creature]
+    let inner := operandContext outer [operand 0]
+    let moved := movedOperand inner (operand 0) (some .exile)
+    moved.visibleReferents.map (·.zone) = [some .exile] ∧
+      operandIdentity moved 0 = none := by decide
+
+theorem nestedCaptureUpdatesAnInlineOuterOperand :
+    let outer := operandContext (DRS.ofList []) [.asMarker .ability .this]
+    let inner := operandContext outer [operand 0]
+    let moved := movedOperand inner (operand 0) none
+    moved.visibleReferents.map (·.zone) = [none] ∧
+      operandIdentity moved 0 = none := by decide
+
+theorem fightAcceptsAnExistingReference :
+    Instruction.check (nounResult (DRS.ofList []) (target creature))
+      (instruct it (fight (target creature))) = [] := by decide
+
+theorem fightAcceptsItsOwnSource :
+    Instruction.check (DRS.ofList []) (instruct thisCreature (fight thisCreature)) = [] := by decide
+
+theorem regenerationApplicationChecks :
+    Instruction.check (DRS.ofList []) (regenerationApplication thisCreature) = [] := by decide
+
+theorem regenerationInstallationPublishesNoImmediateOutcome :
+    outcomeReferents (instructionResult (DRS.ofList []) (regenerate thisCreature)) = [] := by decide
+
+theorem counterDoesNotLeaveAnAbilityOnTheStack :
+    nounZone (instructionResult (DRS.ofList [])
+      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (that .ability) = some .graveyard := by decide
+
+theorem counterPreservesTheAbilityCategory :
+    NounPhrase.checkAt none (instructionResult (DRS.ofList [])
+      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (that .ability) = [] := by decide
+
+theorem counterIsSingleEnactedMove (subject : NounPhrase) :
+    Primitives.Instruction.counterSpell subject =
+      .ownScope (some (.action "counter"))
+        (.enact (.action "counter")
+          (.move (.inCaller (.firstMention "counterSpell.subject" subject))
+            (.zones [.zone .stack .bare]) (some graveyard) .arrival none []) none none) := by rfl
+
+theorem losingCountersPublishesTheSharedRemovalOutcome :
+    countOutcomes .countersRemoved (instructionResult (DRS.ofList [])
+      (loseCounters (some (.printed (.named "poison")))
+        (some (.lit 1)) .you)) = 1 := by decide
+
+theorem ownPowerCanReadAnExistingReference :
+    Instruction.check (nounResult (DRS.ofList []) (target creature)) (dealDamageOwnPower it .you) = [] := by decide
+
+
+theorem forgottenOperandDoesNotRedirectToNeighbor :
+    let bound := operandContext (DRS.ofList [])
+      [a (.and [.isCard, .inZone yourLibrary]), target creature]
+    let neighbor := operandIdentity bound 1
+    let shuffled := afterShuffle bound
+    let moved := movedOperand shuffled (operand 0) (some .exile)
+    NounPhrase.checkAt none shuffled (operand 0) = [.bindingIdentity (operandKey 0)] ∧
+      neighbor.isSome = true ∧
+      operandIdentity shuffled 1 = neighbor ∧
+      (neighbor.bind moved.findById?).bind (·.zone) = some .battlefield ∧
+      moved.sameReferents shuffled = true := by decide
+
+theorem postposedCounterConditionReadsTheUnmovedSpell :
+    Instruction.check (DRS.ofList []) (.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
+      (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
+
+
+theorem losingCountersAmountReadsItsPlayer :
+    Instruction.check (DRS.ofList []) (loseCounters
+      (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
+
+theorem regenerationCanProtectANoncreaturePermanent :
+    Instruction.check (DRS.ofList []) (regenerate (target artifact)) = [] := by decide
+
+
+theorem alternativeDoesNotObserveThePrimaryBranchesMove :
+    Instruction.check (DRS.ofList []) (.doOnlyIf (move (target spell) exileZone)
+      (.matches it (.colorIs .red)) (some (Primitives.Instruction.counterSpell it))) = [] := by decide
+
+
+theorem forgottenAliasesAreBothRefused :
+    let bound := operandContext (DRS.ofList []) [a (.and [.isCard, .inZone yourLibrary]), it]
+    let shuffled := afterShuffle bound
+    NounPhrase.checkAt none shuffled (operand 0) = [.bindingIdentity (operandKey 0)] ∧
+      NounPhrase.checkAt none shuffled (operand 1) = [.bindingIdentity (operandKey 1)] := by decide
+
+theorem forgottenNestedAliasIsRefused :
+    let outer := operandContext (DRS.ofList []) [a (.and [.isCard, .inZone yourLibrary])]
+    let inner := operandContext outer [operand 0]
+    NounPhrase.checkAt none (afterShuffle inner) (operand 0) =
+      [.bindingIdentity (operandKey 0)] := by decide
+
+theorem conditionalShuffleForgetsPrivateOperand :
+    Instruction.check (DRS.ofList []) (.ownScope none (.sequentially [
+      .expose .lookAt (.cards (.firstMention (operandKey 0) (a (.and [.isCard, .inZone yourLibrary])))),
+      .doIf (.matches .you .anyPlayer) (.shuffle (library .actor)) none,
+      .move (operand 0) .anywhere (some graveyard) .arrival none []])) =
+      [.bindingIdentity (operandKey 0)] := by decide
+
+theorem capturePreservesTheResolvedPermanentView :
+    Instruction.check (DRS.ofList []) (instruct
+      (.resolvedPermanent (target (.and [spell, creature]))) (fight (target creature))) = [] := by decide
+
+
+theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
+    let context := (fun instruction => (stepInstruction 64 .preEvent .obj (DRS.ofList []) instruction).1) (Instruction.instruct .this (.dealDamage (.lit 3) .you .any))
+    Amount.check context .thatMuch = [] ∧
+      Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
+
+end Semantics.Proofs.ActionFamilies

@@ -5,7 +5,7 @@
 #   lake build                     -- plus the pin suites (the full gate; ./scripts/build adds --wfail)
 name = "mtg"
 version = "0.1.0"
-defaultTargets = ["Semantics"]
+defaultTargets = ["Semantics", "SemanticsCards", "SemanticsProofs"]
 
 [leanOptions]
 # Idris `%unbound_implicits off`: every implicit is written out.
@@ -14,6 +14,14 @@ autoImplicit = false
 [[lean_lib]]
 name = "Semantics"
 roots = ["Semantics", "Semantics.Check", "Semantics.Macros", "Semantics.Macros.Declared", "Semantics.Macros.Checks"]
+
+[[lean_lib]]
+name = "SemanticsCards"
+roots = ["Semantics.Cards"]
+
+[[lean_lib]]
+name = "SemanticsProofs"
+roots = ["Semantics.Proofs"]
 
 # The card soundness gate's emitted cards (`cargo xtask lean check`): untracked,
 # regenerated per run, and deliberately OUTSIDE `defaultTargets` so

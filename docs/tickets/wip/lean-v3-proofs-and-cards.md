@@ -57,7 +57,7 @@ Standard constraints apply.
     `J2` rather than bending the boundary).
   - *Vampiric Embrace* resolves to the enchanted creature via `J1` zone
     exclusion (`[CR#109.2]`), while *Scythe of the Wretched* is pinned in the 11
-    known-wrong sites above.
+    previously measured sites above.
   - `airbend` (`[CR#701.65a]`) checks cleanly for both a single target
     (`"Airbend target creature"`, flipping `airbendByCardOneTiesUnderStrictRule`
     to `[]`) and multiple targets (`airbendItRefusesSeveral` re-spelled as an
