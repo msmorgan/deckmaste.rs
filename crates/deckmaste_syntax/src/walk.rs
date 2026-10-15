@@ -1,0 +1,85 @@
+//! Memoized depth-first walks over a Packed Forest that may contain unary
+//! cycles.
+//!
+//! A Derivation never contains its own Constituent, so a node met again on
+//! the current path contributes nothing there. What a node below a cycle
+//! contributes therefore depends on the path that reached it: a result is
+//! memoized only when the walk below it met no cycle, so a node first
+//! reached inside a cycle still shows every finite Derivation when reached
+//! from elsewhere. Acyclic forests are memoized throughout.
+
+use std::collections::HashMap;
+use std::collections::HashSet;
+
+/// Results by forest node, and the current path of open nodes.
+pub(crate) struct NodeMemo<T> {
+    done: HashMap<usize, T>,
+    path: HashSet<usize>,
+    /// Whether the walk met a cycle since the innermost open node or item
+    /// began.
+    cyclic: bool,
+}
+
+impl<T> Default for NodeMemo<T> {
+    fn default() -> Self {
+        Self {
+            done: HashMap::new(),
+            path: HashSet::new(),
+            cyclic: false,
+        }
+    }
+}
+
+/// What a walk does with a node it reaches.
+pub(crate) enum Visit<T> {
+    /// Its result is known.
+    Known(T),
+    /// It is on the current path: no Derivation reaches it again here.
+    Cycle,
+    /// Compute it, then pass this to [`NodeMemo::leave`].
+    Open(Frame),
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct Frame {
+    node: usize,
+    outer: bool,
+}
+
+impl<T: Clone> NodeMemo<T> {
+    pub(crate) fn enter(&mut self, node: usize) -> Visit<T> {
+        if let Some(value) = self.done.get(&node) {
+            return Visit::Known(value.clone());
+        }
+        if !self.path.insert(node) {
+            self.cyclic = true;
+            return Visit::Cycle;
+        }
+        Visit::Open(Frame {
+            node,
+            outer: self.mark(),
+        })
+    }
+
+    /// Closes an open node with its result, memoized if no cycle lies below it.
+    pub(crate) fn leave(&mut self, frame: Frame, value: &T) {
+        self.path.remove(&frame.node);
+        if self.settle(frame.outer) {
+            self.done.insert(frame.node, value.clone());
+        }
+    }
+
+    /// Starts a result that is not a node's (an item's), for
+    /// [`NodeMemo::settle`].
+    pub(crate) fn mark(&mut self) -> bool {
+        std::mem::replace(&mut self.cyclic, false)
+    }
+
+    /// Ends a result begun by [`NodeMemo::mark`]: whether no cycle lies below
+    /// it, so that it may be memoized.
+    pub(crate) fn settle(&mut self, mark: bool) -> bool {
+        let clean = !self.cyclic;
+        self.cyclic |= mark;
+        clean
+    }
+}

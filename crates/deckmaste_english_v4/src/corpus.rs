@@ -4,8 +4,9 @@
 //! record outside Scryfall `set_type: funny`
 //! (`docs/decisions/english-lexical-analysis.md` §1). Each Card Face record
 //! yields one Type Line unit and one unit per paragraph line of its rules text
-//! after balanced reminder text is removed; a face's count is a sum over its
-//! units.
+//! after balanced reminder text is removed (a line break inside a quotation
+//! does not end a line); a face's count is a sum over its units. The split
+//! is deterministic, so a text has one segmentation into units.
 
 use std::collections::BTreeSet;
 use std::io::BufRead;
@@ -32,7 +33,7 @@ pub struct Face {
 }
 
 /// What a Corpus Unit is.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd, serde::Serialize)]
 pub enum UnitKind {
     TypeLine,
     /// One paragraph line of rules text.
@@ -46,8 +47,7 @@ pub struct Unit {
     /// Index of its face in [`Corpus::faces`].
     pub face: usize,
     pub kind: UnitKind,
-    /// Line number within the face's rules text after reminder removal; 0 for
-    /// the type line.
+    /// Position among the face's rules-text units; 0 for the type line.
     pub index: usize,
     pub text: String,
 }
@@ -75,15 +75,30 @@ pub fn card_name_lexeme(name: &str) -> LexemeId {
 }
 
 /// The rules-text units of a face: its paragraph lines after balanced
-/// reminder text is removed, trimmed, without empty lines.
+/// reminder text is removed, trimmed, without empty lines. A line break
+/// inside a quotation that closes later in the text does not end a line.
 #[must_use]
 pub fn split_lines(oracle_text: &str) -> Vec<String> {
-    strip_reminder_text(oracle_text)
-        .lines()
-        .map(str::trim)
-        .filter(|line| !line.is_empty())
-        .map(str::to_owned)
-        .collect()
+    let text = strip_reminder_text(oracle_text);
+    let lines: Vec<&str> = text.lines().collect();
+    let quotes = |line: &str| line.matches('"').count();
+    let mut units = Vec::new();
+    let mut start = 0;
+    while start < lines.len() {
+        let mut end = start + 1;
+        let mut open = quotes(lines[start]) % 2 == 1;
+        while open && let Some(close) = lines[end..].iter().position(|l| quotes(l) > 0) {
+            end += close + 1;
+            open = lines[start..end].iter().map(|l| quotes(l)).sum::<usize>() % 2 == 1;
+        }
+        let unit = lines[start..end].join("\n");
+        let unit = unit.trim();
+        if !unit.is_empty() {
+            units.push(unit.to_owned());
+        }
+        start = end;
+    }
+    units
 }
 
 impl Corpus {
@@ -166,6 +181,26 @@ mod tests {
                 "Flying (This creature can't be blocked.)\n(Reminder only.)\n{T}: Add {G}."
             ),
             ["Flying", "{T}: Add {G}."]
+        );
+    }
+
+    #[test]
+    fn a_line_break_inside_a_quotation_does_not_end_a_line() {
+        assert_eq!(
+            split_lines("Creatures you control have \"{T}: Add {G}.\n{T}: Untap this.\"\nFlying"),
+            [
+                "Creatures you control have \"{T}: Add {G}.\n{T}: Untap this.\"",
+                "Flying"
+            ]
+        );
+        // A quotation that never closes does not swallow the lines after it.
+        assert_eq!(
+            split_lines("Say \"hello\nFlying"),
+            ["Say \"hello", "Flying"]
+        );
+        assert_eq!(
+            split_lines("\"A\" and \"B\nC\"\nD"),
+            ["\"A\" and \"B\nC\"", "D"]
         );
     }
 

@@ -14,6 +14,8 @@ use crate::reading::AdmissionError;
 use crate::reading::Reading;
 use crate::reading::glues_after;
 use crate::reading::glues_before;
+use crate::walk::NodeMemo;
+use crate::walk::Visit;
 
 /// Where some Reading of a Parse would not realize as the analyzed text.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -39,9 +41,8 @@ type Edges = (bool, bool);
 /// Memoized edge sets of forest nodes and items.
 #[derive(Default)]
 struct EdgeMemo {
-    nodes: HashMap<usize, BTreeSet<Edges>>,
+    nodes: NodeMemo<BTreeSet<Edges>>,
     items: HashMap<usize, BTreeSet<Edges>>,
-    active: BTreeSet<usize>,
 }
 
 impl Parse<'_> {
@@ -73,18 +74,16 @@ impl Parse<'_> {
         lexicon: &Lexicon,
         memo: &mut EdgeMemo,
     ) -> Result<BTreeSet<Edges>, RealizationFault> {
-        if let Some(edges) = memo.nodes.get(&node) {
-            return Ok(edges.clone());
-        }
-        if !memo.active.insert(node) {
-            return Ok(BTreeSet::new());
-        }
+        let frame = match memo.nodes.enter(node) {
+            Visit::Known(edges) => return Ok(edges),
+            Visit::Cycle => return Ok(BTreeSet::new()),
+            Visit::Open(frame) => frame,
+        };
         let mut edges = BTreeSet::new();
         for &(_, item) in &self.forest.nodes[node].families {
             edges.extend(self.item_edges(item, lexicon, memo)?);
         }
-        memo.active.remove(&node);
-        memo.nodes.insert(node, edges.clone());
+        memo.nodes.leave(frame, &edges);
         Ok(edges)
     }
 
@@ -97,6 +96,7 @@ impl Parse<'_> {
         if let Some(edges) = memo.items.get(&item) {
             return Ok(edges.clone());
         }
+        let mark = memo.nodes.mark();
         let mut edges = BTreeSet::new();
         for &(previous, child) in &self.forest.items[item].families {
             let last: BTreeSet<Edges> = match child {
@@ -123,7 +123,9 @@ impl Parse<'_> {
                 }
             }
         }
-        memo.items.insert(item, edges.clone());
+        if memo.nodes.settle(mark) {
+            memo.items.insert(item, edges.clone());
+        }
         Ok(edges)
     }
 

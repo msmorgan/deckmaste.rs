@@ -21,7 +21,9 @@ It has no proc macros and no generated code: a grammar is data.
 4. `Parse::best_readings(k)` returns the `k` cheapest Readings by total
    Production Cost, keeping only `k` trees per forest node, so it never builds
    every attachment tree; `derivation_count()` counts trees without building
-   them. `readings()` builds them all and is for tests.
+   them. `readings()` builds them all and is for tests. A Derivation never
+   contains its own Constituent, so a unary cycle adds none of its own and
+   hides none of its finite siblings.
 5. `admit(reading, lexicon)` re-checks a Reading without parsing, through the same
    step function the chart uses. `realize(reading, lexicon)` writes it back out.
    Both round-trip laws are tested on every Reading the tests produce.

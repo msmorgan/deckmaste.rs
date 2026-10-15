@@ -3,8 +3,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::collections::HashMap;
-
 use std::ops::Range;
 
 use deckmaste_lexical::Binding;
@@ -22,16 +20,18 @@ use crate::step::ChildView;
 use crate::step::Gap;
 use crate::step::Summary;
 use crate::step::Symbol;
+use crate::walk::NodeMemo;
+use crate::walk::Visit;
 
 /// One whole tree: a grammatical analysis of an expression.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum Reading {
     Node(ReadingNode),
     Leaf(LexicalReading),
 }
 
 /// A Constituent formed by one Production.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct ReadingNode {
     /// The stable id of the Production.
     pub production: String,
@@ -69,51 +69,39 @@ pub enum AdmissionError {
 }
 
 impl Parse<'_> {
-    /// Number of distinct trees in the forest, counted without building them
-    /// (saturating).
+    /// Number of Derivations in the forest, counted without building them
+    /// (saturating). A Derivation never contains its own Constituent, so a
+    /// unary cycle contributes no Derivation of its own.
     #[must_use]
     pub fn derivation_count(&self) -> u128 {
-        let mut memo = HashMap::new();
-        let mut active = BTreeSet::new();
+        let mut memo = NodeMemo::default();
         self.forest
             .roots
             .iter()
-            .map(|&r| self.count_node(r, &mut memo, &mut active))
+            .map(|&r| self.count_node(r, &mut memo))
             .fold(0u128, u128::saturating_add)
     }
 
-    fn count_node(
-        &self,
-        node: usize,
-        memo: &mut HashMap<usize, u128>,
-        active: &mut BTreeSet<usize>,
-    ) -> u128 {
-        if let Some(&c) = memo.get(&node) {
-            return c;
-        }
-        if !active.insert(node) {
-            return 0;
-        }
+    fn count_node(&self, node: usize, memo: &mut NodeMemo<u128>) -> u128 {
+        let frame = match memo.enter(node) {
+            Visit::Known(count) => return count,
+            Visit::Cycle => return 0,
+            Visit::Open(frame) => frame,
+        };
         let mut total = 0u128;
         for &(_, item) in &self.forest.nodes[node].families {
-            total = total.saturating_add(self.count_item(item, memo, active));
+            total = total.saturating_add(self.count_item(item, memo));
         }
-        active.remove(&node);
-        memo.insert(node, total);
+        memo.leave(frame, &total);
         total
     }
 
-    fn count_item(
-        &self,
-        item: usize,
-        memo: &mut HashMap<usize, u128>,
-        active: &mut BTreeSet<usize>,
-    ) -> u128 {
+    fn count_item(&self, item: usize, memo: &mut NodeMemo<u128>) -> u128 {
         let mut total = 0u128;
         for &(previous, child) in &self.forest.items[item].families {
-            let before = previous.map_or(1, |p| self.count_item(p, memo, active));
+            let before = previous.map_or(1, |p| self.count_item(p, memo));
             let here = match child {
-                ChildRef::Node(n) => self.count_node(n, memo, active),
+                ChildRef::Node(n) => self.count_node(n, memo),
                 ChildRef::Leaf(_) | ChildRef::Punct => 1,
             };
             total = total.saturating_add(before.saturating_mul(here));
@@ -138,11 +126,10 @@ impl Parse<'_> {
     }
 
     fn ranked(&self, limit: Option<usize>) -> Vec<Reading> {
-        let mut memo = HashMap::new();
-        let mut active = BTreeSet::new();
+        let mut memo = NodeMemo::default();
         let mut all = BTreeSet::new();
         for &root in &self.forest.roots {
-            all.extend(self.node_trees(root, limit, &mut memo, &mut active));
+            all.extend(self.node_trees(root, limit, &mut memo));
         }
         truncate(all, limit).into_iter().map(|(_, r)| r).collect()
     }
@@ -151,21 +138,19 @@ impl Parse<'_> {
         &self,
         node: usize,
         limit: Option<usize>,
-        memo: &mut HashMap<usize, Vec<(u64, Reading)>>,
-        active: &mut BTreeSet<usize>,
+        memo: &mut NodeMemo<Vec<(u64, Reading)>>,
     ) -> Vec<(u64, Reading)> {
-        if let Some(trees) = memo.get(&node) {
-            return trees.clone();
-        }
-        if !active.insert(node) {
-            return Vec::new();
-        }
+        let frame = match memo.enter(node) {
+            Visit::Known(trees) => return trees,
+            Visit::Cycle => return Vec::new(),
+            Visit::Open(frame) => frame,
+        };
         let grammar = self.grammar;
         let packed = &self.forest.nodes[node];
         let mut trees = BTreeSet::new();
         for &(production, item) in &packed.families {
             let p = &grammar.productions[production];
-            for (cost, children) in self.item_sequences(item, limit, memo, active) {
+            for (cost, children) in self.item_sequences(item, limit, memo) {
                 trees.insert((
                     cost + u64::from(p.cost),
                     Reading::Node(ReadingNode {
@@ -179,9 +164,8 @@ impl Parse<'_> {
                 ));
             }
         }
-        active.remove(&node);
         let trees = truncate(trees, limit);
-        memo.insert(node, trees.clone());
+        memo.leave(frame, &trees);
         trees
     }
 
@@ -189,18 +173,17 @@ impl Parse<'_> {
         &self,
         item: usize,
         limit: Option<usize>,
-        memo: &mut HashMap<usize, Vec<(u64, Reading)>>,
-        active: &mut BTreeSet<usize>,
+        memo: &mut NodeMemo<Vec<(u64, Reading)>>,
     ) -> Vec<(u64, Vec<Reading>)> {
         let mut out = BTreeSet::new();
         for &(previous, child) in &self.forest.items[item].families {
             let prefixes = match previous {
-                Some(p) => self.item_sequences(p, limit, memo, active),
+                Some(p) => self.item_sequences(p, limit, memo),
                 None => vec![(0, Vec::new())],
             };
             let lasts: Vec<(u64, Option<Reading>)> = match child {
                 ChildRef::Node(n) => self
-                    .node_trees(n, limit, memo, active)
+                    .node_trees(n, limit, memo)
                     .into_iter()
                     .map(|(c, r)| (c, Some(r)))
                     .collect(),
@@ -440,16 +423,18 @@ impl CompiledGrammar {
     /// The names of a node's children, in order: the grammatical function
     /// each bears in it.
     fn child_names(&self, node: &ReadingNode) -> Vec<String> {
-        self.by_id.get(&node.production).map_or_else(Vec::new, |&p| {
-            let production = &self.productions[p];
-            production
-                .rhs
-                .iter()
-                .zip(&production.names)
-                .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(_)))
-                .map(|(_, name)| name.clone())
-                .collect()
-        })
+        self.by_id
+            .get(&node.production)
+            .map_or_else(Vec::new, |&p| {
+                let production = &self.productions[p];
+                production
+                    .rhs
+                    .iter()
+                    .zip(&production.names)
+                    .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(_)))
+                    .map(|(_, name)| name.clone())
+                    .collect()
+            })
     }
 
     /// The lexeme reached by following `head` children down from `reading`.

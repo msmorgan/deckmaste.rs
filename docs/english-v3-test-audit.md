@@ -2114,7 +2114,13 @@ correlative pairing) were dropped after migration, and 269 remain.
 `packed.rs` and `slice.rs` test v3's engine over synthetic grammars. Each
 property is (a) already asserted by a `deckmaste_syntax` test, (b) part of
 the engine contract and owed by `english-v4-syntax-engine-obligations`, or (c)
-specific to v3's design.
+specific to v3's design. That ticket asserts the (b) rows in
+`crates/deckmaste_syntax/tests/contract.rs` and, for segments, in
+`deckmaste_english_v4`'s corpus and census tests. The nullable and
+empty-literal rows hold by construction: v4 refuses an empty right-hand
+side, has no literal symbol, and has no zero-width lexical alternative. The
+conflicting-segmentation row cannot arise: units come from one deterministic
+line split, not from a grammar Category.
 
 ### `crates/deckmaste_english_v3/tests/suite/packed.rs`
 

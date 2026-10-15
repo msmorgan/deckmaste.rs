@@ -15,6 +15,7 @@ mod laws;
 mod normal_form;
 mod reading;
 mod step;
+mod walk;
 
 pub use chart::Metrics;
 pub use chart::PackedForest;

@@ -46,3 +46,8 @@ have no `deckmaste_syntax` test yet. Assert each over a small hand grammar in
     unit; two segmentations of the same text are reported, not merged.
 
 Standard constraints apply.
+
+Measured on `luouvmku`:
+
+1. **Census delta**: unchanged. Before (`kykwyppq`) and after: 0 of 32,828 faces read and 0 Readings; all 92,934 units unread (`Unbound`), so the quotation-aware split changed no unit. Lost faces: none.
+2. **Judgment set**: holds; 0 entries enforced and 2,834 pending (no Stratum completed).

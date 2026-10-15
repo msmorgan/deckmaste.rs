@@ -121,3 +121,57 @@ fn an_unbound_grammar_leaves_every_unit_unread() {
             .all(|u| u.verdict == Verdict::Unread(Unread::Unbound))
     );
 }
+
+/// A face's units are parsed and counted one by one: its count is the sum of
+/// its units' Derivations, never their product, and a quotation spanning a
+/// line break stays in one unit.
+#[test]
+fn a_face_counts_the_sum_of_its_units() {
+    let env = LexicalEnvironment {
+        lexicon: seed::lexicon(),
+        frames: seed::frames(),
+    };
+    let mut corpus = Corpus::default();
+    let lines = [
+        "Exile target creature with a counter on it.",
+        "Untap all permanents you control during each other player's untap step.",
+        "Exile target creature with a counter on it.",
+    ];
+    corpus.push(face("a", &lines.join("\n")));
+    corpus.push(face(
+        "b",
+        "Destroy target creature.\n\"Destroy\ntarget creature.\"",
+    ));
+    let report = deckmaste_english_v4::census::run(&corpus, &env, &[], None);
+    let counts: Vec<u128> = report
+        .units
+        .iter()
+        .filter(|u| u.face == "a" && u.text != "Sorcery")
+        .map(|u| u.derivations)
+        .collect();
+    assert_eq!(counts.len(), 3);
+    assert!(counts.iter().all(|&d| d >= 2), "{counts:?}");
+    let sum: u128 = counts.iter().sum();
+    assert!(sum < counts.iter().product::<u128>());
+    let face_a: u128 = report
+        .units
+        .iter()
+        .filter(|u| u.face == "a")
+        .map(|u| u.derivations)
+        .sum();
+    assert_eq!(face_a, sum);
+    assert_eq!(
+        report.total_derivations,
+        report.units.iter().map(|u| u.derivations).sum::<u128>()
+    );
+    let b: Vec<&str> = report
+        .units
+        .iter()
+        .filter(|u| u.face == "b" && u.text != "Sorcery")
+        .map(|u| u.text.as_str())
+        .collect();
+    assert_eq!(
+        b,
+        ["Destroy target creature.", "\"Destroy\ntarget creature.\""]
+    );
+}
