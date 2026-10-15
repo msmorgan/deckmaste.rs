@@ -188,17 +188,29 @@ pub fn lexicon() -> Lexicon {
     for word in ["and", "or"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
-    // The seed shares the closed auxiliary inventory required for binding.
-    let (closed, _) = deckmaste_lexical_source_v4::Sources::load()
-        .unwrap()
-        .vocabulary()
-        .unwrap();
-    lexemes.extend(closed.into_iter().filter(|l| {
-        matches!(
-            l.id.as_str(),
-            "verb:'ve" | "verb:haven't" | "det:both" | "det:more" | "det:everything"
-        )
-    }));
+    for word in ["both", "more", "everything"] {
+        lexemes.push(invariant("det", word, Category::Determinative, Core));
+    }
+    for word in ["'ve", "haven't"] {
+        let mut auxiliary = verb(word, Core);
+        auxiliary
+            .forms
+            .retain(|f| f.form == Present || (word == "haven't" && f.form == Preterite));
+        set(&mut auxiliary, Present, None, None, word);
+        set(
+            &mut auxiliary,
+            Present,
+            Some(Third),
+            Some(Singular),
+            if word == "'ve" { "'s" } else { "hasn't" },
+        );
+        if word == "'ve" {
+            auxiliary.binding = Binding::Suffix;
+        } else {
+            set(&mut auxiliary, Preterite, None, None, "hadn't");
+        }
+        lexemes.push(auxiliary);
+    }
     Lexicon::new(lexemes).expect("seed lexicon")
 }
 

@@ -87,7 +87,9 @@ choice. Other punctuation and symbol attachment are derived from structure.
 
 The load report identifies the one-member `RangeMarker` lexical class: it
 contains the level-range notation marker. This keeps the marker's spelling in
-the lexical environment; it is not an attachment-policing feature.
+the lexical environment; it is not an attachment-policing feature. The
+`Pawprint` singleton likewise distinguishes a mode-count symbol from a cost
+symbol. Both classes are authored with the symbols in the lexical data.
 
 ## Judgment set
 
@@ -105,3 +107,17 @@ to find known-wrong-only units.
 The judgments migrated from `deckmaste_english_v3`'s test suite, and the reason
 each remaining v3 test retires, are recorded in
 [`docs/english-v3-test-audit.md`](../../docs/english-v3-test-audit.md).
+
+Modal selection is a catalog-declared construction of *choose*, whose quantity
+projects to a Noun Phrase Object. Ordinary verb phrases cannot introduce mode
+lists. Keyword catalogs distinguish dashed verbal/composite costs from
+space-separated mana costs; mandatory dash forms such as suspend retain their
+catalog punctuation. The pinned Vintage corpus uses Unicode minus in all 520
+negative loyalty lines (no ASCII hyphen-minus), without display brackets;
+the grammar accepts that source form as well as bracketed symbol notation.
+
+Costed modes use the corpus's Spree plus marker, pawprint quantities, or a
+bulleted Flavor Word followed by its cost. A Saga chapter scopes over the modal
+ability, not separately over its header. Activation effects select instructions,
+so nested cost colons and bare keyword lists are rejected. Bound-keyword
+premodifiers belong to the Keyword Quality before the suffix and cost.

@@ -75,6 +75,9 @@ pub enum SlotFill {
 /// A [`SlotFill`] without its markers: the key a grammar maps to a Category.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum SlotKind {
+    TypeModifier,
+    ChoiceQuantity,
+    NonManaCost,
     Quality,
     Ability,
     Condition,
@@ -268,7 +271,11 @@ impl FrameCatalog {
 pub enum ParameterPart {
     Head,
     Slot(SlotKind),
+    /// A restricted constituent projected to a phrase, with its grammatical relation.
+    ProjectedSlot(SlotKind, SlotKind, SlotRelation),
     Word(LexemeId),
     Words(Vec<LexemeId>),
+    /// A word set with recursive premodification, projected as a constituent.
+    ModifiedWords(Vec<LexemeId>, SlotKind, SlotKind),
     Mark(char, deckmaste_lexical::Binding),
 }

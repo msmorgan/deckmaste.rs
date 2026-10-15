@@ -262,6 +262,11 @@ after an em dash, or power and toughness after an em dash (*prototype {1}{B} —
 may declare several alternative lists of Keyword Parameters, and a keyword with
 none stands alone.
 
+**Keyword Phrase** (project term):
+A Constituent headed by a Keyword Ability, together with its Keyword Parameters
+when supplied. It can express a complete keyword-ability surface or a Keyword
+Mention [CR#702.1,702.1d].
+
 **Keyword Mention** (project term):
 A reference to a Keyword Ability by name, which may omit the Keyword Parameters
 required on its Keyword Line, as *flashback* in *with flashback* or *flashback

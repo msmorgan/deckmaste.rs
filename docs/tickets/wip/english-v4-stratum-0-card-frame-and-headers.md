@@ -30,8 +30,12 @@ Implement **Stratum 0** in `crates/deckmaste_english_v4` per
   - Level headers (`Level N–M`, `Level N+`), Saga chapter headers (`I, II —`),
     and Class level headers.
   - Activated ability cost spines: `<Cost> : <Effect>` (`[CR#602.1]`), including
-    mana/tap/untap/energy symbol costs and loyalty brackets (`[+N]`, `[-N]`,
+    mana/tap/untap/energy symbol costs and loyalty brackets (`[+N]`, `[−N]`,
     `[0]`).
+
+The pinned Vintage corpus spells negative loyalty with Unicode `−` (520 lines,
+none with ASCII `-`) and omits display brackets. Accept its `+N:`, `−N:`, and
+`0:` forms; the bracketed examples above denote the printed symbols.
 
 ## Gate
 

@@ -117,3 +117,15 @@ scope and the loader's rejections. The grammar-leak lint lives with the grammar,
 Plugin-declared vocabulary arrives when `plugins_v3/` does; at
 `english-v4-final-suffix-cutover` the catalogs move into plugin declaration
 metadata and this crate drops its `_v4` suffix.
+
+Verbs can declare ordered construction parameters, including a restricted slot
+projected to a phrase with its grammatical relation. Modal *choose* declares a
+quantity projected to a Noun Phrase Object; its ordinary verb frames remain
+unchanged. `DashNonManaCost` distinguishes verbal/composite keyword costs,
+including their terminal period, from the mandatory dash of forms such as
+suspend with a mana cost.
+
+Notation symbols declare their classes in `closed_class.ron`; the loader does
+not infer their category from their spelling. Pawprint quantities are distinct
+from cost-symbol sequences. Bound keyword stem patterns project a Quality with
+its permitted type premodifiers inside that Quality.

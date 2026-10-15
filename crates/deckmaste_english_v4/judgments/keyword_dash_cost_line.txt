@@ -1,8 +1,8 @@
 # Keyword abilities with a cost parameter, written with a space or an em dash, and activated-ability / ability-word lines
-+KeywordPhrase Equip—{3}
++KeywordPhrase Equip—Sacrifice a creature.
 +KeywordPhrase Ward {2}
 +KeywordPhrase Flashback {1}{R}
-+ Equip—{3}
++ Equip—Sacrifice a creature.
 + Ward—Pay 3 life.
 + Flashback—{1}{R}, Pay 3 life.
 + Escape—{3}{U}, Exile four other cards from your graveyard.

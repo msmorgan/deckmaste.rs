@@ -131,6 +131,11 @@ impl CompiledGrammar {
         let tokens = &analyzed.tokens;
         let n = tokens.len();
         let skip = |mut p: usize| {
+            // A structural line break consumes its own boundary. Indentation
+            // is not an interword space and has no atom to realize it.
+            if p > 0 && matches!(tokens[p - 1], '\n' | '\r') {
+                return p;
+            }
             while p < n && tokens[p].is_whitespace() && tokens[p] != '\n' && tokens[p] != '\r' {
                 p += 1;
             }

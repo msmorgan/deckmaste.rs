@@ -327,21 +327,14 @@ impl Sources {
             }
         }
         for symbol in &closed.symbols {
-            let id = format!("symbol:{symbol}");
+            let id = format!("symbol:{}", symbol.surface);
             let mut lexeme = exact(
                 &id,
-                symbol,
+                &symbol.surface,
                 Category::Symbol,
                 source(SourceKind::Symbol, CLOSED_CLASS, &id),
             );
-            let class = if symbol.starts_with('{') {
-                "BracedSymbol"
-            } else if symbol == "LEVEL" {
-                "RangeMarker"
-            } else {
-                "Variable"
-            };
-            lexeme.properties.classes.insert(class.into());
+            lexeme.properties.classes.extend(symbol.classes.iter().cloned());
             builder.push(lexeme);
         }
         for entry in &self.prepositions {
@@ -677,6 +670,7 @@ impl Sources {
                         ));
                     }
                     KeywordParameter::DashCost
+                    | KeywordParameter::DashNonManaCost
                     | KeywordParameter::DashCondition
                     | KeywordParameter::DashAbility
                     | KeywordParameter::DashPowerToughness
@@ -686,7 +680,7 @@ impl Sources {
                             if matches!(
                                 parameter,
                                 KeywordParameter::DashCost
-                                    | KeywordParameter::DashCondition
+                                    | KeywordParameter::DashNonManaCost
                                     | KeywordParameter::DashKeyword
                             ) {
                                 Binding::Bound
@@ -696,11 +690,15 @@ impl Sources {
                         ));
                         parts.push(ParameterPart::Slot(match parameter {
                             KeywordParameter::DashCost => SlotKind::Cost,
+                            KeywordParameter::DashNonManaCost => SlotKind::NonManaCost,
                             KeywordParameter::DashCondition => SlotKind::Condition,
                             KeywordParameter::DashAbility => SlotKind::Ability,
                             KeywordParameter::DashPowerToughness => SlotKind::Measure,
                             _ => SlotKind::KeywordPhrase,
                         }));
+                        if matches!(parameter, KeywordParameter::DashNonManaCost) {
+                            parts.push(ParameterPart::Mark('.', Binding::Suffix));
+                        }
                     }
                 }
             }
@@ -731,7 +729,7 @@ impl Sources {
                 let bound_patterns = patterns
                     .into_iter()
                     .map(|mut parts| {
-                        parts.insert(0, ParameterPart::Words(stems.iter().copied().collect()));
+                        parts.insert(0, ParameterPart::ModifiedWords(stems.iter().copied().collect(), SlotKind::TypeModifier, SlotKind::Quality));
                         parts
                     })
                     .collect();

@@ -636,6 +636,8 @@ fn card_scope_defect(lexeme: &Lexeme, realized: &BTreeSet<String>) -> Option<&'s
 
 fn valid_flavor_label(label: &str) -> bool {
     !label.is_empty()
+        && label.chars().any(char::is_alphabetic)
+        && !label.contains(['{', '}', '[', ']'])
         && !label.starts_with('•')
         && !label.chars().any(char::is_control)
         && !label.contains(" —")

@@ -136,6 +136,9 @@ pub struct FormOverride {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VerbEntry {
+    /// Ordered parameters of a catalog-declared construction.
+    #[serde(default)]
+    pub parameters: Vec<Vec<deckmaste_syntax::frames::ParameterPart>>,
     pub lemma: String,
     /// The third-person singular present.
     #[serde(default)]
@@ -354,7 +357,7 @@ pub struct ClosedClass {
     pub affixes: Vec<BoundEntry>,
     pub clitics: Vec<BoundEntry>,
     /// Braced and other notation symbols, spelled exactly.
-    pub symbols: Vec<String>,
+    pub symbols: Vec<SymbolEntry>,
 }
 
 /// `catalogs/types.ron` [CR#205.2a,205.4a].
@@ -406,6 +409,8 @@ pub enum KeywordParameter {
     Cost,
     /// A cost after an em dash: *ward—Pay 3 life*.
     DashCost,
+    /// A verbal or composite cost after an em dash, excluding mana-only costs.
+    DashNonManaCost,
     /// A condition after an em dash: *companion—…*.
     DashCondition,
     /// A Keyword Quality, after the preposition named, if any:
@@ -543,4 +548,12 @@ pub struct IntroducedName {
 pub struct AnchorWord {
     pub word: String,
     pub cards: Vec<String>,
+}
+
+/// A notation symbol with catalog-declared lexical classes.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct SymbolEntry {
+    pub surface: String,
+    pub classes: Vec<String>,
 }

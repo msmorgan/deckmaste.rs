@@ -166,24 +166,24 @@
     // [CR#107.4,107.5,107.6,107.14,107.18]; numerical symbols as printed on
     // in-scope cards. Planechase {CHAOS} and {PW} and Un-set symbols are out of scope.
     symbols: [
-        "{T}", "{Q}", "{E}", "{S}", "{X}",
-        "{W}", "{U}", "{B}", "{R}", "{G}", "{C}",
-        "{0}", "{1}", "{2}", "{3}", "{4}", "{5}", "{6}", "{7}", "{8}", "{9}", "{10}",
-        "{11}", "{12}", "{13}", "{14}", "{15}", "{16}", "{20}",
-        "{W/U}", "{W/B}", "{U/B}", "{U/R}", "{B/R}", "{B/G}", "{R/G}", "{R/W}", "{G/W}", "{G/U}",
-        "{2/W}", "{2/U}", "{2/B}", "{2/R}", "{2/G}",
-        "{C/W}", "{C/U}", "{C/B}", "{C/R}", "{C/G}",
-        "{W/P}", "{U/P}", "{B/P}", "{R/P}", "{G/P}",
-        "{W/U/P}", "{W/B/P}", "{U/B/P}", "{U/R/P}", "{B/R/P}",
-        "{B/G/P}", "{R/G/P}", "{R/W/P}", "{G/W/P}", "{G/U/P}",
+        (surface: "{T}", classes: ["BracedSymbol"]), (surface: "{Q}", classes: ["BracedSymbol"]), (surface: "{E}", classes: ["BracedSymbol"]), (surface: "{S}", classes: ["BracedSymbol"]), (surface: "{X}", classes: ["BracedSymbol"]),
+        (surface: "{W}", classes: ["BracedSymbol"]), (surface: "{U}", classes: ["BracedSymbol"]), (surface: "{B}", classes: ["BracedSymbol"]), (surface: "{R}", classes: ["BracedSymbol"]), (surface: "{G}", classes: ["BracedSymbol"]), (surface: "{C}", classes: ["BracedSymbol"]),
+        (surface: "{0}", classes: ["BracedSymbol"]), (surface: "{1}", classes: ["BracedSymbol"]), (surface: "{2}", classes: ["BracedSymbol"]), (surface: "{3}", classes: ["BracedSymbol"]), (surface: "{4}", classes: ["BracedSymbol"]), (surface: "{5}", classes: ["BracedSymbol"]), (surface: "{6}", classes: ["BracedSymbol"]), (surface: "{7}", classes: ["BracedSymbol"]), (surface: "{8}", classes: ["BracedSymbol"]), (surface: "{9}", classes: ["BracedSymbol"]), (surface: "{10}", classes: ["BracedSymbol"]),
+        (surface: "{11}", classes: ["BracedSymbol"]), (surface: "{12}", classes: ["BracedSymbol"]), (surface: "{13}", classes: ["BracedSymbol"]), (surface: "{14}", classes: ["BracedSymbol"]), (surface: "{15}", classes: ["BracedSymbol"]), (surface: "{16}", classes: ["BracedSymbol"]), (surface: "{20}", classes: ["BracedSymbol"]),
+        (surface: "{W/U}", classes: ["BracedSymbol"]), (surface: "{W/B}", classes: ["BracedSymbol"]), (surface: "{U/B}", classes: ["BracedSymbol"]), (surface: "{U/R}", classes: ["BracedSymbol"]), (surface: "{B/R}", classes: ["BracedSymbol"]), (surface: "{B/G}", classes: ["BracedSymbol"]), (surface: "{R/G}", classes: ["BracedSymbol"]), (surface: "{R/W}", classes: ["BracedSymbol"]), (surface: "{G/W}", classes: ["BracedSymbol"]), (surface: "{G/U}", classes: ["BracedSymbol"]),
+        (surface: "{2/W}", classes: ["BracedSymbol"]), (surface: "{2/U}", classes: ["BracedSymbol"]), (surface: "{2/B}", classes: ["BracedSymbol"]), (surface: "{2/R}", classes: ["BracedSymbol"]), (surface: "{2/G}", classes: ["BracedSymbol"]),
+        (surface: "{C/W}", classes: ["BracedSymbol"]), (surface: "{C/U}", classes: ["BracedSymbol"]), (surface: "{C/B}", classes: ["BracedSymbol"]), (surface: "{C/R}", classes: ["BracedSymbol"]), (surface: "{C/G}", classes: ["BracedSymbol"]),
+        (surface: "{W/P}", classes: ["BracedSymbol"]), (surface: "{U/P}", classes: ["BracedSymbol"]), (surface: "{B/P}", classes: ["BracedSymbol"]), (surface: "{R/P}", classes: ["BracedSymbol"]), (surface: "{G/P}", classes: ["BracedSymbol"]),
+        (surface: "{W/U/P}", classes: ["BracedSymbol"]), (surface: "{W/B/P}", classes: ["BracedSymbol"]), (surface: "{U/B/P}", classes: ["BracedSymbol"]), (surface: "{U/R/P}", classes: ["BracedSymbol"]), (surface: "{B/R/P}", classes: ["BracedSymbol"]),
+        (surface: "{B/G/P}", classes: ["BracedSymbol"]), (surface: "{R/G/P}", classes: ["BracedSymbol"]), (surface: "{R/W/P}", classes: ["BracedSymbol"]), (surface: "{G/W/P}", classes: ["BracedSymbol"]), (surface: "{G/U/P}", classes: ["BracedSymbol"]),
         // Any Phyrexian mana symbol, in rules text [CR#107.4g].
-        "{H}",
+        (surface: "{H}", classes: ["BracedSymbol"]),
         // The pawprint symbol [CR#107.18].
-        "{P}",
+        (surface: "{P}", classes: ["Pawprint"]),
         // Placeholder letters for numbers [CR#107.3,107.3p].
-        "X", "Y",
+        (surface: "X", classes: ["Variable"]), (surface: "Y", classes: ["Variable"]),
         // The marker of a level symbol, printed `LEVEL 1-3` or `LEVEL 4+`
         // [CR#107.8,711.2a,711.2b]; its range is numeral notation.
-        "LEVEL",
+        (surface: "LEVEL", classes: ["RangeMarker"]),
     ],
 )

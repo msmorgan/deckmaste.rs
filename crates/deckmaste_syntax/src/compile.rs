@@ -663,7 +663,7 @@ impl<'a> Binder<'a> {
         Ok(())
     }
 
-    fn schema(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
+    fn schema(&mut self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         match schema {
             SchemaDecl::Parameters {
                 head,
@@ -726,8 +726,21 @@ impl<'a> Binder<'a> {
         }
     }
 
+    fn private_category(&mut self, target: usize) -> usize {
+        let category = self.out.categories.len();
+        self.out
+            .categories
+            .push(self.out.categories[target].clone());
+        self.out
+            .category_features
+            .push(self.out.category_features[target].clone());
+        self.out.category_gap.push(self.out.category_gap[target]);
+        self.out.by_lhs.push(Vec::new());
+        category
+    }
+
     fn parameters(
-        &self,
+        &mut self,
         head: LexicalCategory,
         phrase: &str,
         binding: Option<Binding>,
@@ -767,6 +780,39 @@ impl<'a> Binder<'a> {
                                 host: None,
                             },
                         ),
+                        ParameterPart::ProjectedSlot(source, target, relation) => {
+                            let source = self.slot_category(*source)?;
+                            let target = self.slot_category(*target)?;
+                            // A private category limits this slot's derivations while
+                            // retaining the projected phrase's public category name.
+                            let projected = self.private_category(target);
+                            let mut projection = Draft::new(
+                                format!("{}/Projection{}", draft.id, draft.children.len()),
+                                projected,
+                                0,
+                            );
+                            projection.child(
+                                "head",
+                                Symbol::Cat {
+                                    category: source,
+                                    binding: None,
+                                    prepositions: None,
+                                    host: None,
+                                },
+                                GapRule::Closed,
+                            );
+                            drafts.push(projection);
+                            let name = relation_name(*relation);
+                            (
+                                name,
+                                Symbol::Cat {
+                                    category: projected,
+                                    binding: None,
+                                    prepositions: None,
+                                    host: None,
+                                },
+                            )
+                        }
                         ParameterPart::Word(word) => {
                             if !self.out.lexemes.contains_key(word) {
                                 return Err(invalid(format!("unknown parameter marker `{word}`")));
@@ -786,6 +832,51 @@ impl<'a> Binder<'a> {
                             (
                                 "complement",
                                 Symbol::Leaf(Test::Words(words.iter().copied().collect())),
+                            )
+                        }
+                        ParameterPart::ModifiedWords(words, modifier, target) => {
+                            if words.is_empty()
+                                || words
+                                    .iter()
+                                    .any(|word| !self.out.lexemes.contains_key(word))
+                            {
+                                return Err(invalid(format!(
+                                    "invalid modified word class of `{id}`"
+                                )));
+                            }
+                            let target = self.slot_category(*target)?;
+                            let modifier = self.slot_category(*modifier)?;
+                            let category = self.private_category(target);
+                            let mut base = Draft::new(format!("{}/Stem", draft.id), category, 0);
+                            base.child(
+                                "head",
+                                Symbol::Leaf(Test::Words(words.iter().copied().collect())),
+                                GapRule::Closed,
+                            );
+                            drafts.push(base);
+                            let mut recursive =
+                                Draft::new(format!("{}/ModifiedStem", draft.id), category, 0);
+                            for (name, category) in [("modifier", modifier), ("head", category)] {
+                                recursive.child(
+                                    name,
+                                    Symbol::Cat {
+                                        category,
+                                        binding: None,
+                                        prepositions: None,
+                                        host: None,
+                                    },
+                                    GapRule::Closed,
+                                );
+                            }
+                            drafts.push(recursive);
+                            (
+                                "complement",
+                                Symbol::Cat {
+                                    category,
+                                    binding: None,
+                                    prepositions: None,
+                                    host: None,
+                                },
                             )
                         }
                         ParameterPart::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),

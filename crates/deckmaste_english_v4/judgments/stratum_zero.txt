@@ -12,12 +12,13 @@
 * Flying {2}
 * Ward
 + Ward {2}
-+ Equip—{3}
+* Equip—{3}
++ Equip—Sacrifice a creature.
 + Equip legendary creature {1} => Quality "legendary creature"
 + Enchant creature without flying => PrepositionPhrase "without flying" as Modifier of creature
 + Swampwalk => KeywordPhrase "Swampwalk"
-+ Nonbasic landwalk => KeywordPhrase "Nonbasic landwalk"
-+ Basic landcycling {1}{W} => KeywordPhrase "Basic landcycling {1}{W}"
++ Nonbasic landwalk => KeywordPhrase "Nonbasic landwalk"; Quality "Nonbasic land"
++ Basic landcycling {1}{W} => KeywordPhrase "Basic landcycling {1}{W}"; Quality "Basic land"; !Quality "Basic landcycling {1}{W}"
 * Goblinwalk
 * Nonflying
 + Landfall — Destroy a creature. => NounPhrase "a creature" as Object of destroy
@@ -25,14 +26,17 @@
 + {2}{U}, {T}: Destroy a creature. => Cost "{2}{U}, {T}"; NounPhrase "a creature" as Object of destroy
 + {Q}, {E}{E}: Destroy a creature. => Cost "{Q}, {E}{E}"
 + [+2]: Destroy a creature. => Cost "[+2]"
-+ [-2]: Destroy a creature. => Cost "[-2]"
+* [-2]: Destroy a creature.
 + [−2]: Destroy a creature. => Cost "[−2]"
 + [0]: Destroy a creature. => Cost "[0]"
 * [2+]: Destroy a creature.
 + Choose one — => NounPhrase "one" as Object of choose
 + Choose one or both — => NounPhrase "one or both" as Object of choose
 + • Destroy a creature. => NounPhrase "a creature" as Object of destroy
-+ • {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
+* • {2}{G} — Destroy a creature.
++ + {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
++ • Thunder — {2}{G} — Destroy a creature. => Cost "{2}{G}"; NounPhrase "a creature" as Object of destroy
++ {P}{P} — Destroy a creature. => NounPhrase "a creature" as Object of destroy
 + I, II — Flying => KeywordPhrase "Flying"
 + III — Uncharted marvel — Flying => KeywordPhrase "Flying"
 + Artifact landcycling {2} => KeywordPhrase "Artifact landcycling {2}"
@@ -42,3 +46,17 @@
 + {W}{U}: Level 2
 * {W}{U}: Level
 + Prototype {1}{B} — 1/1 => Measure "1/1"
++ −2: Destroy a creature. => Cost "−2"
++ +2: Destroy a creature. => Cost "+2"
++ 0: Destroy a creature. => Cost "0"
+* -2: Destroy a creature.
+* Destroy a creature —
+* Choose a creature —
+* Choose everything —
+* Choose one or everything —
+* Choose more —
++ Choose one or more — => NounPhrase "one or more" as Object of choose
+* {1}: {2}: Destroy a creature.
+* {T}: Flying, vigilance
+* Enchant two creature
++ Enchant two creatures

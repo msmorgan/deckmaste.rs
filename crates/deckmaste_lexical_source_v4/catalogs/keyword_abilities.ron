@@ -13,7 +13,7 @@
         ],
     ),
     // "Equip legendary creature {1}", "Equip—Discard a card."
-    (rule: "[CR#702.6]", name: "Equip", lemma: "equip", parameters: [[Cost], [Quality(None), Cost], [DashCost]],
+    (rule: "[CR#702.6]", name: "Equip", lemma: "equip", parameters: [[Cost], [Quality(None), Cost], [DashNonManaCost]],
         verbs: [
             (lemma: "equip", past: "equipped", gerund: "equipping", frames: [Monotransitive]),
         ],
@@ -35,7 +35,7 @@
     // "trample over planeswalkers" [CR#702.19c]
     (rule: "[CR#702.19]", name: "Trample", lemma: "trample", parameters: [[], [Quality(Some("over"))]]),
     (rule: "[CR#702.20]", name: "Vigilance", lemma: "vigilance"),
-    (rule: "[CR#702.21]", name: "Ward", lemma: "ward", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.21]", name: "Ward", lemma: "ward", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.22]", name: "Banding", lemma: "banding",
         variants: [
             // [CR#702.22b]
@@ -47,21 +47,21 @@
         ],
     ),
     (rule: "[CR#702.23]", name: "Rampage", lemma: "rampage", parameters: [[Amount]]),
-    (rule: "[CR#702.24]", name: "Cumulative Upkeep", lemma: "cumulative upkeep", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.24]", name: "Cumulative Upkeep", lemma: "cumulative upkeep", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.25]", name: "Flanking", lemma: "flanking"),
     (rule: "[CR#702.26]", name: "Phasing", lemma: "phasing"),
-    (rule: "[CR#702.27]", name: "Buyback", lemma: "buyback", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.27]", name: "Buyback", lemma: "buyback", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.28]", name: "Shadow", lemma: "shadow"),
     // Typecycling: "mountaincycling", "basic landcycling" [CR#702.29e]
-    (rule: "[CR#702.29]", name: "Cycling", lemma: "cycling", parameters: [[Cost], [DashCost]], bound: (surface: "cycling", stems: [Subtype, CardType, Supertype]),
+    (rule: "[CR#702.29]", name: "Cycling", lemma: "cycling", parameters: [[Cost], [DashNonManaCost]], bound: (surface: "cycling", stems: [Subtype, CardType, Supertype]),
         verbs: [
             (lemma: "cycle", frames: [Monotransitive]),
         ],
     ),
-    (rule: "[CR#702.30]", name: "Echo", lemma: "echo", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.30]", name: "Echo", lemma: "echo", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.31]", name: "Horsemanship", lemma: "horsemanship"),
     (rule: "[CR#702.32]", name: "Fading", lemma: "fading", parameters: [[Amount]]),
-    (rule: "[CR#702.33]", name: "Kicker", lemma: "kicker", parameters: [[Cost], [DashCost]],
+    (rule: "[CR#702.33]", name: "Kicker", lemma: "kicker", parameters: [[Cost], [DashNonManaCost]],
         variants: [
             // [CR#702.33c]
             (lemma: "multikicker", parameters: [[Cost]]),
@@ -70,10 +70,10 @@
             (lemma: "kick", frames: [Monotransitive]),
         ],
     ),
-    (rule: "[CR#702.34]", name: "Flashback", lemma: "flashback", parameters: [[Cost], [DashCost]]),
-    (rule: "[CR#702.35]", name: "Madness", lemma: "madness", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.34]", name: "Flashback", lemma: "flashback", parameters: [[Cost], [DashNonManaCost]]),
+    (rule: "[CR#702.35]", name: "Madness", lemma: "madness", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.36]", name: "Fear", lemma: "fear"),
-    (rule: "[CR#702.37]", name: "Morph", lemma: "morph", parameters: [[Cost], [DashCost]],
+    (rule: "[CR#702.37]", name: "Morph", lemma: "morph", parameters: [[Cost], [DashNonManaCost]],
         variants: [
             // [CR#702.37b]
             (lemma: "megamorph", parameters: [[Cost]]),
@@ -83,13 +83,13 @@
     (rule: "[CR#702.39]", name: "Provoke", lemma: "provoke"),
     (rule: "[CR#702.40]", name: "Storm", lemma: "storm"),
     (rule: "[CR#702.41]", name: "Affinity", lemma: "affinity", parameters: [[Quality(Some("for"))]]),
-    (rule: "[CR#702.42]", name: "Entwine", lemma: "entwine", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.42]", name: "Entwine", lemma: "entwine", parameters: [[Cost], [DashNonManaCost]]),
     // "Modular—Sunburst"
     (rule: "[CR#702.43]", name: "Modular", lemma: "modular", parameters: [[Amount], [DashKeyword]]),
     (rule: "[CR#702.44]", name: "Sunburst", lemma: "sunburst"),
     (rule: "[CR#702.45]", name: "Bushido", lemma: "bushido", parameters: [[Amount]]),
     (rule: "[CR#702.46]", name: "Soulshift", lemma: "soulshift", parameters: [[Amount]]),
-    (rule: "[CR#702.47]", name: "Splice", lemma: "splice", parameters: [[Quality(Some("onto")), Cost], [Quality(Some("onto")), DashCost]],
+    (rule: "[CR#702.47]", name: "Splice", lemma: "splice", parameters: [[Quality(Some("onto")), Cost], [Quality(Some("onto")), DashNonManaCost]],
         verbs: [
             (lemma: "splice", frames: [TransitiveWithPP(["onto"])]),
         ],
@@ -116,11 +116,11 @@
             (lemma: "haunt", frames: [Monotransitive]),
         ],
     ),
-    (rule: "[CR#702.56]", name: "Replicate", lemma: "replicate", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.56]", name: "Replicate", lemma: "replicate", parameters: [[Cost], [DashNonManaCost]]),
     // "Forecast — {1}{U}, Reveal this card from your hand: …"
     (rule: "[CR#702.57]", name: "Forecast", lemma: "forecast", parameters: [[DashAbility]]),
     (rule: "[CR#702.58]", name: "Graft", lemma: "graft", parameters: [[Amount]]),
-    (rule: "[CR#702.59]", name: "Recover", lemma: "recover", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.59]", name: "Recover", lemma: "recover", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.60]", name: "Ripple", lemma: "ripple", parameters: [[Amount]]),
     (rule: "[CR#702.61]", name: "Split Second", lemma: "split second"),
     // "Suspend 3—{0}"
@@ -149,7 +149,7 @@
         ],
     ),
     (rule: "[CR#702.73]", name: "Changeling", lemma: "changeling"),
-    (rule: "[CR#702.74]", name: "Evoke", lemma: "evoke", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.74]", name: "Evoke", lemma: "evoke", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.75]", name: "Hideaway", lemma: "hideaway", parameters: [[Amount]]),
     (rule: "[CR#702.76]", name: "Prowl", lemma: "prowl", parameters: [[Cost]]),
     // "Reinforce 1—{1}{R}"
@@ -165,7 +165,7 @@
         ],
     ),
     (rule: "[CR#702.83]", name: "Exalted", lemma: "exalted"),
-    (rule: "[CR#702.84]", name: "Unearth", lemma: "unearth", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.84]", name: "Unearth", lemma: "unearth", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.85]", name: "Cascade", lemma: "cascade"),
     (rule: "[CR#702.86]", name: "Annihilator", lemma: "annihilator", parameters: [[Amount]]),
     (rule: "[CR#702.87]", name: "Level Up", lemma: "level up", parameters: [[Cost]]),
@@ -188,7 +188,7 @@
     ),
     (rule: "[CR#702.101]", name: "Extort", lemma: "extort"),
     (rule: "[CR#702.102]", name: "Fuse", lemma: "fuse"),
-    (rule: "[CR#702.103]", name: "Bestow", lemma: "bestow", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.103]", name: "Bestow", lemma: "bestow", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.104]", name: "Tribute", lemma: "tribute", parameters: [[Amount]]),
     (rule: "[CR#702.105]", name: "Dethrone", lemma: "dethrone"),
     (rule: "[CR#702.107]", name: "Outlast", lemma: "outlast", parameters: [[Cost]]),
@@ -210,7 +210,7 @@
     (rule: "[CR#702.118]", name: "Skulk", lemma: "skulk"),
     // "Emerge from artifact {5}{B}{B}"
     (rule: "[CR#702.119]", name: "Emerge", lemma: "emerge", parameters: [[Cost], [Quality(Some("from")), Cost]]),
-    (rule: "[CR#702.120]", name: "Escalate", lemma: "escalate", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.120]", name: "Escalate", lemma: "escalate", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.121]", name: "Melee", lemma: "melee"),
     (rule: "[CR#702.122]", name: "Crew", lemma: "crew", parameters: [[Amount]],
         verbs: [
@@ -239,7 +239,7 @@
             (lemma: "embalm", frames: [Monotransitive]),
         ],
     ),
-    (rule: "[CR#702.129]", name: "Eternalize", lemma: "eternalize", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.129]", name: "Eternalize", lemma: "eternalize", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.130]", name: "Afflict", lemma: "afflict", parameters: [[Amount]]),
     (rule: "[CR#702.131]", name: "Ascend", lemma: "ascend"),
     (rule: "[CR#702.132]", name: "Assist", lemma: "assist"),
@@ -286,8 +286,8 @@
         ],
     ),
     (rule: "[CR#702.150]", name: "Compleated", lemma: "compleated"),
-    (rule: "[CR#702.151]", name: "Reconfigure", lemma: "reconfigure", parameters: [[Cost], [DashCost]]),
-    (rule: "[CR#702.152]", name: "Blitz", lemma: "blitz", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.151]", name: "Reconfigure", lemma: "reconfigure", parameters: [[Cost], [DashNonManaCost]]),
+    (rule: "[CR#702.152]", name: "Blitz", lemma: "blitz", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.153]", name: "Casualty", lemma: "casualty", parameters: [[Amount]]),
     (rule: "[CR#702.154]", name: "Enlist", lemma: "enlist",
         verbs: [
@@ -296,7 +296,7 @@
     ),
     (rule: "[CR#702.155]", name: "Read Ahead", lemma: "read ahead"),
     (rule: "[CR#702.156]", name: "Ravenous", lemma: "ravenous"),
-    (rule: "[CR#702.157]", name: "Squad", lemma: "squad", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.157]", name: "Squad", lemma: "squad", parameters: [[Cost], [DashNonManaCost]]),
     // "Prototype {1}{B} — 1/1"
     (rule: "[CR#702.160]", name: "Prototype", lemma: "prototype", parameters: [[Cost, DashPowerToughness]]),
     (rule: "[CR#702.161]", name: "Living Metal", lemma: "living metal"),
@@ -329,7 +329,7 @@
         ],
     ),
     (rule: "[CR#702.172]", name: "Spree", lemma: "spree"),
-    (rule: "[CR#702.173]", name: "Freerunning", lemma: "freerunning", parameters: [[Cost], [DashCost]]),
+    (rule: "[CR#702.173]", name: "Freerunning", lemma: "freerunning", parameters: [[Cost], [DashNonManaCost]]),
     // "Gift a tapped Fish"
     (rule: "[CR#702.174]", name: "Gift", lemma: "gift", parameters: [[Quality(None)]]),
     (rule: "[CR#702.175]", name: "Offspring", lemma: "offspring", parameters: [[Cost]]),
@@ -347,7 +347,7 @@
             (lemma: "station", frames: [Monotransitive]),
         ],
     ),
-    (rule: "[CR#702.185]", name: "Warp", lemma: "warp", parameters: [[Cost], [DashCost]],
+    (rule: "[CR#702.185]", name: "Warp", lemma: "warp", parameters: [[Cost], [DashNonManaCost]],
         verbs: [
             (lemma: "warp", frames: [Monotransitive]),
         ],

@@ -578,6 +578,10 @@ fn keyword_line<'e>(payload: &[Tok<'e>], families: &mut BTreeSet<Family>) -> boo
                 && token.has(Category::Keyword)
                 && item[..i].iter().all(|t| {
                     t.class_is(Class::CardType)
+                        || t.alts().iter().any(|a| {
+                            a.lexeme
+                                .is_some_and(|l| l.properties.classes.contains("Supertype"))
+                        })
                         || t.class_is(Class::Subtype)
                         || t.has(Category::Affix)
                         || t.alts().iter().any(|a| {

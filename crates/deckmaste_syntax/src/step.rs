@@ -494,7 +494,21 @@ impl CompiledGrammar {
                 notation: Some(*notation),
                 lexeme: None,
                 category: LexicalCategory::Numeral,
-                features: Vec::new(),
+                features: if *notation == deckmaste_lexical::Numeral::Cardinal {
+                    self.projected[0]
+                        .and_then(|id| {
+                            let number = if *value == 1 { "Singular" } else { "Plural" };
+                            self.values[id]
+                                .iter()
+                                .position(|v| v == number)
+                                .and_then(|v| u16::try_from(v).ok())
+                                .map(|v| (id, v))
+                        })
+                        .into_iter()
+                        .collect()
+                } else {
+                    Vec::new()
+                },
             }),
             LexicalReading::FlavorWord { .. } => Some(LeafFacts {
                 integer: None,

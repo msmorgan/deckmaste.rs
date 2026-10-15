@@ -76,7 +76,14 @@ singleton classes are reported. The grammar never enumerates their members.
 `Parameters` compiles the catalog's ordered parameter patterns around a head:
 slots select grammar Categories; markers, bound stems and head identities stay
 in the catalog. Noun notation parameters support indexed headers by the same
-mechanism as keyword parameters.
+mechanism as keyword parameters. Verbal parameter patterns also support lexical
+construction signatures, such as modal selection. `ProjectedSlot` projects a
+restricted constituent into its phrase category and assigns a grammatical
+relation. Its private parser category keeps the restricted derivations separate
+from the unrestricted phrase, while the Reading retains the public phrase
+category. `ModifiedWords` similarly builds a restricted word set with recursive
+premodification inside its projected category. This lets a quantity be a Noun Phrase Object without admitting every
+Noun Phrase into the modal-selection construction.
 
 `Mark` specifies structural punctuation and its attachment at either edge;
 `Attached` attaches a constituent at its outer boundaries, for adjacent symbol
