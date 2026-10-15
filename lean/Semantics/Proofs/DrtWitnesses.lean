@@ -7,11 +7,15 @@ namespace Semantics.Proofs.DrtWitnesses
 
 private def kalitasBody : Instruction := .sequentially [
   destroy (target creature),
-  create (.lit 1)
-    { characteristics :=
-        { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } },
-  .establish (.ptModification it (.set (powerOf (that (.type .creature))))
-    (.set (toughnessOf (that (.type .creature))))) none]
+  .doIf (happenedThisWay
+      (.move (that (.type .creature)) (.zones [battlefield])
+        (some (graveyardOf .any)) .departure none []) .any)
+    (.sequentially [
+      create (.lit 1)
+        { characteristics :=
+            { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } },
+      .establish (.ptModification it (.set (powerOf (that (.type .creature))))
+        (.set (toughnessOf (that (.type .creature))))) none]) none]
 
 
 theorem kalitasReadback : Instruction.check (DRS.ofList []) kalitasBody = [] := by decide
@@ -19,9 +23,11 @@ theorem kalitasReadback : Instruction.check (DRS.ofList []) kalitasBody = [] := 
 
 theorem kalitasSelectsTokenThenDestroyedCreature :
     let result := (stepInstruction 64 .postEvent .obj (DRS.ofList []) kalitasBody).1
-    result.resolvedIds = [1, 2] ∧
+    result.resolvedIds.contains 1 = true ∧ result.resolvedIds.contains 2 = true ∧
       (result.findById? 2).map (·.pronounResolved) = some true ∧
-      (result.findById? 1).map (·.pronounResolved) = some false := by decide
+      (result.findById? 2).map (·.payload.orig) = some (some .token) ∧
+      (result.findById? 1).map (·.pronounResolved) = some false ∧
+      (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 private def destroyedCreature : DRS :=
   (stepInstruction 64 .postEvent .obj (DRS.ofList []) (destroy (target creature))).1

@@ -1601,7 +1601,8 @@ def stepOps : Nat → StepOps
           let (domainDrs, domainErrors) := ops.pred drs dom
           let kind := (dom.kind? <|> drs.relativeKind).getD .object
           let member := bindFor domainDrs .the .one kind dom
-          let (measured, measureErrors) := ops.amt (domainDrs.push member .other false) m
+          let candidateContext := (nextClause domainDrs).push member .other false
+          let (measured, measureErrors) := ops.amt candidateContext m
           let boundContext := { domainDrs with
             referents := domainDrs.referents.filter (fun ref => ref.id < drs.nextId)
             nextId := measured.nextId }
@@ -1942,7 +1943,8 @@ def stepOps : Nat → StepOps
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], refuse (attachment == .enchanted || Kind.lte word.kind .object)
-            (.kindLte word.kind .object))
+            (.kindLte word.kind .object) ++
+            refuse (word.kind == .player || attachHeadOk attachment word) .contradictionFree)
         | .theGrantor _ =>
           let ref : Referent := {
             det := .the, plur := .one,

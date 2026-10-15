@@ -62,7 +62,7 @@ theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
       ⟨.actor .you, .draw .anyAmount,
         .duration soFarThisTurn
-          (some (.onlyIf (.exists_ (.described (.a .unmarked)
+          (some (.onlyIf (.exists_ (.described .bare
             (.and [.hasType .creature,
               .did ⟨.any, .move .which (.zones [.zone .battlefield .bare])
                 (some (.zone .graveyard .bare)) .departure none [], withinThisTurn⟩])))))⟩ =
@@ -114,7 +114,9 @@ theorem locusUsesDeclaredActionFeatures :
         .thisWay⟩ = [.lookbackLocus] := by decide
 
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :
-    (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder := by rfl
+    (stepPredicate 64 drs (.did clause)).1.relativeBinder = drs.relativeBinder ∧
+      (stepPredicate 64 drs (.did clause)).1.relativeUses = drs.relativeUses := by
+  constructor <;> rfl
 
 theorem unspecifiedSpellDoesNotIntroduceAReference :
     (stepGameEvent 64 (DRS.ofList [])

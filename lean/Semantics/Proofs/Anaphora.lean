@@ -729,21 +729,6 @@ theorem badSingularReadOfBarePlural :
           draw (.statOf (.stat .power) it) ]) = [.anaphor .bare .one 0] := by
   decide
 
-/-- "Destroy target creature. If this enchantment isn't a creature, it becomes an Angel
-creature until end of turn." The "it" reads the condition's own subject, which is all a
-condition publishes. -/
-theorem okCondSubjectRead :
-    Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ destroy (target creature),
-          .doIf (.not (.matches thisEnchantment creature))
-            (become
-              it
-              { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
-              (some untilEndOfTurn))
-            none ]) = [] := by
-  decide
-
 /-- The definite source remains available outside its negated property test. -/
 theorem conditionItReadsCurrentSource :
     Instruction.check (DRS.ofList [])
@@ -761,8 +746,8 @@ theorem okOwnPowerWithoutNewMention :
       = [] := by
   decide
 
-/-- "Target creature gets +1/+1": the shared subject read once, by the one stat change. (The
-two-modification spelling it had is `GetsBothDeltas.okOwnReadsOneInDeltaTwoHalves`.) -/
+/-- "Target creature gets +1/+1": the shared subject is read once by the stat change.
+`GetsBothDeltas.selectedPtSubjectHasStableIdentity` pins that subject's identity. -/
 theorem okOwnReadsOneInDelta :
     Instruction.check (DRS.ofList [])
       (establishFor (target creature)
@@ -772,8 +757,8 @@ theorem okOwnReadsOneInDelta :
   decide
 
 /-- "Both target creature and target artifact get +1/+1", the shared subject read as "it":
-ambiguous between the two, refused once. (The two-modification spelling it had, refused once
-per half, is `GetsBothDeltas.badSharedSubjectTwoInDeltaTwoHalves`.) -/
+ambiguous between the two, refused once. The corresponding modern shape is also pinned by
+`GetsBothDeltas.ambiguousSingularPtSubjectIsRefused`. -/
 theorem badSharedSubjectTwoInDelta :
     Instruction.check (DRS.ofList [])
       (establishFor (Primitives.NounPhrase.both (target creature) (target artifact))

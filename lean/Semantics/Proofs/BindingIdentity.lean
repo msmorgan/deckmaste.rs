@@ -6,7 +6,7 @@ import Semantics.Macros.Declared
 
 A registry macro's referent parameter is bound at the body's first mention, and every later
 mention refers back to that binding by its Binding Identity, not by a pronoun search
-(`docs/decisions/semantics-v3.md` §7, ruling 2026-10-06). The `plugins_v3` loader writes the
+(`docs/decisions/semantics-v3.md` §§1.2,1.4). The `plugins_v3` loader writes the
 first mention `firstMention id argument` and each later one `laterMention id argument`; the
 terms below are written the way it writes them. The identity is a name, never a stack position:
 other bindings pushed between the mentions do not change what a later mention reads. Each pin
@@ -37,12 +37,9 @@ private def tapThenUntap (x : NounPhrase) : Instruction :=
 private def tapThenUntapCopied (x : NounPhrase) : Instruction :=
   .sequentially [tap x, untap x]
 
-/-- Fight as the loader writes the `plugins_v3` body: the first creature is the performer, handed
-the deed (`instruct(<first>, fight(<second>))`), and is `actor` inside it; the second, the parameter,
-is bound where the first damage event first mentions it and read back by identity after
-[CR#701.14a]. The rule that a creature no longer on the battlefield deals no fight damage
-[CR#701.14b] is the rules' to apply, not a guard in the text: a guard's condition may not
-introduce its subject (`testSubject`), so it cannot carry a first mention. -/
+/-- The first creature is handed the fight; the Definition names both participants before
+checking its creature guards, then reads those same identities in the opposite damage directions
+[CR#701.14a,701.14b]. -/
 private def fightByIdentity (l r : NounPhrase) : Instruction := instruct l (fight r)
 
 /-! ## Two mentions, one binding -/
@@ -282,14 +279,10 @@ for as long as it remains exiled, its owner may cast it by paying {2} rather tha
 The per-card spelling binds the objects where it exiles them and loops over each card exiled
 this way, handing each card's permission to that card's own owner. The exile makes them new
 objects [CR#400.7,400.7j], so the loop reads them back by anaphora, never by the parameter
-(`docs/decisions/semantics-v3.md` §7, ruling 2026-10-08). The loop's singular referent remains
+(`docs/decisions/semantics-v3.md` §§0.1,1.3). The loop's singular referent remains
 available through the handoff to its owner. -/
 
 private def airbendByCard := Declared.airbend
-
-theorem airbendSeveralTargetsCheck :
-    Instruction.check (DRS.ofList [])
-      (airbendByCard (.described (.target (upTo 2)) creature)) = [] := by decide
 
 theorem okAirbendByCardUpToTwo :
     Instruction.check (DRS.ofList [])

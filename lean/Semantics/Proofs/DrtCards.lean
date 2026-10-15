@@ -230,4 +230,58 @@ theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
       (out.1.findById? 0).isNone = true ∧ (out.1.findById? 2).isNone = true ∧
       (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
 
+
+theorem countersOnItReadsTheStatSubjectInsideTheSmallClause :
+    let initial := (stepNounPhrase 16 (DRS.ofList []) .subj true
+      (target creature)).1
+    let result := stepAmount 16 initial (countersOn p1p1Counter it)
+    result.2 = [] ∧ result.1.resolvedIds = [0] ∧
+      (initial.findById? 0).map (·.role) = some .subj ∧
+      (initial.pendingRoles.contains (0, .subj)) = true := by decide +kernel
+
+private def weepingAngelRecipientContext : DRS :=
+  (stepWouldClauseWith (stepOps 16) (DRS.ofList [])
+    (.would (.actor thisCreature)
+      (.dealDamage .anyAmount (.firstMention "weeping.recipient" (a creature)) .combatOnly))).1
+
+theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
+    let initial := nextClause weepingAngelRecipientContext
+    let owner := stepNounPhrase 16 initial .subj true (ownerOf (that (.type .creature)))
+    let patient := stepNounPhrase 16 owner.1 .obj true
+      (.laterMention "weeping.recipient" it)
+    owner.2.2 = [] ∧ patient.2.2 = [] ∧
+      owner.2.1 = [4] ∧ patient.2.1 = [2] ∧
+      (owner.1.pendingRoles.contains (2, .subj)) = false ∧
+      (owner.1.pendingRoles.contains (4, .subj)) = true := by decide +kernel
+
+theorem weepingAngelOwnerCanShuffleItsCreatureIntoTheirLibrary :
+    Instruction.check (nextClause weepingAngelRecipientContext)
+      (instruct (ownerOf (that (.type .creature)))
+        (shuffleInto (.laterMention "weeping.recipient" it))) = [] := by decide +kernel
+
+
+theorem weepingAngelRawPronounCurrentlySelectsTheDamageSource :
+    let owner := stepNounPhrase 16 (nextClause weepingAngelRecipientContext)
+      .subj true (ownerOf (that (.type .creature)))
+    let raw := stepNounPhrase 16 owner.1 .obj true it
+    owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [0] ∧
+      (identityBinding "weeping.recipient" raw.1).map (·.id) = some 2 := by decide +kernel
+
+
+theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
+    let shuffleInstruction := shuffleInto (.laterMention "weeping.recipient" it)
+    let movePrefix := match shuffleInstruction with
+      | .ownScope name (.sequentially (first :: _)) => Instruction.ownScope name first
+      | _ => .sequentially []
+    let initial := nextClause weepingAngelRecipientContext
+    let moved := stepInstruction 12 .postEvent .obj initial
+      (instruct (ownerOf (that (.type .creature))) movePrefix)
+    let out := stepInstruction 12 .postEvent .obj initial
+      (instruct (ownerOf (that (.type .creature))) shuffleInstruction)
+    moved.2 = [] ∧ out.2 = [] ∧
+      (moved.1.visibleReferents.filter
+        (fun ref => ref.ty.contains .creature && ref.zone == some .library)).length = 1 ∧
+      (out.1.findById? 0).map (·.zone) = some (some .battlefield) ∧
+      (out.1.findById? 2).isNone = true := by decide +kernel
+
 end Semantics.Proofs.DrtCards

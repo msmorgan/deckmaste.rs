@@ -159,6 +159,44 @@ theorem librarySliceKeepsLibraryCarrier :
     errors = [] ∧ ids.length = 1 ∧
       (ids.filterMap after.findById?).map (·.zone) = [some .library] := by decide
 
+/-- Without a named performer, two players do not determine whose choice this is. -/
+theorem implicitChooserDoesNotIgnoreAnotherPlayer :
+    NounPhrase.checkAt (some .object) (DRS.ofList [playerBinding, playerBinding])
+      (aTheirChoice creature) = [.chooserInScope 2] := by decide
+
+/-- An explicit performer determines the chooser despite other players in discourse. -/
+theorem explicitChooserWinsOverOuterPlayers :
+    Instruction.check (DRS.ofList [playerBinding, playerBinding])
+      (instruct (target .anyPlayer) (choose (aTheirChoice creature))) = [] := by decide
+
+theorem agentWithoutOuter :
+    Instruction.check (DRS.ofList [])
+      (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
+
+theorem agentWithOuter :
+    Instruction.check (DRS.ofList [playerBinding, letterB .x])
+      (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
+
+theorem scopedMovePreservesTheOuterBindings :
+    let before := nextClause (powerAfter outer)
+    let after := (stepInstruction 64 .postEvent .obj before (exile it)).1
+    Instruction.check before (exile it) = [] ∧
+      (after.findById? 0) = (before.findById? 0) ∧
+      (after.findById? 1) = (before.findById? 1) ∧
+      (after.findById? 2) = none ∧
+      (firstReach (.word .card) .one (nextClause after)).map (fun r => (r.ty, r.zone)) =
+        some ([.creature], some .exile) := by decide
+
+theorem amountLetterChangesIntroductionCount :
+    (sharedAfter (DRS.ofList [])).referents.length = 2 ∧
+      (sharedAfter outer).referents.length = outer.referents.length + 1 := by decide
+
+/-- A second subject in the same clause remains a true tie; ordinary pronouns are not captures. -/
+theorem ownStatSameClauseSubjectsStillTie :
+    let before := DRS.ofList [{ creatureBinding with role := .subj }]
+    NounPhrase.checkAt (some .object) (powerAfter before) it =
+      [.anaphor .bare .one 2] := by decide
+
 theorem attachWithoutOuterLetter :
     Instruction.check (DRS.ofList [creatureBinding]) (attachToIt artifactX) = [] := by decide
 

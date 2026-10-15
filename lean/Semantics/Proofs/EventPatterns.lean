@@ -37,6 +37,13 @@ theorem absentSourceCannotSupplyReference :
     GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount it .any)) =
       [.anaphor .bare .one 0] := by decide
 
+/-- Every occurred damage event publishes its outcome ahead of participant referents. -/
+theorem damageOutcomePrecedesParticipantsForEveryContext
+    (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
+    ((GameEvent.extend drs
+      (.does (.actor source) (.dealDamage .anyAmount patient kind))).referents.head?).map
+        (·.payload) = some (.outcome .damageDealt) := by rfl
+
 theorem damagePublishesParticipantsAndOutcome :
     let after := GameEvent.extend (DRS.ofList [])
       (.does (.actor (a creature)) (.dealDamage .anyAmount (a .anyPlayer) .any))
