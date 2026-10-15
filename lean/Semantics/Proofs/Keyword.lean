@@ -264,6 +264,11 @@ theorem badActivatedClosesCardLetter :
       = [.openLetter .x] := by
   decide
 
+theorem activatedManaCostIntroducesItsOwnX :
+    Ability.check (costLetters (some [.variable]))
+      (activated (.mana [.variable]) (Macros.instruct .you (draw (.letter .x)))) = [] := by
+  decide
+
 theorem sharedSubjectSurvivesSecondSingular :
     Instruction.check (DRS.ofList [])
       (.sequentially

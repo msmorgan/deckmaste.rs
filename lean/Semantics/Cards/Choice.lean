@@ -1110,9 +1110,10 @@ theorem okDiscardUpToTwoThenDrawThatMany :
     Instruction.check (DRS.ofList []) discardUpToTwoThenDrawThatMany = [] := by decide
 /-- Truce and Temporary Truce -/
 def drawUpToTwoThenGainPerShortfall : Instruction :=
-  Primitives.Instruction.sequentially
-    [ instruct (each Primitives.Predicate.anyPlayer) (offer (instruct they (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 2))))),
-      instruct they (gainLife (times (.lit 2) shortOfCeiling)) ]
+  instruct (each Primitives.Predicate.anyPlayer)
+    (Primitives.Instruction.sequentially
+      [ offer (Primitives.Instruction.draw (Primitives.Amount.upTo (.lit 2))),
+        instruct (that .player) (gainLife (times (.lit 2) shortOfCeiling)) ])
 theorem okDrawUpToTwoThenGainPerShortfall :
     Instruction.check (DRS.ofList []) drawUpToTwoThenGainPerShortfall = [] := by decide
 

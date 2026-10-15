@@ -83,4 +83,16 @@ def deonticDeedFits (before after : DRS) (action : Instruction)
     actorOk && (action.checksEnactPatient || patientIds.all (fun id =>
       (after.findById? id).elim true (fun ref => deonticReferentFits deed false ref checkPatientZone)))
 
+def publishProhibitionSources (before after : DRS) : DRS :=
+  let sources := after.referents.filter (fun ref => ref.id ≥ before.nextId &&
+    !ref.isActorFrame && !ref.isGap &&
+    (Kind.lte ref.kind (.join .object .player)) &&
+    (ref.det == .target || ref.det == .the || ref.attachmentHost))
+  let ids := sources.map (·.id)
+  { before with
+    referents := sources ++ before.referents
+    nextId := max before.nextId after.nextId
+    nextSelectionScope := max before.nextSelectionScope after.nextSelectionScope
+    pendingRoles := after.pendingRoles.filter (fun mention => ids.contains mention.1) ++ before.pendingRoles }
+
 end Semantics

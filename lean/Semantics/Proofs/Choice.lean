@@ -235,6 +235,37 @@ theorem badChoiceRestDisposedTwice :
       = [.theRestFits .object] := by
   decide
 
+theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
+    let chosen : SelectionEvidence :=
+      { kind := .object, chosen := true, scope := 0 }
+    let otherSource : SelectionEvidence :=
+      { kind := .object, sourceGroup := some 1, scope := 0 }
+    let otherScope : SelectionEvidence :=
+      { kind := .object, sourceGroup := some 0, scope := 1 }
+    let otherKind : SelectionEvidence :=
+      { kind := .player, sourceGroup := some 0, scope := 0 }
+    let before : DRS :=
+      { referents := [
+          { id := 0, det := .all, plur := .many,
+            payload := .object [] none none none none none }]
+        selectionEvidence :=
+          [{ kind := .object, sourceGroup := some 0, scope := 0 },
+            chosen, otherSource, otherScope, otherKind] }
+    (before.consumeRest before .object).selectionEvidence =
+      [chosen, otherSource, otherScope, otherKind] ∧
+      (before.consumeRest before .object).choiceWasPossible .object = true := by decide
+
+theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
+    let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf .opponent)).1
+    let after := instructionResult before
+      (.sequentially [choose (a .opponent), choose (counted (upTo 1) creature),
+        destroy (theRest .object)])
+    NounPhrase.checkAt (some .object) after (theRest .object) = [.theRestFits .object] ∧
+      countParts .object after = 0 ∧ countChoice .player after = 1 ∧
+      (after.findById? 1).map (·.payload) = some (.player true) ∧
+      (after.findById? 0).map (fun ref => (ref.kind, ref.plur)) =
+        some (.player, .many) := by decide
+
 /-- "up to one creature they control" -/
 def upToOneTheyControl : NounPhrase :=
   counted (upTo 1) (.and [creature, .hasPossessor .controller they])
@@ -276,37 +307,51 @@ theorem okSharedGroupWithoutARest :
       = [] := by
   decide
 
-/-- The loop's chosen permanents are local; its input player group retains its outer identity. -/
-theorem loopLocalChoicesDoNotEscape :
+theorem targetLoopPublishesAFreshPluralResult :
     let loop := Instruction.doForEach (each .anyPlayer)
       (choose (target (.and [permanent, .hasPossessor .controller they])))
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) loop).1
+    let after := instructionResult (DRS.ofList []) loop
+    Instruction.check (DRS.ofList [])
+      (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) = [] ∧
+      after.visibleReferents.map (fun r => (r.id, r.kind, r.plur)) =
+        [(3, .object, .many), (0, .player, .many)] ∧
+      (after.findById? 2).isNone = true ∧
+      (firstReach (.word .permanent) .many (nextClause after)).map (·.id) = some 3 ∧
+      (firstReach (.word .permanent) .one (nextClause after)).isNone = true := by decide
+
+theorem ordinaryLoopChoicesRemainLocal :
+    let loop := Instruction.doForEach (each .anyPlayer)
+      (choose (a (.and [permanent, .hasPossessor .controller they])))
+    let after := instructionResult (DRS.ofList []) loop
     Instruction.check (DRS.ofList [])
       (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) =
         [.anaphor (.word .permanent) .many 0] ∧
-      after.visibleReferents.map (fun r => (r.id, r.kind, r.plur)) = [(0, .player, .many)] := by decide
+      after.visibleReferents.map (fun r => (r.id, r.kind, r.plur)) =
+        [(0, .player, .many)] := by decide
 
-/-- "Tap all creatures. Each player chooses up to one creature they control, then sacrifices
-the rest.": the rest here spends the group the whole table shares, and a player can't
-sacrifice a permanent they don't control ([CR#701.21a]; `okDistributedRestOfOwnChoice` is the
-same deed with only the chooser's own partitives standing). -/
-theorem badDistributedRestOfSharedGroup :
-    Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ tap (allOf creature),
-          instruct (each .anyPlayer) (choose upToOneTheyControl),
-          instruct (each .anyPlayer) (sacrifice (theRest .object)) ]) = [.enactKeepsOuter] := by
-  decide
+theorem distributedRestPreservesTheUnrelatedOuterGroup :
+    let tapping := tap (allOf creature)
+    let sequence := Instruction.sequentially
+      [tapping, instruct (each .anyPlayer) (choose upToOneTheyControl),
+        instruct (each .anyPlayer) (sacrifice (theRest .object))]
+    let after := instructionResult (DRS.ofList []) sequence
+    Instruction.check (DRS.ofList []) sequence = [] ∧
+      (after.findById? 7).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
+        some (.object, .many, some .graveyard, [.creature]) ∧
+      (after.findById? 6).isNone = true ∧
+      (after.findById? 0).map (·.payload) =
+        ((instructionResult (DRS.ofList []) tapping).findById? 0).map (·.payload) := by decide
 
-/-- "Choose up to one creature. Each player sacrifices the rest.": one chooser leaves one
-shared leftover, not a partition per player, so the other players would sacrifice permanents
-they don't control [CR#701.21a]. -/
-theorem badDistributedRestOfSingularChoice :
-    Instruction.check (DRS.ofList [])
-      (.sequentially
-        [choose (counted (upTo 1) creature), instruct (each .anyPlayer) (sacrifice (theRest .object))])
-      = [.enactKeepsOuter] := by
-  decide
+theorem distributedSacrificeConsumesTheOuterRemainder :
+    let sequence := Instruction.sequentially
+      [choose (counted (upTo 1) creature),
+        instruct (each .anyPlayer) (sacrifice (theRest .object))]
+    let after := instructionResult (DRS.ofList []) sequence
+    Instruction.check (DRS.ofList []) sequence = [] ∧
+      (after.findById? 4).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
+        some (.object, .many, some .graveyard, [.creature]) ∧
+      (after.findById? 3).isNone = true ∧
+      countParts .object after = 0 := by decide
 
 /-- "an opponent who controls more lands than you control" -/
 theorem okComparisonBoundOutsideTheMember :

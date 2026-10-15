@@ -406,7 +406,7 @@ def abruptDecay : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Abrupt Decay", cost := some [pip .black, pip .green], types := [.instant],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
           Primitives.Ability.spell none
             (destroy (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]))) ] } }
 
@@ -891,9 +891,9 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
-                revealCards (theVerbed (.action "search") .one),
-                move (theVerbed (.action "search") .one) hand,
-                Primitives.Instruction.doIf (happenedThisWay (Primitives.Instruction.search (Primitives.SearchScope.oneZone Primitives.ZoneExpr.anyZone) anyNumber (Primitives.Predicate.and [])) (Primitives.Subject.actor Primitives.NounPhrase.you)) shuffle
+                revealCards it,
+                move it hand,
+                Primitives.Instruction.doIf (happenedThisWay (Primitives.Instruction.search (Primitives.SearchScope.oneZone yourLibrary) anyNumber (Primitives.Predicate.and [])) (Primitives.Subject.actor Primitives.NounPhrase.you)) shuffle
                     none ]) ],
       power := stat 3, toughness := stat 2 } }
 

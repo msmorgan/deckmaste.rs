@@ -509,7 +509,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
     { name := "Curator of Destinies", cost := some [generic 4, pip .blue, pip .blue],
       types := [.creature], subtypes := [creatureType "Sphinx"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
           keyword (.named "flying"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Instruction.sequentially
@@ -563,7 +563,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Instruction.doIfDone (sacrifice (a creature))
               (some (Primitives.Instruction.sequentially
-                [ searchLibraryFor (exactly 1) creature, revealCards (theVerbed (.action "search") .one), move (theVerbed (.action "search") .one) hand,
+                [ searchLibraryFor (exactly 1) creature, revealCards it, move it hand,
                   shuffle ]))
               none),
           activated (Primitives.Cost.loyaltySymbol (.down 3))

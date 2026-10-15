@@ -392,7 +392,7 @@ def dovinsVeto : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dovin's Veto", cost := some [pip .white, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
           Primitives.Ability.spell none (Primitives.Instruction.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.not creature]))) ] } }
 
 def goblinSpy : Spelled := spelled <| .singleFaced

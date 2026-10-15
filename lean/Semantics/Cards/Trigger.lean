@@ -424,8 +424,7 @@ def fyndhornDruid : Spelled := spelled <| .singleFaced
     { name := "Fyndhorn Druid", cost := some [generic 2, pip .green], types := [.creature],
       subtypes := [creatureType "Elf", creatureType "Druid"],
       text :=
-        [ triggeredIf (Primitives.GameEvent.dies thisCreature) (happened (Primitives.Instruction.block (Primitives.NounPhrase.asMarker .permanent
-          (relative .object))) (Primitives.Subject.actor it) soFarThisTurn)
+        [ triggeredIf (Primitives.GameEvent.dies thisCreature) (happened (Primitives.Instruction.block it) Primitives.Subject.any soFarThisTurn)
             (gainLife (.lit 4)) ],
       power := stat 2, toughness := stat 2 } }
 

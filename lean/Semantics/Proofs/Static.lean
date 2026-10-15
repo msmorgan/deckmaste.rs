@@ -199,13 +199,16 @@ theorem okSkipDuringTheirNextTurn :
       = [] := by
   decide
 
-/-- "You skip all combat phases of their next turn.": the bench macro writes the unbound
-"their" at both of the turn's boundaries, its beginning and its end, and each is refused (the
-RON helper captures it once; a `Duration` has no binding scope to capture it in Lean). -/
-theorem badSkipDuringUnboundNextTurn :
-    Instruction.check (DRS.ofList []) (establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that
-        .player)))
-      = [.anaphor (.word .player) .one 0, .anaphor (.word .player) .one 0] := by
+/-- The duration's possessor can read the explicit "you" in the preceding subject slot. -/
+theorem durationPossessorReadsTheExplicitPlayer :
+    let instruction := establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))
+    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList []) instruction
+    errors = [] ∧ (identityBinding "duringNextTurnOf.player" after).map (·.id) = some 0 ∧
+      after.referents.map (·.id) = [0] := by decide
+
+theorem unboundDurationPossessorIsRefused :
+    Duration.check (DRS.ofList []) (duringNextTurnOf (that .player))
+      = [.anaphor (.word .player) .one 0, .bindingIdentity "duringNextTurnOf.player"] := by
   decide
 
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the

@@ -541,7 +541,7 @@ def vexingShusher : Spelled := spelled <| .singleFaced
     { name := "Vexing Shusher", cost := some [hybridPip .red .green, hybridPip .red .green],
       types := [.creature], subtypes := [creatureType "Goblin", creatureType "Shaman"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
           activated (Primitives.Cost.mana [hybridPip .red .green])
             (Primitives.Instruction.establish (objectCant (.action "counter") (target spell)) none) ],
       power := stat 2, toughness := stat 2 } }
@@ -785,8 +785,9 @@ def vorelOfTheHullClade : Spelled := spelled <| .singleFaced
 theorem prosperityCostLetters : costLetters (some [.variable, pip .blue]) = [letterB .x] := rfl
 def prosperityTextLetter : Amount := Primitives.Amount.letter .x
 theorem prosperityTextReadsCostLetter :
-    Amount.introduced (costLetters (some [.variable, pip .blue])) prosperityTextLetter = [] := by
-  decide
+    let context := DRS.ofList (costLetters (some [.variable, pip .blue]))
+    let out := (stepAmount 64 context prosperityTextLetter).1
+    out.referents.filter (fun ref => ref.id ≥ context.nextId) = [] := by decide
 theorem noVariableSymbolNoLetter : costLetters (some [generic 1, pip .blue]) = [] := by decide
 theorem noCostNoLetter : costLetters none = [] := by decide
 
@@ -1078,6 +1079,7 @@ def deathWard : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none (regenerate (target creature))] } }
 
 def bareTextLetter : Amount := Primitives.Amount.letter .x
-theorem textAloneOnceMintedItsOwnLetter : Amount.introduced [] bareTextLetter = [letterB .x] := rfl
+theorem textAloneOnceMintedItsOwnLetter :
+    (stepAmount 64 (DRS.ofList []) bareTextLetter).1.referents = [letterB .x] := by decide
 
 end Semantics.Cards

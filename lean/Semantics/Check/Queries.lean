@@ -149,5 +149,70 @@ private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
         (.possessorOf .controller (.pro (.word .join) .one))).2.2 =
           [.possessorKind .controller (.join .object .player)] := by decide
 
+private theorem bareCountDomainDoesNotCompeteWithTheRemainderGroup :
+    let phrase := NounPhrase.someOf (.counted (.range (some 1) (some 1))) none
+      (.slice .top (.countOf (.described .bare (.hasType .creature)))
+        (.library (.possessedBy .you)))
+    let context := (stepNounPhrase 64 (DRS.ofList []) .other false phrase).1
+    DetPhrase.det .bare = .bare ∧ countGroups .object context = 1 ∧
+      countParts .object context = 1 ∧ theRestOk .object context = true ∧
+      theOtherOk .object context = false := by decide
+
+private def prospectiveCreatureCreation : Instruction :=
+  .createObject (.lit 1)
+    (.token (.written { characteristics := { types := [.creature] } }) []) true none
+
+private def repeatProspectiveTokens : Instruction :=
+  .createObject (.lit 3) (.token .asThose []) true none
+
+private theorem prospectiveTokenDescriptionDoesNotIntroduceAnActualToken :
+    let out := (stepInstruction 8 .preEvent .obj (DRS.ofList []) prospectiveCreatureCreation).1
+    out.prospectiveTokenTypes = [[.creature]] ∧ countTokenSpecs out = 0 ∧
+      (resolveCandidates (.word .token) .one out).isEmpty = true ∧
+      (stepTokenSpecMetadataWith (stepOps 8) out .asThose).2.2 = [] := by decide
+
+private theorem prospectiveEmblemIsNotATokenDescription :
+    let out := (stepInstruction 8 .preEvent .obj (DRS.ofList [])
+      (.createObject (.lit 1) (.emblem none []) true none)).1
+    out.prospectiveTokenTypes = [] ∧
+      (stepTokenSpecMetadataWith (stepOps 8) out .asThose).2.2 = [.tokenSpecInScope 0] := by decide
+
+private theorem replacementTokenDescriptionStaysInItsOwnScope :
+    let unused := (stepInstruction 8 .postEvent .obj (DRS.ofList [])
+      (.replace prospectiveCreatureCreation (.draw (.lit 1)))).1
+    let created := (stepInstruction 8 .postEvent .obj (DRS.ofList [])
+      (.replace prospectiveCreatureCreation repeatProspectiveTokens)).1
+    unused.prospectiveTokenTypes = [] ∧ countTokenSpecs unused = 0 ∧
+      (stepTokenSpecMetadataWith (stepOps 8) unused .asThose).2.2 = [.tokenSpecInScope 0] ∧
+      created.prospectiveTokenTypes = [] ∧ countTokenSpecs created = 1 ∧
+      tyOfThoseAny .token created = [.creature] := by decide
+
+private theorem nestedReplacementUsesItsOwnTokenDescription :
+    let initial := { (DRS.ofList []) with prospectiveTokenTypes := [[.land]] }
+    let nested := Instruction.replace prospectiveCreatureCreation
+      (.replace (.createObject (.lit 1) (.token .asThose []) true none) repeatProspectiveTokens)
+    let result := stepInstruction 8 .postEvent .obj initial nested
+    result.2 = [] ∧ result.1.prospectiveTokenTypes = [[.land]] ∧
+      countTokenSpecs result.1 = 1 ∧ tyOfThoseAny .token result.1 = [.creature] := by decide +kernel
+
+private theorem damageSourceRetainsItsIdentityOutsideTheBattlefield :
+    let payload := Payload.object [.artifact] (some .graveyard) none none none none
+    let context := nextClause (DRS.ofList [{ det := .the, plur := .one, payload, id := 17 }])
+    let source := NounPhrase.pro .bare .one
+    let result := stepInstruction 8 .postEvent .obj context
+      (.instruct source (.dealDamage (.lit 2) .you .noncombatOnly))
+    result.2 = [] ∧ (result.1.findById? 17).map (·.payload) = some payload ∧
+      (stepInstruction 8 .postEvent .obj context (.instruct source (.setStatus .tapped .any))).2 = [.handoffPerformer] ∧
+      (stepInstruction 8 .postEvent .obj context (.instruct source (.setStatus .untapped .any))).2 = [.handoffPerformer] := by decide
+
+private theorem kindLoopPublishesChoiceHistoryWithoutItsLocalCreature :
+    let creature := Predicate.hasType .creature
+    let choice := Instruction.choose none (.described (.a .unmarked) creature) .openly none
+    let result := stepInstruction 8 .postEvent .obj (DRS.ofList [])
+      (.doForEachKind (.value .power) (some (.described .all creature)) .number choice)
+    result.2 = [] ∧ Predicate.checkAt .object result.1 .notChosen = [] ∧
+      (resolveCandidates (.word (.type .creature)) .one result.1).isEmpty = true ∧
+      countParts .object result.1 = 0 ∧ countChoice (.quality .number) result.1 = 0 := by decide +kernel
+
 end Check.QueryPins
 end Semantics

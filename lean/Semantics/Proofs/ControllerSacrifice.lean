@@ -79,4 +79,12 @@ private def authoringWitness : Spelled := spelled <| .singleFaced
 theorem compositionPassesTheAuthoringBoundary :
     authoringWitness.authoring.onlyMacros = true := by decide
 
+theorem controlGrantRecordsItsPatientIdentity :
+    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (gainControl (target creature) (some untilEndOfTurn))
+    let refs := resolveCandidates (.verbed (.core .gainControl) none .attributive)
+      .one (nextClause after)
+    errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧
+      refs.map (·.id) = (after.referents.filter (fun r => r.det == .target)).map (·.id) := by decide
+
 end Semantics.Proofs.ControllerSacrifice

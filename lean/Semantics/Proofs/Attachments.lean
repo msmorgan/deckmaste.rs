@@ -111,10 +111,12 @@ theorem okEquipmentMayBeAttachedToACreature :
 theorem okAuraMayBeAttachedToAPlayer :
     StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .anyPlayer)) = [] := by decide
 
-/-- A deed with no host role takes no host. -/
-theorem badHostOfAHostlessDeed :
-    StaticSpec.check (DRS.ofList [])
-      (.may (.by (allOf creature)) (destroy thisPermanent) { rider := .noRider }) = [.deonticPatientOk] := by decide
+theorem passiveAgentAndAttachmentHostAreDistinct :
+    (.by (allOf creature) : Subject).patientRole = .subj ∧
+      mayBeAttachedTo thisEquipment (allOf creature) =
+        .may .any (Primitives.Instruction.attachTo thisEquipment (allOf creature))
+          { rider := .noRider } := by
+  constructor <;> rfl
 
 /-! ## The chapter axis (ruling 2026-10-10) -/
 

@@ -58,7 +58,7 @@ theorem okAnyOtherTarget :
 `anyOtherTarget` with one hypothesis; the list form names both. -/
 theorem badOther :
     Instruction.check (DRS.ofList []) (Instruction.instruct .this (.dealDamage (.lit 1) (target anyOtherTarget) .any))
-      = [.anyTargeted (.join .object (.join .object (.join .object .player))), .otherAnchored] := by
+      = [.anyTargeted (.join .object .player), .otherAnchored] := by
   decide
 
 /-- "Tap target creature. It gets −1/−1 until end of turn." (U+2212 minus signs: an ASCII
@@ -427,11 +427,27 @@ theorem badPreventedThisWayUnannounced :
 
 /-- "… They gain 2 life for each card less than two they drew this way." -/
 theorem okShortOfCeilingAnnounced :
+    let drawing := instruct (each .anyPlayer)
+      (.sequentially [offer (draw (.upTo (.lit 2))),
+        instruct they (gainLife (times (.lit 2) shortOfCeiling))])
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) drawing).1
+    Instruction.check (DRS.ofList []) drawing = [] ∧
+      (after.visibleReferents.filter (fun ref => ref.payload == .outcome .ceilingShortfall)).map
+        (·.id) = [2] := by decide
+
+theorem singularTheyCannotReadThePublishedPlayerGroup :
     Instruction.check (DRS.ofList [])
       (.sequentially
         [ instruct (each .anyPlayer) (offer (instruct they (draw (.upTo (.lit 2))))),
-          instruct they (gainLife (times (.lit 2) shortOfCeiling)) ]) = [] := by
-  decide
+          instruct they (gainLife (times (.lit 2) shortOfCeiling)) ]) =
+      [.anaphor (.word .player) .one 0] := by decide
+
+theorem optionalDrawSummaryDoesNotExportDrawnCards :
+    let drawing := instruct .you (offer (draw (.upTo (.lit 2))))
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) drawing).1
+    countOutcomes .ceilingShortfall after = 1 ∧
+      NounPhrase.checkAt (some .object) (nextClause after) (those .card) =
+        [.anaphor (.word .card) .many 0] := by decide
 
 /-- "You gain 2 life for each card less than two you draw this way." -/
 theorem badShortOfCeilingUnannounced :

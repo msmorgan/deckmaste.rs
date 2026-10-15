@@ -162,7 +162,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
     { name := "Gaea's Revenge", cost := some [generic 5, pip .green, pip .green],
       types := [.creature], subtypes := [creatureType "Elemental"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") Primitives.NounPhrase.this),
+        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
           keyword (.named "haste"),
           Primitives.Ability.static (cantBeTargetedBy thisCreature
             (allOf (Primitives.Predicate.or [ Primitives.Predicate.and [spell, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)],
@@ -781,7 +781,7 @@ def arrest : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
-            [ Primitives.StaticSpec.conjunction none [Primitives.StaticSpec.cant (Primitives.Subject.actor (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) (Primitives.Instruction.attack none) { rider := Primitives.DeonticRider.noRider }, Primitives.StaticSpec.cant (Primitives.Subject.actor (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) (Primitives.Instruction.block Primitives.NounPhrase.any) { rider := Primitives.DeonticRider.noRider }],
+            [ Primitives.StaticSpec.cant (Primitives.Subject.actor (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) (Primitives.Instruction.attack none) { rider := Primitives.DeonticRider.noRider }, Primitives.StaticSpec.cant (Primitives.Subject.actor (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) (Primitives.Instruction.block Primitives.NounPhrase.any) { rider := Primitives.DeonticRider.noRider },
               Primitives.StaticSpec.cant Primitives.Subject.any
                 (Primitives.Instruction.procedure .activate
                   (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyActivated,

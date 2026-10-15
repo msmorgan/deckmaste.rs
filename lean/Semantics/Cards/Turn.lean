@@ -20,11 +20,13 @@ namespace Semantics.Cards
 
 /-- Through the Breach Splice -/
 def throughTheBreach : Instruction :=
-  Primitives.Instruction.sequentially
-    [ offer (move (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) battlefield),
-      gainHaste (that (.type .creature)) none,
-      delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none))
-        (sacrifice (that (.type .creature))) ]
+  Primitives.Instruction.offer
+    (move (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) battlefield)
+    (some (Primitives.Instruction.sequentially
+      [ gainHaste (that (.type .creature)) none,
+        delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none))
+          (sacrifice (that (.type .creature))) ]))
+    none
 theorem okThroughTheBreach : Instruction.check (DRS.ofList []) throughTheBreach = [] := by decide
 
 def turnToMist : Instruction :=

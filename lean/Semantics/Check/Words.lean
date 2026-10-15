@@ -212,7 +212,7 @@ def coreDeedFacts : CoreDeed → ActFacts
       { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
         patientRole := ⟨some ⟨.object, [], [.creature]⟩, false, some .battlefield⟩ }
   | .target =>
-      { agentRole := ⟨none, true, some .stack⟩,
+      { agentRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
         patientRole := ⟨some ⟨.either, [], allTypes⟩, true, none⟩ }
   | .copy =>
       { agentRole := ⟨none, true, some .stack⟩,
@@ -551,6 +551,7 @@ structure Referent where
   pronounResolved : Bool := false
   targets         : List Kind := []
   attachmentHost  : Bool := false
+  announcedTargetResult : Bool := false
   librarySearchResult : Bool := false
   counterMemoryAvailable : Bool := true
   deriving DecidableEq, Repr
@@ -607,9 +608,11 @@ structure DRS where
   relativeKind  : Option Kind := none
   relativeBinder : Option ReferentId := none
   relativeUses  : Nat := 0
+  prospectiveTokenTypes : List (List CardType) := []
   /-- The current action describes an event or permission pattern. -/
   actionPattern : Bool := false
   characteristicRead : Bool := false
+  groupSizeScope : Option (List ReferentId) := none
   selectionEvidence : List SelectionEvidence := []
   selectionScope : Nat := 0
   nextSelectionScope : Nat := 1
@@ -951,6 +954,17 @@ def restSource (k : Kind) (drs : DRS) : Option Referent :=
       else loop bs
   loop drs.visibleReferents
 
+def DRS.consumeRest (after before : DRS) (kind : Kind) : DRS :=
+  let partIds := before.visibleReferents.filterMap fun ref =>
+    if ref.det == .part && Kind.lte kind ref.kind then some ref.id else none
+  let sourceGroup := (restSource kind before).map (·.id)
+  { after with
+    referents := after.referents.map fun ref =>
+      if partIds.contains ref.id then { ref with det := .the } else ref
+    selectionEvidence := after.selectionEvidence.filter fun evidence =>
+      !(evidence.scope == before.selectionScope && Kind.lte kind evidence.kind &&
+        evidence.sourceGroup.isSome && evidence.sourceGroup == sourceGroup) }
+
 def zoneOfGroup (k : Kind) (drs : DRS) : Option Zone := restSource k drs >>= (·.zone)
 def tyOfGroup (k : Kind) (drs : DRS) : List CardType := (restSource k drs).elim [] (·.ty)
 def provOfGroup (k : Kind) (drs : DRS) : Option Stamp := restSource k drs >>= (·.payload.prov)
@@ -1035,9 +1049,9 @@ def Referent.isPublic (b : Referent) : Bool :=
   | _ => true
 
 def pluralizeBinding (b : Referent) : Referent :=
-  match b.det with
-  | .self => b
-  | _ => { b with plur := .many }
+  match b.det, b.payload with
+  | .self, _ | _, .letter _ => b
+  | _, _ => { b with plur := .many }
 
 def pluralizeIntroduced (bs : List Referent) : List Referent := bs.map pluralizeBinding
 
@@ -1179,6 +1193,10 @@ def stampIs (v : Deed) : Option Stamp → Bool
   | none => false
   | some st => stampedBy v st
 
+def Referent.stampedBy (b : Referent) (verb : Deed) : Bool :=
+  stampIs verb b.payload.prov ||
+    (b.librarySearchResult && deedFeatureOf verb == some .librarySearch)
+
 def markTy (ty : List CardType) (b : Referent) : Referent :=
   match b.payload with
   | .object old zn st og sz ps =>
@@ -1212,7 +1230,7 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .bare => Kind.lte .object b.kind && pl.isOne == b.plur.isOne
   | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
   | .verbed v none _ =>
-    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && stampIs v b.payload.prov
+    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && b.stampedBy v
   | .tokenBorn =>
     Kind.lte .object b.kind && pl.isOne == b.plur.isOne && isTokenOrigin b.payload.orig
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
@@ -1220,7 +1238,7 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .verbed v (some w) _ =>
     match b.payload with
     | .object ty zn (some st) og _ _ =>
-      pl.isOne == b.plur.isOne && stampWordOk v w st ty zn og
+      pl.isOne == b.plur.isOne && b.stampedBy v && verbedWordOk w st ty zn og
     | _ => false
 
 /-- A characteristic read may name a departed permanent by its former type

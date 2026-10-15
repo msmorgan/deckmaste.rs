@@ -787,8 +787,16 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Instruction.check (DRS.ofList [])
       (.sequentially
-        [ Macros.instruct (each .opponent) (.enact (.action "shuffle") (Macros.instruct they (.shuffle (library .actor))) none none),
+        [ Macros.instruct (each .opponent) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
           Macros.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
+  decide
+
+theorem redundantSameClauseShuffleHandoffIsRefused :
+    Instruction.check (DRS.ofList [])
+      (Macros.instruct (each .opponent)
+        (.enact (.action "shuffle")
+          (Macros.instruct they (.shuffle (library .actor))) none none)) =
+      [.anaphor (.word .player) .one 0] := by
   decide
 
 theorem secondChooserDevotionRead :

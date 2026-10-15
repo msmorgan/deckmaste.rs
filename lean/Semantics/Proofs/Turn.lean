@@ -38,7 +38,7 @@ theorem badDelayedOther :
       (.sequentially
         [ (Instruction.instruct .this (.dealDamage (.lit 2) (target anyTarget) .any)),
           delay atTheEndStep (Instruction.instruct .this (.dealDamage (.lit 1) (target anyOtherTarget) .any)) ])
-      = [.anyTargeted (.join .object (.join .object (.join .object .player))), .otherAnchored] := by
+      = [.anyTargeted (.join .object .player), .otherAnchored] := by
   decide
 
 theorem badStaleCarrier :
@@ -490,9 +490,11 @@ theorem okUntapAmountReadsSubject :
     Instruction.check [qualityB .color]
       (.skipUntap (target creature) (powerOf it)) = [] := by decide
 
-theorem badUntapAmountWithoutSubjectMention :
-    Instruction.check [qualityB .color]
-      (.skipUntap thisCreature (powerOf it)) = [.anaphor .bare .one 0] := by decide
+theorem untapAmountReadsItsPublishedSelfSubject :
+    let before := DRS.ofList [qualityB .color]
+    let selected := (stepNounPhrase 64 before .obj true thisCreature).1
+    Instruction.check before (.skipUntap thisCreature (powerOf it)) = [] ∧
+      (firstReach .bare .one selected).map (·.id) = some 1 := by decide
 
 theorem okUntapNestedAmountIntroducesLetterOnce :
     countLetter .x (instructionResult (DRS.ofList [])
