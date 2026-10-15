@@ -65,11 +65,22 @@ theorem okNestedCounterpartTargetRemainsAvailable :
       exile (target (.and [artifact, .attachment .attachment none (some (target creature))])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
-theorem badAbsentCounterpartTarget :
+/-- The explicit source mention remains available after the attached artifact is exiled. -/
+theorem sourceCounterpartRemainsAvailable :
     Instruction.check (DRS.ofList []) (.sequentially [
       exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])),
-      .setStatus .tapped (that (.type .creature))]) =
-      [.anaphor (.word (.type .creature)) .one 0] := by decide
+      .setStatus .tapped (that (.type .creature))]) = [] := by decide
+
+private def sourceCounterpartAfterExile : DRS :=
+  (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    (exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])))).1
+
+theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
+    let context := nextClause sourceCounterpartAfterExile
+    let selected := resolveCandidates (.word (.type .creature)) .one context
+    selected.length = 1 ∧
+      selected.map (·.id) = (stepNounPhrase 64 (DRS.ofList []) .other false thisCreature).2.1 ∧
+      selected.all (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) := by decide
 
 theorem transformedMacroReadsWholeBackFace :
     Primitives.Predicate.isTransformed = Predicate.currentFace .back := by rfl

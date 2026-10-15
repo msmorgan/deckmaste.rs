@@ -203,8 +203,9 @@ theorem badAgentedAgentlessAct :
 /-- "1 life for each creature" -/
 theorem okForEachOne : Amount.check (DRS.ofList []) (forEach 1 creature) = [] := by decide
 
-/-- "1 life for each 0 creatures" -/
-theorem badForEachZero : Amount.check (DRS.ofList []) (forEach 0 creature) = [.amtNonZero] := by decide
+/-- "0 life for each creature": a zero coefficient is a valid amount. -/
+theorem zeroTimesCreatureCountIsAnAmount :
+    Amount.check (DRS.ofList []) (forEach 0 creature) = [] := by decide
 
 /-- "creature on the battlefield" -/
 theorem okConsistentZoneConjunct :
@@ -291,9 +292,9 @@ theorem okChosenCardRemention :
   decide
 
 /-- "Draw a card. Exile that card." -/
-theorem badDrawnCardRemention :
+theorem drawnCardCanBeExiled :
     Instruction.check (DRS.ofList []) (.sequentially [draw (.lit 1), exile (that .card)])
-      = [.anaphor (.word .card) .one 0] := by
+      = [] := by
   decide
 
 /-- "Draw a card and you gain 1 life." -/
@@ -342,7 +343,9 @@ theorem okSearchZoneFreeDescription :
 /-- "If you would search your library for a creature card, instead search your library for a
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
-    Instruction.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) creature) (revealCards (theVerbed (.action "search") .one))) = [] := by
+    Instruction.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) creature)
+      (.sequentially [searchLibraryFor (exactly 1) creature,
+        revealCards (theVerbed (.action "search") .one)])) = [] := by
   decide
 
 /-- "Each player mills a card. Exile it." -/

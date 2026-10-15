@@ -822,13 +822,13 @@ theorem okUntapNextSingleIt :
       = [] := by
   decide
 
-theorem badUntapNextAmbiguousIt :
-    Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ .setStatus .tapped (target creature),
-          .setStatus .tapped (target artifact),
-          .skipUntap it (.lit 1) ]) = [.anaphor .bare .one 2] := by
-  decide
+theorem recentTappedArtifactIsSelectedForUntapSkip :
+    let taps := .sequentially [.setStatus .tapped (target creature), .setStatus .tapped (target artifact)]
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) taps).1
+    Instruction.check (DRS.ofList []) (.sequentially
+      [.setStatus .tapped (target creature), .setStatus .tapped (target artifact), .skipUntap it (.lit 1)]) = [] ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
+      (after.findById? 1).map (·.ty) = some [.artifact] := by decide
 
 /-- "I — Draw a card." -/
 theorem okChapterMark :

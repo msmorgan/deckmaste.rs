@@ -28,6 +28,11 @@ Standard constraints apply.
     `P15`, `P16`) as `.anaphor` refusals.
   - Replace P12’s obsolete v2 ambiguity expectation with a positive v3 witness
     selecting the second opponent by `AC>R1`, including the selected referent identity.
+  - Replace P13 (`Faces.badUntapNextAmbiguousIt`) with
+    `Faces.recentTappedArtifactIsSelectedForUntapSkip`: sequential clause recency
+    selects the second tapped object's artifact referent. Assert acceptance,
+    selected identity, and artifact type. P16 is the separate
+    `ReferenceScopes.ordinaryItRemainsAmbiguous` true tie and remains refused.
   - None of the 21 measured ambiguity pins is deleted without a named replacement.
 - **Required pins for the 11 previously measured `AC>R1` sites:**
   - Retain a named witness for each site in `lean/Semantics/Proofs/`, classifying

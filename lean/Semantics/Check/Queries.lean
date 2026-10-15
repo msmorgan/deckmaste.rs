@@ -128,5 +128,24 @@ private theorem attachmentHostModifierDoesNotOverrideThePlayerHead :
     Predicate.kind? (.and [.attachment .host (some .enchanted) none, .anyPlayer]) =
       some .player := by decide
 
+private theorem attachmentKindsUseTheMatchedSubjectAndOneHeadGate :
+    Condition.check (DRS.ofList [])
+      (.matches .you (.attachment .host (some .equipped) none)) = [.kindLte .player .object] ∧
+      Predicate.checkAt .player (DRS.ofList []) (.attachment .attachment none none) =
+        [.kindMismatch .player .object] := by decide
+
+private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
+    let joined : Payload := .join
+      (.object [.planeswalker] (some .battlefield) none none none none) (.player false)
+    let context := DRS.ofList [{ det := .target, plur := .one, payload := joined }]
+    let controller : NounPhrase := .possessorOf .controller (.pro (.unionHalf (.type .planeswalker)) .one)
+    let participant : NounPhrase := .or [.pro (.unionHalf .player) .one, controller]
+    (stepNounPhrase 64 context .other false controller).2.2 = [] ∧
+      ((stepNounPhrase 64 context .other false controller).1.findById? 0).map (·.payload) = some joined ∧
+      NounPhrase.checkAt (some .player) context participant = [] ∧
+      (stepNounPhrase 64 context .other false
+        (.possessorOf .controller (.pro (.word .join) .one))).2.2 =
+          [.possessorKind .controller (.join .object .player)] := by decide
+
 end Check.QueryPins
 end Semantics

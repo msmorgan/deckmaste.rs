@@ -1,4 +1,4 @@
-import Semantics.Check.EventContext
+import Semantics.Check.Phrase
 
 /-!
 # Semantics.Check.PhraseRules

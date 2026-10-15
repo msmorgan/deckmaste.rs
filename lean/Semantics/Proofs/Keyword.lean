@@ -69,15 +69,15 @@ theorem okThatCreatureAfterAntecedent :
   decide
 
 /-- "This creature gets +1/+1 and that creature has flying." -/
-theorem badThatCreatureIsStaticSubject :
-    Ability.check (DRS.ofList [])
-      (.static
-        (.conjunction none
-          [ .modification thisCreature .power (.up (.lit 1)),
-            .modification it .toughness (.up (.lit 1)),
-            .abilityGrant (that (.type .creature)) (keyword (.named "flying")) ]))
-      = [.anaphor (.word (.type .creature)) .one 0] := by
-  decide
+theorem staticSelfRemainsReadableAsThatCreature :
+    let spec := StaticSpec.conjunction none
+      [.modification thisCreature .power (.up (.lit 1)),
+        .modification it .toughness (.up (.lit 1)),
+        .abilityGrant (that (.type .creature)) (keyword (.named "flying"))]
+    let after := (stepStaticSpec 64 (DRS.ofList []) spec).1
+    Ability.check (DRS.ofList []) (.static spec) = [] ∧
+      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "Creatures you control get +1/+1 and they have flying." -/
 theorem okCoordinatedPlural :

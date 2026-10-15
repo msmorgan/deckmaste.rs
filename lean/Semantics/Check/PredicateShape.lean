@@ -255,4 +255,29 @@ def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+def Predicate.hasOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.hasOther n
+  | _ + 1, .other | _ + 1, .otherThan _ => true
+  | n + 1, .and predicates => predicates.any (·.hasOther n)
+  | _, _ => false
+termination_by structural fuel
+
+def Predicate.hasBareOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.hasBareOther n
+  | _ + 1, .other => true
+  | n + 1, .and predicates => predicates.any (·.hasBareOther n)
+  | _, _ => false
+termination_by structural fuel
+
+def Predicate.isOther (predicate : Predicate) : Bool :=
+  match predicate.scopeBody with | .other | .otherThan _ => true | _ => false
+
+def coordinableAll (predicates : List Predicate) : Bool :=
+  predicates.all (fun predicate => !predicate.hasOther)
+
+def anchorTyFits (headTypes anchorTypes : List CardType) : Bool :=
+  headTypes.isEmpty || headTypes.any (fun type => anchorTyOk type anchorTypes)
+
 end Semantics

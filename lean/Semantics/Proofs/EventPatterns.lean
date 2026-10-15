@@ -117,7 +117,7 @@ theorem anyZoneChangeIsMeaningful :
 
 theorem playerIsNotAChangingObject :
     GameEvent.check (DRS.ofList []) (.does .any (.move .you .anywhere none .arrival none [])) =
-      [.kindMismatch .object .player] := by decide
+      [.kindLte .player (.join .object .pile)] := by decide
 
 theorem explicitCardLocationIsRetained :
     nounZone (DRS.ofList []) (a (.and [.isCard, creature, .inZone graveyard])) =
@@ -172,5 +172,25 @@ theorem excludingYourGraveyardAllowsAnOpponentsGraveyard :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
       (a (.and [.isCard, .inZone (graveyardOf (a .opponent)),
         .not (.inZone (graveyardOf .you))])) = [] := by decide
+
+private def headerCreature : Referent :=
+  { det := .the, plur := .one, role := .subj,
+    payload := .object [.creature] (some .battlefield) none none none none }
+
+private def headerArtifact : Referent :=
+  { det := .a, plur := .one, role := .other,
+    payload := .object [.artifact] (some .battlefield) none none none none }
+
+theorem alternativeHeaderKeepsSourceIdentityAndClosesExtra :
+    let primary := DRS.ofList [headerCreature]
+    let alternative := DRS.ofList [headerCreature, headerArtifact]
+    let common := commonHeaderContext (DRS.ofList []) [primary, alternative]
+    common.visibleReferents.map (fun r => (r.id, r.ty)) = [(0, [.creature])] ∧
+      common.nextId = 2 := by decide
+
+theorem forkedIdsDoNotIdentifyDifferentHeaderParticipants :
+    let creatureBranch := DRS.ofList [headerCreature]
+    let artifactBranch := DRS.ofList [{ headerArtifact with role := .subj }]
+    (commonHeaderContext (DRS.ofList []) [creatureBranch, artifactBranch]).referents = [] := by decide
 
 end Semantics.Proofs.EventPatterns

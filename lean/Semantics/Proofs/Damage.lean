@@ -50,22 +50,23 @@ theorem okIt :
   decide
 
 /-- "Target creature fights target creature. Tap it." -/
-theorem badIt :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [instruct (target creature) (fight (target creature)), .setStatus .tapped it])
-      = [.anaphor .bare .one 2] := by
-  decide
+theorem fightSourceIsSelectedBySubjectPriority :
+    let combat := instruct (target creature) (fight (target creature))
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) combat).1
+    Instruction.check (DRS.ofList []) (.sequentially [combat, .setStatus .tapped it]) = [] ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 0 ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "Tap target creature." -/
 theorem okTapBattlefield :
     Instruction.check (DRS.ofList []) (.setStatus .tapped (target creature)) = [] := by decide
 
-/-- "This deals 3 damage to each creature. Tap it." The Idris pin refutes the anaphor. -/
-theorem badTheyIt :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [(Instruction.instruct .this (.dealDamage (.lit 3) (each creature) .any)), .setStatus .tapped it])
-      = [.anaphor .bare .one 0] := by
-  decide
+theorem damageSourceRemainsTheSingularAntecedent :
+    let damage := Instruction.instruct .this (.dealDamage (.lit 3) (each creature) .any)
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) damage).1
+    Instruction.check (DRS.ofList []) (.sequentially [damage, .setStatus .tapped it]) = [] ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 0 ∧
+      (after.findById? 0).map (·.kind) = some .object := by decide
 
 /-- "Choose two target creatures. Tap them." -/
 theorem okThem :
@@ -75,13 +76,16 @@ theorem okThem :
   decide
 
 /-- "Choose two target creatures. Choose two target creatures. Tap them." -/
-theorem badThemAmbig :
-    Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ choose (.described (.target (exactly 2)) creature),
-          choose (.described (.target (exactly 2)) creature),
-          .setStatus .tapped them ]) = [.anaphor .bare .many 2] := by
-  decide
+theorem recentSecondChosenGroupIsSelected :
+    let choices := .sequentially
+      [choose (.described (.target (exactly 2)) creature),
+        choose (.described (.target (exactly 2)) creature)]
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) choices).1
+    Instruction.check (DRS.ofList []) (.sequentially
+      [choose (.described (.target (exactly 2)) creature),
+        choose (.described (.target (exactly 2)) creature), .setStatus .tapped them]) = [] ∧
+      (firstReach .bare .many (nextClause after)).map (·.id) = some 1 ∧
+      (after.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem recentSecondOpponentIsSelected :
     let combat := instruct (target (.and [creature, .hasPossessor .controller anOpponent]))
@@ -511,12 +515,14 @@ theorem okThatCreatureAfterTargetedDamage :
             instruct (controllerOf (that (.type .creature))) (loseLife (.lit 1)) ])) = [] := by
   decide
 
-theorem badThatCreatureIsDamagedSelf :
+theorem damagedSelfIsReadableAsThatCreature :
+    let event := GameEvent.does .any (.dealDamage .anyAmount thisCreature .any)
+    let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
-      (whenever (.does .any (.dealDamage .anyAmount thisCreature .any))
-        (Instruction.instruct (that (.type .creature)) (.dealDamage .thatMuch (target anyTarget) .any)))
-      = [.anaphor (.word (.type .creature)) .one 0] := by
-  decide
+      (whenever event
+        (Instruction.instruct (that (.type .creature)) (.dealDamage .thatMuch (target anyTarget) .any))) = [] ∧
+      (firstReach (.word (.type .creature)) .one (nextClause after)).map (·.id) = some 0 ∧
+      (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 /-- "Prevent all damage sources of the last chosen color would deal to you." -/
 def preventLastChosenColor : StaticSpec :=

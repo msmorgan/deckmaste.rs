@@ -249,7 +249,8 @@ def sliceDVoteAndChoicePin : Ability :=
   .spell none <|
     .sequentially [
       .establish (.choice .entry .you (.quality .color) none .openly) none,
-      .vote (some .you) .openly (.byLabel ["grace", "condemnation"]),
+      .instruct (.described .each .anyPlayer)
+        (.vote (some .you) .openly (.byLabel ["grace", "condemnation"])),
       .draw (.votesFor "grace"),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
         (.zones [.zone .battlefield .bare]) (some handZone) .departure (some .anEffect) []
