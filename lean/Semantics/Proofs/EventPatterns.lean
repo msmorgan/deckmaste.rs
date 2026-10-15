@@ -37,6 +37,15 @@ theorem absentSourceCannotSupplyReference :
     GameEvent.check (DRS.ofList []) (.does .any (.dealDamage .anyAmount it .any)) =
       [.anaphor .bare .one 0] := by decide
 
+theorem occurredDamageComposesSourceThenBodyForEveryContext
+    (fuel : Nat) (drs : DRS) (source patient : NounPhrase) (kind : DamageKind) :
+    let subjectContext := (stepSubjectBeforeWith (stepOps fuel) drs (.actor source)).1
+    let bodyContext := (stepInstruction fuel .postEvent .obj
+      { subjectContext with actionPattern := true } (.dealDamage .anyAmount patient kind)).1
+    (stepGameEvent (fuel + 1) drs
+      (.does (.actor source) (.dealDamage .anyAmount patient kind))).1 =
+      { (dropActorFrame bodyContext) with actionPattern := drs.actionPattern } := by rfl
+
 /-- Every occurred damage event publishes its outcome ahead of participant referents. -/
 theorem damageOutcomePrecedesParticipantsForEveryContext
     (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
@@ -50,6 +59,12 @@ theorem damagePublishesParticipantsAndOutcome :
     countOutcomes .damageDealt after = 1 ∧
       (after.findById? 0).map (·.role) = some .subj ∧
       (after.findById? 2).map (·.role) = some .obj := by decide
+
+theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
+    (drs : DRS) (kind : DamageKind) (source patient : NounPhrase) :
+    ((stepDidClause 64 drs
+      ⟨.actor source, .dealDamage .anyAmount patient kind, .thisWay⟩).1.referents.head?).map
+        (·.payload) = some (.outcome .damageDealt) := by rfl
 
 theorem observedDamageDoesNotExportOrRefineReferents (kind : DamageKind) :
     let before := nounResult (DRS.ofList []) (target artifact)

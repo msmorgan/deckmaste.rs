@@ -21,8 +21,7 @@ theorem okGetsBattlefieldSubject :
   decide
 
 /-- "That creature gets +2/+0 as long as this creature is attacking." The Idris pin refutes
-the anaphor. The subject is written once, so it is refused once (the two-modification spelling, which re-read it, is
-`GetsBothDeltas.badThatCreatureIsCondSubjectTwoHalves`). -/
+the anaphor. The subject is written once, so it is refused once. -/
 theorem badThatCreatureIsCondSubject :
     Ability.check (DRS.ofList [])
       (.static

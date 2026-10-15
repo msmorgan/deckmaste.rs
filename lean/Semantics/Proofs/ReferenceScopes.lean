@@ -262,4 +262,74 @@ theorem optionalBodyReadsItsEnclosingPlayer :
         (Primitives.Instruction.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
   decide
 
+private def powerSubject : Referent := {
+  det := .target, plur := .one,
+  payload := .object [.creature] (some .battlefield) none none none none }
+
+private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
+    ((stepOps (n + 6)).inst .postEvent .obj drs
+      (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1 =
+      let selected := ({ drs with relativeKind := some .object } : DRS).push powerSubject .subj true
+      (introducedLetters .x selected).foldl
+        (fun d ref => d.push ref .other false) selected := by rfl
+
+private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    let subject := { powerSubject with clause := clause, role := .subj, id := id }
+    resolveCandidates .bare .one { referents := subject :: rs } = [subject] := by
+  have filteredOlder : ∀ r ∈ rs.filter (reaches .bare .one), r.clause < clause := by
+    intro r h
+    exact older r (List.mem_filter.mp h).1
+  let subject := { powerSubject with clause := clause, role := .subj, id := id }
+  change resolveCandidates .bare .one { referents := subject :: rs } = [subject]
+  have visible : (DRS.visibleReferents { referents := subject :: rs }) = subject :: rs := by
+    apply List.filter_eq_self.mpr
+    intro r _
+    rfl
+  have eligible : reaches .bare .one subject = true := by rfl
+  unfold resolveCandidates
+  dsimp only
+  rw [visible]
+  simp only [Bool.false_eq_true, ↓reduceIte,
+    show ((none : Option Zone) == some .battlefield) = false from rfl,
+    Bool.false_and, Bool.or_false,
+    List.filter_cons, eligible]
+  simp only [List.foldl_cons, show subject.clause = clause from rfl, Nat.zero_max,
+    olderClauseMaximum _ _ filteredOlder, BEq.rfl, ↓reduceIte,
+    olderClauseFilter _ _ filteredOlder, List.foldl_nil]
+  rfl
+
+
+/-- The actual modification pipeline selects its own fresh target in every earlier outer
+context, whether X was already bound or introduces a same-clause letter. -/
+theorem ownStatInstructionIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    resolveCandidates .bare .one
+      (powerAfter { referents := rs, currentClause := clause, nextId := id }) =
+      [{ powerSubject with clause := clause, role := .subj, id := id }] := by
+  change resolveCandidates .bare .one
+    (((stepOps (58 + 6)).inst .postEvent .obj
+      { referents := rs, currentClause := clause, nextId := id }
+      (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1) = _
+  rw [actualPowerPipeline]
+  dsimp only
+  unfold introducedLetters
+  split <;> change resolveCandidates .bare .one
+    { referents := { powerSubject with clause := clause, role := .subj, id := id } :: rs } = _
+  all_goals exact powerSubjectWins rs clause id older
+
+/-- The ordinary pronoun checker accepts the result of the actual modification pipeline,
+not merely a manually constructed subject context. -/
+theorem ownStatInstructionStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
+    (older : ∀ r ∈ rs, r.clause < clause) :
+    NounPhrase.checkAt (some .object)
+      (powerAfter { referents := rs, currentClause := clause, nextId := id }) it = [] := by
+  let after := powerAfter { referents := rs, currentClause := clause, nextId := id }
+  change (let winners := resolveCandidates .bare .one after
+    (match winners with
+    | [w] => (after.recordMention w.id .other false true, [w.id], ([] : List Refusal))
+    | _ => (after, [], [Refusal.anaphor .bare .one winners.length])).2.2) ++ [] = []
+  rw [ownStatInstructionIdentityStableForEveryOuterContext rs clause id older]
+  rfl
+
 end Semantics.Proofs.ReferenceScopes

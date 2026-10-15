@@ -339,4 +339,10 @@ theorem modernSharedSubjectSurvivesAnEarlierExile :
       (result.1.findById? 2).map (·.ty) = some [.creature] ∧
       (result.1.findById? 1).map (·.zone) = some (some .exile) := by decide
 
+
+theorem enchantedPlayerDoesNotPermitAnObjectTypeRefinement :
+    NounPhrase.checkAt (some .player) (DRS.ofList []) (.attachHost .enchanted .player) = [] ∧
+      NounPhrase.checkAt (some .player) (DRS.ofList [])
+        (.attachHost .enchanted (.ofType .player .creature)) = [.contradictionFree] := by decide
+
 end Semantics.Proofs.GetsBothDeltas

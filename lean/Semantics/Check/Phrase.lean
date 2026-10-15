@@ -1944,7 +1944,8 @@ def stepOps : Nat → StepOps
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], refuse (attachment == .enchanted || Kind.lte word.kind .object)
             (.kindLte word.kind .object) ++
-            refuse (word.kind == .player || attachHeadOk attachment word) .contradictionFree)
+            refuse ((word.kind == .player && attachment != .enchanted) ||
+              attachHeadOk attachment word) .contradictionFree)
         | .theGrantor _ =>
           let ref : Referent := {
             det := .the, plur := .one,

@@ -41,6 +41,11 @@ theorem laterCardReadIsAdmitted :
 theorem nestedDescriptionIsAdmitted :
     Instruction.check (DRS.ofList []) nestedInstruction = [] := by decide
 
+theorem nestedDescriptionPreservesEveryOuterContextBeforeSacrifice
+    (fuel : Nat) (drs : DRS) :
+    (stepNounPhrase (fuel + 10) drs .subj true
+      (controllerOf nestedSubject)).1.referents.drop 4 = drs.referents := by rfl
+
 theorem nestedSubjectPublishesExactlyItsFourParticipants :
     (stepNounPhrase 64 (DRS.ofList []) .subj true (controllerOf nestedSubject)).1.referents.map
       (fun ref => (ref.id, ref.kind, ref.zone, ref.ty)) =
