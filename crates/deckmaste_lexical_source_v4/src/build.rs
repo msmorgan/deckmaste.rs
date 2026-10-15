@@ -32,6 +32,7 @@ use deckmaste_syntax::frames::SlotRelation::PredicativeComplement;
 use crate::SourceError;
 use crate::schema::AdjectiveEntry;
 use crate::schema::Catenation;
+use crate::schema::DeterminativeEntry;
 use crate::schema::FillSpec;
 use crate::schema::FrameSpec;
 use crate::schema::NounEntry;
@@ -95,6 +96,31 @@ impl Builder {
             let owner = id.to_string();
             self.frames.push((id, category, frames.to_vec(), owner));
         }
+    }
+
+    pub(crate) fn determinative(&mut self, id: &str, entry: &DeterminativeEntry, source: Source) {
+        let mut lexeme = Lexeme::invariant(id, &entry.lemma, Category::Determinative, source);
+        lexeme.properties.features.insert(
+            "DeterminativeDistribution".into(),
+            format!("{:?}", entry.distribution),
+        );
+        lexeme.forms[0].surfaces.clone_from(&entry.spellings);
+        lexeme.forms[0].features.number = entry.number;
+        if let Some(countability) = entry.countability {
+            lexeme
+                .properties
+                .features
+                .insert("Countability".into(), format!("{countability:?}"));
+        }
+        if let Some(kind) = entry.noun_kind {
+            lexeme
+                .properties
+                .features
+                .insert("NounKind".into(), format!("{kind:?}"));
+        }
+        lexeme.article_onsets.clone_from(&entry.article_onsets);
+        self.push(lexeme);
+        self.frames(id.into(), Category::Determinative, &entry.frames);
     }
 
     pub(crate) fn verb(
@@ -196,6 +222,14 @@ impl Builder {
 
     pub(crate) fn noun(&mut self, id: &str, entry: &NounEntry, source: Source) {
         let mut lexeme = Lexeme::noun(id, &entry.lemma, entry.countability.clone(), source);
+        lexeme.properties.features.insert(
+            "NounDistribution".into(),
+            format!("{:?}", entry.distribution),
+        );
+        lexeme
+            .properties
+            .features
+            .insert("NounKind".into(), format!("{:?}", entry.kind));
         if let Some(plural) = &entry.plural {
             replace(&mut lexeme, WordForm::Plural, None, None, &plural.to_vec());
         }
@@ -221,6 +255,21 @@ impl Builder {
                 Category::Adjective,
                 source.clone(),
             );
+            if let Some(determination) = entry.determination {
+                lexeme
+                    .properties
+                    .features
+                    .insert("Determination".into(), format!("{determination:?}"));
+            }
+            if entry.additive {
+                lexeme.properties.classes.insert("AdditiveAdjective".into());
+            }
+            if entry.fused_head {
+                lexeme
+                    .properties
+                    .classes
+                    .insert("FusedHeadAdjective".into());
+            }
             if let Some(grade) = grade {
                 lexeme
                     .properties
@@ -286,6 +335,7 @@ impl Builder {
             let mut frames = Vec::new();
             for spec in specs {
                 let frame = PrepositionFrame {
+                    relation: spec.relation,
                     complement: resolver.fill(&spec.complement, owner)?,
                     hosts: spec.hosts,
                 };
@@ -349,6 +399,8 @@ impl Resolver<'_> {
             FillSpec::NP => SlotFill::NP,
             FillSpec::PP(lemmas) => self.pp(lemmas, owner)?,
             FillSpec::Pred => SlotFill::Pred,
+            FillSpec::AdjP => SlotFill::AdjP,
+            FillSpec::LocativeNP => SlotFill::LocativeNP,
             FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
             FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
             FillSpec::ToInf => SlotFill::ToInf,
@@ -375,6 +427,10 @@ impl Resolver<'_> {
             FrameSpec::Monotransitive => (
                 FrameFamily::Monotransitive,
                 vec![slot(Object, SlotFill::NP)],
+            ),
+            FrameSpec::Transitive(fill) => (
+                FrameFamily::Monotransitive,
+                vec![slot(Object, self.fill(fill, owner)?)],
             ),
             FrameSpec::Ditransitive => (
                 FrameFamily::Ditransitive,
@@ -424,10 +480,17 @@ impl Resolver<'_> {
                 FrameFamily::Amount,
                 vec![slot(Complement, SlotFill::Amount)],
             ),
-            FrameSpec::NominalAmount => (
-                FrameFamily::NominalAmount,
+            FrameSpec::TransitiveWithComplement(fill) => (
+                FrameFamily::TransitiveWithComplement,
                 vec![
-                    slot(Complement, SlotFill::Nominal),
+                    slot(Object, SlotFill::NP),
+                    slot(Complement, self.fill(fill, owner)?),
+                ],
+            ),
+            FrameSpec::TransitiveAmount => (
+                FrameFamily::TransitiveAmount,
+                vec![
+                    slot(Object, SlotFill::NP),
                     slot(Complement, SlotFill::Amount),
                 ],
             ),

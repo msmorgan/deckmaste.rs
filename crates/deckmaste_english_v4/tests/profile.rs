@@ -146,6 +146,50 @@ fn a_flavor_word_label_is_not_a_vocabulary_gap() {
 fn reviewed_misplacements_stay_fixed() {
     let env = LexicalEnvironment::load().unwrap();
     for (text, stratum) in [
+        ("artifact named Powerstone Shard", 3),
+        (
+            "At the beginning of combat on each opponent's turn, tap target creature that player controls.",
+            4,
+        ),
+        (
+            "For each creature card put into a graveyard this way, you create a token.",
+            3,
+        ),
+        (
+            "For each five counters removed this way, take an extra turn after this one.",
+            3,
+        ),
+        ("Choose a creature at random that attacked this turn.", 3),
+        ("Destroy target [attacking] creature.", 7),
+        (
+            "Return target nonland permanent [you control] to its owner's hand.",
+            7,
+        ),
+        ("[+1]: Draw a card.", 1),
+        ("1—9 | Draw a card.", 1),
+        ("7+ | Flying", 0),
+        ("Create a token named Powerstone Shard.", 3),
+        ("Artifacts named Powerstone Shard attack.", 3),
+        ("the exiled card", 1),
+        ("This creature attacked.", 1),
+        ("This creature attacked this turn.", 1),
+        ("Target creature attacked this turn.", 1),
+        ("Equipped creature attacked this turn.", 1),
+        ("The creature attacked this turn dies.", 3),
+        ("The creature tapped this turn attacks.", 3),
+        ("Attacking creatures become blocked.", 2),
+        ("Creatures entering have haste.", 3),
+        (
+            "Return all basic land cards from all graveyards to the battlefield tapped under their owners' control.",
+            1,
+        ),
+        ("to cast spells", 2),
+        ("Have target opponent discard a card.", 2),
+        ("all permanents target player controls", 3),
+        ("while tapped", 4),
+        ("while red", 4),
+        ("This creature attacks while saddled.", 4),
+        ("during combat", 1),
         // A genitive is not a contracted copula; *turn* after *of* is a noun.
         ("Return target creature to its owner's hand.", 1),
         ("Target creature gains flying until end of turn.", 1),

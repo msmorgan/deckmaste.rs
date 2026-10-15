@@ -155,6 +155,39 @@ fn feature_requirements_reject_disagreement() {
 }
 
 #[test]
+fn feature_exclusion_is_shared_by_parsing_and_admission() {
+    let lexicon = lexicon();
+    let source = GRAMMAR.replace(
+        "Require(\"clause.VerbForm\", \"Plain\")",
+        "Exclude(\"clause.VerbForm\", \"Finite\")",
+    );
+    let grammar = bind(&source, &lexicon).unwrap();
+    assert_ne!(
+        readings(&grammar, &lexicon, "See the card."),
+        [] as [Reading; 0]
+    );
+    assert_ne!(
+        readings(&grammar, &lexicon, "Seeing the card."),
+        [] as [Reading; 0]
+    );
+    assert_eq!(
+        readings(&grammar, &lexicon, "Sees the card."),
+        [] as [Reading; 0]
+    );
+    let unrestricted = bind(
+        &source.replace("Exclude(\"clause.VerbForm\", \"Finite\")", ""),
+        &lexicon,
+    )
+    .unwrap();
+    let finite = unrestricted
+        .parse(&lexicon, "Sees the card.")
+        .best_readings(1)
+        .pop()
+        .unwrap();
+    assert!(grammar.admit(&finite, &lexicon).is_err());
+}
+
+#[test]
 fn unknown_words_are_vocabulary_gaps() {
     let lexicon = lexicon();
     let grammar = bind(GRAMMAR, &lexicon).unwrap();
@@ -339,20 +372,18 @@ fn both_laws_hold_over_the_forest_without_enumeration() {
 fn law_one_faults_are_found_in_the_forest() {
     let lexicon = lexicon();
     let grammar = bind(GRAMMAR, &lexicon).unwrap();
-    // Parsing skips whitespace, so these have Readings; realization writes
-    // single spaces, so none of them round-trips.
-    for (text, fault) in [
-        (
-            "See the man  on the hill.",
-            deckmaste_syntax::RealizationFault::Spacing { at: 11 },
-        ),
-        ("See the man on the hill .", deckmaste_syntax::RealizationFault::Spacing { at: 23 }),
-        (" See the man.", deckmaste_syntax::RealizationFault::Edge),
-    ] {
+    // Construction boundaries reject spacing that realization cannot produce.
+    for text in ["See the man  on the hill.", "See the man on the hill ."] {
         let parse = grammar.parse(&lexicon, text);
-        assert!(parse.derivation_count() > 0, "{text}");
-        assert_eq!(parse.verify_realization(&lexicon), Err(fault), "{text}");
+        assert_eq!(parse.derivation_count(), 0, "{text}");
     }
+    // Leading text is still diagnosed by the forest's independent edge check.
+    let parse = grammar.parse(&lexicon, " See the man.");
+    assert!(parse.derivation_count() > 0);
+    assert_eq!(
+        parse.verify_realization(&lexicon),
+        Err(deckmaste_syntax::RealizationFault::Edge)
+    );
 }
 
 #[test]
@@ -369,7 +400,10 @@ fn constituents_carry_span_function_and_head() {
             .find(|c| c.category == "PrepositionPhrase")
             .unwrap();
         assert_eq!(&text[pp.span.clone()], "with the telescope");
-        assert_eq!(pp.head.map(|h| h.as_str().to_owned()).as_deref(), Some("p:with"));
+        assert_eq!(
+            pp.head.map(|h| h.as_str().to_owned()).as_deref(),
+            Some("p:with")
+        );
         let host = &constituents[pp.parent.unwrap()];
         hosts.push((
             pp.function.clone(),

@@ -15,7 +15,8 @@ use crate::build::source;
 /// comma (*Gisela, Blade of Goldnight*), its first ` the ` (*Gandalf the Grey*)
 /// or its first ` of ` (*Daxos of Meletis*), or else its first word
 /// (*Karn Liberated*). A candidate the rest of the vocabulary already spells
-/// is dropped (*Sliver* in *Sliver Queen*), except a planeswalker type, which
+/// is dropped (*Sliver* in *Sliver Queen*), except the explicit name before a
+/// comma or a planeswalker type, which
 /// is the name of the character the card is (*Jace* in *Jace, the Mind
 /// Sculptor*).
 #[must_use]
@@ -44,7 +45,7 @@ pub fn shortened_names(name: &str, vocabulary: &Lexicon) -> Vec<String> {
             .is_some_and(|last| last.starts_with(char::is_uppercase))
             && candidate != name
             && !names.iter().any(|n| n == candidate)
-            && !spelled_by_other_vocabulary(candidate, vocabulary)
+            && (comma == Some(candidate) || !spelled_by_other_vocabulary(candidate, vocabulary))
         {
             names.push(candidate.to_owned());
         }

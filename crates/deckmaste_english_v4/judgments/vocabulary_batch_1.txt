@@ -63,10 +63,10 @@
 +NounPhrase your commander's color identity => Nominal "color identity"
 +NounPhrase green mana symbols => Nominal "mana symbols"
 +NounPhrase black mana symbols => Nominal "mana symbols"
-+NounPhrase different kinds of counters => Nominal "kinds"
++NounPhrase different kinds of counters => Nominal "kinds of counters"; PrepositionPhrase "of counters" as Complement of kind; AdjectivePhrase "different" as Modifier of kind
 +NounPhrase each of those kinds of counters => Nominal "kinds"
 +NounPhrase the highest life total among all players => AdjectivePhrase "highest"
-+NounPhrase your starting life total => AdjectivePhrase "starting"
++NounPhrase your starting life total => VerbPhrase "starting"
 +NounPhrase one color word => Nominal "color word"
 +NounPhrase your right => Nominal "right"
 +NounPhrase friends => Nominal "friends"

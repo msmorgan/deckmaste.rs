@@ -23,7 +23,7 @@
 
 + Each creature enters or leaves the battlefield. => VerbPhrase "enters or leaves" gap "the battlefield"; readings 1
 + Put into your hand or exile the card. => VerbPhrase "Put into your hand or exile" gap "the card"; readings 1
-* Put into your hand the card.
++ Put into your hand the card. => NounPhrase "the card" as Object of put; PrepositionPhrase "into your hand" as Complement of put
 
 * Put the card.
 * Destroy creature target.

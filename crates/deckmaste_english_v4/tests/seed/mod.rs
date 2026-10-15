@@ -84,6 +84,14 @@ fn noun(lemma: &str, kind: SourceKind) -> Lexeme {
         vec![Countability::Count],
         source(kind),
     );
+    lexeme
+        .properties
+        .features
+        .insert("NounDistribution".into(), "Ordinary".into());
+    lexeme
+        .properties
+        .features
+        .insert("NounKind".into(), "Ordinary".into());
     if lemma.contains(' ') {
         lexeme.surface_structure = SurfaceStructure::Multiword;
     }
@@ -177,8 +185,14 @@ pub fn lexicon() -> Lexicon {
         pronoun("you", Second, Some(Singular)),
         pronoun("it", Third, Some(Singular)),
     ];
-    for word in ["the", "a", "your", "each", "all", "target", "any"] {
-        lexemes.push(invariant("det", word, Category::Determinative, Core));
+    for word in [
+        "the", "a", "your", "each", "all", "target", "any", "that", "another", "every",
+    ] {
+        let mut det = invariant("det", word, Category::Determinative, Core);
+        det.properties
+            .features
+            .insert("DeterminativeDistribution".into(), "Dependent".into());
+        lexemes.push(det);
     }
     for word in [
         "in", "into", "on", "onto", "for", "with", "from", "during", "by",
@@ -188,8 +202,21 @@ pub fn lexicon() -> Lexicon {
     for word in ["and", "or"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
-    for word in ["both", "more", "everything"] {
-        lexemes.push(invariant("det", word, Category::Determinative, Core));
+    for word in [
+        "both",
+        "more",
+        "everything",
+        "many",
+        "much",
+        "anywhere",
+        "this",
+        "none",
+    ] {
+        let mut det = invariant("det", word, Category::Determinative, Core);
+        det.properties
+            .features
+            .insert("DeterminativeDistribution".into(), "Dependent".into());
+        lexemes.push(det);
     }
     for word in ["'ve", "haven't"] {
         let mut auxiliary = verb(word, Core);

@@ -62,7 +62,7 @@ pub enum SourceError {
 }
 
 /// Every data file of this crate, by path, embedded at build time.
-pub const FILES: [(&str, &str); 17] = [
+pub const FILES: [(&str, &str); 18] = [
     (
         CLOSED_CLASS,
         include_str!("../lexicon/english/closed_class.ron"),
@@ -91,6 +91,7 @@ pub const FILES: [(&str, &str); 17] = [
     (ABILITY_WORDS, include_str!("../catalogs/ability_words.ron")),
     (COUNTERS, include_str!("../catalogs/counters.ron")),
     (DESIGNATIONS, include_str!("../catalogs/designations.ron")),
+    (STATUSES, include_str!("../catalogs/statuses.ron")),
     (TURN_PARTS, include_str!("../catalogs/turn_parts.ron")),
     (TOKENS, include_str!("../catalogs/tokens.ron")),
     (
@@ -113,6 +114,7 @@ const KEYWORD_ABILITIES: &str = "catalogs/keyword_abilities.ron";
 const ABILITY_WORDS: &str = "catalogs/ability_words.ron";
 const COUNTERS: &str = "catalogs/counters.ron";
 const DESIGNATIONS: &str = "catalogs/designations.ron";
+const STATUSES: &str = "catalogs/statuses.ron";
 const TURN_PARTS: &str = "catalogs/turn_parts.ron";
 const TOKENS: &str = "catalogs/tokens.ron";
 const INTRODUCED_NAMES: &str = "catalogs/introduced_names.ron";
@@ -153,6 +155,7 @@ pub struct Sources {
     pub counters: Vec<CounterKind>,
     pub designations: Vec<Designation>,
     pub turn_parts: Vec<TurnPart>,
+    pub statuses: Vec<schema::Status>,
     pub tokens: Vec<Token>,
     pub introduced_names: Vec<IntroducedName>,
     pub anchor_words: Vec<AnchorWord>,
@@ -207,6 +210,7 @@ impl Sources {
             counters: parse(COUNTERS)?,
             designations: parse(DESIGNATIONS)?,
             turn_parts: parse(TURN_PARTS)?,
+            statuses: parse(STATUSES)?,
             tokens: parse(TOKENS)?,
             introduced_names: parse(INTRODUCED_NAMES)?,
             anchor_words: parse(ANCHOR_WORDS)?,
@@ -251,17 +255,7 @@ impl Sources {
         let closed = &self.closed_class;
         for entry in &closed.determinatives {
             let id = format!("det:{}", entry.lemma);
-            let mut lexeme = Lexeme::invariant(
-                &id,
-                &entry.lemma,
-                Category::Determinative,
-                core(CLOSED_CLASS, &id),
-            );
-            lexeme.forms[0].surfaces.clone_from(&entry.spellings);
-            lexeme.forms[0].features.number = entry.number;
-            lexeme.article_onsets.clone_from(&entry.article_onsets);
-            builder.push(lexeme);
-            builder.frames(id.as_str().into(), Category::Determinative, &entry.frames);
+            builder.determinative(&id, entry, core(CLOSED_CLASS, &id));
         }
         for entry in &closed.pronouns {
             let id = format!("pronoun:{}", entry.lemma);
@@ -271,6 +265,10 @@ impl Sources {
                 Category::Pronoun,
                 core(CLOSED_CLASS, &id),
             );
+            lexeme
+                .properties
+                .features
+                .insert("PronounKind".into(), format!("{:?}", entry.kind));
             lexeme.forms = entry
                 .forms
                 .iter()
@@ -335,7 +333,10 @@ impl Sources {
                 Category::Symbol,
                 source(SourceKind::Symbol, CLOSED_CLASS, &id),
             );
-            lexeme.properties.classes.extend(symbol.classes.iter().cloned());
+            lexeme
+                .properties
+                .classes
+                .extend(symbol.classes.iter().cloned());
             builder.push(lexeme);
         }
         for entry in &self.prepositions {
@@ -367,6 +368,25 @@ impl Sources {
             builder.push(lexeme);
         }
         Ok(())
+    }
+
+    fn statuses_and_turn_parts(&self, builder: &mut Builder) {
+        let catalog = |path: &str, owner: &str| source(SourceKind::Catalog, path, owner);
+        for status in &self.statuses {
+            let source = catalog(STATUSES, status.rule.number());
+            for adjective in &status.adjectives {
+                builder.adjective("status_adj", &adjective.entry(), &source);
+            }
+            for preposition in &status.prepositions {
+                builder.preposition(&preposition.lemma, &preposition.frames, source.clone());
+            }
+        }
+        for part in &self.turn_parts {
+            let mut entry = part.noun.entry();
+            entry.kind = schema::NounKind::Temporal;
+            let id = format!("turn_part:{}", entry.lemma);
+            builder.noun(&id, &entry, catalog(TURN_PARTS, part.rule.number()));
+        }
     }
 
     fn catalogs(&self, builder: &mut Builder) -> Result<(), SourceError> {
@@ -429,6 +449,8 @@ impl Sources {
         for counter in &self.counters {
             let id = format!("counter:{}", counter.kind);
             let entry = schema::NounEntry {
+                distribution: schema::NounDistribution::Ordinary,
+                kind: schema::NounKind::Ordinary,
                 parameters: Vec::new(),
                 lemma: format!("{} counter", counter.kind),
                 countability: vec![deckmaste_lexical::Countability::Count],
@@ -466,11 +488,7 @@ impl Sources {
                 ));
             }
         }
-        for part in &self.turn_parts {
-            let entry = part.noun.entry();
-            let id = format!("turn_part:{}", entry.lemma);
-            builder.noun(&id, &entry, catalog(TURN_PARTS, part.rule.number()));
-        }
+        self.statuses_and_turn_parts(builder);
         for token in &self.tokens {
             if !subtypes.contains_key(&token.subtype) {
                 return Err(SourceError::Invalid(format!(
@@ -498,26 +516,9 @@ impl Sources {
             );
             builder.push(card_scoped(lexeme, &introduced.cards));
         }
-        for anchor in &self.anchor_words {
-            let id = format!("anchor_word:{}", anchor.word);
-            let mut lexeme = exact(
-                &id,
-                &anchor.word,
-                Category::Keyword,
-                catalog(ANCHOR_WORDS, &anchor.word),
-            );
-            lexeme.surface_structure = SurfaceStructure::Opaque;
-            lexeme
-                .properties
-                .features
-                .insert("LabelKind".to_owned(), "AnchorWord".to_owned());
-            builder.push(card_scoped(lexeme, &anchor.cards));
-        }
         Ok(())
     }
 
-    /// Every card a card scope names is a card, and no Introduced Name is
-    /// one.
     fn ability_labels(&self, builder: &mut Builder) {
         let catalog = |path: &str, owner: &str| source(SourceKind::Catalog, path, owner);
         for word in &self.ability_words {
@@ -536,8 +537,33 @@ impl Sources {
             lexeme.properties.classes.insert("AbilityWord".into());
             builder.push(lexeme);
         }
+        for anchor in &self.anchor_words {
+            builder.push(card_scoped(
+                exact(
+                    &format!("anchor_name:{}", anchor.word),
+                    &anchor.word,
+                    Category::Catalog,
+                    catalog(ANCHOR_WORDS, &anchor.word),
+                ),
+                &anchor.cards,
+            ));
+            let id = format!("anchor_word:{}", anchor.word);
+            let mut lexeme = exact(
+                &id,
+                &anchor.word,
+                Category::Keyword,
+                catalog(ANCHOR_WORDS, &anchor.word),
+            );
+            lexeme.surface_structure = SurfaceStructure::Opaque;
+            lexeme
+                .properties
+                .features
+                .insert("LabelKind".to_owned(), "AnchorWord".to_owned());
+            builder.push(card_scoped(lexeme, &anchor.cards));
+        }
     }
 
+    /// Every card a card scope names is a card, and no Introduced Name is one.
     fn check_card_scopes(
         &self,
         lexemes: &[Lexeme],
@@ -573,6 +599,13 @@ impl Sources {
                 let id = format!("action:{}", verb.lemma);
                 builder.verb(&id, verb, catalog(KEYWORD_ACTIONS, owner))?;
             }
+            for adjective in &action.adjectives {
+                builder.adjective(
+                    "action_adj",
+                    &adjective.entry(),
+                    &catalog(KEYWORD_ACTIONS, owner),
+                );
+            }
             for decl in &action.nouns {
                 let entry = decl.entry();
                 let id = format!("action:{}", entry.lemma);
@@ -603,6 +636,10 @@ impl Sources {
                         .unwrap()
                         .parameters
                 };
+                lexeme.properties.features.insert(
+                    "KeywordForm".into(),
+                    if parameters.is_empty() { "Bare" } else { "Parametric" }.into(),
+                );
                 if !parameters.is_empty() && parameters.iter().all(|p| !p.is_empty()) {
                     lexeme
                         .properties
@@ -610,6 +647,10 @@ impl Sources {
                         .insert("ParameterizedKeyword".into());
                 }
                 builder.push(lexeme);
+            }
+            for entry in &ability.determinatives {
+                let id = format!("keyword_det:{}", entry.lemma);
+                builder.determinative(&id, entry, catalog(KEYWORD_ABILITIES, owner));
             }
             for verb in &ability.verbs {
                 let id = format!("keyword_verb:{}", verb.lemma);
@@ -730,7 +771,14 @@ impl Sources {
                 let bound_patterns = patterns
                     .into_iter()
                     .map(|mut parts| {
-                        parts.insert(0, ParameterPart::ModifiedWords(stems.iter().copied().collect(), SlotKind::TypeModifier, SlotKind::Quality));
+                        parts.insert(
+                            0,
+                            ParameterPart::ModifiedWords(
+                                stems.iter().copied().collect(),
+                                SlotKind::TypeModifier,
+                                SlotKind::Quality,
+                            ),
+                        );
                         parts
                     })
                     .collect();

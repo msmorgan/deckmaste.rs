@@ -15,7 +15,14 @@ fn node(production: &str, category: &str, children: Vec<Reading>) -> Reading {
     Reading::Node(ReadingNode {
         production: production.into(),
         category: category.into(),
-        features: BTreeMap::new(),
+        features: if matches!(
+            category,
+            "KeywordPhrase" | "KeywordParameters" | "KeywordLineItem"
+        ) {
+            BTreeMap::from([("KeywordForm".into(), "Bare".into())])
+        } else {
+            BTreeMap::new()
+        },
         gap: Gap::None,
         selected_frame: None,
         children,

@@ -4,40 +4,50 @@
     // (this/those) and grade (many/more/most) are not features of a
     // determinative here, so each attested form is its own lemma.
     determinatives: [
-        (lemma: "a", number: Singular, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
+        (lemma: "last", noun_kind: Some(Temporal)),
+        (lemma: "next", noun_kind: Some(Temporal)),
+        (lemma: "a", number: Singular, countability: Count, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
         (lemma: "all", frames: [Complement(PP(["of"]))]),
-        (lemma: "another", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Count, lemma: "another", frames: [Complement(PP(["of"]))]),
         (lemma: "any", frames: [Complement(PP(["of"]))]),
         // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
-        (lemma: "anywhere"),
-        (lemma: "both", frames: [Complement(PP(["of"]))]),
-        (lemma: "each", frames: [Complement(PP(["of"]))]),
-        (lemma: "either", frames: [Complement(PP(["of"]))]),
-        (lemma: "every"),
+        (lemma: "anywhere", distribution: Independent, noun_kind: Some(Locative)),
+        (number: Plural, countability: Count, lemma: "both", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Count, lemma: "each", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Count, lemma: "either", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Count, lemma: "every"),
         (lemma: "everything"),
         (lemma: "fewer", frames: [Complement(PP(["than"]))]),
         (lemma: "fewest"),
         (lemma: "least"),
         (lemma: "less", frames: [Complement(PP(["than"]))]),
-        (lemma: "many", frames: [Complement(PP(["of"]))]),
+        (number: Plural, countability: Count, lemma: "many", frames: [Complement(PP(["of"]))]),
         (lemma: "more", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (lemma: "most"),
-        (lemma: "much", frames: [Complement(PP(["of"]))]),
-        (lemma: "neither"),
+        (countability: Mass, lemma: "much", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Count, lemma: "neither"),
         (lemma: "no"),
         // The independent form of *no* (CGEL p. 356).
-        (lemma: "none", frames: [Complement(PP(["of"]))]),
+        (lemma: "none", distribution: Independent, frames: [Complement(PP(["of"]))]),
         (lemma: "some"),
-        (lemma: "that"),
+        // Oracle determiner use; other lexical categories remain independent.
+        (lemma: "target"),
+        (number: Singular, lemma: "that"),
         (lemma: "the"),
-        (lemma: "this"),
-        (lemma: "those"),
+        (number: Singular, lemma: "this"),
+        (number: Plural, countability: Count, lemma: "those"),
         (lemma: "which"),
         (lemma: "whichever"),
     ],
     // Reflexives are Lexemes of their own: the schema has no reflexive Word
     // Form. They fill only non-subject positions, hence Accusative.
     pronouns: [
+        (lemma: "I", forms: [
+            (person: First, number: Singular, case: Nominative, surfaces: "I"),
+            (person: First, number: Singular, case: Accusative, surfaces: "me"),
+            (person: First, number: Singular, case: Genitive, surfaces: "my"),
+            (form: IndependentGenitive, person: First, number: Singular, case: Genitive, surfaces: "mine"),
+        ]),
         (lemma: "he", forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "he"),
             (person: Third, number: Singular, case: Accusative, surfaces: "him"),
@@ -62,7 +72,7 @@
             (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "hers"),
         ]),
         // Existential dummy *there*; it agrees with the displaced subject.
-        (lemma: "there", forms: [
+        (lemma: "there", kind: Existential, forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "there"),
             (person: Third, number: Plural, case: Nominative, surfaces: "there"),
         ]),
@@ -135,7 +145,7 @@
             negative: true, frames: [Catenative(BareInf), Intransitive]),
         // *you may have target player reveal their hand*
         (lemma: "have", third_singular: "has", past: "had",
-            frames: [Monotransitive, Catenative(ToInf), ComplexCatenative(BareInf)]),
+            frames: [Monotransitive, Transitive(KeywordPhrase), Catenative(ToInf), ComplexCatenative(BareInf)]),
         // Only the perfect auxiliary (*hasn't been chosen*), which the grammar
         // names; no frame selects a past participle.
         (lemma: "haven't", third_singular: "hasn't", preterite: "hadn't",

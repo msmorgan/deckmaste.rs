@@ -1,0 +1,19 @@
+# Independent genitives agree with the possessed referent, not its owner.
++Clause mine attacks => NounPhrase "mine" as Subject of attack
++Clause mine attack => NounPhrase "mine" as Subject of attack
++Clause yours attacks => NounPhrase "yours" as Subject of attack
++Clause yours attack => NounPhrase "yours" as Subject of attack
++NounPhrase enchanted creature's controller's hand => NounPhrase "enchanted creature's controller's" as Determiner of hand
++NounPhrase target creature's controller's hand => NounPhrase "target creature's controller's" as Determiner of hand
+*NounPhrase none creatures' power
+*NounPhrase none two creatures
+*NounPhrase a two creatures
+
++NounPhrase an additional two creatures => AdjectivePhrase "additional"; Nominal "two creatures"
++NounPhrase an additional 2 damage => AdjectivePhrase "additional"; Nominal "2 damage"
++NounPhrase another two creatures
++NounPhrase every two turns => Nominal "two turns"
+*NounPhrase each two turns
+*NounPhrase every two creatures
+*NounPhrase none one
+*NounPhrase much one

@@ -3,7 +3,7 @@
 + Other creatures have base power and toughness 1/1. => NounPhrase "base power and toughness 1/1"; Nominal "base power and toughness"
 + It has base power and toughness 4/4. => NounPhrase "base power and toughness 4/4"; Nominal "base power and toughness"
 + Until end of turn, that creature has base power and toughness 4/4 and gains all creature types. => NounPhrase "base power and toughness 4/4"; Nominal "base power and toughness"
-+NounPhrase base power 0 => Nominal "base power"
++NounPhrase base power 0 => Nominal "base" as Modifier of power; Amount "0" as Complement of power
 +NounPhrase power and toughness 0/2 => Nominal "power and toughness"
 +NounPhrase base power and toughness X/X => Nominal "base power and toughness"
 + {1}{W/B}: This creature becomes a Human Warrior with base power and toughness 3/3. => Nominal "Human Warrior with base power and toughness 3/3"; NounPhrase "base power and toughness 3/3"; PrepositionPhrase "with base power and toughness 3/3" as Modifier of Warrior

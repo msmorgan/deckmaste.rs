@@ -122,8 +122,24 @@ impl CompiledGrammar {
         analyzed: &AnalyzedText,
         category: &str,
     ) -> Option<Parse<'g>> {
-        let root = self.categories.iter().position(|c| c == category)?;
+        let root = self.category_id(category)?;
         Some(self.run(analyzed, root))
+    }
+
+    pub(crate) fn atomic_spans(&self, analyzed: &AnalyzedText) -> Vec<std::ops::Range<usize>> {
+        analyzed
+            .matches
+            .iter()
+            .filter_map(|m| {
+                let LexicalReading::Word(word) = &m.reading else { return None };
+                let facts = self.lexemes.get(&word.lexeme)?;
+                (m.start == 0 || !analyzed.tokens[m.start - 1].is_alphanumeric()).then_some(())?;
+                (facts.atomic
+                    && facts.category == deckmaste_lexical::Category::Noun
+                    && analyzed.tokens[m.start..m.end].contains(&' '))
+                .then_some(m.start..m.end)
+            })
+            .collect()
     }
 
     #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
@@ -143,7 +159,14 @@ impl CompiledGrammar {
         };
         let mut forest = PackedForest::default();
         let mut by_start: Vec<Vec<usize>> = vec![Vec::new(); n + 1];
+        let atomic = self.atomic_spans(analyzed);
         for found in &analyzed.matches {
+            if atomic.iter().any(|span| {
+                (span.start < found.start && found.start < span.end)
+                    || (span.start < found.end && found.end < span.end)
+            }) {
+                continue;
+            }
             if let Some(facts) = self.leaf_facts(&found.reading) {
                 by_start[found.start].push(forest.leaves.len());
                 forest.leaves.push(Leaf {
@@ -240,6 +263,14 @@ impl CompiledGrammar {
                         let item = &forest.items[parent];
                         let parent_production = &self.productions[item.production];
                         let view = ChildView::Node(&forest.nodes[node].summary);
+                        if !parent_production.spacing_matches(
+                            &item.state,
+                            item.dot,
+                            &view,
+                            &tokens[item.end..skip(item.end)],
+                        ) {
+                            continue;
+                        }
                         if let Some(state) =
                             parent_production.accept(self, &item.state, item.dot, &view)
                         {
@@ -285,6 +316,14 @@ impl CompiledGrammar {
                                 continue;
                             }
                             let view = ChildView::Leaf(facts);
+                            if !production.spacing_matches(
+                                &forest.items[id].state,
+                                dot,
+                                &view,
+                                &tokens[position..at],
+                            ) {
+                                continue;
+                            }
                             if let Some(state) =
                                 production.accept(self, &forest.items[id].state, dot, &view)
                             {
@@ -306,6 +345,12 @@ impl CompiledGrammar {
                         let at = if c.is_whitespace() { position } else { skip(position) };
                         if at < n
                             && tokens[at] == *c
+                            && production.spacing_matches(
+                                &forest.items[id].state,
+                                dot,
+                                &ChildView::Punct,
+                                &tokens[position..at],
+                            )
                             && let Some(state) = production.accept(
                                 self,
                                 &forest.items[id].state,

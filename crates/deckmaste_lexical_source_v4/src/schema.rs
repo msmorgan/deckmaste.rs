@@ -74,6 +74,8 @@ pub enum FillSpec {
     NP,
     PP(Vec<String>),
     Pred,
+    AdjP,
+    LocativeNP,
     FiniteClause,
     VerblessClause,
     ToInf,
@@ -101,8 +103,10 @@ pub enum Catenation {
 pub enum FrameSpec {
     Intransitive,
     Monotransitive,
+    Transitive(FillSpec),
     Ditransitive,
     TransitiveWithPP(Vec<String>),
+    TransitiveWithComplement(FillSpec),
     Prepositional(Vec<String>),
     Copular,
     Catenative(Catenation),
@@ -113,7 +117,7 @@ pub enum FrameSpec {
     /// A content clause: *decide whether to flip again*.
     ContentClause,
     Amount,
-    NominalAmount,
+    TransitiveAmount,
     Cost,
     /// The one Complement of a noun, adjective or determinative.
     Complement(FillSpec),
@@ -172,10 +176,24 @@ pub struct VerbEntry {
     pub frames: Vec<FrameSpec>,
 }
 
+/// Noun subclasses with distinct adjunct distributions.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub enum NounKind {
+    #[default]
+    Ordinary,
+    Temporal,
+    Manner,
+    Locative,
+}
+
 /// A noun with its number paradigm and optional Complement frames.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct NounEntry {
+    #[serde(default)]
+    pub distribution: NounDistribution,
+    #[serde(default)]
+    pub kind: NounKind,
     /// Ordered notation parameters, for indexed headings.
     #[serde(default)]
     pub parameters: Vec<Vec<deckmaste_syntax::frames::ParameterPart>>,
@@ -205,6 +223,8 @@ impl NounDecl {
     pub fn entry(&self) -> NounEntry {
         match self {
             Self::Lemma(lemma) => NounEntry {
+                distribution: NounDistribution::Ordinary,
+                kind: NounKind::Ordinary,
                 parameters: Vec::new(),
                 lemma: lemma.clone(),
                 countability: count(),
@@ -221,6 +241,13 @@ impl NounDecl {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdjectiveEntry {
+    /// Participates in an article–adjective sequence selecting a quantity nominal.
+    #[serde(default)]
+    pub additive: bool,
+    #[serde(default)]
+    pub determination: Option<Determination>,
+    #[serde(default)]
+    pub fused_head: bool,
     pub lemma: String,
     #[serde(default)]
     pub comparative: Option<String>,
@@ -243,6 +270,9 @@ impl AdjectiveDecl {
     pub fn entry(&self) -> AdjectiveEntry {
         match self {
             Self::Lemma(lemma) => AdjectiveEntry {
+                additive: false,
+                determination: None,
+                fused_head: false,
                 lemma: lemma.clone(),
                 comparative: None,
                 superlative: None,
@@ -278,6 +308,8 @@ pub struct AdverbEntry {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PrepositionFrameSpec {
+    #[serde(default = "complement_relation")]
+    pub relation: deckmaste_syntax::frames::SlotRelation,
     pub complement: FillSpec,
     pub hosts: Hosts,
 }
@@ -293,6 +325,12 @@ pub struct PrepositionEntry {
 #[serde(deny_unknown_fields)]
 pub struct DeterminativeEntry {
     #[serde(default)]
+    pub noun_kind: Option<NounKind>,
+    #[serde(default)]
+    pub distribution: DeterminativeDistribution,
+    #[serde(default)]
+    pub countability: Option<deckmaste_lexical::Countability>,
+    #[serde(default)]
     pub number: Option<Number>,
     pub lemma: String,
     /// Spelling Variants, when the lemma is not the only spelling.
@@ -303,6 +341,14 @@ pub struct DeterminativeEntry {
     pub article_onsets: BTreeMap<String, Onset>,
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+}
+
+/// Whether a determinative form can determine an overt nominal head.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub enum DeterminativeDistribution {
+    #[default]
+    Dependent,
+    Independent,
 }
 
 /// One cell of a pronoun paradigm.
@@ -327,8 +373,18 @@ fn invariant() -> WordForm {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct PronounEntry {
+    #[serde(default)]
+    pub kind: PronounKind,
     pub lemma: String,
     pub forms: Vec<PronounForm>,
+}
+
+/// Personal and existential pronouns have different clause distributions.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub enum PronounKind {
+    #[default]
+    Personal,
+    Existential,
 }
 
 /// An affix or clitic, bound to its host.
@@ -395,6 +451,9 @@ pub struct KeywordAction {
     /// or *the Ring* that tempts you [CR#701.54a].
     #[serde(default)]
     pub nouns: Vec<NounDecl>,
+    /// Explicit adjective Lexemes associated with the action.
+    #[serde(default)]
+    pub adjectives: Vec<AdjectiveDecl>,
 }
 
 /// One parameter a keyword ability takes on a keyword line.
@@ -447,6 +506,9 @@ pub struct BoundSurface {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct KeywordAbility {
+    /// Determinative Lexemes explicitly associated with this catalog item.
+    #[serde(default)]
+    pub determinatives: Vec<DeterminativeEntry>,
     pub rule: Rule,
     pub name: String,
     pub lemma: String,
@@ -553,4 +615,37 @@ pub struct AnchorWord {
 pub struct SymbolEntry {
     pub surface: String,
     pub classes: Vec<String>,
+}
+
+fn complement_relation() -> deckmaste_syntax::frames::SlotRelation {
+    deckmaste_syntax::frames::SlotRelation::Complement
+}
+
+/// Whether a nominal has an overt determiner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum Determination {
+    Bare,
+    Overt,
+}
+
+/// Lexical realizations of the permanent status values.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct Status {
+    pub rule: Rule,
+    #[serde(default)]
+    pub adjectives: Vec<AdjectiveDecl>,
+    #[serde(default)]
+    pub prepositions: Vec<PrepositionEntry>,
+}
+
+/// Lexically declared nominal distributions in the Oracle register.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+pub enum NounDistribution {
+    #[default]
+    Ordinary,
+    /// An atomic count-noun term also used as a bare singular NP.
+    BareSingular,
+    /// A mass noun accepting a direct cardinal measure without a unit noun.
+    DirectMeasure,
 }

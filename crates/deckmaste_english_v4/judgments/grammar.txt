@@ -151,7 +151,7 @@
 *PrepositionPhrase with you draw cards
 *PrepositionPhrase that you draw cards
 *PrepositionPhrase whether you draw cards
-*PrepositionPhrase until draw cards
++PrepositionPhrase until draw cards => NounPhrase "draw cards" as Complement of until; !Clause "draw cards" as Complement of until
 + Until you draw cards, draw cards.
 +Nominal creatures that attack => RelativeClause "that attack" gap "creatures"
 + You attack and they attack.

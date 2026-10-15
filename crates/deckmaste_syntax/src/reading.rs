@@ -266,9 +266,7 @@ impl CompiledGrammar {
         category: &str,
     ) -> Result<(), AdmissionError> {
         let root = self
-            .categories
-            .iter()
-            .position(|c| c == category)
+            .category_id(category)
             .ok_or_else(|| AdmissionError::Root(category.to_owned()))?;
         self.admit_as(reading, lexicon, root)
     }
@@ -282,6 +280,23 @@ impl CompiledGrammar {
         let (category, summary) = self.summarize(reading, lexicon)?;
         if category != root || summary.gap != Gap::None {
             return Err(AdmissionError::Root(self.categories[category].clone()));
+        }
+        let mut atoms = Vec::new();
+        self.atoms(reading, lexicon, &mut atoms, &mut |_, _| {})?;
+        let (text, offsets) = join(&atoms);
+        let analyzed = lexicon.analyze(&text);
+        let atomic = self.atomic_spans(&analyzed);
+        if offsets.iter().any(|offset| {
+            let start = text[..offset.start].chars().count();
+            let end = text[..offset.end].chars().count();
+            atomic.iter().any(|span| {
+                (span.start < start && start < span.end) || (span.start < end && end < span.end)
+            })
+        }) {
+            return Err(AdmissionError::Rejected {
+                production: "lexical atomicity".into(),
+                reason: "a declared multiword noun is decomposed".into(),
+            });
         }
         Ok(())
     }

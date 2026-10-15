@@ -106,7 +106,11 @@ Each was settled while adjudicating the migrated judgments.
   `VerbPhrase`: a gerund-participial or past-participial complement, adjunct
   or postmodifier (`VerbPhrase "paying its mana cost"`,
   `VerbPhrase "Starting with you"`, `VerbPhrase "put into your hand"`).
-- An attributive participle is the Participle of its verb, a `VerbPhrase`
+- Oracle determinatives are explicit lexical entries: *target*, *enchanted*,
+  and *equipped* project a `DeterminerPhrase` in determiner function. Their
+  homographs retain their own categories in other uses; an arbitrary participle
+  does not acquire a determinative reading. This is an Oracle-register rule.
+- An attributive verbal participle is the Participle of its verb, a `VerbPhrase`
   (`VerbPhrase "tapped" as Modifier of creature`). After *be*, a participle
   keeps both the adjectival (`AdjectivePhrase`) and the verbal passive
   (`VerbPhrase`) reading.
@@ -141,3 +145,22 @@ Each was settled while adjudicating the migrated judgments.
 * Destroy creature target.
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
 ```
+
+The state adjectives `tapped` and `untapped` coexist with the verbal participles.
+The premodifier judgments require both analyses; the depictive `enters tapped`
+requires the adjective. Transform also explicitly declares the state adjective
+`transformed`; the Garland and Startled Awake judgments require its depictive
+Adjunct reading. Short focused Objects may be postposed after a PP.
+Temporal/manner Objects are not globally forbidden by their game meaning.
+The scalar complement in `base power 0` attaches to `power`, with `base`
+modifying that headed nominal. `until draw cards` retains the noun-premodifier
+reading of `draw cards`, while rejecting a subjectless finite Clause.
+
+Independent genitives agree with the possessed referent, not the possessor.
+Additive sequences such as `an additional two creatures` and singular temporal
+intervals such as `every two turns` are separate constructions (CGEL pp. 353–354).
+The intended `deals 3 damage` Object remains required without an exact count:
+the declared ditransitive frame also admits a syntactic numerical recipient.
+The `vocabulary_batch_1` judgment for `different kinds of counters` requires
+the noun-headed nominal and its selected `of` Complement, without pinning a
+separate intermediate `kinds` projection.

@@ -318,19 +318,12 @@ fn multiword_lexeme_is_atomic_and_needs_its_separator() {
         .iter()
         .map(lexemes)
         .collect();
-    assert_eq!(
-        found,
-        BTreeSet::from([
-            vec!["n:first-strike".to_owned()],
-            vec!["a:first".to_owned(), "n:strike".to_owned()],
-        ])
-    );
-    // Two spaces do not spell the multiword lexeme; the separate words still
-    // parse, but that analysis does not realize as this text.
+    assert_eq!(found, BTreeSet::from([vec!["n:first-strike".to_owned()],]));
+    // Neither lexical nor constructional realization inserts two spaces.
+    // Reject the source rather than admitting a law-one failure.
     let spaced = grammar.parse(&lexicon, "First  strike.");
-    let found: Vec<Vec<String>> = spaced.readings().iter().map(lexemes).collect();
-    assert_eq!(found, [vec!["a:first".to_owned(), "n:strike".to_owned()]]);
-    assert!(spaced.verify_realization(&lexicon).is_err());
+    assert_eq!(spaced.readings(), [] as [Reading; 0]);
+    assert_eq!(spaced.verify_realization(&lexicon), Ok(()));
 }
 
 /// Obligations 3 and 4, discharged by construction: no Category is nullable.

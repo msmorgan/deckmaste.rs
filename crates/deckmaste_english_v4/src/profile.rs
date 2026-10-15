@@ -24,6 +24,7 @@ use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Numeral;
 use deckmaste_lexical::WordForm;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
+use deckmaste_syntax::frames::ClauseKind;
 use deckmaste_syntax::frames::Frame;
 use deckmaste_syntax::frames::FrameFamily;
 use deckmaste_syntax::frames::PrepositionFrame;
@@ -58,6 +59,7 @@ pub const MODE_BULLET: Family = family(0, "ModeBullet");
 pub const COSTED_MODE: Family = family(0, "CostedMode");
 pub const CHAPTER_HEADER: Family = family(0, "ChapterHeader");
 pub const LEVEL_HEADER: Family = family(0, "LevelHeader");
+pub const TABLE_ROW: Family = family(0, "TableRow");
 pub const NUMERAL_LINE: Family = family(0, "NumeralLine");
 pub const ACTIVATED: Family = family(0, "ActivatedAbility");
 pub const SYMBOL_COST: Family = family(0, "SymbolCost");
@@ -91,13 +93,16 @@ pub const COORDINATION: Family = family(6, "Coordination");
 pub const REPLACEMENT: Family = family(7, "Replacement");
 pub const SEQUENCING: Family = family(7, "DiscourseSequencing");
 pub const PRO_FORM: Family = family(7, "ProFormDo");
+pub const ABSOLUTE: Family = family(7, "AbsoluteClause");
+pub const OPTIONAL_BRACKETED_TEXT: Family = family(7, "OptionalBracketedText");
+pub const APPOSITION: Family = family(7, "Apposition");
 pub const QUOTED_ABILITY: Family = family(7, "QuotedAbility");
 pub const VOCABULARY_GAP: Family = family(7, "VocabularyGap");
 pub const TYPE_LINE_WORD: Family = family(7, "TypeLineNonTypeWord");
 
 /// Core words that mark a family by themselves: (category, lemma).
 const COMPARATIVE_WORDS: &[&str] = &[
-    "than", "equal", "greater", "less", "fewer", "more", "most", "least",
+    "than", "equal", "greater", "less", "lesser", "fewer", "fewest", "more", "most", "least",
 ];
 const ARITHMETIC_WORDS: &[&str] = &[
     "plus", "minus", "twice", "half", "double", "triple", "rounded", "times",
@@ -131,12 +136,12 @@ impl Class {
                 let id = value.lexeme.as_str();
                 let prefix = id.split(':').next().unwrap_or("");
                 match prefix {
-                    "name" => Self::CardName,
+                    "name" | "introduced_name" | "anchor_name" => Self::CardName,
                     "type" | "supertype" => Self::CardType,
                     "subtype" => Self::Subtype,
                     "counter" => Self::CounterKind,
-                    "action" => Self::KeywordAction,
-                    "keyword" | "keyword_verb" => Self::KeywordAbility,
+                    "action" | "action_adj" => Self::KeywordAction,
+                    "keyword" | "keyword_verb" | "keyword_det" => Self::KeywordAbility,
                     "ability_word" => Self::AbilityWord,
                     "designation" => Self::Designation,
                     "turn_part" => Self::TurnPart,
@@ -525,6 +530,14 @@ impl<'e> Profiler<'e> {
 
     /// Strips a `<label> —` spine and returns the rest.
     fn spine(&self, tokens: &[Tok<'e>], families: &mut BTreeSet<Family>) -> Vec<Tok<'e>> {
+        if let Some(pipe) = tokens.iter().position(|t| t.is_punct('|'))
+            && tokens[..pipe]
+                .iter()
+                .all(|t| t.numeral() || matches!(t, Tok::Punct('+' | '-' | '—')))
+        {
+            families.insert(TABLE_ROW);
+            return self.spine(&tokens[pipe + 1..], families);
+        }
         let Some(dash) = tokens.iter().position(|t| t.is_punct('—')) else {
             return tokens.to_vec();
         };
@@ -683,6 +696,61 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             families.insert(CORE_CLAUSE);
         }
     }
+    for (i, token) in tokens.iter().enumerate() {
+        if token.is_punct('[')
+            && tokens[i + 1..]
+                .iter()
+                .position(|t| t.is_punct(']'))
+                .is_some_and(|end| !is_notation(&tokens[i + 1..i + 1 + end]))
+        {
+            families.insert(OPTIONAL_BRACKETED_TEXT);
+        }
+    }
+    for window in tokens.windows(3) {
+        if window[1].is_punct(',')
+            && (window[0].has(Category::Adjective) || window[0].has(Category::Noun))
+            && (window[2].has(Category::Adjective) || window[2].has(Category::Affix))
+        {
+            families.insert(COORDINATION);
+        }
+        if window[0].class_is(Class::CardName)
+            && window[1].is_punct(',')
+            && window[2].has(Category::Determinative)
+        {
+            families.insert(APPOSITION);
+        }
+    }
+    if tokens
+        .first()
+        .is_some_and(|t| t.verb_form(&[WordForm::PastParticiple]))
+        && tokens
+            .get(1)
+            .is_some_and(|t| t.is(Category::Preposition, "by"))
+    {
+        families.insert(AUXILIARY);
+    }
+    for (i, token) in tokens.iter().enumerate() {
+        if token.is(Category::Preposition, "with")
+            && tokens
+                .get(i + 1)
+                .is_some_and(|t| t.has(Category::Determinative) || t.has(Category::Pronoun))
+            && tokens[i + 2..]
+                .iter()
+                .take_while(|t| !t.is_punct('.') && !t.is_punct(',') && !t.is_punct(';'))
+                .filter(|t| t.is_word())
+                .last()
+                .is_some_and(|t| t.verb_form(&[WordForm::PastParticiple]))
+        {
+            families.insert(ABSOLUTE);
+        }
+        if token.is(Category::Adjective, "same")
+            && tokens[i + 1..]
+                .iter()
+                .any(|t| t.is(Category::Preposition, "as"))
+        {
+            families.insert(COMPARISON);
+        }
+    }
     let sentences = tokens.iter().filter(|t| t.is_punct('.')).count();
     if sentences > 1 {
         families.insert(SENTENCE_SEQUENCE);
@@ -766,9 +834,8 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         // following nominal (*to target creature*).
         if t.is(Category::Subordinator, "to")
             && next(i).is_some_and(|n| n.verb_form(&[WordForm::Plain]))
-            && tokens
-                .get(i + 2)
-                .is_none_or(|n| !n.nominal() || n.has(Category::Determinative))
+            && !(next(i).is_some_and(|n| n.has(Category::Adjective))
+                && tokens.get(i + 2).is_some_and(Tok::nominal))
         {
             families.insert(INFINITIVAL);
         }
@@ -805,8 +872,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                         .any(|s| matches!(s.fill, SlotFill::BareInf | SlotFill::Gerund))
                 })
         });
-        if !auxiliary
-            && !nominal_context
+        if !nominal_context
             && bare_complement
             && (i + 1..tokens.len())
                 .take_while(|&j| !(tokens[j].is_punct(',') || tokens[j].is_punct('.')))
@@ -833,7 +899,12 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         }
         if t.is(Category::Subordinator, "that") {
             let after = next(i);
-            if previous(i).is_some_and(|p| p.nominal() || p.numeral())
+            if (previous(i)
+                .is_some_and(|p| p.nominal() || p.numeral() || p.has(Category::Adjective))
+                || (i == 0
+                    && (finite_ahead(i)
+                        || (after.is_some_and(|n| n.is(Category::Determinative, "each"))
+                            && tokens.get(i + 2).is_some_and(Tok::finite_verb)))))
                 && after.is_some_and(|n| {
                     n.finite_verb() || n.has(Category::Pronoun) || n.has(Category::Determinative)
                 })
@@ -851,14 +922,17 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 families.insert(CONTENT_CLAUSE);
             }
         }
-        if t.nominal() && !t.finite_verb() {
+        if t.nominal() && !t.has(Category::Adjective) {
             // A contact relative: nominal, subject, finite verb.
             if let Some(subject) = next(i) {
                 let verb_at = if subject.has(Category::Pronoun)
                     && tokens.get(i + 2).is_some_and(Tok::finite_verb)
                 {
                     Some(i + 2)
-                } else if subject.has(Category::Determinative) || subject.has(Category::Pronoun) {
+                } else if subject.has(Category::Determinative)
+                    || subject.has(Category::Pronoun)
+                    || subject.has(Category::Adjective)
+                {
                     (i + 2..tokens.len())
                         .find(|&j| !tokens[j].has(Category::Adjective))
                         .filter(|&j| tokens[j].nominal())
@@ -874,18 +948,40 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     families.insert(CONTACT_RELATIVE);
                 }
             }
-            // A reduced participial postmodifier after a non-initial nominal.
-            // A clause-final participle is a depictive (*onto the
-            // battlefield tapped*), not a postmodifier.
+            // A finite homograph inside a nominal (e.g. `this turn`) is
+            // not evidence for a later matrix predicate.
+            let predicate_at = |j: usize| {
+                tokens[j].finite_verb()
+                    && !tokens[j].has(Category::Adjective)
+                    && !tokens[j].has(Category::Determinative)
+                    && j.checked_sub(1).is_none_or(|k| {
+                        !tokens[k].has(Category::Determinative)
+                            && !tokens[k].has(Category::Clitic)
+                            && (!tokens[k].finite_verb() || tokens[k].nominal())
+                            && !tokens[k].alts().iter().any(|a| matches!(&a.reading, LexicalReading::Word(v) if v.features.case == Some(deckmaste_lexical::Case::Genitive)))
+                            && !tokens[k].has(Category::Preposition)
+                            && !tokens[k].has(Category::Adjective)
+                    })
+            };
+            let later_predicate = (i + 2..tokens.len())
+                .take_while(|&j| !tokens[j].is_punct('.') && !tokens[j].is_punct(';'))
+                .any(predicate_at);
+            let governing_prefix = tokens.first().is_some_and(|p| p.has(Category::Preposition))
+                || (0..i).any(|j| predicate_at(j) && !tokens[j].has(Category::Adjective));
             if next(i).is_some_and(|n| {
-                (bare_verb(n, WordForm::PastParticiple) && !n.verb_form(&[WordForm::Present]))
-                    || bare_verb(n, WordForm::GerundParticiple)
-            }) && tokens
-                .get(i + 2)
-                .is_some_and(|n| !(n.is_punct('.') || n.is_punct(',')))
-                && tokens[..i]
-                    .iter()
-                    .any(|p| p.has(Category::Verb) || p.has(Category::Preposition))
+                let participle =
+                    n.verb_form(&[WordForm::PastParticiple, WordForm::GerundParticiple]);
+                participle
+                    && (!n.has(Category::Adjective) || later_predicate)
+                    && (!n.verb_form(&[WordForm::Present])
+                        || later_predicate
+                        || previous(i).is_some_and(|p| p.nominal() || p.has(Category::Adjective)))
+            }) && (later_predicate
+                || governing_prefix
+                    && tokens
+                        .get(i + 2)
+                        .is_some_and(|n| !(n.is_punct('.') || n.is_punct(',')))
+                || !tokens.iter().any(|p| p.is_punct('.')))
             {
                 families.insert(PARTICIPIAL_POSTMODIFIER);
             }
@@ -925,7 +1021,14 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     .iter()
                     .any(|f| f.complement == SlotFill::BareInf)
             }) && next(i).is_some_and(|n| bare_verb(n, WordForm::Plain));
-            if bare_infinitival || any && (all || finite_ahead(i)) {
+            let verbless = t.alts().iter().any(|a| {
+                a.preposition_frames
+                    .iter()
+                    .any(|f| f.complement == SlotFill::Clause(ClauseKind::Verbless))
+            }) && next(i).is_some_and(|n| {
+                n.has(Category::Adjective) || n.verb_form(&[WordForm::PastParticiple])
+            });
+            if bare_infinitival || verbless || any && (all || finite_ahead(i)) {
                 if t.lemma_in(&["when", "whenever"]) {
                     families.insert(TRIGGER);
                 } else {
@@ -933,16 +1036,20 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 }
             }
         }
-        if i == words[0]
+        if (i == words[0] || previous(i).is_some_and(|t| t.is_punct('.')))
             && t.is(Category::Preposition, "at")
             && tokens[i + 1..].iter().any(|n| n.is_punct(','))
-            && tokens[i + 1..]
-                .iter()
-                .any(|n| n.is(Category::Noun, "beginning") || n.is(Category::Noun, "end"))
+            && tokens[i + 1..].iter().any(|n| {
+                n.is(Category::Noun, "beginning")
+                    || n.is(Category::Noun, "end")
+                    || n.class_is(Class::TurnPart)
+            })
         {
             families.insert(TRIGGER);
         }
-        if t.is(Category::Subordinator, "whether") {
+        if t.is(Category::Subordinator, "whether")
+            || (t.lemma_in(&["how", "which"]) && previous(i).is_some_and(|p| p.has(Category::Verb)))
+        {
             families.insert(CONTENT_CLAUSE);
         }
         // Stratum 5.
@@ -959,7 +1066,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         {
             families.insert(COMPARISON);
         }
-        if t.lemma_in(ARITHMETIC_WORDS) {
+        if t.lemma_in(ARITHMETIC_WORDS)
+            || (t.is(Category::Noun, "time")
+                && previous(i).is_some_and(Tok::numeral)
+                && next(i).is_some_and(|t| t.numeral() || t.class_is(Class::Symbol)))
+        {
             families.insert(ARITHMETIC);
         }
         // Stratum 6.

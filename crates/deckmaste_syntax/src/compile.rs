@@ -34,11 +34,22 @@ use crate::step::Test;
 const FORBIDDEN_SUFFIXES: [&str; 5] = ["Use", "Licence", "License", "Present", "Restriction"];
 
 /// Lexical features the engine projects onto leaves, by grammar feature name.
-pub(crate) const PROJECTED: [&str; 5] = ["Number", "Person", "Tense", "VerbForm", "Case"];
+pub(crate) const PROJECTED: [&str; 7] = [
+    "Number",
+    "Person",
+    "Tense",
+    "VerbForm",
+    "Case",
+    "Inflection",
+    "Countability",
+];
 
 /// The lexical facts a bound grammar keeps about one lexeme.
 #[derive(Debug, Clone)]
 pub(crate) struct LexemeFacts {
+    pub atomic: bool,
+    pub countability: Option<String>,
+    pub features: Vec<(usize, u16)>,
     pub category: LexicalCategory,
     pub binding: Binding,
     pub frames: BTreeSet<usize>,
@@ -49,6 +60,7 @@ pub(crate) struct LexemeFacts {
 #[derive(Debug)]
 pub struct CompiledGrammar {
     pub(crate) categories: Vec<String>,
+    category_ids: BTreeMap<String, usize>,
     pub(crate) category_features: Vec<Vec<usize>>,
     pub(crate) category_gap: Vec<bool>,
     pub(crate) features: Vec<String>,
@@ -62,10 +74,10 @@ pub struct CompiledGrammar {
     pub(crate) preposition_frames: Vec<PrepositionFrame>,
     /// Prepositions whose `PP` slot would extend a head's selected frame,
     /// by (lexeme, selected frame).
-    pub(crate) extensions: BTreeMap<(LexemeId, usize), Vec<LexemeId>>,
+    pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<LexemeId>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
-    /// Projected feature ids: Number, Person, Tense, `VerbForm`, Case.
-    pub(crate) projected: [Option<usize>; 5],
+    /// Projected inflectional feature ids; additional properties are grammar-declared.
+    pub(crate) projected: [Option<usize>; 7],
     report: LoadReport,
 }
 
@@ -101,7 +113,7 @@ impl CompiledGrammar {
     }
 
     pub(crate) fn category_id(&self, name: &str) -> Option<usize> {
-        self.categories.iter().position(|c| c == name)
+        self.category_ids.get(name).copied()
     }
 }
 
@@ -118,6 +130,7 @@ struct Binder<'a> {
 }
 
 /// One child of a Production under construction.
+#[derive(Clone)]
 struct Child {
     name: String,
     symbol: Symbol,
@@ -125,11 +138,13 @@ struct Child {
 }
 
 /// A Production under construction, before equations are resolved.
+#[derive(Clone)]
 struct Draft {
     id: String,
     lhs: usize,
     children: Vec<Child>,
     equations: Vec<(Path, Target)>,
+    exclusions: Vec<(usize, usize, u16)>,
     cost: u32,
     introduces: Gap,
     frame: Option<usize>,
@@ -145,6 +160,7 @@ enum Path {
     Child(usize, usize),
 }
 
+#[derive(Clone)]
 enum Target {
     Path(Path),
     Value(u16),
@@ -157,6 +173,7 @@ impl Draft {
             lhs,
             children: Vec::new(),
             equations: Vec::new(),
+            exclusions: Vec::new(),
             cost,
             introduces: Gap::None,
             frame: None,
@@ -247,6 +264,33 @@ impl<'a> Binder<'a> {
             lexemes.insert(
                 *id,
                 LexemeFacts {
+                    atomic: lexeme.surface_structure
+                        != deckmaste_lexical::SurfaceStructure::MeasuredCompound,
+                    features: lexeme
+                        .properties
+                        .features
+                        .iter()
+                        .filter_map(|(key, value)| {
+                            let feature = features.iter().position(|f| f == key)?;
+                            Some(
+                                values[feature]
+                                    .iter()
+                                    .position(|v| v == value)
+                                    .ok_or_else(|| {
+                                        invalid(format!(
+                                            "lexeme `{id}`: unknown {key} value `{value}`"
+                                        ))
+                                    })
+                                    .map(|v| {
+                                        (feature, u16::try_from(v).expect("small feature domain"))
+                                    }),
+                            )
+                        })
+                        .collect::<Result<Vec<_>, _>>()?,
+                    countability: match lexeme.properties.countability.as_slice() {
+                        [value] => Some(format!("{value:?}")),
+                        _ => lexeme.properties.features.get("Countability").cloned(),
+                    },
                     category: lexeme.category,
                     binding: lexeme.binding,
                     frames: BTreeSet::new(),
@@ -307,6 +351,26 @@ impl<'a> Binder<'a> {
         }
         let mut extensions = BTreeMap::new();
         for (id, facts) in &lexemes {
+            if facts.category != LexicalCategory::Verb {
+                let mut preps: Vec<_> = facts
+                    .frames
+                    .iter()
+                    .filter_map(|&frame| match frames[frame].slots.as_slice() {
+                        [slot] => match &slot.fill {
+                            SlotFill::PP(list) => Some(list.as_slice()),
+                            _ => None,
+                        },
+                        _ => None,
+                    })
+                    .flatten()
+                    .copied()
+                    .collect();
+                preps.sort();
+                preps.dedup();
+                if !preps.is_empty() {
+                    extensions.insert((*id, None), preps);
+                }
+            }
             for &selected in &facts.frames {
                 let mut preps = Vec::new();
                 for &other in &facts.frames {
@@ -322,7 +386,7 @@ impl<'a> Binder<'a> {
                 if !preps.is_empty() {
                     preps.sort();
                     preps.dedup();
-                    extensions.insert((*id, selected), preps);
+                    extensions.insert((*id, Some(selected)), preps);
                 }
             }
         }
@@ -376,6 +440,11 @@ impl<'a> Binder<'a> {
             grammar,
             catalog,
             out: CompiledGrammar {
+                category_ids: categories
+                    .iter()
+                    .enumerate()
+                    .map(|(i, name)| (name.clone(), i))
+                    .collect(),
                 categories,
                 category_features,
                 category_gap,
@@ -459,6 +528,13 @@ impl<'a> Binder<'a> {
         for schema in &self.grammar.schemas {
             for draft in self.schema(schema)? {
                 self.add(draft)?;
+            }
+        }
+        for (name, declaration) in &self.grammar.categories {
+            if let Some(category) = &declaration.category {
+                self.category(category)?;
+                let id = self.category(name)?;
+                self.out.categories[id].clone_from(category);
             }
         }
         Ok(self.out)
@@ -549,6 +625,17 @@ impl<'a> Binder<'a> {
         }
         for equation in &declaration.equations {
             match equation {
+                Equation::Exclude(path, value) => {
+                    let Path::Child(child, feature) = self.path(&draft, path).map_err(context)?
+                    else {
+                        return Err(context(invalid("Exclude requires a child feature")));
+                    };
+                    draft.exclusions.push((
+                        child,
+                        feature,
+                        self.value(feature, value).map_err(context)?,
+                    ));
+                }
                 Equation::Agree(a, b) => {
                     let a = self.path(&draft, a).map_err(context)?;
                     let b = self.path(&draft, b).map_err(context)?;
@@ -595,7 +682,7 @@ impl<'a> Binder<'a> {
             Symbol::Cat { category, .. } => {
                 self.out.category_features[*category].contains(&feature)
             }
-            Symbol::Leaf(_) => self.out.projected.contains(&Some(feature)),
+            Symbol::Leaf(_) => true,
             Symbol::Punct(..) => false,
         }
     }
@@ -612,7 +699,7 @@ impl<'a> Binder<'a> {
                 }
             }
         }
-        let production = crate::step::resolve(
+        let mut production = crate::step::resolve(
             &self.out,
             draft.id.clone(),
             draft.lhs,
@@ -647,6 +734,7 @@ impl<'a> Binder<'a> {
             draft.requires_coordination,
         )
         .map_err(|e| invalid(format!("production `{}`: {e}", draft.id)))?;
+        production.exclusions = draft.exclusions;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -662,6 +750,13 @@ impl<'a> Binder<'a> {
 
     fn schema(&mut self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         match schema {
+            SchemaDecl::Premodification {
+                head,
+                modifier,
+                host,
+                forms,
+                prefix,
+            } => self.premodification(*head, modifier, host, forms, *prefix),
             SchemaDecl::Parameters {
                 head,
                 phrase,
@@ -672,18 +767,27 @@ impl<'a> Binder<'a> {
                 phrase,
                 cost,
                 passive,
-            } => self.valence(*head, phrase, *cost, passive.as_deref()),
+                interleaved,
+                heavy_shift,
+            } => {
+                let drafts = self.valence(*head, phrase, *cost, passive.as_deref())?;
+                self.valence_order(drafts, interleaved.as_deref(), *heavy_shift)
+            }
             SchemaDecl::Adjunct {
                 host,
                 adjunct,
                 side,
                 host_kind,
+                delimiter,
                 cost,
             } => {
                 let host_id = self.category(host)?;
                 let adjunct_id = self.category(adjunct)?;
                 let mut draft = Draft::new(
-                    format!("Adjunct:{host}+{adjunct}/{side:?}/{host_kind:?}"),
+                    format!(
+                        "Adjunct:{host}+{adjunct}/{side:?}/{host_kind:?}{}",
+                        delimiter.map_or(String::new(), |c| format!("/{c}"))
+                    ),
                     host_id,
                     *cost,
                 );
@@ -707,9 +811,15 @@ impl<'a> Binder<'a> {
                 };
                 let (h, a) = if *side == Side::After {
                     let h = draft.child("head", host_symbol, GapRule::Transparent);
+                    if let Some(c) = delimiter {
+                        draft.child("", Symbol::Punct(*c, Binding::Suffix), GapRule::Closed);
+                    }
                     (h, draft.child(function, adjunct_symbol, GapRule::Closed))
                 } else {
                     let a = draft.child(function, adjunct_symbol, GapRule::Closed);
+                    if let Some(c) = delimiter {
+                        draft.child("", Symbol::Punct(*c, Binding::Suffix), GapRule::Closed);
+                    }
                     (draft.child("head", host_symbol, GapRule::Transparent), a)
                 };
                 draft.host_check = Some((h, a, *host_kind));
@@ -721,6 +831,67 @@ impl<'a> Binder<'a> {
                 cost,
             } => self.coordination(category, coordinators, *cost),
         }
+    }
+
+    fn premodification(
+        &mut self,
+        head: LexicalCategory,
+        modifier: &str,
+        host: &str,
+        forms: &[deckmaste_lexical::WordForm],
+        prefix: bool,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let target = self.category(modifier)?;
+        let modifier_id = self.private_category(target);
+        let host_id = self.category(host)?;
+        let symbol = |category| Symbol::Cat {
+            category,
+            binding: None,
+            prepositions: None,
+            host: None,
+        };
+        let mut drafts = Vec::new();
+        for form in forms {
+            let mut leaf = Draft::new(
+                format!("Premodification:{host}/{head:?}/{form:?}"),
+                modifier_id,
+                0,
+            );
+            let child = leaf.child(
+                "head",
+                Symbol::Leaf(Test::FreeLexical(head)),
+                GapRule::Closed,
+            );
+            let inflection = self.feature("Inflection")?;
+            leaf.equations.push((
+                Path::Child(child, inflection),
+                Target::Value(self.value(inflection, &format!("{form:?}"))?),
+            ));
+            drafts.push(leaf);
+        }
+        if prefix {
+            let mut affixed = Draft::new(
+                format!("Premodification:{host}/{head:?}/prefix"),
+                modifier_id,
+                0,
+            );
+            affixed.child(
+                "prefix",
+                Symbol::Leaf(Test::Lexical(LexicalCategory::Affix)),
+                GapRule::Closed,
+            );
+            affixed.child("head", symbol(modifier_id), GapRule::Closed);
+            drafts.push(affixed);
+        }
+        let mut attachment = Draft::new(
+            format!("Premodification:{host}/{head:?}/attach"),
+            host_id,
+            1,
+        );
+        attachment.child("modifier", symbol(modifier_id), GapRule::Closed);
+        attachment.child("head", symbol(host_id), GapRule::Closed);
+        drafts.push(attachment);
+        Ok(drafts)
     }
 
     fn private_category(&mut self, target: usize) -> usize {
@@ -873,7 +1044,16 @@ impl<'a> Binder<'a> {
             for index in used {
                 let frame = &self.out.preposition_frames[index];
                 let mut draft = Draft::new(
-                    format!("Valence:{phrase}/{:?}@{:?}", frame.complement, frame.hosts),
+                    format!(
+                        "Valence:{phrase}/{:?}@{:?}{}",
+                        frame.complement,
+                        frame.hosts,
+                        if frame.relation == SlotRelation::Complement {
+                            ""
+                        } else {
+                            "/predicative"
+                        }
+                    ),
                     lhs,
                     cost,
                 );
@@ -883,18 +1063,27 @@ impl<'a> Binder<'a> {
                     GapRule::Closed,
                 );
                 if frame.complement != SlotFill::Intransitive {
-                    draft.child(
-                        "complement",
+                    let child = draft.child(
+                        relation_name(frame.relation),
                         self.slot_symbol(&frame.complement)?,
                         GapRule::Transparent,
                     );
+                    if frame.complement == SlotFill::NP {
+                        self.oblique_case(&mut draft, child)?;
+                    }
                 }
                 drafts.push(draft);
                 if gap_capable && frame.complement == SlotFill::NP {
                     let mut stranded = Draft::new(
                         format!(
-                            "Valence:{phrase}/{:?}@{:?}/gap0",
-                            frame.complement, frame.hosts
+                            "Valence:{phrase}/{:?}@{:?}{}/gap0",
+                            frame.complement,
+                            frame.hosts,
+                            if frame.relation == SlotRelation::Complement {
+                                ""
+                            } else {
+                                "/predicative"
+                            }
                         ),
                         lhs,
                         cost,
@@ -1043,11 +1232,14 @@ impl<'a> Binder<'a> {
                     continue;
                 }
                 let relation = self.out.frames[frame].slots[first_slot + i].relation;
-                draft.child(
+                let child = draft.child(
                     relation_name(relation),
                     self.slot_symbol(fill)?,
                     GapRule::Transparent,
                 );
+                if **fill == SlotFill::NP {
+                    self.oblique_case(&mut draft, child)?;
+                }
             }
             if gap.is_some() {
                 draft.introduces = Gap::NP;
@@ -1060,6 +1252,141 @@ impl<'a> Binder<'a> {
             drafts.push(draft);
         }
         Ok(drafts)
+    }
+
+    fn valence_order(
+        &mut self,
+        drafts: Vec<Draft>,
+        adjunct: Option<&str>,
+        heavy: bool,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let adjunct = adjunct.map(|name| self.category(name)).transpose()?;
+        let mut ordered = Vec::new();
+        for draft in drafts {
+            if heavy
+                && draft.children.len() > 2
+                && draft.children[1].name == "object"
+                && draft.children[2..].iter().all(|c| {
+                    matches!(
+                        c.symbol,
+                        Symbol::Cat {
+                            prepositions: Some(_),
+                            ..
+                        }
+                    )
+                })
+            {
+                let mut shifted = draft.clone();
+                shifted.id.push_str("/shifted-object");
+                let object = shifted.children.remove(1);
+                shifted.children.push(object);
+                let last = shifted.children.len() - 1;
+                let map = |i| match i {
+                    0 => 0,
+                    1 => last,
+                    _ => i - 1,
+                };
+                remap_draft(&mut shifted, map);
+                ordered.push(shifted);
+            }
+            ordered.push(draft);
+        }
+        let Some(adjunct) = adjunct else { return Ok(ordered) };
+        let mut out = Vec::new();
+        for draft in ordered {
+            for split in 1..draft.children.len() {
+                if !(matches!(
+                    draft.children[split].symbol,
+                    Symbol::Cat {
+                        prepositions: Some(_),
+                        ..
+                    }
+                ) || (draft.id.ends_with("/shifted-object")
+                    && draft.children[split].name == "object"))
+                {
+                    continue;
+                }
+                let category = self.out.categories.len();
+                self.out
+                    .categories
+                    .push(self.out.categories[draft.lhs].clone());
+                self.out
+                    .category_features
+                    .push(self.out.category_features[draft.lhs].clone());
+                self.out.category_gap.push(self.out.category_gap[draft.lhs]);
+                self.out.by_lhs.push(Vec::new());
+                let symbol = |category, host| Symbol::Cat {
+                    category,
+                    host,
+                    binding: None,
+                    prepositions: None,
+                };
+                let mut prefix = draft.clone();
+                prefix.id = format!("{}/prefix{split}", draft.id);
+                prefix.lhs = category;
+                prefix.introduces = Gap::None;
+                prefix.children.truncate(split);
+                prefix.equations.retain(|(a, b)| {
+                    path_before(*a, split)
+                        && match b {
+                            Target::Path(p) => path_before(*p, split),
+                            Target::Value(_) => true,
+                        }
+                });
+                prefix.exclusions.retain(|(i, _, _)| *i < split);
+                let a = prefix.child(
+                    "adjunct",
+                    symbol(adjunct, Some(HostKind::Predicate)),
+                    GapRule::Closed,
+                );
+                prefix.host_check = Some((0, a, HostKind::Predicate));
+                prefix.cost += 2;
+                out.push(prefix);
+                let mut more = Draft::new(format!("{}/prefix{split}/more", draft.id), category, 2);
+                more.child("head", symbol(category, None), GapRule::Transparent);
+                more.child(
+                    "adjunct",
+                    symbol(adjunct, Some(HostKind::Predicate)),
+                    GapRule::Closed,
+                );
+                more.host_check = Some((0, 1, HostKind::Predicate));
+                out.push(more);
+                let mut suffix = draft.clone();
+                suffix.id = format!("{}/interleaved{split}", draft.id);
+                suffix.children.drain(..split);
+                suffix.children.insert(
+                    0,
+                    Child {
+                        name: "head".into(),
+                        symbol: symbol(category, None),
+                        gap: GapRule::Transparent,
+                    },
+                );
+                suffix.equations.retain(|(a, b)| {
+                    path_after(*a, split)
+                        && match b {
+                            Target::Path(p) => path_after(*p, split),
+                            Target::Value(_) => true,
+                        }
+                });
+                suffix.exclusions.retain(|(i, _, _)| *i >= split);
+                remap_draft(&mut suffix, |i| i - split + 1);
+                out.push(suffix);
+            }
+            out.push(draft);
+        }
+        Ok(out)
+    }
+
+    fn oblique_case(&self, draft: &mut Draft, child: usize) -> Result<(), LoadError> {
+        if let Some(case) = self.out.features.iter().position(|f| f == "Case")
+            && self.carries(&draft.children[child].symbol, case)
+        {
+            draft
+                .exclusions
+                .push((child, case, self.value(case, "Nominative")?));
+        }
+        Ok(())
     }
 
     fn slot_symbol(&self, fill: &SlotFill) -> Result<Symbol, LoadError> {
@@ -1239,5 +1566,34 @@ fn relation_name(relation: SlotRelation) -> &'static str {
         SlotRelation::IndirectObject => "indirect_object",
         SlotRelation::Complement => "complement",
         SlotRelation::PredicativeComplement => "predicative_complement",
+    }
+}
+
+fn path_before(path: Path, split: usize) -> bool {
+    match path {
+        Path::Mother(_) => true,
+        Path::Child(i, _) => i < split,
+    }
+}
+fn path_after(path: Path, split: usize) -> bool {
+    match path {
+        Path::Mother(_) => true,
+        Path::Child(i, _) => i >= split,
+    }
+}
+fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
+    let path = |p: &mut Path| {
+        if let Path::Child(i, _) = p {
+            *i = map(*i);
+        }
+    };
+    for (a, b) in &mut draft.equations {
+        path(a);
+        if let Target::Path(p) = b {
+            path(p);
+        }
+    }
+    for (i, _, _) in &mut draft.exclusions {
+        *i = map(*i);
     }
 }

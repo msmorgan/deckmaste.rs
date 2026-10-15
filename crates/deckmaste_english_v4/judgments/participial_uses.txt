@@ -1,12 +1,12 @@
 # Participles: attributive gerund-participle and participial-adjective premodifiers, depictive predicative adjuncts (enters tapped, onto the battlefield tapped and attacking), participial postmodifiers with objects, and tapped-and-attacking after be
 +NounPhrase target attacking creature => VerbPhrase "attacking" as Modifier of creature; readings 1
 +NounPhrase target blocking creature => VerbPhrase "blocking" as Modifier of creature; readings 1
-+NounPhrase target tapped creature => VerbPhrase "tapped" as Modifier of creature; readings 1
-+NounPhrase target untapped creature => VerbPhrase "untapped" as Modifier of creature; readings 1
++NounPhrase target tapped creature => VerbPhrase "tapped" as Modifier of creature || AdjectivePhrase "tapped" as Modifier of creature
++NounPhrase target untapped creature => VerbPhrase "untapped" as Modifier of creature || AdjectivePhrase "untapped" as Modifier of creature
 + This land enters tapped. => AdjectivePhrase "tapped" as Adjunct of enter; readings 1
 +NounPhrase target attacking or blocking creature => VerbPhrase "attacking or blocking" as Modifier of creature; readings 1
 +Predicative tapped and attacking => AdjectivePhrase "tapped"; VerbPhrase "attacking"; readings 1
-+VerbPhrase enter the battlefield => NounPhrase "the battlefield" as Object of enter; readings 1
++VerbPhrase enter the battlefield => NounPhrase "the battlefield" as Object of enter
 +Nominal creature attacking you => VerbPhrase "attacking you" as Modifier of creature; NounPhrase "you" as Object of attack; readings 1
 +NounPhrase target creature blocking this creature => VerbPhrase "blocking this creature" as Modifier of creature; NounPhrase "this creature" as Object of block; readings 1
 +Nominal player being attacked => VerbPhrase "being attacked" as Modifier of player

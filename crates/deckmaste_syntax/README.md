@@ -95,3 +95,15 @@ node listing its conjuncts and then the coordinator, and a Preposition Phrase
 attached as a Predicate adjunct to a head with a longer frame selecting it
 becomes that frame's complement. It endorses nothing; it lets two sets of
 Readings be compared under exactly those equivalences.
+
+Category aliases retain a grammatical category in Readings while allowing
+separate internal production domains. Declared lexical features participate in
+the same equations as inflectional features. Multiword noun terms remain atomic
+in both parsing and Admission; measured compounds retain their internal measure.
+Construction boundaries enforce the spacing used by realization.
+
+The Valence Schema can interleave PP Adjuncts before selected complements and
+postpose an Object. Same-head complement priority still applies through these
+projections. Right Node Raising requires the shared Gap at each coordinate's
+right edge; ordinary extraction is not subject to that restriction. Adjunct
+Schemas can declare a punctuation delimiter for preposed or delimited PPs.

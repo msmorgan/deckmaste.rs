@@ -14,7 +14,8 @@ use deckmaste_syntax::grammar::SymbolDecl;
 
 /// Grammatical terms that happen to spell a catalog item, each the standard
 /// name of a grammatical concept rather than a use of the catalog word.
-const GRAMMATICAL_TERMS: [&str; 0] = [];
+// Case is the nominative/accusative/genitive distinction in english-v4 §1.
+const GRAMMATICAL_TERMS: [&str; 1] = ["case"];
 
 #[test]
 fn the_grammar_names_only_core_closed_class_lexemes() {
@@ -109,6 +110,9 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
     }
     for schema in &grammar.schemas {
         match schema {
+            SchemaDecl::Premodification { modifier, host, .. } => {
+                names.extend([modifier.as_str(), host.as_str()]);
+            }
             SchemaDecl::Parameters { phrase, .. } => names.push(phrase),
             SchemaDecl::Valence {
                 phrase, passive, ..

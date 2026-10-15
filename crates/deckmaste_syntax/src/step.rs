@@ -63,6 +63,7 @@ pub(crate) enum Symbol {
 /// A compiled Production.
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
+    pub exclusions: Vec<(usize, usize, u16)>,
     pub id: String,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -185,6 +186,7 @@ pub(crate) fn resolve(
         return Err("introduces a gap on a category that cannot contain one".to_owned());
     }
     Ok(Production {
+        exclusions: Vec::new(),
         id,
         lhs,
         rhs,
@@ -208,8 +210,11 @@ pub(crate) fn resolve(
 /// parent may inspect. Two Constituents with equal summaries are packed.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct Summary {
+    pub first_glues: bool,
+    pub last_glues: bool,
     pub values: Box<[Option<u16>]>,
     pub gap: Gap,
+    pub gap_right_edge: bool,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
     /// Prepositions whose PP would extend this phrase's selected frame.
@@ -221,6 +226,7 @@ pub(crate) struct Summary {
 /// A lexical leaf as a child sees it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct LeafFacts {
+    pub binding: deckmaste_lexical::Binding,
     pub integer: Option<i32>,
     pub notation: Option<deckmaste_lexical::Numeral>,
     pub lexeme: Option<LexemeId>,
@@ -237,8 +243,12 @@ pub(crate) enum ChildView<'a> {
 /// The partial state of a Production whose first children have been found.
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(crate) struct State {
+    pub first_glues: Option<bool>,
+    pub last_glues: bool,
     vars: Box<[Option<u16>]>,
     gap: Option<Gap>,
+    gap_right_edge: bool,
+    shared_gap_right_edge: bool,
     preposition: Option<(LexemeId, usize)>,
     extensions: Vec<LexemeId>,
     coordinator: Option<LexemeId>,
@@ -248,10 +258,49 @@ pub(crate) struct State {
 }
 
 impl Production {
+    pub(crate) fn boundaries(&self, position: usize, child: &ChildView<'_>) -> (bool, bool) {
+        use crate::reading::{glues_after, glues_before};
+        let (mut first, mut last) = match child {
+            ChildView::Node(summary) => (summary.first_glues, summary.last_glues),
+            ChildView::Leaf(leaf) => (glues_before(leaf.binding), glues_after(leaf.binding)),
+            ChildView::Punct => match self.rhs[position] {
+                Symbol::Punct(_, binding) => (glues_before(binding), glues_after(binding)),
+                _ => (false, false),
+            },
+        };
+        if let Symbol::Cat {
+            binding: Some(binding),
+            ..
+        } = self.rhs[position]
+        {
+            first |= glues_before(binding);
+            last |= glues_after(binding);
+        }
+        (first, last)
+    }
+
+    pub(crate) fn spacing_matches(
+        &self,
+        state: &State,
+        position: usize,
+        child: &ChildView<'_>,
+        gap: &[char],
+    ) -> bool {
+        if state.first_glues.is_none() {
+            return true;
+        }
+        let (first, _) = self.boundaries(position, child);
+        if state.last_glues || first { gap.is_empty() } else { gap == [' '] }
+    }
+
     pub fn start(&self) -> State {
         State {
+            first_glues: None,
+            last_glues: false,
             vars: self.constants.clone().into_boxed_slice(),
             gap: None,
+            gap_right_edge: true,
+            shared_gap_right_edge: true,
             preposition: None,
             extensions: Vec::new(),
             coordinator: None,
@@ -270,6 +319,12 @@ impl Production {
         child: &ChildView<'_>,
     ) -> Option<State> {
         let mut next = state.clone();
+        if state.gap.is_some_and(|gap| gap != Gap::None) {
+            next.gap_right_edge = false;
+        }
+        let (first, last) = self.boundaries(position, child);
+        next.first_glues.get_or_insert(first);
+        next.last_glues = last;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -290,6 +345,13 @@ impl Production {
                 ChildView::Punct => None,
             }
         };
+        if self
+            .exclusions
+            .iter()
+            .any(|&(at, feature, value)| at == position && lookup(feature) == Some(value))
+        {
+            return None;
+        }
         for &(feature, var) in &self.child_vars[position] {
             if let Some(value) = lookup(feature) {
                 match next.vars[var] {
@@ -316,6 +378,12 @@ impl Production {
                         return None;
                     }
                 }
+                if summary.gap != Gap::None {
+                    next.gap_right_edge = summary.gap_right_edge;
+                    if matches!(self.gaps[position], GapRule::Shared) {
+                        next.shared_gap_right_edge &= summary.gap_right_edge;
+                    }
+                }
                 match self.gaps[position] {
                     GapRule::Closed => {
                         if summary.gap != Gap::None {
@@ -340,7 +408,9 @@ impl Production {
                         _ => next.gap = Some(summary.gap),
                     },
                 }
-                if self.requires_coordination == Some(position) && summary.coordinator.is_none() {
+                if self.requires_coordination == Some(position)
+                    && (summary.coordinator.is_none() || !summary.gap_right_edge)
+                {
                     return None;
                 }
                 if self.distinct_coordinator.contains(&position)
@@ -376,9 +446,21 @@ impl Production {
                 {
                     next.extensions = grammar
                         .extensions
-                        .get(&(*lexeme, *frame))
+                        .get(&(*lexeme, Some(*frame)))
                         .cloned()
                         .unwrap_or_default();
+                }
+                if let (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) =
+                    (&self.rhs[position], leaf.lexeme)
+                {
+                    next.extensions = grammar
+                        .extensions
+                        .get(&(lexeme, None))
+                        .cloned()
+                        .unwrap_or_default();
+                }
+                if self.host_check.is_some_and(|(host, _, _)| host == position) {
+                    next.host_extensions.clone_from(&next.extensions);
                 }
             }
             ChildView::Punct => {}
@@ -393,8 +475,7 @@ impl Production {
         {
             return None;
         }
-        if let (Some((_, _, HostKind::Predicate)), Some(p)) =
-            (self.host_check, &state.adjunct_preposition)
+        if let (Some((_, _, _)), Some(p)) = (self.host_check, &state.adjunct_preposition)
             && state.host_extensions.contains(p)
         {
             return None;
@@ -412,12 +493,16 @@ impl Production {
         }
         let coordinated = self.coordinator.is_some();
         Some(Summary {
+            first_glues: state.first_glues.unwrap_or(false),
+            last_glues: state.last_glues,
             values: self
                 .mother_vars
                 .iter()
                 .map(|var| var.and_then(|v| state.vars[v]))
                 .collect(),
             gap,
+            gap_right_edge: self.introduces != Gap::None
+                || (state.gap_right_edge && state.shared_gap_right_edge),
             preposition: if coordinated { None } else { state.preposition },
             extensions: if coordinated { Vec::new() } else { state.extensions.clone() },
             coordinator: state.coordinator,
@@ -468,8 +553,10 @@ impl CompiledGrammar {
                     f.tense.map(|t| format!("{t:?}")),
                     verb_form.map(str::to_owned),
                     f.case.map(|c| format!("{c:?}")),
+                    Some(format!("{:?}", value.form)),
+                    facts.countability.clone(),
                 ];
-                let mut features = Vec::new();
+                let mut features = facts.features.clone();
                 for (id, name) in self.projected.iter().zip(names) {
                     if let (Some(id), Some(name)) = (id, name) {
                         let value = self.values[*id].iter().position(|v| *v == name)?;
@@ -477,6 +564,7 @@ impl CompiledGrammar {
                     }
                 }
                 Some(LeafFacts {
+                    binding: facts.binding,
                     integer: None,
                     notation: None,
                     lexeme: Some(value.lexeme),
@@ -487,11 +575,15 @@ impl CompiledGrammar {
             LexicalReading::Numeral {
                 value, notation, ..
             } => Some(LeafFacts {
+                binding: deckmaste_lexical::Binding::Free,
                 integer: Some(*value),
                 notation: Some(*notation),
                 lexeme: None,
                 category: LexicalCategory::Numeral,
-                features: if *notation == deckmaste_lexical::Numeral::Cardinal {
+                features: if matches!(
+                    notation,
+                    deckmaste_lexical::Numeral::Cardinal | deckmaste_lexical::Numeral::Arabic(_)
+                ) {
                     self.projected[0]
                         .and_then(|id| {
                             let number = if *value == 1 { "Singular" } else { "Plural" };
@@ -508,6 +600,7 @@ impl CompiledGrammar {
                 },
             }),
             LexicalReading::FlavorWord { .. } => Some(LeafFacts {
+                binding: deckmaste_lexical::Binding::Free,
                 integer: None,
                 notation: None,
                 lexeme: None,
@@ -526,6 +619,19 @@ pub(crate) fn projected_values(feature: &str) -> &'static [&'static str] {
         "Tense" => &["Present", "Past"],
         "VerbForm" => &["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         "Case" => &["Nominative", "Accusative", "Genitive"],
+        "Countability" => &["Count", "Mass"],
+        "Inflection" => &[
+            "Invariant",
+            "IndependentGenitive",
+            "Singular",
+            "Plural",
+            "Plain",
+            "Present",
+            "Preterite",
+            "Irrealis",
+            "GerundParticiple",
+            "PastParticiple",
+        ],
         _ => &[],
     }
 }

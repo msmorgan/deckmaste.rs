@@ -19,6 +19,7 @@ fn shortened_names_are_derived_from_the_full_name() {
     let vocabulary = vocabulary();
     for (name, expected) in [
         ("Gisela, Blade of Goldnight", &["Gisela"][..]),
+        ("Wolverine, Best There Is", &["Wolverine"]),
         ("Gandalf the Grey", &["Gandalf"]),
         ("Daxos of Meletis", &["Daxos"]),
         ("Edgar Markov", &["Edgar"]),

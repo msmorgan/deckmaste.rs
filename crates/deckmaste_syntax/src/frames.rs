@@ -15,6 +15,7 @@ pub enum FrameFamily {
     Monotransitive,
     Ditransitive,
     TransitiveWithPP,
+    TransitiveWithComplement,
     Prepositional,
     Copular,
     Catenative,
@@ -26,8 +27,8 @@ pub enum FrameFamily {
     ContentClause,
     /// A numeric Amount, as in *scry 2*.
     Amount,
-    /// A Nominal followed by an Amount, as in *amass Zombies 2*.
-    NominalAmount,
+    /// An Object followed by an Amount, as in *amass Zombies 2*.
+    TransitiveAmount,
     /// A Cost, as in *waterbend {3}*.
     Cost,
     NounComplement,
@@ -57,6 +58,8 @@ pub enum SlotFill {
     /// A Preposition Phrase headed by one of the listed prepositions.
     PP(Vec<LexemeId>),
     Pred,
+    AdjP,
+    LocativeNP,
     Clause(ClauseKind),
     ToInf,
     BareInf,
@@ -85,6 +88,8 @@ pub enum SlotKind {
     NP,
     PP,
     Pred,
+    AdjP,
+    LocativeNP,
     FiniteClause,
     VerblessClause,
     ToInf,
@@ -105,6 +110,8 @@ impl SlotFill {
             Self::NP => SlotKind::NP,
             Self::PP(_) => SlotKind::PP,
             Self::Pred => SlotKind::Pred,
+            Self::AdjP => SlotKind::AdjP,
+            Self::LocativeNP => SlotKind::LocativeNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::ToInf => SlotKind::ToInf,
@@ -145,10 +152,20 @@ impl Frame {
         let shape: Vec<_> = self.slots.iter().map(|s| (s.relation, &s.fill)).collect();
         match self.family {
             FrameFamily::Intransitive => shape.is_empty(),
-            FrameFamily::Monotransitive => matches!(shape[..], [(Object, SlotFill::NP)]),
+            FrameFamily::Monotransitive => matches!(
+                shape[..],
+                [(
+                    Object,
+                    SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::QuotedAbility
+                )]
+            ),
             FrameFamily::Ditransitive => matches!(
                 shape[..],
                 [(IndirectObject, SlotFill::NP), (Object, SlotFill::NP)]
+            ),
+            FrameFamily::TransitiveWithComplement => matches!(
+                shape[..],
+                [(Object, SlotFill::NP), (Complement, SlotFill::LocativeNP)]
             ),
             FrameFamily::TransitiveWithPP => {
                 matches!(
@@ -186,12 +203,9 @@ impl Frame {
                 )
             }
             FrameFamily::Amount => matches!(shape[..], [(Complement, SlotFill::Amount)]),
-            FrameFamily::NominalAmount => matches!(
+            FrameFamily::TransitiveAmount => matches!(
                 shape[..],
-                [
-                    (Complement, SlotFill::Nominal),
-                    (Complement, SlotFill::Amount)
-                ]
+                [(Object, SlotFill::NP), (Complement, SlotFill::Amount)]
             ),
             FrameFamily::Cost => matches!(shape[..], [(Complement, SlotFill::Cost)]),
             FrameFamily::NounComplement
@@ -230,6 +244,8 @@ impl Hosts {
 /// One complement frame of a preposition with its Host Category.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct PrepositionFrame {
+    #[serde(default = "complement_relation")]
+    pub relation: SlotRelation,
     pub complement: SlotFill,
     pub hosts: Hosts,
 }
@@ -275,4 +291,8 @@ pub enum ParameterPart {
     /// A word set with recursive premodification, projected as a constituent.
     ModifiedWords(Vec<LexemeId>, SlotKind, SlotKind),
     Mark(char, deckmaste_lexical::Binding),
+}
+
+fn complement_relation() -> SlotRelation {
+    SlotRelation::Complement
 }

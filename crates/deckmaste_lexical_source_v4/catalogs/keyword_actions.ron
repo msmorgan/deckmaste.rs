@@ -89,7 +89,7 @@
     ]),
     (rule: "[CR#701.27]", name: "Transform", verbs: [
         (lemma: "transform", frames: [Monotransitive, Intransitive, Prepositional(["into"])]),
-    ]),
+    ], adjectives: ["transformed"]),
     (rule: "[CR#701.28]", name: "Convert", verbs: [
         (lemma: "convert", frames: [Monotransitive]),
     ]),
@@ -114,7 +114,7 @@
     ]),
     (rule: "[CR#701.37]", name: "Monstrosity", nouns: [
         // The verbless instruction "Monstrosity 3." [CR#701.37a]
-        (lemma: "monstrosity", frames: [Complement(Amount)]),
+        (lemma: "monstrosity", frames: [Complement(Amount)], parameters: [[Head, Slot(Amount)]]),
     ]),
     (rule: "[CR#701.38]", name: "Vote", verbs: [
         (lemma: "vote", frames: [Prepositional(["for"]), Intransitive]),
@@ -146,7 +146,7 @@
         (lemma: "adapt", frames: [Amount, Intransitive]),
     ]),
     (rule: "[CR#701.47]", name: "Amass", verbs: [
-        (lemma: "amass", frames: [NominalAmount]),
+        (lemma: "amass", frames: [TransitiveAmount]),
     ]),
     (rule: "[CR#701.48]", name: "Learn", verbs: [
         (lemma: "learn", frames: [Intransitive]),
@@ -184,7 +184,7 @@
     (rule: "[CR#701.59]", name: "Collect Evidence", verbs: [
         // A head verb with the object "evidence": "collect evidence 4", and the passive
         // "whether evidence was collected" [CR#701.59c].
-        (lemma: "collect", frames: [NominalAmount, Monotransitive]),
+        (lemma: "collect", frames: [TransitiveAmount, Monotransitive]),
     ]),
     (rule: "[CR#701.60]", name: "Suspect", verbs: [
         (lemma: "suspect", frames: [Monotransitive]),

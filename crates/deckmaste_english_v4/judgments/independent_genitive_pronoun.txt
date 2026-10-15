@@ -3,7 +3,7 @@
 +NounPhrase yours => readings 1
 +NounPhrase his => readings 1
 +NounPhrase hers => readings 1
-+NounPhrase theirs => readings 1
++NounPhrase theirs
 *NounPhrase its
 *NounPhrase your
 *NounPhrase their

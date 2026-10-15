@@ -1,0 +1,11 @@
+// Permanent status values [CR#110.5]. Their verbal homographs remain in
+// the owning keyword-action catalogs.
+[
+    (rule: "[CR#110.5]", adjectives: ["tapped", "untapped", "flipped", "unflipped"],
+        prepositions: [
+            (lemma: "face up", frames: [(complement: Intransitive, hosts: NominalAndPredicate)]),
+            (lemma: "face down", frames: [(complement: Intransitive, hosts: NominalAndPredicate)]),
+            (lemma: "phased in", frames: [(complement: Intransitive, hosts: NominalAndPredicate)]),
+            (lemma: "phased out", frames: [(complement: Intransitive, hosts: NominalAndPredicate)]),
+        ]),
+]

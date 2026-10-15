@@ -43,7 +43,7 @@
     (lemma: "descend", frames: [Intransitive]),
     (lemma: "determine", frames: [Monotransitive]),
     (lemma: "die", frames: [Intransitive]),
-    (lemma: "distribute", frames: [TransitiveWithPP(["among"])]),
+    (lemma: "distribute", frames: [Monotransitive, TransitiveWithPP(["among"])]),
     (lemma: "divide", frames: [Monotransitive, TransitiveWithPP(["among", "into"])]),
     // *Draft this card face up.*
     (lemma: "draft", frames: [Monotransitive, ComplexTransitive]),
@@ -56,7 +56,7 @@
     (lemma: "finish", frames: [Catenative(Gerund)]),
     (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Monotransitive]),
     (lemma: "follow", frames: [Monotransitive]),
-    (lemma: "gain", frames: [Monotransitive]),
+    (lemma: "gain", frames: [Monotransitive, Transitive(KeywordPhrase)]),
     // *gets +2/+2* is a predicative complement; *get an emblem* an object.
     (lemma: "get", preterite: "got", past_participle: "gotten", gerund: "getting",
         frames: [Monotransitive, Copular]),
@@ -72,7 +72,7 @@
     (lemma: "leave", past: "left", frames: [Monotransitive, TransitiveWithPP(["in"])]),
     (lemma: "lock", frames: [Monotransitive]),
     (lemma: "look", frames: [Prepositional(["at"])]),
-    (lemma: "lose", past: "lost", frames: [Monotransitive]),
+    (lemma: "lose", past: "lost", frames: [Monotransitive, Transitive(KeywordPhrase)]),
     (lemma: "make", past: "made", frames: [Monotransitive]),
     // *damage marked on it*
     (lemma: "mark", frames: [TransitiveWithPP(["on"])]),
@@ -96,7 +96,7 @@
     (lemma: "produce", frames: [Monotransitive]),
     (lemma: "promise", frames: [Monotransitive]),
     (lemma: "protect", frames: [Monotransitive]),
-    (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithPP(["into", "on", "onto"])]),
+    (lemma: "put", past: "put", gerund: "putting", frames: [TransitiveWithComplement(LocativeNP), TransitiveWithPP(["into", "in", "on", "onto", "back"])]),
     (lemma: "receive", frames: [Monotransitive]),
     (lemma: "redistribute", frames: [Monotransitive]),
     (lemma: "reduce", frames: [Monotransitive, TransitiveWithPP(["by", "to"])]),

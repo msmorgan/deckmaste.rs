@@ -302,11 +302,10 @@ fn right_node_raising_shares_a_complement() {
     let imperative = s.readings("Put into your hand or exile the card.");
     assert_eq!(imperative.len(), 1);
     assert!(s.has(&imperative[0], "VerbPhrase", "Put into your hand or exile"));
-    // Without a coordination, a postposed object is not admitted.
-    assert_eq!(
-        s.readings("Put into your hand the card."),
-        Vec::<Reading>::new()
-    );
+    // A focused Object may follow the selected PP without coordination.
+    let shifted = s.readings("Put into your hand the card.");
+    assert_ne!(shifted, [] as [Reading; 0]);
+    assert!(s.has(&shifted[0], "NounPhrase", "the card"));
 }
 
 #[test]
@@ -375,7 +374,8 @@ fn normal_form_identifies_same_head_complement_priority() {
     let s = seed();
     let complement = s.readings("Search your library for a card.").remove(0);
     let sentence = node(&complement);
-    let vp = node(&sentence.children[0]);
+    let clause = node(&sentence.children[0]);
+    let vp = node(&clause.children[0]);
     // Hand-build the analysis same-head priority excludes: the monotransitive
     // frame with `for a card` as an unselected predicate adjunct.
     let monotransitive = ReadingNode {
@@ -397,7 +397,10 @@ fn normal_form_identifies_same_head_complement_priority() {
         ..vp.clone()
     };
     let excluded = Reading::Node(ReadingNode {
-        children: vec![Reading::Node(adjunct)],
+        children: vec![Reading::Node(ReadingNode {
+            children: vec![Reading::Node(adjunct)],
+            ..clause.clone()
+        })],
         ..sentence.clone()
     });
     assert!(s.grammar.admit(&excluded, &s.lexicon).is_err());
@@ -417,19 +420,23 @@ fn normal_form_identifies_groupings_of_one_coordinator() {
         .readings("Destroy target creature or exile target creature.")
         .remove(0);
     // Hand-build `[[Destroy … or exile …] or untap …]` from the parsed parts.
-    let top = node(&node(&serial).children[0]);
+    let clause = node(&node(&serial).children[0]);
+    let top = node(&clause.children[0]);
     let tail = node(&top.children[1]);
     let nested = ReadingNode {
         production: "Coordination:VerbPhrase/binary".to_owned(),
         children: vec![
-            node(&binary).children[0].clone(),
+            node(&node(&binary).children[0]).children[0].clone(),
             tail.children[1].clone(),
             tail.children[2].clone(),
         ],
         ..top.clone()
     };
     let nested = Reading::Node(ReadingNode {
-        children: vec![Reading::Node(nested)],
+        children: vec![Reading::Node(ReadingNode {
+            children: vec![Reading::Node(nested)],
+            ..clause.clone()
+        })],
         ..node(&serial).clone()
     });
     assert!(
@@ -438,7 +445,7 @@ fn normal_form_identifies_groupings_of_one_coordinator() {
     );
     let normal = s.grammar.normal_form(&serial);
     assert_eq!(s.grammar.normal_form(&nested), normal);
-    let chain = node(&node(&normal).children[0]);
+    let chain = node(&node(&node(&normal).children[0]).children[0]);
     assert_eq!(
         chain.children.len(),
         4,

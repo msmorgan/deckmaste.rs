@@ -30,3 +30,53 @@ fn capitalized_prefix_has_one_lexical_analysis() {
         assert_eq!(prefixes.len(), 1, "{text}: {prefixes:?}");
     }
 }
+
+#[test]
+fn catalog_determinatives_are_explicit_and_retain_verbal_homographs() {
+    use deckmaste_lexical::{Category, SourceKind, WordForm};
+    let env = LexicalEnvironment::load().unwrap();
+    let sources = deckmaste_lexical_source_v4::Sources::load().unwrap();
+    for (text, ability) in [("enchanted", "enchant"), ("equipped", "equip")] {
+        let owner = sources
+            .keyword_abilities
+            .iter()
+            .find(|entry| entry.lemma == ability)
+            .unwrap()
+            .rule
+            .number();
+        let analyzed = env.lexicon.analyze(text);
+        let values: Vec<_> = analyzed
+            .matches
+            .iter()
+            .filter_map(|m| {
+                if m.start != 0 || m.end != text.chars().count() {
+                    return None;
+                }
+                match &m.reading {
+                    LexicalReading::Word(v) => Some(v),
+                    _ => None,
+                }
+            })
+            .collect();
+        assert!(
+            values.iter().any(|v| {
+                let l = &env.lexicon.lexemes()[&v.lexeme];
+                l.category == Category::Determinative
+                    && l.source.kind == SourceKind::Catalog
+                    && l.source.owner == owner
+            }),
+            "{text}"
+        );
+        assert!(
+            values.iter().any(
+                |v| env.lexicon.lexemes()[&v.lexeme].category == Category::Verb
+                    && v.form == WordForm::PastParticiple
+            ),
+            "{text}"
+        );
+    }
+    for text in ["tapped", "white", "enchanting", "equipping"] {
+        let analyzed = env.lexicon.analyze(text);
+        assert!(!analyzed.matches.iter().any(|m| matches!(&m.reading, LexicalReading::Word(v) if env.lexicon.lexemes()[&v.lexeme].category == Category::Determinative)), "{text}");
+    }
+}

@@ -41,6 +41,33 @@ fn the_seed_judgments_hold() {
 
 #[test]
 fn judgments_at_or_below_the_completed_stratum_hold() {
+    check_judgments(COMPLETED_STRATUM);
+}
+
+#[test]
+fn catalog_determinative_judgments_hold() {
+    let env = LexicalEnvironment::load().unwrap();
+    let grammar = deckmaste_english_v4::bind(&env.lexicon, &env.frames).unwrap();
+    let judge = Judge {
+        grammar: &grammar,
+        lexicon: &env.lexicon,
+    };
+    let (_, entries) = files()
+        .into_iter()
+        .find(|(name, _)| name == "oracle_determinatives.txt")
+        .unwrap();
+    for entry in entries {
+        assert!(
+            matches!(judge.evaluate(&entry), Outcome::Holds),
+            "{}: {}: {:?}",
+            entry.location,
+            entry.text,
+            judge.evaluate(&entry)
+        );
+    }
+}
+
+fn check_judgments(completed: Option<u8>) {
     let files = files();
     let env = LexicalEnvironment::load().unwrap();
     let profiler = Profiler::new(&env);
@@ -56,7 +83,7 @@ fn judgments_at_or_below_the_completed_stratum_hold() {
                 &deckmaste_english_v4::judgment::scope(entry),
             );
             let stratum = profiler.profile(UnitKind::Line, &analyzed).stratum;
-            if COMPLETED_STRATUM.is_none_or(|done| stratum > done) {
+            if completed.is_none_or(|done| stratum > done) {
                 pending += 1;
                 continue;
             }

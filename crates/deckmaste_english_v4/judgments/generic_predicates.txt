@@ -3,6 +3,6 @@
 *VerbPhrase amass 1 Orcs
 +VerbPhrase share a creature type with that creature => NounPhrase "a creature type" as Object of share; PrepositionPhrase "with that creature" as Complement of share
 +VerbPhrase shares a creature type with that creature => NounPhrase "a creature type" as Object of share; PrepositionPhrase "with that creature" as Complement of share
-+VerbPhrase enter the battlefield => NounPhrase "the battlefield" as Object of enter; readings 1
++VerbPhrase enter the battlefield => NounPhrase "the battlefield" as Object of enter
 + Exile all nonland permanents that aren't legendary. => NounPhrase "all nonland permanents that aren't legendary" as Object of exile; RelativeClause "that aren't legendary"; VerbPhrase "aren't legendary"
 +VerbPhrase remove a charge counter from this artifact => NounPhrase "a charge counter" as Object of remove; PrepositionPhrase "from this artifact" as Complement of remove

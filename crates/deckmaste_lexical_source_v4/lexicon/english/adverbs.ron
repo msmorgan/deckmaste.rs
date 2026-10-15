@@ -32,6 +32,7 @@
     // *Once each turn, you may ...*; *Activate only once each turn*
     (lemma: "once", positions: [Front, End]),
     // *can only*; *Activate only as a sorcery*; *Only creatures ... can block*
+    (lemma: "next", positions: [Central]),
     (lemma: "only", positions: [Central, Phrasal]),
     (lemma: "originally", positions: [Central]),
     (lemma: "otherwise", positions: [Front]),

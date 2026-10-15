@@ -2,9 +2,11 @@
 // exiled) come from the verb; supertypes and designations live in catalogs/.
 // Grades are declared only where English inflects them.
 [
+    // Defined predicate [CR#700.9].
+    "modified",
     (lemma: "able", frames: [Complement(ToInf)]),
     "active",
-    "additional",
+    (lemma: "additional", additive: true),
     "alone",
     "bottom",
     "colored",
@@ -14,7 +16,7 @@
     (lemma: "equal", frames: [Complement(PP(["to"]))]),
     "even",
     "excess",
-    "extra",
+    (lemma: "extra", additive: true),
     "face-down",
     "face-up",
     "final",
@@ -29,6 +31,7 @@
     "illegal",
     "innocent",
     "last",
+    "following",
     "left",
     "legal",
     "lesser",
@@ -45,9 +48,9 @@
     "next",
     "odd",
     // Attributive-only "the only creature card" (CGEL, Ch. 6, §4.1, p. 553).
-    "only",
+    (lemma: "only", determination: Some(Overt)),
     "original",
-    (lemma: "other", frames: [Complement(PP(["than"]))]),
+    (lemma: "other", fused_head: true, frames: [Complement(PP(["than"]))]),
     // Attributive-only (CGEL, Ch. 6, §4.1, p. 553); the verb `own` is separate.
     "own",
     "planar",

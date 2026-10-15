@@ -1,6 +1,6 @@
 //! Amount and Cost Frame Slots: keyword actions such as *scry 2*,
 //! *amass Zombies 2* and *waterbend {3}* select a numeric Amount or a Cost, not
-//! an object.
+//! an Amount complement; amass additionally selects an Object.
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Countability;
@@ -46,8 +46,8 @@ fn lexicon() -> Lexicon {
 const FRAMES: &str = r#"(
     frames: {
         "v:scry": [(family: Amount, slots: [(relation: Complement, fill: Amount)])],
-        "v:amass": [(family: NominalAmount, slots: [
-            (relation: Complement, fill: Nominal),
+        "v:amass": [(family: TransitiveAmount, slots: [
+            (relation: Object, fill: NP),
             (relation: Complement, fill: Amount),
         ])],
         "v:waterbend": [(family: Cost, slots: [(relation: Complement, fill: Cost)])],
@@ -126,10 +126,10 @@ fn a_verb_selects_an_amount() {
 }
 
 #[test]
-fn a_verb_selects_a_nominal_then_an_amount() {
+fn a_verb_selects_an_object_then_an_amount() {
     assert_eq!(
         family(&only_reading("Amass Zombies 2.")),
-        Some(FrameFamily::NominalAmount)
+        Some(FrameFamily::TransitiveAmount)
     );
 }
 
@@ -158,7 +158,7 @@ fn amount_and_cost_frames_have_their_family_shape() {
     for malformed in [
         r#"(frames: {"v:scry": [(family: Amount, slots: [(relation: Object, fill: Amount)])]})"#,
         r#"(frames: {"v:scry": [(family: Amount, slots: [(relation: Complement, fill: NP)])]})"#,
-        r#"(frames: {"v:amass": [(family: NominalAmount, slots: [(relation: Complement, fill: Amount)])]})"#,
+        r#"(frames: {"v:amass": [(family: TransitiveAmount, slots: [(relation: Complement, fill: Amount)])]})"#,
         r#"(frames: {"v:waterbend": [(family: Cost, slots: [(relation: Complement, fill: Amount)])]})"#,
     ] {
         assert!(

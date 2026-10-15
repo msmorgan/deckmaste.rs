@@ -72,8 +72,17 @@ prints the summary and writes the full per-unit report to
 The full lexical environment binds. Stratum 0 covers Type Lines, complete
 keyword lists and non-clausal parameters, symbolic costs and structured
 headers. `Document` composes lines with explicit paragraph boundaries. Outer
-ability spines are also checked over seed clauses; later clausal syntax remains
-pending at its own Stratum.
+ability spines compose with Stratum 1 imperative and finite active clauses.
+Layered nominals preserve noun, adjective and participial premodifiers, genitives,
+quantities and frame-selected complements. Oracle determinatives are explicit
+catalog entries; status adjectives and numerical mass distributions are declared
+in their owning lexical sources. Later constructions remain pending at their
+own Stratum.
+
+The profiler assigns reduced relatives and `named` postmodifiers to Stratum 3,
+triggers to Stratum 4, and optional bracketed Oracle material to Stratum 7.
+Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the
+stratum of their payload.
 
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)

@@ -22,7 +22,7 @@
     (lemma: "among", frames: [(complement: NP, hosts: Nominal)]),
     // *Activate only as a sorcery*; *as it enters*; *as part of casting a spell*
     (lemma: "as", frames: [
-        (complement: NP, hosts: Predicate),
+        (complement: NP, hosts: Predicate, relation: PredicativeComplement),
         (complement: FiniteClause, hosts: Predicate),
         (complement: Nominal, hosts: Predicate),
     ]),
@@ -34,7 +34,7 @@
     (lemma: "at", frames: [
         (complement: NP, hosts: Predicate),
         (complement: Nominal, hosts: Predicate),
-        (complement: Pred, hosts: Predicate),
+        (complement: AdjP, hosts: Predicate),
     ]),
     // *put them back*; *put it back on top of your library*
     (lemma: "back", frames: [
@@ -102,7 +102,7 @@
     (lemma: "in", frames: [
         (complement: NP, hosts: NominalAndPredicate),
         (complement: Nominal, hosts: NominalAndPredicate),
-        (complement: Pred, hosts: Predicate),
+        (complement: AdjP, hosts: Predicate),
         (complement: Intransitive, hosts: ComplementOnly),
     ]),
     // *cards you've drafted this draft round, including this card*
@@ -158,9 +158,9 @@
     ]),
     // *was put there from anywhere*
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
-    // Always selected: *return it to its owner's hand*; *in addition to paying*.
+    // Selected goals and nominal location: *the player to your right*.
     (lemma: "to", frames: [
-        (complement: NP, hosts: ComplementOnly),
+        (complement: NP, hosts: Nominal),
         (complement: Gerund, hosts: ComplementOnly),
     ]),
     // *enters under an opponent's control*; *a noncreature permanent under

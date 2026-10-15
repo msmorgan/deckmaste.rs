@@ -411,9 +411,11 @@ impl Judge<'_> {
     /// Parses an entry's text as it asks.
     #[must_use]
     pub fn parse(&self, entry: &Judgment) -> Option<Parse<'_>> {
-        let analyzed = self
-            .lexicon
-            .analyze_source_scoped(&entry.text, None, &scope(entry));
+        let analyzed = self.lexicon.analyze_source_scoped(
+            &deckmaste_data::oracle_text::strip_reminder_text(&entry.text),
+            None,
+            &scope(entry),
+        );
         match &entry.category {
             Some(category) => self.grammar.parse_category(&analyzed, category),
             None => Some(self.grammar.parse_analyzed(&analyzed)),
@@ -508,7 +510,10 @@ impl Judge<'_> {
         let wanted_start = assertion.occurrence.map(|n| {
             text.match_indices(&assertion.surface)
                 .filter(|(at, found)| {
-                    !text[..*at].chars().next_back().is_some_and(char::is_alphanumeric)
+                    !text[..*at]
+                        .chars()
+                        .next_back()
+                        .is_some_and(char::is_alphanumeric)
                         && !text[at + found.len()..]
                             .chars()
                             .next()

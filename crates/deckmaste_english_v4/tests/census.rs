@@ -64,9 +64,7 @@ fn each_unit_is_read_known_wrong_only_or_unread() {
             ),
             (
                 "Destroy  target creature.",
-                &Verdict::Unread(Unread::Law(
-                    "law 1: the spacing at char 7 is not the spacing realization writes".to_owned()
-                ))
+                &Verdict::Unread(Unread::NoReading)
             ),
         ]
     );
@@ -89,7 +87,7 @@ fn each_unit_is_read_known_wrong_only_or_unread() {
     assert_eq!(totals, (9, 1, 1, 7));
     assert_eq!(
         report.strata.iter().map(|r| r.law_failures).sum::<usize>(),
-        1
+        0
     );
     // No face is read: each has an unread type line.
     assert_eq!(report.strata.iter().map(|r| r.faces_read).sum::<usize>(), 0);

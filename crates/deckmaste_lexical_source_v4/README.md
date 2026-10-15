@@ -27,14 +27,15 @@ authored type.
 | `catalogs/types.ron` | Catalog | `type:`, `supertype:` |
 | `catalogs/subtypes.ron` | Catalog | `subtype:` |
 | `catalogs/keyword_actions.ron` | Catalog | `action:` (verbs, and nouns: *Monstrosity 3*, *the Ring*) |
-| `catalogs/keyword_abilities.ron` | Catalog | `keyword:` (and variants), `keyword:…:bound`, `stem:`, `keyword_verb:` |
+| `catalogs/keyword_abilities.ron` | Catalog | `keyword:` (and variants), `keyword:…:bound`, `stem:`, `keyword_verb:`, `keyword_det:` |
 | `catalogs/ability_words.ron` | Catalog | `ability_word:` |
 | `catalogs/counters.ron` | Catalog | `counter:` |
 | `catalogs/designations.ron` | Catalog | `designation:` |
+| `catalogs/statuses.ron` | Catalog | `status_adj:`, `prep:` |
 | `catalogs/turn_parts.ron` | Catalog | `turn_part:` |
 | `catalogs/tokens.ron` | Catalog | `token:` |
 | `catalogs/introduced_names.ron` | Catalog | `introduced_name:` |
-| `catalogs/anchor_words.ron` | Catalog | `anchor_word:` |
+| `catalogs/anchor_words.ron` | Catalog | `anchor_word:`, `anchor_name:` |
 | `data/gen/catalogs/card-names.txt` (read at load) | Catalog | `name:` |
 
 Only Core vocabulary may be named by a grammar (`deckmaste_syntax` rejects any
@@ -51,7 +52,7 @@ explicit overrides. Only the modals and negative auxiliaries are defective
 Frames are written once, in active voice, naming prepositions by lemma:
 `TransitiveWithPP(["into", "onto"])`, `ComplexTransitive` (*turn it face up*),
 `ComplexCatenative(ToInf)` (*cause you to sacrifice*), `ContentClause`
-(*decide whether …*), `Amount` (*scry 2*), `NominalAmount` (*amass Zombies 2*),
+(*decide whether …*), `Amount` (*scry 2*), `TransitiveAmount` (*amass Zombies 2*),
 `Cost` (*waterbend {3}*), and for nouns, adjectives and determinatives
 `Complement(PP(["of"]))`. Prepositions declare each complement
 frame with its Host Category; `Intransitive` is an Intransitive Preposition
@@ -74,6 +75,8 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
   which `cargo xtask cite` checks like any other citation.
 - A keyword action is realized by verbs (atomic multiword ones such as
   *manifest dread* included) and, where the CR prints it so, by nouns.
+  Explicit adjective Lexemes such as *transformed* also belong to their action
+  catalog entry.
 - A keyword ability's variants (*megamorph*, *partner—Friends forever*) are
   Keyword Lexemes of their own, and the verbs its rule defines (*cycle*,
   *crew*, *equip*) are catalog verbs, never core vocabulary.
@@ -129,3 +132,13 @@ its permitted type premodifiers inside that Quality.
 
 The `non` prefix declares only its hyphenated and unhyphenated spellings;
 sentence-initial capitalization is derived, not duplicated as spelling variants.
+
+Oracle determinative uses are declared on their lexical owners: `target` in
+core vocabulary and `enchanted`, `equipped`, and `fortified` under the corresponding
+keyword abilities. Participles retain their verbal identity independently.
+Permanent statuses supply adjectives and intransitive prepositions.
+
+Nouns declare ordinary, bare-singular, or direct numerical mass distributions.
+The latter licenses numerical `mana`, `life`, and `damage` without treating every
+mass noun as directly countable. Temporal and manner noun kinds support NP
+Adjuncts; additive adjectives support the separately declared quantity construction.

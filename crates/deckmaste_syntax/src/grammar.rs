@@ -56,6 +56,9 @@ impl Grammar {
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CategoryDecl {
+    /// The grammatical Category represented by this restricted production set.
+    #[serde(default)]
+    pub category: Option<String>,
     #[serde(default)]
     pub features: Vec<String>,
     /// Whether a Constituent of this Category may contain an unfilled Gap.
@@ -111,12 +114,23 @@ pub enum SymbolDecl {
 pub enum Equation {
     Agree(String, String),
     Require(String, String),
+    /// Excludes a value on a child without requiring an inapplicable feature.
+    Exclude(String, String),
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub enum SchemaDecl {
+    /// An attributive lexical head retains its phrasal Category as a Modifier.
+    Premodification {
+        head: deckmaste_lexical::Category,
+        modifier: String,
+        host: String,
+        forms: Vec<deckmaste_lexical::WordForm>,
+        #[serde(default)]
+        prefix: bool,
+    },
     /// Catalog-declared ordered parameter patterns around a lexical head.
     Parameters {
         head: deckmaste_lexical::Category,
@@ -134,6 +148,11 @@ pub enum SchemaDecl {
         /// Word that marks the Internalised Complement (verbs only).
         #[serde(default)]
         passive: Option<String>,
+        /// Adjunct category permitted before a selected PP or shifted Object.
+        #[serde(default)]
+        interleaved: Option<String>,
+        #[serde(default)]
+        heavy_shift: bool,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {
@@ -141,6 +160,8 @@ pub enum SchemaDecl {
         adjunct: String,
         side: Side,
         host_kind: HostKind,
+        #[serde(default)]
+        delimiter: Option<char>,
         #[serde(default = "default_cost")]
         cost: u32,
     },

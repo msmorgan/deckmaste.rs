@@ -4,6 +4,7 @@
 // a relational noun (CGEL, Ch. 5, §14.1, pp. 439–441); an of-phrase that only
 // describes ("a creature of your choice") is a modifier and gets no frame.
 [
+    (lemma: "bidding", countability: [Mass]),
     // Game nouns.
     (lemma: "ability", frames: [Complement(PP(["of"]))]),
     "activation",
@@ -37,13 +38,13 @@
     (lemma: "cost", frames: [Complement(PP(["for", "of"])), Complement(ToInf)]),
     "counter",
     "crime",
-    "d4",
-    "d6",
-    "d8",
-    "d10",
-    "d12",
-    "d20",
-    (lemma: "damage", countability: [Mass]),
+    (lemma: "d4", plural: "d4"),
+    (lemma: "d6", plural: "d6"),
+    (lemma: "d8", plural: "d8"),
+    (lemma: "d10", plural: "d10"),
+    (lemma: "d12", plural: "d12"),
+    (lemma: "d20", plural: "d20"),
+    (lemma: "damage", distribution: DirectMeasure, countability: [Mass]),
     "deck",
     (lemma: "devotion", countability: [Mass], frames: [Complement(PP(["to"]))]),
     (lemma: "die", plural: "dice"),
@@ -78,9 +79,9 @@
     "left",
     "legend",
     "library",
-    (lemma: "life", countability: [Mass]),
+    (lemma: "life", distribution: DirectMeasure, countability: [Mass]),
     (lemma: "loyalty", countability: [Mass]),
-    (lemma: "mana", countability: [Mass]),
+    (lemma: "mana", distribution: DirectMeasure, countability: [Mass]),
     "mode",
     "name",
     (lemma: "number", frames: [Complement(PP(["of"]))]),
@@ -94,13 +95,13 @@
     (lemma: "part", frames: [Complement(PP(["of"]))]),
     "party",
     "permanent",
-    "phase",
+    (lemma: "phase", kind: Temporal),
     "pile",
     "player",
     // "each point of bushido it has".
     (lemma: "point", frames: [Complement(PP(["of"]))]),
     "pool",
-    (lemma: "power", frames: [Complement(PP(["of"]))]),
+    (lemma: "power", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
     "process",
     "quality",
     (lemma: "radiation", countability: [Mass]),
@@ -116,26 +117,26 @@
     "spell",
     "stack",
     "stake",
-    "step",
+    (lemma: "step", kind: Temporal),
     "symbol",
     "tail",
-    // Not the Targeting Marker of "target creature", which is an adjective.
+    // Not the Targeting Marker of "target creature", which has a Determinative Lexeme.
     "target",
     "team",
     "teammate",
     (lemma: "text", countability: [Mass], frames: [Complement(PP(["of"]))]),
     "tie",
-    (lemma: "time", countability: [Count, Mass]),
+    (lemma: "time", kind: Temporal, countability: [Count, Mass]),
     "token",
     (lemma: "top", frames: [Complement(PP(["of"]))]),
-    (lemma: "toughness", frames: [Complement(PP(["of"]))]),
-    "turn",
+    (lemma: "toughness", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
+    (lemma: "turn", kind: Temporal),
     "type",
     // "for the same value", "double the value of X".
     (lemma: "value", frames: [Complement(PP(["of"]))]),
     "vote",
     "voter",
-    "way",
+    (lemma: "way", kind: Manner),
     "word",
     "zone",
 
@@ -148,14 +149,14 @@
 
     // Multiword rules terms, each one Lexeme.
     (lemma: "color identity", frames: [Complement(PP(["of"]))]),
-    (lemma: "combat damage", countability: [Mass]),
+    (lemma: "combat damage", distribution: DirectMeasure, countability: [Mass]),
     // A zone name [CR#408.1]; `command` occurs in no other sense.
     "command zone",
     // [CR#506.2]; no verb `defend` stands behind `defending`.
-    "defending player",
+    (lemma: "defending player", distribution: BareSingular),
     "life total",
     (lemma: "mana cost", frames: [Complement(PP(["for", "of"]))]),
-    "mana value",
+    (lemma: "mana value", countability: [Count, Mass], frames: [Complement(Amount)]),
     // [CR#103.6]; `opening` occurs in no other sense.
     "opening hand",
 
