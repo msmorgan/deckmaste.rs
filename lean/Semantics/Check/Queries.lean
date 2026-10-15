@@ -143,6 +143,8 @@ private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
     (stepNounPhrase 64 context .other false controller).2.2 = [] ∧
       ((stepNounPhrase 64 context .other false controller).1.findById? 0).map (·.payload) = some joined ∧
       NounPhrase.checkAt (some .player) context participant = [] ∧
+      Instruction.check context (.instruct participant (.changeLife (.up (.lit 1)))) = [] ∧
+      Amount.check context (.statOf (.playerStat .lifeTotal) participant) = [] ∧
       (stepNounPhrase 64 context .other false
         (.possessorOf .controller (.pro (.word .join) .one))).2.2 =
           [.possessorKind .controller (.join .object .player)] := by decide

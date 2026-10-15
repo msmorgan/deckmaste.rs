@@ -276,16 +276,15 @@ theorem okSharedGroupWithoutARest :
       = [] := by
   decide
 
-/-- "For each player, choose target permanent that player controls. Those players sacrifice
-those permanents.": the plural deed re-places only the plural bindings the same loop published
-[CR#701.21a]. -/
-theorem okDistributedLoopParts :
+/-- The loop's chosen permanents are local; its input player group retains its outer identity. -/
+theorem loopLocalChoicesDoNotEscape :
+    let loop := Instruction.doForEach (each .anyPlayer)
+      (choose (target (.and [permanent, .hasPossessor .controller they])))
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) loop).1
     Instruction.check (DRS.ofList [])
-      (.sequentially
-        [ .doForEach (each .anyPlayer)
-            (choose (target (.and [permanent, .hasPossessor .controller they]))),
-          instruct (those .player) (sacrifice (those .permanent)) ]) = [] := by
-  decide
+      (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) =
+        [.anaphor (.word .permanent) .many 0] ∧
+      after.visibleReferents.map (fun r => (r.id, r.kind, r.plur)) = [(0, .player, .many)] := by decide
 
 /-- "Tap all creatures. Each player chooses up to one creature they control, then sacrifices
 the rest.": the rest here spends the group the whole table shares, and a player can't

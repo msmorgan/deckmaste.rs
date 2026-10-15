@@ -35,7 +35,29 @@ def deonticReferentFits (deed : Deed) (isAgent : Bool) (ref : Referent)
     (checkZone : Bool := true) : Bool :=
   let ability := match ref.payload with | .ability .. => true | _ => false
   if deed == .core .attack && !isAgent && ref.kind == .player then true
-  else deedFits [deed] isAgent ref.kind ability [ref.ty] (if checkZone then ref.zone else none)
+  else
+    let role := deedRoleOf deed isAgent
+    let typeFits := role.types.isEmpty || deedAltOk deed isAgent ref.ty
+    deedKindOk deed isAgent ref.kind && deedClassOk deed isAgent ability && typeFits &&
+      zoneFits (if checkZone then ref.zone else none) (deedZoneOf deed isAgent)
+
+def Instruction.canonicalPatient (action : Instruction) (fuel : Nat := 32) : Option NounPhrase :=
+  match fuel, action with
+  | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
+  | n + 1, .bracketed body => body.canonicalPatient n
+  | _ + 1, .move subject .. | _ + 1, .setStatus _ subject
+  | _ + 1, .turnOver subject | _ + 1, .clearDamage subject
+  | _ + 1, .target subject | _ + 1, .block subject => some subject
+  | _, _ => none
+termination_by structural fuel
+
+def Instruction.checksEnactPatient (action : Instruction) (fuel : Nat := 32) : Bool :=
+  match fuel, action with
+  | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body =>
+    body.checksEnactPatient n
+  | _ + 1, .enact deed body _ _ => knownAct deed && body.canonicalPatient.isSome
+  | _, _ => false
+termination_by structural fuel
 
 def deonticDeedFits (before after : DRS) (action : Instruction)
     (patientRole : GramRole) : Bool :=
@@ -58,7 +80,7 @@ def deonticDeedFits (before after : DRS) (action : Instruction)
     let checkPatientZone := match action.scopeBody with
       | .procedure .. => false
       | _ => true
-    actorOk && patientIds.all (fun id =>
-      (after.findById? id).elim true (fun ref => deonticReferentFits deed false ref checkPatientZone))
+    actorOk && (action.checksEnactPatient || patientIds.all (fun id =>
+      (after.findById? id).elim true (fun ref => deonticReferentFits deed false ref checkPatientZone)))
 
 end Semantics

@@ -191,6 +191,14 @@ theorem vampiricDeadCreatureIsExcludedByZone :
     let dead := vampiricAfterDeath.referents.filter (fun r => r.zone == some .graveyard)
     dead.length = 1 ∧ dead.all (fun r => !r.attachmentHost) := by decide
 
+theorem vampiricCountersUseEnchantedCreature :
+    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause vampiricAfterDeath)
+      (.putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .many true)
+    let patients := (after.pendingRoles.filter (fun p => p.2 == .obj)).map (·.1)
+    errors = [] ∧ patients.length = 1 ∧
+      patients = (vampiricAfterDeath.referents.filter (·.attachmentHost)).map (·.id) ∧
+      (patients.filterMap after.findById?).all (fun r => r.zone == some .battlefield) := by decide
+
 private def cycledContext : DRS :=
   (stepInstruction 64 .postEvent .obj (DRS.ofList [])
     (.enact (.ofAbility (.named "cycling")) (discard (a .isCard)) none none)).1

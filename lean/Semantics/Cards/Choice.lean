@@ -341,7 +341,7 @@ def psychicPaperChoiceAndReads : List Ability :=
           (Primitives.QualityPayload.chosenQuality (ofTheLastChosen .cardName)),
         Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.attachHost .equipped (.type .creature)) .sets
           (Primitives.QualityPayload.chosenQuality (ofTheLastChosen (.subtype .creature))) ]) ]
-theorem okPsychicPaperChoiceAndReads : Ability.checkText [] psychicPaperChoiceAndReads = [] := by
+theorem okPsychicPaperChoiceAndReads : Ability.checkText (DRS.ofList []) psychicPaperChoiceAndReads = [] := by
   decide
 
 def xenograft : Spelled := spelled <| .singleFaced

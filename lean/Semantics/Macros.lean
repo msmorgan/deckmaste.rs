@@ -652,10 +652,18 @@ semantic_definition revealTheirHand : Instruction :=
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
 semantic_definition fight (other : NounPhrase) : Instruction :=
   .ownScope (some (.action "fight"))
-    (.enact (.action "fight") (.simultaneously [
-      .dealDamage (.statOf (.stat .power) .actor) (.firstMention "fight.0" (.inCaller other)) .any,
-      .instruct (.laterMention "fight.0" (.inCaller other))
-        (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (.inCaller other))) .actor .any)])
+    (.enact (.action "fight")
+      (.doIf (.and [
+        .exists_ (.firstMention "fight.0" (.inCaller other)),
+        .matches (.firstMention "fight.source" .actor) creature,
+        .matches (.laterMention "fight.0" (.inCaller other)) creature])
+        (.simultaneously [
+          .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
+            (.inCaller (.laterMention "fight.0" other)) .any,
+          .instruct (.laterMention "fight.0" (.inCaller other))
+            (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (.inCaller other)))
+              (.laterMention "fight.source" .actor) .any)])
+        none)
       none none)
 
 /-- The replacement's application, rather than installation of a new shield

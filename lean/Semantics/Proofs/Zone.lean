@@ -26,7 +26,7 @@ theorem badTappedUntapped :
 /-- "Destroy target permanent instant." -/
 theorem badPermanentInstant :
     Instruction.check (DRS.ofList []) (destroy (target (.and [permanent, .hasType .instant])))
-      = [.contradictionFree] := by
+      = [.deedFits, .contradictionFree] := by
   decide
 
 /-- "Destroy target card token" contradicts the distinction between cards and tokens.
@@ -43,26 +43,19 @@ theorem badThatTokenOfCard :
       = [.anaphor (.word .token) .one 0] := by
   decide
 
-/-- "For each opponent, exile a creature that player controls. Put those cards onto the
-battlefield." (the printed shape of Breach the Multiverse's middle pair). The loop body moves
-only what it introduced itself, so the enclosing stack survives and the exiled cards read back
-after the loop as a plural. -/
-theorem okLoopMovesItsOwn :
+/-- The distributive loop closes its local creature referents on exit. -/
+theorem loopLocalMovedCardsDoNotEscape :
     Instruction.check (DRS.ofList [])
       (.sequentially
         [ .doForEach (each .opponent)
             (exile (a (.and [creature, .hasPossessor .controller (that .player)]))),
-          putOntoBattlefield them ]) = [] := by
-  decide
+          putOntoBattlefield them ]) = [.anaphor .bare .many 0] := by decide
 
-/-- "Tap target creature. For each opponent, exile it. Untap it." The loop body exiles an
-object bound OUTSIDE the loop, so `forEachOf`'s introductions can no longer be told from the
-mutated stack and the loop would republish the creature's stale battlefield zone. Refused at
-`keepsOuter`. -/
-theorem badLoopedZoneMoveRead :
+/-- The loop retains the moved outer card, whose exile zone forbids untapping. -/
+theorem loopMovementPreservesUntapZoneRestriction :
     Instruction.check (DRS.ofList [])
       (.sequentially [tap (target creature), .doForEach (each .opponent) (exile it), untap it])
-      = [.keepsOuter] := by
+      = [.deedFits] := by
   decide
 
 /-- "For each color among permanents on the battlefield, draw a card." -/
@@ -72,16 +65,13 @@ theorem okKindLoopKeepsOuter :
       = [] := by
   decide
 
-/-- "Tap target creature. For each color among permanents on the battlefield, exile it. Untap
-it." `forEachKindOf` republishes its enclosing stack the same way `forEachOf` does, so a body
-that moves an object bound outside the loop is refused at the same obligation
-[CR#400.7,701.26b]. -/
-theorem badKindLoopZoneMoveRead :
+/-- The color loop retains the moved outer card, whose exile zone forbids untapping. -/
+theorem kindLoopMovementPreservesUntapZoneRestriction :
     Instruction.check (DRS.ofList [])
       (.sequentially
         [ tap (target creature),
           .doForEachKind .color (some (allOf permanent)) .color (exile it), untap it ])
-      = [.keepsOuter] := by
+      = [.deedFits] := by
   decide
 
 /-- "Each opponent exiles a creature they control. Put those cards onto the battlefield." The
@@ -95,14 +85,11 @@ theorem okDistributedMovesItsOwn :
           putOntoBattlefield them ]) = [] := by
   decide
 
-/-- "Tap target creature. Each opponent exiles it. Untap it." The distributive deed exiles an
-object bound OUTSIDE the agent phrase, so `distributedDelta` would republish the pre-deed
-stack, the creature's stale battlefield zone, over the exile. Refused at `enact`'s
-distribution obligation. -/
-theorem badDistributedZoneMoveRead :
+/-- Moving an outer card during a player distribution preserves its singular identity and exile zone. -/
+theorem distributedMovementPreservesUntapZoneRestriction :
     Instruction.check (DRS.ofList [])
       (.sequentially [tap (target creature), instruct (each .opponent) (exile it), untap it])
-      = [.enactKeepsOuter] := by
+      = [.deedFits] := by
   decide
 
 /-- "When target creature dies this turn, return that card to the battlefield." -/
@@ -196,8 +183,7 @@ theorem badAgentedAgentlessAct :
         instruct actor (.dealDamage (.statOf (.stat .power) actor) (.firstMention "fight.0" (target creature)) .any),
         instruct (.laterMention "fight.0" (target creature))
           (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (target creature))) actor .any)]) none none))
-      = [.kindMismatch .object .player, .kindMismatch .object .player,
-         .kindMismatch .object .player] := by
+      = [.kindMismatch .object .player, .kindMismatch .object .player] := by
   decide
 
 /-- "1 life for each creature" -/
@@ -296,6 +282,16 @@ theorem drawnCardCanBeExiled :
     Instruction.check (DRS.ofList []) (.sequentially [draw (.lit 1), exile (that .card)])
       = [] := by
   decide
+
+theorem drawnCardDemonstrativeSelectsTheHandCard :
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) (draw (.lit 1))).1
+    (firstReach (.word .card) .one (nextClause after)).map (fun ref => (ref.id, ref.zone)) =
+      some (0, some .hand) := by decide
+
+theorem twoDrawnCardsPublishAPluralReferent :
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) (draw (.lit 2))).1
+    (firstReach (.word .card) .many (nextClause after)).map (fun ref => (ref.id, ref.zone)) =
+      some (0, some .hand) ∧ firstReach (.word .card) .one (nextClause after) = none := by decide
 
 /-- "Draw a card and you gain 1 life." -/
 theorem okNonEmptyBatch :
@@ -539,7 +535,7 @@ theorem badSingularNameAgreement :
 
 /-- "This spell can't be countered." -/
 theorem okCantBeCountered :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") .this) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") thisSpell) = [] := by decide
 
 /-- "Creature cards in graveyards can't be countered." -/
 theorem badCounteredInGraveyard :
@@ -568,18 +564,18 @@ theorem badRegeneratedInGraveyard :
   decide
 
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
-theorem distributedDeedReadsBackPluralUnderAnnouncement :
+theorem simultaneousDiscardDoesNotExposePluralClauseMate :
     Instruction.check (DRS.ofList [])
       (.simultaneously [.sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them], exile (those
           .card)])
-        = [] := by
+        = [.anaphor (.word .card) .many 0] := by
   decide
 
 /-- "Discard a card. Simultaneously, exile that card." -/
-theorem okThatAfterSingularDiscard :
+theorem simultaneousDiscardDoesNotExposeSingularClauseMate :
     Instruction.check (DRS.ofList []) (.simultaneously [discard (a (.and [.isCard, .inZone yourHand])), exile
         (that .card)])
-      = [] := by
+      = [.anaphor (.word .card) .one 0] := by
   decide
 
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/

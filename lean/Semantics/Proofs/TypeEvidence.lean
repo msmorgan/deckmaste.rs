@@ -55,7 +55,7 @@ theorem creatureFirstReadsArtifact :
     countReach (.word (.type .artifact)) .one (afterTarget creatureArtifact) = 1 := by decide
 
 theorem targetTypeOrderKeepsBinding :
-    afterTarget artifactCreature = afterTarget creatureArtifact := by rfl
+    afterTarget artifactCreature = afterTarget creatureArtifact := by decide
 
 theorem conjunctionDoesNotInventLand :
     countReach (.word (.type .land)) .one (afterTarget artifactCreature) = 0 := by decide
@@ -69,7 +69,7 @@ theorem movedCreatureArtifactReadsArtifactCard :
     countReach (.word (.ofType .card .artifact)) .one (afterExile creatureArtifact) = 1 := by decide
 
 theorem movedTypesKeepSameBinding :
-    afterExile artifactCreature = afterExile creatureArtifact := by rfl
+    afterExile artifactCreature = afterExile creatureArtifact := by decide
 
 theorem movedCreatureWordRejectsFormerPermanent :
     countReach (.word (.type .creature)) .one (afterExile artifactCreature) = 0 := by decide
@@ -130,7 +130,7 @@ private def equipmentHost : NounPhrase :=
 
 theorem equipmentHostSeedsBothTypes :
     ((stepNounPhrase 64 (DRS.ofList []) .subj true equipmentHost).1.referents.map (·.ty)) =
-      [[.creature, .artifact]] := by rfl
+      [[.creature, .artifact]] := by decide
 
 theorem movedEquipmentHostKeepsCreatureCardEvidence :
     countReach (.word (.ofType .card .creature)) .one

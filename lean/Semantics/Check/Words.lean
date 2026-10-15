@@ -591,6 +591,7 @@ structure DRS where
   currentClause : Nat := 0
   performer     : Option ReferentId := none
   scopeStack    : List OwnScopeFrame := []
+  outerReferentIds  : List (List ReferentId) := []
   pendingRoles  : List (ReferentId × GramRole) := []
   resolvedIds   : List ReferentId := []
   relativeKind  : Option Kind := none

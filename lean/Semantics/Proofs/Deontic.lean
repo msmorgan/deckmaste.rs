@@ -43,7 +43,7 @@ theorem okTargetedContinuousStateBasedLossGate :
 
 theorem badStateBasedCauseWithoutDeed :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor .you) (.sequentially []) { rider := (.stateBased .nonpositiveLife) })) = [.nonEmpty] := by decide
+      (.cant (.actor .you) (.sequentially []) { rider := (.stateBased .nonpositiveLife) })) = [.eventHead, .nonEmpty] := by decide
 
 theorem badStateBasedLossPatientRole :
     Ability.check (DRS.ofList []) (.static

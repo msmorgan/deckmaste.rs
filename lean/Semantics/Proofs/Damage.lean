@@ -17,6 +17,27 @@ namespace Semantics.Proofs.Damage
 theorem okFightCreatures :
     Instruction.check (DRS.ofList []) (instruct (target creature) (fight (target creature))) = [] := by decide
 
+private def fightParticipantPairs : Instruction → List (BindingId × BindingId)
+  | .ownScope _ (.enact _ (.doIf _ (.simultaneously [
+      .dealDamage (.statOf _ (.laterMention source _)) (.inCaller (.laterMention recipient _)) _,
+      .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none) _ _) =>
+    [(source, recipient), (reverseSource, reverseRecipient)]
+  | _ => []
+
+theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (instruct (.firstMention "fight.test.source" (target creature))
+        (fight (.firstMention "fight.test.other" (target creature))))).1
+    (identityBinding "fight.source" after).map (·.id) = some 0 ∧
+      (identityBinding "fight.0" after).map (·.id) = some 2 ∧
+      (identityBinding "fight.test.source" after).map (·.id) = some 0 ∧
+      (identityBinding "fight.test.other" after).map (·.id) = some 2 ∧
+      fightParticipantPairs (fight (target creature)) =
+        [("fight.source", "fight.0"), ("fight.0", "fight.source")] := by decide
+
+theorem declaredFightUsesTheSameBoundParticipantDefinition :
+    Declared.fight (target creature) = fight (target creature) := by rfl
+
 /-- "Target creature fights two target creatures.": the group is the other creature, refused by
 the singular power read and the per-member damage check. Handed the deed, a group performer
 distributes it instead (`BindingIdentity.okFightHandedToEachOfAGroup`). -/

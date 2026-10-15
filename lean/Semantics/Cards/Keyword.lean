@@ -1389,12 +1389,12 @@ def steelclawLance : Spelled := spelled <| .singleFaced
 def commandersPlateEquip : List Ability :=
   [ keywordQualityCosting (.named "equip") (Primitives.Predicate.hasDesignation (.named "commander") none) (Primitives.Cost.mana [generic 3]),
     keywordCosting (.named "equip") (Primitives.Cost.mana [generic 5]) ]
-theorem okCommandersPlateEquip : Ability.checkText [] commandersPlateEquip = [] := by decide
+theorem okCommandersPlateEquip : Ability.checkText (DRS.ofList []) commandersPlateEquip = [] := by decide
 /-- Luxior, Giada's Gift's equip lines -/
 def luxiorEquipLines : List Ability :=
   [ keywordQualityCosting (.named "equip") (Primitives.Predicate.hasType .planeswalker) (Primitives.Cost.mana [generic 1]),
     keywordCosting (.named "equip") (Primitives.Cost.mana [generic 3]) ]
-theorem okLuxiorEquipLines : Ability.checkText [] luxiorEquipLines = [] := by decide
+theorem okLuxiorEquipLines : Ability.checkText (DRS.ofList []) luxiorEquipLines = [] := by decide
 
 /-- Veiling Oddity -/
 def veilingOddity : Spelled := spelled <| .singleFaced

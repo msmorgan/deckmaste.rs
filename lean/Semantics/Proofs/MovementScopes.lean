@@ -108,4 +108,59 @@ theorem typeViewPreservesMovedIdentityAndZone :
     errors = [] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
       after.referents.map (·.zone) = [some .exile] := by decide
 
+private def moveOuter : Instruction :=
+  .move (.laterMention "subject" .any) .anywhere
+    (some (.zone .exile .bare)) .departure none []
+
+theorem loopPreservesFreshSuccessorOfOuterReferent :
+    let loop := Instruction.doForEach (.described .each .anyPlayer) moveOuter
+    let result := stepInstruction 64 .postEvent .obj original loop
+    result.2 = [] ∧ result.1.findById? 0 = none ∧
+      (result.1.findById? 3).map (fun ref => (ref.ty, ref.zone)) =
+        some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
+
+theorem nestedLoopsPreserveOuterSuccessor :
+    let inner := Instruction.doForEach (.described .each .anyPlayer) moveOuter
+    let outer := Instruction.doForEach (.described .each .anyPlayer) inner
+    let result := stepInstruction 64 .postEvent .obj original outer
+    result.2 = [] ∧ result.1.findById? 0 = none ∧
+      (result.1.findById? 5).map (fun ref => (ref.ty, ref.zone)) =
+        some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
+
+theorem kindLoopPreservesFreshSuccessorOfOuterReferent :
+    let loop := Instruction.doForEachKind .color none .color moveOuter
+    let result := stepInstruction 64 .postEvent .obj original loop
+    result.2 = [] ∧ result.1.findById? 0 = none ∧
+      (result.1.findById? 2).map (fun ref => (ref.ty, ref.zone)) =
+        some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
+
+theorem consumingActionChecksThePreMoveZone :
+    let destruction := Instruction.enact (.action "destroy")
+      (.move (.laterMention "subject" .any) .anywhere
+        (some (.zone .graveyard .bare)) .departure none []) none none
+    let result := stepInstruction 64 .postEvent .obj original destruction
+    result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
+
+theorem untapRejectsTheMovedCardByActionDomain :
+    Instruction.check (nextClause moved)
+      (.enact (.action "untap") (.setStatus .untapped (.pro (.word .card) .one)) none none) =
+        [.deedFits] := by decide
+
+theorem distributedMovementKeepsAnOuterCardSingular :
+    let instruction := Instruction.instruct (.described .each .anyPlayer) moveOuter
+    let result := stepInstruction 64 .postEvent .obj original instruction
+    result.2 = [] ∧ (result.1.findById? 3).map (fun ref => (ref.plur, ref.zone)) =
+      some (.one, some .exile) ∧ result.1.outerReferentIds = [] := by decide
+
+theorem unqualifiedSourceDoesNotInventAZone :
+    let after := (stepNounPhrase 64 (DRS.ofList []) .other false .this).1
+    after.referents.map (·.zone) = [none] := by decide
+
+theorem explicitSourceCarrierSuppliesItsZone :
+    let creature := (stepNounPhrase 64 (DRS.ofList []) .other false
+      (.asType .creature .this none)).1
+    let spell := (stepNounPhrase 64 (DRS.ofList []) .other false (.asMarker .spell .this)).1
+    creature.referents.map (·.zone) = [some .battlefield] ∧
+      spell.referents.map (·.zone) = [some .stack] := by decide
+
 end Semantics.Proofs.MovementScopes

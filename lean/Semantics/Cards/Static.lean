@@ -373,7 +373,7 @@ def celestialDawnAscriptions : List Ability :=
               allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .sets
         (Primitives.QualityPayload.colored (.some [.white]))) ]
-theorem okCelestialDawnAscriptions : Ability.checkText [] celestialDawnAscriptions = [] := by decide
+theorem okCelestialDawnAscriptions : Ability.checkText (DRS.ofList []) celestialDawnAscriptions = [] := by decide
 
 /-- Transguild Courier -/
 def transguildCourier : Spelled := spelled <| .singleFaced

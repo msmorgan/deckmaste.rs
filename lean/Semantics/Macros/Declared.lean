@@ -3919,7 +3919,7 @@ semantic_definition fateseal (arg0 : Semantics.Amount) : Semantics.Instruction :
 
 /-- `keyword_actions/fight.ron` -/
 semantic_definition fight (arg0 : Semantics.NounPhrase) : Semantics.Instruction :=
-  (Semantics.Instruction.ownScope (some (Semantics.Deed.action "fight")) (Semantics.Instruction.enact (Semantics.Deed.action "fight") (Semantics.Instruction.simultaneously [(Semantics.Instruction.dealDamage (Semantics.Amount.statOf (Semantics.ProjAxis.stat Semantics.Stat.power) Semantics.NounPhrase.actor) (Semantics.NounPhrase.firstMention "fight.0" (Semantics.NounPhrase.inCaller arg0)) Semantics.DamageKind.any), (Semantics.Instruction.instruct (Semantics.NounPhrase.laterMention "fight.0" (Semantics.NounPhrase.inCaller arg0)) (Semantics.Instruction.dealDamage (Semantics.Amount.statOf (Semantics.ProjAxis.stat Semantics.Stat.power) (Semantics.NounPhrase.laterMention "fight.0" (Semantics.NounPhrase.inCaller arg0))) Semantics.NounPhrase.actor Semantics.DamageKind.any))]) none none))
+  Semantics.Macros.fight arg0
 
 /-- `keyword_actions/forage.ron` -/
 semantic_definition forage : Semantics.Instruction :=

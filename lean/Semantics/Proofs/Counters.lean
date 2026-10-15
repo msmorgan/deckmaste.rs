@@ -41,11 +41,12 @@ theorem badChosenCounterKindRead :
 theorem okAscribedSelf :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature .this none) = [] := by decide
 
-/-- "this creature" -/
-theorem badAscribedTarget :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature (target creature) none)
-      = [.ascribable] := by
-  decide
+theorem typeViewRefinesTheSelectedTargetInPlace :
+    let noun := NounPhrase.asType .creature (target creature) none
+    let after := (stepNounPhrase 64 (DRS.ofList []) .other false noun).1
+    NounPhrase.checkAt (some .object) (DRS.ofList []) noun = [] ∧
+      after.visibleReferents.map (·.id) = [0] ∧
+      (after.findById? 0).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) := by decide
 
 /-- "creature you control that isn't attacking" -/
 theorem okConsistentConjunction :
@@ -73,6 +74,14 @@ theorem okAltHeaderAgreeingReadback :
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] := by
   decide
+
+theorem agreeingAlternativeHeadersSelectTheOtherCreature :
+    let after := (stepTriggerHeaderWith (stepOps 64) (DRS.ofList [])
+      (blocks thisCreature (some (a creature)))
+      [becomesBlocked thisCreature (some (a creature))] none none).1
+    (firstReach (.word (.type .creature)) .one after).map (·.id) = some 2 ∧
+      (after.findById? 2).map (·.det) = some .a ∧
+      (after.findById? 0).map (·.det) = some .the := by decide
 
 theorem alternateHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
@@ -107,13 +116,14 @@ theorem okRemoveCounterFromTarget :
       = [] := by
   decide
 
-/-- "Destroy target creature. Remove a +1/+1 counter from it." -/
-theorem badRemoveCountersDead :
+theorem counterRemovalReadsTheFreshMovedCard :
+    let destroyed := destroy (target creature)
+    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) destroyed).1
     Instruction.check (DRS.ofList [])
-      (.sequentially
-        [destroy (target creature), (.removeCounters (some (exactly 1)) (some p11) it .one true)])
-      = [.counterMemory] := by
-  decide
+      (.sequentially [destroyed, .removeCounters (some (exactly 1)) (some p11) it .one true]) = [] ∧
+      after.findById? 0 = none ∧
+      (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
+      (after.findById? 1).map (fun r => (r.zone, r.idents)) = some (some .graveyard, []) := by decide
 
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :

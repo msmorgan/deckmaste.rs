@@ -475,7 +475,7 @@ def amoeboidChangelingTypeAbilities : List Ability :=
       (Primitives.Instruction.establish (Primitives.StaticSpec.qualityChange (target creature) .loses (Primitives.QualityPayload.everyTypeOf .creature)) (some
           untilEndOfTurn)) ]
 theorem okAmoeboidChangelingTypeAbilities :
-    Ability.checkText [] amoeboidChangelingTypeAbilities = [] := by decide
+    Ability.checkText (DRS.ofList []) amoeboidChangelingTypeAbilities = [] := by decide
 
 /-- Fluctuator -/
 def fluctuator : Spelled := spelled <| .singleFaced
