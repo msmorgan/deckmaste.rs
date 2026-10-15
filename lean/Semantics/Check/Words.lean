@@ -580,6 +580,7 @@ structure OwnScopeFrame where
   maskedIds     : List ReferentId
   callerClause  : Nat
   callerPending : List (ReferentId × GramRole) := []
+  callerReferentIds : List ReferentId := []
   deriving DecidableEq, Repr
 
 /-- Discourse Representation Structure (`semantics-v3.md` §1.2). -/
@@ -594,6 +595,8 @@ structure DRS where
   relativeKind  : Option Kind := none
   relativeBinder : Option ReferentId := none
   relativeUses  : Nat := 0
+  /-- The current action describes an event or permission pattern. -/
+  actionPattern : Bool := false
   characteristicRead : Bool := false
   deriving DecidableEq, Repr
 
@@ -1324,16 +1327,18 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
       let masked' := match newlyBound with
         | [] => topFrame.maskedIds
         | ids => topFrame.maskedIds.filter (!ids.elem ·)
-      let addedPending := after.pendingRoles.drop topFrame.callerPending.length
+      let addedPending := after.pendingRoles.take
+        (after.pendingRoles.length - topFrame.callerPending.length)
       let topFrame' : OwnScopeFrame := {
         topFrame with
         maskedIds     := masked'
         callerPending := after.pendingRoles
+        callerReferentIds := (topFrame.callerReferentIds ++ newlyBound).eraseDups
       }
       { after with
         scopeStack    := topFrame' :: after.scopeStack
         currentClause := before.currentClause
-        pendingRoles  := before.pendingRoles ++ addedPending
+        pendingRoles  := addedPending ++ before.pendingRoles
         resolvedIds   := before.resolvedIds }
 
 /-- Close an own Reference Scope (`Instruction.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
@@ -1344,7 +1349,7 @@ def leaveOwnScope (drs : DRS) : DRS :=
   | [] => drs
   | topFrame :: outerFrames =>
       let kept := drs.referents.filterMap fun r =>
-        if topFrame.preEntryIds.elem r.id then
+        if topFrame.preEntryIds.elem r.id || topFrame.callerReferentIds.elem r.id then
           some r
         else if r.det == .part || (match r.payload with | .player _ => true | _ => false) then
           none

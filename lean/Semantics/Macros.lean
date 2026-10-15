@@ -730,8 +730,8 @@ semantic_template flipsCoin (player : NounPhrase) : GameEvent :=
 /-- "may <body>" -/
 semantic_template offer (body : Instruction) : Instruction := Primitives.Instruction.offer body none none
 /-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
-semantic_template offerWhen (body : Instruction) (trigger : Instruction) : Instruction :=
-  .triggerReflexively (Primitives.Instruction.offer body none none) trigger
+semantic_template offerWhen (body : Instruction) (triggerBody : Instruction) : Instruction :=
+  .triggerReflexively (Primitives.Instruction.offer body none none) triggerBody
 /-- "the chosen number" -/
 semantic_template chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
@@ -862,6 +862,13 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Instruction :=
   | .core .attack => .attack (match patient with | .any => none | p => some p)
   | .core .block => .block patient
   | .core .target => .target patient
+  | .core .copy => .copy .fromStack patient .anyAmount []
+  | .core .trigger => .trigger
+  | .core .fullyUnlock => .fullyUnlock patient
+  | .core .unlock => .unlock (.doorOf none patient)
+  | .ofAbility (.named "crew") => .crew patient
+  | .ofAbility (.named "saddle") => .saddle patient
+  | .ofAbility (.named "phasing") => .setStatus .phasedIn patient
   | .core .draw => .draw .anyAmount
   | .core .gainLife => .changeLife (.up .anyAmount)
   | .core .loseGame => .conclude .loseGame
@@ -1191,7 +1198,7 @@ semantic_template mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : S
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 semantic_template maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
     (purpose : Option SpendPurpose) : StaticSpec :=
-  .may (.actor who) (.pay (.mana []) .once .paid none none)
+  .may (.actor who) (.pay .anyCost .once .paid none none)
     { asThough := some (.mana what as_ purpose), rider := .noRider }
 /-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
 role [CR#701.3a,301.5]. -/

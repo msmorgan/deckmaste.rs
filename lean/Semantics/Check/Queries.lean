@@ -88,5 +88,16 @@ private theorem durationBoundariesNeedDefiniteOwners :
       (stepDurationWith (stepOps 64) (DRS.ofList []) accepted).2) =
       ([.durationPossessor], []) := by decide
 
+private theorem unspecifiedCostCannotBePerformed :
+    (stepCost 64 (DRS.ofList []) .anyCost).2 = [.concreteCost] ∧
+      (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+        (.pay .anyCost .once .paid none none)).2 = [.concreteCost] := by decide
+
+private theorem unpaidKeywordPaymentIsAPattern :
+    let event : GameEvent := .does (.actor .you)
+      (.pay .anyCost .once .unpaid none (some (.named "cumulativeUpkeep")))
+    (stepGameEvent 64 (DRS.ofList []) event).2 = [] ∧
+      (stepGameEvent 64 (DRS.ofList []) event).1.actionPattern = false := by decide
+
 end Check.QueryPins
 end Semantics

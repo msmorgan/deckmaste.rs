@@ -21,6 +21,8 @@ inductive RiderKind where
 
 inductive Refusal where
   | recursionLimit
+  /-- A performed payment requires a specified cost. -/
+  | concreteCost
   | lexicalScope
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/

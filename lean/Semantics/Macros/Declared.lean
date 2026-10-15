@@ -2922,12 +2922,12 @@ semantic_template treasureToken : Semantics.CharacteristicBundle :=
   ({ characteristics := ({ name := none, cost := none, colors := [], supertypes := [], types := [Semantics.CardType.artifact], subtypes := [(Semantics.Subtype.of Semantics.CardType.artifact "Treasure")], text := [(Semantics.Ability.activated (Semantics.Cost.compound [Semantics.Cost.tapSymbol, (Semantics.Cost.perform (Semantics.Instruction.ownScope (some (Semantics.Deed.action "sacrifice")) (Semantics.Instruction.enact (Semantics.Deed.action "sacrifice") (Semantics.Instruction.move (Semantics.NounPhrase.inCaller (Semantics.NounPhrase.asType Semantics.CardType.artifact Semantics.NounPhrase.this none)) (Semantics.EventSource.zones [(Semantics.ZoneExpr.zone Semantics.Zone.battlefield Semantics.ZoneScope.bare)]) (some (Semantics.ZoneExpr.zone Semantics.Zone.graveyard Semantics.ZoneScope.bare)) Semantics.ObservationPoint.departure none []) none none)))]) (Semantics.Instruction.addMana (Semantics.Amount.lit 1) (Semantics.ProducedMana.anyColor Semantics.ColorFreedom.sameColor) []) none none none none)], power := none, toughness := none, loyalty := none, defense := none } : Semantics.Characteristics), qualities := [] } : Semantics.CharacteristicBundle)
 
 /-- `instructions/triggerReflexively.ron` -/
-semantic_template triggerReflexively (body : Semantics.Instruction) (trigger : Semantics.Instruction) : Semantics.Instruction :=
-  (Semantics.Instruction.triggerReflexively body trigger)
+semantic_template triggerReflexively (body : Semantics.Instruction) (triggerBody : Semantics.Instruction) : Semantics.Instruction :=
+  (Semantics.Instruction.triggerReflexively body triggerBody)
 
 /-- `instructions/triggerThisWay.ron` -/
-semantic_template triggerThisWay (body : Semantics.Instruction) (event : Semantics.GameEvent) (trigger : Semantics.Instruction) : Semantics.Instruction :=
-  (Semantics.Instruction.triggerThisWay body event trigger)
+semantic_template triggerThisWay (body : Semantics.Instruction) (event : Semantics.GameEvent) (triggerBody : Semantics.Instruction) : Semantics.Instruction :=
+  (Semantics.Instruction.triggerThisWay body event triggerBody)
 
 /-- `instructions/triplePower.ron` -/
 semantic_template triplePower (subject : Semantics.NounPhrase) (duration : (Option Semantics.Duration) := none) : Semantics.Instruction :=

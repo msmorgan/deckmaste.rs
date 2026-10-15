@@ -266,17 +266,34 @@ no declaration gives is refused when the card loads.
 Something a card's text says is done, from one of exactly three sources: the
 core rules (a Core Deed), a Keyword Action ([CR#701.1]), or the verb a Keyword
 Ability defines for itself — crewing, saddling, phasing in
-([CR#702.122b,702.171a,702.26a]). Deed is what a rule about "what is done"
+([CR#702.122b,702.171c,702.26a]). Deed is what a rule about "what is done"
 ranges over ("can't attack or block"); Action is the wider notion that also
 covers what the game does with no text naming it.
 _Avoid_: verb for the whole union — a verb is the word, a Deed is what it names
 
 **Core Deed**:
 A Deed the core rules define outside [CR#701.1]: attacking and blocking as
-Turn-Based Actions ([CR#508.1,509.1]), unlocking and fully unlocking a Room's
-door ([CR#709.5f,709.5i]), and drawing, targeting, copying, spending and the
+Turn-Based Actions ([CR#508.1,509.1]), unlocking a Room's door and fully
+unlocking a Room ([CR#709.5f,709.5i]), and drawing, targeting, copying, spending and the
 rest, each defined in its own rules section. The set is closed — no set release
 adds one — so a rule may match a Core Deed structurally instead of by name.
+
+**Crewing**:
+A creature's participation in paying a Vehicle's crew cost by being tapped
+([CR#702.122b]). A restriction against that creature crewing Vehicles prevents
+using it for that payment ([CR#702.122d]).
+
+**Saddling**:
+A creature's participation in paying a Permanent's saddle cost by being tapped
+([CR#702.171c]).
+
+**Phasing In**:
+A Permanent's status changing to phased in, after which the game treats the
+Permanent as existing again ([CR#702.26c]).
+
+**Fully Unlocking**:
+A Permanent with a shared type line gaining its other unlocked designation
+while it already has one, or gaining both while it has neither ([CR#709.5i]).
 
 **Rules Procedure**:
 A procedure the rules define for activating an Ability, casting a Spell or

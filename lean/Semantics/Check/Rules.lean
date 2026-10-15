@@ -62,4 +62,8 @@ def RulesTables.check (t : RulesTables) : List Refusal :=
   t.conferral.flatMap ConferralRule.check ++
   t.damageResult.flatMap (fun dr => (stepStaticSpec 64 (DRS.ofList []) (.damageResult dr)).2)
 
+def distinctPredefinedTokens : List PredefinedToken → Bool
+  | [] => true
+  | token :: rest => !(rest.map (·.name)).elem token.name && distinctPredefinedTokens rest
+
 end Semantics

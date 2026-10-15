@@ -761,6 +761,8 @@ mutual
   inductive WouldClause where
     | would (subj : Subject) (action : Instruction)
     | wouldAny (clauses : List WouldClause)
+    /-- The named cause of a prospective event [CR#700.1,614.1a]. -/
+    | causedBy (cause : Causing) (clause : WouldClause)
 
   /-- Optional modifiers on a deontic rule (`cant`, `must`, `may`, `gatedBy`)
   [CR#702.13b,702.111b,702.145b]. -/
@@ -935,6 +937,8 @@ mutual
     | placement (placement : PilePlacement)
 
   inductive Cost where
+    /-- An unspecified cost in a payment pattern. -/
+    | anyCost
     | inCaller (body : Cost)
     | mana (cost : ManaCost)
     | scaled (cost : Cost) (amount : Amount)
@@ -1004,6 +1008,12 @@ mutual
     | attackUnblocked (defender : Option NounPhrase)
     /-- Attack with `attackers` ("Whenever you attack with one or more creatures"). -/
     | attackWith (attackers : NounPhrase) (defender : Option NounPhrase)
+    /-- A triggered ability triggers; its subject is the ability [CR#603.2]. -/
+    | trigger
+    /-- A creature is tapped to pay a Vehicle's crew cost [CR#702.122b,702.122d]. -/
+    | crew (vehicle : NounPhrase)
+    /-- A creature is tapped to pay a permanent's saddle cost [CR#702.171c]. -/
+    | saddle (permanent : NounPhrase)
     /-- Target `subject` [CR#115.1]. -/
     | target (subject : NounPhrase)
     /-- Tap `permanent` for mana [CR#106.12a]. -/
@@ -1018,6 +1028,8 @@ mutual
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
     | unlock (door : Door)
+    /-- A Room gains its remaining unlocked designation, or both at once [CR#709.5i]. -/
+    | fullyUnlock (room : NounPhrase)
     | setGameDesignation (designation : DesignationLabel)
     | conclude (verb : OutcomeVerb)
     | drawGame
@@ -1175,6 +1187,9 @@ instance : Coe NounPhrase Subject where
 
 instance : AnyValue NounPhrase where
   any := .any
+
+instance : AnyValue Cost where
+  any := .anyCost
 
 instance : AnyValue Amount where
   any := .anyAmount

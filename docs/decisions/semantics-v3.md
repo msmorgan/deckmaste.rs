@@ -86,6 +86,7 @@ structure Referent where
 structure OwnScopeFrame where
   preEntryIds  : List ReferentId     -- Immutable snapshot of all ReferentIds present before entering this ownScope
   maskedIds    : List ReferentId     -- Currently masked ReferentIds in this ownScope (preEntryIds minus performer and unmasked parameter IDs)
+  callerReferentIds : List ReferentId := [] -- Arguments evaluated in caller scope and their successors
   callerClause : Nat                 -- Caller's currentClause saved on entry
   deriving DecidableEq, Repr
 
@@ -134,10 +135,10 @@ In the AST, a `Definition` body is wrapped in `Instruction.ownScope (deed : Opti
 2. **Caller-Scoped Argument Evaluation (`NounPhrase.inCaller`):**
    - When `.inCaller inner` is encountered while `drs.scopeStack = topFrame :: outerFrames`, the checker temporarily pops **only `topFrame`** (`drs.scopeStack := outerFrames`) to evaluate `inner` (`firstMention id arg`) in the immediate caller's visibility (so any referents masked by an enclosing `outerFrames` definition remain masked!).
    - `firstMention id arg` attaches `id : BindingId` to all `ReferentId`s (`List ReferentId`) introduced or resolved by `arg`.
-   - When `topFrame` is restored onto `drs.scopeStack`, those bound `ReferentId`s are removed from `topFrame.maskedIds` (while `topFrame.preEntryIds` remains untouched) so the parameter referents are visible inside the `Definition` body while all other caller referents remain masked.
+   - When `topFrame` is restored onto `drs.scopeStack`, those bound `ReferentId`s are removed from `topFrame.maskedIds` (while `topFrame.preEntryIds` remains untouched) so the parameter referents are visible inside the `Definition` body while all other caller referents remain masked. The frame records these caller-owned arguments in `callerReferentIds`, including arguments first introduced during this evaluation; zone changes carry this ownership to successor referents.
 3. **Scope Exit (`leaveOwnScope` on exiting `Instruction.ownScope`):**
    - Pops `topFrame` from `drs.scopeStack` (restoring `outerFrames` directly if nested inside an outer `Definition`).
-   - **Closes definition-internal scratch referents:** Any referent introduced during `topFrame` (`r.id ∉ topFrame.preEntryIds`) that is a partitive sub-selection (`r.det == .part` from `someOf` / `choose`) or a definition-local player binding (`Payload.player`) is dropped on exit—using the immutable `topFrame.preEntryIds` rather than `maskedIds` so a player passed as a parameter (`r.id ∈ topFrame.preEntryIds`) is never misclassified as a disposable local player binding.
+   - **Closes definition-internal scratch referents:** Any definition-internal referent (`r.id ∉ topFrame.preEntryIds` and `r.id ∉ topFrame.callerReferentIds`) that is a partitive sub-selection (`r.det == .part` from `someOf` / `choose`) or a definition-local player binding (`Payload.player`) is dropped on exit—using the immutable `topFrame.preEntryIds` rather than `maskedIds` so a player passed as a parameter (`r.id ∈ topFrame.preEntryIds`) is never misclassified as a disposable local player binding.
    - **Preserves argument mutations:** Any zone changes, status changes, or `.actedOn deed` stamps applied to the passed argument referents (or their post-zone-change successor objects `[CR#400.7,400.7j]`) remain in `drs.referents`.
    - **Exports outcome referents:** All non-scratch referents produced during `topFrame` (`r.id ∉ topFrame.preEntryIds`)—including `.outcome` (all 15 `OutcomeSort`s), `.pile`, `.quality`, `.letter`, `.turnRef`, and primary `.object` outcomes (tokens from `create`/`investigate`/`amass`/`incubate`, cards moved/revealed/searched/milled/drawn/scried)—remain in `drs.referents` with `clause := topFrame.callerClause` and `role := .obj`, ready for downstream anaphora (`"Investigate. Sacrifice that token..."`, `"Destroy target creature. It can't be regenerated."`).
 
@@ -364,6 +365,10 @@ Of the 27 domain `GameEvent` constructors in `semantics-v2` (`lean/Semantics/Phr
 | `gainsControl (player, object)` | `does(player, gainControl(object))` | Uses `Instruction.changeControl`. |
 | `rollsDice (roller, dice, watch)` | `does(roller, rollDice(dice, watch))` | Carries `dice : DiceBatch` and `watch : RollWatch`. |
 | `flipsCoin (flipper, call, outcome)` | `does(flipper, flipCoin(call, outcome))` | Carries `call : Option FlipCall` and `outcome : Option CoinOutcome`. |
+| Triggered ability triggering | `does(ability, trigger)` | The automatic triggering occurrence [CR#603.2]. |
+| A creature crews or saddles another permanent | `does(creature, crew(vehicle))` / `does(creature, saddle(permanent))` | Cost participation [CR#702.122b,702.122d,702.171c]; the ability's activation and resolution retain their own events. |
+| A Room becomes fully unlocked | `does(player, fullyUnlock(room))` | The designation transition specified by [CR#709.5i]. |
+
 
 - **Closed Event Head-Gating on `does`, `would`, and `did` (`Check/Events.lean`):** Because `deckmaste_core` compiles events, replacements, and lookbacks to the closed `core::EventFilter` enum, `Check/Events.lean` explicitly gates `action` inside `does(subj, action)`, `would(subj, action)`, and `did(subj, action, within)` to the event-capable `Instruction` heads in Table 3.6A above plus `Instruction.ownScope (some (.action name)) body` (CR §701 keyword actions, lowered to `core::EventFilter::Act`), deterministically refusing control-flow and compound imperative instructions (`sequentially`, `doIf`, `doForEach`, `chooseModes`, `establish`, etc.).
 
@@ -399,7 +404,10 @@ structure DeonticMods where
 ```
 
 - **Compound deontics (`"can't attack or block"`):** Coordinated prohibitions/requirements use `StaticSpec.conjunction [cant(this, attack(any)), cant(this, block(any))]` (with a `cantBoth` template helper where desired), eliminating the single-purpose `Deeds = List Deed` wrapper.
-- **Closed Deontic Head-Gating on `cant`, `must`, `may`, and `gatedBy` (`Check/Abilities.lean`):** Because `deckmaste_core` compiles deontic rules to the closed `core::DeonticAction` enum, `Check/Abilities.lean` explicitly gates `action` inside `cant`, `must`, `may`, and `gatedBy` to the deontic-capable `Instruction` heads (`attack`, `block`, `target`, `attach`, `cast`, `play`, `activate`, `regenerate`, `counter`, `untap`, `tap`, `sacrifice`, `destroy`, `draw`, `changeLife`, `dealDamage`, `putCounters`, `removeCounters`, `search`, `transform`, `enter`, `loseTheGame`, `winTheGame`, and `ownScope (some (.action name))`), refusing arbitrary procedural instructions.
+- **Closed Deontic Head-Gating on `cant`, `must`, `may`, and `gatedBy` (`Check/Events.lean`, `Check/Phrase.lean`):** Deontic clauses use a separate closed head gate. It admits `attack`, `block`, `target`, `attachment`, `procedure` (cast/play/activate), `copy`, `draw`, `changeLife`, `dealDamage`, `putCounters`, `removeCounters`, `search`, `turnOver`, `conclude`, `changeControl`, `tapForMana`, `unlock`, `trigger`, `crew`, `saddle`, `fullyUnlock`, `vote`, and `pay`; `setStatus` is limited to tapped, untapped, phased in, or phased out; a raw `move` must name the battlefield as its destination. Named keyword-action definitions use `ownScope (some (.action name))`, with transparent wrapper traversal. Copy and vote permissions are required by Display of Power and additional-vote clauses; payment permissions use `pay .anyCost` with the spend-as-though modifier. `Cost.anyCost` is a wildcard restricted to event, lookback, prospective, and deontic action patterns; performed costs require a specified cost. Pattern entry restores the caller’s mode before checking subsequent effects. Procedural combinations and other event heads, such as `shuffle`, remain refused. The 2026-10-14 bench extension preserves the distinctions between triggering [CR#603.2], crewing and saddling [CR#702.122b,702.171c], phase-in status [CR#702.26c], and fully unlocking [CR#709.5i].
+
+- **Causal Replacement Patterns (2026-10-14 bench extension):** `WouldClause.causedBy (cause : Causing) (clause : WouldClause)` wraps a prospective action clause with the source, event, or effect that causes it [CR#700.1,614.1a]. The cause is read before the nested clause. Rain of Gore retains both its spell-or-ability source and the controller of that source as the prospective life-gain subject. Its official ruling excluding life gain from combat damage with lifelink provides a distinguishing example; a bare life-gain replacement would lose that restriction.
+
 
 | Old `StaticSpec` Form | `semantics-v3` Form | Example |
 |---|---|---|

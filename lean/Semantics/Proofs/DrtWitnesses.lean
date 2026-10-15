@@ -19,9 +19,9 @@ theorem kalitasReadback : Instruction.check (DRS.ofList []) kalitasBody = [] := 
 
 theorem kalitasSelectsTokenThenDestroyedCreature :
     let result := (stepInstruction 64 .postEvent .obj (DRS.ofList []) kalitasBody).1
-    result.resolvedIds = [0, 1] ∧
-      (result.findById? 1).map (·.pronounResolved) = some true ∧
-      (result.findById? 0).map (·.pronounResolved) = some false := by decide
+    result.resolvedIds = [1, 2] ∧
+      (result.findById? 2).map (·.pronounResolved) = some true ∧
+      (result.findById? 1).map (·.pronounResolved) = some false := by decide
 
 private def destroyedCreature : DRS :=
   (stepInstruction 64 .postEvent .obj (DRS.ofList []) (destroy (target creature))).1

@@ -46,6 +46,7 @@ def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
   | _ + 1, .setStatus .. | _ + 1, .turnOver .. | _ + 1, .turnFaceDown ..
   | _ + 1, .combat .. | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .attackUnblocked .. | _ + 1, .attackWith ..
   | _ + 1, .target .. | _ + 1, .tapForMana .. | _ + 1, .commitCrime | _ + 1, .attachment .. | _ + 1, .changeControl ..
+  | _ + 1, .trigger | _ + 1, .crew .. | _ + 1, .saddle .. | _ + 1, .fullyUnlock ..
   | _ + 1, .gainDesignation .. | _ + 1, .unlock .. | _ + 1, .setGameDesignation .. | _ + 1, .conclude ..
   | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .copy .. | _ + 1, .changeLife .. | _ + 1, .addMana .. | _ + 1, .draw ..
   | _ + 1, .expose .. | _ + 1, .search .. | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
@@ -54,6 +55,26 @@ def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
   | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. | _ + 1, .relate .. | _ + 1, .merge ..
   | _ + 1, .skipUntap .. | _ + 1, .skipPart .. | _ + 1, .addTurnPart .. | _ + 1, .exchange .. => true
   | _ + 1, _ => false
+termination_by structural fuel
+
+/-- The closed instruction heads which a deontic clause can constrain. -/
+def Instruction.deonticHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
+  match fuel, e with
+  | 0, _ => false
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.deonticHeadOk n
+  | _ + 1, .ownScope (some (.action _)) _ => true
+  | n + 1, .ownScope none body => body.deonticHeadOk n
+  | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .target .. | _ + 1, .attachment ..
+  | _ + 1, .procedure .. | _ + 1, .copy .. | _ + 1, .draw .. | _ + 1, .changeLife ..
+  | _ + 1, .dealDamage .. | _ + 1, .putCounters .. | _ + 1, .removeCounters ..
+  | _ + 1, .search .. | _ + 1, .turnOver .. | _ + 1, .conclude ..
+  | _ + 1, .changeControl .. | _ + 1, .tapForMana .. | _ + 1, .unlock ..
+  | _ + 1, .trigger | _ + 1, .crew .. | _ + 1, .saddle .. | _ + 1, .fullyUnlock ..
+  | _ + 1, .vote .. | _ + 1, .pay .. => true
+  | _ + 1, .setStatus .tapped _ | _ + 1, .setStatus .untapped _
+  | _ + 1, .setStatus .phasedIn _ | _ + 1, .setStatus .phasedOut _ => true
+  | _ + 1, .move _ _ (some (.zone .battlefield _)) _ _ _ => true
+  | _, _ => false
 termination_by structural fuel
 
 /-- Whether an event-capable instruction carries a quantity or magnitude that `TallyMode.quantity`

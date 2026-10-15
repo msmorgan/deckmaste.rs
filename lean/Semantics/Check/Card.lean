@@ -41,7 +41,7 @@ def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bo
       match action.scopeBody with
       | .move src _ _ _ _ _ => src.namesThis
       | _ => false
-    | .wouldAny _ => false
+    | .wouldAny _ | .causedBy .. => false
   | n + 1, .conditional se _ _ => se.onInstantOrSorceryCardOk n
   | _, _ => false
 termination_by structural fuel

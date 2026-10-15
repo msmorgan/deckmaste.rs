@@ -102,7 +102,7 @@ def Cost.numberSlots (value : Cost) (fuel : Nat := 64) : List (Amount × NumberR
   match fuel, value with
   | 0, _ => []
   | _n + 1, .inCaller body => body.numberSlots _n
-  | _n + 1, .mana _ => []
+  | _n + 1, .anyCost | _n + 1, .mana _ => []
   | _n + 1, .scaled _ amount => [(amount, .clamped)]
   | _n + 1, .tapSymbol | _n + 1, .untapSymbol | _n + 1, .loyaltySymbol _ => []
   | _n + 1, .perform _ | _n + 1, .compound _ | _n + 1, .or _ | _n + 1, .itsManaCost | _n + 1, .withSubstitute _ _ => []
@@ -148,7 +148,8 @@ def Instruction.numberSlots (value : Instruction) (fuel : Nat := 64) : List (Amo
   | _n + 1, .dealDamage amount _ _ | _n + 1, .markDamage _ amount => [(amount, .clamped)]
   | _n + 1, .setStatus _ _ | _n + 1, .turnOver _ | _n + 1, .combat _ _ => []
   | _n + 1, .attack _ | _n + 1, .attackUnblocked _ | _n + 1, .attackWith _ _ | _n + 1, .block _ | _n + 1, .target _ | _n + 1, .changeControl _
-  | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime => []
+  | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger
+  | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ | _n + 1, .doAndForbid _ _ _ => []
   | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ => []
   | _n + 1, .drawGame | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
