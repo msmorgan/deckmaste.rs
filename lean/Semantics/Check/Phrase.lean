@@ -3,6 +3,7 @@ import Semantics.Check.Events
 import Semantics.Check.HeaderContext
 import Semantics.Check.CardFacts
 import Semantics.Check.Creation
+import Semantics.Check.Deck
 import Semantics.Check.Choices
 import Semantics.Check.DeonticPatients
 import Semantics.Check.LocalShape
@@ -588,7 +589,11 @@ def stepColorTermWith (ops : StepOps) (drs : DRS) (ct : ColorTerm) : DRS × List
 
 def choiceModeChecks (drs : DRS) : ChoiceMode → List Refusal
   | .theirChoice =>
-    let count := countChoosers drs
+    let count := match actorShape? drs with
+      | some actor => if actor.kind == .player then
+          (actor.refIds.eraseDups.filterMap drs.findById?).filter (fun ref => ref.kind == .player) |>.length
+        else 0
+      | none => countChoosers drs
     refuse (count == 1) (.chooserInScope count)
   | _ => []
 
@@ -986,6 +991,31 @@ def keywordSchemaFor (k : KeywordLabel) (params : List KeywordParam) : Option Ke
 def keywordParamFits (k : KeywordLabel) (params : List KeywordParam) : Bool :=
   (keywordSchemaFor k params).isSome
 
+def checkDeckTraitWith (ops : StepOps) (trait : DeckTrait) (fuel : Nat := 32) : List Refusal :=
+  match fuel, trait with
+  | 0, _ => [.recursionLimit]
+  | _ + 1, .aCharacteristic predicate =>
+    (ops.pred (DRS.ofList []) predicate).2 ++ kindCheck .object predicate.kind? ++
+      refuse predicate.deckReadable .deckReadable
+  | _ + 1, .hasAbilityOf class_ => refuse class_.known .knownKeywordTerm
+  | n + 1, .anyOf traits =>
+    refuse (!traits.isEmpty) .nonEmpty ++ traits.flatMap (fun t => checkDeckTraitWith ops t n)
+  | _, _ => []
+
+def checkDeckConditionWith (ops : StepOps) (condition : DeckCondition) : List Refusal :=
+  match condition with
+  | .everyCardIs scope trait | .noCardIs scope trait =>
+    (ops.pred (DRS.ofList []) scope).2 ++ kindCheck .object scope.kind? ++
+      refuse scope.deckReadable .deckReadable ++ checkDeckTraitWith ops trait
+  | .groupAgrees (.agree axis _ group@(.described _ scope)) =>
+    (ops.pred (DRS.ofList []) scope).2 ++ kindCheck .object scope.kind? ++
+      refuse scope.deckReadable .deckReadable ++ refuse axis.deckComparable .deckComparable ++
+      refuse (group.plur == .many) .plural
+  | .groupAgrees group =>
+    let (out, ids, errors) := ops.np (DRS.ofList []) .other false group
+    errors ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)) ++ [.deckReadable]
+  | .deckSizeOverMinimum _ => []
+
 def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
     (params : List KeywordParam) : List Refusal :=
   (params.zipIdx).flatMap fun (param, i) =>
@@ -996,7 +1026,7 @@ def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
       (ops.pred drs p).2 ++ kindCheck expected p.kind?
     | .subject p => (ops.pred (enterOwnScope drs) p).2
     | .number a => (ops.amt (enterOwnScope drs) a).2
-    | .deckCondition _ => []
+    | .deckCondition condition => checkDeckConditionWith ops condition
     | .ability a => ops.ab drs a
 
 def stepAbilitySelectionWith (ops : StepOps) (drs : DRS) (sel : AbilitySelection) : DRS × List Refusal :=
@@ -1349,7 +1379,9 @@ def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
     (out, normalizeTypes front.characteristics.types,
       frontErrors ++ backErrors ++ [front.characteristics, back.characteristics].flatMap (fun c =>
         refuse (colorsDistinct c.colors && typesDistinct c.types && supersDistinct c.supertypes) .distinct))
-  | _ + 1, .asThose => (drs, tyOfThoseAny .token drs, [])
+  | _ + 1, .asThose =>
+    let count := countTokenSpecs drs
+    (drs, tyOfThoseAny .token drs, refuse (count == 1) (.tokenSpecInScope count))
   | _ + 1, .copyOf source exceptions =>
     let (selected, ids, errors) := ops.np drs .other false source
     let sources : List Referent := ids.filterMap selected.findById?
@@ -1699,7 +1731,8 @@ def stepOps : Nat → StepOps
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], if ok then [] else [.theRestFits k])
         | .possessorOf axis subj =>
-          let (drs1, ids, e1) := ops.np drs .other false subj
+          let (read, ids, e1) := ops.np { drs with characteristicRead := true } .other false subj
+          let drs1 := { read with characteristicRead := drs.characteristicRead }
           let kind := subj.selectedKind drs1 ids
           let e1 := e1 ++ refuse (Kind.lte kind .object) (.possessorKind axis kind)
           let ref : Referent := { det := .the, plur := .one, payload := .player false }

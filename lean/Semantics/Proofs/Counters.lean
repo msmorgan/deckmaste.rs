@@ -469,6 +469,13 @@ theorem badAnaphoricTokenAfterNonToken :
       = [.tokenSpecInScope 0] := by
   decide
 
+theorem badAnaphoricTokenAfterTwoDistinctSpecs :
+    Instruction.check (DRS.ofList [])
+      (.sequentially
+        [create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
+          create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
+          Primitives.Instruction.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
+
 /-- "Put a +1/+1 counter on target creature card in your graveyard." No printed card on the
 bench. -/
 theorem counterOnGraveyardCard :

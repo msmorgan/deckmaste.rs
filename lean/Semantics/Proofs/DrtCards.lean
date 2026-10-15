@@ -47,4 +47,13 @@ theorem airbendMultipleTargetsUsePerCardLoop :
     Instruction.check (DRS.ofList [])
       (Declared.airbend (.described (.target (upTo 2)) creature)) = [] := by decide
 
+theorem selfCounterProhibitionIsValidInstantText :
+    cardTextOk [.instant] [.static (objectCant (.action "counter") thisSpell)] = true := by decide
+
+theorem otherSpellCounterProhibitionIsNotInstantStaticText :
+    cardTextOk [.instant] [.static (objectCant (.action "counter") (allOf spell))] = false := by decide
+
+theorem battlefieldProhibitionIsNotInstantStaticText :
+    cardTextOk [.instant] [.static (objectCant (.action "untap") thisCreature)] = false := by decide
+
 end Semantics.Proofs.DrtCards

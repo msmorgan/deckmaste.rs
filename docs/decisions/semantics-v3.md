@@ -176,6 +176,11 @@ creature from its counter-placement action. Clarified with the owner during the 
 port: this is ordinary LKI phrasing, including “Destroy target creature. You gain life equal
 to its power.”
 
+The same information-read boundary covers possessors: after destroying a permanent,
+“that permanent’s controller” may read its last known controller. The enclosing damage
+instruction acts on that player; the lookup does not make the destroyed permanent available
+to a later battlefield action. *Destructive Revelry* exercises this distinction.
+
 #### Stage 2: Form-Specific Resolution Gate (`J2`, `D′`, `AC>R1`, and Principle A Reflexives)
 
 - **Clause-mates (`J2`, `docs/contexts/oracle-english/CONTEXT.md`):** Referent `r` is a **clause-mate** of an anaphor iff the anaphor occupies a direct argument slot (subject, direct object, or oblique complement) of the current verb and `(r.id, _) ∈ drs.pendingRoles` (i.e., `r` was introduced or re-mentioned as a direct co-argument of the same verb in `drs.currentClause`). Possessors (`controllerOf it`, `ownerOf it`, `its power`, `"Target creature's controller"`) and objects of small clauses (`counters on it`) are **not** direct co-arguments of the matrix verb (`badItAcrossOwnSlot`, *Weeping Angel*).

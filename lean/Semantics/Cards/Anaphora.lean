@@ -478,8 +478,13 @@ theorem okGreatestCardsAPlayerDiscardedThisWay :
 
 def eachPlayerBase : NounPhrase := each Primitives.Predicate.anyPlayer
 theorem okEachPlayerBase : NounPhrase.checkAt (some .player) (DRS.ofList []) eachPlayerBase = [] := by decide
-theorem eachPlayerBindsNoSingular : countOnes .player ((stepNounPhrase 512 (DRS.ofList []) .obj true eachPlayerBase).1) = 0 := by decide
-theorem eachPlayerBindsAGroup : countManys .player ((stepNounPhrase 512 (DRS.ofList []) .obj true eachPlayerBase).1) = 1 := by decide
+theorem eachPlayerBindsOneDistributedMember :
+    let result := stepNounPhrase 512 (DRS.ofList []) .obj true eachPlayerBase
+    result.2.1 = [0] ∧
+      (result.1.findById? 0).map (fun ref => (ref.det, ref.plur, ref.kind)) =
+        some (.each, .one, .player) := by decide
+theorem eachPlayerDoesNotIntroduceASeparateGroup :
+    countManys .player ((stepNounPhrase 512 (DRS.ofList []) .obj true eachPlayerBase).1) = 0 := by decide
 
 /-- Soul Ransom -/
 def soulRansomRansom : Instruction :=
@@ -493,8 +498,12 @@ theorem okTargetCreaturesController :
     NounPhrase.checkAt (some .player) (DRS.ofList []) targetCreaturesController = [] := by decide
 theorem possessiveDeicticIsReadableByIt :
     countReach (.atSlot .permanent) .one ((stepNounPhrase 512 (DRS.ofList []) .obj true thisAurasController).1) = 1 := by decide
-theorem possessiveDeicticIsNotADemonstrative :
-    countReach (.word (.type .enchantment)) .one ((stepNounPhrase 512 (DRS.ofList []) .obj true thisAurasController).1) = 0 := by decide
+theorem possessiveDeicticDemonstrativeSelectsTheSource :
+    let result := stepNounPhrase 512 (DRS.ofList []) .obj true thisAurasController
+    let selected := resolveCandidates (.word (.type .enchantment)) .one result.1
+    result.2.1 = [1] ∧ selected.map (·.id) = [0] ∧
+      selected.all (fun ref => ref.zone == some .battlefield && ref.ty == [.enchantment]) := by decide
+
 theorem possessiveDescribedBaseUnchanged :
     countReach (.atSlot .permanent) .one ((stepNounPhrase 512 (DRS.ofList []) .obj true targetCreaturesController).1) = 1 := by decide
 
@@ -526,8 +535,17 @@ def hijack : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
             [ gainControl (target (Primitives.Predicate.or [artifact, creature])) (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
-              untap (theVerbed (.core .gainControl) .one),
-              gainHaste (theVerbed (.action "untap") .one) (some untilEndOfTurn) ]) ] } }
+              untap it,
+              gainHaste it (some untilEndOfTurn) ]) ] } }
+
+def hijackDeedDescriptions : Instruction :=
+  Primitives.Instruction.sequentially
+    [ gainControl (target (Primitives.Predicate.or [artifact, creature]))
+        (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
+      untap (theVerbed (.core .gainControl) .one),
+      gainHaste (theVerbed (.action "untap") .one) (some untilEndOfTurn) ]
+theorem okHijackDeedDescriptions :
+    Instruction.check (DRS.ofList []) hijackDeedDescriptions = [] := by decide
 
 /-- Open the Vaults -/
 def openTheVaults : Instruction :=

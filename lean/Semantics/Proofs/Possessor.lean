@@ -115,4 +115,20 @@ theorem possessorThroughMoves :
         (some .other) = none := by
   decide
 
+theorem destroyedPermanentControllerReadUsesLastKnownInformation :
+    let destroyed := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      (destroy (target artifact))).1
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause destroyed) .obj true
+      (controllerOf (that .permanent))
+    errors = [] ∧ ids.length = 1 ∧
+      (ids.filterMap after.findById?).all (fun r => r.kind == .player) ∧
+      after.referents.any (fun r => r.id == 1 && r.zone == some .graveyard) ∧
+      after.characteristicRead = false := by decide
+
+theorem controllerReadDoesNotPermitUntappingDestroyedPermanent :
+    Instruction.check (DRS.ofList [])
+      (.sequentially [destroy (target artifact),
+        .dealDamage (.lit 2) (controllerOf (that .permanent)) .noncombatOnly,
+        untap (that .permanent)]) = [.anaphor (.word .permanent) .one 0] := by decide
+
 end Semantics.Proofs.Possessor
