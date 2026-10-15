@@ -304,7 +304,7 @@ def Characteristics.check (drs : DRS) (c : Characteristics) : List Refusal :=
 def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
   let c := f.characteristics
   let bs := jointDRS f.choices c.cost
-  refuse c.name.isSome .cardName ++ Ability.checkAll bs c.text ++ c.lineLaws ++
+  refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
     textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
     refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD [] ++
     refuse (jointChoicesOk f.choices (textIntroducedChoices bs c.text)) .jointChoices
@@ -318,7 +318,7 @@ def SharedLineHalf.introducedChoices (shared : CardFace) (h : SharedLineHalf) : 
 
 def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
   let line := shared.characteristics
-  Ability.checkAll (h.bindings shared) h.text ++ halfTextLaws line h.text ++
+  Ability.checkText (h.bindings shared) h.text ++ halfTextLaws line h.text ++
     refuse (cardBoxOk .front line.types h.text line) .cardBox ++
     refuse (cardCostOk .front line.types h.cost) .cardCost ++
     (h.cost.map ManaCost.check).getD []
@@ -361,7 +361,7 @@ def LevelBand.box (b : LevelBand) : Characteristics :=
 
 /-- A level band writes a power and toughness and text [CR#711.2]. -/
 def LevelBand.check (inner : Characteristics) (b : LevelBand) : List Refusal :=
-  refuse b.range.ok .levelRange ++ Ability.checkAll (DRS.ofList []) b.text ++ textLaws inner b.text ++
+  refuse b.range.ok .levelRange ++ Ability.checkText (DRS.ofList []) b.text ++ textLaws inner b.text ++
     refuse b.box.ptWritten .levelerFrame ++
     refuse (cardBoxOk .front inner.types b.text b.box) .cardBox
 
@@ -417,9 +417,12 @@ structure Spelled where
   onlyMacros : authoring.onlyMacros = true
   ok : card.check = []
 
+syntax (name := spelledTerm) "spelled" " <| " term : term
+
 open Lean Meta Elab Term in
 /-- `spelled <| card …` checks the authoring boundary and synthesizes both proofs. -/
-elab "spelled" " <| " card:term : term => do
+@[term_elab spelledTerm] unsafe def elabSpelled : TermElab := fun stx _ => do
+  let `(spelled <| $card) := stx | throwUnsupportedSyntax
   let value ← elabTermEnsuringType card (mkConst ``Semantics.Card)
   let form ← Authoring.inspect value
   unless form.onlyMacros do
@@ -428,6 +431,10 @@ elab "spelled" " <| " card:term : term => do
   let authored ← mkEq (mkApp (mkConst ``Authoring.Form.onlyMacros) tree) (mkConst ``Bool.true)
   let onlyMacros ← mkDecideProof authored
   let verdict := mkApp (mkConst ``Card.check) value
+  let refusals ← evalExpr (List Refusal)
+    (mkApp (mkConst ``List [Level.zero]) (mkConst ``Refusal)) verdict
+  unless refusals.isEmpty do
+    throwError "Card semantic check failed: {repr refusals}"
   let valid ← mkEq verdict (mkApp (mkConst ``List.nil [Level.zero]) (mkConst ``Refusal))
   let ok ← mkDecideProof valid
   return mkAppN (mkConst ``Spelled.mk) #[value, tree, onlyMacros, ok]

@@ -550,6 +550,7 @@ structure Referent where
   role            : GramRole := .other
   pronounResolved : Bool := false
   targets         : List Kind := []
+  attachmentHost  : Bool := false
   deriving DecidableEq, Repr
 
 abbrev Binding := Referent
@@ -1052,10 +1053,10 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
   | .copied word => halfWordReaches word pl && payloadIsCopy pl
   | word =>
     match pl with
-    | .object ty _ _ _ _ _ =>
+    | .object ty zn _ _ _ _ =>
       match word with
-      | .type t => tyIs t ty
-      | .permanent => ty.isEmpty
+      | .type t => onFieldZone zn && tyIs t ty
+      | .permanent => onFieldZone zn
       | _ => false
     | .player _ => word == .player
     | _ => false
@@ -1071,12 +1072,12 @@ def wordReaches (w : NounWord) (b : Referent) : Bool :=
   | .copied word => wordReaches word b && payloadIsCopy b.payload
   | w =>
     match b.payload with
-    | .object ty zn pv og _ _ =>
+    | .object ty zn _ og _ _ =>
       match w with
       | .type t => onFieldZone zn && tyIs t ty
       | .card => isCardZone zn
       | .spell => onStackZone zn
-      | .permanent => onFieldZone zn || stampWasField pv
+      | .permanent => onFieldZone zn
       | .token => onFieldZone zn && isTokenOrigin og
       | .copy => isCopyOrigin og
       | .stack => onStackZone zn
@@ -1277,6 +1278,16 @@ def dropActorFrame (drs : DRS) : DRS :=
     | b :: bs => if b.isActorFrame then bs else b :: dropFirst bs
   { drs with referents := dropFirst drs.referents }
 
+/-- Close a relative clause while retaining its definite attachment hosts in the outer DRS. -/
+def leaveRelative (before after : DRS) : DRS :=
+  let hosts := after.referents.filterMap fun r =>
+    if r.attachmentHost && r.id ≥ before.nextId then
+      some { r with clause := before.currentClause, role := .other, pronounResolved := false }
+    else none
+  { before with
+    referents := hosts ++ before.referents
+    nextId := max before.nextId after.nextId }
+
 /-- Open a keyword action body's own Reference Scope (`Instruction.ownScope`, `semantics-v3.md` §1.4):
 pushes an `OwnScopeFrame` masking all pre-entry referents except the active performer. -/
 def enterOwnScope (drs : DRS) : DRS :=
@@ -1314,16 +1325,12 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
   match before.scopeStack with
   | [] => after
   | topFrame :: _ =>
-      let newlyBound := match unmaskIds with
-        | [] =>
-          if after.resolvedIds.isEmpty && after.nextId == before.nextId then []
-          else after.resolvedIds ++
-            (after.referents.filterMap fun r =>
-              if r.id ≥ before.nextId then some r.id
-              else match before.findById? r.id with
-                | some old => if r.idents != old.idents then some r.id else none
-                | none => some r.id)
-        | ids => ids ++ after.resolvedIds
+      let introduced := after.referents.filterMap fun r =>
+        if r.id ≥ before.nextId then some r.id
+        else match before.findById? r.id with
+          | some old => if r.idents != old.idents then some r.id else none
+          | none => some r.id
+      let newlyBound := (unmaskIds ++ after.resolvedIds ++ introduced).eraseDups
       let masked' := match newlyBound with
         | [] => topFrame.maskedIds
         | ids => topFrame.maskedIds.filter (!ids.elem ·)
@@ -1448,7 +1455,13 @@ def filterContext (keep : Referent → Bool) (drs : DRS) : DRS :=
 
 def publicOnly (drs : DRS) : DRS := filterContext Referent.isPublic drs
 
-def afterShuffle (drs : DRS) : DRS := filterContext survivesShuffle drs
+def afterShuffle (drs : DRS) : DRS :=
+  let refs := drs.referents.filter fun r => r.isActorFrame || survivesShuffle r
+  let keptIds := refs.map (·.id)
+  { drs with
+    referents := refs
+    pendingRoles := drs.pendingRoles.filter (fun p => keptIds.elem p.1)
+    resolvedIds := drs.resolvedIds.filter keptIds.elem }
 
 def groupSpent (k : Kind) (drs : DRS) : DRS :=
   let filtered := filterContext (fun b => b.det == .part || !objGroup k b) drs

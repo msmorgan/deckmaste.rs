@@ -4,7 +4,7 @@ import Semantics.Check.Card
 /-!
 # Semantics.Check.Rules
 
-Minimal core rules-as-data and registry-definition checking.
+Scope and registry-definition checking for rules-as-data.
 -/
 
 namespace Semantics
@@ -21,12 +21,14 @@ def SbaRule.check (r : SbaRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let (drs2, e2) := stepCondition 64 drs1 r.when
   let (_, e3) := stepInstruction 64 .postEvent .obj (nextClause drs2) r.then_
-  e1 ++ e2 ++ e3
+  e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
+    (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2 ++ e3
 
 def ConferralRule.check (r : ConferralRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let e2 := checkAbility 64 drs1 r.confer
-  e1 ++ e2
+  e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
+    (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2
 
 def Conferral.check : Conferral → List Refusal
   | .ability ab => checkAbility 64 (DRS.ofList []) ab
@@ -39,10 +41,11 @@ def Conferral.check : Conferral → List Refusal
     (stepInstruction 64 .postEvent .obj (DRS.ofList []) then_).2
 
 def Definition.check : Definition → List Refusal
-  | .counter _ k confers =>
+  | .counter kind k confers =>
     let hErr := if k == .object || k == .player then [] else [.definitionHolder k]
-    hErr ++ confers.flatMap Conferral.check
-  | .subtype _ rules => rules.flatMap Conferral.check
+    hErr ++ refuse (!kind.name.isEmpty) .definitionNamed ++ confers.flatMap Conferral.check
+  | .subtype sub rules =>
+    refuse (!sub.label.isEmpty) .definitionNamed ++ rules.flatMap Conferral.check
   | .designation label scope _ zone type half =>
     let nErr := if label.name.isEmpty then [.definitionNamed] else []
     let sErr := if scope != .heldBy .object && (zone.isSome || type.isSome || half.isSome) then
@@ -50,8 +53,10 @@ def Definition.check : Definition → List Refusal
     else []
     nErr ++ sErr
   | .cardType _ _ confers => confers.flatMap Conferral.check
-  | .relation label _ _ =>
-    if label.name.isEmpty then [.definitionNamed] else []
+  | .relation label left right =>
+    refuse (!label.name.isEmpty) .definitionNamed ++
+      refuse (left == .object || left == .player) (.definitionHolder left) ++
+      refuse (right == .object || right == .player) (.definitionHolder right)
 
 def PredefinedToken.check (t : PredefinedToken) : List Refusal :=
   let nErr := if t.name.isEmpty then [.tokenNamed] else []

@@ -62,4 +62,44 @@ theorem movedMaskedArgumentRemainsMasked :
     let after := applyZoneMove (enterOwnScope original) [0] none (some .exile)
     after.visibleReferents = [] := by decide
 
+theorem departedPermanentCannotBeActionPatient :
+    resolveCandidates (.word .permanent) .one moved = [] := by decide
+
+theorem departedPermanentRemainsAvailableForCharacteristicRead :
+    (resolveCandidates (.word .permanent) .one { moved with characteristicRead := true }).map
+      (·.id) = [1] := by decide
+
+theorem joinedDepartedCreatureCannotBypassZoneFilter :
+    let context := DRS.ofList [{
+      det := .a, plur := .one,
+      payload := .join (.player false)
+        (.object [.creature] (some .graveyard) none none none none) }]
+    resolveCandidates (.word (.type .creature)) .one context = [] := by decide
+
+theorem shuffleForgetsMaskedLibraryIdentity :
+    let context := DRS.ofList [{
+      det := .a, plur := .one, idents := ["library.card"],
+      payload := .object [.creature] (some .library) none none none none }]
+    let after := leaveOwnScope (afterShuffle (enterOwnScope context))
+    after.referents = [] ∧ identityBinding "library.card" after = none := by decide
+
+private def relativeResult : DRS :=
+  let inner := (DRS.ofList []).push callerPart .other false
+  let inner := inner.push callerPlayer .other false
+  inner.push { callerPart with det := .the, attachmentHost := true } .subj true
+
+theorem relativeClauseExportsOnlyAttachmentHost :
+    let after := leaveRelative (DRS.ofList []) relativeResult
+    after.referents.map (·.id) = [2] ∧ after.nextId = 3 := by decide
+
+theorem projectedHostDoesNotReuseLocalIdentity :
+    let after := (leaveRelative (DRS.ofList []) relativeResult).push callerPlayer .obj true
+    after.referents.map (·.id) = [3, 2] := by decide
+
+theorem explicitCallerArgumentPreservesAuxiliaryPlayer :
+    let inner := enterOwnScope (DRS.ofList [])
+    let argument := ((enterCaller inner).push callerPlayer .other false).push callerPart .obj true
+    let after := leaveOwnScope (leaveCaller inner argument [1])
+    after.referents.map (·.id) = [1, 0] := by decide
+
 end Semantics.Proofs.MovementScopes

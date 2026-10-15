@@ -99,4 +99,116 @@ private def ramAfterCondition : DRS :=
 theorem ramThroughRawPossessorSelectsDamageRecipient :
     selected (.type .creature) ramAfterCondition = [["ram.recipient"]] := by decide
 
+private def opponentOrPermanent : NounPhrase :=
+  .firstMention "damage.recipient" (a (.or [.opponent,
+    .and [permanent, .hasPossessor .controller anOpponent]]))
+private def giselaPattern : WouldClause :=
+  .would (.actor (a .isSource)) (.dealDamage .anyAmount opponentOrPermanent .any)
+private def solphimPattern : WouldClause :=
+  .would (.actor (a (.and [.isSource, .hasPossessor .controller .you])))
+    (.dealDamage .anyAmount opponentOrPermanent .noncombatOnly)
+
+theorem giselaRawJoinedDemonstrativeSelectsRecipient :
+    selected .join (stepWouldClause 64 (DRS.ofList []) giselaPattern).1 =
+      [["damage.recipient"]] := by decide
+
+theorem solphimRawJoinedDemonstrativeSelectsRecipient :
+    selected .join (stepWouldClause 64 (DRS.ofList []) solphimPattern).1 =
+      [["damage.recipient"]] := by decide
+
+private def mangaraSource : NounPhrase :=
+  .firstMention "mangara.source" (a (.and [creature,
+    .ofChosen .theLatestChoice .color]))
+private def mangaraRecipient : NounPhrase :=
+  .or [.you, .firstMention "mangara.recipient"
+    (a (.and [creature, .colorIs .white, .hasPossessor .controller .you]))]
+private def mangaraContext : DRS :=
+  (stepGameEvent 64 (DRS.ofList [ChoiceSort.binding (.quality .color)])
+    (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient .any))).1
+
+theorem mangarasEquityRawDemonstrativeSelectsWrongCreature :
+    selected (.type .creature) mangaraContext = [["mangara.recipient"]] := by decide
+
+theorem mangarasEquityExplicitSelectorRestoresDamageSource :
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause mangaraContext) .obj true
+      (.laterMention "mangara.source" mangaraSource)
+    errors = [] ∧ (ids.filterMap after.findById?).map (·.idents) =
+      [["mangara.source"]] := by decide
+
+private def noeticUpkeep : GameEvent :=
+  .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .anyPlayer))) .current
+private def noeticContext : DRS :=
+  (stepZoneExprWith (stepOps 64)
+    (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1)
+    (.zone .hand (.possessedBy (.firstMention "noetic.owner" (ownerOf (each creature)))))).1
+
+theorem noeticScalesRawDemonstrativeSelectsWrongPlayer :
+    selected .player noeticContext = [["noetic.owner"]] := by decide
+
+theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause noeticContext) .other false
+      (.laterMention "noetic.upkeepPlayer" (each .anyPlayer))
+    errors = [] ∧ (ids.filterMap after.findById?).map (·.idents) =
+      [["noetic.upkeepPlayer"]] := by decide
+
+private def damagedVictim (attachment : AttachWord) : NounPhrase :=
+  a (.and [creature,
+    .did ⟨.actor (.attachHost attachment (.type .creature)),
+      .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
+
+private def scytheDeath : GameEvent :=
+  Primitives.GameEvent.dies (damagedVictim .equipped)
+private def scytheAfterDeath : DRS :=
+  (stepGameEvent 64 (DRS.ofList []) scytheDeath).1
+private def scytheReturn : Instruction :=
+  .move (that .card) .anywhere (some battlefield) .arrival none []
+private def scytheAfterReturn : DRS :=
+  (stepInstruction 64 .postEvent .obj (nextClause scytheAfterDeath) scytheReturn).1
+
+theorem scytheDeathAndReturnCheck :
+    (stepGameEvent 64 (DRS.ofList []) scytheDeath).2 = [] ∧
+      Instruction.check (nextClause scytheAfterDeath) scytheReturn = [] := by decide
+
+theorem scytheRawDemonstrativeSelectsReturnedCreature :
+    let selected := resolveCandidates (.word (.type .creature)) .one (nextClause scytheAfterReturn)
+    selected.map (·.zone) = [some .battlefield] ∧
+      selected.map (·.id) = [scytheAfterReturn.nextId - 1] := by decide
+
+private def vampiricDeath : GameEvent :=
+  Primitives.GameEvent.dies (damagedVictim .enchanted)
+private def vampiricAfterDeath : DRS :=
+  (stepGameEvent 64 (DRS.ofList []) vampiricDeath).1
+
+theorem vampiricDeathChecks :
+    (stepGameEvent 64 (DRS.ofList []) vampiricDeath).2 = [] := by decide
+
+theorem vampiricRawDemonstrativeSelectsEnchantedCreature :
+    let refs := resolveCandidates (.word (.type .creature)) .one (nextClause vampiricAfterDeath)
+    refs.length = 1 ∧ refs.all (fun r => r.attachmentHost && r.zone == some .battlefield) ∧
+      refs.map (·.id) = (vampiricAfterDeath.referents.filter (·.attachmentHost)).map (·.id) := by decide
+
+theorem vampiricDeadCreatureIsExcludedByZone :
+    let dead := vampiricAfterDeath.referents.filter (fun r => r.zone == some .graveyard)
+    dead.length = 1 ∧ dead.all (fun r => !r.attachmentHost) := by decide
+
+private def cycledContext : DRS :=
+  (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    (.enact (.ofAbility (.named "cycling")) (discard (a .isCard)) none none)).1
+private def cycloneFinalCard : NounPhrase :=
+  a (.and [.isCard, .inZone yourLibrary,
+    .shares .cardType .share
+      (theVerbed (.ofAbility (.named "cycling")) .one (some .card) .attributive)])
+private def cycloneExile : Instruction :=
+  .move cycloneFinalCard (.zones [yourLibrary]) (some exileZone) .arrival none []
+private def cycloneAfter : DRS :=
+  (stepInstruction 64 .postEvent .obj (nextClause cycledContext) cycloneExile).1
+
+theorem unpredictableCycloneTerminalCardDescriptionChecks :
+    Instruction.check (nextClause cycledContext) cycloneExile = [] := by decide
+
+theorem unpredictableCycloneRawDemonstrativeSelectsNewlyExiledCard :
+    let refs := resolveCandidates (.word .card) .one (nextClause cycloneAfter)
+    refs.map (·.zone) = [some .exile] ∧
+      refs.map (·.id) = [cycloneAfter.nextId - 1] := by decide
+
 end Semantics.Proofs.CorpusRecency

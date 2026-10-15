@@ -65,6 +65,7 @@ theorem explore_def_sound :
 def conniveDef (subject : NounPhrase) : Instruction :=
   .ownScope (some (.action "connive")) <|
     .instruct (.inCaller (.firstMention "subject" subject)) <|
+      .instruct (.possessorOf .controller .actor) <|
       .sequentially [
         .draw (.lit 1),
         .move (.described (.a .unmarked) (.and [.isCard, .inZone handZone]))

@@ -43,4 +43,21 @@ theorem historicalReadDoesNotLeakIntoFollowingAction :
         .putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .one true]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
+private def brokenVisageBody : Instruction := .sequentially [
+  destroy (target (.and [creature, .not artifact, attacking])),
+  create (.lit 1)
+    { characteristics :=
+        { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } },
+  .establish (.ptModification it (.set (powerOf (that (.type .creature))))
+    (.set (toughnessOf (that (.type .creature))))) none]
+
+theorem brokenVisageReadback :
+    Instruction.check (DRS.ofList []) brokenVisageBody = [] := by decide
+
+theorem brokenVisageSelectsTokenThenDestroyedCreature :
+    let result := (stepInstruction 64 .postEvent .obj (DRS.ofList []) brokenVisageBody).1
+    result.resolvedIds = [1, 2] ∧
+      (result.findById? 2).map (·.pronounResolved) = some true ∧
+      (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide
+
 end Semantics.Proofs.DrtWitnesses

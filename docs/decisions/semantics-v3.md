@@ -80,6 +80,7 @@ structure Referent where
   clause          : Nat              -- Clause index where introduced or last foregrounded
   role            : GramRole         -- Grammatical role in that clause
   pronounResolved : Bool             -- True if a bare pronoun (`it`/`them`/`they`) resolved to this referent in `currentClause`
+  attachmentHost  : Bool := false    -- Definite host remains accessible after a relative clause
   payload         : Payload          -- One of the 7 non-retired Payload variants (.object, .player, .outcome, .pile, .quality, .letter, .turnRef)
   deriving DecidableEq, Repr
 
@@ -122,7 +123,7 @@ In DRT (Kamp & Reyle 1993), the logical force and forward accessibility of an in
 | **2. Duplex / Implicational Box (`K₁ ⇒ K₂`)** | Trigger event → effect (`when`/`whenever`), replacement event → replacement (`instead(would(...), ...)`), positive conditional → consequent (`if(did(...), thenBranch)`) | Universal quantification (`∀`) over matching events and participants (`[CR#603.2,614.1]`) | Referents introduced in the antecedent box `K₁` are **accessible** inside the consequent box `K₂` (`"Whenever a creature enters, it gets..."`, `"If you sacrificed a creature this turn, return it..."`), and closed after `K₂` (with a **provisional** empirical exception for `if/then` when no `else` branch exists and Oracle text continues, to be verified against the corpus in `lean-v3-drt-checker`). |
 | **3. Negated / Modal Prohibition Box (`¬K` / `¬◇K`)** | Deontic prohibition (`cant(subj, action)`), negated condition (`not(...)`, `unless(...)`), `else` branch of `if(cond, thenBranch, elseBranch)` with respect to `cond` | Universal prohibition ($\neg\Diamond\exists x = \Box\forall x\,\neg$, `[CR#101.2]`) | Referents introduced inside a negated or `cant` box are **closed** on exit and inaccessible to following sentences (nor accessible in `elseBranch` from a negated `cond`). |
 | **4. Distributive Loop Box (`∀x ∈ S : K`)** | `doForEach(collection, body)` | Universal distribution over the bound collection; introduces a singular loop referent (`plur = .one`, `role = .subj`) at quantifier header clause `C`, then advances `drs.currentClause` to `C + 1` before stepping `body` | Because the loop header is at clause `C` and `body` starts at clause `C + 1`, `it` in a direct verb argument slot inside `body` (e.g., `cast(it)` in `airbend`) is not excluded as a clause-mate (`J2`) and uniquely selects the loop referent (`clause = C`) over any outer antecedent (`clause < C`). Closed on loop exit while keeping mutations to outer referents. |
-| **5. Relative-Clause / Comparison Box** | `Predicate.did` (`did(..., which, ...)`), `Predicate.compareOver` (`comparesOwnStat`) | Binds `which` (or the comparison candidate) in a subordinate clause box (`currentClause + 1`) | Local to the relative/comparison clause; `ownMember` inside `compareOver` resolves to the outer candidate without needing `Window.top 1`; closed on exit. |
+| **5. Relative-Clause / Comparison Box** | `Predicate.did` (`did(..., which, ...)`), `Predicate.compareOver` (`comparesOwnStat`) | Binds `which` (or the comparison candidate) in a subordinate clause box (`currentClause + 1`) | Local to the relative/comparison clause; `ownMember` inside `compareOver` resolves to the outer candidate without needing `Window.top 1`; closed on exit, except definite attachment hosts introduced by `attachHost`, which remain available in the enclosing DRS. |
 | **6. Definition Reference Scope (`ownScope` / `inCaller`)** | Every `Definition` invocation (`[CR#701,702]`) | Evaluates arguments in caller's box (`inCaller`), masks caller referents during body execution, exports mutations and primary outcome on exit | See §1.4 below. |
 
 ### 1.4 Definition Reference Scope (`enterOwnScope`, `inCaller`, `leaveOwnScope`)
@@ -313,7 +314,7 @@ with instances for:
 
 When the checker evaluates `Predicate.did (did(subj, action, within))`:
 - It opens a local relative-clause DRS box (`§1.3 Box 5`) where `which` is bound to a temporary referent seeded from the outer `TypeEvidence` (`c.selfType` / conjunction evidence: `.player` when filtering a player description, `.object` with the accumulated `CardType`s and expected zone when filtering an object description).
-- It steps `did(subj, action, within)` in that local box (verifying that `which` appears at least once and satisfies `J1` domain compatibility for its verb slot) and discards the local box on exit.
+- It steps `did(subj, action, within)` in that local box (verifying that `which` appears at least once and satisfies `J1` domain compatibility for its verb slot) and discards local indefinite participants and the temporary `which` binder on exit. Definite attachment hosts (`enchanted`, `equipped`, or `fortified`) introduced there remain available in the enclosing DRS, with their identity and zone preserved. Thus Vampiric Embrace’s later “that creature” can select the enchanted creature after J1 excludes the creature that died. This is a reference-scope rule, not a bypass of J1 or a general export of relative-clause participants.
 
 ### 3.5 Pre-Action (`would`) vs. Post-Action (`does` / `did` / Imperative) DRT Stepping
 
