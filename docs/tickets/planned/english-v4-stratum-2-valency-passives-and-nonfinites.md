@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-1-core-clauses-and-nominals]
+needs: [english-v4-stratum-1-cleanup]
 ---
 # Stratum 2: Auxiliaries, copulas, passives, and non-finite complements
 
