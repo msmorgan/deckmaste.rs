@@ -1068,3 +1068,51 @@ fn complete_phrase_families_round_trip() {
         512
     );
 }
+
+#[test]
+fn numeral_sign_survives_phrase_projection_and_controls_admission() {
+    let lexicon = Lexicon::new([]).unwrap();
+    let grammar = bind(
+        r#"(
+            root: "Root",
+            features: { "Sign": ["Negative", "Zero", "Positive"] },
+            categories: { "Root": (), "Amount": (features: ["Sign"]) },
+            productions: [
+                (name: "Nonnegative", lhs: "Root", rhs: [Cat("head", "Amount")],
+                    equations: [Exclude("head.Sign", "Negative")]),
+                (name: "Numeric", lhs: "Amount", rhs: [Numeral("head", Arabic(false))]),
+            ],
+        )"#,
+        &lexicon,
+        NO_FRAMES,
+    )
+    .unwrap();
+    for (value, sign) in [(-2, "Negative"), (0, "Zero"), (3, "Positive")] {
+        let reading = node(
+            "Nonnegative",
+            "Root",
+            &[],
+            vec![node(
+                "Numeric",
+                "Amount",
+                &[("Sign", sign)],
+                vec![Reading::Leaf(LexicalReading::Numeral {
+                    value,
+                    notation: deckmaste_lexical::Numeral::Arabic(false),
+                    capitalization: SurfaceCase::Declared,
+                })],
+            )],
+        );
+        if value < 0 {
+            assert!(grammar.admit(&reading, &lexicon).is_err());
+            assert!(readings(&grammar, &lexicon, &value.to_string()).is_empty());
+        } else {
+            let surface = grammar.realize(&reading, &lexicon).unwrap();
+            assert_eq!(surface, value.to_string());
+            assert_eq!(
+                readings(&grammar, &lexicon, &surface),
+                BTreeSet::from([reading])
+            );
+        }
+    }
+}

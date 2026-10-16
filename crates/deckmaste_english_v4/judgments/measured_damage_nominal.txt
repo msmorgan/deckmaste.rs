@@ -8,7 +8,7 @@
 +NounPhrase 3 mana => readings 1
 + Add 3 mana. => NounPhrase "3 mana" as Object of add; readings 1
 + Prevent 3 damage. => NounPhrase "3 damage" as Object of prevent; readings 1
-+VerbPhrase deals 3 damage => NounPhrase "3 damage" as Object of deal
++VerbPhrase deals 3 damage => NounPhrase "3 damage" as Object of deal; readings 1
 +NounPhrase the next 3 mana
 +NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn"
 *NounPhrase 3 damages

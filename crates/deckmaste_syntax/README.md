@@ -85,6 +85,9 @@ sequences. These bindings are applied by both realization and the packed-forest
 law checker. Paragraph boundaries are explicit terminals, never skipped as
 interword whitespace. `Numeral` selects numeral notation; `FreeLex` excludes bound stems
 from independent word positions. Bare valence phrases likewise require free words.
+`Sign`, when declared, projects a numeral’s Negative, Zero, or Positive value
+onto its lexical leaf. Grammars can constrain signed notation without inspecting
+source spelling or changing lexical analysis.
 Flavor Word leaves use the lexical layer's registered-label exclusion and realization.
 
 ## Reading Normal Form

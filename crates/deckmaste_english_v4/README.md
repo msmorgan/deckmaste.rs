@@ -79,6 +79,20 @@ catalog entries; status adjectives and numerical mass distributions are declared
 in their owning lexical sources. Later constructions remain pending at their
 own Stratum.
 
+The Targeting Marker remains an attributive adjective after a determiner;
+its homographic Target Noun is restricted to nominal heads. Preposition
+frames selecting a bare nominal take a singular count-noun head and its
+selected complements, without arbitrary noun compounds or the plural/mass
+alternatives already supplied by Noun Phrases. Numeric arguments use Amount
+frames; numeric subjects and predicatives retain Noun Phrase analyses.
+Quantity nominals use general determination. Modified quantities admit the
+indefinite article, and distributive quantities preserve singular external
+agreement independently of the numeral–noun agreement inside the group.
+Slash measures take nonnegative amounts with optional sign markers, so a
+negative numeral does not duplicate the marker-plus-amount analysis; signed
+zero and variables retain their notation. Attributive-only adjective position
+is independent of determination, preserving bare plural `other types`.
+
 The profiler assigns reduced relatives and `named` postmodifiers to Stratum 3,
 triggers to Stratum 4, and optional bracketed Oracle material to Stratum 7.
 Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the

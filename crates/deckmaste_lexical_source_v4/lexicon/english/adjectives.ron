@@ -6,7 +6,7 @@
     "modified",
     (lemma: "able", frames: [Complement(ToInf)]),
     "active",
-    (lemma: "additional", additive: true),
+    (lemma: "additional", position: Some(Attributive)),
     "alone",
     "bottom",
     "colored",
@@ -16,7 +16,7 @@
     (lemma: "equal", frames: [Complement(PP(["to"]))]),
     "even",
     "excess",
-    (lemma: "extra", additive: true),
+    (lemma: "extra", position: Some(Attributive)),
     "face-down",
     "face-up",
     "final",
@@ -48,11 +48,11 @@
     "next",
     "odd",
     // Attributive-only "the only creature card" (CGEL, Ch. 6, §4.1, p. 553).
-    (lemma: "only", determination: Some(Overt)),
+    (lemma: "only", position: Some(Attributive), determination: Some(Overt)),
     "original",
-    (lemma: "other", fused_head: true, frames: [Complement(PP(["than"]))]),
+    (lemma: "other", position: Some(Attributive), fused_head: true, frames: [Complement(PP(["than"]))]),
     // Attributive-only (CGEL, Ch. 6, §4.1, p. 553); the verb `own` is separate.
-    "own",
+    (lemma: "own", position: Some(Attributive)),
     "planar",
     // A state [CR#122.1f]; Oracle has no verb `poison`.
     "poisoned",
@@ -69,7 +69,7 @@
     (lemma: "small", comparative: "smaller", superlative: "smallest"),
     // The Targeting Marker of "another target creature", "two target
     // creatures": attributive-only and invariant, distinct from the count noun.
-    "target",
+    (lemma: "target", position: Some(Attributive), determination: Some(Overt)),
     "top",
     "total",
     (lemma: "true", frames: [Complement(PP(["for"]))]),

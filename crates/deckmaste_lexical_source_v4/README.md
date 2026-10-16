@@ -138,7 +138,18 @@ core vocabulary and `enchanted`, `equipped`, and `fortified` under the correspon
 keyword abilities. Participles retain their verbal identity independently.
 Permanent statuses supply adjectives and intransitive prepositions.
 
-Nouns declare ordinary, bare-singular, or direct numerical mass distributions.
+Nouns declare ordinary, head-only, bare-singular, or direct numerical mass distributions.
 The latter licenses numerical `mana`, `life`, and `damage` without treating every
 mass noun as directly countable. Temporal and manner noun kinds support NP
-Adjuncts; additive adjectives support the separately declared quantity construction.
+Adjuncts. Quantity nominals use ordinary adjectival modification and determination.
+
+The Targeting Marker `adj:target` requires overt determination in prenominal
+use. The count noun `noun:target` has `HeadOnly` nominal distribution, keeping
+its head uses without duplicating that adjective as a noun premodifier.
+Scalar degree adverbs (`as`, `most`) have Degree position within their scalar
+phrase, separate from general phrasal focus modifiers such as `only`.
+
+Determiner distributions distinguish the indefinite article, distributive
+quantifiers, and singular-or-quantified selection (CGEL, Ch. 5 §3.4,
+pp. 353–354). These feed general quantity determination without an additive
+adjective list.

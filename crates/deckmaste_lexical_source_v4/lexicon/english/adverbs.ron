@@ -6,7 +6,7 @@
     (lemma: "also", positions: [Front, Central]),
     (lemma: "already", positions: [Central]),
     // The degree adverb of scalar equality (CGEL p. 1130): *twice as much*.
-    (lemma: "as", positions: [Phrasal]),
+    (lemma: "as", positions: [Degree]),
     (lemma: "continuously", positions: [End]),
     (lemma: "correctly", positions: [End]),
     // *differently named lands*
@@ -26,7 +26,7 @@
     (lemma: "just", positions: [Phrasal]),
     (lemma: "likewise", positions: [Central]),
     // The degree adverb of analytic superlatives (CGEL p. 1122): *most common*.
-    (lemma: "most", positions: [Phrasal]),
+    (lemma: "most", positions: [Degree]),
     // *it's not legendary*; *cards not named ...*
     (lemma: "not", positions: [Central, Phrasal]),
     // *Once each turn, you may ...*; *Activate only once each turn*

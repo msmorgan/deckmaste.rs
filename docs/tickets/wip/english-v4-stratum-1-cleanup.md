@@ -7,13 +7,11 @@ Clean up spurious derivation multipliers and over-policing productions left by
 the initial Stratum 1 landing (`oxukttzv`) in `crates/deckmaste_english_v4` and
 `crates/deckmaste_lexical_source_v4`:
 
-1. **Duplicate `"target"` lexical entry:** Remove the leftover `"target"` entry
-   from `adjectives.ron`. `target` is declared as a `Determinative` in
-   `closed_class.ron` (`target creature`), a `Noun` in `nouns.ron` (`any
-   target`, `two target creatures`), and a `Verb` in `verbs.ron` (`targets`).
-   Keeping `adj:target` duplicates every nominal where `target` follows a
-   determiner (`two target lands`, `another target creature`, `a second target
-   creature`).
+1. **Targeting Marker vs Target Noun (owner ruling):** Preserve the glossary
+   distinction. Keep `adj:target` with `determination: Some(Overt)` for
+   `two target creatures` and `another target creature`; prevent `noun:target`
+   from duplicating the marker as a premodifier. Keep the count noun in
+   `any target` and the determinative in `target creature`.
 2. **Preposition `Nominal` complement scope (`prepositions.ron` / `english.ron`):**
    Prepositions licensing a bare singular count-noun complement (`until end of
    turn`, `on top of`, `at end of combat`, `in hand`, `in addition to`, `as
@@ -29,9 +27,10 @@ the initial Stratum 1 landing (`oxukttzv`) in `crates/deckmaste_english_v4` and
    (or `SignedAmount`) so negative slash-measure numerals parse once.
 4. **Focused PP / NP and depictive adjective ambiguity (`Activate only as a sorcery.`):**
    - `DepictiveAdjective` (`VerbPhrase -> VerbPhrase + AdjectivePhrase`) must
-     exclude attributive-only `Determination = Overt` adjectives (`only`,
-     `other`, `own`, `additional`, `extra`) so `Activate only` does not parse
-     `adj:only` as a post-verbal depictive adjunct.
+     exclude attributive-only adjectives (`only`, `other`, `own`, `additional`,
+     `extra`) so `Activate only` does not parse `adj:only` as a post-verbal
+     depictive adjunct. Attributive position is independent of overt
+     determination: bare plural `other types` must remain grammatical.
    - `AdverbModifiedDeterminerPhrase` (`AdverbPhrase + DeterminerPhrase`) must
      apply only to `Numerical` determiners (`exactly seven`, `exactly 20`)
      rather than duplicating `AdverbModifiedNounPhrase` on every `Determined`
@@ -68,6 +67,13 @@ the initial Stratum 1 landing (`oxukttzv`) in `crates/deckmaste_english_v4` and
    sequences such as an additional two creatures and singular temporal intervals
    such as every two turns are separate constructions..."`).
 
+Quantity determination preserves internal numeral–noun agreement separately
+from external agreement. Distributive groups select singular agreement;
+`another two creatures` retains plural agreement. The indefinite article
+selects modified quantities, while ordinary determiners keep Number and
+Countability selection. These are general grammatical distributions, without
+an additive adjective class or temporal-only grouping.
+
 ## Gate
 
 - 100% of corpus units in Strata 0–1 parse as **read** (0 `known-wrong-only`,
@@ -80,3 +86,6 @@ the initial Stratum 1 landing (`oxukttzv`) in `crates/deckmaste_english_v4` and
   `Ditransitive` recipient-`3` derivation.
 
 Standard constraints apply.
+
+Census delta (`qsropvym` → `tzouxypq`): faces read 8,233 → 8,219; total Readings 102,767 → 81,320; lost faces (later-stratum wrong analyses removed): Conflagrate; Explosive Crystal; Fiery Justice; Hail of Arrows; Kjeldoran Pride; Lita, Mechanical Engineer; Master of the Wild Hunt; Pyrotechnics; Rolling Thunder; Sidisi, Regent of the Mire; Spreading Flames; That Which Was Taken; Violent Eruption; Volley of Boulders. Strata 0–1: 56,490/56,490 units read, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set (`tzouxypq`): seed and cumulative Strata 0–1 pass with zero regressions; focused cleanup, numeric-subject/predicative, and quantity-agreement judgments pass.

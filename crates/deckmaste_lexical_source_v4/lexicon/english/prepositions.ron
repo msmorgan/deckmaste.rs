@@ -32,6 +32,7 @@
     (lemma: "as though", frames: [(complement: FiniteClause, hosts: Predicate)]),
     // *at the beginning of*; *at end of combat*; *discard a card at random*
     (lemma: "at", frames: [
+        (complement: Amount, hosts: Predicate),
         (complement: NP, hosts: Predicate),
         (complement: Nominal, hosts: Predicate),
         (complement: AdjP, hosts: Predicate),
@@ -49,6 +50,7 @@
     ]),
     // *the colors below* (Cryptic Spires); *reduce their speed below 1*
     (lemma: "below", frames: [
+        (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
         (complement: Intransitive, hosts: Nominal),
     ]),
@@ -62,6 +64,7 @@
     (lemma: "but", frames: [(complement: NP, hosts: Nominal)]),
     // The passive agent is the grammar's; *reduce that opponent's speed by 1*.
     (lemma: "by", frames: [
+        (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
         (complement: Gerund, hosts: Predicate),
     ]),
@@ -129,6 +132,7 @@
     ]),
     // *put it on top of its owner's library*
     (lemma: "on", frames: [
+        (complement: Amount, hosts: Nominal),
         (complement: NP, hosts: Nominal),
         (complement: Nominal, hosts: ComplementOnly),
     ]),
@@ -153,6 +157,7 @@
     (lemma: "since", frames: [(complement: NP, hosts: Predicate)]),
     // Selected by comparatives: *greater than 2*; *more lands than you*.
     (lemma: "than", frames: [
+        (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
         (complement: FiniteClause, hosts: ComplementOnly),
     ]),
@@ -160,6 +165,7 @@
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
     // Selected goals and nominal location: *the player to your right*.
     (lemma: "to", frames: [
+        (complement: Amount, hosts: Nominal),
         (complement: NP, hosts: Nominal),
         (complement: Gerund, hosts: ComplementOnly),
     ]),

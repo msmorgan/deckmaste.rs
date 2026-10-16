@@ -241,9 +241,8 @@ impl NounDecl {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct AdjectiveEntry {
-    /// Participates in an article–adjective sequence selecting a quantity nominal.
     #[serde(default)]
-    pub additive: bool,
+    pub position: Option<AdjectivePosition>,
     #[serde(default)]
     pub determination: Option<Determination>,
     #[serde(default)]
@@ -255,6 +254,13 @@ pub struct AdjectiveEntry {
     pub superlative: Option<String>,
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+}
+
+/// The function to which an adjective is restricted (CGEL Ch. 6 §4).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum AdjectivePosition {
+    Attributive,
+    Predicative,
 }
 
 /// An adjective written as its lemma alone when it has no grades or frames.
@@ -270,7 +276,7 @@ impl AdjectiveDecl {
     pub fn entry(&self) -> AdjectiveEntry {
         match self {
             Self::Lemma(lemma) => AdjectiveEntry {
-                additive: false,
+                position: None,
                 determination: None,
                 fused_head: false,
                 lemma: lemma.clone(),
@@ -295,6 +301,8 @@ pub enum AdverbPosition {
     /// Inside a phrase, modifying an adjective, adverb, determinative or
     /// numeral rather than a clause.
     Phrasal,
+    /// A degree modifier within a scalar phrase.
+    Degree,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -343,12 +351,16 @@ pub struct DeterminativeEntry {
     pub frames: Vec<FrameSpec>,
 }
 
-/// Whether a determinative form can determine an overt nominal head.
+/// The distribution of a determinative, including articles and distributive quantifiers.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 pub enum DeterminativeDistribution {
     #[default]
     Dependent,
     Independent,
+    IndefiniteArticle,
+    Distributive,
+    /// Selects a singular head or a quantified plural (CGEL, Ch. 5 §3.4, p. 353).
+    SingularOrQuantified,
 }
 
 /// One cell of a pronoun paradigm.
@@ -648,4 +660,6 @@ pub enum NounDistribution {
     BareSingular,
     /// A mass noun accepting a direct cardinal measure without a unit noun.
     DirectMeasure,
+    /// Used as a nominal head, with no attributive noun use.
+    HeadOnly,
 }

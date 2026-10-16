@@ -555,6 +555,7 @@ impl CompiledGrammar {
                     f.case.map(|c| format!("{c:?}")),
                     Some(format!("{:?}", value.form)),
                     facts.countability.clone(),
+                    None,
                 ];
                 let mut features = facts.features.clone();
                 for (id, name) in self.projected.iter().zip(names) {
@@ -580,23 +581,26 @@ impl CompiledGrammar {
                 notation: Some(*notation),
                 lexeme: None,
                 category: LexicalCategory::Numeral,
-                features: if matches!(
-                    notation,
-                    deckmaste_lexical::Numeral::Cardinal | deckmaste_lexical::Numeral::Arabic(_)
-                ) {
-                    self.projected[0]
-                        .and_then(|id| {
-                            let number = if *value == 1 { "Singular" } else { "Plural" };
-                            self.values[id]
-                                .iter()
-                                .position(|v| v == number)
-                                .and_then(|v| u16::try_from(v).ok())
-                                .map(|v| (id, v))
-                        })
+                features: {
+                    let number = matches!(
+                        notation,
+                        deckmaste_lexical::Numeral::Cardinal
+                            | deckmaste_lexical::Numeral::Arabic(_)
+                    )
+                    .then_some(if *value == 1 { "Singular" } else { "Plural" });
+                    let sign = match value.cmp(&0) {
+                        std::cmp::Ordering::Less => "Negative",
+                        std::cmp::Ordering::Equal => "Zero",
+                        std::cmp::Ordering::Greater => "Positive",
+                    };
+                    [(self.projected[0], number), (self.projected[7], Some(sign))]
                         .into_iter()
+                        .filter_map(|(id, name)| {
+                            let (id, name) = (id?, name?);
+                            let value = self.values[id].iter().position(|v| v == name)?;
+                            Some((id, u16::try_from(value).ok()?))
+                        })
                         .collect()
-                } else {
-                    Vec::new()
                 },
             }),
             LexicalReading::FlavorWord { .. } => Some(LeafFacts {
@@ -615,6 +619,7 @@ impl CompiledGrammar {
 pub(crate) fn projected_values(feature: &str) -> &'static [&'static str] {
     match feature {
         "Number" => &["Singular", "Plural"],
+        "Sign" => &["Negative", "Zero", "Positive"],
         "Person" => &["First", "Second", "Third"],
         "Tense" => &["Present", "Past"],
         "VerbForm" => &["Plain", "Finite", "GerundParticiple", "PastParticiple"],

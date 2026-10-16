@@ -121,7 +121,7 @@
     "symbol",
     "tail",
     // Not the Targeting Marker of "target creature", which has a Determinative Lexeme.
-    "target",
+    (lemma: "target", distribution: HeadOnly),
     "team",
     "teammate",
     (lemma: "text", countability: [Mass], frames: [Complement(PP(["of"]))]),

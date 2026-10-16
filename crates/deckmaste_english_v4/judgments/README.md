@@ -157,10 +157,15 @@ modifying that headed nominal. `until draw cards` retains the noun-premodifier
 reading of `draw cards`, while rejecting a subjectless finite Clause.
 
 Independent genitives agree with the possessed referent, not the possessor.
-Additive sequences such as `an additional two creatures` and singular temporal
-intervals such as `every two turns` are separate constructions (CGEL pp. 353–354).
-The intended `deals 3 damage` Object remains required without an exact count:
-the declared ditransitive frame also admits a syntactic numerical recipient.
+Quantity nominals use general determination, including `an additional two
+creatures`, `another two creatures`, and `every two turns`. Articles select modified quantities; `a two creatures` remains rejected.
+Distributive quantities have singular external agreement, while
+`another two creatures` retains plural agreement. `each two turns` and
+`every two creatures` now assert the quantity nominal instead of rejection.
+The Targeting Marker is `adj:target` in `two target creatures`; the Target
+Noun has no attributive noun use. Bare numeric arguments select Amount
+complements rather than becoming arbitrary recipient or object Noun Phrases;
+numeric subjects and predicatives retain their Noun Phrase analyses.
 The `vocabulary_batch_1` judgment for `different kinds of counters` requires
 the noun-headed nominal and its selected `of` Complement, without pinning a
 separate intermediate `kinds` projection.

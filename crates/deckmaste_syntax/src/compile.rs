@@ -34,7 +34,7 @@ use crate::step::Test;
 const FORBIDDEN_SUFFIXES: [&str; 5] = ["Use", "Licence", "License", "Present", "Restriction"];
 
 /// Lexical features the engine projects onto leaves, by grammar feature name.
-pub(crate) const PROJECTED: [&str; 7] = [
+pub(crate) const PROJECTED: [&str; 8] = [
     "Number",
     "Person",
     "Tense",
@@ -42,6 +42,7 @@ pub(crate) const PROJECTED: [&str; 7] = [
     "Case",
     "Inflection",
     "Countability",
+    "Sign",
 ];
 
 /// The lexical facts a bound grammar keeps about one lexeme.
@@ -77,7 +78,7 @@ pub struct CompiledGrammar {
     pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<LexemeId>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
     /// Projected inflectional feature ids; additional properties are grammar-declared.
-    pub(crate) projected: [Option<usize>; 7],
+    pub(crate) projected: [Option<usize>; 8],
     report: LoadReport,
 }
 

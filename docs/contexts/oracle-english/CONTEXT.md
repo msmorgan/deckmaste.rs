@@ -560,6 +560,16 @@ constituents form a lexical unit (CGEL, Ch. 5 §14.4, pp. 448–451).
 A lexical Category containing words such as *the*, *this*, *each*, and *any*.
 It is distinct from the Determiner function.
 
+**Indefinite Article**:
+The Determinative *a(n)*, which normally selects a singular count head;
+with a modifier it also occurs before quantified plurals (*an additional
+two creatures*) (CGEL, Ch. 5 §3.4, p. 353).
+
+**Distributive Determinative**:
+A Determinative selecting individual members or groups, such as *each* or
+*every*. A quantified group selected by a singular distributive has singular
+external Agreement (*every two turns is ...*) (CGEL, Ch. 5 §3.4, p. 354).
+
 **Determinative Phrase**:
 A phrase headed by a Determinative, including cardinal determinatives.
 
@@ -647,6 +657,16 @@ for plural nouns ending in *s*, as in *owners'* (CGEL, Ch. 18 §4.2, p. 1595).
 **Adjective**:
 A lexical Category whose members characteristically modify Nominals or serve as
 predicative Complements (CGEL, Ch. 6 §2.4.3, pp. 540–542).
+
+**Attributive Adjective**:
+An Adjective functioning as a Premodifier in a Nominal. An attributive-only
+adjective lacks an established predicative use; this restriction is independent
+of whether the Noun Phrase has an overt Determiner (CGEL, Ch. 6 §4.1,
+pp. 553–556).
+
+**Predicative Adjective**:
+An Adjective functioning as a predicative Complement or Adjunct, attributing a
+property to its Predicand (CGEL, Ch. 6 §4.1, pp. 553–554).
 
 **Adjective Phrase**:
 A phrase headed by an Adjective.

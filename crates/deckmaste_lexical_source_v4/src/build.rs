@@ -255,14 +255,17 @@ impl Builder {
                 Category::Adjective,
                 source.clone(),
             );
+            if let Some(position) = entry.position {
+                lexeme
+                    .properties
+                    .features
+                    .insert("AdjectivePosition".into(), format!("{position:?}"));
+            }
             if let Some(determination) = entry.determination {
                 lexeme
                     .properties
                     .features
                     .insert("Determination".into(), format!("{determination:?}"));
-            }
-            if entry.additive {
-                lexeme.properties.classes.insert("AdditiveAdjective".into());
             }
             if entry.fused_head {
                 lexeme
