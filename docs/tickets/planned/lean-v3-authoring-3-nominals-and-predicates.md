@@ -1,9 +1,10 @@
 ---
 needs: [lean-v3-authoring-2-verb-and-clause-spine]
+design: true
 ---
 # Introduce composable nominal and predicate modifiers and eliminate Primitives.* clutter in Cards
 
-**Replace ad-hoc compound noun macros (`creatureYouControl`, `outlawYouControl`,
+**[design] Replace ad-hoc compound noun macros (`creatureYouControl`, `outlawYouControl`,
 `armyYouControl`, etc.) and raw `Primitives.*` constructor chains in
 `lean/Semantics/Macros.lean` and `lean/Semantics/Cards/*.lean` with composable
 noun-phrase, determiner, and predicate modifiers (`youControl`, `controlledBy`,

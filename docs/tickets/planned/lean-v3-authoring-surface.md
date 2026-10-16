@@ -4,10 +4,11 @@ needs:
   - lean-v3-authoring-2-verb-and-clause-spine
   - lean-v3-authoring-3-nominals-and-predicates
   - lean-v3-authoring-4-declared-bodies
+design: true
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
-**Refactor the `lean/Semantics/` authoring surface so that authored cards and
+**[design] Refactor the `lean/Semantics/` authoring surface so that authored cards and
 keyword definitions read like Oracle English while expanding into the minimal
 Core AST primitives, and retire all `v1`/`v2` module, macro, and alias
 holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into

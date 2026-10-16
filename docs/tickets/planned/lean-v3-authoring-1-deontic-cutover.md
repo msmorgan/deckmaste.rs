@@ -1,9 +1,10 @@
 ---
 needs: [lean-v3-proofs-and-cards]
+design: true
 ---
 # Retire deonticActionFor and cut over deontic templates to v3 Instructions
 
-**Delete the `v2`-port `deonticActionFor (deed : Deed) (patient : NounPhrase)`
+**[design] Delete the `v2`-port `deonticActionFor (deed : Deed) (patient : NounPhrase)`
 shim in `lean/Semantics/Macros.lean` and replace all `Deed`-taking deontic
 templates and keyword helpers with `v3` `Instruction`-taking templates on the
 Unified Action-Clause Spine.** Sub-ticket 1 of

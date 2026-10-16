@@ -1,9 +1,10 @@
 ---
 needs: [lean-v3-authoring-3-nominals-and-predicates]
+design: true
 ---
 # Consolidate Templates and Definitions and retire Macros and v1/v2 holdover names
 
-**Retire the `Semantics.Macros` hierarchy, the `Macros.lean` vs.
+**[design] Retire the `Semantics.Macros` hierarchy, the `Macros.lean` vs.
 `Macros/Declared.lean` split, and all remaining `v1`/`v2` holdover module,
 attribute, and type-alias names across `lean/Semantics/` and
 `docs/contexts/game-model/CONTEXT.md`, consolidating into

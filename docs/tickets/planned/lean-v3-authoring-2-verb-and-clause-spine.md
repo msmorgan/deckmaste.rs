@@ -1,9 +1,10 @@
 ---
 needs: [lean-v3-authoring-1-deontic-cutover]
+design: true
 ---
 # Unify verb and observation templates across does, would, did, and cant
 
-**Provide `Instruction` templates for intransitive and transitive verbs and
+**[design] Provide `Instruction` templates for intransitive and transitive verbs and
 observations (`die`, `enter`, `leave`, `putInto`, `phaseOut`, `phaseIn`,
 `turnFaceUp`, `loseGame`, `winGame`, `castSpell`, `attack`, `block`,
 `dealDamage`, etc.) expanding into the minimal Core AST primitives so `does`,
