@@ -29,7 +29,8 @@
     "coin",
     "color",
     // "until end of combat" (mass); "attacks each combat" (count).
-    (lemma: "combat", countability: [Count, Mass]),
+    // *each combat*
+    (lemma: "combat", kind: Temporal, countability: [Count, Mass]),
     (lemma: "combination", frames: [Complement(PP(["of"]))]),
     (lemma: "control", countability: [Mass], frames: [Complement(PP(["of"]))]),
     (lemma: "controller", frames: [Complement(PP(["of"]))]),

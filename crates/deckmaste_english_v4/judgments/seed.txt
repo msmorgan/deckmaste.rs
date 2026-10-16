@@ -12,7 +12,7 @@
 * The cards is a creature.
 
 + The card is put into your hand. => NounPhrase "The card" as Subject of be; VerbPhrase "put into your hand" head put; PrepositionPhrase "into your hand" as Complement of put; readings 1
-+ The creature is destroyed by the card. => VerbPhrase "destroyed by the card" head destroy; readings 1
++ The creature is destroyed by the card. => VerbPhrase "destroyed by the card" head destroy || AdjectivePhrase "destroyed by the card" head destroy; readings 2
 + Exile each card put into your hand. => VerbPhrase "put into your hand" as Modifier of card; readings 1
 
 + Exile the card you put into your hand. => Clause "you put into your hand" gap "card"; VerbPhrase "put into your hand" head put

@@ -217,14 +217,15 @@ fn passives_derive_from_active_frames() {
     assert_eq!(finite.len(), 1);
     assert!(s.has(&finite[0], "VerbPhrase", "put into your hand"));
     s.reparses(&finite[0]);
+    // The verbal passive and the Adjectival Passive (settled analysis).
     let agent = s.readings("The creature is destroyed by the card.");
-    assert_eq!(agent.len(), 1);
-    let vp = s
-        .constituents(&agent[0])
-        .into_iter()
-        .find(|c| c.surface == "destroyed by the card")
+    assert_eq!(agent.len(), 2);
+    let vp = agent
+        .iter()
+        .flat_map(|r| s.constituents(r))
+        .find(|c| c.category == "VerbPhrase" && c.surface == "destroyed by the card")
         .unwrap();
-    assert_eq!(vp.children, ["destroyed", "by", "the card"]);
+    assert_eq!(vp.children, ["destroyed", "by the card"]);
     let reduced = s.readings("Exile each card put into your hand.");
     assert_eq!(reduced.len(), 1);
     assert!(s.has(&reduced[0], "Nominal", "card put into your hand"));

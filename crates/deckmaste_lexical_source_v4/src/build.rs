@@ -208,6 +208,29 @@ impl Builder {
                 return Err(invalid(&format!("no {:?} slot to spell", slot.form)));
             }
         }
+        if auxiliary {
+            lexeme
+                .properties
+                .features
+                .insert("VerbKind".to_owned(), "Auxiliary".to_owned());
+        }
+        if let Some(base) = &entry.form_of {
+            if !auxiliary {
+                return Err(invalid("only an auxiliary is a form of another verb"));
+            }
+            // Spell every form from this entry's own lemma before naming it.
+            let spelled = lexeme.clone();
+            for slot in &mut lexeme.forms {
+                if slot.surfaces.is_none() {
+                    slot.surfaces = Some(vec![deckmaste_lexical::default_surface(
+                        &spelled,
+                        slot.form,
+                        &slot.features,
+                    )]);
+                }
+            }
+            lexeme.lemma.clone_from(base);
+        }
         if entry.negative {
             lexeme
                 .properties

@@ -1,9 +1,9 @@
 # "enter as a copy of ...": the as-phrase is a predicative adjunct of enter (CGEL Ch. 4 §5.3, p. 263); enter selects no as-phrase
 + Creatures you control enter as a copy of this creature. => PrepositionPhrase "as a copy of this creature" as Adjunct of enter; NounPhrase "a copy of this creature" as PredicativeComplement of as; !PrepositionPhrase "as a copy of this creature" as Complement of enter
 + You may have this creature enter as a copy of a creature you control. => PrepositionPhrase "as a copy of a creature you control" as Adjunct of enter
-+ You may have this land enter tapped as a copy of any land on the battlefield. => PrepositionPhrase "as a copy of any land" as Adjunct of enter || PrepositionPhrase "as a copy of any land on the battlefield" as Adjunct of enter
++ You may have this land enter tapped as a copy of any land on the battlefield. => PrepositionPhrase "as a copy of any land on the battlefield" as Adjunct of enter
 + You may have this creature enter as a copy of any creature card in a graveyard. => PrepositionPhrase "as a copy of any creature card" as Adjunct of enter || PrepositionPhrase "as a copy of any creature card in a graveyard" as Adjunct of enter
-+ You may have this Equipment enter as a copy of any Equipment on the battlefield. => PrepositionPhrase "as a copy of any Equipment" as Adjunct of enter || PrepositionPhrase "as a copy of any Equipment on the battlefield" as Adjunct of enter
++ You may have this Equipment enter as a copy of any Equipment on the battlefield. => PrepositionPhrase "as a copy of any Equipment on the battlefield" as Adjunct of enter
 + Creatures you control enter tapped.
 + You may have this creature enter tapped.
 + Activate as a sorcery. => PrepositionPhrase "as a sorcery" as Adjunct of activate

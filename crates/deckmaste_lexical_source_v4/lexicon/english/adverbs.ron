@@ -33,6 +33,8 @@
     (lemma: "once", positions: [Front, End]),
     // *can only*; *Activate only as a sorcery*; *Only creatures ... can block*
     (lemma: "next", positions: [Central]),
+    // *is no longer snow*
+    (lemma: "no longer", positions: [Central]),
     (lemma: "only", positions: [Central, Phrasal]),
     (lemma: "originally", positions: [Central]),
     (lemma: "otherwise", positions: [Front]),

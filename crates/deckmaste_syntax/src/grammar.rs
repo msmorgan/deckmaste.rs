@@ -64,6 +64,11 @@ pub struct CategoryDecl {
     /// Whether a Constituent of this Category may contain an unfilled Gap.
     #[serde(default)]
     pub gap: bool,
+    /// Whether this Category names a grammatical function, as `Predicative`
+    /// names the predicative Complement: its head child bears that function
+    /// in the same phrase too.
+    #[serde(default)]
+    pub function: bool,
 }
 
 /// One authored Production.
@@ -102,6 +107,9 @@ pub enum SymbolDecl {
     Word(String, String),
     /// Any member of the Lexical Class of that grammar name.
     Class(String, String),
+    /// A Constituent of a Category whose preposition, if any, admits the Host
+    /// Category: a Preposition Phrase that could also modify such a host.
+    Hosted(String, String, HostKind),
     /// Literal punctuation: it may decide an analysis but is not stored in a Reading.
     Punct(char),
     /// Structural punctuation with explicit attachment to adjacent atoms.
@@ -148,6 +156,10 @@ pub enum SchemaDecl {
         /// Word that marks the Internalised Complement (verbs only).
         #[serde(default)]
         passive: Option<String>,
+        /// Derive Adjectival Passives of this Category from verb frames whose
+        /// passive leaves no Complement but the optional `by` phrase.
+        #[serde(default)]
+        adjectival: Option<String>,
         /// Adjunct category permitted before a selected PP or shifted Object.
         #[serde(default)]
         interleaved: Option<String>,

@@ -64,6 +64,15 @@ Contracted auxiliaries (*'ve*, *'re*, *'m*, *'s*) are suffix-bound verbs with
 full finite bundles; the genitive *'s* is a different Lexeme with the same
 spelling.
 
+The modals have no -s form, so their third singular is spelled like the rest
+of the present. A contracted or negative auxiliary (*'re*, *aren't*, *can't*,
+*'ve*) keeps its own Lexeme id and spellings but declares `form_of` the verb it
+is a form of, whose lemma names it. Every auxiliary carries `VerbKind:
+Auxiliary`. *Be* and *remain* select locative Preposition Phrases as well as
+predicative Complements (CGEL, Ch. 4 §5.2, p. 257). A verb whose past participle
+is spelled like a declared Adjective (*tapped*, *transformed*) carries
+`AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive.
+
 Adjective grades are adjectives of their own with a `Grade` feature. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb`). Subtypes record their families as classes
@@ -102,7 +111,8 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
   (*Khans*, *Mirran*) list the cards whose text uses them and are admitted
   only in those cards' scope. Introduced Names are opaque `Catalog`-category
   Lexemes and never card names; Anchor Words are `Keyword`-category Lexemes
-  with `LabelKind: AnchorWord`, registered labels like Ability Words.
+  with `LabelKind: AnchorWord` and class `AnchorWord`, registered labels like
+  Ability Words.
 
 ## Tests
 

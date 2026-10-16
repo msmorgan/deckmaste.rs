@@ -10,5 +10,5 @@
 + You spend mana.
 +VerbPhrase spend {U}
 + You spend {U}.
-* {U}{B} were spent.
+* {U}{B} are spent.
 +Clause {U} was spent

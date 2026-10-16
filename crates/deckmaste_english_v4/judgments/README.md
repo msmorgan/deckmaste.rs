@@ -121,6 +121,14 @@ Each was settled while adjudicating the migrated judgments.
 - A conjunct bears no function of its own; assert the function on the whole
   coordination. Coordinated nominals under a shared postmodifier are a
   `Nominal` (`Nominal "power and toughness"`).
+- An auxiliary verb heads its Verb Phrase and Clause: a Clause's Subject and
+  its preposed Adjuncts belong to the auxiliary (`NounPhrase "X" as Subject of
+  can` in *X can't be 0*; `as Adjunct of may` in *During your turn, each
+  player may pay ...*). A contracted or negative auxiliary is named by its
+  verb's lemma (*'s*, *isn't* as *be*; *can't* as *can*).
+- A locative after *be* or *remain* is a `Complement`; another Preposition
+  Phrase after them is a `PredicativeComplement` (`face down`, `of the chosen
+  type`).
 - An *as* phrase is a Complement only of a head whose frame selects it
   (*count it as*); otherwise it is a predicative Adjunct, as in *activate only
   as a sorcery*, *enter as a copy of*, *put it onto the stack as a copy*

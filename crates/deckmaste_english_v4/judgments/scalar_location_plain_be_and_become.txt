@@ -1,5 +1,5 @@
 # Copular "be"/"become" with a scalar value as predicative complement, including auxiliary + plain "be"
-+ <card=Aladdin's Lamp> X can't be 0. => NounPhrase "X" as Subject of be; VerbPhrase "can't be 0"; Predicative "0" as PredicativeComplement of be
++ <card=Aladdin's Lamp> X can't be 0. => NounPhrase "X" as Subject of can; VerbPhrase "can't be 0"; Predicative "0" as PredicativeComplement of be
 + <card=Gogo, Master of Mimicry> This ability can't be copied and X can't be 0. => VerbPhrase "can't be 0"; Predicative "0" as PredicativeComplement of be
 + <card=Worldfire> Each player's life total becomes 1. => NounPhrase "Each player's life total" as Subject of become; VerbPhrase "becomes 1"; Predicative "1" as PredicativeComplement of become
 + <card=Vraska, Relic Seeker> −10: Target player's life total becomes 1. => VerbPhrase "becomes 1"; Predicative "1" as PredicativeComplement of become

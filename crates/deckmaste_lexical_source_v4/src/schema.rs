@@ -167,6 +167,12 @@ pub struct VerbEntry {
     /// A negative form of an auxiliary (*can't*, *doesn't*).
     #[serde(default)]
     pub negative: bool,
+    /// The verb whose forms these are: a contracted auxiliary (CGEL, Ch. 18
+    /// §6.2, pp. 1614–1616) or a negative inflectional form (CGEL, Ch. 9 §2.1,
+    /// p. 799) is named by that verb's lemma (*'re* and *aren't* are forms of
+    /// *be*), while keeping its own Lexeme id and spellings.
+    #[serde(default)]
+    pub form_of: Option<String>,
     /// A contracted auxiliary bound to its host (*'ve* in *you've*).
     #[serde(default)]
     pub binding: Option<Binding>,

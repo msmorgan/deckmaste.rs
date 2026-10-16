@@ -227,9 +227,10 @@ impl Sources {
         let mut builder = Builder::default();
         self.core(&mut builder)?;
         self.catalogs(&mut builder)?;
-        let (lexemes, mut frames) = builder.finish()?;
+        let (mut lexemes, mut frames) = builder.finish()?;
         self.parameter_patterns(&mut frames);
         check_core_and_catalogs_disjoint(&lexemes)?;
+        mark_lexical_adjectival_passives(&mut lexemes)?;
         Ok((lexemes, frames))
     }
 
@@ -559,6 +560,7 @@ impl Sources {
                 .properties
                 .features
                 .insert("LabelKind".to_owned(), "AnchorWord".to_owned());
+            lexeme.properties.classes.insert("AnchorWord".into());
             builder.push(card_scoped(lexeme, &anchor.cards));
         }
     }
@@ -829,6 +831,34 @@ impl Sources {
             .map(|decl| decl.entry().lemma.to_lowercase())
             .collect()
     }
+}
+
+/// Marks each verb whose past participle is spelled like a declared
+/// Adjective (*tapped*, *transformed*): that Adjective is its Adjectival
+/// Passive, which the grammar then does not derive from the participle again.
+fn mark_lexical_adjectival_passives(lexemes: &mut [Lexeme]) -> Result<(), SourceError> {
+    let lexicon = Lexicon::new(lexemes.to_vec())?;
+    let mut marked = std::collections::BTreeSet::new();
+    for adjective in lexemes.iter().filter(|l| l.category == Category::Adjective) {
+        let analyzed = lexicon.analyze(&adjective.lemma);
+        for found in &analyzed.matches {
+            if let deckmaste_lexical::LexicalReading::Word(word) = &found.reading
+                && found.start == 0
+                && found.end == analyzed.tokens.len()
+                && word.form == deckmaste_lexical::WordForm::PastParticiple
+                && lexicon.lexemes()[&word.lexeme].category == Category::Verb
+            {
+                marked.insert(word.lexeme);
+            }
+        }
+    }
+    for lexeme in lexemes.iter_mut().filter(|l| marked.contains(&l.id)) {
+        lexeme
+            .properties
+            .features
+            .insert("AdjectivalPassive".to_owned(), "Lexical".to_owned());
+    }
+    Ok(())
 }
 
 /// No word is both core vocabulary and a catalog item of the same Category.

@@ -218,25 +218,35 @@ pub fn lexicon() -> Lexicon {
             .insert("DeterminativeDistribution".into(), "Dependent".into());
         lexemes.push(det);
     }
-    for word in ["'ve", "haven't"] {
+    lexemes.push(invariant("sub", "to", Category::Subordinator, Core));
+    for (word, third, preterite) in [
+        ("'ve", "'s", None),
+        ("haven't", "hasn't", Some("hadn't")),
+        ("'re", "'s", None),
+        ("aren't", "isn't", Some("weren't")),
+    ] {
         let mut auxiliary = verb(word, Core);
         auxiliary
             .forms
-            .retain(|f| f.form == Present || (word == "haven't" && f.form == Preterite));
+            .retain(|f| f.form == Present || (preterite.is_some() && f.form == Preterite));
         set(&mut auxiliary, Present, None, None, word);
-        set(
-            &mut auxiliary,
-            Present,
-            Some(Third),
-            Some(Singular),
-            if word == "'ve" { "'s" } else { "hasn't" },
-        );
-        if word == "'ve" {
-            auxiliary.binding = Binding::Suffix;
-        } else {
-            set(&mut auxiliary, Preterite, None, None, "hadn't");
+        set(&mut auxiliary, Present, Some(Third), Some(Singular), third);
+        match preterite {
+            Some(preterite) => set(&mut auxiliary, Preterite, None, None, preterite),
+            None => auxiliary.binding = Binding::Suffix,
         }
         lexemes.push(auxiliary);
+    }
+    // Auxiliary verbs are a lexical class of their own.
+    for lexeme in &mut lexemes {
+        if lexeme.category == Category::Verb
+            && ["be", "have", "'ve", "haven't", "'re", "aren't"].contains(&lexeme.lemma.as_str())
+        {
+            lexeme
+                .properties
+                .features
+                .insert("VerbKind".into(), "Auxiliary".into());
+        }
     }
     Lexicon::new(lexemes).expect("seed lexicon")
 }

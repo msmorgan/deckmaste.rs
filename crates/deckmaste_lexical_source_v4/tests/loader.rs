@@ -18,6 +18,7 @@ fn verb(lemma: &str, frames: Vec<FrameSpec>) -> VerbEntry {
         forms: Vec::new(),
         finite_only: false,
         negative: false,
+        form_of: None,
         binding: None,
         frames,
     }

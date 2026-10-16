@@ -11,4 +11,4 @@
 + Creatures entering have haste.
 *VerbPhrase cause abilities trigger
 *VerbPhrase cause abilities to triggers
-+VerbPhrase cause abilities to trigger => NounPhrase "abilities" as Object of cause; Clause "to trigger" as Complement of cause; readings 1
++VerbPhrase causes abilities to trigger => NounPhrase "abilities" as Object of cause; Clause "to trigger" as Complement of cause; readings 1

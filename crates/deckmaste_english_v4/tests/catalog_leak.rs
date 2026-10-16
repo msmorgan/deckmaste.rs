@@ -99,6 +99,7 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
             match symbol {
                 SymbolDecl::Attached(child, name, _)
                 | SymbolDecl::Cat(child, name)
+                | SymbolDecl::Hosted(child, name, _)
                 | SymbolDecl::Word(child, name)
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
                 SymbolDecl::FreeLex(child, _)
@@ -115,10 +116,14 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
             }
             SchemaDecl::Parameters { phrase, .. } => names.push(phrase),
             SchemaDecl::Valence {
-                phrase, passive, ..
+                phrase,
+                passive,
+                adjectival,
+                ..
             } => {
                 names.push(phrase);
                 names.extend(passive.as_deref());
+                names.extend(adjectival.as_deref());
             }
             SchemaDecl::Adjunct { host, adjunct, .. } => {
                 names.extend([host.as_str(), adjunct.as_str()]);

@@ -36,5 +36,7 @@
         // always follows combat, a phase or a step); `put … on it` is a complement.
         "prep:on": [(complement: NP, hosts: Nominal)],
         "prep:from": [(complement: NP, hosts: NominalAndPredicate)],
+        // The Internalised Complement of a passive (*destroyed by the card*).
+        "prep:by": [(complement: NP, hosts: ComplementOnly)],
     },
 )

@@ -24,6 +24,7 @@ use crate::grammar::HostKind;
 use crate::grammar::SchemaDecl;
 use crate::grammar::Side;
 use crate::grammar::SymbolDecl;
+use crate::step::Extension;
 use crate::step::Gap;
 use crate::step::GapRule;
 use crate::step::Production;
@@ -64,6 +65,8 @@ pub struct CompiledGrammar {
     category_ids: BTreeMap<String, usize>,
     pub(crate) category_features: Vec<Vec<usize>>,
     pub(crate) category_gap: Vec<bool>,
+    /// Categories that name a function (`CategoryDecl::function`).
+    pub(crate) function_categories: BTreeSet<String>,
     pub(crate) features: Vec<String>,
     pub(crate) values: Vec<Vec<String>>,
     pub(crate) productions: Vec<Production>,
@@ -75,7 +78,7 @@ pub struct CompiledGrammar {
     pub(crate) preposition_frames: Vec<PrepositionFrame>,
     /// Prepositions whose `PP` slot would extend a head's selected frame,
     /// by (lexeme, selected frame).
-    pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<LexemeId>>,
+    pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<Extension>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
     /// Projected inflectional feature ids; additional properties are grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
@@ -150,6 +153,8 @@ struct Draft {
     introduces: Gap,
     frame: Option<usize>,
     host_check: Option<(usize, usize, HostKind)>,
+    adjunct_slot: Option<SlotKind>,
+    predicative: Option<usize>,
     coordinator: Option<usize>,
     distinct_coordinator: Vec<usize>,
     requires_coordination: Option<usize>,
@@ -179,6 +184,8 @@ impl Draft {
             introduces: Gap::None,
             frame: None,
             host_check: None,
+            adjunct_slot: None,
+            predicative: None,
             coordinator: None,
             distinct_coordinator: Vec::new(),
             requires_coordination: None,
@@ -241,6 +248,11 @@ impl<'a> Binder<'a> {
             category_features.push(ids);
         }
         let category_gap = declared.values().map(|c| c.gap).collect();
+        let function_categories = declared
+            .iter()
+            .filter(|(_, c)| c.function)
+            .map(|(name, _)| name.clone())
+            .collect();
         let root = categories
             .iter()
             .position(|c| *c == grammar.root)
@@ -357,14 +369,10 @@ impl<'a> Binder<'a> {
                     .frames
                     .iter()
                     .filter_map(|&frame| match frames[frame].slots.as_slice() {
-                        [slot] => match &slot.fill {
-                            SlotFill::PP(list) => Some(list.as_slice()),
-                            _ => None,
-                        },
+                        [slot] => Some(extensions_of(&slot.fill)),
                         _ => None,
                     })
                     .flatten()
-                    .copied()
                     .collect();
                 preps.sort();
                 preps.dedup();
@@ -379,9 +387,23 @@ impl<'a> Binder<'a> {
                     if longer.slots.len() == base.slots.len() + 1
                         && longer.slots[..base.slots.len()] == base.slots[..]
                         && let Some(last) = longer.slots.last()
-                        && let SlotFill::PP(list) = &last.fill
                     {
-                        preps.extend(list.iter().copied());
+                        preps.extend(extensions_of(&last.fill));
+                    }
+                    // A rival frame with a PP where this one has a predicative.
+                    if base.slots.len() == longer.slots.len() {
+                        let differing: Vec<_> = base
+                            .slots
+                            .iter()
+                            .zip(&longer.slots)
+                            .filter(|(a, b)| a != b)
+                            .collect();
+                        if let [(a, b)] = differing.as_slice()
+                            && a.fill == SlotFill::Pred
+                            && let SlotFill::PP(list) = &b.fill
+                        {
+                            preps.extend(list.iter().map(|p| Extension::Predicative(*p)));
+                        }
                     }
                 }
                 if !preps.is_empty() {
@@ -449,6 +471,7 @@ impl<'a> Binder<'a> {
                 categories,
                 category_features,
                 category_gap,
+                function_categories,
                 features,
                 values,
                 productions: Vec::new(),
@@ -594,6 +617,15 @@ impl<'a> Binder<'a> {
                     name.as_str(),
                     Symbol::Leaf(Test::Word(self.word(word).map_err(context)?)),
                 ),
+                SymbolDecl::Hosted(name, category, host) => (
+                    name.as_str(),
+                    Symbol::Cat {
+                        binding: None,
+                        category: self.category(category).map_err(context)?,
+                        prepositions: None,
+                        host: Some(*host),
+                    },
+                ),
                 SymbolDecl::Class(name, class) => (
                     name.as_str(),
                     Symbol::Leaf(Test::Class(*self.class_names.get(class).ok_or_else(
@@ -736,6 +768,8 @@ impl<'a> Binder<'a> {
         )
         .map_err(|e| invalid(format!("production `{}`: {e}", draft.id)))?;
         production.exclusions = draft.exclusions;
+        production.adjunct_slot = draft.adjunct_slot;
+        production.predicative = draft.predicative;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -768,10 +802,17 @@ impl<'a> Binder<'a> {
                 phrase,
                 cost,
                 passive,
+                adjectival,
                 interleaved,
                 heavy_shift,
             } => {
-                let drafts = self.valence(*head, phrase, *cost, passive.as_deref())?;
+                let drafts = self.valence(
+                    *head,
+                    phrase,
+                    *cost,
+                    passive.as_deref(),
+                    adjectival.as_deref(),
+                )?;
                 self.valence_order(drafts, interleaved.as_deref(), *heavy_shift)
             }
             SchemaDecl::Adjunct {
@@ -824,6 +865,12 @@ impl<'a> Binder<'a> {
                     (draft.child("head", host_symbol, GapRule::Transparent), a)
                 };
                 draft.host_check = Some((h, a, *host_kind));
+                draft.adjunct_slot = self
+                    .grammar
+                    .slot_categories
+                    .iter()
+                    .find(|(kind, name)| *name == adjunct && **kind != SlotKind::PP)
+                    .map(|(kind, _)| *kind);
                 Ok(vec![draft])
             }
             SchemaDecl::Coordination {
@@ -1031,6 +1078,7 @@ impl<'a> Binder<'a> {
         phrase: &str,
         cost: u32,
         passive: Option<&str>,
+        adjectival: Option<&str>,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(phrase)?;
         let gap_capable = self.out.category_gap[lhs];
@@ -1100,21 +1148,7 @@ impl<'a> Binder<'a> {
             }
             return Ok(drafts);
         }
-        let mut used = BTreeSet::new();
-        for (id, facts) in &self.out.lexemes {
-            if facts.category != head {
-                continue;
-            }
-            if facts.frames.is_empty()
-                && head == LexicalCategory::Verb
-                && !self.closed_words.values().any(|w| w == id)
-            {
-                return Err(invalid(format!(
-                    "verb `{id}` has no Subcategorization Frame"
-                )));
-            }
-            used.extend(facts.frames.iter().copied());
-        }
+        let used = self.used_frames(head)?;
         if head != LexicalCategory::Verb {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
             bare.child(
@@ -1141,7 +1175,7 @@ impl<'a> Binder<'a> {
             // Active, with every NP slot optionally extracted.
             let active = voice_value("Active")?;
             drafts.extend(
-                self.valence_family(lhs, &name, index, cost, &slots, 0, None, active, gappable)?,
+                self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?,
             );
             if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
                 && matches!(slots.first(), Some(SlotFill::NP))
@@ -1153,12 +1187,12 @@ impl<'a> Binder<'a> {
                 })?;
                 let form = self.feature("VerbForm")?;
                 let participle = (form, self.value(form, "PastParticiple")?);
-                let by = self.word(by)?;
+                // The Internalised Complement is a `by` Preposition Phrase.
+                let by_pp = SlotFill::PP(vec![self.word(by)?]);
                 for agent in [false, true] {
                     let mut rest: Vec<&SlotFill> = slots[1..].to_vec();
-                    let by_np = SlotFill::NP;
                     if agent {
-                        rest.push(&by_np);
+                        rest.push(&by_pp);
                     }
                     let tag = if agent { "passive+by" } else { "passive" };
                     for mut draft in self.valence_family(
@@ -1168,7 +1202,7 @@ impl<'a> Binder<'a> {
                         cost,
                         &rest,
                         1,
-                        agent.then_some(by),
+                        agent,
                         Some(passive_voice),
                         gappable,
                     )? {
@@ -1178,14 +1212,114 @@ impl<'a> Binder<'a> {
                         drafts.push(draft);
                     }
                 }
+                if let Some(adjectival) = adjectival
+                    && slots.len() == 1
+                {
+                    drafts.extend(
+                        self.adjectival_passive(
+                            adjectival, &name, index, cost, participle, &by_pp,
+                        )?,
+                    );
+                }
             }
+        }
+        Ok(drafts)
+    }
+
+    /// The frames of every lexeme of `head`'s Category. A verb without one
+    /// must be a Closed Word or a Lexical Class member the grammar names.
+    fn used_frames(&self, head: LexicalCategory) -> Result<BTreeSet<usize>, LoadError> {
+        let mut used = BTreeSet::new();
+        for (id, facts) in &self.out.lexemes {
+            if facts.category != head {
+                continue;
+            }
+            if facts.frames.is_empty()
+                && head == LexicalCategory::Verb
+                && !self.closed_words.values().any(|w| w == id)
+                && !self
+                    .grammar
+                    .lexical_classes
+                    .values()
+                    .flatten()
+                    .any(|m| LexemeId::new(m) == *id)
+            {
+                return Err(invalid(format!(
+                    "verb `{id}` has no Subcategorization Frame"
+                )));
+            }
+            used.extend(facts.frames.iter().copied());
+        }
+        Ok(used)
+    }
+
+    /// The Adjectival Passives of a frame whose passive leaves no Complement:
+    /// the participle, with or without its `by` phrase. A verb whose
+    /// Adjectival Passive is a declared Adjective (`AdjectivalPassive:
+    /// Lexical`) and an auxiliary verb (`VerbKind: Auxiliary`) derive none.
+    /// Each is `Voice: Passive` and `AdjectivePosition: Predicative` where
+    /// its Category carries those features.
+    fn adjectival_passive(
+        &self,
+        category: &str,
+        name: &str,
+        frame: usize,
+        cost: u32,
+        participle: (usize, u16),
+        by_pp: &SlotFill,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let lhs = self.category(category)?;
+        let mut exclusions = Vec::new();
+        for (feature, value) in [("AdjectivalPassive", "Lexical"), ("VerbKind", "Auxiliary")] {
+            if let Some(f) = self.out.features.iter().position(|n| n == feature) {
+                exclusions.push((0, f, self.value(f, value)?));
+            }
+        }
+        let position = self
+            .out
+            .features
+            .iter()
+            .position(|n| n == "AdjectivePosition")
+            .filter(|f| self.out.category_features[lhs].contains(f));
+        let voice = self
+            .out
+            .features
+            .iter()
+            .position(|n| n == "Voice")
+            .filter(|f| self.out.category_features[lhs].contains(f));
+        let mut drafts = Vec::new();
+        for agent in [false, true] {
+            let tag = if agent { "adjectival+by" } else { "adjectival" };
+            let mut draft = Draft::new(format!("{name}/{tag}"), lhs, cost);
+            draft.frame = Some(frame);
+            draft.child("head", Symbol::Leaf(Test::Frame(frame)), GapRule::Closed);
+            if agent {
+                draft.child("complement", self.slot_symbol(by_pp)?, GapRule::Closed);
+            }
+            draft
+                .equations
+                .push((Path::Child(0, participle.0), Target::Value(participle.1)));
+            if let Some(f) = position {
+                draft.equations.push((
+                    Path::Mother(f),
+                    Target::Value(self.value(f, "Predicative")?),
+                ));
+            }
+            if let Some(f) = voice {
+                draft
+                    .equations
+                    .push((Path::Mother(f), Target::Value(self.value(f, "Passive")?)));
+            }
+            draft.exclusions.clone_from(&exclusions);
+            drafts.push(draft);
         }
         Ok(drafts)
     }
 
     /// One frame's phrase and, when `gappable`, a variant per extracted NP
     /// slot. `slots` are the frame's slots from `first_slot` on (a passive
-    /// drops the Object), plus a trailing agent NP when `by` is given.
+    /// drops the Object), plus a trailing `by` Preposition Phrase, the
+    /// Internalised Complement, when `agent` is set.
     #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
     fn valence_family(
         &self,
@@ -1195,7 +1329,7 @@ impl<'a> Binder<'a> {
         cost: u32,
         slots: &[&SlotFill],
         first_slot: usize,
-        by: Option<LexemeId>,
+        agent: bool,
         voice: Option<(usize, u16)>,
         gappable: bool,
     ) -> Result<Vec<Draft>, LoadError> {
@@ -1209,7 +1343,7 @@ impl<'a> Binder<'a> {
                     .map(|(i, _)| Some(i)),
             )
             .collect();
-        let agent_slot = by.as_ref().map(|_| slots.len() - 1);
+        let agent_slot = agent.then(|| slots.len() - 1);
         for gap in extractable {
             if gap.is_some() && gap == agent_slot {
                 continue;
@@ -1225,11 +1359,8 @@ impl<'a> Binder<'a> {
                 if Some(i) == gap {
                     continue;
                 }
-                if Some(i) == agent_slot
-                    && let Some(by) = &by
-                {
-                    draft.child("by", Symbol::Leaf(Test::Word(*by)), GapRule::Closed);
-                    draft.child("agent", self.slot_symbol(fill)?, GapRule::Closed);
+                if Some(i) == agent_slot {
+                    draft.child("complement", self.slot_symbol(fill)?, GapRule::Closed);
                     continue;
                 }
                 let relation = self.out.frames[frame].slots[first_slot + i].relation;
@@ -1240,6 +1371,9 @@ impl<'a> Binder<'a> {
                 );
                 if **fill == SlotFill::NP {
                     self.oblique_case(&mut draft, child)?;
+                }
+                if **fill == SlotFill::Pred {
+                    draft.predicative = Some(child);
                 }
             }
             if gap.is_some() {
@@ -1335,6 +1469,7 @@ impl<'a> Binder<'a> {
                         }
                 });
                 prefix.exclusions.retain(|(i, _, _)| *i < split);
+                prefix.predicative = prefix.predicative.filter(|&i| i < split);
                 let a = prefix.child(
                     "adjunct",
                     symbol(adjunct, Some(HostKind::Predicate)),
@@ -1371,6 +1506,7 @@ impl<'a> Binder<'a> {
                         }
                 });
                 suffix.exclusions.retain(|(i, _, _)| *i >= split);
+                suffix.predicative = suffix.predicative.filter(|&i| i >= split);
                 remap_draft(&mut suffix, |i| i - split + 1);
                 out.push(suffix);
             }
@@ -1522,6 +1658,14 @@ pub(crate) fn frame_name(phrase: &str, frame: &Frame) -> String {
     format!("Valence:{phrase}/{family}({})", slots.join(","))
 }
 
+/// What a Frame Slot selects, as same-head complement priority sees it.
+fn extensions_of(fill: &SlotFill) -> Vec<Extension> {
+    match fill {
+        SlotFill::PP(list) => list.iter().map(|p| Extension::Preposition(*p)).collect(),
+        other => vec![Extension::Slot(other.kind())],
+    }
+}
+
 fn intern<T: PartialEq + Clone>(list: &mut Vec<T>, item: &T) -> usize {
     if let Some(index) = list.iter().position(|x| x == item) {
         return index;
@@ -1597,4 +1741,5 @@ fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
     for (i, _, _) in &mut draft.exclusions {
         *i = map(*i);
     }
+    draft.predicative = draft.predicative.map(&map);
 }

@@ -47,18 +47,27 @@ It has no proc macros and no generated code: a grammar is data.
 
 Authors write active Subcategorization Frames once; the engine derives the rest.
 
-- `Valence { head, phrase, passive }`: for each frame of each head lexeme
+- `Valence { head, phrase, passive, adjectival }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant and, when `passive` names the `by` Closed Word, passive
-  phrases with and without the Internalised Complement. A preposition with an NP
+  phrases with and without the Internalised Complement, a `by` Preposition
+  Phrase. When `adjectival` names a Category, a frame whose passive leaves no
+  Complement also derives Adjectival Passives of it (the participle, with or
+  without its `by` phrase), `Voice: Passive` and `AdjectivePosition:
+  Predicative`; a verb marked `AdjectivalPassive: Lexical` (a declared Adjective
+  spells it) or `VerbKind: Auxiliary` derives none. A preposition with an NP
   complement also strands; an Intransitive Preposition heads its phrase alone.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap.
 - `Adjunct { host, adjunct, side, host_kind }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
-  Category. Same-head complement priority is derived from the frames: a PP may not
-  attach as a Predicate adjunct to a head that has a longer frame selecting it.
+  Category. Same-head complement priority is derived from the frames: a PP, or an
+  adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
+  attach as a Predicate adjunct to a head that has a longer frame selecting it
+  (*choose to attack* has no purpose reading). Likewise a frame's predicative
+  Complement is not a Preposition Phrase that a rival frame of the same head
+  selects in its place (locative *on the battlefield* after *be*).
 - `Coordination { category, coordinators }`: binary and Oxford-comma serial
   coordination, one tree per same-coordinator chain, across-the-board Gaps, and
   Right Node Raising (a coordination with a shared NP Gap, filled once after it).
@@ -89,6 +98,16 @@ from independent word positions. Bare valence phrases likewise require free word
 onto its lexical leaf. Grammars can constrain signed notation without inspecting
 source spelling or changing lexical analysis.
 Flavor Word leaves use the lexical layer's registered-label exclusion and realization.
+
+## Function Categories and frameless auxiliaries
+
+A Category declared `function: true` names a grammatical function rather than a
+constituent, as `Predicative` names the predicative Complement: in
+`constituents`, its head child bears the same function in the same mother. A
+Production can require that a Preposition Phrase child admit a Host Category
+(`Hosted`), as a predicative PP must be able to modify a nominal. A verb without
+a Subcategorization Frame binds when the grammar names it as a Closed Word or a
+Lexical Class member (perfect *have* and its forms).
 
 ## Reading Normal Form
 

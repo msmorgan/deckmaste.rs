@@ -93,8 +93,27 @@ negative numeral does not duplicate the marker-plus-amount analysis; signed
 zero and variables retain their notation. Attributive-only adjective position
 is independent of determination, preserving bare plural `other types`.
 
+Stratum 2 adds auxiliaries and modals as heads of their Verb Phrases with
+bare-infinitival, perfect, progressive and passive complements; synthetic and
+analytic negation (`can't`, `doesn't`; `not` after the copula or before a
+*to*-infinitival); *to*-infinitival Clauses as Catenative Complements and as
+Purpose Adjuncts (not on a head whose frame selects one); gerund-participial
+Complements and preposed adjuncts; existential *there* with a Displaced
+Subject; and predicative Complements of `be`, `become`, `remain`, `get` and
+complex-transitive verbs, including Preposition Phrases that could modify a
+nominal (*face down*, *of the chosen type*). Locatives after `be` and `remain`
+are Locative Complements, not predicatives. Passives carry their `by` phrase as
+a Complement, and Adjectival Passives come from frames whose passive leaves no
+other Complement; they are predicative Complements only.
+
 The profiler assigns reduced relatives and `named` postmodifiers to Stratum 3,
-triggers to Stratum 4, and optional bracketed Oracle material to Stratum 7.
+including adverbial relatives (*the next time a source would deal damage*),
+relatives after keywords and symbols (*with flying that's attacking you*,
+*mana value X whose controller*) and postmodifiers of a keyword or symbol
+sequence; triggers to Stratum 4, with a keyword used as a verb (*as you
+cascade*); asyndetic participle premodifiers (*nonattacking, nonblocking*) to
+Stratum 6; and optional bracketed Oracle material and metalinguistic mentions
+of a subtype (*with Vampire*) to Stratum 7.
 Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the
 stratum of their payload.
 

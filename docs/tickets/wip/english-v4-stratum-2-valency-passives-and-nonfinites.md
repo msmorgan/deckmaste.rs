@@ -31,3 +31,12 @@ Implement **Stratum 2** in `crates/deckmaste_english_v4` per
 - Stratum 0–2 judgment suite passes with zero regressions.
 
 Standard constraints apply.
+
+## Deferral
+
+New Blood's *replacing all instances of one creature type with Vampire* uses
+*Vampire* metalinguistically (CGEL, Ch. 5 §8.2, p. 401). By owner decision the
+profiler's MetalinguisticMention family assigns it to the Stratum 7 long tail.
+
+Census delta (`ynwpqllp` → this landing): faces read 8,219 → 9,501; total Readings 81,320 → 108,004; lost faces: none. Strata 0–2: 59,621/59,621 units read, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–2 pass (1,376 enforced, 1,595 pending); tests and clippy pass for deckmaste_syntax, deckmaste_lexical, deckmaste_lexical_source_v4 and deckmaste_english_v4; citation checks pass.

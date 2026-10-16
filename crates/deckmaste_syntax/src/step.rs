@@ -9,7 +9,21 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::compile::CompiledGrammar;
+use crate::frames::SlotKind;
 use crate::grammar::HostKind;
+
+/// A Complement that another frame of a phrase's head selects. A longer
+/// frame's Preposition Phrase headed by the preposition, or phrase of the
+/// slot's kind (*to*-infinitival in *choose to attack*), is not also an
+/// unselected adjunct of the same head instance; a Preposition Phrase that a
+/// frame selects in place of a predicative Complement (locative *on* after
+/// *be*) is not also that head's predicative Complement.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub(crate) enum Extension {
+    Preposition(LexemeId),
+    Slot(SlotKind),
+    Predicative(LexemeId),
+}
 
 /// The unfilled Gap a Constituent contains.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
@@ -80,6 +94,11 @@ pub(crate) struct Production {
     pub introduces: Gap,
     pub frame: Option<usize>,
     pub host_check: Option<(usize, usize, HostKind)>,
+    /// The Frame Slot kind of a non-prepositional adjunct, for same-head
+    /// complement priority.
+    pub adjunct_slot: Option<SlotKind>,
+    /// The predicative Complement child of a frame-headed phrase.
+    pub predicative: Option<usize>,
     pub coordinator: Option<usize>,
     pub distinct_coordinator: Vec<usize>,
     pub requires_coordination: Option<usize>,
@@ -187,6 +206,8 @@ pub(crate) fn resolve(
     }
     Ok(Production {
         exclusions: Vec::new(),
+        adjunct_slot: None,
+        predicative: None,
         id,
         lhs,
         rhs,
@@ -217,8 +238,8 @@ pub(crate) struct Summary {
     pub gap_right_edge: bool,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
-    /// Prepositions whose PP would extend this phrase's selected frame.
-    pub extensions: Vec<LexemeId>,
+    /// Complements that would extend this phrase's selected frame.
+    pub extensions: Vec<Extension>,
     /// The coordinator of a coordination.
     pub coordinator: Option<LexemeId>,
 }
@@ -250,11 +271,11 @@ pub(crate) struct State {
     gap_right_edge: bool,
     shared_gap_right_edge: bool,
     preposition: Option<(LexemeId, usize)>,
-    extensions: Vec<LexemeId>,
+    extensions: Vec<Extension>,
     coordinator: Option<LexemeId>,
     conjunct_coordinators: Vec<LexemeId>,
-    host_extensions: Vec<LexemeId>,
-    adjunct_preposition: Option<LexemeId>,
+    host_extensions: Vec<Extension>,
+    adjunct_extension: Option<Extension>,
 }
 
 impl Production {
@@ -306,8 +327,37 @@ impl Production {
             coordinator: None,
             conjunct_coordinators: Vec::new(),
             host_extensions: Vec::new(),
-            adjunct_preposition: None,
+            adjunct_extension: None,
         }
+    }
+
+    /// Records the head's and an adjunct's frame facts for same-head
+    /// complement priority, or `None` when a predicative Complement is a
+    /// Preposition Phrase a rival frame selects.
+    fn priority(&self, next: &mut State, position: usize, summary: &Summary) -> Option<()> {
+        if self.predicative == Some(position)
+            && let Some((p, _)) = summary.preposition
+            && next.extensions.contains(&Extension::Predicative(p))
+        {
+            return None;
+        }
+        if self.head == Some(position) {
+            next.preposition.clone_from(&summary.preposition);
+            next.extensions.clone_from(&summary.extensions);
+        }
+        if let Some((host, adjunct, _)) = self.host_check {
+            if position == host {
+                next.host_extensions.clone_from(&summary.extensions);
+            }
+            if position == adjunct {
+                next.adjunct_extension = summary
+                    .preposition
+                    .as_ref()
+                    .map(|(p, _)| Extension::Preposition(*p))
+                    .or(self.adjunct_slot.map(Extension::Slot));
+            }
+        }
+        Some(())
     }
 
     /// Adds child `position` to `state`, or `None` if it does not fit.
@@ -421,18 +471,7 @@ impl Production {
                 if self.coordinator == Some(position) {
                     next.coordinator.clone_from(&summary.coordinator);
                 }
-                if self.head == Some(position) {
-                    next.preposition.clone_from(&summary.preposition);
-                    next.extensions.clone_from(&summary.extensions);
-                }
-                if let Some((host, adjunct, _)) = self.host_check {
-                    if position == host {
-                        next.host_extensions.clone_from(&summary.extensions);
-                    }
-                    if position == adjunct {
-                        next.adjunct_preposition = summary.preposition.as_ref().map(|(p, _)| *p);
-                    }
-                }
+                self.priority(&mut next, position, summary)?;
             }
             ChildView::Leaf(leaf) => {
                 if self.coordinator == Some(position) {
@@ -475,8 +514,8 @@ impl Production {
         {
             return None;
         }
-        if let (Some((_, _, _)), Some(p)) = (self.host_check, &state.adjunct_preposition)
-            && state.host_extensions.contains(p)
+        if let (Some((_, _, _)), Some(e)) = (self.host_check, &state.adjunct_extension)
+            && state.host_extensions.contains(e)
         {
             return None;
         }

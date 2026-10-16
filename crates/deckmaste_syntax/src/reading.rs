@@ -396,7 +396,7 @@ impl CompiledGrammar {
         })?;
         let (text, offsets) = join(&atoms);
         let mut out = Vec::new();
-        self.locate(reading, None, String::new(), &mut out);
+        self.locate(reading, None, "", &mut out);
         for (constituent, &(first, last)) in out.iter_mut().zip(&spans) {
             constituent.span = if first == last {
                 let at = offsets.get(first).map_or(text.len(), |r| r.start);
@@ -414,7 +414,7 @@ impl CompiledGrammar {
         &self,
         reading: &Reading,
         parent: Option<usize>,
-        function: String,
+        function: &str,
         out: &mut Vec<Constituent>,
     ) {
         let Reading::Node(node) = reading else {
@@ -424,14 +424,20 @@ impl CompiledGrammar {
         out.push(Constituent {
             category: node.category.clone(),
             span: 0..0,
-            function,
+            function: function.to_owned(),
             parent,
             head: self.head_lexeme(reading),
             gap: node.gap,
         });
+        // The head of a function Category bears its function in its phrase.
+        let wraps = self.function_categories.contains(&node.category);
         let names = self.child_names(node);
         for (child, name) in node.children.iter().zip(names) {
-            self.locate(child, Some(index), name, out);
+            if wraps && name == "head" {
+                self.locate(child, parent, function, out);
+            } else {
+                self.locate(child, Some(index), &name, out);
+            }
         }
     }
 
@@ -552,7 +558,8 @@ pub struct Constituent {
     /// bears there (`subject`, `object`, `modifier`, ...); empty for the
     /// root.
     pub function: String,
-    /// Preorder index of its mother.
+    /// Preorder index of its mother; the head of a function Category
+    /// (`CategoryDecl::function`) takes that Category's mother and function.
     pub parent: Option<usize>,
     /// The lexeme reached through its `head` children.
     pub head: Option<LexemeId>,

@@ -209,6 +209,29 @@ fn reviewed_misplacements_stay_fixed() {
         ("All creatures able to block this creature do so.", 7),
         ("III — Hall of Sorrow — Draw two cards.", 1),
         ("It's still a land.", 2),
+        // An adverbial relative and relatives after a keyword or a symbol.
+        (
+            "The next time a source of your choice would deal damage to you this turn, prevent that damage.",
+            3,
+        ),
+        (
+            "{3}: This creature deals 1 damage to target creature without flying that's attacking you.",
+            3,
+        ),
+        // Asyndetic participle premodifiers; a keyword used as a verb.
+        (
+            "Target nonattacking, nonblocking creature gets +0/+2 until end of turn.",
+            6,
+        ),
+        (
+            "As you cascade, you may put a land card from among the exiled cards onto the battlefield tapped.",
+            4,
+        ),
+        // A metalinguistic subtype, deferred to the long tail.
+        (
+            "Change the text of that creature by replacing all instances of one creature type with Vampire.",
+            7,
+        ),
         ("Craft with two that share a card type {6}", 3),
     ] {
         let (found, families) = profile(&env, UnitKind::Line, text);

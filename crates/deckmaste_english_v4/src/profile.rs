@@ -98,6 +98,7 @@ pub const OPTIONAL_BRACKETED_TEXT: Family = family(7, "OptionalBracketedText");
 pub const APPOSITION: Family = family(7, "Apposition");
 pub const QUOTED_ABILITY: Family = family(7, "QuotedAbility");
 pub const VOCABULARY_GAP: Family = family(7, "VocabularyGap");
+pub const METALINGUISTIC: Family = family(7, "MetalinguisticMention");
 pub const TYPE_LINE_WORD: Family = family(7, "TypeLineNonTypeWord");
 
 /// Core words that mark a family by themselves: (category, lemma).
@@ -708,7 +709,9 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
     }
     for window in tokens.windows(3) {
         if window[1].is_punct(',')
-            && (window[0].has(Category::Adjective) || window[0].has(Category::Noun))
+            && (window[0].has(Category::Adjective)
+                || window[0].has(Category::Noun)
+                || window[0].verb_form(&[WordForm::GerundParticiple, WordForm::PastParticiple]))
             && (window[2].has(Category::Adjective) || window[2].has(Category::Affix))
         {
             families.insert(COORDINATION);
@@ -766,7 +769,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     || tokens[j - 1].is_punct(';'))
             })
             .any(|j| {
-                tokens[j].finite_verb()
+                // A keyword used as a verb after a subject pronoun (*as you
+                // cascade*) is a predicate too.
+                let keyword_predicate =
+                    tokens[j].has(Category::Keyword) && tokens[j - 1].has(Category::Pronoun);
+                (tokens[j].finite_verb() || keyword_predicate)
                     && !tokens[j - 1].has(Category::Preposition)
                     && !tokens[j - 1].has(Category::Determinative)
                     && !tokens[j - 1].has(Category::Subordinator)
@@ -801,10 +808,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             n.verb_form(&[form]) && !n.has(Category::Noun) && !n.has(Category::Adjective)
         };
         if auxiliary {
-            if t.lemma_in(&["do", "don't", "have"]) {
+            // Contracted *'s* may be *be* as well as *have*.
+            if t.lemma_in(&["do", "have"]) && !t.lemma_in(&["be"]) {
                 // Main-verb *do* and *have* are core clauses; the pro-form is
                 // Stratum 7.
-                if t.lemma_in(&["do", "don't"])
+                if t.lemma_in(&["do"])
                     && next(i)
                         .is_none_or(|n| n.is_punct(',') || n.is_punct('.') || n.lemma_in(&["so"]))
                 {
@@ -812,7 +820,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 }
                 if next(i).is_some_and(|n| {
                     bare_verb(n, WordForm::PastParticiple)
-                        || t.lemma_in(&["do", "don't"]) && bare_verb(n, WordForm::Plain)
+                        || t.lemma_in(&["do"]) && bare_verb(n, WordForm::Plain)
                         || n.is(Category::Adverb, "not")
                 }) {
                     families.insert(AUXILIARY);
@@ -821,8 +829,9 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 families.insert(AUXILIARY);
             }
             if t.alts().iter().any(|a| {
-                a.lexeme
-                    .is_some_and(|l| l.lemma.ends_with("n't") || l.lemma.ends_with("n’t"))
+                a.lexeme.is_some_and(|l| {
+                    l.properties.features.get("Polarity").map(String::as_str) == Some("Negative")
+                })
             }) {
                 families.insert(NEGATION);
             }
@@ -891,22 +900,37 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             families.insert(GERUND_CLAUSE);
         }
         // Stratum 3.
+        // A relative word after its antecedent: a nominal, keyword, numeral
+        // or symbol (*mana value X whose controller ...*).
+        let antecedent = |p: &Tok<'_>| {
+            p.nominal() || p.has(Category::Keyword) || p.numeral() || p.class_is(Class::Symbol)
+        };
         if t.has(Category::Pronoun)
             && t.lemma_in(&["who", "which"])
-            && previous(i).is_some_and(|p| p.nominal() || p.is_punct(','))
+            && previous(i).is_some_and(|p| antecedent(p) || p.is_punct(','))
+        {
+            families.insert(RELATIVE);
+        }
+        // An adverbial relative (*the next time a source would deal damage*).
+        if t.is(Category::Noun, "time")
+            && previous(i).is_some_and(|p| p.lemma_in(&["next", "first", "last"]))
+            && next(i).is_some_and(|n| n.has(Category::Determinative) || n.has(Category::Pronoun))
+            && finite_ahead(i)
         {
             families.insert(RELATIVE);
         }
         if t.is(Category::Subordinator, "that") {
             let after = next(i);
-            if (previous(i)
-                .is_some_and(|p| p.nominal() || p.numeral() || p.has(Category::Adjective))
+            if (previous(i).is_some_and(|p| antecedent(p) || p.has(Category::Adjective))
                 || (i == 0
                     && (finite_ahead(i)
                         || (after.is_some_and(|n| n.is(Category::Determinative, "each"))
                             && tokens.get(i + 2).is_some_and(Tok::finite_verb)))))
                 && after.is_some_and(|n| {
-                    n.finite_verb() || n.has(Category::Pronoun) || n.has(Category::Determinative)
+                    n.finite_verb()
+                        || n.has(Category::Pronoun)
+                        || n.has(Category::Determinative)
+                        || n.nominal() && finite_ahead(i)
                 })
             {
                 families.insert(RELATIVE);
@@ -922,7 +946,14 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 families.insert(CONTENT_CLAUSE);
             }
         }
-        if t.nominal() && !t.has(Category::Adjective) {
+        // A keyword ending a preposition's complement, or a symbol, may host
+        // a postmodifier (*without flanking blocking it*, *{G}{G} spent to
+        // cast it*).
+        let host = t.nominal()
+            || t.has(Category::Keyword)
+                && previous(i).is_some_and(|p| p.has(Category::Preposition))
+            || t.class_is(Class::Symbol) && previous(i).is_some_and(|p| p.class_is(Class::Symbol));
+        if host && !t.has(Category::Adjective) {
             // A contact relative: nominal, subject, finite verb.
             if let Some(subject) = next(i) {
                 let verb_at = if subject.has(Category::Pronoun)
@@ -1089,6 +1120,23 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         }
         if matches!(t, Tok::Unknown(_)) {
             families.insert(VOCABULARY_GAP);
+        }
+        // A bare singular subtype ending a preposition's complement names the
+        // word itself (*replacing ... with Vampire*, *other than Wall*; CGEL,
+        // Ch. 5 §8.2, p. 401), unless it may be a name or a plural.
+        let word_form = |form: WordForm| {
+            t.alts().iter().any(|a| {
+                a.class == Class::Subtype
+                    && matches!(&a.reading, LexicalReading::Word(v) if v.form == form)
+            })
+        };
+        if previous(i).is_some_and(|p| p.has(Category::Preposition))
+            && next(i).is_some_and(|n| n.is_punct('.'))
+            && word_form(WordForm::Singular)
+            && !word_form(WordForm::Plural)
+            && !t.class_is(Class::CardName)
+        {
+            families.insert(METALINGUISTIC);
         }
     }
 }

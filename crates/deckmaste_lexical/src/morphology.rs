@@ -63,7 +63,9 @@ pub(crate) fn applicable(category: Category, form: WordForm, features: &FeatureB
     }
 }
 
-pub(crate) fn default_surface(lexeme: &Lexeme, form: WordForm, features: &FeatureBundle) -> String {
+/// The regular spelling of a Word Form of `lexeme`, from its lemma.
+#[must_use]
+pub fn default_surface(lexeme: &Lexeme, form: WordForm, features: &FeatureBundle) -> String {
     let lemma = &lexeme.lemma;
     match form {
         WordForm::Plural => suffix_s(lemma),

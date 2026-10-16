@@ -117,7 +117,9 @@
     // CGEL's subordinators (Ch. 11 §8.1, p. 1011) plus infinitival *to*; the
     // other traditional "subordinating conjunctions" are prepositions.
     subordinators: ["that", "to", "whether"],
-    // Negative auxiliaries are named by their plain-person present form.
+    // Negative auxiliaries are named by their plain-person present form. The
+    // modals have no -s form: their third singular is spelled like the rest
+    // of the present.
     auxiliaries: [
         (lemma: "be", third_singular: "is", preterite: "were", past_participle: "been",
             gerund: "being", irrealis: "were",
@@ -128,47 +130,48 @@
                 (form: Preterite, person: First, number: Singular, surfaces: "was"),
                 (form: Preterite, person: Third, number: Singular, surfaces: "was"),
             ],
-            frames: [Copular]),
-        (lemma: "aren't", third_singular: "isn't", preterite: "weren't", irrealis: "weren't",
+            // A predicative or a locative Complement (CGEL Ch. 4 §5.2, p. 257).
+            frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
+        (lemma: "aren't", form_of: Some("be"), third_singular: "isn't", preterite: "weren't", irrealis: "weren't",
             forms: [
                 (form: Preterite, person: First, number: Singular, surfaces: "wasn't"),
                 (form: Preterite, person: Third, number: Singular, surfaces: "wasn't"),
             ],
-            finite_only: true, negative: true, frames: [Copular]),
-        (lemma: "can", preterite: "could", finite_only: true, frames: [Catenative(BareInf)]),
-        (lemma: "can't", preterite: "couldn't", finite_only: true, negative: true,
+            finite_only: true, negative: true, frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
+        (lemma: "can", third_singular: "can", preterite: "could", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "can't", form_of: Some("can"), third_singular: "can't", preterite: "couldn't", finite_only: true, negative: true,
             frames: [Catenative(BareInf)]),
         // Pro-form *if you do*; *do this only once each turn*.
         (lemma: "do", third_singular: "does", preterite: "did", past_participle: "done",
             frames: [Intransitive, Monotransitive]),
-        (lemma: "don't", third_singular: "doesn't", preterite: "didn't", finite_only: true,
+        (lemma: "don't", form_of: Some("do"), third_singular: "doesn't", preterite: "didn't", finite_only: true,
             negative: true, frames: [Catenative(BareInf), Intransitive]),
         // *you may have target player reveal their hand*
         (lemma: "have", third_singular: "has", past: "had",
             frames: [Monotransitive, Transitive(KeywordPhrase), Catenative(ToInf), ComplexCatenative(BareInf)]),
         // Only the perfect auxiliary (*hasn't been chosen*), which the grammar
         // names; no frame selects a past participle.
-        (lemma: "haven't", third_singular: "hasn't", preterite: "hadn't",
+        (lemma: "haven't", form_of: Some("have"), third_singular: "hasn't", preterite: "hadn't",
             finite_only: true, negative: true),
         // Contracted auxiliaries are bound to their host (CGEL Ch. 18 §6.2,
         // pp. 1613–1616): *you've*, *you're*, *it's*.
-        (lemma: "'ve", third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
+        (lemma: "'ve", form_of: Some("have"), third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
             forms: [
                 (form: Present, person: First, surfaces: ["'ve", "’ve"]),
                 (form: Present, person: Second, surfaces: ["'ve", "’ve"]),
                 (form: Present, person: Third, number: Plural, surfaces: ["'ve", "’ve"]),
             ]),
-        (lemma: "'re", third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
+        (lemma: "'re", form_of: Some("be"), third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
             forms: [
                 (form: Present, person: First, number: Singular, surfaces: ["'m", "’m"]),
                 (form: Present, person: First, number: Plural, surfaces: ["'re", "’re"]),
                 (form: Present, person: Second, surfaces: ["'re", "’re"]),
                 (form: Present, person: Third, number: Plural, surfaces: ["'re", "’re"]),
             ],
-            frames: [Copular]),
-        (lemma: "may", preterite: "might", finite_only: true, frames: [Catenative(BareInf)]),
-        (lemma: "must", finite_only: true, frames: [Catenative(BareInf)]),
-        (lemma: "will", preterite: "would", finite_only: true, frames: [Catenative(BareInf)]),
+            frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
+        (lemma: "may", third_singular: "may", preterite: "might", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "must", third_singular: "must", finite_only: true, frames: [Catenative(BareInf)]),
+        (lemma: "will", third_singular: "will", preterite: "would", finite_only: true, frames: [Catenative(BareInf)]),
     ],
     affixes: [(name: "non", spellings: ["non", "non-"], binding: Prefix)],
     // The plural genitive is the same clitic, spelled with the apostrophe alone.

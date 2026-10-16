@@ -435,6 +435,17 @@ existential *there* fills Subject position and inherits Agreement features from
 the displaced Subject (CGEL, Ch. 16 §6.1, p. 1391; Ch. 4 §3.2.2, p. 242).
 _Avoid_: locative Adverb for dummy *there*
 
+**Metalinguistic Use**:
+The use of an expression to cite the expression itself rather than to refer,
+as a bare subtype names the word in *replacing all instances of one creature
+type with Vampire* (CGEL, Ch. 5 §8.2, p. 401).
+
+**Locative Complement**:
+A Complement expressing location, source or goal, such as *on the battlefield*
+after *be*; it is distinct from a predicative Complement (CGEL, Ch. 4 §5.2,
+p. 257).
+_Avoid_: predicative Complement for a locative
+
 **Displaced Subject**:
 An internal Complement of a verb corresponding semantically to the Subject of a
 basic counterpart, while the actual Subject position is filled by dummy *there*
@@ -484,6 +495,18 @@ A Catenative Construction with an intervening Noun Phrase between the matrix and
 subordinate verbs, functioning as Complement of one of them, usually as the
 matrix verb's Object, as in *cause you to sacrifice*; a simple catenative
 construction has none (CGEL, Ch. 14 §1.2, p. 1177; §3, p. 1200).
+
+**Auxiliary Verb**:
+A verb with the distinctive properties of the Negation, Inversion, Code and
+Emphasis constructions: *be*, *have*, *do* and the modals (CGEL, Ch. 3 §2.1,
+pp. 92–93). An auxiliary is the head of its Verb Phrase, with a nonfinite
+Catenative Complement.
+_Avoid_: treating the following lexical verb as the head of a modal or perfect
+Clause
+
+**Purpose Adjunct**:
+An infinitival Clause that functions as an Adjunct of purpose, as in *spent to
+cast it* (CGEL, Ch. 8 §1, p. 669).
 
 **Voice**:
 The grammatical organization of a predication's participants, including the
