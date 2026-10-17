@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-3-relatives-and-gaps]
+needs: [english-v4-stratum-3-residual]
 ---
 # Stratum 4: Subordinate clauses, triggers, and conditionals
 
