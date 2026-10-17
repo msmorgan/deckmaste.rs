@@ -59,7 +59,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   spells it) or `VerbKind: Auxiliary` derives none. A preposition with an NP
   complement also strands; an Intransitive Preposition heads its phrase alone.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
-  objects, so they derive no passive or Gap.
+  objects, so they derive no passive or Gap. An `Idiom` frame fixes a
+  preposition among its Complements (*come up heads*).
 - `Adjunct { host, adjunct, side, host_kind }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category. Same-head complement priority is derived from the frames: a PP, or an
@@ -113,7 +114,10 @@ A Category declared `function: true` names a grammatical function rather than a
 constituent, as `Predicative` names the predicative Complement: in
 `constituents`, its head child bears the same function in the same mother. A
 Production can require that a Preposition Phrase child admit a Host Category
-(`Hosted`), as a predicative PP must be able to modify a nominal. A verb without
+(`Hosted`), as a predicative PP must be able to modify a nominal. It can also
+require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
+more than one, as a single postpositive participle differs from a participial
+clause. A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 

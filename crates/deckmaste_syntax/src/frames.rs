@@ -31,6 +31,9 @@ pub enum FrameFamily {
     TransitiveAmount,
     /// A Cost, as in *waterbend {3}*.
     Cost,
+    /// A fixed preposition with the verb's other Complements, as in the
+    /// phrasal-copular *come up heads* (CGEL, Ch. 4 §6.3, p. 288).
+    Idiom,
     NounComplement,
     AdjectiveComplement,
     DeterminativeComplement,
@@ -216,6 +219,17 @@ impl Frame {
                 [(Object, SlotFill::NP), (Complement, SlotFill::Amount)]
             ),
             FrameFamily::Cost => matches!(shape[..], [(Complement, SlotFill::Cost)]),
+            FrameFamily::Idiom => {
+                shape
+                    .iter()
+                    .any(|slot| matches!(slot, (Complement, SlotFill::PP(_))))
+                    && shape.iter().all(|slot| {
+                        matches!(
+                            slot,
+                            (Complement, SlotFill::PP(_)) | (PredicativeComplement, SlotFill::Pred)
+                        )
+                    })
+            }
             FrameFamily::NounComplement
             | FrameFamily::AdjectiveComplement
             | FrameFamily::DeterminativeComplement => {

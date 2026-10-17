@@ -30,6 +30,7 @@ use crate::step::GapRule;
 use crate::step::Production;
 use crate::step::Symbol;
 use crate::step::Test;
+use crate::step::Weight;
 
 /// Feature names that would police attachment rather than describe grammar.
 const FORBIDDEN_SUFFIXES: [&str; 5] = ["Use", "Licence", "License", "Present", "Restriction"];
@@ -149,6 +150,7 @@ struct Draft {
     children: Vec<Child>,
     equations: Vec<(Path, Target)>,
     exclusions: Vec<(usize, usize, u16)>,
+    weights: Vec<(usize, Weight)>,
     cost: u32,
     introduces: Gap,
     frame: Option<usize>,
@@ -180,6 +182,7 @@ impl Draft {
             children: Vec::new(),
             equations: Vec::new(),
             exclusions: Vec::new(),
+            weights: Vec::new(),
             cost,
             introduces: Gap::None,
             frame: None,
@@ -664,6 +667,19 @@ impl<'a> Binder<'a> {
                 ))));
             }
         }
+        for (names, weight) in [
+            (&declaration.light, Weight::Light),
+            (&declaration.heavy, Weight::Heavy),
+        ] {
+            for name in names {
+                let child = draft
+                    .children
+                    .iter()
+                    .position(|c| c.name == *name)
+                    .ok_or_else(|| context(invalid(format!("unknown weighted child `{name}`"))))?;
+                draft.weights.push((child, weight));
+            }
+        }
         for equation in &declaration.equations {
             match equation {
                 Equation::Exclude(path, value) => {
@@ -776,6 +792,7 @@ impl<'a> Binder<'a> {
         )
         .map_err(|e| invalid(format!("production `{}`: {e}", draft.id)))?;
         production.exclusions = draft.exclusions;
+        production.weights = draft.weights;
         production.adjunct_slot = draft.adjunct_slot;
         production.predicative = draft.predicative;
         if self.out.by_id.contains_key(&production.id) {

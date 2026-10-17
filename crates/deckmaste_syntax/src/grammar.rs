@@ -82,6 +82,12 @@ pub struct ProductionDecl {
     pub equations: Vec<Equation>,
     #[serde(default = "default_cost")]
     pub cost: u32,
+    /// Children that must span more than one lexical leaf.
+    #[serde(default)]
+    pub heavy: Vec<String>,
+    /// Children that must be exactly one lexical leaf, alone or projected.
+    #[serde(default)]
+    pub light: Vec<String>,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<String>,

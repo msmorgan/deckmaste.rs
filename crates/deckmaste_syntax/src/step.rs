@@ -51,6 +51,13 @@ pub(crate) enum GapRule {
     Raise(Gap),
 }
 
+/// How many lexical leaves a child must span: one, or more than one.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Weight {
+    Light,
+    Heavy,
+}
+
 /// A lexical leaf test.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum Test {
@@ -84,6 +91,8 @@ pub(crate) enum Symbol {
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
+    /// Children that must be light or heavy.
+    pub weights: Vec<(usize, Weight)>,
     pub id: String,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -212,6 +221,7 @@ pub(crate) fn resolve(
     }
     Ok(Production {
         exclusions: Vec::new(),
+        weights: Vec::new(),
         adjunct_slot: None,
         predicative: None,
         id,
@@ -242,6 +252,8 @@ pub(crate) struct Summary {
     pub values: Box<[Option<u16>]>,
     pub gap: Gap,
     pub gap_right_edge: bool,
+    /// Its lexical leaves, counted to two.
+    pub leaves: u8,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
     /// Complements that would extend this phrase's selected frame.
@@ -276,6 +288,8 @@ pub(crate) struct State {
     gap: Option<Gap>,
     gap_right_edge: bool,
     shared_gap_right_edge: bool,
+    /// Lexical leaves so far, counted to two.
+    leaves: u8,
     preposition: Option<(LexemeId, usize)>,
     extensions: Vec<Extension>,
     coordinator: Option<LexemeId>,
@@ -328,6 +342,7 @@ impl Production {
             gap: None,
             gap_right_edge: true,
             shared_gap_right_edge: true,
+            leaves: 0,
             preposition: None,
             extensions: Vec::new(),
             coordinator: None,
@@ -366,6 +381,21 @@ impl Production {
         Some(())
     }
 
+    /// The lexical leaves child `position` adds, counted to two, or `None` if
+    /// it is not the weight the Production requires.
+    fn weigh(&self, position: usize, child: &ChildView<'_>) -> Option<u8> {
+        let leaves = match child {
+            ChildView::Node(summary) => summary.leaves,
+            ChildView::Leaf(_) => 1,
+            ChildView::Punct => 0,
+        };
+        match self.weights.iter().find(|(at, _)| *at == position) {
+            Some((_, Weight::Light)) if leaves != 1 => None,
+            Some((_, Weight::Heavy)) if leaves < 2 => None,
+            _ => Some(leaves),
+        }
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -381,6 +411,7 @@ impl Production {
         let (first, last) = self.boundaries(position, child);
         next.first_glues.get_or_insert(first);
         next.last_glues = last;
+        next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -554,6 +585,7 @@ impl Production {
             gap,
             gap_right_edge: self.introduces != Gap::None
                 || (state.gap_right_edge && state.shared_gap_right_edge),
+            leaves: state.leaves,
             preposition: if coordinated { None } else { state.preposition },
             extensions: if coordinated { Vec::new() } else { state.extensions.clone() },
             coordinator: state.coordinator,
