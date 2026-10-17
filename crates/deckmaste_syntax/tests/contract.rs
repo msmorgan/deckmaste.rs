@@ -694,6 +694,59 @@ fn gap_survives_packing_until_its_governor() {
 /// `B` each derive the word and each other; every tree in which no
 /// Constituent contains itself is a Reading, whichever Constituent the
 /// forest reaches first.
+/// A Production introduces a Gap with `Require("$.Gap", ..)` (a subject
+/// Gap), and a transparent child with a required Gap raises exactly that Gap
+/// to its mother.
+#[test]
+fn authored_productions_introduce_and_raise_gaps() {
+    let lexicon = Lexicon::new([
+        Lexeme::verb("v:see", "see", core()),
+        noun("card"),
+        word("d:the", "the", Category::Determinative),
+        pronoun("pr:you", "you", &[(Number::Plural, Person::Second)]),
+    ])
+    .unwrap();
+    let grammar = RELATIVE.replace(
+        r#""Nominal": (),"#,
+        r#""Nominal": (), "Raised": (gap: true),"#,
+    )
+    .replace(
+        "    ],\n    schemas:",
+        r#"        (name: "SubjectGap", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")],
+            equations: [Require("head.VerbForm", "Finite"), Require("$.Gap", "NP")]),
+        (name: "Raise", lhs: "Raised", rhs: [Cat("inner", "Clause")],
+            equations: [Require("inner.Gap", "NP")], transparent: ["inner"]),
+        (name: "RaisedRelative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "Raised")],
+            equations: [Require("modifier.Gap", "NP")]),
+    ],
+    schemas:"#,
+    );
+    let grammar = bind(&grammar, &lexicon, SEE_BOTH).unwrap();
+    let gaps = |text: &str, category: &str| -> Vec<Gap> {
+        let mut found = Vec::new();
+        for reading in readings(&grammar, &lexicon, text) {
+            let (realized, constituents) = grammar.constituents(&reading, &lexicon).unwrap();
+            found.extend(
+                constituents
+                    .iter()
+                    .filter(|c| c.category == category && &realized[c.span.clone()] == "you see")
+                    .map(|c| c.gap),
+            );
+        }
+        found
+    };
+    // The subject Gap: *the card [_ sees]*, bound directly or after `Raised`
+    // raises it.
+    let subject = readings(&grammar, &lexicon, "See the card sees.");
+    assert_eq!(subject.len(), 2, "{subject:#?}");
+    // The object Gap of *you see* is raised through `Raised` to the relative.
+    assert!(gaps("See the card you see.", "Raised").contains(&Gap::NP));
+    // A gapless Clause has nothing to raise.
+    let analyzed = lexicon.analyze("you see the card");
+    let raised = grammar.parse_category(&analyzed, "Raised").unwrap();
+    assert_eq!(raised.derivation_count(), 0);
+}
+
 #[test]
 fn unary_cycle_hides_no_finite_sibling() {
     let lexicon = Lexicon::new([noun("card")]).unwrap();

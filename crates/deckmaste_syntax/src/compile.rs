@@ -579,10 +579,16 @@ impl<'a> Binder<'a> {
                 let gap = match value.as_str() {
                     "None" => Gap::None,
                     "NP" => Gap::NP,
+                    "Adjunct" => Gap::Adjunct,
+                    "Pred" => Gap::Pred,
                     other => return Err(context(invalid(format!("unknown gap `{other}`")))),
                 };
                 required_gaps.insert(child.to_owned(), gap);
             }
+        }
+        // `$.Gap` names the Gap the Production introduces (a subject Gap).
+        if let Some(gap) = required_gaps.remove("$") {
+            draft.introduces = gap;
         }
         for symbol in &declaration.rhs {
             let (name, symbol) = match symbol {
@@ -635,8 +641,10 @@ impl<'a> Binder<'a> {
                 SymbolDecl::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
                 SymbolDecl::Punct(c) => ("", Symbol::Punct(*c, Binding::Suffix)),
             };
+            let transparent = declaration.transparent.iter().any(|t| t == name);
             let gap = if let Some(gap) = required_gaps.remove(name) {
-                GapRule::Require(gap)
+                // A transparent child with a required Gap raises it.
+                if transparent { GapRule::Raise(gap) } else { GapRule::Require(gap) }
             } else if declaration.transparent.iter().any(|t| t == name) {
                 GapRule::Transparent
             } else {
@@ -1339,7 +1347,9 @@ impl<'a> Binder<'a> {
                 slots
                     .iter()
                     .enumerate()
-                    .filter(|(_, fill)| gappable && ***fill == SlotFill::NP)
+                    .filter(|(_, fill)| {
+                        gappable && matches!(***fill, SlotFill::NP | SlotFill::Pred)
+                    })
                     .map(|(i, _)| Some(i)),
             )
             .collect();
@@ -1376,8 +1386,8 @@ impl<'a> Binder<'a> {
                     draft.predicative = Some(child);
                 }
             }
-            if gap.is_some() {
-                draft.introduces = Gap::NP;
+            if let Some(i) = gap {
+                draft.introduces = if *slots[i] == SlotFill::Pred { Gap::Pred } else { Gap::NP };
             }
             if let Some((feature, value)) = voice {
                 draft

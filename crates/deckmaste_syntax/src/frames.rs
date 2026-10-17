@@ -62,6 +62,9 @@ pub enum SlotFill {
     LocativeNP,
     Clause(ClauseKind),
     ToInf,
+    /// A *to*-infinitival with an object Gap its verb's Subject fills
+    /// (*costs {1} to cast*).
+    HollowToInf,
     BareInf,
     Gerund,
     KeywordPhrase,
@@ -93,6 +96,7 @@ pub enum SlotKind {
     FiniteClause,
     VerblessClause,
     ToInf,
+    HollowToInf,
     BareInf,
     Gerund,
     KeywordPhrase,
@@ -115,6 +119,7 @@ impl SlotFill {
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::ToInf => SlotKind::ToInf,
+            Self::HollowToInf => SlotKind::HollowToInf,
             Self::BareInf => SlotKind::BareInf,
             Self::Gerund => SlotKind::Gerund,
             Self::KeywordPhrase => SlotKind::KeywordPhrase,
@@ -165,7 +170,10 @@ impl Frame {
             ),
             FrameFamily::TransitiveWithComplement => matches!(
                 shape[..],
-                [(Object, SlotFill::NP), (Complement, SlotFill::LocativeNP)]
+                [
+                    (Object, SlotFill::NP),
+                    (Complement, SlotFill::LocativeNP | SlotFill::HollowToInf)
+                ]
             ),
             FrameFamily::TransitiveWithPP => {
                 matches!(

@@ -50,7 +50,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
 - `Valence { head, phrase, passive, adjectival }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
-  object-Gap variant and, when `passive` names the `by` Closed Word, passive
+  object-Gap and predicative-Gap variant and, when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
   Phrase. When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
@@ -76,6 +76,14 @@ Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
 extraction works across finite, plain, progressive, perfect and passive forms with
 no per-form Productions.
+
+A Gap is an `NP` (an extracted Object or Complement of a preposition), a `Pred`
+(an extracted predicative Complement, *whose turn it is*) or an `Adjunct` (*the
+next time you cast a spell*). Valence introduces `NP` and `Pred` Gaps; an
+authored Production introduces one with `Require("$.Gap", ..)` (a subject Gap).
+`Require("child.Gap", ..)` fills the child's Gap within the mother, unless the
+child is also `transparent`: then the mother takes that Gap over (a purpose
+adjunct whose object a relative clause binds).
 
 ## Lexical classes and notation
 

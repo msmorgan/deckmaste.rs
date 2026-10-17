@@ -30,6 +30,10 @@ pub(crate) enum Extension {
 pub enum Gap {
     None,
     NP,
+    /// An extracted adjunct, as in an adverbial or pied-piped relative clause.
+    Adjunct,
+    /// An extracted predicative Complement (*whose turn it is*).
+    Pred,
 }
 
 /// How a child's Gap relates to its mother's.
@@ -43,6 +47,8 @@ pub(crate) enum GapRule {
     Shared,
     /// The child has exactly this Gap, filled within the mother.
     Require(Gap),
+    /// The child has exactly this Gap, which is the mother's.
+    Raise(Gap),
 }
 
 /// A lexical leaf test.
@@ -444,6 +450,12 @@ impl Production {
                         if summary.gap != gap {
                             return None;
                         }
+                    }
+                    GapRule::Raise(gap) => {
+                        if summary.gap != gap || next.gap.is_some_and(|g| g != Gap::None) {
+                            return None;
+                        }
+                        next.gap = Some(gap);
                     }
                     GapRule::Transparent => {
                         if summary.gap != Gap::None {
