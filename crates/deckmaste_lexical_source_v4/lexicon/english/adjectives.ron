@@ -32,7 +32,8 @@
     "innocent",
     "last",
     "following",
-    "left",
+    // Directional *the left half*; predicative *left* is the participle of *leave*.
+    (lemma: "left", position: Some(Attributive)),
     "legal",
     "lesser",
     "lethal",

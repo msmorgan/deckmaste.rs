@@ -221,4 +221,45 @@ impl Lexeme {
         }
         lexeme
     }
+
+    /// Merges each finite Singular slot with the Plural slot of the same form,
+    /// person and spelling into one slot unmarked for number: that verb form
+    /// does not agree in number (*entered*, *can*). Call it after spelling.
+    pub fn merge_number_neutral_forms(&mut self) {
+        let spelled: Vec<Vec<String>> = self
+            .forms
+            .iter()
+            .map(|slot| {
+                slot.surfaces.clone().unwrap_or_else(|| {
+                    vec![crate::default_surface(self, slot.form, &slot.features)]
+                })
+            })
+            .collect();
+        let mut merged = vec![false; self.forms.len()];
+        for singular in 0..self.forms.len() {
+            if self.forms[singular].features.finiteness != Some(crate::Finiteness::Finite)
+                || self.forms[singular].features.number != Some(crate::Number::Singular)
+            {
+                continue;
+            }
+            let plural = crate::FeatureBundle {
+                number: Some(crate::Number::Plural),
+                ..self.forms[singular].features.clone()
+            };
+            let Some(partner) = (0..self.forms.len()).find(|&i| {
+                !merged[i]
+                    && self.forms[i].form == self.forms[singular].form
+                    && self.forms[i].features == plural
+                    && spelled[i] == spelled[singular]
+            }) else {
+                continue;
+            };
+            merged[partner] = true;
+            let slot = &mut self.forms[singular];
+            slot.features.number = None;
+            slot.surfaces = Some(spelled[singular].clone());
+        }
+        let mut merged = merged.into_iter();
+        self.forms.retain(|_| !merged.next().unwrap_or(false));
+    }
 }

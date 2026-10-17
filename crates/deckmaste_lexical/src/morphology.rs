@@ -51,11 +51,11 @@ pub(crate) fn applicable(category: Category, form: WordForm, features: &FeatureB
                 && features.tense.is_none()
                 && features.case.is_none()
         }
+        // A finite form spelled alike in both numbers may leave number unmarked.
         WordForm::Present | WordForm::Preterite => {
             category == Category::Verb
                 && features.finiteness == Some(Finiteness::Finite)
                 && features.person.is_some()
-                && features.number.is_some()
                 && features.case.is_none()
                 && features.tense
                     == Some(if form == WordForm::Present { Tense::Present } else { Tense::Past })

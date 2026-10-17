@@ -839,7 +839,14 @@ impl Sources {
 fn mark_lexical_adjectival_passives(lexemes: &mut [Lexeme]) -> Result<(), SourceError> {
     let lexicon = Lexicon::new(lexemes.to_vec())?;
     let mut marked = std::collections::BTreeSet::new();
-    for adjective in lexemes.iter().filter(|l| l.category == Category::Adjective) {
+    // An attributive-only homograph (*the left half*) is no predicative
+    // Adjectival Passive.
+    let predicative = |l: &&Lexeme| {
+        l.properties.features.get("AdjectivePosition").map(String::as_str) != Some("Attributive")
+    };
+    for adjective in
+        lexemes.iter().filter(|l| l.category == Category::Adjective).filter(predicative)
+    {
         let analyzed = lexicon.analyze(&adjective.lemma);
         for found in &analyzed.matches {
             if let deckmaste_lexical::LexicalReading::Word(word) = &found.reading

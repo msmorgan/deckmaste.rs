@@ -57,9 +57,9 @@
     (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Monotransitive]),
     (lemma: "follow", frames: [Monotransitive]),
     (lemma: "gain", frames: [Monotransitive, Transitive(KeywordPhrase)]),
-    // *gets +2/+2* is a predicative complement; *get an emblem* an object.
+    // Oracle *get* takes only an object: *gets +2/+2*, *get an emblem*.
     (lemma: "get", preterite: "got", past_participle: "gotten", gerund: "getting",
-        frames: [Monotransitive, Copular]),
+        frames: [Monotransitive]),
     (lemma: "give", preterite: "gave", past_participle: "given",
         frames: [Monotransitive, Ditransitive]),
     (lemma: "group", frames: [TransitiveWithPP(["into"])]),

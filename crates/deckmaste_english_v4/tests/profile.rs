@@ -48,11 +48,18 @@ fn each_unit_takes_the_highest_stratum_of_its_families() {
             1,
             "CoreClauseOrPhrase",
         ),
+        // Oracle *get* takes an object, not a predicative complement.
+        (
+            UnitKind::Line,
+            "Target creature gets +2/+2 until end of turn.",
+            1,
+            "CoreClauseOrPhrase",
+        ),
         (UnitKind::Line, "• Draw a card.", 1, "ModeBullet"),
         (UnitKind::Line, "This creature can't block.", 2, "Auxiliary"),
         (
             UnitKind::Line,
-            "Target creature gets +2/+2 until end of turn.",
+            "Target creature becomes blue until end of turn.",
             2,
             "PredicativeComplement",
         ),

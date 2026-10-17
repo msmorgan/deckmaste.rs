@@ -208,6 +208,7 @@ impl Builder {
                 return Err(invalid(&format!("no {:?} slot to spell", slot.form)));
             }
         }
+        lexeme.merge_number_neutral_forms();
         if auxiliary {
             lexeme
                 .properties

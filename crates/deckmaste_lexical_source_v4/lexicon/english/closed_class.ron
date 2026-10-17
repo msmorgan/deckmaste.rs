@@ -24,7 +24,7 @@
         (number: Plural, countability: Count, lemma: "many", frames: [Complement(PP(["of"]))]),
         (lemma: "more", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (lemma: "most"),
-        (countability: Mass, lemma: "much", frames: [Complement(PP(["of"]))]),
+        (number: Singular, countability: Mass, lemma: "much", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "neither", distribution: Distributive),
         (lemma: "no"),
         // The independent form of *no* (CGEL p. 356).
@@ -77,15 +77,12 @@
             (person: Third, number: Plural, case: Nominative, surfaces: "there"),
         ]),
         // Oracle *they* refers to one player or to several objects, but as the
-        // source of subject-verb agreement it is plural only (CGEL p. 494):
+        // source of agreement it is plural in every case (CGEL p. 494):
         // *each player sacrifices a creature they control*.
         (lemma: "they", forms: [
             (person: Third, number: Plural, case: Nominative, surfaces: "they"),
-            (person: Third, number: Singular, case: Accusative, surfaces: "them"),
             (person: Third, number: Plural, case: Accusative, surfaces: "them"),
-            (person: Third, number: Singular, case: Genitive, surfaces: "their"),
             (person: Third, number: Plural, case: Genitive, surfaces: "their"),
-            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "theirs"),
             (form: IndependentGenitive, person: Third, number: Plural, case: Genitive, surfaces: "theirs"),
         ]),
         // Relative *which* does not inflect for case.
@@ -94,13 +91,12 @@
             (person: Third, number: Plural, surfaces: "which"),
         ]),
         // *Whose* is the genitive of relative *who* and *which* alike (CGEL p. 1050).
+        // Only subject *who* agrees with a verb, so only it varies in number.
         (lemma: "who", forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "who"),
             (person: Third, number: Plural, case: Nominative, surfaces: "who"),
             (person: Third, number: Singular, case: Accusative, surfaces: "whom"),
-            (person: Third, number: Plural, case: Accusative, surfaces: "whom"),
             (person: Third, number: Singular, case: Genitive, surfaces: "whose"),
-            (person: Third, number: Plural, case: Genitive, surfaces: "whose"),
         ]),
         // Oracle "you" is always one player.
         (lemma: "you", forms: [

@@ -40,8 +40,14 @@ judgment left after the Stratum 2 landing (`lrpolpnz`) in
    commander.`, `Ozox can't block.`) or a scalar variable/number (`X can't be
    0.`) is the subject of a modal (`can`, `can't`, `may`, `must`, `will`) or a
    preterite verb (`entered`, `dealt`), it matches both `(Third, Singular)` and
-   `(Third, Plural)` verb slots, producing 2 duplicate derivations. Require
-   `$.Number = Singular` on both `ProperName` and `NumericNounPhrase`.
+   `(Third, Plural)` verb slots, producing 2 duplicate derivations. Card names
+   can be plural (`The Fantastic Four deal`, `Aang and Katara enter`), so
+   `ProperName` stays unmarked for number; instead a finite verb form spelled
+   alike in both numbers is one slot unmarked for `Number`
+   (`Lexeme::merge_number_neutral_forms`, by owner decision). Require
+   `$.Number = Singular` on `NumericNounPhrase`, with `Amount` carrying its
+   numeral-noun agreement as `QuantityNumber` so that a plural numeral (`0`,
+   `2`) is still a singular Noun Phrase.
 4. **Duplicate `Singular` and `Plural` slots on `pronoun:they` (`them`,
    `their`, `theirs`) and relative `whom`/`whose` (`closed_class.ron`):**
    `closed_class.ron` restricts nominative `"they"` to `Plural` (CGEL Ch. 5
@@ -64,9 +70,10 @@ judgment left after the Stratum 2 landing (`lrpolpnz`) in
    `this`, `that`, `no`, `some`, `your`, `its`, `their`) matches both
    `Determined` and `DeterminedMass` (`any time`, `this combat`, `the power`,
    `your life`). Give `det:much` `number: Singular` in `closed_class.ron` and
-   unify `Determined` + `DeterminedMass` into a single `Determined` production
-   (and `PredeterminerCount` + `PredeterminerMass` into a single `Predeterminer`
-   production).
+   unify `Determined` + `DeterminedMass` into a single `Determined` production.
+   Keep `PredeterminerCount` and `PredeterminerMass` separate but disjoint by
+   number (plural head vs singular mass head), so that `*all the card` stays
+   excluded.
 6. **Homographic `Adjective` vs `AttributiveNoun` premodifiers (`nouns.ron`):**
    Color words (`white`, `blue`, `black`, `red`, `green`) and positional words
    (`top`, `bottom`) are declared in both `adjectives.ron` and `nouns.ron` with
@@ -101,3 +108,6 @@ judgment left after the Stratum 2 landing (`lrpolpnz`) in
   `them`) have no duplicate derivations from the sources above.
 
 Standard constraints apply.
+
+Census delta (`lrpolpnz` → this landing): faces read 9,501 → 9,499; total Readings 108,004 → 86,439; lost faces: Gaze of the Gorgon, Venomous Breath (Stratum 6; read only through an irrealis *were* conjunct under a demonstrative *that* subject). Strata 0–2: 59,621/59,621 units read, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–2 pass (1,388 enforced, 1,595 pending), with `* {U}{B} were spent.` restored; tests and clippy pass for deckmaste_lexical, deckmaste_lexical_source_v4, deckmaste_syntax and deckmaste_english_v4; citation checks pass.

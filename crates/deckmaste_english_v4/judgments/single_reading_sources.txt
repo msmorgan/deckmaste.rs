@@ -1,0 +1,13 @@
+# Former sources of duplicate Readings, one Reading each: object-only get, plural they, determined dual-countability nouns, adjectival color premodifiers, singular numeric and number-neutral finite verbs with names
++ Target creature gets +2/+2 until end of turn. => NounPhrase "+2/+2" as Object of get; readings 1
++ You get {E}{E}. => NounPhrase "{E}{E}" as Object of get; readings 1
++ X can't be 0. => NounPhrase "X" as Subject of can; readings 1
++NounPhrase any time => DeterminerPhrase "any" as Determiner of time; readings 1
++NounPhrase your life => readings 1
++NounPhrase the top card of your library => AdjectivePhrase "top"; readings 1
++ Create a 3/3 green Elephant creature token. => AdjectivePhrase "green"; readings 1
++ Return them to their owner's hand. => readings 1
++ <card=Ozox, the Clattering King> Ozox, the Clattering King can't block. => NounPhrase "Ozox, the Clattering King" as Subject of can; readings 1
++ <card=Ozox, the Clattering King> Ozox, the Clattering King entered the battlefield this turn. => NounPhrase "Ozox, the Clattering King" as Subject of enter; readings 1
++ <card=The Fantastic Four> The Fantastic Four deal 3 damage to each opponent. => NounPhrase "The Fantastic Four" as Subject of deal
+* It were tapped.

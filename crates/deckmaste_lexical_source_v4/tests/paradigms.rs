@@ -44,11 +44,13 @@ fn every_verb_has_its_full_paradigm() {
         })
         .collect();
     for lexeme in lexemes.iter().filter(|l| l.category == Category::Verb) {
+        // A finite slot unmarked for Number fills both numbers' cells.
         let has = |form: WordForm, person: Option<Person>, number: Option<Number>| {
             lexeme.forms.iter().any(|slot| {
                 slot.form == form
                     && slot.features.person == person
-                    && slot.features.number == number
+                    && (slot.features.number == number
+                        || (person.is_some() && slot.features.number.is_none()))
             })
         };
         let id = lexeme.id.to_string();

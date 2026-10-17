@@ -21,7 +21,8 @@
     "blocker",
     "booster",
     "box",
-    (lemma: "bottom", frames: [Complement(PP(["of"]))]),
+    // *on the bottom of*; prenominal *bottom* is the adjective.
+    (lemma: "bottom", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "card",
     "chapter",
     "characteristic",
@@ -129,7 +130,8 @@
     "tie",
     (lemma: "time", kind: Temporal, countability: [Count, Mass]),
     "token",
-    (lemma: "top", frames: [Complement(PP(["of"]))]),
+    // *on top of*; prenominal *top* is the adjective.
+    (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     (lemma: "toughness", countability: [Count, Mass], frames: [Complement(PP(["of"])), Complement(Amount)]),
     (lemma: "turn", kind: Temporal),
     "type",
@@ -141,12 +143,13 @@
     "word",
     "zone",
 
-    //The five colors as nouns: "devotion to blue", "a color other than white".
-    (lemma: "black", countability: [Mass]),
-    (lemma: "blue", countability: [Mass]),
-    (lemma: "green", countability: [Mass]),
-    (lemma: "red", countability: [Mass]),
-    (lemma: "white", countability: [Mass]),
+    // The five colors as nouns: "devotion to blue", "a color other than white".
+    // Prenominal *green* is the adjective.
+    (lemma: "black", countability: [Mass], distribution: HeadOnly),
+    (lemma: "blue", countability: [Mass], distribution: HeadOnly),
+    (lemma: "green", countability: [Mass], distribution: HeadOnly),
+    (lemma: "red", countability: [Mass], distribution: HeadOnly),
+    (lemma: "white", countability: [Mass], distribution: HeadOnly),
 
     // Multiword rules terms, each one Lexeme.
     (lemma: "color identity", frames: [Complement(PP(["of"]))]),

@@ -15,9 +15,12 @@ dependency. The governing contract is
 A `Lexeme` carries its stable identity, category, source, grammatical properties
 and frames. Each form declaration pairs one complete feature bundle with a
 default realization or explicit replacing spelling alternatives. Person, Number,
-Tense, Finiteness and Word Form remain separate. Equal spellings retain distinct
-bundles and identities. Missing dimensions are not expanded into guessed values.
-Finite verb bundles require all applicable agreement and tense dimensions.
+Tense, Finiteness and Word Form remain separate. Missing dimensions are not
+expanded into guessed values. Finite verb bundles require Person and Tense. A
+finite verb form spelled alike in both numbers (*entered*, *can*) is one bundle
+unmarked for Number, since it does not agree in number;
+`Lexeme::merge_number_neutral_forms` merges such slots. Other equal spellings
+retain distinct bundles and identities.
 
 The one default algorithm for each inflection is:
 
