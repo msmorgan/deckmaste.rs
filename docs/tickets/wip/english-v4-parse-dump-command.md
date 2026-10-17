@@ -32,3 +32,6 @@ derivations without writing one-off scratch binaries:
   constituent structure.
 
 Standard constraints apply.
+
+Census delta (`vutvxqqo`): not applicable; this inspection command changes neither grammar nor census behavior, so no before/after census was run.
+Judgment set (`vutvxqqo`): `cargo test -p deckmaste_english_v4 --test judgments` — 6 passed.

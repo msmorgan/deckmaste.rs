@@ -133,6 +133,33 @@ the lexical environment; it is not an attachment-policing feature. The
 `Pawprint` singleton likewise distinguishes a mode-count symbol from a cost
 symbol. Both classes are authored with the symbols in the lexical data.
 
+## Inspecting a parse
+
+```sh
+cargo xtask english-v4 parse "+ <card=Seedborn Muse> Untap all permanents you control."
+cargo xtask english-v4 parse --limit 2 'Destroy target creature.' '+NounPhrase target creature => NounPhrase "target creature" head creature' '*PrepositionPhrase target creature'
+```
+
+Quote each input separately. Inputs use the [judgment-entry syntax](judgments/README.md),
+including category roots, card scopes and assertions. Bare Oracle text is parsed
+as a positive entry at the grammar root. Balanced reminder text is stripped.
+Each argument must contain one entry.
+
+The command prints the profiled Stratum and Syntactic Families, vocabulary gaps,
+and the Packed Forest's total derivation count. Explicit `+`/`*` entries and
+inputs with assertions also print the judgment Outcome. Outcomes use the full
+judgment evaluator, including its round-trip checks and 4096-derivation limit;
+`--limit` only limits the display, not assertion evaluation.
+
+Up to eight cheapest admitted Readings are shown by default. `--limit 0` prints
+only the summary. Each Reading includes its realized text, Production Cost and
+a constituent table: preorder node index (root 0), parent, Production id,
+Category, byte span and surface in the realized text, grammatical function,
+head lemma and lexeme id, and Gap. Judgment failures and unknown Categories are
+reported without stopping later inputs; malformed entries and operational
+errors fail the command. The dump is diagnostic output, not tracked judgment
+evidence.
+
 ## Judgment set
 
 [`judgments/`](judgments/README.md) holds the hand-written judgments, one line

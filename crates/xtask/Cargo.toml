@@ -14,6 +14,7 @@ flate2 = "1.1.2"
 deckmaste_card = { version = "0.1.0", path = "../deckmaste_card" }
 deckmaste_catalogs = { version = "0.1.0", path = "../deckmaste_catalogs" }
 deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
+deckmaste_syntax = { version = "0.1.0", path = "../deckmaste_syntax" }
 deckmaste_english_v4 = { version = "0.1.0", path = "../deckmaste_english_v4" }
 deckmaste_lexical_source_v4 = { version = "0.1.0", path = "../deckmaste_lexical_source_v4" }
 deckmaste_english_v3 = { path = "../deckmaste_english_v3" }
