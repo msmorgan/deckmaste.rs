@@ -875,7 +875,13 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                         && a.frames.iter().any(|f| family.contains(&f.family))
                 })
         };
-        if !auxiliary && verb_frames(&[FrameFamily::Copular, FrameFamily::ComplexTransitive]) {
+        if !auxiliary
+            && verb_frames(&[
+                FrameFamily::Copular,
+                FrameFamily::ComplexTransitive,
+                FrameFamily::Idiom,
+            ])
+        {
             families.insert(PREDICATIVE);
         }
         // A bare-infinitival or gerund-participial complement; *to*

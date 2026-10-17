@@ -110,3 +110,6 @@ all ten read, the census lists them as regressions at the completed Stratum.
   - `exiled with …` and `onto the battlefield tapped` (`VerbPhrase "exiled with …"` as Modifier of `card`; `AdjectivePhrase "tapped"` as Adjunct of `put`, `!VerbPhrase "tapped" as Modifier of battlefield`).
 
 Standard constraints apply.
+
+Census delta (`mnxvypwy` → this landing): faces read 9,926 → 9,931; total Readings 94,937 → 93,673; lost faces: none. Strata 0–3: 62,561/62,561 units read, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–3 pass (1,605 enforced, 1,418 pending); tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4 and xtask; citation checks pass.

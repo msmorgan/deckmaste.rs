@@ -560,7 +560,9 @@ impl Judge<'_> {
 /// Gap of its clause). The Gap is bound at its lowest gapless ancestor `A`:
 /// when the gapped child of `A` is its head (Right Node Raising), the
 /// Antecedent is a sibling of that child; otherwise `A` modifies a
-/// head, which is the Antecedent (a relative clause and its nominal).
+/// head, which is the Antecedent (a relative clause and its nominal), or a
+/// Verb Phrase whose Object's nominal is the Antecedent (a postposed relative
+/// clause).
 fn has_antecedent(reading: &Located, index: usize, antecedent: &str) -> bool {
     let cs = &reading.constituents;
     let mut child = index;
@@ -589,11 +591,38 @@ fn has_antecedent(reading: &Located, index: usize, antecedent: &str) -> bool {
     };
     let spelled = |c: &Constituent| reading.text.get(c.span.clone()) == Some(antecedent);
     let children = |of: usize| cs.iter().filter(move |c| c.parent == Some(of));
+    let child_of = |of: usize, function: &str| {
+        (0..cs.len()).find(|&c| cs[c].parent == Some(of) && cs[c].function == function)
+    };
     if cs[child].function == "head" {
-        children(binder).any(|c| c.function != "head" && spelled(c))
-    } else {
-        cs[binder]
-            .parent
-            .is_some_and(|host| children(host).any(|c| c.function == "head" && spelled(c)))
+        return children(binder).any(|c| c.function != "head" && spelled(c));
     }
+    let Some(host) = cs[binder].parent else {
+        return false;
+    };
+    if children(host).any(|c| c.function == "head" && spelled(c)) {
+        return true;
+    }
+    if cs[host].category != "VerbPhrase" {
+        return false;
+    }
+    // The Object of the host's head Verb Phrase, down to its head nominal.
+    let mut verb = host;
+    let object = loop {
+        if let Some(object) = child_of(verb, "object") {
+            break object;
+        }
+        let Some(head) = child_of(verb, "head") else {
+            return false;
+        };
+        verb = head;
+    };
+    let mut nominal = object;
+    while cs[nominal].category == "NounPhrase" {
+        let Some(head) = child_of(nominal, "head") else {
+            return false;
+        };
+        nominal = head;
+    }
+    spelled(&cs[nominal])
 }

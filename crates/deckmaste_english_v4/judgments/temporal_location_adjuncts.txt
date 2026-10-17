@@ -1,0 +1,12 @@
+# Noun Phrase Adjuncts of temporal location (CGEL, Ch. 8 §6.3, p. 698): a period noun with a deictic or distributive determinative; serial *time* with any determinative; a temporal nominal bounded by a relative clause. A period noun with an article or genitive is an ordinary Noun Phrase.
++ End the turn. => NounPhrase "the turn" as Object of end; readings 1
++ You win the game. => NounPhrase "the game" as Object of win; readings 1
++ <card=Vanguard of the Restless> Spirits you control get +1/+1 for each time you've cast your commander from the command zone this game. => NounPhrase "this game"; Clause "you've cast your commander from the command zone this game" gap "time"
++NounPhrase each opponent dealt combat damage this game by a creature named Gollum, Obsessed Stalker => NounPhrase "this game" as Adjunct of deal
++ <card=Kurbis, Harvest Celebrant> Remove a +1/+1 counter from Kurbis: Prevent all damage that would be dealt this turn to another target creature with a +1/+1 counter on it. => NounPhrase "this turn" as Adjunct of deal; PrepositionPhrase "to another target creature with a +1/+1 counter on it" as Complement of deal; !NounPhrase "this turn to another target creature" as Adjunct of deal; !NounPhrase "this turn to another target creature with a +1/+1 counter on it" as Adjunct of deal
++ You may look at the top card of your library any time. => NounPhrase "any time" as Adjunct of look
++ While voting, you may vote an additional time. => NounPhrase "an additional time" as Adjunct of vote
++ Investigate three times. => NounPhrase "three times" as Adjunct of investigate; readings 1
++ Each opponent can cast spells only any time they could cast a sorcery. => NounPhrase "only any time they could cast a sorcery" as Adjunct of cast; Clause "they could cast a sorcery" gap "time"
++ The next time a source of your choice would deal damage to you this turn, prevent that damage. => NounPhrase "The next time a source of your choice would deal damage to you this turn" as Adjunct of prevent; Clause "a source of your choice would deal damage to you this turn" gap "next time"
++ It doesn't untap during its controller's next two untap steps. => NounPhrase "its controller's next two untap steps" as Complement of during

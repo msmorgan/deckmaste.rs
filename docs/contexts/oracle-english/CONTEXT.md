@@ -481,6 +481,12 @@ A Noun Phrase in which a relative word combines the antecedent and the
 relativised element (*whichever comes first*) (CGEL, Ch. 12 §6, p. 1068).
 _Avoid_: free relative
 
+**Postposed Relative Clause**:
+A Relative Clause placed at the end of the Clause containing its antecedent,
+separated from it by other material (*Choose a card at random [that was exiled
+with ...]*) (CGEL, Ch. 12 §4, p. 1066).
+_Avoid_: extraposed relative
+
 **Verbless Clause**:
 A Clause whose Predicate contains no verb; a reducible Clause Complement of a
 Preposition may also omit its Subject (CGEL, Ch. 14 §10(b), p. 1267).
@@ -609,6 +615,11 @@ two creatures*) (CGEL, Ch. 5 §3.4, p. 353).
 A Determinative selecting individual members or groups, such as *each* or
 *every*. A quantified group selected by a singular distributive has singular
 external Agreement (*every two turns is ...*) (CGEL, Ch. 5 §3.4, p. 354).
+
+**Deictic Determinative**:
+A Determinative locating its referent relative to the point of reference, such
+as *this*, *that*, *last* or *next* (*this turn*, *next turn*) (CGEL, Ch. 8
+§6.3, p. 698).
 
 **Determinative Phrase**:
 A phrase headed by a Determinative, including cardinal determinatives.
@@ -794,6 +805,11 @@ _Avoid_: Verb Phrase for the schema; Verb Frame for an instantiated phrase
 The kind of a Subcategorization Frame, named by the shape of its Frame Slots,
 such as intransitive, monotransitive, ditransitive or copular.
 
+**Verb Idiom**:
+A Verb Frame whose Complements include a fixed Preposition, as phrasal-copular
+*come up* with a predicative Complement (*comes up heads*) (CGEL, Ch. 4 §6.3,
+p. 288).
+
 **Selected Frame** (project term):
 The one Subcategorization Frame of its head that a Constituent realizes.
 
@@ -942,6 +958,15 @@ Ch. 8 §2.2, pp. 673–675).
 **Frequency Adjunct**:
 An Adjunct that quantifies occurrences of a situation, such as *X times* or
 *twice* (CGEL, Ch. 8 §9, pp. 713–716).
+
+**Temporal Noun Phrase Adjunct**:
+A Noun Phrase functioning as an Adjunct of temporal location or frequency. A
+period noun (*turn*, *game*, *combat*, *step*, *phase*) forms one only with a
+Deictic or Distributive Determinative (*this turn*, *each combat*); with an
+article or genitive it is an ordinary Noun Phrase (*End the turn*). Serial
+*time* forms one with any Determinative (*any time*, *an additional time*,
+*three times*), and either kind does with a Relative Clause (*the next time you
+cast a spell*) (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).
 
 **Duration Phrase**:
 An Adjunct that bounds how long the effect of its Clause lasts, such as *until

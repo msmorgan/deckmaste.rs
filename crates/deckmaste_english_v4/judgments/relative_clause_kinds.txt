@@ -16,3 +16,7 @@
 + <card=Rain of Riches> The first spell you cast each turn that mana from a Treasure was spent to cast has cascade. => RelativeClause "that mana from a Treasure was spent to cast" gap "first spell you cast each turn"
 + <card=Sanctum Lurker> Planeswalkers you control aren't put into their owners' graveyards for having 0 loyalty. => NounPhrase "0 loyalty" as Object of have
 + Starting with the next opponent in turn order, each player chooses a creature you don't control. => PrepositionPhrase "in turn order"; NounPhrase "turn order"
++ <card=Skyship Weatherlight> {4}, {T}: Choose a card at random that was exiled with Skyship Weatherlight. Put that card into its owner's hand. => NounPhrase "a card" as Object of choose; PrepositionPhrase "at random" as Adjunct of choose; RelativeClause "that was exiled with Skyship Weatherlight" gap "card"
++ <card=Metzali, Tower of Triumph> {2}{W}, {T}: Choose a creature at random that attacked this turn. Destroy that creature. => NounPhrase "a creature" as Object of choose; RelativeClause "that attacked this turn" gap "creature"
++ Discard a card at random. => PrepositionPhrase "at random" as Adjunct of discard; readings 1
++ <card=Clay Champion> This creature enters with three +1/+1 counters on it for each {G}{G} spent to cast it. => NounPhrase "each {G}{G} spent to cast it" as Complement of for; Nominal "{G}{G} spent to cast it"; VerbPhrase "spent to cast it"

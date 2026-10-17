@@ -1,0 +1,4 @@
+# A verb idiom with a fixed preposition among its Complements: phrasal-copular *come up* with a predicative Complement (CGEL, Ch. 4 §6.3, p. 288)
++ <card=Ral Zarek> −7: Flip five coins. Take an extra turn after this one for each coin that comes up heads. => PrepositionPhrase "up" as Complement of come; NounPhrase "heads" as PredicativeComplement of come; RelativeClause "that comes up heads" gap "coin"
++Clause the coin comes up heads => NounPhrase "heads" as PredicativeComplement of come
++ <card=Rakdos, the Showstopper> Destroy each creature whose coin comes up tails. => NounPhrase "tails" as PredicativeComplement of come

@@ -133,8 +133,21 @@ battlefield attacking*). A temporal Noun Phrase may be preposed (*This turn,
 ...*) or postmodify a temporal nominal (*the first time each turn*). *Cost*
 selects a hollow *to*-infinitival (*costs {0} to cast*), and a purpose adjunct
 may contain the Gap a relative clause binds (*the first spell that mana from a
-Treasure was spent to cast*). Ten Stratum 3 units are deferred to
-`english-v4-stratum-3-residual`.
+Treasure was spent to cast*).
+
+A temporal Noun Phrase Adjunct is a period noun with a deictic or distributive
+determinative and no postmodifier (*this turn*, *each combat*, *this game*),
+serial *time* with any determinative (*any time*, *an additional time*, *three
+times*), or a temporal nominal with a relative clause (*the next time you cast a
+spell*); *the turn* and *your turn* are ordinary Noun Phrases. A marked relative
+clause may be postposed past a predicate adjunct, its Antecedent the Object that
+fills the verb's Gap (*Choose a card at random that was exiled with ...*),
+ranked behind the relative in place. A single postpositive participle ranks
+behind a participial clause and is never a status adjective's verb (*onto the
+battlefield tapped* has only the depictive *tapped*). A copular verb takes a
+central adverb before its predicative Complement (*become no longer
+suspected*); a symbol sequence takes a postmodifier (*each {G}{G} spent to cast
+it*); a bracketed loyalty symbol is also a counted noun (*an additional [+1]*).
 Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the
 stratum of their payload.
 

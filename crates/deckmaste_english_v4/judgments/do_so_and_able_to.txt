@@ -14,7 +14,7 @@
 *Clause You can't so.
 *Clause You can't all so.
 *Clause You do and can't so.
-+Nominal creatures tapped
++Nominal creatures tapped this way => VerbPhrase "tapped this way" as Modifier of creature
 # ellipsis after "do" and verbless "if able"
 + If you do, draw a card. => PrepositionPhrase "If you do" as Adjunct of draw; Clause "you do"; VerbPhrase "do" head do
 + If a player does, draw a card. => PrepositionPhrase "If a player does" as Adjunct of draw; Clause "a player does"; VerbPhrase "does" head do
