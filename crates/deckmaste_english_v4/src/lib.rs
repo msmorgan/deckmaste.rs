@@ -38,7 +38,7 @@ pub mod profile;
 /// The highest Complexity Stratum whose gate has been met, if any. Judgments
 /// at or below it are enforced, and the census reports a unit at or below it
 /// that is not read as a regression.
-pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(2);
+pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(3);
 
 /// The directory of the judgment set.
 #[must_use]

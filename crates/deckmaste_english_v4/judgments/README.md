@@ -51,7 +51,7 @@ An assertion is one of:
 | `Category "surface"#2` | the same, at the second occurrence of the surface as whole words in the text |
 | `... head LEMMA` | and its head word is LEMMA |
 | `... as FUNCTION of LEMMA` | and it bears FUNCTION in a phrase whose head word is LEMMA |
-| `... gap "surface"` | and it contains a Gap whose Antecedent spans that surface |
+| `... gap "surface"` | and it contains or binds a Gap whose Antecedent spans that surface |
 | `!<assertion>` | no Reading at all satisfies the assertion |
 | `readings N` | the expression has exactly N Readings |
 

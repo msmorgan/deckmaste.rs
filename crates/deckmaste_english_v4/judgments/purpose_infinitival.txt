@@ -4,7 +4,7 @@
 + Converge — Put X +1/+1 counters on target creature, where X is the number of colors of mana spent to cast this spell. => Clause "to cast this spell" as Adjunct of spend
 + When you spend this mana to cast a Dragon creature spell, you gain 2 life. => Clause "to cast a Dragon creature spell" as Adjunct of spend
 + Players can't pay life or sacrifice creatures to cast spells or activate abilities. => Clause "to cast spells or activate abilities"; VerbPhrase "cast spells or activate abilities"
-+ Spend this mana only to cast spells. => Clause "only to cast spells"; Clause "to cast spells" as Adjunct of spend; VerbPhrase "cast spells"
++ Spend this mana only to cast spells. => Clause "only to cast spells" as Adjunct of spend; Clause "to cast spells"; VerbPhrase "cast spells"
 +NounPhrase mana spent to cast this spell => VerbPhrase "spent to cast this spell" as Modifier of mana; VerbPhrase "spent"; Clause "to cast this spell" as Adjunct of spend
 +NounPhrase mana spent
 *Clause to can't cast this spell

@@ -132,7 +132,7 @@ Unit at or below it is read.
 
 **Syntactic Family** (project term):
 A named syntactic pattern owned by one Complexity Stratum, such as a keyword
-line, a contact relative or a trigger clause, recognized in a Corpus Unit from
+line, a bare relative or a trigger clause, recognized in a Corpus Unit from
 its Lexical Analysis.
 _Avoid_: construction family (a Construction pairs form with meaning)
 
@@ -463,6 +463,23 @@ p. 950).
 **Relative Clause**:
 A dependent Clause that modifies a nominal expression or supplements another
 expression, with a relative element connected to a position in the Clause.
+
+**Bare Relative Clause**:
+A Relative Clause introduced by neither a Relative Phrase nor *that*
+(*permanents [you control]*); its relativised element is never the Subject
+(CGEL, Ch. 12 §2.1, p. 1034; §3.1, p. 1037).
+_Avoid_: contact relative, contact clause
+
+**Relative Phrase**:
+The fronted phrase of a *wh* Relative Clause containing the relative word; it
+may be larger than the relativised element (*whose controller*, *for which*)
+(CGEL, Ch. 12 §3.2, p. 1039).
+_Avoid_: pied-piping
+
+**Fused Relative**:
+A Noun Phrase in which a relative word combines the antecedent and the
+relativised element (*whichever comes first*) (CGEL, Ch. 12 §6, p. 1068).
+_Avoid_: free relative
 
 **Verbless Clause**:
 A Clause whose Predicate contains no verb; a reducible Clause Complement of a

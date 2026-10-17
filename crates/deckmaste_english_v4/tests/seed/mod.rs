@@ -211,6 +211,7 @@ pub fn lexicon() -> Lexicon {
         "anywhere",
         "this",
         "none",
+        "whichever",
     ] {
         let mut det = invariant("det", word, Category::Determinative, Core);
         det.properties
@@ -219,6 +220,16 @@ pub fn lexicon() -> Lexicon {
         lexemes.push(det);
     }
     lexemes.push(invariant("sub", "to", Category::Subordinator, Core));
+    // Relative *that* is a subordinator; *which* and *who* are relative pronouns.
+    lexemes.push(invariant("sub", "that", Category::Subordinator, Core));
+    for lemma in ["which", "who"] {
+        let mut relative = pronoun(lemma, Third, None);
+        relative
+            .properties
+            .features
+            .insert("PronounKind".into(), "Relative".into());
+        lexemes.push(relative);
+    }
     for (word, third, preterite) in [
         ("'ve", "'s", None),
         ("haven't", "hasn't", Some("hadn't")),

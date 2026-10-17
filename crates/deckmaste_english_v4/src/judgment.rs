@@ -555,28 +555,37 @@ impl Judge<'_> {
     }
 }
 
-/// Whether the Gap inside Constituent `index` has an Antecedent spelled
-/// `antecedent`. The Gap is bound at its lowest gapless ancestor `A`:
+/// Whether Constituent `index` contains a Gap whose Antecedent is spelled
+/// `antecedent`: a Gap inside it or one it binds (a relative clause binds the
+/// Gap of its clause). The Gap is bound at its lowest gapless ancestor `A`:
 /// when the gapped child of `A` is its head (Right Node Raising), the
 /// Antecedent is a sibling of that child; otherwise `A` modifies a
 /// head, which is the Antecedent (a relative clause and its nominal).
 fn has_antecedent(reading: &Located, index: usize, antecedent: &str) -> bool {
     let cs = &reading.constituents;
-    if cs[index].gap == Gap::None {
-        return false;
-    }
     let mut child = index;
-    let Some(binder) = std::iter::from_fn(|| {
-        let parent = cs[child].parent?;
-        if cs[parent].gap == Gap::None {
-            return Some(Some(parent));
-        }
-        child = parent;
-        Some(None)
-    })
-    .flatten()
-    .next() else {
-        return false;
+    let binder = if cs[index].gap == Gap::None {
+        let Some(gapped) =
+            (0..cs.len()).find(|&c| cs[c].parent == Some(index) && cs[c].gap != Gap::None)
+        else {
+            return false;
+        };
+        child = gapped;
+        index
+    } else {
+        let Some(binder) = std::iter::from_fn(|| {
+            let parent = cs[child].parent?;
+            if cs[parent].gap == Gap::None {
+                return Some(Some(parent));
+            }
+            child = parent;
+            Some(None)
+        })
+        .flatten()
+        .next() else {
+            return false;
+        };
+        binder
     };
     let spelled = |c: &Constituent| reading.text.get(c.span.clone()) == Some(antecedent);
     let children = |of: usize| cs.iter().filter(move |c| c.parent == Some(of));

@@ -40,7 +40,7 @@ replaces each open-class catalog item with a placeholder (`<Subtype>`,
 `<KeywordAction>`, ...). Its Syntactic Families are recognized from lexical
 categories, word forms and declared frames: an outer spine (labels, modal
 headers, bullets, `Cost : Effect`, keyword lines) is Stratum 0, and each family
-inside belongs to its Stratum (an auxiliary to 2, a contact relative to 3, a
+inside belongs to its Stratum (an auxiliary to 2, a bare relative to 3, a
 preposition with a clause complement to 4, a coordinator to 6, *instead* or a
 quoted ability to 7, ...). The unit takes the highest (Max-Stratum Composition
 Rule). The rules are a partition for planning and gating, not a grammar: a
@@ -113,7 +113,28 @@ relatives after keywords and symbols (*with flying that's attacking you*,
 sequence; triggers to Stratum 4, with a keyword used as a verb (*as you
 cascade*); asyndetic participle premodifiers (*nonattacking, nonblocking*) to
 Stratum 6; and optional bracketed Oracle material and metalinguistic mentions
-of a subtype (*with Vampire*) to Stratum 7.
+of a subtype (*with Vampire*) to Stratum 7. A stranded auxiliary whose Verb
+Phrase is understood (*each opponent who can't loses 3 life*) is Ellipsis,
+Stratum 7, like pro-form *do*.
+
+Stratum 3 adds Relative Clauses as Postmodifiers of a nominal, a quantified
+nominal (*the next 3 damage that would be dealt*) or, when marked, a fused head
+(*one that hasn't been chosen*). A bare relative has an object, predicative or
+stranded-preposition Gap; *that* or a relative pronoun also introduces a subject
+Gap, which agrees in number with the antecedent; a *whose* Relative Phrase is
+Subject or fills an object or predicative Gap (*the player whose turn it is*); a
+Preposition Phrase may be fronted with its relative pronoun (*for which*); an
+adverbial relative of a temporal nominal has an Adjunct Gap (*the next time you
+cast a spell*). Fused relatives (*whichever comes first*) are Noun Phrases.
+Gerund-participial and passive past-participial clauses postmodify the same
+hosts and a gerund-participial clause is also a depictive Adjunct (*onto the
+battlefield attacking*). A temporal Noun Phrase may be preposed (*This turn,
+...*), interleaved before a selected Complement (*dealt to it this turn by
+...*) or postmodify a temporal nominal (*the first time each turn*). *Cost*
+selects a hollow *to*-infinitival (*costs {0} to cast*), and a purpose adjunct
+may contain the Gap a relative clause binds (*the first spell that mana from a
+Treasure was spent to cast*). Ten Stratum 3 units are deferred to
+`english-v4-stratum-3-residual`.
 Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the
 stratum of their payload.
 

@@ -67,7 +67,7 @@ fn each_unit_takes_the_highest_stratum_of_its_families() {
             UnitKind::Line,
             "Creatures you control have haste.",
             3,
-            "ContactRelative",
+            "BareRelative",
         ),
         (
             UnitKind::Line,
@@ -112,6 +112,12 @@ fn each_unit_takes_the_highest_stratum_of_its_families() {
             "DiscourseSequencing",
         ),
         (UnitKind::Line, "If you do, draw a card.", 7, "ProFormDo"),
+        (
+            UnitKind::Line,
+            "Each opponent who can't loses 3 life.",
+            7,
+            "Ellipsis",
+        ),
         (
             UnitKind::Line,
             "Enchanted creature has \"{T}: Add {C}.\"",

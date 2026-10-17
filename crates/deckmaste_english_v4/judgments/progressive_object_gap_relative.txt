@@ -1,4 +1,4 @@
-# Contact relative clauses with a progressive object gap (the creature it's blocking), versus subject-gap and past-tense relatives
+# Bare relative clauses with a progressive object gap (the creature it's blocking), versus subject-gap and past-tense relatives
 + <card=Wall of Corpses> {B}, Sacrifice this creature: Destroy target creature this creature is blocking. => RelativeClause "this creature is blocking" gap "creature"
 + <card=Tinder Wall> It deals 2 damage to target creature it's blocking. => RelativeClause "it's blocking" gap "creature"
 + <card=Scorch Spitter> Whenever this creature attacks, it deals 1 damage to the player or planeswalker it's attacking. => RelativeClause "it's attacking" gap "player or planeswalker" || RelativeClause "it's attacking" gap "planeswalker"

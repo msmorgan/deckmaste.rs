@@ -1,8 +1,8 @@
 # Combat as a bare temporal noun phrase (complement of at, until, during, of) and as the noun premodifier in combat damage
 + At the beginning of combat on your turn, you may sacrifice another creature. => PrepositionPhrase "At the beginning of combat on your turn"; PrepositionPhrase "on your turn"; NounPhrase "combat"
 + At the beginning of combat on your turn, target creature you control gets +2/+0 and gains vigilance until end of turn. => PrepositionPhrase "At the beginning of combat on your turn"; PrepositionPhrase "on your turn"; NounPhrase "combat"
-+ Target blocking Wall you control gets +10/+0 until end of combat. => PrepositionPhrase "until end of combat"; NounPhrase "combat"
-+ When this creature attacks or blocks, return it to its owner's hand at end of combat. => PrepositionPhrase "at end of combat"; NounPhrase "combat"
++ Target blocking Wall you control gets +10/+0 until end of combat. => PrepositionPhrase "until end of combat"; NounPhrase "end of combat"
++ When this creature attacks or blocks, return it to its owner's hand at end of combat. => PrepositionPhrase "at end of combat"; NounPhrase "end of combat"
 + Equipped creature can block an additional creature each combat. => NounPhrase "each combat" as Adjunct of block; Nominal "combat"
 + Players can't cast spells during combat. => PrepositionPhrase "during combat" as Adjunct of cast; NounPhrase "combat"
 +Nominal combat damage => Nominal "combat damage"; !Nominal "combat" as Modifier of damage; readings 1

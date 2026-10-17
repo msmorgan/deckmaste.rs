@@ -1,0 +1,18 @@
+# Relative clause kinds: subject and object relatives with that, which and who; whose; a fronted preposition with its relative pronoun; fused relatives; relatives of quantified nominals and fused heads; participial postmodifiers; hollow infinitivals; and a Gap inside a purpose adjunct
++ Destroy each creature that attacked this turn. => RelativeClause "that attacked this turn" as Modifier of creature gap "creature"
++ A player who controls an artifact draws a card. => RelativeClause "who controls an artifact" gap "player"; NounPhrase "A player who controls an artifact" as Subject of draw
++ Exile target creature which an opponent controls. => RelativeClause "which an opponent controls" gap "creature"
++NounPhrase each creature whose controller controls an Island => RelativeClause "whose controller controls an Island" gap "creature"; NounPhrase "whose controller"
++ <card=Obeka, Brute Chronologist> {T}: The player whose turn it is may end the turn. => RelativeClause "whose turn it is" gap "player"; NounPhrase "whose turn"
++NounPhrase each permanent for which they were chosen => RelativeClause "for which they were chosen" gap "permanent"; PrepositionPhrase "for which"
++NounPhrase whichever comes first => NounPhrase "whichever comes first"
++NounPhrase one that hasn't been chosen => RelativeClause "that hasn't been chosen" gap "one"
++ <card=Eye of Ojer Taq> Craft with two that share a card type {6} => RelativeClause "that share a card type" gap "two"
++NounPhrase two +1/+1 counters => !RelativeClause "+1/+1 counters"
++NounPhrase the next 3 damage that would be dealt to you this turn => RelativeClause "that would be dealt to you this turn" gap "next 3 damage"
++NounPhrase a spell targeting this creature => VerbPhrase "targeting this creature" as Modifier of spell
++ <card=Verazol, the Split Current> Verazol enters with a +1/+1 counter on it for each mana spent to cast it. => NounPhrase "each mana spent to cast it"; VerbPhrase "spent to cast it" as Modifier of mana
++ This spell costs {1} to cast. => Clause "to cast" as Complement of cost
++ <card=Rain of Riches> The first spell you cast each turn that mana from a Treasure was spent to cast has cascade. => RelativeClause "that mana from a Treasure was spent to cast" gap "first spell you cast each turn"
++ <card=Sanctum Lurker> Planeswalkers you control aren't put into their owners' graveyards for having 0 loyalty. => NounPhrase "0 loyalty" as Object of have
++ Starting with the next opponent in turn order, each player chooses a creature you don't control. => PrepositionPhrase "in turn order"; NounPhrase "turn order"

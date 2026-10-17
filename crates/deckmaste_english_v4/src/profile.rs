@@ -76,7 +76,7 @@ pub const CATENATIVE: Family = family(2, "CatenativeComplement");
 pub const GERUND_CLAUSE: Family = family(2, "GerundParticipialClause");
 // Stratum 3: relative clauses and gaps.
 pub const RELATIVE: Family = family(3, "RelativeClause");
-pub const CONTACT_RELATIVE: Family = family(3, "ContactRelative");
+pub const BARE_RELATIVE: Family = family(3, "BareRelative");
 pub const PARTICIPIAL_POSTMODIFIER: Family = family(3, "ParticipialPostmodifier");
 pub const ADJECTIVAL_POSTMODIFIER: Family = family(3, "AdjectivalPostmodifier");
 // Stratum 4: subordinate clauses, triggers and conditionals.
@@ -93,6 +93,7 @@ pub const COORDINATION: Family = family(6, "Coordination");
 pub const REPLACEMENT: Family = family(7, "Replacement");
 pub const SEQUENCING: Family = family(7, "DiscourseSequencing");
 pub const PRO_FORM: Family = family(7, "ProFormDo");
+pub const ELLIPSIS: Family = family(7, "Ellipsis");
 pub const ABSOLUTE: Family = family(7, "AbsoluteClause");
 pub const OPTIONAL_BRACKETED_TEXT: Family = family(7, "OptionalBracketedText");
 pub const APPOSITION: Family = family(7, "Apposition");
@@ -106,7 +107,7 @@ const COMPARATIVE_WORDS: &[&str] = &[
     "than", "equal", "greater", "less", "lesser", "fewer", "fewest", "more", "most", "least",
 ];
 const ARITHMETIC_WORDS: &[&str] = &[
-    "plus", "minus", "twice", "half", "double", "triple", "rounded", "times",
+    "plus", "minus", "twice", "half", "double", "triple", "rounded", "round", "times",
 ];
 
 /// The open-class catalog a word comes from, or `Core`.
@@ -808,13 +809,20 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             n.verb_form(&[form]) && !n.has(Category::Noun) && !n.has(Category::Adjective)
         };
         if auxiliary {
+            // An auxiliary whose Verb Phrase is left unsaid: at the end of its
+            // clause, or before the next clause's finite verb (*each opponent
+            // who can't loses 3 life*).
+            let stranded = next(i).is_none_or(|n| {
+                n.is_punct(',')
+                    || n.is_punct('.')
+                    || n.verb_form(&[WordForm::Present, WordForm::Preterite])
+                        && !n.verb_form(&[WordForm::Plain])
+            });
             // Contracted *'s* may be *be* as well as *have*.
             if t.lemma_in(&["do", "have"]) && !t.lemma_in(&["be"]) {
                 // Main-verb *do* and *have* are core clauses; the pro-form is
                 // Stratum 7.
-                if t.lemma_in(&["do"])
-                    && next(i)
-                        .is_none_or(|n| n.is_punct(',') || n.is_punct('.') || n.lemma_in(&["so"]))
+                if t.lemma_in(&["do"]) && (stranded || next(i).is_some_and(|n| n.lemma_in(&["so"])))
                 {
                     families.insert(PRO_FORM);
                 }
@@ -827,6 +835,9 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 }
             } else {
                 families.insert(AUXILIARY);
+                if stranded && !t.lemma_in(&["be"]) {
+                    families.insert(ELLIPSIS);
+                }
             }
             if t.alts().iter().any(|a| {
                 a.lexeme.is_some_and(|l| {
@@ -905,9 +916,20 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         let antecedent = |p: &Tok<'_>| {
             p.nominal() || p.has(Category::Keyword) || p.numeral() || p.class_is(Class::Symbol)
         };
+        // A relative pronoun, after its antecedent or fronted with a
+        // preposition (*each permanent for which*); a fused relative
+        // (*whichever comes first*).
         if t.has(Category::Pronoun)
             && t.lemma_in(&["who", "which"])
-            && previous(i).is_some_and(|p| antecedent(p) || p.is_punct(','))
+            && previous(i).is_some_and(|p| {
+                antecedent(p)
+                    || p.is_punct(',')
+                    || p.has(Category::Preposition)
+                        && i.checked_sub(2)
+                            .and_then(|j| tokens.get(j))
+                            .is_some_and(antecedent)
+            })
+            || t.is(Category::Determinative, "whichever")
         {
             families.insert(RELATIVE);
         }
@@ -954,7 +976,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 && previous(i).is_some_and(|p| p.has(Category::Preposition))
             || t.class_is(Class::Symbol) && previous(i).is_some_and(|p| p.class_is(Class::Symbol));
         if host && !t.has(Category::Adjective) {
-            // A contact relative: nominal, subject, finite verb.
+            // A bare relative: nominal, subject, finite verb.
             if let Some(subject) = next(i) {
                 let verb_at = if subject.has(Category::Pronoun)
                     && tokens.get(i + 2).is_some_and(Tok::finite_verb)
@@ -976,7 +998,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     .is_some_and(Tok::finite_verb)
                     && !subject.lemma_in(&["who", "which", "that"])
                 {
-                    families.insert(CONTACT_RELATIVE);
+                    families.insert(BARE_RELATIVE);
                 }
             }
             // A finite homograph inside a nominal (e.g. `this turn`) is

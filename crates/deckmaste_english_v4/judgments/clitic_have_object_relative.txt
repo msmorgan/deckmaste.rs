@@ -4,11 +4,11 @@
 + <card=Greven, Predator Captain> Greven gets +X/+0, where X is the amount of life you've lost this turn. => RelativeClause "you've lost" gap "life" || RelativeClause "you've lost this turn" gap "life" || RelativeClause "you've lost" gap "amount of life" || RelativeClause "you've lost this turn" gap "amount of life"
 + <card=Knowledge Is Power> Creatures you control get +X/+X, where X is the number of cards you've drawn this turn. => RelativeClause "you've drawn" gap "cards" || RelativeClause "you've drawn this turn" gap "cards" || RelativeClause "you've drawn" gap "number of cards" || RelativeClause "you've drawn this turn" gap "number of cards"
 + <card=Rug of Smothering> Whenever a player casts a spell, they lose 1 life for each spell they've cast this turn. => RelativeClause "they've cast" gap "spell" || RelativeClause "they've cast this turn" gap "spell"
-+NounPhrase the life you have lost this turn => VerbPhrase "lost" as Complement of have; RelativeClause "you have lost" gap "life" || RelativeClause "you have lost this turn" gap "life"; VerbPhrase "lost this turn"
++NounPhrase the life you have lost this turn => RelativeClause "you have lost this turn" gap "life"; VerbPhrase "lost" as Complement of have
 +NounPhrase each card you've cycled or discarded this turn => VerbPhrase "cycled or discarded" as Complement of have; RelativeClause "you've cycled or discarded" gap "card" || VerbPhrase "cycled or discarded" as Complement of have; RelativeClause "you've cycled or discarded this turn" gap "card"
 +RelativeClause you've drawn
 +RelativeClause you have drawn
 + Draw a card if you've cast a spell this turn. => !RelativeClause "you've cast a spell this turn"
 + You've cast a spell this turn. => !RelativeClause "you've cast a spell this turn"
 +NounPhrase the first time you've cast your commander => RelativeClause "you've cast your commander" gap "first time"
-+NounPhrase the second spell you cast this turn => RelativeClause "you cast" gap "spell" || RelativeClause "you cast this turn" gap "spell"
++NounPhrase the second spell you cast this turn => RelativeClause "you cast this turn" gap "second spell"

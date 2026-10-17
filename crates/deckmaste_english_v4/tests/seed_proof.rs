@@ -241,7 +241,7 @@ fn assert_gap(s: &Seed, text: &str, nominal: &str, gapped: &str) {
             .iter()
             .find(|c| c.category == "Nominal" && c.surface == nominal)
             .unwrap_or_else(|| panic!("{text}: no nominal {nominal:?}"));
-        assert_eq!(relative.production, "RelativePostmodifier");
+        assert_eq!(relative.production, "NominalPostmodifier");
         assert!(
             constituents
                 .iter()
