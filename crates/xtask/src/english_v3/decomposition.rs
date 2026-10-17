@@ -898,8 +898,10 @@ mod tests {
             ),
             ("Ward {2}, protection from red", vec!["Ability"]),
             ("Protection from creatures with flying", vec!["Ability"]),
+            // Exercise labeled abilities, not the old misanalysis of Saga
+            // chapter numerals as Flavor Words. Chapters are covered in v4.
             (
-                "I — Draw a card.\nII — Destroy target creature with flying.",
+                "First light — Draw a card.\nLast light — Destroy target creature with flying.",
                 vec!["Sentence", "Sentence"],
             ),
             ("Level up {1}", vec!["Ability"]),
