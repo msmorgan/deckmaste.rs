@@ -32,7 +32,8 @@
     (lemma: "continue", frames: [Intransitive]),
     (lemma: "control", past: "controlled", gerund: "controlling", frames: [Monotransitive]),
     (lemma: "copy", frames: [Monotransitive]),
-    (lemma: "cost", past: "cost", frames: [Monotransitive]),
+    // A hollow *to*-infinitival Complement (CGEL, Ch. 14 §6.3(c), p. 1250).
+    (lemma: "cost", past: "cost", frames: [Monotransitive, TransitiveWithComplement(HollowToInf)]),
     (lemma: "count", frames: [Monotransitive]),
     // Ditransitive for the recipient passive *this creature is dealt damage*.
     (lemma: "deal", past: "dealt",
@@ -52,7 +53,7 @@
     (lemma: "ensue", frames: [Intransitive]),
     (lemma: "enter", frames: [Intransitive, Monotransitive]),
     (lemma: "expend", frames: [Amount]),
-    (lemma: "find", past: "found", frames: [Monotransitive]),
+    (lemma: "find", past: "found", frames: [Monotransitive, TransitiveWithPP(["among"])]),
     (lemma: "finish", frames: [Catenative(Gerund)]),
     (lemma: "flip", past: "flipped", gerund: "flipping", frames: [Monotransitive]),
     (lemma: "follow", frames: [Monotransitive]),

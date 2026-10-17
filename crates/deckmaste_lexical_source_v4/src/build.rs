@@ -431,6 +431,7 @@ impl Resolver<'_> {
             FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
             FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
             FillSpec::ToInf => SlotFill::ToInf,
+            FillSpec::HollowToInf => SlotFill::HollowToInf,
             FillSpec::BareInf => SlotFill::BareInf,
             FillSpec::Gerund => SlotFill::Gerund,
             FillSpec::KeywordPhrase => SlotFill::KeywordPhrase,

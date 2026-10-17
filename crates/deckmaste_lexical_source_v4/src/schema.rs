@@ -79,6 +79,8 @@ pub enum FillSpec {
     FiniteClause,
     VerblessClause,
     ToInf,
+    /// A *to*-infinitival with an object Gap the Subject fills.
+    HollowToInf,
     BareInf,
     Gerund,
     KeywordPhrase,
@@ -397,12 +399,14 @@ pub struct PronounEntry {
     pub forms: Vec<PronounForm>,
 }
 
-/// Personal and existential pronouns have different clause distributions.
+/// Personal, existential and relative pronouns have different clause
+/// distributions: a relative pronoun introduces a relative clause.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 pub enum PronounKind {
     #[default]
     Personal,
     Existential,
+    Relative,
 }
 
 /// An affix or clitic, bound to its host.

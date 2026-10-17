@@ -86,13 +86,13 @@
             (form: IndependentGenitive, person: Third, number: Plural, case: Genitive, surfaces: "theirs"),
         ]),
         // Relative *which* does not inflect for case.
-        (lemma: "which", forms: [
+        (lemma: "which", kind: Relative, forms: [
             (person: Third, number: Singular, surfaces: "which"),
             (person: Third, number: Plural, surfaces: "which"),
         ]),
         // *Whose* is the genitive of relative *who* and *which* alike (CGEL p. 1050).
         // Only subject *who* agrees with a verb, so only it varies in number.
-        (lemma: "who", forms: [
+        (lemma: "who", kind: Relative, forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "who"),
             (person: Third, number: Plural, case: Nominative, surfaces: "who"),
             (person: Third, number: Singular, case: Accusative, surfaces: "whom"),
