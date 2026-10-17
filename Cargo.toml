@@ -95,6 +95,16 @@ opt-level = 2
 [profile.dev.package.deckmaste_english_v3]
 opt-level = 2
 
+# Optimize the v4 chart parser, packed forest, and round-trip verification.
+[profile.dev.package.deckmaste_syntax]
+opt-level = 2
+
+[profile.dev.package.deckmaste_english_v4]
+opt-level = 2
+
+[profile.dev.package.deckmaste_lexical_source_v4]
+opt-level = 2
+
 [profile.dev.package.deckmaste_lexical]
 opt-level = 2
 
