@@ -17,7 +17,6 @@ use std::path::PathBuf;
 use anyhow::Context;
 use clap::Args;
 use clap::Subcommand;
-pub(crate) use lean::registry_definitions;
 
 #[derive(Debug, Args)]
 pub struct FactsArgs {

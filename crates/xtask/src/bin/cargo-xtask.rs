@@ -87,8 +87,7 @@ enum Cmd {
     /// Idris `Core.idr` expression and typecheck it with `idris2 --check`.
     /// One card name = single-card mode; omitted = batch-check the plugin.
     IdrisCheck(IdrisCheckArgs),
-    /// The Lean workbench's gates: `lean check` proves every `plugins_v2`
-    /// card, `lean definitions` every Registry Definition.
+    /// Build the native Lean workbench with warnings treated as errors.
     Lean(LeanArgs),
     /// On-demand "bearings" dumps of current code shape (`enums`/`idris`).
     Map(MapArgs),
@@ -152,10 +151,14 @@ mod tests {
 
     #[test]
     fn lean_command_family_requires_a_subcommand() {
-        for command in ["check", "definitions"] {
-            let cli = Cli::try_parse_from(["cargo xtask", "lean", command]).unwrap();
-            assert!(matches!(cli.command, Cmd::Lean(_)));
+        let cli = Cli::try_parse_from(["cargo xtask", "lean", "check"]).unwrap();
+        assert!(matches!(cli.command, Cmd::Lean(_)));
+        for command in ["definitions", "macros"] {
+            assert!(Cli::try_parse_from(["cargo xtask", "lean", command]).is_err());
         }
+        assert!(
+            Cli::try_parse_from(["cargo xtask", "lean", "check", "plugins_v2/testing"]).is_err()
+        );
         assert!(Cli::try_parse_from(["cargo xtask", "lean"]).is_err());
         assert!(Cli::try_parse_from(["cargo xtask", "lean-check"]).is_err());
         assert!(Cli::try_parse_from(["cargo xtask", "definition-check"]).is_err());

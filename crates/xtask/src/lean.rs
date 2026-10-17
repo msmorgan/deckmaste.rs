@@ -1,20 +1,11 @@
-//! `cargo xtask lean` — the Lean workbench's gates over `plugins_v2` data.
-//!
-//! Three subcommands:
-//!  - `lean check [PLUGIN]…` — the card soundness gate ([`crate::lean_check`]).
-//!  - `lean definitions [PLUGIN]` — the registry definition gate
-//!    ([`crate::definition_check`]).
-//!  - `lean macros generate|check|align` — the Lean macro layer derived from
-//!    the declarations ([`crate::lean_macros`]).
-//!
-//! `facts` stays a top-level command, because it also writes the Idris twin.
+//! `cargo xtask lean check`: build the native Lean workbench.
 
+use std::path::Path;
+use std::process::Command;
+
+use anyhow::Context as _;
 use clap::Args;
 use clap::Subcommand;
-
-use crate::definition_check::DefinitionCheckArgs;
-use crate::lean_check::LeanCheckArgs;
-use crate::lean_macros::LeanMacrosArgs;
 
 #[derive(Debug, Args)]
 pub struct LeanArgs {
@@ -24,26 +15,65 @@ pub struct LeanArgs {
 
 #[derive(Debug, Subcommand)]
 enum LeanCmd {
-    /// The card soundness gate: re-emit every `plugins_v2` card as a Lean
-    /// term and prove `Card.check` empty by `decide`, ratcheted per plugin.
-    /// No plugin named = every plugin under `plugins_v2/` that has cards.
-    Check(LeanCheckArgs),
-    /// The registry definition gate: re-emit every `plugins_v2` Registry
-    /// Definition (counters, subtypes, designations) as a Lean term and prove
-    /// `Definition.check` empty by `decide`, naming every refused one.
-    /// Defaults to `plugins_v2/builtin`.
-    Definitions(DefinitionCheckArgs),
-    /// The Lean macro layer derived from the `plugins_v2/builtin`
-    /// declarations: `generate` writes `lean/Semantics/Macros/Declared.lean`,
-    /// `check` rejects a stale copy, and `align` proves each hand macro with a
-    /// declared namesake equal to it.
-    Macros(LeanMacrosArgs),
+    /// Build the syntax, checker, macros, card bench and proofs; warnings fail.
+    Check,
 }
 
 pub fn run(args: &LeanArgs) -> anyhow::Result<()> {
-    match &args.command {
-        LeanCmd::Check(args) => crate::lean_check::run(args),
-        LeanCmd::Definitions(args) => crate::definition_check::run(args),
-        LeanCmd::Macros(args) => crate::lean_macros::run(args),
+    match args.command {
+        LeanCmd::Check => check(
+            &mut Command::new("lake"),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../lean"),
+        ),
+    }
+}
+
+fn check(lake: &mut Command, workbench: &Path) -> anyhow::Result<()> {
+    let status = lake
+        .current_dir(workbench)
+        .args(["build", "--wfail"])
+        .status()
+        .context("starting the Lean workbench build")?;
+    anyhow::ensure!(status.success(), "Lean workbench build failed: {status}");
+    Ok(())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    fn stub(body: &str) -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let script = dir.path().join("lake.sh");
+        std::fs::write(&script, body)?;
+        let mut command = Command::new("sh");
+        command.arg(&script).env("EXPECTED_WORKBENCH", dir.path());
+        check(&mut command, dir.path())
+    }
+
+    #[test]
+    fn check_builds_the_workbench_with_warnings_as_errors() {
+        stub("test \"$PWD\" = \"$EXPECTED_WORKBENCH\" && test \"$#\" = 2 && test \"$1\" = build && test \"$2\" = --wfail").unwrap();
+    }
+
+    #[test]
+    fn check_propagates_build_failure() {
+        let error = stub("exit 7").unwrap_err();
+        assert!(error.to_string().contains("Lean workbench build failed"));
+    }
+
+    #[test]
+    fn check_propagates_failure_to_start_lake() {
+        let dir = tempfile::tempdir().unwrap();
+        let error = check(
+            &mut Command::new(dir.path().join("missing-lake")),
+            dir.path(),
+        )
+        .unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains("starting the Lean workbench build")
+        );
     }
 }

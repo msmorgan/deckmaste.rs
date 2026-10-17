@@ -15,50 +15,34 @@ semantics inner loop, run `lake build Semantics` from this directory.
 Lean is the active workbench. The [succession decision](../docs/decisions/lean-is-the-workbench.md)
 records the frozen Idris reference and migration history.
 
-## The card soundness gate
+## Workbench gate
 
-`cargo xtask lean check` is the gate over real card data: it re-emits every
-card in each `plugins_v2/` plugin as a fully expanded Lean term, writes them as
-`Generated/<Plugin>.lean` with a `Generated.lean` root, builds them with
-`lake build --wfail Generated`, and reads the per-card verdict off the
-diagnostics. Each card becomes a `def`, a `#guard_msgs`-guarded
-`#eval Card.check <card>`, and a
-`theorem <card>_ok : Card.check <card> = [] := by decide`, so the kernel proves
-the same obligation the pin suites do. The guarded `#eval` is silent for a card
-that checks and prints the exact refusal list for one that does not — `decide`'s
-own message names no refusal, so without it every refuted card would carry the
-same reason. There is no ratchet or baseline: the gate fails outright if any
-card does not prove `Card.check = []`.
+`cargo xtask lean check` runs `lake build --wfail` in `lean/`, the same full
+workbench gate as `lean/scripts/build`. It builds the active syntax, checker,
+macros, card bench and proofs, and propagates build failures.
 
-A card is reported sound only on positive evidence that Lean elaborated it: the
-module's `.olean`, or a diagnostic Lean reported inside that module. `lake`'s
-exit status is read, every diagnostic must land on a card, and each run deletes
-the generated build artifacts first. A build that fails without naming a card,
-a diagnostic in `Generated.lean` or in `Semantics/`, and a module that was
-neither built nor diagnosed are each reported as a gate defect that stops the
-command, never as a verdict.
+The obsolete `plugins_v2` card/definition emitters and macro generator have
+been retired. `lean definitions` and `lean macros generate|check|align` are no
+longer commands. The ported v3 `Semantics/Macros/Declared.lean` is maintained
+in Lean while the replacement DSL is designed; v2 RON output must not
+regenerate it. Existing v2 readers elsewhere remain until their consumers
+are cut over.
 
-The generated tree is untracked and gitignored — it is rebuilt from the plugins
-on every run, and nothing generated is committed. Its `Generated` library is
-deliberately outside `lakefile.toml`'s `defaultTargets`, so `./scripts/build`
-is unchanged and succeeds whether or not `Generated/` is present. The emitted
-term is post-expansion, so `Macros.lean` plays no part and `spelled` — which
-refuses raw constructors by design — is the hand bench's law, not the gate's.
+### Retired tooling tests
 
-## The registry definition gate
+The following tests retired with their implementations. The native Lean
+proofs and card bench continue to run; the new command tests cover successful
+builds, failed builds and failure to launch Lake.
 
-`cargo xtask lean definitions` is `lean check`'s twin over the Registry
-Definitions (`Definition`, `Semantics/Rules.lean`) that `plugins_v2/builtin`
-declares: every counter, subtype and designation is read with the readers
-`cargo xtask facts` uses, emitted as `GeneratedDefinitions/{Counters,Subtypes,
-Designations}.lean` under a `GeneratedDefinitions.lean` root, and proved
-`Definition.check = []` by `decide` with the same guarded `#eval` and the same
-attribution, so a refused definition is named with its refusal list and a
-`lake` failure that names none is a gate defect. It reports a count per family
-and fails if any definition does not prove. Its tree is untracked, its
-`GeneratedDefinitions` library sits outside `defaultTargets` like `Generated`,
-and each run clears its own sources and build outputs first. Both gates run in
-`crates/xtask/tests/lean_check.rs`.
+- `lean_macros` (unit): `every_param_type_has_a_lean_reader`, `every_syntax_kind_has_a_lean_reader`, `the_committed_module_matches_the_declarations`, `a_hole_is_the_whole_argument`.
+- `lean_check` (unit): `a_plugin_directory_names_a_lean_module_component`, `a_lean_diagnostic_keeps_its_position_severity_and_whole_message`, `a_warning_is_a_diagnostic_too_because_the_build_treats_it_as_one`, `a_diagnostic_lands_on_the_card_whose_block_it_sits_in`, `a_card_that_fails_to_elaborate_records_the_failing_head`, `a_diagnostic_above_the_first_card_is_a_gate_defect`, `a_diagnostic_in_a_file_no_card_owns_is_a_gate_defect`, `a_lake_failure_that_names_no_card_is_a_gate_defect`, `a_module_that_was_neither_built_nor_diagnosed_is_a_gate_defect`, `a_report_fails_iff_any_card_did_not_prove`.
+- `definition_check` (unit): `emit_keeps_the_build_cache`.
+- `lean_check` (integration): `the_testing_plugin_proves_every_card`, `a_card_that_breaks_a_card_law_is_singled_out_and_the_gate_fails`, `a_lake_that_fails_without_naming_a_card_stops_the_gate`, `a_real_run_recovers_after_a_stubbed_lake_failure`, `every_builtin_registry_definition_proves`, `a_definition_that_breaks_a_definition_law_is_singled_out_and_the_gate_fails`, `a_lake_that_fails_without_naming_a_definition_stops_the_definition_gate`.
+
+The macro tests checked v2 reader parity, parameter-hole extraction and exact
+v2 regeneration. The card/definition tests checked the retired v2 emitter,
+its diagnostic attribution and generated-file handling. These contracts no
+longer apply to the native v3 workbench.
 
 ## Syntax and macros
 

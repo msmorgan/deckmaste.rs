@@ -23,26 +23,3 @@ roots = ["Semantics.Cards"]
 name = "SemanticsProofs"
 roots = ["Semantics.Proofs"]
 
-# The card soundness gate's emitted cards (`cargo xtask lean check`): untracked,
-# regenerated per run, and deliberately OUTSIDE `defaultTargets` so
-# `./scripts/build` stays the hand workbench's gate and succeeds with no
-# `Generated/` present.
-[[lean_lib]]
-name = "Generated"
-roots = ["Generated"]
-
-# The registry definition gate's emitted definitions (`cargo xtask
-# lean definitions`): untracked and outside `defaultTargets` exactly as
-# `Generated` is, and a library of its own so neither gate clears the other's
-# tree.
-[[lean_lib]]
-name = "GeneratedDefinitions"
-roots = ["GeneratedDefinitions"]
-
-# The macro alignment run's proofs (`cargo xtask lean macros align`): every
-# hand `Semantics.Macros` macro with a declared namesake, proved equal to the
-# generated `Semantics.Macros.Declared` one. Untracked and outside
-# `defaultTargets`, as the two gates above are.
-[[lean_lib]]
-name = "GeneratedMacroAlignment"
-roots = ["GeneratedMacroAlignment"]

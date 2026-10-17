@@ -22,12 +22,10 @@
 !/.claude/hooks/
 # Claude Code's scheduled-wakeup lock is session state, whatever the global ignore says.
 /.claude/scheduled_tasks.lock
-# The Lean gates' emitted terms (`cargo xtask lean-check`, `cargo xtask
-# definition-check`):
-# generated per run from `plugins_v2/`, never committed.
+# Scratch left by the retired v2 Lean emitters remains untracked.
 /lean/Generated/
 /lean/Generated.lean
 /lean/GeneratedDefinitions/
 /lean/GeneratedDefinitions.lean
-# `cargo xtask lean macros align`: the hand-vs-declared alignment proofs.
+# Scratch left by the retired v2 macro alignment command.
 /lean/GeneratedMacroAlignment.lean
