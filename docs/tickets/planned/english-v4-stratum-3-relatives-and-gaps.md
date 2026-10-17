@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-2-valency-passives-and-nonfinites]
+needs: [english-v4-stratum-2-cleanup]
 ---
 # Stratum 3: Relative clauses and frame-derived slash gaps
 
