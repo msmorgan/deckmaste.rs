@@ -123,6 +123,16 @@ pub enum FrameSpec {
     Cost,
     /// The one Complement of a noun, adjective or determinative.
     Complement(FillSpec),
+    /// A verb with a fixed preposition among its Complements: *come up heads*.
+    Idiom(Vec<IdiomPart>),
+}
+
+/// One Complement of an [`FrameSpec::Idiom`], in order.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub enum IdiomPart {
+    /// The fixed preposition, heading its phrase alone.
+    Prep(String),
+    Pred,
 }
 
 /// A replacement for the regular spelling of some inflection slots of a verb.
@@ -367,6 +377,10 @@ pub enum DeterminativeDistribution {
     Independent,
     IndefiniteArticle,
     Distributive,
+    /// Deictic *this*, *that*, *last* and *next*, which with a period noun form
+    /// a Noun Phrase Adjunct of temporal location (*this turn*; CGEL, Ch. 8
+    /// §6.3, p. 698).
+    Deictic,
     /// Selects a singular head or a quantified plural (CGEL, Ch. 5 §3.4, p. 353).
     SingularOrQuantified,
 }
@@ -672,4 +686,8 @@ pub enum NounDistribution {
     DirectMeasure,
     /// Used as a nominal head, with no attributive noun use.
     HeadOnly,
+    /// Serial *time*, counting occasions: a Noun Phrase Adjunct with any
+    /// determinative (*any time*, *an additional time*, *three times*),
+    /// unlike a period noun (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).
+    Serial,
 }

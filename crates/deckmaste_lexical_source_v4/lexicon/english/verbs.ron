@@ -25,7 +25,8 @@
     (lemma: "circle", frames: [Monotransitive]),
     // *whichever comes first*; *come under your control*; *coins come up heads*
     (lemma: "come", preterite: "came", past_participle: "come",
-        frames: [Intransitive, Prepositional(["under", "up"])]),
+        // Phrasal-copular *come up heads* (CGEL, Ch. 4 §6.3, p. 288).
+        frames: [Intransitive, Prepositional(["under", "up"]), Idiom([Prep("up"), Pred])]),
     (lemma: "commit", past: "committed", gerund: "committing", frames: [Monotransitive]),
     (lemma: "complete", frames: [Monotransitive]),
     (lemma: "contain", frames: [Monotransitive]),

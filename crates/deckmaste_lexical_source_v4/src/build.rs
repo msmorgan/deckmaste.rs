@@ -35,6 +35,7 @@ use crate::schema::Catenation;
 use crate::schema::DeterminativeEntry;
 use crate::schema::FillSpec;
 use crate::schema::FrameSpec;
+use crate::schema::IdiomPart;
 use crate::schema::NounEntry;
 use crate::schema::PrepositionFrameSpec;
 use crate::schema::VerbEntry;
@@ -140,6 +141,9 @@ impl Builder {
             return Err(invalid("only a contracted auxiliary is bound"));
         }
         let mut lexeme = Lexeme::verb(id, &entry.lemma, source);
+        if entry.frames.contains(&FrameSpec::Copular) {
+            lexeme.properties.classes.insert("CopularVerb".into());
+        }
         if let Some(binding) = entry.binding {
             lexeme.binding = binding;
             lexeme.capitalization = deckmaste_lexical::Capitalization::Exact;
@@ -523,6 +527,20 @@ impl Resolver<'_> {
                 ],
             ),
             FrameSpec::Cost => (FrameFamily::Cost, vec![slot(Complement, SlotFill::Cost)]),
+            FrameSpec::Idiom(parts) => (
+                FrameFamily::Idiom,
+                parts
+                    .iter()
+                    .map(|part| {
+                        Ok(match part {
+                            IdiomPart::Prep(lemma) => {
+                                slot(Complement, self.pp(std::slice::from_ref(lemma), owner)?)
+                            }
+                            IdiomPart::Pred => slot(PredicativeComplement, SlotFill::Pred),
+                        })
+                    })
+                    .collect::<Result<_, SourceError>>()?,
+            ),
             FrameSpec::Complement(fill) => {
                 let family = match category {
                     Category::Noun => FrameFamily::NounComplement,

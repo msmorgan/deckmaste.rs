@@ -4,8 +4,8 @@
     // (this/those) and grade (many/more/most) are not features of a
     // determinative here, so each attested form is its own lemma.
     determinatives: [
-        (lemma: "last", noun_kind: Some(Temporal)),
-        (lemma: "next", noun_kind: Some(Temporal)),
+        (lemma: "last", distribution: Deictic, noun_kind: Some(Temporal)),
+        (lemma: "next", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
         (lemma: "all", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "another", distribution: SingularOrQuantified, frames: [Complement(PP(["of"]))]),
@@ -32,9 +32,9 @@
         (lemma: "some"),
         // Oracle determiner use; other lexical categories remain independent.
         (lemma: "target"),
-        (number: Singular, lemma: "that"),
+        (number: Singular, lemma: "that", distribution: Deictic),
         (lemma: "the"),
-        (number: Singular, lemma: "this"),
+        (number: Singular, lemma: "this", distribution: Deictic),
         (number: Plural, countability: Count, lemma: "those"),
         (lemma: "which"),
         (lemma: "whichever"),
