@@ -167,7 +167,7 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched)
-      (.sequentially [revealCards it, shuffle])
+      (.sequentially [reveal it, shuffle])
     let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
     errors = [] ∧ beforeIds.length = 1 ∧
       (resolveCandidates .bare .one (nextClause after)).map (·.id) = beforeIds ∧
@@ -176,13 +176,13 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
 
 theorem revealedTopCardDoesNotAcquireSearchProvenance :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
-      (.sequentially [revealCards (topSlice (.lit 1)), shuffle])
+      (.sequentially [reveal (topSlice (.lit 1)), shuffle])
     errors = [] ∧ resolveCandidates .bare .one (nextClause after) = [] := by decide
 
 theorem zoneMoveClearsSearchProvenance :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
-    let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (move it hand)
+    let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (putInto it hand)
     errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
 
 end Semantics.Proofs.MovementScopes

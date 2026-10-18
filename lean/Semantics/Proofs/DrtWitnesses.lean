@@ -12,8 +12,8 @@ private def kalitasBody : Action := .sequentially [
         (some (graveyardOf .any)) .departure none []) .any)
     (.sequentially [
       create (.lit 1)
-        { characteristics :=
-            { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } },
+        (.written { characteristics :=
+            { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } }),
       .establish (.ptModification it (.set (powerOf (that (.type .creature))))
         (.set (toughnessOf (that (.type .creature))))) none]) none]
 
@@ -52,8 +52,8 @@ theorem historicalReadDoesNotLeakIntoFollowingAction :
 private def brokenVisageBody : Action := .sequentially [
   destroy (target (.and [isCreature, .not isArtifact, isAttacking])),
   create (.lit 1)
-    { characteristics :=
-        { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } },
+    (.written { characteristics :=
+        { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } }),
   .establish (.ptModification it (.set (powerOf (that (.type .creature))))
     (.set (toughnessOf (that (.type .creature))))) none]
 

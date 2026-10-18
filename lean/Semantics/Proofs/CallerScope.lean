@@ -116,9 +116,9 @@ theorem movedParameterLosesItsIdentity :
       after.findById? 0 = none := by decide
 
 theorem suppliedBodyKeepsItsCallerPronoun :
-    (announceThen (target isArtifact) (move it graveyard)).check callerCreature = [] := by decide
+    (announceThen (target isArtifact) (putInto it graveyard)).check callerCreature = [] := by decide
 theorem suppliedBodyUpdatesItsOriginalReferent :
-    let after := instructionResult callerCreature (announceThen (target isArtifact) (move it graveyard))
+    let after := instructionResult callerCreature (announceThen (target isArtifact) (putInto it graveyard))
     (after.visibleReferents.filter (fun r => r.ty == [.creature])).map (·.zone) = [some .graveyard] ∧
       (after.visibleReferents.filter (fun r => r.ty == [.artifact])).map (·.zone) = [some .battlefield] := by decide
 
@@ -257,7 +257,9 @@ theorem forwardedBareThisRetainsDefinitionZoneExemption :
     (destroy (forwardedSubject .this)).check (DRS.ofList []) = [] := by decide
 
 theorem forwardedLibraryOwnerRetainsOpponentClassification :
-    (Action.enact (.action "fateseal") (lookAndSort (forwardedSubject anOpponent) (.lit 2)) none none).check
+    (Action.enact (.action "fateseal")
+      (lookAndSortSlice (.slice .top (.lit 2) (libraryOf (forwardedSubject anOpponent))) onBottom
+        [(.inOrder .anyOrder)]) none none).check
       (DRS.ofList []) = [] := by decide
 
 theorem librarySlicePreservesExplicitOwnerUpdate :

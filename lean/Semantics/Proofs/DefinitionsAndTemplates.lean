@@ -70,7 +70,7 @@ theorem atomicDefinitionLaw :
     (tap (target isCreature)).checkDefinition (DRS.ofList []) = [] := by decide
 
 theorem revealUpdatesActionStamp :
-    (Action.sequentially [tap (target isCreature), revealCards it,
+    (Action.sequentially [tap (target isCreature), reveal it,
       tap (theVerbed (.action "reveal") .one)]).check (DRS.ofList []) = [] := by decide
 
 theorem exhaustedTraversalRefuses :

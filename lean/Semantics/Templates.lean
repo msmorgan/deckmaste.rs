@@ -659,8 +659,16 @@ semantic_template duringPart (part : TurnPart) (whose : Option NounPhrase := non
 /-- "before <whose> <part>" -/
 semantic_template beforePart (part : TurnPart) (whose : Option NounPhrase := none) : Timing :=
   .relativeToEvent .before (.beginningOf part whose .current)
-/-- "during each of your turns" -/
-semantic_template duringEachOfYourTurns : Timing := .inPart .turn (some .you) (.each none)
+/-- "each turn": a rate adjunct, the deontic counted afresh in every turn. -/
+semantic_template eachTurn : Timing := .inPart .turn none (.each none)
+/-- "on each of your turns", "during each of your turns" -/
+semantic_template onEachOfYourTurns : Timing := .inPart .turn (some .you) (.each none)
+/-- "each combat": a rate adjunct over every combat phase [CR#506.1]. -/
+semantic_template eachCombat : Timing := .inPart .combat none (.each none)
+/-- "during their untap steps": each player's own untap steps, "their" the plural pronoun
+resolved to the players the deontic subject names ("Players can't untap …") [CR#502.3]. -/
+semantic_template duringTheirUntapSteps : Timing :=
+  .inPart .untapStep (some (.pro (.word .player) .many)) (.each none)
 /-- "while you're searching your library" -/
 semantic_template whileSearchingYourLibrary : Timing :=
   .whileDoing (.does (.actor .you) (.search (yourLibrary) anyNumber (.and [])))
@@ -711,7 +719,7 @@ semantic_template greaterOf (a b : Amount) : Amount := .aggregateOf .max [a, b]
 /-- "that much damage prevented this way" -/
 semantic_template preventedThisWay : Amount := .theOutcome .damagePrevented
 /-- "N for each <p>" -/
-semantic_template forEach (per : Nat) (p : Predicate) : Amount := times (.lit per) (countOf p)
+semantic_template forEach (per : Amount) (p : Predicate) : Amount := times per (countOf p)
 semantic_template aggregateOf (op : Semantics.AggregateOp) (amounts : (List Semantics.Amount) := []) : Semantics.Amount :=
   (Semantics.Amount.aggregateOf op amounts)
 semantic_template aggregateOver (op : Semantics.AggregateOp) (domain : Semantics.Predicate) (body : Semantics.Amount) : Semantics.Amount :=
@@ -886,8 +894,6 @@ semantic_template rollDice (count : Amount := Primitives.Amount.lit 1)
 
 /-! ## Actions -/
 
-semantic_template move (subject : NounPhrase) (destination : Location) : Action :=
-  .move subject .anyLocation (some destination) .arrival none []
 /-- A card exiled face down: no characteristics [CR#406.3a]. -/
 semantic_template exiledFaceDown : FaceDown := ⟨none⟩
 /-- A 2/2 face-down creature with no text, no name, no subtypes and no mana cost [CR#708.2a]. -/
@@ -910,8 +916,11 @@ semantic_template putWith (subject : NounPhrase) (destination : Location) (rider
 semantic_template returnTo (subject : NounPhrase) (destination : Location) (riders : List MoveRider) :
     Action :=
   .enact (.core .return_) (.move subject .anyLocation (some destination) .arrival none riders) none none
-/-- "return <subject> to the battlefield" -/
-semantic_template returnToBattlefield (subject : NounPhrase) : Action := returnTo subject battlefield []
+/-- "return <subject> [from <from_>] to the battlefield [riders]" -/
+semantic_template returnToBattlefield (subject : NounPhrase) (riders : List MoveRider := [])
+    (from_ : Option Location := none) : Action :=
+  .enact (.core .return_)
+    (.move subject (from_.getD .anyLocation) (some battlefield) .arrival none riders) none none
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Action :=
   returnTo subject battlefield [.entersTransformed, (.under controller)]
@@ -959,8 +968,6 @@ semantic_template chooseWhile (subject : NounPhrase) (while_ : Timing) : Action 
   .choose none subject .openly (some while_)
 /-- One row of a results table: "<results> — <instruction>". -/
 semantic_template rollRow (results : Quantity) (instruction : Action) : RollRow := ⟨results, instruction⟩
-/-- "may <body>" -/
-semantic_template offer (body : Action) : Action := Primitives.Action.offer body none none
 /-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
 semantic_template offerWhen (body : Action) (triggerBody : Action) : Action :=
   .triggerReflexively (Primitives.Action.offer body none none) triggerBody
@@ -979,15 +986,16 @@ semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhra
   .instruct (.firstMention "dealDamageOwnPower.source" source)
     (.dealDamage (.statOf (.stat .power) (.laterMention "dealDamageOwnPower.source" source))
       recipient .any)
-/-- A token's characteristics from the parts a creature token names. -/
-semantic_template creatureTokenOf (power toughness : Amount) (colors : List Color) (subtypes : List Subtype) :
-    CharacteristicBundle :=
+/-- A token's characteristics from the parts a creature token names, with the abilities it is
+created with ("… with flying") [CR#111.3]. -/
+semantic_template creatureTokenOf (power toughness : Amount) (colors : List Color) (subtypes : List Subtype)
+    (abilities : List Ability := []) : CharacteristicBundle :=
   { characteristics :=
-      { colors, types := [.creature], subtypes, power := some power,
+      { colors, types := [.creature], subtypes, text := abilities, power := some power,
         toughness := some toughness } }
-semantic_template creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List Subtype) :
-    CharacteristicBundle :=
-  creatureTokenOf (.lit power) (.lit toughness) colors subtypes
+semantic_template creatureToken (power toughness : Nat) (colors : List Color) (subtypes : List Subtype)
+    (abilities : List Ability := []) : CharacteristicBundle :=
+  creatureTokenOf (.lit power) (.lit toughness) colors subtypes abilities
 /-- "for each color of mana spent to cast <n>" -/
 semantic_template colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
 /-- "if colored mana was spent to cast <spell>" -/
@@ -1137,28 +1145,9 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
         (some spill) .arrival none spillRiders,
       .move (theRest .object) .anyLocation (some onTop) .arrival none
         [(.inOrder .anyOrder)] ]
-/-- "look at the top N cards of <whose> library, put any number of them on the bottom in any order
-and the rest on top in any order" (`Template` using `firstMention` / `laterMention` without
-`Window` plumbing). -/
-semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Action :=
-  let slice : NounPhrase := .slice .top amount (libraryOf whose)
-  .sequentially
-    [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
-        (some onBottom) .arrival none [(.inOrder .anyOrder)],
-      .move (theRest .object) .anyLocation (some onTop) .arrival none
-        [(.inOrder .anyOrder)] ]
-/-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
-semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : Location) :
-    Action :=
-  let slice : NounPhrase := .slice .top amount (libraryOf whose)
-  .sequentially
-    [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) spill,
-      .move (theRest .object) .anyLocation (some onTop) .arrival none
-        [(.inOrder .anyOrder)] ]
-semantic_template get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
-    Action :=
+/-- "<subject> gets +P/+T [until …]" as an instruction. -/
+semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
+    (duration : Option Duration := none) : Action :=
   .establish (getsPt subject power toughness) duration
 semantic_template gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Action :=
   .establish (.abilityGrant subject ability) duration
@@ -1174,8 +1163,8 @@ semantic_template becomeColor (subject : NounPhrase) (colors : ColorSpec) (durat
     Action :=
   .establish (Primitives.StaticSpec.qualityChange subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/
-semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
-    Action :=
+semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)
+    (duration : Option Duration := none) : Action :=
   .establish (.conjunction (some subject) parts) duration
 /-- "If <clause> would happen, <replacement> instead [duration]." -/
 semantic_template replaceEvent (clause : WouldClause) (replacement : Action) (duration : Option Duration) :
@@ -1198,10 +1187,12 @@ semantic_template preventAllBy (kind : DamageKind) (source : NounPhrase) (scope 
 semantic_template replaceNextEvent (clause : WouldClause) (replacement : Action)
     (duration : Option Duration) : Action :=
   .establish (.instead clause replacement none .nextTimeOnly none) duration
-/-- "<player> gains control of <subject> [duration]" -/
-semantic_template gainControl (subject : NounPhrase) (duration : Option Duration) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Action :=
-  .establish (.controlGrant agent subject) duration
+/-- "[<controller>] gain[s] control of <subject> [duration]": the performer by default, so "gain
+control of target creature" and "target player gains control of …" (`instruct`) read alike
+[CR#613.1b]. -/
+semantic_template gainControl (subject : NounPhrase) (duration : Option Duration := none)
+    (controller : NounPhrase := .actor) : Action :=
+  .establish (.controlGrant controller subject) duration
 /-- "<spec> as long as <condition>" -/
 semantic_template onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .asLongAs
@@ -1249,10 +1240,6 @@ semantic_template createDoubleFacedToken (front : Semantics.CharacteristicBundle
   (Semantics.Action.createObject (Semantics.Amount.lit 1) (Semantics.CreationSpec.token (Semantics.TokenSpec.doubleFaced front back) riders) true none)
 semantic_template createObject (count : Semantics.Amount) (spec : Semantics.CreationSpec) : Semantics.Action :=
   (Semantics.Action.createObject count spec true none)
-semantic_template createToken (characteristics : Semantics.CharacteristicBundle) (count : Semantics.Amount := (Semantics.Amount.lit 1)) : Semantics.Action :=
-  (Semantics.Action.createObject count (Semantics.CreationSpec.token (Semantics.TokenSpec.written characteristics) []) true none)
-semantic_template createTokenCopy (source : Semantics.NounPhrase) (riders : (List Semantics.MoveRider) := []) : Semantics.Action :=
-  (Semantics.Action.createObject (Semantics.Amount.lit 1) (Semantics.CreationSpec.token (Semantics.TokenSpec.copyOf source []) riders) true none)
 semantic_template distribute (verb : Semantics.DividedVerb) (amount : Semantics.Amount) (among : Semantics.NounPhrase) : Semantics.Action :=
   (Semantics.Action.distribute verb amount among)
 semantic_template doAndForbid (instruction : Semantics.Action) (deed : Semantics.Deed) (subject : Semantics.NounPhrase) : Semantics.Action :=
@@ -1281,8 +1268,6 @@ semantic_template gainDesignation (subject : Semantics.NounPhrase) (designation 
   (Semantics.Action.gainDesignation subject designation duration)
 semantic_template getNamedEmblem (name : String) (abilities : (List Semantics.Ability)) : Semantics.Action :=
   (Semantics.Action.createObject (Semantics.Amount.lit 1) (Semantics.CreationSpec.emblem (some name) abilities) true none)
-semantic_template gets (subject : Semantics.NounPhrase) (power : (Semantics.Delta Semantics.Amount)) (toughness : (Semantics.Delta Semantics.Amount)) (duration : (Option Semantics.Duration) := none) : Semantics.Action :=
-  (Semantics.Action.establish (Semantics.StaticSpec.ptModification subject power toughness) duration)
 semantic_template getsBoth (subject : Semantics.NounPhrase) (delta : (Semantics.Delta Semantics.Amount)) (duration : (Option Semantics.Duration) := none) : Semantics.Action :=
   (Semantics.Action.establish (Semantics.StaticSpec.ptModification subject delta delta) duration)
 semantic_template holdUntil (instruction : Semantics.Action) (event : Semantics.GameEvent) : Semantics.Action :=
@@ -1392,15 +1377,12 @@ semantic_template replaceWord (sorts : List QualitySort) (from_ : Option TextWor
   .replaceWord sorts from_ to
 /-- Exchange the subject's rules text with `other`'s [CR#612.5,701.12h]. -/
 semantic_template exchangeWith (other : NounPhrase) : TextChange := .exchangeWith other
-namespace Actor
-
 /-- An Army the performer controls. -/
 semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), isCreature, actorControls]
 /-- "any number of <group> with total <axis> <comparator> <bound>" [CR#701.59a]. -/
 semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
     (group : NounPhrase) : NounPhrase :=
   .someOf (.totalling axis comparator bound) none group
-end Actor
 
 /-! ## Events -/
 

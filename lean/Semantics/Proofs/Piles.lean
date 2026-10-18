@@ -44,12 +44,12 @@ theorem okTransformedArrivalOnField :
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
 def revealAndSplit : List Action :=
-  [revealCards (topSlice (.lit 5)), instruct anOpponent (.separateIntoPiles them 2 [])]
+  [reveal (topSlice (.lit 5)), instruct anOpponent (.separateIntoPiles them 2 [])]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles. Put those piles into your hand." -/
 theorem okPileWordAfterPartition :
-    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .pile) hand])))
+    Card.check (instantSaying (.sequentially (revealAndSplit ++ [putInto (those .pile) hand])))
       = [] := by
   decide
 
@@ -57,20 +57,20 @@ theorem okPileWordAfterPartition :
 piles. Put those cards into your hand.": each object in a pile is still an individual object
 [CR#700.3b], so the card word still reads them. -/
 theorem okCardWordReadsPiles :
-    Card.check (instantSaying (.sequentially (revealAndSplit ++ [move (those .card) hand])))
+    Card.check (instantSaying (.sequentially (revealAndSplit ++ [putInto (those .card) hand])))
       = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. Put those piles into your hand." -/
 theorem badPileWordWithoutAPartition :
     Card.check
-      (instantSaying (.sequentially [revealCards (topSlice (.lit 5)), move (those .pile) hand]))
+      (instantSaying (.sequentially [reveal (topSlice (.lit 5)), putInto (those .pile) hand]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
 /-- "... into two piles. Put one pile into your hand." -/
 theorem okOnePileAfterPartition :
-    Action.check (DRS.ofList []) (.sequentially (revealAndSplit ++ [move onePile hand])) = [] := by decide
+    Action.check (DRS.ofList []) (.sequentially (revealAndSplit ++ [putInto onePile hand])) = [] := by decide
 
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
@@ -80,14 +80,14 @@ theorem badPlayerMovedToAZone :
 
 /-- "Put one pile into your hand." -/
 theorem badPilePartitiveWithoutAPartition :
-    Action.check (DRS.ofList []) (move onePile hand) = [.anaphor (.word .pile) .many 0] := by decide
+    Action.check (DRS.ofList []) (putInto onePile hand) = [.anaphor (.word .pile) .many 0] := by decide
 
 /-- "Put each card in the pile of your choice into your hand." -/
 theorem okMembershipInAPile :
     Card.check
       (instantSaying
         (.sequentially
-          (revealAndSplit ++ [move (allOf (.and [.isCard, .in_ (.pile (pileOfChoice .you))])) hand])))
+          (revealAndSplit ++ [putInto (allOf (.and [.isCard, .in_ (.pile (pileOfChoice .you))])) hand])))
       = [] := by
   decide
 
@@ -97,8 +97,8 @@ theorem badMembershipWithoutAPartition :
     Card.check
       (instantSaying
         (.sequentially
-          [ revealCards (topSlice (.lit 5)),
-            move (allOf (.and [.isCard, .in_ (.pile (those .pile))])) hand ]))
+          [ reveal (topSlice (.lit 5)),
+            putInto (allOf (.and [.isCard, .in_ (.pile (those .pile))])) hand ]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
@@ -175,9 +175,9 @@ revealed cards not cast this way on the bottom of your library in any order." Th
 remains accessible through the cast selection and subsequent move. -/
 theorem rippleRevealedCardsRemainAccessible :
     Action.check (DRS.ofList [])
-      (Primitives.Action.offer (revealCards (.slice .top (.lit 4) (libraryOf .actor)))
+      (Primitives.Action.offer (reveal (.slice .top (.lit 4) (libraryOf .actor)))
         (some (.sequentially
-          [ Actor.castWithoutPaying
+          [ castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
             (.move (allFromAmong (.not wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])) none)
       = [] := by

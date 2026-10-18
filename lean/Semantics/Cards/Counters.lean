@@ -23,7 +23,7 @@ def crovaxTheCursed : Action :=
 theorem okCrovaxTheCursed : Action.check (DRS.ofList []) crovaxTheCursed = [] := by decide
 def additiveEvolution : Action :=
   Primitives.Action.sequentially
-    [ create (.lit 1) (creatureToken 0 0 [.green, .blue] [creatureType "Fractal"]),
+    [ createToken (creatureToken 0 0 [.green, .blue] [creatureType "Fractal"]),
       Primitives.Action.putCounters (.lit 3) (Primitives.CounterKindSource.printed p1p1Counter) it .many true ]
 theorem okAdditiveEvolution : Action.check (DRS.ofList []) additiveEvolution = [] := by decide
 def battlegrowth : Action := Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) (target isCreature) .many true
@@ -135,7 +135,7 @@ def vashtaNerada : Ability :=
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
   at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-    (Primitives.Action.putCounters (forEach 1 (Primitives.Predicate.and
+    (Primitives.Action.putCounters (forEach (.lit 1) (Primitives.Predicate.and
       [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), happenedTo Primitives.Subject.any (Primitives.Action.dealDamage Primitives.Amount.anyAmount (relative
       .player) .any) soFarThisTurn]))
       (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
@@ -272,7 +272,7 @@ def voraciousBrood : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Alien", creatureType "Insect"],
       text :=
         [ Primitives.Ability.static (entersWithCounters thisCreature
-            (forEach 1 (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) p1p1Counter),
+            (forEach (.lit 1) (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) p1p1Counter),
           whenever (does Primitives.Subject.any (putInto (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, isCreature])) (graveyardOf Primitives.NounPhrase.you) (from_ := some Primitives.Location.anyLocation)))
             (Primitives.Action.putCounters Primitives.Amount.groupSize (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 1, toughness := stat 1 } }
@@ -283,7 +283,7 @@ def herdBaloth : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Beast"],
       text :=
         [ whenever (counterEvent .put p1p1Counter .many thisCreature)
-            (offer (create (.lit 1) (creatureToken 4 4 [.green] [creatureType "Beast"]))) ],
+            (may (createToken (creatureToken 4 4 [.green] [creatureType "Beast"]))) ],
       power := stat 4, toughness := stat 4 } }
 
 def flourishingDefenses : Spelled := spelled <| .singleFaced
@@ -291,8 +291,8 @@ def flourishingDefenses : Spelled := spelled <| .singleFaced
     { name := "Flourishing Defenses", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
         [ whenever (counterEvent .put m1m1Counter .one (a isCreature))
-            (offer
-              (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Elf", creatureType
+            (may
+              (createToken (creatureToken 1 1 [.green] [creatureType "Elf", creatureType
                   "Warrior"]))) ] } }
 
 def rakshasaVizier : Spelled := spelled <| .singleFaced
@@ -336,7 +336,7 @@ def doublingSeason : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Doubling Season", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
           Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount Primitives.CounterKindSource.anyKind (a (Primitives.Predicate.and [isPermanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .many true)) (Primitives.Action.putCounters (times (.lit 2) Primitives.Amount.thatMuch) Primitives.CounterKindSource.those (that .permanent) .many true) none .repeatedly none) ] } }
 
 /-- Doc Samson, Super Psychiatrist -/
@@ -363,7 +363,7 @@ theorem okAragornDistributive : Ability.check (DRS.ofList []) aragornDistributiv
 def captainMarvelSameKinds : Ability :=
   triggeredIf (manyBareCountersPutBy Primitives.NounPhrase.you (a ((and [isCreature, otherThan thisCreature]))))
     (Primitives.Condition.not (Primitives.Condition.matches it (Primitives.Predicate.hasSubtype (creatureType "Kree"))))
-    (offer (Primitives.Action.putCounters Primitives.Amount.thatMuch Primitives.CounterKindSource.those thisCreature .many true))
+    (may (Primitives.Action.putCounters Primitives.Amount.thatMuch Primitives.CounterKindSource.those thisCreature .many true))
 theorem okCaptainMarvelSameKinds : Ability.check (DRS.ofList []) captainMarvelSameKinds = [] := by decide
 /-- Denry Klin, Editor in Chief -/
 def denryKlinSameKinds : Ability :=
@@ -447,7 +447,7 @@ def rikkuStealMove : Action :=
 theorem okRikkuStealMove : Action.check (DRS.ofList []) rikkuStealMove = [] := by decide
 /-- Littjara Mirrorlake -/
 def littjaraMirrorlakeCopy : Action :=
-  Action.create (.lit 1)
+  create (.lit 1)
     (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
       [Primitives.CopyExcept.entersWithCounters (.lit 1) p1p1Counter .additional])
     []
@@ -468,7 +468,7 @@ def primalVigor : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Primal Vigor", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
           Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount (Primitives.CounterKindSource.printed p1p1Counter) (a isCreature) .many false)) (Primitives.Action.putCounters (times (.lit 2) Primitives.Amount.thatMuch) (Primitives.CounterKindSource.printed p1p1Counter) (that (.type .creature)) .many true) none .repeatedly none) ] } }
 
 /-- Patrolling Peacemaker -/
@@ -857,7 +857,7 @@ theorem okHeartOfKiranCrewAltCost : Ability.check (DRS.ofList []) heartOfKiranCr
 /-- Tainted Adversary -/
 def taintedAdversaryOffer : Ability :=
   when (does (actor thisCreature) enter)
-    (Primitives.Action.triggerReflexively (offer (Primitives.Action.pay (Primitives.Cost.mana [generic 2, pip .black]) .anyNumberOfTimes .paid none none))
+    (Primitives.Action.triggerReflexively (may (Primitives.Action.pay (Primitives.Cost.mana [generic 2, pip .black]) .anyNumberOfTimes .paid none none))
       (Primitives.Action.putCounters Primitives.Amount.thatMuch (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true))
 theorem okTaintedAdversaryOffer : Ability.check (DRS.ofList []) taintedAdversaryOffer = [] := by decide
 /-- Korvold, Gleeful Glutton -/
@@ -1031,7 +1031,7 @@ def captainMarvelApexAvenger : Spelled := spelled <| .singleFaced
           triggeredIf
             (Primitives.GameEvent.does (Primitives.Subject.by Primitives.NounPhrase.you) (Primitives.Action.putCounters Primitives.Amount.anyAmount Primitives.CounterKindSource.anyKind (a (Primitives.Predicate.and [isCreature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])) .many false))
             (Primitives.Condition.matches it (Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Kree"))))
-            (offer (Primitives.Action.putCounters Primitives.Amount.thatMuch Primitives.CounterKindSource.those Primitives.NounPhrase.this .many true)) ],
+            (may (Primitives.Action.putCounters Primitives.Amount.thatMuch Primitives.CounterKindSource.those Primitives.NounPhrase.this .many true)) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Blood Spatter Analysis -/
@@ -1049,7 +1049,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
                   (Primitives.Action.doOnlyIf (sacrifice thisEnchantment)
                     (Primitives.Condition.compareAmt (countersOn (.named "bloodstainCounter") thisEnchantment) .atLeast (.lit 5))
                     none)
-                  (move (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) hand) ]) ] } }
+                  (putInto (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) hand) ]) ] } }
 
 /-- Bewitching Leechcraft -/
 def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
@@ -1140,7 +1140,7 @@ def mistbreathElder : Spelled := spelled <| .singleFaced
         [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Action.doIfDone (returnTo (a ((and [isCreature, youControl, otherThan thisCreature]))) hand [])
               (some (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true))
-              (some (offer (returnTo thisCreature hand [])))) ],
+              (some (may (returnTo thisCreature hand [])))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Dark Depths -/
@@ -1152,7 +1152,7 @@ def darkDepths : Spelled := spelled <| .singleFaced
           activated (Primitives.Cost.mana [generic 3])
             (removeCounters (exactly 1) (some (Primitives.CounterKindSource.printed (.named "iceCounter"))) thisLand),
           when (Primitives.GameEvent.stateHolds (Primitives.Condition.not (Primitives.Condition.matches thisLand (Primitives.Predicate.hasCounters (some (.named "iceCounter"))))))
-            (Primitives.Action.doIfDone (sacrifice thisLand) (some (create (.lit 1) maritLage)) none)
+            (Primitives.Action.doIfDone (sacrifice thisLand) (some (createToken maritLage)) none)
                 ] } }
 
 /-- Thallid -/
@@ -1165,7 +1165,7 @@ def thallid : Spelled := spelled <| .singleFaced
             (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "sporeCounter")) thisCreature .many true),
           activated
             (Primitives.Cost.perform (Primitives.Action.removeCounters (some (exactly 3)) (some (Primitives.CounterKindSource.printed (.named "sporeCounter"))) thisCreature .many true))
-            (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Saproling"])) ],
+            (createToken (creatureToken 1 1 [.green] [creatureType "Saproling"])) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Aether Chaser -/

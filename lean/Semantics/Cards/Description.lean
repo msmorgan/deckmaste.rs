@@ -76,7 +76,7 @@ theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by de
 /-- Mind Flayer -/
 def mindFlayer : Action :=
   gainControl (target isCreature)
-    (some (Primitives.Duration.forAsLongAs (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you)))) (agent := Primitives.NounPhrase.you)
+    (some (Primitives.Duration.forAsLongAs (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you)))) (controller := Primitives.NounPhrase.you)
 theorem okMindFlayer : Action.check (DRS.ofList []) mindFlayer = [] := by decide
 
 /-- Arc Lightning -/
@@ -135,7 +135,7 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
                 (gainLife (.lit 6)) none,
               Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (and [isCreature, youControl])) .less
                       (countOf (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller anOpponent])))
-                (create (.lit 3) (creatureToken 1 1 [.white] [creatureType "Soldier"])) none ]) ] } }
+                (createToken (creatureToken 1 1 [.white] [creatureType "Soldier"]) (count := (.lit 3))) none ]) ] } }
 
 /-- Survival Cache -/
 def survivalCache : Action :=
@@ -187,7 +187,7 @@ theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxSca
 
 /-- Croaking Counterpart -/
 def croakingCounterpartCopy : Action :=
-  Action.create (.lit 1)
+  create (.lit 1)
     (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Frog"))]))
       (copyCharacteristics {
                  colors := [.green], subtypes := [creatureType "Frog"], power := stat 1,
@@ -235,7 +235,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ destroy (allOf isCreature),
-              Action.create (.lit 1)
+              create (.lit 1)
                 (Primitives.TokenSpec.written
                   { characteristics :=
                     { types := [.artifact, .creature],
@@ -359,7 +359,7 @@ def roguesGallery : Spelled := spelled <| .singleFaced
     { name := "Rogues' Gallery", cost := some [generic 2, pip .black], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.doForEachKind .color none .color
-            (move (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
+            (putInto (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
                      (Primitives.Predicate.and [isCreature, ofChosen .color, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))
                   hand)) ] } }
 
@@ -530,7 +530,7 @@ theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOf
 /-- Squad Commander -/
 def squadCommanderTokens : Ability :=
   when (does (actor thisCreature) enter)
-    (create partySize (creatureToken 1 1 [.white] [creatureType "Kor", creatureType "Warrior"]))
+    (createToken (creatureToken 1 1 [.white] [creatureType "Kor", creatureType "Warrior"]) (count := partySize))
 theorem okSquadCommanderTokens : Ability.check (DRS.ofList []) squadCommanderTokens = [] := by decide
 
 /-- At Knifepoint -/
@@ -539,7 +539,7 @@ def atKnifepointOutlaws : Ability :=
       (.named "firstStrike"))))
 def atKnifepointCrime : Ability :=
   Primitives.Ability.triggered (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.commitCrime)) [] none [] none (some oncePerTurn) none
-    (create (.lit 1)
+    (createToken
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [creatureType "Mercenary"],
           text :=

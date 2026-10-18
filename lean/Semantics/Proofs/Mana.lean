@@ -69,7 +69,7 @@ theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSy
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Action.check (DRS.ofList [])
-      (Primitives.Action.doIfDone (exile (a (and [isCreature, youControl]))) (some (move it battlefield)) none) = [] := by
+      (Primitives.Action.doIfDone (exile (a (and [isCreature, youControl]))) (some (putInto it battlefield)) none) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
@@ -81,7 +81,7 @@ theorem badIfNotReadsMandatoryBody :
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Action.check (DRS.ofList [])
-      (Templates.instruct (controllerOf (target isSpell)) (doUnless (Action.counterSpell it) (.mana [generic 3]))) =
+      (Templates.instruct (controllerOf (target isSpell)) (doUnless (counter it) (.mana [generic 3]))) =
           [] := by
   decide
 
@@ -165,7 +165,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  activatedAbility (.mana [pip .blue]) (Action.counterSpell (target (.and [isSpell, .named .chosen])))
+  activatedAbility (.mana [pip .blue]) (counter (target (.and [isSpell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :
@@ -240,7 +240,7 @@ theorem badBareCumulativeUpkeep :
 /-- "… pays {1} for each artifact you control." -/
 theorem okForEachScaledMana :
     Cost.check (DRS.ofList [])
-      (Primitives.Cost.scaled (.mana [generic 1]) (forEach 1 (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
+      (Primitives.Cost.scaled (.mana [generic 1]) (forEach (.lit 1) (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "Counter target spell unless its controller pays {2}." -/

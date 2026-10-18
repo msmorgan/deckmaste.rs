@@ -136,7 +136,7 @@ theorem okFightHandedToEachOfAGroup :
 /-- "Discard <x>, then exile <x>.": a two-mention body. -/
 private def discardThenExile (x : NounPhrase) : Action :=
   .sequentially
-    [ Actor.discard (.firstMention "discardThenExile.0" x),
+    [ discard (.firstMention "discardThenExile.0" x),
       exile (.laterMention "discardThenExile.0" x) ]
 
 /-- "Each opponent discards a card, then exiles it": the first mention is checked where it
@@ -217,9 +217,9 @@ loop includes a single discarded card without forming a singular partitive phras
 
 private def conniveDiscards (discarded : NounPhrase) : Action :=
   .sequentially
-    [ Actor.discard (.firstMention "conniveDiscards.discarded" discarded),
+    [ discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not isLand, .isCard,
-        .did ⟨.any, Actor.discard .which, .thisWay⟩]))
+        .did ⟨.any, discard .which, .thisWay⟩]))
         (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) .one true) ]
 
 private def conniveBy (amount : Amount) : Action :=

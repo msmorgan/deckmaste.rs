@@ -237,8 +237,8 @@ theorem loopExportsPluralGroupWithoutSingularMember :
 
 theorem optionalBranchesDoNotExportCreatedObjects :
     let branch := Primitives.Action.offer (gainLife (.lit 1))
-      (some (create (.lit 1) (creatureToken 1 1 [.white] [])))
-      (some (create (.lit 2) (creatureToken 1 1 [.white] [])))
+      (some (create (.lit 1) (.written (creatureToken 1 1 [.white] []))))
+      (some (create (.lit 2) (.written (creatureToken 1 1 [.white] []))))
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) branch).1
     resolveCandidates (.word (.type .creature)) .one (nextClause after) = [] := by decide
 

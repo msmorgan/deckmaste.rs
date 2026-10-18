@@ -42,7 +42,7 @@ theorem badDelayedOther :
 
 theorem badStaleCarrier :
     Action.check (DRS.ofList [])
-      (.sequentially [exile (target (and [isCreature, youControl])), move (that (.type .creature)) battlefield])
+      (.sequentially [exile (target (and [isCreature, youControl])), putInto (that (.type .creature)) battlefield])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -53,7 +53,7 @@ theorem okActivatedCostAndEffect :
 
 /-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor. -/
 theorem badHiddenCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (move (a isCreature) hand)) (.setStatus .tapped it))
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (putInto (a isCreature) hand)) (.setStatus .tapped it))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -76,7 +76,7 @@ theorem okSacrificeOnBattlefield :
 theorem badDeadCreatureRead :
     Action.check (DRS.ofList [])
       (.delay (does (target isCreature) die) [] (some thisTurn)
-        (move (that (.type .creature)) battlefield))
+        (putInto (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -84,14 +84,14 @@ theorem badDeadCreatureRead :
 theorem okVerbedDiscardedCard :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (move (theVerbed (.action "discard") .one (some .card)) battlefield)) = [] := by
+        (putInto (theVerbed (.action "discard") .one (some .card)) battlefield)) = [] := by
   decide
 
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badVerbedWrongVerb :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
-        (move (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
+        (putInto (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 0] := by
   decide
 
@@ -99,7 +99,7 @@ theorem badVerbedWrongVerb :
 theorem badVerbedWrongNoun :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isArtifact)))
-        (move (theVerbed (.action "sacrifice") .one (some (.type .creature))) battlefield))
+        (putInto (theVerbed (.action "sacrifice") .one (some (.type .creature))) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
@@ -108,7 +108,7 @@ theorem badVerbedAmbig :
       (activatedAbility
         (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
             isCreature))])
-        (move (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
+        (putInto (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 2] := by
   decide
 
@@ -116,7 +116,7 @@ theorem okBareCardRead :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (sacrifice (a isCreature)))
         (.sequentially
-          [exile (target isCreature), delay atTheEndStep (move (that .card) battlefield)]))
+          [exile (target isCreature), delay atTheEndStep (putInto (that .card) battlefield)]))
       = [] := by
   decide
 
@@ -203,7 +203,7 @@ theorem badAfterReflexiveReadsTrigger :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .triggerReflexively (mill (.lit 4) .you)
-            (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])),
+            (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
           .setStatus .tapped (that (.type .creature)) ])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -391,20 +391,20 @@ theorem badThatTurnAfterTwoTurns :
 theorem okTokenSingleSupertype :
     Action.check (DRS.ofList [])
       (create (.lit 1)
-        { characteristics :=
+        (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary],
             types := [.creature], subtypes := [creatureType "Avatar"],
-            power := some (.lit 20), toughness := some (.lit 20) } }) = [] := by
+            power := some (.lit 20), toughness := some (.lit 20) } })) = [] := by
   decide
 
 /-- "create a legendary legendary 20/20 black Avatar creature token" -/
 theorem badTokenDuplicateSupertype :
     Action.check (DRS.ofList [])
       (create (.lit 1)
-        { characteristics :=
+        (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
             types := [.creature], subtypes := [creatureType "Avatar"],
-            power := some (.lit 20), toughness := some (.lit 20) } }) = [.distinct] := by
+            power := some (.lit 20), toughness := some (.lit 20) } })) = [.distinct] := by
   decide
 
 /-! ## Constructor fields share the preceding discourse -/
@@ -599,13 +599,13 @@ the ability triggers every time and the instruction is limited (Iron Man, Bleedi
 Donal, Herald of Wings; the retired `UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
     Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
-      (doOnlyOnceEachTurn (offer (draw (.lit 1))))) = [] := by
+      (doOnlyOnceEachTurn (may (draw (.lit 1))))) = [] := by
   decide
 
 /-- The limited instruction is checked as the instruction it wraps. -/
 theorem limitedChecksItsInstruction :
-    Action.check (DRS.ofList []) (.limited (move it hand) oncePerTurn) =
-      Action.check (DRS.ofList []) (move it hand) := by
+    Action.check (DRS.ofList []) (.limited (putInto it hand) oncePerTurn) =
+      Action.check (DRS.ofList []) (putInto it hand) := by
   decide
 
 end Semantics.Proofs.Turn

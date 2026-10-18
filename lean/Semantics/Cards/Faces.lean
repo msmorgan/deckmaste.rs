@@ -69,7 +69,7 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Treefolk", creatureType "Druid"],
       text :=
         [ whenever (does (actor (a (Primitives.Predicate.and [isNontoken, and [isCreature, youControl], Primitives.Predicate.otherThan thisCreature]))) die)
-            (offer
+            (may
               (Primitives.Action.sequentially
                 [ Primitives.Action.move it Primitives.Location.anyLocation (some battlefield) .arrival none [(Primitives.MoveRider.faceDown
                         { characteristics := some { types := [.land], subtypes := [landType "Forest"] } }), (Primitives.MoveRider.under (ownerOf it))] ])) ],
@@ -160,7 +160,7 @@ def orochiEggwatcher : Spelled := spelled <| .flip
       text :=
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .green], Primitives.Cost.tapSymbol])
             (Primitives.Action.sequentially
-              [ create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Snake"]),
+              [ createToken (creatureToken 1 1 [.green] [creatureType "Snake"]),
                 doIf (Primitives.Condition.compareAmt (countOf (and [isCreature, youControl])) .atLeast (.lit 10))
                   (Primitives.Action.setStatus .flipped thisCreature) ]) ],
       power := stat 1, toughness := stat 1 } }
@@ -269,7 +269,7 @@ def kitsuneMystic : Spelled := spelled <| .flip
       subtypes := [creatureType "Fox", creatureType "Wizard"],
       text :=
         [ activated (Primitives.Cost.mana [generic 1])
-            (Action.attachTo
+            (attachTo
               (target (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (enchantmentType "Aura"), Primitives.Predicate.attachedTo (a isCreature)]))
               (a (Primitives.Predicate.and [isCreature, Primitives.Predicate.otherThan (that (.type .creature))]))) ],
       power := stat 4, toughness := stat 5 } }
@@ -280,7 +280,7 @@ def vesuvanShapeshifterCopyDuration : Action :=
     (Primitives.StaticSpec.copyChange thisCreature (that (.type .creature))
       [ Primitives.CopyExcept.ability
           (at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (offer (Primitives.Action.setStatus .faceDown thisCreature))) ])
+            (may (Primitives.Action.setStatus .faceDown thisCreature))) ])
     (some (untilEvent (Primitives.GameEvent.does Primitives.Subject.any (Primitives.Action.setStatus .faceDown thisCreature))))
 theorem okVesuvanShapeshifterCopyDuration :
     Action.check (DRS.ofList [{ det := .a, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
@@ -304,7 +304,7 @@ def arlinnKord : Spelled := spelled <| .transforming
               (some untilEndOfTurn)),
           activated (Primitives.Cost.loyaltySymbol .zero)
             (Primitives.Action.sequentially
-              [ create (.lit 1) (creatureToken 2 2 [.green] [creatureType "Wolf"]),
+              [ createToken (creatureToken 2 2 [.green] [creatureType "Wolf"]),
                 transform thisPlaneswalker ]) ],
       loyalty := stat 3 } }
   { characteristics :=
@@ -374,7 +374,7 @@ def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced
       text :=
         [ whenever
             (Primitives.GameEvent.does Primitives.Subject.any (Primitives.Action.turnOver ((a (Primitives.Predicate.and [isPermanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))))
-            (create (.lit 1) (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
+            (createToken (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
       power := stat 5, toughness := stat 4 } }
 
 /-- Chittering Host's face, as both melding cards carry it. -/
@@ -407,7 +407,7 @@ def midnightScavengers : Spelled := spelled <| .transforming
       subtypes := [creatureType "Human", creatureType "Rogue"],
       text :=
         [ when (does (actor thisCreature) enter)
-            (offer
+            (may
               (returnTo
                 (target (Primitives.Predicate.and [ isCreature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you),
                                 Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3) ]))
@@ -489,8 +489,8 @@ def riddlesInTheDark : Spelled := spelled <| .singleFaced
             [ lookAt (topSlice (.lit 4)),
               Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp],
               instruct anOpponent (choose onePile),
-              move (that .pile) hand,
-              move (theOther .pile) graveyard ]) ] } }
+              putInto (that .pile) hand,
+              putInto (theOther .pile) graveyard ]) ] } }
 
 /-- Fortune's Favor -/
 def fortunesFavor : Spelled := spelled <| .singleFaced
@@ -500,8 +500,8 @@ def fortunesFavor : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 4)))),
               instruct they (Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp]),
-              move onePile hand,
-              move (theOther .pile) graveyard ]) ] } }
+              putInto onePile hand,
+              putInto (theOther .pile) graveyard ]) ] } }
 
 /-- Curator of Destinies -/
 def curatorOfDestinies : Spelled := spelled <| .singleFaced
@@ -516,8 +516,8 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
               [ lookAt (topSlice (.lit 5)),
                 Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp],
                 instruct anOpponent (choose onePile),
-                move (that .pile) hand,
-                move (theOther .pile) graveyard ]) ],
+                putInto (that .pile) hand,
+                putInto (theOther .pile) graveyard ]) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Atris, Oracle of Half-Truths -/
@@ -532,8 +532,8 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| .singleFaced
             (Primitives.Action.sequentially
               [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 3)))),
                 instruct they (Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp]),
-                move onePile hand,
-                move (theOther .pile) graveyard ]) ],
+                putInto onePile hand,
+                putInto (theOther .pile) graveyard ]) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Garruk Relentless // Garruk, the Veil-Cursed -/
@@ -549,21 +549,21 @@ def garrukRelentless : Spelled := spelled <| .transforming
               [ instruct thisPlaneswalker (Primitives.Action.dealDamage (.lit 3) (target isCreature) .noncombatOnly),
                 instruct (that (.type .creature)) (Primitives.Action.dealDamage (Primitives.Amount.statOf (.stat .power) (that (.type .creature))) thisPlaneswalker .noncombatOnly) ]),
           activated (Primitives.Cost.loyaltySymbol .zero)
-            (create (.lit 1) (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
+            (createToken (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
       loyalty := stat 3 } }
   { characteristics :=
     { name := "Garruk, the Veil-Cursed", supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Garruk"],
       text :=
         [ activated (Primitives.Cost.loyaltySymbol (.up 1))
-            (create (.lit 1)
+            (createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [creatureType "Wolf"],
                   text := [keyword (.named "deathtouch")], power := stat 1, toughness := stat 1 } }),
           activated (Primitives.Cost.loyaltySymbol (.down 1))
             (Primitives.Action.doIfDone (sacrifice (a isCreature))
               (some (Primitives.Action.sequentially
-                [ searchLibraryFor (exactly 1) isCreature, revealCards it, move it hand,
+                [ searchLibraryFor (exactly 1) isCreature, reveal it, putInto it hand,
                   shuffle ]))
               none),
           activated (Primitives.Cost.loyaltySymbol (.down 3))

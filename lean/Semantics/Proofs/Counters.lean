@@ -180,15 +180,15 @@ theorem okMoveCounterOntoThis :
 theorem badTokenDuplicateType :
     Action.check (DRS.ofList [])
       (create (.lit 1)
-        { characteristics :=
-          { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) } })
+        (.written { characteristics :=
+          { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) } }))
       = [.distinct] := by
   decide
 
 /-- "Create a 1/1 white white Soldier creature token." -/
 theorem badTokenDuplicateColor :
     Action.check (DRS.ofList [])
-      (create (.lit 1) (creatureToken 1 1 [.white, .white] [creatureType "Soldier"]))
+      (create (.lit 1) (.written (creatureToken 1 1 [.white, .white] [creatureType "Soldier"])))
       = [.distinct] := by
   decide
 
@@ -209,7 +209,7 @@ theorem badSimultaneousReadsOutcome :
 theorem badSimultaneousReadsMayDeed :
     Action.check (DRS.ofList [])
       (.simultaneously
-        [ offer (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"])),
+        [ may (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"]))),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -217,7 +217,7 @@ theorem badSimultaneousReadsMayDeed :
 theorem badSimultaneousReadsMayOutcome :
     Action.check (DRS.ofList [])
       (.simultaneously
-        [offer (Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any)), gainLife .thatMuch])
+        [may (Action.instruct .this (.dealDamage (.lit 2) (target isCreature) .any)), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
@@ -226,8 +226,8 @@ theorem badBatchTwoCreatesThenIt :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
-            [ create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
-              create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]) ],
+            [ create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])),
+              create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])) ],
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 2] := by
   decide
 
@@ -243,14 +243,14 @@ theorem badBatchTwoOutcomesThenThatMuch :
 theorem okCreatedThenCountered :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+        [ create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
           (.putCounters (.lit 1) p11 it .one true) ]) = [] := by
   decide
 
 theorem badDistributedCreationIt :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (Action.create (.lit 1)
+        [ instruct (each .anyPlayer) (create (.lit 1)
             (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) []),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
@@ -496,7 +496,7 @@ theorem badBecomesNothing :
 /-- The Idris pin refutes the anaphor. -/
 theorem badOtherwiseReadsIfArm :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
+      (.doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])))
         (exists_ (and [isCreature, youControl])) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
   decide
 
@@ -504,23 +504,23 @@ theorem badOtherwiseReadsIfArm :
 theorem okAnaphoricTokenAfterToken :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
-          Action.create (.lit 2) .asThose [] ]) = [] := by
+        [ create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])),
+          create (.lit 2) .asThose [] ]) = [] := by
   decide
 
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature), Action.create (.lit 2) .asThose []])
+      (.sequentially [destroy (target isCreature), create (.lit 2) .asThose []])
       = [.tokenSpecInScope 0] := by
   decide
 
 theorem badAnaphoricTokenAfterTwoDistinctSpecs :
     Action.check (DRS.ofList [])
       (.sequentially
-        [create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
-          create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
-          Action.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
+        [create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])),
+          create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])),
+          create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
 
 /-- "Put a +1/+1 counter on target creature card in your graveyard." No printed card on the
 bench. -/

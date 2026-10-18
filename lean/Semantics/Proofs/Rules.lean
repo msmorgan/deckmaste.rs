@@ -26,7 +26,7 @@ private def damageResultCheck (rule : DamageResult) : List Refusal :=
 def toughnessZero : SbaRule :=
   { scope := isCreature,
     when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
-    then_ := move .this graveyard }
+    then_ := putInto .this graveyard }
 theorem okToughnessZero : SbaRule.check toughnessZero = [] := by decide
 
 /-- [CR#704.5i] "If a planeswalker has loyalty 0, it's put into its owner's graveyard."
@@ -35,7 +35,7 @@ so the condition reads the counters and not the printed characteristic. -/
 def loyaltyZero : SbaRule :=
   { scope := .hasType .planeswalker,
     when := .compareAmt (countersOn (.named "loyaltyCounter") .this) .eq (.lit 0),
-    then_ := move .this graveyard }
+    then_ := putInto .this graveyard }
 theorem okLoyaltyZero : SbaRule.check loyaltyZero = [] := by decide
 
 /-- [CR#704.5w,310.8] "If a non-Siege battle has defense 0, it's put into its owner's
@@ -44,7 +44,7 @@ the Siege exclusion is a subtype read, not a seam. -/
 def battleDefenseZero : SbaRule :=
   { scope := .and [.hasType .battle, .not (.hasSubtype (.of .battle "Siege"))],
     when := .compareAmt (countersOn (.named "defenseCounter") .this) .eq (.lit 0),
-    then_ := move .this graveyard }
+    then_ := putInto .this graveyard }
 theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide
 
 /-- A scope binds objects or players; a color is neither. -/
@@ -52,7 +52,7 @@ theorem badSbaScopeKind :
     SbaRule.check
       { scope := .qualityNoun .color none,
         when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
-        then_ := move .this graveyard }
+        then_ := putInto .this graveyard }
       = [.kindLte (.quality .color) (.join .object .player)] := by
   decide
 

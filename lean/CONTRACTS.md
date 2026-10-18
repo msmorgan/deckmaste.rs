@@ -215,7 +215,6 @@ never an assumed fixed depth. The audit covers every affected helper:
 | `agentRef` | The agent's own introduction, including singularization of distributive agents. An agent introducing nothing is re-read directly. |
 | `itsOther` / `sameWindow` | The first stat modification's subject and amount introductions, in the same order as `StaticSpec.intro`. An originally empty introduction uses the whole context. `getsPt` no longer uses it: "gets +P/+T" is the one node `StaticSpec.ptModification`, which checks its subject once and its toughness delta after its power delta's introductions; the bench's hand-written two-modification clauses still read their toughness half through it. |
 | `ownSubject` | The shared subject's introduction; an empty owned introduction remains empty and cannot capture an outer antecedent. |
-| `lookedCards` | The library slice's introduction, including its possessor's mentions. |
 | `attachToIt` / `requireBlockIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |
 | `aTheirChoice` | The immediately preceding chooser mention. The macro requires that grammatical caller position; the fixed one-binding window is independent of the outer context. |
 | `comparesOwnStat` | The one subject binding that `Predicate.check` places immediately before the measure, read through its `member` argument, `ownMember` unless written. Its fixed internal depth is independent of outer context and letters. |
@@ -319,7 +318,7 @@ same refusals as the explicit-agent spelling while that existed. Who pays a cost
 checked (`lean-checker-sweep-costs`); the `Proofs/Actor.lean` pins that asserted
 those refusals now read the payer's handoff through `isYouIn` in the context
 the checker builds (`actorCtx`, `ownPerformerCtx`, `captureBindings`). The actor is
-singular, so an `enact`, an `offer` or a choice with no group handed to it takes
+singular, so an `enact`, a `may` or a choice with no group handed to it takes
 its one-player path; distribution belongs to the handoff. `sameKnownZone` does not equate two
 `actor` zones, since nested handoffs can name different players.
 
@@ -454,7 +453,7 @@ be inferred from a failed pronoun:
 | Simultaneous instructions | Thread announcements; sibling events do not read each other's outcomes. |
 | Predicate sibling modifiers, condition siblings | Check in the same containing context; do not make conjunction sequential. |
 | Alternatives, modes and result-table rows | Branch from their enclosing context; successful branch-local mentions are not unconditionally exported. A mode's cost precedes its own body. |
-| `withContinuation` (`offer` / `doIfDone` macros) | The success arm sees the body output; the failure arm starts before the body. |
+| `withContinuation` (`may` / `doIfDone` templates) | The success arm sees the body output; the failure arm starts before the body. |
 | `doIf`, `doOnlyIf` | Each branch checks before either branch's effects. Postposed conditions see the primary instruction's pre-state. Branch-local mentions and outcomes do not escape; facts about prior mentions are joined across branches. |
 | `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
 | `enact` | The performer in context (`enactPerformer`) establishes `enactCtx`; a group a handoff hands the deed checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |

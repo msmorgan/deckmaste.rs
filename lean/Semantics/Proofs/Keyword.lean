@@ -102,9 +102,9 @@ theorem badCoordinatedHostPlural :
 theorem okTokenKeywordAbility :
     Action.check (DRS.ofList [])
       (create (.lit 1)
-        { characteristics :=
+        (.written { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
-            power := some (.lit 1), toughness := some (.lit 1), text := [keyword (.named "flying")] } })
+            power := some (.lit 1), toughness := some (.lit 1), text := [keyword (.named "flying")] } }))
       = [] := by
   decide
 
@@ -296,11 +296,11 @@ theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLif
   decide
 
 /-- "Counter target spell." -/
-theorem okCounterSpell : Action.check (DRS.ofList []) (Action.counterSpell (target isSpell)) = [] := by decide
+theorem okCounterSpell : Action.check (DRS.ofList []) (counter (target isSpell)) = [] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Action.check (DRS.ofList []) (Action.counterSpell (target isAnyTarget))
+    Action.check (DRS.ofList []) (counter (target isAnyTarget))
       = [.deedFits, .kindLte (.join .object .player) (.join .object .pile)] := by
   decide
 
@@ -359,7 +359,7 @@ theorem okEachPlayerScriesOne :
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :
-    Action.check (DRS.ofList []) (fateseal anOpponent (.lit 2)) = [] := by decide
+    Action.check (DRS.ofList []) (fateseal (.lit 2)) = [] := by decide
 
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :

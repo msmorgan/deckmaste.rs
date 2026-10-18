@@ -475,7 +475,7 @@ theorem badDistributedChoiceReadSingular :
 printed card on the bench. -/
 theorem lookAtTopThenBin :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice (.lit 1)), offer (move (that .card) graveyard)])
+      (.sequentially [lookAt (topSlice (.lit 1)), may (putInto (that .card) graveyard)])
       = [] := by
   decide
 
@@ -501,8 +501,8 @@ theorem millThenPutFromAmongMilled :
     Action.check (DRS.ofList [])
       (.sequentially
         [ mill (.lit 3) .you,
-          offer
-            (move (fromAmong (exactly 1) isArtifact (theVerbed (.action "mill") .many (some .card) .thisWay))
+          may
+            (putInto (fromAmong (exactly 1) isArtifact (theVerbed (.action "mill") .many (some .card) .thisWay))
               hand) ]) = [] := by
   decide
 
@@ -510,7 +510,7 @@ theorem millThenPutFromAmongMilled :
 the bench. -/
 theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (offer
+      (instruct (each .anyPlayer) (may
         (instruct they (shuffleInto
           (Primitives.NounPhrase.both (allOf (.and [.isCard, .in_ (handOf they)])) (allOf (.and [.isCard, .in_ (graveyardOf they)])))))))
       = [] := by
@@ -519,7 +519,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 /-- "Each player may discard their hand and draw seven cards." No printed card on the bench. -/
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (offer
+      (instruct (each .anyPlayer) (may
         (.sequentially [discard (allOf (.and [.isCard, .in_ (handOf they)])), instruct they (draw (.lit 7))])))
       = [] := by
   decide

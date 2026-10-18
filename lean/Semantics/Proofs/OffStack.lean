@@ -22,7 +22,7 @@ namespace Semantics.Proofs.OffStack
 happens [CR#614.1c]. -/
 theorem okAsEventEnters :
     StaticSpec.check (DRS.ofList [])
-      (.asEvent (does thisPermanent enter) (offer (draw (.lit 1)))) = [] := by
+      (.asEvent (does thisPermanent enter) (may (draw (.lit 1)))) = [] := by
   decide
 
 /-- "Any time you control ten or more permanents and you don't have the city's blessing, you get
@@ -39,7 +39,7 @@ theorem okWhileHoldsCitysBlessing :
 
 /-- "Return the permanent this spell becomes to its owner's hand" [CR#400.7,702.109a]. -/
 theorem okBecomesThisSpell :
-    Action.check (DRS.ofList []) (move (.becomes thisSpell) hand) = [] := by decide
+    Action.check (DRS.ofList []) (putInto (.becomes thisSpell) hand) = [] := by decide
 
 /-- Only an object changes zones [CR#400.7]: what a player "becomes" is refused as a kind. -/
 theorem badBecomesOfAPlayer :

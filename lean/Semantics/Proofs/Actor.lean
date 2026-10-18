@@ -55,22 +55,22 @@ are checked [CR#111.7,704.5d]. -/
 theorem okThoughtseize :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (target .anyPlayer) Actor.revealHand,
+        [ instruct (target .anyPlayer) revealHand,
           choose (a (.and [.not isLand, .and [.isCard, .in_ (handOf they)]])),
-          instruct they (Actor.discard (that .card)),
+          instruct they (discard (that .card)),
           loseLife (.lit 2) ]) = [] := by
   decide
 
 /-- Burglar Rat: "When Burglar Rat enters, each opponent discards a card." The discard names no
 zone: the deed's patient lives in a hand [CR#701.9a]. -/
-theorem okBurglarRat : Action.check (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard))) = [] := by
+theorem okBurglarRat : Action.check (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discard (a .isCard))) = [] := by
   decide
 
 /-- "Each opponent discards a card. Exile them.": what each opponent's body introduced is
 published as a group, as `doForEach` publishes it. -/
 theorem okDistributedDiscardReadsAsGroup :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), exile them]) = [] := by
+      (.sequentially [instruct (each (.isOpponentOf .you)) (discard (a .isCard)), exile them]) = [] := by
   decide
 
 /-- "Each opponent discards a card. Exile it.": one card per opponent, so the singular read has
@@ -78,41 +78,41 @@ no antecedent (`okDistributedDiscardReadsAsGroup` is the plural read; compare
 `Choice.badDistributedChoiceReadSingular`). -/
 theorem badDistributedDiscardReadSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), exile it])
+      (.sequentially [instruct (each (.isOpponentOf .you)) (discard (a .isCard)), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
 /-- Hymn to Tourach: "Target player discards two cards at random." [CR#701.9b] -/
 theorem okHymnToTourach :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (Actor.discard (countedAtRandom (exactly 2) .isCard))) = [] := by
+      (instruct (target .anyPlayer) (discard (countedAtRandom (exactly 2) .isCard))) = [] := by
   decide
 
 /-- "Amass Orcs 2" [CR#701.47a]: with no handoff the controller amasses. -/
-theorem okAmassBare : Action.check (DRS.ofList []) (Actor.amass "Orc" 2) = [] := by decide
+theorem okAmassBare : Action.check (DRS.ofList []) (amass (creatureType "Orc") (.lit 2)) = [] := by decide
 
 /-- Azog: "Destroy target creature. Its controller amasses Goblins 2." The performer is the
 destroyed creature's controller; the reminder's "that creature" and "it" are the chosen Army. -/
 theorem okAzogControllerAmasses :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (Actor.amass "Goblin" 2)])
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (amass (creatureType "Goblin") (.lit 2))])
       = [] := by
   decide
 
 /-- D′ selects the newly chosen Army after an earlier creature is destroyed. -/
 theorem amassBareItAfterDestroyChecks :
-    Action.check (DRS.ofList []) (.sequentially [destroy (target isCreature), amass "Goblin" 2])
+    Action.check (DRS.ofList []) (.sequentially [destroy (target isCreature), amass (creatureType "Goblin") (.lit 2)])
       = [] := by
   decide
 
 /-- The brief's amass body as the RON declaration expands it: bare "that creature" and "it"
-(`Actor.amass` reads through `itPrior`). -/
+(`amass` reads through `itPrior`). -/
 private def literalAmass : Action :=
   .sequentially
-    [ .doIf (.not (exists_ Actor.army))
-        (create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"]))
+    [ .doIf (.not (exists_ army))
+        (create (.lit 1) (.written (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"])))
         none,
-      choose (a Actor.army),
+      choose (a army),
       .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)) .one true,
       .doIf (.not (.matches it (.hasSubtype (creatureType "Orc"))))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
@@ -164,10 +164,10 @@ theorem okScopedAmassAfterDestroy :
 view (`inCaller`). -/
 private def scopedAmassOf (amount : Amount) : Action :=
   .enact (.action "amass") (.ownScope none (.sequentially
-    [ .doIf (.not (exists_ Actor.army))
-        (create (.lit 1) (creatureToken 0 0 [.black] [creatureType "Goblin", creatureType "Army"]))
+    [ .doIf (.not (exists_ army))
+        (create (.lit 1) (.written (creatureToken 0 0 [.black] [creatureType "Goblin", creatureType "Army"])))
         none,
-      choose (a Actor.army),
+      choose (a army),
       .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) .one true,
       .doIf (.not (.matches it (.hasSubtype (creatureType "Goblin"))))
         (.establish (Primitives.StaticSpec.qualityChange it .adds
@@ -266,12 +266,12 @@ token." -/
 theorem varchildsWarRidersHandoffTwin :
     Ability.check (DRS.ofList [])
         (cumulativeUpkeep (.perform (instruct anOpponent
-          (create (.lit 1) (creatureToken 1 1 [.red] [creatureType "Survivor"]))))) = [] ∧
+          (create (.lit 1) (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])))))) = [] ∧
       Ability.check (DRS.ofList [])
           (cumulativeUpkeep (.perform (instruct anOpponent
-            (create (.lit 1) (creatureToken 1 1 [.red] [creatureType "Survivor"]))))) =
+            (create (.lit 1) (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])))))) =
         Ability.check (DRS.ofList [])
-          (cumulativeUpkeep (.perform (instruct anOpponent (Action.create (.lit 1)
+          (cumulativeUpkeep (.perform (instruct anOpponent (create (.lit 1)
             (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [])))) := by
   decide
 
@@ -547,27 +547,27 @@ theorem okDiscardWrapperWithAgent :
 
 /-- A targeted performer stays published after its handoff, below what the body introduced. -/
 theorem handedTargetStaysBound :
-    shape (instructionResult (DRS.ofList []) (instruct (target .anyPlayer) (Actor.discard (a .isCard)))) =
+    shape (instructionResult (DRS.ofList []) (instruct (target .anyPlayer) (discard (a .isCard)))) =
       [(.object, .one, .a), (.player, .one, .target)] := by
   decide
 
 /-- "That player": a pronoun performer introduces nothing; the body's mentions sit above the
 player it read. -/
 theorem handedPronounAddsOnlyTheBody :
-    shape (instructionResult onePlayer (instruct they (Actor.discard (a .isCard)))) =
+    shape (instructionResult onePlayer (instruct they (discard (a .isCard)))) =
       [(.object, .one, .a), (.player, .one, .the)] := by
   decide
 
 /-- "Each opponent": the members' mentions and the group, pluralized. -/
 theorem handedGroupPublishesPlurals :
-    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)))) =
+    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discard (a .isCard)))) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
 /-- `instruct you` publishes exactly what its body does with no handoff. -/
 theorem handedToYouIsTransparent :
-    (products (instructionResult (DRS.ofList []) (instruct .you (Actor.discard (a .isCard)))) ==
-      products (instructionResult (DRS.ofList []) (Actor.discard (a .isCard)))) = true := by
+    (products (instructionResult (DRS.ofList []) (instruct .you (discard (a .isCard)))) ==
+      products (instructionResult (DRS.ofList []) (discard (a .isCard)))) = true := by
   decide
 
 /-! ## A group handoff publishes its amount outcomes as totals
@@ -621,13 +621,13 @@ theorem handedGroupPublishesTotal :
 so the group handoff publishes none and "that much" has nothing to read. -/
 theorem badGroupHandoffNoOutcomeThatMuch :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), gainLife .thatMuch])
+      (.sequentially [instruct (each (.isOpponentOf .you)) (discard (a .isCard)), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Loses 1 life and discards a card." -/
 private def lossAndDiscard : Action :=
-  .sequentially [loseLife (.lit 1), Actor.discard (a .isCard)]
+  .sequentially [loseLife (.lit 1), discard (a .isCard)]
 
 /-- "Each opponent loses 1 life and discards a card. You gain that much life.": "that much" reads
 the life total; the discarded cards stay a group. -/
@@ -693,7 +693,7 @@ private def literalEndure (n : Nat) : Action :=
     (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) .one true),
-          (none, none, create (.lit 1) (creatureToken n n [.white] [creatureType "Spirit"])) ])) none none
+          (none, none, create (.lit 1) (.written (creatureToken n n [.white] [creatureType "Spirit"]))) ])) none none
 
 /-- `adapt N` as declared [CR#701.46a]: unchanged, still reading "this permanent". -/
 private def literalAdapt (n : Nat) : Action :=

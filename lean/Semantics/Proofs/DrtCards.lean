@@ -18,7 +18,7 @@ private def monstrousStep : Action := .sequentially [
 
 private def cloudAttach : Ability :=
   when (.does .any (putOntoBattlefield thisCreature))
-    (Action.attachTo
+    (attachTo
       (.described (.target (upTo 1))
         (.and [.hasSubtype (artifactType "Equipment"), .hasPossessor .controller .you])) it)
 

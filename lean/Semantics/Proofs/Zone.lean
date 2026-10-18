@@ -186,11 +186,11 @@ theorem badAgentedAgentlessAct :
   decide
 
 /-- "1 life for each creature" -/
-theorem okForEachOne : Amount.check (DRS.ofList []) (forEach 1 isCreature) = [] := by decide
+theorem okForEachOne : Amount.check (DRS.ofList []) (forEach (.lit 1) isCreature) = [] := by decide
 
 /-- "0 life for each creature" does not supply a nonzero per-member multiplier. -/
 theorem badForEachZero :
-    Amount.check (DRS.ofList []) (forEach 0 isCreature) = [.amtNonZero] := by decide
+    Amount.check (DRS.ofList []) (forEach (.lit 0) isCreature) = [.amtNonZero] := by decide
 
 /-- "creature on the battlefield" -/
 theorem okConsistentZoneConjunct :
@@ -310,13 +310,13 @@ theorem okTapAfterSimultaneousDamage :
 
 /-- "Gain control of target creature." -/
 theorem okGainControlBattlefield :
-    Action.check (DRS.ofList []) (gainControl (target isCreature) none (agent := .you)) = [] := by decide
+    Action.check (DRS.ofList []) (gainControl (target isCreature) none (controller := .you)) = [] := by decide
 
 /-- "Reveal the top four cards. Put them on the bottom in any order." -/
 theorem okPluralOrderRider :
     Action.check (DRS.ofList [])
       (.sequentially
-        [revealCards (topSlice (.lit 4)), (.move (those .card) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)])]) = [] := by
+        [reveal (topSlice (.lit 4)), (.move (those .card) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)])]) = [] := by
   decide
 
 /-- "Look at the top four cards of your library. Put them into your hand." -/
@@ -340,7 +340,7 @@ creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
     Action.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) isCreature)
       (.sequentially [searchLibraryFor (exactly 1) isCreature,
-        revealCards (theVerbed (.action "search") .one)])) = [] := by
+        reveal (theVerbed (.action "search") .one)])) = [] := by
   decide
 
 /-- "Each player mills a card. Exile it." -/
@@ -394,7 +394,7 @@ theorem okWouldDieOnBattlefield :
 /-- "Reveal the top card of your library. Put that card into your hand." -/
 theorem okSingularCardRetag :
     Action.check (DRS.ofList [])
-      (.sequentially [revealCards (topSlice (.lit 1)), (.move (that .card) .anyLocation (some hand) .arrival none [])]) = [] := by
+      (.sequentially [reveal (topSlice (.lit 1)), (.move (that .card) .anyLocation (some hand) .arrival none [])]) = [] := by
   decide
 
 /-- "Exile target creature until this creature leaves the battlefield. Put that card into
@@ -605,7 +605,7 @@ theorem badInterceptReplacementAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ replaceNextEvent (.would (.actor .you) (.draw .anyAmount))
-            (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Soldier"]))
+            (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Soldier"])))
             (some thisTurn),
           sacrifice it ]) = [.anaphor .bare .one 0] := by
   decide
@@ -625,7 +625,7 @@ theorem okDeathLookback :
 
 /-- "Counter target activated ability." -/
 theorem okCounterAbility :
-    Action.check (DRS.ofList []) (Action.counterSpell (target (.abilityHead .anyActivated))) = [] := by decide
+    Action.check (DRS.ofList []) (counter (target (.abilityHead .anyActivated))) = [] := by decide
 
 /-- "Exile target creature." -/
 theorem okObjectMovedToAZone :

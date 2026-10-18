@@ -67,16 +67,16 @@ theorem okDesperateCastaways : Ability.check (DRS.ofList []) desperateCastaways 
 def munghaWurm : Ability := Primitives.Ability.static (cant (actor you) (untap (counted (moreThan 1) isLand)))
 theorem okMunghaWurm : Ability.check (DRS.ofList []) munghaWurm = [] := by decide
 def dampingField : Ability :=
-  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isArtifact)))
+  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isArtifact)) (timing := some duringTheirUntapSteps))
 theorem okDampingField : Ability.check (DRS.ofList []) dampingField = [] := by decide
-def smoke : Ability := Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isCreature)))
+def smoke : Ability := Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isCreature)) (timing := some duringTheirUntapSteps))
 theorem okSmoke : Ability.check (DRS.ofList []) smoke = [] := by decide
 def winterOrb : Ability :=
-  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isLand)))
+  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isLand)) (timing := some duringTheirUntapSteps))
     (Primitives.Condition.matches thisArtifact isUntapped))
 theorem okWinterOrb : Ability.check (DRS.ofList []) winterOrb = [] := by decide
 def staticOrb : Ability :=
-  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 2) isPermanent)))
+  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 2) isPermanent)) (timing := some duringTheirUntapSteps))
     (Primitives.Condition.matches thisArtifact isUntapped))
 theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 
@@ -84,7 +84,8 @@ theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 def ruleOfLaw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rule of Law", cost := some [generic 2, pip .white], types := [.enchantment],
-      text := [Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (cast (counted (moreThan 1) isSpell)))] } }
+      text := [Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (cast (counted (moreThan 1) isSpell))
+        (timing := some eachTurn))] } }
 
 /-- Spirit of the Labyrinth -/
 def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
@@ -95,7 +96,7 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=
-  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) (Primitives.Predicate.and [isLand, Primitives.Predicate.not (Primitives.Predicate.hasSupertype .basic)]))))
+  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) (Primitives.Predicate.and [isLand, Primitives.Predicate.not (Primitives.Predicate.hasSupertype .basic)]))) (timing := some duringTheirUntapSteps))
 theorem okWinterMoon : Ability.check (DRS.ofList []) winterMoon = [] := by decide
 
 def leitmotifComposer : Ability :=
@@ -751,7 +752,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "haste"),
           when (does (actor thisCreature) die)
-            (create (.lit 1)
+            (createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [creatureType "Rat"],
                   text :=

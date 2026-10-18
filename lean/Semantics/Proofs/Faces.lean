@@ -325,12 +325,12 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Action.check (DRS.ofList [])
-      (Action.create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
+      (create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Action.check (DRS.ofList []) (Action.create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [] []]) [])
+    Action.check (DRS.ofList []) (create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [] []]) [])
       = [.lineNonEmpty] := by
   decide
 
@@ -345,7 +345,7 @@ theorem okCopyStackSpell :
 theorem okSetStatusOnBattlefield :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.create (.lit 1) (.copyOf (target isCreature) []) [],
+        [ create (.lit 1) (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -363,7 +363,7 @@ theorem badStackCopyAsToken :
 theorem badTokenCopyAsCopyMention :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.create (.lit 1) (.copyOf (target isCreature) []) [],
+        [ create (.lit 1) (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0] := by
   decide
@@ -479,7 +479,7 @@ theorem badCumulativeUpkeepOnSpell :
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
 theorem okRenownWithRenownExpansion :
-    Ability.check (DRS.ofList []) (.keyword (.named "renown") [.number (.lit 1)] [renownExpansion 1])
+    Ability.check (DRS.ofList []) (.keyword (.named "renown") [.number (.lit 1)] [renownExpansion (.lit 1)])
       = [] := by
   decide
 
@@ -487,7 +487,7 @@ theorem okRenownWithRenownExpansion :
 static ability [CR#702.9a,509.1b], so a triggered body is the wrong category. Re-spelled from
 `badBodyOnBodilessKeyword`, which asserted the same refusal when no keyword took a static body. -/
 theorem badTriggeredBodyOnStaticKeyword :
-    Ability.check (DRS.ofList []) (.keyword (.named "flying") [] [renownExpansion 1])
+    Ability.check (DRS.ofList []) (.keyword (.named "flying") [] [renownExpansion (.lit 1)])
       = [.keywordBodyFits (.named "flying")] := by
   decide
 
@@ -503,7 +503,7 @@ theorem badStaticBodyOnTriggeredKeyword :
 
 /-- "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of
 turn.)" -/
-theorem okBushidoWithBushidoDefinition : Ability.check (DRS.ofList []) (bushido 2) = [] := by decide
+theorem okBushidoWithBushidoDefinition : Ability.check (DRS.ofList []) (bushido (.lit 2)) = [] := by decide
 
 /-- "Cycling {2} ({2}, Discard this card: Draw a card.)" -/
 theorem okCyclingWithCyclingDefinition :
@@ -527,13 +527,13 @@ theorem badActivatedBodyOnTriggeredKeyword :
 /-- "Modular 1 (This permanent enters with a +1/+1 counter on it. When it dies, you may put a
 +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.)": a
 definition of two abilities in two categories [CR#702.43a]. -/
-theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular 1) = [] := by decide
+theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular (.lit 1)) = [] := by decide
 
 /-- "Modular 1 (… {2}, Discard this card: Draw a card.)": one element of the definition list is
 of a category modular does not declare [CR#702.43a]. -/
 theorem badUndeclaredCategoryInDefinitionList :
     Ability.check (DRS.ofList []) (.keyword (.named "modular") [.number (.lit 1)]
-        (modularExpansion 1 ++ [cyclingExpansion (.mana [generic 2])]))
+        (modularExpansion (.lit 1) ++ [cyclingExpansion (.mana [generic 2])]))
       = [.keywordBodyFits (.named "modular")] := by
   decide
 
@@ -599,7 +599,7 @@ theorem okThatMuchAfterQuantity :
     Action.check (DRS.ofList [])
       (.sequentially
         [ Templates.instruct (target (.isOpponentOf .you)) (loseLife
-            (forEach 1 (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
+            (forEach (.lit 1) (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
 
@@ -950,7 +950,7 @@ theorem stormCountsEarlierThisTurn :
           [ .copy .fromStack thisSpell
               (eventCount (.procedure .cast (a (.and [isSpell, .otherThan thisSpell])) .itsOwnCost none none none) (.actor (a .anyPlayer)) earlierThisTurn)
               [],
-            offer (.chooseNewTargets (.pro (.word .copy) .many)) ]) := by
+            may (.chooseNewTargets (.pro (.word .copy) .many)) ]) := by
   rfl
 
 end Semantics.Proofs.Faces

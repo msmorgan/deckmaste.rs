@@ -21,7 +21,7 @@ namespace Semantics.Cards
 /-- Through the Breach Splice -/
 def throughTheBreach : Action :=
   Primitives.Action.offer
-    (move (a (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) battlefield)
+    (putInto (a (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) battlefield)
     (some (Primitives.Action.sequentially
       [ gainHaste (that (.type .creature)) none,
         delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none))
@@ -32,7 +32,7 @@ theorem okThroughTheBreach : Action.check (DRS.ofList []) throughTheBreach = [] 
 def turnToMist : Action :=
   Primitives.Action.sequentially
     [ exile (target isCreature),
-      delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none)) (move (that .card) battlefield) ]
+      delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none)) (putInto (that .card) battlefield) ]
 theorem okTurnToMist : Action.check (DRS.ofList []) turnToMist = [] := by decide
 
 def voyagerStaff : Ability :=
@@ -40,7 +40,7 @@ def voyagerStaff : Ability :=
     (Primitives.Action.sequentially
       [ exile (target isCreature),
         delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none))
-          (move (theVerbed (.action "exile") .one (some .card)) battlefield) ])
+          (putInto (theVerbed (.action "exile") .one (some .card)) battlefield) ])
 theorem okVoyagerStaff : Ability.check (DRS.ofList []) voyagerStaff = [] := by decide
 
 def staffOfNin : Ability :=
@@ -78,7 +78,7 @@ def fourKnocks : Ability :=
 theorem okFourKnocks : Ability.check (DRS.ofList []) fourKnocks = [] := by decide
 
 def hammerOfBogardan : Ability :=
-  activatedOnlyDuring (Primitives.Cost.mana [generic 2, pip .red, pip .red, pip .red]) (move Primitives.NounPhrase.this hand)
+  activatedOnlyDuring (Primitives.Cost.mana [generic 2, pip .red, pip .red, pip .red]) (putInto Primitives.NounPhrase.this hand)
     (duringPart .upkeep (some Primitives.NounPhrase.you))
 theorem okHammerOfBogardan : Ability.check (DRS.ofList []) hammerOfBogardan = [] := by decide
 
@@ -137,16 +137,16 @@ def ivoryTower : Spelled := spelled <| .singleFaced
 def ajanisEmblem : Action :=
   Primitives.Action.getEmblem
     [ at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-        (create (.lit 3)
+        (createToken
           { characteristics :=
             { colors := [.white], types := [.creature], subtypes := [creatureType "Cat"],
-              text := [keyword (.named "lifelink")], power := stat 1, toughness := stat 1 } }) ]
+              text := [keyword (.named "lifelink")], power := stat 1, toughness := stat 1 } } (count := (.lit 3))) ]
 theorem okAjanisEmblem : Action.check (DRS.ofList []) ajanisEmblem = [] := by decide
 
 /-- Saheeli Rai -/
 def saheelisCopy : Action :=
   Primitives.Action.sequentially
-    [ Action.create (.lit 1)
+    [ create (.lit 1)
         (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [Primitives.Predicate.or [isArtifact, isCreature], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
           [Primitives.CopyExcept.types [.artifact] []])
         [],
@@ -323,7 +323,7 @@ def fettergeist : Spelled := spelled <| .singleFaced
           at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (doUnless (sacrifice thisCreature)
               (scaledGenericMana
-                (forEach 1
+                (forEach (.lit 1)
                   (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan thisCreature])))) ],
       power := stat 3, toughness := stat 4 } }
 
@@ -360,7 +360,7 @@ def centaurOfAttention : Spelled := spelled <| .singleFaced
         [ when (does (actor thisCreature) enter)
             (Primitives.Action.sequentially [rollDice (.lit 5) (.sides 6), Primitives.Action.storeResults thisCreature]),
           at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (offer (Primitives.Action.rerollStored anyNumber thisCreature)),
+            (may (Primitives.Action.rerollStored anyNumber thisCreature)),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ getsPt thisCreature (Primitives.Delta.up (Primitives.Amount.letter .x)) (Primitives.Delta.up (Primitives.Amount.letter .x)),
               Primitives.StaticSpec.letterDefinition .x (Primitives.Amount.greatestStoredMatch thisCreature) ]) ],
@@ -374,7 +374,7 @@ def shapeshifter : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .number (Primitives.ChoiceDomain.number (fromTo 0 7))),
           at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (offer (choose (a (qualityFrom .number (Primitives.ChoiceDomain.number (fromTo 0 7)))))),
+            (may (choose (a (qualityFrom .number (Primitives.ChoiceDomain.number (fromTo 0 7)))))),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone theLastChosenNumber,
               Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (minus (.lit 7) theLastChosenNumber) ]) ] }
@@ -419,11 +419,11 @@ def landTax : Spelled := spelled <| .singleFaced
     { name := "Land Tax", cost := some [pip .white], types := [.enchantment],
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (exists_ opponentWithMoreLands)
-            (offer
+            (may
               (Primitives.Action.sequentially
                 [ searchLibraryFor (upTo 3) (Primitives.Predicate.and [isLand, Primitives.Predicate.hasSupertype .basic]),
-                  revealCards (those .card),
-                  move (those .card) hand,
+                  reveal (those .card),
+                  putInto (those .card) hand,
                   shuffle ])) ] } }
 
 /-- Beckoning Will-o'-Wisp -/
@@ -491,7 +491,7 @@ def thawingGlaciers : Spelled := spelled <| .singleFaced
               [ searchLibraryFor (exactly 1) (Primitives.Predicate.and [isLand, Primitives.Predicate.hasSupertype .basic]),
                 putOntoBattlefieldTapped (that .card),
                 shuffle,
-                delay (Primitives.GameEvent.beginningOf .cleanup none (Primitives.TurnRef.next none)) (move thisLand hand) ]) ] } }
+                delay (Primitives.GameEvent.beginningOf .cleanup none (Primitives.TurnRef.next none)) (putInto thisLand hand) ]) ] } }
 
 /-- Blood Frenzy -/
 def bloodFrenzy : Spelled := spelled <| .singleFaced

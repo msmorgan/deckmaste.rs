@@ -114,7 +114,7 @@ theorem okSquadComponents : [costPart, entersPart].all squadRow.bodyPartFits = t
 
 /-- "create a token that's a copy of it, except it's 1/1" [CR#702.175a] -/
 def offspringCopy : Action :=
-  Action.create (.lit 1)
+  create (.lit 1)
     (.copyOf thisPermanent [.edits [.stat .sets .power (.lit 1), .stat .sets .toughness (.lit 1)]])
     []
 
@@ -146,7 +146,7 @@ token that's a copy of it for each time its squad cost was paid." [CR#702.157a] 
 def squadEntersPart : Ability :=
   triggeredIf (does thisCreature enter)
     (costWasPaid (.byKeyword (.named "squad")) none thisCreature)
-    (Action.create (timesPaid (.byKeyword (.named "squad")) thisCreature)
+    (create (timesPaid (.byKeyword (.named "squad")) thisCreature)
       (.copyOf thisCreature []) [])
 
 theorem okSquadSecondAbility :

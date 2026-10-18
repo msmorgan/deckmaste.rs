@@ -50,7 +50,7 @@ theorem okCostAlternativeKeepsSymbolProperties :
 
 theorem okOptionalSuccessReadsBody :
     Action.check (DRS.ofList []) (.withContinuation .optional (exile (a (and [isCreature, youControl])))
-      (some (move it battlefield)) none) = [] := by decide
+      (some (putInto it battlefield)) none) = [] := by decide
 
 theorem badOptionalFailureReadsBody :
     Action.check (DRS.ofList []) (.withContinuation .optional (exile (a (and [isCreature, youControl])))
@@ -58,7 +58,7 @@ theorem badOptionalFailureReadsBody :
 
 theorem okRequiredSuccessReadsBody :
     Action.check (DRS.ofList []) (.withContinuation .required (exile (a (and [isCreature, youControl])))
-      (some (move it battlefield)) none) = [] := by decide
+      (some (putInto it battlefield)) none) = [] := by decide
 
 theorem badRequiredFailureReadsBody :
     Action.check (DRS.ofList []) (.withContinuation .required (exile (a (and [isCreature, youControl])))

@@ -166,7 +166,7 @@ theorem okThatMuchBound :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (target (.isOpponentOf .you)) (loseLife
-            (forEach 1 (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
+            (forEach (.lit 1) (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
 
@@ -309,18 +309,18 @@ theorem okRestAfterPart :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          move (someOf (exactly 1) them) hand,
-          move (theRest .object) graveyard ]) = [] := by
+          putInto (someOf (exactly 1) them) hand,
+          putInto (theRest .object) graveyard ]) = [] := by
   decide
 
 /-- "Put the rest into your graveyard." -/
 theorem badRestWithoutGroup :
-    Action.check (DRS.ofList []) (move (theRest .object) graveyard) = [.theRestFits .object] := by decide
+    Action.check (DRS.ofList []) (putInto (theRest .object) graveyard) = [.theRestFits .object] := by decide
 
 /-- "Look at the top four cards of your library. Put the rest on the bottom." -/
 theorem badRestWithoutPart :
     Action.check (DRS.ofList [])
-      (.sequentially [lookAt (topSlice (.lit 4)), move (theRest .object) onBottom])
+      (.sequentially [lookAt (topSlice (.lit 4)), putInto (theRest .object) onBottom])
       = [.theRestFits .object] := by
   decide
 
@@ -328,16 +328,16 @@ theorem badRestDisposedTwice :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          move (someOf (exactly 1) them) hand,
-          move (theRest .object) onBottom,
-          move (theRest .object) graveyard ]) = [.theRestFits .object] := by
+          putInto (someOf (exactly 1) them) hand,
+          putInto (theRest .object) onBottom,
+          putInto (theRest .object) graveyard ]) = [.theRestFits .object] := by
   decide
 
 theorem badRestOverTwoAnnouncements :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, youDontControl]))),
-          move (theRest .object) graveyard ]) = [.theRestFits .object] := by
+          putInto (theRest .object) graveyard ]) = [.theRestFits .object] := by
   decide
 
 /-- "This creature deals 2 damage to each opponent." -/
@@ -424,7 +424,7 @@ theorem badPreventedThisWayUnannounced :
 /-- "… They gain 2 life for each card less than two they drew this way." -/
 theorem okShortOfCeilingAnnounced :
     let drawing := instruct (each .anyPlayer)
-      (.sequentially [offer (draw (.upTo (.lit 2))),
+      (.sequentially [may (draw (.upTo (.lit 2))),
         instruct they (gainLife (times (.lit 2) shortOfCeiling))])
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) drawing).1
     Action.check (DRS.ofList []) drawing = [] ∧
@@ -434,12 +434,12 @@ theorem okShortOfCeilingAnnounced :
 theorem singularTheyCannotReadThePublishedPlayerGroup :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (offer (instruct they (draw (.upTo (.lit 2))))),
+        [ instruct (each .anyPlayer) (may (instruct they (draw (.upTo (.lit 2))))),
           instruct they (gainLife (times (.lit 2) shortOfCeiling)) ]) =
       [.anaphor (.word .player) .one 0] := by decide
 
 theorem optionalDrawSummaryDoesNotExportDrawnCards :
-    let drawing := instruct .you (offer (draw (.upTo (.lit 2))))
+    let drawing := instruct .you (may (draw (.upTo (.lit 2))))
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) drawing).1
     countOutcomes .ceilingShortfall after = 1 ∧
       NounPhrase.checkAt (some .object) (nextClause after) (those .card) =
@@ -651,7 +651,7 @@ theorem okJoinDamageRecipient :
 
 /-- "Create a 1/1 white Soldier creature token." -/
 theorem okSoldierToken :
-    Action.check (DRS.ofList []) (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
+    Action.check (DRS.ofList []) (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
       = [] := by
   decide
 

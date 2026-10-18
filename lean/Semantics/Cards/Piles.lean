@@ -21,11 +21,11 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.does Primitives.Subject.any (putOntoBattlefield thisArtifact))
             (Primitives.Action.sequentially
               [ lookAt (topSlice (.lit 5)),
-                offer
+                may
                   (Primitives.Action.sequentially
-                    [ revealCards
+                    [ reveal
                         (fromAmong (exactly 1) (Primitives.Predicate.or [Primitives.Predicate.colorIs .blue, isArtifact]) them),
-                      move (that .card) hand ]),
+                      putInto (that .card) hand ]),
                 Primitives.Action.move (theRest .object) Primitives.Location.anyLocation (some onBottom) .arrival none [(Primitives.MoveRider.inOrder .randomOrder)] ]),
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 5, pip .blue], Primitives.Cost.tapSymbol,
@@ -141,8 +141,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
                 [ instruct (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly
                     (Primitives.Ballot.byLabel ["strength", "numbers"])),
                   Primitives.Action.putCounters (Primitives.Amount.votesFor "strength") (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true,
-                  create (Primitives.Amount.votesFor "numbers")
-                    (creatureToken 1 1 [.white] [creatureType "Soldier"]) ])) ],
+                  createToken (creatureToken 1 1 [.white] [creatureType "Soldier"]) (count := (Primitives.Amount.votesFor "numbers")) ])) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Truth or Consequences: the secret-council ability alone, as the Idris bench holds it. -/
@@ -165,7 +164,7 @@ def deathOrGlory : Spelled := spelled <| .singleFaced
             [ Primitives.Action.separateIntoPiles
                 (allOf (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) 2 [],
               exile (pileOfChoice anOpponent),
-              move (theOther .pile) battlefield ]) ] } }
+              putInto (theOther .pile) battlefield ]) ] } }
 
 /-- Steam Augury -/
 def steamAugury : Spelled := spelled <| .singleFaced
@@ -173,11 +172,11 @@ def steamAugury : Spelled := spelled <| .singleFaced
     { name := "Steam Augury", cost := some [generic 2, pip .blue, pip .red], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ revealCards (topSlice (.lit 5)),
+            [ reveal (topSlice (.lit 5)),
               Primitives.Action.separateIntoPiles them 2 [],
               instruct anOpponent (choose onePile),
-              move (that .pile) hand,
-              move (theOther .pile) graveyard ]) ] } }
+              putInto (that .pile) hand,
+              putInto (theOther .pile) graveyard ]) ] } }
 
 /-- Do or Die -/
 def doOrDie : Spelled := spelled <| .singleFaced

@@ -40,7 +40,7 @@ theorem badChooseYou :
 theorem badConditionalArmAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .doOnlyIf (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
+        [ .doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
             (exists_ (and [isCreature, youControl])) none,
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
   decide
@@ -49,8 +49,8 @@ theorem badBothArmsAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ Primitives.Action.offer (gainLife (.lit 1))
-            (some (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])))
-            (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
+            (some (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))))
+            (some (create (.lit 2) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))),
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -163,7 +163,7 @@ reach it [CR#701.6a]. -/
 theorem badStackAnaphorAfterCounteringAbility :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.counterSpell (target (.abilityHead .anyActivated)), Action.counterSpell (that .stack) ])
+        [ counter (target (.abilityHead .anyActivated)), counter (that .stack) ])
       = [.anaphor (.word .stack) .one 0] := by
   decide
 
@@ -369,7 +369,7 @@ theorem okPluralSpellReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 2) [],
-          offer (.chooseNewTargets (those .spell)) ]) = [] := by
+          may (.chooseNewTargets (those .spell)) ]) = [] := by
   decide
 
 /-- "Copy target instant or sorcery spell. You may choose new targets for the copy." -/
@@ -377,7 +377,7 @@ theorem okCopyReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
-          offer (.chooseNewTargets (that .copy)) ]) = [] := by
+          may (.chooseNewTargets (that .copy)) ]) = [] := by
   decide
 
 /-- "Copy target instant or sorcery spell. You may choose new targets for that spell."
@@ -386,7 +386,7 @@ theorem singularSpellReadSelectsCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
-          offer (.chooseNewTargets (that .spell)) ]) = [] := by
+          may (.chooseNewTargets (that .spell)) ]) = [] := by
   decide
 
 /-- "Copy target activated ability twice. You may choose new targets for those abilities." A
@@ -396,7 +396,7 @@ theorem okPluralAbilityReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 2) [],
-          offer (.chooseNewTargets (those .ability)) ]) = [] := by
+          may (.chooseNewTargets (those .ability)) ]) = [] := by
   decide
 
 /-- "Copy target activated ability. You may choose new targets for that ability."
@@ -405,7 +405,7 @@ theorem singularAbilityReadSelectsCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
-          offer (.chooseNewTargets (that .ability)) ]) = [] := by
+          may (.chooseNewTargets (that .ability)) ]) = [] := by
   decide
 
 /-- "Copy target activated ability. You may choose new targets for the copy." -/
@@ -413,7 +413,7 @@ theorem okAbilityCopyReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
-          offer (.chooseNewTargets (that (.copied .ability))) ]) = [] := by
+          may (.chooseNewTargets (that (.copied .ability))) ]) = [] := by
   decide
 
 /-- An ability goes on the stack with no card associated with it [CR#405.1]. -/

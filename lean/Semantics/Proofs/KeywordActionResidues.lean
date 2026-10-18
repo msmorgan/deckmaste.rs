@@ -15,27 +15,27 @@ named emblem. Each keyword action's bench macro checks clean, and each shape has
 namespace Semantics.Proofs.KeywordActionResidues
 
 /-- "Collect evidence 3" [CR#701.59a]. -/
-theorem okCollectEvidence : Action.check (DRS.ofList []) (Actor.collectEvidence (.lit 3)) = [] := by decide
+theorem okCollectEvidence : Action.check (DRS.ofList []) (collectEvidence (.lit 3)) = [] := by decide
 
 /-- A total's bound is an amount like any other: an unresolved "its power" is refused. -/
 theorem badWithTotalUnresolvedBound :
-    Action.check (DRS.ofList []) (move (Actor.withTotal (.stat .manaValue) .atLeast
+    Action.check (DRS.ofList []) (putInto (withTotal (.stat .manaValue) .atLeast
       (powerOf (that (.type .creature))) (allOf (.and [.isCard, .in_ (graveyardOf .you)])))
       exileZone) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 /-- "Discover 5" [CR#701.57a]: "that card" reads the card that stopped the run, and "the
 remaining exiled cards" the rest of the run. -/
-theorem okDiscover : Action.check (DRS.ofList []) (Actor.discover (.lit 5)) = [] := by decide
+theorem okDiscover : Action.check (DRS.ofList []) (discover (.lit 5)) = [] := by decide
 
 /-- A run comes from a pile, and a library pile is a player's: a creature has none, so "its
 library" names no pile to run. -/
 theorem badLibraryRunOfAnObject :
-    Action.check (DRS.ofList []) (move (.run .top isLand (libraryOf thisCreature)) exileZone) =
+    Action.check (DRS.ofList []) (putInto (.run .top isLand (libraryOf thisCreature)) exileZone) =
       [.kindMismatch .player .object] := by decide
 
 /-- "Incubate 3" [CR#701.53a,701.53b]. -/
-theorem okIncubate : Action.check (DRS.ofList []) (Actor.incubate (.lit 3)) = [] := by decide
+theorem okIncubate : Action.check (DRS.ofList []) (incubate (.lit 3)) = [] := by decide
 
 /-- Each face of a double-faced token is a characteristics set, written once per value. -/
 theorem badDoubleFacedRepeatedType :
@@ -44,7 +44,7 @@ theorem badDoubleFacedRepeatedType :
       { characteristics := { types := [.creature] } }) []) true none) = [.distinct] := by decide
 
 /-- "Waterbend {4}" [CR#701.67a]. -/
-theorem okWaterbend : Action.check (DRS.ofList []) (Actor.waterbend (.mana [generic 4])) = [] := by decide
+theorem okWaterbend : Action.check (DRS.ofList []) (waterbend (.mana [generic 4])) = [] := by decide
 
 /-- What tapping pays with is a permanent, not a player: a substitute whose action names
 players. -/
@@ -71,24 +71,24 @@ theorem badSubstitutePaysWithoutAntecedent :
 /-- Crew 3's cost [CR#702.122a]: "tap any number of other untapped creatures you control with
 total power 3 or greater". -/
 theorem okCrewCost :
-    Cost.check (DRS.ofList []) (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 3)
+    Cost.check (DRS.ofList []) (.perform (tap (withTotal (.stat .power) .atLeast (.lit 3)
       (allOf (.and [isUntapped, isCreature, .hasPossessor .controller .you, .otherThan .this]))))) =
       [] := by decide
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
-    Action.check (DRS.ofList []) (Actor.manifest (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
+    Action.check (DRS.ofList []) (manifest (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
 
 /-- "Cloak the top card of your library" [CR#701.58a]. -/
 theorem okCloak :
-    Action.check (DRS.ofList []) (Actor.cloak (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
+    Action.check (DRS.ofList []) (cloak (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
 
 /-- "Manifest dread" [CR#701.62a]: the manifested card is a part of the look, and the rest the
 other card. -/
-theorem okManifestDread : Action.check (DRS.ofList []) Actor.manifestDread = [] := by decide
+theorem okManifestDread : Action.check (DRS.ofList []) manifestDread = [] := by decide
 
 /-- "Support 2" [CR#701.41a]. -/
-theorem okSupport : Action.check (DRS.ofList []) (Actor.support (.lit 2)) = [] := by decide
+theorem okSupport : Action.check (DRS.ofList []) (support (.lit 2)) = [] := by decide
 
 /-- "Cast target instant or sorcery card" [CR#701.5a], "play target land card without paying"
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as

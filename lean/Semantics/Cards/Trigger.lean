@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 def gracefulReprieve : Action :=
-  delayWithin (does (actor (target isCreature)) die) thisTurn (move (that .card) battlefield)
+  delayWithin (does (actor (target isCreature)) die) thisTurn (putInto (that .card) battlefield)
 theorem okGracefulReprieve : Action.check (DRS.ofList []) gracefulReprieve = [] := by decide
 
 def cloudkinSeer : Ability := when (does (actor thisCreature) enter) (Primitives.Action.draw (.lit 1))
@@ -172,7 +172,7 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a
           (Primitives.Predicate.and [isInstantOrSorcery, isSpell]))) Primitives.PlayPayment.itsOwnCost none none none))
-            (Action.create (.lit 1)
+            (create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Elemental"])) [])
                   ],
       power := stat 2, toughness := stat 1 } }
@@ -195,7 +195,7 @@ def orimsPrayer : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ whenever (does (actor (counted (atLeast 1) isCreature)) (attack (some Primitives.NounPhrase.you)))
-            (gainLife (forEach 1 (Primitives.Predicate.and [isAttacking, isCreature]))) ] } }
+            (gainLife (forEach (.lit 1) (Primitives.Predicate.and [isAttacking, isCreature]))) ] } }
 
 def lesserGargadon : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -404,7 +404,7 @@ def chromeReplicator : Spelled := spelled <| .singleFaced
             (Primitives.Condition.exists_ (withTheSameName
               (counted (atLeast 2)
                 (Primitives.Predicate.and [isPermanent, Primitives.Predicate.not isLand, isNontoken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
-            (create (.lit 1)
+            (createToken
               { characteristics :=
                 { types := [.artifact, .creature], subtypes := [creatureType "Construct"],
                   power := stat 4, toughness := stat 4 } }) ],
@@ -416,7 +416,7 @@ def admiralsOrder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.mana [pip .blue])))
             (happened (Primitives.Action.attack none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn)),
-          Primitives.Ability.spell none (Action.counterSpell (target isSpell)) ] } }
+          Primitives.Ability.spell none (counter (target isSpell)) ] } }
 
 def fyndhornDruid : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -490,8 +490,7 @@ def defilingDaemogothDrain : Action :=
 theorem okDefilingDaemogothDrain : Action.check (DRS.ofList []) defilingDaemogothDrain = [] := by decide
 def skullsporeNexusTrigger : Ability :=
   whenever (does (actor (counted (atLeast 1) (Primitives.Predicate.and [isNontoken, and [isCreature, youControl]]))) die)
-    (create (.lit 1)
-      (creatureTokenOf (Primitives.Amount.aggregate .sum (.stat .power) (those .card))
+    (createToken (creatureTokenOf (Primitives.Amount.aggregate .sum (.stat .power) (those .card))
         (Primitives.Amount.aggregate .sum (.stat .power) (those .card))
         [.green] [creatureType "Fungus", creatureType "Dinosaur"]))
 theorem okSkullsporeNexusTrigger : Ability.check (DRS.ofList []) skullsporeNexusTrigger = [] := by decide
@@ -585,7 +584,7 @@ def faithsReward : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Faith's Reward", cost := some [generic 3, pip .white], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (move
+        [ Primitives.Ability.spell none (putInto
             (allOf (Primitives.Predicate.and [ isPermanentCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you),
                            Primitives.Predicate.did (⟨Primitives.Subject.any, (Primitives.Action.move (relative .object) battlefield (some (graveyardOf
                              Primitives.NounPhrase.you)) .departure none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩) ]))
@@ -648,7 +647,7 @@ def debrisBeetleTrigger : Ability :=
 theorem okDebrisBeetleTrigger : Ability.check (DRS.ofList []) debrisBeetleTrigger = [] := by decide
 /-- Roads Go Ever, Ever On's chapters II and III -/
 def roadsGoEverEverOnChapters : Ability :=
-  when (Primitives.GameEvent.chapterMark [2, 3]) (move (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)])) hand)
+  when (Primitives.GameEvent.chapterMark [2, 3]) (putInto (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)])) hand)
 theorem okRoadsGoEverEverOnChapters : Ability.check (DRS.ofList []) roadsGoEverEverOnChapters = [] := by decide
 /-- Wurmwall Sweeper -/
 def wurmwallSweeperTrigger : Ability := when (does (actor thisSpacecraft) enter) (surveil (.lit 2))
@@ -667,13 +666,13 @@ def ferociousPup : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Wolf"],
       text :=
         [ when (does (actor thisCreature) enter)
-            (create (.lit 1) (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
+            (createToken (creatureToken 2 2 [.green] [creatureType "Wolf"])) ],
       power := stat 0, toughness := stat 1 } }
 
 /-- Agency Outfitter's search -/
 def agencyOutfitterSearch : Action :=
   Primitives.Action.sequentially
-    [ offer
+    [ may
         (Primitives.Action.sequentially
           [ searchZonesOf Primitives.NounPhrase.you (exactly 1)
               (Primitives.Predicate.or [Primitives.Predicate.named (Primitives.NameSource.printed "Magnifying Glass"), Primitives.Predicate.named (Primitives.NameSource.printed "Thinking Cap")]),
@@ -769,7 +768,7 @@ def autarchMammothLine : Ability :=
   triggeredJoined (does (actor thisCreature) enter)
     [ joinedHeadWhile (does (actor thisCreature) attack)
         (whileTrue (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none))) ]
-    (create (.lit 1) (creatureToken 3 3 [.green] [creatureType "Elephant"]))
+    (createToken (creatureToken 3 3 [.green] [creatureType "Elephant"]))
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
@@ -781,7 +780,7 @@ def foulEmissaryLine : Ability :=
   triggeredWhile (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (sacrifice (thisCreature)))
     (whileDoing (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a
       (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasKeyword (.the (.named "emerge"))]))) Primitives.PlayPayment.itsOwnCost none none none)))
-    (create (.lit 1) (creatureToken 3 2 [] [creatureType "Eldrazi", creatureType "Horror"]))
+    (createToken (creatureToken 3 2 [] [creatureType "Eldrazi", creatureType "Horror"]))
 theorem okFoulEmissaryLine : Ability.check (DRS.ofList []) foulEmissaryLine = [] := by decide
 
 /-- Bramble Elemental -/
@@ -791,7 +790,7 @@ def brambleElemental : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Elemental"],
       text :=
         [ whenever (Primitives.GameEvent.does Primitives.Subject.any (Primitives.Action.attachment .attached (a (Primitives.Predicate.hasSubtype (enchantmentType "Aura"))) (some thisCreature)))
-            (create (.lit 2) (creatureToken 1 1 [.green] [creatureType "Saproling"])) ],
+            (createToken (creatureToken 1 1 [.green] [creatureType "Saproling"]) (count := (.lit 2))) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Stone Haven Outfitter -/
@@ -823,7 +822,7 @@ theorem okAkiriEquippedAttackers : Ability.check (DRS.ofList []) akiriEquippedAt
 def vexingBaubleTrigger : Ability :=
   triggeredIf (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.procedure .cast ((a isSpell)) Primitives.PlayPayment.itsOwnCost none none none))
     (noManaSpentToCast it)
-    (Action.counterSpell (that .spell))
+    (counter (that .spell))
 theorem okVexingBaubleTrigger : Ability.check (DRS.ofList []) vexingBaubleTrigger = [] := by decide
 
 /-- Void Mirror -/
@@ -833,7 +832,7 @@ def voidMirror : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.procedure .cast ((a
           isSpell)) Primitives.PlayPayment.itsOwnCost none none none)) (noColoredManaSpentToCast it)
-            (Action.counterSpell (that .spell)) ] } }
+            (counter (that .spell)) ] } }
 
 /-- Blood Sun -/
 def bloodSun : Spelled := spelled <| .singleFaced
@@ -850,7 +849,7 @@ def promiseOfBunrei : Spelled := spelled <| .singleFaced
       text :=
         [ when (does (actor (a (and [isCreature, youControl]))) die)
             (Primitives.Action.doIfDone (sacrifice thisEnchantment)
-              (some (create (.lit 4) (creatureToken 1 1 [] [creatureType "Spirit"]))) none) ] } }
+              (some (createToken (creatureToken 1 1 [] [creatureType "Spirit"]) (count := (.lit 4)))) none) ] } }
 
 /-- Grave Peril -/
 def gravePeril : Spelled := spelled <| .singleFaced
@@ -895,7 +894,7 @@ def squelch : Spelled := spelled <| .singleFaced
     { name := "Squelch", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [Action.counterSpell (target (Primitives.Predicate.abilityHead .anyActivated)), Primitives.Action.draw (.lit 1)]) ]
+            [counter (target (Primitives.Predicate.abilityHead .anyActivated)), Primitives.Action.draw (.lit 1)]) ]
                 } }
 
 theorem bioplasmTwoCandidates : countOnes .object bioplasmAfterExile = 2 := by decide
@@ -946,7 +945,7 @@ def scytheOfTheWretched : Spelled := spelled <| .singleFaced
             (Primitives.Action.sequentially
               [ returnTo (that .card) battlefield
                   [(Primitives.MoveRider.under Primitives.NounPhrase.you)],
-                Action.attachTo thisEquipment (that (.type .creature)) ]),
+                attachTo thisEquipment (that (.type .creature)) ]),
           keywordCosting (.named "equip") (Primitives.Cost.mana [generic 4]) ] } }
 
 end Semantics.Cards

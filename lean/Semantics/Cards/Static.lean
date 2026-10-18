@@ -37,7 +37,7 @@ theorem okTimeVaultLock : Ability.check (DRS.ofList []) timeVaultLock = [] := by
 def hymnOfRebirth : Action :=
   putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ graveyard]))
 theorem okHymnOfRebirth : Action.check (DRS.ofList []) hymnOfRebirth = [] := by decide
-def counterspell : Action := Action.counterSpell (target isSpell)
+def counterspell : Action := counter (target isSpell)
 theorem okCounterspell : Action.check (DRS.ofList []) counterspell = [] := by decide
 
 def anthemOfChampions : Spelled := spelled <| .singleFaced
@@ -176,7 +176,7 @@ def anointedProcession : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Anointed Procession", cost := some [generic 3, pip .white], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ] } }
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ] } }
 
 def naturalAffinity : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -392,7 +392,7 @@ def dovinsVeto : Spelled := spelled <| .singleFaced
     { name := "Dovin's Veto", cost := some [pip .white, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.static (cant Primitives.Subject.any (counter thisSpell)),
-          Primitives.Ability.spell none (Action.counterSpell (target (Primitives.Predicate.and [isSpell, Primitives.Predicate.not isCreature]))) ] } }
+          Primitives.Ability.spell none (counter (target (Primitives.Predicate.and [isSpell, Primitives.Predicate.not isCreature]))) ] } }
 
 def goblinSpy : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -587,7 +587,7 @@ def gush : Spelled := spelled <| .singleFaced
     { name := "Gush", cost := some [generic 4, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
-            (some (Primitives.Cost.perform (move
+            (some (Primitives.Cost.perform (putInto
               (counted (exactly 2)
                 (Primitives.Predicate.and [isLand, Primitives.Predicate.hasSubtype (landType "Island"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               hand)))),
@@ -629,11 +629,11 @@ def thwart : Spelled := spelled <| .singleFaced
     { name := "Thwart", cost := some [generic 2, pip .blue, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
-            (some (Primitives.Cost.perform (move
+            (some (Primitives.Cost.perform (putInto
               (counted (exactly 3)
                 (Primitives.Predicate.and [isLand, Primitives.Predicate.hasSubtype (landType "Island"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               hand)))),
-          Primitives.Ability.spell none (Action.counterSpell (target isSpell)) ] } }
+          Primitives.Ability.spell none (counter (target isSpell)) ] } }
 
 def theLadyOfOtariaLine : StaticSpec :=
   Primitives.StaticSpec.altCost Primitives.NounPhrase.this
@@ -650,9 +650,9 @@ theorem okClergyOfTheHolyNimbus : Ability.check (DRS.ofList []) clergyOfTheHolyN
 /-- Rampant Frogantua -/
 def rampantFrogantuaPump : Ability :=
   Primitives.Ability.static (getsPt thisCreature
-    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
+    (Primitives.Delta.up (forEach (.lit 10) (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
       happenedTo (Primitives.Subject.actor (relative .object)) (Primitives.Action.conclude .loseGame) thisGame])))
-    (Primitives.Delta.up (forEach 10 (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
+    (Primitives.Delta.up (forEach (.lit 10) (Primitives.Predicate.and [Primitives.Predicate.anyPlayer,
       happenedTo (Primitives.Subject.actor (relative .object)) (Primitives.Action.conclude .loseGame) thisGame]))))
 theorem okRampantFrogantuaPump : Ability.check (DRS.ofList []) rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
@@ -797,9 +797,9 @@ theorem okPhyrexianUnlifeImmunity : Ability.check (DRS.ofList []) phyrexianUnlif
 /-- Umbris, Fear Manifest -/
 def umbrisPump : Ability :=
   Primitives.Ability.static (getsPt thisCreature
-    (Primitives.Delta.up (forEach 1
+    (Primitives.Delta.up (forEach (.lit 1)
       (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)), Primitives.Predicate.in_ exileZone])))
-    (Primitives.Delta.up (forEach 1
+    (Primitives.Delta.up (forEach (.lit 1)
       (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)), Primitives.Predicate.in_ exileZone]))))
 theorem okUmbrisPump : Ability.check (DRS.ofList []) umbrisPump = [] := by decide
 /-- Turbulent Fen -/
@@ -897,7 +897,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
       cost := some [pip .white, pip .white, pip .black, pip .black, pip .black, pip .green, pip .green],
       types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (move
+        [ Primitives.Ability.spell none (putInto
             (withDifferentNames
               (counted anyNumber (Primitives.Predicate.and [isPermanentCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))
             battlefield) ] } }

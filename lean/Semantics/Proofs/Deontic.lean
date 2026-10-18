@@ -378,7 +378,7 @@ theorem badBareCostReadsPayer :
 /-- "This card can't be revealed": what is revealed is a card [CR#701.20a], so a deontic rule
 names it in the reveal deed's patient role. -/
 theorem okCantBeRevealed :
-    StaticSpec.check (DRS.ofList []) (.cant .any (revealCards .this) {}) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (.cant .any (reveal .this) {}) = [] := by decide
 
 /-- "Each player can't cast more than one spell each turn.": the bound is the noun phrase's own
 quantity, the rate the rule's timing. -/

@@ -113,7 +113,7 @@ theorem okAuraMayBeAttachedToAPlayer :
 theorem passiveAgentAndAttachmentHostAreDistinct :
     (.by (allOf isCreature) : Subject).patientRole = .subj ∧
       mayBeAttachedTo thisEquipment (allOf isCreature) =
-        .can .any (Action.attachTo thisEquipment (allOf isCreature))
+        .can .any (attachTo thisEquipment (allOf isCreature))
           {} := by
   constructor <;> rfl
 
@@ -159,7 +159,7 @@ theorem okProtectionFromBlack :
 permanent in the host role [CR#701.3a,702.16c]. -/
 theorem okCantBeAttachedTo :
     StaticSpec.check (DRS.ofList [])
-      (cant any (Action.attachTo (allOf (.and [isEnchantment, .colorIs .black])) thisPermanent))
+      (cant any (attachTo (allOf (.and [isEnchantment, .colorIs .black])) thisPermanent))
       = [] := by decide
 
 end Semantics.Proofs.Attachments

@@ -219,19 +219,19 @@ theorem regenerationInstallationPublishesNoImmediateOutcome :
 
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
     nounZone (instructionResult (DRS.ofList [])
-      (Action.counterSpell (target (.abilityHead .anyActivated))))
+      (counter (target (.abilityHead .anyActivated))))
       (that .ability) = some .graveyard := by decide
 
 theorem counterPreservesTheAbilityCategory :
     NounPhrase.checkAt none (instructionResult (DRS.ofList [])
-      (Action.counterSpell (target (.abilityHead .anyActivated))))
+      (counter (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
 theorem counterIsSingleEnactedMove (subject : NounPhrase) :
-    Action.counterSpell subject =
+    counter subject =
       .ownScope (some (.action "counter"))
         (.enact (.action "counter")
-          (.move (.inCaller (.firstMention "counterSpell.subject" subject))
+          (.move (.inCaller (.firstMention "counter.subject" subject))
             (.zone .stack none) (some graveyard) .arrival none []) none none) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
@@ -256,7 +256,7 @@ theorem forgottenOperandDoesNotRedirectToNeighbor :
       moved.sameReferents shuffled = true := by decide
 
 theorem postposedCounterConditionReadsTheUnmovedSpell :
-    Action.check (DRS.ofList []) (.doOnlyIf (Action.counterSpell (target isSpell))
+    Action.check (DRS.ofList []) (.doOnlyIf (counter (target isSpell))
       (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
 
 
@@ -269,8 +269,8 @@ theorem regenerationCanProtectANoncreaturePermanent :
 
 
 theorem alternativeDoesNotObserveThePrimaryBranchesMove :
-    Action.check (DRS.ofList []) (.doOnlyIf (move (target isSpell) exileZone)
-      (.matches it (.colorIs .red)) (some (Action.counterSpell it))) = [] := by decide
+    Action.check (DRS.ofList []) (.doOnlyIf (putInto (target isSpell) exileZone)
+      (.matches it (.colorIs .red)) (some (counter it))) = [] := by decide
 
 
 theorem forgottenAliasesAreBothRefused :
