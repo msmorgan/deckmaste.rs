@@ -435,14 +435,14 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - Examples: `targets (upTo 2) isCreature`, `targets (oneThrough 3) isAnyTarget`, `targets anyNumber isAnyTarget`.
 
 #### 5.4 Top-Level Templates Eliminating All Remaining `Primitives.*` Qualifications
-- **Expose top-level `semantic_template`s for all remaining `Primitives.*` constructors used in `Cards/`:**
-  - **Abilities:** `static (spec : StaticSpec) : Ability := .static spec`, `spell (body : Action) (sub : Option Subtype := none) : Ability := .spell sub body`.
-  - **Nouns & Subjects:** `you`, `this`, `yourOpponents`, `eachPlayer`, `eachOpponent`, `actor (np : NounPhrase) : Subject`, `by_ (np : NounPhrase) : Subject`, `any : Subject / NounPhrase / Amount / Location`.
-  - **Combinators:** `and`, `or`, `not` (`Predicate` / `Condition`), `sequentially`, `simultaneously`, `compound`, `conjunction`.
-  - **Deltas & Amounts:** `up`, `down`, `setTo`, `letter (l : Letter) : Amount`, `thatMuch : Amount`, `anyAmount : Amount`.
-  - **Costs:** `mana`, `tapSymbol`, `untapSymbol`, `loyaltySymbol`, `perform`, `itsManaCost`, `anyCost`.
+- **Expose top-level `semantic_template`s for all remaining `Primitives.*` constructors used in `Cards/` and `Definitions.lean`:**
+  - **Abilities:** `static (spec : StaticSpec) : Ability := .static spec`, `spell (body : Action) (timing : Option Timing := none) : Ability := .spell timing body`.
+  - **Nouns & Subjects:** `you`, `this`, `theActor` (`NounPhrase.actor`), `yourOpponents`, `eachPlayer`, `eachOpponent`, `actor (np : NounPhrase) : Subject`, `by_ (np : NounPhrase) : Subject`, `any : Subject / NounPhrase / Amount / Location`.
+  - **Combinators:** `and`, `or`, `not` (`Predicate` / `Condition` / `NounPhrase` / `Location` — dispatched via single-method typeclasses or top-down expected-type resolution rather than `export` overloads so nested combinators elaborate in $O(1)$ per node without bottom-up $3^d$ branching), `sequentially`, `simultaneously`, `compound`, `conjunction`.
+  - **Deltas & Amounts:** `up`, `down`, `setTo`, `letter (l : Letter) : Amount`, `thatMuch : Amount`, `anyAmount : Amount`, `Amount.moreThan (bound : Amount)` (matching `Amount.upTo`, for *"can't draw more than one card each turn"* on *Spirit of the Labyrinth*).
+  - **Costs, Payments & Ballots:** `mana`, `tapSymbol`, `untapSymbol`, `loyaltySymbol`, `perform`, `itsManaCost`, `anyCost`, `itsOwnCost : PlayPayment`, `withoutPaying : PlayPayment`, `payingInstead (cost : Cost) : PlayPayment`, `anyBallot : Ballot`.
   - **Continuous & Static Specs:** `establish`, `abilityGrant`, `qualityChange`, `ptDefinition`, `letterDefinition`, `instead`, `damageRule`, `costShift`, `altCost`, `addedCost`, `visibility`, `controlGrant`, `copyChange`.
-  - **Conditions & Durations:** `matches (np : NounPhrase) (p : Predicate) : Condition`, `compareAmt`, `forAsLongAs`.
+  - **Conditions, Timings & Durations:** `matches_ (np : NounPhrase) (p : Predicate) : Condition`, `compareAmt`, `forAsLongAs`, `duringYourUntapStep`, `onEachOfTheirTurns`.
 
 ---
 
@@ -469,7 +469,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - `create (count : Amount) (token : TokenSpec) (riders : List MoveRider := [])` — unified `Definition` (`[CR#701.7]`), with convenience templates `createToken`, `createTappedToken`, `createTappedAttacking`, `createTokenCopy`.
   - `lookAndSortSlice` — single helper backing `scry`, `surveil`, and `fateseal`, retiring `lookAndSort`, `lookAndSortInto`, and `lookedCards`.
 
-#### 6.3 Retiring `v1`/`v2` Holdover Names & Amending the Glossary
+#### 6.3 Retiring `v1`/`v2` Holdover Names & Amending the Glossary and `lean/CONTRACTS.md`
 - **`Authoring.lean` & `CallerScope.lean`:**
   - Rename `lean/Semantics/MacroParameters.lean` (`MacroExpansion`, `MacroSplice`) and `lean/Semantics/Proofs/MacroParameters.lean` → `lean/Semantics/CallerScope.lean` (`CallerScope`, `CallerSplice`) and `lean/Semantics/Proofs/CallerScope.lean`.
   - In `lean/Semantics/Authoring.lean`, retire raw `semantic_macro` and `macroAttribute` so only `semantic_definition` and `semantic_template` exist; rename `MacroContext` → `AuthoringContext`, `contextualMacroAttribute` → `contextualAuthoringAttribute`, `macro_splice_type%` → `caller_splice_type%`, and `Form.onlyMacros` / `Forms.onlyMacros` → `Form.onlyAuthored` / `Forms.onlyAuthored`.
@@ -477,8 +477,9 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - Delete empty 12-line shims `lean/Semantics/Phrase.lean` and `lean/Semantics/Triggers.lean`; fold the 1-function `Check/Triggers.lean`, `Check/EventContext.lean`, and `Check/PhraseRules.lean` micro-files into `Check/Phrase.lean`.
   - Delete `abbrev Binding := Referent` and `abbrev Bindings := DRS` in `lean/Semantics/Check/Words.lean`.
   - Rename `Payload.gap`, `Referent.isGap`, `gapB`, `countGaps`, and `Refusal.gapInScope` → `Payload.difference`, `Referent.isDifference`, `differenceB`, `countDifferences`, and `Refusal.differenceInScope`.
-- **Amend Game Model Glossary (`docs/contexts/game-model/CONTEXT.md`):**
+- **Amend Game Model Glossary (`docs/contexts/game-model/CONTEXT.md`) & `lean/CONTRACTS.md`:**
   - Replace the legacy **Semantic Macro** entry with **Definition** and **Template** (`[CR#701.1,702.1]`), listing `_Avoid_: Semantic Macro, macro`.
+  - Rename **Instruction** to **Action** in `docs/contexts/game-model/CONTEXT.md` (with `_Avoid_: Instruction`) and sweep remaining `instruction` parameter/doc uses and stale pre-DRT (`Bindings`, `Window`, `capture`) references in `lean/CONTRACTS.md`.
 
 ---
 
