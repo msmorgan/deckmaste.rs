@@ -199,7 +199,10 @@ mutual
     | hasSubtype (subtype : Subtype)
     | hasSupertype (supertype : Supertype)
     | anyPlayer
-    | opponent
+    /-- The member is an opponent of `who` [CR#102.2,102.3]. -/
+    | isOpponentOf (who : NounPhrase)
+    /-- The member is a teammate of `who` [CR#102.3]. -/
+    | isTeammateOf (who : NounPhrase)
     | chosenPlayer (ref : ChoiceRef)
     | qualityNoun (sort : QualitySort) (domain : Option ChoiceDomain)
     | counterKindOn (subject : NounPhrase)
@@ -306,7 +309,6 @@ mutual
     permanent, which it then is. -/
     | actor
     | combatPlayer (role : CombatRole)
-    | playerGroup (group : PlayerGroupWord)
     | described (determiner : DetPhrase) (predicate : Predicate)
     | eachOf (group : NounPhrase)
     | and (phrases : List NounPhrase)

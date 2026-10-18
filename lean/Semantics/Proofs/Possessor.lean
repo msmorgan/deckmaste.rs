@@ -33,13 +33,13 @@ theorem okSacrificeCreatureYouControl :
 
 /-- "Target opponent sacrifices a creature you control.": the performer is the opponent. -/
 theorem badOpponentSacrificesCreatureYouControl :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a creatureYouControl))) =
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (sacrifice (a creatureYouControl))) =
       [.patientPossessor] := by
   decide
 
 /-- "Target opponent sacrifices a creature they control." -/
 theorem okOpponentSacrificesCreatureTheyControl :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a (.and [creature, actorControls])))) =
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (sacrifice (a (.and [creature, actorControls])))) =
       [] := by
   decide
 
@@ -68,7 +68,7 @@ theorem okControllerSacrificesTarget :
 controller's hand, not the discarder's. -/
 theorem badOpponentDiscardsCardInYourHand :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (a (.in_ yourHand)), instruct (target .opponent) (discard (that .card))]) =
+      (.sequentially [choose (a (.in_ yourHand)), instruct (target (.isOpponentOf .you)) (discard (that .card))]) =
       [.patientPossessor] := by
   decide
 
@@ -81,19 +81,19 @@ theorem okDiscardChosenCardInYourHand :
 /-- "Target opponent chooses a card in their hand and discards that card." -/
 theorem okOpponentDiscardsCardInTheirHand :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent)
+      (instruct (target (.isOpponentOf .you))
         (.sequentially [choose (a (.in_ (handOf .actor))), discard (that .card)])) = [] := by
   decide
 
 /-- "Target opponent discards a card in your hand.": the indefinite's own conjunct. -/
 theorem badOpponentDiscardsACardInYourHand :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a (.in_ yourHand)))) =
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (discard (a (.in_ yourHand)))) =
       [.patientPossessor] := by
   decide
 
 /-- "Target opponent discards a card." names no hand: the deed's own [CR#701.9a]. -/
 theorem okOpponentDiscardsACard :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a .isCard))) = [] := by
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (discard (a .isCard))) = [] := by
   decide
 
 /-! ## What a binding records -/

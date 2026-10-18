@@ -21,7 +21,7 @@ mutual
     | 0 => fun _ => false
     | fuel + 1 => fun
         | .inCaller body | .bracketed body => body.opponentOnlyFuel fuel
-        | .opponent => true
+        | .isOpponentOf who => who.isYou
         | .and ps => Predicate.anyOpponentOnlyFuel fuel ps
         | _ => false
   termination_by structural fuel
@@ -44,7 +44,6 @@ def NounPhrase.opponentOnlyFuel (fuel : Nat) : NounPhrase → Bool :=
       | .laterMention _ body => body.opponentOnlyFuel fuel
       | .inCaller body | .firstMention _ body => body.opponentOnlyFuel fuel
       | .described _ p => p.opponentOnlyFuel fuel
-      | .playerGroup .yourOpponents => true
       | .eachOf g => g.opponentOnlyFuel fuel
       | _ => false
 termination_by structural fuel

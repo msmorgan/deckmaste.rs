@@ -30,7 +30,7 @@ theorem okStateBasedLossGate :
 
 theorem okStateBasedLossForPlayerGroup :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor (.playerGroup .yourOpponents)) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [] := by decide
+      (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [] := by decide
 
 theorem badStateBasedLossOnCreature :
     Ability.check (DRS.ofList []) (.static
@@ -319,7 +319,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (.sequentially [Macros.instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [Macros.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide
@@ -327,7 +327,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
-      (.doAndForbid (Macros.instruct (each .opponent) (sacrifice (a creature))) (.action "regenerate")
+      (.doAndForbid (Macros.instruct (each (.isOpponentOf .you)) (sacrifice (a creature))) (.action "regenerate")
         (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
   decide
 

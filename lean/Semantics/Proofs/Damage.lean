@@ -169,7 +169,7 @@ theorem badDamageToColor :
 theorem okThatMuchBound :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (target .opponent) (loseLife
+        [ instruct (target (.isOpponentOf .you)) (loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
@@ -346,11 +346,11 @@ theorem badRestOverTwoAnnouncements :
 
 /-- "This creature deals 2 damage to each opponent." -/
 theorem okEachOpponentDamage :
-    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (each .opponent) .any)) = [] := by decide
+    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (each (.isOpponentOf .you)) .any)) = [] := by decide
 
-/-- "This creature deals 2 damage to your opponents." -/
+/-- "This creature deals 2 damage to opponents.": a bare plural is not read member by member. -/
 theorem badPluralPlayerDamageRecipient :
-    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (.playerGroup .yourOpponents) .any))
+    Action.check (DRS.ofList []) (Action.instruct thisCreature (.dealDamage (.lit 2) (.described .bare (.isOpponentOf .you)) .any))
       = [.perMember] := by
   decide
 
@@ -496,7 +496,7 @@ theorem badRedirectToGroup :
 /-- "Target opponent loses 1 life. You gain that much life." -/
 theorem okThatMuchAfterLifeLoss :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (target .opponent) (loseLife (.lit 1)), gainLife .thatMuch]) = [] := by
+      (.sequentially [instruct (target (.isOpponentOf .you)) (loseLife (.lit 1)), gainLife .thatMuch]) = [] := by
   decide
 
 /-- "If a source would deal damage to a player or permanent, it deals double that damage
@@ -664,7 +664,7 @@ theorem okSingularLifeTotalRead : Amount.check (DRS.ofList []) (lifeTotalOf .you
 
 /-- "You gain life equal to your opponents' life totals." -/
 theorem badPluralLifeTotalRead :
-    Amount.check (DRS.ofList []) (lifeTotalOf (.playerGroup .yourOpponents)) = [.singular] := by decide
+    Amount.check (DRS.ofList []) (lifeTotalOf (.described .all (.isOpponentOf .you))) = [.singular] := by decide
 
 /-- "You gain life equal to each player's life total." -/
 theorem badDistributiveLifeTotalRead :

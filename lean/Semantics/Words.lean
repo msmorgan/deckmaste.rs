@@ -343,10 +343,6 @@ inductive EntryCounterMark where
   | fresh | additional | fewer
   deriving DecidableEq, Repr
 
-inductive PlayerGroupWord where
-  | allPlayers | yourOpponents | yourTeam
-  deriving DecidableEq, Repr
-
 inductive RoundMode where
   | up | down
   deriving DecidableEq, Repr

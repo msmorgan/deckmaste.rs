@@ -193,7 +193,7 @@ semantic_template unblocked : Predicate := .not blocked
 semantic_template creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
 semantic_template creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
 semantic_template creatureYourOpponentsControl : Predicate :=
-  .and [creature, .hasPossessor .controller (.playerGroup .yourOpponents)]
+  .and [creature, .hasPossessor .controller (.described .all (.isOpponentOf .you))]
 /-- "another creature", anchored on <n>. -/
 semantic_template otherCreature (n : NounPhrase) : Predicate := .and [creature, .otherThan n]
 /-- "another creature you control", anchored on <n>. -/
@@ -265,7 +265,7 @@ semantic_template armyYouControl : Predicate :=
 
 /-! ## Nouns -/
 
-semantic_template anOpponent : NounPhrase := a .opponent
+semantic_template anOpponent : NounPhrase := a (.isOpponentOf .you)
 semantic_template thisCreature : NounPhrase := .asType .creature .this none
 semantic_template thisArtifact : NounPhrase := .asType .artifact .this none
 semantic_template thisLand : NounPhrase := .asType .land .this none

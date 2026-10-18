@@ -54,7 +54,7 @@ theorem okPhantomBlade : Ability.check (DRS.ofList []) phantomBlade = [] := by d
 
 /-- Braids's Frightful Return -/
 def braidsFrightfulReturn : Action :=
-  Primitives.Action.offer (sacrifice (a creature)) (some (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand]))), discard them])) none
+  Primitives.Action.offer (sacrifice (a creature)) (some (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand]))), discard them])) none
 theorem okBraidsFrightfulReturn : Action.check (DRS.ofList []) braidsFrightfulReturn = [] := by decide
 /-- Daretti, Ingenious Iconoclast -/
 def darettisMinusOne : Action :=
@@ -88,7 +88,7 @@ def rankleMasterOfPranks : Action :=
 theorem okRankleMasterOfPranks : Action.check (DRS.ofList []) rankleMasterOfPranks = [] := by decide
 
 def myrkulsEdict : Action :=
-  Primitives.Action.sequentially [choose (a Primitives.Predicate.opponent), instruct (that .player) (sacrifice (aTheirChoice creature))]
+  Primitives.Action.sequentially [choose (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)), instruct (that .player) (sacrifice (aTheirChoice creature))]
 theorem okMyrkulsEdict : Action.check (DRS.ofList []) myrkulsEdict = [] := by decide
 def moltingHarpy : Action := doUnless (sacrifice thisCreature) (Primitives.Cost.mana [generic
     2])
@@ -234,7 +234,7 @@ def murmursFromBeyond : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ revealCards (topSlice (.lit 3)),
-              instruct (a Primitives.Predicate.opponent) (choose (someOf (exactly 1) them)),
+              instruct (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (choose (someOf (exactly 1) them)),
               move (that .card) graveyard,
               move (theRest .object) hand ]) ] } }
 
@@ -328,7 +328,7 @@ def kohChooser : Ability :=
 theorem okKohChooser : Ability.check (DRS.ofList []) kohChooser = [] := by decide
 /-- Forgotten Lore -/
 def forgottenLoreChoice : Action :=
-  instruct (target Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))
+  instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))
 theorem okForgottenLoreChoice : Action.check (DRS.ofList []) forgottenLoreChoice = [] := by decide
 
 /-- Psychic Paper minus its three-way coordination -/
@@ -494,7 +494,7 @@ def nyxathid : Spelled := spelled <| .singleFaced
     { name := "Nyxathid", cost := some [generic 1, pip .black, pip .black], types := [.creature],
       subtypes := [creatureType "Elemental"],
       text :=
-        [ Primitives.Ability.static (entersChoosingPlayer thisCreature (some (Primitives.ChoiceDomain.players Primitives.Predicate.opponent))),
+        [ Primitives.Ability.static (entersChoosingPlayer thisCreature (some (Primitives.ChoiceDomain.players (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))),
           Primitives.Ability.static (getsPt thisCreature
             (Primitives.Delta.down (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (the chosenPlayer))])))
             (Primitives.Delta.down (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (the chosenPlayer))])))) ],
@@ -775,7 +775,7 @@ def watcherInTheWeb : Spelled := spelled <| .singleFaced
 /-- Forgotten Lore -/
 def forgottenLoreRepeat : Action :=
   Primitives.Action.sequentially
-    [ instruct (target Primitives.Predicate.opponent) (Primitives.Action.choose none (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) .openly none),
+    [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.choose none (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) .openly none),
       Primitives.Action.offer (Primitives.Action.pay (Primitives.Cost.mana [pip .green]) .once .paid none none) (some (Primitives.Action.repeat_
           Primitives.Repetition.againExcludingChosen)) none ]
 theorem okForgottenLoreRepeat : Action.check (DRS.ofList []) forgottenLoreRepeat = [] := by decide
@@ -997,7 +997,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
         [ keyword (.named "trample"),
           keywordCosting (.named "echo") (Primitives.Cost.mana [generic 0]),
           when (Primitives.GameEvent.does Primitives.Subject.any (Primitives.Action.pay Primitives.Cost.anyCost .once .paid (some thisCreature) (some (.named "echo"))))
-            (instruct (each Primitives.Predicate.opponent) (offer (Primitives.Action.draw (Primitives.Amount.upTo (.lit 3))))) ],
+            (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (offer (Primitives.Action.draw (Primitives.Amount.upTo (.lit 3))))) ],
       power := stat 6, toughness := stat 6 } }
 
 /-- Memory Plunder -/
@@ -1162,7 +1162,7 @@ def soulRansom : Spelled := spelled <| .singleFaced
             (Primitives.Cost.perform (Primitives.Action.repeatTimes (.lit 2)
               (Primitives.Action.sequentially [choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand])), discard (that .card)])))
             (Primitives.Action.sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (Primitives.Action.draw (.lit 2))])
-            (Primitives.NounPhrase.playerGroup .yourOpponents) ] } }
+            (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) ] } }
 
 /-- Vraska's Scorn -/
 def vraskasScorn : Spelled := spelled <| .singleFaced
@@ -1170,7 +1170,7 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
     { name := "Vraska's Scorn", cost := some [generic 2, pip .black, pip .black], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ instruct (target Primitives.Predicate.opponent) (loseLife (.lit 4)),
+            [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 4)),
               offer
                 (Primitives.Action.sequentially
                   [ searchLibraryOrGraveyard (Primitives.Predicate.named (Primitives.NameSource.printed "Vraska, Scheming Gorgon")),
@@ -1185,7 +1185,7 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Dryad"],
       text :=
         [ when (Primitives.GameEvent.enters thisCreature none)
-            (instruct (each Primitives.Predicate.opponent) (offer
+            (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (offer
               (Primitives.Action.sequentially
                 [ Primitives.Action.search (Primitives.Location.zone .library (some they)) (exactly 1) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic]),
                   putOntoBattlefieldTapped (theVerbed (.action "search") .one),
@@ -1257,7 +1257,7 @@ theorem okApexOfPowerCast : Action.check (DRS.ofList []) apexOfPowerCast = [] :=
 def blightHerderCast : Action :=
   offer
     (move (counted (exactly 2)
-            (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.in_ exileZone]))
+            (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)), Primitives.Predicate.in_ exileZone]))
       graveyard)
 theorem okBlightHerderCast : Action.check (DRS.ofList []) blightHerderCast = [] := by decide
 
@@ -1424,7 +1424,7 @@ def consumingTide : Spelled := spelled <| .singleFaced
                 (a (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller they]))),
               returnTo (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.notChosen])) hand [],
               Primitives.Action.doForEach
-                (each (Primitives.Predicate.compareOver Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf they)])) .greater
+                (each (Primitives.Predicate.compareOver (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you) (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf they)])) .greater
                   (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)]))))
                 (Primitives.Action.draw (.lit 1)) ]) ] } }
 
@@ -1472,7 +1472,7 @@ def sculptedSunburst : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ choose (a creatureYouControl),
-              instruct (each Primitives.Predicate.opponent) (choose
+              instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (choose
                 (a (comparesOwnStat .power (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller they])
                   .atMost (Primitives.Amount.statOf (.stat .power) it)))),
               Primitives.Action.doIf (Primitives.Condition.choseThisWay Primitives.NounPhrase.you creature) (exile (each (Primitives.Predicate.and [creature, Primitives.Predicate.notChosen]))) none

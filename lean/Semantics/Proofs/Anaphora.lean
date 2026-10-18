@@ -121,7 +121,7 @@ theorem badHappenedToObjectCast :
 /-- "each opponent who died this turn" -/
 theorem badHappenedToPlayerDied :
     NounPhrase.checkAt (some .player) (DRS.ofList [])
-      (each (.and [.opponent, (.did ⟨.any, (.move .which (battlefield) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindLte .player (.join .object .pile)] := by
+      (each (.and [(.isOpponentOf .you), (.did ⟨.any, (.move .which (battlefield) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)])) = [.kindLte .player (.join .object .pile)] := by
   decide
 
 /-- "Choose a creature you control." -/
@@ -303,7 +303,7 @@ theorem okEntryLookbackWithoutOrigin :
 
 /-- "For each opponent, you draw a card." -/
 theorem okPluralForEach :
-    Action.check (DRS.ofList []) (.doForEach (each .opponent) (draw (.lit 1))) = [] := by
+    Action.check (DRS.ofList []) (.doForEach (each (.isOpponentOf .you)) (draw (.lit 1))) = [] := by
         decide
 
 /-- "For each of target creature, its controller draws a card." -/
@@ -778,7 +778,7 @@ theorem badOwnTwoInDelta :
 theorem distributedDeedReadsBackPlural :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them],
+        [ .sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them],
           exile (theVerbed (.action "discard") .many (some .card)) ]) = [] := by
   decide
 
@@ -795,7 +795,7 @@ theorem okTheVerbedAfterSingularDiscard :
 theorem badDistributedDiscardSingular :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them],
+        [ .sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them],
           exile (theVerbed (.action "discard") .one (some .card)) ])
       = [.anaphor (.verbed (.action "discard") (some .card) .attributive) .one 0] := by
   decide

@@ -111,8 +111,8 @@ theorem okLifeTotalBecomesSigned :
 other's value, so both stand below zero [CR#107.1b]. -/
 theorem okExchangeValuesSigned :
     (Action.exchange
-      (.values (lifeTotalOf .you) (lifeTotalOf (target .opponent)))).numberSlots
-      = [(lifeTotalOf .you, .signed), (lifeTotalOf (target .opponent), .signed)] := by rfl
+      (.values (lifeTotalOf .you) (lifeTotalOf (target (.isOpponentOf .you))))).numberSlots
+      = [(lifeTotalOf .you, .signed), (lifeTotalOf (target (.isOpponentOf .you)), .signed)] := by rfl
 
 /-! ## Doubling damage -/
 

@@ -24,7 +24,7 @@ private def erietteEvent : GameEvent :=
       .hasSubtype (.of .enchantment "Aura"), .hasPossessor .controller .you]))
     (some (.described (.a .unmarked) (.and [
       .in_ (.zone .battlefield none), .not (.hasType .land),
-      .hasPossessor .controller (.described (.a .unmarked) .opponent),
+      .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you)),
       .compare [.stat .manaValue] .atMost
         (.statOf (.stat .manaValue) (.pro (.word (.type .enchantment)) .one))]))))
 
@@ -100,7 +100,7 @@ theorem ramThroughRawPossessorSelectsDamageRecipient :
     selected (.type .creature) ramAfterCondition = [["ram.recipient"]] := by decide
 
 private def opponentOrPermanent : NounPhrase :=
-  .firstMention "damage.recipient" (a (.or [.opponent,
+  .firstMention "damage.recipient" (a (.or [(.isOpponentOf .you),
     .and [permanent, .hasPossessor .controller anOpponent]]))
 private def giselaPattern : WouldClause :=
   .would (.actor (a .isSource)) (.dealDamage .anyAmount opponentOrPermanent .any)

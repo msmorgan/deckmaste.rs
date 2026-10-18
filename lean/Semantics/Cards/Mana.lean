@@ -417,9 +417,9 @@ def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
       types := [.enchantment], subtypes := [enchantmentType "Saga"],
       text :=
         [ when (Primitives.GameEvent.chapterMark [1])
-            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 6) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])) .noncombatOnly)),
+            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 6) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) .noncombatOnly)),
           when (Primitives.GameEvent.chapterMark [2])
-            (destroy (target (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)]))),
+            (destroy (target (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))]))),
           when (Primitives.GameEvent.chapterMark [3, 4]) (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .red]]) []) ] }
               }
 
@@ -429,7 +429,7 @@ def theFlux : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Saga"],
       text :=
         [ when (Primitives.GameEvent.chapterMark [1])
-            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 4) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])) .noncombatOnly)),
+            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 4) (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) .noncombatOnly)),
           when (Primitives.GameEvent.chapterMark [2, 3, 4, 5])
             (Primitives.Action.sequentially
               [ exile (topSlice (.lit 1)),
@@ -689,7 +689,7 @@ def causticBroncoLoss : Action :=
       move (that .card) hand,
       Primitives.Action.doOnlyIf (loseLife (Primitives.Amount.statOf (.stat .manaValue) it))
         (Primitives.Condition.not (Primitives.Condition.matches thisCreature (Primitives.Predicate.hasDesignation (.named "saddled") none)))
-        (some (instruct (each Primitives.Predicate.opponent) (loseLife Primitives.Amount.thatMuch))) ]
+        (some (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife Primitives.Amount.thatMuch))) ]
 theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [] := by decide
 
 /-- Dark Fortress -/
@@ -945,7 +945,7 @@ def shelteredValley : Spelled := spelled <| .singleFaced
 
 /-- Soul Shatter -/
 def soulShatter : Action :=
-  instruct (each Primitives.Predicate.opponent) (sacrifice
+  instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (sacrifice
     (a (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker],
               Primitives.Predicate.superlative .max (.stat .manaValue)
                 (Primitives.Predicate.and [Primitives.Predicate.or [creature, Primitives.Predicate.hasType .planeswalker], Primitives.Predicate.hasPossessor .controller they])])))
@@ -971,7 +971,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           Primitives.Ability.static (entersChoosing thisCreature .number),
           whenever
-            (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.opponent)) (Primitives.Action.procedure .cast ((a (Primitives.Predicate.and [spell,
+            (Primitives.GameEvent.does (Primitives.Subject.actor (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (Primitives.Action.procedure .cast ((a (Primitives.Predicate.and [spell,
                         Primitives.Predicate.compare [.stat .manaValue, .stat .power, .stat
                           .toughness] .eq chosenNumber]))) Primitives.PlayPayment.itsOwnCost none none none))
             (Primitives.Action.sequentially [instruct (that .player) (loseLife (.lit 2)), Primitives.Action.draw (.lit 1)]) ],

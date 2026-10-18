@@ -348,7 +348,7 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
-        [ triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some (each Primitives.Predicate.opponent)) (Primitives.TurnRef.each none))
+        [ triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (Primitives.TurnRef.each none))
             (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))])) .atMost (.lit 1))
             (instruct they (loseLife (.lit 3))) ] } }
 
@@ -394,7 +394,7 @@ def mirrorUniverse : Spelled := spelled <| .singleFaced
     { name := "Mirror Universe", cost := some [generic 6], types := [.artifact],
       text :=
         [ activatedOnlyDuring (Primitives.Cost.compound [Primitives.Cost.tapSymbol, Primitives.Cost.perform (sacrifice thisArtifact)])
-            (Primitives.Action.exchange (Primitives.Exchanged.lifeTotals (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))))
+            (Primitives.Action.exchange (Primitives.Exchanged.lifeTotals (Primitives.NounPhrase.both Primitives.NounPhrase.you (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))))
             (duringPart .upkeep (some Primitives.NounPhrase.you)) ] } }
 
 /-- Concerted Effort -/
@@ -434,7 +434,7 @@ def beckoningWillOWisp : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           flavorWord "Lure the Unwary"
-            (at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (choose (a Primitives.Predicate.opponent))),
+            (at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (choose (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))),
           Primitives.Ability.static (getsPt (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inCombat .attackerOf (some (the chosenPlayer))]))
             (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0))) ],
       power := stat 1, toughness := stat 3 } }
@@ -446,7 +446,7 @@ def triarchStalker : Spelled := spelled <| .singleFaced
       types := [.artifact, .creature], subtypes := [creatureType "Necron"],
       text :=
         [ flavorWord "Targeting Relay"
-            (at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (choose (a Primitives.Predicate.opponent))),
+            (at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none)) (choose (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))),
           Primitives.Ability.static (Primitives.StaticSpec.abilityGrant (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.inCombat .attackerOf (some (the
               chosenPlayer))]))
             (keyword (.named "menace"))) ],

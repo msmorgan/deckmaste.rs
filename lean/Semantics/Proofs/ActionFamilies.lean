@@ -262,7 +262,7 @@ theorem postposedCounterConditionReadsTheUnmovedSpell :
 
 theorem losingCountersAmountReadsItsPlayer :
     Action.check (DRS.ofList []) (loseCounters
-      (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
+      (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a (.isOpponentOf .you))) = [] := by decide
 
 theorem regenerationCanProtectANoncreaturePermanent :
     Action.check (DRS.ofList []) (regenerate (target artifact)) = [] := by decide

@@ -108,8 +108,8 @@ private theorem unpaidKeywordPaymentIsAPattern :
 
 private theorem comparisonMemberIsLocalToItsMeasure :
     let member : NounPhrase := .pro (.word .player) .one
-    let good : Predicate := .compareOver .opponent (.devotion member (.lit .red) none) .greater (.lit 0)
-    let bad : Predicate := .compareOver .opponent (.lit 0) .greater (.devotion member (.lit .red) none)
+    let good : Predicate := .compareOver (.isOpponentOf .you) (.devotion member (.lit .red) none) .greater (.lit 0)
+    let bad : Predicate := .compareOver (.isOpponentOf .you) (.lit 0) .greater (.devotion member (.lit .red) none)
     (stepPredicate 64 (DRS.ofList []) good).2 = [] ∧
       (stepPredicate 64 (DRS.ofList []) bad).2 = [.anaphor (.word .player) .one 0] ∧
       (stepPredicate 64 (DRS.ofList []) good).1.visibleReferents.map (·.payload) = [.difference] := by decide

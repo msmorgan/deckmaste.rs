@@ -258,7 +258,7 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
 
 theorem optionalBodyReadsItsEnclosingPlayer :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent)
+      (instruct (target (.isOpponentOf .you))
         (Primitives.Action.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
   decide
 

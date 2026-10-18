@@ -76,7 +76,7 @@ theorem participantCanOccurMoreThanOnce :
 
 private def damageHistory : Predicate :=
   .did ⟨.actor (.asType .creature .which none),
-    .dealDamage .anyAmount (.described (.a .unmarked) .opponent) .any, withinThisTurn⟩
+    .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)) .any, withinThisTurn⟩
 
 theorem historyDoesNotIntroduceDamageOutcome :
     countOutcomes .damageDealt (stepPredicate 64 (DRS.ofList []) damageHistory).1 = 0 := by decide
@@ -88,7 +88,7 @@ theorem historyDoesNotExportNamedParticipant :
 theorem historyNamedParticipantAccessibleLocally :
     relativeCheck .object
       ⟨.actor .which,
-        .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) .opponent))
+        .dealDamage (.statOf (.playerStat .lifeTotal) (.described (.a .unmarked) (.isOpponentOf .you)))
           (.pro (.word .player) .one) .any,
         withinThisTurn⟩ = [] := by decide
 

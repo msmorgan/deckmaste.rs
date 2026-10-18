@@ -114,7 +114,7 @@ def gideonsAvenger : Ability :=
     (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
 theorem okGideonsAvenger : Ability.check (DRS.ofList []) gideonsAvenger = [] := by decide
 def prologueToPhyresis : Action :=
-  Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "poison")) (each Primitives.Predicate.opponent) .many true
+  Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed (.named "poison")) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .many true
 theorem okPrologueToPhyresis : Action.check (DRS.ofList []) prologueToPhyresis = [] := by decide
 def screechingScorchbeast : Ability :=
   whenever (attacks thisCreature) (Primitives.Action.putCounters (.lit 2) (Primitives.CounterKindSource.printed (.named "radCounter")) (each Primitives.Predicate.anyPlayer) .many true)
@@ -137,7 +137,7 @@ theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by d
 def furiousSpinesplitter : Ability :=
   at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Action.putCounters (forEach 1 (Primitives.Predicate.and
-      [Primitives.Predicate.opponent, happenedTo Primitives.Subject.any (Primitives.Action.dealDamage Primitives.Amount.anyAmount (relative
+      [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), happenedTo Primitives.Subject.any (Primitives.Action.dealDamage Primitives.Amount.anyAmount (relative
       .player) .any) soFarThisTurn]))
       (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
 theorem okFuriousSpinesplitter : Ability.check (DRS.ofList []) furiousSpinesplitter = [] := by decide
@@ -463,7 +463,7 @@ def shalaiAndHallar : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"), keyword (.named "vigilance"),
           whenever (counterEvent .put p1p1Counter .many (a creatureYouControl))
-            (instruct thisCreature (Primitives.Action.dealDamage Primitives.Amount.thatMuch (target Primitives.Predicate.opponent) .noncombatOnly)) ],
+            (instruct thisCreature (Primitives.Action.dealDamage Primitives.Amount.thatMuch (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)) ],
       power := stat 3, toughness := stat 3 } }
 
 def primalVigor : Spelled := spelled <| .singleFaced
@@ -1070,7 +1070,7 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=
   Primitives.Ability.triggered (Primitives.GameEvent.does (Primitives.Subject.actor thisCreature) (Primitives.Action.attack (some (a Primitives.Predicate.anyPlayer)))) [] none [] none none
-    (some (Primitives.Condition.not (exists_ (Primitives.Predicate.and [ Primitives.Predicate.opponent,
+    (some (Primitives.Condition.not (exists_ (Primitives.Predicate.and [ (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you),
                                  Primitives.Predicate.compare [.playerStat .lifeTotal] .greater
                                    (lifeTotalOf (that .player)) ]))))
     (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
@@ -1201,7 +1201,7 @@ theorem okPeek : Action.check (DRS.ofList []) peek = [] := by decide
 def bumiScryMode : Action := instruct (target Primitives.Predicate.anyPlayer) (scry (.lit 3))
 theorem okBumiScryMode : Action.check (DRS.ofList []) bumiScryMode = [] := by decide
 /-- Final Act -/
-def finalActCounterMode : Action := loseAllCounters none (agent := (each Primitives.Predicate.opponent))
+def finalActCounterMode : Action := loseAllCounters none (agent := (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))
 theorem okFinalActCounterMode : Action.check (DRS.ofList []) finalActCounterMode = [] := by decide
 def leeches : Action :=
   loseAllCounters (some (Primitives.CounterKindSource.printed (.named "poison"))) (agent := (target Primitives.Predicate.anyPlayer))

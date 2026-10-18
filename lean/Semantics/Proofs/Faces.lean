@@ -598,7 +598,7 @@ theorem badFlashbackOnPermanentCard :
 theorem okThatMuchAfterQuantity :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Macros.instruct (target .opponent) (loseLife
+        [ Macros.instruct (target (.isOpponentOf .you)) (loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
@@ -718,7 +718,7 @@ theorem okSingularDevotion : Amount.check (DRS.ofList []) (.devotion .you (.lit 
 
 /-- "your opponents' devotion to black" -/
 theorem badPluralDevotion :
-    Amount.check (DRS.ofList []) (.devotion (.playerGroup .yourOpponents) (.lit .black) none)
+    Amount.check (DRS.ofList []) (.devotion (.described .all (.isOpponentOf .you)) (.lit .black) none)
       = [.singular] := by
   decide
 
@@ -752,7 +752,7 @@ theorem okUnlockRoomDoor :
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/
 def doorDamage (amount : Nat) : Ability :=
   when (.does (.actor .you) (.unlock .thisDoor))
-    (Action.instruct thisRoom (.dealDamage (.lit amount) (each .opponent) .any))
+    (Action.instruct thisRoom (.dealDamage (.lit amount) (each (.isOpponentOf .you)) .any))
 
 /-- "When you unlock this door, this Room deals 1 damage to each opponent.": a door header
 belongs to a Room's shared line. -/
@@ -787,13 +787,13 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Macros.instruct (each .opponent) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
+        [ Macros.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
           Macros.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 
 theorem redundantSameClauseShuffleHandoffIsRefused :
     Action.check (DRS.ofList [])
-      (Macros.instruct (each .opponent)
+      (Macros.instruct (each (.isOpponentOf .you))
         (.enact (.action "shuffle")
           (Macros.instruct they (.shuffle (library .actor))) none none)) =
       [.anaphor (.word .player) .one 0] := by

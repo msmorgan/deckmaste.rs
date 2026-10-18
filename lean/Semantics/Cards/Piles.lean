@@ -52,8 +52,8 @@ def tyrantsChoice : Spelled := spelled <| .singleFaced
             (Primitives.Ability.spell none (Primitives.Action.sequentially
               [ instruct (each Primitives.Predicate.anyPlayer) (voteStartingWith Primitives.NounPhrase.you .openly (Primitives.Ballot.byLabel ["death", "torture"])),
                 doIf (Primitives.Condition.voteLead "death" false)
-                  (instruct (each Primitives.Predicate.opponent) (sacrifice (aTheirChoice creature))),
-                doIf (Primitives.Condition.voteLead "torture" true) (instruct (each Primitives.Predicate.opponent) (loseLife (.lit 4))) ]))
+                  (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (sacrifice (aTheirChoice creature))),
+                doIf (Primitives.Condition.voteLead "torture" true) (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 4))) ]))
                     ] } }
 
 /-- Council's Judgment -/
@@ -151,7 +151,7 @@ def truthOrConsequencesVote : Ability :=
     (Primitives.Ability.spell none (Primitives.Action.sequentially
       [ instruct (each Primitives.Predicate.anyPlayer) (vote .secretly (Primitives.Ballot.byLabel ["truth", "consequences"])),
         Primitives.Action.draw (Primitives.Amount.votesFor "truth"),
-        choose (aAtRandom Primitives.Predicate.opponent),
+        choose (aAtRandom (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
         instruct Primitives.NounPhrase.this
           (Primitives.Action.dealDamage (times (.lit 3) (Primitives.Amount.votesFor "consequences")) (that .player) .noncombatOnly) ]))
 theorem okTruthOrConsequencesVote : Ability.check (DRS.ofList []) truthOrConsequencesVote = [] := by decide

@@ -119,7 +119,7 @@ def thunderwave : Spelled := spelled <| .singleFaced
                       [ offer (choose (a creature)),
                         Primitives.Action.dealDamage (.lit 3) (each (Primitives.Predicate.and [creature, Primitives.Predicate.notChosen])) .noncombatOnly ]),
                   rollRow (fromTo 20 20)
-                    (Primitives.Action.dealDamage (.lit 6) (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents)])) .noncombatOnly) ] ]) ] } }
+                    (Primitives.Action.dealDamage (.lit 6) (each (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) .noncombatOnly) ] ]) ] } }
 
 /-- Fog, Holy Day, Darkness, Root Snare -/
 def fog : Action := preventAll .combatOnly Primitives.DamageScope.everywhere (some thisTurn)
@@ -194,7 +194,7 @@ def blackVise : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Black Vise", cost := some [generic 1], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (entersChoosingPlayer thisArtifact (some (Primitives.ChoiceDomain.players Primitives.Predicate.opponent))),
+        [ Primitives.Ability.static (entersChoosingPlayer thisArtifact (some (Primitives.ChoiceDomain.players (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))),
           at_ (beginningOfPossessed .upkeep (the chosenPlayer))
             (Primitives.Action.sequentially
               [ instruct thisArtifact (Primitives.Action.dealDamage (Primitives.Amount.letter .x) (that .player) .noncombatOnly),
@@ -243,7 +243,7 @@ def ingeniousArtillerist : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Artificer"],
       text :=
         [ whenever (Primitives.GameEvent.enters (counted (atLeast 1) (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
-            (instruct thisCreature (Primitives.Action.dealDamage Primitives.Amount.groupSize (each Primitives.Predicate.opponent) .noncombatOnly)) ],
+            (instruct thisCreature (Primitives.Action.dealDamage Primitives.Amount.groupSize (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)) ],
       power := stat 3, toughness := stat 1 } }
 
 /-- Inferno Elemental -/
@@ -266,7 +266,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
           when
             (Primitives.GameEvent.causes
               (Primitives.Causing.source (a (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack],
-                                 Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])))
+                                 Primitives.Predicate.hasPossessor .controller (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])))
               (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (discard (Primitives.NounPhrase.this))))
             (instruct (that .player) (loseLife (.lit 5))) ] } }
 
@@ -546,7 +546,7 @@ def searingFlesh : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Searing Flesh", cost := some [generic 6, pip .red], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Action.dealDamage (.lit 7) (target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.opponent])) .noncombatOnly) ] } }
+        [ Primitives.Ability.spell none (Primitives.Action.dealDamage (.lit 7) (target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)])) .noncombatOnly) ] } }
 
 def onakkeJavelineerBolt : Ability :=
   activated Primitives.Cost.tapSymbol
@@ -694,7 +694,7 @@ def grollub : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Grollub", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [creatureType "Beast"],
-      text := [whenever (Primitives.GameEvent.isDealtDamage .any thisCreature) (instruct (each Primitives.Predicate.opponent) (gainLife Primitives.Amount.thatMuch))],
+      text := [whenever (Primitives.GameEvent.isDealtDamage .any thisCreature) (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (gainLife Primitives.Amount.thatMuch))],
       power := stat 3, toughness := stat 3 } }
 
 def moggManiac : Spelled := spelled <| .singleFaced
@@ -703,7 +703,7 @@ def moggManiac : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Goblin"],
       text :=
         [ whenever (Primitives.GameEvent.isDealtDamage .any thisCreature)
-            (instruct it (Primitives.Action.dealDamage Primitives.Amount.thatMuch (target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.opponent])) .noncombatOnly)) ],
+            (instruct it (Primitives.Action.dealDamage Primitives.Amount.thatMuch (target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)])) .noncombatOnly)) ],
       power := stat 1, toughness := stat 1 } }
 
 def repercussion : Spelled := spelled <| .singleFaced
@@ -815,7 +815,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
       power := stat 0, toughness := stat 1 } }
 
 def saheeliRaiPlusOne : Action :=
-  Primitives.Action.sequentially [scry (.lit 1), instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly)]
+  Primitives.Action.sequentially [scry (.lit 1), instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)]
 theorem okSaheeliRaiPlusOne : Action.check (DRS.ofList []) saheeliRaiPlusOne = [] := by decide
 def sarkhansUnsealingLine : Ability :=
   whenever
@@ -908,7 +908,7 @@ def quakebringerDamage : Ability :=
            Primitives.Condition.and [ Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]),
                   exists_ (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Giant"),
                                  Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ] ])
-    (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 2) (each Primitives.Predicate.opponent) .noncombatOnly))
+    (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 2) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly))
 theorem okQuakebringerDamage : Ability.check (DRS.ofList []) quakebringerDamage = [] := by decide
 /-- Sand Strangler -/
 def sandStranglerDamage : Ability :=
@@ -924,7 +924,7 @@ def brazenDwarf : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Dwarf", creatureType "Shaman"],
       text :=
         [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.rollDice Primitives.Amount.anyAmount .anyDie .many Primitives.RollWatch.anyResult))
-            (instruct thisCreature (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly)) ],
+            (instruct thisCreature (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)) ],
       power := stat 1, toughness := stat 3 } }
 
 /-- Lavalanche -/
@@ -1154,7 +1154,7 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
           keyword (.named "haste"),
           whenever (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.attackWith (counted (atLeast 3) creature) none)) (Primitives.Action.draw (.lit 1)),
           whenever (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.attackWith (counted (atLeast 5) creature) none))
-            (Primitives.Action.sequentially [instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 3) (each Primitives.Predicate.opponent) .noncombatOnly), gainLife (.lit 3)]) ],
+            (Primitives.Action.sequentially [instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 3) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly), gainLife (.lit 3)]) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Syr Konrad, the Grim -/
@@ -1167,7 +1167,7 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
         [ triggeredOr (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan Primitives.NounPhrase.this])))
             [ putIntoFrom (a (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) graveyard (Primitives.Location.not battlefield),
               leavesZone (a (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) (graveyardOf Primitives.NounPhrase.you) ]
-            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly)),
+            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)),
           activated (Primitives.Cost.mana [generic 1, pip .black]) (instruct (each Primitives.Predicate.anyPlayer) (mill (.lit 1) (each Primitives.Predicate.anyPlayer))) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -1187,13 +1187,13 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Spirit"],
       text :=
         [ whenever (leavesZone (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) (graveyardOf Primitives.NounPhrase.you))
-            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly)) ],
+            (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)) ],
       power := stat 4, toughness := stat 3 } }
 
 /-- Breeches, Brazen Plunderer's slice -/
 def eachOfThoseOpponentsTopCard : Action :=
   Primitives.Action.sequentially
-    [ instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly),
+    [ instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly),
       exile (Primitives.NounPhrase.slice .top (.lit 1) (library (Primitives.NounPhrase.eachOf (those .player)))) ]
 theorem okEachOfThoseOpponentsTopCard : Action.check (DRS.ofList []) eachOfThoseOpponentsTopCard = [] := by
   decide
@@ -1238,15 +1238,15 @@ def frostwielder : Spelled := spelled <| .singleFaced
 /-- Crackling Doom -/
 def cracklingDoom : Action :=
   Primitives.Action.sequentially
-    [ Primitives.Action.dealDamage (.lit 2) (each Primitives.Predicate.opponent) .noncombatOnly,
-      instruct (each Primitives.Predicate.opponent) (sacrifice
+    [ Primitives.Action.dealDamage (.lit 2) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly,
+      instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (sacrifice
         (a (Primitives.Predicate.and [creature,
                   Primitives.Predicate.superlative .max (.stat .power)
                     (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])]))) ]
 theorem okCracklingDoom : Action.check (DRS.ofList []) cracklingDoom = [] := by decide
 def theFallen : Ability :=
   at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-    (instruct thisCreature (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.and [Primitives.Predicate.or [Primitives.Predicate.opponent, Primitives.Predicate.hasType .planeswalker],
+    (instruct thisCreature (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.and [Primitives.Predicate.or [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), Primitives.Predicate.hasType .planeswalker],
                    happenedTo (Primitives.Subject.actor thisCreature) (Primitives.Action.dealDamage Primitives.Amount.anyAmount                      (relative (.join .player .object)) .any) thisGame])) .noncombatOnly))
 theorem okTheFallen : Ability.check (DRS.ofList []) theFallen = [] := by decide
 /-- Cavalcade of Calamity -/
@@ -1287,7 +1287,7 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .red], Primitives.Cost.tapSymbol])
             (Primitives.Action.sequentially
               [ chooseWhile
-                  (target (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
+                  (target (Primitives.Predicate.and [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
                   (whileDoing (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .activate thisAbility Primitives.PlayPayment.itsOwnCost none none none))),
                 instruct thisCreature (Primitives.Action.dealDamage (.lit 2) (that .player) .noncombatOnly) ]) ],
       power := stat 1, toughness := stat 2 } }

@@ -22,12 +22,12 @@ private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
 
 /-- "a creature target opponent controls" -/
 theorem okControlledByOne :
-    Predicate.checkAt .object (DRS.ofList []) (.hasPossessor .controller (target .opponent)) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.hasPossessor .controller (target (.isOpponentOf .you))) = [] := by decide
 
 /-- "a creature two target opponents control" -/
 theorem badControlledByGroup :
     Predicate.checkAt .object (DRS.ofList [])
-      (.hasPossessor .controller (.described (.target (exactly 2)) .opponent)) = [.soleHolder] := by
+      (.hasPossessor .controller (.described (.target (exactly 2)) (.isOpponentOf .you))) = [.soleHolder] := by
   decide
 
 /-- "each of up to two target creatures" -/

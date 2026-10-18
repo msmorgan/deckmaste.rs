@@ -182,18 +182,18 @@ theorem okAddPtUpward :
 
 /-- "During target opponent's next turn, …" -/
 theorem okSingularNextTurnDuration :
-    Duration.check (DRS.ofList []) (duringNextTurnOf (target .opponent)) = [] := by decide
+    Duration.check (DRS.ofList []) (duringNextTurnOf (target (.isOpponentOf .you))) = [] := by decide
 
 /-- "During each opponent's next turn, ...": the boundaries name whose turn, so a plural possessor
 is the duration-possessor refusal of the unified boundary (was `.singular` on the retired
 `Duration.duringNextTurnOf`). -/
 theorem badPluralNextTurnDuration :
-    Duration.check (DRS.ofList []) (duringNextTurnOf (each .opponent)) = [.durationPossessor] := by decide
+    Duration.check (DRS.ofList []) (duringNextTurnOf (each (.isOpponentOf .you))) = [.durationPossessor] := by decide
 
 /-- "Target opponent skips all combat phases of their next turn." -/
 theorem okSkipDuringTheirNextTurn :
     Action.check (DRS.ofList [])
-      (establishThroughout (.partSkip (target .opponent) .combat) (duringNextTurnOf (that
+      (establishThroughout (.partSkip (target (.isOpponentOf .you)) .combat) (duringNextTurnOf (that
           .player)))
       = [] := by
   decide
@@ -213,7 +213,7 @@ theorem unboundDurationPossessorIsRefused :
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the
 bench. -/
 theorem opponentsCantGainLife :
-    StaticSpec.check (DRS.ofList []) (playerCant (.core .gainLife) (.playerGroup .yourOpponents)) = [] := by
+    StaticSpec.check (DRS.ofList []) (playerCant (.core .gainLife) (.described .all (.isOpponentOf .you))) = [] := by
   decide
 
 end Semantics.Proofs.Static

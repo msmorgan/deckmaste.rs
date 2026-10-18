@@ -414,19 +414,19 @@ theorem badTokenDuplicateSupertype :
 
 theorem okExtraTurnAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target .opponent) (extraTurn (lifeTotalOf they))) = [] := by decide
+      (Macros.instruct (target (.isOpponentOf .you)) (extraTurn (lifeTotalOf they))) = [] := by decide
 
 theorem badExtraTurnAmountReadsSubject :
     Action.check [qualityB .color]
       (extraTurn (lifeTotalOf they)) = [.anaphor (.word .player) .one 0] := by decide
 
 theorem badExtraTurnForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (extraTurn (lifeTotalOf (target .opponent))))
+    Action.check (DRS.ofList []) (Macros.instruct they (extraTurn (lifeTotalOf (target (.isOpponentOf .you)))))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [extraTurn (lifeTotalOf (target .opponent)), Macros.instruct they (.draw (.lit 1))]) =
+      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
@@ -435,7 +435,7 @@ theorem okExtraTurnNestedAmountIntroducesLetterOnce :
 
 theorem okSkipNextAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target .opponent) (.skipPart .drawStep (lifeTotalOf they))) = [] := by decide
+      (Macros.instruct (target (.isOpponentOf .you)) (.skipPart .drawStep (lifeTotalOf they))) = [] := by decide
 
 theorem badSkipNextAmountReadsSubject :
     Action.check [qualityB .color]
@@ -444,12 +444,12 @@ theorem badSkipNextAmountReadsSubject :
   decide
 
 theorem badSkipNextForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (.skipPart .drawStep (lifeTotalOf (target .opponent))))
+    Action.check (DRS.ofList []) (Macros.instruct they (.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you)))))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okSkipNextAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipPart .drawStep (lifeTotalOf (target .opponent)), Macros.instruct they (.draw (.lit 1))])
+      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))])
       = [] := by
   decide
 
@@ -459,7 +459,7 @@ theorem okSkipNextNestedAmountIntroducesLetterOnce :
 
 theorem okAdditionalPartAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target .opponent) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none))
+      (Macros.instruct (target (.isOpponentOf .you)) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none))
       = [] := by
   decide
 
@@ -470,12 +470,12 @@ theorem badAdditionalPartAmountReadsSubject :
   decide
 
 theorem badAdditionalPartForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target .opponent)) none))
+    Action.check (DRS.ofList []) (Macros.instruct they (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target .opponent)) none, Macros.instruct they (.draw
+      [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Macros.instruct they (.draw
           (.lit 1))])
       = [] := by
   decide
@@ -502,11 +502,11 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipUntap (target creature) (lifeTotalOf (target .opponent)), Macros.instruct they (.draw (.lit 1))])
+      [.skipUntap (target creature) (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :
-    Action.check (nounResult (DRS.ofList []) (target .opponent))
+    Action.check (nounResult (DRS.ofList []) (target (.isOpponentOf .you)))
       (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none) = [] := by decide
 
 theorem badAdditionalPartWithoutSubjectOrOuterContext :
@@ -516,27 +516,27 @@ theorem badAdditionalPartWithoutSubjectOrOuterContext :
 /-- Nested amounts preserve the identities and kinds of their introduced targets. -/
 theorem okExtraTurnNestedAmountOrder :
     let after := instructionResult [qualityB .color]
-      (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+      (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(3, .turnRef), (2, .player), (1, .object), (0, .quality .color)] ∧
       (after.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem okSkipNextNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
-      (.skipPart .drawStep (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+      (.skipPart .drawStep (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okAdditionalPartNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
       (Primitives.Action.addTurnPart .upkeep none
-        (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))) none)
+        (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))) none)
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okUntapNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
-      (.skipUntap .this (plus (powerOf (target creature)) (lifeTotalOf (target .opponent))))
+      (.skipUntap .this (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(2, .player), (1, .object), (0, .object)] ∧
       (after.findById? 1).map (·.ty) = some [.creature] ∧

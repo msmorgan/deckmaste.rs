@@ -110,7 +110,7 @@ def platinumAngel : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           Primitives.Ability.static (playerCant (.core .loseGame) Primitives.NounPhrase.you),
-          Primitives.Ability.static (playerCant (.core .winGame) (Primitives.NounPhrase.playerGroup .yourOpponents)) ],
+          Primitives.Ability.static (playerCant (.core .winGame) (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) ],
       power := stat 4, toughness := stat 4 } }
 
 def abyssalPersecutor : Spelled := spelled <| .singleFaced
@@ -120,7 +120,7 @@ def abyssalPersecutor : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"), keyword (.named "trample"),
           Primitives.Ability.static (playerCant (.core .winGame) Primitives.NounPhrase.you),
-          Primitives.Ability.static (playerCant (.core .loseGame) (Primitives.NounPhrase.playerGroup .yourOpponents)) ],
+          Primitives.Ability.static (playerCant (.core .loseGame) (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) ],
       power := stat 6, toughness := stat 6 } }
 
 def smogElemental : Spelled := spelled <| .singleFaced
@@ -131,7 +131,7 @@ def smogElemental : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           Primitives.Ability.static (getsPt
             (allOf (Primitives.Predicate.and [ creature, Primitives.Predicate.hasKeyword (.the (.named "flying")),
-                           Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents) ]))
+                           Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) ]))
             (Primitives.Delta.down (.lit 1)) (Primitives.Delta.down (.lit 1))) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -490,7 +490,7 @@ def chandrasSpitfire : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Elemental"],
       text :=
         [ keyword (.named "flying"),
-          whenever (Primitives.GameEvent.isDealtDamage .noncombatOnly (a Primitives.Predicate.opponent))
+          whenever (Primitives.GameEvent.isDealtDamage .noncombatOnly (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))
             (get thisCreature (Primitives.Delta.up (.lit 3)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -508,7 +508,7 @@ def giantCindermaw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Giant Cindermaw", cost := some [generic 2, pip .red], types := [.creature],
       subtypes := [creatureType "Dinosaur", creatureType "Beast"],
-      text := [keyword (.named "trample"), Primitives.Ability.static (playerCant (.core .gainLife) (Primitives.NounPhrase.playerGroup .allPlayers))],
+      text := [keyword (.named "trample"), Primitives.Ability.static (playerCant (.core .gainLife) (allOf Primitives.Predicate.anyPlayer))],
       power := stat 4, toughness := stat 3 } }
 
 def lushGrowth : Spelled := spelled <| .singleFaced
@@ -641,7 +641,7 @@ def wanderingEye : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wandering Eye", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [creatureType "Illusion"],
-      text := [keyword (.named "flying"), Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal (Primitives.NounPhrase.playerGroup .allPlayers) Primitives.VisibleThing.wholeHand)],
+      text := [keyword (.named "flying"), Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal (allOf Primitives.Predicate.anyPlayer) Primitives.VisibleThing.wholeHand)],
       power := stat 1, toughness := stat 3 } }
 
 def amorphousAxe : Spelled := spelled <| .singleFaced
@@ -763,7 +763,7 @@ def linvalaKeeperOfSilence : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           Primitives.Ability.static (objectCant (.action "activate")
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
-                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents)])) ]))) ],
+                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) ]))) ],
       power := stat 3, toughness := stat 4 } }
 
 def kyrenLegate : Spelled := spelled <| .singleFaced
@@ -1082,7 +1082,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
         [ keywordCosting (.named "spectacle") (Primitives.Cost.mana [generic 3, pip .black, pip .red]),
           triggeredIf (Primitives.GameEvent.enters thisCreature none)
             (costWasPaid (.byKeyword (.named "spectacle")) none thisCreature)
-            (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand]))), discard them]) ],
+            (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand]))), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
 /-- Tourach, Dread Cantor -/
@@ -1141,7 +1141,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
           keywordQuality (.named "protection") (Primitives.Predicate.colorIs .white),
           tourachDiscardTrigger,
           triggeredIf (Primitives.GameEvent.enters thisCreature none) (costWasPaid (.byKeyword (.named "kicker")) none thisCreature)
-            (instruct (target Primitives.Predicate.opponent) (Actor.discard (countedAtRandom (exactly 2) Primitives.Predicate.isCard))) ],
+            (instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Actor.discard (countedAtRandom (exactly 2) Primitives.Predicate.isCard))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Talrand's Invocation -/
@@ -1236,7 +1236,7 @@ def wizenedSnitches : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wizened Snitches", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [creatureType "Faerie", creatureType "Rogue"],
-      text := [keyword (.named "flying"), Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal (Primitives.NounPhrase.playerGroup .allPlayers) Primitives.VisibleThing.topOfLibrary)],
+      text := [keyword (.named "flying"), Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal (allOf Primitives.Predicate.anyPlayer) Primitives.VisibleThing.topOfLibrary)],
       power := stat 1, toughness := stat 3 } }
 
 /-- Darkblade Agent -/
@@ -1256,7 +1256,7 @@ theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
 /-- Pir, Imaginative Rascal's replacement -/
 def pirDistributive : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount Primitives.CounterKindSource.anyKind (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourTeam)])) .many false)) (Primitives.Action.putCounters (plus Primitives.Amount.thatMuch (.lit 1)) Primitives.CounterKindSource.those (that .permanent) .many true) none .repeatedly none)
+  Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount Primitives.CounterKindSource.anyKind (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.or [Primitives.NounPhrase.you, a (Primitives.Predicate.isTeammateOf Primitives.NounPhrase.you)])])) .many false)) (Primitives.Action.putCounters (plus Primitives.Amount.thatMuch (.lit 1)) Primitives.CounterKindSource.those (that .permanent) .many true) none .repeatedly none)
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 
 /-- Frogmite -/
@@ -1322,7 +1322,7 @@ def debrisBeetle : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "trample"),
           when (Primitives.GameEvent.enters thisVehicle none)
-            (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (loseLife (.lit 3)), gainLife (.lit 3)]),
+            (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 3)), gainLife (.lit 3)]),
           keywordNumber (.named "crew") (.lit 2) ],
       power := stat 6, toughness := stat 6 } }
 

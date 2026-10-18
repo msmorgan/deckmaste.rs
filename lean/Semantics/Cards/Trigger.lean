@@ -35,7 +35,7 @@ def scholarOfStars : Ability :=
 theorem okScholarOfStars : Ability.check (DRS.ofList []) scholarOfStars = [] := by decide
 
 def miserysShadow : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a Primitives.Predicate.opponent)])) (battlefield) (some graveyard) .departure none [])) (exile it) none .repeatedly none)
+  Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) (battlefield) (some graveyard) .departure none [])) (exile it) none .repeatedly none)
 theorem okMiserysShadow : Ability.check (DRS.ofList []) miserysShadow = [] := by decide
 
 def beastWhisperer : Ability :=
@@ -99,7 +99,7 @@ def orneryDilophosaur : Ability :=
 theorem okOrneryDilophosaur : Ability.check (DRS.ofList []) orneryDilophosaur = [] := by decide
 def incisorGlider : Ability :=
   triggeredIf (attacks thisCreature)
-    (Primitives.Condition.compareAmt (countersOn (.named "poison") (a Primitives.Predicate.opponent)) .atLeast (.lit 3))
+    (Primitives.Condition.compareAmt (countersOn (.named "poison") (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) .atLeast (.lit 3))
     (get (allOf creatureYouControl) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1)) (some untilEndOfTurn))
 theorem okIncisorGlider : Ability.check (DRS.ofList []) incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
@@ -309,7 +309,7 @@ def sanguineBond : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sanguine Bond", cost := some [generic 3, pip .black, pip .black],
       types := [.enchantment],
-      text := [whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.changeLife (Primitives.Delta.up Primitives.Amount.anyAmount))) (instruct (target Primitives.Predicate.opponent) (loseLife Primitives.Amount.thatMuch))]
+      text := [whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.changeLife (Primitives.Delta.up Primitives.Amount.anyAmount))) (instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife Primitives.Amount.thatMuch))]
           } }
 
 def exquisiteBlood : Spelled := spelled <| .singleFaced
@@ -479,14 +479,14 @@ theorem okFaridehResultRead : Ability.check (DRS.ofList []) faridehResultRead = 
 /-- Jaws of Defeat -/
 def jawsOfDefeat : Ability :=
   whenever (Primitives.GameEvent.enters (a creatureYouControl) none)
-    (instruct (target Primitives.Predicate.opponent) (loseLife
+    (instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife
       (Primitives.Amount.arith .differenceBetween (Primitives.Amount.statOf (.stat .power) (that (.type .creature)))
         (Primitives.Amount.statOf (.stat .toughness) (that (.type .creature))))))
 theorem okJawsOfDefeat : Ability.check (DRS.ofList []) jawsOfDefeat = [] := by decide
 /-- Defiling Daemogoth -/
 def defilingDaemogothDrain : Action :=
   Primitives.Action.sequentially
-    [instruct (each Primitives.Predicate.opponent) (loseLife (Primitives.Amount.letter .x)),
+    [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (Primitives.Amount.letter .x)),
       Primitives.Action.define .x (eventSum (Primitives.Action.changeLife (Primitives.Delta.up Primitives.Amount.anyAmount)) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn)]
 theorem okDefilingDaemogothDrain : Action.check (DRS.ofList []) defilingDaemogothDrain = [] := by decide
 def skullsporeNexusTrigger : Ability :=
@@ -499,7 +499,7 @@ theorem okSkullsporeNexusTrigger : Ability.check (DRS.ofList []) skullsporeNexus
 /-- Wavebreak Hippocamp -/
 def wavebreakHippocamp : Ability :=
   triggeredOnlyDuring (Primitives.GameEvent.nthOccurrence (.nth 1) none (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a spell)) Primitives.PlayPayment.itsOwnCost none none none)))
-    (duringPart .turn (some (each Primitives.Predicate.opponent))) (Primitives.Action.draw (.lit 1))
+    (duringPart .turn (some (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))) (Primitives.Action.draw (.lit 1))
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
@@ -549,7 +549,7 @@ def schemingAspirant : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Phyrexian", creatureType "Advisor"],
       text :=
         [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Declared.proliferate))
-            (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (loseLife (.lit 2)), gainLife (.lit 2)]) ],
+            (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 2)), gainLife (.lit 2)]) ],
       power := stat 1, toughness := stat 3 } }
 
 /-- Reciprocate -/
@@ -645,7 +645,7 @@ def loamingShaman : Spelled := spelled <| .singleFaced
 /-- Debris Beetle -/
 def debrisBeetleTrigger : Ability :=
   when (Primitives.GameEvent.enters thisVehicle none)
-    (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (loseLife (.lit 3)), gainLife (.lit 3)])
+    (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 3)), gainLife (.lit 3)])
 theorem okDebrisBeetleTrigger : Ability.check (DRS.ofList []) debrisBeetleTrigger = [] := by decide
 /-- Roads Go Ever, Ever On's chapters II and III -/
 def roadsGoEverEverOnChapters : Ability :=
@@ -685,9 +685,9 @@ theorem okAgencyOutfitterSearch : Action.check (DRS.ofList []) agencyOutfitterSe
 /-- Trouble in Pairs' -/
 def troubleInPairsArms : Ability :=
   Primitives.Ability.triggered (Primitives.GameEvent.does (Primitives.Subject.actor anOpponent) (Primitives.Action.attackWith (counted (atLeast 2) creature) (some Primitives.NounPhrase.you)))
-    [ Primitives.GameEvent.nthOccurrence (.nth 2) (some .turn) (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.opponent)) (Primitives.Action.draw Primitives.Amount.anyAmount)),
+    [ Primitives.GameEvent.nthOccurrence (.nth 2) (some .turn) (Primitives.GameEvent.does (Primitives.Subject.actor (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (Primitives.Action.draw Primitives.Amount.anyAmount)),
       Primitives.GameEvent.nthOccurrence (.nth 2) (some .turn) (Primitives.GameEvent.does (Primitives.Subject.actor (a
-        Primitives.Predicate.opponent)) (Primitives.Action.procedure .cast ((a spell)) Primitives.PlayPayment.itsOwnCost none none none)) ]
+        (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (Primitives.Action.procedure .cast ((a spell)) Primitives.PlayPayment.itsOwnCost none none none)) ]
     none [] none none none (Primitives.Action.draw (.lit 1))
 theorem okTroubleInPairsArms : Ability.check (DRS.ofList []) troubleInPairsArms = [] := by decide
 
@@ -775,7 +775,7 @@ theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine 
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
   whenever (Primitives.GameEvent.enters (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan Primitives.NounPhrase.this])) none)
-    (instruct (each Primitives.Predicate.opponent) (mill (.lit 1) they))
+    (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (mill (.lit 1) they))
 theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] := by decide
 /-- Foul Emissary -/
 def foulEmissaryLine : Ability :=

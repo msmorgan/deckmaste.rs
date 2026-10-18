@@ -64,7 +64,7 @@ def unholyAnnex : Action :=
   Primitives.Action.sequentially
     [ Primitives.Action.draw (.lit 1),
       Primitives.Action.doIf (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Demon"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-        (Primitives.Action.sequentially [instruct (each Primitives.Predicate.opponent) (loseLife (.lit 2)), gainLife (.lit 2)])
+        (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 2)), gainLife (.lit 2)])
         (some (loseLife (.lit 2))) ]
 theorem okUnholyAnnex : Action.check (DRS.ofList []) unholyAnnex = [] := by decide
 
@@ -168,7 +168,7 @@ def topple : Spelled := spelled <| .singleFaced
 
 /-- "each opponent with three or more poison counters" -/
 def corruptedOpponents : NounPhrase :=
-  each (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.counter (.named "poison")] .atLeast (.lit 3)])
+  each (Primitives.Predicate.and [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), Primitives.Predicate.compare [.counter (.named "poison")] .atLeast (.lit 3)])
 theorem okCorruptedOpponents : NounPhrase.checkAt (some .player) (DRS.ofList []) corruptedOpponents = [] := by
   decide
 
@@ -288,7 +288,7 @@ theorem okLoyaltyAbilityOfEnchanted :
 
 /-- Balance of Power -/
 def balanceOfPower : Action :=
-  Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (target Primitives.Predicate.opponent))])) .greater
+  Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))])) .greater
           (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))
     (Primitives.Action.draw Primitives.Amount.theDifference) none
 theorem okBalanceOfPower : Action.check (DRS.ofList []) balanceOfPower = [] := by decide
@@ -325,13 +325,13 @@ def targetPlayerOrPlaneswalker : NounPhrase := target (Primitives.Predicate.or [
 theorem okTargetPlayerOrPlaneswalker :
     NounPhrase.checkAt none (DRS.ofList []) targetPlayerOrPlaneswalker = [] := by decide
 
-def targetOpponentOrPlaneswalker : NounPhrase := target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.opponent])
+def targetOpponentOrPlaneswalker : NounPhrase := target (Primitives.Predicate.or [Primitives.Predicate.hasType .planeswalker, (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)])
 theorem okTargetOpponentOrPlaneswalker :
     NounPhrase.checkAt none (DRS.ofList []) targetOpponentOrPlaneswalker = [] := by decide
 
 /-- Baleful Mastery's paid read -/
 def balefulMasteryPaidRead : Ability :=
-  Primitives.Ability.spell none (Primitives.Action.doIf (costWasPaid .theAlternative none Primitives.NounPhrase.this) (instruct (a Primitives.Predicate.opponent) (Primitives.Action.draw (.lit 1))) none)
+  Primitives.Ability.spell none (Primitives.Action.doIf (costWasPaid .theAlternative none Primitives.NounPhrase.this) (instruct (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.draw (.lit 1))) none)
 theorem okBalefulMasteryPaidRead : Ability.check (DRS.ofList []) balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
@@ -376,7 +376,7 @@ theorem okBioplasmExiledCard :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide
 
 /-- "the top card of each player's library" -/
-def playersTopCardSlice : NounPhrase := Primitives.NounPhrase.slice .top (.lit 1) (library (Primitives.NounPhrase.playerGroup .allPlayers))
+def playersTopCardSlice : NounPhrase := Primitives.NounPhrase.slice .top (.lit 1) (library (allOf Primitives.Predicate.anyPlayer))
 theorem okPlayersTopCardSlice : NounPhrase.checkAt (some .object) (DRS.ofList []) playersTopCardSlice = [] := by
   decide
 
@@ -444,7 +444,7 @@ theorem okACopyOfACard : NounPhrase.checkAt (some .object) (DRS.ofList []) aCopy
 
 /-- Keeper of the Flame, Keeper of the Light -/
 def opponentWithMoreLifeThanYou : Predicate :=
-  Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]
+  Primitives.Predicate.and [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]
 theorem okOpponentWithMoreLifeThanYou :
     Predicate.checkAt .player (DRS.ofList []) opponentWithMoreLifeThanYou = [] := by decide
 /-- Namor, Atlantean King -/
@@ -453,16 +453,16 @@ def playerWithMoreLifeThanYou : Predicate :=
 theorem okPlayerWithMoreLifeThanYou :
     Predicate.checkAt .player (DRS.ofList []) playerWithMoreLifeThanYou = [] := by decide
 def noOpponentHasMoreLifeThanYou : Condition :=
-  Primitives.Condition.not (exists_ (Primitives.Predicate.and [Primitives.Predicate.opponent, Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
+  Primitives.Condition.not (exists_ (Primitives.Predicate.and [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you), Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you)]))
 theorem okNoOpponentHasMoreLifeThanYou :
     Condition.check (DRS.ofList []) noOpponentHasMoreLifeThanYou = [] := by decide
 def someOpponentLacksMoreLifeThanYou : Condition :=
-  exists_ (Primitives.Predicate.and [Primitives.Predicate.opponent,
+  exists_ (Primitives.Predicate.and [(Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you),
                  Primitives.Predicate.not (Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you))])
 theorem okSomeOpponentLacksMoreLifeThanYou :
     Condition.check (DRS.ofList []) someOpponentLacksMoreLifeThanYou = [] := by decide
 def yourOpponentsHaveMoreLifeThanYou : Condition :=
-  Primitives.Condition.matches (Primitives.NounPhrase.playerGroup .yourOpponents)
+  Primitives.Condition.matches (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
     (Primitives.Predicate.compare [.playerStat .lifeTotal] .greater (lifeTotalOf Primitives.NounPhrase.you))
 theorem okYourOpponentsHaveMoreLifeThanYou :
     Condition.check (DRS.ofList []) yourOpponentsHaveMoreLifeThanYou = [] := by decide

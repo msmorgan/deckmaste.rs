@@ -158,7 +158,7 @@ def kalitasReplacement : Ability :=
     .instead
       (.would .any
         (.move (.described (.a .unmarked)
-            (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) .opponent)]))
+            (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you))]))
           (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) []))
       (.sequentially [
         .move (.pro (.word (.type .creature)) .one) .anyLocation (some exileZone) .departure (some .anEffect) [],
@@ -231,7 +231,7 @@ def sliceCFactOrFictionPin : Ability :=
   .spell none <|
     .sequentially [
       .expose .reveal (.cards (.slice .top (.lit 5) (.zone .library (some .you)))),
-      .instruct (.described (.a .unmarked) .opponent)
+      .instruct (.described (.a .unmarked) (.isOpponentOf .you))
         (.separateIntoPiles (.pro .bare .many) 2 []),
       .move (.described .all (.and [.isCard, .in_ (.pile (.pileOf (.counted (.range (some 1) (some 1))) none))]))
         .anyLocation (some handZone) .departure (some .anEffect) [],

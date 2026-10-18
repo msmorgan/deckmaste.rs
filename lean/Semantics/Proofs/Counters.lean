@@ -117,7 +117,7 @@ theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (.triggered (attacks thisCreature)
         [blocks thisCreature none, .does (.by (a spell)) (.target thisCreature)] none [] none none none
-        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each .opponent) .any)))
+        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)) .any)))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
         (nextClause (GameEvent.extend (DRS.ofList []) (attacks thisCreature)))).map (·.id) = some 0 := by
@@ -196,7 +196,7 @@ theorem badTokenDuplicateColor :
 /-- "Target opponent loses 2 life. You gain that much life." -/
 theorem okThatMuchAfterOutcome :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (target .opponent) (loseLife (.lit 2)), gainLife .thatMuch]) = [] := by
+      (.sequentially [instruct (target (.isOpponentOf .you)) (loseLife (.lit 2)), gainLife .thatMuch]) = [] := by
   decide
 
 /-- "This deals 2 damage to target creature and you gain that much life." -/
@@ -236,7 +236,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
-            [(Action.instruct .this (.dealDamage (.lit 2) (target creature) .any)), instruct (target .opponent) (loseLife (.lit 3))],
+            [(Action.instruct .this (.dealDamage (.lit 2) (target creature) .any)), instruct (target (.isOpponentOf .you)) (loseLife (.lit 3))],
           gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
   decide
 
@@ -320,13 +320,13 @@ theorem badSetBoostCounter :
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
     Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := (each
-        .opponent)))
+        (.isOpponentOf .you))))
       = [] := by
   decide
 
 /-- "Each opponent loses all +1/+1 counters." -/
 theorem badLosesAllBoostCounters :
-    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := (each .opponent)))
+    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := (each (.isOpponentOf .you))))
       = [.counterSourceScope] := by
   decide
 
@@ -439,7 +439,7 @@ theorem badMixedScopeCounterMenu :
 
 /-- "Put a poison counter on target opponent." -/
 theorem okPoisonCounterLabel :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target .opponent) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target (.isOpponentOf .you)) .one true)
       = [] := by
   decide
 
@@ -554,7 +554,7 @@ theorem badSameKindsSevenEach :
 
 /-- "a permanent your team controls" -/
 def teamPermanent : NounPhrase :=
-  a (.and [permanent, .hasPossessor .controller (.playerGroup .yourTeam)])
+  a (.and [permanent, .hasPossessor .controller (.or [.you, .described (.a .unmarked) (.isTeammateOf .you)])])
 
 /-- "If one or more counters would be put on a permanent your team controls, that many plus
 one of each of those kinds are put on that permanent instead." The replaced event names no

@@ -98,7 +98,7 @@ theorem everyChoiceOccasionPublishesItsSort (occasion : ChoiceOccasion) (drs : D
 
 theorem everyChoiceOccasionChecksDomain (occasion : ChoiceOccasion) :
     StaticSpec.check (DRS.ofList [])
-      (.choice occasion thisCreature (.quality .color) (some (.players .opponent)) .openly) =
+      (.choice occasion thisCreature (.quality .color) (some (.players (.isOpponentOf .you))) .openly) =
       [.kindAxisSort] := by
   cases occasion <;> decide
 
@@ -116,7 +116,7 @@ theorem unknownDepartureCanBeConstrained :
 
 theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.move (a (.and [.isCard, .in_ (graveyardOf (a .opponent))])) (.not (graveyardOf .you)) (some exileZone) .departure none [])) = [] := by decide
+      (.does .any (.move (a (.and [.isCard, .in_ (graveyardOf (a (.isOpponentOf .you)))])) (.not (graveyardOf .you)) (some exileZone) .departure none [])) = [] := by decide
 
 theorem arrivalCanBeDescribedAsCard :
     GameEvent.check (DRS.ofList [])
@@ -182,17 +182,17 @@ theorem placelessCardsDoNotAcquireBattlefieldEvidence :
       (a (.and [.isCard, creature, .not (.in_ battlefield)]))) it = none := by decide
 
 theorem destinationReadsTheSourcePossessor :
-    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a .opponent)) (some (handOf (that .player))) .departure none [])) =
+    GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure none [])) =
       [] := by decide
 
 theorem bodyReadsTheSourcePossessor :
     NounPhrase.checkAt (some .player)
-      (GameEvent.extend (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a .opponent)) (some (handOf (that .player))) .departure none [])))
+      (GameEvent.extend (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure none [])))
       (that .player) = [] := by decide
 
 theorem excludingYourGraveyardAllowsAnOpponentsGraveyard :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (a (.and [.isCard, .in_ (graveyardOf (a .opponent)),
+      (a (.and [.isCard, .in_ (graveyardOf (a (.isOpponentOf .you))),
         .not (.in_ (graveyardOf .you))])) = [] := by decide
 
 private def headerCreature : Referent :=

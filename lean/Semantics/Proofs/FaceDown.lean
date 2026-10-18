@@ -25,7 +25,7 @@ theorem okTurnFaceDown :
 
 /-- Only an object is turned face down [CR#708.2]. -/
 theorem badTurnAPlayerFaceDown :
-    Action.check (DRS.ofList []) (.turnFaceDown (target .opponent) faceDownCreature) =
+    Action.check (DRS.ofList []) (.turnFaceDown (target (.isOpponentOf .you)) faceDownCreature) =
       [.kindMismatch .object .player] := by decide
 
 /-- An entry rider into exile is not of the kind exile allows. -/

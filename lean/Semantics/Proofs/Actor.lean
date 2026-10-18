@@ -64,14 +64,14 @@ theorem okThoughtseize :
 
 /-- Burglar Rat: "When Burglar Rat enters, each opponent discards a card." The discard names no
 zone: the deed's patient lives in a hand [CR#701.9a]. -/
-theorem okBurglarRat : Action.check (DRS.ofList []) (instruct (each .opponent) (Actor.discard (a .isCard))) = [] := by
+theorem okBurglarRat : Action.check (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard))) = [] := by
   decide
 
 /-- "Each opponent discards a card. Exile them.": what each opponent's body introduced is
 published as a group, as `doForEach` publishes it. -/
 theorem okDistributedDiscardReadsAsGroup :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .opponent) (Actor.discard (a .isCard)), exile them]) = [] := by
+      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), exile them]) = [] := by
   decide
 
 /-- "Each opponent discards a card. Exile it.": one card per opponent, so the singular read has
@@ -79,7 +79,7 @@ no antecedent (`okDistributedDiscardReadsAsGroup` is the plural read; compare
 `Choice.badDistributedChoiceReadSingular`). -/
 theorem badDistributedDiscardReadSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .opponent) (Actor.discard (a .isCard)), exile it])
+      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -125,7 +125,7 @@ theorem okLiteralAmassBare : Action.check (DRS.ofList []) literalAmass = [] := b
 
 /-- "Target opponent amasses Orcs 2" in the literal spelling: the opponent is a player, so no
 second object is in view, and it checks. -/
-theorem okLiteralAmassHandedOff : Action.check (DRS.ofList []) (instruct (target .opponent) literalAmass) = [] := by
+theorem okLiteralAmassHandedOff : Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) literalAmass) = [] := by
   decide
 
 /-! ## A keyword body's own reference scope
@@ -142,7 +142,7 @@ private def scopedAmass : Action := .enact (.action "amass") (.ownScope none lit
 theorem okScopedAmass : Action.check (DRS.ofList []) scopedAmass = [] := by decide
 
 /-- "Target opponent amasses Orcs 2" in its scope checks, as the bare body does. -/
-theorem okScopedAmassHandedOff : Action.check (DRS.ofList []) (instruct (target .opponent) scopedAmass) = [] := by
+theorem okScopedAmassHandedOff : Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) scopedAmass) = [] := by
   decide
 
 /-- After destroying a creature, literal amass selects its own Army: the destroyed
@@ -240,10 +240,10 @@ cost is not checked (`lean-checker-sweep-costs`); the cost's performer is still 
 player, read in the context the cost's handoff builds. -/
 theorem badHandedOffLifeCost :
     Ability.check (DRS.ofList [])
-      (.activated (.perform (instruct (target .opponent) (loseLife (.lit 2)))) (draw (.lit 1))
+      (.activated (.perform (instruct (target (.isOpponentOf .you)) (loseLife (.lit 2)))) (draw (.lit 1))
         none none none none)
       = [] ∧
-      performerIsYou (handoff (DRS.ofList []) (target .opponent)) = false := by
+      performerIsYou (handoff (DRS.ofList []) (target (.isOpponentOf .you))) = false := by
   decide
 
 /-! ## Costs: each handoff twin judged as its explicit-agent form
@@ -404,12 +404,12 @@ opponent is named "that player" (`capturedActorIsTheHandedPlayer` captures `acto
 the opponent's handoff). Who pays a cost is not checked (`lean-checker-sweep-costs`); the actor
 inside the inner handoff, past the capture, is still "you". -/
 theorem badCapturedActorIsTheHandedPlayer :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (youPayWith (.perform (capturedLifeLoss they))))
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (youPayWith (.perform (capturedLifeLoss they))))
         = [] ∧
-      Action.check (DRS.ofList []) (instruct (target .opponent) (youPayWith (.perform (instruct they (loseLife (.lit 1))))))
+      Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (youPayWith (.perform (instruct they (loseLife (.lit 1))))))
         = [] ∧
       performerIsYou
-        (handoff (handoff (DRS.ofList []) (target .opponent)) .you) =
+        (handoff (handoff (DRS.ofList []) (target (.isOpponentOf .you))) .you) =
         true := by
   decide
 
@@ -419,10 +419,10 @@ uncaptured handoff is (`badHandedOffLifeCost`), and the captured `actor` still r
 handed player, not "you". -/
 theorem capturedActorIsTheHandedPlayer :
     Ability.check (DRS.ofList [])
-      (.activated (.perform (instruct (target .opponent) (capturedLifeLoss actor))) (draw (.lit 1))
+      (.activated (.perform (instruct (target (.isOpponentOf .you)) (capturedLifeLoss actor))) (draw (.lit 1))
         none none none none)
       = [] ∧
-      performerIsYou (handoff (DRS.ofList []) (target .opponent)) =
+      performerIsYou (handoff (DRS.ofList []) (target (.isOpponentOf .you))) =
         false := by
   decide
 
@@ -432,7 +432,7 @@ theorem capturedActorIsTheHandedPlayer :
 player's handoff. -/
 theorem okEachOpponentMayPayElseYouDraw :
     Action.check (DRS.ofList [])
-      (instruct (each .opponent)
+      (instruct (each (.isOpponentOf .you))
         (Primitives.Action.offer (.pay (.mana [generic 2]) .once .paid none none) none
           (some (instruct .you (draw (.lit 1)))))) = [] := by
   decide
@@ -440,7 +440,7 @@ theorem okEachOpponentMayPayElseYouDraw :
 /-- The same sentence through `doUnless`, handed to each opponent, who decides. -/
 theorem okEachOpponentMayPayElseYouDrawUnless :
     Action.check (DRS.ofList [])
-      (instruct (each .opponent) (doUnless (instruct .you (draw (.lit 1))) (.mana [generic 2]))) = [] := by
+      (instruct (each (.isOpponentOf .you)) (doUnless (instruct .you (draw (.lit 1))) (.mana [generic 2]))) = [] := by
   decide
 
 /-- "Each player chooses a creature they control." through the handoff
@@ -467,7 +467,7 @@ theorem handedToYouPossessorReadsExplicitPlayer :
 handoff the payer is the opponent. Who pays a cost is not checked (`lean-checker-sweep-costs`). -/
 theorem okHandedPayerIsTheTarget :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent)
+      (instruct (target (.isOpponentOf .you))
         (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
           (some (draw (.lit 1))))) = [] := by
   decide
@@ -477,13 +477,13 @@ handoff makes the actor the controller again. Who pays a cost is not checked
 (`lean-checker-sweep-costs`); the innermost handoff's actor is "you". -/
 theorem badNestedHandoffInnermost :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent)
+      (instruct (target (.isOpponentOf .you))
         (instruct .you
           (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
             (some (draw (.lit 1))))))
       = [] ∧
-      performerIsYou (handoff (handoff (DRS.ofList []) (target .opponent)) .you) = true ∧
-      performerIsYou (handoff (DRS.ofList []) (target .opponent)) = false := by
+      performerIsYou (handoff (handoff (DRS.ofList []) (target (.isOpponentOf .you))) .you) = true ∧
+      performerIsYou (handoff (DRS.ofList []) (target (.isOpponentOf .you))) = false := by
   decide
 
 /-- "Target opponent … Until end of turn, target creature gains '{T}: You may pay an
@@ -493,7 +493,7 @@ controller, so the handoff around the grant does not reach the payer inside it
 (`lean-checker-sweep-costs`); the granted ability's actor is its own controller, "you". -/
 theorem badGrantedAbilityKeepsItsOwnPerformer :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent)
+      (instruct (target (.isOpponentOf .you))
         (.establish
           (.abilityGrant (target creature)
             (.activated .tapSymbol
@@ -562,7 +562,7 @@ theorem handedPronounAddsOnlyTheBody :
 
 /-- "Each opponent": the members' mentions and the group, pluralized. -/
 theorem handedGroupPublishesPlurals :
-    shape (instructionResult (DRS.ofList []) (instruct (each .opponent) (Actor.discard (a .isCard)))) =
+    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)))) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
@@ -598,32 +598,32 @@ private def syndicOfTithes (loss : Action) : Card :=
 
 /-- Extort handed to each opponent: "that much" reads the one total. -/
 theorem okExtortHandedToEachOpponent :
-    Card.check (syndicOfTithes (instruct (each .opponent) (loseLife (.lit 1)))) = [] := by
+    Card.check (syndicOfTithes (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1)))) = [] := by
   decide
 
 /-- The handoff twin of the explicit plural agent `changeLife (down 1) (each opponent)`, which is
 gone (`semantics-v2-drop-agent-fields`); its replacement, the handoff of the bare life change, is
 judged the same as the helper's spelling. -/
 theorem extortHandoffTwin :
-    Card.check (syndicOfTithes (instruct (each .opponent) (.changeLife (.down (.lit 1))))) = [] ∧
-      Card.check (syndicOfTithes (instruct (each .opponent) (loseLife (.lit 1)))) =
-        Card.check (syndicOfTithes (instruct (each .opponent) (.changeLife (.down (.lit 1))))) := by
+    Card.check (syndicOfTithes (instruct (each (.isOpponentOf .you)) (.changeLife (.down (.lit 1))))) = [] ∧
+      Card.check (syndicOfTithes (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1)))) =
+        Card.check (syndicOfTithes (instruct (each (.isOpponentOf .you)) (.changeLife (.down (.lit 1))))) := by
   decide
 
 /-- "Each opponent loses 1 life": the group and one `lifeLost` total, exactly what the explicit
 plural agent published (its replacement is the handoff of the bare life change). -/
 theorem handedGroupPublishesTotal :
-    shape (instructionResult (DRS.ofList []) (instruct (each .opponent) (loseLife (.lit 1)))) =
+    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1)))) =
         [(.outcome, .one, .the), (.player, .many, .each)] ∧
-      (instructionResult (DRS.ofList []) (instruct (each .opponent) (loseLife (.lit 1))) ==
-        instructionResult (DRS.ofList []) (instruct (each .opponent) (.changeLife (.down (.lit 1))))) = true := by
+      (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1))) ==
+        instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (.changeLife (.down (.lit 1))))) = true := by
   decide
 
 /-- "Each opponent discards a card. You gain that much life.": the body has no amount outcome,
 so the group handoff publishes none and "that much" has nothing to read. -/
 theorem badGroupHandoffNoOutcomeThatMuch :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .opponent) (Actor.discard (a .isCard)), gainLife .thatMuch])
+      (.sequentially [instruct (each (.isOpponentOf .you)) (Actor.discard (a .isCard)), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
@@ -636,11 +636,11 @@ the life total; the discarded cards stay a group. -/
 theorem okGroupHandoffSequenceReadsLifeTotal :
     Action.check (DRS.ofList [])
         (.sequentially
-          [ instruct (each .opponent) lossAndDiscard,
+          [ instruct (each (.isOpponentOf .you)) lossAndDiscard,
             gainLife .thatMuch ]) = [] ∧
       Action.check (DRS.ofList [])
         (.sequentially
-          [ instruct (each .opponent) lossAndDiscard,
+          [ instruct (each (.isOpponentOf .you)) lossAndDiscard,
             exile them ]) = [] := by
   decide
 
@@ -649,7 +649,7 @@ theorem okGroupHandoffSequenceReadsLifeTotal :
 theorem badGroupHandoffTwoTotalsThatMuch :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .opponent) (.sequentially [loseLife (.lit 1), loseLife (.lit 2)]),
+        [ instruct (each (.isOpponentOf .you)) (.sequentially [loseLife (.lit 1), loseLife (.lit 2)]),
           gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
   decide
 
@@ -658,7 +658,7 @@ publishes its body's outcomes as a group; only the handoff carries the total. -/
 theorem badForEachLossThatMuch :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.doForEach (each .opponent) (instruct they (loseLife (.lit 1))),
+        [ Primitives.Action.doForEach (each (.isOpponentOf .you)) (instruct they (loseLife (.lit 1))),
           gainLife .thatMuch ]) = [.quantOutcomeInScope 0] := by
   decide
 
@@ -742,7 +742,7 @@ theorem actorInPermanentHandoffIsThePermanent :
 /-- Explore handed to a player: the recorded performer is a player where the deed takes a
 permanent, and "that permanent" has no antecedent. -/
 theorem badExploreHandedToOpponent :
-    Action.check (DRS.ofList []) (instruct (target .opponent) literalExplore)
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) literalExplore)
       = [.kindMismatch .object .player, .possessorKind .controller .player,
          .anaphor (.word .permanent) .one 0] := by
   decide
@@ -767,7 +767,7 @@ theorem okBareExploreAndEndureDefaultToThis :
 /-- "Target opponent adapts 2": handed to another player, the actor is that player, not the
 controller, so there is no default to the source permanent and the performer is refused. -/
 theorem badAdaptHandedToOpponent :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (literalAdapt 2))
+    Action.check (DRS.ofList []) (instruct (target (.isOpponentOf .you)) (literalAdapt 2))
       = [.kindMismatch .object .player] := by
   decide
 

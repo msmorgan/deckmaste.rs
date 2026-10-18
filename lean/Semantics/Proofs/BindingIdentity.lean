@@ -143,14 +143,14 @@ private def discardThenExile (x : NounPhrase) : Action :=
 /-- "Each opponent discards a card, then exiles it": the first mention is checked where it
 stands, inside the handoff, so each opponent chooses their own card. -/
 theorem groupHandoffRefusesPreMoveIdentity :
-    Action.check (DRS.ofList []) (instruct (each .opponent) (discardThenExile (a .isCard))) =
+    Action.check (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard))) =
       [.bindingIdentity "discardThenExile.0"] := by
   decide
 
 /-- What the members' bodies introduced is published as a group, as for a one-mention body
 (`Actor.handedGroupPublishesPlurals`): the choice is not hoisted out of the handoff. -/
 theorem groupHandoffByIdentityPublishesPlurals :
-    shape (instructionResult (instruct (each .opponent) (discardThenExile (a .isCard))) (DRS.ofList [])) =
+    shape (instructionResult (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard))) (DRS.ofList [])) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
@@ -206,7 +206,7 @@ theorem okSurveilTwo :
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
     Action.check (DRS.ofList [])
-      (.enact (.action "fateseal") (lookAndSortSlice (.slice .top (.lit 2) (library (a .opponent))) onBottom
+      (.enact (.action "fateseal") (lookAndSortSlice (.slice .top (.lit 2) (library (a (.isOpponentOf .you)))) onBottom
           [(.inOrder .anyOrder)]) none none)
       = [] := by decide
 

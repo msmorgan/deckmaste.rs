@@ -55,7 +55,7 @@ theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismC
 /-- Flawless Forgery -/
 def flawlessForgeryLine : Action :=
   Primitives.Action.sequentially
-    [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.in_ (graveyardOf (a Primitives.Predicate.opponent))])),
+    [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.in_ (graveyardOf (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))])),
       Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Action.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none

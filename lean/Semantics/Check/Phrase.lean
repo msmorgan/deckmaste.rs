@@ -92,7 +92,7 @@ def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .not body => body.kind? n
-  | _ + 1, .anyPlayer | _ + 1, .opponent | _ + 1, .chosenPlayer _ | _ + 1, .choseExtreme _ => some .player
+  | _ + 1, .anyPlayer | _ + 1, .isOpponentOf _ | _ + 1, .isTeammateOf _ | _ + 1, .chosenPlayer _ | _ + 1, .choseExtreme _ => some .player
   | _ + 1, .qualityNoun q _ => some (.quality q)
   | _ + 1, .counterKindOn _ => some (.quality .counterKind)
   | _ + 1, .hasDesignation d _ => d.holder
@@ -118,7 +118,7 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   match fuel, np with
   | 0, _ => some .object
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.kind? n
-  | _ + 1, .you | _ + 1, .actor | _ + 1, .playerGroup _ | _ + 1, .possessorOf _ _ | _ + 1, .combatPlayer _ => some .player
+  | _ + 1, .you | _ + 1, .actor | _ + 1, .possessorOf _ _ | _ + 1, .combatPlayer _ => some .player
   | n + 1, .someOf _ _ group => group.kind? n
   | _ + 1, .pileOf _ _ => some .pile
   | _ + 1, .attachHost _ word => some word.kind
@@ -206,7 +206,6 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
   | _ + 1, .and _ => .many
   | n + 1, .or (x :: _) => x.plur n
-  | _ + 1, .playerGroup .allPlayers | _ + 1, .playerGroup .yourOpponents | _ + 1, .playerGroup .yourTeam => .many
   | _ + 1, _ => .one
 termination_by structural fuel
 
@@ -279,11 +278,21 @@ def NounPhrase.partitiveBase (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+/-- A group of players written by description, read as a whole: "all players", "your opponents"
+("all" over a description of players). Each member holds alone what the group is said to hold. -/
+def NounPhrase.playerGroupMention (phrase : NounPhrase) (fuel : Nat := 8) : Bool :=
+  match fuel, phrase with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body =>
+    body.playerGroupMention n
+  | _ + 1, .described .all p => p.kind? == some .player
+  | _, _ => false
+termination_by structural fuel
+
 def NounPhrase.soleHolderOk (phrase : NounPhrase) : Bool :=
-  match phrase with | .playerGroup _ => true | _ => phrase.plur == .one
+  phrase.playerGroupMention || phrase.plur == .one
 
 def NounPhrase.slicePossessorOk (phrase : NounPhrase) : Bool :=
-  phrase.det == some .each || (match phrase with | .playerGroup _ => true | _ => phrase.plur == .one)
+  phrase.det == some .each || phrase.playerGroupMention || phrase.plur == .one
 
 def Predicate.headIsPlaceless (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
@@ -325,7 +334,8 @@ def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | n + 1, .inCaller body | n + 1, .firstMention _ body
   | n + 1, .asType _ body _ | n + 1, .asMarker _ body => body.eventAgentOk n
   | _ + 1, .you | _ + 1, .this | _ + 1, .actor | _ + 1, .pro ..
-  | _ + 1, .which | _ + 1, .refl _ | _ + 1, .laterMention .. | _ + 1, .playerGroup _ => true
+  | _ + 1, .which | _ + 1, .refl _ | _ + 1, .laterMention .. => true
+  | _ + 1, phrase => phrase.playerGroupMention
   | _, _ => false
 termination_by structural fuel
 
@@ -1554,6 +1564,12 @@ def stepOps : Nat → StepOps
         | .hasPossessor _ np =>
           let (drs', _, errs) := ops.np drs .other false np
           (drs', errs ++ refuse np.soleHolderOk .soleHolder)
+        | .isOpponentOf who | .isTeammateOf who =>
+          -- "an opponent" leaves its relatum "you" unwritten: it is read, not mentioned, so it
+          -- introduces no referent. A written relatum is a mention like any other.
+          let (out, ids, errors) := ops.np drs .other false who
+          let errors := errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind))
+          (if who.isYou then drs else out, errors)
         | .did clause =>
           let subDrs := nextClause drs
           let k := drs.relativeKind.getD .object
@@ -1943,7 +1959,7 @@ def stepOps : Nat → StepOps
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1)
-        | .you | .playerGroup _ =>
+        | .you =>
           let ref : Referent := { det := .the, plur := np.plur, payload := .player false }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
@@ -2095,7 +2111,8 @@ def stepOps : Nat → StepOps
           let kindErrors := match pred.kind?, ids.head?.bind drs1.findById? with
             | some expected, some r => kindCheck expected (some r.kind)
             | _, _ => []
-          let subjectOk := ids.all fun id =>
+          -- A player group ("your opponents") is the definite set of those players.
+          let subjectOk := subj.playerGroupMention || ids.all fun id =>
             id < drs.nextId || (drs1.findById? id).any (fun ref => ref.det == .the) ||
               drs1.scopeStack.head?.any (fun frame => frame.callerReferentIds.contains id)
           (refined, e1 ++ e2 ++ kindErrors ++ refuse subjectOk .testSubject ++

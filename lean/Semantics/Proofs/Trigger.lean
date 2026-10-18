@@ -72,7 +72,7 @@ theorem okSingularAttackDefender :
 
 /-- "Whenever a creature attacks your opponents, …" -/
 theorem badPluralAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) (.attack (some (.playerGroup .yourOpponents))))
+    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) (.attack (some (.described .all (.isOpponentOf .you)))))
       = [.singular] := by
   decide
 
@@ -161,7 +161,7 @@ theorem badTokensCreatedByCauserAndPlayer :
 /-- "Whenever one or more tokens are created under your opponents' control, …" -/
 theorem badTokensCreatedUnderPlural :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false (some (.playerGroup .yourOpponents)))) = [.verbedVoiceOk] := by
+      (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false (some (.described .all (.isOpponentOf .you))))) = [.verbedVoiceOk] := by
   decide
 
 /-- "Whenever an opponent creates one or more tokens, …" -/
@@ -188,18 +188,18 @@ theorem okMultipliedTrigger :
 
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (target .opponent)))) = [] := by
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (target (.isOpponentOf .you))))) = [] := by
   decide
 
 /-- "Exchange life totals with target opponent" with one party: the row states both halves at
 once, so an exchange that can't be completed in its entirety is unwritable rather than half-done
 [CR#701.12a,701.12c]. -/
 theorem badExchangeOneParty :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (target .opponent))) = [.twoParties] := by decide
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (target (.isOpponentOf .you)))) = [.twoParties] := by decide
 
 /-- "You and your opponents exchange life totals." -/
 theorem badExchangePluralParty :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (.playerGroup .yourOpponents))))
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (.described .all (.isOpponentOf .you)))))
       = [.twoParties] := by
   decide
 

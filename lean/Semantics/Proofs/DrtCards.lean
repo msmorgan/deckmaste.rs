@@ -79,7 +79,7 @@ theorem anyDieResultRejectsAmbiguousBatches :
 
 theorem distributedLifeLossKeepsOneScalarLetter :
     let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (instruct (each .opponent) (loseLife (.letter .x)))).1
+      (instruct (each (.isOpponentOf .you)) (loseLife (.letter .x)))).1
     countLetter .x out = 1 ∧ anyOpenLetter .x out = true := by decide
 
 theorem alternativeConditionsCannotBorrowOtherBranchParticipants :
@@ -110,7 +110,7 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
 
 theorem distributedDamagePublishesItsRecipientGroup :
     let out := (stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.dealDamage (.lit 1) (each .opponent) .noncombatOnly)).1
+      (.dealDamage (.lit 1) (each (.isOpponentOf .you)) .noncombatOnly)).1
     (resolveCandidates (.word .player) .many (nextClause out)).map (·.id) = [0] := by decide
 
 theorem conditionalModificationKeepsItsAnnouncedTarget :

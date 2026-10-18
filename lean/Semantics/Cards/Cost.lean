@@ -190,7 +190,7 @@ def grandArbiter : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, spell, castBy Primitives.NounPhrase.you]) (Primitives.CostShift.less (.lit 1) none)),
           Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, spell, castBy Primitives.NounPhrase.you]) (Primitives.CostShift.less (.lit 1) none)),
-          Primitives.Ability.static (spellsCost (Primitives.Predicate.and [spell, castBy (Primitives.NounPhrase.playerGroup .yourOpponents)]) (Primitives.CostShift.more (.lit 1))) ],
+          Primitives.Ability.static (spellsCost (Primitives.Predicate.and [spell, castBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))]) (Primitives.CostShift.more (.lit 1))) ],
       power := stat 2, toughness := stat 3 } }
 
 def goblinElectromancer : Spelled := spelled <| .singleFaced
@@ -216,7 +216,7 @@ def auraOfSilence : Spelled := spelled <| .singleFaced
     { name := "Aura of Silence", cost := some [generic 1, pip .white, pip .white],
       types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.or [artifact, enchantment], spell, castBy (Primitives.NounPhrase.playerGroup .yourOpponents)])
+        [ Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.or [artifact, enchantment], spell, castBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])
             (Primitives.CostShift.more (.lit 2))),
           activated (Primitives.Cost.perform (sacrifice thisEnchantment))
             (destroy (target (Primitives.Predicate.or [artifact, enchantment]))) ] } }
@@ -508,12 +508,12 @@ def kopalaWardenOfWaves : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Merfolk", creatureType "Wizard"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.costShift
-            (allOf (Primitives.Predicate.and [ spell, castBy (Primitives.NounPhrase.playerGroup .yourOpponents),
+            (allOf (Primitives.Predicate.and [ spell, castBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
                            Primitives.Predicate.targets (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Merfolk"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
                              .someTarget ]))
             (Primitives.CostShift.more (.lit 2))),
           Primitives.Ability.static (Primitives.StaticSpec.costShift
-            (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.activatedBy (Primitives.NounPhrase.playerGroup .yourOpponents),
+            (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.activatedBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
                            Primitives.Predicate.targets (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasSubtype (creatureType "Merfolk"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
                              .someTarget ]))
             (Primitives.CostShift.more (.lit 2))) ],
@@ -527,9 +527,8 @@ def titheTaker : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.partScope .turn (some Primitives.NounPhrase.you)
             (Primitives.StaticSpec.conjunction none
-              [ spellsCost (Primitives.Predicate.and [spell, castBy (Primitives.NounPhrase.playerGroup .yourOpponents)]) (Primitives.CostShift.more (.lit 1)),
-                Primitives.StaticSpec.costShift (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.activatedBy (Primitives.NounPhrase.playerGroup
-                    .yourOpponents),
+              [ spellsCost (Primitives.Predicate.and [spell, castBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))]) (Primitives.CostShift.more (.lit 1)),
+                Primitives.StaticSpec.costShift (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.activatedBy (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
                                       Primitives.Predicate.not Primitives.Predicate.isManaAbility ]))
                   (Primitives.CostShift.more (.lit 1)) ])),
           keywordNumber (.named "afterlife") (.lit 1) ],
@@ -612,7 +611,7 @@ def eidolonOfObstruction : Spelled := spelled <| .singleFaced
         [ keyword (.named "firstStrike"),
           Primitives.Ability.static (Primitives.StaticSpec.costShift
             (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .loyalty,
-                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup .yourOpponents)])) ]))
+                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))])) ]))
             (Primitives.CostShift.more (.lit 1))) ],
       power := stat 2, toughness := stat 1 } }
 
@@ -957,14 +956,13 @@ def cavernHoardDragonRider : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.costShift Primitives.NounPhrase.this (Primitives.CostShift.less (Primitives.Amount.letter .x) none),
       Primitives.StaticSpec.letterDefinition .x
-        (Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller they]))) ])
+        (Primitives.Amount.aggregateOver .max (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you) (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller they]))) ])
 theorem okCavernHoardDragonRider : Ability.check (DRS.ofList []) cavernHoardDragonRider = [] := by decide
 /-- Shadowspear -/
 def shadowspearStrip : Ability :=
   activated (Primitives.Cost.mana [generic 1])
     (Primitives.Action.establish
-      (Primitives.StaticSpec.abilityLoss (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup
-          .yourOpponents)]))
+      (Primitives.StaticSpec.abilityLoss (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))]))
         [Primitives.AbilityLost.written (keyword (.named "hexproof")), Primitives.AbilityLost.written (keyword (.named "indestructible"))])
       (some untilEndOfTurn))
 theorem okShadowspearStrip : Ability.check (DRS.ofList []) shadowspearStrip = [] := by decide
@@ -972,8 +970,7 @@ theorem okShadowspearStrip : Ability.check (DRS.ofList []) shadowspearStrip = []
 def shayCormacStrip : Ability :=
   activated (Primitives.Cost.mana [generic 1])
     (Primitives.Action.establish
-      (Primitives.StaticSpec.abilityLoss (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (Primitives.NounPhrase.playerGroup
-          .yourOpponents)]))
+      (Primitives.StaticSpec.abilityLoss (allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))]))
         [ Primitives.AbilityLost.written (keyword (.named "hexproof")), Primitives.AbilityLost.written (keyword (.named "indestructible")), Primitives.AbilityLost.term protectionAbilities,
           Primitives.AbilityLost.written (keyword (.named "shroud")), Primitives.AbilityLost.term wardAbilities ])
       (some untilEndOfTurn))

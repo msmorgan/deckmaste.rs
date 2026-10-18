@@ -65,7 +65,7 @@ theorem okExceptByObjects :
 theorem badExceptByPlayers :
     StaticSpec.check (DRS.ofList [])
       (.cant .any (.block thisCreature)
-        { rider := .noRider, except := some (.byObjects .opponent) }) = [.kindMismatch .object .player] := by
+        { rider := .noRider, except := some (.byObjects (.isOpponentOf .you)) }) = [.kindMismatch .object .player] := by
   decide
 
 /-! ## The keyword bodies -/

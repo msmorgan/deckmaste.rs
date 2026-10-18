@@ -82,4 +82,14 @@ theorem writtenPluralGroupsRemainCountable :
       (.paid (.objects (.byKeyword (.named "devour")) (.ofAbility (.named "devour")) .many)
         (.asType .creature .this none))) = [] := by decide
 
+/-- "An opponent" and "a teammate" relate a player to the unwritten "you", which they read
+without introducing; a written relatum is a player [CR#102.2,102.3]. -/
+theorem opponentAndTeammateAreRelational :
+    Predicate.checkAt .player emptyContext (.isOpponentOf .you) = [] ∧
+    Predicate.checkAt .player emptyContext (.isTeammateOf .you) = [] ∧
+    (stepPredicate 64 emptyContext (.isOpponentOf .you)).1.visibleReferents = [] ∧
+    Predicate.checkAt .player emptyContext
+      (.isOpponentOf (.described (.target (.exactlyOf (.lit 1))) (.hasType .creature))) =
+        [.kindMismatch .player .object] := by decide
+
 end Semantics.Proofs.RefusalReachability

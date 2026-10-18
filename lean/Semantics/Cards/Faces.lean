@@ -79,7 +79,7 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
 def ralZarekGuestLecturerUltimate : Action :=
   Primitives.Action.sequentially
     [ Primitives.Action.flipCoins (Primitives.FlipScope.count (.lit 5)) none none,
-      instruct (target Primitives.Predicate.opponent) (Primitives.Action.skipPart .turn (Primitives.Amount.letter .x)),
+      instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.skipPart .turn (Primitives.Amount.letter .x)),
       Primitives.Action.define .x (Primitives.Amount.coinsShowing .heads) ]
 theorem okRalZarekGuestLecturerUltimate :
     Action.check (DRS.ofList []) ralZarekGuestLecturerUltimate = [] := by decide
@@ -189,7 +189,7 @@ theorem okGarrukRelentlessFlip : Ability.check (DRS.ofList []) garrukRelentlessF
 
 /-- Mana Clash -/
 def manaClashFlip : Action :=
-  instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))) (Primitives.Action.flipCoins (Primitives.FlipScope.count (.lit 1)) none none)
+  instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))) (Primitives.Action.flipCoins (Primitives.FlipScope.count (.lit 1)) none none)
 theorem okManaClashFlip : Action.check (DRS.ofList []) manaClashFlip = [] := by decide
 
 def akkiLavarunner : Spelled := spelled <| .flip
@@ -450,7 +450,7 @@ def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
   { name := "Shattered Yard", cost := some [generic 4, pip .red],
     text :=
       [ at_ (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-          (instruct thisRoom (Primitives.Action.dealDamage (.lit 1) (each Primitives.Predicate.opponent) .noncombatOnly)) ] }
+          (instruct thisRoom (Primitives.Action.dealDamage (.lit 1) (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) .noncombatOnly)) ] }
 
 /-- Balemurk Leech -/
 def balemurkLeech : Spelled := spelled <| .singleFaced
@@ -464,7 +464,7 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
               [ joinedHead
                   (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.fullyUnlock ((a (Primitives.Predicate.hasSubtype (enchantmentType "Room"))))))
                       ]
-              (instruct (each Primitives.Predicate.opponent) (loseLife (.lit 1)))) ],
+              (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 1)))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Ghostly Keybearer -/
@@ -498,7 +498,7 @@ def fortunesFavor : Spelled := spelled <| .singleFaced
     { name := "Fortune's Favor", cost := some [generic 3, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ instruct (target Primitives.Predicate.opponent) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 4)))),
+            [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 4)))),
               instruct they (Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp]),
               move onePile hand,
               move (theOther .pile) graveyard ]) ] } }
@@ -530,7 +530,7 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| .singleFaced
         [ keyword (.named "menace"),
           when (Primitives.GameEvent.enters thisCreature none)
             (Primitives.Action.sequentially
-              [ instruct (target Primitives.Predicate.opponent) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 3)))),
+              [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (Primitives.Action.expose .lookAt (Primitives.Exposed.cards (topSlice (.lit 3)))),
                 instruct they (Primitives.Action.separateIntoPiles them 2 [.faceDown, .faceUp]),
                 move onePile hand,
                 move (theOther .pile) graveyard ]) ],

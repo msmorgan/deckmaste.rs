@@ -137,7 +137,7 @@ theorem verbedTypeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (s
   simp only [verbedWordOk, Bool.and_right_comm]
 
 private def selectedOpponent : NounPhrase :=
-  .someOf (.counted (exactly 1)) none (allOf .opponent)
+  .someOf (.counted (exactly 1)) none (allOf (.isOpponentOf .you))
 
 theorem playerSubsetRetainsItsGroupKindAndIdentity :
     let (after, ids, errors) := stepNounPhrase 64 (DRS.ofList []) .other false selectedOpponent

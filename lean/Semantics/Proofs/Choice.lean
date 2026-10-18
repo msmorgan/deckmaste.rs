@@ -145,7 +145,7 @@ theorem okRetargetStackSpell :
 
 /-- "Your opponents can't gain life." -/
 theorem okStaticPlayerCant :
-    Ability.check (DRS.ofList []) (.static (playerCant (.core .gainLife) (.playerGroup .yourOpponents)))
+    Ability.check (DRS.ofList []) (.static (playerCant (.core .gainLife) (.described .all (.isOpponentOf .you))))
       = [] := by
   decide
 
@@ -256,9 +256,9 @@ theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
       (before.consumeRest before .object).choiceWasPossible .object = true := by decide
 
 theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
-    let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf .opponent)).1
+    let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf (.isOpponentOf .you))).1
     let after := instructionResult before
-      (.sequentially [choose (a .opponent), choose (counted (upTo 1) creature),
+      (.sequentially [choose (a (.isOpponentOf .you)), choose (counted (upTo 1) creature),
         destroy (theRest .object)])
     NounPhrase.checkAt (some .object) after (theRest .object) = [.theRestFits .object] ∧
       countParts .object after = 0 ∧ countChoice .player after = 1 ∧
@@ -356,14 +356,14 @@ theorem distributedSacrificeConsumesTheOuterRemainder :
 /-- "an opponent who controls more lands than you control" -/
 theorem okComparisonBoundOutsideTheMember :
     Predicate.checkAt .player (DRS.ofList [])
-      (.compareOver .opponent (countOf (.and [land, .hasPossessor .controller they])) .greater
+      (.compareOver (.isOpponentOf .you) (countOf (.and [land, .hasPossessor .controller they])) .greater
         (countOf (.and [land, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "an opponent who controls more lands than they control" -/
 theorem badMemberInComparisonBound :
     Predicate.checkAt .player (DRS.ofList [])
-      (.compareOver .opponent (countOf (.and [land, .hasPossessor .controller .you])) .greater
+      (.compareOver (.isOpponentOf .you) (countOf (.and [land, .hasPossessor .controller .you])) .greater
         (countOf (.and [land, .hasPossessor .controller they])))
       = [.anaphor (.word .player) .one 0] := by
   decide
@@ -407,7 +407,7 @@ theorem okNotChosenAcrossChoosers :
     Action.check (DRS.ofList [])
       (.sequentially
         [ choose (a creatureYouControl),
-          instruct (each .opponent) (choose (a (.and [creature, .hasPossessor .controller they]))),
+          instruct (each (.isOpponentOf .you)) (choose (a (.and [creature, .hasPossessor .controller they]))),
           destroy (each (.and [creature, .notChosen])) ]) = [] := by
   decide
 
@@ -541,7 +541,7 @@ theorem eachPlayerOfferDropsTheGroup :
 
 /-- "target opponent who has more life than you do" -/
 def opponentWithMoreLife : NounPhrase :=
-  target (.and [.opponent, .compare [.playerStat .lifeTotal] .greater (lifeTotalOf .you)])
+  target (.and [(.isOpponentOf .you), .compare [.playerStat .lifeTotal] .greater (lifeTotalOf .you)])
 
 /-- "Choose target opponent who has more life than you do as you activate this ability.": the
 rider times the announcement, not the comparison. -/
@@ -570,7 +570,7 @@ theorem badChoseExtremeWithoutChoice :
 /-! ## A choice domain has the sort its consumer announces -/
 
 theorem badColorNounWithPlayerDomain :
-    Predicate.checkAt (.quality .color) (DRS.ofList []) (.qualityNoun .color (some (.players .opponent)))
+    Predicate.checkAt (.quality .color) (DRS.ofList []) (.qualityNoun .color (some (.players (.isOpponentOf .you))))
       = [.kindAxisSort] := by decide
 
 theorem okColorNounWithColorDomain :
@@ -578,7 +578,7 @@ theorem okColorNounWithColorDomain :
       = [] := by decide
 
 theorem badColorRefinementWithPlayerDomain :
-    Predicate.checkAt .object (DRS.ofList []) (.ofYourChoice .color (some (.players .opponent)))
+    Predicate.checkAt .object (DRS.ofList []) (.ofYourChoice .color (some (.players (.isOpponentOf .you))))
       = [.kindAxisSort] := by decide
 
 theorem okColorRefinementWithColorDomain :
@@ -588,7 +588,7 @@ theorem okColorRefinementWithColorDomain :
 
 theorem badCompleteColorChoiceWithPlayerDomain :
     Action.check (DRS.ofList []) (.choose none
-      (.described (.a .unmarked) (.qualityNoun .color (some (.players .opponent)))) .openly none)
+      (.described (.a .unmarked) (.qualityNoun .color (some (.players (.isOpponentOf .you))))) .openly none)
       = [.kindAxisSort] := by decide
 
 theorem okCompleteColorChoiceWithColorDomain :
@@ -598,7 +598,7 @@ theorem okCompleteColorChoiceWithColorDomain :
 
 theorem badEntersChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.players .opponent)) .openly)
+      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))) .openly)
       = [.kindAxisSort] := by decide
 
 theorem okEntersChoiceDomainSort :
@@ -608,7 +608,7 @@ theorem okEntersChoiceDomainSort :
 
 theorem badAttachmentChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.players .opponent)))
+      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))))
       = [.kindAxisSort] := by decide
 
 theorem okAttachmentChoiceDomainSort :

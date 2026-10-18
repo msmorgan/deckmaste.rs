@@ -47,14 +47,14 @@ theorem badThatTokenOfCard :
 theorem loopLocalMovedCardsDoNotEscape :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .doForEach (each .opponent)
+        [ .doForEach (each (.isOpponentOf .you))
             (exile (a (.and [creature, .hasPossessor .controller (that .player)]))),
           putOntoBattlefield them ]) = [.anaphor .bare .many 0] := by decide
 
 /-- The loop retains the moved outer card, whose exile zone forbids untapping. -/
 theorem loopMovementPreservesUntapZoneRestriction :
     Action.check (DRS.ofList [])
-      (.sequentially [tap (target creature), .doForEach (each .opponent) (exile it), untap it])
+      (.sequentially [tap (target creature), .doForEach (each (.isOpponentOf .you)) (exile it), untap it])
       = [.deedFits] := by
   decide
 
@@ -81,14 +81,14 @@ a plural. -/
 theorem okDistributedMovesItsOwn :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .opponent) (exile (a (.and [creature, .hasPossessor .controller (that .player)]))),
+        [ instruct (each (.isOpponentOf .you)) (exile (a (.and [creature, .hasPossessor .controller (that .player)]))),
           putOntoBattlefield them ]) = [] := by
   decide
 
 /-- Moving an outer card during a player distribution preserves its singular identity and exile zone. -/
 theorem distributedMovementPreservesUntapZoneRestriction :
     Action.check (DRS.ofList [])
-      (.sequentially [tap (target creature), instruct (each .opponent) (exile it), untap it])
+      (.sequentially [tap (target creature), instruct (each (.isOpponentOf .you)) (exile it), untap it])
       = [.deedFits] := by
   decide
 
@@ -179,7 +179,7 @@ player handed the deed is refused; the printed sentence hands it the first fight
 `instruct(<first>, fight(<second>))`. -/
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
-      (instruct (target .opponent) (.enact (.action "fight") (.simultaneously [
+      (instruct (target (.isOpponentOf .you)) (.enact (.action "fight") (.simultaneously [
         instruct actor (.dealDamage (.statOf (.stat .power) actor) (.firstMention "fight.0" (target creature)) .any),
         instruct (.laterMention "fight.0" (target creature))
           (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (target creature))) actor .any)]) none none))
@@ -448,7 +448,7 @@ theorem okRemoveFromCombatOnBattlefield :
 /-- "Players can't untap more than one creature during each untap step." -/
 theorem okUntapCapBattlefieldSet :
     Ability.check (DRS.ofList [])
-      (.static (cantMoreThan (.playerGroup .allPlayers) (.action "untap") 1 creature))
+      (.static (cantMoreThan (.described .all .anyPlayer) (.action "untap") 1 creature))
       = [] := by
   decide
 
@@ -509,7 +509,7 @@ theorem okAgentChoosesSomeOf :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
-          instruct (a .opponent) (.choose none (someOf (exactly 1) them) .openly none) ]) =
+          instruct (a (.isOpponentOf .you)) (.choose none (someOf (exactly 1) them) .openly none) ]) =
               [] := by
   decide
 
@@ -517,7 +517,7 @@ theorem badAgentChooseTheRest :
     Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)), (.move (someOf (exactly 1) them) .anyLocation (some hand) .arrival none []),
-          instruct (a .opponent) (.choose none (theRest .object) .openly none) ])
+          instruct (a (.isOpponentOf .you)) (.choose none (theRest .object) .openly none) ])
             = [.choiceClause] := by
   decide
 
@@ -566,7 +566,7 @@ theorem badRegeneratedInGraveyard :
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem simultaneousDiscardDoesNotExposePluralClauseMate :
     Action.check (DRS.ofList [])
-      (.simultaneously [.sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them], exile (those
+      (.simultaneously [.sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them], exile (those
           .card)])
         = [.anaphor (.word .card) .many 0] := by
   decide
@@ -581,7 +581,7 @@ theorem simultaneousDiscardDoesNotExposeSingularClauseMate :
 /-- "Each opponent discards a card. Simultaneously, exile that card." -/
 theorem badDistributedAnnouncedDiscardSingular :
     Action.check (DRS.ofList [])
-      (.simultaneously [.sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them], exile (that
+      (.simultaneously [.sequentially [instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them], exile (that
           .card)])
       = [.anaphor (.word .card) .one 0] := by
   decide

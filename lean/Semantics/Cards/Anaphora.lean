@@ -56,7 +56,7 @@ theorem okPhthisis : Action.check (DRS.ofList []) phthisis = [] := by decide
 
 def foulTongueShriek : Action :=
   Primitives.Action.sequentially
-    [ instruct (target Primitives.Predicate.opponent) (loseLife
+    [ instruct (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife
         (forEach 1 (Primitives.Predicate.and [attacking, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
       gainLife Primitives.Amount.thatMuch ]
 theorem okFoulTongueShriek : Action.check (DRS.ofList []) foulTongueShriek = [] := by decide
@@ -112,7 +112,7 @@ theorem okTakeIntoCustody : Action.check (DRS.ofList []) takeIntoCustody = [] :=
 
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnGoad : Action :=
-  Primitives.Action.doForEach (each Primitives.Predicate.opponent)
+  Primitives.Action.doForEach (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
     (Primitives.Action.gainDesignation
       (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])) (.named "goaded")
       none)
@@ -282,7 +282,7 @@ theorem okGreatestCreaturesAPlayerControls :
     Amount.check (DRS.ofList []) greatestCreaturesAPlayerControls = [] := by decide
 /-- Cavern-Hoard Dragon -/
 def greatestArtifactsAnOpponentControls : Amount :=
-  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller they]))
+  Primitives.Amount.aggregateOver .max (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you) (countOf (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller they]))
 theorem okGreatestArtifactsAnOpponentControls :
     Amount.check (DRS.ofList []) greatestArtifactsAnOpponentControls = [] := by decide
 
@@ -338,7 +338,7 @@ def celebrateTheHarvest : Spelled := spelled <| .singleFaced
 
 /-- Boreas Charger's description -/
 def opponentWithMoreLands : Predicate :=
-  Primitives.Predicate.compareOver Primitives.Predicate.opponent (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller they])) .greater
+  Primitives.Predicate.compareOver (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you) (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller they])) .greater
     (countOf (Primitives.Predicate.and [land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
 theorem okOpponentWithMoreLands : Predicate.checkAt .player (DRS.ofList []) opponentWithMoreLands = [] := by
   decide
@@ -466,13 +466,13 @@ theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) (companyContext) 
 /-- Lord of the Void -/
 def exileTopThenPutFromAmong : Action :=
   Primitives.Action.sequentially
-    [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library (target Primitives.Predicate.opponent))),
+    [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))),
       putOntoBattlefieldUnderYourControl (fromAmong (exactly 1) creature them) ]
 theorem okExileTopThenPutFromAmong : Action.check (DRS.ofList []) exileTopThenPutFromAmong = [] := by decide
 
 /-- Thought Sponge -/
 def greatestCardsAnOpponentDrew : Amount :=
-  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount (Primitives.Action.draw Primitives.Amount.anyAmount) (Primitives.Subject.actor they) soFarThisTurn)
+  Primitives.Amount.aggregateOver .max (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you) (eventCount (Primitives.Action.draw Primitives.Amount.anyAmount) (Primitives.Subject.actor they) soFarThisTurn)
 theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCardsAnOpponentDrew = [] := by
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
@@ -556,7 +556,7 @@ theorem okHijackDeedDescriptions :
 def openTheVaults : Action :=
   returnTo
     (allOf (Primitives.Predicate.and [ Primitives.Predicate.isCard, Primitives.Predicate.or [artifact, enchantment],
-                   Primitives.Predicate.in_ (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers)) ]))
+                   Primitives.Predicate.in_ (graveyardOf (allOf Primitives.Predicate.anyPlayer)) ]))
     battlefield [Primitives.MoveRider.under (ownerOf them)]
 theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by decide
 
@@ -652,7 +652,7 @@ def secretRendezvous : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secret Rendezvous", cost := some [generic 1, pip .white, pip .white],
       types := [.sorcery],
-      text := [ Primitives.Ability.spell none (instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))) (Primitives.Action.draw (.lit 3))) ]
+      text := [ Primitives.Ability.spell none (instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))) (Primitives.Action.draw (.lit 3))) ]
           } }
 
 /-- Aggressive Instinct -/
