@@ -301,11 +301,10 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
       `parse.root` (fixing the alias-category Law 2 bug where `compile.rs`
       overwrote an alias category's name in `self.out.categories[id]` with its
       target category's name).
-    - In `admit_as` (`crates/deckmaste_syntax/src/reading.rs`) and
-      `Parse::admit` (`crates/deckmaste_syntax/src/laws.rs`), call
-      `lexicon.analyze(&text)` only when the Reading contains an atom with
-      `noun == true` whose text contains `' '` (since `atomic_spans` only ever
-      queries multiword noun spans containing a space).
+    - Dropped: skipping `lexicon.analyze` in admission unless a spaced noun atom
+      exists is unsound (a decomposed multiword noun, *first* + *strike*, has
+      no spaced atom, so lexical-atomicity admission would accept it), and the
+      measured saving was within run-to-run noise.
 
 15. **Filter terminal-initial productions by lookahead in Earley prediction
     (`crates/deckmaste_syntax/src/chart.rs`):**
