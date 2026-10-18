@@ -1,0 +1,6 @@
+# Preposed and comma-set adjuncts, frequency adjuncts and keyword verbs
++ <card=Diligent Zookeeper> Each non-Human creature you control gets +1/+1 for each of its creature types, to a maximum of 10. => PrepositionPhrase "to a maximum of 10"; NounPhrase "a maximum of 10" as Complement of to; readings 1
++ <card=Defensive Formation> Rather than the attacking player, you assign the combat damage of each creature attacking you. => PrepositionPhrase "Rather than the attacking player" as Adjunct of assign
++ <card=Taste of Paradise> As an additional cost to cast this spell, you may pay {1}{G} any number of times. => NounPhrase "any number of times" as Adjunct of pay || NounPhrase "any number of times" as Adjunct of may
++ <card=Birgi, God of Storytelling> Creatures you control can boast twice during each of your turns rather than once. => VerbPhrase "boast twice during each of your turns rather than once" as Complement of can
++ <card=Luck Bobblehead> If you rolled 6 exactly seven times, you win the game. => NounPhrase "exactly seven times" as Adjunct of roll

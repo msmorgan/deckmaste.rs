@@ -22,4 +22,4 @@
 + Destroy target creature you've attacked. => RelativeClause "you've attacked" gap "creature"
 *NounPhrase the player it is attack
 *NounPhrase the player it is attacked
-*NounPhrase the player it is attacking you
++NounPhrase the player it is attacking you => !RelativeClause "it is attacking you" gap "player"

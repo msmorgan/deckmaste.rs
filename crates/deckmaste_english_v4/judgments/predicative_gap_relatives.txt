@@ -1,0 +1,10 @@
+# Bare relatives whose Gap is a subjective predicative under affirmative be, extracted by a finite free verb only
++ <card=Mana Cannons> Whenever you cast a multicolored spell, this enchantment deals X damage to any target, where X is the number of colors that spell is. => RelativeClause "that spell is" gap "colors"
++ <card=Crystal, Inhuman Princess> Whenever you cast a noncreature spell, Crystal deals X damage to each opponent, where X is the number of colors that spell is. => RelativeClause "that spell is" gap "colors"
++ <card=Bound> Return up to X cards from your graveyard to your hand, where X is the number of colors that creature was. => RelativeClause "that creature was" gap "colors"
++ <card=Seal of the Guildpact> Each spell you cast costs {1} less to cast for each of the chosen colors it is. => RelativeClause "it is" gap "chosen colors"; PrepositionPhrase "for each of the chosen colors it is" as Adjunct of cost
++ <card=Tablet of the Guilds> Whenever you cast a spell, if it's at least one of the chosen colors, you gain 1 life for each of the chosen colors it is. => NounPhrase "at least one of the chosen colors" as PredicativeComplement of be; RelativeClause "it is" gap "chosen colors"
++ <card=Jared Carthalion> For each of them, put a number of +1/+1 counters on it equal to the number of colors it is. => RelativeClause "it is" gap "colors"
++NounPhrase the colors it isn't => RelativeClause "it isn't" gap "colors"; readings 1
++ Blue creatures you control can't be blocked. => VerbPhrase "blocked" as Complement of be; !RelativeClause "you control can't be"
+*NounPhrase the number of colors it's

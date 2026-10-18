@@ -1,0 +1,6 @@
+# The count-noun pro-form one: premodified, relativised and with an of phrase
++ <card=Ezuri's Predation> Each of those tokens fights a different one of those creatures. => NounPhrase "a different one of those creatures" as Object of fight; Nominal "different one"; PrepositionPhrase "of those creatures"
++ <card=Coveted Falcon> Draw a card for each one they gained control of this way. => RelativeClause "they gained control of this way" gap "one"; NounPhrase "this way" as Adjunct of gain; !NounPhrase "this way" as Complement of of
++ <card=Xyris, the Writhing Storm> Whenever an opponent draws a card except the first one they draw in each of their draw steps, create a 1/1 green Snake creature token. => RelativeClause "they draw in each of their draw steps" gap "first one"
++NounPhrase this one => readings 1
++NounPhrase another one => readings 1

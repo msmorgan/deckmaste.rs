@@ -12,3 +12,8 @@
 + <card=Mangara, the Diplomat> Whenever an opponent attacks with creatures, if two or more of those creatures are attacking you and/or planeswalkers you control, draw a card. => NounPhrase "two or more of those creatures"; PrepositionPhrase "of those creatures"
 + <card=The Mana Rig> {X}{X}{X}, {T}: Look at the top X cards of your library. Put up to two of them into your hand and the rest on the bottom of your library in a random order. => NounPhrase "up to two of them" as Object of put; PrepositionPhrase "of them"
 + <card=Parallel Lives> If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. => NounPhrase "twice that many of those tokens" as Object of create; PrepositionPhrase "of those tokens"
++ <card=Appa, Steadfast Guardian> When Appa enters, airbend any number of other target nonland permanents you control. => NounPhrase "any number of other target nonland permanents you control" as Object of airbend
++ <card=Lathiel, the Bounteous Dawn> At the beginning of each end step, if you gained life this turn, distribute up to that many +1/+1 counters among any number of other target creatures. => NounPhrase "other target creatures" as Complement of of; PrepositionPhrase "among any number of other target creatures" as Complement of distribute
++Nominal other target creatures => readings 1
++NounPhrase other target creatures => readings 1
++NounPhrase two other target creatures => readings 1
