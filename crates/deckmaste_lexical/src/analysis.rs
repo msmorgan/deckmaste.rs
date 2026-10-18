@@ -473,7 +473,7 @@ impl Lexicon {
             .properties
             .features
             .get("LabelKind")
-            .map(String::as_str)
+            .map(dpsi::Ident::as_str)
     }
 
     /// The registered label that spells all of `label`: a Keyword-category

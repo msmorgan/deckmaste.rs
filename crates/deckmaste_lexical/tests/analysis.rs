@@ -160,13 +160,13 @@ fn cast_preserves_plain_present_preterite_and_participle_alternatives() {
 fn declarations_roundtrip_with_shared_frame_and_feature_values() {
     let mut cast = verb("v:cast", "cast");
     cast.properties.frames = vec![Frame {
-        kind: "Predicate".to_owned(),
+        kind: dpsi::Ident::new("Predicate"),
         items: vec![FrameItem::Marked {
-            vocabulary: "Preposition".to_owned(),
-            member: "At".to_owned(),
+            vocabulary: dpsi::Ident::new("Preposition"),
+            member: dpsi::Ident::new("At"),
             slot: FrameSlot {
                 relation: Relation::Object,
-                category: "NounPhrase".to_owned(),
+                category: dpsi::Ident::new("NounPhrase"),
             },
         }],
     }];

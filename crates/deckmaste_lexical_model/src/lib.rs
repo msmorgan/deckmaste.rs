@@ -5,7 +5,8 @@ use serde::Serialize;
 
 /// Stable, interned identity of a declared lexeme.
 /// IDs are copied through lexical values and serialize as their original text.
-/// Intern only declaration identities; arbitrary input and spellings stay owned.
+/// Intern only declaration identities; arbitrary input and spellings stay
+/// owned.
 pub type LexemeId = dpsi::Ident;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
@@ -110,7 +111,7 @@ pub enum Relation {
 #[serde(deny_unknown_fields)]
 pub struct FrameSlot {
     pub relation: Relation,
-    pub category: String,
+    pub category: dpsi::Ident,
 }
 
 /// One ordered element of a lexical frame signature.
@@ -118,12 +119,12 @@ pub struct FrameSlot {
 pub enum FrameItem {
     Argument(FrameSlot),
     Marker {
-        vocabulary: String,
-        member: String,
+        vocabulary: dpsi::Ident,
+        member: dpsi::Ident,
     },
     Marked {
-        vocabulary: String,
-        member: String,
+        vocabulary: dpsi::Ident,
+        member: dpsi::Ident,
         slot: FrameSlot,
     },
     Optional(Box<FrameItem>),
@@ -137,7 +138,7 @@ pub enum FrameItem {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Frame {
-    pub kind: String,
+    pub kind: dpsi::Ident,
     pub items: Vec<FrameItem>,
 }
 

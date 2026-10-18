@@ -606,6 +606,7 @@ dependencies = [
  "deckmaste_lexical",
  "deckmaste_lexical_source_v4",
  "deckmaste_syntax",
+ "dpsi",
  "ron",
  "serde",
  "thiserror",
@@ -639,6 +640,7 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "deckmaste_lexical_model",
+ "dpsi",
  "proptest",
  "ron",
  "serde",
@@ -664,6 +666,7 @@ dependencies = [
  "deckmaste_english_v3",
  "deckmaste_lexical",
  "deckmaste_macro_def",
+ "dpsi",
  "macro_ron",
  "ron",
  "serde",
@@ -677,6 +680,7 @@ version = "0.1.0"
 dependencies = [
  "deckmaste_lexical",
  "deckmaste_syntax",
+ "dpsi",
  "ron",
  "serde",
  "serde_json",
@@ -797,6 +801,7 @@ name = "deckmaste_syntax"
 version = "0.1.0"
 dependencies = [
  "deckmaste_lexical",
+ "dpsi",
  "ron",
  "serde",
  "thiserror",

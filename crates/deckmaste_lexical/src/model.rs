@@ -19,10 +19,10 @@ pub struct FormDeclaration {
 #[serde(deny_unknown_fields)]
 pub struct LexicalProperties {
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
-    pub classes: BTreeSet<String>,
+    pub classes: BTreeSet<dpsi::Ident>,
     pub countability: Vec<crate::Countability>,
     /// Declared distribution features retained by name for the grammar adapter.
-    pub features: BTreeMap<String, String>,
+    pub features: BTreeMap<dpsi::Ident, dpsi::Ident>,
     pub frames: Vec<crate::Frame>,
 }
 

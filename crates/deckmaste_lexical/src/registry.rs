@@ -1,24 +1,25 @@
-use crate::{Category, LexemeId};
+use crate::Category;
+use crate::LexemeId;
 
 /// A grammar's finite lexical-property domain, checked when sources are loaded.
 #[derive(Debug, Clone)]
 pub struct PropertyDomain {
-    pub name: String,
-    pub values: Vec<String>,
+    pub name: dpsi::Ident,
+    pub values: Vec<dpsi::Ident>,
     pub set: bool,
 }
 
 /// A lexical class may intersect more than one Part of Speech.
 #[derive(Debug, Clone)]
 pub struct LexicalClass {
-    pub name: String,
+    pub name: dpsi::Ident,
     pub categories: Vec<Category>,
 }
 
 /// A grammar name bound to an existing core closed-class Lexeme.
 #[derive(Debug, Clone)]
 pub struct ClosedWord {
-    pub name: String,
+    pub name: dpsi::Ident,
     pub id: LexemeId,
     pub category: Category,
 }
