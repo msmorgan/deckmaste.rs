@@ -250,9 +250,13 @@ arrival from anywhere differs from one watching battlefield departure even
 when both match the same occurrence ([CR#603.6c]).
 
 **Action**:
-Something a Player or the game does. Keyword Actions are the specialized verbs
-defined by [CR#701]. Action names what is done; Event names its occurrence as
-grouped by the relevant observer.
+Something a Player, a Permanent or the game does. Card text describes one
+Action whether it has it carried out, pays it as a cost, watches for its
+occurrence or forbids it; Keyword Actions are the specialized verbs it uses
+([CR#701.1]). Carrying out an Action may cause Events and Effects, but the Action
+is neither: Event names its occurrence as grouped by the relevant observer, and
+text itself is never an Effect ([CR#609.1]).
+_Avoid_: Instruction; Effect, or One-Shot Effect, for an Action text names
 
 **Keyword Action**:
 One of the specialized verbs whose meaning a game rule supplies rather than
@@ -297,7 +301,7 @@ while it already has one, or gaining both while it has neither ([CR#709.5i]).
 
 **Rules Procedure**:
 A procedure the rules define for activating an Ability, casting a Spell or
-playing a card ([CR#601.2,602.1,701.18b]). An instruction may tell a Player to
+playing a card ([CR#601.2,602.1,701.18b]). Card text may have a Player
 carry one out during resolution ("you may cast that card without paying its
 mana cost"); a permission to do so over a duration ("until end of turn, you
 may cast that card") grants the procedure rather than carrying it out.
@@ -307,12 +311,12 @@ _Avoid_: action, for the procedure itself — the Action is the Deed it names
 An Action a Player may take while they have priority that does not use the stack
 ([CR#116.1]). The game does not generate it, which is what separates it from a
 Turn-Based Action and a State-Based Action. One that an ability or effect
-grants is a cost paid and an instruction carried out, any time its Player has
+grants is a cost paid and an Action carried out, any time its Player has
 priority within an optional Timing — foretell's is paying {2} and exiling the
 card face down during its owner's turn ([CR#116.2c,116.2h]).
 
 **Off-Stack Static** (project term):
-A Static Ability that carries out an instruction without using the stack,
+A Static Ability that carries out an Action without using the stack,
 either as an Event happens ("as this enters, you may sacrifice …",
 [CR#614.1c]) or at any time a condition holds ("any time you control ten or
 more permanents and you don't have the city's blessing, you get the city's
@@ -708,19 +712,13 @@ resolve a reference, and do not simulate changing characteristics.
 The operation of retaining candidates that satisfy a Predicate.
 _Avoid_: Predicate as an interchangeable noun
 
-**Instruction** (project term):
-Executable semantic syntax describing work to perform. Executing an
-Instruction may cause Actions, Events, and Effects, but the Instruction is none
-of those things ([CR#609.1] — text itself is never an Effect).
-_Avoid_: Effect for executable syntax; One-Shot Effect as its name
-
 **Actor** (project term):
-The Player or Permanent who performs an Instruction. Outside every Handoff the
-Actor is the controller of the spell or ability whose text the Instruction is
+The Player or Permanent who performs an Action. Outside every Handoff the
+Actor is the controller of the spell or ability whose text names the Action
 ([CR#109.5]); inside one it is the Player or Permanent the innermost Handoff
 names. A keyword action a Permanent performs ([CR#701.44a,701.63a]) written
 with no Handoff to a Permanent is performed by the source Permanent. An
-ability that an Instruction grants or creates has its own controller as Actor
+ability that an Action grants or creates has its own controller as Actor
 ([CR#109.5]).
 _Avoid_: agent for the performer — no model field records one (a choice's
 chooser and an added turn's taker are the Actor too), and "agent" means the
@@ -728,19 +726,19 @@ external party a Decision Point waits on; "you" for the Actor inside a
 Handoff, where "you" still means the controller
 
 **Handoff** (project term):
-An Instruction that makes a named Player or Permanent the Actor of the
-Instruction it contains ("target player discards a card", "target creature
-explores" [CR#701.44a]). Handed to a group, the contained Instruction is
+An Action that makes a named Player or Permanent the Actor of the
+Action it contains ("target player discards a card", "target creature
+explores" [CR#701.44a]). Handed to a group, the contained Action is
 performed in full by each member. The steps the rules give a Permanent's
 controller are handed on to that controller inside it. A Handoff is the only
-place an Instruction's performer is written.
+place an Action's performer is written.
 _Avoid_: rebinding "you" — "you" keeps referring to the controller inside a
 Handoff ([CR#109.5])
 
 **Static Spec** (project term):
 Declarative semantic syntax stating what holds while its carrier is in force.
 It is the payload a Static Ability states, and the part a one-shot puts in
-force for a duration ([CR#611.2]); like an Instruction it is syntax, so it is
+force for a duration ([CR#611.2]); like an Action that text names, it is
 not itself an Effect — the Continuous Effect is what applying it establishes.
 _Avoid_: Static Effect
 
@@ -873,5 +871,5 @@ ability's category ([CR#702.169b..702.169d]), and the zone it functions from
 
 **Execution Frame** (project term):
 The evaluation context that supplies bindings needed to interpret References
-and Instructions.
+and Actions.
 _Avoid_: Frame when the qualification matters
