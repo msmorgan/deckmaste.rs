@@ -282,7 +282,8 @@ def ritesOfFlourishing : Spelled := spelled <| .singleFaced
       text :=
         [ at_ (Primitives.GameEvent.beginningOf .drawStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
             (instruct (that .player) (Primitives.Action.draw (.lit 1))),
-          Primitives.Ability.static (can (actor (each Primitives.Predicate.anyPlayer)) (play (counted (additional (exactly 1)) isLand))) ] } }
+          static (can (actor eachPlayer) (play (counted (additional (exactly 1)) isLand))
+            (timing := some onEachOfTheirTurns)) ] } }
 
 def odricLunarchMarshal : Spelled := spelled <| .singleFaced
   { characteristics :=

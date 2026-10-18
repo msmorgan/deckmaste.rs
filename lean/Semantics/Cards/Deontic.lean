@@ -64,7 +64,8 @@ def desperateCastaways : Ability :=
     (exists_ (Primitives.Predicate.and [isArtifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okDesperateCastaways : Ability.check (DRS.ofList []) desperateCastaways = [] := by decide
 
-def munghaWurm : Ability := Primitives.Ability.static (cant (actor you) (untap (counted (moreThan 1) isLand)))
+def munghaWurm : Ability :=
+  static (cant (actor you) (untap (counted (moreThan 1) isLand)) (timing := some duringYourUntapStep))
 theorem okMunghaWurm : Ability.check (DRS.ofList []) munghaWurm = [] := by decide
 def dampingField : Ability :=
   Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isArtifact)) (timing := some duringTheirUntapSteps))
@@ -92,7 +93,7 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Spirit of the Labyrinth", cost := some [generic 1, pip .white],
       types := [.enchantment, .creature], subtypes := [creatureType "Spirit"],
-      text := [Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (draw anyAmount))],
+      text := [static (cant eachPlayer (draw (moreThan 1)) (timing := some eachTurn))],
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=
