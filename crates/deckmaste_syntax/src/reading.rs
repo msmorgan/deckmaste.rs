@@ -3,6 +3,7 @@
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::collections::HashMap;
 use std::ops::Range;
 
 use deckmaste_lexical::Binding;
@@ -126,7 +127,7 @@ impl Parse<'_> {
     }
 
     fn ranked(&self, limit: Option<usize>) -> Vec<Reading> {
-        let mut memo = NodeMemo::default();
+        let mut memo = TreeMemo::default();
         let mut all = BTreeSet::new();
         for &root in &self.forest.roots {
             all.extend(self.node_trees(root, limit, &mut memo));
@@ -138,9 +139,9 @@ impl Parse<'_> {
         &self,
         node: usize,
         limit: Option<usize>,
-        memo: &mut NodeMemo<Vec<(u64, Reading)>>,
+        memo: &mut TreeMemo,
     ) -> Vec<(u64, Reading)> {
-        let frame = match memo.enter(node) {
+        let frame = match memo.nodes.enter(node) {
             Visit::Known(trees) => return trees,
             Visit::Cycle => return Vec::new(),
             Visit::Open(frame) => frame,
@@ -165,7 +166,7 @@ impl Parse<'_> {
             }
         }
         let trees = truncate(trees, limit);
-        memo.leave(frame, &trees);
+        memo.nodes.leave(frame, &trees);
         trees
     }
 
@@ -173,8 +174,12 @@ impl Parse<'_> {
         &self,
         item: usize,
         limit: Option<usize>,
-        memo: &mut NodeMemo<Vec<(u64, Reading)>>,
+        memo: &mut TreeMemo,
     ) -> Vec<(u64, Vec<Reading>)> {
+        if let Some(sequences) = memo.items.get(&item) {
+            return sequences.clone();
+        }
+        let mark = memo.nodes.mark();
         let mut out = BTreeSet::new();
         for &(previous, child) in &self.forest.items[item].families {
             let prefixes = match previous {
@@ -201,8 +206,20 @@ impl Parse<'_> {
                 }
             }
         }
-        truncate(out, limit)
+        let sequences = truncate(out, limit);
+        if memo.nodes.settle(mark) {
+            memo.items.insert(item, sequences.clone());
+        }
+        sequences
     }
+}
+
+/// Memoized trees of forest nodes and child sequences of items. Items share
+/// prefixes across Derivations, so each item's sequences are built once.
+#[derive(Default)]
+struct TreeMemo {
+    nodes: NodeMemo<Vec<(u64, Reading)>>,
+    items: HashMap<usize, Vec<(u64, Vec<Reading>)>>,
 }
 
 /// The cheapest `limit` entries of an ordered set, or all of them.
