@@ -211,13 +211,19 @@ pub fn lexicon() -> Lexicon {
         "anywhere",
         "this",
         "none",
-        "whichever",
-        "which",
     ] {
         let mut det = invariant("det", word, Category::Determinative, Core);
         det.properties
             .features
             .insert("DeterminativeDistribution".into(), "Dependent".into());
+        lexemes.push(det);
+    }
+    // Only interrogative and fused relative: never a plain determiner.
+    for word in ["whichever", "which"] {
+        let mut det = invariant("det", word, Category::Determinative, Core);
+        det.properties
+            .features
+            .insert("DeterminativeDistribution".into(), "Independent".into());
         lexemes.push(det);
     }
     lexemes.push(invariant("sub", "to", Category::Subordinator, Core));

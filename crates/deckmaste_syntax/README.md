@@ -50,15 +50,20 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
 - `Valence { head, phrase, passive, adjectival }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
-  object-Gap and predicative-Gap variant and, when `passive` names the `by` Closed Word, passive
+  object-Gap variant, a predicative-Gap variant of a `Copular` frame only (a
+  subjective predicative; never the objective one of *turn it face up*) and,
+  when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
-  Phrase. Only a verb's phrases are `Voice: Active`; another head's phrase
+  Phrase; a non-auxiliary `Prepositional` frame's passive strands its
+  Preposition Phrase (*each card looked at*). Only a verb's phrases are `Voice: Active`; another head's phrase
   takes its Voice from the head (a declared Adjectival Passive is Passive). When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
   without its `by` phrase), `Voice: Passive` and `AdjectivePosition:
   Predicative`; a verb marked `AdjectivalPassive: Lexical` (a declared Adjective
   spells it) or `VerbKind: Auxiliary` derives none. A preposition with an NP
   complement also strands; an Intransitive Preposition heads its phrase alone.
+  Where the phrase's Category carries `ComplementKind`, a Preposition Phrase
+  bears its Complement's Slot Kind (`NP`, `AdjP`, ...).
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).
@@ -72,9 +77,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   (*choose to attack* has no purpose reading). Likewise a frame's predicative
   Complement is not a Preposition Phrase that a rival frame of the same head
   selects in its place (locative *on the battlefield* after *be*).
-- `Coordination { category, coordinators }`: binary and Oxford-comma serial
+- `Coordination { category, coordinators, unshared }`: binary and Oxford-comma serial
   coordination, one tree per same-coordinator chain, across-the-board Gaps, and
   Right Node Raising (a coordination with a shared NP Gap, filled once after it).
+  Conjuncts agree on every feature but the `unshared` ones, which the
+  coordination leaves unvalued.
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so

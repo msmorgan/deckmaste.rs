@@ -10,7 +10,7 @@
     "alone",
     // *becomes attached to a creature*: the Adjectival Passive of *attach*,
     // with its Complement.
-    (lemma: "attached", passive: true, frames: [Complement(PP(["to"]))]),
+    (lemma: "attached", position: Some(Predicative), frames: [Complement(PP(["to"]))]),
     "bottom",
     "colored",
     "common",
@@ -45,7 +45,8 @@
     "maximum",
     "minimum",
     "modal",
-    "natural",
+    // *a natural 20*
+    (lemma: "natural", position: Some(Attributive)),
     (lemma: "near", comparative: "nearer", superlative: "nearest"),
     "negative",
     (lemma: "new", comparative: "newer", superlative: "newest"),

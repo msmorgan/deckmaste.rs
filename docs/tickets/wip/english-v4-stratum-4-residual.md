@@ -148,3 +148,6 @@ regressions/ambiguities before Stratum 5 begins.
 
 Standard constraints apply.
 
+
+Census delta (`qsruvtzr` → `wukuuylm`): faces read 18,780 → 18,805; total Readings 159,769 → 146,555; lost faces: Betrayal at the Vault, Jagged Lightning, Ojer Axonil, Deepest Might, Swelter, Twinstrike (each read only through an unselected `to` nominal postmodifier, e.g. *deals [2 damage to each of two target] [creatures]*, which ruling 2 removes). Strata 0–4: 71,890 units read, 0 deferred, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–4 pass (1,967 enforced, 1,106 pending); tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4 and deckmaste_english_v4; citation checks pass.

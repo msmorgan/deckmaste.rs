@@ -903,7 +903,8 @@ impl<'a> Binder<'a> {
                 category,
                 coordinators,
                 cost,
-            } => self.coordination(category, coordinators, *cost),
+                unshared,
+            } => self.coordination(category, coordinators, *cost, unshared),
         }
     }
 
@@ -1110,69 +1111,7 @@ impl<'a> Binder<'a> {
         let gap_capable = self.out.category_gap[lhs];
         let mut drafts = Vec::new();
         if head == LexicalCategory::Preposition {
-            let used: BTreeSet<usize> = self
-                .out
-                .lexemes
-                .values()
-                .flat_map(|f| f.preposition_frames.iter().copied())
-                .collect();
-            for index in used {
-                let frame = &self.out.preposition_frames[index];
-                let mut draft = Draft::new(
-                    format!(
-                        "Valence:{phrase}/{:?}@{:?}{}",
-                        frame.complement,
-                        frame.hosts,
-                        if frame.relation == SlotRelation::Complement {
-                            ""
-                        } else {
-                            "/predicative"
-                        }
-                    ),
-                    lhs,
-                    cost,
-                );
-                draft.child(
-                    "head",
-                    Symbol::Leaf(Test::PrepositionFrame(index)),
-                    GapRule::Closed,
-                );
-                if frame.complement != SlotFill::Intransitive {
-                    let child = draft.child(
-                        relation_name(frame.relation),
-                        self.slot_symbol(&frame.complement)?,
-                        GapRule::Transparent,
-                    );
-                    if frame.complement == SlotFill::NP {
-                        self.oblique_case(&mut draft, child)?;
-                    }
-                }
-                drafts.push(draft);
-                if gap_capable && frame.complement == SlotFill::NP {
-                    let mut stranded = Draft::new(
-                        format!(
-                            "Valence:{phrase}/{:?}@{:?}{}/gap0",
-                            frame.complement,
-                            frame.hosts,
-                            if frame.relation == SlotRelation::Complement {
-                                ""
-                            } else {
-                                "/predicative"
-                            }
-                        ),
-                        lhs,
-                        cost,
-                    );
-                    stranded.child(
-                        "head",
-                        Symbol::Leaf(Test::PrepositionFrame(index)),
-                        GapRule::Closed,
-                    );
-                    stranded.introduces = Gap::NP;
-                    drafts.push(stranded);
-                }
-            }
-            return Ok(drafts);
+            return self.preposition_valence(lhs, phrase, cost, gap_capable);
         }
         let used = self.used_frames(head)?;
         if head != LexicalCategory::Verb {
@@ -1201,11 +1140,7 @@ impl<'a> Binder<'a> {
             // Active, with every NP slot optionally extracted. Voice is a verb's;
             // another head's phrase takes its Voice from the head (a declared
             // Adjectival Passive).
-            let active = if head == LexicalCategory::Verb {
-                voice_value("Active")?
-            } else {
-                None
-            };
+            let active = if head == LexicalCategory::Verb { voice_value("Active")? } else { None };
             drafts.extend(
                 self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?,
             );
@@ -1253,6 +1188,160 @@ impl<'a> Binder<'a> {
                         )?,
                     );
                 }
+            }
+            if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
+                && frame.family == FrameFamily::Prepositional
+                && let [fill @ SlotFill::PP(_)] = slots.as_slice()
+            {
+                drafts.extend(self.prepositional_passive(
+                    lhs,
+                    &name,
+                    index,
+                    cost,
+                    fill,
+                    by,
+                    voice_value("Passive")?,
+                )?);
+            }
+        }
+        Ok(drafts)
+    }
+
+    /// The prepositional passive of a Prepositional frame, as in *each card
+    /// looked at*: the preposition's object is the passive's subject, so the
+    /// Preposition Phrase is stranded (CGEL, Ch. 4 §6.1.2, pp. 276–277;
+    /// Ch. 16 §10.1.2, pp. 1432–1433). An auxiliary verb derives none.
+    #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
+    fn prepositional_passive(
+        &self,
+        lhs: usize,
+        name: &str,
+        frame: usize,
+        cost: u32,
+        fill: &SlotFill,
+        by: &str,
+        voice: Option<(usize, u16)>,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let voice = voice
+            .ok_or_else(|| invalid(format!("passive schema on `{name}` needs a Voice feature")))?;
+        let form = self.feature("VerbForm")?;
+        let participle = self.value(form, "PastParticiple")?;
+        let by_pp = SlotFill::PP(vec![self.word(by)?]);
+        let auxiliary = match self.out.features.iter().position(|n| n == "VerbKind") {
+            Some(f) => Some((0, f, self.value(f, "Auxiliary")?)),
+            None => None,
+        };
+        let relation = self.out.frames[frame].slots[0].relation;
+        let mut drafts = Vec::new();
+        for agent in [false, true] {
+            let tag = if agent { "passive+by" } else { "passive" };
+            let mut draft = Draft::new(format!("{name}/{tag}"), lhs, cost);
+            draft.frame = Some(frame);
+            draft.child("head", Symbol::Leaf(Test::Frame(frame)), GapRule::Closed);
+            draft.child(
+                relation_name(relation),
+                self.slot_symbol(fill)?,
+                GapRule::Require(Gap::NP),
+            );
+            if agent {
+                draft.child("complement", self.slot_symbol(&by_pp)?, GapRule::Closed);
+            }
+            draft
+                .equations
+                .push((Path::Mother(voice.0), Target::Value(voice.1)));
+            draft
+                .equations
+                .push((Path::Mother(form), Target::Value(participle)));
+            draft.exclusions.extend(auxiliary);
+            drafts.push(draft);
+        }
+        Ok(drafts)
+    }
+
+    /// A phrase per used Preposition Frame and, when `gap_capable`, a
+    /// stranded variant of each with an NP Complement.
+    fn preposition_valence(
+        &self,
+        lhs: usize,
+        phrase: &str,
+        cost: u32,
+        gap_capable: bool,
+    ) -> Result<Vec<Draft>, LoadError> {
+        let mut drafts = Vec::new();
+        // A Preposition Phrase's ComplementKind, where its Category
+        // carries one, names its Complement's Slot Kind.
+        let complement_kind = self
+            .out
+            .features
+            .iter()
+            .position(|f| f == "ComplementKind")
+            .filter(|f| self.out.category_features[lhs].contains(f));
+        let used: BTreeSet<usize> = self
+            .out
+            .lexemes
+            .values()
+            .flat_map(|f| f.preposition_frames.iter().copied())
+            .collect();
+        for index in used {
+            let frame = &self.out.preposition_frames[index];
+            let mut draft = Draft::new(
+                format!(
+                    "Valence:{phrase}/{:?}@{:?}{}",
+                    frame.complement,
+                    frame.hosts,
+                    if frame.relation == SlotRelation::Complement { "" } else { "/predicative" }
+                ),
+                lhs,
+                cost,
+            );
+            draft.child(
+                "head",
+                Symbol::Leaf(Test::PrepositionFrame(index)),
+                GapRule::Closed,
+            );
+            if let Some(f) = complement_kind {
+                let kind = self.value(f, &format!("{:?}", frame.complement.kind()))?;
+                draft.equations.push((Path::Mother(f), Target::Value(kind)));
+            }
+            if frame.complement != SlotFill::Intransitive {
+                let child = draft.child(
+                    relation_name(frame.relation),
+                    self.slot_symbol(&frame.complement)?,
+                    GapRule::Transparent,
+                );
+                if frame.complement == SlotFill::NP {
+                    self.oblique_case(&mut draft, child)?;
+                }
+            }
+            drafts.push(draft);
+            if gap_capable && frame.complement == SlotFill::NP {
+                let mut stranded = Draft::new(
+                    format!(
+                        "Valence:{phrase}/{:?}@{:?}{}/gap0",
+                        frame.complement,
+                        frame.hosts,
+                        if frame.relation == SlotRelation::Complement {
+                            ""
+                        } else {
+                            "/predicative"
+                        }
+                    ),
+                    lhs,
+                    cost,
+                );
+                stranded.child(
+                    "head",
+                    Symbol::Leaf(Test::PrepositionFrame(index)),
+                    GapRule::Closed,
+                );
+                stranded.introduces = Gap::NP;
+                if let Some(f) = complement_kind {
+                    let kind = self.value(f, "NP")?;
+                    stranded
+                        .equations
+                        .push((Path::Mother(f), Target::Value(kind)));
+                }
+                drafts.push(stranded);
             }
         }
         Ok(drafts)
@@ -1366,13 +1455,17 @@ impl<'a> Binder<'a> {
         gappable: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let mut drafts = Vec::new();
+        // Only a subjective predicative relativises (CGEL, Ch. 12 §3.3(c),
+        // p. 1045): never the objective one of *turn it face up*.
+        let copular = self.out.frames[frame].family == FrameFamily::Copular;
         let extractable: Vec<Option<usize>> = std::iter::once(None)
             .chain(
                 slots
                     .iter()
                     .enumerate()
                     .filter(|(_, fill)| {
-                        gappable && matches!(***fill, SlotFill::NP | SlotFill::Pred)
+                        gappable
+                            && (***fill == SlotFill::NP || (copular && ***fill == SlotFill::Pred))
                     })
                     .map(|(i, _)| Some(i)),
             )
@@ -1578,9 +1671,14 @@ impl<'a> Binder<'a> {
         category: &str,
         coordinators: &str,
         cost: u32,
+        unshared: &[String],
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(category)?;
         let coordinator = self.coordinator_test(coordinators)?;
+        let unshared = unshared
+            .iter()
+            .map(|name| self.feature(name))
+            .collect::<Result<BTreeSet<_>, _>>()?;
         let conjunct = || Symbol::Cat {
             binding: None,
             category: lhs,
@@ -1589,6 +1687,9 @@ impl<'a> Binder<'a> {
         };
         let agree_all = |draft: &mut Draft, conjuncts: &[usize]| {
             for &feature in &self.out.category_features[lhs] {
+                if unshared.contains(&feature) {
+                    continue;
+                }
                 for &c in conjuncts {
                     draft
                         .equations

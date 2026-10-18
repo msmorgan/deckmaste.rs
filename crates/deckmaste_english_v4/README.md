@@ -167,11 +167,19 @@ Subject or filling a Gap, or *how* with a Clause. *, where X is ...* is a
 Supplement to a Clause, a keyword or an indexed instruction, never a Predicate
 Adjunct. A front adverbial is set off by a comma (*Once each turn, ...*). A
 gerund-participial Clause may be Subject; a bare relative may relativize a
-lexical copular verb's predicative Complement for an ordinary noun (*the
-permanent it becomes*); *all* floats after a pronoun Subject. A symbol sequence
-is a noun under a determiner (*an additional {G}*, *six {E}*, *each {B} in a
-cost*) and premodifies a noun (*its {1}{G} kicker*); keyword rules declare the
-nouns they define (*if tribute wasn't paid*). *Do the same* is a pro-form, at
+subjective predicative Complement for an ordinary noun, under a lexical verb or
+a negative auxiliary (*the permanent it becomes*, *a color the other isn't*),
+never affirmative *be* (*the player it's attacking* has an object Gap); a bare
+relative postposes past *at random* (*choose a creature at random this Aura can
+enchant*); *all* floats after a pronoun Subject. A Prepositional verb has a
+stranded passive (*each card looked at*), and a passive participial Supplement
+follows a Clause (*, followed by an additional main phase*). A preposed
+Preposition Phrase and temporal Noun Phrase share one comma (*For one spell this
+turn, ...*). A symbol sequence is a noun under a determiner (*an additional
+{G}*, *six {E}*, *each {B} in a cost*) and premodifies a noun (*its {1}{G}
+kicker*), as an Arabic numeral is a singular noun under one (*a natural 20*);
+a noun premodifier never precedes a determined head (*amount {G}*). Keyword
+rules declare the nouns they define (*if tribute wasn't paid*). *Do the same* is a pro-form, at
 Stratum 7 with *do so*.
 
 The profiler recognizes bound stems and preposed qualities without treating

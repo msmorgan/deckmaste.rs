@@ -236,11 +236,14 @@ impl Builder {
             }
             lexeme.lemma.clone_from(base);
         }
-        if entry.negative {
-            lexeme
-                .properties
-                .features
-                .insert("Polarity".to_owned(), "Negative".to_owned());
+        if entry.negative && !auxiliary {
+            return Err(invalid("only an auxiliary has a negative form"));
+        }
+        if auxiliary {
+            lexeme.properties.features.insert(
+                "Polarity".to_owned(),
+                if entry.negative { "Negative" } else { "Affirmative" }.to_owned(),
+            );
         }
         let id = lexeme.id;
         self.push(lexeme);
@@ -294,12 +297,6 @@ impl Builder {
                     .properties
                     .features
                     .insert("Determination".into(), format!("{determination:?}"));
-            }
-            if entry.passive {
-                lexeme
-                    .properties
-                    .features
-                    .insert("Voice".into(), "Passive".into());
             }
             if entry.fused_head {
                 lexeme

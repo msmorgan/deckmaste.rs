@@ -36,8 +36,9 @@
         (lemma: "the"),
         (number: Singular, lemma: "this", distribution: Deictic),
         (number: Plural, countability: Count, lemma: "those"),
-        (lemma: "which"),
-        (lemma: "whichever"),
+        // Only interrogative and fused relative: never a plain determiner.
+        (lemma: "which", distribution: Independent),
+        (lemma: "whichever", distribution: Independent),
     ],
     // Reflexives are Lexemes of their own: the schema has no reflexive Word
     // Form. They fill only non-subject positions, hence Accusative.

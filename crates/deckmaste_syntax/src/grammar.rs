@@ -190,6 +190,10 @@ pub enum SchemaDecl {
         coordinators: String,
         #[serde(default = "default_cost")]
         cost: u32,
+        /// Features the conjuncts need not share, which the coordination
+        /// leaves unvalued (a positive and a negative Verb Phrase).
+        #[serde(default)]
+        unshared: Vec<String>,
     },
 }
 

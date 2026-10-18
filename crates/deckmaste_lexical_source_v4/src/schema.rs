@@ -265,10 +265,6 @@ pub struct AdjectiveEntry {
     pub determination: Option<Determination>,
     #[serde(default)]
     pub fused_head: bool,
-    /// An Adjectival Passive declared with its Complement (*attached to a
-    /// creature*): like a derived one, a predicative Complement only.
-    #[serde(default)]
-    pub passive: bool,
     pub lemma: String,
     #[serde(default)]
     pub comparative: Option<String>,
@@ -301,7 +297,6 @@ impl AdjectiveDecl {
                 position: None,
                 determination: None,
                 fused_head: false,
-                passive: false,
                 lemma: lemma.clone(),
                 comparative: None,
                 superlative: None,

@@ -69,13 +69,12 @@ The modals have no -s form, so their third singular is spelled like the rest
 of the present. A contracted or negative auxiliary (*'re*, *aren't*, *can't*,
 *'ve*) keeps its own Lexeme id and spellings but declares `form_of` the verb it
 is a form of, whose lemma names it. Every auxiliary carries `VerbKind:
-Auxiliary`. *Be* and *remain* select locative Preposition Phrases as well as
+Auxiliary` and a `Polarity`, `Negative` for a negative form and `Affirmative`
+otherwise; a lexical verb has neither. *Be* and *remain* select locative Preposition Phrases as well as
 predicative Complements (CGEL, Ch. 4 §5.2, p. 257). A verb whose past participle
 is spelled like a declared Adjective (*tapped*, *transformed*) carries
-`AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive. An
-adjective declared `passive` (*attached to*) is an Adjectival Passive with its
-Complement, `Voice: Passive`: like a derived one, a predicative Complement
-only.
+`AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive, as
+*attached* (predicative, with its *to* Complement) is *attach*'s.
 
 Adjective grades are adjectives of their own with a `Grade` feature. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,

@@ -20,6 +20,11 @@
         "AdjectivalPassive": ["Derived", "Lexical"],
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
+        // An auxiliary's: a negative form (*isn't*) or the rest. A lexical
+        // verb has none.
+        "Polarity": ["Affirmative", "Negative"],
+        // The Slot Kind of a Preposition Phrase's Complement.
+        "ComplementKind": ["NP", "PP", "AdjP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "BareSingular", "DirectMeasure", "HeadOnly", "Serial"],
         "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric"],
         "Determination": ["Bare", "Overt"],
@@ -56,6 +61,8 @@
         "Condition": (),
         "Measure": (),
         "Symbols": (),
+        // An Arabic numeral named as a noun, without the numeral's Number.
+        "NumeralName": (),
         // A bracketed loyalty symbol: a cost, or a counted noun (*an
         // additional [+1]*).
         "LoyaltySymbol": (),
@@ -69,7 +76,7 @@
         "Sentences": (),
         // A Clause's Inflection is its finite verb's: an independent clause
         // excludes the irrealis *were* (CGEL, Ch. 3 §1.5, pp. 85–88).
-        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection"], gap: true),
+        "Clause": (features: ["VerbForm", "ClauseMarking", "Inflection", "Polarity"], gap: true),
         // A subject relative agrees with its antecedent in number; an
         // adverbial relative modifies a temporal nominal.
         "RelativeClause": (features: ["Number", "NounKind", "ClauseMarking"]),
@@ -77,7 +84,7 @@
         "SubjectGapClause": (category: Some("Clause"), features: ["Number", "Person", "VerbForm", "Inflection"], gap: true),
         // A finite clause with an extracted Adjunct.
         "AdjunctGapClause": (category: Some("Clause"), features: ["VerbForm"], gap: true),
-        "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive"], gap: true),
+        "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive", "Polarity"], gap: true),
         // Existential *there* and the predicate it is subject of (CGEL, Ch. 16
         // §6.1, p. 1391).
         "DummyPronoun": (category: Some("NounPhrase"), features: ["Number", "Person"]),
@@ -101,7 +108,7 @@
         "Possessor": (category: Some("NounPhrase"), features: ["Number", "Person", "Case"]),
         "NumericalDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         "DeterminerPhrase": (features: ["Number", "Countability", "DeterminativeDistribution", "NounKind"]),
-        "PrepositionPhrase": (gap: true),
+        "PrepositionPhrase": (features: ["ComplementKind"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
         "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice"]),
@@ -216,6 +223,10 @@
         // A symbol sequence is also a noun under a determiner (*each {B} in a
         // cost*, *an additional {G}*, *six {E}*, *that much {R}*).
         (name: "SymbolNominal", lhs: "BareNominal", rhs: [Cat("head", "Symbols")], equations: [Require("$.Determination", "Overt"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
+        // An Arabic numeral is a singular count noun under a determiner (*a
+        // natural 20*; CGEL, Ch. 5 §7.1, p. 386).
+        (name: "ArabicNumeralName", lhs: "NumeralName", rhs: [Numeral("head", Arabic(false))]),
+        (name: "NumeralNominal", lhs: "BareNominal", rhs: [Cat("head", "NumeralName")], equations: [Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
         (name: "GroupedNumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(true))], equations: [Agree("$.QuantityNumber", "head.Number")]),
         (name: "UnsignedMeasureAmount", lhs: "SignedAmount", rhs: [Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
         (name: "PositiveMeasureAmount", lhs: "SignedAmount", rhs: [Mark('+', Prefix), Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
@@ -354,6 +365,11 @@
         // A front adverbial set off by a comma (*Once each turn, ...*).
         (name: "FrontAdverbial", lhs: "Clause", rhs: [Cat("adjunct", "AdverbPhrase"), Punct(','), Cat("head", "Clause")],
             equations: [Require("adjunct.AdjunctPosition", "Front")], transparent: ["head"], cost: 2),
+        // A comma-set passive participial Supplement (*there is an additional
+        // combat phase after this phase, followed by an additional main
+        // phase*; CGEL, Ch. 14 §9.1, p. 1265; Ch. 15 §5.1, p. 1350).
+        (name: "ParticipialSupplement", lhs: "Clause", rhs: [Cat("head", "Clause"), Punct(','), Cat("supplement", "VerbPhrase")],
+            equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], transparent: ["head"], heavy: ["supplement"], cost: 3),
         (name: "EndAdverbial", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdverbPhrase")],
             equations: [Require("adjunct.AdjunctPosition", "End")], transparent: ["head"]),
         (name: "CentralAdverbial", lhs: "VerbPhrase", rhs: [Cat("adjunct", "AdverbPhrase"), Cat("head", "VerbPhrase")],
@@ -412,7 +428,7 @@
         (name: "InterleavedPreposition", lhs: "Interleaved", rhs: [Cat("head", "PrepositionPhrase")], cost: 0),
         (name: "InterleavedTemporal", lhs: "Interleaved", rhs: [Cat("head", "TemporalNounPhrase")], cost: 0),
         (name: "InterleavedDepictive", lhs: "Interleaved", rhs: [Cat("head", "AdjectivePhrase")], equations: [Exclude("head.Voice", "Passive"), Exclude("head.Determination", "Overt"), Exclude("head.AdjectivePosition", "Attributive")], cost: 0),
-        (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Determination", "Overt"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 0),
+        (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Determination", "Overt"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
 
         (name: "PhrasalAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "PhrasalAdverb")], equations: [Require("$.AdjunctPosition", "Phrasal")]),
         (name: "DegreeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "That"), Class("head", "DegreeQuantifier")]),
@@ -446,6 +462,9 @@
         (name: "RelativeTimePostmodifier", lhs: "RelativeTemporalNominal", rhs: [Cat("head", "RelativeTemporalNominal"), Cat("modifier", "TemporalNounPhrase")], cost: 2),
         // A preposed temporal Noun Phrase (*This turn, ...*; *The next time ..., ...*).
         (name: "PreposedTemporalAdjunct", lhs: "Clause", rhs: [Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], transparent: ["head"]),
+        // A preposed Preposition Phrase and temporal Noun Phrase set off by
+        // one comma (*For one spell this turn, ...*).
+        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], transparent: ["head"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],
@@ -494,7 +513,9 @@
         (name: "FusedLocative", lhs: "FusedNounPhrase", rhs: [Class("head", "LocativeQuantifier")], equations: [Require("$.NounKind", "Locative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "AttributiveNoun", lhs: "NounPremodifier", rhs: [FreeLex("head", Noun)], equations: [Require("head.Inflection", "Singular"), Exclude("head.NounDistribution", "HeadOnly")]),
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
-        (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")]),
+        // A noun premodifier sits inside determinative and adjectival ones,
+        // never outside them or on a determined symbol (*amount {G}*).
+        (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
         (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
         // Noun phrases.
@@ -559,6 +580,13 @@
         // introduce a subject Gap, which agrees with the antecedent.
         (name: "BareRelative", lhs: "RelativeClause", rhs: [Cat("clause", "Clause")],
             equations: [Require("$.ClauseMarking", "Unmarked"), Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite")]),
+        // A bare relative whose Gap is a subjective predicative (*the
+        // permanent it becomes*, *a color the other isn't*; CGEL, Ch. 12
+        // §3.3(c), p. 1045; §3.5.4(g), p. 1054), of an ordinary head. Its
+        // verb is lexical or a negative auxiliary: under affirmative *be* the
+        // Gap is an Object's (*the player it's attacking*).
+        (name: "BarePredicativeRelative", lhs: "RelativeClause", rhs: [Cat("clause", "Clause")],
+            equations: [Require("$.ClauseMarking", "Unmarked"), Require("$.NounKind", "Ordinary"), Require("clause.Gap", "Pred"), Require("clause.VerbForm", "Finite"), Exclude("clause.Polarity", "Affirmative")], cost: 3),
         (name: "MarkedRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "Clause")],
             equations: [Require("$.ClauseMarking", "Relative"), Require("clause.Gap", "NP"), Require("clause.VerbForm", "Finite"), Exclude("marker.Case", "Nominative"), Exclude("marker.Case", "Genitive")]),
         (name: "SubjectRelative", lhs: "RelativeClause", rhs: [Class("marker", "RelativeMarker"), Cat("clause", "SubjectGapClause")],
@@ -600,6 +628,10 @@
         // place.
         (name: "PostposedRelative", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("object", "ComplementNounPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("modifier", "RelativeClause")],
             equations: [Require("head.Gap", "NP"), Require("modifier.ClauseMarking", "Relative"), Agree("object.Number", "modifier.Number")], cost: 5),
+        // A bare relative postposes only past an adjectival Complement (*at
+        // random*), which has no noun of its own to modify in place.
+        (name: "PostposedBareRelative", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("object", "ComplementNounPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("modifier", "RelativeClause")],
+            equations: [Require("head.Gap", "NP"), Require("adjunct.ComplementKind", "AdjP"), Require("modifier.ClauseMarking", "Unmarked"), Agree("object.Number", "modifier.Number")], heavy: ["modifier"], cost: 2),
 
         // Clause Complements of a Preposition (CGEL, Ch. 7 §1, pp. 599–600):
         // a finite Clause (*when this creature enters*), or a reducible
@@ -663,6 +695,6 @@
         Adjunct(host: "VerbPhrase", adjunct: "Gerund", side: After, host_kind: Predicate, cost: 2),
         // A purpose *to*-infinitival, unless the head's frame selects one.
         Adjunct(host: "VerbPhrase", adjunct: "ToInf", side: After, host_kind: Predicate, cost: 2),
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator"),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Polarity"]),
     ],
 )

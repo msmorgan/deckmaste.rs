@@ -10,3 +10,23 @@
 + Draw a card for each creature blocking it beyond the first. => NounPhrase "the first" as Complement of beyond
 + This spell was cast using teamwork. => VerbPhrase "using teamwork"; KeywordPhrase "teamwork" as Object of use
 + Tap it to pay for its abilities. => PrepositionPhrase "for its abilities" as Complement of pay
+# A bare relative with a predicative Gap, under a lexical copula or a negative
+# auxiliary only; postposed past an adjectival Complement; prepositional
+# passives; and a numeral as a noun.
++ <card=Spider Climb> If you cast it any time a sorcery couldn't have been cast, the controller of the permanent it becomes sacrifices it at the beginning of the next cleanup step. => NounPhrase "the permanent it becomes" as Complement of of; RelativeClause "it becomes" gap "permanent"
++ <card=Dead Ringers> Destroy two target nonblack creatures unless either one is a color the other isn't. => NounPhrase "a color the other isn't" as PredicativeComplement of be; RelativeClause "the other isn't" gap "color"
++NounPhrase the player it's attacking => RelativeClause "it's attacking" gap "player"; readings 1
++NounPhrase the player it is attacking => RelativeClause "it is attacking" gap "player"; readings 1
++ <card=Arid Archway> When this land enters, return a land you control to its owner's hand. If another Desert was returned this way, surveil 1. => NounPhrase "this way" as Adjunct of return
++ <card=Foul Renewal> Return target creature card from your graveyard to your hand. Target creature gets -X/-X until end of turn, where X is the toughness of the card returned this way. => VerbPhrase "returned this way" as Modifier of card
++ Return target creature to its owner's hand. => PrepositionPhrase "to its owner's hand" as Complement of return; readings 1
++NounPhrase the player to your right => PrepositionPhrase "to your right" as Complement of player; readings 1
++ <card=Infectious Rage> When enchanted creature dies, choose a creature at random this Aura can enchant. Return this card to the battlefield attached to that creature. => RelativeClause "this Aura can enchant" gap "creature"; PrepositionPhrase "at random" as Adjunct of choose
++ <card=Volatile Chimera> {1}{R}: Choose a card at random you exiled with cards named Volatile Chimera. This creature becomes a copy of that card, except it has this ability. => RelativeClause "you exiled with cards named Volatile Chimera" gap "card"
++ <card=Celeborn the Wise> Whenever you scry, Celeborn gets +1/+1 until end of turn for each card looked at while scrying this way. => VerbPhrase "looked at" head look; NounPhrase "each card looked at while scrying this way" as Complement of for
++ <card=Critical Hit> When you roll a natural 20, return this card from your graveyard to your hand. => NounPhrase "a natural 20" as Object of roll; AdjectivePhrase "natural"
++NounPhrase a 20 => readings 1
++ <card=North Star> {4}, {T}: For one spell this turn, you may spend mana as though it were mana of any type to pay that spell's mana cost. => PrepositionPhrase "For one spell" as Adjunct of may; NounPhrase "this turn" as Adjunct of may
++ <card=Overpowering Attack> Untap all creatures you control that attacked this turn. If it's your main phase, there is an additional combat phase after this phase, followed by an additional main phase. => VerbPhrase "followed by an additional main phase"
++ an opponent guesses which number you chose. => Clause "which number you chose" as Complement of guess; readings 1
+*Clause Destroy which creature

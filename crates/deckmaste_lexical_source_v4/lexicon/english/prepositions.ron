@@ -163,10 +163,10 @@
     ]),
     // *was put there from anywhere*
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
-    // Selected goals and nominal location: *the player to your right*.
+    // Selected goals only; *the player to your right* is `player`'s.
     (lemma: "to", frames: [
-        (complement: Amount, hosts: Nominal),
-        (complement: NP, hosts: Nominal),
+        (complement: Amount, hosts: ComplementOnly),
+        (complement: NP, hosts: ComplementOnly),
         (complement: Gerund, hosts: ComplementOnly),
     ]),
     // *enters under an opponent's control*; *a noncreature permanent under

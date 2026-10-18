@@ -4,7 +4,8 @@
 // *equip*, …) are ordinary verbs of Category Verb and live here.
 [
     (lemma: "accept", frames: [Monotransitive]),
-    (lemma: "add", frames: [Monotransitive]),
+    // *add a booster pack to the draft*
+    (lemma: "add", frames: [Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "affect", frames: [Monotransitive]),
     (lemma: "apply", frames: [Intransitive, Prepositional(["to"])]),
     (lemma: "assign", frames: [Monotransitive, TransitiveWithPP(["to"])]),
@@ -111,7 +112,7 @@
     (lemma: "reselect", frames: [Monotransitive, ContentClause]),
     (lemma: "resolve", frames: [Intransitive]),
     (lemma: "restart", frames: [Monotransitive]),
-    (lemma: "return", frames: [TransitiveWithPP(["to"])]),
+    (lemma: "return", frames: [Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "reverse", frames: [Monotransitive]),
     // A die, not the Attraction keyword action [CR#701.52]: *roll a d20*.
     (lemma: "roll", frames: [Intransitive, Monotransitive]),
