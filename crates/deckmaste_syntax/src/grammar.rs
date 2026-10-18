@@ -204,4 +204,7 @@ pub enum Side {
 pub enum HostKind {
     Nominal,
     Predicate,
+    /// A Clause or line that a comma-set Supplement is anchored to (CGEL,
+    /// Ch. 15 §5.1, p. 1350).
+    Supplement,
 }

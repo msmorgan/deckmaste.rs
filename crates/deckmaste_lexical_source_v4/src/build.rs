@@ -295,6 +295,12 @@ impl Builder {
                     .features
                     .insert("Determination".into(), format!("{determination:?}"));
             }
+            if entry.passive {
+                lexeme
+                    .properties
+                    .features
+                    .insert("Voice".into(), "Passive".into());
+            }
             if entry.fused_head {
                 lexeme
                     .properties
@@ -506,7 +512,7 @@ impl Resolver<'_> {
             ),
             FrameSpec::ContentClause => (
                 FrameFamily::ContentClause,
-                vec![slot(Complement, SlotFill::Clause(ClauseKind::Finite))],
+                vec![slot(Complement, SlotFill::Clause(ClauseKind::Interrogative))],
             ),
             FrameSpec::Amount => (
                 FrameFamily::Amount,

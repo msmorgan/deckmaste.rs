@@ -52,6 +52,9 @@ pub enum SlotRelation {
 pub enum ClauseKind {
     Finite,
     Verbless,
+    /// An interrogative content clause (*whether ...*, *which creatures
+    /// attack*, *how each player votes*).
+    Interrogative,
 }
 
 /// What fills a Frame Slot.
@@ -98,6 +101,7 @@ pub enum SlotKind {
     LocativeNP,
     FiniteClause,
     VerblessClause,
+    InterrogativeClause,
     ToInf,
     HollowToInf,
     BareInf,
@@ -121,6 +125,7 @@ impl SlotFill {
             Self::LocativeNP => SlotKind::LocativeNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
+            Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
             Self::ToInf => SlotKind::ToInf,
             Self::HollowToInf => SlotKind::HollowToInf,
             Self::BareInf => SlotKind::BareInf,
@@ -210,7 +215,10 @@ impl Frame {
             FrameFamily::ContentClause => {
                 matches!(
                     shape[..],
-                    [(Complement, SlotFill::Clause(ClauseKind::Finite))]
+                    [(
+                        Complement,
+                        SlotFill::Clause(ClauseKind::Finite | ClauseKind::Interrogative)
+                    )]
                 )
             }
             FrameFamily::Amount => matches!(shape[..], [(Complement, SlotFill::Amount)]),
@@ -246,6 +254,8 @@ pub enum Hosts {
     Nominal,
     Predicate,
     NominalAndPredicate,
+    /// Only a Supplement to a Clause or line (*, where X is its power*).
+    Supplement,
 }
 
 impl Hosts {
@@ -259,6 +269,7 @@ impl Hosts {
                     Self::Predicate | Self::NominalAndPredicate,
                     HostKind::Predicate
                 )
+                | (Self::Supplement, HostKind::Supplement)
         )
     }
 }

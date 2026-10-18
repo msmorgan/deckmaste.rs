@@ -52,7 +52,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap and predicative-Gap variant and, when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
-  Phrase. When `adjectival` names a Category, a frame whose passive leaves no
+  Phrase. Only a verb's phrases are `Voice: Active`; another head's phrase
+  takes its Voice from the head (a declared Adjectival Passive is Passive). When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
   without its `by` phrase), `Voice: Passive` and `AdjectivePosition:
   Predicative`; a verb marked `AdjectivalPassive: Lexical` (a declared Adjective
@@ -63,7 +64,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   preposition among its Complements (*come up heads*).
 - `Adjunct { host, adjunct, side, host_kind }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
-  Category. Same-head complement priority is derived from the frames: a PP, or an
+  Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
+  or line that a comma-set Supplement is anchored to (as `supplement`, *, where
+  X is its power*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
   (*choose to attack* has no purpose reading). Likewise a frame's predicative
@@ -77,6 +80,10 @@ Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
 extraction works across finite, plain, progressive, perfect and passive forms with
 no per-form Productions.
+
+A clause Frame Slot is finite (*when this creature enters*), verbless (*if
+able*) or interrogative (*choose which creatures attack*), each filled by its
+own Category.
 
 A Gap is an `NP` (an extracted Object or Complement of a preposition), a `Pred`
 (an extracted predicative Complement, *whose turn it is*) or an `Adjunct` (*the

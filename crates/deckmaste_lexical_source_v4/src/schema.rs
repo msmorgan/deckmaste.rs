@@ -265,6 +265,10 @@ pub struct AdjectiveEntry {
     pub determination: Option<Determination>,
     #[serde(default)]
     pub fused_head: bool,
+    /// An Adjectival Passive declared with its Complement (*attached to a
+    /// creature*): like a derived one, a predicative Complement only.
+    #[serde(default)]
+    pub passive: bool,
     pub lemma: String,
     #[serde(default)]
     pub comparative: Option<String>,
@@ -297,6 +301,7 @@ impl AdjectiveDecl {
                 position: None,
                 determination: None,
                 fused_head: false,
+                passive: false,
                 lemma: lemma.clone(),
                 comparative: None,
                 superlative: None,
@@ -328,6 +333,10 @@ pub enum AdverbPosition {
 pub struct AdverbEntry {
     pub lemma: String,
     pub positions: Vec<AdverbPosition>,
+    /// An interrogative adverb, which introduces an interrogative content
+    /// clause (*how each player votes*).
+    #[serde(default)]
+    pub interrogative: bool,
 }
 
 /// One complement frame of a preposition with its Host Category.
@@ -560,6 +569,10 @@ pub struct KeywordAbility {
     /// Verbs the rule defines for acting with the keyword: *cycle*, *crew*.
     #[serde(default)]
     pub verbs: Vec<VerbEntry>,
+    /// Nouns the rule defines for the ability or its cost: *its {W} kicker*
+    /// [CR#702.33f], *the gift was promised* [CR#702.174k].
+    #[serde(default)]
+    pub nouns: Vec<NounDecl>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]

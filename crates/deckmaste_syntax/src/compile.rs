@@ -875,6 +875,7 @@ impl<'a> Binder<'a> {
                 let function = match host_kind {
                     HostKind::Nominal => "modifier",
                     HostKind::Predicate => "adjunct",
+                    HostKind::Supplement => "supplement",
                 };
                 let (h, a) = if *side == Side::After {
                     let h = draft.child("head", host_symbol, GapRule::Transparent);
@@ -1197,8 +1198,14 @@ impl<'a> Binder<'a> {
             let name = frame_name(phrase, frame);
             let slots: Vec<&SlotFill> = frame.slots.iter().map(|s| &s.fill).collect();
             let gappable = gap_capable && head == LexicalCategory::Verb;
-            // Active, with every NP slot optionally extracted.
-            let active = voice_value("Active")?;
+            // Active, with every NP slot optionally extracted. Voice is a verb's;
+            // another head's phrase takes its Voice from the head (a declared
+            // Adjectival Passive).
+            let active = if head == LexicalCategory::Verb {
+                voice_value("Active")?
+            } else {
+                None
+            };
             drafts.extend(
                 self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?,
             );

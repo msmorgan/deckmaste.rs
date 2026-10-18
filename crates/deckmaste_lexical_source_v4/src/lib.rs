@@ -366,6 +366,12 @@ impl Sources {
                 .iter()
                 .map(|position| format!("{position:?}Adverb"))
                 .collect();
+            if entry.interrogative {
+                lexeme
+                    .properties
+                    .classes
+                    .insert("InterrogativeAdverb".into());
+            }
             builder.push(lexeme);
         }
         Ok(())
@@ -657,6 +663,11 @@ impl Sources {
             for verb in &ability.verbs {
                 let id = format!("keyword_verb:{}", verb.lemma);
                 builder.verb(&id, verb, catalog(KEYWORD_ABILITIES, owner))?;
+            }
+            for decl in &ability.nouns {
+                let entry = decl.entry();
+                let id = format!("keyword_noun:{}", entry.lemma);
+                builder.noun(&id, &entry, catalog(KEYWORD_ABILITIES, owner));
             }
             if let Some(surface) = &ability.bound {
                 builder.push(bound(

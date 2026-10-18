@@ -27,7 +27,7 @@ authored type.
 | `catalogs/types.ron` | Catalog | `type:`, `supertype:` |
 | `catalogs/subtypes.ron` | Catalog | `subtype:` |
 | `catalogs/keyword_actions.ron` | Catalog | `action:` (verbs, and nouns: *Monstrosity 3*, *the Ring*) |
-| `catalogs/keyword_abilities.ron` | Catalog | `keyword:` (and variants), `keyword:…:bound`, `stem:`, `keyword_verb:`, `keyword_det:` |
+| `catalogs/keyword_abilities.ron` | Catalog | `keyword:` (and variants), `keyword:…:bound`, `stem:`, `keyword_verb:`, `keyword_det:`, `keyword_noun:` |
 | `catalogs/ability_words.ron` | Catalog | `ability_word:` |
 | `catalogs/counters.ron` | Catalog | `counter:` |
 | `catalogs/designations.ron` | Catalog | `designation:` |
@@ -52,7 +52,8 @@ explicit overrides. Only the modals and negative auxiliaries are defective
 Frames are written once, in active voice, naming prepositions by lemma:
 `TransitiveWithPP(["into", "onto"])`, `ComplexTransitive` (*turn it face up*),
 `ComplexCatenative(ToInf)` (*cause you to sacrifice*), `ContentClause`
-(*decide whether …*), `Amount` (*scry 2*), `TransitiveAmount` (*amass Zombies 2*),
+(an interrogative content clause: *decide whether …*, *choose which creatures
+attack*), `Amount` (*scry 2*), `TransitiveAmount` (*amass Zombies 2*),
 `Cost` (*waterbend {3}*), and for nouns, adjectives and determinatives
 `Complement(PP(["of"]))`. Prepositions declare each complement
 frame with its Host Category; `Intransitive` is an Intransitive Preposition
@@ -71,11 +72,15 @@ is a form of, whose lemma names it. Every auxiliary carries `VerbKind:
 Auxiliary`. *Be* and *remain* select locative Preposition Phrases as well as
 predicative Complements (CGEL, Ch. 4 §5.2, p. 257). A verb whose past participle
 is spelled like a declared Adjective (*tapped*, *transformed*) carries
-`AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive.
+`AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive. An
+adjective declared `passive` (*attached to*) is an Adjectival Passive with its
+Complement, `Voice: Passive`: like a derived one, a predicative Complement
+only.
 
 Adjective grades are adjectives of their own with a `Grade` feature. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
-`EndAdverb`, `PhrasalAdverb`). Subtypes record their families as classes
+`EndAdverb`, `PhrasalAdverb`); an interrogative adverb (*how*) is also an
+`InterrogativeAdverb`. Subtypes record their families as classes
 (`CreatureType`, `PlaneswalkerType`, …).
 
 ## Catalog specifics
@@ -88,7 +93,9 @@ record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
   catalog entry.
 - A keyword ability's variants (*megamorph*, *partner—Friends forever*) are
   Keyword Lexemes of their own, and the verbs its rule defines (*cycle*,
-  *crew*, *equip*) are catalog verbs, never core vocabulary.
+  *crew*, *equip*, *cascade*) are catalog verbs, never core vocabulary. So are
+  the nouns its rule defines for the ability or its cost (*its {W} kicker*,
+  *the gift was promised*, *if tribute wasn't paid*).
 - Ability words and keyword abilities are `Keyword`-category Lexemes; ability
   words carry `LabelKind: AbilityWord`. A registered label is never also
   analyzed as an open Flavor Word.
