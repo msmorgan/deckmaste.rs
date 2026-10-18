@@ -99,6 +99,7 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
             match symbol {
                 SymbolDecl::Attached(child, name, _)
                 | SymbolDecl::Cat(child, name)
+                | SymbolDecl::Free(child, name)
                 | SymbolDecl::Hosted(child, name, _)
                 | SymbolDecl::Word(child, name)
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
