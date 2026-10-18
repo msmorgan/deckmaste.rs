@@ -118,6 +118,36 @@ fn pp_chain_packs_catalan_many_trees_in_a_small_forest() {
     assert!(metrics.completed_nodes < 40, "{metrics:?}");
 }
 
+/// A Production beginning with a word or a mark is predicted only where that
+/// terminal can begin: declaring one that nothing here starts adds no chart
+/// item and loses no Reading, and one the text does start still parses.
+#[test]
+fn terminal_initial_productions_are_predicted_only_where_they_scan() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let bracketed = bind(
+        &GRAMMAR.replace(
+            "    ],\n)",
+            "        (name: \"Bracketed\", lhs: \"NounPhrase\", rhs: [Mark('(', Prefix), Cat(\"head\", \"NounPhrase\"), Punct(')')]),\n    ],\n)",
+        ),
+        &lexicon,
+    )
+    .unwrap();
+    let text = "See the man on the hill with the telescope.";
+    assert_eq!(
+        readings(&bracketed, &lexicon, text),
+        readings(&grammar, &lexicon, text)
+    );
+    assert_eq!(
+        bracketed.parse(&lexicon, text).forest.metrics().chart_items,
+        grammar.parse(&lexicon, text).forest.metrics().chart_items
+    );
+    assert_eq!(
+        readings(&bracketed, &lexicon, "See (the man) on (the hill).").len(),
+        1
+    );
+}
+
 #[test]
 fn cheaper_attachment_ranks_first() {
     let lexicon = lexicon();

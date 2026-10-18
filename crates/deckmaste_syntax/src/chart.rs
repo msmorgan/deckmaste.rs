@@ -225,8 +225,28 @@ impl CompiledGrammar {
             }
         };
 
+        // Whether a Production could scan its first symbol at `position`: a
+        // terminal-initial Production predicted where no leaf or mark could
+        // begin it would never advance, so it is not predicted.
+        let viable = |production: usize, leaves: &[Leaf], position: usize| {
+            let first = self.productions[production].rhs.first();
+            match first {
+                Some(Symbol::Leaf(test)) => by_start[skip(position)]
+                    .iter()
+                    .any(|&leaf| self.leaf_matches(test, &leaves[leaf].facts)),
+                Some(Symbol::Punct(c, _)) => {
+                    let at = if c.is_whitespace() { position } else { skip(position) };
+                    at < n && tokens[at] == *c
+                }
+                _ => true,
+            }
+        };
+
         for &p in &self.by_lhs[root] {
             predicted.insert((0, p));
+            if !viable(p, &forest.leaves, 0) {
+                continue;
+            }
             add(
                 &mut forest,
                 &mut sets,
@@ -306,7 +326,9 @@ impl CompiledGrammar {
                     Symbol::Cat { category, .. } => {
                         waiting.entry((position, *category)).or_default().push(id);
                         for &p in &self.by_lhs[*category] {
-                            if predicted.insert((position, p)) {
+                            if predicted.insert((position, p))
+                                && viable(p, &forest.leaves, position)
+                            {
                                 add(
                                     &mut forest,
                                     &mut sets,
