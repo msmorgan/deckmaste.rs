@@ -685,6 +685,15 @@ impl<'a> Binder<'a> {
                     host: None,
                 },
             ),
+            SymbolDecl::Free(name, category) => (
+                name.as_str(),
+                Symbol::Cat {
+                    category: self.category(category)?,
+                    binding: Some(Binding::Free),
+                    prepositions: None,
+                    host: None,
+                },
+            ),
             SymbolDecl::Numeral(name, notation) => {
                 (name.as_str(), Symbol::Leaf(Test::Numeral(*notation)))
             }
@@ -1560,7 +1569,20 @@ impl<'a> Binder<'a> {
             };
             let mut draft = Draft::new(id, lhs, cost);
             draft.frame = Some(frame);
-            draft.child("head", Symbol::Leaf(Test::Frame(frame)), GapRule::Closed);
+            // A reduced auxiliary clitic (*'s*, *'re*, *'ve*) never stands
+            // immediately before a Gap (CGEL, Ch. 18 §6.2.1, p. 1615): an
+            // extracting head is a free word.
+            let test = if gap.is_some() { Test::FreeFrame(frame) } else { Test::Frame(frame) };
+            draft.child("head", Symbol::Leaf(test), GapRule::Closed);
+            // A predicative Gap is extracted under a finite verb only, never
+            // a non-finite *be* (*can't be __*).
+            if gap.is_some_and(|i| *slots[i] == SlotFill::Pred) {
+                let form = self.feature("VerbForm")?;
+                draft.equations.push((
+                    Path::Child(0, form),
+                    Target::Value(self.value(form, "Finite")?),
+                ));
+            }
             for (i, fill) in slots.iter().enumerate() {
                 if Some(i) == gap {
                     continue;

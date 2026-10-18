@@ -18,7 +18,7 @@ use crate::grammar::HostKind;
 /// unselected adjunct of the same head instance; a Preposition Phrase that a
 /// frame selects in place of a predicative Complement (locative *on* after
 /// *be*) is not also that head's predicative Complement.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) enum Extension {
     Preposition(LexemeId),
     Slot(SlotKind),
@@ -26,7 +26,7 @@ pub(crate) enum Extension {
 }
 
 /// The unfilled Gap a Constituent contains.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Ord, PartialOrd, Serialize)]
 pub enum Gap {
     None,
     NP,
@@ -43,7 +43,8 @@ pub(crate) enum GapRule {
     Closed,
     /// The child's Gap, if any, is the mother's.
     Transparent,
-    /// Every shared child has the same Gap, which is the mother's (across the board).
+    /// Every shared child has the same Gap, which is the mother's (across the
+    /// board).
     Shared,
     /// The child has exactly this Gap, filled within the mother.
     Require(Gap),
@@ -69,6 +70,8 @@ pub(crate) enum Test {
     Words(std::collections::BTreeSet<LexemeId>),
     /// A lexeme that declares this Subcategorization Frame.
     Frame(usize),
+    /// A free (unbound) lexeme that declares this Subcategorization Frame.
+    FreeFrame(usize),
     /// A preposition that declares this complement frame.
     PrepositionFrame(usize),
 }
@@ -80,7 +83,8 @@ pub(crate) enum Symbol {
         binding: Option<deckmaste_lexical::Binding>,
         /// A selected `PP` slot: the phrase's preposition must be one of these.
         prepositions: Option<Vec<LexemeId>>,
-        /// An unselected adjunct: a phrase with a preposition must admit this host.
+        /// An unselected adjunct: a phrase with a preposition must admit this
+        /// host.
         host: Option<HostKind>,
     },
     Leaf(Test),
@@ -117,13 +121,15 @@ pub(crate) struct Production {
     pub coordinator: Option<usize>,
     pub distinct_coordinator: Vec<usize>,
     pub requires_coordination: Option<usize>,
-    /// The child whose engine fields (preposition, extensions) the mother inherits.
+    /// The child whose engine fields (preposition, extensions) the mother
+    /// inherits.
     pub head: Option<usize>,
 }
 
 pub(crate) type Key = (Option<usize>, usize);
 
-/// Builds a Production from resolved equations by unifying paths into variables.
+/// Builds a Production from resolved equations by unifying paths into
+/// variables.
 #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
 pub(crate) fn resolve(
     grammar: &CompiledGrammar,
@@ -245,7 +251,7 @@ pub(crate) fn resolve(
 
 /// The finite grammatical summary of a completed Constituent: everything a
 /// parent may inspect. Two Constituents with equal summaries are packed.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Summary {
     pub first_glues: bool,
     pub last_glues: bool,
@@ -280,7 +286,7 @@ pub(crate) enum ChildView<'a> {
 }
 
 /// The partial state of a Production whose first children have been found.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct State {
     pub first_glues: Option<bool>,
     pub last_glues: bool,
@@ -300,7 +306,8 @@ pub(crate) struct State {
 
 impl Production {
     pub(crate) fn boundaries(&self, position: usize, child: &ChildView<'_>) -> (bool, bool) {
-        use crate::reading::{glues_after, glues_before};
+        use crate::reading::glues_after;
+        use crate::reading::glues_before;
         let (mut first, mut last) = match child {
             ChildView::Node(summary) => (summary.first_glues, summary.last_glues),
             ChildView::Leaf(leaf) => (glues_before(leaf.binding), glues_after(leaf.binding)),
@@ -407,6 +414,18 @@ impl Production {
         let mut next = state.clone();
         if state.gap.is_some_and(|gap| gap != Gap::None) {
             next.gap_right_edge = false;
+        }
+        // A free child does not begin with an atom glued to the one before.
+        if let (
+            Symbol::Cat {
+                binding: Some(deckmaste_lexical::Binding::Free),
+                ..
+            },
+            ChildView::Node(summary),
+        ) = (&self.rhs[position], child)
+            && summary.first_glues
+        {
+            return None;
         }
         let (first, last) = self.boundaries(position, child);
         next.first_glues.get_or_insert(first);
@@ -523,7 +542,7 @@ impl Production {
                 if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
                     next.preposition = leaf.lexeme.map(|l| (l, *frame));
                 }
-                if let (Symbol::Leaf(Test::Frame(frame)), Some(lexeme)) =
+                if let (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) =
                     (&self.rhs[position], &leaf.lexeme)
                 {
                     next.extensions = grammar
@@ -611,6 +630,9 @@ impl CompiledGrammar {
                 .as_ref()
                 .is_some_and(|l| self.classes[*class].contains(l)),
             Test::Frame(frame) => facts.is_some_and(|f| f.frames.contains(frame)),
+            Test::FreeFrame(frame) => facts.is_some_and(|f| {
+                f.frames.contains(frame) && f.binding == deckmaste_lexical::Binding::Free
+            }),
             Test::PrepositionFrame(frame) => {
                 facts.is_some_and(|f| f.preposition_frames.contains(frame))
             }

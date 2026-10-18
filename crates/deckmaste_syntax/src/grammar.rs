@@ -106,6 +106,9 @@ pub enum SymbolDecl {
     Cat(String, String),
     /// A constituent attached at its outer boundaries (for symbol sequences).
     Attached(String, String, deckmaste_lexical::Binding),
+    /// A Constituent of a Category whose first atom is a free word, never a
+    /// bound clitic.
+    Free(String, String),
     /// A numeral in a specific notation.
     Numeral(String, deckmaste_lexical::Numeral),
     /// Any word of a lexical Category.
