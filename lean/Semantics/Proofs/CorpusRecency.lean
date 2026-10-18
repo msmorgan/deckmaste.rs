@@ -157,7 +157,7 @@ private def damagedVictim (attachment : AttachWord) : NounPhrase :=
       .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
 
 private def scytheDeath : GameEvent :=
-  Primitives.GameEvent.dies (damagedVictim .equipped)
+  does (damagedVictim .equipped) die
 private def scytheAfterDeath : DRS :=
   (stepGameEvent 64 (DRS.ofList []) scytheDeath).1
 private def scytheReturn : Action :=
@@ -175,7 +175,7 @@ theorem scytheRawDemonstrativeSelectsReturnedCreature :
       selected.map (·.id) = [scytheAfterReturn.nextId - 1] := by decide
 
 private def vampiricDeath : GameEvent :=
-  Primitives.GameEvent.dies (damagedVictim .enchanted)
+  does (damagedVictim .enchanted) die
 private def vampiricAfterDeath : DRS :=
   (stepGameEvent 64 (DRS.ofList []) vampiricDeath).1
 

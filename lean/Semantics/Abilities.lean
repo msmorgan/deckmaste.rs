@@ -5,7 +5,7 @@ import Semantics.Events
 
 The Semantics v3 unified action-clause spine: phrases (`Location`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
-headers and bounds (`CountBound`, `UsageLimit`, `JoinedHeader`), instructions (`Action`),
+headers and bounds (`UsageLimit`, `JoinedHeader`), instructions (`Action`),
 static specifications (`StaticSpec`, `WouldClause`, `DeonticMods`, `DamageResult`), costs
 (`Cost`), and abilities (`Ability`).
 
@@ -496,16 +496,10 @@ mutual
 
   -- ## Trigger Headers and Bounds
 
-  inductive CountBound where
-    /-- "two or more creatures" (menace [CR#702.111b]). -/
-    | atLeast (amount : Amount)
-    | moreThan (amount : Amount)
-    | additional (quantity : Quantity)
-
   /-- How often something may be done: no more than `times` per `per` [CR#602.5b]. An event's
   ordinal ("the second spell each turn") is not a usage limit. -/
   inductive UsageLimit where
-    | mk (times : CountBound) (per : Period)
+    | mk (times : Amount) (per : Period)
 
   /-- A second trigger header joined to the first with "or". -/
   structure JoinedHeader where
@@ -597,11 +591,12 @@ mutual
 
   /-- A Deontic Exception: the one source a "can't" exempts. `byKeyword` names a keyword ability
   of the subject ("can't transform except due to its daybound ability" [CR#702.145b]);
-  `byObjects` describes the objects that are exempt ("can't be blocked except by artifact
-  creatures and/or black creatures" [CR#702.36b]). -/
+  `byObjects` names the objects that are exempt, bare plural or quantified ("can't be blocked
+  except by artifact creatures and/or black creatures" [CR#702.36b], "except by two or more
+  creatures" [CR#702.111b]). -/
   inductive DeonticExcept where
     | byKeyword (label : KeywordLabel)
-    | byObjects (predicate : Predicate)
+    | byObjects (objects : NounPhrase)
 
   inductive DamageScope where
     | everywhere

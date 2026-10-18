@@ -605,14 +605,14 @@ theorem okThatMuchAfterQuantity :
 
 /-- "Flip a coin. Draw that many cards." -/
 theorem badThatMuchAfterFlip :
-    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, draw .thatMuch])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins (.lit 1), draw .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
     Action.check (DRS.ofList [])
-      (.sequentially [flipCoins 1, doIf (.flipCalled .you .wins) (draw (.lit 1))])
+      (.sequentially [flipCoins (.lit 1), doIf (.flipCalled .you .wins) (draw (.lit 1))])
       = [] := by
   decide
 
@@ -724,7 +724,7 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, extraTurn (.coinsShowing .heads)])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins (.lit 1), extraTurn (.coinsShowing .heads)])
       = [] := by
   decide
 
@@ -857,7 +857,7 @@ theorem badRepeatedChapterMark :
 /-- "Roll a d20. 1—9 | Draw a card." -/
 theorem okResultsTableAfterRoll :
     Action.check (DRS.ofList [])
-      (.sequentially [rollDice 1 20, .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩]])
+      (.sequentially [rollDice (.lit 1) (.sides 20), .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩]])
       = [] := by
   decide
 

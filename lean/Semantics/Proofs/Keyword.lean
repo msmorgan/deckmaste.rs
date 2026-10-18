@@ -63,7 +63,7 @@ theorem badNestedCoordination :
 /-- "Whenever a creature enters, destroy that creature." -/
 theorem okThatCreatureAfterAntecedent :
     Ability.check (DRS.ofList [])
-      (whenever (enters (a isCreature) none) (destroy (that (.type .creature))))
+      (whenever (does (a isCreature) enter) (destroy (that (.type .creature))))
       = [] := by
   decide
 

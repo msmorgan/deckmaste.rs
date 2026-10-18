@@ -52,6 +52,12 @@ def QualityPayload.edits (op : QualityOp) : QualityPayload → List Characterist
   | .chosenQuality quality => [.chosenQuality op quality]
   | .colored colors => [.colors op colors]
 
+/-- A play payment read in the caller's Reference Scope: its cost, when it names one. -/
+def PlayPayment.inCaller : PlayPayment → PlayPayment
+  | .payingInstead cost => .payingInstead (.inCaller cost)
+  | .faceDown spec cost => .faceDown spec (.inCaller cost)
+  | payment => payment
+
 end Semantics
 
 /-! Named wrappers for exposed primitives and fixed wording. Generated wrappers preserve
@@ -171,44 +177,6 @@ semantic_template attachmentChoice (subject : NounPhrase) (sort : ChoiceSort) (d
     Semantics.StaticSpec := .choice .attachment subject sort domain .openly
 
 end Semantics.Primitives.StaticSpec
-
-namespace Semantics.Primitives.GameEvent
-
-semantic_template isDealtDamage (kind : DamageKind) (subject : NounPhrase) : Semantics.GameEvent :=
-  .does .any (.dealDamage .anyAmount subject kind)
-
-semantic_template dealsDamage (kind : DamageKind) (source : NounPhrase) (patient : Option NounPhrase) :
-    Semantics.GameEvent := .does (.actor source) (.dealDamage .anyAmount (patient.getD .any) kind)
-
-end Semantics.Primitives.GameEvent
-
-namespace Semantics.Primitives.GameEvent
-
-/-- A battlefield-to-graveyard transition observed before departure [CR#700.4,603.10a]. -/
-semantic_template dies (subject : NounPhrase) : Semantics.GameEvent :=
-  .does .any (.move subject (.zone .battlefield none)
-    (some (.zone .graveyard none)) .departure none [])
-
-semantic_template leaves (subject : NounPhrase) (from_ : Option Location) : Semantics.GameEvent :=
-  .does .any (.move subject (from_.getD .anyLocation) none .departure none [])
-
-semantic_template enters (subject : NounPhrase) (from_ : Option Location) : Semantics.GameEvent :=
-  .does .any (.move subject (from_.getD .anyLocation) (some (.zone .battlefield none)) .arrival none [])
-
-/-- Observation follows the pattern, not an individual occurrence's origin. In particular,
-"from anywhere" is not a leaves-the-battlefield trigger [CR#603.6c,603.10a]. -/
-semantic_template putInto (subject : NounPhrase) (destination : Location) (from_ : Option Location) :
-    Semantics.GameEvent :=
-  let before : Bool := match from_.bind (·.positiveZones?) with
-    | some zs => !zs.isEmpty && zs.all (fun z =>
-        z.sort == some .battlefield || z.sort == some .graveyard ||
-          ((destination.sort == some .hand || destination.sort == some .library) &&
-            (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
-    | none => false
-  .does .any (.move subject (from_.getD .anyLocation) (some destination)
-    (if before then .departure else .arrival) none [])
-
-end Semantics.Primitives.GameEvent
 
 namespace Semantics.Primitives.StaticSpec
 

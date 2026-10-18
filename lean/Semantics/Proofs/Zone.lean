@@ -94,7 +94,7 @@ theorem distributedMovementPreservesUntapZoneRestriction :
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Action.check (DRS.ofList [])
-      (.delay (dies (target isCreature)) [] (some thisTurn) (.move (that .card) .anyLocation (some battlefield) .arrival none []))
+      (.delay (does (target isCreature) die) [] (some thisTurn) (.move (that .card) .anyLocation (some battlefield) .arrival none []))
       = [] := by
   decide
 
@@ -403,7 +403,7 @@ its owner's hand." The held clause announces the exiled object where it now is
 theorem okHeldUntilExileRetag :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ exileUntil (target isCreature) (leavesBattlefield thisCreature),
+        [ exileUntil (target isCreature) (does thisCreature leave),
           (.move (that .card) .anyLocation (some hand) .arrival none []) ]) = [] := by
   decide
 
@@ -447,7 +447,7 @@ theorem okRemoveFromCombatOnBattlefield :
 /-- "Players can't untap more than one creature during each untap step." -/
 theorem okUntapCapBattlefieldSet :
     Ability.check (DRS.ofList [])
-      (.static (cantMoreThan (.described .all .anyPlayer) (.action "untap") 1 isCreature))
+      (.static (cant (actor (.described .all .anyPlayer)) (untap (counted (moreThan 1) isCreature))))
       = [] := by
   decide
 
@@ -473,14 +473,14 @@ theorem badUnlicensedDifference :
 to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check (DRS.ofList [])
-      (.triggered (enters thisCreature none) [] none [] none none
+      (.triggered (does thisCreature enter) [] none [] none none
         (some (.compareAmt (countOf (and [isCreature, youControl])) .less (.lit 7)))
         (draw .theDifference)) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check (DRS.ofList [])
-      (.triggered (enters thisCreature none) [] none [] none none
+      (.triggered (does thisCreature enter) [] none [] none none
         (some (exists_ (and [isCreature, youControl]))) (draw .theDifference)) = [.differenceInScope 0]
             := by
   decide
@@ -534,12 +534,12 @@ theorem badSingularNameAgreement :
 
 /-- "This spell can't be countered." -/
 theorem okCantBeCountered :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") thisSpell) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (cant any (counter thisSpell)) = [] := by decide
 
 /-- "Creature cards in graveyards can't be countered." -/
 theorem badCounteredInGraveyard :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "counter") (allOf (.and [isCreature, .in_ graveyard])))
+      (cant any (counter (allOf (.and [isCreature, .in_ graveyard]))))
       = [.deedFits] := by
   decide
 
@@ -554,11 +554,11 @@ theorem okRegenerateCreature :
 
 /-- "Creatures can't be regenerated." -/
 theorem okRegenerationBanOnBattlefield :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "regenerate") (allOf isCreature)) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (cant any (regeneration (allOf isCreature))) = [] := by decide
 
 /-- "Creature cards in your graveyard can't be regenerated." -/
 theorem badRegeneratedInGraveyard :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "regenerate") (a (.and [isCreature, .in_ graveyard])))
+    StaticSpec.check (DRS.ofList []) (cant any (regeneration (a (.and [isCreature, .in_ graveyard]))))
       = [.deedFits] := by
   decide
 

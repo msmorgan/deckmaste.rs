@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 /-- Display of Power: "this spell can't be copied". -/
-def displayOfPowerCopyLock : StaticSpec := objectCant (.core .copy) Primitives.NounPhrase.this
+def displayOfPowerCopyLock : StaticSpec := cant Primitives.Subject.any (copySpell Primitives.NounPhrase.this anyAmount)
 theorem okDisplayOfPowerCopyLock : StaticSpec.check (DRS.ofList []) displayOfPowerCopyLock = [] := by decide
 
 /-- Repeated Reverberation -/
@@ -58,8 +58,7 @@ def flawlessForgeryLine : Action :=
     [ exile (target (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.in_ (graveyardOf (a (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)))])),
       Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Action.establish
-        (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
-          none none Primitives.PlayPayment.withoutPaying)
+        (can (actor you) (cast (that .copy) (payment := Primitives.PlayPayment.withoutPaying)))
         none ]
 theorem okFlawlessForgeryLine : Action.check (DRS.ofList []) flawlessForgeryLine = [] := by decide
 
@@ -216,8 +215,7 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static
-            (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [isSpell, isInstantOrSorcery])) none
-              (some onTop) none Primitives.PlayPayment.itsOwnCost),
+            (can (actor you) (cast (allOf (Primitives.Predicate.and [isSpell, isInstantOrSorcery])) (from_ := some onTop))),
           whenever
             (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a (Primitives.Predicate.and
               [isInstantOrSorcery, isSpell]))) Primitives.PlayPayment.itsOwnCost none (some (yourLibrary)) none))

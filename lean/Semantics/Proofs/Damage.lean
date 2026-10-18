@@ -526,7 +526,7 @@ theorem badPreventedThisWayAfterDamageEvent :
 
 theorem badThatMuchAfterDeath :
     Ability.check (DRS.ofList [])
-      (whenever (dies (a isCreature))
+      (whenever (does (a isCreature) die)
         (Action.instruct thisCreature (.dealDamage .thatMuch (target isAnyTarget) .any))) = [.quantOutcomeInScope 0] := by
   decide
 
@@ -542,7 +542,7 @@ theorem okThatCreatureAfterDamage :
 loses 1 life." -/
 theorem okThatCreatureAfterTargetedDamage :
     Ability.check (DRS.ofList [])
-      (when (dies thisCreature)
+      (when (does thisCreature die)
         (.sequentially
           [ (Action.instruct thisCreature (.dealDamage (.lit 1) (target isCreature) .any)),
             instruct (controllerOf (that (.type .creature))) (loseLife (.lit 1)) ])) = [] := by
@@ -624,7 +624,7 @@ theorem badAggregateWrongSort :
 /-- "1-20 | Draw a card." -/
 theorem okLiteralRollRow :
     Action.check (DRS.ofList [])
-      (.sequentially [rollDice 1 20, .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)⟩]])
+      (.sequentially [rollDice (.lit 1) (.sides 20), .applyResultsTable [⟨fromTo 1 20, draw (.lit 1)⟩]])
       = [] := by
   decide
 
@@ -632,7 +632,7 @@ theorem okLiteralRollRow :
 theorem badAmountRollRow :
     Action.check (DRS.ofList [])
       (.sequentially
-        [rollDice 1 20, .applyResultsTable [⟨.upToOf (.letter .x), draw (.lit 1)⟩]])
+        [rollDice (.lit 1) (.sides 20), .applyResultsTable [⟨.upToOf (.letter .x), draw (.lit 1)⟩]])
       = [.quantLiteral] := by
   decide
 

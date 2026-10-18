@@ -211,11 +211,11 @@ theorem attachKeepsOuterAmbiguity :
 
 theorem blockWithoutOuterLetter :
     Action.check (DRS.ofList [creatureBinding])
-      (requireBlockIt creatureX (some untilEndOfTurn)) = [] := by decide
+      (establish (must creatureX (block it)) (some untilEndOfTurn)) = [] := by decide
 
 theorem blockWithOuterLetter :
     Action.check (DRS.ofList [creatureBinding, playerBinding, letterB .x])
-      (requireBlockIt creatureX (some untilEndOfTurn)) = [] := by decide
+      (establish (must creatureX (block it)) (some untilEndOfTurn)) = [] := by decide
 
 theorem damageOwnPowerWithoutOuter :
     Action.check (DRS.ofList []) (dealDamageOwnPower creatureX (target isCreature)) = [] := by decide

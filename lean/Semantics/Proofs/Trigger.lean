@@ -27,26 +27,26 @@ theorem badCastsPluralComplement :
 /-- "Whenever this creature attacks while you're casting a spell, draw a card." -/
 theorem okWhileDoingCast :
     Ability.check (DRS.ofList [])
-      (.triggered (attacks thisCreature) []
+      (.triggered (does thisCreature attack) []
         (some (.whileDoing (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)))) [] none none none
         (draw (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check (DRS.ofList []) (whenever (dies (a isCreature)) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (whenever (does (a isCreature) die) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
 theorem okThatCreatureAfterAttack :
     Ability.check (DRS.ofList [])
-      (whenever (attacks (a isCreature))
+      (whenever (does (a isCreature) attack)
         (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [] := by
   decide
 
 theorem selfAttackPublishesItsCreature :
-    let event := attacks thisCreature
+    let event := does thisCreature attack
     let after := GameEvent.extend (DRS.ofList []) event
     Ability.check (DRS.ofList [])
       (whenever event
@@ -77,12 +77,12 @@ theorem badPluralAttackDefender :
 
 /-- "Whenever you attack, …": the active player declares the attack [CR#508.1], and the ability
 triggers on the creatures they control being declared [CR#508.3d]. -/
-theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (attacks .you) = [] := by decide
+theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (does you attack) = [] := by decide
 
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check (DRS.ofList [])
-      (.triggered (enters (a isCreature) none) [] none []
+      (.triggered (does (a isCreature) enter) [] none []
         (some (duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
   decide
 
@@ -233,7 +233,7 @@ theorem okAfterRollShift :
 /-- The same body after a header that rolls no die: with no result announced there is nothing
 to increase or decrease. -/
 theorem badShiftWithoutRoll :
-    Ability.check (DRS.ofList []) (after (attacks thisCreature) rollShiftBody)
+    Ability.check (DRS.ofList []) (after (does thisCreature attack) rollShiftBody)
       = [.outcomeInScope .rollResult 0] := by
   decide
 

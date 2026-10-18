@@ -63,8 +63,8 @@ theorem okFoulTongueShriek : Action.check (DRS.ofList []) foulTongueShriek = [] 
 
 def phyrexianInfiltrator : Action :=
   Primitives.Action.simultaneously
-    [ gainControl thisCreature none (agent := (controllerOf (target isCreature))),
-      gainControl (that (.type .creature)) none (agent := (controllerOf thisCreature)) ]
+    [ gainControl thisCreature none (agent := controllerOf (target isCreature)),
+      gainControl (that (.type .creature)) none (agent := controllerOf thisCreature) ]
 theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrator = [] := by decide
 
 def impulse : Action :=
@@ -237,7 +237,7 @@ theorem okThaliasLancersSearch : Action.check (DRS.ofList []) thaliasLancersSear
 def contrabandLivestock : Action :=
   Primitives.Action.sequentially
     [ exile (target isCreature),
-      rollDice 1 20,
+      rollDice (.lit 1) (.sides 20),
       Primitives.Action.applyResultsTable
         [ rollRow (fromTo 1 9)
             (instruct (controllerOf it) (Action.create (.lit 1)
@@ -352,7 +352,7 @@ def blessedRespiteShuffle : Action :=
 theorem okBlessedRespiteShuffle : Action.check (DRS.ofList []) blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
-def nekrataalEntry : GameEvent := Primitives.GameEvent.enters thisCreature none
+def nekrataalEntry : GameEvent := does (actor thisCreature) enter
 theorem okNekrataalEntry : GameEvent.check (DRS.ofList []) nekrataalEntry = [] := by decide
 def nekrataalDestroy : Action :=
   destroy (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.not isArtifact, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)]))
@@ -677,7 +677,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Elder", creatureType "Dragon"],
       text :=
         [ keyword (.named "flying"),
-          whenever (attacks thisCreature)
+          whenever (does (actor thisCreature) attack)
             (Primitives.Action.sequentially
               [ Primitives.Action.doForEach (each Primitives.Predicate.anyPlayer)
                   (choose (target (Primitives.Predicate.and [isPermanent, Primitives.Predicate.hasPossessor .controller they]))),

@@ -48,13 +48,13 @@ theorem airbendMultipleTargetsUsePerCardLoop :
       (airbend (.described (.target (upTo 2)) isCreature)) = [] := by decide
 
 theorem selfCounterProhibitionIsValidInstantText :
-    cardTextOk [.instant] [.static (objectCant (.action "counter") thisSpell)] = true := by decide
+    cardTextOk [.instant] [.static (cant any (counter thisSpell))] = true := by decide
 
 theorem otherSpellCounterProhibitionIsNotInstantStaticText :
-    cardTextOk [.instant] [.static (objectCant (.action "counter") (allOf isSpell))] = false := by decide
+    cardTextOk [.instant] [.static (cant any (counter (allOf isSpell)))] = false := by decide
 
 theorem battlefieldProhibitionIsNotInstantStaticText :
-    cardTextOk [.instant] [.static (objectCant (.action "untap") thisCreature)] = false := by decide
+    cardTextOk [.instant] [.static (cant any (untap thisCreature))] = false := by decide
 
 theorem counterAlternativesUseTheirOwnHolderKinds :
     Predicate.checkAt (.join .object .player) (DRS.ofList [])
@@ -127,17 +127,17 @@ theorem conditionalModificationDoesNotExportAnIndefiniteSubject :
 
 theorem prohibitionsReadTheirCallerScopedSpellParameter :
     let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a isSpell)).1)
-    let out := stepStaticSpec 16 announced (objectCant (.action "counter") (that .spell))
+    let out := stepStaticSpec 16 announced (cant any (counter (that .spell)))
     out.2 = [] ∧ (out.1.findById? 0).map (·.zone) = some (some .stack) := by decide
 
 theorem prohibitionsReadTheirCallerScopedPermanentParameter :
     let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a isCreature)).1)
-    (["destroy", "sacrifice", "regenerate"].map fun name =>
-      (stepStaticSpec 16 announced (objectCant (.action name) (that (.type .creature)))).2) =
+    ([destroy, sacrifice, regeneration].map fun verb =>
+      (stepStaticSpec 16 announced (cant any (verb (that (.type .creature))))).2) =
       [[], [], []] := by decide
 
 theorem prohibitionsStillRefuseMissingCallerParameters :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (that .spell)) =
+    StaticSpec.check (DRS.ofList []) (cant any (counter (that .spell))) =
       [.anaphor (.word .spell) .one 0] := by decide
 
 theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
@@ -156,7 +156,7 @@ theorem historicalIterationDoesNotPermitTappingDepartedPermanents :
 
 theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
     let initial := nextClause ((stepGameEvent 16 (DRS.ofList [])
-      (Primitives.GameEvent.enters thisCreature none)).1)
+      (does thisCreature enter)).1)
     let original := initial.referents.head?.map (·.id)
     let out := stepCondition 16 initial
       (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival none [],

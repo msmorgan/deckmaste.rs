@@ -145,7 +145,7 @@ theorem okRetargetStackSpell :
 
 /-- "Your opponents can't gain life." -/
 theorem okStaticPlayerCant :
-    Ability.check (DRS.ofList []) (.static (playerCant (.core .gainLife) (.described .all (.isOpponentOf .you))))
+    Ability.check (DRS.ofList []) (.static (cant (actor (.described .all (.isOpponentOf .you))) (gainLife anyAmount)))
       = [] := by
   decide
 
@@ -485,17 +485,15 @@ theorem playAndCastFromGraveyardThisTurn :
     Action.check (DRS.ofList [])
       (.establish
         (.conjunction none
-          [ mayPlayDeed (.action "play") .you (allOf isLand) none
-              (some (graveyardOf .you)) none .itsOwnCost,
-            mayPlayDeed (.action "cast") .you (allOf isSpell) none
-              (some (graveyardOf .you)) none .itsOwnCost ])
+          [ can you (play (allOf isLand) (from_ := some (graveyardOf .you))),
+            can you (cast (allOf isSpell) (from_ := some (graveyardOf .you))) ])
         (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Each player may play an additional land on each of their turns." No printed card on the
 bench. -/
 theorem eachPlayerPlaysAdditionalLand :
-    StaticSpec.check (DRS.ofList []) (mayPlayAdditionalLands (each .anyPlayer) (exactly 1)) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (can (each .anyPlayer) (play (counted (additional (exactly 1)) isLand))) = [] := by decide
 
 /-- "Mill three cards. You may put an artifact card from among the cards milled this way into
 your hand." No printed card on the bench. -/

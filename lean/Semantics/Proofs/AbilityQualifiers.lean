@@ -22,7 +22,7 @@ def tapToDraw : Ability := activated .tapSymbol (draw (.lit 1))
 /-- "This creature gets +1/+0." -/
 def pumpSelf : Ability := .static (.modification thisCreature .power (.up (.lit 1)))
 /-- "When this creature dies, draw a card." -/
-def drawOnDeath : Ability := when (dies thisCreature) (draw (.lit 1))
+def drawOnDeath : Ability := when (does thisCreature die) (draw (.lit 1))
 /-- "this Case is solved" -/
 def caseSolved : Condition := .matches thisCase (.hasDesignation (.named "solved") none)
 

@@ -14,21 +14,21 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
-def infiltrate : Action := forbidBeingBlocked (target isCreature) (some thisTurn)
+def infiltrate : Action := establish (cant Primitives.Subject.any (block (target isCreature))) (some thisTurn)
 theorem okInfiltrate : Action.check (DRS.ofList []) infiltrate = [] := by decide
-def changeOfHeart : Action := forbidAttack (target isCreature) (some thisTurn)
+def changeOfHeart : Action := establish (cant (actor (target isCreature)) attack) (some thisTurn)
 theorem okChangeOfHeart : Action.check (DRS.ofList []) changeOfHeart = [] := by decide
 def blindblast : Action :=
   Primitives.Action.sequentially
-    [instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target isCreature) .noncombatOnly), forbidBlock (that (.type .creature)) (some
+    [instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target isCreature) .noncombatOnly), establish (cant (actor (that (.type .creature))) block) (some
         thisTurn)]
 theorem okBlindblast : Action.check (DRS.ofList []) blindblast = [] := by decide
 def blindingFlare : Action :=
-  forbidBlock (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) isCreature) (some thisTurn)
+  establish (cant (actor (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) isCreature)) block) (some thisTurn)
 theorem okBlindingFlare : Action.check (DRS.ofList []) blindingFlare = [] := by decide
 def cowardKiller : Action :=
   Primitives.Action.sequentially
-    [ forbidBlock (target isCreature) (some thisTurn),
+    [ establish (cant (actor (target isCreature)) block) (some thisTurn),
       become (that (.type .creature)) { characteristics := { subtypes := [creatureType "Coward"] } }
         (some untilEndOfTurn) ]
 theorem okCowardKiller : Action.check (DRS.ofList []) cowardKiller = [] := by decide
@@ -36,14 +36,14 @@ theorem okCowardKiller : Action.check (DRS.ofList []) cowardKiller = [] := by de
 /-- Auriok Siege Sled -/
 def auriokSiegeSledDenial : Ability :=
   activated (Primitives.Cost.mana [generic 1])
-    (Primitives.Action.establish (cantDoTo (.core .block) (target (Primitives.Predicate.and [isArtifact, isCreature])) thisCreature)
+    (Primitives.Action.establish (cant (actor (target (Primitives.Predicate.and [isArtifact, isCreature]))) (block thisCreature))
       (some thisTurn))
 theorem okAuriokSiegeSledDenial : Ability.check (DRS.ofList []) auriokSiegeSledDenial = [] := by decide
 
 /-- Blindblast -/
 def blindblastWhole : Action :=
   Primitives.Action.sequentially
-    [ instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target isCreature) .noncombatOnly), forbidBlock (that (.type .creature)) (some
+    [ instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target isCreature) .noncombatOnly), establish (cant (actor (that (.type .creature))) block) (some
         thisTurn),
       Primitives.Action.draw (.lit 1) ]
 theorem okBlindblastWhole : Action.check (DRS.ofList []) blindblastWhole = [] := by decide
@@ -51,7 +51,7 @@ theorem okBlindblastWhole : Action.check (DRS.ofList []) blindblastWhole = [] :=
 def sparkmagesGambit : Action :=
   Primitives.Action.sequentially
     [ instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) isCreature)) .noncombatOnly),
-      forbidBlock (those (.type .creature)) (some thisTurn) ]
+      establish (cant (actor (those (.type .creature))) block) (some thisTurn) ]
 theorem okSparkmagesGambit : Action.check (DRS.ofList []) sparkmagesGambit = [] := by decide
 
 /-- Glacial Chasm -/
@@ -64,19 +64,19 @@ def desperateCastaways : Ability :=
     (exists_ (Primitives.Predicate.and [isArtifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])))
 theorem okDesperateCastaways : Ability.check (DRS.ofList []) desperateCastaways = [] := by decide
 
-def munghaWurm : Ability := Primitives.Ability.static (cantMoreThan Primitives.NounPhrase.you (.action "untap") 1 isLand)
+def munghaWurm : Ability := Primitives.Ability.static (cant (actor you) (untap (counted (moreThan 1) isLand)))
 theorem okMunghaWurm : Ability.check (DRS.ofList []) munghaWurm = [] := by decide
 def dampingField : Ability :=
-  Primitives.Ability.static (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "untap") 1 isArtifact)
+  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isArtifact)))
 theorem okDampingField : Ability.check (DRS.ofList []) dampingField = [] := by decide
-def smoke : Ability := Primitives.Ability.static (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "untap") 1 isCreature)
+def smoke : Ability := Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isCreature)))
 theorem okSmoke : Ability.check (DRS.ofList []) smoke = [] := by decide
 def winterOrb : Ability :=
-  Primitives.Ability.static (onlyWhile (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "untap") 1 isLand)
+  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) isLand)))
     (Primitives.Condition.matches thisArtifact isUntapped))
 theorem okWinterOrb : Ability.check (DRS.ofList []) winterOrb = [] := by decide
 def staticOrb : Ability :=
-  Primitives.Ability.static (onlyWhile (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "untap") 2 isPermanent)
+  Primitives.Ability.static (onlyWhile (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 2) isPermanent)))
     (Primitives.Condition.matches thisArtifact isUntapped))
 theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 
@@ -84,19 +84,18 @@ theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 def ruleOfLaw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rule of Law", cost := some [generic 2, pip .white], types := [.enchantment],
-      text := [Primitives.Ability.static (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "cast") 1 isSpell)] } }
+      text := [Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (cast (counted (moreThan 1) isSpell)))] } }
 
 /-- Spirit of the Labyrinth -/
 def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Spirit of the Labyrinth", cost := some [generic 1, pip .white],
       types := [.enchantment, .creature], subtypes := [creatureType "Spirit"],
-      text := [Primitives.Ability.static (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.core .draw) 1 Primitives.Predicate.isCard)],
+      text := [Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (draw anyAmount))],
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=
-  Primitives.Ability.static (cantMoreThan (allOf Primitives.Predicate.anyPlayer) (.action "untap") 1
-    (Primitives.Predicate.and [isLand, Primitives.Predicate.not (Primitives.Predicate.hasSupertype .basic)]))
+  Primitives.Ability.static (cant (actor (allOf Primitives.Predicate.anyPlayer)) (untap (counted (moreThan 1) (Primitives.Predicate.and [isLand, Primitives.Predicate.not (Primitives.Predicate.hasSupertype .basic)]))))
 theorem okWinterMoon : Ability.check (DRS.ofList []) winterMoon = [] := by decide
 
 def leitmotifComposer : Ability :=
@@ -162,19 +161,16 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
     { name := "Gaea's Revenge", cost := some [generic 5, pip .green, pip .green],
       types := [.creature], subtypes := [creatureType "Elemental"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
+        [ Primitives.Ability.static (cant Primitives.Subject.any (counter thisSpell)),
           keyword (.named "haste"),
-          Primitives.Ability.static (cantBeTargetedBy thisCreature
-            (allOf (Primitives.Predicate.or [ Primitives.Predicate.and [isSpell, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)],
-                          Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)])) ]))) ],
+          Primitives.Ability.static (cant (by_ (allOf (Primitives.Predicate.or [ Primitives.Predicate.and [isSpell, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)],
+                          Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.not (Primitives.Predicate.colorIs .green)])) ]))) (target thisCreature)) ],
       power := stat 8, toughness := stat 5 } }
 
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
   Primitives.StaticSpec.conjunction none
-    [ canBeTargetedAsThough (allOf (and [isCreature, opponentsControl]))
-        (allOf (Primitives.Predicate.or [isSpell, Primitives.Predicate.abilityHead .anyOnStack]))
-        (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof")))),
+    [ can (by_ (allOf (Primitives.Predicate.or [isSpell, Primitives.Predicate.abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (Primitives.AsThough.condition (matches_ them (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof"))))))),
       Primitives.StaticSpec.cant (Primitives.Subject.actor (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead (.keyword (.named "ward")), Primitives.Predicate.abilityOf (those (.type .creature))]))) Primitives.Action.trigger {} ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
 
@@ -213,8 +209,7 @@ def undercoverButler : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Human", creatureType "Rogue"],
       text :=
         [ whenever
-            (attacksPlayer thisCreature
-              (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer])))
+            (does (actor thisCreature) (attack (some (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer])))))
             (Primitives.Action.establish (Primitives.StaticSpec.cant Primitives.Subject.any (Primitives.Action.block it) {})
               (some thisTurn)) ],
       power := stat 2, toughness := stat 3 } }
@@ -283,7 +278,7 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
 
 def whippoorwillImmunity : Action :=
   Primitives.Action.sequentially
-    [ Primitives.Action.establish (objectCant (.action "regenerate") (target isCreature)) (some thisTurn),
+    [ Primitives.Action.establish (cant Primitives.Subject.any (regeneration (target isCreature))) (some thisTurn),
       Primitives.Action.establish
         (Primitives.StaticSpec.preventionBan .any
           (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient (that (.type .creature)))) .noRedirectEither)
@@ -295,7 +290,7 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
     { name := "Call In a Professional", cost := some [generic 2, pip .red], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ Primitives.Action.establish (playerCant (.core .gainLife) (allOf Primitives.Predicate.anyPlayer))
+            [ Primitives.Action.establish (cant (actor (allOf Primitives.Predicate.anyPlayer)) (gainLife anyAmount))
                 (some thisTurn),
               Primitives.Action.establish
                 (Primitives.StaticSpec.preventionBan .any (Primitives.Unpreventable.described Primitives.DamageAgent.unattributed Primitives.DamageScope.everywhere) .noPreventionOnly)
@@ -310,8 +305,7 @@ def councilOfTheAbsolute : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .cardName
             (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not (Primitives.Predicate.or [isCreature, isLand])))),
-          Primitives.Ability.static (cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
-            (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))),
+          Primitives.Ability.static (cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))),
           Primitives.Ability.static (Primitives.StaticSpec.costShift (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen, castBy Primitives.NounPhrase.you]))
             (Primitives.CostShift.less (.lit 2) none)) ],
       power := stat 2, toughness := stat 4 } }
@@ -321,8 +315,7 @@ def complyNameLock : Action :=
   Primitives.Action.sequentially
     [ choose (a (quality .cardName)),
       Primitives.Action.establish
-        (cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
-          (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))
+        (cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))))
         (some untilYourNextTurn) ]
 theorem okComplyNameLock : Action.check (DRS.ofList []) complyNameLock = [] := by decide
 
@@ -333,8 +326,7 @@ def gideonsIntervention : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersChoosing thisEnchantment .cardName),
-          Primitives.Ability.static (cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
-            (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))),
+          Primitives.Ability.static (cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))),
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])))
             (Primitives.DamageScope.toRecipient (youAnd (allOf (Primitives.Predicate.and [isPermanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))
             (Primitives.DamageOp.prevent Primitives.PreventCut.all none) .repeatedly) ] } }
@@ -344,8 +336,7 @@ def academicProbationNameMode : Action :=
   Primitives.Action.sequentially
     [ choose (a (qualityFrom .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not isLand)))),
       Primitives.Action.establish
-        (cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
-          (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))
+        (cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))))
         (some untilYourNextTurn) ]
 theorem okAcademicProbationNameMode : Action.check (DRS.ofList []) academicProbationNameMode = [] := by
   decide
@@ -369,7 +360,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           whenever
-            (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
+            (does (actor thisCreature) (dealDamage (to := a Primitives.Predicate.anyPlayer) (kind := .combatOnly)))
             (instruct (that .player) (Primitives.Action.skipPart .combat (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -407,8 +398,8 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Nightmare", creatureType "Fish", creatureType "Beast"],
       text :=
         [ keyword (.named "flying"),
-          when (Primitives.GameEvent.enters thisCreature none) (Primitives.Action.skipPart .turn (.lit 1)),
-          when (leavesBattlefield thisCreature) (extraTurn (.lit 1)) ],
+          when (does (actor thisCreature) enter) (Primitives.Action.skipPart .turn (.lit 1)),
+          when (does (actor thisCreature) leave) (extraTurn (.lit 1)) ],
       power := stat 6, toughness := stat 1 } }
 
 def eaterOfDaysSkip : Action := Primitives.Action.skipPart .turn (.lit 2)
@@ -445,10 +436,9 @@ def grandAbolisher : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.partScope .turn (some Primitives.NounPhrase.you)
             (Primitives.StaticSpec.conjunction none
-              [ cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (allOf isSpell),
-                cantDoTo (.action "activate") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))
-                  (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
-                                 Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.or [isArtifact, isCreature, isEnchantment])) ])) ])) ],
+              [ cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf isSpell)),
+                cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (activate (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
+                                 Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.or [isArtifact, isCreature, isEnchantment])) ]))) ])) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Festival -/
@@ -457,7 +447,7 @@ def festival : Spelled := spelled <| .singleFaced
     { name := "Festival", cost := some [pip .white], types := [.instant],
       text :=
         [ Primitives.Ability.spell (some (duringPart .upkeep (some anOpponent)))
-            (forbidAttack (allOf isCreature) (some thisTurn)) ] } }
+            (establish (cant (actor (allOf isCreature)) attack) (some thisTurn)) ] } }
 
 def demotion : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -467,8 +457,7 @@ def demotion : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
             [ Primitives.StaticSpec.cant (Primitives.Subject.actor (Primitives.NounPhrase.attachHost .enchanted (.type .creature))) (Primitives.Action.block Primitives.NounPhrase.any) {},
-              objectCant (.action "activate")
-                (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityOf it])) ]) ] } }
+              cant Primitives.Subject.any (activate (allOf (Primitives.Predicate.and [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityOf it]))) ]) ] } }
 
 def terror : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -506,7 +495,7 @@ def glacialChasm : Spelled := spelled <| .singleFaced
     { name := "Glacial Chasm", types := [.land],
       text :=
         [ cumulativeUpkeep (payLife 2),
-          when (Primitives.GameEvent.enters thisLand none) (sacrifice (a isLand)),
+          when (does (actor thisLand) enter) (sacrifice (a isLand)),
           Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor (allOf (and [isCreature, youControl]))) (Primitives.Action.attack none) {}),
           Primitives.Ability.static (Primitives.StaticSpec.damageRule .any Primitives.DamageAgent.unattributed (Primitives.DamageScope.toRecipient Primitives.NounPhrase.you) (Primitives.DamageOp.prevent Primitives.PreventCut.all none)
             .repeatedly) ] } }
@@ -535,11 +524,8 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Glaring Spotlight", cost := some [generic 1], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (canBeTargetedAsThough
-            (allOf (Primitives.Predicate.and [ isCreature, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
-                           Primitives.Predicate.hasKeyword (.the (.named "hexproof")) ]))
-            (allOf (Primitives.Predicate.and [Primitives.Predicate.or [isSpell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
-            (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof"))))),
+        [ Primitives.Ability.static (can (by_ (allOf (Primitives.Predicate.and [Primitives.Predicate.or [isSpell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) (target (allOf (Primitives.Predicate.and [ isCreature, Primitives.Predicate.hasPossessor .controller (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)),
+                           Primitives.Predicate.hasKeyword (.the (.named "hexproof")) ]))) (asThough := some (Primitives.AsThough.condition (matches_ them (Primitives.Predicate.not (Primitives.Predicate.hasKeyword (.the (.named "hexproof")))))))),
           activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (sacrifice thisArtifact)])
             (Primitives.Action.sequentially
               [ gain (allOf (and [isCreature, youControl])) (keyword (.named "hexproof")) (some untilEndOfTurn),
@@ -578,7 +564,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Assassin"],
       text :=
         [ keyword (.named "firstStrike"),
-          when (Primitives.GameEvent.enters thisCreature none)
+          when (does (actor thisCreature) enter)
             (Primitives.Action.doAndForbid (destroy (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.not isArtifact, Primitives.Predicate.not (Primitives.Predicate.colorIs
                 .black)])))
               (.action "regenerate") (that (.type .creature))) ],
@@ -764,7 +750,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Soldier"],
       text :=
         [ keyword (.named "haste"),
-          when (Primitives.GameEvent.dies thisCreature)
+          when (does (actor thisCreature) die)
             (create (.lit 1)
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [creatureType "Rat"],
@@ -792,7 +778,7 @@ def arrest : Spelled := spelled <| .singleFaced
 def conquerorsFlailProhibition : StaticSpec :=
   onlyWhile
     (Primitives.StaticSpec.partScope .turn (some Primitives.NounPhrase.you)
-      (cantDoTo (.action "cast") (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (allOf isSpell)))
+      (cant (actor (allOf (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you))) (cast (allOf isSpell))))
     (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.attachedTo (a isCreature)))
 theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquerorsFlailProhibition = [] := by
   decide

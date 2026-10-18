@@ -487,7 +487,7 @@ theorem youRolledADieThisTurn :
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
-    Action.check (DRS.ofList []) (.sequentially [rollDice 2 20, .ignoreOutcomes (.extreme
+    Action.check (DRS.ofList []) (.sequentially [rollDice (.lit 2) (.sides 20), .ignoreOutcomes (.extreme
         .lowest)])
       = [] := by
   decide
@@ -496,7 +496,7 @@ theorem okIgnoreAfterRoll :
 theorem badIgnoreWithoutRoll :
     Action.check (DRS.ofList []) (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
 
-def afterATwoDieRoll : DRS := instructionResult (DRS.ofList []) (rollDice 2 6)
+def afterATwoDieRoll : DRS := instructionResult (DRS.ofList []) (rollDice (.lit 2) (.sides 6))
 
 /-- "if you rolled doubles" -/
 theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubles = [] := by decide
@@ -505,7 +505,7 @@ theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubl
 theorem badRolledDoublesWithoutRoll :
     Condition.check (DRS.ofList []) .rolledDoubles = [.outcomeInScope .rollResult 0] := by decide
 
-def afterACoinFlip : DRS := instructionResult (DRS.ofList []) (flipCoins 1)
+def afterACoinFlip : DRS := instructionResult (DRS.ofList []) (flipCoins (.lit 1))
 
 /-- "a player whose coin comes up tails" -/
 theorem okCoinCameUpOnPlayer :
@@ -813,7 +813,7 @@ theorem badNoHolderOnObject :
 
 /-- "Roll five d6. Store those results on this creature." -/
 theorem okStoreResultsAfterRoll :
-    Action.check (DRS.ofList []) (.sequentially [rollDice 5 6, .storeResults thisCreature]) = []
+    Action.check (DRS.ofList []) (.sequentially [rollDice (.lit 5) (.sides 6), .storeResults thisCreature]) = []
         := by
   decide
 

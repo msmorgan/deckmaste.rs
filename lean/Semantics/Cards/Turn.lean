@@ -255,7 +255,7 @@ def obekaSplitterOfSeconds : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Ogre", creatureType "Warlock"],
       text :=
         [ keyword (.named "menace"),
-          whenever (dealsCombatDamage thisCreature (a Primitives.Predicate.anyPlayer))
+          whenever (does (actor thisCreature) (dealDamage (to := a Primitives.Predicate.anyPlayer) (kind := .combatOnly)))
             (additionalStep .upkeep none Primitives.Amount.thatMuch) ],
       power := stat 2, toughness := stat 5 } }
 
@@ -282,7 +282,7 @@ def ritesOfFlourishing : Spelled := spelled <| .singleFaced
       text :=
         [ at_ (Primitives.GameEvent.beginningOf .drawStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
             (instruct (that .player) (Primitives.Action.draw (.lit 1))),
-          Primitives.Ability.static (mayPlayAdditionalLands (each Primitives.Predicate.anyPlayer) (exactly 1)) ] } }
+          Primitives.Ability.static (can (actor (each Primitives.Predicate.anyPlayer)) (play (counted (additional (exactly 1)) isLand))) ] } }
 
 def odricLunarchMarshal : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -357,8 +357,8 @@ def centaurOfAttention : Spelled := spelled <| .singleFaced
     { name := "Centaur of Attention", cost := some [generic 3, pip .green, pip .green],
       types := [.creature], subtypes := [creatureType "Centaur", creatureType "Performer"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none)
-            (Primitives.Action.sequentially [rollDice 5 6, Primitives.Action.storeResults thisCreature]),
+        [ when (does (actor thisCreature) enter)
+            (Primitives.Action.sequentially [rollDice (.lit 5) (.sides 6), Primitives.Action.storeResults thisCreature]),
           at_ (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (offer (Primitives.Action.rerollStored anyNumber thisCreature)),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction none
@@ -474,7 +474,7 @@ def teleport : Spelled := spelled <| .singleFaced
     { name := "Teleport", cost := some [pip .blue, pip .blue, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell (some (duringPart .declareAttackers none))
-            (forbidBeingBlocked (target isCreature) (some thisTurn)) ] } }
+            (establish (cant Primitives.Subject.any (block (target isCreature))) (some thisTurn)) ] } }
 
 /-- Dazzling Beauty's cast window; its targeted effect and delayed "next turn's upkeep" draw
 need machinery outside this ticket. -/

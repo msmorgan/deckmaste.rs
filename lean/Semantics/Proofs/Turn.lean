@@ -75,7 +75,7 @@ theorem okSacrificeOnBattlefield :
 
 theorem badDeadCreatureRead :
     Action.check (DRS.ofList [])
-      (.delay (dies (target isCreature)) [] (some thisTurn)
+      (.delay (does (target isCreature) die) [] (some thisTurn)
         (move (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -182,7 +182,7 @@ theorem badReflexiveOnDelayed :
 /-- "Regenerate this creature. If it regenerates this way, draw a card." -/
 theorem okThisWayOnRegenerate :
     Action.check (DRS.ofList [])
-      (.triggerThisWay (regenerate thisCreature) (regenerates thisCreature) (draw (.lit 1)))
+      (.triggerThisWay (regenerate thisCreature) (does any (regenerationApplication thisCreature)) (draw (.lit 1)))
       = [] := by
   decide
 
@@ -278,21 +278,20 @@ theorem okAdditionalUpkeep :
 /-- "Spells with the chosen name can't be cast." -/
 theorem okCastSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (objectCant (.action "cast") (allOf (.and [isSpell, .named .chosen])))
+      (cant any (cast (allOf (.and [isSpell, .named .chosen]))))
       = [] := by
   decide
 
 /-- "Spells with the chosen name can't be activated." -/
 theorem badActivatedSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (objectCant (.action "activate") (allOf (.and [isSpell, .named .chosen]))) = [.deedFits] := by
+      (cant any (activate (allOf (.and [isSpell, .named .chosen])))) = [.deedFits] := by
   decide
 
 /-- "Activated abilities of artifacts can't be cast." -/
 theorem badCastAbilityClass :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "cast")
-        (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf isArtifact)])))
+      (cant any (cast (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf isArtifact)]))))
       = [.deedFits] := by
   decide
 
@@ -300,8 +299,7 @@ theorem badCastAbilityClass :
 when every arm does, so the deed's ability role is met [CR#113.1c]. -/
 theorem okAbilityDisjunctionActivated :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "activate")
-        (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered])))
+      (cant any (activate (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered]))))
       = [] := by
   decide
 
@@ -309,7 +307,7 @@ theorem okAbilityDisjunctionActivated :
 disjunction seeds none. -/
 theorem badMixedDisjunctionActivated :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "activate") (allOf (.or [.abilityHead .anyActivated, isCreature])))
+      (cant any (activate (allOf (.or [.abilityHead .anyActivated, isCreature]))))
       = [.deedFits] := by
   decide
 

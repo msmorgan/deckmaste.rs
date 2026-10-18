@@ -533,8 +533,7 @@ def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
   | .abilitiesAmong _ => .quality .ability
 
 def stepUsageLimitWith (ops : StepOps) (drs : DRS) : UsageLimit → DRS × List Refusal
-  | .mk (.atLeast amount) _ | .mk (.moreThan amount) _ => ops.amt drs amount
-  | .mk (.additional quantity) _ => stepQuantityWith ops drs quantity
+  | .mk times _ => ops.amt drs times
 
 def NounPhrase.ascribableIn (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, noun with
@@ -809,9 +808,9 @@ private def stepDeonticModsWith (ops : StepOps) (drs : DRS) (mods : DeonticMods)
     | none => (out, [])
     | some timing => stepTimingWith ops out timing
   let exceptErrors := match mods.except with
-    | some (.byObjects predicate) =>
-      let (_, errs) := ops.pred { drs with relativeKind := some .object } predicate
-      errs ++ kindCheck .object predicate.kind?
+    | some (.byObjects objects) =>
+      let (selected, ids, errs) := ops.np drs .other false objects
+      errs ++ kindCheck .object ((ids.head?.bind selected.findById?).map (·.kind))
     | _ => []
   (out, errors ++ timingErrors ++ exceptErrors)
 

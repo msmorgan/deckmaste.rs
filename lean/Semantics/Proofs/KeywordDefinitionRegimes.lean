@@ -31,7 +31,7 @@ def costPart : Ability := .static (.addedCost two true .once)
 
 /-- "When this permanent enters, draw a card." -/
 def entersPart : Ability :=
-  when (enters thisPermanent none) (draw (.lit 1))
+  when (does thisPermanent enter) (draw (.lit 1))
 
 /-- "When you cast this spell, draw a card." -/
 def castPart : Ability := when (.does (.actor .you) (.procedure .cast thisSpell .itsOwnCost none none none)) (draw (.lit 1))
@@ -52,7 +52,7 @@ def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
 /-- Gift's permanent half, guarded by the class. -/
 def giftPermanentPart : Ability :=
-  triggeredIf (enters thisPermanent none) onPermanentCard (draw (.lit 1))
+  triggeredIf (does thisPermanent enter) onPermanentCard (draw (.lit 1))
 
 /-- Gift's spell half, guarded by the class. -/
 def giftSpellPart : Ability := .spell none (doIf onInstantOrSorcery (draw (.lit 1)))
@@ -123,7 +123,7 @@ permanent enters, if its offspring cost was paid, create a token that's a copy o
 1/1." [CR#702.175a] -/
 def offspringDefinition : List Ability :=
   [ costPart,
-    triggeredIf (enters thisPermanent none)
+    triggeredIf (does thisPermanent enter)
       (costWasPaid (.byKeyword (.named "offspring")) none thisPermanent) offspringCopy ]
 
 /-- The registry's offspring row declares the components the pins above were written against. -/
@@ -144,7 +144,7 @@ theorem okOffspringDefinition :
 /-- Squad's second ability: "When this creature enters, if its squad cost was paid, create a
 token that's a copy of it for each time its squad cost was paid." [CR#702.157a] -/
 def squadEntersPart : Ability :=
-  triggeredIf (enters thisCreature none)
+  triggeredIf (does thisCreature enter)
     (costWasPaid (.byKeyword (.named "squad")) none thisCreature)
     (Action.create (timesPaid (.byKeyword (.named "squad")) thisCreature)
       (.copyOf thisCreature []) [])

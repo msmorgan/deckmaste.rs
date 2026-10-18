@@ -159,7 +159,7 @@ theorem okProtectionFromBlack :
 permanent in the host role [CR#701.3a,702.16c]. -/
 theorem okCantBeAttachedTo :
     StaticSpec.check (DRS.ofList [])
-      (cantBeAttachedTo (allOf (.and [isEnchantment, .colorIs .black])) thisPermanent)
+      (cant any (Action.attachTo (allOf (.and [isEnchantment, .colorIs .black])) thisPermanent))
       = [] := by decide
 
 end Semantics.Proofs.Attachments

@@ -88,44 +88,44 @@ theorem badAttackingNoncreature :
 gets −1/−1 until end of turn." -/
 theorem okAltHeaderAgreeingReadback :
     Ability.check (DRS.ofList [])
-      (.triggered (blocks thisCreature (some (a isCreature)))
-        [becomesBlocked thisCreature (some (a isCreature))] none [] none none none
+      (.triggered (does thisCreature (block (a isCreature)))
+        [does (by_ (a isCreature)) (block thisCreature)] none [] none none none
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] := by
   decide
 
 theorem agreeingAlternativeHeadersSelectTheOtherCreature :
     let after := (stepTriggerHeaderWith (stepOps 64) (DRS.ofList [])
-      (blocks thisCreature (some (a isCreature)))
-      [becomesBlocked thisCreature (some (a isCreature))] none none).1
+      (does thisCreature (block (a isCreature)))
+      [does (by_ (a isCreature)) (block thisCreature)] none none).1
     (firstReach (.word (.type .creature)) .one after).map (·.id) = some 2 ∧
       (after.findById? 2).map (·.det) = some .a ∧
       (after.findById? 0).map (·.det) = some .the := by decide
 
 theorem alternateHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
-      (.triggered (blocks thisCreature none)
-        [becomesBlocked thisCreature (some (a isCreature))] none [] none none none
+      (.triggered (does thisCreature block)
+        [does (by_ (a isCreature)) (block thisCreature)] none [] none none none
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
-        (nextClause (GameEvent.extend (DRS.ofList []) (blocks thisCreature none)))).map (·.id) = some 0 := by
+        (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature block)))).map (·.id) = some 0 := by
   decide
 
 theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
-      (.triggered (attacks thisCreature)
-        [blocks thisCreature none, .does (.by (a isSpell)) (.target thisCreature)] none [] none none none
+      (.triggered (does thisCreature attack)
+        [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)] none [] none none none
         (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)) .any)))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
-        (nextClause (GameEvent.extend (DRS.ofList []) (attacks thisCreature)))).map (·.id) = some 0 := by
+        (nextClause (GameEvent.extend (DRS.ofList []) (does thisCreature attack)))).map (·.id) = some 0 := by
   decide
 
 theorem badJoinedHeaderReadback :
     Ability.check (DRS.ofList [])
-      (.triggered (enters thisCreature none) [] none
-        [⟨dies (a (and [isCreature, youControl])), [], none, none⟩] none none none
+      (.triggered (does thisCreature enter) [] none
+        [⟨does (a (and [isCreature, youControl])) die, [], none, none⟩] none none none
         (.putCounters (.lit 1) p11 it .one true)) = [.anaphor .bare .one 0] := by
   decide
 
@@ -318,14 +318,14 @@ theorem badSetBoostCounter :
 
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := (each
-        (.isOpponentOf .you))))
+    Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := each
+        (.isOpponentOf .you)))
       = [] := by
   decide
 
 /-- "Each opponent loses all +1/+1 counters." -/
 theorem badLosesAllBoostCounters :
-    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := (each (.isOpponentOf .you))))
+    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := each (.isOpponentOf .you)))
       = [.counterSourceScope] := by
   decide
 

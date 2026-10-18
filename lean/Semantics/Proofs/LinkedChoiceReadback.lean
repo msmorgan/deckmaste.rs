@@ -42,7 +42,7 @@ def chosenDraws : Action := instruct (chosenAsPaid (.named "gift") .this) (draw 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
 def permanentHalf : Ability :=
-  triggeredIf (enters thisPermanent none) onPermanentCard
+  triggeredIf (does thisPermanent enter) onPermanentCard
     (doIf (costWasPaid gift none .this) chosenDraws)
 
 /-- Gift's spell half: "If this is an instant or sorcery, if this spell's gift cost was paid, the

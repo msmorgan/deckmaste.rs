@@ -102,7 +102,7 @@ theorem everyChoiceOccasionChecksDomain (occasion : ChoiceOccasion) :
   cases occasion <;> decide
 
 theorem deathPublishesArrival :
-    nounZone (GameEvent.extend (DRS.ofList []) (dies (a isCreature))) it =
+    nounZone (GameEvent.extend (DRS.ofList []) (does (a isCreature) die)) it =
       some .graveyard := by decide
 
 theorem deathInterceptionKeepsDeparture :
@@ -111,7 +111,7 @@ theorem deathInterceptionKeepsDeparture :
       some .battlefield := by decide
 
 theorem unknownDepartureCanBeConstrained :
-    GameEvent.check (DRS.ofList []) (dies (a .isCard)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (does (a .isCard) die) = [] := by decide
 
 theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
     GameEvent.check (DRS.ofList [])
@@ -122,9 +122,9 @@ theorem arrivalCanBeDescribedAsCard :
       (.does .any (.move (a (.and [.isCard, isCreature])) (.zone .library none) (some graveyard) .arrival none [])) = [] := by decide
 
 theorem anywhereAndBattlefieldHaveDifferentObservation :
-    (match Primitives.GameEvent.putInto .this graveyard (some .anyLocation) with
+    (match does any (putInto .this graveyard (from_ := some .anyLocation)) with
       | .does _ (.move _ _ _ point _ _) => point | _ => .departure) = .arrival ∧
-    (match Primitives.GameEvent.putInto .this graveyard (some (battlefield)) with
+    (match does any (putInto .this graveyard (from_ := some (battlefield))) with
       | .does _ (.move _ _ _ point _ _) => point | _ => .arrival) = .departure := by decide
 
 theorem historyDoesNotMoveTheCurrentReference :

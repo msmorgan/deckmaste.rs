@@ -62,7 +62,7 @@ theorem badCantBeAttacked :
 
 /-- "Target creature card in a graveyard can't block this turn." -/
 theorem badCantInGraveyard :
-    Action.check (DRS.ofList []) (forbidBlock (target (.and [isCreature, .in_ graveyard])) (some
+    Action.check (DRS.ofList []) (establish (cant (target (.and [isCreature, .in_ graveyard])) block) (some
         soFarThisTurn))
       = [.deedFits] := by
   decide
@@ -299,19 +299,19 @@ theorem okBlockBoundOnBlock :
 [CR#113.9], so the Counter deed's patient admits a spell or an ability. -/
 theorem okCantCounterSpellsAndAbilities :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "counter") (allOf (.or [isSpell, .abilityHead .anyActivated])))
+      (cant any (counter (allOf (.or [isSpell, .abilityHead .anyActivated]))))
       = [] := by
   decide
 
 /-- "Activated abilities can't be countered." -/
 theorem okCantCounterAbilities :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (allOf (.abilityHead .anyActivated)))
+    StaticSpec.check (DRS.ofList []) (cant any (counter (allOf (.abilityHead .anyActivated))))
       = [] := by
   decide
 
 /-- "Creatures can't be countered.": only a spell or an ability on the stack is countered. -/
 theorem badCantCounterCreatures :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (allOf isCreature)) = [.deedFits] := by decide
+    StaticSpec.check (DRS.ofList []) (cant any (counter (allOf isCreature))) = [.deedFits] := by decide
 
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :

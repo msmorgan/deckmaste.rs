@@ -28,11 +28,6 @@ def CostShift.numberSlots : CostShift → List (Amount × NumberRegime)
   | .more amount => [(amount, .clamped)]
   | .bySymbols _ _ _ => []
 
-/-- "more than one creature each combat": a count of deeds [CR#107.1b]. -/
-def CountBound.numberSlots : CountBound → List (Amount × NumberRegime)
-  | .moreThan amount | .atLeast amount => [(amount, .clamped)]
-  | .additional _ => []
-
 /-- "as though its power were greater than 4" compares a game value, and a comparison uses a
 negative when it needs one [CR#107.1b]. -/
 def AsThough.numberSlots : AsThough → List (Amount × NumberRegime)

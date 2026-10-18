@@ -362,7 +362,7 @@ theorem badNestedConjunction :
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
     Action.check (DRS.ofList [])
-      (.sequentially [ rollDice 2 6,
+      (.sequentially [ rollDice (.lit 2) (.sides 6),
                        doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
                               (sacrifice thisCreature) ]) = [] := by
   decide
@@ -469,23 +469,23 @@ theorem badCardCopyOfACard :
 
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
-    Action.check (DRS.ofList []) (forbidAttack (target isCreature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (establish (cant (target isCreature) attack) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack this turn." [CR#508.1a,205.1b] -/
 theorem okCantAttackLand :
-    Action.check (DRS.ofList []) (forbidAttack (target isLand) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (establish (cant (target isLand) attack) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack." -/
-theorem okCantAttackLandNoSpan : Action.check (DRS.ofList []) (forbidAttack (target isLand) none) = [] := by
+theorem okCantAttackLandNoSpan : Action.check (DRS.ofList []) (establish (cant (target isLand) attack) none) = [] := by
     decide
 
 /-- "Target creature can't block this turn." -/
 theorem okCantBlockCreature :
-    Action.check (DRS.ofList []) (forbidBlock (target isCreature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (establish (cant (target isCreature) block) (some thisTurn)) = [] := by decide
 
 /-- "Target creature or land can't block this turn." [CR#205.1b,509.1a] -/
 theorem okCantDisjunctSubject :
-    Action.check (DRS.ofList []) (forbidBlock (target (.or [isCreature, isLand])) (some thisTurn)) = [] := by
+    Action.check (DRS.ofList []) (establish (cant (target (.or [isCreature, isLand])) block) (some thisTurn)) = [] := by
         decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/

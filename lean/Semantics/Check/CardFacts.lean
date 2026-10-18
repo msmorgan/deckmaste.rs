@@ -271,7 +271,11 @@ def StaticSpec.regimeFits (r : Option StackRegime) (s : StaticSpec)
   | _ + 1, .costShift (.asMarker .ability _) _ => r == none
   | _ + 1, .addedCost .. | _ + 1, .costShift .. | _ + 1, .paySubstitute ..
   | _ + 1, .modeChoice .. | _ + 1, .addsTarget .. => r == some .atCasting
-  | _ + 1, .altCost .. | _ + 1, .can _ (.procedure ..) _ => r != some .atResolution
+  | _ + 1, .altCost .. => r != some .atResolution
+  | _ + 1, .can _ action _ =>
+    match action.scopeBody with
+    | .procedure .. => r != some .atResolution
+    | _ => r == none
   | _ + 1, .instead (.would _ (.move n (.zone .stack none) _ _ _ _)) _ _ _ _ =>
     if n.namesThis then r != some .atResolution else r == none
   | _, _ => r == none
@@ -281,7 +285,10 @@ def bodyEventRegime (e : GameEvent) (fuel : Nat := 64) : Option StackRegime :=
   match fuel, e with
   | n + 1, .inCaller e | n + 1, .nthOccurrence _ _ e | n + 1, .causes _ e =>
     bodyEventRegime e n
-  | _ + 1, .does _ (.procedure .cast ..) => some .atCasting
+  | _ + 1, .does _ action =>
+    match action.scopeBody with
+    | .procedure .cast .. => some .atCasting
+    | _ => none
   | _, _ => none
 termination_by structural fuel
 

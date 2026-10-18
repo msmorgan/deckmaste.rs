@@ -87,7 +87,7 @@ theorem okAwakenDefinition :
 
 /-- "A permanent with indestructible can't be destroyed." [CR#702.12b] -/
 def indestructibleDefinition : List Ability :=
-  [ .static (objectCant (.action "destroy") thisPermanent) ]
+  [ .static (cant any (destroy thisPermanent)) ]
 
 /-- Indestructible with its declared definition fits the registry's row and checks
 [CR#702.12b]. -/
@@ -100,7 +100,7 @@ theorem okIndestructibleDefinition :
 /-- What is destroyed is a permanent [CR#701.8a]: a player can't be named in the destroy deed's
 patient role. -/
 theorem badDestroyedPlayer :
-    (StaticSpec.check (DRS.ofList []) (objectCant (.action "destroy") .you)).isEmpty = false := by
+    (StaticSpec.check (DRS.ofList []) (cant any (destroy .you))).isEmpty = false := by
   decide
 
 end Semantics.Proofs.KeywordAbilityCensus

@@ -30,7 +30,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
           activated
             (Primitives.Cost.compound [Primitives.Cost.mana [generic 5, pip .blue], Primitives.Cost.tapSymbol,
                         Primitives.Cost.perform (sacrifice thisArtifact)])
-            (forbidBeingBlocked (allOf (and [isCreature, youControl])) (some thisTurn)) ] } }
+            (establish (cant Primitives.Subject.any (block (allOf (and [isCreature, youControl])))) (some thisTurn)) ] } }
 
 /-- "two cards at random" from a hand. -/
 def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand])

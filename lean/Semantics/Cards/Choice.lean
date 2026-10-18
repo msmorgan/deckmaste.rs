@@ -45,7 +45,7 @@ def kindredDominance : Action :=
 theorem okKindredDominance : Action.check (DRS.ofList []) kindredDominance = [] := by decide
 
 def phantomBlade : Ability :=
-  when (Primitives.GameEvent.enters thisEquipment none)
+  when (does (actor thisEquipment) enter)
     (Primitives.Action.sequentially
       [ Action.attachTo it
           (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1)) (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
@@ -67,7 +67,7 @@ def cheeringFanatic : Spelled := spelled <| .singleFaced
     { name := "Cheering Fanatic", cost := some [generic 1, pip .red], types := [.creature],
       subtypes := [creatureType "Goblin"],
       text :=
-        [ whenever (attacks thisCreature)
+        [ whenever (does (actor thisCreature) attack)
             (Primitives.Action.sequentially
               [ choose (a (quality .cardName)),
                 Primitives.Action.establish
@@ -104,7 +104,7 @@ def yasminKhan : Ability :=
     (Primitives.Action.sequentially
       [ exile (topSlice (.lit 1)),
         Primitives.Action.establish
-          (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none Primitives.PlayPayment.itsOwnCost)
+          (can (actor you) (play it))
           (some untilYourNextEndStep) ])
 theorem okYasminKhan : Ability.check (DRS.ofList []) yasminKhan = [] := by decide
 
@@ -113,13 +113,13 @@ def brazenCannonadePermission : Action :=
   Primitives.Action.sequentially
     [ exile (topSlice (.lit 1)),
       Primitives.Action.establish
-        (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none Primitives.PlayPayment.itsOwnCost)
+        (can (actor you) (play it))
         (some (untilEvent (Primitives.GameEvent.endOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okBrazenCannonadePermission : Action.check (DRS.ofList []) brazenCannonadePermission = [] := by
   decide
 
 def thousandMoonsCrackshot : Ability :=
-  whenever (attacks thisCreature)
+  whenever (does (actor thisCreature) attack)
     (offerWhen (Primitives.Action.pay (Primitives.Cost.mana [generic 2, pip .white]) .once .paid none none)
       (Primitives.Action.setStatus .tapped (target isCreature)))
 theorem okThousandMoonsCrackshot : Ability.check (DRS.ofList []) thousandMoonsCrackshot = [] := by decide
@@ -130,14 +130,13 @@ def zimoneQuandrixProdigy : Ability :=
 theorem okZimoneQuandrixProdigy : Ability.check (DRS.ofList []) zimoneQuandrixProdigy = [] := by decide
 
 def preeminentCaptain : Ability :=
-  whenever (attacks thisCreature)
+  whenever (does (actor thisCreature) attack)
     (offer (putOntoBattlefieldTappedAttacking
       (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Soldier"), isCreature, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)]))))
 theorem okPreeminentCaptain : Ability.check (DRS.ofList []) preeminentCaptain = [] := by decide
 
 def skaabRuinator : Ability :=
-  Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-    (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost)
+  Primitives.Ability.static (can (actor you) (cast Primitives.NounPhrase.this (from_ := some (graveyardOf Primitives.NounPhrase.you))))
 theorem okSkaabRuinator : Ability.check (DRS.ofList []) skaabRuinator = [] := by decide
 
 /-- Raffine's Guidance -/
@@ -148,8 +147,7 @@ def raffinesGuidance : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none (Primitives.PlayPayment.payingInstead (Primitives.Cost.mana [generic 2, pip .white]))) ] } }
+          Primitives.Ability.static (can (actor you) (cast Primitives.NounPhrase.this (from_ := some (graveyardOf Primitives.NounPhrase.you)) (payment := Primitives.PlayPayment.payingInstead (Primitives.Cost.mana [generic 2, pip .white])))) ] } }
 
 /-- Scourge of Nel Toth -/
 def scourgeOfNelToth : Spelled := spelled <| .singleFaced
@@ -158,18 +156,16 @@ def scourgeOfNelToth : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Zombie", creatureType "Dragon"],
       text :=
         [ keyword (.named "flying"),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none (Primitives.PlayPayment.payingInstead (Primitives.Cost.compound
+          Primitives.Ability.static (can (actor you) (cast Primitives.NounPhrase.this (from_ := some (graveyardOf Primitives.NounPhrase.you)) (payment := Primitives.PlayPayment.payingInstead (Primitives.Cost.compound
                 [ Primitives.Cost.mana [pip .black, pip .black],
-                  Primitives.Cost.perform (sacrifice (counted (exactly 2) isCreature)) ]))) ],
+                  Primitives.Cost.perform (sacrifice (counted (exactly 2) isCreature)) ])))) ],
       power := stat 6, toughness := stat 6 } }
 
 def escapeToTheWilds : Action :=
   Primitives.Action.sequentially
     [ exile (topSlice (.lit 5)),
       Primitives.Action.establish
-        (mayPlayDeed (.action "play") Primitives.NounPhrase.you (theVerbed (.action "exile") .many (some .card) .thisWay) none
-          none none Primitives.PlayPayment.itsOwnCost)
+        (can (actor you) (play (theVerbed (.action "exile") .many (some .card) .thisWay)))
         (some (untilEvent (Primitives.GameEvent.endOf .turn (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okEscapeToTheWilds : Action.check (DRS.ofList []) escapeToTheWilds = [] := by decide
 
@@ -179,8 +175,7 @@ def museVesselPlay : Ability :=
     (Primitives.Action.sequentially
       [ choose (a exiledWithThisArtifact),
         Primitives.Action.establish
-          (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
-            none none Primitives.PlayPayment.itsOwnCost)
+          (can (actor you) (play (that .card)))
           (some thisTurn) ])
 theorem okMuseVesselPlay : Ability.check (DRS.ofList []) museVesselPlay = [] := by decide
 
@@ -208,7 +203,7 @@ def phyrexianIngester : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Phyrexian", creatureType "Beast"],
       text :=
         [ abilityWord "imprint"
-            (when (Primitives.GameEvent.enters thisCreature none)
+            (when (does (actor thisCreature) enter)
               (offer (exile (target (Primitives.Predicate.and [isCreature, isNontoken]))))),
           phyrexianIngesterPump ],
       power := stat 3, toughness := stat 3 } }
@@ -221,7 +216,7 @@ def misterFantastic : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "reach"),
           whenever
-            (Primitives.GameEvent.enters (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isToken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
+            (does (actor (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isToken, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) enter)
             (offer (Primitives.Action.draw (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -251,7 +246,7 @@ def eagerConstruct : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Eager Construct", cost := some [generic 2], types := [.artifact, .creature],
       subtypes := [creatureType "Construct"],
-      text := [when (Primitives.GameEvent.enters thisCreature none) (instruct (each Primitives.Predicate.anyPlayer) (offer (scry (.lit 1))))],
+      text := [when (does (actor thisCreature) enter) (instruct (each Primitives.Predicate.anyPlayer) (offer (scry (.lit 1))))],
       power := stat 2, toughness := stat 2 } }
 
 /-- Rune Snag -/
@@ -483,7 +478,7 @@ def meddlingMage : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not isLand))),
-          Primitives.Ability.static (objectCant (.action "cast") (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))) ],
+          Primitives.Ability.static (cant Primitives.Subject.any (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Nyxathid -/
@@ -513,7 +508,7 @@ def nevermore : Spelled := spelled <| .singleFaced
     { name := "Nevermore", cost := some [generic 1, pip .white, pip .white], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisEnchantment .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not isLand))),
-          Primitives.Ability.static (objectCant (.action "cast") (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))) ] } }
+          Primitives.Ability.static (cant Primitives.Subject.any (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))) ] } }
 
 def necromentiaChoice : Action :=
   choose (a (qualityFrom .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not (Primitives.Predicate.and [Primitives.Predicate.hasSupertype .basic, isLand])))))
@@ -527,8 +522,8 @@ def conjurersBan : Spelled := spelled <| .singleFaced
             [ choose (a (quality .cardName)),
               Primitives.Action.establish
                 (Primitives.StaticSpec.conjunction none
-                  [ objectCant (.action "cast") (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])),
-                    objectCant (.action "play") (allOf (Primitives.Predicate.and [isLand, Primitives.Predicate.named Primitives.NameSource.chosen])) ])
+                  [ cant Primitives.Subject.any (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))),
+                    cant Primitives.Subject.any (play (allOf (Primitives.Predicate.and [isLand, Primitives.Predicate.named Primitives.NameSource.chosen]))) ])
                 (some untilYourNextTurn) ]),
           Primitives.Ability.spell none (Primitives.Action.draw (.lit 1)) ] } }
 
@@ -552,8 +547,7 @@ def vedalkenOrrery : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Vedalken Orrery", cost := some [generic 4], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf isSpell) asThoughFlash
-            none none Primitives.PlayPayment.itsOwnCost) ] } }
+        [ Primitives.Ability.static (can (actor you) (cast (allOf isSpell)) (asThough := asThoughFlash)) ] } }
 
 def shimmerMyr : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -561,8 +555,7 @@ def shimmerMyr : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Myr"],
       text :=
         [ keyword (.named "flash"),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [isSpell, isArtifact])) asThoughFlash
-            none none Primitives.PlayPayment.itsOwnCost) ],
+          Primitives.Ability.static (can (actor you) (cast (allOf (Primitives.Predicate.and [isSpell, isArtifact]))) (asThough := asThoughFlash)) ],
       power := stat 2, toughness := stat 2 } }
 
 def quickSliver : Spelled := spelled <| .singleFaced
@@ -571,26 +564,21 @@ def quickSliver : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Sliver"],
       text :=
         [ keyword (.named "flash"),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") (a Primitives.Predicate.anyPlayer)
-            (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Sliver")])) asThoughFlash
-            none none Primitives.PlayPayment.itsOwnCost) ],
+          Primitives.Ability.static (can (actor (a Primitives.Predicate.anyPlayer)) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Sliver")]))) (asThough := asThoughFlash)) ],
       power := stat 1, toughness := stat 1 } }
 
 def vernalEquinox : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Vernal Equinox", cost := some [generic 3, pip .green], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (mayPlayDeed (.action "cast") (a Primitives.Predicate.anyPlayer)
-            (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.or [isCreature, isEnchantment]])) asThoughFlash
-            none none Primitives.PlayPayment.itsOwnCost) ] } }
+        [ Primitives.Ability.static (can (actor (a Primitives.Predicate.anyPlayer)) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.or [isCreature, isEnchantment]]))) (asThough := asThoughFlash)) ] } }
 
 def borneUponAWind : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Borne Upon a Wind", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.establish
-            (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf isSpell) asThoughFlash
-              none none Primitives.PlayPayment.itsOwnCost)
+            (can (actor you) (cast (allOf isSpell)) (asThough := asThoughFlash))
             (some thisTurn)),
           Primitives.Ability.spell none (Primitives.Action.draw (.lit 1)) ] } }
 
@@ -600,18 +588,16 @@ def gisaAndGeralf : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none) (mill (.lit 4) Primitives.NounPhrase.you),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-            (counted (exactly 1) (Primitives.Predicate.and [isSpell, isCreature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) none
-            (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost) ],
+        [ when (does (actor thisCreature) enter) (mill (.lit 4) Primitives.NounPhrase.you),
+          Primitives.Ability.static (can (actor you) (cast (counted (exactly 1) (Primitives.Predicate.and [isSpell, isCreature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) (from_ := some (graveyardOf Primitives.NounPhrase.you))) (timing := some duringEachOfYourTurns)) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- "play lands from the top of your library" -/
 def playLandsFromTop : StaticSpec :=
-  mayPlayDeed (.action "play") Primitives.NounPhrase.you (allOf isLand) none (some onTop) none Primitives.PlayPayment.itsOwnCost
+  can (actor you) (play (allOf isLand) (from_ := some onTop))
 /-- "cast <p> spells from the top of your library" -/
 def castFromTop (p : Predicate) : StaticSpec :=
-  mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf p) none (some onTop) none Primitives.PlayPayment.itsOwnCost
+  can (actor you) (cast (allOf p) (from_ := some onTop))
 
 /-- Future Sight; Magus of the Future -/
 def playLandsAndCastSpellsFromTop : StaticSpec :=
@@ -620,9 +606,7 @@ theorem okPlayLandsAndCastSpellsFromTop :
     StaticSpec.check (DRS.ofList []) playLandsAndCastSpellsFromTop = [] := by decide
 /-- Assemble the Players -/
 def castSmallCreatureFromTopOnceEachTurn : StaticSpec :=
-  mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-    (counted (exactly 1) (Primitives.Predicate.and [isSpell, isCreature, Primitives.Predicate.compare [.stat .power] .atMost (.lit 2)])) none
-    (some onTop) (some (Primitives.Timing.inPart .turn none (Primitives.TurnRef.each none))) Primitives.PlayPayment.itsOwnCost
+  can (actor you) (cast (counted (exactly 1) (Primitives.Predicate.and [isSpell, isCreature, Primitives.Predicate.compare [.stat .power] .atMost (.lit 2)])) (from_ := some onTop)) (timing := some (Primitives.Timing.inPart .turn none (Primitives.TurnRef.each none)))
 theorem okCastSmallCreatureFromTopOnceEachTurn :
     StaticSpec.check (DRS.ofList []) castSmallCreatureFromTopOnceEachTurn = [] := by decide
 
@@ -633,7 +617,7 @@ def courserOfKruphix : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static playLandsFromTop,
-          whenever (Primitives.GameEvent.enters (a (Primitives.Predicate.and [isLand, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)
+          whenever (does (actor (a (Primitives.Predicate.and [isLand, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))) enter)
             (gainLife (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -667,14 +651,14 @@ def mysticForge : Spelled := spelled <| .singleFaced
 def exploration : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Exploration", cost := some [pip .green], types := [.enchantment],
-      text := [Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1))] } }
+      text := [Primitives.Ability.static (can (actor you) (play (counted (additional (exactly 1)) isLand)))] } }
 
 def oracleOfMulDaya : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Oracle of Mul Daya", cost := some [generic 3, pip .green], types := [.creature],
       subtypes := [creatureType "Elf", creatureType "Shaman"],
       text :=
-        [ Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)),
+        [ Primitives.Ability.static (can (actor you) (play (counted (additional (exactly 1)) isLand))),
           Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static playLandsFromTop ],
       power := stat 2, toughness := stat 2 } }
@@ -684,20 +668,20 @@ def azusaLostButSeeking : Spelled := spelled <| .singleFaced
     { name := "Azusa, Lost but Seeking", cost := some [generic 2, pip .green],
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Monk"],
-      text := [Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 2))],
+      text := [Primitives.Ability.static (can (actor you) (play (counted (additional (exactly 2)) isLand)))],
       power := stat 1, toughness := stat 2 } }
 
 def summerBloom : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Summer Bloom", cost := some [generic 1, pip .green], types := [.sorcery],
-      text := [Primitives.Ability.spell none (Primitives.Action.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (upTo 3)) (some thisTurn))] } }
+      text := [Primitives.Ability.spell none (Primitives.Action.establish (can (actor you) (play (counted (additional (upTo 3)) isLand))) (some thisTurn))] } }
 
 def explore : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Explore", cost := some [generic 1, pip .green], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ Primitives.Action.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some thisTurn),
+            [ Primitives.Action.establish (can (actor you) (play (counted (additional (exactly 1)) isLand))) (some thisTurn),
               Primitives.Action.draw (.lit 1) ]) ] } }
 
 def urbanEvolution : Spelled := spelled <| .singleFaced
@@ -707,14 +691,14 @@ def urbanEvolution : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ Primitives.Action.draw (.lit 3),
-              Primitives.Action.establish (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)) (some thisTurn) ]) ] } }
+              Primitives.Action.establish (can (actor you) (play (counted (additional (exactly 1)) isLand))) (some thisTurn) ]) ] } }
 
 def dryadOfTheIlysianGrove : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dryad of the Ilysian Grove", cost := some [generic 2, pip .green],
       types := [.enchantment, .creature], subtypes := [creatureType "Nymph", creatureType "Dryad"],
       text :=
-        [ Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you (exactly 1)),
+        [ Primitives.Ability.static (can (actor you) (play (counted (additional (exactly 1)) isLand))),
           Primitives.Ability.static (Primitives.StaticSpec.qualityChange (allOf (Primitives.Predicate.and [isLand, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .adds
             (Primitives.QualityPayload.everyTypeOf .basicLand)) ],
       power := stat 2, toughness := stat 4 } }
@@ -734,7 +718,7 @@ def hellkiteCharger : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Dragon"],
       text :=
         [ keyword (.named "flying"), keyword (.named "haste"),
-          whenever (attacks thisCreature)
+          whenever (does (actor thisCreature) attack)
             (Primitives.Action.offer (Primitives.Action.pay (Primitives.Cost.mana [generic 5, pip .red, pip .red]) .once .paid none none)
               (some (Primitives.Action.sequentially
                 [ Primitives.Action.setStatus .untapped (allOf (Primitives.Predicate.and [isCreature, isAttacking])),
@@ -747,7 +731,7 @@ def foriysianBrigade : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Foriysian Brigade", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Soldier"],
-      text := [Primitives.Ability.static (mayBlockAdditional thisCreature (exactly 1))],
+      text := [Primitives.Ability.static (can (actor thisCreature) (block (counted (additional (exactly 1)) isCreature)))],
       power := stat 2, toughness := stat 4 } }
 
 /-- Two-Headed Giant of Foriys -/
@@ -755,20 +739,20 @@ def twoHeadedGiantOfForiys : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Two-Headed Giant of Foriys", cost := some [generic 4, pip .red],
       types := [.creature], subtypes := [creatureType "Giant"],
-      text := [keyword (.named "trample"), Primitives.Ability.static (mayBlockAdditional thisCreature (exactly 1))],
+      text := [keyword (.named "trample"), Primitives.Ability.static (can (actor thisCreature) (block (counted (additional (exactly 1)) isCreature)))],
       power := stat 4, toughness := stat 4 } }
 
 def highGround : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "High Ground", cost := some [pip .white], types := [.enchantment],
-      text := [Primitives.Ability.static (mayBlockAdditional (each (and [isCreature, youControl])) (exactly 1))] } }
+      text := [Primitives.Ability.static (can (actor (each (and [isCreature, youControl]))) (block (counted (additional (exactly 1)) isCreature)))] } }
 
 /-- Watcher in the Web -/
 def watcherInTheWeb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Watcher in the Web", cost := some [generic 4, pip .green], types := [.creature],
       subtypes := [creatureType "Spider"],
-      text := [keyword (.named "reach"), Primitives.Ability.static (mayBlockAdditional thisCreature (exactly 7))],
+      text := [keyword (.named "reach"), Primitives.Ability.static (can (actor thisCreature) (block (counted (additional (exactly 7)) isCreature)))],
       power := stat 2, toughness := stat 5 } }
 
 /-- Forgotten Lore -/
@@ -796,7 +780,7 @@ def leylineOfVitality : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.mayBeginOnBattlefield,
           Primitives.Ability.static (getsPt (allOf (and [isCreature, youControl])) (Primitives.Delta.up (.lit 0)) (Primitives.Delta.up (.lit 1))),
-          whenever (Primitives.GameEvent.enters (a (and [isCreature, youControl])) none) (offer (gainLife (.lit 1))) ] } }
+          whenever (does (actor (a (and [isCreature, youControl]))) enter) (offer (gainLife (.lit 1))) ] } }
 
 def phyrexianRevoker : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -804,9 +788,8 @@ def phyrexianRevoker : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Phyrexian", creatureType "Horror"],
       text :=
         [ Primitives.Ability.static (entersChoosingFrom thisCreature .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not isLand))),
-          Primitives.Ability.static (objectCant (.action "activate")
-            (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
-                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])) ]))) ],
+          Primitives.Ability.static (cant Primitives.Subject.any (activate (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
+                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])) ])))) ],
       power := stat 2, toughness := stat 1 } }
 
 def voidstoneGargoyle : Spelled := spelled <| .singleFaced
@@ -816,10 +799,9 @@ def voidstoneGargoyle : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           Primitives.Ability.static (entersChoosingFrom thisCreature .cardName (Primitives.ChoiceDomain.nameOfCard (Primitives.Predicate.not isLand))),
-          Primitives.Ability.static (objectCant (.action "cast") (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen]))),
-          Primitives.Ability.static (objectCant (.action "activate")
-            (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
-                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])) ]))) ],
+          Primitives.Ability.static (cant Primitives.Subject.any (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.named Primitives.NameSource.chosen])))),
+          Primitives.Ability.static (cant Primitives.Subject.any (activate (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
+                           Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])) ])))) ],
       power := stat 3, toughness := stat 3 } }
 
 def pithingNeedle : Spelled := spelled <| .singleFaced
@@ -827,10 +809,9 @@ def pithingNeedle : Spelled := spelled <| .singleFaced
     { name := "Pithing Needle", cost := some [generic 1], types := [.artifact],
       text :=
         [ Primitives.Ability.static (entersChoosing thisArtifact .cardName),
-          Primitives.Ability.static (objectCant (.action "activate")
-            (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
+          Primitives.Ability.static (cant Primitives.Subject.any (activate (allOf (Primitives.Predicate.and [ Primitives.Predicate.abilityHead .anyActivated,
                            Primitives.Predicate.abilityOf (allOf (Primitives.Predicate.and [isSource, Primitives.Predicate.named Primitives.NameSource.chosen])),
-                           Primitives.Predicate.not Primitives.Predicate.isManaAbility ]))) ] } }
+                           Primitives.Predicate.not Primitives.Predicate.isManaAbility ])))) ] } }
 
 /-- Rhystic Study -/
 def rhysticStudy : Spelled := spelled <| .singleFaced
@@ -852,7 +833,7 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
             (Primitives.Action.sequentially
               [ get (each (and [isCreature, youControl])) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn),
                 scry (.lit 1) ]),
-          when (Primitives.GameEvent.dies thisCreature) (offer (Primitives.Action.move it Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 5) (Primitives.Location.zone .library none))) .arrival none [])) ],
+          when (does (actor thisCreature) die) (offer (Primitives.Action.move it Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 5) (Primitives.Location.zone .library none))) .arrival none [])) ],
       power := stat 3, toughness := stat 3 } }
 
 def helmOfPossession : Spelled := spelled <| .singleFaced
@@ -886,7 +867,7 @@ def megatherium : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Beast"],
       text :=
         [ keyword (.named "trample"),
-          when (Primitives.GameEvent.enters thisCreature none)
+          when (does (actor thisCreature) enter)
             (doUnless (sacrifice thisCreature)
               (scaledGenericMana (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))) ],
       power := stat 4, toughness := stat 4 } }
@@ -931,7 +912,7 @@ def cultivatorColossus : Spelled := spelled <| .singleFaced
         [ keyword (.named "trample"),
           Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach
             (countOf (Primitives.Predicate.and [isLand, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
-          when (Primitives.GameEvent.enters thisCreature none)
+          when (does (actor thisCreature) enter)
             (Primitives.Action.offer (putOntoBattlefieldTapped (a (Primitives.Predicate.and [isLand, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))
               (some (Primitives.Action.sequentially [Primitives.Action.draw (.lit 1), Primitives.Action.repeat_ Primitives.Repetition.again])) none) ] } }
 
@@ -950,7 +931,7 @@ def cryptLurker : Spelled := spelled <| .singleFaced
     { name := "Crypt Lurker", cost := some [generic 3, pip .black], types := [.creature],
       subtypes := [creatureType "Horror"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none)
+        [ when (does (actor thisCreature) enter)
             (Primitives.Action.offer
               (chooseModes (exactly 1)
                 [ sacrifice (a isCreature),
@@ -979,12 +960,11 @@ def aetherGustPlacement : Action :=
       instruct (ownerOf it) (put it (Primitives.Location.or [onTop, onBottom])) ]
 theorem okAetherGustPlacement : Action.check (DRS.ofList []) aetherGustPlacement = [] := by decide
 /-- Fastbond -/
-def fastbondLands : Ability := Primitives.Ability.static (mayPlayAdditionalLands Primitives.NounPhrase.you anyNumber)
+def fastbondLands : Ability := Primitives.Ability.static (can (actor you) (play (counted (additional anyNumber) isLand)))
 theorem okFastbondLands : Ability.check (DRS.ofList []) fastbondLands = [] := by decide
 /-- Panglacial Wurm -/
 def panglacialWurmCast : Ability :=
-  Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-    (some yourLibrary) (some whileSearchingYourLibrary) Primitives.PlayPayment.itsOwnCost)
+  Primitives.Ability.static (can (actor you) (cast Primitives.NounPhrase.this (from_ := some yourLibrary)) (timing := some whileSearchingYourLibrary))
 theorem okPanglacialWurmCast : Ability.check (DRS.ofList []) panglacialWurmCast = [] := by decide
 
 /-- Shah of Naar Isle -/
@@ -1008,8 +988,7 @@ def memoryPlunder : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.establish
-            (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (target (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.isCard])) none
-              (some (graveyardOf anOpponent)) none Primitives.PlayPayment.withoutPaying)
+            (can (actor you) (cast (target (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.isCard])) (from_ := some (graveyardOf anOpponent)) (payment := Primitives.PlayPayment.withoutPaying)))
             none) ] } }
 
 /-- Omniscience -/
@@ -1018,8 +997,7 @@ def omniscience : Spelled := spelled <| .singleFaced
     { name := "Omniscience", cost := some [generic 7, pip .blue, pip .blue, pip .blue],
       types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf isSpell) none
-            (some (handOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.withoutPaying) ] } }
+        [ Primitives.Ability.static (can (actor you) (cast (allOf isSpell) (from_ := some (handOf Primitives.NounPhrase.you)) (payment := Primitives.PlayPayment.withoutPaying))) ] } }
 
 /-- Tranquil Frillback -/
 def tranquilFrillbackOffer : Action := offer (Primitives.Action.pay (Primitives.Cost.mana [pip .green]) (.upTo 3) .paid none none)
@@ -1059,7 +1037,7 @@ def sandstoneOracle : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Sphinx"],
       text :=
         [ keyword (.named "flying"),
-          when (Primitives.GameEvent.enters thisCreature none)
+          when (does (actor thisCreature) enter)
             (Primitives.Action.sequentially
               [ choose anOpponent,
                 Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))])) .greater
@@ -1069,7 +1047,7 @@ def sandstoneOracle : Spelled := spelled <| .singleFaced
 
 /-- Slithermuse -/
 def slithermuseTrigger : Ability :=
-  when (leavesBattlefield thisCreature)
+  when (does (actor thisCreature) leave)
     (Primitives.Action.sequentially
       [ choose anOpponent,
         Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))])) .greater
@@ -1128,25 +1106,22 @@ def communeWithTheGods : Spelled := spelled <| .singleFaced
 
 /-- Nautiloid Ship -/
 def nautiloidShipTrigger : Ability :=
-  whenever (dealsCombatDamage thisVehicle (a Primitives.Predicate.anyPlayer))
+  whenever (does (actor thisVehicle) (dealDamage (to := a Primitives.Predicate.anyPlayer) (kind := .combatOnly)))
     (offer (putOntoBattlefieldUnderYourControl (a (Primitives.Predicate.and [isCreature, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisVehicle)]))))
 theorem okNautiloidShipTrigger : Ability.check (DRS.ofList []) nautiloidShipTrigger = [] := by decide
 
 /-- Summon: Esper Valigarmanda's II/III/IV body, in part -/
 def summonEsperValigarmandaCast : StaticSpec :=
   Primitives.StaticSpec.conjunction none
-    [ mayPlayDeed (.action "cast") Primitives.NounPhrase.you (a (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)])) none
-        none none Primitives.PlayPayment.itsOwnCost,
-      maySpendAsThough Primitives.NounPhrase.you none .anyType
-        (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)]))) ]
+    [ can (actor you) (cast (a (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)]))),
+      can (actor you) (pay anyCost .once) (asThough := some (Primitives.AsThough.mana none .anyType (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.and [isInstantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)]))))) ]
 theorem okSummonEsperValigarmandaCast :
     StaticSpec.check (DRS.ofList []) summonEsperValigarmandaCast = [] := by decide
 /-- Rogue Class's level-3 body -/
 def rogueClassLevelThree : StaticSpec :=
   Primitives.StaticSpec.conjunction none
-    [ mayPlayDeed (.action "play") Primitives.NounPhrase.you (allOf (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass))) none
-        none none Primitives.PlayPayment.itsOwnCost,
-      maySpendAsThough Primitives.NounPhrase.you none .anyColor (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass)))) ]
+    [ can (actor you) (play (allOf (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass)))),
+      can (actor you) (pay anyCost .once) (asThough := some (Primitives.AsThough.mana none .anyColor (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass)))))) ]
 theorem okRogueClassLevelThree : StaticSpec.check (DRS.ofList []) rogueClassLevelThree = [] := by decide
 
 /-- Soul Ransom -/
@@ -1183,7 +1158,7 @@ def oldGrowthDryads : Spelled := spelled <| .singleFaced
     { name := "Old-Growth Dryads", cost := some [pip .green], types := [.creature],
       subtypes := [creatureType "Dryad"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none)
+        [ when (does (actor thisCreature) enter)
             (instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (offer
               (Primitives.Action.sequentially
                 [ Primitives.Action.search (Primitives.Location.zone .library (some they)) (exactly 1) (Primitives.Predicate.and [isLand, Primitives.Predicate.hasSupertype .basic]),
@@ -1211,19 +1186,16 @@ def danithaNewBenaliasLight : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Human", creatureType "Knight"],
       text :=
         [ keyword (.named "vigilance"), keyword (.named "trample"), keyword (.named "lifelink"),
-          Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-            (counted (exactly 1) (Primitives.Predicate.and [ isSpell, Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (enchantmentType "Aura"),
-                                    Primitives.Predicate.hasSubtype (artifactType "Equipment") ] ]))
-            none (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost) ],
+          Primitives.Ability.static (can (actor you) (cast (counted (exactly 1) (Primitives.Predicate.and [ isSpell, Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (enchantmentType "Aura"),
+                                    Primitives.Predicate.hasSubtype (artifactType "Equipment") ] ])) (from_ := some (graveyardOf Primitives.NounPhrase.you))) (timing := some duringEachOfYourTurns)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Muldrotha, the Gravetide -/
 def muldrothaLandWindow : StaticSpec :=
-  mayPlayDeed (.action "play") Primitives.NounPhrase.you (a isLand) none
-    (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost
+  can (actor you) (play (a isLand) (from_ := some (graveyardOf Primitives.NounPhrase.you))) (timing := some duringEachOfYourTurns)
 theorem okMuldrothaLandWindow : StaticSpec.check (DRS.ofList []) muldrothaLandWindow = [] := by decide
 /-- Nahiri's Lithoforming -/
-def nahiriExtraLands : StaticSpec := mayPlayAdditionalLands Primitives.NounPhrase.you (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x))
+def nahiriExtraLands : StaticSpec := can (actor you) (play (counted (additional (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x))) isLand))
 theorem okNahiriExtraLands : StaticSpec.check (DRS.ofList [letterB .x]) nahiriExtraLands = [] := by decide
 
 /-- Haakon, Stromgald Scourge -/
@@ -1233,17 +1205,14 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [creatureType "Zombie", creatureType "Knight"],
       text :=
-        [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost),
+        [ Primitives.Ability.static (can (actor you) (cast Primitives.NounPhrase.this (from_ := some (graveyardOf Primitives.NounPhrase.you)))),
           Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor Primitives.NounPhrase.you)
             (Primitives.Action.procedure .cast Primitives.NounPhrase.this Primitives.PlayPayment.itsOwnCost none
               (some (Primitives.Location.not (graveyardOf Primitives.NounPhrase.you))) none) {}),
           Primitives.Ability.static (Primitives.StaticSpec.conditional
-            (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-              (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Knight")])) none
-              (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost)
+            (can (actor you) (cast (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Knight")])) (from_ := some (graveyardOf Primitives.NounPhrase.you))))
             (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.in_ battlefield)) .asLongAs),
-          when (Primitives.GameEvent.dies thisCreature) (loseLife (.lit 2)) ],
+          when (does (actor thisCreature) die) (loseLife (.lit 2)) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Apex of Power -/
@@ -1251,8 +1220,7 @@ def apexOfPowerCast : Action :=
   Primitives.Action.sequentially
     [ exile (Primitives.NounPhrase.slice .top (.lit 7) (libraryOf Primitives.NounPhrase.you)),
       Primitives.Action.establish
-        (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (fromAmong anyNumber isSpell them) none
-          none none Primitives.PlayPayment.itsOwnCost)
+        (can (actor you) (cast (fromAmong anyNumber isSpell them)))
         (some thisTurn) ]
 theorem okApexOfPowerCast : Action.check (DRS.ofList []) apexOfPowerCast = [] := by decide
 /-- Blight Herder -/
@@ -1288,7 +1256,7 @@ def summoningMateriaTopCast : Ability :=
 theorem okSummoningMateriaTopCast : Ability.check (DRS.ofList []) summoningMateriaTopCast = [] := by decide
 /-- Vizier of the Menagerie -/
 def vizierOfTheMenagerieSpend : StaticSpec :=
-  maySpendAsThough Primitives.NounPhrase.you none .anyType (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.and [isCreature, isSpell])))
+  can (actor you) (pay anyCost .once) (asThough := some (Primitives.AsThough.mana none .anyType (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.and [isCreature, isSpell])))))
 theorem okVizierOfTheMenagerieSpend : StaticSpec.check (DRS.ofList []) vizierOfTheMenagerieSpend = [] := by
   decide
 
@@ -1299,9 +1267,7 @@ def conspicuousSnoop : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Goblin", creatureType "Rogue"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
-          Primitives.Ability.static (mayPlayDeed (.action "play") Primitives.NounPhrase.you
-            (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Goblin")])) none
-            (some onTop) none Primitives.PlayPayment.itsOwnCost),
+          Primitives.Ability.static (can (actor you) (play (allOf (Primitives.Predicate.and [isSpell, Primitives.Predicate.hasSubtype (creatureType "Goblin")])) (from_ := some onTop))),
           Primitives.Ability.static (onlyWhile
             (Primitives.StaticSpec.abilityGrantFrom thisCreature [.anyActivated] (topSlice (.lit 1)) none)
             (Primitives.Condition.matches (topSlice (.lit 1)) (Primitives.Predicate.hasSubtype (creatureType "Goblin")))) ],
@@ -1312,7 +1278,7 @@ def ballotBroker : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ballot Broker", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Advisor"],
-      text := [Primitives.Ability.static (mayVoteAdditional Primitives.NounPhrase.you (exactly 1))],
+      text := [Primitives.Ability.static (can (actor you) (vote (times := some (additional (exactly 1)))))],
       power := stat 2, toughness := stat 3 } }
 
 /-- Emissary of Grudges -/
@@ -1456,7 +1422,7 @@ def discipleOfCaelusNin : Spelled := spelled <| .singleFaced
     { name := "Disciple of Caelus Nin", cost := some [generic 4, pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Wizard"],
       text :=
-        [ when (Primitives.GameEvent.enters thisCreature none)
+        [ when (does (actor thisCreature) enter)
             (Primitives.Action.sequentially
               [ instruct (each Primitives.Predicate.anyPlayer) (Primitives.Action.choose (some Primitives.NounPhrase.you)
                   (counted (upTo 5) (Primitives.Predicate.and [isPermanent, Primitives.Predicate.hasPossessor .controller they])) .openly none),

@@ -245,7 +245,7 @@ theorem badWithMostVotesWithoutVote :
   decide
 
 theorem oneWayResultShift :
-    Action.check (DRS.ofList []) (.sequentially [rollDice 1 6, .shiftResult (some .up) (.lit
+    Action.check (DRS.ofList []) (.sequentially [rollDice (.lit 1) (.sides 6), .shiftResult (some .up) (.lit
         1)])
       = [] := by
   decide

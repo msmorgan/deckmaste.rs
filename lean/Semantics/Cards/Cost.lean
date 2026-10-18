@@ -334,7 +334,7 @@ def aggressiveMining : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aggressive Mining", cost := some [generic 3, pip .red], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (cantDoTo (.action "play") Primitives.NounPhrase.you (allOf isLand)),
+        [ Primitives.Ability.static (cant (actor you) (play (allOf isLand))),
           activatedOnlyOnce (Primitives.Cost.perform (sacrifice (a isLand))) (Primitives.Action.draw (.lit 2)) oncePerTurn ] } }
 
 def rootGreevil : Spelled := spelled <| .singleFaced
@@ -540,9 +540,9 @@ def vexingShusher : Spelled := spelled <| .singleFaced
     { name := "Vexing Shusher", cost := some [hybridPip .red .green, hybridPip .red .green],
       types := [.creature], subtypes := [creatureType "Goblin", creatureType "Shaman"],
       text :=
-        [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
+        [ Primitives.Ability.static (cant Primitives.Subject.any (counter thisSpell)),
           activated (Primitives.Cost.mana [hybridPip .red .green])
-            (Primitives.Action.establish (objectCant (.action "counter") (target isSpell)) none) ],
+            (Primitives.Action.establish (cant Primitives.Subject.any (counter (target isSpell))) none) ],
       power := stat 2, toughness := stat 2 } }
 
 def trainingGrounds : Spelled := spelled <| .singleFaced
@@ -653,7 +653,7 @@ def asphodelWanderer : Spelled := spelled <| .singleFaced
 
 def hurrJackalAbility : Ability :=
   activated Primitives.Cost.tapSymbol
-    (Primitives.Action.establish (objectCant (.action "regenerate") (target isCreature)) (some thisTurn))
+    (Primitives.Action.establish (cant Primitives.Subject.any (regeneration (target isCreature))) (some thisTurn))
 theorem okHurrJackalAbility : Ability.check (DRS.ofList []) hurrJackalAbility = [] := by decide
 
 def wickedAkuba : Spelled := spelled <| .singleFaced
@@ -864,7 +864,7 @@ def embercleave : Spelled := spelled <| .singleFaced
         [ keyword (.named "flash"),
           Primitives.Ability.static (Primitives.StaticSpec.costShift Primitives.NounPhrase.this
             (Primitives.CostShift.less (forEach 1 (Primitives.Predicate.and [isCreature, isAttacking, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)),
-          when (Primitives.GameEvent.enters thisEquipment none) (Action.attachTo it (target (and [isCreature, youControl]))),
+          when (does (actor thisEquipment) enter) (Action.attachTo it (target (and [isCreature, youControl]))),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction (some (Primitives.NounPhrase.attachHost .equipped (.type .creature)))
             [ getsPt ((Primitives.NounPhrase.attachHost .equipped (.type .creature))) (Primitives.Delta.up (.lit
                 1)) (Primitives.Delta.up
@@ -929,7 +929,7 @@ def academyJourneymage : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (onlyIfSo (Primitives.StaticSpec.costShift Primitives.NounPhrase.this (Primitives.CostShift.less (.lit 1) none))
             (exists_ (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Wizard"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
-          when (Primitives.GameEvent.enters thisCreature none)
+          when (does (actor thisCreature) enter)
             (move (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller anOpponent])) hand) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -1040,9 +1040,8 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           Primitives.Ability.static (spellsCost (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Sphinx"), isSpell, castBy Primitives.NounPhrase.you]) (Primitives.CostShift.less (.lit 2) none)),
           whenever
-            (Primitives.GameEvent.enters (Primitives.NounPhrase.eitherOf thisCreature
-              (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Sphinx"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan thisCreature])))
-              none)
+            (does (actor (Primitives.NounPhrase.eitherOf thisCreature
+              (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Sphinx"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.otherThan thisCreature])))) enter)
             (Primitives.Action.sequentially
               [ revealCards (topSlice (.lit 4)),
                 instruct anOpponent (Primitives.Action.separateIntoPiles them 2 []),

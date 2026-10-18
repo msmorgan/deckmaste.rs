@@ -22,7 +22,7 @@ namespace Semantics.Proofs.OffStack
 happens [CR#614.1c]. -/
 theorem okAsEventEnters :
     StaticSpec.check (DRS.ofList [])
-      (.asEvent (enters thisPermanent none) (offer (draw (.lit 1)))) = [] := by
+      (.asEvent (does thisPermanent enter) (offer (draw (.lit 1)))) = [] := by
   decide
 
 /-- "Any time you control ten or more permanents and you don't have the city's blessing, you get
@@ -56,15 +56,15 @@ theorem okExceptByKeyword :
 [CR#702.36b]. -/
 theorem okExceptByObjects :
     StaticSpec.check (DRS.ofList [])
-      (.cant .any (.block thisCreature)
-        { except := some (.byObjects (.and [isCreature, .or [isArtifact, .colorIs .black]])) }) = [] := by
+      (cant any (block thisCreature)
+        (except := byObjects (bare (and [isCreature, or [isArtifact, hasColor .black]])))) = [] := by
   decide
 
 /-- An exception by objects describes objects: "except by opponents" is refused as a kind. -/
 theorem badExceptByPlayers :
     StaticSpec.check (DRS.ofList [])
-      (.cant .any (.block thisCreature)
-        { except := some (.byObjects (.isOpponentOf .you)) }) = [.kindMismatch .object .player] := by
+      (cant any (block thisCreature) (except := byObjects (bare isOpponent))) =
+        [.kindMismatch .object .player] := by
   decide
 
 /-! ## The keyword bodies -/

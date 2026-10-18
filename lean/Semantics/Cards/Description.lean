@@ -92,7 +92,7 @@ theorem okBoulderfall : Action.check (DRS.ofList []) boulderfall = [] := by deci
 /-- Banisher Priest -/
 def banisherPriest : Action :=
   exileUntil (target (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller anOpponent]))
-    (leavesBattlefield thisCreature)
+    (does (actor thisCreature) leave)
 theorem okBanisherPriest : Action.check (DRS.ofList []) banisherPriest = [] := by decide
 
 /-- Tezzeret, Artifice Master -/
@@ -295,7 +295,7 @@ theorem okBalanceOfPower : Action.check (DRS.ofList []) balanceOfPower = [] := b
 /-- Spark Fiend -/
 def sparkFiendUpkeepRoll : Action :=
   Primitives.Action.sequentially
-    [ rollDice 2 6,
+    [ rollDice (.lit 2) (.sides 6),
       doIf (Primitives.Condition.compareAmt (Primitives.Amount.theOutcome .rollResult) .eq (.lit 7)) (sacrifice thisCreature) ]
 theorem okSparkFiendUpkeepRoll : Action.check (DRS.ofList []) sparkFiendUpkeepRoll = [] := by decide
 
@@ -490,7 +490,7 @@ theorem okLifeTotalBecomesOne : Action.check (DRS.ofList []) lifeTotalBecomesOne
 
 /-- Berserker's Frenzy's roll -/
 def berserkersFrenzyRoll : Action :=
-  Primitives.Action.sequentially [rollDice 2 20, Primitives.Action.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest)]
+  Primitives.Action.sequentially [rollDice (.lit 2) (.sides 20), Primitives.Action.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest)]
 theorem okBerserkersFrenzyRoll : Action.check (DRS.ofList []) berserkersFrenzyRoll = [] := by decide
 def ironMastiffIgnore : Action :=
   Primitives.Action.sequentially
@@ -529,7 +529,7 @@ theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOf
 
 /-- Squad Commander -/
 def squadCommanderTokens : Ability :=
-  when (Primitives.GameEvent.enters thisCreature none)
+  when (does (actor thisCreature) enter)
     (create partySize (creatureToken 1 1 [.white] [creatureType "Kor", creatureType "Warrior"]))
 theorem okSquadCommanderTokens : Ability.check (DRS.ofList []) squadCommanderTokens = [] := by decide
 

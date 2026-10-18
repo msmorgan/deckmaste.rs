@@ -509,11 +509,10 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
 /-- "You may cast spells from your graveyard.": with no handoff in a static ability the
 permitted player is the controller, and the clause checks as the `you` spelling does. -/
 theorem okStaticActorPermission :
-    Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf isSpell) (graveyardOf theActor))) = [] ∧
-      Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf isSpell) (graveyardOf theActor))) =
+    Ability.check (DRS.ofList []) (.static (can theActor (cast (allOf isSpell) (from_ := some (graveyardOf theActor))))) = [] ∧
+      Ability.check (DRS.ofList []) (.static (can theActor (cast (allOf isSpell) (from_ := some (graveyardOf theActor))))) =
         Ability.check (DRS.ofList [])
-          (.static (mayPlayDeed (.action "cast") .you (allOf isSpell) none
-            (some (graveyardOf .you)) none .itsOwnCost)) := by
+          (.static (can you (cast (allOf isSpell) (from_ := some (graveyardOf .you))))) := by
   decide
 
 /-- "Exile target creature. Its owner may cast it from exile.": the permission handed to the
@@ -522,7 +521,7 @@ theorem okHandedCastPermission :
     Action.check (DRS.ofList [])
       (.sequentially
         [ exile (target isCreature),
-          instruct (ownerOf it) (.establish (Actor.mayCastFrom it exileZone) none) ]) = [] := by
+          instruct (ownerOf it) (.establish (can theActor (cast it (from_ := some exileZone))) none) ]) = [] := by
   decide
 
 /-! ## Named actions carry their performer -/

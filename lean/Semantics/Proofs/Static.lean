@@ -39,7 +39,7 @@ theorem okEquippedCreature :
 
 /-- "You can't lose the game." -/
 theorem okUntargetedOutcomeGate :
-    Ability.check (DRS.ofList []) (.static (playerCant (.core .loseGame) .you)) = [] := by decide
+    Ability.check (DRS.ofList []) (.static (cant you loseGame)) = [] := by decide
 
 /-- "where X is the number of creatures you control." -/
 theorem okSingleStaticXRider :
@@ -213,7 +213,7 @@ theorem unboundDurationPossessorIsRefused :
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the
 bench. -/
 theorem opponentsCantGainLife :
-    StaticSpec.check (DRS.ofList []) (playerCant (.core .gainLife) (.described .all (.isOpponentOf .you))) = [] := by
+    StaticSpec.check (DRS.ofList []) (cant (actor (.described .all (.isOpponentOf .you))) (gainLife anyAmount)) = [] := by
   decide
 
 end Semantics.Proofs.Static
