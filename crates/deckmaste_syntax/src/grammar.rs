@@ -141,6 +141,9 @@ pub enum Equation {
     Require(Ident, Ident),
     /// Excludes a value on a child without requiring an inapplicable feature.
     Exclude(Ident, Ident),
+    /// Requires a child to carry the value itself: an unvalued feature, which
+    /// `Require` would value, does not satisfy it.
+    Carry(Ident, Ident),
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
@@ -198,6 +201,9 @@ pub enum SchemaDecl {
         delimiter: Option<char>,
         #[serde(default = "default_cost")]
         cost: u32,
+        /// Equations over the `head` (host) and the adjunct's function child.
+        #[serde(default)]
+        equations: Vec<Equation>,
     },
     /// Binary and serial coordination of a Category, with Right Node Raising
     /// when the Category may contain a Gap.

@@ -96,6 +96,8 @@ pub(crate) enum Symbol {
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
+    /// (child, feature, value) a child must carry, not merely admit.
+    pub carried: Vec<(usize, usize, u16)>,
     /// Children that must be light or heavy.
     pub weights: Vec<(usize, Weight)>,
     pub id: Ident,
@@ -228,6 +230,7 @@ pub(crate) fn resolve(
     }
     Ok(Production {
         exclusions: Vec::new(),
+        carried: Vec::new(),
         weights: Vec::new(),
         adjunct_slot: None,
         predicative: None,
@@ -404,6 +407,38 @@ impl Production {
         }
     }
 
+    /// Takes child `position`'s Gap into `next` under its Gap Rule, or
+    /// `None` if the rule rejects it.
+    fn take_gap(&self, next: &mut State, position: usize, gap: Gap) -> Option<()> {
+        let open = next.gap.is_some_and(|g| g != Gap::None);
+        match self.gaps[position] {
+            GapRule::Closed => (gap == Gap::None).then_some(()),
+            GapRule::Require(rule) => (gap == rule).then_some(()),
+            GapRule::Raise(rule) => {
+                if gap != rule || open {
+                    return None;
+                }
+                next.gap = Some(rule);
+                Some(())
+            }
+            GapRule::Transparent if gap == Gap::None => Some(()),
+            GapRule::Transparent => {
+                if open {
+                    return None;
+                }
+                next.gap = Some(gap);
+                Some(())
+            }
+            GapRule::Shared => match next.gap {
+                Some(g) if g != gap => None,
+                _ => {
+                    next.gap = Some(gap);
+                    Some(())
+                }
+            },
+        }
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -456,6 +491,10 @@ impl Production {
             .exclusions
             .iter()
             .any(|&(at, feature, value)| at == position && lookup(feature) == Some(value))
+            || self
+                .carried
+                .iter()
+                .any(|&(at, feature, value)| at == position && lookup(feature) != Some(value))
         {
             return None;
         }
@@ -491,36 +530,7 @@ impl Production {
                         next.shared_gap_right_edge &= summary.gap_right_edge;
                     }
                 }
-                match self.gaps[position] {
-                    GapRule::Closed => {
-                        if summary.gap != Gap::None {
-                            return None;
-                        }
-                    }
-                    GapRule::Require(gap) => {
-                        if summary.gap != gap {
-                            return None;
-                        }
-                    }
-                    GapRule::Raise(gap) => {
-                        if summary.gap != gap || next.gap.is_some_and(|g| g != Gap::None) {
-                            return None;
-                        }
-                        next.gap = Some(gap);
-                    }
-                    GapRule::Transparent => {
-                        if summary.gap != Gap::None {
-                            if next.gap.is_some_and(|g| g != Gap::None) {
-                                return None;
-                            }
-                            next.gap = Some(summary.gap);
-                        }
-                    }
-                    GapRule::Shared => match next.gap {
-                        Some(g) if g != summary.gap => return None,
-                        _ => next.gap = Some(summary.gap),
-                    },
-                }
+                self.take_gap(&mut next, position, summary.gap)?;
                 if self.requires_coordination == Some(position)
                     && (summary.coordinator.is_none() || !summary.gap_right_edge)
                 {

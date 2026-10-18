@@ -70,7 +70,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).
-- `Adjunct { host, adjunct, side, host_kind }`: unselected attachment, limited to
+- `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
   or line that a comma-set Supplement is anchored to (as `supplement`, *, where
@@ -79,7 +79,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   attach as a Predicate adjunct to a head that has a longer frame selecting it
   (*choose to attack* has no purpose reading). Likewise a frame's predicative
   Complement is not a Preposition Phrase that a rival frame of the same head
-  selects in its place (locative *on the battlefield* after *be*).
+  selects in its place (locative *on the battlefield* after *be*). Optional
+  `equations` constrain the `head` (host) and the adjunct (a depictive
+  gerund-participial of a lexical verb only).
 - `Coordination { category, coordinators, unshared }`: binary and Oxford-comma serial
   coordination, one tree per same-coordinator chain, across-the-board Gaps, and
   Right Node Raising (a coordination with a shared NP Gap, filled once after it).
@@ -97,8 +99,10 @@ own Category.
 
 A Gap is an `NP` (an extracted Object or Complement of a preposition), a `Pred`
 (an extracted predicative Complement, *whose turn it is*) or an `Adjunct` (*the
-next time you cast a spell*). Valence introduces `NP` and `Pred` Gaps; an
-authored Production introduces one with `Require("$.Gap", ..)` (a subject Gap).
+next time you cast a spell*). Valence introduces `NP` and `Pred` Gaps. The
+extracting verb is a free word, since a reduced clitic such as *'s* never
+stands before a Gap (CGEL, Ch. 18 §6.2.1, p. 1615), and a `Pred` Gap's verb is
+finite (never *can't be \_\_*). An authored Production introduces one with `Require("$.Gap", ..)` (a subject Gap).
 `Require("child.Gap", ..)` fills the child's Gap within the mother, unless the
 child is also `transparent`: then the mother takes that Gap over (a purpose
 adjunct whose object a relative clause binds).
@@ -121,7 +125,8 @@ twice*).
 
 `Mark` specifies structural punctuation and its attachment at either edge;
 `Attached` attaches a constituent at its outer boundaries, for adjacent symbol
-sequences. These bindings are applied by both realization and the packed-forest
+sequences; `Free` requires a constituent whose first atom does not glue to the
+one before (a Verb Phrase that does not begin with a bound clitic). These bindings are applied by both realization and the packed-forest
 law checker. Paragraph boundaries are explicit terminals, never skipped as
 interword whitespace. `Numeral` selects numeral notation; `FreeLex` excludes bound stems
 from independent word positions. Bare valence phrases likewise require free words.
@@ -154,7 +159,8 @@ Readings be compared under exactly those equivalences.
 
 Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in
-the same equations as inflectional features. Multiword noun terms remain atomic
+the same equations as inflectional features. `Require` values an unvalued
+feature; `Carry` requires the child to carry the value itself. Multiword noun terms remain atomic
 in both parsing and Admission; measured compounds retain their internal measure.
 Construction boundaries enforce the spacing used by realization.
 

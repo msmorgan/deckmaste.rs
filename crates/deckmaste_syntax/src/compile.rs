@@ -152,6 +152,7 @@ struct Draft {
     children: Vec<Child>,
     equations: Vec<(Path, Target)>,
     exclusions: Vec<(usize, usize, u16)>,
+    carried: Vec<(usize, usize, u16)>,
     weights: Vec<(usize, Weight)>,
     cost: u32,
     introduces: Gap,
@@ -184,6 +185,7 @@ impl Draft {
             children: Vec::new(),
             equations: Vec::new(),
             exclusions: Vec::new(),
+            carried: Vec::new(),
             weights: Vec::new(),
             cost,
             introduces: Gap::None,
@@ -633,36 +635,49 @@ impl<'a> Binder<'a> {
                 draft.weights.push((child, weight));
             }
         }
-        for equation in &declaration.equations {
+        self.equations(&mut draft, &declaration.equations)
+            .map_err(context)?;
+        Ok(draft)
+    }
+
+    /// Adds declared equations over a draft's children and mother. A `Gap`
+    /// requirement is a child's Gap Rule, set by the caller.
+    fn equations(&self, draft: &mut Draft, equations: &[Equation]) -> Result<(), LoadError> {
+        for equation in equations {
             match equation {
                 Equation::Exclude(path, value) => {
-                    let Path::Child(child, feature) = self.path(&draft, path).map_err(context)?
-                    else {
-                        return Err(context(invalid("Exclude requires a child feature")));
+                    let Path::Child(child, feature) = self.path(draft, path)? else {
+                        return Err(invalid("Exclude requires a child feature"));
                     };
-                    draft.exclusions.push((
-                        child,
-                        feature,
-                        self.value(feature, value).map_err(context)?,
-                    ));
+                    draft
+                        .exclusions
+                        .push((child, feature, self.value(feature, value)?));
+                }
+                Equation::Carry(path, value) => {
+                    let Path::Child(child, feature) = self.path(draft, path)? else {
+                        return Err(invalid("Carry requires a child feature"));
+                    };
+                    draft
+                        .carried
+                        .push((child, feature, self.value(feature, value)?));
                 }
                 Equation::Agree(a, b) => {
-                    let a = self.path(&draft, a).map_err(context)?;
-                    let b = self.path(&draft, b).map_err(context)?;
+                    let a = self.path(draft, a)?;
+                    let b = self.path(draft, b)?;
                     draft.equations.push((a, Target::Path(b)));
                 }
                 Equation::Require(path, _) if path.ends_with(".Gap") => {}
                 Equation::Require(path, value) => {
-                    let path = self.path(&draft, path).map_err(context)?;
+                    let path = self.path(draft, path)?;
                     let feature = match path {
                         Path::Mother(f) | Path::Child(_, f) => f,
                     };
-                    let value = self.value(feature, value).map_err(context)?;
+                    let value = self.value(feature, value)?;
                     draft.equations.push((path, Target::Value(value)));
                 }
             }
         }
-        Ok(draft)
+        Ok(())
     }
 
     /// A right-hand-side declaration's child name and Symbol.
@@ -824,6 +839,7 @@ impl<'a> Binder<'a> {
         )
         .map_err(|e| invalid(format!("production `{}`: {e}", draft.id)))?;
         production.exclusions = draft.exclusions;
+        production.carried = draft.carried;
         production.weights = draft.weights;
         production.adjunct_slot = draft.adjunct_slot;
         production.predicative = draft.predicative;
@@ -881,6 +897,7 @@ impl<'a> Binder<'a> {
                 host_kind,
                 delimiter,
                 cost,
+                equations,
             } => {
                 let host_id = self.category(host)?;
                 let adjunct_id = self.category(adjunct)?;
@@ -925,6 +942,17 @@ impl<'a> Binder<'a> {
                     (draft.child("head", host_symbol, GapRule::Transparent), a)
                 };
                 draft.host_check = Some((h, a, *host_kind));
+                if equations
+                    .iter()
+                    .any(|e| matches!(e, Equation::Require(p, _) if p.ends_with(".Gap")))
+                {
+                    return Err(invalid(format!(
+                        "adjunct schema `{}`: a Gap requirement",
+                        draft.id
+                    )));
+                }
+                self.equations(&mut draft, equations)
+                    .map_err(|e| invalid(format!("adjunct schema `{}`: {e}", draft.id)))?;
                 draft.adjunct_slot = self
                     .grammar
                     .slot_categories
@@ -1694,6 +1722,7 @@ impl<'a> Binder<'a> {
                         }
                 });
                 prefix.exclusions.retain(|(i, _, _)| *i < split);
+                prefix.carried.retain(|(i, _, _)| *i < split);
                 prefix.predicative = prefix.predicative.filter(|&i| i < split);
                 let a = prefix.child(
                     "adjunct",
@@ -1731,6 +1760,7 @@ impl<'a> Binder<'a> {
                         }
                 });
                 suffix.exclusions.retain(|(i, _, _)| *i >= split);
+                suffix.carried.retain(|(i, _, _)| *i >= split);
                 suffix.predicative = suffix.predicative.filter(|&i| i >= split);
                 remap_draft(&mut suffix, |i| i - split + 1);
                 out.push(suffix);
@@ -1971,7 +2001,7 @@ fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
             path(p);
         }
     }
-    for (i, _, _) in &mut draft.exclusions {
+    for (i, _, _) in draft.exclusions.iter_mut().chain(&mut draft.carried) {
         *i = map(*i);
     }
     draft.predicative = draft.predicative.map(&map);
