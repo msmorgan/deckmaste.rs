@@ -12,8 +12,8 @@
 +Clause <card=Stangg> create Stangg Twin => NounPhrase "Stangg Twin"
 +Clause <card=Gemini Engine> create a colorless Construct artifact creature token named Twin => NounPhrase "Twin"
 +NounPhrase <card=Gemini Engine> a colorless Construct artifact creature token named Twin that's attacking => NounPhrase "Twin"
-+ <card=Enkira, Hostile Scavenger> When Enkira, Hostile Scavenger enters, create two Walker tokens. => Nominal "Walker"
-+ <card=Gisa's Favorite Shovel> If they do, you create a Walker token. => Nominal "Walker"
++ <card=Enkira, Hostile Scavenger> When Enkira, Hostile Scavenger enters, create two Walker tokens. => Name "Walker" as Modifier of token
++ <card=Gisa's Favorite Shovel> If they do, you create a Walker token. => Name "Walker" as Modifier of token
 + <card=Siren's Call> Creatures the active player controls attack this turn if able. => AdjectivePhrase "active"
 + <card=Belbe, Corrupted Observer> At the beginning of each postcombat main phase, the active player adds {C}{C} for each of your opponents who lost life this turn. => AdjectivePhrase "active"
 +Clause <card=Powerful Broker> give that permanent or player another counter of that kind => VerbPhrase "give that permanent or player another counter of that kind"

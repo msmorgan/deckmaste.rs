@@ -49,7 +49,9 @@
         ],
     ),
     (rule: "[CR#702.23]", name: "Rampage", lemma: "rampage", parameters: [[Amount]]),
-    (rule: "[CR#702.24]", name: "Cumulative Upkeep", lemma: "cumulative upkeep", parameters: [[Cost], [DashNonManaCost]]),
+    // "doesn't pay this enchantment's cumulative upkeep"
+    (rule: "[CR#702.24]", name: "Cumulative Upkeep", lemma: "cumulative upkeep", parameters: [[Cost], [DashNonManaCost]],
+        nouns: [(lemma: "cumulative upkeep", countability: [Mass])]),
     (rule: "[CR#702.25]", name: "Flanking", lemma: "flanking"),
     (rule: "[CR#702.26]", name: "Phasing", lemma: "phasing"),
     (rule: "[CR#702.27]", name: "Buyback", lemma: "buyback", parameters: [[Cost], [DashNonManaCost]]),
@@ -63,7 +65,9 @@
     (rule: "[CR#702.30]", name: "Echo", lemma: "echo", parameters: [[Cost], [DashNonManaCost]]),
     (rule: "[CR#702.31]", name: "Horsemanship", lemma: "horsemanship"),
     (rule: "[CR#702.32]", name: "Fading", lemma: "fading", parameters: [[Amount]]),
+    // "if it was kicked with its [A] kicker" [CR#702.33f]
     (rule: "[CR#702.33]", name: "Kicker", lemma: "kicker", parameters: [[Cost], [DashNonManaCost]],
+        nouns: ["kicker"],
         variants: [
             // [CR#702.33c]
             (lemma: "multikicker", parameters: [[Cost]]),
@@ -168,7 +172,12 @@
     ),
     (rule: "[CR#702.83]", name: "Exalted", lemma: "exalted"),
     (rule: "[CR#702.84]", name: "Unearth", lemma: "unearth", parameters: [[Cost], [DashNonManaCost]]),
-    (rule: "[CR#702.85]", name: "Cascade", lemma: "cascade"),
+    // "as you cascade" [CR#702.85b]
+    (rule: "[CR#702.85]", name: "Cascade", lemma: "cascade",
+        verbs: [
+            (lemma: "cascade", frames: [Intransitive]),
+        ],
+    ),
     (rule: "[CR#702.86]", name: "Annihilator", lemma: "annihilator", parameters: [[Amount]]),
     (rule: "[CR#702.87]", name: "Level Up", lemma: "level up", parameters: [[Cost]]),
     (rule: "[CR#702.88]", name: "Rebound", lemma: "rebound"),
@@ -191,7 +200,9 @@
     (rule: "[CR#702.101]", name: "Extort", lemma: "extort"),
     (rule: "[CR#702.102]", name: "Fuse", lemma: "fuse"),
     (rule: "[CR#702.103]", name: "Bestow", lemma: "bestow", parameters: [[Cost], [DashNonManaCost]]),
-    (rule: "[CR#702.104]", name: "Tribute", lemma: "tribute", parameters: [[Amount]]),
+    // "if tribute wasn't paid" [CR#702.104b]
+    (rule: "[CR#702.104]", name: "Tribute", lemma: "tribute", parameters: [[Amount]],
+        nouns: [(lemma: "tribute", countability: [Mass])]),
     (rule: "[CR#702.105]", name: "Dethrone", lemma: "dethrone"),
     (rule: "[CR#702.107]", name: "Outlast", lemma: "outlast", parameters: [[Cost]]),
     (rule: "[CR#702.108]", name: "Prowess", lemma: "prowess"),
@@ -333,7 +344,9 @@
     (rule: "[CR#702.172]", name: "Spree", lemma: "spree"),
     (rule: "[CR#702.173]", name: "Freerunning", lemma: "freerunning", parameters: [[Cost], [DashNonManaCost]]),
     // "Gift a tapped Fish"
-    (rule: "[CR#702.174]", name: "Gift", lemma: "gift", parameters: [[Quality(None)]]),
+    // "gives a gift" [CR#702.174c]; "the gift was promised" [CR#702.174k]
+    (rule: "[CR#702.174]", name: "Gift", lemma: "gift", parameters: [[Quality(None)]],
+        nouns: ["gift"]),
     (rule: "[CR#702.175]", name: "Offspring", lemma: "offspring", parameters: [[Cost]]),
     // "Impending 4—{1}{U}{U}"
     (rule: "[CR#702.176]", name: "Impending", lemma: "impending", parameters: [[Amount, DashCost]]),

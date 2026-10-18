@@ -53,7 +53,6 @@
 +NounPhrase the amount of {G}{G}
 + Add the amount of {G}.
 *Nominal amount of
-*Nominal amount {G}
 *NounPhrase much amount of {G}
 +Clause you do
 + Draw two cards.

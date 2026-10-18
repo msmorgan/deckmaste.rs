@@ -10,5 +10,5 @@
 +Nominal starting life total => VerbPhrase "starting" as Modifier of "life total"
 +Nominal starting deck => VerbPhrase "starting" as Modifier of deck
 + During your turn, each player may pay any amount of mana. => PrepositionPhrase "During your turn" as Adjunct of may
-+ As this creature enters, each player may pay any amount of mana. => PrepositionPhrase "As this creature enters" as Adjunct of pay
++ As this creature enters, each player may pay any amount of mana. => PrepositionPhrase "As this creature enters" as Adjunct of may
 +PrepositionPhrase with you => NounPhrase "you" as Complement of with

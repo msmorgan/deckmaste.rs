@@ -460,6 +460,12 @@ than as an independent Sentence.
 A Subordinate Clause expressing propositional content (CGEL, Ch. 11 §1,
 p. 950).
 
+**Interrogative Content Clause**:
+A Content Clause expressing a question: closed, marked by *whether* (*guesses
+whether a card with that name is in your hand*), or open, with an interrogative
+phrase in initial position (*choose which creatures attack*, *how each player
+votes*) (CGEL, Ch. 11 §5.1, pp. 972–973).
+
 **Relative Clause**:
 A dependent Clause that modifies a nominal expression or supplements another
 expression, with a relative element connected to a position in the Clause.
@@ -817,7 +823,8 @@ The one Subcategorization Frame of its head that a Constituent realizes.
 A Category that an unselected Preposition Phrase may modify in Oracle English,
 declared for each pairing of a preposition with one of its Complement frames:
 a Nominal (as Postmodifier), a Predicate (as Adjunct), both, or neither, in
-which case the phrase occurs only as a Complement.
+which case the phrase occurs only as a Complement. A phrase may instead be only
+a Supplement to a Clause or line (*, where X is its power*).
 
 **Valence Alternation** (project term):
 A systematic relation between the Complement realizations of one

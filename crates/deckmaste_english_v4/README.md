@@ -60,14 +60,18 @@ face verdicts as a baseline, it also places every face that census did not read.
 No attachment tree is enumerated except for a unit with a judgment.
 
 `COMPLETED_STRATUM` is the highest Stratum whose gate is met. A unit at or below
-it that is not read is a regression.
+it that is not read is a regression, unless [`deferred.txt`](deferred.txt) names
+it by card and text: a deferred unit is left unread on purpose, owned by a
+ticket, and counted apart. A law failure is never deferred, and a deferred unit
+that reads is stale.
 
 ```
 cargo xtask english-v4 strata [--card NAME]... [--baseline target/english-v3/<census>.json] [--check]
 ```
 
 prints the summary and writes the full per-unit report to
-`target/english-v4/strata.json` (untracked). `--check` fails on a regression.
+`target/english-v4/strata.json` (untracked). `--check` fails on a regression or
+a stale deferral.
 
 The full lexical environment binds. Stratum 0 covers Type Lines, complete
 keyword lists and non-clausal parameters, symbolic costs and structured
@@ -150,6 +154,25 @@ suspected*); a symbol sequence takes a postmodifier (*each {G}{G} spent to cast
 it*); a bracketed loyalty symbol is also a counted noun (*an additional [+1]*).
 Loyalty brackets retain their Stratum 0 notation role. Table rows inherit the
 stratum of their payload.
+
+Stratum 4 adds Clause Complements of prepositions: a finite Clause (*when this
+creature enters*, *unless its controller pays {3}*, *as though it had flash*)
+or a reducible verbless one (*if able*, *while saddled*). A triggered ability
+[CR#603.1] is a Clause with its *when*, *whenever* or *at* phrase preposed as
+an ordinary Adjunct; an intervening *if* phrase is a second one, and a modal
+header is a Clause too (*When this creature enters, choose one —*). An
+interrogative content clause, the Complement of *choose*, *guess* or *decide*,
+is *whether* with a finite or *to*-infinitival Clause, a *which* phrase as
+Subject or filling a Gap, or *how* with a Clause. *, where X is ...* is a
+Supplement to a Clause, a keyword or an indexed instruction, never a Predicate
+Adjunct. A front adverbial is set off by a comma (*Once each turn, ...*). A
+gerund-participial Clause may be Subject; a bare relative may relativize a
+lexical copular verb's predicative Complement for an ordinary noun (*the
+permanent it becomes*); *all* floats after a pronoun Subject. A symbol sequence
+is a noun under a determiner (*an additional {G}*, *six {E}*, *each {B} in a
+cost*) and premodifies a noun (*its {1}{G} kicker*); keyword rules declare the
+nouns they define (*if tribute wasn't paid*). *Do the same* is a pro-form, at
+Stratum 7 with *do so*.
 
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)

@@ -1,0 +1,13 @@
+# Triggered abilities [CR#603.1]: a preposed *when*, *whenever* or *at* phrase as an Adjunct of the effect's Clause, an intervening *if* phrase, and a trigger before a modal header
++ When this creature enters, draw a card. => PrepositionPhrase "When this creature enters" as Adjunct of draw; Clause "this creature enters" as Complement of when; readings 1
++ Whenever a land you control enters, you gain 1 life. => PrepositionPhrase "Whenever a land you control enters" as Adjunct of gain; Clause "a land you control enters" as Complement of whenever; Clause "you control" gap "land"
++ At the beginning of your upkeep, draw a card. => PrepositionPhrase "At the beginning of your upkeep" as Adjunct of draw; readings 1
++ At the beginning of each upkeep, if no spells were cast last turn, transform this creature. => PrepositionPhrase "At the beginning of each upkeep" as Adjunct of transform; PrepositionPhrase "if no spells were cast last turn" as Adjunct of transform; Clause "if no spells were cast last turn, transform this creature"; Clause "no spells were cast last turn" as Complement of if
++ When this creature enters, if it was kicked, draw two cards. => PrepositionPhrase "When this creature enters" as Adjunct of draw; PrepositionPhrase "if it was kicked" as Adjunct of draw; Clause "if it was kicked, draw two cards"
++ When this creature enters, choose one — => PrepositionPhrase "When this creature enters" as Adjunct of choose; NounPhrase "one" as Object of choose; readings 1
++ Landfall — Whenever a land you control enters, choose one — => PrepositionPhrase "Whenever a land you control enters" as Adjunct of choose
++ <card=Wizard Class> When this Class becomes level 2, draw two cards. => NounPhrase "level 2" as PredicativeComplement of become
++ Whenever this creature becomes blocked, you may look at defending player's hand. => NounPhrase "defending player's hand" as Complement of at
++ Whenever an Aura becomes attached to this creature, draw a card. => AdjectivePhrase "attached to this creature" as PredicativeComplement of become; PrepositionPhrase "to this creature" as Complement of attached
++ Equipped creature gets +1/+1 for each Aura attached to it. => VerbPhrase "attached to it" as Modifier of Aura; !AdjectivePhrase "attached to it"; readings 1
++ Whenever you tap a creature for mana, add an additional {G}. => NounPhrase "an additional {G}" as Object of add

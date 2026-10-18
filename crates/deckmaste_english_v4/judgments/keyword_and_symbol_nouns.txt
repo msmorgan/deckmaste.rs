@@ -1,0 +1,10 @@
+# Nouns a keyword rule defines (*kicker*, *gift*, *tribute*, *cumulative upkeep*) and a symbol sequence counted under a determiner
++ When this creature enters, if it was kicked with its {1}{G} kicker, destroy target creature with flying. => NounPhrase "its {1}{G} kicker" as Complement of with; Nominal "{1}{G} kicker"
++ When this creature enters, if tribute wasn't paid, you gain 4 life. => NounPhrase "tribute" as Subject of be; Clause "tribute wasn't paid" as Complement of if
++ If the gift was promised, draw a card. => NounPhrase "the gift" as Subject of be
++ Whenever you give a gift, draw a card. => NounPhrase "a gift" as Object of give
++ When a player doesn't pay this enchantment's cumulative upkeep, that player exiles all cards from their library. => NounPhrase "this enchantment's cumulative upkeep" as Object of pay
++ Pay six {E}. => NounPhrase "six {E}" as Object of pay; readings 1
++ Add an additional {G}. => NounPhrase "an additional {G}" as Object of add; readings 1
++ Add {G}. => readings 1
++ <card=K'rrik, Son of Yawgmoth> For each {B} in a cost, you may pay 2 life rather than pay that mana. => NounPhrase "each {B} in a cost" as Complement of for; PrepositionPhrase "in a cost" as Modifier of {B}

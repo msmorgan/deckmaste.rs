@@ -11,8 +11,8 @@
 + {T}, Sacrifice this creature: Destroy target legendary permanent that is an artifact, creature, or enchantment. => RelativeClause "that is an artifact, creature, or enchantment"; NounPhrase "an artifact, creature, or enchantment" as PredicativeComplement of be
 + This creature can't attack unless you've cast a creature spell this turn. => PrepositionPhrase "unless you've cast a creature spell this turn" as Adjunct of attack; VerbPhrase "cast a creature spell this turn" as Complement of have
 + This creature can't attack unless you have cast a creature spell this turn. => PrepositionPhrase "unless you have cast a creature spell this turn" as Adjunct of attack; VerbPhrase "cast a creature spell this turn" as Complement of have
-+ While you're searching your library, you may cast this card from your library. => PrepositionPhrase "While you're searching your library" as Adjunct of cast; VerbPhrase "searching your library" as Complement of be
-+ While you are searching your library, you may cast this card from your library. => PrepositionPhrase "While you are searching your library" as Adjunct of cast; VerbPhrase "searching your library" as Complement of be
++ While you're searching your library, you may cast this card from your library. => PrepositionPhrase "While you're searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
++ While you are searching your library, you may cast this card from your library. => PrepositionPhrase "While you are searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
 +Clause it's been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
 +Clause it has been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
 *Clause it's

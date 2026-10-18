@@ -822,7 +822,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             if t.lemma_in(&["do", "have"]) && !t.lemma_in(&["be"]) {
                 // Main-verb *do* and *have* are core clauses; the pro-form is
                 // Stratum 7.
-                if t.lemma_in(&["do"]) && (stranded || next(i).is_some_and(|n| n.lemma_in(&["so"])))
+                // *do so* and *do the same* (CGEL, Ch. 17 §7.5, pp. 1529–1532; §7.6, p. 1533).
+                let same = next(i).is_some_and(|n| n.is(Category::Determinative, "the"))
+                    && tokens.get(i + 2).is_some_and(|n| n.lemma_in(&["same"]));
+                if t.lemma_in(&["do"])
+                    && (stranded || same || next(i).is_some_and(|n| n.lemma_in(&["so"])))
                 {
                     families.insert(PRO_FORM);
                 }

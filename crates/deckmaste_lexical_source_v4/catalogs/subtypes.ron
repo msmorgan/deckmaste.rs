@@ -302,7 +302,7 @@
         "Soldier",
         (lemma: "Soltari", plural: "Soltari"),
         "Sorcerer",
-        "Spawn",
+        (lemma: "Spawn", plural: "Spawn"),
         "Specter",
         "Spellshaper",
         "Sphinx",

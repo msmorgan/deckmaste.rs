@@ -19,7 +19,7 @@
     (lemma: "far", positions: [End]),
     (lemma: "fully", positions: [Central]),
     // *how those creatures block*; *how many cards*
-    (lemma: "how", positions: [Front, Phrasal]),
+    (lemma: "how", positions: [Front, Phrasal], interrogative: true),
     // *Immediately after the draft*
     (lemma: "immediately", positions: [Phrasal]),
     // *just beneath the top X cards*
@@ -31,6 +31,8 @@
     (lemma: "not", positions: [Central, Phrasal]),
     // *Once each turn, you may ...*; *Activate only once each turn*
     (lemma: "once", positions: [Front, End]),
+    // *If they guessed wrong*
+    (lemma: "wrong", positions: [End]),
     // *can only*; *Activate only as a sorcery*; *Only creatures ... can block*
     (lemma: "next", positions: [Central]),
     // *is no longer snow*

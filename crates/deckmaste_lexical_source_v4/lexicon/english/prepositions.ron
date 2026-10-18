@@ -188,7 +188,7 @@
     (lemma: "when", frames: [(complement: FiniteClause, hosts: Predicate)]),
     (lemma: "whenever", frames: [(complement: FiniteClause, hosts: Predicate)]),
     // *, where X is the number of ...* (CGEL p. 971)
-    (lemma: "where", frames: [(complement: FiniteClause, hosts: Predicate)]),
+    (lemma: "where", frames: [(complement: FiniteClause, hosts: Supplement)]),
     // *while you control*; *attacks while saddled*; *while scrying*
     (lemma: "while", frames: [
         (complement: FiniteClause, hosts: Predicate),

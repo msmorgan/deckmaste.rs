@@ -8,6 +8,9 @@
     "active",
     (lemma: "additional", position: Some(Attributive)),
     "alone",
+    // *becomes attached to a creature*: the Adjectival Passive of *attach*,
+    // with its Complement.
+    (lemma: "attached", passive: true, frames: [Complement(PP(["to"]))]),
     "bottom",
     "colored",
     "common",

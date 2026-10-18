@@ -1,0 +1,12 @@
+# Prepositions with clause Complements: finite (*unless*, *until*, *as long as*), verbless (*if able*), interrogative content clauses after *choose* and *guess*, and a front adverbial
++ Counter target spell unless its controller pays {3}. => PrepositionPhrase "unless its controller pays {3}" as Adjunct of counter; Clause "its controller pays {3}" as Complement of unless; readings 1
++ Exile target creature until this creature leaves the battlefield. => PrepositionPhrase "until this creature leaves the battlefield" as Adjunct of exile; Clause "this creature leaves the battlefield" as Complement of until
++ <card=Master Warcraft> You choose which creatures attack this turn. => Clause "which creatures attack this turn" as Complement of choose || Clause "which creatures attack" as Complement of choose
++ You choose which creatures attack this turn. => NounPhrase "which creatures" as Subject of attack
++ The attacking player chooses how each creature blocks each combat. => Clause "how each creature blocks each combat" as Complement of choose || Clause "how each creature blocks" as Complement of choose
++ Target opponent guesses whether a card with that name is in your hand. => Clause "whether a card with that name is in your hand" as Complement of guess; Clause "a card with that name is in your hand"; readings 1
++ Once each turn, you may cast a spell from the top of your library. => AdverbPhrase "Once each turn" as Adjunct of may; NounPhrase "each turn"
++ Nonartifact creatures get +2/+2 as long as they all share a color. => PrepositionPhrase "as long as they all share a color" as Adjunct of get; Clause "they all share a color"
++ Draw a card for each creature blocking it beyond the first. => NounPhrase "the first" as Complement of beyond
++ This spell was cast using teamwork. => VerbPhrase "using teamwork"; KeywordPhrase "teamwork" as Object of use
++ Tap it to pay for its abilities. => PrepositionPhrase "for its abilities" as Complement of pay

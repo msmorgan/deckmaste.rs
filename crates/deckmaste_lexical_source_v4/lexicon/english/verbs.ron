@@ -21,7 +21,7 @@
     (lemma: "cause", frames: [ComplexCatenative(ToInf)]),
     (lemma: "change", frames: [Intransitive, Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "choose", preterite: "chose", past_participle: "chosen",
-        frames: [Intransitive, Monotransitive, Amount, Catenative(ToInf)]),
+        frames: [Intransitive, Monotransitive, Amount, Catenative(ToInf), ContentClause]),
     (lemma: "circle", frames: [Monotransitive]),
     // *whichever comes first*; *come under your control*; *coins come up heads*
     (lemma: "come", preterite: "came", past_participle: "come",
@@ -90,7 +90,8 @@
     (lemma: "own", frames: [Monotransitive]),
     (lemma: "pair", frames: [TransitiveWithPP(["with"])]),
     (lemma: "pass", frames: [Monotransitive, TransitiveWithPP(["to"])]),
-    (lemma: "pay", past: "paid", frames: [Monotransitive]),
+    // *tapped to pay for its abilities*
+    (lemma: "pay", past: "paid", frames: [Monotransitive, Prepositional(["for"])]),
     (lemma: "phase", frames: [Prepositional(["in", "out"])]),
     (lemma: "prevent", frames: [Monotransitive]),
     (lemma: "print", frames: [Monotransitive]),
@@ -134,6 +135,7 @@
     (lemma: "turn", frames: [ComplexTransitive]),
     (lemma: "trigger", frames: [Intransitive, Monotransitive]),
     (lemma: "unlock", frames: [Monotransitive]),
-    (lemma: "use", frames: [Monotransitive]),
+    // *cast using teamwork*
+    (lemma: "use", frames: [Monotransitive, Transitive(KeywordPhrase)]),
     (lemma: "win", past: "won", gerund: "winning", frames: [Intransitive, Monotransitive]),
 ]
