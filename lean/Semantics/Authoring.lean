@@ -3,7 +3,7 @@ import Lean
 /-!
 # Semantics.Authoring
 
-The authoring boundary inspects elaborated terms before reduction erases their macro calls.
+The authoring boundary inspects elaborated terms before reduction erases their template and definition calls.
 Its retained tree records named expansion calls and data composition. The kernel checks
 that the tree contains no raw semantic constructor; correspondence between the elaborated
 term and this tree is the elaborator's responsibility.
@@ -11,7 +11,8 @@ term and this tree is the elaborator's responsibility.
 
 namespace Semantics
 
-/-- Expansion-time lexical depth. This argument is eliminated when a macro constructs its body. -/
+/-- Expansion-time lexical depth. This argument is eliminated when a template or definition
+constructs its body. -/
 class AuthoringContext where
   depth : Nat
 
@@ -136,13 +137,13 @@ initialize templateAttribute : TagAttribute ←
   registerTagAttribute `semantic_template "A transparent semantic phrasing template."
 
 initialize expressionAttribute : TagAttribute ←
-  registerTagAttribute `semantic_expression "Semantic expressions require macro authoring."
+  registerTagAttribute `semantic_expression "Semantic expressions require template or definition authoring."
 
 initialize literalAttribute : TagAttribute ←
   registerTagAttribute `semantic_literal "A literal leaf value, rather than an authored expression."
 
 initialize internalAttribute : TagAttribute ←
-  registerTagAttribute `internal_expansion "An expansion carrier without an authorable primitive macro."
+  registerTagAttribute `internal_expansion "An expansion carrier without an authorable primitive template."
 
 initialize contextualAuthoringAttribute : TagAttribute ←
   registerTagAttribute `contextual_authoring "A semantic declaration with generated lexical context."

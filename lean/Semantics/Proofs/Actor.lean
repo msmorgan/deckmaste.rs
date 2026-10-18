@@ -50,7 +50,7 @@ private def onePlayer : DRS := (DRS.ofList [{ det := .the, plur := .one, payload
 /-- Thoughtseize: "Target player reveals their hand. You choose a nonland card from it. That
 player discards that card. You lose 2 life." The handoff leaves the target player published, so
 "their hand" and the second handoff to "that player" read it. "A nonland card from it" says
-`isCard` as the RON card's `cardIn` does: a token can sit in a hand until state-based actions
+`isCard`: a token can sit in a hand until state-based actions
 are checked [CR#111.7,704.5d]. -/
 theorem okThoughtseize :
     Action.check (DRS.ofList [])
@@ -105,8 +105,7 @@ theorem amassBareItAfterDestroyChecks :
       = [] := by
   decide
 
-/-- The brief's amass body as the RON declaration expands it: bare "that creature" and "it"
-(`amass` reads through `itPrior`). -/
+/-- A literal amass body, written with bare "that creature" and "it". -/
 private def literalAmass : Action :=
   .sequentially
     [ .doIf (.not (exists_ army))
@@ -131,10 +130,10 @@ theorem okLiteralAmassHandedOff : Action.check (DRS.ofList []) (instruct (target
 
 A keyword action body is read in its own Reference Scope: it sees the performer, its parameters
 and what it introduces, never the calling text's other mentions (`docs/decisions/semantics-v2.md`
-§7, ruling 2026-10-06). The `plugins_v2` loader writes the scope inside the action's `enact`
-wrapper (`Action.ownScope`) and each parameter `inCaller`, read in the caller's view. -/
+§7, ruling 2026-10-06). A keyword action's Definition writes the scope (`Action.ownScope`) with the action's
+`enact` wrapper and each parameter `inCaller`, read in the caller's view. -/
 
-/-- The literal amass body inside the loader's wrapper. -/
+/-- The literal amass body inside its `enact` wrapper. -/
 private def scopedAmass : Action := .enact (.action "amass") (.ownScope none literalAmass) none none
 
 /-- "Amass Orcs 2" in its scope checks on its own, as the bare body does. -/
@@ -686,7 +685,7 @@ private def exploreBody (perm : NounPhrase) : Action :=
 private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
   .enact (.action "explore") (exploreBody perm) none none
 
-/-- `endure N` as declared [CR#701.63a]: the enduring permanent's controller chooses between
+/-- `endure N` as defined [CR#701.63a]: the enduring permanent's controller chooses between
 the counters on "that permanent" and the Spirit token. -/
 private def literalEndure (n : Nat) : Action :=
   .enact (.action "endure")
@@ -695,7 +694,7 @@ private def literalEndure (n : Nat) : Action :=
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) .one true),
           (none, none, create (.lit 1) (.written (creatureToken n n [.white] [creatureType "Spirit"]))) ])) none none
 
-/-- `adapt N` as declared [CR#701.46a]: unchanged, still reading "this permanent". -/
+/-- `adapt N` as defined [CR#701.46a]: unchanged, still reading "this permanent". -/
 private def literalAdapt (n : Nat) : Action :=
   .enact (.action "adapt")
     (.doIf (.not (.matches thisPermanent (.hasCounters (some p1p1Counter))))

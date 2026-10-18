@@ -42,8 +42,9 @@ semantic_definition counter (subject : NounPhrase) : Action :=
 
 /-! ## Counters -/
 
-/-- The bench's spelling of a counter declaration's name read as its kind, as a bare
-`p1p1Counter` reads in `plugins_v2`. Any other kind is written `.named "<declaration name>"`. -/
+/-- A counter declaration's name read as its kind (`CounterKind.named`), so a bare
+`p1p1Counter` is the +1/+1 counter's kind [CR#122.1]. Any other kind is written
+`.named "<declaration name>"`. -/
 semantic_definition p1p1Counter : CounterKind := .named "p1p1Counter"
 semantic_definition flyingCounter : CounterKind := .named "flyingCounter"
 semantic_definition m1m1Counter : CounterKind := .named "m1m1Counter"

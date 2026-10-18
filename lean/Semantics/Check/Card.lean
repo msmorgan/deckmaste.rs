@@ -412,8 +412,8 @@ def Card.check : Card → List Refusal
     inner.check .front ++ refuse (prototypeFrameOk line) .prototypeFrame ++
       prototypeAltCheck line alternative
 
-/-- A card with semantic validity and retained evidence of macro-only authoring. The
-elaborator connects the authoring tree to the input term before macro reduction. -/
+/-- A card with semantic validity and retained evidence of template- and definition-only
+authoring. The elaborator connects the authoring tree to the input term before their reduction. -/
 structure Spelled where
   private mk ::
   card : Card

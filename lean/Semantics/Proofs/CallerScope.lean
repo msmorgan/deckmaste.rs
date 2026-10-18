@@ -66,16 +66,16 @@ private semantic_definition announceThen (chosen : NounPhrase) (body : Action) :
 
 private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics := {
-      name := "Macro expansion witness", types := [.sorcery],
+      name := "Expansion witness", types := [.sorcery],
       text := [Primitives.Ability.spell none (expand (drawTwice (.lit 1)))] } }
 theorem explicitExpansionPreservesAuthorship : explicitExpansion.authoring.onlyAuthored = true := explicitExpansion.onlyAuthored
 theorem explicitExpansionChecksItsResult : explicitExpansion.card.check = [] := explicitExpansion.ok
 private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
-      name := "Macro body witness", types := [.sorcery],
+      name := "Body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
       (onChosen (target isCreature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
-theorem suppliedBodyCanNameTheMacroSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
+theorem suppliedBodyCanNameTheTemplateSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
 private def aliasedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Aliased body witness", types := [.sorcery],
@@ -87,7 +87,7 @@ private def nestedBodyParameter : Spelled := spelled <| .singleFaced
       name := "Nested body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
       (onChosen (target isCreature) (fun subject => moveSubject subject))] } }
-theorem parameterizedBodiesForwardSubjectsIntoNestedMacros : nestedBodyParameter.card.check = [] := nestedBodyParameter.ok
+theorem parameterizedBodiesForwardSubjectsIntoNestedTemplates : nestedBodyParameter.card.check = [] := nestedBodyParameter.ok
 
 theorem templateArgumentsAreEvaluatedAtTheirTextualUse :
     (unusedSubject it).check (DRS.ofList []) = [] ∧
@@ -299,7 +299,7 @@ example : Spelled := spelled <| .singleFaced
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
-    { name := "Macro body witness", types := [.sorcery],
+    { name := "Body witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
         (onChosen (target isCreature) (fun chosen => .setStatus .tapped chosen))] } }
 
@@ -307,14 +307,14 @@ example : Spelled := spelled <| .singleFaced
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
-    { name := "Macro expansion witness", types := [.sorcery],
+    { name := "Expansion witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (expand (.draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
-    { name := "Macro expansion witness", types := [.sorcery],
+    { name := "Expansion witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (expand (instruct .you (drawTwice (.lit 1))))] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/

@@ -107,8 +107,7 @@ theorem badPrintedAfterUnknownKeyword :
 
 /-! ## The eight bodies
 
-Each keyword's declared definition, as `cargo xtask lean macros` derives it from its
-declaration, checks clean as an ability; the printed ability is the keyword's parameter. -/
+Each keyword's Definition (`Semantics.Definitions`) checks clean as an ability; the printed ability is the keyword's parameter. -/
 
 namespace Bodies
 

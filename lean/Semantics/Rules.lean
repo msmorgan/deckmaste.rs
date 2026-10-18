@@ -82,8 +82,8 @@ card-type tables (`CardType.permanent`) do not read it yet. -/
 inductive Definition where
   /-- A counter [CR#122.1]: its kind, what holds it, and what it does to its bearer.
 
-  The kind is the declaration's own name; the declaration meta-macro writes it from the name the
-  file declares, so the author never writes it and nothing in the body refers to the counter
+  The kind is the declaration's own name; the registry supplies it from the name the declaration
+  carries, so the author never writes it and nothing in the body refers to the counter
   being defined. An `ability` or `property` conferral states what ONE counter of the kind
   confers, and the model applies it once per counter held: a +1/+1 counter confers "+1/+1"
   [CR#122.1a,613.4c], so N of them give +N/+N, and a keyword counter confers its keyword
@@ -103,7 +103,7 @@ inductive Definition where
   /-- A designation [CR#701.15b]: a named marker rules and effects identify, which is not an
   ability and confers nothing, so the node carries columns rather than conferrals. The label is
   the declaration's own name, or a member's where the declaration lists several (`day` and
-  `night` [CR#731.1]); the declaration meta-macro writes it, never the author. `effectful`
+  `night` [CR#731.1]); the registry supplies it, never the author. `effectful`
   is whether an instruction may confer it directly; `zone`, `type` and `half` narrow the object
   that holds it. -/
   | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
@@ -116,7 +116,7 @@ inductive Definition where
   | cardType (cardType : CardType) (permanentType : Bool) (confers : List Conferral)
   /-- A Relation [CR#702.55b,702.95b,702.99b]: a named link between two entities, made by one
   ability and read by others, with the kind of each side. The label is the declaration's own
-  name; the declaration meta-macro writes it, never the author. -/
+  name; the registry supplies it, never the author. -/
   | relation (label : RelationLabel) (left : Kind) (right : Kind)
 
 /-! A registry declaration's name means its TERM everywhere, its own definition included: a

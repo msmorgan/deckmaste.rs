@@ -6,8 +6,11 @@
 > and `AC>R1` demonstrative resolution), the explicit `Definition` vs.
 > `Template` split, and the Unified Action-Clause Spine (`instruct`, `does`,
 > `would`, `cant`/`must`/`can`/`gatedBy`, `did`, `by`, `any`, `which`) that
-> replace the `Bindings` stack, `Window`, and strict `countReach == 1` rules
-> described below as the `lean-v3-*` tickets land.
+> replace the `Bindings` stack, `Window`, and strict `countReach == 1` rules.
+> The DRT checker (`lean-v3-drt-checker`) and the Definition/Template split
+> (`lean-v3-authoring-impl-2-templates-and-definitions`) have landed; a passage
+> below that still describes `Bindings`, `Window` reads or `capture` annotations
+> records the replaced mechanism until its section is rewritten.
 
 The Lean model is a prototype. Its authority is rules correctness and internal
 consistency, not compatibility with previous checker behavior. Tests that encode
@@ -77,51 +80,65 @@ the existence of a checking function.
 ## Card authoring and trusted expansion
 
 `spelled <| card` is the checked authoring boundary. It retains an
-`Authoring.Form` tree before unfolding erases named macro calls, and constructs
-`Spelled` with both `onlyAuthored` and the existing `ok : card.check = []` proof.
-The constructor is private. Record construction and record update cannot replace
-these checks. Unregistered helper definitions and nested macro arguments are
-inspected; opaque or variable semantic content without authoring evidence is
-refused, including expressions nested in printed-data records.
+`Authoring.Form` tree before unfolding erases named template and definition
+calls, and constructs `Spelled` with both `onlyAuthored` and the existing
+`ok : card.check = []` proof. The constructor is private. Record construction
+and record update cannot replace these checks. Unregistered helper definitions
+and nested template and definition arguments are inspected; opaque or variable
+semantic content without authoring evidence is refused, including expressions
+nested in printed-data records.
 
-Semantic expressions must use registered macro declarations. Printed-data
-records, enumerated leaf values, and numeric literals remain ordinary data;
-their semantic fields are inspected recursively. `Semantics.Primitives`
-provides named wrappers with definitionally identical constructor signatures.
-`Action.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
-they are expansion carriers owned by the trusted macro layer. Existing idiomatic
-templates and definitions use `semantic_template` and `semantic_definition` declarations. Defaults retain their calls.
+Semantic expressions must use authored declarations: a `semantic_definition`
+(a Definition, the rules-defined vocabulary of a keyword action, keyword
+ability, counter, token or designation) or a `semantic_template` (a Template,
+a transparent phrasing the rules do not define). Printed-data records,
+enumerated leaf values, and numeric literals remain ordinary data; their
+semantic fields are inspected recursively. The modules are layered
+`Semantics.Primitives` ← `Semantics.Templates` ← `Semantics.Definitions`.
+`Semantics.Primitives` provides the generated constructor wrappers
+(`declare_semantic_primitives`, `Semantics.Primitives.<Type>.<name>`), which
+have definitionally identical constructor signatures and are registered as
+templates, together with a few worded primitive templates and the
+characteristic inputs. `NounPhrase.pro` and `NounPhrase.which` have no
+primitive wrapper: they are expansion carriers (`internal_expansion`) that only
+templates and definitions write. `Semantics.Templates` holds every
+`semantic_template`; `Semantics.Definitions` holds every `semantic_definition`
+and, in its last section, the few templates whose bodies need a definition.
+Defaults retain their calls.
 
 A declaration generates the hidden construction context, parameter bindings, and
 registration from one ordinary Lean definition body. It returns its semantic
-type directly; `expand` is a transparent identity, not a trust boundary. Only
-registered definitions are trusted. Neither helpers, discarded arguments, nor
+type directly; `expand` is a transparent identity, not a trust boundary. An
+`Action` Definition's body must establish its own Reference Scope
+(`Action.ownScope`); the declaration is refused otherwise. Only authored
+declarations are trusted. Neither helpers, discarded arguments, nor
 projections may conceal raw semantic syntax, even if their result is ordinary
 data. Inspection skips ordinary helper bodies only after scanning the instantiated
 expansion's reachable definitions for semantic types, constructors, and calls;
 its arguments are still inspected. This includes semantic functions hidden in
-containers and supplied higher-order macro calls. Generated binding and
-caller-scope constructors have no public primitive.
+containers and supplied higher-order template or definition calls. Generated
+binding and caller-scope constructors have no public primitive.
 
 A supplied parameterized body is inspected under evidence for its explicit noun
 parameters. Other semantic free variables remain refused. Callback type aliases
-are resolved during type elaboration; callbacks receive the receiving macro's
-construction context. A caller cannot substitute a different hidden lexical
-context. The authoring tree records formal body binders and their uses as well
-as the enclosing named call.
+are resolved during type elaboration; callbacks receive the receiving
+declaration's construction context. A caller cannot substitute a different
+hidden lexical context. The authoring tree records formal body binders and
+their uses as well as the enclosing named call.
 
 The kernel proves that the retained authoring tree contains no raw semantic
 constructor and that the resulting card passes the checker. Correspondence
 between the input expression and that tree is the elaborator's responsibility;
 this is not a kernel proof about Lean source text. Registration establishes a
-trusted macro definition. The checker validates its expanded body and contextual
-use, but does not prove that the macro implements its label's rules meaning.
-Extending the macro library therefore requires reviewing the expansion itself.
-Raw expanded terms remain available to checker diagnostics and proof suites.
+trusted authored declaration. The checker validates its expanded body and
+contextual use, but does not prove that a Definition implements its label's
+rules meaning. Extending the Definitions and Templates therefore requires
+reviewing the expansion itself. Raw expanded terms remain available to checker
+diagnostics and proof suites.
 
-The tree retains macro names, data constructors and literals as a future
-attachment point for spellings. The separate English project has no dependency
-on this mechanism. No rendering or execution equivalence is claimed.
+The tree retains template and definition names, data constructors and literals
+as a future attachment point for spellings. The separate English project has no
+dependency on this mechanism. No rendering or execution equivalence is claimed.
 
 The anaphora bench's `manifestPlacement` is explicitly a placement-only fragment
 of manifest [CR#701.40a]. It retains that bench's prior semantic value; it does
@@ -142,12 +159,12 @@ Equipment's or Fortification's host is an object [CR#301.5,301.6]). Host
 card-type restrictions written in one description remain a contradiction
 (`contradictionFree`); a counterpart's or a host word's card types are no longer
 checked against the attachment word (`lean-checker-sweep-zone`). Quantified
-attachment counts and counterpart target publication remain checked. The old `isAttached`, `attachedBy`, and `attachedTo`
-names are trusted macros over the shared predicate.
+attachment counts and counterpart target publication remain checked. The `isAttached`, `attachedBy`, and `attachedTo`
+templates expand to the shared predicate.
 
 `currentFace` describes a single double-faced permanent as a whole. Its front
 and back alternatives are distinct from face-up and face-down Status. The
-`isTransformed` macro expands to the back alternative: prior transformation,
+`isTransformed` template expands to the back alternative: prior transformation,
 copying back-face characteristics, or a back-face-up component in a merged or
 melded object is insufficient [CR#701.27g]. The checker validates the predicate's
 object domain; runtime evaluation of current game state
@@ -158,7 +175,7 @@ remains Rust's responsibility. The fold does not claim an execution proof.
 `LookbackClause` contains a `GameEvent` and either a span (`mk`: a `Duration`, with an
 optional `Timing` the event happened under) or an occurrence (`thisWay`, the event the
 enclosing instruction caused; `triggering`, the event that triggered the ability), which name no
-span (`semantics-v2-temporal-suite`). The `relative` macro
+span (`semantics-v2-temporal-suite`). The `relative` template
 marks the participant described by the enclosing predicate or condition.
 That participant is checked against the host kind by the same recursive checker
 that validates ordinary event participants. A gap outside a lookback is refused;
@@ -186,7 +203,7 @@ current behaviour, not the target: `docs/decisions/semantics-v2.md` §7 (ruling
 2026-10-07) replaces it with measured resolution rules, which apply once
 `lean-drt-anaphora-refactor` lands. The authoring boundary
 excludes raw `NounPhrase.pro` and `Window` construction, including both numeric
-windows and introduction patterns. Named scope macros carry the phrase,
+windows and introduction patterns. Named scope templates carry the phrase,
 instruction or condition whose mentions they re-read; their expanded windows
 are internal checker data, not positional reads in the authorable grammar.
 
@@ -200,14 +217,14 @@ letting an empty-context count consume an outer object or player. A mismatch
 produces an empty read window and cannot mutate outer bindings.
 
 The patterns describe binding kinds, not referent identities or rules meanings.
-Their ownership comes from the trusted scope macro's expansion. Numeric
+Their ownership comes from the scope template's expansion. Numeric
 `top`/`below` windows remain available for internal diagnostics and the fixed
 single-subject comparison and chooser slots. They have no card-authoring constructor.
 
 The empty-context calculations now produce conditional introduction patterns,
 never an assumed fixed depth. The audit covers every affected helper:
 
-| Scope macro | Owning phrase and boundary |
+| Scope template | Owning phrase and boundary |
 | --- | --- |
 | `itPrior` | The preceding instruction's output, through `Action.intro`; existing outer mentions are not part of the empty-input pattern. |
 | `itCondSubject` | The condition's published mentions. The author no longer supplies a `Bindings` argument. |
@@ -215,8 +232,8 @@ never an assumed fixed depth. The audit covers every affected helper:
 | `agentRef` | The agent's own introduction, including singularization of distributive agents. An agent introducing nothing is re-read directly. |
 | `itsOther` / `sameWindow` | The first stat modification's subject and amount introductions, in the same order as `StaticSpec.intro`. An originally empty introduction uses the whole context. `getsPt` no longer uses it: "gets +P/+T" is the one node `StaticSpec.ptModification`, which checks its subject once and its toughness delta after its power delta's introductions; the bench's hand-written two-modification clauses still read their toughness half through it. |
 | `ownSubject` | The shared subject's introduction; an empty owned introduction remains empty and cannot capture an outer antecedent. |
-| `attachToIt` / `requireBlockIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |
-| `aTheirChoice` | The immediately preceding chooser mention. The macro requires that grammatical caller position; the fixed one-binding window is independent of the outer context. |
+| `attachToIt` | The containing context outside the current noun's introduction. Ambiguity within that outer context remains an error. |
+| `aTheirChoice` | The immediately preceding chooser mention. The template requires that grammatical caller position; the fixed one-binding window is independent of the outer context. |
 | `comparesOwnStat` | The one subject binding that `Predicate.check` places immediately before the measure, read through its `member` argument, `ownMember` unless written. Its fixed internal depth is independent of outer context and letters. |
 
 `Proofs/ReferenceScopes.lean` pins the former X-reuse counterexample, scope twins
@@ -252,8 +269,8 @@ change is intentional and separately pinned.
 `Proofs/ControllerSacrifice.lean` proves the full profile for arbitrary outer
 contexts, target multiplicity, the existing-reference case, and later reads.
 No controller-sacrifice constructor or dedicated validation, profile, cost,
-reflexive-enclosure or number-slot arm remains. Macro authoring still establishes
-trusted expansion origin; these are checker/reference guarantees, not an engine
+reflexive-enclosure or number-slot arm remains. Authoring through templates and definitions still
+establishes trusted expansion origin; these are checker/reference guarantees, not an engine
 execution proof.
 
 ## The performer and the handoff
@@ -361,7 +378,7 @@ These are checker guarantees, not an execution proof.
 
 ## Binding identity and a keyword body's own scope
 
-A registry macro's referent parameter is bound at the body's first mention and
+A Definition's or Template's referent parameter is bound at the body's first mention and
 read back by its Binding Identity at every later one (`docs/decisions/semantics-v2.md`
 §7, ruling 2026-10-06; §12.2). `NounPhrase.firstMention id phrase` is checked
 and introduced as `phrase` is, and records the binding `phrase` introduced or
@@ -378,8 +395,8 @@ record, is refused `bindingIdentity`, never read as a second selection. Updates
 in place (`moveIntro`, `refine`, `setBindingAt`) keep a binding's identities.
 
 A keyword action body is read in its own Reference Scope:
-`Action.ownScope scope body`, which the loader writes inside the action's
-`enact` wrapper, masks every mention of the calling text but the performer the
+`Action.ownScope scope body`, which every `Action` Definition opens with
+(`semantic_definition` refuses one that does not) around its `enact` wrapper, masks every mention of the calling text but the performer the
 innermost handoff names: its frame and the bindings it put in view
 (`Payload.actor`'s width, `enterOwnScope`). The body's parameters are written
 `inCaller scope`; a caller view of an own scope lifts that mask for the
@@ -418,7 +435,7 @@ through unrelated outer bindings, and mentions created inside the amount.
 ## Definitions and composition
 
 `StaticSpec.letterDefinition` is the one numeric definition form. The `define`
-macro establishes it without a duration. Both static and instruction positions
+template establishes it without a duration. Both static and instruction positions
 check the amount in the incoming scope, close an already-open letter, and reject
 an unused or duplicate definition. An earlier target or affected-object mention
 remains available to a trailing definition; nothing is hoisted. A durationless
@@ -434,7 +451,7 @@ existing mandatory-enclosure and armed-continuation checks. `repeat_ (.fixed …
 carries its count and body; the other repetition policies remain unchanged.
 
 Noun conjunctions and alternatives are lists, as are cost alternatives. They
-require at least two members; the binary `both`, `eitherOf`, and `either` macros
+require at least two members; the binary `both`, `eitherOf`, and `either` templates
 supply two-member lists. Noun conjunctions thread introductions in textual order;
 alternatives check their members independently. Predicate and condition lists
 retain their existing cardinality and scope laws. `sequentially` threads instruction
@@ -456,7 +473,7 @@ be inferred from a failed pronoun:
 | `withContinuation` (`may` / `doIfDone` templates) | The success arm sees the body output; the failure arm starts before the body. |
 | `doIf`, `doOnlyIf` | Each branch checks before either branch's effects. Postposed conditions see the primary instruction's pre-state. Branch-local mentions and outcomes do not escape; facts about prior mentions are joined across branches. |
 | `doForEach`, `doForEachKind`, `repeat_ (.fixed …)` | Check the body in the element/value/count context; verify preservation of outer bindings and pluralize exported local mentions. |
-| `enact` | The performer in context (`enactPerformer`) establishes `enactCtx`; a group a handoff hands the deed checks `enactKeepsOuter`. Tag/body trust is established at the macro authoring boundary above. |
+| `enact` | The performer in context (`enactPerformer`) establishes `enactCtx`; a group a handoff hands the deed checks `enactKeepsOuter`. Tag/body trust is established at the authoring boundary above. |
 | `act` (handoff) | The body is checked in `actorCtx`: the player's `agentIntro` under a handoff frame that `actor` reads. A singular performer exports the body's profile outside the frame, so a targeted performer stays published; a distributive performer follows `doForEach` (preserve outer bindings, pluralize exported local mentions), unless the body is one instruction with a performer of its own, which takes the group as that performer (`performerFrame`). |
 | Delayed, reflexive and `triggerThisWay` clauses | Use `delayedCtx`, `reflexCtx` or `thisWayCtx`. The enclosed body's private mentions do not escape as ordinary sequential mentions. |
 | Replacement and held clauses | Use `replacedCtx` or the held body's announcements. Do not export the event as already completed. |
@@ -573,9 +590,9 @@ by exact-refusal theorems; it is not an authorable term.
 | `TokenQuality` | `TokenQuality.checkAll` checks each quality at the bundle context. |
 | `CounterKindSource` | `CounterKindSource.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CostShift` | `CostShift.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `CountBound` | `CountBound.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
+| `CountBound` | No Lean type: a usage limit's count is an `Amount` (`UsageLimit.mk times per`), checked by `UsageLimit.check`. |
 | `DeedComplement` | `DeonticPatient.check` checks each counterpart; `deonticPatientOk` checks its deed membership, its kind against the deed's other role, and that it is not the subject read back. |
-| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` at `StaticSpec.deonticRule` checks a counterpart's kind and that it is not the subject read back; which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). Child phrases use `DeonticPatient.check`. |
+| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` at the `cant`, `must` and `can` clauses checks a counterpart's kind and that it is not the subject read back; which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). Child phrases use `DeonticPatient.check`. |
 | `DamageScope` | `DamageScope.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageAgent` | `DamageAgent.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Unpreventable` | `Unpreventable.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -660,7 +677,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `DamageRecipient` | `objectOrPlayerCheck` in damage instructions, `DamagePatient.check` and the damage-result rule: the recipient's kind alone. Which objects can be dealt damage [CR#120.1a] and where they are are not checked (`lean-checker-sweep-zone`). |
 | `StatusHolder` | `Action.setStatus` requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
-| `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
+| `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The authoring boundary above excludes arbitrary authored tag/body combinations. |
 | `Movable` | `Action.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
 
 ### Triggers
@@ -675,7 +692,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `DamagePatient` | `DamagePatient.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `Door` | `Door.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `RollWatch` | `RollWatch.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
-| `CrimeSubject` | `GameEvent.commitsCrime` checks a player subject and singularity. |
+| `CrimeSubject` | `Action.commitCrime` as an event pattern (`does subj commitCrime`) requires a singular performer (`singular`). |
 | `GameEvent` | `GameEvent.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `Causing` | `Causing.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `TriggerWindow` | Merged into `Timing.inPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
@@ -689,7 +706,7 @@ by exact-refusal theorems; it is not an authorable term.
 |---|---|
 | `OptOk` | Optional consumers use their `Opt*.check` or `map`/`getD` branches; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kindOfAll`, and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
-| `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; the macro definition is trusted to supply the corresponding expansion. |
+| `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; the Definition is trusted to supply the corresponding expansion. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Binding` has no separate kind field that can disagree. The checker-private `parameterFrame` and `actor` frames are not referents; windows, caller masks, forgetting and `countOnes` pass over handoff frames. |
 | `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -697,7 +714,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `Targeter` | `Kind.targeter` in `Predicate.check` and `DeonticPatient.check`. |
 | `Phrasal` | `Kind.phrasal` at copying, iteration and noun consumers. |
 | `KnownKeyword` | `knownKeyword`, `KeywordTerm.known`, and `keywordParamFits` at keyword consumers. |
-| `BasicLandType` | The old `basicLandLine` macro has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
+| `BasicLandType` | The Idris reference's `basicLandLine` helper has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `Delta Amount` consumers check the carried amount. |
 | `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder. Whether an instruction may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
@@ -716,9 +733,9 @@ by exact-refusal theorems; it is not an authorable term.
 - `Binding`'s kind/payload pair and `unionPayload`'s returned dependent pair:
   the kind is now derived from the payload, so there is no separate index to
   validate. Union payloads retain only card-type facts shared by both arms.
-- Other erased implicit binders on functions and macros refer to these same
+- Other erased implicit binders on functions, templates and definitions refer to these same
   datatype duties; erasing the binder does not remove the obligation at the
-  resulting term's consumer. In particular, macros are not an independent
+  resulting term's consumer. In particular, templates and definitions are not an independent
   certificate for arbitrary enacted bodies; the authoring boundary above establishes their trusted origin.
 
 
@@ -775,8 +792,8 @@ conditional forms: a `doIf` with no otherwise-branch, a trigger's intervening
 condition, or a conditional (not `unless`) static ability, whose condition is
 `.matches .this p` with `p` implying a Card Class (`Predicate.impliedClass`:
 an instant or sorcery type implies the instant-or-sorcery class, a permanent
-type the permanent class [CR#110.4a]; `permanentCard` and `instantOrSorcery`
-are the helpers). `semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the
+type the permanent class [CR#110.4a]; `isPermanentCard` and `isInstantOrSorcery`
+are the templates). `semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the
 additional-cost keywords share one mechanism"); there is no selector device.
 
 - A spell ability [CR#113.3a] is a fourth `AbilityCategory` (`.spell`), which a
@@ -818,7 +835,7 @@ must be a declared component of its category whose regime its form admits
   change is at casting [CR#601.2f]; an activated ability and any other static
   ability are off the stack.
 - **Open, declared.** A permission to cast the card (`altCost`, or a
-  `deonticRule` permitting with a `play` rider) admits either at casting or off
+  `can` clause permitting the cast) admits either at casting or off
   the stack, never at resolution: such an ability functions on the stack
   unless it states its zones, and the keyword's own rule says which
   [CR#113.6b,113.6d,702.34a,702.117a]. The facts generator takes such a
@@ -974,16 +991,16 @@ capture operation derives its input kind from the annotated Lean type.
 Predicate, Amount, Quantity, Location, Condition, GameEvent, Cost, Action,
 and StaticSpec. Bindings contain an ordered list of typed inputs. Captures occur
 left to right at that node, including inside conditions and repetition. Two
-identical argument expressions remain two selections. A nested macro forwards
-an existing parameter reference; a fresh argument creates a fresh capture.
-No macro registry or construction-time context object survives in the result.
+identical argument expressions remain two selections. A nested template or definition
+forwards an existing parameter reference; a fresh argument creates a fresh capture.
+No authoring registry or construction-time context object survives in the result.
 
 `Window.parameter` and `Amount.parameter` carry generated scope and slot keys.
 Authors use parameter names. The checker frame points to actual slots, including
 outer inline slots, rather than payload-equal copies. It adds no ordinary
 pronoun candidate. An inline subject remains a returned value when its private
 frame closes. A noun result carries its full context, additions, returned
-address, and value, so a macro can return any captured subject. Movement updates
+address, and value, so a template or definition can return any captured subject. Movement updates
 that returned subject while the scope is live. Explicit resolved/type/marker
 views remain attached to the returned value.
 
@@ -998,10 +1015,10 @@ definition costs follow scopes and their capture obligations. Reusing a value in
 syntax. Inputs are still checked, including unused captures; a malformed
 reference does not gain validity by being captured. Capture itself adds no
 whole-body success requirement. Any required availability guard belongs in the
-ordinary macro body.
+ordinary template or definition body.
 
 A `splice` preserves caller references by temporarily masking mentions from the
-receiving macro. Its body can explicitly accept macro-local subjects through
+receiving declaration. Its body can explicitly accept declaration-local subjects through
 noun parameters. Temporary masks preserve live addresses and are distinct from
 permanently forgotten mentions. Leaving caller scope restores visibility without
 undoing updates or resurrecting forgotten mentions. Captures keep forgotten
@@ -1014,14 +1031,14 @@ reference accidentally. The older kind-pattern windows above remain appropriate
 only at their documented immediate boundaries. Collection-member binding,
 aggregation, and the numeric-anaphora redesign remain separate work.
 
-The bench's captured `fight` macro uses an ordinary creature-and-battlefield guard for both captured subjects,
-then simultaneous damage at each subject's power [CR#701.14a..701.14c]. Group
-subjects are rejected by the singular power read and per-member damage checks;
-the checker no longer relies on a failed singular private reference to reject
-them or borrows attacking-creature admissibility for fight. The `plugins_v2` declaration
-binds each creature at its first mention instead and writes no guard: a
-condition may not introduce its subject (`testSubject`), and the battlefield
-demand is the rules' [CR#701.14b].
+The `fight` Definition binds each creature at its first mention inside an
+ordinary creature guard (`doIf` over `matches … isCreature` for both), then has
+each deal damage equal to its power to the other simultaneously
+[CR#701.14a..701.14c]. Group subjects are rejected by the singular power read
+and per-member damage checks; the checker does not rely on a failed singular
+private reference to reject them or borrow attacking-creature admissibility for
+fight. It writes no battlefield guard: that demand is the rules'
+[CR#701.14b].
 
 Regeneration installation creates a next-time-this-turn destruction replacement.
 The Regenerate label belongs to its application: clear marked damage, have the
@@ -1029,7 +1046,8 @@ controller tap the permanent, and remove it from combat if applicable. A static
 regeneration replacement uses that application repeatedly; it does not install
 a further shield [CR#701.19a..701.19c].
 
-Counter expands directly to `enact Counter (move subject graveyard [])`.
+The `counter` Definition expands to one labeled stack-to-graveyard move in its
+own scope, `ownScope (enact counter (move subject stack graveyard …))`.
 It reads the subject once and needs no operand capture or ability/spell branch.
 The movement pre-state remains available to postposed conditions such as
 Ertai's Trickery.
@@ -1080,13 +1098,11 @@ narrowing to count on a creature card in any zone [CR#122.1a]. The +1/+1 and
 -1/-1 definitions check clean (`p1p1CounterDefinitionZone`,
 `m1m1CounterDefinitionZone`).
 
-Every Registry Definition is gated: `cargo xtask lean definitions` re-emits
-each counter, subtype and designation definition `plugins_v2/builtin` declares
-and proves `Definition.check = []` by `decide`, as `lean check` does for cards
-(`lean/README.md`). `Definition.check` has a rule for every constructor, an
-exhaustive match, so there is no definition the gate reads and the checker
-ignores; a declaration of a registry kind whose body does not read as its
-family's `Definition` fails the read rather than being skipped.
+The registry-definition emitter (`cargo xtask lean definitions`) is retired
+(`lean/README.md`); `Proofs/Rules.lean` proves `Definition.check = []` by
+`decide` for the Registry Definitions it writes. `Definition.check` has a rule
+for every constructor, an exhaustive match, so there is no definition the
+checker ignores.
 
 A designation is a name too: `DesignationLabel.named` carries the designation
 declaration's name verbatim (`goaded`, `monarch`, `leftHalfUnlocked`), or, for
@@ -1110,15 +1126,19 @@ value as.
 
 ## Shared event patterns and static applicability
 
-`GameEvent.zoneChange` names the subject, optional origin, optional destination,
-and observation point. Its checking and historical mention order is subject,
+A zone-change event is `GameEvent.does subj` over an
+`Action.move subject from_ to at_ cause riders`, whose subject is the clause's
+own (`NounPhrase.actor`) in the verb templates: it names the subject, origin,
+optional destination, and observation point (`ObservationPoint`: `arrival` or
+`departure`). Its checking and historical mention order is subject,
 origin, destination. An endpoint can refer to a player introduced by an earlier
 field. A missing endpoint is unconstrained; empty origin sets, exclusion of every
 origin, and movement from a single shared zone back into itself are refused.
 Player-qualified exclusions are conservative when only a zone sort is known.
 
-`dies`, `leaves`, `enters`, and `putInto` are authoring macros. Battlefield
-and graveyard departure patterns observe before; ordinary arrivals observe after.
+The verbs `die`, `leave` and `enter`, which move the clause's own subject
+(`NounPhrase.actor`), and `putInto` are templates. Battlefield and graveyard
+departure patterns observe on departure; ordinary arrivals observe on arrival.
 In particular, graveyard arrival from anywhere is not a battlefield-departure
 pattern [CR#603.6c,603.10a]. The raw observation point retains the distinction.
 Interception publishes departure location; a triggered continuation publishes
@@ -1127,7 +1147,7 @@ references or manufacturing an event outcome. Source and destination possessors
 are available in ordinary field order.
 
 Damage event patterns share optional source and patient fields and require at
-least one participant. Named active/passive authoring forms remain macros; no
+least one participant. Named active/passive authoring forms remain templates; no
 semantic voice field is present. Entry and attachment choice specs likewise share
 an occasion enum while retaining choice sort, domain, and disclosure.
 

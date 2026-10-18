@@ -12,10 +12,10 @@ trigger [CR#702.175a,702.157a], casualty a cast trigger [CR#702.153a], and gift 
 on a permanent and a spell ability on an instant or sorcery [CR#702.174a,702.174b].
 
 Casualty declares no definition yet, so its pins hold a row written here, shaped as its will be;
-the offspring and squad rows here agree with the registry's since their definitions were declared
+the offspring and squad rows here agree with the registry's since their Definitions were written
 (`okOffspringRegistryRow`, `okSquadRegistryRow`), and gift's predates its definition, which
 `Proofs/GiftVariants.lean` checks against the registry's own row. The stand-in effects read each
-component's form, not what it does; offspring's and squad's declared definitions are pinned with
+component's form, not what it does; offspring's and squad's Definitions are pinned with
 their real effects.
 -/
 
@@ -133,7 +133,7 @@ theorem okOffspringRegistryRow :
       = (some offspringRow.definition, some offspringRow.regime) := by
   decide
 
-/-- "Offspring {2}" with its declared definition fits the registry's row and checks
+/-- "Offspring {2}" with its Definition fits the registry's row and checks
 [CR#702.175a]. -/
 theorem okOffspringDefinition :
     (keywordBodyFits (.named "offspring") offspringDefinition,
@@ -168,7 +168,7 @@ theorem okSquadRegistryRow :
       = (some squadRow.definition, some squadRow.regime) := by
   decide
 
-/-- "Squad {2}" with its declared definition fits the registry's row and checks
+/-- "Squad {2}" with its Definition fits the registry's row and checks
 [CR#702.157a]. -/
 theorem okSquadDefinition :
     (keywordBodyFits (.named "squad") squadDefinition,

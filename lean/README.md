@@ -8,7 +8,7 @@ kernel-checked proof that its refusal list is empty. Runtime game execution
 remains in Rust.
 
 Run `lean/scripts/build` from the repository root, or `./scripts/build` from
-this directory. It builds the syntax, checker, macros, printed-card bench,
+this directory. It builds the syntax, checker, templates and definitions, printed-card bench,
 and pin suites with warnings treated as failures. For the
 semantics inner loop, run `lake build Semantics` from this directory.
 
@@ -44,15 +44,17 @@ v2 regeneration. The card/definition tests checked the retired v2 emitter,
 its diagnostic attribution and generated-file handling. These contracts no
 longer apply to the native v3 workbench.
 
-## Syntax and macros
+## Syntax, templates and definitions
 
-The seven syntax layers are `Words`, `Events`, `Phrase`, `Triggers`,
-`Abilities`, `Card`, and `Rules`. A constructor earns its place through an obligation or structural
+The syntax modules are `Words`, `Events`, `Abilities`, `Card`, and `Rules`;
+`Primitives` wraps their constructors, `Templates` holds the transparent phrasings, and
+`Definitions` the rules-defined vocabulary (keyword actions and abilities, counters, tokens and
+designations), followed by the few templates written over it. A constructor earns its place through an obligation or structural
 distinction its expansion would not carry. Common phrasings live in `Templates`:
-for example, "permanent", "colorless", "historic", "spell", "attacking", and
-"regenerates" expand into shared predicates and events.
+for example, "permanent", "colorless", "historic", "spell" and "attacking" expand into
+shared predicates.
 
-Instructions and their macros use dictionary forms (`exile`, `mill`, `gainLife`);
+Instructions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
 Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
 lives in `Repetition.fixed`. No instruction writes its performer: it is
@@ -164,7 +166,7 @@ bench items have their own named acceptance or refusal theorems beside them.
 `SemanticsCards` builds the card families; `SemanticsProofs` builds the pin
 suites. The full build includes both.
 
-A refused card identifies a missing macro, a missing construct, or a checker
+A refused card identifies a missing template or definition, a missing construct, or a checker
 regression. Keep its sentence and assertion while repairing that boundary.
 The bench follows the repository's Vintage-playable scope; out-of-scope
 formats are not reserved in the syntax.

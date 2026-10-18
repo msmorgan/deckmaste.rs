@@ -314,7 +314,7 @@ theorem okCompanionCharacteristicRead :
 
 /-- "Companion — Each card on the battlefield in your starting deck ...": a zone is a place
 objects can occupy [CR#400.1], not a characteristic [CR#109.3]. Companion evaluates its
-condition against the starting deck before the game begins [CR#702.139a]. `permanentCard` spells "each permanent card". -/
+condition against the starting deck before the game begins [CR#702.139a]. `isPermanentCard` spells "each permanent card". -/
 theorem badCompanionLocationScope :
     Ability.check (DRS.ofList [])
       (companion

@@ -292,7 +292,7 @@ theorem badDomainlessOpenAxis :
       = [.kindDomainOk] := by
   decide
 
-/-- "Cumulative upkeep {2}". The Idris macro also wrote out the keyword's expansion; here the
+/-- "Cumulative upkeep {2}". The Idris reference also wrote out the keyword's expansion; here the
 keyword line carries the law directly. -/
 theorem okManaCumulativeUpkeep :
     Ability.check (DRS.ofList []) (keywordCosting (.named "cumulativeUpkeep") (.mana [generic 2])) = [] := by decide

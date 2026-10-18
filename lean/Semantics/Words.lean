@@ -333,7 +333,7 @@ inductive Reach where
   | verbed (verb : Deed) (word : Option NounWord) (marking : VerbedMarking)
   deriving DecidableEq, Repr
 
-/-- A Binding Identity: the name under which a macro body's first mention of a referent
+/-- A Binding Identity: the name under which a Definition or Template body's first mention of a referent
 parameter records the binding it introduces or resolves, and by which the body's later mentions
 of that parameter read it back. It is a name, fixed when the mention is checked, never a stack
 position: pushing and removing other bindings does not change which binding it names. -/

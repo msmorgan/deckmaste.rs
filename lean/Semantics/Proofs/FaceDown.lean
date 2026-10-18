@@ -8,8 +8,7 @@ Pins for the one face-down spec and for special actions (`docs/decisions/semanti
 ruling 2026-10-08, "Face-down is one spec, and a special action is a cost and an instruction").
 A card exiled face down carries `exiledFaceDown` [CR#406.3a]; a face-down spell or permanent its
 listed characteristics [CR#708.2]; a move's riders are of the kind its destination allows
-(owner ruling 2026-10-08, Q28–Q29). Each keyword expansion is the Lean twin of its
-`plugins_v2` body.
+(owner ruling 2026-10-08, Q28–Q29).
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions

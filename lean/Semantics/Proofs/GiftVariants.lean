@@ -8,7 +8,7 @@ Gift is one definition holding both its abilities [CR#702.174a,702.174b]: the ad
 "you may choose an opponent", an enters trigger guarded by the permanent class and a spell
 ability guarded by the instant-or-sorcery class, each handing the effect to the player chosen as
 the gift cost was paid [CR#607.2d,607.2i]. Bare gift has no spelling; each spelled variant is gift
-with its effect (`plugins_v2/builtin/macros/keyword_abilities/gift*.ron`). These pins hold the
+with its effect (`giftACard`, `giftATappedFish`, … in `Semantics.Definitions`). These pins hold the
 two variants printed on both card classes, "Gift a card" [CR#702.174e] and "Gift a tapped Fish"
 [CR#702.174f], against the registry's own gift row, on a permanent card and on an instant, with
 twins that must stay refused.

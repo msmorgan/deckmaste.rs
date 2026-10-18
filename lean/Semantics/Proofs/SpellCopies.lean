@@ -35,8 +35,7 @@ theorem targetsOnlyIsTargetsAtOnly :
 
 /-! ## Bodies
 
-Each keyword's declared definition, as `cargo xtask lean macros` derives it from its
-declaration, checks clean as an ability. -/
+Each keyword's Definition (`Semantics.Definitions`) checks clean as an ability. -/
 
 namespace Bodies
 

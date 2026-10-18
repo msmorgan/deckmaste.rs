@@ -81,7 +81,7 @@ theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
       selected.map (·.id) = (stepNounPhrase 64 (DRS.ofList []) .other false thisCreature).2.1 ∧
       selected.all (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) := by decide
 
-theorem transformedMacroReadsWholeBackFace :
+theorem isTransformedTemplateReadsWholeBackFace :
     Primitives.Predicate.isTransformed = Predicate.currentFace .back := by rfl
 
 theorem frontAndBackAreDistinct :

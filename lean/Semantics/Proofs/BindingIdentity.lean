@@ -3,7 +3,7 @@ import Semantics.Definitions
 /-!
 # Semantics.Proofs.BindingIdentity
 
-A registry macro's referent parameter is bound at the body's first mention, and every later
+A Definition's or Template's referent parameter is bound at the body's first mention, and every later
 mention refers back to that binding by its Binding Identity, not by a pronoun search
 (`docs/decisions/semantics-v3.md` §§1.2,1.4). The `plugins_v3` loader writes the
 first mention `firstMention id argument` and each later one `laterMention id argument`; the
@@ -71,7 +71,7 @@ theorem interveningBindingDoesNotShiftTheRead :
       some [.artifact] := by
   decide
 
-/-- Two calls of the same macro each read their own first mention. -/
+/-- Two calls of the same Definition each read their own first mention. -/
 theorem eachCallReadsItsOwnBinding :
     Action.check (DRS.ofList [])
       (.sequentially [tapThenUntap (target isCreature), tapThenUntap (target isArtifact)]) = [] := by

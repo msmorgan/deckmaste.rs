@@ -19,12 +19,12 @@ private def withDraw : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (draw (.lit 1))] } }
 
-theorem printedDataNeedsNoExpressionMacro : plain.authoring.onlyAuthored = true := plain.onlyAuthored
+theorem printedDataNeedsNoExpressionTemplate : plain.authoring.onlyAuthored = true := plain.onlyAuthored
 
-theorem keywordRecordsMacroAuthorship : withKeyword.authoring.onlyAuthored = true :=
+theorem keywordRecordsTemplateAuthorship : withKeyword.authoring.onlyAuthored = true :=
   withKeyword.onlyAuthored
 
-theorem macroDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored = true :=
+theorem templateDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored = true :=
   withDraw.onlyAuthored
 
 theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withDraw.ok

@@ -331,7 +331,7 @@ mutual
     /-- A Principle A reflexive pronoun (`itself`, `themselves`, `yourself`), which resolves
     to the current clause's subject. -/
     | refl (plurality : Plurality)
-    /-- A macro body's first mention of a referent parameter: the argument, checked and
+    /-- A Definition or Template body's first mention of a referent parameter: the argument, checked and
     introduced where it stands, with the binding it introduces or resolves recorded under the
     Binding Identity `id`. -/
     | firstMention (id : BindingId) (phrase : NounPhrase)

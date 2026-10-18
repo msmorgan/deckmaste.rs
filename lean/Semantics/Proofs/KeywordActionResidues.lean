@@ -9,7 +9,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 The shapes the last bodyless keyword actions needed (`semantics-v2-keyword-action-residues`): a
 part bounded by a summed stat, a run of library cards, a double-faced token, a face-down entry, a
 cost whose generic mana tapping can pay, a rules procedure carried out during resolution, and a
-named emblem. Each keyword action's bench macro checks clean, and each shape has a refusal pin.
+named emblem. Each keyword action's Definition checks clean, and each shape has a refusal pin.
 -/
 
 namespace Semantics.Proofs.KeywordActionResidues

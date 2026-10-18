@@ -23,7 +23,7 @@ def saddleDefinition : List Ability :=
         (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]])))))
       (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
 
-/-- "Saddle 2" with its declared definition fits the registry's row and checks [CR#702.171a]. -/
+/-- "Saddle 2" with its Definition fits the registry's row and checks [CR#702.171a]. -/
 theorem okSaddleDefinition :
     (keywordBodyFits (.named "saddle") saddleDefinition,
       Ability.check (DRS.ofList []) (.keyword (.named "saddle") [.number (.lit 2)] saddleDefinition))
@@ -47,7 +47,7 @@ def teamworkDefinition : List Ability :=
       (.perform (tap (withTotal (.stat .power) .atLeast (.lit 2) (allOf (and [isCreature, youControl])))))
       true .once) ]
 
-/-- "Teamwork 2" with its declared definition fits the registry's row and checks
+/-- "Teamwork 2" with its Definition fits the registry's row and checks
 [CR#702.194a]. -/
 theorem okTeamworkDefinition :
     (keywordBodyFits (.named "teamwork") teamworkDefinition,
@@ -76,7 +76,7 @@ def awakenDefinition : List Ability :=
                   .addedAbilities [keyword (.named "haste")] ])
               none ])) ]
 
-/-- "Awaken 4—{5}{U}" with its declared definition fits the registry's row and checks
+/-- "Awaken 4—{5}{U}" with its Definition fits the registry's row and checks
 [CR#702.113a]. -/
 theorem okAwakenDefinition :
     (keywordBodyFits (.named "awaken") awakenDefinition,
@@ -89,7 +89,7 @@ theorem okAwakenDefinition :
 def indestructibleDefinition : List Ability :=
   [ .static (cant any (destroy thisPermanent)) ]
 
-/-- Indestructible with its declared definition fits the registry's row and checks
+/-- Indestructible with its Definition fits the registry's row and checks
 [CR#702.12b]. -/
 theorem okIndestructibleDefinition :
     (keywordBodyFits (.named "indestructible") indestructibleDefinition,

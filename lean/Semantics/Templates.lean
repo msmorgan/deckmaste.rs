@@ -1366,7 +1366,7 @@ semantic_template act (performer : NounPhrase) (body : Action) : Action :=
 /-- "… <performer> controls" -/
 semantic_template actorControls : Predicate := .hasPossessor .controller .actor
 /-- "For each <pip> mana …, you may <action> rather than pay that mana": a Mana Substitute
-[CR#702.51a,702.66a,702.126a,701.67a], spelled as the RON helper `substitute`. -/
+[CR#702.51a,702.66a,702.126a,701.67a]. -/
 semantic_template substitute (action : Action) (pays : List PipPaid) : ManaSubstitute :=
   { action, pays }
 /-! ## Text Changes -/
