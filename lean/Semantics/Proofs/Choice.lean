@@ -486,9 +486,9 @@ theorem playAndCastFromGraveyardThisTurn :
       (.establish
         (.conjunction none
           [ mayPlayDeed (.action "play") .you (allOf land) none
-              (some (graveyardOf .you)) none none .itsOwnCost,
+              (some (graveyardOf .you)) none .itsOwnCost,
             mayPlayDeed (.action "cast") .you (allOf spell) none
-              (some (graveyardOf .you)) none none .itsOwnCost ])
+              (some (graveyardOf .you)) none .itsOwnCost ])
         (some untilEndOfTurn)) = [] := by
   decide
 

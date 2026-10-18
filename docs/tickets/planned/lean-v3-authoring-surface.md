@@ -150,6 +150,9 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     can you (cast this (from_ := yourGraveyard))
     cant you (cast this (from_ := not yourGraveyard))
     ```
+  - **`stateBased` (owner ruling 2026-10-18):** the cause rides the prohibited action, not the
+    rule: *"can't lose the game for having 0 or less life"* (*Phyrexian Unlife*, `[CR#704.5a]`)
+    is `cant you (loseGame (cause := nonpositiveLife))`, over `Action.conclude (verb) (cause)`.
 
 #### 2.4 Quantifiers on `Quantity` (Retiring `DeonticMods.bound`)
 - Delete `DeonticMods.bound` (`Option CountBound`).
@@ -166,6 +169,10 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     `can thisCreature (block (counted (additional (exactly 1)) isCreature)) (timing := eachCombat)`
   - *"You may vote an additional time"* (*Brago's Representative*):
     `can you (vote (times := additional (exactly 1)))`
+  - *"Once during each of your turns, you may cast …"* (owner ruling 2026-10-18): the count on
+    the noun phrase, the rate as timing, by analogy with *Exploration*:
+    `can you (cast (counted (exactly 1) …)) (timing := onEachOfYourTurns)`; there is no usage
+    limit on a deontic.
 - Replace `allPlayers` in active subjects where Oracle English says *"Each
   player"* (`each isPlayer`) or *"Players"* (`bare isPlayer`), and replace
   `cast (allOf isSpell)` with `cast (a isSpell)` / `cast (bare isSpell)`.

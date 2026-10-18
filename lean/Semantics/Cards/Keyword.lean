@@ -624,7 +624,7 @@ def akroanSergeant : Spelled := spelled <| .singleFaced
 
 def castCreatureSpellsFromTop : StaticSpec :=
   mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, creature])) none
-    (some onTop) none none Primitives.PlayPayment.itsOwnCost
+    (some onTop) none Primitives.PlayPayment.itsOwnCost
 theorem okCastCreatureSpellsFromTop : StaticSpec.check (DRS.ofList []) castCreatureSpellsFromTop = [] := by decide
 
 def garruksHorde : Spelled := spelled <| .singleFaced

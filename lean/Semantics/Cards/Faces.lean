@@ -623,7 +623,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                 Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
                 Primitives.Action.establish
                   (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
-                    none none none Primitives.PlayPayment.withoutPaying)
+                    none none Primitives.PlayPayment.withoutPaying)
                   none ]) ],
       power := stat 4, toughness := stat 3 } }
   (prototypeAlt [generic 1, pip .blue, pip .blue] 2 1)

@@ -23,28 +23,29 @@ def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
 /-- A cause qualifier narrows the ordinary loss prohibition. -/
 theorem okStateBasedLossGate :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor .you) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [] := by decide
+      (.cant (.actor .you) (.conclude .loseGame (some .nonpositiveLife)) {})) = [] := by decide
 
 theorem okStateBasedLossForPlayerGroup :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [] := by decide
+      (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame (some .nonpositiveLife)) {})) = [] := by decide
 
 theorem badStateBasedLossOnCreature :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor thisCreature) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [.deedFits] := by decide
+      (.cant (.actor thisCreature) (.conclude .loseGame (some .nonpositiveLife)) {})) = [.deedFits] := by decide
 
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Action.check (DRS.ofList []) (.establish
-      (.cant (.actor (target .anyPlayer)) (.conclude .loseGame) { stateBased := some .nonpositiveLife }) (some thisTurn)) = [] := by decide
+      (.cant (.actor (target .anyPlayer)) (.conclude .loseGame (some .nonpositiveLife)) {}) (some thisTurn)) = [] := by decide
 
-theorem badStateBasedCauseWithoutDeed :
+/-- A prohibition over an empty action names no deed. -/
+theorem badEmptyProhibitedAction :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor .you) (.sequentially []) { stateBased := some .nonpositiveLife })) = [.eventHead, .nonEmpty] := by decide
+      (.cant (.actor .you) (.sequentially []) {})) = [.eventHead, .nonEmpty] := by decide
 
 theorem badStateBasedLossPatientRole :
     Ability.check (DRS.ofList []) (.static
-      (.cant .any (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [.deedFits] := by decide
+      (.cant .any (.conclude .loseGame (some .nonpositiveLife)) {})) = [.deedFits] := by decide
 
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :

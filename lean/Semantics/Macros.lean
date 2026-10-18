@@ -925,17 +925,16 @@ def procedureOfDeed : Deed → Procedure
   | _ => .play
 /-- "<player> may <deed> <what> [from <zone>] [<timing>] [paying …] [as though …]" -/
 semantic_template mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough : Option AsThough)
-    (from_ : Option Location) (limit : Option UsageLimit) (timing : Option Timing)
-    (payment : PlayPayment) : StaticSpec :=
+    (from_ : Option Location) (timing : Option Timing) (payment : PlayPayment) : StaticSpec :=
   .can (.actor player) (.procedure (procedureOfDeed deed) what payment none from_ none)
-    { asThough, timing, limit }
+    { asThough, timing }
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (mayPlayDeed (.action "play") .you .this none (some zone) none (some timing) .itsOwnCost)
+  .property (mayPlayDeed (.action "play") .you .this none (some zone) (some timing) .itsOwnCost)
 /-- "You may cast this card from <zone> <timing>": the instant type's cast permission
 [CR#304.1]. -/
 semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (mayPlayDeed (.action "cast") .you .this none (some zone) none (some timing) .itsOwnCost)
+  .property (mayPlayDeed (.action "cast") .you .this none (some zone) (some timing) .itsOwnCost)
 /-- "When <event>, <instruction>" as a delayed trigger. -/
 semantic_template delay (event : GameEvent) (instruction : Action)
     (alternatives : List GameEvent := []) : Action :=
@@ -1268,7 +1267,7 @@ semantic_definition revealHand : Action :=
     (.enact (.action "reveal") (.expose .reveal (.zone (handOf .actor))) none none)
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
 semantic_template mayCastFrom (what : NounPhrase) (zone : Location) : StaticSpec :=
-  mayPlayDeed (.action "cast") .actor what none (some zone) none none .itsOwnCost
+  mayPlayDeed (.action "cast") .actor what none (some zone) none .itsOwnCost
 /-- An Army the performer controls. -/
 semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
 /-- "<performer> amasses <subtype> N" (`Definition`, [CR#701.47a]): resolved via `that (.type .creature)`
@@ -1417,7 +1416,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
             (.instruct (ownerOf it)
               (.establish
                 (mayPlayDeed (.action "cast") (ownerOf it) it none
-                  (some exileZone) none none (.payingInstead (.mana [generic 2])))
+                  (some exileZone) none (.payingInstead (.mana [generic 2])))
                 (some (.forAsLongAs (.matches it (.in_ exileZone)))))) ])
       none none)
 
@@ -1768,27 +1767,27 @@ semantic_definition cyclingExpansion (cost : Cost) : Ability :=
 [CR#702.8a] -/
 semantic_definition flashExpansion : Ability :=
   .static (mayPlayDeed (.action "play") .you .this none
-    none none (some asInstant) .itsOwnCost)
+    none (some asInstant) .itsOwnCost)
 /-- Sneak [cost]'s definition [CR#702.190a]. -/
 semantic_definition sneakExpansion (cost : Cost) : Ability :=
   .static (mayPlayDeed (.action "cast") .you .this none
-    none none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) (.payingInstead (.compound [cost,
+    none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) (.payingInstead (.compound [cost,
         .perform (returnTo (a (.and [creature, unblocked, .hasPossessor .controller .you])) hand [])])))
 /-- Morph [cost]'s definition [CR#702.37a,702.37e,116.2b]. -/
 semantic_definition morphExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      none none none (.faceDown faceDownCreature (.mana [generic 3]))),
+      none none (.faceDown faceDownCreature (.mana [generic 3]))),
     .static (.specialAction none cost (.setStatus .faceUp .this)) ]
 /-- Megamorph [cost]'s definition [CR#702.37b]. -/
 semantic_definition megamorphExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      none none none (.faceDown faceDownCreature (.mana [generic 3]))),
+      none none (.faceDown faceDownCreature (.mana [generic 3]))),
     .static (.specialAction none cost
       (.sequentially [.setStatus .faceUp .this, .putCounters (.lit 1) (.printed p1p1Counter) .this .one true])) ]
 /-- Disguise [cost]'s definition [CR#702.168a,702.168d]. -/
 semantic_definition disguiseExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      none none none (.faceDown faceDownWardedCreature (.mana [generic 3]))),
+      none none (.faceDown faceDownWardedCreature (.mana [generic 3]))),
     .static (.specialAction none cost (.setStatus .faceUp .this)) ]
 /-- Foretell [cost]'s definition [CR#702.143a,116.2h]. -/
 semantic_definition foretellExpansion (cost : Cost) : List Ability :=
@@ -1799,7 +1798,7 @@ semantic_definition foretellExpansion (cost : Cost) : List Ability :=
             (some (.forAsLongAs (.matches it (.in_ exileZone)))),
           .establish
             (mayPlayDeed (.action "cast") .you it none
-              (some exileZone) none none (.payingInstead cost))
+              (some exileZone) none (.payingInstead cost))
             (some onALaterTurn) ])) ]
 /-- Plot [cost]'s definition [CR#702.170a,702.170d,116.2k]. -/
 semantic_definition plotExpansion (cost : Cost) : List Ability :=
@@ -1808,7 +1807,7 @@ semantic_definition plotExpansion (cost : Cost) : List Ability :=
         [ exile .this,
           .establish
             (mayPlayDeed (.action "cast") .you it none
-              (some exileZone) none (some asSorcery) .withoutPaying)
+              (some exileZone) (some asSorcery) .withoutPaying)
             (some onALaterTurn) ])) ]
 /-- Hideaway N's definition [CR#702.75a]. -/
 semantic_definition hideawayExpansion (amount : Amount) : List Ability :=

@@ -514,7 +514,7 @@ theorem okStaticActorPermission :
       Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) =
         Ability.check (DRS.ofList [])
           (.static (mayPlayDeed (.action "cast") .you (allOf spell) none
-            (some (graveyardOf .you)) none none .itsOwnCost)) := by
+            (some (graveyardOf .you)) none .itsOwnCost)) := by
   decide
 
 /-- "Exile target creature. Its owner may cast it from exile.": the permission handed to the

@@ -764,12 +764,6 @@ mutual
     timing : Option Timing := none
     asThough : Option AsThough := none
     except : Option DeonticExcept := none
-    /-- Interim, pending a ruling: how often a permission may be used ("once during each of your
-    turns"). -/
-    limit : Option UsageLimit := none
-    /-- Interim, pending a ruling: the one state-based cause a prohibition is narrowed to ("for
-    having 0 or less life" [CR#704.5a]). -/
-    stateBased : Option StateBasedCause := none
 
   /-- A rules- or static-defined damage result [CR#120.3,120.4c,702.15b,702.80a]. -/
   structure DamageResult where
@@ -1011,7 +1005,9 @@ mutual
     /-- A Room gains its remaining unlocked designation, or both at once [CR#709.5i]. -/
     | fullyUnlock (room : NounPhrase)
     | setGameDesignation (designation : DesignationLabel)
-    | conclude (verb : OutcomeVerb)
+    /-- Win, lose, or draw the game; `cause` the one state-based cause it happens for, if any:
+    "lose the game for having 0 or less life" [CR#704.5a]. -/
+    | conclude (verb : OutcomeVerb) (cause : Option StateBasedCause := none)
     | drawGame
     | restartGame
     | separateIntoPiles (group : NounPhrase) (piles : Nat) (faces : List PileFace)

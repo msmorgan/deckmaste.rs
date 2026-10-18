@@ -2650,8 +2650,8 @@ semantic_template mayPlayAdditionalLands (player : Semantics.NounPhrase) (quanti
   (Semantics.StaticSpec.can (Semantics.Subject.actor player) (Semantics.Macros.deonticActionFor (Semantics.Deed.action "play") (Semantics.NounPhrase.described (Semantics.DetPhrase.count (Semantics.Quantity.additional quantity) none) (Semantics.Predicate.hasType Semantics.CardType.land))) ({} : Semantics.DeonticMods))
 
 /-- `instructions/mayPlayDeed.ron` -/
-semantic_template mayPlayDeed (deed : Semantics.Deed) (player : Semantics.NounPhrase) (what : Semantics.NounPhrase) (from_ : (Option Semantics.Location) := none) (limit : (Option Semantics.UsageLimit) := none) (timing : (Option Semantics.Timing) := none) (payment : Semantics.PlayPayment := Semantics.PlayPayment.itsOwnCost) (asThough : (Option Semantics.AsThough) := none) : Semantics.StaticSpec :=
-  (Semantics.StaticSpec.can (Semantics.Subject.actor player) (Semantics.Action.procedure (Semantics.Macros.procedureOfDeed deed) what payment none from_ none) ({ asThough := asThough, timing := timing, limit := limit } : Semantics.DeonticMods))
+semantic_template mayPlayDeed (deed : Semantics.Deed) (player : Semantics.NounPhrase) (what : Semantics.NounPhrase) (from_ : (Option Semantics.Location) := none) (timing : (Option Semantics.Timing) := none) (payment : Semantics.PlayPayment := Semantics.PlayPayment.itsOwnCost) (asThough : (Option Semantics.AsThough) := none) : Semantics.StaticSpec :=
+  (Semantics.StaticSpec.can (Semantics.Subject.actor player) (Semantics.Action.procedure (Semantics.Macros.procedureOfDeed deed) what payment none from_ none) ({ asThough := asThough, timing := timing } : Semantics.DeonticMods))
 
 /-- `instructions/maySpendAsThough.ron` -/
 semantic_template maySpendAsThough (who : Semantics.NounPhrase) (what : Semantics.ColorOrColorless) (as_ : Semantics.ManaMatch) (purpose : Semantics.SpendPurpose) : Semantics.StaticSpec :=

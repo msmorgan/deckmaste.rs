@@ -853,7 +853,7 @@ private def triggerActorRefusals (drs : DRS) : List Refusal :=
 
 def Action.performed (action : Action) : Bool :=
   match action.scopeBody with
-  | .conclude _ | .separateIntoPiles .. | .choose .. | .vote ..
+  | .conclude .. | .separateIntoPiles .. | .choose .. | .vote ..
   | .copy .. | .changeLife _ | .addMana .. | .draw _ | .expose ..
   | .search .. | .shuffle _ | .flipCoins .. | .rollDice .. | .rerollStored ..
   | .createObject .. | .enact .. | .pay .. | .skipPart .. | .addTurnPart ..
@@ -2445,7 +2445,7 @@ def stepOps : Nat → StepOps
           (drs, refuse (!drs.actionPattern || actorPlurality drs == .one) .singular)
         | .setGameDesignation designation =>
           (drs, refuse designation.gameWide (.designationScope designation))
-        | .conclude _ | .drawGame | .restartGame | .revealChoices _ => (drs, [])
+        | .conclude .. | .drawGame | .restartGame | .revealChoices _ => (drs, [])
         | .separateIntoPiles grp piles faces =>
           let (drs1, grpIds, e1) := ops.np drs patientRole true grp
           let grpZone := match grpIds.head?.bind drs1.findById? with | some r => r.zone | none => none

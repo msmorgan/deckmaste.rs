@@ -144,7 +144,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger
   | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ | _n + 1, .doAndForbid _ _ _ => []
-  | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ => []
+  | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ _ => []
   | _n + 1, .drawGame | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
   | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ _ => []
   | _n + 1, .move _ _ _ _ _ riders => MoveRider.ridersSlots riders

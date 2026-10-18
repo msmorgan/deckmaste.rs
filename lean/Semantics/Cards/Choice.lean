@@ -104,7 +104,7 @@ def yasminKhan : Ability :=
     (Primitives.Action.sequentially
       [ exile (topSlice (.lit 1)),
         Primitives.Action.establish
-          (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none none Primitives.PlayPayment.itsOwnCost)
+          (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none Primitives.PlayPayment.itsOwnCost)
           (some untilYourNextEndStep) ])
 theorem okYasminKhan : Ability.check (DRS.ofList []) yasminKhan = [] := by decide
 
@@ -113,7 +113,7 @@ def brazenCannonadePermission : Action :=
   Primitives.Action.sequentially
     [ exile (topSlice (.lit 1)),
       Primitives.Action.establish
-        (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none none Primitives.PlayPayment.itsOwnCost)
+        (mayPlayDeed (.action "play") Primitives.NounPhrase.you it none none none Primitives.PlayPayment.itsOwnCost)
         (some (untilEvent (Primitives.GameEvent.endOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okBrazenCannonadePermission : Action.check (DRS.ofList []) brazenCannonadePermission = [] := by
   decide
@@ -137,7 +137,7 @@ theorem okPreeminentCaptain : Ability.check (DRS.ofList []) preeminentCaptain = 
 
 def skaabRuinator : Ability :=
   Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-    (some (graveyardOf Primitives.NounPhrase.you)) none none Primitives.PlayPayment.itsOwnCost)
+    (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost)
 theorem okSkaabRuinator : Ability.check (DRS.ofList []) skaabRuinator = [] := by decide
 
 /-- Raffine's Guidance -/
@@ -149,7 +149,7 @@ def raffinesGuidance : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none none (Primitives.PlayPayment.payingInstead (Primitives.Cost.mana [generic 2, pip .white]))) ] } }
+            (some (graveyardOf Primitives.NounPhrase.you)) none (Primitives.PlayPayment.payingInstead (Primitives.Cost.mana [generic 2, pip .white]))) ] } }
 
 /-- Scourge of Nel Toth -/
 def scourgeOfNelToth : Spelled := spelled <| .singleFaced
@@ -159,7 +159,7 @@ def scourgeOfNelToth : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none none (Primitives.PlayPayment.payingInstead (Primitives.Cost.compound
+            (some (graveyardOf Primitives.NounPhrase.you)) none (Primitives.PlayPayment.payingInstead (Primitives.Cost.compound
                 [ Primitives.Cost.mana [pip .black, pip .black],
                   Primitives.Cost.perform (sacrifice (counted (exactly 2) creature)) ]))) ],
       power := stat 6, toughness := stat 6 } }
@@ -169,7 +169,7 @@ def escapeToTheWilds : Action :=
     [ exile (topSlice (.lit 5)),
       Primitives.Action.establish
         (mayPlayDeed (.action "play") Primitives.NounPhrase.you (theVerbed (.action "exile") .many (some .card) .thisWay) none
-          none none none Primitives.PlayPayment.itsOwnCost)
+          none none Primitives.PlayPayment.itsOwnCost)
         (some (untilEvent (Primitives.GameEvent.endOf .turn (some Primitives.NounPhrase.you) (Primitives.TurnRef.next none)))) ]
 theorem okEscapeToTheWilds : Action.check (DRS.ofList []) escapeToTheWilds = [] := by decide
 
@@ -180,7 +180,7 @@ def museVesselPlay : Ability :=
       [ choose (a exiledWithThisArtifact),
         Primitives.Action.establish
           (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
-            none none none Primitives.PlayPayment.itsOwnCost)
+            none none Primitives.PlayPayment.itsOwnCost)
           (some thisTurn) ])
 theorem okMuseVesselPlay : Ability.check (DRS.ofList []) museVesselPlay = [] := by decide
 
@@ -553,7 +553,7 @@ def vedalkenOrrery : Spelled := spelled <| .singleFaced
     { name := "Vedalken Orrery", cost := some [generic 4], types := [.artifact],
       text :=
         [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf spell) asThoughFlash
-            none none none Primitives.PlayPayment.itsOwnCost) ] } }
+            none none Primitives.PlayPayment.itsOwnCost) ] } }
 
 def shimmerMyr : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -562,7 +562,7 @@ def shimmerMyr : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flash"),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, artifact])) asThoughFlash
-            none none none Primitives.PlayPayment.itsOwnCost) ],
+            none none Primitives.PlayPayment.itsOwnCost) ],
       power := stat 2, toughness := stat 2 } }
 
 def quickSliver : Spelled := spelled <| .singleFaced
@@ -573,7 +573,7 @@ def quickSliver : Spelled := spelled <| .singleFaced
         [ keyword (.named "flash"),
           Primitives.Ability.static (mayPlayDeed (.action "cast") (a Primitives.Predicate.anyPlayer)
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasSubtype (creatureType "Sliver")])) asThoughFlash
-            none none none Primitives.PlayPayment.itsOwnCost) ],
+            none none Primitives.PlayPayment.itsOwnCost) ],
       power := stat 1, toughness := stat 1 } }
 
 def vernalEquinox : Spelled := spelled <| .singleFaced
@@ -582,7 +582,7 @@ def vernalEquinox : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (mayPlayDeed (.action "cast") (a Primitives.Predicate.anyPlayer)
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.or [creature, enchantment]])) asThoughFlash
-            none none none Primitives.PlayPayment.itsOwnCost) ] } }
+            none none Primitives.PlayPayment.itsOwnCost) ] } }
 
 def borneUponAWind : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -590,7 +590,7 @@ def borneUponAWind : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.establish
             (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf spell) asThoughFlash
-              none none none Primitives.PlayPayment.itsOwnCost)
+              none none Primitives.PlayPayment.itsOwnCost)
             (some thisTurn)),
           Primitives.Ability.spell none (Primitives.Action.draw (.lit 1)) ] } }
 
@@ -602,16 +602,16 @@ def gisaAndGeralf : Spelled := spelled <| .singleFaced
       text :=
         [ when (Primitives.GameEvent.enters thisCreature none) (mill (.lit 4) Primitives.NounPhrase.you),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-            (a (Primitives.Predicate.and [spell, creature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) none
-            (some (graveyardOf Primitives.NounPhrase.you)) (some onceEachYourTurn) none Primitives.PlayPayment.itsOwnCost) ],
+            (counted (exactly 1) (Primitives.Predicate.and [spell, creature, Primitives.Predicate.hasSubtype (creatureType "Zombie")])) none
+            (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- "play lands from the top of your library" -/
 def playLandsFromTop : StaticSpec :=
-  mayPlayDeed (.action "play") Primitives.NounPhrase.you (allOf land) none (some onTop) none none Primitives.PlayPayment.itsOwnCost
+  mayPlayDeed (.action "play") Primitives.NounPhrase.you (allOf land) none (some onTop) none Primitives.PlayPayment.itsOwnCost
 /-- "cast <p> spells from the top of your library" -/
 def castFromTop (p : Predicate) : StaticSpec :=
-  mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf p) none (some onTop) none none Primitives.PlayPayment.itsOwnCost
+  mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf p) none (some onTop) none Primitives.PlayPayment.itsOwnCost
 
 /-- Future Sight; Magus of the Future -/
 def playLandsAndCastSpellsFromTop : StaticSpec :=
@@ -621,8 +621,8 @@ theorem okPlayLandsAndCastSpellsFromTop :
 /-- Assemble the Players -/
 def castSmallCreatureFromTopOnceEachTurn : StaticSpec :=
   mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-    (a (Primitives.Predicate.and [spell, creature, Primitives.Predicate.compare [.stat .power] .atMost (.lit 2)])) none
-    (some onTop) (some oncePerTurn) none Primitives.PlayPayment.itsOwnCost
+    (counted (exactly 1) (Primitives.Predicate.and [spell, creature, Primitives.Predicate.compare [.stat .power] .atMost (.lit 2)])) none
+    (some onTop) (some (Primitives.Timing.inPart .turn none (Primitives.TurnRef.each none))) Primitives.PlayPayment.itsOwnCost
 theorem okCastSmallCreatureFromTopOnceEachTurn :
     StaticSpec.check (DRS.ofList []) castSmallCreatureFromTopOnceEachTurn = [] := by decide
 
@@ -984,7 +984,7 @@ theorem okFastbondLands : Ability.check (DRS.ofList []) fastbondLands = [] := by
 /-- Panglacial Wurm -/
 def panglacialWurmCast : Ability :=
   Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-    (some yourLibrary) none (some whileSearchingYourLibrary) Primitives.PlayPayment.itsOwnCost)
+    (some yourLibrary) (some whileSearchingYourLibrary) Primitives.PlayPayment.itsOwnCost)
 theorem okPanglacialWurmCast : Ability.check (DRS.ofList []) panglacialWurmCast = [] := by decide
 
 /-- Shah of Naar Isle -/
@@ -1009,7 +1009,7 @@ def memoryPlunder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.establish
             (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.isCard])) none
-              (some (graveyardOf anOpponent)) none none Primitives.PlayPayment.withoutPaying)
+              (some (graveyardOf anOpponent)) none Primitives.PlayPayment.withoutPaying)
             none) ] } }
 
 /-- Omniscience -/
@@ -1019,7 +1019,7 @@ def omniscience : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf spell) none
-            (some (handOf Primitives.NounPhrase.you)) none none Primitives.PlayPayment.withoutPaying) ] } }
+            (some (handOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.withoutPaying) ] } }
 
 /-- Tranquil Frillback -/
 def tranquilFrillbackOffer : Action := offer (Primitives.Action.pay (Primitives.Cost.mana [pip .green]) (.upTo 3) .paid none none)
@@ -1136,7 +1136,7 @@ theorem okNautiloidShipTrigger : Ability.check (DRS.ofList []) nautiloidShipTrig
 def summonEsperValigarmandaCast : StaticSpec :=
   Primitives.StaticSpec.conjunction none
     [ mayPlayDeed (.action "cast") Primitives.NounPhrase.you (a (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)])) none
-        none none none Primitives.PlayPayment.itsOwnCost,
+        none none Primitives.PlayPayment.itsOwnCost,
       maySpendAsThough Primitives.NounPhrase.you none .anyType
         (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisSaga)]))) ]
 theorem okSummonEsperValigarmandaCast :
@@ -1145,7 +1145,7 @@ theorem okSummonEsperValigarmandaCast :
 def rogueClassLevelThree : StaticSpec :=
   Primitives.StaticSpec.conjunction none
     [ mayPlayDeed (.action "play") Primitives.NounPhrase.you (allOf (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass))) none
-        none none none Primitives.PlayPayment.itsOwnCost,
+        none none Primitives.PlayPayment.itsOwnCost,
       maySpendAsThough Primitives.NounPhrase.you none .anyColor (some (Primitives.SpendPurpose.toCast (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisClass)))) ]
 theorem okRogueClassLevelThree : StaticSpec.check (DRS.ofList []) rogueClassLevelThree = [] := by decide
 
@@ -1212,15 +1212,15 @@ def danithaNewBenaliasLight : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "vigilance"), keyword (.named "trample"), keyword (.named "lifelink"),
           Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
-            (a (Primitives.Predicate.and [ spell, Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (enchantmentType "Aura"),
+            (counted (exactly 1) (Primitives.Predicate.and [ spell, Primitives.Predicate.or [ Primitives.Predicate.hasSubtype (enchantmentType "Aura"),
                                     Primitives.Predicate.hasSubtype (artifactType "Equipment") ] ]))
-            none (some (graveyardOf Primitives.NounPhrase.you)) (some onceEachYourTurn) none Primitives.PlayPayment.itsOwnCost) ],
+            none (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Muldrotha, the Gravetide -/
 def muldrothaLandWindow : StaticSpec :=
   mayPlayDeed (.action "play") Primitives.NounPhrase.you (a land) none
-    (some (graveyardOf Primitives.NounPhrase.you)) none (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost
+    (some (graveyardOf Primitives.NounPhrase.you)) (some duringEachOfYourTurns) Primitives.PlayPayment.itsOwnCost
 theorem okMuldrothaLandWindow : StaticSpec.check (DRS.ofList []) muldrothaLandWindow = [] := by decide
 /-- Nahiri's Lithoforming -/
 def nahiriExtraLands : StaticSpec := mayPlayAdditionalLands Primitives.NounPhrase.you (Primitives.Quantity.exactlyOf (Primitives.Amount.letter .x))
@@ -1234,14 +1234,14 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Zombie", creatureType "Knight"],
       text :=
         [ Primitives.Ability.static (mayPlayDeed (.action "cast") Primitives.NounPhrase.you Primitives.NounPhrase.this none
-            (some (graveyardOf Primitives.NounPhrase.you)) none none Primitives.PlayPayment.itsOwnCost),
+            (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost),
           Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor Primitives.NounPhrase.you)
             (Primitives.Action.procedure .cast Primitives.NounPhrase.this Primitives.PlayPayment.itsOwnCost none
               (some (Primitives.Location.not (graveyardOf Primitives.NounPhrase.you))) none) {}),
           Primitives.Ability.static (Primitives.StaticSpec.conditional
             (mayPlayDeed (.action "cast") Primitives.NounPhrase.you
               (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasSubtype (creatureType "Knight")])) none
-              (some (graveyardOf Primitives.NounPhrase.you)) none none Primitives.PlayPayment.itsOwnCost)
+              (some (graveyardOf Primitives.NounPhrase.you)) none Primitives.PlayPayment.itsOwnCost)
             (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.in_ battlefield)) .asLongAs),
           when (Primitives.GameEvent.dies thisCreature) (loseLife (.lit 2)) ],
       power := stat 3, toughness := stat 3 } }
@@ -1252,7 +1252,7 @@ def apexOfPowerCast : Action :=
     [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library Primitives.NounPhrase.you)),
       Primitives.Action.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (fromAmong anyNumber spell them) none
-          none none none Primitives.PlayPayment.itsOwnCost)
+          none none Primitives.PlayPayment.itsOwnCost)
         (some thisTurn) ]
 theorem okApexOfPowerCast : Action.check (DRS.ofList []) apexOfPowerCast = [] := by decide
 /-- Blight Herder -/
@@ -1301,7 +1301,7 @@ def conspicuousSnoop : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static (mayPlayDeed (.action "play") Primitives.NounPhrase.you
             (allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasSubtype (creatureType "Goblin")])) none
-            (some onTop) none none Primitives.PlayPayment.itsOwnCost),
+            (some onTop) none Primitives.PlayPayment.itsOwnCost),
           Primitives.Ability.static (onlyWhile
             (Primitives.StaticSpec.abilityGrantFrom thisCreature [.anyActivated] (topSlice (.lit 1)) none)
             (Primitives.Condition.matches (topSlice (.lit 1)) (Primitives.Predicate.hasSubtype (creatureType "Goblin")))) ],
