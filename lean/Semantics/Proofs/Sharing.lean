@@ -37,26 +37,26 @@ theorem differIsNoValueInCommon :
 /-- "creatures that share a color with it": both relata are objects. -/
 theorem okSharesColorWithThisCreature :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (allOf (.and [creature, .shares .color .share thisCreature])) = [] := by
+      (allOf (.and [isCreature, .shares .color .share thisCreature])) = [] := by
   decide
 
 /-- "creatures that share a color with target player": the other relatum is not an object. -/
 theorem badSharesWithAPlayer :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (allOf (.and [creature, .shares .color .share (target .anyPlayer)])) ≠ [] := by
+      (allOf (.and [isCreature, .shares .color .share (target .anyPlayer)])) ≠ [] := by
   decide
 
 /-- "two creatures that share a creature type": an Agreement over a plural group. -/
 theorem okTwoCreaturesAgree :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.agree (.subtype .creature) .share (counted (exactly 2) creature)) = [] := by
+      (.agree (.subtype .creature) .share (counted (exactly 2) isCreature)) = [] := by
   decide
 
 /-- "target creature that shares a creature type": an Agreement over one object is refused as a
 plurality error. -/
 theorem badOneCreatureAgrees :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.agree (.subtype .creature) .share (target creature)) = [.plural] := by
+      (.agree (.subtype .creature) .share (target isCreature)) = [.plural] := by
   decide
 
 /-- Conspire's additional cost: "tap two untapped creatures you control that each share a color
@@ -65,7 +65,7 @@ theorem okConspireCost :
     Ability.check (DRS.ofList [])
       (.static (.addedCost
         (.perform (tap (counted (exactly 2)
-          (.and [untapped, creature, .hasPossessor .controller .you,
+          (.and [isUntapped, isCreature, .hasPossessor .controller .you,
             .shares .color .share thisSpell]))))
         true .once)) = [] := by
   decide

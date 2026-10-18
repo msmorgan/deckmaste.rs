@@ -62,17 +62,17 @@ theorem unknownAbilityFamilyIsRefused :
 
 theorem numericEditsShareOneLocalScope :
     CopyExcept.check (DRS.ofList []) (.edits
-      [.stat .sets .power (powerOf (target creature)),
+      [.stat .sets .power (powerOf (target isCreature)),
        .stat .sets .toughness (powerOf it)]) = [] := by decide
 
 theorem numericEditsDoNotPublishAcrossCopyExceptions :
     CopyExcept.checkAll (DRS.ofList [])
-      [.edits [.stat .sets .power (powerOf (target creature))],
+      [.edits [.stat .sets .power (powerOf (target isCreature))],
        .edits [.stat .sets .toughness (powerOf it)]] =
       [.anaphor .bare .one 0] := by decide
 
 theorem subjectIsPublishedBeforeItsEdits :
-    StaticSpec.check (DRS.ofList []) (.characteristicChange (target creature)
+    StaticSpec.check (DRS.ofList []) (.characteristicChange (target isCreature)
       [.stat .sets .power (powerOf it)]) = [] := by decide
 
 theorem copySpecificAdditionsRemainSeparate :

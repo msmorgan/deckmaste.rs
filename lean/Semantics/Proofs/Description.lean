@@ -32,20 +32,20 @@ theorem badControlledByGroup :
 
 /-- "each of up to two target creatures" -/
 theorem okEachOfGroup :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.described (.target (upTo 2)) creature)) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.described (.target (upTo 2)) isCreature)) = [] := by decide
 
 /-- "each of target creature" -/
 theorem badEachOfSingular :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (target creature)) = [.plural] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (target isCreature)) = [.plural] := by decide
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
-    Action.check (DRS.ofList []) (lookAt (.slice .top (.lit 1) (library (target .anyPlayer)))) = [] := by decide
+    Action.check (DRS.ofList []) (lookAt (.slice .top (.lit 1) (libraryOf (target .anyPlayer)))) = [] := by decide
 
 /-- "Look at the top card of two target players' library." -/
 theorem badSliceOfCountedPossessor :
     Action.check (DRS.ofList [])
-      (lookAt (.slice .top (.lit 1) (library (.described (.target (exactly 2)) .anyPlayer))))
+      (lookAt (.slice .top (.lit 1) (libraryOf (.described (.target (exactly 2)) .anyPlayer))))
       = [.slicePossessor] := by
   decide
 
@@ -53,7 +53,7 @@ theorem badSliceOfCountedPossessor :
 theorem okThatPlayer :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
+        [ .setStatus .tapped (target (.and [isCreature, .hasPossessor .controller anOpponent])),
           instruct (that .player) (loseLife (.lit 1)) ]) = [] := by
   decide
 
@@ -61,8 +61,8 @@ theorem okThatPlayer :
 theorem badDisjunctAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
-                                           .and [land, .hasPossessor .controller .you]])),
+        [ .setStatus .tapped (target (.or [.and [isCreature, .hasPossessor .controller anOpponent],
+                                           .and [isLand, .hasPossessor .controller .you]])),
           instruct (that .player) (loseLife (.lit 1)) ])
       = [.anaphor (.word .player) .one 0] := by
   decide
@@ -70,92 +70,92 @@ theorem badDisjunctAntecedent :
 /-- "Tap target creature with flying." -/
 theorem okKeywordConjunction :
     Action.check (DRS.ofList [])
-      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying"))]))) = [] := by
+      (.setStatus .tapped (target (.and [isCreature, .hasKeyword (.the (.named "flying"))]))) = [] := by
   decide
 
 /-- "Tap target creature with flying that doesn't have flying." -/
 theorem okKeywordSelfNegation :
     Action.check (DRS.ofList [])
-      (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying")),
+      (.setStatus .tapped (target (.and [isCreature, .hasKeyword (.the (.named "flying")),
                                          .not (.hasKeyword (.the (.named "flying")))]))) = [] := by
   decide
 
 /-- "Tap target nonland Forest." -/
 theorem badForestNonland :
     Action.check (DRS.ofList [])
-      (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not land])))
+      (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not isLand])))
       = [.contradictionFree] := by
   decide
 
 /-- "creature with power 2 or less" -/
 theorem okContradictionFreeAnd :
-    Predicate.checkAt .object (DRS.ofList []) (.and [creature, .compare [.stat .power] .atMost (.lit 2)]) = [] := by
+    Predicate.checkAt .object (DRS.ofList []) (.and [isCreature, .compare [.stat .power] .atMost (.lit 2)]) = [] := by
   decide
 
 /-- "noncreature that is attacking or blocking" -/
 theorem badNoncreatureAttackingOrBlocking :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.not creature, .or [attacking, blocking]])
+    Predicate.checkAt .object (DRS.ofList []) (.and [.not isCreature, .or [isAttacking, isBlocking]])
       = [.contradictionFree] := by
   decide
 
 /-- "noncreature that is an attacking artifact or a blocking land" -/
 theorem badWrappedStatusLaunder :
     Predicate.checkAt .object (DRS.ofList [])
-      (.and [.or [.and [artifact, attacking], .and [land, blocking]], .not creature])
+      (.and [.or [.and [isArtifact, isAttacking], .and [isLand, isBlocking]], .not isCreature])
       = [.contradictionFree] := by
   decide
 
 /-- "blocked creature that's unblocked" -/
 theorem okBlockedAndUnblocked :
-    Predicate.checkAt .object (DRS.ofList []) (.and [creature, blocked, unblocked]) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.and [isCreature, isBlocked, isUnblocked]) = [] := by decide
 
 /-- "between two and three target creatures" -/
 theorem okAscendingRange :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.described (.target (.range (some 2) (some 3))) creature) = [] := by
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.described (.target (.range (some 2) (some 3))) isCreature) = [] := by
   decide
 
 /-- "between three and two target creatures" -/
 theorem badDescendingRange :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.described (.target (.range (some 3) (some 2))) creature)
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.described (.target (.range (some 3) (some 2))) isCreature)
       = [.wellFormedQ] := by
   decide
 
 /-- "attacking artifact or attacking land" -/
 theorem okWholeZoneJoin :
-    Predicate.checkAt .object (DRS.ofList []) (.or [.and [artifact, attacking], .and [land, attacking]]) = [] := by
+    Predicate.checkAt .object (DRS.ofList []) (.or [.and [isArtifact, isAttacking], .and [isLand, isAttacking]]) = [] := by
   decide
 
 /-- "attacking artifact or land" -/
 theorem okPartialZoneJoin :
-    Predicate.checkAt .object (DRS.ofList []) (.or [.and [artifact, attacking], land]) = [] := by
+    Predicate.checkAt .object (DRS.ofList []) (.or [.and [isArtifact, isAttacking], isLand]) = [] := by
   decide
 
 /-- "creature you control or artifact you control" -/
 theorem okDistinctStructuredDisjuncts :
     Predicate.checkAt .object (DRS.ofList [])
-      (.or [.and [creature, .hasPossessor .controller .you],
-            .and [artifact, .hasPossessor .controller .you]]) = [] := by
+      (.or [.and [isCreature, .hasPossessor .controller .you],
+            .and [isArtifact, .hasPossessor .controller .you]]) = [] := by
   decide
 
 /-- "if this creature is attacking" -/
-theorem okMatchesThisCreature : Condition.check (DRS.ofList []) (.matches thisCreature attacking) = [] := by decide
+theorem okMatchesThisCreature : Condition.check (DRS.ofList []) (.matches thisCreature isAttacking) = [] := by decide
 
 /-- "if target creature is an artifact" -/
 theorem badMatchesTargetSubject :
-    Condition.check (DRS.ofList []) (.matches (target creature) artifact) = [.testSubject] := by decide
+    Condition.check (DRS.ofList []) (.matches (target isCreature) isArtifact) = [.testSubject] := by decide
 
 /-- "Tap target creature. You gain 1 life if it's an artifact." -/
 theorem okMatchesArtifact :
     Action.check (DRS.ofList [])
-      (.sequentially [.setStatus .tapped (target creature),
-                      .doOnlyIf (gainLife (.lit 1)) (.matches it artifact) none]) =
+      (.sequentially [.setStatus .tapped (target isCreature),
+                      .doOnlyIf (gainLife (.lit 1)) (.matches it isArtifact) none]) =
                           [] := by
   decide
 
 /-- "Tap target creature. You gain 1 life if it's." -/
 theorem badMatchesNothing :
     Action.check (DRS.ofList [])
-      (.sequentially [.setStatus .tapped (target creature),
+      (.sequentially [.setStatus .tapped (target isCreature),
                       .doOnlyIf (gainLife (.lit 1)) (.matches it (.and [])) none])
       = [.predSays] := by
   decide
@@ -163,7 +163,7 @@ theorem badMatchesNothing :
 /-- "if the number of artifacts you control is 4 or greater" -/
 theorem okCompareCountSubject :
     Condition.check (DRS.ofList [])
-      (.compareAmt (countOf (.and [artifact, .hasPossessor .controller .you])) .atLeast (.lit 4))
+      (.compareAmt (countOf (.and [isArtifact, .hasPossessor .controller .you])) .atLeast (.lit 4))
       = [] := by
   decide
 
@@ -173,56 +173,56 @@ theorem badCompareLiteralSubject :
 
 /-- "each of each creature" -/
 theorem badEachOfDistributive :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (each creature)) = [.groupMention] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (each isCreature)) = [.groupMention] := by decide
 
 /-- "each of all creatures" -/
 theorem badEachOfAll :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (allOf creature)) = [.groupMention] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (allOf isCreature)) = [.groupMention] := by decide
 
 /-- "each of each of up to two target creatures" -/
 theorem badNestedEachOf :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.eachOf (.described (.target (upTo 2)) creature)))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.eachOf (.described (.target (upTo 2)) isCreature)))
       = [.groupMention] := by
   decide
 
 /-- "target white creature" -/
 theorem okWhiteCreature :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [creature, .colorIs .white])) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [isCreature, .colorIs .white])) = [] := by decide
 
 /-- "target colorless white creature" -/
 theorem badColorlessWhite :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [creature, colorless, .colorIs .white]))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [isCreature, isColorless, .colorIs .white]))
       = [.contradictionFree] := by
   decide
 
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf creatureYouControl)]) = []
+      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf (and [isCreature, youControl]))]) = []
           := by
   decide
 
 theorem badDoubleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf creatureYouControl),
-                      Primitives.Action.define .x (countOf creature)]) = [.openLetter .x] := by
+      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf (and [isCreature, youControl])),
+                      Primitives.Action.define .x (countOf isCreature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .y), Primitives.Action.define .x (countOf creatureYouControl)])
+      (.sequentially [.draw (.letter .y), Primitives.Action.define .x (countOf (and [isCreature, youControl]))])
       = [.openLetter .x] := by
   decide
 
 /-- "the power of target land creature": an animated land is a land AND a creature. -/
 theorem okAnimatedLandPower :
-    Amount.check (DRS.ofList []) (.statOf (.stat .power) (target (.and [land, creature]))) = [] := by decide
+    Amount.check (DRS.ofList []) (.statOf (.stat .power) (target (.and [isLand, isCreature]))) = [] := by decide
 
 /-- "the power of target land": this checker requires creature-type evidence for the
 projection; a noncreature permanent has no power [CR#208.3]. -/
 theorem badLandPower :
-    Amount.check (DRS.ofList []) (.statOf (.stat .power) (target land)) = [.statHeadTysOk] := by decide
+    Amount.check (DRS.ofList []) (.statOf (.stat .power) (target isLand)) = [.statHeadTysOk] := by decide
 
 /-- "the loyalty of target battle": loyalty is printed on planeswalkers [CR#209.1]. -/
 theorem badBattleLoyalty :
@@ -230,7 +230,7 @@ theorem badBattleLoyalty :
 
 /-- "the greatest power among creatures" -/
 theorem okPowerAmongObjects :
-    Amount.check (DRS.ofList []) (aggregate .max (.stat .power) creature) = [] := by decide
+    Amount.check (DRS.ofList []) (aggregate .max (.stat .power) isCreature) = [] := by decide
 
 /-- "the greatest power among players" -/
 theorem badPowerAmongPlayers :
@@ -238,27 +238,27 @@ theorem badPowerAmongPlayers :
 
 /-- "the highest life total among creatures you control" -/
 theorem badLifeTotalAmongObjects :
-    Amount.check (DRS.ofList []) (aggregate .max (.playerStat .lifeTotal) creatureYouControl)
+    Amount.check (DRS.ofList []) (aggregate .max (.playerStat .lifeTotal) (and [isCreature, youControl]))
       = [.projScope .object] := by
   decide
 
 /-- "the creature with the greatest power" -/
 theorem okExtremalSelection :
-    Predicate.checkAt .object (DRS.ofList []) (.superlative .max (.stat .power) creature) = [] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.superlative .max (.stat .power) isCreature) = [] := by decide
 
 /-- "the creature with the total power among creatures you control" -/
 theorem badSumSelection :
-    Predicate.checkAt .object (DRS.ofList []) (.superlative .sum (.stat .power) creature) = [.isExtremal] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.superlative .sum (.stat .power) isCreature) = [.isExtremal] := by decide
 
 /-- "the creature with the least toughness among creatures you control" -/
 theorem okDefiniteSuperlative :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl])) = [] := by
+      (the (.and [isCreature, .superlative .min (.stat .toughness) (and [isCreature, youControl])])) = [] := by
   decide
 
 /-- "the creature" -/
 theorem badBareDefinite :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (the creature) = [.uniquifying] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (the isCreature) = [.uniquifying] := by decide
 
 /-- "the player with the highest life total" -/
 theorem okPlayerStatSuperlative :
@@ -267,7 +267,7 @@ theorem okPlayerStatSuperlative :
 
 /-- "the creature with the highest life total among creatures you control" -/
 theorem badLifeTotalSuperlative :
-    Predicate.checkAt .object (DRS.ofList []) (.superlative .max (.playerStat .lifeTotal) creature)
+    Predicate.checkAt .object (DRS.ofList []) (.superlative .max (.playerStat .lifeTotal) isCreature)
       = [.projScope .object] := by
   decide
 
@@ -305,25 +305,25 @@ theorem badObjectMonarch :
 /-- "one of the top two cards of your library" -/
 theorem okPartitiveOfSlice :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.someOf (.counted (exactly 1)) none (.slice .top (.lit 2) (library .you))) = [] := by
+      (.someOf (.counted (exactly 1)) none (.slice .top (.lit 2) (libraryOf .you))) = [] := by
   decide
 
 /-- "one of one or more creatures" -/
 theorem badPartitiveOfCountedGroup :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.someOf (.counted (exactly 1)) none (counted (atLeast 1) creature)) = [.partitiveBase] := by
+      (.someOf (.counted (exactly 1)) none (counted (atLeast 1) isCreature)) = [.partitiveBase] := by
   decide
 
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), instruct (controllerOf it) (loseLife (.statOf (.stat .power) it))])
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (loseLife (.statOf (.stat .power) it))])
       = [] := by
   decide
 
 theorem badOtherwiseReadsLeadingArm :
     Action.check (DRS.ofList [])
-      (.doIf (exists_ creatureYouControl)
+      (.doIf (exists_ (and [isCreature, youControl]))
         (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (some (.setStatus .tapped it)))
       = [.anaphor .bare .one 0] := by
@@ -341,22 +341,22 @@ theorem noElseConditionExportsItsOpponent :
 /-- "If you control an artifact and an enchantment, …" -/
 theorem okFlatConjunction :
     Condition.check (DRS.ofList [])
-      (.and [exists_ (.and [artifact, .hasPossessor .controller .you]),
-             exists_ (.and [enchantment, .hasPossessor .controller .you])]) = [] := by
+      (.and [exists_ (.and [isArtifact, .hasPossessor .controller .you]),
+             exists_ (.and [isEnchantment, .hasPossessor .controller .you])]) = [] := by
   decide
 
 /-- "If you control an artifact, create a token." -/
 theorem badSingletonConjunction :
-    Condition.check (DRS.ofList []) (.and [exists_ (.and [artifact, .hasPossessor .controller .you])])
+    Condition.check (DRS.ofList []) (.and [exists_ (.and [isArtifact, .hasPossessor .controller .you])])
       = [.atLeastTwo] := by
   decide
 
 /-- "If you control an artifact and an enchantment, and you control a land, …" -/
 theorem badNestedConjunction :
     Condition.check (DRS.ofList [])
-      (.and [ .and [exists_ (.and [artifact, .hasPossessor .controller .you]),
-                    exists_ (.and [enchantment, .hasPossessor .controller .you])],
-              exists_ (.and [land, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
+      (.and [ .and [exists_ (.and [isArtifact, .hasPossessor .controller .you]),
+                    exists_ (.and [isEnchantment, .hasPossessor .controller .you])],
+              exists_ (.and [isLand, .hasPossessor .controller .you]) ]) = [.flatConjuncts] := by
   decide
 
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
@@ -465,27 +465,27 @@ theorem badCardToken :
 
 /-- "a card that is a copy of a card" -/
 theorem badCardCopyOfACard :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.isCard, copyOfACard]) = [.contradictionFree] := by decide
+    Predicate.checkAt .object (DRS.ofList []) (.and [.isCard, isCopyOfACard]) = [.contradictionFree] := by decide
 
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
-    Action.check (DRS.ofList []) (forbidAttack (target creature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidAttack (target isCreature) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack this turn." [CR#508.1a,205.1b] -/
 theorem okCantAttackLand :
-    Action.check (DRS.ofList []) (forbidAttack (target land) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidAttack (target isLand) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack." -/
-theorem okCantAttackLandNoSpan : Action.check (DRS.ofList []) (forbidAttack (target land) none) = [] := by
+theorem okCantAttackLandNoSpan : Action.check (DRS.ofList []) (forbidAttack (target isLand) none) = [] := by
     decide
 
 /-- "Target creature can't block this turn." -/
 theorem okCantBlockCreature :
-    Action.check (DRS.ofList []) (forbidBlock (target creature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidBlock (target isCreature) (some thisTurn)) = [] := by decide
 
 /-- "Target creature or land can't block this turn." [CR#205.1b,509.1a] -/
 theorem okCantDisjunctSubject :
-    Action.check (DRS.ofList []) (forbidBlock (target (.or [creature, land])) (some thisTurn)) = [] := by
+    Action.check (DRS.ofList []) (forbidBlock (target (.or [isCreature, isLand])) (some thisTurn)) = [] := by
         decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/
@@ -495,20 +495,20 @@ theorem okPartyOfFourRoles : NounPhrase.checkAt (some .object) (DRS.ofList []) p
 theorem badRepeatedPartyRole :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
       (.oneEachOf [.hasSubtype (creatureType "Cleric"), .hasSubtype (creatureType "Cleric")]
-        (allOf creatureYouControl)) = [.rolesOk] := by
+        (allOf (and [isCreature, youControl]))) = [.rolesOk] := by
   decide
 
 /-- "one each of nothing" [CR#700.8]. -/
 theorem badEmptyPartyRoles :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.oneEachOf [] (allOf creatureYouControl)) = [.rolesOk] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.oneEachOf [] (allOf (and [isCreature, youControl]))) = [.rolesOk] := by decide
 
 /-- "a fortified land" -/
 theorem okFortifiedLand :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [land, Primitives.Predicate.isAttached (some .fortified)])) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isLand, Primitives.Predicate.isAttached (some .fortified)])) = [] := by decide
 
 /-- "a fortified creature" [CR#301.6,301.5]. -/
 theorem badFortifiedCreature :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [creature, Primitives.Predicate.isAttached (some .fortified)]))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isCreature, Primitives.Predicate.isAttached (some .fortified)]))
       = [.contradictionFree] := by
   decide
 

@@ -17,11 +17,11 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.FaceDown
 
 /-- "Exile target creature face down." -/
-theorem okExileFaceDown : Action.check (DRS.ofList []) (exileFaceDown (target creature)) = [] := by decide
+theorem okExileFaceDown : Action.check (DRS.ofList []) (exileFaceDown (target isCreature)) = [] := by decide
 
 /-- "Turn target creature face down. It's a 2/2 creature." -/
 theorem okTurnFaceDown :
-    Action.check (DRS.ofList []) (.turnFaceDown (target creature) faceDownCreature) = [] := by decide
+    Action.check (DRS.ofList []) (.turnFaceDown (target isCreature) faceDownCreature) = [] := by decide
 
 /-- Only an object is turned face down [CR#708.2]. -/
 theorem badTurnAPlayerFaceDown :
@@ -30,12 +30,12 @@ theorem badTurnAPlayerFaceDown :
 
 /-- An entry rider into exile is not of the kind exile allows. -/
 theorem badEntryRiderIntoExile :
-    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some exileZone) .arrival none [(.entersAs .tapped)]) =
+    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some exileZone) .arrival none [(.entersAs .tapped)]) =
       [.riderKind .placement .entry] := by decide
 
 /-- A placement onto the battlefield is not of the kind the battlefield allows. -/
 theorem badPlacementOntoBattlefield :
-    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some battlefield) .arrival none
+    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some battlefield) .arrival none
       [(.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
 
 /-- A special action whose instruction reads an anaphor with no antecedent is refused. -/

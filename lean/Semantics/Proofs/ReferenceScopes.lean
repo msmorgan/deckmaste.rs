@@ -14,12 +14,12 @@ private def playerBinding : Referent :=
   { det := .the, plur := .one, payload := .player false }
 private def outer : DRS := DRS.ofList [artifactBinding, letterB .x]
 private def creatureX : NounPhrase :=
-  target (.and [creature, .compare [.stat .power] .eq (.letter .x)])
+  target (.and [isCreature, .compare [.stat .power] .eq (.letter .x)])
 private def artifactX : NounPhrase :=
-  target (.and [artifact, .compare [.stat .manaValue] .eq (.letter .x)])
+  target (.and [isArtifact, .compare [.stat .manaValue] .eq (.letter .x)])
 private def powerAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
-    (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1
+    (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1
 
 private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
@@ -108,7 +108,7 @@ private def previousAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
     (.putCounters (.lit 1) (.printed p1p1Counter) creatureX .one false)).1
 private def conditionAfter (drs : DRS) : DRS :=
-  (stepCondition 64 drs (.matches creatureX creature)).1
+  (stepCondition 64 drs (.matches creatureX isCreature)).1
 
 theorem sharedSubjectWithoutOuter :
     NounPhrase.checkAt (some .object) (sharedAfter (DRS.ofList [])) it = [] := by decide
@@ -142,7 +142,7 @@ theorem conditionSubjectKeepsCreature :
 
 private def playerX : NounPhrase :=
   each (.and [.anyPlayer, .compare [.playerStat .lifeTotal] .eq (.letter .x)])
-private def libraryCards : NounPhrase := .slice .top (.lit 2) (library playerX)
+private def libraryCards : NounPhrase := .slice .top (.lit 2) (libraryOf playerX)
 private def libraryAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .obj true (.firstMention "scope.library" libraryCards)).1
 private def libraryRead : NounPhrase := .laterMention "scope.library" libraryCards
@@ -162,12 +162,12 @@ theorem librarySliceKeepsLibraryCarrier :
 /-- Without a named performer, two players do not determine whose choice this is. -/
 theorem implicitChooserDoesNotIgnoreAnotherPlayer :
     NounPhrase.checkAt (some .object) (DRS.ofList [playerBinding, playerBinding])
-      (aTheirChoice creature) = [.chooserInScope 2] := by decide
+      (aTheirChoice isCreature) = [.chooserInScope 2] := by decide
 
 /-- An explicit performer determines the chooser despite other players in discourse. -/
 theorem explicitChooserWinsOverOuterPlayers :
     Action.check (DRS.ofList [playerBinding, playerBinding])
-      (instruct (target .anyPlayer) (choose (aTheirChoice creature))) = [] := by decide
+      (instruct (target .anyPlayer) (choose (aTheirChoice isCreature))) = [] := by decide
 
 theorem agentWithoutOuter :
     Action.check (DRS.ofList [])
@@ -218,14 +218,14 @@ theorem blockWithOuterLetter :
       (requireBlockIt creatureX (some untilEndOfTurn)) = [] := by decide
 
 theorem damageOwnPowerWithoutOuter :
-    Action.check (DRS.ofList []) (dealDamageOwnPower creatureX (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (dealDamageOwnPower creatureX (target isCreature)) = [] := by decide
 
 theorem damageOwnPowerWithOuter :
-    Action.check outer (dealDamageOwnPower creatureX (target creature)) = [] := by decide
+    Action.check outer (dealDamageOwnPower creatureX (target isCreature)) = [] := by decide
 
 private def playerLoop : Action :=
   .doForEach (each .anyPlayer)
-    (choose (target (.and [permanent, .hasPossessor .controller they])))
+    (choose (target (.and [isPermanent, .hasPossessor .controller they])))
 
 theorem loopPlayerRetainsPlayerKind :
     Action.check (DRS.ofList []) playerLoop = [] := by decide
@@ -249,9 +249,9 @@ theorem sourceTypeRefinesOneIdentity :
 
 theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
     let before := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (destroy (target creature))).1
+      (destroy (target isCreature))).1
     let after := (stepCondition 64 (nextClause before)
-      (.not (.matches thisEnchantment creature))).1
+      (.not (.matches thisEnchantment isCreature))).1
     let selected := resolveCandidates .bare .one (nextClause after)
     selected.map (·.ty) = [[.enchantment]] ∧
       selected.map (·.id) = [after.nextId - 1] := by decide
@@ -268,7 +268,7 @@ private def powerSubject : Referent := {
 
 private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
     ((stepOps (n + 6)).inst .postEvent .obj drs
-      (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1 =
+      (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1 =
       let selected := ({ drs with relativeKind := some .object } : DRS).push powerSubject .subj true
       (introducedLetters .x selected).foldl
         (fun d ref => d.push ref .other false) selected := by rfl
@@ -310,7 +310,7 @@ theorem ownStatInstructionIdentityStableForEveryOuterContext (rs : List Referent
   change resolveCandidates .bare .one
     (((stepOps (58 + 6)).inst .postEvent .obj
       { referents := rs, currentClause := clause, nextId := id }
-      (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1) = _
+      (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1) = _
   rw [actualPowerPipeline]
   dsimp only
   unfold introducedLetters

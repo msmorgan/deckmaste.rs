@@ -17,7 +17,7 @@ theorem okGetsBattlefieldSubject :
     Ability.check (DRS.ofList [])
       (.static
         (onlyWhile (getsPt thisCreature (.up (.lit 2)) (.up (.lit 0)))
-          (.matches thisCreature attacking))) = [] := by
+          (.matches thisCreature isAttacking))) = [] := by
   decide
 
 /-- "That creature gets +2/+0 as long as this creature is attacking." The Idris pin refutes
@@ -26,7 +26,7 @@ theorem badThatCreatureIsCondSubject :
     Ability.check (DRS.ofList [])
       (.static
         (onlyWhile (getsPt (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)))
-          (.matches thisCreature attacking)))
+          (.matches thisCreature isAttacking)))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -47,7 +47,7 @@ theorem okSingleStaticXRider :
       (.conjunction none
         [ .modification thisCreature .power (.up (.letter .x)),
           .modification thisCreature .toughness (.up (.lit 0)),
-          .letterDefinition .x (countOf creatureYouControl) ]) = [] := by
+          .letterDefinition .x (countOf (and [isCreature, youControl])) ]) = [] := by
   decide
 
 theorem badDoubleStaticRider :
@@ -55,13 +55,13 @@ theorem badDoubleStaticRider :
       (.conjunction none
         [ .modification thisCreature .power (.up (.letter .x)),
           .modification thisCreature .toughness (.up (.lit 0)),
-          .letterDefinition .x (countOf creatureYouControl),
-          .letterDefinition .x (countOf creature) ]) = [.openLetter .x] := by
+          .letterDefinition .x (countOf (and [isCreature, youControl])),
+          .letterDefinition .x (countOf isCreature) ]) = [.openLetter .x] := by
   decide
 
 /-- "power and toughness are each equal to the number of creatures you control" -/
 theorem okSelfDefinedPt :
-    StaticSpec.check (DRS.ofList []) (.ptDefinition thisCreature .bothEach (countOf creatureYouControl)) = [] :=
+    StaticSpec.check (DRS.ofList []) (.ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl]))) = [] :=
         by
   decide
 
@@ -74,7 +74,7 @@ theorem badGrantedPtDefinition :
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousClause :
     Action.check (DRS.ofList [])
-      (.establish (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))
+      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -110,7 +110,7 @@ theorem okGetsAnEnduringStory :
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/
 theorem okStillALand :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.qualityChange (allOf land) .sets
+      (Primitives.StaticSpec.qualityChange (allOf isLand) .sets
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           (some .land))) = [] := by
@@ -118,7 +118,7 @@ theorem okStillALand :
 
 /-- "Target creature gets +1/+0." -/
 theorem okSingletonCoordination :
-    StaticSpec.check (DRS.ofList []) (.conjunction none [.modification (target creature) .power (.up (.lit 1))])
+    StaticSpec.check (DRS.ofList []) (.conjunction none [.modification (target isCreature) .power (.up (.lit 1))])
       = [] := by
   decide
 
@@ -130,9 +130,9 @@ theorem okSingleExtension :
     StaticSpec.check (DRS.ofList [])
       (Primitives.StaticSpec.qualityChange
         (Primitives.NounPhrase.and [
-              allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-              allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.in_ battlefield)]) ]) .adds (.everyTypeOf .creature)) = [] := by decide
+              allOf (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [isCreature, isSpell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, isCreature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.in_ battlefield)]) ]) .adds (.everyTypeOf .creature)) = [] := by decide
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :
@@ -145,28 +145,28 @@ theorem okDrawReplacement :
 theorem okUnlessOverNegatedCondition :
     StaticSpec.check (DRS.ofList [])
       (.conditional (.altCost .this none)
-        (.not (exists_ (.and [artifact, .hasPossessor .controller .you]))) .unless_) = [] := by
+        (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .unless_) = [] := by
   decide
 
 theorem badUnlessConjunction :
     StaticSpec.check (DRS.ofList [])
       (.conditional (.altCost .this none)
         (.and
-          [ exists_ (.and [artifact, .hasPossessor .controller .you]),
-            exists_ (.and [enchantment, .hasPossessor .controller .you]) ]) .unless_)
+          [ exists_ (.and [isArtifact, .hasPossessor .controller .you]),
+            exists_ (.and [isEnchantment, .hasPossessor .controller .you]) ]) .unless_)
       = [.markingOk] := by
   decide
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :
-    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (a (.and [creature, attacking])))
+    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (a (.and [isCreature, isAttacking])))
       = [] := by
   decide
 
 /-- "Target land blocks an attacking creature.": a land an effect has made a creature blocks
 [CR#205.1b,509.1a]. -/
 theorem okLandBecomesBlocking :
-    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking (target land) (a (.and [creature, attacking])))
+    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking (target isLand) (a (.and [isCreature, isAttacking])))
       = [] := by
   decide
 

@@ -61,19 +61,19 @@ theorem okDrawClamped :
 /-- "This spell deals X damage to target creature": you can't deal negative damage
 [CR#107.1b]. -/
 theorem okDealDamageClamped :
-    (Action.instruct .this (.dealDamage (.letter .x) (target creature) .any)).numberSlots
+    (Action.instruct .this (.dealDamage (.letter .x) (target isCreature) .any)).numberSlots
       = [(.letter .x, .clamped)] := by rfl
 
 /-- "X is the number of creatures you control": the letter X, defined by the text, is a count
 [CR#107.1b,107.3c]. -/
 theorem okDefineClamped :
-    (Primitives.Action.define .x (.countOf (.described .all creature))).numberSlots
-      = [(.countOf (.described .all creature), .clamped)] := by rfl
+    (Primitives.Action.define .x (.countOf (.described .all isCreature))).numberSlots
+      = [(.countOf (.described .all isCreature), .clamped)] := by rfl
 
 /-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/
 theorem okDefinesLetterClamped :
-    (StaticSpec.letterDefinition .x (.countOf (.described .all creature))).numberSlots
-      = [(.countOf (.described .all creature), .clamped)] := by rfl
+    (StaticSpec.letterDefinition .x (.countOf (.described .all isCreature))).numberSlots
+      = [(.countOf (.described .all isCreature), .clamped)] := by rfl
 
 /-- "This creature gets +2/+0": the sign is the constructor, and the magnitude beneath it is a
 number the game does not take below zero [CR#107.1b]. -/
@@ -86,7 +86,7 @@ theorem okModifyUpClamped :
 /-- "Target creature's base power and toughness become 0/2": an effect that sets a power and
 toughness is the exception [CR#107.1b] names. -/
 theorem okDefinesPtSigned :
-    (StaticSpec.ptDefinition (target creature) .bothEach (.lit 0)).numberSlots
+    (StaticSpec.ptDefinition (target isCreature) .bothEach (.lit 0)).numberSlots
       = [(.lit 0, .signed)] := by rfl
 
 /-- "Whenever this creature's power becomes 3": the header watches a game value, which may be

@@ -24,7 +24,7 @@ private def damageResultCheck (rule : DamageResult) : List Refusal :=
 
 /-- [CR#704.5f] "If a creature has toughness 0 or less, it's put into its owner's graveyard." -/
 def toughnessZero : SbaRule :=
-  { scope := creature,
+  { scope := isCreature,
     when := .compareAmt (toughnessOf .this) .atMost (.lit 0),
     then_ := move .this graveyard }
 theorem okToughnessZero : SbaRule.check toughnessZero = [] := by decide
@@ -221,14 +221,14 @@ def isAttached (subject : NounPhrase) : Condition :=
 host becomes unattached. -/
 def equipmentDefinition : Definition :=
   .subtype (artifactType "Equipment")
-    [ .property (mayBeAttachedTo thisEquipment (allOf creature)),
+    [ .property (mayBeAttachedTo thisEquipment (allOf isCreature)),
       .stateBased (.not (isAttached thisEquipment)) (.attachment .unattached thisEquipment none) ]
 theorem okEquipmentDefinition : Definition.check equipmentDefinition = [] := by decide
 
 /-- [CR#301.6,704.5n] The Land twin of Equipment. -/
 def fortificationDefinition : Definition :=
   .subtype (artifactType "Fortification")
-    [ .property (mayBeAttachedTo thisFortification (allOf land)),
+    [ .property (mayBeAttachedTo thisFortification (allOf isLand)),
       .stateBased (.not (isAttached thisFortification))
         (.attachment .unattached thisFortification none) ]
 theorem okFortificationDefinition : Definition.check fortificationDefinition = [] := by decide
@@ -364,7 +364,7 @@ def powerstone : PredefinedToken :=
             text :=
               [ activated .tapSymbol
                   (.addMana (.lit 1) (.runs [[.colorless]])
-                    [.spendNotOn [.toCast (.and [.not artifact, spell])]]) ] } } }
+                    [.spendNotOn [.toCast (.and [.not isArtifact, isSpell])]]) ] } } }
 theorem okPowerstone : PredefinedToken.check powerstone = [] := by decide
 
 /-- [CR#111.10w] "A Vibranium token is a colorless Vibranium artifact token with indestructible
@@ -378,7 +378,7 @@ def vibranium : PredefinedToken :=
               [ keyword (.named "indestructible"),
                 activated .tapSymbol
                   (.addMana (.lit 1) (.runs [[.colorless]])
-                    [.spendNotOn [.toCast (.and [.not artifact, spell])]]) ] } } }
+                    [.spendNotOn [.toCast (.and [.not isArtifact, isSpell])]]) ] } } }
 theorem okVibranium : PredefinedToken.check vibranium = [] := by decide
 
 /-- The seven predefined tokens the builtin plugin carries. -/

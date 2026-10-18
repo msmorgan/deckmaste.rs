@@ -41,7 +41,7 @@ theorem badConditionalArmAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .doOnlyIf (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
-            (exists_ creatureYouControl) none,
+            (exists_ (and [isCreature, youControl])) none,
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -56,7 +56,7 @@ theorem badBothArmsAntecedent :
 
 /-- "Put target creature onto the battlefield." -/
 theorem okMoveToBattlefield :
-    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some battlefield) .arrival none []) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some battlefield) .arrival none []) = [] := by decide
 
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
@@ -77,13 +77,13 @@ theorem okChooseSomeOf :
 
 /-- "Exile target creature." -/
 theorem okMoveToExile :
-    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some exileZone) .arrival none []) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some exileZone) .arrival none []) = [] := by decide
 
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
     Ability.check (DRS.ofList [])
       (.triggered (.does .any (.move thisCreature .anyLocation (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨.any, (.move (a creature) (battlefield) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
+        (some (.did ⟨.any, (.move (a isCreature) (battlefield) (some graveyard) .departure none []), (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
             = [] := by
   decide
 
@@ -99,7 +99,7 @@ theorem badLookbackPlayerDied :
 theorem badLookbackObjectCast :
     Ability.check (DRS.ofList [])
       (.triggered (.does .any (.move thisCreature .anyLocation (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨(.actor (a creature)), (.procedure .cast .any .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)) (draw
+        (some (.did ⟨(.actor (a isCreature)), (.procedure .cast .any .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)) (draw
           (.lit 1)))
       = [.kindMismatch .player .object] := by
   decide
@@ -107,14 +107,14 @@ theorem badLookbackObjectCast :
 /-- "target creature that entered this turn" -/
 theorem okHappenedToObjectEntry :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (target (.and [creature, (.did ⟨.any, (.move .which .anyLocation (some battlefield) .arrival none []), (.duration soFarThisTurn none)⟩)])) = [] :=
+      (target (.and [isCreature, (.did ⟨.any, (.move .which .anyLocation (some battlefield) .arrival none []), (.duration soFarThisTurn none)⟩)])) = [] :=
         by
   decide
 
 /-- "target creature who cast a spell this turn" -/
 theorem badHappenedToObjectCast :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (target (.and [creature, (.did ⟨(.actor .which), (.procedure .cast .any .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)]))
+      (target (.and [isCreature, (.did ⟨(.actor .which), (.procedure .cast .any .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)]))
       = [.kindMismatch .player .object] := by
   decide
 
@@ -126,14 +126,14 @@ theorem badHappenedToPlayerDied :
 
 /-- "Choose a creature you control." -/
 theorem okChooseIndefinite :
-    Action.check (DRS.ofList []) (.choose none (a creatureYouControl) .openly none) = [] :=
+    Action.check (DRS.ofList []) (.choose none (a (and [isCreature, youControl])) .openly none) = [] :=
         by decide
 
 /-- "Choose the creature with the least toughness among creatures you control." -/
 theorem badChooseDefinite :
     Action.check (DRS.ofList [])
       (.choose none
-        (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl]))
+        (the (.and [isCreature, .superlative .min (.stat .toughness) (and [isCreature, youControl])]))
         .openly none) = [.choiceClause] := by
   decide
 
@@ -141,7 +141,7 @@ theorem badChooseDefinite :
 theorem okUnionAnaphorAfterJoin :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (target (.or [creature, .anyPlayer])) .any),
+        [ instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any),
           instruct .this (.dealDamage (.lit 1) (that .join) .any) ]) = [] := by
   decide
 
@@ -154,7 +154,7 @@ theorem badUnionAnaphorNoAntecedent :
 /-- "Destroy target creature. This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorOnObject :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), instruct .this (.dealDamage (.lit 3) (that .join) .any)])
+      (.sequentially [destroy (target isCreature), instruct .this (.dealDamage (.lit 3) (that .join) .any)])
       = [.anaphor (.word .join) .one 0] := by
   decide
 
@@ -168,7 +168,7 @@ theorem badStackAnaphorAfterCounteringAbility :
   decide
 
 def afterAnyTargetDamage : DRS :=
-  instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target anyTarget) .any))
+  instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
 
 /-- "This deals 3 damage to any target. This deals 1 damage to that permanent or player." -/
 theorem okUnionAnaphorAfterAnyTarget :
@@ -201,7 +201,7 @@ theorem badSortedClassOnNumberKeyword :
 /-- "{T}: Draw a card. Activate only if you created a creature this turn." -/
 theorem okTokenCreationLookbackComplement :
     Condition.check (DRS.ofList [])
-      (.did ⟨(.by .you), (.createObject .anyAmount (.token (.copyOf (a (.and [creature, .isToken])) []) []) false none), (.duration soFarThisTurn none)⟩) = [] := by
+      (.did ⟨(.by .you), (.createObject .anyAmount (.token (.copyOf (a (.and [isCreature, .isToken])) []) []) false none), (.duration soFarThisTurn none)⟩) = [] := by
   decide
 
 /-- "creature that was dealt damage by this creature this turn" -/
@@ -212,8 +212,8 @@ theorem okDamageTakenComplement :
 
 /-- "if you've cast a creature spell this turn" -/
 theorem okCastComplementOnObject :
-    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.procedure .cast (a (.and [creature,
-      spell])) .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)
+    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.procedure .cast (a (.and [isCreature,
+      isSpell])) .itsOwnCost none none none), (.duration soFarThisTurn none)⟩)
       = [] := by
   decide
 
@@ -243,7 +243,7 @@ theorem okCastOriginFromHand :
 /-- "if you've cast a creature spell from your hand this turn" -/
 theorem okOriginPayloadInvolving :
     Condition.check (DRS.ofList [])
-      (.did ⟨(.actor .you), (.procedure .cast (a (.and [creature, spell])) .itsOwnCost none (some (hand)) none), (.duration soFarThisTurn none)⟩) = [] := by
+      (.did ⟨(.actor .you), (.procedure .cast (a (.and [isCreature, isSpell])) .itsOwnCost none (some (hand)) none), (.duration soFarThisTurn none)⟩) = [] := by
   decide
 
 /-- "… that died this turn." -/
@@ -287,12 +287,12 @@ theorem badShuffleLocusAtGraveyard :
 
 /-- "target creature spell, once it resolves" -/
 theorem okResolvedCreatureSpell :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .creature, spell])))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .creature, isSpell])))
       = [] := by
   decide
 
 theorem badResolvedInstant :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .instant, spell])))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .instant, isSpell])))
       = [.permanentSpellType] := by
   decide
 
@@ -308,7 +308,7 @@ theorem okPluralForEach :
 
 /-- "For each of target creature, its controller draws a card." -/
 theorem badSingletonForEach :
-    Action.check (DRS.ofList []) (.doForEach (target creature) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (.doForEach (target isCreature) (draw (.lit 1)))
       = [.plural] := by decide
 
 /-- "For each player, choose target permanent that player controls. Those players draw a
@@ -317,7 +317,7 @@ theorem okLoopGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .doForEach (each .anyPlayer)
-            (choose (target (.and [permanent, .hasPossessor .controller they]))),
+            (choose (target (.and [isPermanent, .hasPossessor .controller they]))),
           instruct (those .player) (draw (.lit 1)) ]) = [] := by
   decide
 
@@ -328,7 +328,7 @@ theorem badLoopElementRead :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .doForEach (each .anyPlayer)
-            (choose (target (.and [permanent, .hasPossessor .controller they]))),
+            (choose (target (.and [isPermanent, .hasPossessor .controller they]))),
           instruct (that .player) (draw (.lit 1)) ]) = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -368,7 +368,7 @@ copies. -/
 theorem okPluralSpellReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [],
+        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 2) [],
           offer (.chooseNewTargets (those .spell)) ]) = [] := by
   decide
 
@@ -376,7 +376,7 @@ theorem okPluralSpellReadAfterCopy :
 theorem okCopyReadAfterCopy :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
           offer (.chooseNewTargets (that .copy)) ]) = [] := by
   decide
 
@@ -385,7 +385,7 @@ The copy is itself a spell [CR#707.10]; AC>R1 selects its newer referent. -/
 theorem singularSpellReadSelectsCopy :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
           offer (.chooseNewTargets (that .spell)) ]) = [] := by
   decide
 
@@ -421,15 +421,15 @@ theorem abilityIsOnTheStack : Payload.zone (.ability none) = some .stack := by d
 
 theorem joinedCreatureTy :
     tyOfReach (.word .join) .one
-      (instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [creature, .anyPlayer])) .any)))
+      (instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any)))
       = [.creature] := by
   decide
 
-theorem anyTargetIsPlaceless : NounPhrase.zone (DRS.ofList []) (target anyTarget) = none := by decide
+theorem anyTargetIsPlaceless : NounPhrase.zone (DRS.ofList []) (target isAnyTarget) = none := by decide
 
 theorem anyTargetTakesDamage :
     Action.check (DRS.ofList [])
-      (instruct .this (.dealDamage (.lit 1) (target anyTarget) .any)) = [] := by decide
+      (instruct .this (.dealDamage (.lit 1) (target isAnyTarget) .any)) = [] := by decide
 
 theorem youAndPublishesBothParticipants :
     (nounResult (DRS.ofList []) (youAnd thisCreature)).referents.map (·.kind) =
@@ -439,7 +439,7 @@ theorem youAndPublishesBothParticipants :
 theorem okDealtThisWayAfterDamage :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (target anyTarget) .any),
+        [ instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any),
           .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ]) = [] := by
   decide
 
@@ -453,11 +453,11 @@ theorem badDealtThisWayNoDamage :
 
 /-- "the number of creatures that died this turn" -/
 theorem okDeathTally :
-    Amount.check (DRS.ofList []) (.tally ⟨.any, .move (a creature) (battlefield) (some graveyard) .departure none [], .duration soFarThisTurn none⟩ .events) = [] := by decide
+    Amount.check (DRS.ofList []) (.tally ⟨.any, .move (a isCreature) (battlefield) (some graveyard) .departure none [], .duration soFarThisTurn none⟩ .events) = [] := by decide
 
 /-- "the amount of creatures that died this turn" -/
 theorem badDeathSum :
-    Amount.check (DRS.ofList []) (.tally ⟨.any, .move (a creature) (battlefield) (some graveyard) .departure none [], .duration soFarThisTurn none⟩ .quantity) = [.tallyOk] := by
+    Amount.check (DRS.ofList []) (.tally ⟨.any, .move (a isCreature) (battlefield) (some graveyard) .departure none [], .duration soFarThisTurn none⟩ .quantity) = [.tallyOk] := by
   decide
 
 /-- "creature that died this turn" -/
@@ -550,7 +550,7 @@ theorem okPayKeywordWithACost :
 theorem youPaidLifeThisTurn :
     Condition.check (DRS.ofList []) (.did ⟨.actor .you, .pay (.perform (.changeLife (.down .anyAmount))) .once .paid none none, .duration soFarThisTurn none⟩) = [] := by decide
 
-def afterAnUpToChoice : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) creature))
+def afterAnUpToChoice : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterAPartition :
@@ -563,14 +563,14 @@ theorem badRestWithoutAPartition :
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterCountedChoice :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)]) = [] := by
+      (.sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)]) = [] := by
   decide
 
 /-- "Choose any number of target creatures. Destroy the rest." -/
 theorem badRestAfterTargetChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target anyNumber) creature), destroy (theRest .object)])
+        [choose (.described (.target anyNumber) isCreature), destroy (theRest .object)])
       = [.theRestFits .object] := by
   decide
 
@@ -606,7 +606,7 @@ theorem putHasNoStandaloneParticiple : participleOf (.core .put) = none := by de
 /-- "Whenever a creature transforms into a Phyrexian, …" -/
 theorem okIntransitiveBecomes :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.enact (.action "transform") (.turnOver (a creature)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [] := by
+      (.does .any (.enact (.action "transform") (.turnOver (a isCreature)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [] := by
   decide
 
 /-- "Whenever a card is milled into a Phyrexian, …" -/
@@ -633,7 +633,7 @@ theorem badPlayerDamageDealer :
 
 theorem joinedDealerDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.actor .which, .dealDamage .anyAmount (a (.or [creature, .anyPlayer])) .any, .duration soFarThisTurn none⟩)
+      (.did ⟨.actor .which, .dealDamage .anyAmount (a (.or [isCreature, .anyPlayer])) .any, .duration soFarThisTurn none⟩)
       = [] := by decide
 
 theorem lastChosenPlayerRead :
@@ -645,8 +645,8 @@ theorem lastChosenPlayerRead :
 theorem okDefiniteChosenPlayerRead :
     Action.check [ChoiceSort.binding .player]
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (a chosenPlayer) .any),
-          instruct .this (.dealDamage (.lit 3) (the chosenPlayer) .any) ])
+        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any),
+          instruct .this (.dealDamage (.lit 3) (the isChosenPlayer) .any) ])
       = [] := by
   decide
 
@@ -654,7 +654,7 @@ theorem okDefiniteChosenPlayerRead :
 theorem chosenPlayerDemonstrativeSelectsNewMention :
     Action.check [ChoiceSort.binding .player]
       (.sequentially
-        [ instruct .this (.dealDamage (.lit 3) (a chosenPlayer) .any), instruct .this (.dealDamage (.lit 3) they .any) ])
+        [ instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any), instruct .this (.dealDamage (.lit 3) they .any) ])
       = [] := by
   decide
 
@@ -702,23 +702,23 @@ theorem letterValIntroducesAtEmptyPrefix : Amount.check (DRS.ofList []) (.letter
 theorem ownSurvivesSecondSingular :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ exile (target artifact),
-          dealDamageOwnPower (target creature)
-            (target anyTarget) ]) = [] := by
+        [ exile (target isArtifact),
+          dealDamageOwnPower (target isCreature)
+            (target isAnyTarget) ]) = [] := by
   decide
 
 /-- "Exile target creature. Draw cards equal to its power." -/
 theorem okItReadsTheOnlyBareSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [exile (target creature), draw (.statOf (.stat .power) it)]) = []
+      (.sequentially [exile (target isCreature), draw (.statOf (.stat .power) it)]) = []
           := by
   decide
 
 theorem possessiveItReadsCurrentSubject :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ exile (target artifact),
-          instruct (target creature) (.dealDamage (.statOf (.stat .power) it) (target anyTarget) .any) ])
+        [ exile (target isArtifact),
+          instruct (target isCreature) (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any) ])
       = [] := by
   decide
 
@@ -726,7 +726,7 @@ theorem possessiveItReadsCurrentSubject :
 theorem badSingularReadOfBarePlural :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
+        [ get (bare (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
           draw (.statOf (.stat .power) it) ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -734,8 +734,8 @@ theorem badSingularReadOfBarePlural :
 theorem conditionItReadsCurrentSource :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ destroy (target creature),
-          .doIf (.not (.matches thisEnchantment creature))
+        [ destroy (target isCreature),
+          .doIf (.not (.matches thisEnchantment isCreature))
             (become it
               { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
               (some untilEndOfTurn))
@@ -743,7 +743,7 @@ theorem conditionItReadsCurrentSource :
   decide
 
 theorem okOwnPowerWithoutNewMention :
-    Action.check (DRS.ofList []) (dealDamageOwnPower .this (target anyTarget))
+    Action.check (DRS.ofList []) (dealDamageOwnPower .this (target isAnyTarget))
       = [] := by
   decide
 
@@ -751,7 +751,7 @@ theorem okOwnPowerWithoutNewMention :
 `GetsBothDeltas.selectedPtSubjectHasStableIdentity` pins that subject's identity. -/
 theorem okOwnReadsOneInDelta :
     Action.check (DRS.ofList [])
-      (establishFor (target creature)
+      (establishFor (target isCreature)
         [ .ptModification it
             (.up (.lit 1)) (.up (.lit 1)) ]
         none) = [] := by
@@ -762,7 +762,7 @@ ambiguous between the two, refused once. The corresponding modern shape is also 
 `GetsBothDeltas.ambiguousSingularPtSubjectIsRefused`. -/
 theorem badSharedSubjectTwoInDelta :
     Action.check (DRS.ofList [])
-      (establishFor (Primitives.NounPhrase.both (target creature) (target artifact))
+      (establishFor (Primitives.NounPhrase.both (target isCreature) (target isArtifact))
         [ .ptModification
             it
             (.up (.lit 1)) (.up (.lit 1)) ]
@@ -771,7 +771,7 @@ theorem badSharedSubjectTwoInDelta :
 
 theorem badOwnTwoInDelta :
     Action.check (DRS.ofList [])
-      (dealDamageOwnPower (Primitives.NounPhrase.both (target creature) (target creature)) (target anyTarget))
+      (dealDamageOwnPower (Primitives.NounPhrase.both (target isCreature) (target isCreature)) (target isAnyTarget))
       = [.singular] := by
   decide
 
@@ -802,7 +802,7 @@ theorem badDistributedDiscardSingular :
 
 /-- "Tap target creature." -/
 theorem okTapBattlefieldPermanent :
-    Action.check (DRS.ofList []) (.setStatus .tapped (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .tapped (target isCreature)) = [] := by decide
 
 /-- "if there is no monarch" -/
 theorem okNoHolderOnPlayer : Condition.check (DRS.ofList []) (.noHolder (.named "monarch")) = [] := by decide
@@ -836,7 +836,7 @@ theorem badAnaphoricSidesWithoutRoll :
 
 theorem singularSpellReadHasCopyIdentity :
     let after := instructionResult (DRS.ofList [])
-      (.copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [])
+      (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [])
     let selected := resolveCandidates (.word .spell) .one (nextClause after)
     selected.map (·.payload.orig) = [some .copy] ∧
       selected.map (·.id) = [after.nextId - 1] := by decide
@@ -850,15 +850,15 @@ theorem singularAbilityReadHasCopyIdentity :
 
 theorem chosenPlayerDemonstrativeHasNewMentionIdentity :
     let before := DRS.ofList [ChoiceSort.binding .player]
-    let after := instructionResult before (instruct .this (.dealDamage (.lit 3) (a chosenPlayer) .any))
+    let after := instructionResult before (instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any))
     (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) =
       [after.nextId - 2] := by decide
 
 theorem possessiveItHasCurrentSubjectIdentity :
     let after := instructionResult (DRS.ofList [])
-      (.sequentially [exile (target artifact),
-        instruct (.firstMention "p05.subject" (target creature))
-          (.dealDamage (.statOf (.stat .power) it) (target anyTarget) .any)])
+      (.sequentially [exile (target isArtifact),
+        instruct (.firstMention "p05.subject" (target isCreature))
+          (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any)])
     (after.referents.filter (fun ref => ref.idents.contains "p05.subject")).map
       (·.pronounResolved) = [true] := by decide
 

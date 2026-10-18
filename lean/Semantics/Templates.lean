@@ -16,6 +16,11 @@ namespace Semantics.Templates
 
 /-! ## Pronouns -/
 
+/-- "you" -/
+semantic_template you : NounPhrase := .you
+/-- "this": the source, by self-name [CR#113.7]. -/
+semantic_template «this» : NounPhrase := .this
+
 /-- "it" -/
 semantic_template it : NounPhrase := .pro .bare .one
 /-- "them" -/
@@ -105,7 +110,7 @@ semantic_template aRandom (p : Semantics.Predicate) : Semantics.NounPhrase :=
   (Semantics.NounPhrase.described (Semantics.DetPhrase.a Semantics.ChoiceMode.atRandom) p)
 semantic_template random (q : Semantics.Quantity) (p : Semantics.Predicate) : Semantics.NounPhrase :=
   (Semantics.NounPhrase.described (Semantics.DetPhrase.count q (some Semantics.ChoiceMode.atRandom)) p)
-/-! ## Zones -/
+/-! ## Locations -/
 
 semantic_template battlefield : Location := .zone .battlefield none
 semantic_template exileZone : Location := .zone .exile none
@@ -115,108 +120,234 @@ semantic_template stack : Location := .zone .stack none
 semantic_template command : Location := .zone .command none
 /-- "the command zone", scoped to nobody. -/
 semantic_template commandZone : Location := .zone .command none
-semantic_template yourLibrary : Location := .zone .library (some .you)
 /-- "<player>'s library": a face-down pile [CR#401.2]. -/
-semantic_template library (player : NounPhrase) : Location := .zone .library (some player)
+semantic_template libraryOf (player : NounPhrase) : Location := .zone .library (some player)
+/-- "<player>'s hand" -/
+semantic_template handOf (player : NounPhrase) : Location := .zone .hand (some player)
+/-- "<player>'s graveyard" -/
+semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard (some player)
+/-- "your library" -/
+semantic_template yourLibrary : Location := libraryOf you
+/-- "your hand" -/
+semantic_template yourHand : Location := handOf you
+/-- "your graveyard" -/
+semantic_template yourGraveyard : Location := graveyardOf you
+/-- "the top of <loc>": the first place from its top [CR#401.7]. -/
+semantic_template topOf (loc : Location) : Location := .fromEnd .top (.nth 1) loc
+/-- "the bottom of <loc>" -/
+semantic_template bottomOf (loc : Location) : Location := .fromEnd .bottom (.nth 1) loc
+/-- "<n>th from the top of <loc>", as "seventh from the top" [CR#401.7]. -/
+semantic_template fromTop (n : Nat) (loc : Location) : Location := .fromEnd .top (.nth n) loc
+/-- "<n>th from the bottom of <loc>" -/
+semantic_template fromBottom (n : Nat) (loc : Location) : Location := .fromEnd .bottom (.nth n) loc
+/-- "exiled with <source>": the face-down cards exiled with it, kept as their own pile
+[CR#406.4]. -/
+semantic_template exiledWith (source : NounPhrase) : Location := .exiledWith source
 /-- "on the bottom of its owner's library" -/
 semantic_template onBottom : Location := .fromEnd .bottom (.nth 1) (.zone .library none)
 /-- "on top of its owner's library" -/
 semantic_template onTop : Location := .fromEnd .top (.nth 1) (.zone .library none)
-semantic_template handOf (player : NounPhrase) : Location := .zone .hand (some player)
-/-- "your hand" -/
-semantic_template yourHand : Location := handOf .you
-semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard (some player)
 semantic_template place (end_ : Semantics.PileEnd) (pile : Semantics.Location) : Semantics.Location :=
   (Semantics.Location.fromEnd end_ (Semantics.Ordinal.nth 1) pile)
+/-- "<loc> or <loc>", as "on the top or bottom of your library". -/
+semantic_template Location.or (locs : List Location) : Location := .or locs
+/-- "anywhere other than <loc>" -/
+semantic_template Location.not (loc : Location) : Location := .not loc
 semantic_template wherever : Semantics.Location :=
   Semantics.Location.anyLocation
 semantic_template zone (zone : Semantics.Zone) (scope : Option Semantics.NounPhrase) : Semantics.Location :=
   (Semantics.Location.zone zone scope)
-/-! ## Predicates -/
+/-! ## Predicates
 
-semantic_template creature : Predicate := .hasType .creature
-semantic_template artifact : Predicate := .hasType .artifact
-semantic_template enchantment : Predicate := .hasType .enchantment
-semantic_template land : Predicate := .hasType .land
-semantic_template instant : Predicate := .hasType .instant
-semantic_template sorcery : Predicate := .hasType .sorcery
-semantic_template instantOrSorcery : Predicate := .or [instant, sorcery]
+Every `Predicate` template reads as a boolean-like test on the member: `is*` for types, kinds,
+roles and states, `has*` for characteristics, and a participle or preposition for possessors,
+locations and relations, leaving the bare nouns and statuses free for `NounWord` and `Status`.
+-/
+
+/-! ### Combinators -/
+
+/-- "<p> and <q>": every conjunct holds. -/
+semantic_template and (conjuncts : List Predicate) : Predicate := .and conjuncts
+/-- "<p> or <q>": some disjunct holds. -/
+semantic_template or (disjuncts : List Predicate) : Predicate := .or disjuncts
+/-- "not <p>" -/
+semantic_template not (p : Predicate) : Predicate := .not p
+/-- "non<p>", as "nonland" or "noncreature". -/
+semantic_template non (p : Predicate) : Predicate := .not p
+
+/-! ### Subtype words -/
+
+semantic_template creatureType (label : String) : Subtype := .of .creature label
+semantic_template artifactType (label : String) : Subtype := .of .artifact label
+semantic_template landType (label : String) : Subtype := .of .land label
+semantic_template enchantmentType (label : String) : Subtype := .of .enchantment label
+semantic_template spellType (label : String) : Subtype := .spell label
+semantic_template planeswalkerType (label : String) : Subtype := .of .planeswalker label
+
+/-! ### Types, kinds and roles -/
+
+semantic_template isCreature : Predicate := .hasType .creature
+semantic_template isArtifact : Predicate := .hasType .artifact
+semantic_template isEnchantment : Predicate := .hasType .enchantment
+semantic_template isLand : Predicate := .hasType .land
+semantic_template isInstant : Predicate := .hasType .instant
+semantic_template isSorcery : Predicate := .hasType .sorcery
+semantic_template isPlaneswalker : Predicate := .hasType .planeswalker
+semantic_template isBattle : Predicate := .hasType .battle
+semantic_template isKindred : Predicate := .hasType .kindred
+semantic_template isInstantOrSorcery : Predicate := or [isInstant, isSorcery]
 /-- "has a permanent type": an artifact, battle, creature, enchantment, land, or planeswalker
 [CR#110.4]; read off the types, so it holds of a card or a token. -/
-semantic_template permanentType : Predicate :=
+semantic_template isPermanentType : Predicate :=
   .or [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
         .hasType .land, .hasType .planeswalker ]
-semantic_template tapped : Predicate := .hasStatus .tapped
-semantic_template faceDown : Predicate := .hasStatus .faceDown
-/-- "another player": any player other than you. -/
-semantic_template otherPlayer : Predicate := .and [.anyPlayer, .otherThan .you]
-/-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
-semantic_template spell : Predicate := .and [.in_ stack, .not (.abilityHead .anyOnStack)]
-semantic_template untapped : Predicate := .hasStatus .untapped
-semantic_template nontoken : Predicate := .not .isToken
 /-- "permanent": an object on the battlefield [CR#110.1]. -/
-semantic_template permanent : Predicate := .in_ battlefield
+semantic_template isPermanent : Predicate := .in_ battlefield
 /-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
 battle, creature, enchantment, land, or planeswalker type [CR#110.4a]; a reading of the card's
 types, wherever it is. -/
-semantic_template permanentCard : Predicate :=
+semantic_template isPermanentCard : Predicate :=
   .and
     [ .isCard,
       .or
         [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
           .hasType .land, .hasType .planeswalker ] ]
-/-- "colorless": an object of no color [CR#105.2c]. -/
-semantic_template colorless : Predicate := .colorCount .eq 0
-/-- "multicolored": an object of two or more colors [CR#105.2b]. -/
-semantic_template multicolored : Predicate := .colorCount .atLeast 2
-/-- "monocolored" -/
-semantic_template monocolored : Predicate := .colorCount .eq 1
-/-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
-semantic_template historic : Predicate :=
-  .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype (.of .enchantment "Saga")]
-semantic_template attacking : Predicate := .inCombat .attackerOf none
-semantic_template blocking : Predicate := .inCombat .blockerOf none
-semantic_template blocked : Predicate := .inCombat .blockedBy none
-semantic_template unblocked : Predicate := .not blocked
-semantic_template creatureYouControl : Predicate := .and [creature, .hasPossessor .controller .you]
-semantic_template creatureYouDontControl : Predicate := .and [creature, .not (.hasPossessor .controller .you)]
-semantic_template creatureYourOpponentsControl : Predicate :=
-  .and [creature, .hasPossessor .controller (.described .all (.isOpponentOf .you))]
-/-- "another creature", anchored on <n>. -/
-semantic_template otherCreature (n : NounPhrase) : Predicate := .and [creature, .otherThan n]
-/-- "another creature you control", anchored on <n>. -/
-semantic_template otherCreatureYouControl (n : NounPhrase) : Predicate :=
-  .and [creature, .hasPossessor .controller .you, .otherThan n]
+/-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
+semantic_template isSpell : Predicate := .and [.in_ stack, .not (.abilityHead .anyOnStack)]
+semantic_template isCard : Predicate := .isCard
+semantic_template isToken : Predicate := .isToken
+semantic_template isNontoken : Predicate := .not .isToken
+semantic_template isCopyOfACard : Predicate := .isCopyOfACard
 /-- "source": the object dealing the damage under discussion. -/
-semantic_template source : Predicate := .isSource
-semantic_template emblem : Predicate := .isEmblem
+semantic_template isSource : Predicate := .isSource
+semantic_template isEmblem : Predicate := .isEmblem
+semantic_template isManaAbility : Predicate := .isManaAbility
+semantic_template isPlayer : Predicate := .anyPlayer
+/-- "an opponent of <who>" [CR#102.2..102.3]. -/
+semantic_template isOpponentOf (who : NounPhrase) : Predicate := .isOpponentOf who
+/-- "opponent": an opponent of you. -/
+semantic_template isOpponent : Predicate := isOpponentOf you
+/-- "a teammate of <who>" [CR#102.3]. -/
+semantic_template isTeammateOf (who : NounPhrase) : Predicate := .isTeammateOf who
+/-- "teammate": a teammate of yours. -/
+semantic_template isTeammate : Predicate := isTeammateOf you
 /-- "the chosen player" -/
-semantic_template chosenPlayer : Predicate := .chosenPlayer .theChoice
+semantic_template isChosenPlayer : Predicate := .chosenPlayer .theChoice
 /-- "the last chosen player" -/
 semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestChoice
+/-- "another player": any player other than you. -/
+semantic_template isOtherPlayer : Predicate := and [isPlayer, .otherThan you]
+/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12]. -/
+semantic_template isOutlaw : Predicate :=
+  .or [ .hasSubtype (creatureType "Assassin"), .hasSubtype (creatureType "Mercenary"),
+        .hasSubtype (creatureType "Pirate"), .hasSubtype (creatureType "Rogue"),
+        .hasSubtype (creatureType "Warlock") ]
+/-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
+semantic_template isHistoric : Predicate :=
+  .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype (.of .enchantment "Saga")]
+/-- "any target" [CR#115.4]. -/
+semantic_template isAnyTarget : Predicate :=
+  .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
+/-- "any other target" -/
+semantic_template isAnyOtherTarget : Predicate := and [isAnyTarget, .other]
+
+/-! ### Player groups -/
+
+/-- "your opponents" -/
+semantic_template yourOpponents : NounPhrase := allOf isOpponent
+/-- "each player" -/
+semantic_template eachPlayer : NounPhrase := each isPlayer
+/-- "each opponent" -/
+semantic_template eachOpponent : NounPhrase := each isOpponent
+
+/-! ### States and characteristics -/
+
+semantic_template isTapped : Predicate := .hasStatus .tapped
+semantic_template isUntapped : Predicate := .hasStatus .untapped
+semantic_template isFaceDown : Predicate := .hasStatus .faceDown
+semantic_template isFaceUp : Predicate := .hasStatus .faceUp
+semantic_template isPhasedOut : Predicate := .hasStatus .phasedOut
+/-- A transformed permanent is the whole double-faced permanent with its back face up
+[CR#701.27g]. -/
+semantic_template isTransformed : Predicate := .currentFace .back
+/-- "enchanted", "equipped", "fortified": the host of an attachment of that kind, or of any
+attachment when `word` is none. -/
+semantic_template isAttached (word : Option AttachWord := none) : Predicate :=
+  .attachment .host word none
+semantic_template isAttacking : Predicate := .inCombat .attackerOf none
+semantic_template isBlocking : Predicate := .inCombat .blockerOf none
+semantic_template isBlocked : Predicate := .inCombat .blockedBy none
+semantic_template isUnblocked : Predicate := not isBlocked
+/-- "colorless": an object of no color [CR#105.2c]. -/
+semantic_template isColorless : Predicate := .colorCount .eq 0
+/-- "monocolored" -/
+semantic_template isMonocolored : Predicate := .colorCount .eq 1
+/-- "multicolored": an object of two or more colors [CR#105.2b]. -/
+semantic_template isMulticolored : Predicate := .colorCount .atLeast 2
+/-- "another …", anchored on a prior mention. -/
+semantic_template isOther : Predicate := .other
+
+/-! ### Possessors, locations and relations -/
+
+/-- "<who> controls" -/
+semantic_template controlledBy (who : NounPhrase) : Predicate := .hasPossessor .controller who
+/-- "you control" -/
+semantic_template youControl : Predicate := controlledBy you
+/-- "you don't control" -/
+semantic_template youDontControl : Predicate := not (controlledBy you)
+/-- "your opponents control" -/
+semantic_template opponentsControl : Predicate := controlledBy yourOpponents
+/-- "<who> owns" -/
+semantic_template ownedBy (who : NounPhrase) : Predicate := .hasPossessor .owner who
+/-- "you own" -/
+semantic_template youOwn : Predicate := ownedBy you
+/-- "your opponents own" -/
+semantic_template opponentsOwn : Predicate := ownedBy yourOpponents
+/-- "in <loc>", as "in your graveyard" or "exiled with this artifact". -/
+semantic_template in_ (loc : Location) : Predicate := .in_ loc
+/-- "other than <np>" -/
+semantic_template otherThan (np : NounPhrase) : Predicate := .otherThan np
+
+/-! ### Characteristics and stat comparisons -/
+
+semantic_template hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw
+/-- "with a counter on it", or "with a <kind> counter on it". -/
+semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := .hasCounters kind
+/-- "named <name>" -/
+semantic_template named (name : NameSource) : Predicate := .named name
+semantic_template hasType (t : CardType) : Predicate := .hasType t
+semantic_template hasSubtype (s : Subtype) : Predicate := .hasSubtype s
+semantic_template hasSupertype (s : Supertype) : Predicate := .hasSupertype s
+semantic_template hasColor (c : Color) : Predicate := .colorIs c
+/-- "with power <cmp> <amt>" -/
+semantic_template hasPower (cmp : Comparator) (amt : Amount) : Predicate :=
+  .compare [.stat .power] cmp amt
+/-- "with toughness <cmp> <amt>" -/
+semantic_template hasToughness (cmp : Comparator) (amt : Amount) : Predicate :=
+  .compare [.stat .toughness] cmp amt
+/-- "with mana value <cmp> <amt>" -/
+semantic_template hasManaValue (cmp : Comparator) (amt : Amount) : Predicate :=
+  .compare [.stat .manaValue] cmp amt
+
+/-! ### Other predicates -/
+
 /-- "of the chosen <quality>" -/
 semantic_template ofChosen (sort : QualitySort) : Predicate := .ofChosen .theChoice sort
 /-- "of the last chosen <quality>" -/
 semantic_template ofTheLastChosen (sort : QualitySort) : Predicate := .ofChosen .theLatestChoice sort
-semantic_template copyOfACard : Predicate := .isCopyOfACard
-semantic_template cardOnTheStack : Predicate := .and [.isCard, spell]
-semantic_template tokenOnTheBattlefield : Predicate := .and [.isToken, permanent]
+semantic_template cardOnTheStack : Predicate := and [isCard, isSpell]
+semantic_template tokenOnTheBattlefield : Predicate := and [isToken, isPermanent]
 /-- "that targets only <subject>" [CR#115.9c] -/
 semantic_template targetsOnly (subject : NounPhrase) : Predicate := .targets subject .only
 /-- The four party roles, in rule order [CR#700.8]. -/
 semantic_template partyRoles : List Predicate :=
   [ .hasSubtype (.of .creature "Cleric"), .hasSubtype (.of .creature "Rogue"),
     .hasSubtype (.of .creature "Warrior"), .hasSubtype (.of .creature "Wizard") ]
-/-- "any target" [CR#115.4]. -/
-semantic_template anyTarget : Predicate :=
-  .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
 /-- "cast by <player>" -/
 semantic_template castBy (player : NounPhrase) : Predicate := .castBy player none
 /-- "the Nth spell <player> cast <period>" -/
 semantic_template nthCastBy (ordinal : Ordinal) (player : NounPhrase) (period : Period) : Predicate :=
   .castBy player (some (ordinal, period))
-/-- "any other target" -/
-semantic_template anyOtherTarget : Predicate := .and [anyTarget, .other]
 /-- "a color", "a creature type": a quality noun. -/
 semantic_template quality (sort : QualitySort) : Predicate := .qualityNoun sort none
 /-- A quality noun with its domain: "a color other than blue". -/
@@ -230,39 +361,18 @@ semantic_template comparesOwnStat (stat : Stat) (domain : Predicate) (comparator
   .compareOver domain (.statOf (.stat stat) member) comparator bound
 /-- "the chosen color" -/
 semantic_template thatColor : ColorTerm := .chosen .theChoice
-semantic_template creatureType (label : String) : Subtype := .of .creature label
-semantic_template artifactType (label : String) : Subtype := .of .artifact label
-semantic_template landType (label : String) : Subtype := .of .land label
-semantic_template enchantmentType (label : String) : Subtype := .of .enchantment label
-semantic_template spellType (label : String) : Subtype := .spell label
-semantic_template planeswalkerType (label : String) : Subtype := .of .planeswalker label
-/-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12]. -/
-semantic_template outlaw : Predicate :=
-  .or [ .hasSubtype (creatureType "Assassin"), .hasSubtype (creatureType "Mercenary"),
-        .hasSubtype (creatureType "Pirate"), .hasSubtype (creatureType "Rogue"),
-        .hasSubtype (creatureType "Warlock") ]
-semantic_template outlawYouControl : Predicate := .and [outlaw, .hasPossessor .controller .you]
-/-- "an Army you control" -/
-semantic_template armyYouControl : Predicate :=
-  .and [.hasSubtype (creatureType "Army"), creature, .hasPossessor .controller .you]
 semantic_template abilityHead (class_ : Semantics.AbilityClass) : Semantics.Predicate :=
   (Semantics.Predicate.abilityHead class_)
 semantic_template abilityOf (source : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.abilityOf source)
 semantic_template Predicate.activatedBy (activator : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.activatedBy activator)
-semantic_template Predicate.and (conjuncts : (List Semantics.Predicate) := []) : Semantics.Predicate :=
-  (Semantics.Predicate.and conjuncts)
 semantic_template anotherSpell : Semantics.Predicate :=
   (Semantics.Predicate.and [(Semantics.Predicate.and [(Semantics.Predicate.in_ (Semantics.Location.zone Semantics.Zone.stack none)), (Semantics.Predicate.not (Semantics.Predicate.abilityHead Semantics.AbilityClass.anyOnStack))]), (Semantics.Predicate.otherThan (Semantics.NounPhrase.asMarker Semantics.MarkerWord.spell Semantics.NounPhrase.this))])
-semantic_template anyPlayer : Semantics.Predicate :=
-  Semantics.Predicate.anyPlayer
 semantic_template Predicate.attachment (side : Semantics.AttachmentSide) (counterpart : (Option Semantics.NounPhrase) := none) (word : (Option Semantics.AttachWord) := none) : Semantics.Predicate :=
   (Semantics.Predicate.attachment side word counterpart)
 semantic_template Predicate.bracketed (predicate : Semantics.Predicate) : Semantics.Predicate :=
   (Semantics.Predicate.bracketed predicate)
-semantic_template card : Semantics.Predicate :=
-  Semantics.Predicate.isCard
 semantic_template cardIn (zone : Semantics.Location) : Semantics.Predicate :=
   (Semantics.Predicate.and [Semantics.Predicate.isCard, (Semantics.Predicate.in_ zone)])
 semantic_template castFrom (zone : Semantics.Location) : Semantics.Predicate :=
@@ -273,96 +383,46 @@ semantic_template coinCameUp (face : Semantics.CoinFace) : Semantics.Predicate :
   (Semantics.Predicate.coinCameUp face)
 semantic_template colorCount (comparator : Semantics.Comparator) (count : Nat) : Semantics.Predicate :=
   (Semantics.Predicate.colorCount comparator count)
-semantic_template colorIs (color : Semantics.Color) : Semantics.Predicate :=
-  (Semantics.Predicate.colorIs color)
 semantic_template colorOf (object : Semantics.NounPhrase) : Semantics.ColorTerm :=
   (Semantics.ColorTerm.colorOf object)
 semantic_template compare (comparator : Semantics.Comparator) (bound : Semantics.Amount) (axes : (List Semantics.ProjAxis) := []) : Semantics.Predicate :=
   (Semantics.Predicate.compare axes comparator bound)
 semantic_template compareOver (domain : Semantics.Predicate) (measure : Semantics.Amount) (comparator : Semantics.Comparator) (bound : Semantics.Amount) : Semantics.Predicate :=
   (Semantics.Predicate.compareOver domain measure comparator bound)
-semantic_template controlledBy (player : Semantics.NounPhrase) : Semantics.Predicate :=
-  (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller player)
 semantic_template counterKindOn (subject : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.counterKindOn subject)
 semantic_template currentFace (side : Semantics.CardFaceSide) : Semantics.Predicate :=
   (Semantics.Predicate.currentFace side)
-semantic_template exiledWith (source : Semantics.NounPhrase) : Semantics.Predicate :=
-  (Semantics.Predicate.in_ (Semantics.Location.exiledWith source))
-semantic_template hasCounters (kind : (Option Semantics.CounterKind) := none) : Semantics.Predicate :=
-  (Semantics.Predicate.hasCounters kind)
 semantic_template hasDesignation (designation : Semantics.DesignationLabel) (holder : (Option Semantics.NounPhrase) := none) : Semantics.Predicate :=
   (Semantics.Predicate.hasDesignation designation holder)
-semantic_template hasKeyword (keyword : Semantics.KeywordTerm) : Semantics.Predicate :=
-  (Semantics.Predicate.hasKeyword keyword)
 semantic_template hasPossessor (axis : Semantics.PossessorAxis) (possessor : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.hasPossessor axis possessor)
 semantic_template hasStatus (status : Semantics.Status) : Semantics.Predicate :=
   (Semantics.Predicate.hasStatus status)
-semantic_template hasSubtype (subtype : Semantics.Subtype) : Semantics.Predicate :=
-  (Semantics.Predicate.hasSubtype subtype)
-semantic_template hasSupertype (supertype : Semantics.Supertype) : Semantics.Predicate :=
-  (Semantics.Predicate.hasSupertype supertype)
-semantic_template hasType (type : Semantics.CardType) : Semantics.Predicate :=
-  (Semantics.Predicate.hasType type)
 semantic_template inCombat (relation : Semantics.CombatRelation) (counterpart : (Option Semantics.NounPhrase) := none) : Semantics.Predicate :=
   (Semantics.Predicate.inCombat relation counterpart)
 semantic_template inPile (pile : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.in_ (Semantics.Location.pile pile))
-semantic_template inZone (zone : Semantics.Location) : Semantics.Predicate :=
-  (Semantics.Predicate.in_ zone)
-semantic_template isCopyOfACard : Semantics.Predicate :=
-  Semantics.Predicate.isCopyOfACard
-semantic_template isEmblem : Semantics.Predicate :=
-  Semantics.Predicate.isEmblem
-semantic_template isManaAbility : Semantics.Predicate :=
-  Semantics.Predicate.isManaAbility
-semantic_template isSource : Semantics.Predicate :=
-  Semantics.Predicate.isSource
-semantic_template isToken : Semantics.Predicate :=
-  Semantics.Predicate.isToken
 semantic_template manaCostHas (symbol : Semantics.ManaSymbol) : Semantics.Predicate :=
   (Semantics.Predicate.manaCostHas symbol)
-semantic_template named (source : Semantics.NameSource) : Semantics.Predicate :=
-  (Semantics.Predicate.named source)
-semantic_template Predicate.not (predicate : Semantics.Predicate) : Semantics.Predicate :=
-  (Semantics.Predicate.not predicate)
 semantic_template notChosen : Semantics.Predicate :=
   Semantics.Predicate.notChosen
 semantic_template ofYourChoice (sort : Semantics.QualitySort) (domain : (Option Semantics.ChoiceDomain) := none) : Semantics.Predicate :=
   (Semantics.Predicate.ofYourChoice sort domain)
-semantic_template opponent : Semantics.Predicate :=
-  (Semantics.Predicate.isOpponentOf Semantics.NounPhrase.you)
-semantic_template Predicate.or (disjuncts : (List Semantics.Predicate) := []) : Semantics.Predicate :=
-  (Semantics.Predicate.or disjuncts)
-semantic_template other : Semantics.Predicate :=
-  Semantics.Predicate.other
-semantic_template otherThan (anchor : Semantics.NounPhrase) : Semantics.Predicate :=
-  (Semantics.Predicate.otherThan anchor)
-semantic_template ownedBy (player : Semantics.NounPhrase) : Semantics.Predicate :=
-  (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.owner player)
-semantic_template planeswalker : Semantics.Predicate :=
-  (Semantics.Predicate.hasType Semantics.CardType.planeswalker)
 semantic_template qualityNoun (sort : Semantics.QualitySort) (domain : (Option Semantics.ChoiceDomain) := none) : Semantics.Predicate :=
   (Semantics.Predicate.qualityNoun sort domain)
 semantic_template related (label : Semantics.RelationLabel) (counterpart : (Option Semantics.NounPhrase) := none) : Semantics.Predicate :=
   (Semantics.Predicate.related label counterpart)
 semantic_template shares (axis : Semantics.QualitySort) (agreement : Semantics.Agreement) (with_ : Semantics.NounPhrase) : Semantics.Predicate :=
   (Semantics.Predicate.shares axis agreement with_)
-semantic_template Predicate.spell : Semantics.Predicate :=
-  (Semantics.Predicate.and [(Semantics.Predicate.in_ (Semantics.Location.zone Semantics.Zone.stack none)), (Semantics.Predicate.not (Semantics.Predicate.abilityHead Semantics.AbilityClass.anyOnStack))])
 semantic_template superlative (op : Semantics.AggregateOp) (axis : Semantics.ProjAxis) (domain : Semantics.Predicate) : Semantics.Predicate :=
   (Semantics.Predicate.superlative op axis domain)
-semantic_template targets (subject : Semantics.NounPhrase) (extent : Semantics.TargetExtent) : Semantics.Predicate :=
+semantic_template targeting (subject : Semantics.NounPhrase) (extent : Semantics.TargetExtent) : Semantics.Predicate :=
   (Semantics.Predicate.targets subject extent)
 semantic_template wasCast : Semantics.Predicate :=
   (Semantics.Predicate.did (Semantics.DidClause.mk Semantics.Subject.any (Semantics.Action.procedure Semantics.Procedure.cast Semantics.NounPhrase.which Semantics.PlayPayment.itsOwnCost none none none) Semantics.LookbackSpan.thisWay))
 semantic_template withMostVotes : Semantics.Predicate :=
   Semantics.Predicate.withMostVotes
-semantic_template youControl : Semantics.Predicate :=
-  (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.controller Semantics.NounPhrase.you)
-semantic_template youOwn : Semantics.Predicate :=
-  (Semantics.Predicate.hasPossessor Semantics.PossessorAxis.owner Semantics.NounPhrase.you)
 /-! ## Nouns -/
 
 semantic_template anOpponent : NounPhrase := a (.isOpponentOf .you)
@@ -422,12 +482,12 @@ semantic_template youOr (subject : NounPhrase) : NounPhrase := Primitives.NounPh
 semantic_template controllerOf (subject : NounPhrase) : NounPhrase := .possessorOf .controller subject
 semantic_template ownerOf (subject : NounPhrase) : NounPhrase := .possessorOf .owner subject
 /-- "the top N cards of your library" -/
-semantic_template topSlice (amount : Amount) : NounPhrase := .slice .top amount (library .you)
+semantic_template topSlice (amount : Amount) : NounPhrase := .slice .top amount (libraryOf .you)
 /-- "the bottom card of your library" -/
-semantic_template bottomCard : NounPhrase := .slice .bottom (.lit 1) (library .you)
+semantic_template bottomCard : NounPhrase := .slice .bottom (.lit 1) (libraryOf .you)
 /-- "[a player]'s party" [CR#700.8]. -/
 semantic_template partyOf (player : NounPhrase) : NounPhrase :=
-  .oneEachOf partyRoles (allOf (.and [creature, .hasPossessor .controller player]))
+  .oneEachOf partyRoles (allOf (.and [isCreature, .hasPossessor .controller player]))
 /-- "your party" -/
 semantic_template party : NounPhrase := partyOf .you
 /-- "the number of creatures in <player>'s party" [CR#700.8a]. -/
@@ -481,10 +541,43 @@ semantic_template theGrantor (marker : Semantics.MarkerWord) : Semantics.NounPhr
   (Semantics.NounPhrase.theGrantor marker)
 semantic_template themAsTokens : Semantics.NounPhrase :=
   (Semantics.NounPhrase.pro Semantics.Reach.tokenBorn Semantics.Plurality.many)
-semantic_template this_ : Semantics.NounPhrase :=
-  Semantics.NounPhrase.this
-semantic_template you : Semantics.NounPhrase :=
-  Semantics.NounPhrase.you
+/-! ### Noun words
+
+The bare nouns a pronoun or an attached host reads: "that creature", "those cards",
+"enchanted creature".
+-/
+
+semantic_template creature : NounWord := .type .creature
+semantic_template artifact : NounWord := .type .artifact
+semantic_template enchantment : NounWord := .type .enchantment
+semantic_template land : NounWord := .type .land
+semantic_template planeswalker : NounWord := .type .planeswalker
+semantic_template battle : NounWord := .type .battle
+semantic_template card : NounWord := .card
+semantic_template permanent : NounWord := .permanent
+semantic_template player : NounWord := .player
+semantic_template token : NounWord := .token
+semantic_template copy : NounWord := .copy
+
+/-! ### Attached hosts and targets -/
+
+/-- "enchanted <w>" -/
+semantic_template enchanted (w : NounWord) : NounPhrase := .attachHost .enchanted w
+/-- "equipped <w>" -/
+semantic_template equipped (w : NounWord) : NounPhrase := .attachHost .equipped w
+/-- "fortified <w>" -/
+semantic_template fortified (w : NounWord) : NounPhrase := .attachHost .fortified w
+/-- "<q> target <p>s", as "up to two target creatures" or "any number of targets". -/
+semantic_template targets (q : Quantity) (p : Predicate) : NounPhrase := .described (.target q) p
+
+/-! ### Statuses -/
+
+semantic_template tapped : Status := .tapped
+semantic_template untapped : Status := .untapped
+semantic_template faceDown : Status := .faceDown
+semantic_template faceUp : Status := .faceUp
+semantic_template phasedIn : Status := .phasedIn
+semantic_template phasedOut : Status := .phasedOut
 /-! ## Mana -/
 
 semantic_template generic (amount : Nat) : ManaSymbol := .simple (.generic amount)
@@ -645,12 +738,14 @@ semantic_template numberOf (subject : Semantics.NounPhrase) : Semantics.Amount :
   (Semantics.Amount.countOf subject)
 semantic_template paid (facet : Semantics.LinkedFacet) (subject : Semantics.NounPhrase) : Semantics.Amount :=
   (Semantics.Amount.paid facet subject)
-semantic_template set (amount : Semantics.Amount) : (Semantics.Delta Semantics.Amount) :=
+semantic_template setTo (amount : Semantics.Amount) : (Semantics.Delta Semantics.Amount) :=
   (Semantics.Delta.set amount)
 semantic_template statOf (axis : Semantics.ProjAxis) (subject : Semantics.NounPhrase) : Semantics.Amount :=
   (Semantics.Amount.statOf axis subject)
 semantic_template thatMuch : Semantics.Amount :=
   Semantics.Amount.thatMuch
+/-- "any amount" -/
+semantic_template anyAmount : Amount := .anyAmount
 semantic_template theDifference : Semantics.Amount :=
   Semantics.Amount.theDifference
 semantic_template theOutcome (sort : Semantics.OutcomeSort) : Semantics.Amount :=
@@ -919,7 +1014,7 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
   | _ => .setStatus .tapped patient
 /-- "<player> may play N additional lands" -/
 semantic_template mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .can (.actor player) (.procedure .play (counted (.additional quantity) land) .itsOwnCost none none none) {}
+  .can (.actor player) (.procedure .play (counted (.additional quantity) isLand) .itsOwnCost none none none) {}
 /-- The procedure a play deed names: casting, activating, or playing [CR#701.5a,701.2a,701.18a]. -/
 def procedureOfDeed : Deed → Procedure
   | .action "cast" => .cast
@@ -1013,7 +1108,7 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
 and the rest on top in any order" (`Template` using `firstMention` / `laterMention` without
 `Window` plumbing). -/
 semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Action :=
-  let slice : NounPhrase := .slice .top amount (library whose)
+  let slice : NounPhrase := .slice .top amount (libraryOf whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
@@ -1023,7 +1118,7 @@ semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Action :=
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
 semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : Location) :
     Action :=
-  let slice : NounPhrase := .slice .top amount (library whose)
+  let slice : NounPhrase := .slice .top amount (libraryOf whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) spill,
@@ -1109,7 +1204,7 @@ semantic_template doesntUntap (subject : NounPhrase) (whose : Option NounPhrase)
   Primitives.StaticSpec.partScope .untapStep whose (objectCant (.action "untap") subject)
 /-- "<subject> can block an additional creature each combat" -/
 semantic_template mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .can (.actor subject) (.block (counted (.additional quantity) creature)) {}
+  .can (.actor subject) (.block (counted (.additional quantity) isCreature)) {}
 /-- "<who> may vote an additional time" -/
 semantic_template mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
   .can (.actor who)
@@ -1266,7 +1361,11 @@ semantic_template withContinuation (policy : Semantics.ContinuationPolicy) (body
 /-! ## The performer and the handoff -/
 
 /-- "whoever performs this instruction" -/
-semantic_template actor : NounPhrase := .actor
+semantic_template theActor : NounPhrase := .actor
+/-- "<np> <verb>s": the clause's subject, in the active voice. -/
+semantic_template actor (np : NounPhrase) : Subject := .actor np
+/-- "… by <np>": the clause's subject, in the passive voice. -/
+semantic_template by_ (np : NounPhrase) : Subject := Semantics.Subject.by np
 /-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
 semantic_template instruct (performer : NounPhrase) (body : Action) : Action :=
   .instruct performer body
@@ -1304,7 +1403,7 @@ namespace Actor
 semantic_template mayCastFrom (what : NounPhrase) (zone : Location) : StaticSpec :=
   mayPlayDeed (.action "cast") .actor what none (some zone) none .itsOwnCost
 /-- An Army the performer controls. -/
-semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
+semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), isCreature, actorControls]
 /-- "any number of <group> with total <axis> <comparator> <bound>" [CR#701.59a]. -/
 semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
     (group : NounPhrase) : NounPhrase :=
@@ -1620,12 +1719,16 @@ semantic_template compound (costs : (List Semantics.Cost) := []) : Semantics.Cos
   (Semantics.Cost.compound costs)
 semantic_template conditional (spec : Semantics.StaticSpec) (condition : Semantics.Condition) (marking : Semantics.CondMarking) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.conditional spec condition marking)
-semantic_template conjunction (subject : (Option Semantics.NounPhrase) := none) (parts : (List Semantics.StaticSpec) := []) : Semantics.StaticSpec :=
-  (Semantics.StaticSpec.conjunction subject parts)
+semantic_template conjunction (parts : List StaticSpec) (subject : Option NounPhrase := none) : StaticSpec :=
+  .conjunction subject parts
 semantic_template controlGrant (player : Semantics.NounPhrase) (subject : Semantics.NounPhrase) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.controlGrant player subject)
 semantic_template copyChange (subject : Semantics.NounPhrase) (source : Semantics.NounPhrase) (exceptions : (List Semantics.CopyExcept) := []) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.copyChange subject source exceptions)
+/-- A quality change: `op` applied to `payload` on `subject`'s characteristics. -/
+semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
+    StaticSpec :=
+  Primitives.StaticSpec.qualityChange subject op payload
 semantic_template copyOf (source : Semantics.NounPhrase) (exceptions : (List Semantics.CopyExcept) := []) : Semantics.TokenSpec :=
   (Semantics.TokenSpec.copyOf source exceptions)
 semantic_template costShift (subject : Semantics.NounPhrase) (shift : Semantics.CostShift) : Semantics.StaticSpec :=
@@ -1638,12 +1741,16 @@ semantic_template entryRider (subject : Semantics.NounPhrase) (rider : Semantics
   (Semantics.StaticSpec.entryRider subject rider)
 semantic_template extraModesCost (cost : Semantics.Cost) : Semantics.ModeChange :=
   (Semantics.ModeChange.extraModesCost cost)
-semantic_template insteadOf (event : Semantics.WouldClause) (replacement : Semantics.Action) : Semantics.StaticSpec :=
-  (Semantics.StaticSpec.instead event replacement none Semantics.ReplUse.repeatedly none)
+/-- "If <event> would …, <replacement> instead" [CR#614.1]. -/
+semantic_template instead (event : WouldClause) (replacement : Action) (timing : Option Timing := none)
+    (use : ReplUse := .repeatedly) (limit : Option UsageLimit := none) : StaticSpec :=
+  .instead event replacement timing use limit
 semantic_template italicHead (word : Semantics.ItalicWord) (ability : Semantics.Ability) : Semantics.Ability :=
   (Semantics.Ability.italicHead word ability)
 semantic_template itsManaCost : Semantics.Cost :=
   Semantics.Cost.itsManaCost
+/-- "any cost" -/
+semantic_template anyCost : Cost := .anyCost
 semantic_template letterDefinition (letter : Semantics.Letter) (amount : Semantics.Amount) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.letterDefinition letter amount)
 semantic_template loyaltySymbol (loyalty : Semantics.LoyaltyCost) : Semantics.Cost :=
@@ -1690,8 +1797,8 @@ semantic_template setQuantity (quantity : Semantics.Quantity) : Semantics.ModeCh
   (Semantics.ModeChange.setQuantity quantity)
 semantic_template specialAction (when : Semantics.Timing) (cost : Semantics.Cost) (does : Semantics.Action) : Semantics.StaticSpec :=
   (Semantics.StaticSpec.specialAction (some when) cost does)
-semantic_template Ability.spell (instruction : Semantics.Action) (timing : (Option Semantics.Timing) := none) : Semantics.Ability :=
-  (Semantics.Ability.spell timing instruction)
+/-- An instant or sorcery's spell ability: `body`, as it resolves [CR#113.3a]. -/
+semantic_template spell (body : Action) (timing : Option Timing := none) : Ability := .spell timing body
 semantic_template static (spec : Semantics.StaticSpec) : Semantics.Ability :=
   (Semantics.Ability.static spec)
 semantic_template tapSymbol : Semantics.Cost :=
@@ -1756,6 +1863,15 @@ semantic_template rolledDoubles : Semantics.Condition :=
   Semantics.Condition.rolledDoubles
 semantic_template voteLead (label : String) (orTied : Bool) : Semantics.Condition :=
   (Semantics.Condition.voteLead label orTied)
+/- `and`, `or` and `not` serve `Condition`, `NounPhrase` and `Location` as well as `Predicate`:
+their namespaced templates are exported under the same names, and the expected type picks the
+overload. A class (as `AnyValue` serves `any`) would hide the template call behind an instance
+projection; the overloads keep each call a template call, at an elaboration cost that grows with
+the nesting depth of the combinators. (The namespaced spellings themselves are ambiguous with the
+constructors under `open Semantics`.) -/
+export Semantics.Templates.Condition (and or not)
+export Semantics.Templates.NounPhrase (and or)
+export Semantics.Templates.Location (or not)
 /-! ## Conferrals -/
 
 semantic_template stateBased (when : Semantics.Condition) (then_ : Semantics.Action) : Semantics.Conferral :=

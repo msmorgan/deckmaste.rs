@@ -5,15 +5,15 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.DrtCards
 
 private def feralContest : Action := .sequentially [
-  .putCounters (.lit 1) (.printed p1p1Counter) (target creatureYouControl) .one true,
+  .putCounters (.lit 1) (.printed p1p1Counter) (target (and [isCreature, youControl])) .one true,
   .establish
-    (.must (.actor (target (.and [creature, .other]))) (.block it) {})
+    (.must (.actor (target (.and [isCreature, .other]))) (.block it) {})
     (some thisTurn)]
 
 private def monstrousStep : Action := .sequentially [
-  get (target creature) (.up (.lit 7)) (.up (.lit 7)) (some untilEndOfTurn),
+  get (target isCreature) (.up (.lit 7)) (.up (.lit 7)) (some untilEndOfTurn),
   .establish
-    (.must (.actor (.described (.target (upTo 1)) (.and [creature, .other])))
+    (.must (.actor (.described (.target (upTo 1)) (.and [isCreature, .other])))
       (.block it) {}) (some thisTurn)]
 
 private def cloudAttach : Ability :=
@@ -41,17 +41,17 @@ theorem monstrousStepBlocksFirstCreature :
   decide
 
 theorem airbendSingleTargetUsesPerCardLoop :
-    Action.check (DRS.ofList []) (airbend (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (airbend (target isCreature)) = [] := by decide
 
 theorem airbendMultipleTargetsUsePerCardLoop :
     Action.check (DRS.ofList [])
-      (airbend (.described (.target (upTo 2)) creature)) = [] := by decide
+      (airbend (.described (.target (upTo 2)) isCreature)) = [] := by decide
 
 theorem selfCounterProhibitionIsValidInstantText :
     cardTextOk [.instant] [.static (objectCant (.action "counter") thisSpell)] = true := by decide
 
 theorem otherSpellCounterProhibitionIsNotInstantStaticText :
-    cardTextOk [.instant] [.static (objectCant (.action "counter") (allOf spell))] = false := by decide
+    cardTextOk [.instant] [.static (objectCant (.action "counter") (allOf isSpell))] = false := by decide
 
 theorem battlefieldProhibitionIsNotInstantStaticText :
     cardTextOk [.instant] [.static (objectCant (.action "untap") thisCreature)] = false := by decide
@@ -84,8 +84,8 @@ theorem distributedLifeLossKeepsOneScalarLetter :
 
 theorem alternativeConditionsCannotBorrowOtherBranchParticipants :
     Condition.check (DRS.ofList [])
-      (.or [.did ⟨.any, destroy (a creature), .duration soFarThisTurn none⟩,
-        .matches it creature]) =
+      (.or [.did ⟨.any, destroy (a isCreature), .duration soFarThisTurn none⟩,
+        .matches it isCreature]) =
       [.anaphor .bare .one 0] := by decide
 
 theorem powerDefinitionPublishesItsNumber :
@@ -115,23 +115,23 @@ theorem distributedDamagePublishesItsRecipientGroup :
 
 theorem conditionalModificationKeepsItsAnnouncedTarget :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.doOnlyIf (get (target creature) (.up (.lit 2)) (.up (.lit 2)) none)
+      (.doOnlyIf (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
 
 theorem conditionalModificationDoesNotExportAnIndefiniteSubject :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.doOnlyIf (get (a creature) (.up (.lit 2)) (.up (.lit 2)) none)
+      (.doOnlyIf (get (a isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).isEmpty = true := by decide
 
 theorem prohibitionsReadTheirCallerScopedSpellParameter :
-    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a spell)).1)
+    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a isSpell)).1)
     let out := stepStaticSpec 16 announced (objectCant (.action "counter") (that .spell))
     out.2 = [] ∧ (out.1.findById? 0).map (·.zone) = some (some .stack) := by decide
 
 theorem prohibitionsReadTheirCallerScopedPermanentParameter :
-    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a creature)).1)
+    let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a isCreature)).1)
     (["destroy", "sacrifice", "regenerate"].map fun name =>
       (stepStaticSpec 16 announced (objectCant (.action name) (that (.type .creature)))).2) =
       [[], [], []] := by decide
@@ -142,7 +142,7 @@ theorem prohibitionsStillRefuseMissingCallerParameters :
 
 theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
     let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
-      (destroy (allOf creature))).1
+      (destroy (allOf isCreature))).1
     let out := stepAction 16 .postEvent .obj (nextClause dead)
       (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw (.lit 1))))
     out.2 = [] ∧ (out.1.visibleReferents.filter (fun ref => ref.kind == .object)).all
@@ -150,7 +150,7 @@ theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
 
 theorem historicalIterationDoesNotPermitTappingDepartedPermanents :
     let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
-      (destroy (allOf creature))).1
+      (destroy (allOf isCreature))).1
     (stepAction 16 .postEvent .obj (nextClause dead)
       (.doForEach (those .permanent) (tap it))).2 = [.deedFits] := by decide +kernel
 
@@ -166,7 +166,7 @@ theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
 
 theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
     let out := stepCondition 16 (DRS.ofList [])
-      (.did ⟨.any, destroy (a creature), .duration soFarThisTurn none⟩)
+      (.did ⟨.any, destroy (a isCreature), .duration soFarThisTurn none⟩)
     out.2 = [] ∧ out.1.visibleReferents.any
       (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
 
@@ -233,7 +233,7 @@ theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
 
 theorem countersOnItReadsTheStatSubjectInsideTheSmallClause :
     let initial := (stepNounPhrase 16 (DRS.ofList []) .subj true
-      (target creature)).1
+      (target isCreature)).1
     let result := stepAmount 16 initial (countersOn p1p1Counter it)
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧
       (initial.findById? 0).map (·.role) = some .subj ∧
@@ -242,7 +242,7 @@ theorem countersOnItReadsTheStatSubjectInsideTheSmallClause :
 private def weepingAngelRecipientContext : DRS :=
   (stepWouldClauseWith (stepOps 16) (DRS.ofList [])
     (.would (.actor thisCreature)
-      (.dealDamage .anyAmount (.firstMention "weeping.recipient" (a creature)) .combatOnly))).1
+      (.dealDamage .anyAmount (.firstMention "weeping.recipient" (a isCreature)) .combatOnly))).1
 
 theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
     let initial := nextClause weepingAngelRecipientContext

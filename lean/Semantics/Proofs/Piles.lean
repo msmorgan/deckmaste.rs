@@ -38,7 +38,7 @@ theorem badSingletonBallot : Ballot.check (DRS.ofList []) (.byLabel ["death"]) =
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
     Action.check (DRS.ofList [])
-      (.move (target (.and [creature, .in_ (graveyardOf .you)])) .anyLocation (some battlefield) .arrival none [.entersTransformed]) = [] := by
+      (.move (target (.and [isCreature, .in_ (graveyardOf .you)])) .anyLocation (some battlefield) .arrival none [.entersTransformed]) = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
@@ -104,7 +104,7 @@ theorem badMembershipWithoutAPartition :
 
 /-- "Turn target creature face down." -/
 theorem okStatusOnBattlefieldNoun :
-    Action.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .faceDown (target isCreature)) = [] := by decide
 
 /-- "An opponent separates all creatures into two piles. Turn each creature in the pile of your
 choice face down." Only permanents have status [CR#110.5d]; a pile is not one [CR#700.3b]. -/
@@ -112,8 +112,8 @@ theorem okStatusOnPermanentAfterPartition :
     Card.check
       (instantSaying
         (.sequentially
-          [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 []),
-            .setStatus .faceDown (allOf (.and [creature, .in_ (.pile (pileOfChoice .you))])) ]))
+          [ instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 []),
+            .setStatus .faceDown (allOf (.and [isCreature, .in_ (.pile (pileOfChoice .you))])) ]))
       = [] := by
   decide
 
@@ -122,7 +122,7 @@ theorem badPileFaceAsAStatus :
     Card.check
       (instantSaying
         (.sequentially
-          [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 []),
+          [ instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 []),
             .setStatus .faceDown (those .pile) ])) = [.kindMismatch .object .pile] := by
   decide
 
@@ -162,7 +162,7 @@ pile." -/
 theorem okShuffleTheChosenPile :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 [.faceDown, .faceDown]),
+        [ instruct anOpponent (.separateIntoPiles (allOf isCreature) 2 [.faceDown, .faceDown]),
           choose onePile, .shuffle (.pile (.pro (.word .pile) .one)) ]) = [] := by
   decide
 
@@ -175,7 +175,7 @@ revealed cards not cast this way on the bottom of your library in any order." Th
 remains accessible through the cast selection and subsequent move. -/
 theorem rippleRevealedCardsRemainAccessible :
     Action.check (DRS.ofList [])
-      (Primitives.Action.offer (revealCards (.slice .top (.lit 4) (library .actor)))
+      (Primitives.Action.offer (revealCards (.slice .top (.lit 4) (libraryOf .actor)))
         (some (.sequentially
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
@@ -218,7 +218,7 @@ theorem okVoteReadsAfterVote :
       (.sequentially
         [ instruct (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"])),
           draw (.votesFor "alpha"),
-          doIf (.voteLead "beta" true) (exile (allOf (.and [permanent, .withMostVotes]))) ])
+          doIf (.voteLead "beta" true) (exile (allOf (.and [isPermanent, .withMostVotes]))) ])
       = [] := by
   decide
 
@@ -240,7 +240,7 @@ theorem badVoteLeadWithoutVote :
 /-- "Exile each permanent with the most votes.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` exiles by the same predicate after a vote). -/
 theorem badWithMostVotesWithoutVote :
-    Action.check (DRS.ofList []) (exile (allOf (.and [permanent, .withMostVotes])))
+    Action.check (DRS.ofList []) (exile (allOf (.and [isPermanent, .withMostVotes])))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 

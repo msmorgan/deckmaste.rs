@@ -16,7 +16,7 @@ theorem getsPtIsOneNode (subject : NounPhrase) (power toughness : Delta Amount) 
     getsPt subject power toughness = .ptModification subject power toughness := rfl
 
 theorem okTargetGetsIntroducesOneTarget :
-    (instructionResult (DRS.ofList []) (get (target creature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
+    (instructionResult (DRS.ofList []) (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
       (fun b => b.det == .target) = 1 := by
   decide
 
@@ -24,8 +24,8 @@ theorem subjectWrittenTwiceIntroducesTwoTargets :
     (instructionResult (DRS.ofList [])
       (.establish
         (.conjunction none
-          [ .modification (target creature) .power (.up (.lit 2)),
-            .modification (target creature) .toughness (.up (.lit 2)) ])
+          [ .modification (target isCreature) .power (.up (.lit 2)),
+            .modification (target isCreature) .toughness (.up (.lit 2)) ])
         (some untilEndOfTurn))).referents.countP (fun b => b.det == .target) = 2 := by
   decide
 
@@ -36,21 +36,21 @@ theorem ptModificationSlots :
 
 theorem okDeltasReadTheirSubject :
     Action.check (DRS.ofList [])
-      (get (target creature) (.up (.statOf (.stat .power) it)) (.up (.statOf (.stat .power) it))
+      (get (target isCreature) (.up (.statOf (.stat .power) it)) (.up (.statOf (.stat .power) it))
         (some untilEndOfTurn)) = [] := by
   decide
 
 theorem okGetsInsideCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [getsPt (target creature) (.up (.lit 1)) (.up (.lit 1)), .abilityGrant it (keyword (.named "flying"))])
+        [getsPt (target isCreature) (.up (.lit 1)) (.up (.lit 1)), .abilityGrant it (keyword (.named "flying"))])
       = [] := by
   decide
 
 private def selectedSubjectContext : DRS :=
   instructionResult (DRS.ofList []) (.sequentially
-    [.setStatus .tapped (target artifact),
-      get (.firstMention "pump.subject" (target creature))
+    [.setStatus .tapped (target isArtifact),
+      get (.firstMention "pump.subject" (target isCreature))
         (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)])
 
 theorem selectedPtSubjectHasStableIdentity :
@@ -60,20 +60,20 @@ theorem selectedPtSubjectHasStableIdentity :
 
 theorem deltasReadSelectedSubjectAfterUnrelatedObject :
     Action.check (DRS.ofList []) (.sequentially
-      [.setStatus .tapped (target artifact),
-        get (.firstMention "pump.subject" (target creature))
+      [.setStatus .tapped (target isArtifact),
+        get (.firstMention "pump.subject" (target isCreature))
           (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)]) = [] := by decide
 
 theorem pluralPtSubjectIsIntroducedOnce :
     let after := instructionResult (DRS.ofList [])
-      (get (counted (exactly 2) creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
+      (get (counted (exactly 2) isCreature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
     after.visibleReferents.length = 1 ∧
       (firstReach .bare .many after).map (·.id) = some 0 ∧
       countReach .bare .one after = 0 := by decide
 
 theorem ambiguousSingularPtSubjectIsRefused :
     let before := (stepNounPhrase 64 (DRS.ofList []) .subj true
-      (.and [target creature, target artifact])).1
+      (.and [target isCreature, target isArtifact])).1
     StaticSpec.check (nextClause before)
       (.ptModification it (.up (.lit 1)) (.up (.lit 1))) =
       [.anaphor .bare .one 2] := by decide
@@ -137,7 +137,7 @@ theorem jeskaiAscendancyUntapsItsPumpedGroup :
 theorem diminishKeepsOneTargetForBothSetDeltas :
     let result := firstLineTrace Cards.diminish
     singleFaceText Cards.diminish.card =
-      [.spell none (get (target creature) (.set (.lit 1)) (.set (.lit 1))
+      [.spell none (get (target isCreature) (.set (.lit 1)) (.set (.lit 1))
         (some untilEndOfTurn))] ∧
       result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.det) = some .target := by
@@ -149,7 +149,7 @@ theorem cycleOfLifeKeepsItsCastCreatureTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.det) = some .target ∧
-      Cards.cycleOfLife = get (target (.and [creature, castBy .you]))
+      Cards.cycleOfLife = get (target (.and [isCreature, castBy .you]))
         (.set (.lit 0)) (.set (.lit 1))
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))) := by
   refine ⟨by decide, by decide, by decide, rfl⟩
@@ -176,8 +176,8 @@ theorem nyxathidBothDeltasReadItsUniqueAnnouncedPlayer :
       creatureIdentity result.1 1 = true ∧
       (singleFaceText Cards.nyxathid.card)[1]? = some (.static
         (getsPt thisCreature
-          (.down (countOf (.and [.isCard, .in_ (handOf (the chosenPlayer))])))
-          (.down (countOf (.and [.isCard, .in_ (handOf (the chosenPlayer))]))))) := by
+          (.down (countOf (.and [.isCard, .in_ (handOf (the isChosenPlayer))])))
+          (.down (countOf (.and [.isCard, .in_ (handOf (the isChosenPlayer))]))))) := by
   refine ⟨by decide, by decide, by decide, by decide, rfl⟩
 
 theorem archpriestOfIonaGivesFlyingToItsPumpedTarget :
@@ -204,7 +204,7 @@ theorem distortionStrikeProhibitionReadsItsPumpedTarget :
   refine ⟨by decide, by decide, by decide, ?_⟩
   change (stepNounPhrase 32
     (nextClause ((stepAction 32 .postEvent .obj (DRS.ofList [])
-      (get (target creature) (.up (.lit 1)) (.up (.lit 0))
+      (get (target isCreature) (.up (.lit 1)) (.up (.lit 0))
         (some untilEndOfTurn))).1)) .obj true (that (.type .creature))).2.1 = [0]
   decide
 
@@ -238,14 +238,14 @@ theorem enchantedPenaltyWritesItsHostOnce :
 
 theorem otherCreaturesAnthemKeepsSourceAndPumpedGroupDistinct :
     let result := stepStaticSpec 32 (DRS.ofList [])
-      (getsPt (allOf (otherCreatureYouControl thisCreature)) (.up (.lit 1)) (.up (.lit 1)))
+      (getsPt (allOf ((and [isCreature, youControl, otherThan thisCreature]))) (.up (.lit 1)) (.up (.lit 1)))
     result.2 = [] ∧ (result.1.findById? 0).map (·.plur) = some .one ∧
       (result.1.findById? 2).map (·.plur) = some .many ∧
       (result.1.findById? 2).map (·.ty) = some [.creature] := by decide
 
 theorem eachCreaturePumpKeepsItsDistributedSubject :
-    let ability := whenever (.does (.actor .you) (.procedure .cast (a spell) .itsOwnCost none none none))
-      (.sequentially [get (each creatureYouControl) (.up (.lit 1)) (.up (.lit 0))
+    let ability := whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
+      (.sequentially [get (each (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 0))
         (some untilEndOfTurn), scry (.lit 1)])
     let result := abilityTrace (DRS.ofList []) ability
     result.2 = [] ∧ (result.1.visibleReferents.filter
@@ -253,34 +253,34 @@ theorem eachCreaturePumpKeepsItsDistributedSubject :
 
 theorem deltasReadTheirNewlyIntroducedTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList [])
-      (get (target creature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn))
+      (get (target isCreature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn))
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
 theorem deltaSubjectSurvivesAnEarlierArtifactDestruction :
     let result := stepAction 32 .postEvent .obj (DRS.ofList [])
-      (.sequentially [destroy (target artifact),
-        get (target creature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)])
+      (.sequentially [destroy (target isArtifact),
+        get (target isCreature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)])
     result.2 = [] ∧ result.1.resolvedIds = [2] ∧
       creatureIdentity result.1 2 = true ∧
       (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 theorem nextUpkeepPumpKeepsItsCreatureTarget :
     let result := stepAction 32 .postEvent .obj (DRS.ofList [])
-      (get (target creature) (.up (.lit 3)) (.up (.lit 3))
+      (get (target isCreature) (.up (.lit 3)) (.up (.lit 3))
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))))
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.det) = some .target := by decide
 
 theorem modernFlatCoordinationKeepsOneTarget :
     let result := stepStaticSpec 32 (DRS.ofList [])
-      (.conjunction none [getsPt (target creature) (.up (.lit 1)) (.up (.lit 1)),
+      (.conjunction none [getsPt (target isCreature) (.up (.lit 1)) (.up (.lit 1)),
         .abilityGrant it (keyword (.named "flying")),
         .abilityGrant it (keyword (.named "trample"))])
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
 theorem modernPluralCoordinationKeepsItsPumpedGroup :
     let result := stepStaticSpec 32 (DRS.ofList [])
-      (.conjunction none [getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)),
+      (.conjunction none [getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)),
         .abilityGrant them (keyword (.named "flying"))])
     result.2 = [] ∧ result.1.resolvedIds = [1] ∧ creatureIdentity result.1 1 = true ∧
       (result.1.findById? 1).map (·.plur) = some .many := by decide
@@ -318,19 +318,19 @@ theorem fortifiedCreaturePumpIsRefused :
 theorem modernStaticLetterDefinitionClosesItsPumpedSubjectLetter :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
       [getsPt thisCreature (.up (.letter .x)) (.up (.lit 0)),
-        .letterDefinition .x (countOf creatureYouControl)])
+        .letterDefinition .x (countOf (and [isCreature, youControl]))])
     result.2 = [] ∧ (result.1.findById? 0).map (·.ty) = some [.creature] ∧
       anyOpenLetter .x result.1 = false := by decide
 
 theorem modernStaticLetterCannotBeDefinedTwice :
     StaticSpec.check (DRS.ofList []) (.conjunction none
       [getsPt thisCreature (.up (.letter .x)) (.up (.lit 0)),
-        .letterDefinition .x (countOf creatureYouControl),
-        .letterDefinition .x (countOf creature)]) = [.openLetter .x] := by decide
+        .letterDefinition .x (countOf (and [isCreature, youControl])),
+        .letterDefinition .x (countOf isCreature)]) = [.openLetter .x] := by decide
 
 theorem modernSharedSubjectSurvivesAnEarlierExile :
-    let body := Action.sequentially [exile (target artifact),
-      establishFor (.firstMention "audit.shared" (target creature))
+    let body := Action.sequentially [exile (target isArtifact),
+      establishFor (.firstMention "audit.shared" (target isCreature))
         [getsPt (.laterMention "audit.shared" it) (.up (.lit 1)) (.up (.lit 1)),
           .abilityGrant (.laterMention "audit.shared" it) (keyword (.named "flying"))]
         (some untilEndOfTurn)]

@@ -56,23 +56,23 @@ theorem badPlayerCounterpartOnHostSide :
       [.kindMismatch .object .player] := by decide
 
 theorem okAttachedHostRetainsCreatureType :
-    nounTypes (DRS.ofList []) (a (.and [creature, .attachment .host (some .equipped) none])) =
+    nounTypes (DRS.ofList []) (a (.and [isCreature, .attachment .host (some .equipped) none])) =
       [.creature] := by rfl
 
 theorem okNestedCounterpartTargetRemainsAvailable :
     Action.check (DRS.ofList []) (.sequentially [
-      exile (target (.and [artifact, .attachment .attachment none (some (target creature))])),
+      exile (target (.and [isArtifact, .attachment .attachment none (some (target isCreature))])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
 /-- The explicit source mention remains available after the attached artifact is exiled. -/
 theorem sourceCounterpartRemainsAvailable :
     Action.check (DRS.ofList []) (.sequentially [
-      exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])),
+      exile (target (.and [isArtifact, .attachment .attachment none (some thisCreature)])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
 private def sourceCounterpartAfterExile : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
-    (exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])))).1
+    (exile (target (.and [isArtifact, .attachment .attachment none (some thisCreature)])))).1
 
 theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
     let context := nextClause sourceCounterpartAfterExile
@@ -104,16 +104,16 @@ theorem currentFaceDoesNotSupplyTokenEvidence :
 
 /-- "This Equipment may be attached to a creature" [CR#301.5,701.3a]. -/
 theorem okEquipmentMayBeAttachedToACreature :
-    StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisEquipment (allOf creature)) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisEquipment (allOf isCreature)) = [] := by decide
 
 /-- An Aura may be attached to a player [CR#702.5d]: the host role admits either kind. -/
 theorem okAuraMayBeAttachedToAPlayer :
     StaticSpec.check (DRS.ofList []) (mayBeAttachedTo thisAura (allOf .anyPlayer)) = [] := by decide
 
 theorem passiveAgentAndAttachmentHostAreDistinct :
-    (.by (allOf creature) : Subject).patientRole = .subj ∧
-      mayBeAttachedTo thisEquipment (allOf creature) =
-        .can .any (Action.attachTo thisEquipment (allOf creature))
+    (.by (allOf isCreature) : Subject).patientRole = .subj ∧
+      mayBeAttachedTo thisEquipment (allOf isCreature) =
+        .can .any (Action.attachTo thisEquipment (allOf isCreature))
           {} := by
   constructor <;> rfl
 
@@ -140,7 +140,7 @@ theorem okReadAhead : Ability.check (DRS.ofList []) readAhead = [] := by decide
 
 /-- Enchant's body as its declaration writes it, here over "enchant creature": the Aura spell's
 target, the legal-host permission, and the entry clause [CR#702.5a,303.4a,303.4c,303.4f]. -/
-theorem okEnchantCreature : Ability.check (DRS.ofList []) (enchant creature) = [] := by decide
+theorem okEnchantCreature : Ability.check (DRS.ofList []) (enchant isCreature) = [] := by decide
 
 /-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
 theorem okEnchantPlayer : Ability.check (DRS.ofList []) (enchant .anyPlayer) = [] := by decide
@@ -159,7 +159,7 @@ theorem okProtectionFromBlack :
 permanent in the host role [CR#701.3a,702.16c]. -/
 theorem okCantBeAttachedTo :
     StaticSpec.check (DRS.ofList [])
-      (cantBeAttachedTo (allOf (.and [enchantment, .colorIs .black])) thisPermanent)
+      (cantBeAttachedTo (allOf (.and [isEnchantment, .colorIs .black])) thisPermanent)
       = [] := by decide
 
 end Semantics.Proofs.Attachments

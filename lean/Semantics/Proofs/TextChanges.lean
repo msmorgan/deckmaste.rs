@@ -21,17 +21,17 @@ def cleaveCost : Cost := .mana [generic 1, pip .blue, pip .blue]
 /-- "target [creature]" read where a player is wanted: the brackets change nothing, so the
 mismatch is refused as it is without them. -/
 theorem bracketedKindMismatchStillRefused :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (.bracketed creature))
-      = NounPhrase.checkAt (some .player) (DRS.ofList []) (target creature) := by decide
+    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (.bracketed isCreature))
+      = NounPhrase.checkAt (some .player) (DRS.ofList []) (target isCreature) := by decide
 
 /-- The refusal the bracketed mismatch shares is a real one. -/
 theorem bracketedKindMismatchIsRefused :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (.bracketed creature)) ≠ [] := by decide
+    NounPhrase.checkAt (some .player) (DRS.ofList []) (target (.bracketed isCreature)) ≠ [] := by decide
 
 /-- "Counter target spell [that wasn't cast from a hand]." -/
 theorem okBracketedDescription :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (target (.and [spell, .bracketed (.not (.castFrom (.zone .hand none)))])) = [] := by decide
+      (target (.and [isSpell, .bracketed (.not (.castFrom (.zone .hand none)))])) = [] := by decide
 
 /-- "[Draw a card.]": an instruction checks as its contents. -/
 theorem okBracketedInstruction : Action.check (DRS.ofList []) (.bracketed (draw (.lit 1))) = [] := by
@@ -40,8 +40,8 @@ theorem okBracketedInstruction : Action.check (DRS.ofList []) (.bracketed (draw 
 /-- "[This spell deals 2 damage to target creature.]" read as dealt to a player: refused inside
 the brackets as outside. -/
 theorem bracketedInstructionMismatchStillRefused :
-    Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)))
-      = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)) := by decide
+    Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)))
+      = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)) := by decide
 
 /-- Cleave's Text Change on a spell that prints no brackets removes nothing and still checks. -/
 theorem okRemoveBracketedWithoutBrackets :
@@ -51,13 +51,13 @@ theorem okRemoveBracketedWithoutBrackets :
 another." [CR#612.2] -/
 theorem okReplaceLandTypeWord :
     Action.check (DRS.ofList [])
-      (.establish (textChange (target permanent) (replaceWord [.subtype .land])) none) = [] := by
+      (.establish (textChange (target isPermanent) (replaceWord [.subtype .land])) none) = [] := by
   decide
 
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
 theorem badReplaceWordSort :
     Action.check (DRS.ofList [])
-      (.establish (textChange (target permanent)
+      (.establish (textChange (target isPermanent)
         (replaceWord [.color] none (some (.basicLandType (landType "Swamp"))))) none)
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
@@ -65,7 +65,7 @@ theorem badReplaceWordSort :
 with another or one basic land type with another." [CR#612.2] -/
 theorem okReplaceColorOrLandTypeWord :
     Action.check (DRS.ofList [])
-      (.establish (textChange (target (.or [spell, permanent]))
+      (.establish (textChange (target (.or [isSpell, isPermanent]))
         (replaceWord [.color, .subtype .land])) none) = [] := by decide
 
 /-- "… one color word with Swamp": a word replaced by a word of another kind is refused. -/

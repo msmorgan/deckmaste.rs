@@ -36,7 +36,7 @@ theorem badChosenNumberRead :
 
 /-- "Choose target creature. You gain life equal to its power." -/
 theorem okSinglePower :
-    Action.check (DRS.ofList []) (.sequentially [choose (target creature), gainLife (powerOf it)])
+    Action.check (DRS.ofList []) (.sequentially [choose (target isCreature), gainLife (powerOf it)])
       = [] := by
   decide
 
@@ -44,26 +44,26 @@ theorem okSinglePower :
 theorem badGroupPower :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target (exactly 2)) creature), gainLife (powerOf them)])
+        [choose (.described (.target (exactly 2)) isCreature), gainLife (powerOf them)])
       = [.singular] := by
   decide
 
 /-- "Choose target creature. Its owner loses 1 life." -/
 theorem okSingleOwner :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (target creature), instruct (ownerOf it) (loseLife (.lit 1))]) = [] := by
+      (.sequentially [choose (target isCreature), instruct (ownerOf it) (loseLife (.lit 1))]) = [] := by
   decide
 
 /-- "Choose two target creatures. Their owners each lose 1 life." -/
 theorem okGroupOwners :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (.described (.target (exactly 2)) creature), instruct (ownerOf them) (loseLife (.lit 1))])
+        [choose (.described (.target (exactly 2)) isCreature), instruct (ownerOf them) (loseLife (.lit 1))])
       = [] := by
   decide
 
 /-- "Choose target creature." -/
-theorem okTargetCreature : Action.check (DRS.ofList []) (choose (target creature)) = [] := by decide
+theorem okTargetCreature : Action.check (DRS.ofList []) (choose (target isCreature)) = [] := by decide
 
 /-- "Choose target color." -/
 theorem badTargetColor :
@@ -73,23 +73,23 @@ theorem badTargetColor :
 
 /-- "Choose two target creatures." -/
 theorem okTwoGroup :
-    Action.check (DRS.ofList []) (choose (.described (.target (exactly 2)) creature)) = [] := by decide
+    Action.check (DRS.ofList []) (choose (.described (.target (exactly 2)) isCreature)) = [] := by decide
 
 /-- "Choose zero target creatures." -/
 theorem badZeroGroup :
-    Action.check (DRS.ofList []) (choose (.described (.target (exactly 0)) creature)) = [.nonZeroQ] := by
+    Action.check (DRS.ofList []) (choose (.described (.target (exactly 0)) isCreature)) = [.nonZeroQ] := by
   decide
 
 /-- "Choose up to one — Destroy target artifact; or destroy target enchantment." -/
 theorem okModalTwoModes :
     Action.check (DRS.ofList [])
       (.chooseModes (upTo 1)
-        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))]) = [] := by
+        [(none, none, destroy (target isArtifact)), (none, none, destroy (target isEnchantment))]) = [] := by
   decide
 
 /-- "Choose one — Destroy target artifact." -/
 theorem badModalOneMode :
-    Action.check (DRS.ofList []) (.chooseModes (upTo 1) [(none, none, destroy (target artifact))])
+    Action.check (DRS.ofList []) (.chooseModes (upTo 1) [(none, none, destroy (target isArtifact))])
       = [.atLeastTwo] := by
   decide
 
@@ -97,14 +97,14 @@ theorem badModalOneMode :
 theorem okModalTwoOfTwo :
     Action.check (DRS.ofList [])
       (.chooseModes (exactly 2)
-        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))]) = [] := by
+        [(none, none, destroy (target isArtifact)), (none, none, destroy (target isEnchantment))]) = [] := by
   decide
 
 /-- "Choose three — Destroy target artifact; or destroy target enchantment." -/
 theorem badModalOverreach :
     Action.check (DRS.ofList [])
       (.chooseModes (exactly 3)
-        [(none, none, destroy (target artifact)), (none, none, destroy (target enchantment))])
+        [(none, none, destroy (target isArtifact)), (none, none, destroy (target isEnchantment))])
       = [.modesFit] := by
   decide
 
@@ -113,22 +113,22 @@ theorem badModalOverreach :
 theorem okSpreeBothCosted :
     Action.check (DRS.ofList [])
       (chooseSpree
-        [ (some (.mana [generic 1]), destroy (target artifact)),
-          (some (.mana [generic 1]), destroy (target enchantment)) ]) = [] := by
+        [ (some (.mana [generic 1]), destroy (target isArtifact)),
+          (some (.mana [generic 1]), destroy (target isEnchantment)) ]) = [] := by
   decide
 
 /-- "Choose one — Destroy target artifact; or tap it." The Idris pin refutes the zone; the
 checker refuses the unresolved `it`. -/
 theorem badModalReadsAcrossModes :
     Action.check (DRS.ofList [])
-      (chooseModes (exactly 1) [destroy (target artifact), .setStatus .tapped it])
+      (chooseModes (exactly 1) [destroy (target isArtifact), .setStatus .tapped it])
       = [.anaphor .bare .one 0] := by
   decide
 
 theorem badReadsAfterModal :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ chooseModes (exactly 1) [destroy (target artifact), destroy (target enchantment)],
+        [ chooseModes (exactly 1) [destroy (target isArtifact), destroy (target isEnchantment)],
           .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -140,7 +140,7 @@ theorem okMatchedPayer :
 
 /-- "Choose new targets for target instant or sorcery spell." -/
 theorem okRetargetStackSpell :
-    Action.check (DRS.ofList []) (.chooseNewTargets (target (.and [instantOrSorcery, spell]))) = [] := by
+    Action.check (DRS.ofList []) (.chooseNewTargets (target (.and [isInstantOrSorcery, isSpell]))) = [] := by
   decide
 
 /-- "Your opponents can't gain life." -/
@@ -156,14 +156,14 @@ def chosenBasicLandType : QualityPayload :=
 /-- "Target land becomes the basic land type of your choice until end of turn." -/
 theorem okChosenBasicTypeOnLand :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target land) .sets chosenBasicLandType) (some untilEndOfTurn))
+      (.establish (Primitives.StaticSpec.qualityChange (target isLand) .sets chosenBasicLandType) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Lands you control are Mountains." -/
 theorem okLandsAreMountains :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.qualityChange (allOf (.and [land, .hasPossessor .controller .you])) .sets
+      (Primitives.StaticSpec.qualityChange (allOf (.and [isLand, .hasPossessor .controller .you])) .sets
         (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
   decide
 
@@ -182,7 +182,7 @@ theorem badNonCreatureTypeExclusion :
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target land) .sets (.everyTypeOf .basicLand))
+      (.establish (Primitives.StaticSpec.qualityChange (target isLand) .sets (.everyTypeOf .basicLand))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -190,7 +190,7 @@ theorem setsEveryBasicLandType :
 theorem losesChosenCreatureType :
     Action.check (DRS.ofList [])
       (.establish
-        (Primitives.StaticSpec.qualityChange (target creature) .loses
+        (Primitives.StaticSpec.qualityChange (target isCreature) .loses
           (.chosenQuality (.ofYourChoice (.subtype .creature) none))) (some untilEndOfTurn))
       = [] := by
   decide
@@ -198,28 +198,28 @@ theorem losesChosenCreatureType :
 /-- "Target creature loses all colors until end of turn." -/
 theorem losesAllColors :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target creature) .loses (.colored .every)) (some untilEndOfTurn))
+      (.establish (Primitives.StaticSpec.qualityChange (target isCreature) .loses (.colored .every)) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Target creature is white." -/
 theorem okAddsAColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target creature) .adds (.colored (.some [.white]))) = [] :=
+    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .adds (.colored (.some [.white]))) = [] :=
         by
   decide
 
 theorem badAddsNoColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target creature) .adds (.colored (.some [])))
+    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .adds (.colored (.some [])))
       = [.nonEmpty] := by
   decide
 
 /-- "Target creature loses colorless until end of turn." -/
 theorem badLosesNoColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target creature) .loses (.colored (.some [])))
+    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .loses (.colored (.some [])))
       = [.nonEmpty] := by
   decide
 
-def afterChoiceMade : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) creature))
+def afterChoiceMade : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okChoiceRestStands :
@@ -227,7 +227,7 @@ theorem okChoiceRestStands :
 
 def afterChoiceRestDisposed : DRS :=
   instructionResult (DRS.ofList [])
-    (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)])
+    (.sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)])
 
 /-- "Choose up to one creature. Destroy the rest. Destroy the rest." -/
 theorem badChoiceRestDisposedTwice :
@@ -258,7 +258,7 @@ theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
 theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
     let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf (.isOpponentOf .you))).1
     let after := instructionResult before
-      (.sequentially [choose (a (.isOpponentOf .you)), choose (counted (upTo 1) creature),
+      (.sequentially [choose (a (.isOpponentOf .you)), choose (counted (upTo 1) isCreature),
         destroy (theRest .object)])
     NounPhrase.checkAt (some .object) after (theRest .object) = [.theRestFits .object] ∧
       countParts .object after = 0 ∧ countChoice .player after = 1 ∧
@@ -268,7 +268,7 @@ theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
 
 /-- "up to one creature they control" -/
 def upToOneTheyControl : NounPhrase :=
-  counted (upTo 1) (.and [creature, .hasPossessor .controller they])
+  counted (upTo 1) (.and [isCreature, .hasPossessor .controller they])
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 def distributedRestOfOwnChoice : Action :=
@@ -303,13 +303,13 @@ theorem badDistributedRestDisposedTwice :
 /-- "Tap all creatures. Each player chooses up to one creature they control." -/
 theorem okSharedGroupWithoutARest :
     Action.check (DRS.ofList [])
-      (.sequentially [tap (allOf creature), instruct (each .anyPlayer) (choose upToOneTheyControl)])
+      (.sequentially [tap (allOf isCreature), instruct (each .anyPlayer) (choose upToOneTheyControl)])
       = [] := by
   decide
 
 theorem targetLoopPublishesAFreshPluralResult :
     let loop := Action.doForEach (each .anyPlayer)
-      (choose (target (.and [permanent, .hasPossessor .controller they])))
+      (choose (target (.and [isPermanent, .hasPossessor .controller they])))
     let after := instructionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
       (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) = [] ∧
@@ -321,7 +321,7 @@ theorem targetLoopPublishesAFreshPluralResult :
 
 theorem ordinaryLoopChoicesRemainLocal :
     let loop := Action.doForEach (each .anyPlayer)
-      (choose (a (.and [permanent, .hasPossessor .controller they])))
+      (choose (a (.and [isPermanent, .hasPossessor .controller they])))
     let after := instructionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
       (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) =
@@ -330,7 +330,7 @@ theorem ordinaryLoopChoicesRemainLocal :
         [(0, .player, .many)] := by decide
 
 theorem distributedRestPreservesTheUnrelatedOuterGroup :
-    let tapping := tap (allOf creature)
+    let tapping := tap (allOf isCreature)
     let sequence := Action.sequentially
       [tapping, instruct (each .anyPlayer) (choose upToOneTheyControl),
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
@@ -344,7 +344,7 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
 
 theorem distributedSacrificeConsumesTheOuterRemainder :
     let sequence := Action.sequentially
-      [choose (counted (upTo 1) creature),
+      [choose (counted (upTo 1) isCreature),
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
     let after := instructionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
@@ -356,36 +356,36 @@ theorem distributedSacrificeConsumesTheOuterRemainder :
 /-- "an opponent who controls more lands than you control" -/
 theorem okComparisonBoundOutsideTheMember :
     Predicate.checkAt .player (DRS.ofList [])
-      (.compareOver (.isOpponentOf .you) (countOf (.and [land, .hasPossessor .controller they])) .greater
-        (countOf (.and [land, .hasPossessor .controller .you]))) = [] := by
+      (.compareOver (.isOpponentOf .you) (countOf (.and [isLand, .hasPossessor .controller they])) .greater
+        (countOf (.and [isLand, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "an opponent who controls more lands than they control" -/
 theorem badMemberInComparisonBound :
     Predicate.checkAt .player (DRS.ofList [])
-      (.compareOver (.isOpponentOf .you) (countOf (.and [land, .hasPossessor .controller .you])) .greater
-        (countOf (.and [land, .hasPossessor .controller they])))
+      (.compareOver (.isOpponentOf .you) (countOf (.and [isLand, .hasPossessor .controller .you])) .greater
+        (countOf (.and [isLand, .hasPossessor .controller they])))
       = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okGetsBattlefield :
     Action.check (DRS.ofList [])
-      (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
+      (get (target isCreature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Choose a creature. This deals 3 damage to each creature not chosen this way." -/
 theorem okNotChosenAfterOneChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ choose (a creature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [creature, .notChosen])) .any)) ]) = [] := by
+        [ choose (a isCreature),
+          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any)) ]) = [] := by
   decide
 
 /-- "This deals 3 damage to each creature not chosen this way." Nothing was chosen, so "this
 way" reads back no choice (`okNotChosenAfterOneChoice` is the same read with one standing). -/
 theorem badNotChosenWithoutAChoice :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 3) (each (.and [creature, .notChosen])) .any))
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any))
       = [.choiceInScope .object] := by
   decide
 
@@ -395,9 +395,9 @@ way.": "this way" names the manner, so both standing choices are excluded togeth
 theorem okNotChosenAfterTwoChoices :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ choose (a creature),
-          choose (a creature),
-          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [creature, .notChosen])) .any)) ]) = [] := by
+        [ choose (a isCreature),
+          choose (a isCreature),
+          (Action.instruct .this (.dealDamage (.lit 3) (each (.and [isCreature, .notChosen])) .any)) ]) = [] := by
   decide
 
 /-- "Choose a creature you control, then each opponent chooses a creature they control.
@@ -406,21 +406,21 @@ choices have different choosers [CR#101.4]. -/
 theorem okNotChosenAcrossChoosers :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ choose (a creatureYouControl),
-          instruct (each (.isOpponentOf .you)) (choose (a (.and [creature, .hasPossessor .controller they]))),
-          destroy (each (.and [creature, .notChosen])) ]) = [] := by
+        [ choose (a (and [isCreature, youControl])),
+          instruct (each (.isOpponentOf .you)) (choose (a (.and [isCreature, .hasPossessor .controller they]))),
+          destroy (each (.and [isCreature, .notChosen])) ]) = [] := by
   decide
 
 /-- "Each player chooses a creature they control." [CR#700.8d] -/
 theorem okAgentScopedChoice :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (choose (a (.and [creature, .hasPossessor .controller they])))) = [] := by
+      (instruct (each .anyPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they])))) = [] := by
   decide
 
 /-- "Choose a creature they control.": the chooserless spelling has no antecedent for "they"
 (`okAgentScopedChoice` is the same noun under a chooser, which publishes one). -/
 theorem badUnchooseredTheyControl :
-    Action.check (DRS.ofList []) (choose (a (.and [creature, .hasPossessor .controller they])))
+    Action.check (DRS.ofList []) (choose (a (.and [isCreature, .hasPossessor .controller they])))
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -428,7 +428,7 @@ theorem badUnchooseredTheyControl :
 theorem okChoiceStartingWithYou :
     Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (.choose (some .you)
-        (a (.and [creature, .hasPossessor .controller they])) .openly none)) = [] := by
+        (a (.and [isCreature, .hasPossessor .controller they])) .openly none)) = [] := by
   decide
 
 /-- "Starting with you, target player chooses a creature.": one player makes the choice, so
@@ -436,7 +436,7 @@ there is no order for "starting with" to fix [CR#101.4] (`okChoiceStartingWithYo
 same order over a distributive chooser). -/
 theorem badOrderedSingularChooser :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.choose (some .you) (a creature) .openly none))
+      (instruct (target .anyPlayer) (.choose (some .you) (a isCreature) .openly none))
       = [.choiceOrder] := by
   decide
 
@@ -444,20 +444,20 @@ theorem badOrderedSingularChooser :
 theorem okChoseThisWayAfterChoice :
     Action.check (DRS.ofList [])
       (.sequentially
-        [choose (a creature), doIf (.choseThisWay .you creature) (draw (.lit 1))])
+        [choose (a isCreature), doIf (.choseThisWay .you isCreature) (draw (.lit 1))])
       = [] := by
   decide
 
 /-- "If you chose a creature this way, draw a card.": nothing was chosen, so "this way" reads
 back no choice (`okChoseThisWayAfterChoice` is the same read with one standing). -/
 theorem badChoseThisWayWithoutAChoice :
-    Action.check (DRS.ofList []) (doIf (.choseThisWay .you creature) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.choseThisWay .you isCreature) (draw (.lit 1)))
       = [.choiceInScope .object] := by
   decide
 
 /-- "Each player chooses a creature. Exile them." -/
 theorem okDistributedChoiceReadsAsGroup :
-    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a creature)), exile
+    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a isCreature)), exile
         them])
       = [] := by
   decide
@@ -466,7 +466,7 @@ theorem okDistributedChoiceReadsAsGroup :
 chooser, so the singular read has no antecedent (`okDistributedChoiceReadsAsGroup` is the
 plural read). -/
 theorem badDistributedChoiceReadSingular :
-    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a creature)), exile
+    Action.check (DRS.ofList []) (.sequentially [instruct (each .anyPlayer) (choose (a isCreature)), exile
         it])
       = [.anaphor .bare .one 0] := by
   decide
@@ -485,9 +485,9 @@ theorem playAndCastFromGraveyardThisTurn :
     Action.check (DRS.ofList [])
       (.establish
         (.conjunction none
-          [ mayPlayDeed (.action "play") .you (allOf land) none
+          [ mayPlayDeed (.action "play") .you (allOf isLand) none
               (some (graveyardOf .you)) none .itsOwnCost,
-            mayPlayDeed (.action "cast") .you (allOf spell) none
+            mayPlayDeed (.action "cast") .you (allOf isSpell) none
               (some (graveyardOf .you)) none .itsOwnCost ])
         (some untilEndOfTurn)) = [] := by
   decide
@@ -504,7 +504,7 @@ theorem millThenPutFromAmongMilled :
       (.sequentially
         [ mill (.lit 3) .you,
           offer
-            (move (fromAmong (exactly 1) artifact (theVerbed (.action "mill") .many (some .card) .thisWay))
+            (move (fromAmong (exactly 1) isArtifact (theVerbed (.action "mill") .many (some .card) .thisWay))
               hand) ]) = [] := by
   decide
 
@@ -643,7 +643,7 @@ theorem okModeChoiceEntwine :
 theorem okModeChoiceConditionalBoth :
     StaticSpec.check (DRS.ofList [])
       (.modeChoice (.allInstead none
-        (some (.exists_ (.described .bare (.and [artifact, .hasPossessor .controller .you]))))))
+        (some (.exists_ (.described .bare (.and [isArtifact, .hasPossessor .controller .you]))))))
       = [] := by
   decide
 
@@ -680,14 +680,14 @@ artifact." [CR#700.2i] -/
 theorem okModalWorth :
     Action.check (DRS.ofList [])
       (.chooseModes (.worth 5)
-        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target artifact))]) = [] := by
+        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target isArtifact))]) = [] := by
   decide
 
 /-- "Choose up to zero {P} worth of modes" chooses nothing. -/
 theorem badModalWorthZero :
     Action.check (DRS.ofList [])
       (.chooseModes (.worth 0)
-        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target artifact))])
+        [(none, some 1, draw (.lit 1)), (none, some 2, destroy (target isArtifact))])
       = [.nonZeroQ] := by
   decide
 

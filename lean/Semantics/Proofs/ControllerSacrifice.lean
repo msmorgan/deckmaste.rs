@@ -4,12 +4,12 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ControllerSacrifice
 
-private def subject : NounPhrase := target (.and [artifact, creature])
+private def subject : NounPhrase := target (.and [isArtifact, isCreature])
 private def instruction : Action := controllerSacrifices subject
 private def afterSacrifice : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) instruction).1
-private def nestedSubject : NounPhrase := target (.and [creature,
-  .hasPossessor .controller (controllerOf (target artifact))])
+private def nestedSubject : NounPhrase := target (.and [isCreature,
+  .hasPossessor .controller (controllerOf (target isArtifact))])
 private def nestedInstruction : Action := controllerSacrifices nestedSubject
 
 -- Parameter identity selects the target before its zone change.
@@ -85,14 +85,14 @@ private def authoringWitness : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Controller sacrifice witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none
-        (controllerSacrifices (target (Primitives.Predicate.and [artifact, creature])))] } }
+        (controllerSacrifices (target (Primitives.Predicate.and [isArtifact, isCreature])))] } }
 
 theorem compositionPassesTheAuthoringBoundary :
     authoringWitness.authoring.onlyAuthored = true := by decide
 
 theorem controlGrantRecordsItsPatientIdentity :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
-      (gainControl (target creature) (some untilEndOfTurn))
+      (gainControl (target isCreature) (some untilEndOfTurn))
     let refs := resolveCandidates (.verbed (.core .gainControl) none .attributive)
       .one (nextClause after)
     errors = [] ∧ refs.length = 1 ∧ refs.all (fun r => r.det == .target) ∧

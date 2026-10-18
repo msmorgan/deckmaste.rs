@@ -23,10 +23,10 @@ def giftCost : LinkSource := .byKeyword (.named "gift")
 
 /-- "if this has a permanent type": read off the types, so it holds of a token with gift as
 well as a card [CR#110.4]. -/
-def onPermanent : Condition := .matches .this permanentType
+def onPermanent : Condition := .matches .this isPermanentType
 
 /-- "if this is an instant or sorcery" -/
-def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
+def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
 /-- "if its gift cost was paid, the chosen player <effect>" -/
 def handed (effect : Action) : Action :=
@@ -90,7 +90,7 @@ def giftACardUnlinked : Ability :=
     [ costPart,
       .spell none
         (doIf onInstantOrSorcery
-          (doIf (costWasPaid giftCost none .this) (instruct (the chosenPlayer) (draw (.lit 1))))) ]
+          (doIf (costWasPaid giftCost none .this) (instruct (the isChosenPlayer) (draw (.lit 1))))) ]
 
 theorem badUnlinkedChosenPlayer :
     Ability.check (DRS.ofList []) giftACardUnlinked = [.choiceRef .theChoice .player 0] := by

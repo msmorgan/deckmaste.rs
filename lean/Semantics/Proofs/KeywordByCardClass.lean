@@ -20,10 +20,10 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.KeywordByCardClass
 
 /-- "if this is a permanent card" -/
-def onPermanentCard : Condition := .matches .this permanentCard
+def onPermanentCard : Condition := .matches .this isPermanentCard
 
 /-- "if this is an instant or sorcery" -/
-def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
+def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
 /-- The permanent half: "When this permanent enters, if this is a permanent card, draw a
 card." -/

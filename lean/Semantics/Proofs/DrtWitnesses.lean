@@ -6,7 +6,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.DrtWitnesses
 
 private def kalitasBody : Action := .sequentially [
-  destroy (target creature),
+  destroy (target isCreature),
   .doIf (happenedThisWay
       (.move (that (.type .creature)) (battlefield)
         (some (graveyardOf .any)) .departure none []) .any)
@@ -30,11 +30,11 @@ theorem kalitasSelectsTokenThenDestroyedCreature :
       (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 private def destroyedCreature : DRS :=
-  (stepAction 64 .postEvent .obj (DRS.ofList []) (destroy (target creature))).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) (destroy (target isCreature))).1
 
 theorem destroyThenReadItsPower :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), gainLife (powerOf it)]) = [] := by decide
+      (.sequentially [destroy (target isCreature), gainLife (powerOf it)]) = [] := by decide
 
 theorem destroyedCreatureHistoricalPower :
     Amount.check destroyedCreature (powerOf (that (.type .creature))) = [] := by decide
@@ -50,7 +50,7 @@ theorem historicalReadDoesNotLeakIntoFollowingAction :
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 private def brokenVisageBody : Action := .sequentially [
-  destroy (target (.and [creature, .not artifact, attacking])),
+  destroy (target (.and [isCreature, .not isArtifact, isAttacking])),
   create (.lit 1)
     { characteristics :=
         { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } },

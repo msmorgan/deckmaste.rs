@@ -40,7 +40,7 @@ private def selected (word : NounWord) (drs : DRS) : List (List BindingId) :=
 
 private def tahngarthHeader : GameEvent :=
   .does (.actor (.firstMention "tahngarth.opponent" anOpponent))
-    (.attackWith (counted (atLeast 1) creature) none)
+    (.attackWith (counted (atLeast 1) isCreature) none)
 private def tahngarthAfter : DRS := (stepGameEvent 64 (DRS.ofList []) tahngarthHeader).1
 private def tahngarthDefender : NounPhrase :=
   .firstMention "tahngarth.defender"
@@ -69,12 +69,12 @@ theorem bronzeBombshellRawPlayerSelectsController :
     selected .player bombshellContext = [["bombshell.controller"]] := by decide
 
 private def runeswordSource : NounPhrase :=
-  .firstMention "runesword.source" (target creature)
+  .firstMention "runesword.source" (target isCreature)
 private def runeswordBefore : DRS :=
   (stepNounPhrase 64 (DRS.ofList []) .obj true runeswordSource).1
 private def runeswordVictim : NounPhrase :=
-  .firstMention "runesword.victim" (a (.and [creature,
-    .did ⟨.actor (.laterMention "runesword.source" (target creature)),
+  .firstMention "runesword.victim" (a (.and [isCreature,
+    .did ⟨.actor (.laterMention "runesword.source" (target isCreature)),
       .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩]))
 private def runeswordWould : WouldClause :=
   .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure none [])
@@ -85,9 +85,9 @@ theorem runeswordRawDemonstrativeSelectsDyingCreature :
       [["runesword.victim"]] := by decide
 
 private def ramSource : NounPhrase :=
-  .firstMention "ram.source" (target creatureYouControl)
+  .firstMention "ram.source" (target (and [isCreature, youControl]))
 private def ramRecipient : NounPhrase :=
-  .firstMention "ram.recipient" (target (.and [creature, .not (.hasPossessor .controller .you)]))
+  .firstMention "ram.recipient" (target (.and [isCreature, .not (.hasPossessor .controller .you)]))
 private def ramDamage : Action :=
   instruct ramSource (.dealDamage (powerOf it) ramRecipient .any)
 private def ramAfterDamage : DRS :=
@@ -101,7 +101,7 @@ theorem ramThroughRawPossessorSelectsDamageRecipient :
 
 private def opponentOrPermanent : NounPhrase :=
   .firstMention "damage.recipient" (a (.or [(.isOpponentOf .you),
-    .and [permanent, .hasPossessor .controller anOpponent]]))
+    .and [isPermanent, .hasPossessor .controller anOpponent]]))
 private def giselaPattern : WouldClause :=
   .would (.actor (a .isSource)) (.dealDamage .anyAmount opponentOrPermanent .any)
 private def solphimPattern : WouldClause :=
@@ -117,11 +117,11 @@ theorem solphimRawJoinedDemonstrativeSelectsRecipient :
       [["damage.recipient"]] := by decide
 
 private def mangaraSource : NounPhrase :=
-  .firstMention "mangara.source" (a (.and [creature,
+  .firstMention "mangara.source" (a (.and [isCreature,
     .ofChosen .theLatestChoice .color]))
 private def mangaraRecipient : NounPhrase :=
   .or [.you, .firstMention "mangara.recipient"
-    (a (.and [creature, .colorIs .white, .hasPossessor .controller .you]))]
+    (a (.and [isCreature, .colorIs .white, .hasPossessor .controller .you]))]
 private def mangaraContext : DRS :=
   (stepGameEvent 64 (DRS.ofList [ChoiceSort.binding (.quality .color)])
     (.does (.actor mangaraSource) (.dealDamage .anyAmount mangaraRecipient .any))).1
@@ -140,7 +140,7 @@ private def noeticUpkeep : GameEvent :=
 private def noeticContext : DRS :=
   (stepLocationWith (stepOps 64)
     (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1)
-    (.zone .hand (some (.firstMention "noetic.owner" (ownerOf (each creature)))))).1
+    (.zone .hand (some (.firstMention "noetic.owner" (ownerOf (each isCreature)))))).1
 
 theorem noeticScalesRawDemonstrativeSelectsWrongPlayer :
     selected .player noeticContext = [["noetic.owner"]] := by decide
@@ -152,7 +152,7 @@ theorem noeticScalesExplicitSelectorRestoresUpkeepPlayer :
       [["noetic.upkeepPlayer"]] := by decide
 
 private def damagedVictim (attachment : AttachWord) : NounPhrase :=
-  a (.and [creature,
+  a (.and [isCreature,
     .did ⟨.actor (.attachHost attachment (.type .creature)),
       .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
 

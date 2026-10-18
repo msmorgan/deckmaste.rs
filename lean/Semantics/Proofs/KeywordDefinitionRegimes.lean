@@ -45,10 +45,10 @@ def castPermission : Ability :=
   .static (.can (.actor .you) (.procedure .cast .this (.payingInstead two) none none none) {})
 
 /-- "if this is a permanent card" -/
-def onPermanentCard : Condition := .matches .this permanentCard
+def onPermanentCard : Condition := .matches .this isPermanentCard
 
 /-- "if this is an instant or sorcery" -/
-def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
+def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
 /-- Gift's permanent half, guarded by the class. -/
 def giftPermanentPart : Ability :=

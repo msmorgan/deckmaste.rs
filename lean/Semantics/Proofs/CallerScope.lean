@@ -26,7 +26,7 @@ private semantic_template repeatedValueSum (amount : Amount) : Amount := .arith 
 private semantic_template literalEcho (amount : Amount) : Amount := amount
 private semantic_template quantityFor (amount : Amount) : Quantity := .exactlyOf amount
 private semantic_template graveyardFor (owner : NounPhrase) : Location := .zone .graveyard (some owner)
-private semantic_template creatureCondition (subject : NounPhrase) : Condition := .matches subject creature
+private semantic_template creatureCondition (subject : NounPhrase) : Condition := .matches subject isCreature
 private semantic_template powerEquals (amount : Amount) : Predicate := .compare [.stat .power] .eq amount
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
 private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : StaticSpec :=
@@ -74,51 +74,51 @@ private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Macro body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-      (onChosen (target creature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
+      (onChosen (target isCreature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
 theorem suppliedBodyCanNameTheMacroSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
 private def aliasedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Aliased body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-      (withSubjectBody (target creature) (fun subject => Primitives.Action.setStatus .tapped subject))] } }
+      (withSubjectBody (target isCreature) (fun subject => Primitives.Action.setStatus .tapped subject))] } }
 theorem bodyTypeAliasesRetainParameterEvidence : aliasedBodyParameter.card.check = [] := aliasedBodyParameter.ok
 private def nestedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Nested body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-      (onChosen (target creature) (fun subject => moveSubject subject))] } }
+      (onChosen (target isCreature) (fun subject => moveSubject subject))] } }
 theorem parameterizedBodiesForwardSubjectsIntoNestedMacros : nestedBodyParameter.card.check = [] := nestedBodyParameter.ok
 
 theorem templateArgumentsAreEvaluatedAtTheirTextualUse :
     (unusedSubject it).check (DRS.ofList []) = [] ∧
-      (moveSubject (secondSubject (target artifact) it)).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
+      (moveSubject (secondSubject (target isArtifact) it)).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
 theorem unusedSubjectDoesNotIntroduceAReferent :
-    (instructionResult (DRS.ofList []) (unusedSubject (target creature))).referents.countP
+    (instructionResult (DRS.ofList []) (unusedSubject (target isCreature))).referents.countP
       (fun ref => ref.det == .target) = 0 := by decide
 theorem identicalArgumentsRemainSeparateSelections :
     countOnes .object (instructionResult (DRS.ofList [])
-      (instruct (target creature) (fight (target creature)))) = 2 := by decide
+      (instruct (target isCreature) (fight (target isCreature)))) = 2 := by decide
 
 theorem namedParameterIsSelectedOnce :
-    let after := instructionResult (DRS.ofList []) (selectThenTap (target creature))
+    let after := instructionResult (DRS.ofList []) (selectThenTap (target isCreature))
     countOnes .object after = 1 ∧
       (identityBinding "select.subject" after).map (·.id) = some 0 := by decide
 theorem nestedTemplatePreservesParameterIdentity :
-    let drs := nounResult (DRS.ofList []) (.firstMention "subject" (target creature))
+    let drs := nounResult (DRS.ofList []) (.firstMention "subject" (target isCreature))
     (selected drs (forwardedSubject (.laterMention "subject" .any))).map (·.id) = [0] := by decide
 theorem namedParameterCannotReadAnAmountSlot :
     NounPhrase.check (DRS.ofList [letterB .x]) (.laterMention "subject" .any) =
       [.bindingIdentity "subject"] := by decide
 theorem movedParameterLosesItsIdentity :
-    let after := instructionResult (DRS.ofList []) (selectThenMove (target creature))
+    let after := instructionResult (DRS.ofList []) (selectThenMove (target isCreature))
     identityBinding "select.subject" after = none ∧
       (after.visibleReferents.filter (fun r => r.zone == some .graveyard)).length = 1 ∧
       after.findById? 0 = none := by decide
 
 theorem suppliedBodyKeepsItsCallerPronoun :
-    (announceThen (target artifact) (move it graveyard)).check callerCreature = [] := by decide
+    (announceThen (target isArtifact) (move it graveyard)).check callerCreature = [] := by decide
 theorem suppliedBodyUpdatesItsOriginalReferent :
-    let after := instructionResult callerCreature (announceThen (target artifact) (move it graveyard))
+    let after := instructionResult callerCreature (announceThen (target isArtifact) (move it graveyard))
     (after.visibleReferents.filter (fun r => r.ty == [.creature])).map (·.zone) = [some .graveyard] ∧
       (after.visibleReferents.filter (fun r => r.ty == [.artifact])).map (·.zone) = [some .battlefield] := by decide
 
@@ -141,16 +141,16 @@ theorem quantityParameterPreservesOneCardinality :
 theorem zonesAcceptTemplateOwners : (graveyardFor Primitives.NounPhrase.you).check (DRS.ofList []) = [] := by decide
 theorem costsAcceptTemplateValues : (lifeCost (.lit 1)).check (DRS.ofList []) = [] := by decide
 theorem staticSpecsAcceptTemplateValues :
-    (powerBoost (target creature) .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
-theorem amountTemplatesAcceptSubjects : (subjectPower (target creature)).check (DRS.ofList []) = [] := by decide
+    (powerBoost (target isCreature) .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
+theorem amountTemplatesAcceptSubjects : (subjectPower (target isCreature)).check (DRS.ofList []) = [] := by decide
 theorem amountTemplatesIntroduceSelectionOnce :
-    countOnes .object ((stepAmount 64 (DRS.ofList []) (subjectPower (target creature))).1) = 1 := by decide
+    countOnes .object ((stepAmount 64 (DRS.ofList []) (subjectPower (target isCreature))).1) = 1 := by decide
 theorem amountTemplatesRejectMissingSubjects : (subjectPower it).check (DRS.ofList []) ≠ [] := by decide
 theorem predicateTemplatesAcceptValues :
     Predicate.checkAt .object (DRS.ofList [outcomeB .damageDealt]) (powerEquals .thatMuch) = [] := by decide
 
 theorem conditionsPublishSubjectOnce :
-    countOnes .object ((stepCondition 64 (DRS.ofList []) (creatureCondition (target creature))).1) = 1 := by decide
+    countOnes .object ((stepCondition 64 (DRS.ofList []) (creatureCondition (target isCreature))).1) = 1 := by decide
 theorem conditionsRefineOriginalIdentity :
     let before := DRS.ofList [{
       det := .the, plur := .one,
@@ -172,25 +172,25 @@ theorem eventParametersPublishTheirOutcome :
     countOutcomes .damageDealt (GameEvent.extend (DRS.ofList [])
       (.does (.actor thisCreature) (.dealDamage .anyAmount .you .any))) = 1 := by decide
 theorem templateUseRemainsInsideCondition :
-    Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target creature)) none =
+    Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target isCreature)) none =
       .doIf (.compareAmt (.lit 1) .eq (.lit 1))
-        (.move (target creature) .anyLocation (some graveyard) .arrival none []) none := by rfl
+        (.move (target isCreature) .anyLocation (some graveyard) .arrival none []) none := by rfl
 theorem templateUseRemainsInsideRepetition :
-    Action.repeat_ (.fixed (.lit 2) (moveSubject (target creature))) =
+    Action.repeat_ (.fixed (.lit 2) (moveSubject (target isCreature))) =
       .repeat_ (.fixed (.lit 2)
-        (.move (target creature) .anyLocation (some graveyard) .arrival none [])) := by rfl
+        (.move (target isCreature) .anyLocation (some graveyard) .arrival none [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
-    (Amount.countOf (forwardedSubject (counted (exactly 2) creature))).check (DRS.ofList []) = [] := by decide
+    (Amount.countOf (forwardedSubject (counted (exactly 2) isCreature))).check (DRS.ofList []) = [] := by decide
 theorem forwardedYouRemainsThePayer : (forwardedSubject Primitives.NounPhrase.you).isYou = true := by decide
 theorem forwardedOpponentIsNotThePayer : (forwardedSubject anOpponent).isYou = false := by decide
 
 theorem firstMentionUsesTextualOrder :
     Action.check (DRS.ofList []) (.sequentially
       [.setStatus .tapped (.laterMention "late" .any),
-        .setStatus .untapped (.firstMention "late" (target creature))]) = [.bindingIdentity "late"] := by decide
+        .setStatus .untapped (.firstMention "late" (target isCreature))]) = [.bindingIdentity "late"] := by decide
 theorem firstMentionMakesLaterMentionAvailable :
     Action.check (DRS.ofList []) (.sequentially
-      [.setStatus .tapped (.firstMention "early" (target creature)),
+      [.setStatus .tapped (.firstMention "early" (target isCreature)),
         .setStatus .untapped (.laterMention "early" .any)]) = [] := by decide
 
 theorem scopedNumberRegimeIsPreserved :
@@ -202,10 +202,10 @@ theorem possessorQueryPreservesSubjectUpdate :
       (·.zone) = some .battlefield := by decide
 
 theorem sameSelectedSubjectIsReadBackThroughTemplate :
-    (Action.exchange (.values (subjectPower (target creature)) (powerOf it))).check (DRS.ofList []) = [] := by decide
+    (Action.exchange (.values (subjectPower (target isCreature)) (powerOf it))).check (DRS.ofList []) = [] := by decide
 theorem independentValueSubjectsRemainIndependent :
-    (Action.exchange (.values (subjectPower (target creature))
-      (subjectPower (target creature)))).check (DRS.ofList []) = [] := by decide
+    (Action.exchange (.values (subjectPower (target isCreature))
+      (subjectPower (target isCreature)))).check (DRS.ofList []) = [] := by decide
 private semantic_template rereadDamage (amount : Amount) : Action :=
   .sequentially [instruct .this (.dealDamage amount .you .any), instruct .this (.dealDamage amount .you .any)]
 theorem expressionAmountObservesNewOutcomes :
@@ -222,33 +222,33 @@ theorem templatePredicatesDoNotConcealContradictions :
 
 theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
     StaticSpec.check (DRS.ofList [])
-      (.must (.actor (target creature)) (.block (target creature))
+      (.must (.actor (target isCreature)) (.block (target isCreature))
         {}) = [] := by decide
 
 theorem namedSubjectAndCounterpartStillShareIdentity :
     Action.check (DRS.ofList []) (.establish
-      (.must (.actor (.firstMention "block.subject" (target creature)))
+      (.must (.actor (.firstMention "block.subject" (target isCreature)))
         (.block (.laterMention "block.subject" .any)) {})
       (some thisTurn)) = [.deonticPatientOk] := by decide
 
 theorem containingNounRetainsIndependentSelection :
-    let after := nounResult (DRS.ofList []) (.possessorOf .controller (forwardedSubject (target creature)))
+    let after := nounResult (DRS.ofList []) (.possessorOf .controller (forwardedSubject (target isCreature)))
     (after.visibleReferents.filter (fun ref => ref.ty == [.creature])).length = 1 ∧
       countOnes .player after = 1 ∧
       after.visibleReferents.map (fun ref => (ref.id, ref.zone)) =
         [(1, none), (0, some .battlefield)] := by decide
 
 theorem secondSubjectSelectsOnlyItsTextuallyUsedArgument :
-    let after := instructionResult (DRS.ofList []) (moveSubject (secondSubject (target artifact) (target creature)))
+    let after := instructionResult (DRS.ofList []) (moveSubject (secondSubject (target isArtifact) (target isCreature)))
     after.visibleReferents.map (·.ty) = [[.creature]] ∧
       after.visibleReferents.map (·.zone) = [some .graveyard] := by decide
 
 theorem nestedForwardingPreservesMoveAndTapBehavior :
     Action.check (DRS.ofList []) (.sequentially
-      [moveSubject (forwardedSubject (target creature)), .setStatus .tapped (that .permanent)]) =
+      [moveSubject (forwardedSubject (target isCreature)), .setStatus .tapped (that .permanent)]) =
         [.anaphor (.word .permanent) .one 0] ∧
       Action.check (DRS.ofList []) (.sequentially
-        [.setStatus .tapped (forwardedSubject (target creature)), .setStatus .untapped (that .permanent)]) = [] := by decide
+        [.setStatus .tapped (forwardedSubject (target isCreature)), .setStatus .untapped (that .permanent)]) = [] := by decide
 
 theorem sourceViewPreservesStaticDefinitionRole :
     StaticSpec.check (DRS.ofList []) (definedPower (forwardedSubject thisCreature)) = [] := by decide
@@ -262,7 +262,7 @@ theorem forwardedLibraryOwnerRetainsOpponentClassification :
 
 theorem librarySlicePreservesExplicitOwnerUpdate :
     ((nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (library (.possessorOf .controller (.resolvedPermanent it))))).findById? 0).bind
+      (.slice .top (.lit 2) (libraryOf (.possessorOf .controller (.resolvedPermanent it))))).findById? 0).bind
         (·.zone) = some .battlefield := by decide
 
 theorem forwardedCoordinationRetainsTwoParties :
@@ -275,7 +275,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Forged context witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
-        (instruct (target creature) (@fight ⟨1⟩ (target creature)))] } }
+        (instruct (target isCreature) (@fight ⟨1⟩ (target isCreature)))] } }
 
 /-- error: Semantic parameter outside has no authoring evidence -/
 #guard_msgs in
@@ -283,7 +283,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Unbound callback argument witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
-        (onChosen (target creature) (fun _ => moveSubject outside))] } }
+        (onChosen (target isCreature) (fun _ => moveSubject outside))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
@@ -299,7 +299,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Macro body witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
-        (onChosen (target creature) (fun chosen => .setStatus .tapped chosen))] } }
+        (onChosen (target isCreature) (fun chosen => .setStatus .tapped chosen))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
@@ -328,7 +328,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Higher order context witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
-        (applyWithForgedContext (@fight) (target creature) (target creature))] } }
+        (applyWithForgedContext (@fight) (target isCreature) (target isCreature))] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
@@ -356,21 +356,21 @@ private semantic_template nestedRereadDamage (amount : Amount) : Action :=
 
 theorem amountBodyReadsItsCallerSubject :
     Amount.check callerCreature
-      (amountBodyInCaller (target artifact) (.statOf (.stat .power) it)) = [] := by decide
+      (amountBodyInCaller (target isArtifact) (.statOf (.stat .power) it)) = [] := by decide
 
 theorem amountBodyPreservesLiteralFacts :
-    let amount := amountBodyInCaller (target creature) (.lit 1)
+    let amount := amountBodyInCaller (target isCreature) (.lit 1)
     (amount.exact, amount.plur, amount.unit, amount.deckBound) =
       (some 1, .one, true, true) := by decide
 
 theorem predicateBodyPreservesItsCallerReference :
     Predicate.checkAt .object callerCreature
-      (predicateBodyInCaller (target creature) (.otherThan it)) = [] := by decide
+      (predicateBodyInCaller (target isCreature) (.otherThan it)) = [] := by decide
 
 theorem predicateBodyDoesNotConcealContradictions :
     Predicate.checkAt .object (DRS.ofList [])
       (.and [.hasStatus .tapped,
-        predicateBodyInCaller (target creature) (.hasStatus .untapped)]) =
+        predicateBodyInCaller (target isCreature) (.hasStatus .untapped)]) =
       [.contradictionFree] := by decide
 
 theorem eventTemplateAcceptsItsSubject :
@@ -408,13 +408,13 @@ theorem nounCoordinationPreservesItsWholeContext :
 
 theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
     let after := nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (library (playerIgnoringSubject (.resolvedPermanent it))))
+      (.slice .top (.lit 2) (libraryOf (playerIgnoringSubject (.resolvedPermanent it))))
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(2, .object, some .library), (1, .player, none), (0, .object, some .stack)] := by decide
 
 theorem templatePatientCannotReadItsCoargument :
     Action.check (DRS.ofList []) (.establish
-      (.must (.actor (target creature)) (.block (forwardedSubject it)) {})
+      (.must (.actor (target isCreature)) (.block (forwardedSubject it)) {})
       (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
 theorem nestedTemplatesRereadTheCurrentOutcome :
@@ -432,11 +432,11 @@ theorem unusedSubjectDoesNotRequireABodyUse (subject : NounPhrase) :
     (unusedSubject subject).check (DRS.ofList []) = [] := by rfl
 
 theorem returnedSecondTemplateSubjectChecks :
-    (moveSubject (secondSubject (target creature) (target creature))).check (DRS.ofList []) =
+    (moveSubject (secondSubject (target isCreature) (target isCreature))).check (DRS.ofList []) =
       [] := by decide
 
 theorem targetGroupsRemainCountableThroughTemplate :
-    (Amount.countOf (forwardedSubject (.described (.target (exactly 2)) creature))).check
+    (Amount.countOf (forwardedSubject (.described (.target (exactly 2)) isCreature))).check
       (DRS.ofList []) = [] := by decide
 
 theorem templateBareThisRetainsEnactedZoneExemption :

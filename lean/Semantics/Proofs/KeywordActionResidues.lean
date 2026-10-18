@@ -31,7 +31,7 @@ theorem okDiscover : Action.check (DRS.ofList []) (Actor.discover (.lit 5)) = []
 /-- A run comes from a pile, and a library pile is a player's: a creature has none, so "its
 library" names no pile to run. -/
 theorem badLibraryRunOfAnObject :
-    Action.check (DRS.ofList []) (move (.run .top land (library thisCreature)) exileZone) =
+    Action.check (DRS.ofList []) (move (.run .top isLand (libraryOf thisCreature)) exileZone) =
       [.kindMismatch .player .object] := by decide
 
 /-- "Incubate 3" [CR#701.53a,701.53b]. -/
@@ -57,7 +57,7 @@ theorem badSubstituteWithPlayers :
 tapped. -/
 theorem okConvokeColorReadback :
     StaticSpec.check (DRS.ofList []) (.paySubstitute thisSpell
-      (substitute (tap (a (.and [untapped, creature, .hasPossessor .controller .you])))
+      (substitute (tap (a (.and [isUntapped, isCreature, .hasPossessor .controller .you])))
         [.generic, .ofColor (.colorOf (that (.type .creature)))])) = [] := by decide
 
 /-- The mana a substitute pays reads only what its action acted on: after exiling a card,
@@ -72,16 +72,16 @@ theorem badSubstitutePaysWithoutAntecedent :
 total power 3 or greater". -/
 theorem okCrewCost :
     Cost.check (DRS.ofList []) (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 3)
-      (allOf (.and [untapped, creature, .hasPossessor .controller .you, .otherThan .this]))))) =
+      (allOf (.and [isUntapped, isCreature, .hasPossessor .controller .you, .otherThan .this]))))) =
       [] := by decide
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
-    Action.check (DRS.ofList []) (Actor.manifest (.slice .top (.lit 1) (library .you))) = [] := by decide
+    Action.check (DRS.ofList []) (Actor.manifest (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
 
 /-- "Cloak the top card of your library" [CR#701.58a]. -/
 theorem okCloak :
-    Action.check (DRS.ofList []) (Actor.cloak (.slice .top (.lit 1) (library .you))) = [] := by decide
+    Action.check (DRS.ofList []) (Actor.cloak (.slice .top (.lit 1) (libraryOf .you))) = [] := by decide
 
 /-- "Manifest dread" [CR#701.62a]: the manifested card is a part of the look, and the rest the
 other card. -/
@@ -94,10 +94,10 @@ theorem okSupport : Action.check (DRS.ofList []) (Actor.support (.lit 2)) = [] :
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as
 instructions. -/
 theorem okCastProcedure :
-    Action.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [instantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
+    Action.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [isInstantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
   decide
 theorem okPlayProcedure :
-    Action.check (DRS.ofList []) (.enact (.action "play") (.procedure .play (target (.and [land, .isCard])) .withoutPaying none none none) none none) = [] := by decide
+    Action.check (DRS.ofList []) (.enact (.action "play") (.procedure .play (target (.and [isLand, .isCard])) .withoutPaying none none none) none none) = [] := by decide
 theorem okActivateProcedure :
     Action.check (DRS.ofList []) (.enact (.action "activate") (.procedure .activate (target (.abilityHead .anyActivated)) .itsOwnCost none none none) none none) = [] := by
   decide
@@ -109,11 +109,11 @@ theorem badProcedureOnAPlayer :
 
 /-- "Double the power of target creature until end of turn" [CR#701.10b]. -/
 theorem okDoublePower :
-    Action.check (DRS.ofList []) (doublePower (target creature) (some untilEndOfTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (doublePower (target isCreature) (some untilEndOfTurn)) = [] := by decide
 
 /-- "Triple target creature's power and toughness until end of turn" [CR#701.11b]. -/
 theorem okTriplePowerAndToughness :
-    Action.check (DRS.ofList []) (triplePowerAndToughness (target creature) (some untilEndOfTurn)) = [] := by
+    Action.check (DRS.ofList []) (triplePowerAndToughness (target isCreature) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Double your life total" [CR#701.10d]. -/

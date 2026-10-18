@@ -159,7 +159,7 @@ theorem playerSubsetCannotFillAnObjectContext :
 
 theorem objectSubsetRetainsItsTypeZoneAndExactSize :
     let (after, ids, errors) := stepNounPhrase 64 (DRS.ofList []) .other false
-      (.someOf (.counted (exactly 1)) none (allOf creature))
+      (.someOf (.counted (exactly 1)) none (allOf isCreature))
     errors = [] ∧ ids = [1] ∧
       (after.findById? 1).map (·.payload) =
         some (.object [.creature] (some .battlefield) none none (some 1) none) := by decide

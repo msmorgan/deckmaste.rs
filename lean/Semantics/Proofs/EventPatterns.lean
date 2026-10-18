@@ -25,11 +25,11 @@ theorem recipientMayBePlayer :
 
 theorem sourcePrecedesReflexiveRecipientReference :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor (a creature)) (.dealDamage .anyAmount (.refl .one) .any)) = [] := by decide
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (.refl .one) .any)) = [] := by decide
 
 theorem bareRecipientCannotReferToCoargumentSource :
     GameEvent.check (DRS.ofList [])
-      (.does (.actor (a creature)) (.dealDamage .anyAmount it .any)) =
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount it .any)) =
       [.anaphor .bare .one 0] := by decide
 
 theorem absentSourceCannotSupplyReference :
@@ -54,7 +54,7 @@ theorem damageOutcomePrecedesParticipantsForEveryContext
 
 theorem damagePublishesParticipantsAndOutcome :
     let after := GameEvent.extend (DRS.ofList [])
-      (.does (.actor (a creature)) (.dealDamage .anyAmount (a .anyPlayer) .any))
+      (.does (.actor (a isCreature)) (.dealDamage .anyAmount (a .anyPlayer) .any))
     countOutcomes .damageDealt after = 1 ∧
       (after.findById? 0).map (·.role) = some .subj ∧
       (after.findById? 2).map (·.role) = some .obj := by decide
@@ -66,7 +66,7 @@ theorem historicalDamagePublishesItsOutcomeLocallyForEveryContext
         (·.payload) = some (.outcome .damageDealt) := by rfl
 
 theorem observedDamageDoesNotExportOrRefineReferents (kind : DamageKind) :
-    let before := nounResult (DRS.ofList []) (target artifact)
+    let before := nounResult (DRS.ofList []) (target isArtifact)
     let after := (stepPredicate 64 before (.did ⟨.actor .which,
       .dealDamage .anyAmount .you kind, .thisWay⟩)).1
     after.referents = before.referents ∧ countOutcomes .damageDealt after = 0 := by
@@ -102,12 +102,12 @@ theorem everyChoiceOccasionChecksDomain (occasion : ChoiceOccasion) :
   cases occasion <;> decide
 
 theorem deathPublishesArrival :
-    nounZone (GameEvent.extend (DRS.ofList []) (dies (a creature))) it =
+    nounZone (GameEvent.extend (DRS.ofList []) (dies (a isCreature))) it =
       some .graveyard := by decide
 
 theorem deathInterceptionKeepsDeparture :
     nounZone (WouldClause.extend (DRS.ofList [])
-      (.would .any (.move (a creature) (battlefield) (some graveyard) .departure none []))) it =
+      (.would .any (.move (a isCreature) (battlefield) (some graveyard) .departure none []))) it =
       some .battlefield := by decide
 
 theorem unknownDepartureCanBeConstrained :
@@ -119,7 +119,7 @@ theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
 
 theorem arrivalCanBeDescribedAsCard :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.move (a (.and [.isCard, creature])) (.zone .library none) (some graveyard) .arrival none [])) = [] := by decide
+      (.does .any (.move (a (.and [.isCard, isCreature])) (.zone .library none) (some graveyard) .arrival none [])) = [] := by decide
 
 theorem anywhereAndBattlefieldHaveDifferentObservation :
     (match Primitives.GameEvent.putInto .this graveyard (some .anyLocation) with
@@ -128,7 +128,7 @@ theorem anywhereAndBattlefieldHaveDifferentObservation :
       | .does _ (.move _ _ _ point _ _) => point | _ => .arrival) = .departure := by decide
 
 theorem historyDoesNotMoveTheCurrentReference :
-    let before := nounResult (DRS.ofList []) (a creature)
+    let before := nounResult (DRS.ofList []) (a isCreature)
     let after := (stepPredicate 64 before (.did ⟨.any,
       .move .which (battlefield) (some graveyard) .departure none [], .thisWay⟩)).1
     nounZone after it = some .battlefield := by decide
@@ -141,7 +141,7 @@ theorem playerIsNotAChangingObject :
       [.kindLte .player (.join .object .pile)] := by decide
 
 theorem explicitCardLocationIsRetained :
-    nounZone (DRS.ofList []) (a (.and [.isCard, creature, .in_ graveyard])) =
+    nounZone (DRS.ofList []) (a (.and [.isCard, isCreature, .in_ graveyard])) =
       some .graveyard := by decide
 
 theorem wholeTurnConditionNeedsNoPossessor :
@@ -163,22 +163,22 @@ theorem applicabilityPreservesNumericDefinition :
 
 theorem ownedOutsideCardsAreAdmitted :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (allOf (.and [.isCard, creature, .hasPossessor .owner .you, .not (.in_ battlefield)])) =
+      (allOf (.and [.isCard, isCreature, .hasPossessor .owner .you, .not (.in_ battlefield)])) =
       [] := by decide
 
 theorem controlledCreatureSpellsRemainIncluded :
     StaticSpec.check (DRS.ofList []) (.characteristicChange
-      (allOf (.and [creature, spell, .hasPossessor .controller .you]))
+      (allOf (.and [isCreature, isSpell, .hasPossessor .controller .you]))
       [.everyTypeOf .adds .creature]) = [] := by decide
 
 theorem beforeObservationRetainsKnownUnspecifiedOrigin :
     nounZone (WouldClause.extend (DRS.ofList [])
-      (.would .any (.move (a creature) .anyLocation none .departure none []))) it =
+      (.would .any (.move (a isCreature) .anyLocation none .departure none []))) it =
       some .battlefield := by decide
 
 theorem placelessCardsDoNotAcquireBattlefieldEvidence :
     nounZone (nounResult (DRS.ofList [])
-      (a (.and [.isCard, creature, .not (.in_ battlefield)]))) it = none := by decide
+      (a (.and [.isCard, isCreature, .not (.in_ battlefield)]))) it = none := by decide
 
 theorem destinationReadsTheSourcePossessor :
     GameEvent.check (DRS.ofList []) (.does .any (.move (a .isCard) (graveyardOf (a (.isOpponentOf .you))) (some (handOf (that .player))) .departure none [])) =

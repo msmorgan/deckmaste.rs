@@ -26,7 +26,7 @@ def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timin
 def atTheEndStep : GameEvent := .beginningOf .endStep none (.each none)
 
 /-- "Sacrifice a creature." -/
-theorem okSacrificeBattlefield : Action.check (DRS.ofList []) (sacrifice (a creature)) = []
+theorem okSacrificeBattlefield : Action.check (DRS.ofList []) (sacrifice (a isCreature)) = []
     := by
   decide
 
@@ -35,25 +35,25 @@ listed too. -/
 theorem badDelayedOther :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 2) (target anyTarget) .any)),
-          delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target anyOtherTarget) .any)) ])
+        [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget) .any)),
+          delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget) .any)) ])
       = [.anyTargeted (.join .object .player), .otherAnchored] := by
   decide
 
 theorem badStaleCarrier :
     Action.check (DRS.ofList [])
-      (.sequentially [exile (target creatureYouControl), move (that (.type .creature)) battlefield])
+      (.sequentially [exile (target (and [isCreature, youControl])), move (that (.type .creature)) battlefield])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okActivatedCostAndEffect :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Return a creature to its owner's hand: Tap it." The Idris pin refutes the anaphor. -/
 theorem badHiddenCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (move (a creature) hand)) (.setStatus .tapped it))
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (move (a isCreature) hand)) (.setStatus .tapped it))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -62,20 +62,20 @@ theorem badTwoCostMentions :
     Ability.check (DRS.ofList [])
       (activatedAbility
         (.compound
-          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a creature))])
+          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))])
         (exile it)) = [.anaphor .bare .one 2] := by
   decide
 
 /-- "Tap target creature you control. Sacrifice it." -/
 theorem okSacrificeOnBattlefield :
     Action.check (DRS.ofList [])
-      (.sequentially [.setStatus .tapped (target creatureYouControl), sacrifice it])
+      (.sequentially [.setStatus .tapped (target (and [isCreature, youControl])), sacrifice it])
       = [] := by
   decide
 
 theorem badDeadCreatureRead :
     Action.check (DRS.ofList [])
-      (.delay (dies (target creature)) [] (some thisTurn)
+      (.delay (dies (target isCreature)) [] (some thisTurn)
         (move (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -98,7 +98,7 @@ theorem badVerbedWrongVerb :
 /-- "Sacrifice an artifact: Return the sacrificed creature to the battlefield." -/
 theorem badVerbedWrongNoun :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (sacrifice (a artifact)))
+      (activatedAbility (.perform (sacrifice (a isArtifact)))
         (move (theVerbed (.action "sacrifice") .one (some (.type .creature))) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some (.type .creature)) .attributive) .one 0] := by
   decide
@@ -106,24 +106,24 @@ theorem badVerbedWrongNoun :
 theorem badVerbedAmbig :
     Ability.check (DRS.ofList [])
       (activatedAbility
-        (.compound [.perform (sacrifice (a creature)), .perform (sacrifice (a
-            creature))])
+        (.compound [.perform (sacrifice (a isCreature)), .perform (sacrifice (a
+            isCreature))])
         (move (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 2] := by
   decide
 
 theorem okBareCardRead :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (sacrifice (a creature)))
+      (activatedAbility (.perform (sacrifice (a isCreature)))
         (.sequentially
-          [exile (target creature), delay atTheEndStep (move (that .card) battlefield)]))
+          [exile (target isCreature), delay atTheEndStep (move (that .card) battlefield)]))
       = [] := by
   decide
 
 private def bareCardReadContext : DRS :=
-  let afterCost := (stepCost 64 (DRS.ofList []) (.perform (sacrifice (a creature)))).1
+  let afterCost := (stepCost 64 (DRS.ofList []) (.perform (sacrifice (a isCreature)))).1
   (stepAction 64 .postEvent .obj (nextClause (publicOnly afterCost))
-    (exile (target creature))).1
+    (exile (target isCreature))).1
 
 theorem bareCardReadSelectsExiledTarget :
     (firstReach (.word .card) .one bareCardReadContext).map (·.id) =
@@ -131,7 +131,7 @@ theorem bareCardReadSelectsExiledTarget :
       (firstReach (.word .card) .one bareCardReadContext).bind (·.zone) = some .exile := by decide
 
 /-- "Tap target creature." -/
-theorem okTapOnBattlefield : Action.check (DRS.ofList []) (.setStatus .tapped (target creature)) = [] := by
+theorem okTapOnBattlefield : Action.check (DRS.ofList []) (.setStatus .tapped (target isCreature)) = [] := by
   decide
 
 /-- "At the beginning of your upkeep, draw a card." -/
@@ -143,12 +143,12 @@ theorem okTriggerAtYourUpkeep :
 /-- "Target creature gets +3/+3 until end of turn." -/
 theorem okUntilEndOfTurnDuration :
     Action.check (DRS.ofList [])
-      (get (target creature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
+      (get (target isCreature) (.up (.lit 3)) (.up (.lit 3)) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Sacrifice a creature. When you do, draw a card." -/
 theorem okReflexiveOnSacrifice :
-    Action.check (DRS.ofList []) (.triggerReflexively (sacrifice (a creature)) (draw (.lit
+    Action.check (DRS.ofList []) (.triggerReflexively (sacrifice (a isCreature)) (draw (.lit
         1)))
       = [] := by
   decide
@@ -156,7 +156,7 @@ theorem okReflexiveOnSacrifice :
 /-- "This creature deals 3 damage to any target. When you do, draw a card." -/
 theorem badReflexiveOnSourceDeed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target anyTarget) .any)) (draw (.lit 1)))
+      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any)) (draw (.lit 1)))
       = [.reflexEnclosure] := by
   decide
 
@@ -169,7 +169,7 @@ theorem badReflexiveOnLifeGain :
 /-- "Draw a card, then sacrifice a creature. When you do, draw a card." -/
 theorem badReflexiveOnSequence :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (.sequentially [draw (.lit 1), sacrifice (a creature)])
+      (.triggerReflexively (.sequentially [draw (.lit 1), sacrifice (a isCreature)])
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
@@ -194,7 +194,7 @@ theorem badThisWayOnDelayed :
 
 theorem badReflexiveOnBranchedMay :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Primitives.Action.offer (sacrifice (a creature)) (some (draw (.lit 1))) none)
+      (.triggerReflexively (Primitives.Action.offer (sacrifice (a isCreature)) (some (draw (.lit 1))) none)
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
@@ -211,7 +211,7 @@ theorem badAfterReflexiveReadsTrigger :
 /-- "target creature blocking this creature" -/
 theorem okBlockingThisCreature :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (target (.and [creature, .inCombat .blockerOf (some thisCreature)])) = [] := by
+      (target (.and [isCreature, .inCombat .blockerOf (some thisCreature)])) = [] := by
   decide
 
 /-- "Activate only during each player's end step." -/
@@ -278,21 +278,21 @@ theorem okAdditionalUpkeep :
 /-- "Spells with the chosen name can't be cast." -/
 theorem okCastSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (objectCant (.action "cast") (allOf (.and [spell, .named .chosen])))
+      (objectCant (.action "cast") (allOf (.and [isSpell, .named .chosen])))
       = [] := by
   decide
 
 /-- "Spells with the chosen name can't be activated." -/
 theorem badActivatedSpellClass :
     StaticSpec.check [qualityB .cardName]
-      (objectCant (.action "activate") (allOf (.and [spell, .named .chosen]))) = [.deedFits] := by
+      (objectCant (.action "activate") (allOf (.and [isSpell, .named .chosen]))) = [.deedFits] := by
   decide
 
 /-- "Activated abilities of artifacts can't be cast." -/
 theorem badCastAbilityClass :
     StaticSpec.check (DRS.ofList [])
       (objectCant (.action "cast")
-        (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf artifact)])))
+        (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf isArtifact)])))
       = [.deedFits] := by
   decide
 
@@ -309,7 +309,7 @@ theorem okAbilityDisjunctionActivated :
 disjunction seeds none. -/
 theorem badMixedDisjunctionActivated :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "activate") (allOf (.or [.abilityHead .anyActivated, creature])))
+      (objectCant (.action "activate") (allOf (.or [.abilityHead .anyActivated, isCreature])))
       = [.deedFits] := by
   decide
 
@@ -343,7 +343,7 @@ theorem okAdditionalEndingPhase :
 
 /-- "creature that could block each attacking creature" -/
 theorem okCouldBlockAttacker :
-    Predicate.checkAt .object (DRS.ofList []) (.inCombat .couldBlock (some (allOf (.and [creature, attacking]))))
+    Predicate.checkAt .object (DRS.ofList []) (.inCombat .couldBlock (some (allOf (.and [isCreature, isAttacking]))))
       = [] := by
   decide
 
@@ -354,20 +354,20 @@ theorem okAttackedByPlayer :
 
 /-- "Sacrifice a creature. If you do, draw a card." -/
 theorem okIfDoneWithArm :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a creature)) (some (draw (.lit 1))) none)
+    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) (some (draw (.lit 1))) none)
       = [] := by
   decide
 
 /-- "Sacrifice a creature." -/
 theorem badIfDoneWithNeitherArm :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a creature)) none none) =
+    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) none none) =
         [.ifDoneArmed] := by
   decide
 
 /-- "This creature deals 3 damage to any target. If you do, draw a card." -/
 theorem badIfDoneOverAgentlessBody :
     Action.check (DRS.ofList [])
-      (Primitives.Action.doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target anyTarget) .any)) (some (draw (.lit 1)))
+      (Primitives.Action.doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget) .any)) (some (draw (.lit 1)))
         none) = [.reflexEnclosure] := by
   decide
 
@@ -487,7 +487,7 @@ theorem okAdditionalPartNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountReadsSubject :
     Action.check [qualityB .color]
-      (.skipUntap (target creature) (powerOf it)) = [] := by decide
+      (.skipUntap (target isCreature) (powerOf it)) = [] := by decide
 
 theorem untapAmountReadsItsPublishedSelfSubject :
     let before := DRS.ofList [qualityB .color]
@@ -497,11 +497,11 @@ theorem untapAmountReadsItsPublishedSelfSubject :
 
 theorem okUntapNestedAmountIntroducesLetterOnce :
     countLetter .x (instructionResult (DRS.ofList [])
-      (.skipUntap (target creature) (plus (.letter .x) (.letter .x)))) = 1 := by decide
+      (.skipUntap (target isCreature) (plus (.letter .x) (.letter .x)))) = 1 := by decide
 
 theorem okUntapAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipUntap (target creature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
+      [.skipUntap (target isCreature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :
@@ -515,27 +515,27 @@ theorem badAdditionalPartWithoutSubjectOrOuterContext :
 /-- Nested amounts preserve the identities and kinds of their introduced targets. -/
 theorem okExtraTurnNestedAmountOrder :
     let after := instructionResult [qualityB .color]
-      (extraTurn (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
+      (extraTurn (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(3, .turnRef), (2, .player), (1, .object), (0, .quality .color)] ∧
       (after.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem okSkipNextNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
-      (.skipPart .drawStep (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
+      (.skipPart .drawStep (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okAdditionalPartNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
       (Primitives.Action.addTurnPart .upkeep none
-        (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))) none)
+        (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))) none)
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okUntapNestedAmountOrder :
     let after := instructionResult (DRS.ofList [])
-      (.skipUntap .this (plus (powerOf (target creature)) (lifeTotalOf (target (.isOpponentOf .you)))))
+      (.skipUntap .this (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(2, .player), (1, .object), (0, .object)] ∧
       (after.findById? 1).map (·.ty) = some [.creature] ∧
@@ -600,7 +600,7 @@ theorem okCastWhenASorceryCouldNotHaveBeen :
 the ability triggers every time and the instruction is limited (Iron Man, Bleeding Edge and
 Donal, Herald of Wings; the retired `UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
-    Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a spell) .itsOwnCost none none none))
+    Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
       (doOnlyOnceEachTurn (offer (draw (.lit 1))))) = [] := by
   decide
 

@@ -20,7 +20,7 @@ permanent becomes saddled until end of turn. Activate only as a sorcery." [CR#70
 def saddleDefinition : List Ability :=
   [ .activated
       (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 2)
-        (allOf (.and [untapped, otherCreatureYouControl thisPermanent])))))
+        (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]])))))
       (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
 
 /-- "Saddle 2" with its declared definition fits the registry's row and checks [CR#702.171a]. -/
@@ -36,7 +36,7 @@ unresolved "its power" is refused. -/
 theorem badSaddleUnresolvedBound :
     Cost.check (DRS.ofList []) (.perform (tap (Actor.withTotal (.stat .power) .atLeast
       (powerOf (that (.type .creature)))
-      (allOf (.and [untapped, otherCreatureYouControl thisPermanent]))))) =
+      (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]]))))) =
       [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 
@@ -44,7 +44,7 @@ theorem badSaddleUnresolvedBound :
 with total power 2 or more." [CR#702.194a] -/
 def teamworkDefinition : List Ability :=
   [ .static (.addedCost
-      (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 2) (allOf creatureYouControl))))
+      (.perform (tap (Actor.withTotal (.stat .power) .atLeast (.lit 2) (allOf (and [isCreature, youControl])))))
       true .once) ]
 
 /-- "Teamwork 2" with its declared definition fits the registry's row and checks
@@ -68,7 +68,7 @@ def awakenDefinition : List Ability :=
       (doIf (costWasPaid (.byKeyword (.named "awaken")) none .this)
         (.sequentially
           [ .putCounters (.lit 4) (.printed p1p1Counter)
-              (target (.and [land, .hasPossessor .controller .you])) .one true,
+              (target (.and [isLand, .hasPossessor .controller .you])) .one true,
             .establish
               (.characteristicChange (that (.type .land))
                 [ .typeLine .adds { types := some [.creature], subtypes := some [creatureType "elemental"] },

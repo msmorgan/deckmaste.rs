@@ -82,7 +82,7 @@ theorem badTakenUnnamed :
 
 /-- Required pin: "exile it haunting target creature" relates two objects [CR#702.55a]. -/
 theorem okRelateHaunting :
-    Action.check (DRS.ofList []) (.relate .this haunting (target creature)) = [] := by
+    Action.check (DRS.ofList []) (.relate .this haunting (target isCreature)) = [] := by
   decide
 
 /-- Required pin: `relate` against a declared kind mismatch is refused: a haunting's second side
@@ -93,7 +93,7 @@ theorem badRelateKindMismatch :
 
 /-- An undeclared relation is refused. -/
 theorem badRelateUndeclared :
-    Action.check (DRS.ofList []) (.relate .this (.named "befriended") (target creature))
+    Action.check (DRS.ofList []) (.relate .this (.named "befriended") (target isCreature))
       = [.knownRelation (.named "befriended")] := by
   decide
 
@@ -105,7 +105,7 @@ theorem okCounterpart :
 /-- "Paired" and "paired with this creature" are object predicates [CR#702.95b]. -/
 theorem okRelated :
     (Condition.check (DRS.ofList []) (.matches thisCreature (.related paired none)),
-      Condition.check (DRS.ofList []) (.exists_ (.described .bare (.and [creature, .related paired (some thisCreature)]))))
+      Condition.check (DRS.ofList []) (.exists_ (.described .bare (.and [isCreature, .related paired (some thisCreature)]))))
       = ([], []) := by
   decide
 
@@ -119,18 +119,18 @@ theorem okRelationDefinition :
 
 /-- Required pin: a mutating spell merges with one permanent [CR#730.2]. -/
 theorem okMerge :
-    Action.check (DRS.ofList []) (.merge .this (target creature) .top) = [] := by
+    Action.check (DRS.ofList []) (.merge .this (target isCreature) .top) = [] := by
   decide
 
 /-- A merge onto a group is refused: one permanent is merged with. -/
 theorem badMergeOntoGroup :
-    Action.check (DRS.ofList []) (.merge .this (allOf creature) .bottom) = [.singular] := by
+    Action.check (DRS.ofList []) (.merge .this (allOf isCreature) .bottom) = [.singular] := by
   decide
 
 /-- Required pin: mutate's target, gained with its alternative cost [CR#702.140a]. -/
 theorem okAddsTarget :
     StaticSpec.check (DRS.ofList []) (.addsTarget thisSpell
-      (.and [creature, .not (.hasSubtype (creatureType "Human"))])) = [] := by
+      (.and [isCreature, .not (.hasSubtype (creatureType "Human"))])) = [] := by
   decide
 
 /-- Required pin: offering's reduction by the sacrificed permanent's mana cost [CR#702.48a]. -/
@@ -157,7 +157,7 @@ def cost : Cost := .mana [generic 2, pip .blue]
 /-- Required pin: emerge [CR#702.119a]. -/
 theorem okEmerge : Ability.check (DRS.ofList []) (emerge cost) = [] := by decide
 /-- Required pin: emerge from [quality] [CR#702.119b]. -/
-theorem okEmergeFrom : Ability.check (DRS.ofList []) (emergeFrom artifact cost) = [] := by decide
+theorem okEmergeFrom : Ability.check (DRS.ofList []) (emergeFrom isArtifact cost) = [] := by decide
 /-- Required pin: offering [CR#702.48a]. -/
 theorem okOffering :
     Ability.check (DRS.ofList []) (offering (.hasSubtype (creatureType "Goblin"))) = [] := by decide

@@ -31,7 +31,7 @@ theorem okWhileHoldsCitysBlessing :
     StaticSpec.check (DRS.ofList [])
       (.whileHolds
         (.and
-          [ .compareAmt (.countOf (.described .bare (.and [permanent, .hasPossessor .controller .you])))
+          [ .compareAmt (.countOf (.described .bare (.and [isPermanent, .hasPossessor .controller .you])))
               .atLeast (.lit 10),
             .not (.matches .you (.hasDesignation (.named "citysBlessing") none)) ])
         (.gainDesignation .you (.named "citysBlessing") (some (.between none none)))) = [] := by
@@ -57,7 +57,7 @@ theorem okExceptByKeyword :
 theorem okExceptByObjects :
     StaticSpec.check (DRS.ofList [])
       (.cant .any (.block thisCreature)
-        { except := some (.byObjects (.and [creature, .or [artifact, .colorIs .black]])) }) = [] := by
+        { except := some (.byObjects (.and [isCreature, .or [isArtifact, .colorIs .black]])) }) = [] := by
   decide
 
 /-- An exception by objects describes objects: "except by opponents" is refused as a kind. -/
@@ -100,7 +100,7 @@ theorem okDevour : Ability.check (DRS.ofList []) (devour (.lit 1)) = [] := by de
 `okDevourQualityExpansion`, which checked the same definition as a helper before the general form
 was declared (`semantics-v2-devour-quality-keyword`). -/
 theorem okDevourQuality :
-    Ability.check (DRS.ofList []) (devourQuality artifact (.lit 2)) = [] := by decide
+    Ability.check (DRS.ofList []) (devourQuality isArtifact (.lit 2)) = [] := by decide
 
 /-- Twin: the checker compares expanded component categories. A nested keyword line does not
 supply that expansion; keyword names abbreviate their rules text [CR#702.1]. -/

@@ -20,22 +20,22 @@ theorem exileNamedAgent :
             .anyLocation (some exileZone) .arrival none []) none none)) := by rfl
 
 theorem chooseOmittedAgent :
-    choose (a creature) = Action.choose none (a creature) .openly none := by rfl
+    choose (a isCreature) = Action.choose none (a isCreature) .openly none := by rfl
 
 theorem chooseNamedAgent :
-    instruct .you (choose (a creature)) =
-      Action.instruct .you (Action.choose none (a creature) .openly none) := by rfl
+    instruct .you (choose (a isCreature)) =
+      Action.instruct .you (Action.choose none (a isCreature) .openly none) := by rfl
 
 theorem chooseSecretlyNamedAgent :
-    instruct .you (choose (a creature) (disclosure := .secretly)) =
-      Action.instruct .you (Action.choose none (a creature) .secretly none) := by rfl
+    instruct .you (choose (a isCreature) (disclosure := .secretly)) =
+      Action.instruct .you (Action.choose none (a isCreature) .secretly none) := by rfl
 
 theorem millNamedAgent :
     mill (.lit 3) .you =
       Action.ownScope (some (.action "mill"))
         (.enact (.action "mill")
           (.move (.slice .top (.inCaller (.lit 3))
-            (library (.inCaller (.firstMention "mill.whose" .you))))
+            (libraryOf (.inCaller (.firstMention "mill.whose" .you))))
             (.zone .library none) (some graveyard) .arrival none []) none none) := by rfl
 
 end Semantics.Proofs.ActionForms

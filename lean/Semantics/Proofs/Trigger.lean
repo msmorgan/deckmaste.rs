@@ -14,13 +14,13 @@ namespace Semantics.Proofs.Trigger
 
 /-- "Whenever you cast a spell, draw a card." -/
 theorem okCastsSingularComplement :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a spell) .itsOwnCost none none none)) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)) (draw (.lit 1)))
       = [] := by
   decide
 
 /-- "Whenever you cast all spells, draw a card." -/
 theorem badCastsPluralComplement :
-    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (allOf spell) .itsOwnCost none none none)) (draw (.lit 1)))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none)) (draw (.lit 1)))
       = [.singular] := by
   decide
 
@@ -28,19 +28,19 @@ theorem badCastsPluralComplement :
 theorem okWhileDoingCast :
     Ability.check (DRS.ofList [])
       (.triggered (attacks thisCreature) []
-        (some (.whileDoing (.does (.actor .you) (.procedure .cast (a spell) .itsOwnCost none none none)))) [] none none none
+        (some (.whileDoing (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)))) [] none none none
         (draw (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check (DRS.ofList []) (whenever (dies (a creature)) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (whenever (dies (a isCreature)) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
 theorem okThatCreatureAfterAttack :
     Ability.check (DRS.ofList [])
-      (whenever (attacks (a creature))
+      (whenever (attacks (a isCreature))
         (get (that (.type .creature)) (.up (.lit 2)) (.up (.lit 0)) (some untilEndOfTurn)))
       = [] := by
   decide
@@ -67,11 +67,11 @@ theorem badAnnouncingRemovalAgent :
 
 /-- "Whenever a creature attacks a player, …" -/
 theorem okSingularAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) (.attack (some (a .anyPlayer)))) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .anyPlayer)))) = [] := by decide
 
 /-- "Whenever a creature attacks your opponents, …" -/
 theorem badPluralAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) (.attack (some (.described .all (.isOpponentOf .you)))))
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (.described .all (.isOpponentOf .you)))))
       = [.singular] := by
   decide
 
@@ -82,7 +82,7 @@ theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (attacks .you) =
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check (DRS.ofList [])
-      (.triggered (enters (a creature) none) [] none []
+      (.triggered (enters (a isCreature) none) [] none []
         (some (duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
   decide
 
@@ -94,7 +94,7 @@ theorem okTokenCreationSubject :
 
 /-- "If one or more creatures would be created under your control, …" -/
 theorem badNonTokenCreationSubject :
-    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) creature) []) []) false (some .you)))
+    GameEvent.check (DRS.ofList []) (.does .any (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) isCreature) []) []) false (some .you)))
       = [.tokenPhrase] := by
   decide
 
@@ -107,7 +107,7 @@ theorem okTriggerLimitOffChapter :
 
 /-- "Whenever a creature attacks a player" -/
 theorem okPlayerAttackDefender :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) (.attack (some (a .anyPlayer)))) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a .anyPlayer)))) = [] := by decide
 
 def afterLifePayment : DRS := GameEvent.extend (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.changeLife (.down .anyAmount)))
 
@@ -171,7 +171,7 @@ theorem badTokensCreatedByMintingNoun :
 
 /-- "Whenever this creature becomes the target of a spell, …" -/
 theorem okSpellTargetingEvent :
-    GameEvent.check (DRS.ofList []) (.does (.by (a spell)) (.target thisCreature)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.by (a isSpell)) (.target thisCreature)) = [] := by decide
 
 /-- "Whenever you become the target of a player, …" -/
 theorem badPlayerTargetingEvent :
@@ -181,7 +181,7 @@ theorem badPlayerTargetingEvent :
 theorem okMultipliedTrigger :
     StaticSpec.check (DRS.ofList [])
       (.additionalTriggers
-        (.triggers (a (.and [.abilityHead .anyTriggered, .abilityOf (a creatureYouControl)])) none none)
+        (.triggers (a (.and [.abilityHead .anyTriggered, .abilityOf (a (and [isCreature, youControl]))])) none none)
         (exactly 1)) = [] := by
   decide
 

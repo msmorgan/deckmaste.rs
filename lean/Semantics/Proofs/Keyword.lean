@@ -21,29 +21,29 @@ def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okSacrificeAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Target creature gains flying." -/
 theorem okGainsKeyword :
-    Action.check (DRS.ofList []) (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
+    Action.check (DRS.ofList []) (gain (target isCreature) (keyword (.named "flying")) none) = [] := by decide
 
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
-    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [creature, spell])) (.less (.lit 1) none)) = [] :=
+    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [isCreature, isSpell])) (.less (.lit 1) none)) = [] :=
         by
   decide
 
 /-- "Creatures you control have flying." -/
 theorem okBattlefieldFlying :
-    StaticSpec.check (DRS.ofList []) (.abilityGrant (allOf creatureYouControl) (keyword (.named "flying"))) = [] := by
+    StaticSpec.check (DRS.ofList []) (.abilityGrant (allOf (and [isCreature, youControl])) (keyword (.named "flying"))) = [] := by
         decide
 
 /-- "Target creature gets +1/+1, gains flying, and gains trample." -/
 theorem okFlatCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [ .modification (target creature) .power (.up (.lit 1)),
+        [ .modification (target isCreature) .power (.up (.lit 1)),
           .modification it .toughness (.up (.lit 1)),
           .abilityGrant it (keyword (.named "flying")),
           .abilityGrant it (keyword (.named "trample")) ]) = [] := by
@@ -54,7 +54,7 @@ theorem badNestedCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [ .conjunction none
-            [ .modification (target creature) .power (.up (.lit 1)),
+            [ .modification (target isCreature) .power (.up (.lit 1)),
               .modification it .toughness (.up (.lit 1)),
               .abilityGrant it (keyword (.named "flying")) ],
           .abilityGrant it (keyword (.named "trample")) ]) = [.notCoord] := by
@@ -63,7 +63,7 @@ theorem badNestedCoordination :
 /-- "Whenever a creature enters, destroy that creature." -/
 theorem okThatCreatureAfterAntecedent :
     Ability.check (DRS.ofList [])
-      (whenever (enters (a creature) none) (destroy (that (.type .creature))))
+      (whenever (enters (a isCreature) none) (destroy (that (.type .creature))))
       = [] := by
   decide
 
@@ -83,7 +83,7 @@ theorem okCoordinatedPlural :
     Ability.check (DRS.ofList [])
       (.static
         (.conjunction none
-          [ .modification (allOf creatureYouControl) .power (.up (.lit 1)),
+          [ .modification (allOf (and [isCreature, youControl])) .power (.up (.lit 1)),
             .modification them .toughness (.up (.lit 1)),
             .abilityGrant them (keyword (.named "flying")) ])) = [] := by
   decide
@@ -110,7 +110,7 @@ theorem okTokenKeywordAbility :
 
 /-- "Creatures you control have '{T}: Draw a card.'" -/
 theorem okQuotedGrantOnPermanent :
-    StaticSpec.check (DRS.ofList []) (.abilityGrant (allOf creatureYouControl) (activatedAbility .tapSymbol (draw (.lit 1))))
+    StaticSpec.check (DRS.ofList []) (.abilityGrant (allOf (and [isCreature, youControl])) (activatedAbility .tapSymbol (draw (.lit 1))))
       = [] := by
   decide
 
@@ -134,7 +134,7 @@ def choosesCreatureType : Ability :=
 /-- "Creatures of the chosen type get +1/+1." -/
 def chosenTypeGets : Ability :=
   .static
-    (getsPt (allOf (.and [creature, ofChosen (.subtype .creature)])) (.up (.lit 1)) (.up (.lit 1)))
+    (getsPt (allOf (.and [isCreature, ofChosen (.subtype .creature)])) (.up (.lit 1)) (.up (.lit 1)))
 
 /-- "As this enchantment enters, choose a creature type. Creatures of the chosen type get
 +1/+1." -/
@@ -176,7 +176,7 @@ theorem badAscribedQualityBeforeChoice :
     Card.check
       (enchantmentWith
         [ .static
-            (Primitives.StaticSpec.qualityChange (allOf (.and [creature, .hasPossessor .controller .you])) .adds
+            (Primitives.StaticSpec.qualityChange (allOf (.and [isCreature, .hasPossessor .controller .you])) .adds
               (.chosenQuality (ofChosen (.subtype .creature)))),
           choosesCreatureType ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
@@ -204,7 +204,7 @@ theorem okKeywordListOverGrant :
 refutes the extension; the keyword list has no base keyword to repeat either. -/
 theorem badKeywordListOnPlainLine :
     Ability.check (DRS.ofList [])
-      (.alsoForKeywords (.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1))))
+      (.alsoForKeywords (.static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1))))
         [.the (.named "menace"), .the (.named "trample")]) = [.keywordExtendable, .keywordListOk] := by
   decide
 
@@ -226,12 +226,12 @@ theorem badParameterisedKeywordInList :
 theorem okBasicLandTypeAxis :
     Amount.check (DRS.ofList [])
       (.distinctCount (.subtype .land .basicOnly)
-        (allOf (.and [land, .hasPossessor .controller .you]))) = [] := by
+        (allOf (.and [isLand, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "the number of basic creature types among creatures you control" -/
 theorem badBasicCreatureTypeAxis :
-    Amount.check (DRS.ofList []) (.distinctCount (.subtype .creature .basicOnly) (allOf creatureYouControl))
+    Amount.check (DRS.ofList []) (.distinctCount (.subtype .creature .basicOnly) (allOf (and [isCreature, youControl])))
       = [.kindAxisSort] := by
   decide
 
@@ -254,7 +254,7 @@ theorem okActivatedOpensItsOwnLetter :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
         (.sequentially
-          [(Action.instruct .this (.dealDamage (.letter .x) (target anyTarget) .any)), Primitives.Action.define .x (.lit 3)])) = [] := by
+          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget) .any)), Primitives.Action.define .x (.lit 3)])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/
@@ -271,18 +271,18 @@ theorem activatedManaCostIntroducesItsOwnX :
 theorem sharedSubjectSurvivesSecondSingular :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ exile (target artifact),
-          establishFor (.firstMention "sharedSubject.subject" (target creature))
-            [ .modification (.laterMention "sharedSubject.subject" (target creature)) .power (.up (.lit 1)),
-              .modification (.laterMention "sharedSubject.subject" (target creature)) .toughness (.up (.lit 1)),
-              .abilityGrant (.laterMention "sharedSubject.subject" (target creature)) (keyword (.named "flying")) ]
+        [ exile (target isArtifact),
+          establishFor (.firstMention "sharedSubject.subject" (target isCreature))
+            [ .modification (.laterMention "sharedSubject.subject" (target isCreature)) .power (.up (.lit 1)),
+              .modification (.laterMention "sharedSubject.subject" (target isCreature)) .toughness (.up (.lit 1)),
+              .abilityGrant (.laterMention "sharedSubject.subject" (target isCreature)) (keyword (.named "flying")) ]
             (some untilEndOfTurn) ]) = [] := by
   decide
 
 /-- "target creature": the subject a shared-subject clause re-reads -/
 theorem okSharedSubjectDelta :
-    NounPhrase.checkAt (some .object) (nounResult (DRS.ofList []) (.firstMention "sharedSubject.subject" (target creature)))
-      (.laterMention "sharedSubject.subject" (target creature)) = [] := by
+    NounPhrase.checkAt (some .object) (nounResult (DRS.ofList []) (.firstMention "sharedSubject.subject" (target isCreature)))
+      (.laterMention "sharedSubject.subject" (target isCreature)) = [] := by
   decide
 
 theorem badSharedSubjectEmptyDelta :
@@ -296,11 +296,11 @@ theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLif
   decide
 
 /-- "Counter target spell." -/
-theorem okCounterSpell : Action.check (DRS.ofList []) (Action.counterSpell (target spell)) = [] := by decide
+theorem okCounterSpell : Action.check (DRS.ofList []) (Action.counterSpell (target isSpell)) = [] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Action.check (DRS.ofList []) (Action.counterSpell (target anyTarget))
+    Action.check (DRS.ofList []) (Action.counterSpell (target isAnyTarget))
       = [.deedFits, .kindLte (.join .object .player) (.join .object .pile)] := by
   decide
 
@@ -308,7 +308,7 @@ theorem badCounterJoinedPlayer :
 theorem okCompanionCharacteristicRead :
     Ability.check (DRS.ofList [])
       (companion
-        (.everyCardIs permanentCard
+        (.everyCardIs isPermanentCard
           (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2))))) = [] := by
   decide
 
@@ -329,26 +329,26 @@ the game begins [CR#702.139a]. -/
 theorem badCompanionBattlefieldStatus :
     Ability.check (DRS.ofList [])
       (companion
-        (.everyCardIs permanentCard (.aCharacteristic (.hasStatus .tapped))))
+        (.everyCardIs isPermanentCard (.aCharacteristic (.hasStatus .tapped))))
       = [.deckReadable] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a card type." -/
 theorem okCompanionSharedCardType :
-    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .cardType .share (allOf (.and [.not land, .isCard]))))) = [] := by
+    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .cardType .share (allOf (.and [.not isLand, .isCard]))))) = [] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a color.": color is a
 characteristic [CR#109.3] and the deck-building condition is checked against the starting deck
 [CR#702.139a]. -/
 theorem okCompanionSharedColor :
-    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .color .share (allOf (.and [.not land, .isCard]))))) = [] := by
+    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .color .share (allOf (.and [.not isLand, .isCard]))))) = [] := by
   decide
 
 /-- "Companion — Each nonland card in your starting deck shares a counter kind.": a kind of
 counter is not among an object's characteristics [CR#109.3]. -/
 theorem badCompanionSharedCounterKind :
-    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .counterKind .share (allOf (.and [.not land, .isCard])))))
+    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .counterKind .share (allOf (.and [.not isLand, .isCard])))))
       = [.deckComparable] := by
   decide
 

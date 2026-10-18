@@ -62,7 +62,7 @@ theorem badStaticOnSorcery :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [.static (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))] })
+          text := [.static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))] })
       = [.cardText] := by
   decide
 
@@ -147,16 +147,16 @@ theorem badCardDuplicateType :
 
 theorem turnedFaceDownHeader :
     Ability.check (DRS.ofList [])
-      (whenever (.does .any (.setStatus .faceDown (a permanent))) (draw (.lit 1))) = [] := by
+      (whenever (.does .any (.setStatus .faceDown (a isPermanent))) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Target creature doesn't untap during its controller's next untap step." -/
 theorem okDoesntUntapNextOnBattlefield :
-    Action.check (DRS.ofList []) (.skipUntap (target creature) (.lit 1)) = [] := by decide
+    Action.check (DRS.ofList []) (.skipUntap (target isCreature) (.lit 1)) = [] := by decide
 
 /-- "Turn target creature face down." -/
 theorem okTurnFaceDownOnBattlefield :
-    Action.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .faceDown (target isCreature)) = [] := by decide
 
 /-- a white creature face reading "Protection from red" -/
 theorem okProtectionOnCreature :
@@ -171,7 +171,7 @@ theorem badStarlessDefinedPt :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.creature],
-          text := [.static (.ptDefinition thisCreature .bothEach (countOf creatureYouControl))],
+          text := [.static (.ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl])))],
           power := stat 2, toughness := stat 2 }) = [.cardBox] := by
   decide
 
@@ -230,13 +230,13 @@ theorem badEquipOnSorcery :
 
 /-- "each of up to two target creatures" -/
 theorem okEachOfATargetGroup :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.described (.target (upTo 2)) creature))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (.described (.target (upTo 2)) isCreature))
       = [] := by
   decide
 
 /-- "each of one or more creatures" -/
 theorem badEachOfCountedGroup :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (counted (atLeast 1) creature))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.eachOf (counted (atLeast 1) isCreature))
       = [.groupMention] := by
   decide
 
@@ -252,7 +252,7 @@ theorem badEquippedPlayer :
 
 /-- "Target creature gains indestructible." -/
 theorem okGainsIndestructible :
-    StaticSpec.check (DRS.ofList []) (.abilityGrant (target creature) (keyword (.named "indestructible"))) = [] := by
+    StaticSpec.check (DRS.ofList []) (.abilityGrant (target isCreature) (keyword (.named "indestructible"))) = [] := by
         decide
 
 /-- a "Kindred Enchantment — Merfolk" card -/
@@ -325,19 +325,19 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Action.check (DRS.ofList [])
-      (Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
+      (Action.create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Action.check (DRS.ofList []) (Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [])
+    Action.check (DRS.ofList []) (Action.create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [] []]) [])
       = [.lineNonEmpty] := by
   decide
 
 /-- "Copy target instant or sorcery spell." -/
 theorem okCopyStackSpell :
     Action.check (DRS.ofList [])
-      (.copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) []) = []
+      (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) []) = []
           := by
   decide
 
@@ -345,7 +345,7 @@ theorem okCopyStackSpell :
 theorem okSetStatusOnBattlefield :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Action.create (.lit 1) (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -354,7 +354,7 @@ anaphor. -/
 theorem badStackCopyAsToken :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
+        [ .copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [],
           .setStatus .untapped (that .token) ])
       = [.anaphor (.word .token) .one 0] := by
   decide
@@ -363,7 +363,7 @@ theorem badStackCopyAsToken :
 theorem badTokenCopyAsCopyMention :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Action.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Action.create (.lit 1) (.copyOf (target isCreature) []) [],
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0] := by
   decide
@@ -392,7 +392,7 @@ theorem badChapterOnNonSaga :
 theorem okAltCostSacrifice :
     StaticSpec.check (DRS.ofList [])
       (.altCost .this
-        (some (.perform (sacrifice (a (.and [land, .hasSubtype (landType "Mountain")]))))))
+        (some (.perform (sacrifice (a (.and [isLand, .hasSubtype (landType "Mountain")]))))))
       = [] := by
   decide
 
@@ -405,8 +405,8 @@ theorem okEscalateWithModes :
             [ keywordCosting (.named "escalate") (.mana [generic 2]),
               .spell none
                 (chooseModes (.range (some 1) (some 2))
-                  [ get (target creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
-                    get (target creature) (.down (.lit 1)) (.down (.lit 1))
+                  [ get (target isCreature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
+                    get (target isCreature) (.down (.lit 1)) (.down (.lit 1))
                       (some untilEndOfTurn) ]) ] }) = [] := by
   decide
 
@@ -443,7 +443,7 @@ theorem okModeChoiceOnTriggeredModes :
         { name := some "", cost := some [generic 3], types := [.artifact],
           text :=
             [ .triggered (.does (.actor .you) (.draw .anyAmount)) [] none [] none none none
-                (chooseModes (exactly 1) [draw (.lit 1), destroy (target artifact)]),
+                (chooseModes (exactly 1) [draw (.lit 1), destroy (target isArtifact)]),
               .static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
   decide
 
@@ -599,7 +599,7 @@ theorem okThatMuchAfterQuantity :
     Action.check (DRS.ofList [])
       (.sequentially
         [ Templates.instruct (target (.isOpponentOf .you)) (loseLife
-            (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
+            (forEach 1 (.and [isAttacking, isCreature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
 
@@ -735,7 +735,7 @@ theorem badCoinsShowingWithoutFlip :
   decide
 
 /-- "Transform target creature." -/
-theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target creature)) = [] := by decide
+theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target isCreature)) = [] := by decide
 
 /-- "Room" -/
 def room : Predicate := .hasSubtype (enchantmentType "Room")
@@ -787,7 +787,7 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Templates.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
+        [ Templates.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (libraryOf .actor)) none none),
           Templates.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 
@@ -795,7 +795,7 @@ theorem redundantSameClauseShuffleHandoffIsRefused :
     Action.check (DRS.ofList [])
       (Templates.instruct (each (.isOpponentOf .you))
         (.enact (.action "shuffle")
-          (Templates.instruct they (.shuffle (library .actor))) none none)) =
+          (Templates.instruct they (.shuffle (libraryOf .actor))) none none)) =
       [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -826,15 +826,15 @@ theorem modalCostReadbacks :
 /-- "It doesn't untap during its controller's next untap step." -/
 theorem okUntapNextSingleIt :
     Action.check (DRS.ofList [])
-      (.sequentially [.setStatus .tapped (target creature), .skipUntap it (.lit 1)])
+      (.sequentially [.setStatus .tapped (target isCreature), .skipUntap it (.lit 1)])
       = [] := by
   decide
 
 theorem recentTappedArtifactIsSelectedForUntapSkip :
-    let taps := .sequentially [.setStatus .tapped (target creature), .setStatus .tapped (target artifact)]
+    let taps := .sequentially [.setStatus .tapped (target isCreature), .setStatus .tapped (target isArtifact)]
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) taps).1
     Action.check (DRS.ofList []) (.sequentially
-      [.setStatus .tapped (target creature), .setStatus .tapped (target artifact), .skipUntap it (.lit 1)]) = [] ∧
+      [.setStatus .tapped (target isCreature), .setStatus .tapped (target isArtifact), .skipUntap it (.lit 1)]) = [] ∧
       (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
       (after.findById? 1).map (·.ty) = some [.artifact] := by decide
 
@@ -948,7 +948,7 @@ theorem stormCountsEarlierThisTurn :
       when (.does (.actor .you) (.procedure .cast thisSpell .itsOwnCost none none none))
         (.sequentially
           [ .copy .fromStack thisSpell
-              (eventCount (.procedure .cast (a (.and [spell, .otherThan thisSpell])) .itsOwnCost none none none) (.actor (a .anyPlayer)) earlierThisTurn)
+              (eventCount (.procedure .cast (a (.and [isSpell, .otherThan thisSpell])) .itsOwnCost none none none) (.actor (a .anyPlayer)) earlierThisTurn)
               [],
             offer (.chooseNewTargets (.pro (.word .copy) .many)) ]) := by
   rfl

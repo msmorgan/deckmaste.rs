@@ -27,14 +27,14 @@ target." -/
 theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
-        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target anyTarget) .any))) = [] := by
+        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target isAnyTarget) .any))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (aAtRandom (.and [creature, .in_ yourHand]))))
+      (activatedAbility (.perform (discard (aAtRandom (.and [isCreature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
-            (theVerbed (.action "discard") .one (some (.type .creature)))) (target anyTarget) .any)))
+            (theVerbed (.action "discard") .one (some (.type .creature)))) (target isAnyTarget) .any)))
       = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
   decide
 
@@ -69,19 +69,19 @@ theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSy
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Action.check (DRS.ofList [])
-      (Primitives.Action.doIfDone (exile (a creatureYouControl)) (some (move it battlefield)) none) = [] := by
+      (Primitives.Action.doIfDone (exile (a (and [isCreature, youControl]))) (some (move it battlefield)) none) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMandatoryBody :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a creature)) none (some (exile it)))
+    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Action.check (DRS.ofList [])
-      (Templates.instruct (controllerOf (target spell)) (doUnless (Action.counterSpell it) (.mana [generic 3]))) =
+      (Templates.instruct (controllerOf (target isSpell)) (doUnless (Action.counterSpell it) (.mana [generic 3]))) =
           [] := by
   decide
 
@@ -165,7 +165,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  activatedAbility (.mana [pip .blue]) (Action.counterSpell (target (.and [spell, .named .chosen])))
+  activatedAbility (.mana [pip .blue]) (Action.counterSpell (target (.and [isSpell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :
@@ -196,14 +196,14 @@ theorem okPlayPaymentMana : PlayPayment.check (DRS.ofList []) (.payingInstead (.
 
 /-- "As an additional cost to cast this spell, sacrifice an artifact." -/
 theorem okAddedCostSacrifice :
-    StaticSpec.check (DRS.ofList []) (.addedCost (.perform (sacrifice (a artifact))) false .once) = []
+    StaticSpec.check (DRS.ofList []) (.addedCost (.perform (sacrifice (a isArtifact))) false .once) = []
         := by
   decide
 
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousPumpClause :
     Action.check (DRS.ofList [])
-      (.establish (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))
+      (.establish (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -240,7 +240,7 @@ theorem badBareCumulativeUpkeep :
 /-- "… pays {1} for each artifact you control." -/
 theorem okForEachScaledMana :
     Cost.check (DRS.ofList [])
-      (Primitives.Cost.scaled (.mana [generic 1]) (forEach 1 (.and [artifact, .hasPossessor .controller .you]))) = [] := by
+      (Primitives.Cost.scaled (.mana [generic 1]) (forEach 1 (.and [isArtifact, .hasPossessor .controller .you]))) = [] := by
   decide
 
 /-- "Counter target spell unless its controller pays {2}." -/
@@ -248,7 +248,7 @@ theorem badLiteralScaledMana :
     Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (.lit 2)) = [.forEachAmount] := by decide
 
 theorem badBareCountScaledMana :
-    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (countOf (.and [artifact, .hasPossessor .controller .you])))
+    Cost.check (DRS.ofList []) (Primitives.Cost.scaled (.mana [generic 1]) (countOf (.and [isArtifact, .hasPossessor .controller .you])))
       = [.forEachAmount] := by
   decide
 
@@ -256,12 +256,12 @@ theorem badBareCountScaledMana :
 theorem okUnearthGrantInGraveyard :
     Ability.check (DRS.ofList [])
       (.static
-        (.abilityGrant (allOf (.and [creature, .in_ (graveyardOf .you)]))
+        (.abilityGrant (allOf (.and [isCreature, .in_ (graveyardOf .you)]))
           (keywordCosting (.named "unearth") (.mana [generic 2])))) = [] := by
   decide
 
 /-- "permanents you control" -/
-def permanentsYouControl : NounPhrase := allOf (.and [permanent, .hasPossessor .controller .you])
+def permanentsYouControl : NounPhrase := allOf (.and [isPermanent, .hasPossessor .controller .you])
 
 /-- "For each color among permanents you control, add one mana of that color." -/
 theorem okChosenColorPerColor :
@@ -299,7 +299,7 @@ theorem okManaCumulativeUpkeep :
 
 /-- "Whenever a player taps a land for mana, …" -/
 theorem okTappedForMana :
-    GameEvent.check (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a land) none)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a isLand) none)) = [] := by decide
 
 /-- An artifact with the given text. -/
 def artifactWith (text : List Ability) : Card :=
@@ -308,7 +308,7 @@ def artifactWith (text : List Ability) : Card :=
 /-- "Whenever a basic land is tapped for mana of the chosen color, draw a card." -/
 def drawOnTapForChosenColor : Ability :=
   whenever
-    (.does .any (.tapForMana (a (.and [land, .hasSupertype .basic])) (some (.ofColor thatColor))))
+    (.does .any (.tapForMana (a (.and [isLand, .hasSupertype .basic])) (some (.ofColor thatColor))))
     (draw (.lit 1))
 
 /-- "As this artifact enters, choose a color. Whenever a basic land is tapped for mana of the
@@ -331,10 +331,10 @@ theorem badTapForChosenNonManaType :
   decide
 
 def afterALandTapForMana : DRS :=
-  GameEvent.extend (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a land) none))
+  GameEvent.extend (DRS.ofList []) (.does (.by (a .anyPlayer)) (.tapForMana (a isLand) none))
 
 def afterAPlainLandTap : DRS :=
-  GameEvent.extend (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.setStatus .tapped (a land)))
+  GameEvent.extend (DRS.ofList []) (.does (.actor (a .anyPlayer)) (.setStatus .tapped (a isLand)))
 
 /-- "one mana of any type that land produced" -/
 theorem okProducedByTapEvent :
@@ -350,7 +350,7 @@ theorem badProducedByPlainTap :
 
 /-- "Add one mana of any type that land produced" -/
 theorem badProducedByEventWithoutEvent :
-    ProducedMana.check (DRS.ofList []) (.producedByEvent (a land)) = [.outcomeInScope .manaProduced 0] := by
+    ProducedMana.check (DRS.ofList []) (.producedByEvent (a isLand)) = [.outcomeInScope .manaProduced 0] := by
   decide
 
 def afterManaAdded : DRS :=
@@ -368,31 +368,31 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Action.check (DRS.ofList []) (Templates.instruct (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
+    Action.check (DRS.ofList []) (Templates.instruct (target .anyPlayer) (sacrifice (aTheirChoice isCreature))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/
 theorem badUnboundTheirChoice :
-    Action.check (DRS.ofList []) (destroy (aTheirChoice creature)) = [.chooserInScope 0] := by decide
+    Action.check (DRS.ofList []) (destroy (aTheirChoice isCreature)) = [.chooserInScope 0] := by decide
 
 /-- "Target creature becomes a black Zombie in addition to its other types." -/
 theorem okUnnamedAddition :
     Action.check (DRS.ofList [])
-      (become (target creature)
+      (become (target isCreature)
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none)
       = [] := by
   decide
 
 theorem badRepeatedAdditionColor :
     Action.check (DRS.ofList [])
-      (become (target creature)
+      (become (target isCreature)
         { characteristics :=
           { colors := [.black, .black], subtypes := [creatureType "Zombie"] } } none)
       = [.distinct] := by
   decide
 
 theorem badRepeatedAdditionType :
-    Action.check (DRS.ofList []) (become (target creature) { characteristics :=
+    Action.check (DRS.ofList []) (become (target isCreature) { characteristics :=
                                                       { types := [.artifact, .artifact] } } none)
       = [.distinct] := by
   decide

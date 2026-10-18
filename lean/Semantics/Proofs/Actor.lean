@@ -4,7 +4,7 @@ import Semantics.Check.Card
 /-!
 # Semantics.Proofs.Actor
 
-The performer of an instruction and the handoff that names another one. `actor` is whoever
+The performer of an instruction and the handoff that names another one. `theActor` is whoever
 performs the instruction it is part of: by default, the player addressed by the text
 [CR#109.5], unless an enclosing `instruct` hands it to another player or to a permanent. Each pin is closed by `decide`.
 -/
@@ -56,7 +56,7 @@ theorem okThoughtseize :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (target .anyPlayer) Actor.revealHand,
-          choose (a (.and [.not land, .and [.isCard, .in_ (handOf they)]])),
+          choose (a (.and [.not isLand, .and [.isCard, .in_ (handOf they)]])),
           instruct they (Actor.discard (that .card)),
           loseLife (.lit 2) ]) = [] := by
   decide
@@ -95,13 +95,13 @@ theorem okAmassBare : Action.check (DRS.ofList []) (Actor.amass "Orc" 2) = [] :=
 destroyed creature's controller; the reminder's "that creature" and "it" are the chosen Army. -/
 theorem okAzogControllerAmasses :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), instruct (controllerOf it) (Actor.amass "Goblin" 2)])
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (Actor.amass "Goblin" 2)])
       = [] := by
   decide
 
 /-- D′ selects the newly chosen Army after an earlier creature is destroyed. -/
 theorem amassBareItAfterDestroyChecks :
-    Action.check (DRS.ofList []) (.sequentially [destroy (target creature), amass "Goblin" 2])
+    Action.check (DRS.ofList []) (.sequentially [destroy (target isCreature), amass "Goblin" 2])
       = [] := by
   decide
 
@@ -148,7 +148,7 @@ theorem okScopedAmassHandedOff : Action.check (DRS.ofList []) (instruct (target 
 creature is outside the battlefield domain of the Army read. -/
 theorem literalAmassAfterDestroyReadsItsArmy :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), instruct (controllerOf it) literalAmass])
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) literalAmass])
       = [] := by
   decide
 
@@ -157,7 +157,7 @@ controller amasses Goblins 2." The destroyed creature is the caller's mention, m
 body, so "that creature" and "it" are the chosen Army alone. -/
 theorem okScopedAmassAfterDestroy :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), instruct (controllerOf it) scopedAmass]) = [] := by
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) scopedAmass]) = [] := by
   decide
 
 /-- The amass body with its amount a parameter, as the loader writes it: read in the caller's
@@ -180,7 +180,7 @@ is a parameter, so it reads the destroyed creature in the caller's view while th
 theorem okAzogScopedAmassX :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ destroy (target creature),
+        [ destroy (target isCreature),
           instruct (controllerOf it) (scopedAmassOf (.statOf (.stat .power) it)) ])
       = [] := by
   decide
@@ -276,7 +276,7 @@ theorem varchildsWarRidersHandoffTwin :
   decide
 
 private def controlsForest : Condition :=
-  exists_ (.and [land, .hasSubtype (landType "Forest"), .hasPossessor .controller .you])
+  exists_ (.and [isLand, .hasSubtype (landType "Forest"), .hasPossessor .controller .you])
 
 /-- Invigorate: "If you control a Forest, rather than pay this spell's mana cost, you may have an
 opponent gain 3 life." -/
@@ -293,37 +293,37 @@ theorem invigorateHandoffTwin :
   decide
 
 private def blockersTheyControl : Amount :=
-  times (.lit 1) (countOf (.and [creature, blocking, .hasPossessor .controller they]))
+  times (.lit 1) (countOf (.and [isCreature, isBlocking, .hasPossessor .controller they]))
 
 /-- Heat Wave: "Nonblue creatures can't block creatures you control unless their controller pays 1
 life for each blocking creature they control." -/
 theorem heatWaveHandoffTwin :
     Ability.check (DRS.ofList [])
         (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
-            (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) {})) = [] ∧
+            (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
+            (.block (allOf (and [isCreature, youControl]))) {})) = [] ∧
       Ability.check (DRS.ofList [])
           (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
-            (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) {})) =
+            (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
+            (.block (allOf (and [isCreature, youControl]))) {})) =
         Ability.check (DRS.ofList [])
           (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
-            (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) {})) := by
+            (.actor (allOf (.and [isCreature, .not (.colorIs .blue)])))
+            (.block (allOf (and [isCreature, youControl]))) {})) := by
   decide
 
 /-- Killing Wave: "For each creature, its controller sacrifices it unless they pay X life." -/
 theorem killingWaveHandoffTwin :
     Action.check (DRS.ofList [])
-        (Primitives.Action.doForEach (each creature)
+        (Primitives.Action.doForEach (each isCreature)
           (instruct (controllerOf it)
             (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) = [] ∧
       Action.check (DRS.ofList [])
-          (Primitives.Action.doForEach (each creature)
+          (Primitives.Action.doForEach (each isCreature)
             (instruct (controllerOf it)
               (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) =
         Action.check (DRS.ofList [])
-          (Primitives.Action.doForEach (each creature)
+          (Primitives.Action.doForEach (each isCreature)
             (instruct (controllerOf it)
               (doUnless (instruct they (sacrifice it)) (.perform (instruct they (loseLife (.letter .x))))))) := by
   decide
@@ -331,11 +331,11 @@ theorem killingWaveHandoffTwin :
 /-- "An opponent sacrifices a creature: Draw a card." (the pin
 `Keyword.badForeignSacrificeCost`, retired with `costPaidByYou` by `lean-checker-sweep-costs`) -/
 theorem foreignSacrificeCostHandoffTwin :
-    Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a creature)))) drawOne
+    Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
         none none none none) = [] ∧
-      Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a creature)))) drawOne
+      Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
           none none none none) =
-        Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a creature)))) drawOne
+        Ability.check (DRS.ofList []) (.activated (.perform (instruct anOpponent (sacrifice (a isCreature)))) drawOne
           none none none none) := by
   decide
 
@@ -382,7 +382,7 @@ theorem ownPayerCostHandoffTwin :
         Ability.check (DRS.ofList []) (.activated (payLife 2) drawOne none none none none) := by
   decide
 
-/-! ## A captured `actor` keeps its handoff -/
+/-! ## A captured `theActor` keeps its handoff -/
 
 private semantic_template capturedLifeLoss (who : NounPhrase) : Action :=
   .instruct who (.changeLife (.down (.lit 1)))
@@ -391,15 +391,15 @@ private semantic_template capturedLifeLoss (who : NounPhrase) : Action :=
 private def youPayWith (c : Cost) : Action :=
   instruct .you (Primitives.Action.offer (.pay c .once .paid none none) none (some (draw (.lit 1))))
 
-/-- With no handoff, `actor` passed through a `capture` parameter is the controller, so the
+/-- With no handoff, `theActor` passed through a `capture` parameter is the controller, so the
 controller pays their own life. -/
 theorem okCapturedActorIsYou :
-    Action.check (DRS.ofList []) (youPayWith (.perform (capturedLifeLoss actor))) = [] := by
+    Action.check (DRS.ofList []) (youPayWith (.perform (capturedLifeLoss theActor))) = [] := by
   decide
 
 /-- Inside "target opponent …", "you may pay that player's 1 life", captured or not. The payer
-"you" is a handoff back to the controller, inside which `actor` is the controller again, so the
-opponent is named "that player" (`capturedActorIsTheHandedPlayer` captures `actor` itself inside
+"you" is a handoff back to the controller, inside which `theActor` is the controller again, so the
+opponent is named "that player" (`capturedActorIsTheHandedPlayer` captures `theActor` itself inside
 the opponent's handoff). Who pays a cost is not checked (`lean-checker-sweep-costs`); the actor
 inside the inner handoff, past the capture, is still "you". -/
 theorem badCapturedActorIsTheHandedPlayer :
@@ -412,13 +412,13 @@ theorem badCapturedActorIsTheHandedPlayer :
         true := by
   decide
 
-/-- Inside "target opponent …", `actor` passed through a `capture` parameter is the opponent:
+/-- Inside "target opponent …", `theActor` passed through a `capture` parameter is the opponent:
 "Target opponent loses 1 life: Draw a card." through the captured performer is admitted as the
-uncaptured handoff is (`badHandedOffLifeCost`), and the captured `actor` still reads as the
+uncaptured handoff is (`badHandedOffLifeCost`), and the captured `theActor` still reads as the
 handed player, not "you". -/
 theorem capturedActorIsTheHandedPlayer :
     Ability.check (DRS.ofList [])
-      (.activated (.perform (instruct (target (.isOpponentOf .you)) (capturedLifeLoss actor))) (draw (.lit 1))
+      (.activated (.perform (instruct (target (.isOpponentOf .you)) (capturedLifeLoss theActor))) (draw (.lit 1))
         none none none none)
       = [] ∧
       performerIsYou (handoff (DRS.ofList []) (target (.isOpponentOf .you))) =
@@ -446,19 +446,19 @@ theorem okEachOpponentMayPayElseYouDrawUnless :
 (`Choice.okAgentScopedChoice` through the chooser slot). -/
 theorem okHandedScopedChoice :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (choose (a (.and [creature, .hasPossessor .controller they]))))
+      (instruct (each .anyPlayer) (choose (a (.and [isCreature, .hasPossessor .controller they]))))
       = [] := by
   decide
 
 /-- "Choose a creature you control.", "you" being the performer. -/
-theorem okActorControlsChoice : Action.check (DRS.ofList []) (choose (a (.and [creature, actorControls]))) = [] := by
+theorem okActorControlsChoice : Action.check (DRS.ofList []) (choose (a (.and [isCreature, actorControls]))) = [] := by
   decide
 
 /-- "You choose a creature they control.": `instruct you` publishes nothing, so "they" has no
 antecedent (`Choice.badUnchooseredTheyControl`). -/
 theorem handedToYouPossessorReadsExplicitPlayer :
     Action.check (DRS.ofList [])
-      (instruct .you (choose (a (.and [creature, .hasPossessor .controller they]))))
+      (instruct .you (choose (a (.and [isCreature, .hasPossessor .controller they]))))
       = [] := by
   decide
 
@@ -494,7 +494,7 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
         (.establish
-          (.abilityGrant (target creature)
+          (.abilityGrant (target isCreature)
             (.activated .tapSymbol
               (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
                 (some (draw (.lit 1))))
@@ -509,10 +509,10 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
 /-- "You may cast spells from your graveyard.": with no handoff in a static ability the
 permitted player is the controller, and the clause checks as the `you` spelling does. -/
 theorem okStaticActorPermission :
-    Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) = [] ∧
-      Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) =
+    Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf isSpell) (graveyardOf theActor))) = [] ∧
+      Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf isSpell) (graveyardOf theActor))) =
         Ability.check (DRS.ofList [])
-          (.static (mayPlayDeed (.action "cast") .you (allOf spell) none
+          (.static (mayPlayDeed (.action "cast") .you (allOf isSpell) none
             (some (graveyardOf .you)) none .itsOwnCost)) := by
   decide
 
@@ -521,7 +521,7 @@ exiled card's owner. -/
 theorem okHandedCastPermission :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ exile (target creature),
+        [ exile (target isCreature),
           instruct (ownerOf it) (.establish (Actor.mayCastFrom it exileZone) none) ]) = [] := by
   decide
 
@@ -532,7 +532,7 @@ deed performed by the actor in context [CR#701.9a]. -/
 theorem okDiscardWrapperCarriesActor :
     Action.check onePlayer
       (instruct they
-        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some actor))) (some graveyard) .arrival none []) none none))
+        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some theActor))) (some graveyard) .arrival none []) none none))
       = [] := by
   decide
 
@@ -664,9 +664,10 @@ theorem badForEachLossThatMuch :
 /-! ## A permanent can be handed an instruction
 
 The rules instruct a permanent itself to explore or endure [CR#701.44a,701.63a]; the handoff
-takes a permanent as well as a player. Inside it `actor` is the permanent, and the steps the rule
-gives "that permanent's controller" are handed on to `controllerOf actor`, inside which `actor`
-is the controller and the permanent stays in view as "that permanent". An object-performed deed
+takes a permanent as well as a player. Inside it `theActor` is the permanent, and the steps the
+rule gives "that permanent's controller" are handed on to `controllerOf theActor`, inside which
+`theActor` is the controller and the permanent stays in view as "that permanent". An
+object-performed deed
 written with no handoff to a permanent is performed by the source permanent. -/
 
 /-- The `explore` declaration's body [CR#701.44a]: the exploring permanent's controller reveals
@@ -674,9 +675,9 @@ the top card of their library; a land goes to its owner's hand, otherwise "that 
 a +1/+1 counter and the card may go to the graveyard. `perm` is how the body names the exploring
 permanent. -/
 private def exploreBody (perm : NounPhrase) : Action :=
-  instruct (controllerOf actor) (.sequentially
-    [ .expose .reveal (.cards (.slice .top (.lit 1) (library actor))),
-      .doIf (.matches (that .card) land) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival none [])
+  instruct (controllerOf theActor) (.sequentially
+    [ .expose .reveal (.cards (.slice .top (.lit 1) (libraryOf theActor))),
+      .doIf (.matches (that .card) isLand) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival none [])
         (some (.sequentially
           [ .putCounters (.lit 1) (.printed p1p1Counter) perm .one true,
             .withContinuation .optional
@@ -690,7 +691,7 @@ private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
 the counters on "that permanent" and the Spirit token. -/
 private def literalEndure (n : Nat) : Action :=
   .enact (.action "endure")
-    (instruct (controllerOf actor)
+    (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) .one true),
           (none, none, create (.lit 1) (creatureToken n n [.white] [creatureType "Spirit"])) ])) none none
@@ -703,7 +704,7 @@ private def literalAdapt (n : Nat) : Action :=
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/
 theorem okExploreHandedToTargetCreature :
-    Action.check (DRS.ofList []) (instruct (target creature) literalExplore) = [] := by
+    Action.check (DRS.ofList []) (instruct (target isCreature) literalExplore) = [] := by
   decide
 
 /-- Deadeye Tracker's "This creature explores.": `this` introduces nothing, so the handoff puts
@@ -715,7 +716,7 @@ theorem okExploreHandedToThisCreature :
 /-- The owner's spelling "that creature" reaches the permanent too, handed to a target creature
 or to "this creature". -/
 theorem okExploreReadsThatCreature :
-    Action.check (DRS.ofList []) (instruct (target creature) (literalExplore (that (.type .creature)))) = [] ∧
+    Action.check (DRS.ofList []) (instruct (target isCreature) (literalExplore (that (.type .creature)))) = [] ∧
       Action.check (DRS.ofList []) (instruct thisCreature (literalExplore (that (.type .creature)))) = [] := by
   decide
 
@@ -726,15 +727,15 @@ theorem okEndureHandedToThisCreature :
 
 /-- "Each creature you control explores.": a group of permanents, each exploring in turn. -/
 theorem okExploreHandedToEachCreature :
-    Action.check (DRS.ofList []) (instruct (each creature) literalExplore) = [] := by
+    Action.check (DRS.ofList []) (instruct (each isCreature) literalExplore) = [] := by
   decide
 
-/-- Inside a handoff to a permanent `actor` is that permanent: "target creature draws a card"
+/-- Inside a handoff to a permanent `theActor` is that permanent: "target creature draws a card"
 records a creature as the drawing player. Handed on to its controller, the draw checks. -/
 theorem actorInPermanentHandoffIsThePermanent :
-    Action.check (DRS.ofList []) (instruct (target creature) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (instruct (target isCreature) (draw (.lit 1)))
         = [.kindMismatch .player .object] ∧
-      Action.check (DRS.ofList []) (instruct (target creature) (instruct (controllerOf actor) (draw (.lit 1))))
+      Action.check (DRS.ofList []) (instruct (target isCreature) (instruct (controllerOf theActor) (draw (.lit 1))))
         = [] := by
   decide
 
@@ -749,7 +750,7 @@ theorem badExploreHandedToOpponent :
 /-- A graveyard card is not a permanent [CR#110.1], so this permanent-controller handoff is refused. -/
 theorem badHandoffToCardInGraveyard :
     Action.check (DRS.ofList []) (instruct (target (.and [.isCard, .in_ graveyard]))
-        (instruct (controllerOf actor) (draw (.lit 1))))
+        (instruct (controllerOf theActor) (draw (.lit 1))))
       = [.handoffPerformer] := by
   decide
 
@@ -757,7 +758,7 @@ theorem badHandoffToCardInGraveyard :
 controller, and the deed is performed by the source permanent [CR#701.46a]. -/
 theorem okBareAdaptDefaultsToThis : Action.check (DRS.ofList []) (literalAdapt 2) = [] := by decide
 
-/-- A bare "explore" and "endure 1" default to the source permanent the same way: `actor` in the
+/-- A bare "explore" and "endure 1" default to the source permanent the same way: `theActor` in the
 body is "this permanent", and "that permanent" reads it. -/
 theorem okBareExploreAndEndureDefaultToThis :
     Action.check (DRS.ofList []) literalExplore = [] ∧ Action.check (DRS.ofList []) (literalEndure 1) = [] := by
@@ -773,7 +774,7 @@ theorem badAdaptHandedToOpponent :
 /-- "Whenever a creature explores": the event's performer is a permanent, as the deed's row
 says; "whenever a player explores" is refused, while a player still bolsters. -/
 theorem exploreEventTakesAPermanent :
-    GameEvent.check (DRS.ofList []) (.does (.actor (a creature)) explore) = [] ∧
+    GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) explore) = [] ∧
       GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) explore)
         = [.kindMismatch .object .player, .possessorKind .controller .player,
             .counterSourceScope] ∧
@@ -783,7 +784,7 @@ theorem exploreEventTakesAPermanent :
 
 /-- The source and its controller remain accessible after the handoff, along with the drawn card. -/
 theorem handedToThisPublishesSourceAndController :
-    shape (instructionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf actor) (draw (.lit 1)))))
+    shape (instructionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf theActor) (draw (.lit 1)))))
       = [(.object, .one, .the), (.player, .one, .the), (.object, .one, .the)] := by
   decide
 
@@ -792,7 +793,7 @@ theorem amassBareItSelectsChosenArmy :
       | .sequentially steps => Action.sequentially (steps.take 2)
       | body => body
     let after := instructionResult (DRS.ofList [])
-      (.sequentially [destroy (target creature), stepsBeforeRead])
+      (.sequentially [destroy (target isCreature), stepsBeforeRead])
     let selected := resolveCandidates .bare .one (nextClause after)
     selected.map (·.id) = [after.nextId - 1] ∧
       selected.map (·.ty) = [[.creature]] := by decide

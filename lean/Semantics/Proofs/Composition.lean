@@ -9,14 +9,14 @@ private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 
 theorem okThreeConjunctsShareEarlierMention :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.and [target creature, it, it]) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.and [target isCreature, it, it]) = [] := by decide
 
 theorem badAlternativesCannotReadSibling :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.or [target creature, it, thisCreature]) =
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.or [target isCreature, it, thisCreature]) =
       [.anaphor .bare .one 0] := by decide
 
 theorem okAlternativesReadOuterMention :
-    NounPhrase.checkAt (some .object) (nounResult (DRS.ofList []) (target creature))
+    NounPhrase.checkAt (some .object) (nounResult (DRS.ofList []) (target isCreature))
       (.or [it, thisCreature, it]) = [] := by decide
 
 theorem badEmptyConjunction :
@@ -49,19 +49,19 @@ theorem okCostAlternativeKeepsSymbolProperties :
   decide
 
 theorem okOptionalSuccessReadsBody :
-    Action.check (DRS.ofList []) (.withContinuation .optional (exile (a creatureYouControl))
+    Action.check (DRS.ofList []) (.withContinuation .optional (exile (a (and [isCreature, youControl])))
       (some (move it battlefield)) none) = [] := by decide
 
 theorem badOptionalFailureReadsBody :
-    Action.check (DRS.ofList []) (.withContinuation .optional (exile (a creatureYouControl))
+    Action.check (DRS.ofList []) (.withContinuation .optional (exile (a (and [isCreature, youControl])))
       none (some (exile it))) = [.anaphor .bare .one 0] := by decide
 
 theorem okRequiredSuccessReadsBody :
-    Action.check (DRS.ofList []) (.withContinuation .required (exile (a creatureYouControl))
+    Action.check (DRS.ofList []) (.withContinuation .required (exile (a (and [isCreature, youControl])))
       (some (move it battlefield)) none) = [] := by decide
 
 theorem badRequiredFailureReadsBody :
-    Action.check (DRS.ofList []) (.withContinuation .required (exile (a creatureYouControl))
+    Action.check (DRS.ofList []) (.withContinuation .required (exile (a (and [isCreature, youControl])))
       none (some (exile it))) = [.anaphor .bare .one 0] := by decide
 
 theorem okNumericDefinitionAsCost :

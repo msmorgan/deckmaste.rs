@@ -38,8 +38,8 @@ theorem pureTypePermutation (xs ys : List CardType) (h : xs.Perm ys) :
   intro t
   exact h.mem_iff
 
-private def artifactCreature : Predicate := .and [artifact, creature]
-private def creatureArtifact : Predicate := .and [creature, artifact]
+private def artifactCreature : Predicate := .and [isArtifact, isCreature]
+private def creatureArtifact : Predicate := .and [isCreature, isArtifact]
 private def afterTarget (p : Predicate) : DRS := (stepNounPhrase 64 (DRS.ofList []) .other false (target p)).1
 
 theorem artifactFirstReadsCreature :
@@ -81,21 +81,21 @@ theorem movedEvidenceDoesNotInventLand :
     countReach (.word (.ofType .card .land)) .one (afterExile artifactCreature) = 0 := by decide
 
 theorem disjunctionCannotPromiseCreature :
-    countReach (.word (.type .creature)) .one (afterTarget (.or [artifact, creature])) = 0 := by decide
+    countReach (.word (.type .creature)) .one (afterTarget (.or [isArtifact, isCreature])) = 0 := by decide
 
 theorem disjunctionCannotPromiseArtifact :
-    countReach (.word (.type .artifact)) .one (afterTarget (.or [artifact, creature])) = 0 := by decide
+    countReach (.word (.type .artifact)) .one (afterTarget (.or [isArtifact, isCreature])) = 0 := by decide
 
 theorem disjunctionKeepsSharedCreature :
     countReach (.word (.type .creature)) .one
-      (afterTarget (.or [artifactCreature, .and [land, creature]])) = 1 := by decide
+      (afterTarget (.or [artifactCreature, .and [isLand, isCreature]])) = 1 := by decide
 
 theorem disjunctionDoesNotKeepUnsharedArtifact :
     countReach (.word (.type .artifact)) .one
-      (afterTarget (.or [artifactCreature, .and [land, creature]])) = 0 := by decide
+      (afterTarget (.or [artifactCreature, .and [isLand, isCreature]])) = 0 := by decide
 
 theorem conjunctionDistributesThroughAlternatives :
-    Predicate.headTyAlts (.and [.or [artifact, land], creature]) =
+    Predicate.headTyAlts (.and [.or [isArtifact, isLand], isCreature]) =
       [[.creature, .artifact], [.creature, .land]] := by decide
 
 private def joined : DRS := afterTarget (.or [artifactCreature, .anyPlayer])
@@ -111,7 +111,7 @@ theorem joinedObjectHalfDoesNotInventLand :
 
 theorem joinedObjectHalfDoesNotBorrowBetweenAlternatives :
     countReach (.unionHalf (.type .artifact)) .one
-      (afterTarget (.or [artifactCreature, creature, .anyPlayer])) = 0 := by decide
+      (afterTarget (.or [artifactCreature, isCreature, .anyPlayer])) = 0 := by decide
 
 theorem multipleTypeRefinementsCanDescribeEquipmentHost :
     attachHeadOk .equipped (.ofType (.type .artifact) .creature) = true := by decide

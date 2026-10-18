@@ -49,33 +49,33 @@ theorem badStateBasedLossPatientRole :
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
     Action.check (DRS.ofList [])
-      (.establish (.cant .any (.block (target creature)) {})
+      (.establish (.cant .any (.block (target isCreature)) {})
         (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature can't be attacked this turn." -/
 theorem badCantBeAttacked :
     Action.check (DRS.ofList [])
-      (.establish (.cant .any (.attack (some (target creature))) {})
+      (.establish (.cant .any (.attack (some (target isCreature))) {})
         (some thisTurn)) = [.deedFits] := by
   decide
 
 /-- "Target creature card in a graveyard can't block this turn." -/
 theorem badCantInGraveyard :
-    Action.check (DRS.ofList []) (forbidBlock (target (.and [creature, .in_ graveyard])) (some
+    Action.check (DRS.ofList []) (forbidBlock (target (.and [isCreature, .in_ graveyard])) (some
         soFarThisTurn))
       = [.deedFits] := by
   decide
 
 /-- "creature with power 2 or less" -/
 theorem okCreaturePower :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), creature])
+    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), isCreature])
       = [] := by
   decide
 
 /-- "noncreature with power 2 or less" -/
 theorem badNoncreaturePower :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), .not creature])
+    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), .not isCreature])
       = [.contradictionFree] := by
   decide
 
@@ -108,7 +108,7 @@ theorem okPayLifeCost : Action.check (DRS.ofList []) (.pay (payLife 2) .once .pa
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okDeedAsCost :
-    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a creature))) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (activatedAbility (.perform (sacrifice (a isCreature))) (draw (.lit 1))) = [] := by
   decide
 
 /-- a reflexive trigger written as a cost: the reflexive trigger's enclosure law fails on the
@@ -124,7 +124,7 @@ theorem okCompoundCost :
     Ability.check (DRS.ofList [])
       (activatedAbility
         (.compound
-          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a creature))])
+          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a isCreature))])
         (draw (.lit 1))) = [] := by
   decide
 
@@ -134,7 +134,7 @@ theorem badEmptyCompound :
 
 /-- "Creatures can't attack." -/
 theorem okStaticUntargeting :
-    Ability.check (DRS.ofList []) (.static (.cant (.actor (allOf creature)) (.attack none) {}))
+    Ability.check (DRS.ofList []) (.static (.cant (.actor (allOf isCreature)) (.attack none) {}))
       = [] := by
   decide
 
@@ -149,7 +149,7 @@ theorem okPlayFromGraveyard :
 theorem okPlayLandFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.can (.actor .you) (.procedure .play (a (.and [land, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
+        (.can (.actor .you) (.procedure .play (a (.and [isLand, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
       = [] := by
   decide
 
@@ -157,7 +157,7 @@ theorem okPlayLandFromGraveyard :
 theorem okCastCreatureFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.can (.actor .you) (.procedure .cast (a (.and [creature, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
+        (.can (.actor .you) (.procedure .cast (a (.and [isCreature, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
       = [] := by
   decide
 
@@ -166,7 +166,7 @@ theorem okUnlessOnNegated :
     Ability.check (DRS.ofList [])
       (.static
         (.conditional (.cant (.actor thisCreature) (.attack none) {})
-          (.not (exists_ (.and [artifact, .hasPossessor .controller .you]))) .unless_)) = [] := by
+          (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .unless_)) = [] := by
   decide
 
 /-- "unless" -/
@@ -174,14 +174,14 @@ theorem badUnlessOnPositive :
     Ability.check (DRS.ofList [])
       (.static
         (.conditional (.cant (.actor thisCreature) (.attack none) {})
-          (exists_ (.and [artifact, .hasPossessor .controller .you])) .unless_))
+          (exists_ (.and [isArtifact, .hasPossessor .controller .you])) .unless_))
       = [.markingOk] := by
   decide
 
 /-- "Target creature attacks each combat if able." -/
 theorem okMustAttackCreature :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.attack none) {})
+      (.establish (.must (.actor (target isCreature)) (.attack none) {})
         (some thisTurn)) = [] := by
   decide
 
@@ -190,7 +190,7 @@ land type [CR#205.1b]. This fixture keeps the requirement available if it can at
 [CR#508.1a]. -/
 theorem okMustAttackLand :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target land)) (.attack none) {})
+      (.establish (.must (.actor (target isLand)) (.attack none) {})
         (some thisTurn)) = [] := by
   decide
 
@@ -209,7 +209,7 @@ theorem badMonarchHolder :
 /-- "target creature you control that is your Ring-bearer" -/
 theorem okRingBearerOnBattlefield :
     Predicate.checkAt .object (DRS.ofList [])
-      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .in_ battlefield]) = [] := by
+      (.and [isCreature, .hasDesignation (.named "ringBearer") (some .you), .in_ battlefield]) = [] := by
   decide
 
 /-- "This creature can't attack target planeswalker this turn." -/
@@ -222,13 +222,13 @@ theorem okForbidAttackPlaneswalker :
 /-- "Target creature blocks itself this turn." -/
 theorem badBlocksItself :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.block (.refl .one)) {})
+      (.establish (.must (.actor (target isCreature)) (.block (.refl .one)) {})
         (some thisTurn)) = [.deonticPatientOk] := by
   decide
 
 theorem bareBlockPatientCannotReadItsCoargument :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.block it) {})
+      (.establish (.must (.actor (target isCreature)) (.block it) {})
         (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
 /-- "Enchanted creature can't block." -/
@@ -255,7 +255,7 @@ theorem okCoordinatedLandHostBlocks :
 theorem okTheDamageAfterDealing :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 4) (target creature) .any)),
+        [ (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any)),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ]) = [] := by
   decide
 
@@ -269,7 +269,7 @@ theorem badTheDamageAfterLifeGain :
   decide
 
 def afterDamageDealt : DRS :=
-  instructionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target creature) .any))
+  instructionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any))
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :
@@ -286,20 +286,20 @@ theorem badTheDamageUnannounced :
 /-- "You may cast spells as though they had flash." -/
 theorem okObjectPremiseAtCast :
     StaticSpec.check (DRS.ofList [])
-      (.can (.actor .you) (.procedure .cast (allOf spell) .itsOwnCost none none none) { asThough := (some (.condition (.matches (.pro .bare .many) (.hasKeyword (.the (.named "flash")))))) }) = [] := by
+      (.can (.actor .you) (.procedure .cast (allOf isSpell) .itsOwnCost none none none) { asThough := (some (.condition (.matches (.pro .bare .many) (.hasKeyword (.the (.named "flash")))))) }) = [] := by
   decide
 
 /-- "This creature can't be blocked by more than one creature." -/
 theorem okBlockBoundOnBlock :
     StaticSpec.check (DRS.ofList [])
-      (.cant (.by (counted (.moreThanOf (.lit 1)) creature)) (.block thisCreature) {}) = [] := by
+      (.cant (.by (counted (.moreThanOf (.lit 1)) isCreature)) (.block thisCreature) {}) = [] := by
   decide
 
 /-- "Spells and abilities can't be countered.": an effect that says so counters abilities
 [CR#113.9], so the Counter deed's patient admits a spell or an ability. -/
 theorem okCantCounterSpellsAndAbilities :
     StaticSpec.check (DRS.ofList [])
-      (objectCant (.action "counter") (allOf (.or [spell, .abilityHead .anyActivated])))
+      (objectCant (.action "counter") (allOf (.or [isSpell, .abilityHead .anyActivated])))
       = [] := by
   decide
 
@@ -311,20 +311,20 @@ theorem okCantCounterAbilities :
 
 /-- "Creatures can't be countered.": only a spell or an ability on the stack is countered. -/
 theorem badCantCounterCreatures :
-    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (allOf creature)) = [.deedFits] := by decide
+    StaticSpec.check (DRS.ofList []) (objectCant (.action "counter") (allOf isCreature)) = [.deedFits] := by decide
 
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Action.check (DRS.ofList [])
       (.doOnlyIf (.sequentially [Templates.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
-          creature)
+          isCreature)
         none) = [] := by
   decide
 
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
-      (.doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a creature))) (.action "regenerate")
+      (.doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature))) (.action "regenerate")
         (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
   decide
 
@@ -340,7 +340,7 @@ able." No printed card on the bench. -/
 theorem goadedAttacksOther :
     Action.check (DRS.ofList [])
       (.establish
-        (.must (.actor (target creature)) (.attack (some (a otherPlayer))) {})
+        (.must (.actor (target isCreature)) (.attack (some (a isOtherPlayer))) {})
         (some untilYourNextTurn)) = [] := by
   decide
 
@@ -357,13 +357,13 @@ theorem okGatedCostReadsPayer :
     StaticSpec.check [letterB .x]
       (.gatedBy (Primitives.Cost.scaled (.mana [generic 1])
             (times (.letter .x)
-              (countOf (.and [creature, attacking, .hasPossessor .controller they])))) (.actor (allOf creature)) (.attack none) {}) = [] := by
+              (countOf (.and [isCreature, isAttacking, .hasPossessor .controller they])))) (.actor (allOf isCreature)) (.attack none) {}) = [] := by
   decide
 
 /-- "{X} for each attacking creature": the same scaled cost with no read. -/
 theorem okBareScaledCost :
     Cost.check [letterB .x]
-      (Primitives.Cost.scaled (.mana [generic 1]) (times (.letter .x) (countOf (.and [creature, attacking])))) = [] := by
+      (Primitives.Cost.scaled (.mana [generic 1]) (times (.letter .x) (countOf (.and [isCreature, isAttacking])))) = [] := by
   decide
 
 /-- The same cost written on its own: outside the clause there is no payer to read, and a cost
@@ -371,7 +371,7 @@ carries no agent context of its own. -/
 theorem badBareCostReadsPayer :
     Cost.check [letterB .x]
       (Primitives.Cost.scaled (.mana [generic 1])
-        (times (.letter .x) (countOf (.and [creature, attacking, .hasPossessor .controller they]))))
+        (times (.letter .x) (countOf (.and [isCreature, isAttacking, .hasPossessor .controller they]))))
       = [.anaphor (.word .player) .one 0] := by
   decide
 
@@ -385,19 +385,19 @@ quantity, the rate the rule's timing. -/
 theorem okMoreThanOneSpellEachTurn :
     StaticSpec.check (DRS.ofList [])
       (.cant (.actor (each .anyPlayer))
-        (.procedure .cast (counted (.moreThanOf (.lit 1)) spell) .itsOwnCost none none none)
+        (.procedure .cast (counted (.moreThanOf (.lit 1)) isSpell) .itsOwnCost none none none)
         { timing := some (.inPart .turn none (.each none)) }) = [] := by decide
 
 /-- "You may play an additional land on each of your turns." -/
 theorem okAdditionalLandEachOfYourTurns :
     StaticSpec.check (DRS.ofList [])
-      (.can (.actor .you) (.procedure .play (counted (.additional (exactly 1)) land) .itsOwnCost none none none)
+      (.can (.actor .you) (.procedure .play (counted (.additional (exactly 1)) isLand) .itsOwnCost none none none)
         { timing := some (.inPart .turn (some .you) (.each (some .you))) }) = [] := by decide
 
 /-- The rule's timing is checked: a "that turn" with no turn named before it reads nothing. -/
 theorem badDeonticTimingReadsNoTurn :
     StaticSpec.check (DRS.ofList [])
-      (.can (.actor .you) (.procedure .play (a land) .itsOwnCost none none none)
+      (.can (.actor .you) (.procedure .play (a isLand) .itsOwnCost none none none)
         { timing := some (.inPart .turn none .that) }) = [.turnAntecedent 0] := by decide
 
 /-- "This creature can attack as though it didn't have defender.": the "as though" clause's

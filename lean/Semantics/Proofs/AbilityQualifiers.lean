@@ -83,7 +83,7 @@ theorem badSpeedOfAnObject :
 /-! ## Printed-position selection -/
 
 def grantBelowBackup : Ability :=
-  .static (abilityGrantSelected (target creature) thisCreature (.printedAfter backupLabel))
+  .static (abilityGrantSelected (target isCreature) thisCreature (.printedAfter backupLabel))
 
 /-- Required pin: "the abilities printed below backup" checks as a grant [CR#702.165a]. -/
 theorem okPrintedAfterGrant : Ability.check (DRS.ofList []) grantBelowBackup = [] := by decide
@@ -101,7 +101,7 @@ theorem okPrintedAfterPresentKeyword :
 
 /-- An unknown keyword is refused as a keyword term. -/
 theorem badPrintedAfterUnknownKeyword :
-    Ability.check (DRS.ofList []) (.static (abilityGrantSelected (target creature) thisCreature
+    Ability.check (DRS.ofList []) (.static (abilityGrantSelected (target isCreature) thisCreature
       (.printedAfter (.named "bakcup")))) = [.knownKeywordTerm] := by
   decide
 

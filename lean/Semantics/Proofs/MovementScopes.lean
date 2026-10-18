@@ -165,7 +165,7 @@ theorem explicitSourceCarrierSuppliesItsZone :
 
 theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (searchLibraryFor (exactly 1) instantOrSorcery)).1
+      (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched)
       (.sequentially [revealCards it, shuffle])
     let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
@@ -181,7 +181,7 @@ theorem revealedTopCardDoesNotAcquireSearchProvenance :
 
 theorem zoneMoveClearsSearchProvenance :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
-      (searchLibraryFor (exactly 1) instantOrSorcery)).1
+      (searchLibraryFor (exactly 1) isInstantOrSorcery)).1
     let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (move it hand)
     errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
 

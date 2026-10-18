@@ -31,10 +31,10 @@ def gift : LinkSource := .byKeyword (.named "gift")
 def kicker : LinkSource := .byKeyword (.named "kicker")
 
 /-- "if this is a permanent card" -/
-def onPermanentCard : Condition := .matches .this permanentCard
+def onPermanentCard : Condition := .matches .this isPermanentCard
 
 /-- "if this is an instant or sorcery" -/
-def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
+def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
 def chosenDraws : Action := instruct (chosenAsPaid (.named "gift") .this) (draw (.lit 1))
@@ -64,7 +64,7 @@ theorem okGiftReadsChosenPlayer :
 /-- Required pin: this fixture requests a local chosen player without a preceding choice or
 an explicit linked facet. Linked abilities can instead read their paired choice [CR#607.2d]. -/
 theorem badUnlinkedChosenPlayer :
-    Ability.check (DRS.ofList []) (.spell none (instruct (the chosenPlayer) (draw (.lit 1))))
+    Ability.check (DRS.ofList []) (.spell none (instruct (the isChosenPlayer) (draw (.lit 1))))
       = [.choiceRef .theChoice .player 0] := by
   decide
 
