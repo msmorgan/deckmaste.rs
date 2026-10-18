@@ -3,7 +3,6 @@
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
-use std::collections::HashMap;
 use std::ops::Range;
 
 use deckmaste_lexical::Binding;
@@ -21,7 +20,7 @@ use crate::step::ChildView;
 use crate::step::Gap;
 use crate::step::Summary;
 use crate::step::Symbol;
-use crate::walk::NodeMemo;
+use crate::walk::ForestMemo;
 use crate::walk::Visit;
 
 /// One whole tree: a grammatical analysis of an expression.
@@ -75,7 +74,7 @@ impl Parse<'_> {
     /// unary cycle contributes no Derivation of its own.
     #[must_use]
     pub fn derivation_count(&self) -> u128 {
-        let mut memo = NodeMemo::default();
+        let mut memo = ForestMemo::default();
         self.forest
             .roots
             .iter()
@@ -83,8 +82,8 @@ impl Parse<'_> {
             .fold(0u128, u128::saturating_add)
     }
 
-    fn count_node(&self, node: usize, memo: &mut NodeMemo<u128>) -> u128 {
-        let frame = match memo.enter(node) {
+    fn count_node(&self, node: usize, memo: &mut ForestMemo<u128, u128>) -> u128 {
+        let frame = match memo.nodes.enter(node) {
             Visit::Known(count) => return count,
             Visit::Cycle => return 0,
             Visit::Open(frame) => frame,
@@ -93,11 +92,15 @@ impl Parse<'_> {
         for &(_, item) in &self.forest.nodes[node].families {
             total = total.saturating_add(self.count_item(item, memo));
         }
-        memo.leave(frame, &total);
+        memo.nodes.leave(frame, &total);
         total
     }
 
-    fn count_item(&self, item: usize, memo: &mut NodeMemo<u128>) -> u128 {
+    fn count_item(&self, item: usize, memo: &mut ForestMemo<u128, u128>) -> u128 {
+        if let Some(&count) = memo.items.get(&item) {
+            return count;
+        }
+        let mark = memo.nodes.mark();
         let mut total = 0u128;
         for &(previous, child) in &self.forest.items[item].families {
             let before = previous.map_or(1, |p| self.count_item(p, memo));
@@ -106,6 +109,9 @@ impl Parse<'_> {
                 ChildRef::Leaf(_) | ChildRef::Punct => 1,
             };
             total = total.saturating_add(before.saturating_mul(here));
+        }
+        if memo.nodes.settle(mark) {
+            memo.items.insert(item, total);
         }
         total
     }
@@ -127,7 +133,7 @@ impl Parse<'_> {
     }
 
     fn ranked(&self, limit: Option<usize>) -> Vec<Reading> {
-        let mut memo = TreeMemo::default();
+        let mut memo = ForestMemo::default();
         let mut all = BTreeSet::new();
         for &root in &self.forest.roots {
             all.extend(self.node_trees(root, limit, &mut memo));
@@ -214,13 +220,7 @@ impl Parse<'_> {
     }
 }
 
-/// Memoized trees of forest nodes and child sequences of items. Items share
-/// prefixes across Derivations, so each item's sequences are built once.
-#[derive(Default)]
-struct TreeMemo {
-    nodes: NodeMemo<Vec<(u64, Reading)>>,
-    items: HashMap<usize, Vec<(u64, Vec<Reading>)>>,
-}
+type TreeMemo = ForestMemo<Vec<(u64, Reading)>, Vec<(u64, Vec<Reading>)>>;
 
 /// The cheapest `limit` entries of an ordered set, or all of them.
 fn truncate<T: Ord>(set: BTreeSet<(u64, T)>, limit: Option<usize>) -> Vec<(u64, T)> {

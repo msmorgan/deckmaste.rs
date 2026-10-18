@@ -2,7 +2,6 @@
 //! trees.
 
 use std::collections::BTreeSet;
-use std::collections::HashMap;
 
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::LexicalReading;
@@ -14,7 +13,7 @@ use crate::reading::AdmissionError;
 use crate::reading::Reading;
 use crate::reading::glues_after;
 use crate::reading::glues_before;
-use crate::walk::NodeMemo;
+use crate::walk::ForestMemo;
 use crate::walk::Visit;
 
 /// Where some Reading of a Parse would not realize as the analyzed text.
@@ -39,11 +38,7 @@ pub enum RealizationFault {
 type Edges = (bool, bool);
 
 /// Memoized edge sets of forest nodes and items.
-#[derive(Default)]
-struct EdgeMemo {
-    nodes: NodeMemo<BTreeSet<Edges>>,
-    items: HashMap<usize, BTreeSet<Edges>>,
-}
+type EdgeMemo = ForestMemo<BTreeSet<Edges>, BTreeSet<Edges>>;
 
 impl Parse<'_> {
     /// Round-trip law 1 over the whole forest: every Reading realizes as the

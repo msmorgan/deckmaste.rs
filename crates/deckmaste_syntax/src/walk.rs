@@ -83,3 +83,21 @@ impl<T: Clone> NodeMemo<T> {
         clean
     }
 }
+
+/// Results of forest nodes and of items. Items share prefixes across
+/// Derivations, so each item's result is built once; like a node's, it is
+/// kept only when no cycle lies below it ([`NodeMemo::mark`] and
+/// [`NodeMemo::settle`]).
+pub(crate) struct ForestMemo<N, I> {
+    pub(crate) nodes: NodeMemo<N>,
+    pub(crate) items: HashMap<usize, I>,
+}
+
+impl<N, I> Default for ForestMemo<N, I> {
+    fn default() -> Self {
+        Self {
+            nodes: NodeMemo::default(),
+            items: HashMap::new(),
+        }
+    }
+}
