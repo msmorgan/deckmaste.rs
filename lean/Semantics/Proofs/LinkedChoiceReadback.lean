@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -21,7 +20,7 @@ The definition-fit pins hold a row written here, shaped as gift's, from before g
 `Proofs/GiftVariants.lean` checks gift's variants against the registry's own row.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.LinkedChoiceReadback
 
@@ -43,7 +42,7 @@ def chosenDraws : Action := instruct (chosenAsPaid (.named "gift") .this) (draw 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
 def permanentHalf : Ability :=
-  triggeredIf (Declared.enters thisPermanent none) onPermanentCard
+  triggeredIf (enters thisPermanent none) onPermanentCard
     (doIf (costWasPaid gift none .this) chosenDraws)
 
 /-- Gift's spell half: "If this is an instant or sorcery, if this spell's gift cost was paid, the

@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Turn.idr`: the pins of the Turn family, i
 form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Turn
 
@@ -76,7 +75,7 @@ theorem okSacrificeOnBattlefield :
 
 theorem badDeadCreatureRead :
     Action.check (DRS.ofList [])
-      (.delay (Declared.dies (target creature)) [] (some thisTurn)
+      (.delay (dies (target creature)) [] (some thisTurn)
         (move (that (.type .creature)) battlefield))
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -414,19 +413,19 @@ theorem badTokenDuplicateSupertype :
 
 theorem okExtraTurnAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target (.isOpponentOf .you)) (extraTurn (lifeTotalOf they))) = [] := by decide
+      (Templates.instruct (target (.isOpponentOf .you)) (extraTurn (lifeTotalOf they))) = [] := by decide
 
 theorem badExtraTurnAmountReadsSubject :
     Action.check [qualityB .color]
       (extraTurn (lifeTotalOf they)) = [.anaphor (.word .player) .one 0] := by decide
 
 theorem badExtraTurnForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (extraTurn (lifeTotalOf (target (.isOpponentOf .you)))))
+    Action.check (DRS.ofList []) (Templates.instruct they (extraTurn (lifeTotalOf (target (.isOpponentOf .you)))))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))]) =
+      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
@@ -435,7 +434,7 @@ theorem okExtraTurnNestedAmountIntroducesLetterOnce :
 
 theorem okSkipNextAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target (.isOpponentOf .you)) (.skipPart .drawStep (lifeTotalOf they))) = [] := by decide
+      (Templates.instruct (target (.isOpponentOf .you)) (.skipPart .drawStep (lifeTotalOf they))) = [] := by decide
 
 theorem badSkipNextAmountReadsSubject :
     Action.check [qualityB .color]
@@ -444,12 +443,12 @@ theorem badSkipNextAmountReadsSubject :
   decide
 
 theorem badSkipNextForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you)))))
+    Action.check (DRS.ofList []) (Templates.instruct they (.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you)))))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okSkipNextAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))])
+      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
       = [] := by
   decide
 
@@ -459,7 +458,7 @@ theorem okSkipNextNestedAmountIntroducesLetterOnce :
 
 theorem okAdditionalPartAmountReadsSubject :
     Action.check [qualityB .color]
-      (Macros.instruct (target (.isOpponentOf .you)) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none))
+      (Templates.instruct (target (.isOpponentOf .you)) (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf they) none))
       = [] := by
   decide
 
@@ -470,12 +469,12 @@ theorem badAdditionalPartAmountReadsSubject :
   decide
 
 theorem badAdditionalPartForwardSubject :
-    Action.check (DRS.ofList []) (Macros.instruct they (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none))
+    Action.check (DRS.ofList []) (Templates.instruct they (Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none))
       = [.anaphor (.word .player) .one 0] := by decide
 
 theorem okAdditionalPartAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Macros.instruct they (.draw
+      [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Templates.instruct they (.draw
           (.lit 1))])
       = [] := by
   decide
@@ -502,7 +501,7 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipUntap (target creature) (lifeTotalOf (target (.isOpponentOf .you))), Macros.instruct they (.draw (.lit 1))])
+      [.skipUntap (target creature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :

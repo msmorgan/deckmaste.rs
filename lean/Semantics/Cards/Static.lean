@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Choice
 import Semantics.Cards.Trigger
@@ -15,7 +15,7 @@ the bench items beside them.
 under the printed-star ruling, and the characteristic-defining clauses set them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -37,7 +37,7 @@ theorem okTimeVaultLock : Ability.check (DRS.ofList []) timeVaultLock = [] := by
 def hymnOfRebirth : Action :=
   putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.in_ graveyard]))
 theorem okHymnOfRebirth : Action.check (DRS.ofList []) hymnOfRebirth = [] := by decide
-def counterspell : Action := Primitives.Action.counterSpell (target spell)
+def counterspell : Action := Action.counterSpell (target spell)
 theorem okCounterspell : Action.check (DRS.ofList []) counterspell = [] := by decide
 
 def anthemOfChampions : Spelled := spelled <| .singleFaced
@@ -177,7 +177,7 @@ def anointedProcession : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Anointed Procession", cost := some [generic 3, pip .white], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Primitives.Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ] } }
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ] } }
 
 def naturalAffinity : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -393,7 +393,7 @@ def dovinsVeto : Spelled := spelled <| .singleFaced
     { name := "Dovin's Veto", cost := some [pip .white, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.static (objectCant (.action "counter") thisSpell),
-          Primitives.Ability.spell none (Primitives.Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.not creature]))) ] } }
+          Primitives.Ability.spell none (Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.not creature]))) ] } }
 
 def goblinSpy : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -636,7 +636,7 @@ def thwart : Spelled := spelled <| .singleFaced
               (counted (exactly 3)
                 (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Island"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               hand)))),
-          Primitives.Ability.spell none (Primitives.Action.counterSpell (target spell)) ] } }
+          Primitives.Ability.spell none (Action.counterSpell (target spell)) ] } }
 
 def theLadyOfOtariaLine : StaticSpec :=
   Primitives.StaticSpec.altCost Primitives.NounPhrase.this

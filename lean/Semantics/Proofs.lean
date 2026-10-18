@@ -13,6 +13,7 @@ import Semantics.Proofs.ControllerSacrifice
 import Semantics.Proofs.CorpusRecency
 import Semantics.Proofs.Counters
 import Semantics.Proofs.Damage
+import Semantics.Proofs.DefinitionsAndTemplates
 import Semantics.Proofs.Deontic
 import Semantics.Proofs.Description
 import Semantics.Proofs.DrtCards

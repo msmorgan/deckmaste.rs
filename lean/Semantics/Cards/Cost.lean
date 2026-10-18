@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Description
 import Semantics.Cards.Keyword
@@ -15,7 +15,7 @@ them; the file's `Refl` pins on `costLetters` are theorems.
 Not ported: `missyChaosBranch` ("chaos ensues" is Planechase, out of scope).
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -104,7 +104,7 @@ theorem okGoadTargetCreature : Ability.check (DRS.ofList []) goadTargetCreature 
 def krenko : Ability :=
   activated Primitives.Cost.tapSymbol
     (Primitives.Action.sequentially
-      [ Primitives.Action.create (Primitives.Amount.letter .x) (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Goblin"])) [],
+      [ Action.create (Primitives.Amount.letter .x) (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Goblin"])) [],
         Primitives.Action.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Goblin"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) ])
 theorem okKrenko : Ability.check (DRS.ofList []) krenko = [] := by decide
 /-- Dokai, Weaver of Life -/
@@ -623,7 +623,7 @@ def forceOfWill : Spelled := spelled <| .singleFaced
             (some (Primitives.Cost.compound
               [ payLife 1,
                 Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)]))) ]))),
-          Primitives.Ability.spell none (Primitives.Action.counterSpell (target spell)) ] } }
+          Primitives.Ability.spell none (Action.counterSpell (target spell)) ] } }
 
 def demonOfDeathsGate : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -765,7 +765,7 @@ theorem okGeneralTazriPump : Ability.check (DRS.ofList []) generalTazriPump = []
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ yourHand])))])
-    (Primitives.Action.counterSpell
+    (Action.counterSpell
       (target (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.targets (a creature) .someTarget])))
 theorem okDiplomaticEscortLine : Ability.check (DRS.ofList []) diplomaticEscortLine = [] := by decide
 
@@ -864,7 +864,7 @@ def embercleave : Spelled := spelled <| .singleFaced
         [ keyword (.named "flash"),
           Primitives.Ability.static (Primitives.StaticSpec.costShift Primitives.NounPhrase.this
             (Primitives.CostShift.less (forEach 1 (Primitives.Predicate.and [creature, attacking, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) none)),
-          when (Primitives.GameEvent.enters thisEquipment none) (Primitives.Action.attachTo it (target creatureYouControl)),
+          when (Primitives.GameEvent.enters thisEquipment none) (Action.attachTo it (target creatureYouControl)),
           Primitives.Ability.static (Primitives.StaticSpec.conjunction (some (Primitives.NounPhrase.attachHost .equipped (.type .creature)))
             [ getsPt ((Primitives.NounPhrase.attachHost .equipped (.type .creature))) (Primitives.Delta.up (.lit
                 1)) (Primitives.Delta.up

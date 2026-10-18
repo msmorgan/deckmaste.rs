@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Keyword
@@ -11,7 +11,7 @@ Port of `idris/src/Experimental/Cards/Mana.idr`: the printed cards of the Mana f
 bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -502,7 +502,7 @@ def disruptingShoal : Spelled := spelled <| .singleFaced
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
                         Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none
-            (Primitives.Action.doOnlyIf (Primitives.Action.counterSpell (target spell))
+            (Primitives.Action.doOnlyIf (Action.counterSpell (target spell))
               (Primitives.Condition.compareAmt (Primitives.Amount.statOf (.stat .manaValue) it) .eq (Primitives.Amount.letter .x)) none) ] } }
 
 def blazingShoal : Spelled := spelled <| .singleFaced
@@ -546,7 +546,7 @@ def spellSnare : Spelled := spelled <| .singleFaced
     { name := "Spell Snare", cost := some [pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none
-            (Primitives.Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.compare [.stat .manaValue] .eq (.lit 2)]))) ] } }
+            (Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.compare [.stat .manaValue] .eq (.lit 2)]))) ] } }
 
 def isolate : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -851,10 +851,10 @@ def prismariPianist : Spelled := spelled <| .singleFaced
         [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a
           (Primitives.Predicate.and [instantOrSorcery, spell]))) Primitives.PlayPayment.itsOwnCost none none none))
             (Primitives.Action.replace
-              (Primitives.Action.create (.lit 1)
+              (Action.create (.lit 1)
                 (Primitives.TokenSpec.written (creatureToken 1 1 [.blue, .red] [creatureType "Elemental"])) [])
               (Primitives.Action.doIf (Primitives.Condition.compareAmt (Primitives.Amount.statOf (.stat .manaValue) (that .spell)) .atLeast (.lit 5))
-                (Primitives.Action.create (.lit 3) Primitives.TokenSpec.asThose []) none)) ],
+                (Action.create (.lit 3) Primitives.TokenSpec.asThose []) none)) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Collected Company -/
@@ -1142,7 +1142,7 @@ theorem okPsychicVortexUpkeep : Ability.check (DRS.ofList []) psychicVortexUpkee
 /-- Varchild's War-Riders -/
 def varchildsWarRidersUpkeep : Ability :=
   cumulativeUpkeep
-    (Primitives.Cost.perform (instruct anOpponent (Primitives.Action.create (.lit 1)
+    (Primitives.Cost.perform (instruct anOpponent (Action.create (.lit 1)
       (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [])))
 theorem okVarchildsWarRidersUpkeep : Ability.check (DRS.ofList []) varchildsWarRidersUpkeep = [] := by decide
 

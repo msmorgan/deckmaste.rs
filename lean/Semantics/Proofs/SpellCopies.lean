@@ -1,7 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
-import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.SpellCopies
@@ -14,7 +13,7 @@ Casualty, replicate, epic and conspire are pinned here with gravestorm, whose na
 re-spelled away, and the extent `TargetExtent.only` ("targets only …" [CR#115.9c]).
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.SpellCopies
 
@@ -40,7 +39,6 @@ Each keyword's declared definition, as `cargo xtask lean macros` derives it from
 declaration, checks clean as an ability. -/
 
 namespace Bodies
-open Semantics.Macros.Declared (casualty replicate epic conspire gravestorm)
 
 def cost : Cost := .mana [generic 1, pip .blue]
 

@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Trigger.idr`: the pins of the Trigger fam
 form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Trigger
 
@@ -35,7 +34,7 @@ theorem okWhileDoingCast :
 
 /-- "Whenever a creature dies, draw a card." -/
 theorem okNontargetDeathHeader :
-    Ability.check (DRS.ofList []) (whenever (Declared.dies (a creature)) (draw (.lit 1))) = [] := by
+    Ability.check (DRS.ofList []) (whenever (dies (a creature)) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Whenever a creature attacks, that creature gets +2/+0 until end of turn." -/
@@ -83,7 +82,7 @@ theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (attacks .you) =
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check (DRS.ofList [])
-      (.triggered (Declared.enters (a creature) none) [] none []
+      (.triggered (enters (a creature) none) [] none []
         (some (duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
   decide
 

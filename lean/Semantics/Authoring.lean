@@ -249,13 +249,13 @@ elab "declare_semantic_primitives" : command => do
   for (name, ctor) in constructors.mergeSort (fun a b => a.2.numFields ≤ b.2.numFields) do
       if expressionAttribute.hasTag env ctor.induct &&
           !internalAttribute.hasTag env name && !internalAttribute.hasTag env ctor.induct then
-        let publicName := name.replacePrefix `Semantics `Semantics.Macros.Primitives
+        let publicName := name.replacePrefix `Semantics `Semantics.Primitives
         let current ← getEnv
         let type := ctor.type.replace fun expr =>
           match expr with
           | .const original levels =>
-            let macroName := original.replacePrefix `Semantics `Semantics.Macros.Primitives
-            if isAuthored current macroName then some (mkConst macroName levels)
+            let primitiveName := original.replacePrefix `Semantics `Semantics.Primitives
+            if isAuthored current primitiveName then some (mkConst primitiveName levels)
             else none
           | _ => none
         let declaration : Declaration := .defnDecl {

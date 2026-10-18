@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -13,7 +13,7 @@ checker.
 The pins keep the Idris names and docstrings (the sentence each refuses).
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Description
 

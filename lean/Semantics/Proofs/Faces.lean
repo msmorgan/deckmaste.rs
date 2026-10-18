@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -12,7 +12,7 @@ characteristics set, not a face [CR#710.1]); here a flip card's other half is a 
 too, so the distinction is not a type's to make.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Faces
 
@@ -325,12 +325,12 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Action.check (DRS.ofList [])
-      (Primitives.Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
+      (Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Action.check (DRS.ofList []) (Primitives.Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [])
+    Action.check (DRS.ofList []) (Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [])
       = [.lineNonEmpty] := by
   decide
 
@@ -345,7 +345,7 @@ theorem okCopyStackSpell :
 theorem okSetStatusOnBattlefield :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Action.create (.lit 1) (.copyOf (target creature) []) [],
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
@@ -363,7 +363,7 @@ theorem badStackCopyAsToken :
 theorem badTokenCopyAsCopyMention :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Action.create (.lit 1) (.copyOf (target creature) []) [],
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0] := by
   decide
@@ -598,7 +598,7 @@ theorem badFlashbackOnPermanentCard :
 theorem okThatMuchAfterQuantity :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Macros.instruct (target (.isOpponentOf .you)) (loseLife
+        [ Templates.instruct (target (.isOpponentOf .you)) (loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
           gainLife .thatMuch ]) = [] := by
   decide
@@ -787,15 +787,15 @@ theorem delayedDoorTraversal :
 theorem distributiveGroupSurvives :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Macros.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
-          Macros.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
+        [ Templates.instruct (each (.isOpponentOf .you)) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
+          Templates.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 
 theorem redundantSameClauseShuffleHandoffIsRefused :
     Action.check (DRS.ofList [])
-      (Macros.instruct (each (.isOpponentOf .you))
+      (Templates.instruct (each (.isOpponentOf .you))
         (.enact (.action "shuffle")
-          (Macros.instruct they (.shuffle (library .actor))) none none)) =
+          (Templates.instruct they (.shuffle (library .actor))) none none)) =
       [.anaphor (.word .player) .one 0] := by
   decide
 

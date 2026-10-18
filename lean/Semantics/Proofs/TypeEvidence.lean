@@ -1,5 +1,5 @@
-import Semantics.Macros
-open Semantics Semantics.Macros
+import Semantics.Definitions
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.TypeEvidence
 

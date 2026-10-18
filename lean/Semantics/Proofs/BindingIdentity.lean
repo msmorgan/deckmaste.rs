@@ -1,5 +1,4 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 
 /-!
 # Semantics.Proofs.BindingIdentity
@@ -13,7 +12,7 @@ other bindings pushed between the mentions do not change what a later mention re
 is closed by `decide`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.BindingIdentity
 
@@ -161,13 +160,13 @@ theorem groupHandoffByIdentityPublishesPlurals :
 mention, read back by identity, so the read's number is the slice's, which is the amount's:
 scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 
-/-- The `plugins_v3` helper `lookAndSortSlice` as the loader expands it: the generated
-`Semantics.Macros.Declared` macro (`cargo xtask lean macros`). -/
+/-- The `plugins_v3` helper `lookAndSortSlice` as the loader expands it: the
+`Semantics.Templates` template. -/
 private def lookAndSortSlice (slice : NounPhrase) (spill : Location) (spillRiders : List MoveRider) :
     Action :=
-  Semantics.Macros.Declared.lookAndSortSlice slice spill spillRiders
+  Semantics.Templates.lookAndSortSlice slice spill spillRiders
 
-/-- The generated macro is the expansion this file spelled by hand before it was generated. -/
+/-- The template is the expansion this file spelled by hand before it was generated. -/
 theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Location)
     (spillRiders : List MoveRider) :
     lookAndSortSlice slice spill spillRiders =
@@ -282,7 +281,7 @@ objects [CR#400.7,400.7j], so the loop reads them back by anaphora, never by the
 (`docs/decisions/semantics-v3.md` §§0.1,1.3). The loop's singular referent remains
 available through the handoff to its owner. -/
 
-private def airbendByCard := Declared.airbend
+private def airbendByCard := airbend
 
 theorem okAirbendByCardUpToTwo :
     Action.check (DRS.ofList [])

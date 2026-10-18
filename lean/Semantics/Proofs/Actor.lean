@@ -1,5 +1,4 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -10,7 +9,7 @@ performs the instruction it is part of: by default, the player addressed by the 
 [CR#109.5], unless an enclosing `instruct` hands it to another player or to a permanent. Each pin is closed by `decide`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Actor
 
@@ -272,7 +271,7 @@ theorem varchildsWarRidersHandoffTwin :
           (cumulativeUpkeep (.perform (instruct anOpponent
             (create (.lit 1) (creatureToken 1 1 [.red] [creatureType "Survivor"]))))) =
         Ability.check (DRS.ofList [])
-          (cumulativeUpkeep (.perform (instruct anOpponent (Primitives.Action.create (.lit 1)
+          (cumulativeUpkeep (.perform (instruct anOpponent (Action.create (.lit 1)
             (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [])))) := by
   decide
 
@@ -778,7 +777,7 @@ theorem exploreEventTakesAPermanent :
       GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) explore)
         = [.kindMismatch .object .player, .possessorKind .controller .player,
             .counterSourceScope] ∧
-      GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) (Declared.bolster (.lit 1)))
+      GameEvent.check (DRS.ofList []) (.does (.actor (a .anyPlayer)) (bolster (.lit 1)))
         = [] := by
   decide
 

@@ -1,6 +1,5 @@
 import Semantics
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Keyword
@@ -12,7 +11,7 @@ Port of `idris/src/Experimental/Cards/Counters.idr`: the printed cards of the Co
 and the bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -338,7 +337,7 @@ def doublingSeason : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Doubling Season", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Primitives.Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) true (some Primitives.NounPhrase.you))) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
           Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount Primitives.CounterKindSource.anyKind (a (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .many true)) (Primitives.Action.putCounters (times (.lit 2) Primitives.Amount.thatMuch) Primitives.CounterKindSource.those (that .permanent) .many true) none .repeatedly none) ] } }
 
 /-- Doc Samson, Super Psychiatrist -/
@@ -449,7 +448,7 @@ def rikkuStealMove : Action :=
 theorem okRikkuStealMove : Action.check (DRS.ofList []) rikkuStealMove = [] := by decide
 /-- Littjara Mirrorlake -/
 def littjaraMirrorlakeCopy : Action :=
-  Primitives.Action.create (.lit 1)
+  Action.create (.lit 1)
     (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
       [Primitives.CopyExcept.entersWithCounters (.lit 1) p1p1Counter .additional])
     []
@@ -470,7 +469,7 @@ def primalVigor : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Primal Vigor", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (Primitives.Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none),
           Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.putCounters Primitives.Amount.anyAmount (Primitives.CounterKindSource.printed p1p1Counter) (a creature) .many false)) (Primitives.Action.putCounters (times (.lit 2) Primitives.Amount.thatMuch) (Primitives.CounterKindSource.printed p1p1Counter) (that (.type .creature)) .many true) none .repeatedly none) ] } }
 
 /-- Patrolling Peacemaker -/
@@ -1019,7 +1018,7 @@ def stonebindersFamiliar : Spelled := spelled <| .singleFaced
 
 /-- Nazgûl -/
 def nazgulRingTrigger : Ability :=
-  whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Declared.theRingTemptsYou))
+  whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (theRingTemptsYou))
     (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
       (each (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (creatureType "Wraith"), Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) .many true)
 theorem okNazgulRingTrigger : Ability.check (DRS.ofList []) nazgulRingTrigger = [] := by decide

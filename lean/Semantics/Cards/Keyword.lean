@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Trigger
 
@@ -12,7 +12,7 @@ Port of `idris/src/Experimental/Cards/Keyword.idr`: the printed cards of the Key
 `battleSquadron` prints a `*/*` box: those slots are `none` under the printed-star ruling.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -75,7 +75,7 @@ def lightningBlow : Action :=
   gain (target creature) (keyword (.named "firstStrike")) (some untilEndOfTurn)
 theorem okLightningBlow : Action.check (DRS.ofList []) lightningBlow = [] := by decide
 def deathByDragons : Action :=
-  instruct (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.otherThan (target Primitives.Predicate.anyPlayer)])) (Primitives.Action.create (.lit 1)
+  instruct (each (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.otherThan (target Primitives.Predicate.anyPlayer)])) (Action.create (.lit 1)
     (Primitives.TokenSpec.written
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [creatureType "Dragon"],
@@ -329,7 +329,7 @@ def adrixAndNev : Spelled := spelled <| .singleFaced
       text :=
         [ keywordCosting (.named "ward") (Primitives.Cost.mana [generic 2]),
           Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false (some
-              Primitives.NounPhrase.you))) (Primitives.Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ],
+              Primitives.NounPhrase.you))) (Action.create (times (.lit 2) Primitives.Amount.groupSize) Primitives.TokenSpec.asThose []) none .repeatedly none) ],
       power := stat 2, toughness := stat 2 } }
 
 def windZendikon : Spelled := spelled <| .singleFaced
@@ -470,7 +470,7 @@ def irenicussVileDuplication : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Irenicus's Vile Duplication", cost := some [generic 3, pip .blue], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Action.create (.lit 1)
+        [ Primitives.Ability.spell none (Action.create (.lit 1)
             (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
               [Primitives.CopyExcept.ability (keyword (.named "flying")), Primitives.CopyExcept.nonlegendary])
             []) ] } }
@@ -480,7 +480,7 @@ def cacklingCounterpart : Spelled := spelled <| .singleFaced
     { name := "Cackling Counterpart", cost := some [generic 1, pip .blue, pip .blue],
       types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Action.create (.lit 1)
+        [ Primitives.Ability.spell none (Action.create (.lit 1)
             (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])) []) []),
           keywordCosting (.named "flashback") (Primitives.Cost.mana [generic 5, pip .blue, pip .blue]) ] } }
 
@@ -910,14 +910,14 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
 def hateMirageTokens : Action :=
   Primitives.Action.sequentially
     [ Primitives.Action.doForEach (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) creatureYouDontControl)
-        (Primitives.Action.create (.lit 1) (Primitives.TokenSpec.copyOf it []) []),
+        (Action.create (.lit 1) (Primitives.TokenSpec.copyOf it []) []),
       gain (those .token) (keyword (.named "haste")) none ]
 theorem okHateMirageTokens : Action.check (DRS.ofList []) hateMirageTokens = [] := by decide
 def descentOfTheDragons : Action :=
   Primitives.Action.sequentially
     [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target anyNumber) creature),
       Primitives.Action.doForEach (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)
-        (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
+        (instruct (controllerOf it) (Action.create (.lit 1)
           (Primitives.TokenSpec.written
             { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [creatureType "Dragon"],
@@ -927,7 +927,7 @@ theorem okDescentOfTheDragons : Action.check (DRS.ofList []) descentOfTheDragons
 /-- Brimaz, King of Oreskos -/
 def brimazAttackToken : Ability :=
   whenever (attacks thisCreature)
-    (Primitives.Action.create (.lit 1)
+    (Action.create (.lit 1)
       (Primitives.TokenSpec.written
         { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Cat", creatureType "Soldier"],
@@ -1101,7 +1101,7 @@ def shimmeringGlasskite : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           triggeredOnlyOnce
             (Primitives.GameEvent.does (Primitives.Subject.actor (a (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack]))) (Primitives.Action.target thisCreature)) oncePerTurn
-            (Primitives.Action.counterSpell (that .stack)) ],
+            (Action.counterSpell (that .stack)) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Conqueror's Pledge -/
@@ -1114,7 +1114,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
           Primitives.Ability.spell none (Primitives.Action.replace
             (create (.lit 6) (creatureToken 1 1 [.white] [creatureType "Kor", creatureType "Soldier"]))
             (Primitives.Action.doIf (costWasPaid (.byKeyword (.named "kicker")) none Primitives.NounPhrase.this)
-              (Primitives.Action.create (.lit 12) Primitives.TokenSpec.asThose []) none)) ] } }
+              (Action.create (.lit 12) Primitives.TokenSpec.asThose []) none)) ] } }
 
 /-- Soul of Emancipation -/
 def soulOfEmancipation : Ability :=
@@ -1122,7 +1122,7 @@ def soulOfEmancipation : Ability :=
     (Primitives.Action.sequentially
       [ destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 3)) (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.otherThan Primitives.NounPhrase.this])),
         Primitives.Action.doForEach (those .permanent)
-          (instruct (controllerOf (that .permanent)) (Primitives.Action.create (.lit 1)
+          (instruct (controllerOf (that .permanent)) (Action.create (.lit 1)
             (Primitives.TokenSpec.written
               { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [creatureType "Angel"],
@@ -1370,7 +1370,7 @@ def ancestralBlade : Spelled := spelled <| .singleFaced
         [ when (Primitives.GameEvent.enters thisEquipment none)
             (Primitives.Action.sequentially
               [ create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
-                Primitives.Action.attachTo thisEquipment itAsToken ]),
+                Action.attachTo thisEquipment itAsToken ]),
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .equipped (.type .creature)) (Primitives.Delta.up (.lit 1)) (Primitives.Delta.up (.lit 1))),
           keywordCosting (.named "equip") (Primitives.Cost.mana [generic 1]) ] } }
 
@@ -1620,7 +1620,7 @@ def seraphicGreatsword : Spelled := spelled <| .singleFaced
           whenever
             (attacksPlayer (Primitives.NounPhrase.attachHost .equipped (.type .creature))
               (the (Primitives.Predicate.and [Primitives.Predicate.anyPlayer, Primitives.Predicate.superlative .max (.playerStat .lifeTotal) Primitives.Predicate.anyPlayer])))
-            (Primitives.Action.create (.lit 1)
+            (Action.create (.lit 1)
               (Primitives.TokenSpec.written
                 { characteristics :=
                   { colors := [.white], types := [.creature], subtypes := [creatureType "Angel"],

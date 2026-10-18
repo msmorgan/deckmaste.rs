@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -11,7 +11,7 @@ a prohibition over the destroy deed. Each definition is written as its declarati
 the registry's row, and checks.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.KeywordAbilityCensus
 

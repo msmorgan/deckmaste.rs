@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Damage.idr`: the pins of the Damage famil
 form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Damage
 
@@ -34,9 +33,6 @@ theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
       (identityBinding "fight.test.other" after).map (·.id) = some 2 ∧
       fightParticipantPairs (fight (target creature)) =
         [("fight.source", "fight.0"), ("fight.0", "fight.source")] := by decide
-
-theorem declaredFightUsesTheSameBoundParticipantDefinition :
-    Declared.fight (target creature) = fight (target creature) := by rfl
 
 /-- "Target creature fights two target creatures.": the group is the other creature, refused by
 the singular power read and the per-member damage check. Handed the deed, a group performer
@@ -530,7 +526,7 @@ theorem badPreventedThisWayAfterDamageEvent :
 
 theorem badThatMuchAfterDeath :
     Ability.check (DRS.ofList [])
-      (whenever (Declared.dies (a creature))
+      (whenever (dies (a creature))
         (Action.instruct thisCreature (.dealDamage .thatMuch (target anyTarget) .any))) = [.quantOutcomeInScope 0] := by
   decide
 
@@ -546,7 +542,7 @@ theorem okThatCreatureAfterDamage :
 loses 1 life." -/
 theorem okThatCreatureAfterTargetedDamage :
     Ability.check (DRS.ofList [])
-      (when (Declared.dies thisCreature)
+      (when (dies thisCreature)
         (.sequentially
           [ (Action.instruct thisCreature (.dealDamage (.lit 1) (target creature) .any)),
             instruct (controllerOf (that (.type .creature))) (loseLife (.lit 1)) ])) = [] := by

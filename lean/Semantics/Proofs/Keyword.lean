@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Keyword.idr`: the pins of the Keyword fam
 theorem form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Keyword
 
@@ -64,7 +63,7 @@ theorem badNestedCoordination :
 /-- "Whenever a creature enters, destroy that creature." -/
 theorem okThatCreatureAfterAntecedent :
     Ability.check (DRS.ofList [])
-      (whenever (Declared.enters (a creature) none) (destroy (that (.type .creature))))
+      (whenever (enters (a creature) none) (destroy (that (.type .creature))))
       = [] := by
   decide
 
@@ -266,7 +265,7 @@ theorem badActivatedClosesCardLetter :
 
 theorem activatedManaCostIntroducesItsOwnX :
     Ability.check (costLetters (some [.variable]))
-      (activated (.mana [.variable]) (Macros.instruct .you (draw (.letter .x)))) = [] := by
+      (activated (.mana [.variable]) (Templates.instruct .you (draw (.letter .x)))) = [] := by
   decide
 
 theorem sharedSubjectSurvivesSecondSingular :
@@ -297,11 +296,11 @@ theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLif
   decide
 
 /-- "Counter target spell." -/
-theorem okCounterSpell : Action.check (DRS.ofList []) (Primitives.Action.counterSpell (target spell)) = [] := by decide
+theorem okCounterSpell : Action.check (DRS.ofList []) (Action.counterSpell (target spell)) = [] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Action.check (DRS.ofList []) (Primitives.Action.counterSpell (target anyTarget))
+    Action.check (DRS.ofList []) (Action.counterSpell (target anyTarget))
       = [.deedFits, .kindLte (.join .object .player) (.join .object .pile)] := by
   decide
 
@@ -356,7 +355,7 @@ theorem badCompanionSharedCounterKind :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Action.check (DRS.ofList []) (Macros.instruct (each .anyPlayer) (scry (.lit 1))) = [] := by decide
+    Action.check (DRS.ofList []) (Templates.instruct (each .anyPlayer) (scry (.lit 1))) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :

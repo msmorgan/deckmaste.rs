@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Description
 
@@ -10,7 +10,7 @@ Port of `idris/src/Experimental/Cards/Deontic.idr`: the printed cards of the Deo
 (can't, must, may, tolls, and their windows) and the bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 

@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Description
 
@@ -13,7 +13,7 @@ checker on it at the bindings its Idris type named; the file's own `Refl` pins a
 Not ported: `ichorElixirPlanarDice` (a planar die is Planechase, out of scope).
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -150,7 +150,7 @@ def manaLeak : Spelled := spelled <| .singleFaced
     { name := "Mana Leak", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless
-            (Primitives.Action.counterSpell it)
+            (Action.counterSpell it)
             (Primitives.Cost.mana [generic 3]))) ] } }
 
 /-- Oust {W} — Sorcery. "Put target creature into its owner's library second from the top.
@@ -240,13 +240,13 @@ def contrabandLivestock : Action :=
       rollDice 1 20,
       Primitives.Action.applyResultsTable
         [ rollRow (fromTo 1 9)
-            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
+            (instruct (controllerOf it) (Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 4 4 [.green] [creatureType "Ox"])) [])),
           rollRow (fromTo 10 19)
-            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
+            (instruct (controllerOf it) (Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 2 2 [.green] [creatureType "Boar"])) [])),
           rollRow (exactly 20)
-            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
+            (instruct (controllerOf it) (Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 0 1 [.white] [creatureType "Goat"])) [])) ] ]
 theorem okContrabandLivestock : Action.check (DRS.ofList []) contrabandLivestock = [] := by decide
 
@@ -322,7 +322,7 @@ def ertaisTrickery : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ertai's Trickery", cost := some [pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Action.doOnlyIf (Primitives.Action.counterSpell (target spell))
+        [ Primitives.Ability.spell none (Primitives.Action.doOnlyIf (Action.counterSpell (target spell))
             (costWasPaid (.byKeyword (.named "kicker")) none it) none) ] } }
 
 /-- Celebrate the Harvest -/
@@ -608,7 +608,7 @@ def factOrFiction : Spelled := spelled <| .singleFaced
 def unsummon : Action := move (target creature) hand
 theorem okUnsummon : Action.check (DRS.ofList []) unsummon = [] := by decide
 def grismold : Action :=
-  instruct (each Primitives.Predicate.anyPlayer) (Primitives.Action.create (.lit 1)
+  instruct (each Primitives.Predicate.anyPlayer) (Action.create (.lit 1)
     (Primitives.TokenSpec.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [])
 theorem okGrismold : Action.check (DRS.ofList []) grismold = [] := by decide
 /-- Grenzo, Dungeon Warden -/

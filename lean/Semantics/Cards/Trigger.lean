@@ -1,6 +1,5 @@
 import Semantics
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 
@@ -12,7 +11,7 @@ Port of `idris/src/Experimental/Cards/Trigger.idr`: the printed cards of the Tri
 the bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -173,7 +172,7 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a
           (Primitives.Predicate.and [instantOrSorcery, spell]))) Primitives.PlayPayment.itsOwnCost none none none))
-            (Primitives.Action.create (.lit 1)
+            (Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 1 1 [.red] [creatureType "Elemental"])) [])
                   ],
       power := stat 2, toughness := stat 1 } }
@@ -417,7 +416,7 @@ def admiralsOrder : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.altCost Primitives.NounPhrase.this (some (Primitives.Cost.mana [pip .blue])))
             (happened (Primitives.Action.attack none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn)),
-          Primitives.Ability.spell none (Primitives.Action.counterSpell (target spell)) ] } }
+          Primitives.Ability.spell none (Action.counterSpell (target spell)) ] } }
 
 def fyndhornDruid : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -548,7 +547,7 @@ def schemingAspirant : Spelled := spelled <| .singleFaced
     { name := "Scheming Aspirant", cost := some [generic 1, pip .black], types := [.creature],
       subtypes := [creatureType "Phyrexian", creatureType "Advisor"],
       text :=
-        [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Declared.proliferate))
+        [ whenever (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (proliferate))
             (Primitives.Action.sequentially [instruct (each (Primitives.Predicate.isOpponentOf Primitives.NounPhrase.you)) (loseLife (.lit 2)), gainLife (.lit 2)]) ],
       power := stat 1, toughness := stat 3 } }
 
@@ -824,7 +823,7 @@ theorem okAkiriEquippedAttackers : Ability.check (DRS.ofList []) akiriEquippedAt
 def vexingBaubleTrigger : Ability :=
   triggeredIf (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.procedure .cast ((a spell)) Primitives.PlayPayment.itsOwnCost none none none))
     (noManaSpentToCast it)
-    (Primitives.Action.counterSpell (that .spell))
+    (Action.counterSpell (that .spell))
 theorem okVexingBaubleTrigger : Ability.check (DRS.ofList []) vexingBaubleTrigger = [] := by decide
 
 /-- Void Mirror -/
@@ -834,7 +833,7 @@ def voidMirror : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (Primitives.GameEvent.does (Primitives.Subject.actor (a Primitives.Predicate.anyPlayer)) (Primitives.Action.procedure .cast ((a
           spell)) Primitives.PlayPayment.itsOwnCost none none none)) (noColoredManaSpentToCast it)
-            (Primitives.Action.counterSpell (that .spell)) ] } }
+            (Action.counterSpell (that .spell)) ] } }
 
 /-- Blood Sun -/
 def bloodSun : Spelled := spelled <| .singleFaced
@@ -897,7 +896,7 @@ def squelch : Spelled := spelled <| .singleFaced
     { name := "Squelch", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [Primitives.Action.counterSpell (target (Primitives.Predicate.abilityHead .anyActivated)), Primitives.Action.draw (.lit 1)]) ]
+            [Action.counterSpell (target (Primitives.Predicate.abilityHead .anyActivated)), Primitives.Action.draw (.lit 1)]) ]
                 } }
 
 theorem bioplasmTwoCandidates : countOnes .object bioplasmAfterExile = 2 := by decide
@@ -949,7 +948,7 @@ def scytheOfTheWretched : Spelled := spelled <| .singleFaced
             (Primitives.Action.sequentially
               [ returnTo (that .card) battlefield
                   [(Primitives.MoveRider.under Primitives.NounPhrase.you)],
-                Primitives.Action.attachTo thisEquipment (that (.type .creature)) ]),
+                Action.attachTo thisEquipment (that (.type .creature)) ]),
           keywordCosting (.named "equip") (Primitives.Cost.mana [generic 4]) ] } }
 
 end Semantics.Cards

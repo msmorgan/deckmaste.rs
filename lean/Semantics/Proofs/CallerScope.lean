@@ -1,8 +1,8 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.NumberSlots
 import Semantics.Check.LocalShape
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.CallerScope
 
@@ -269,7 +269,7 @@ theorem forwardedCoordinationRetainsTwoParties :
     (Action.exchange (.lifeTotals (forwardedSubject (.and [.you, anOpponent])))).check
       (DRS.ofList []) = [] := by decide
 
-/-- error: Semantics.Macros.fight uses a lexical context outside its authoring scope -/
+/-- error: Semantics.Definitions.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -322,7 +322,7 @@ example : Spelled := spelled <| .singleFaced
     { name := "Unannotated function alias witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (ordinaryFunctionConfig ordinarySubjectIdentity)] } }
 
-/-- error: Semantics.Macros.fight uses a lexical context outside its authoring scope -/
+/-- error: Semantics.Definitions.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=

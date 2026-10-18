@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -14,7 +14,7 @@ possessor known to be another player than the performer is refused `patientPosse
 text leaves unknown is not. Each pin is closed by `decide`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Possessor
 

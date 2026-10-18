@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +9,7 @@ Port of `idris/src/Experimental/Cards/Piles.idr`: the printed cards of the Piles
 piles, and the pronouns that read them), each a `Spelled`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 

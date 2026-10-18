@@ -86,7 +86,7 @@ refused, including expressions nested in printed-data records.
 
 Semantic expressions must use registered macro declarations. Printed-data
 records, enumerated leaf values, and numeric literals remain ordinary data;
-their semantic fields are inspected recursively. `Semantics.Macros.Primitives`
+their semantic fields are inspected recursively. `Semantics.Primitives`
 provides named wrappers with definitionally identical constructor signatures.
 `Action.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
 they are expansion carriers owned by the trusted macro layer. Existing idiomatic
@@ -749,7 +749,7 @@ self context. Separate copy exceptions each read the incoming scope.
 `CopyExcept.ability`, `thisAbility`, and `entersWithCounters` retain the copy
 context; sharing edits does not turn copy exceptions into later static effects.
 
-`QualityPayload` is an authoring input in `Macros.CharacteristicInputs`, not a
+`QualityPayload` is an authoring input in `Semantics.Primitives`, not a
 checked syntax field. It expands to edits. Ordinary additions add their type
 line but set written colors and numeric characteristics. Named additions and
 power/toughness removal remain refused. `copyCharacteristics` expands the old

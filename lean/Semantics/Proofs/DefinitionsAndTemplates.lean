@@ -1,8 +1,8 @@
-import Semantics.Macros.Declared
+import Semantics.Definitions
 
-namespace Semantics.Macros.Checks
+open Semantics Semantics.Templates Semantics.Definitions
 
-open Semantics
+namespace Semantics.Proofs.DefinitionsAndTemplates
 
 /-- error: An Action Definition must establish its own Reference Scope -/
 #guard_msgs in
@@ -11,28 +11,31 @@ semantic_definition missingReferenceScope : Action := .draw (.lit 1)
 open Lean Elab Command in
 run_cmd do
   let env ← getEnv
-  unless Authoring.definitionAttribute.hasTag env ``Declared.airbend &&
-      Authoring.definitionAttribute.hasTag env ``Declared.ripple &&
-      Authoring.templateAttribute.hasTag env ``dealDamageOwnPower do
+  unless Authoring.definitionAttribute.hasTag env ``Semantics.Definitions.airbend &&
+      Authoring.definitionAttribute.hasTag env ``Semantics.Definitions.ripple &&
+      Authoring.templateAttribute.hasTag env ``Semantics.Templates.dealDamageOwnPower do
     throwError "Definition and Template declarations must retain their explicit categories"
 
-theorem declaredAirbendOne :
-    (Declared.airbend (target creature)).check (DRS.ofList []) = [] := by decide
+theorem okAirbendOne :
+    (airbend (target creature)).check (DRS.ofList []) = [] := by decide
 
-theorem declaredAirbendMany :
-    (Declared.airbend (.described (.target (upTo 2)) creature)).check (DRS.ofList []) = [] := by
-  decide
+theorem okAirbendUpToTwo :
+    (airbend (.described (.target (upTo 2)) creature)).check (DRS.ofList []) = [] := by decide
 
-theorem declaredConnive :
-    (instruct (target creature) Declared.connive).check (DRS.ofList []) = [] := by decide
+theorem okConniveOne :
+    (connive (.lit 1)).check (DRS.ofList []) = [] := by decide
 
-theorem declaredRipple : (Declared.ripple (.lit 4)).check = [] := by decide
+theorem okConniveTarget :
+    (instruct (target creature) (connive (.lit 2))).check (DRS.ofList []) = [] := by decide
+
+theorem okRippleFour :
+    (ripple (.lit 4)).check = [] := by decide
 
 private def callerContext : DRS :=
   nextClause (stepAction 64 .postEvent .obj (DRS.ofList []) (tap (target creature))).1
 
 theorem keywordCostReadsCaller :
-    (Declared.cycling (.perform (tap it))).check callerContext = [] := by decide
+    (cycling (.perform (tap it))).check callerContext = [] := by decide
 
 theorem keywordBodyCannotReadCaller :
     (Ability.keyword (.named "flying") []
@@ -78,4 +81,4 @@ theorem exhaustedWrapperRefuses :
     (stepLocationWith (stepOps 64) (DRS.ofList []) hand 0).2 =
       [.recursionLimit] := by decide
 
-end Semantics.Macros.Checks
+end Semantics.Proofs.DefinitionsAndTemplates

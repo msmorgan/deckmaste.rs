@@ -1,7 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
-import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.LinkedReadback
@@ -13,7 +12,7 @@ facets `objects` and `taken`, the Link Source `byDeed`, the three relation forms
 facets keep their pins in `Proofs/LinkedChoiceReadback.lean` and `Proofs/Description.lean`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.LinkedReadback
 
@@ -152,7 +151,6 @@ Each keyword's declared definition, as `cargo xtask lean macros` derives it from
 declaration, checks clean as an ability. -/
 
 namespace Bodies
-open Semantics.Macros.Declared (emerge emergeFrom offering harmonize haunt soulbond cipher mutate)
 
 def cost : Cost := .mana [generic 2, pip .blue]
 

@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -15,7 +14,7 @@ two variants printed on both card classes, "Gift a card" [CR#702.174e] and "Gift
 twins that must stay refused.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GiftVariants
 
@@ -40,7 +39,7 @@ def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) tru
 def gift (effect : Action) : Ability :=
   .keyword (.named "gift") []
     [ costPart,
-      triggeredIf (Declared.enters thisPermanent none) onPermanent (handed effect),
+      triggeredIf (enters thisPermanent none) onPermanent (handed effect),
       .spell none (doIf onInstantOrSorcery (handed effect)) ]
 
 /-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/
@@ -74,7 +73,7 @@ permanent card. -/
 def giftACardSpellHalfOnPermanent : Ability :=
   .keyword (.named "gift") []
     [ costPart,
-      triggeredIf (Declared.enters thisPermanent none) onPermanent
+      triggeredIf (enters thisPermanent none) onPermanent
         (handed (draw (.lit 1))),
       .spell none (doIf onPermanent (handed (draw (.lit 1)))) ]
 

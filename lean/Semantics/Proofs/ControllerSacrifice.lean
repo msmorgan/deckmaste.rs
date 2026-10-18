@@ -1,6 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ControllerSacrifice
 
@@ -287,7 +287,7 @@ private theorem laterMention_step (fuel : Nat) (drs : DRS)
 
 end ControllerSuffixLocality
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 private def selectedContext (drs : DRS) : DRS :=
   let seen := { drs with characteristicRead := true, relativeKind := some .object }
   let artifactContext := seen.push

@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 
@@ -14,7 +14,7 @@ Not ported: `fracturedPowerstonePlanarRoll` (the planar die is Planechase, out o
 characteristic-defining clauses set it.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -146,7 +146,7 @@ theorem okAjanisEmblem : Action.check (DRS.ofList []) ajanisEmblem = [] := by de
 /-- Saheeli Rai -/
 def saheelisCopy : Action :=
   Primitives.Action.sequentially
-    [ Primitives.Action.create (.lit 1)
+    [ Action.create (.lit 1)
         (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [Primitives.Predicate.or [artifact, creature], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))
           [Primitives.CopyExcept.types [.artifact] []])
         [],

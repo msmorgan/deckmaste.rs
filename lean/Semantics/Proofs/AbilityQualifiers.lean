@@ -1,7 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
-import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.AbilityQualifiers
@@ -12,7 +11,7 @@ qualifier on it (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-09). `Abil
 `PlayerStat.speed` are pinned here, with the eight keyword bodies they write.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.AbilityQualifiers
 
@@ -23,7 +22,7 @@ def tapToDraw : Ability := activated .tapSymbol (draw (.lit 1))
 /-- "This creature gets +1/+0." -/
 def pumpSelf : Ability := .static (.modification thisCreature .power (.up (.lit 1)))
 /-- "When this creature dies, draw a card." -/
-def drawOnDeath : Ability := when (Declared.dies thisCreature) (draw (.lit 1))
+def drawOnDeath : Ability := when (dies thisCreature) (draw (.lit 1))
 /-- "this Case is solved" -/
 def caseSolved : Condition := .matches thisCase (.hasDesignation (.named "solved") none)
 
@@ -112,7 +111,6 @@ Each keyword's declared definition, as `cargo xtask lean macros` derives it from
 declaration, checks clean as an ability; the printed ability is the keyword's parameter. -/
 
 namespace Bodies
-open Semantics.Macros.Declared (forecast boast exhaust solved infinity maxSpeed powerUp backup)
 
 /-- Required pin: forecast [CR#702.57a,702.57b]. -/
 theorem okForecast : Ability.check (DRS.ofList []) (forecast tapToDraw) = [] := by decide

@@ -1,13 +1,13 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Phrase
 
 namespace Semantics.Proofs.Lookback
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
-/-- "this turn", as a lookback reads it (`Macros.soFarThisTurn`). -/
+/-- "this turn", as a lookback reads it (`Templates.soFarThisTurn`). -/
 def soFarThisTurn : Duration := .between (some (.beginningOf .turn none .current)) (some .now)
-/-- "this game" (`Macros.thisGame`). -/
+/-- "this game" (`Templates.thisGame`). -/
 def thisGame : Duration := .between none (some .now)
 
 private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=

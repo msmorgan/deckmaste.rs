@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Deontic.idr`: the pins of the Deontic fam
 theorem form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Deontic
 
@@ -317,7 +316,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (.sequentially [Macros.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [Templates.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide
@@ -325,7 +324,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
-      (.doAndForbid (Macros.instruct (each (.isOpponentOf .you)) (sacrifice (a creature))) (.action "regenerate")
+      (.doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a creature))) (.action "regenerate")
         (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
   decide
 
@@ -333,7 +332,7 @@ theorem distributedDeedRiderReadsBackPlural :
 theorem enchantedPlayerDamageReadsBackAsThey :
     Ability.check (DRS.ofList [])
       (whenever (.does .any (.dealDamage .anyAmount (.attachHost .enchanted .player) .any))
-        (Macros.instruct they (loseLife (.half .up (lifeTotalOf they))))) = [] := by
+        (Templates.instruct they (loseLife (.half .up (lifeTotalOf they))))) = [] := by
   decide
 
 /-- "Target creature attacks a player other than you during its controller's next turn if

@@ -1,6 +1,6 @@
 # Semantics workbench ported from Idris.
 #
-#   lake build Semantics           -- syntax, checker, macros (the inner loop)
+#   lake build Semantics           -- syntax, checker, templates and definitions (the inner loop)
 #   lake build SemanticsCards      -- plus the printed-card bench
 #   lake build                     -- plus the pin suites (the full gate; ./scripts/build adds --wfail)
 name = "mtg"
@@ -13,7 +13,7 @@ autoImplicit = false
 
 [[lean_lib]]
 name = "Semantics"
-roots = ["Semantics", "Semantics.Check", "Semantics.Macros", "Semantics.Macros.Declared", "Semantics.Macros.Checks"]
+roots = ["Semantics", "Semantics.Check", "Semantics.Primitives", "Semantics.Templates", "Semantics.Definitions"]
 
 [[lean_lib]]
 name = "SemanticsCards"

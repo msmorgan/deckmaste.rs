@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -8,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Mana.idr`: the pins of the Mana family, i
 each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Mana
 
@@ -81,7 +81,7 @@ theorem badIfNotReadsMandatoryBody :
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
     Action.check (DRS.ofList [])
-      (Macros.instruct (controllerOf (target spell)) (doUnless (Primitives.Action.counterSpell it) (.mana [generic 3]))) =
+      (Templates.instruct (controllerOf (target spell)) (doUnless (Action.counterSpell it) (.mana [generic 3]))) =
           [] := by
   decide
 
@@ -165,7 +165,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  activatedAbility (.mana [pip .blue]) (Primitives.Action.counterSpell (target (.and [spell, .named .chosen])))
+  activatedAbility (.mana [pip .blue]) (Action.counterSpell (target (.and [spell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :
@@ -368,7 +368,7 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Action.check (DRS.ofList []) (Macros.instruct (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
+    Action.check (DRS.ofList []) (Templates.instruct (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/

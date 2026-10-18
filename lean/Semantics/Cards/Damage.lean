@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Description
 import Semantics.Cards.Anaphora
@@ -12,7 +12,7 @@ Port of `idris/src/Experimental/Cards/Damage.idr`: the printed cards of the Dama
 the bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -1324,7 +1324,7 @@ def laquatussDisdain : Spelled := spelled <| .singleFaced
     { name := "Laquatus's Disdain", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ Primitives.Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard])), Primitives.Action.draw (.lit 1) ]) ] } }
+            [ Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.castFrom graveyard])), Primitives.Action.draw (.lit 1) ]) ] } }
 
 /-- Stifle -/
 def stifle : Spelled := spelled <| .singleFaced
@@ -1332,7 +1332,7 @@ def stifle : Spelled := spelled <| .singleFaced
     { name := "Stifle", cost := some [pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none
-            (Primitives.Action.counterSpell (target (Primitives.Predicate.or [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityHead .anyTriggered]))) ] } }
+            (Action.counterSpell (target (Primitives.Predicate.or [Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityHead .anyTriggered]))) ] } }
 
 /-- Disallow -/
 def disallow : Spelled := spelled <| .singleFaced
@@ -1340,7 +1340,7 @@ def disallow : Spelled := spelled <| .singleFaced
     { name := "Disallow", cost := some [generic 1, pip .blue, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none
-            (Primitives.Action.counterSpell
+            (Action.counterSpell
               (target (Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyActivated, Primitives.Predicate.abilityHead .anyTriggered]))) ] } }
 
 /-- Fry -/

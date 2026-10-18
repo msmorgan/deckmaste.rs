@@ -1,7 +1,7 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ActionFamilies
 
@@ -219,16 +219,16 @@ theorem regenerationInstallationPublishesNoImmediateOutcome :
 
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
     nounZone (instructionResult (DRS.ofList [])
-      (Primitives.Action.counterSpell (target (.abilityHead .anyActivated))))
+      (Action.counterSpell (target (.abilityHead .anyActivated))))
       (that .ability) = some .graveyard := by decide
 
 theorem counterPreservesTheAbilityCategory :
     NounPhrase.checkAt none (instructionResult (DRS.ofList [])
-      (Primitives.Action.counterSpell (target (.abilityHead .anyActivated))))
+      (Action.counterSpell (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
 theorem counterIsSingleEnactedMove (subject : NounPhrase) :
-    Primitives.Action.counterSpell subject =
+    Action.counterSpell subject =
       .ownScope (some (.action "counter"))
         (.enact (.action "counter")
           (.move (.inCaller (.firstMention "counterSpell.subject" subject))
@@ -256,7 +256,7 @@ theorem forgottenOperandDoesNotRedirectToNeighbor :
       moved.sameReferents shuffled = true := by decide
 
 theorem postposedCounterConditionReadsTheUnmovedSpell :
-    Action.check (DRS.ofList []) (.doOnlyIf (Primitives.Action.counterSpell (target spell))
+    Action.check (DRS.ofList []) (.doOnlyIf (Action.counterSpell (target spell))
       (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
 
 
@@ -270,7 +270,7 @@ theorem regenerationCanProtectANoncreaturePermanent :
 
 theorem alternativeDoesNotObserveThePrimaryBranchesMove :
     Action.check (DRS.ofList []) (.doOnlyIf (move (target spell) exileZone)
-      (.matches it (.colorIs .red)) (some (Primitives.Action.counterSpell it))) = [] := by decide
+      (.matches it (.colorIs .red)) (some (Action.counterSpell it))) = [] := by decide
 
 
 theorem forgottenAliasesAreBothRefused :

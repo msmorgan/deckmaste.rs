@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -12,7 +12,7 @@ listed characteristics [CR#708.2]; a move's riders are of the kind its destinati
 `plugins_v2` body.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.FaceDown
 

@@ -19,13 +19,13 @@ records the frozen Idris reference and migration history.
 
 `cargo xtask lean check` runs `lake build --wfail` in `lean/`, the same full
 workbench gate as `lean/scripts/build`. It builds the active syntax, checker,
-macros, card bench and proofs, and propagates build failures.
+templates and definitions, card bench and proofs, and propagates build failures.
 
 The obsolete `plugins_v2` card/definition emitters and macro generator have
 been retired. `lean definitions` and `lean macros generate|check|align` are no
-longer commands. The ported v3 `Semantics/Macros/Declared.lean` is maintained
-in Lean while the replacement DSL is designed; v2 RON output must not
-regenerate it. Existing v2 readers elsewhere remain until their consumers
+longer commands. The ported v3 declarations now live in `Semantics/Templates.lean` and
+`Semantics/Definitions.lean`, maintained in Lean while the replacement DSL is
+designed; v2 RON output must not regenerate them. Existing v2 readers elsewhere remain until their consumers
 are cut over.
 
 ### Retired tooling tests
@@ -48,7 +48,7 @@ longer apply to the native v3 workbench.
 
 The seven syntax layers are `Words`, `Events`, `Phrase`, `Triggers`,
 `Abilities`, `Card`, and `Rules`. A constructor earns its place through an obligation or structural
-distinction its expansion would not carry. Common phrasings live in `Macros`:
+distinction its expansion would not carry. Common phrasings live in `Templates`:
 for example, "permanent", "colorless", "historic", "spell", "attacking", and
 "regenerates" expand into shared predicates and events.
 
@@ -189,13 +189,13 @@ produces. The traps, all hit once:
 ## Conventions
 
 - Syntax types live in `namespace Semantics`; definition collections use
-  their module path, such as `Semantics.Macros` and `Semantics.Proofs.Anaphora`.
+  their module path, such as `Semantics.Templates` and `Semantics.Proofs.Anaphora`.
 - Types use UpperCamelCase; constructors and functions use lowerCamelCase in
   the type's namespace. Fields and arguments use descriptive words.
 - Lean keywords used as names take a trailing underscore, such as `if_`,
   `from_`, and `return_`.
-- Write macros bare (`creature`) and constructors with a leading dot
-  (`.hasType`). The bench opens `Semantics.Macros`; it does not open syntax
+- Write templates and definitions bare (`creature`) and constructors with a leading dot
+  (`.hasType`). The bench opens `Semantics.Templates` and `Semantics.Definitions`; it does not open syntax
   namespaces whose constructors would shadow core names.
 - Syntax is unindexed. Contexts and inferred attributes are explicit inputs
   and results of the checker. Sort-specific constructors retain the

@@ -1,7 +1,7 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Composition
 

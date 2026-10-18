@@ -1,5 +1,4 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -10,10 +9,10 @@ Off-Stack Statics (`semantics-v2-off-stack-statics`, `docs/decisions/semantics-v
 (`StaticSpec.whileHolds`), which carry an instruction that never uses the stack
 [CR#604.1,603.7a,603.7g,614.1c]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
 and a deontic rule's one exempt source (`DeonticExcept`, [CR#702.145b,702.13b]). The keyword bodies are
-read through their declarations (`Semantics.Macros.Declared`). Each pin is closed by `decide`.
+read through their declarations (`Semantics.Definitions`). Each pin is closed by `decide`.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.OffStack
 
@@ -23,7 +22,7 @@ namespace Semantics.Proofs.OffStack
 happens [CR#614.1c]. -/
 theorem okAsEventEnters :
     StaticSpec.check (DRS.ofList [])
-      (.asEvent (Declared.enters thisPermanent none) (offer (draw (.lit 1)))) = [] := by
+      (.asEvent (enters thisPermanent none) (offer (draw (.lit 1)))) = [] := by
   decide
 
 /-- "Any time you control ten or more permanents and you don't have the city's blessing, you get
@@ -71,61 +70,61 @@ theorem badExceptByPlayers :
 /-! ## The keyword bodies -/
 
 /-- Dash {1}{R} [CR#702.109a]. -/
-theorem okDash : Ability.check (DRS.ofList []) (Declared.dash (.mana [generic 1, pip .red])) = [] := by decide
+theorem okDash : Ability.check (DRS.ofList []) (dash (.mana [generic 1, pip .red])) = [] := by decide
 
 /-- Blitz {2}{R} [CR#702.152a]. -/
-theorem okBlitz : Ability.check (DRS.ofList []) (Declared.blitz (.mana [generic 2, pip .red])) = [] := by decide
+theorem okBlitz : Ability.check (DRS.ofList []) (blitz (.mana [generic 2, pip .red])) = [] := by decide
 
 /-- Warp {3} [CR#702.185a]. -/
-theorem okWarp : Ability.check (DRS.ofList []) (Declared.warp (.mana [generic 3])) = [] := by decide
+theorem okWarp : Ability.check (DRS.ofList []) (warp (.mana [generic 3])) = [] := by decide
 
 /-- Rebound [CR#702.88a]. -/
-theorem okRebound : Ability.check (DRS.ofList []) Declared.rebound = [] := by decide
+theorem okRebound : Ability.check (DRS.ofList []) rebound = [] := by decide
 
 /-- Ascend [CR#702.131a,702.131b]. -/
-theorem okAscend : Ability.check (DRS.ofList []) Declared.ascend = [] := by decide
+theorem okAscend : Ability.check (DRS.ofList []) ascend = [] := by decide
 
 /-- Storied [CR#702.195a]. -/
-theorem okStoried : Ability.check (DRS.ofList []) Declared.storied = [] := by decide
+theorem okStoried : Ability.check (DRS.ofList []) storied = [] := by decide
 
 /-- Daybound [CR#702.145b]. -/
-theorem okDaybound : Ability.check (DRS.ofList []) Declared.daybound = [] := by decide
+theorem okDaybound : Ability.check (DRS.ofList []) daybound = [] := by decide
 
 /-- Nightbound [CR#702.145e]. -/
-theorem okNightbound : Ability.check (DRS.ofList []) Declared.nightbound = [] := by decide
+theorem okNightbound : Ability.check (DRS.ofList []) nightbound = [] := by decide
 
 /-- Devour 1 [CR#702.82a]. -/
-theorem okDevour : Ability.check (DRS.ofList []) (Declared.devour (.lit 1)) = [] := by decide
+theorem okDevour : Ability.check (DRS.ofList []) (devour (.lit 1)) = [] := by decide
 
 /-- Devour artifact 2 [CR#702.82c]: devour's general form, labelled devour. Re-spelled from
 `okDevourQualityExpansion`, which checked the same definition as a helper before the general form
 was declared (`semantics-v2-devour-quality-keyword`). -/
 theorem okDevourQuality :
-    Ability.check (DRS.ofList []) (Declared.devourQuality artifact (.lit 2)) = [] := by decide
+    Ability.check (DRS.ofList []) (devourQuality artifact (.lit 2)) = [] := by decide
 
 /-- Twin: the checker compares expanded component categories. A nested keyword line does not
 supply that expansion; keyword names abbreviate their rules text [CR#702.1]. -/
 theorem badOtherKeywordInDevourDefinition :
-    Ability.check (DRS.ofList []) (.keyword (.named "devour") [.number (.lit 1)] [Declared.riot])
+    Ability.check (DRS.ofList []) (.keyword (.named "devour") [.number (.lit 1)] [riot])
       = [.keywordBodyFits (.named "devour")] := by decide
 
 /-- Riot [CR#702.136a]. -/
-theorem okRiot : Ability.check (DRS.ofList []) Declared.riot = [] := by decide
+theorem okRiot : Ability.check (DRS.ofList []) riot = [] := by decide
 
 /-- Tribute 3 [CR#702.104a]. -/
-theorem okTribute : Ability.check (DRS.ofList []) (Declared.tribute (.lit 3)) = [] := by decide
+theorem okTribute : Ability.check (DRS.ofList []) (tribute (.lit 3)) = [] := by decide
 
 /-- Unleash [CR#702.98a]. -/
-theorem okUnleash : Ability.check (DRS.ofList []) Declared.unleash = [] := by decide
+theorem okUnleash : Ability.check (DRS.ofList []) unleash = [] := by decide
 
 /-- Fear, re-spelled onto its Deontic Exception [CR#702.36b]. -/
-theorem okFear : Ability.check (DRS.ofList []) Declared.fear = [] := by decide
+theorem okFear : Ability.check (DRS.ofList []) fear = [] := by decide
 
 /-- Intimidate, re-spelled onto its Deontic Exception [CR#702.13b]. -/
-theorem okIntimidate : Ability.check (DRS.ofList []) Declared.intimidate = [] := by decide
+theorem okIntimidate : Ability.check (DRS.ofList []) intimidate = [] := by decide
 
 /-- Amplify 1 [CR#702.38a]. -/
-theorem okAmplify : Ability.check (DRS.ofList []) (Declared.amplify (.lit 1)) = [] := by decide
+theorem okAmplify : Ability.check (DRS.ofList []) (amplify (.lit 1)) = [] := by decide
 
 /-! ## The readbacks (`semantics-v2-linked-readback`) -/
 

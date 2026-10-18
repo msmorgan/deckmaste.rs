@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Anaphora
 import Semantics.Cards.Trigger
@@ -11,7 +11,7 @@ Port of `idris/src/Experimental/Cards/Choice.idr`: the printed cards of the Choi
 (choices, modes, may, permissions to play, chosen qualities) and the bench items beside them.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -47,7 +47,7 @@ theorem okKindredDominance : Action.check (DRS.ofList []) kindredDominance = [] 
 def phantomBlade : Ability :=
   when (Primitives.GameEvent.enters thisEquipment none)
     (Primitives.Action.sequentially
-      [ Primitives.Action.attachTo it
+      [ Action.attachTo it
           (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1)) (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
         destroy (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1)) (Primitives.Predicate.and [creature, Primitives.Predicate.other])) ])
 theorem okPhantomBlade : Ability.check (DRS.ofList []) phantomBlade = [] := by decide
@@ -259,7 +259,7 @@ def runeSnag : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rune Snag", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Primitives.Action.counterSpell it)
+        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Action.counterSpell it)
             (Primitives.Cost.compound
               [ Primitives.Cost.mana [generic 2],
                 scaledGenericMana
@@ -427,7 +427,7 @@ def declarationOfNaught : Spelled := spelled <| .singleFaced
     { name := "Declaration of Naught", cost := some [pip .blue, pip .blue], types := [.enchantment],
       text :=
         [ Primitives.Ability.static (entersChoosing thisEnchantment .cardName),
-          activated (Primitives.Cost.mana [pip .blue]) (Primitives.Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.named Primitives.NameSource.chosen]))) ] } }
+          activated (Primitives.Cost.mana [pip .blue]) (Action.counterSpell (target (Primitives.Predicate.and [spell, Primitives.Predicate.named Primitives.NameSource.chosen]))) ] } }
 
 def imagecrafter : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -870,14 +870,14 @@ def override : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Override", cost := some [generic 2, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Primitives.Action.counterSpell it)
+        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Action.counterSpell it)
             (scaledGenericMana (forEach 1 (Primitives.Predicate.and [artifact, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))))) ] } }
 
 def rakshasasDisdain : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rakshasa's Disdain", cost := some [generic 2, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Primitives.Action.counterSpell it)
+        [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless (Action.counterSpell it)
             (scaledGenericMana (forEach 1 (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))))) ] } }
 
 def megatherium : Spelled := spelled <| .singleFaced
@@ -1101,7 +1101,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
       subtypes := [enchantmentType "Aura"],
       text :=
         [ keywordSubject (.named "enchant") (Primitives.Predicate.and [Primitives.Predicate.or [artifact, creature], Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-          Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would (Primitives.Subject.by Primitives.NounPhrase.you) (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (offer (Primitives.Action.create Primitives.Amount.groupSize (Primitives.TokenSpec.copyOf (Primitives.NounPhrase.attachHost .enchanted .permanent) []) [])) none .repeatedly (some oncePerTurn)) ] } }
+          Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would (Primitives.Subject.by Primitives.NounPhrase.you) (Primitives.Action.createObject Primitives.Amount.anyAmount (Primitives.CreationSpec.token (Primitives.TokenSpec.copyOf (counted (atLeast 1) Primitives.Predicate.isToken) []) []) false none)) (offer (Action.create Primitives.Amount.groupSize (Primitives.TokenSpec.copyOf (Primitives.NounPhrase.attachHost .enchanted .permanent) []) [])) none .repeatedly (some oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Action :=
   Primitives.Action.sequentially [discard (counted (upTo 2) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ yourHand])), Primitives.Action.draw Primitives.Amount.groupSize]

@@ -1,8 +1,7 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Attachments
 
@@ -114,7 +113,7 @@ theorem okAuraMayBeAttachedToAPlayer :
 theorem passiveAgentAndAttachmentHostAreDistinct :
     (.by (allOf creature) : Subject).patientRole = .subj ∧
       mayBeAttachedTo thisEquipment (allOf creature) =
-        .can .any (Primitives.Action.attachTo thisEquipment (allOf creature))
+        .can .any (Action.attachTo thisEquipment (allOf creature))
           {} := by
   constructor <;> rfl
 
@@ -137,14 +136,14 @@ theorem okChapterAbilityAtLoreCount :
 
 /-- Read ahead's body as its declaration writes it: chapter abilities of this Saga whose chapter
 number is not its lore counter count can't trigger the turn it entered [CR#702.155a]. -/
-theorem okReadAhead : Ability.check (DRS.ofList []) Macros.Declared.readAhead = [] := by decide
+theorem okReadAhead : Ability.check (DRS.ofList []) readAhead = [] := by decide
 
 /-- Enchant's body as its declaration writes it, here over "enchant creature": the Aura spell's
 target, the legal-host permission, and the entry clause [CR#702.5a,303.4a,303.4c,303.4f]. -/
-theorem okEnchantCreature : Ability.check (DRS.ofList []) (Macros.Declared.enchant creature) = [] := by decide
+theorem okEnchantCreature : Ability.check (DRS.ofList []) (enchant creature) = [] := by decide
 
 /-- An Aura may enchant a player [CR#702.5d]: "enchant player". -/
-theorem okEnchantPlayer : Ability.check (DRS.ofList []) (Macros.Declared.enchant .anyPlayer) = [] := by decide
+theorem okEnchantPlayer : Ability.check (DRS.ofList []) (enchant .anyPlayer) = [] := by decide
 
 /-! ## Protection's attach rows -/
 
@@ -154,13 +153,13 @@ Equipment or fortified by black Fortifications, damage from black sources preven
 blocked by black creatures [CR#702.16b..702.16f]. The attach rows name this permanent in the
 attach deed's host role. -/
 theorem okProtectionFromBlack :
-    Ability.check (DRS.ofList []) (Macros.Declared.protection (.colorIs .black)) = [] := by decide
+    Ability.check (DRS.ofList []) (protection (.colorIs .black)) = [] := by decide
 
 /-- "Black Auras can't be attached to this permanent": the attachment in the patient role, this
 permanent in the host role [CR#701.3a,702.16c]. -/
 theorem okCantBeAttachedTo :
     StaticSpec.check (DRS.ofList [])
-      (Macros.Declared.cantBeAttachedTo (allOf (.and [enchantment, .colorIs .black])) thisPermanent)
+      (cantBeAttachedTo (allOf (.and [enchantment, .colorIs .black])) thisPermanent)
       = [] := by decide
 
 end Semantics.Proofs.Attachments

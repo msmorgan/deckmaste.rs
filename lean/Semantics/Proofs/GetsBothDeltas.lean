@@ -1,11 +1,11 @@
 import Semantics.Check.NumberSlots
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Cards.Keyword
 import Semantics.Cards.Static
 import Semantics.Cards.Deontic
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GetsBothDeltas
 

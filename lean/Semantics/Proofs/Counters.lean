@@ -1,7 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
-import Semantics.Macros.Declared
 
 /-!
 # Semantics.Proofs.Counters
@@ -10,7 +9,7 @@ Port of `idris/src/Experimental/Proofs/Counters.idr`: the pins of the Counters f
 theorem form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Counters
 
@@ -125,8 +124,8 @@ theorem threeHeadersPublishTheirSelf :
 
 theorem badJoinedHeaderReadback :
     Ability.check (DRS.ofList [])
-      (.triggered (Declared.enters thisCreature none) [] none
-        [⟨Declared.dies (a creatureYouControl), [], none, none⟩] none none none
+      (.triggered (enters thisCreature none) [] none
+        [⟨dies (a creatureYouControl), [], none, none⟩] none none none
         (.putCounters (.lit 1) p11 it .one true)) = [.anaphor .bare .one 0] := by
   decide
 
@@ -244,14 +243,14 @@ theorem badBatchTwoOutcomesThenThatMuch :
 theorem okCreatedThenCountered :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+        [ Action.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
           (.putCounters (.lit 1) p11 it .one true) ]) = [] := by
   decide
 
 theorem badDistributedCreationIt :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (Primitives.Action.create (.lit 1)
+        [ instruct (each .anyPlayer) (Action.create (.lit 1)
             (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) []),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
@@ -506,13 +505,13 @@ theorem okAnaphoricTokenAfterToken :
     Action.check (DRS.ofList [])
       (.sequentially
         [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
-          Primitives.Action.create (.lit 2) .asThose [] ]) = [] := by
+          Action.create (.lit 2) .asThose [] ]) = [] := by
   decide
 
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), Primitives.Action.create (.lit 2) .asThose []])
+      (.sequentially [destroy (target creature), Action.create (.lit 2) .asThose []])
       = [.tokenSpecInScope 0] := by
   decide
 
@@ -521,7 +520,7 @@ theorem badAnaphoricTokenAfterTwoDistinctSpecs :
       (.sequentially
         [create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
           create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
-          Primitives.Action.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
+          Action.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
 
 /-- "Put a +1/+1 counter on target creature card in your graveyard." No printed card on the
 bench. -/
@@ -649,7 +648,7 @@ theorem okSnowblindWhicheverIsSmaller :
 /-- The −1/−1 counter's declared name is its kind, everywhere, its own definition included
 (ruling 2026-10-10): the name expands to the kind reference, never to the definition. -/
 theorem m1m1CounterNameIsItsKind :
-    Semantics.Macros.Declared.m1m1Counter = CounterKind.named "m1m1Counter" := rfl
+    Semantics.Definitions.m1m1Counter = CounterKind.named "m1m1Counter" := rfl
 
 /-- "whichever is greater" is the same aggregate under `max`. -/
 theorem okGreaterOf :

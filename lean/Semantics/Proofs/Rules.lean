@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Rules
 
 /-!
@@ -14,7 +13,7 @@ malformed one earns. `distinctPredefinedTokens` is asserted over the catalog the
 `Proofs/Tables.lean` asserts the checker's own label tables.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Rules
 

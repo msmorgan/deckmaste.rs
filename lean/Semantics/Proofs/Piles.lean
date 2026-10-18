@@ -1,5 +1,4 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -12,7 +11,7 @@ Not ported: `objectScopedChaos`, a Planechase sentence ("chaos ensues"), which t
 leaves out of the grammar.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Piles
 
@@ -180,7 +179,7 @@ theorem rippleRevealedCardsRemainAccessible :
         (some (.sequentially
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
-            (.move (allFromAmong (.not Declared.wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])) none)
+            (.move (allFromAmong (.not wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])) none)
       = [] := by
   decide
 

@@ -1,5 +1,4 @@
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -12,7 +11,7 @@ ruling 2026-10-09). The checker checks a marker's contents and nothing else, and
 Change by kinds only: the rewritten text is not checked again.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.TextChanges
 
@@ -82,16 +81,16 @@ theorem badReplaceWordCardName :
 
 /-- Cleave's definition: the alternative cost, and the Text Change under its paid cost
 [CR#702.148a]. -/
-theorem okCleaveDefinition : Ability.check (DRS.ofList []) (Declared.cleave cleaveCost) = [] := by decide
+theorem okCleaveDefinition : Ability.check (DRS.ofList []) (cleave cleaveCost) = [] := by decide
 
 /-- Overload's definition: the alternative cost, and "target" to "each" under its paid cost
 [CR#702.96a]. -/
-theorem okOverloadDefinition : Ability.check (DRS.ofList []) (Declared.overload cleaveCost) = [] := by decide
+theorem okOverloadDefinition : Ability.check (DRS.ofList []) (overload cleaveCost) = [] := by decide
 
 /-- Splice onto Arcane's definition: as you cast an Arcane spell, you may reveal this card; if you
 do, that spell gains its text and you pay the cost as an additional cost [CR#702.47a]. -/
 theorem okSpliceDefinition :
-    Ability.check (DRS.ofList []) (Declared.splice_ (.hasSubtype (.spell "Arcane")) cleaveCost) = [] := by
+    Ability.check (DRS.ofList []) (splice_ (.hasSubtype (.spell "Arcane")) cleaveCost) = [] := by
   decide
 
 end Semantics.Proofs.TextChanges

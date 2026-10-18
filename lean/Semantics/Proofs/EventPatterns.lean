@@ -1,8 +1,7 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.EventPatterns
 
@@ -103,7 +102,7 @@ theorem everyChoiceOccasionChecksDomain (occasion : ChoiceOccasion) :
   cases occasion <;> decide
 
 theorem deathPublishesArrival :
-    nounZone (GameEvent.extend (DRS.ofList []) (Declared.dies (a creature))) it =
+    nounZone (GameEvent.extend (DRS.ofList []) (dies (a creature))) it =
       some .graveyard := by decide
 
 theorem deathInterceptionKeepsDeparture :
@@ -112,7 +111,7 @@ theorem deathInterceptionKeepsDeparture :
       some .battlefield := by decide
 
 theorem unknownDepartureCanBeConstrained :
-    GameEvent.check (DRS.ofList []) (Declared.dies (a .isCard)) = [] := by decide
+    GameEvent.check (DRS.ofList []) (dies (a .isCard)) = [] := by decide
 
 theorem excludingOnePlayersZoneDoesNotExcludeEveryPlayersZone :
     GameEvent.check (DRS.ofList [])

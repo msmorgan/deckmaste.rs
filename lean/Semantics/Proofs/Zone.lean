@@ -1,5 +1,4 @@
-import Semantics.Macros.Declared
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +8,7 @@ Port of `idris/src/Experimental/Proofs/Zone.idr`: the pins of the Zone family, i
 form, each closed by `decide`. The names and the sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Zone
 
@@ -95,7 +94,7 @@ theorem distributedMovementPreservesUntapZoneRestriction :
 /-- "When target creature dies this turn, return that card to the battlefield." -/
 theorem okDiesBattlefield :
     Action.check (DRS.ofList [])
-      (.delay (Declared.dies (target creature)) [] (some thisTurn) (.move (that .card) .anyLocation (some battlefield) .arrival none []))
+      (.delay (dies (target creature)) [] (some thisTurn) (.move (that .card) .anyLocation (some battlefield) .arrival none []))
       = [] := by
   decide
 
@@ -474,14 +473,14 @@ theorem badUnlicensedDifference :
 to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check (DRS.ofList [])
-      (.triggered (Declared.enters thisCreature none) [] none [] none none
+      (.triggered (enters thisCreature none) [] none [] none none
         (some (.compareAmt (countOf creatureYouControl) .less (.lit 7)))
         (draw .theDifference)) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check (DRS.ofList [])
-      (.triggered (Declared.enters thisCreature none) [] none [] none none
+      (.triggered (enters thisCreature none) [] none [] none none
         (some (exists_ creatureYouControl)) (draw .theDifference)) = [.differenceInScope 0]
             := by
   decide
@@ -626,7 +625,7 @@ theorem okDeathLookback :
 
 /-- "Counter target activated ability." -/
 theorem okCounterAbility :
-    Action.check (DRS.ofList []) (Primitives.Action.counterSpell (target (.abilityHead .anyActivated))) = [] := by decide
+    Action.check (DRS.ofList []) (Action.counterSpell (target (.abilityHead .anyActivated))) = [] := by decide
 
 /-- "Exile target creature." -/
 theorem okObjectMovedToAZone :

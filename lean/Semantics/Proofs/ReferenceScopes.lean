@@ -1,6 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.ReferenceScopes
 

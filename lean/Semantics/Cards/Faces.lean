@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -13,7 +13,7 @@ Not ported: `shapeshifterBox` and `tarmogoyfBox` (a printed `*` box is `none` un
 printed-star ruling; there is no printed-box term to write).
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -269,7 +269,7 @@ def kitsuneMystic : Spelled := spelled <| .flip
       subtypes := [creatureType "Fox", creatureType "Wizard"],
       text :=
         [ activated (Primitives.Cost.mana [generic 1])
-            (Primitives.Action.attachTo
+            (Action.attachTo
               (target (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (enchantmentType "Aura"), Primitives.Predicate.attachedTo (a creature)]))
               (a (Primitives.Predicate.and [creature, Primitives.Predicate.otherThan (that (.type .creature))]))) ],
       power := stat 4, toughness := stat 5 } }

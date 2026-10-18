@@ -1,6 +1,5 @@
 import Semantics
-import Semantics.Macros
-import Semantics.Macros.Declared
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -12,7 +11,7 @@ instruction, or ability that elaborated in Idris), each paired with an `ok…` t
 the checker on it at the bindings its Idris type named.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
@@ -188,7 +187,7 @@ theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxSca
 
 /-- Croaking Counterpart -/
 def croakingCounterpartCopy : Action :=
-  Primitives.Action.create (.lit 1)
+  Action.create (.lit 1)
     (Primitives.TokenSpec.copyOf (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Frog"))]))
       (copyCharacteristics {
                  colors := [.green], subtypes := [creatureType "Frog"], power := stat 1,
@@ -236,7 +235,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ destroy (allOf creature),
-              Primitives.Action.create (.lit 1)
+              Action.create (.lit 1)
                 (Primitives.TokenSpec.written
                   { characteristics :=
                     { types := [.artifact, .creature],
@@ -417,7 +416,7 @@ theorem okCreatureSpellFromAmongExiled :
     NounPhrase.checkAt (some .object) (DRS.ofList []) creatureSpellFromAmongExiled = [] := by decide
 
 def ringHasTemptedYouTwiceThisGame : Condition :=
-  Primitives.Condition.compareAmt (eventCount (Declared.theRingTemptsYou) (Primitives.Subject.actor Primitives.NounPhrase.you) thisGame)
+  Primitives.Condition.compareAmt (eventCount (theRingTemptsYou) (Primitives.Subject.actor Primitives.NounPhrase.you) thisGame)
     .atLeast (.lit 2)
 theorem okRingHasTemptedYouTwiceThisGame :
     Condition.check (DRS.ofList []) ringHasTemptedYouTwiceThisGame = [] := by decide

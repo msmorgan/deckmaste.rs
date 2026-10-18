@@ -1,6 +1,6 @@
-import Semantics.Macros
+import Semantics.Definitions
 
-open Semantics.Macros
+open Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.CorpusRecency
 

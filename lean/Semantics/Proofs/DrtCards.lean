@@ -1,6 +1,6 @@
-import Semantics.Macros.Declared
+import Semantics.Definitions
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.DrtCards
 
@@ -18,7 +18,7 @@ private def monstrousStep : Action := .sequentially [
 
 private def cloudAttach : Ability :=
   when (.does .any (putOntoBattlefield thisCreature))
-    (Primitives.Action.attachTo
+    (Action.attachTo
       (.described (.target (upTo 1))
         (.and [.hasSubtype (artifactType "Equipment"), .hasPossessor .controller .you])) it)
 
@@ -41,11 +41,11 @@ theorem monstrousStepBlocksFirstCreature :
   decide
 
 theorem airbendSingleTargetUsesPerCardLoop :
-    Action.check (DRS.ofList []) (Declared.airbend (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (airbend (target creature)) = [] := by decide
 
 theorem airbendMultipleTargetsUsePerCardLoop :
     Action.check (DRS.ofList [])
-      (Declared.airbend (.described (.target (upTo 2)) creature)) = [] := by decide
+      (airbend (.described (.target (upTo 2)) creature)) = [] := by decide
 
 theorem selfCounterProhibitionIsValidInstantText :
     cardTextOk [.instant] [.static (objectCant (.action "counter") thisSpell)] = true := by decide

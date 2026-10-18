@@ -1,4 +1,4 @@
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -9,7 +9,7 @@ theorem form (a twin `= []`, a pin `= [r]`), each closed by `decide`. The names 
 sentences are the Idris ones.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Anaphora
 
@@ -163,7 +163,7 @@ reach it [CR#701.6a]. -/
 theorem badStackAnaphorAfterCounteringAbility :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.counterSpell (target (.abilityHead .anyActivated)), Primitives.Action.counterSpell (that .stack) ])
+        [ Action.counterSpell (target (.abilityHead .anyActivated)), Action.counterSpell (that .stack) ])
       = [.anaphor (.word .stack) .one 0] := by
   decide
 

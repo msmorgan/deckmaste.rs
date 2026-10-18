@@ -1,5 +1,5 @@
 import Semantics.Check.NumberSlots
-import Semantics.Macros
+import Semantics.Definitions
 import Semantics.Check.Card
 
 /-!
@@ -17,7 +17,7 @@ nested mutual block of `Phrase`, see the README), so an equation over
 the same evaluation without one.
 -/
 
-open Semantics Semantics.Macros
+open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Numbers
 
