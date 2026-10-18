@@ -349,7 +349,11 @@ pub fn scope(entry: &Judgment) -> BTreeSet<LexemeId> {
 
 /// Round-trip law 2 for one Reading of `parse`: admitted, realized, and
 /// found again in the parse of its realization, with the same names in
-/// scope.
+/// scope. `scope` is the scope `parse` was analyzed with.
+///
+/// A realization that is the parsed text itself would analyze and parse
+/// exactly as `parse` did, so the Reading is looked up in `parse`; only
+/// other text is parsed again, as the same Category.
 ///
 /// # Errors
 /// Which step failed.
@@ -366,11 +370,14 @@ pub fn law_two(
     let text = grammar
         .realize(reading, lexicon)
         .map_err(|e| format!("realization: {e}"))?;
-    let analyzed = lexicon.analyze_source_scoped(&text, None, scope);
-    if grammar
-        .parse_category(&analyzed, parse.category())
-        .is_some_and(|again| again.contains(reading))
-    {
+    let found = if text == parse.text() {
+        parse.contains(reading)
+    } else {
+        parse
+            .reparse(&lexicon.analyze_source_scoped(&text, None, scope))
+            .contains(reading)
+    };
+    if found {
         Ok(())
     } else {
         Err(format!(

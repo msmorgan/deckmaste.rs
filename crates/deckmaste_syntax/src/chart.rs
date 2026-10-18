@@ -18,7 +18,8 @@ use crate::step::Symbol;
 /// Sizes of one parse, for measurement only.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Metrics {
-    /// Distinct chart items (Production, dot, span, state), predictions included.
+    /// Distinct chart items (Production, dot, span, state), predictions
+    /// included.
     pub chart_items: usize,
     /// Completed Constituents in the Packed Forest.
     pub completed_nodes: usize,
@@ -98,6 +99,17 @@ pub struct Parse<'g> {
     pub forest: PackedForest,
     /// Words no declared lexeme spells, as char ranges.
     pub vocabulary_gaps: Vec<Range<usize>>,
+}
+
+impl<'g> Parse<'g> {
+    /// Parses another analyzed text as the Category this Parse was made for.
+    /// Unlike [`CompiledGrammar::parse_category`] with [`Parse::category`],
+    /// this keeps a Category that Readings report under another Category's
+    /// name.
+    #[must_use]
+    pub fn reparse(&self, analyzed: &AnalyzedText) -> Parse<'g> {
+        self.grammar.run(analyzed, self.root)
+    }
 }
 
 impl CompiledGrammar {

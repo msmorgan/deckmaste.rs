@@ -24,6 +24,7 @@ use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::SurfaceCase;
 use deckmaste_lexical::SurfaceStructure;
 use deckmaste_lexical::WordForm;
+use deckmaste_syntax::AdmissionError;
 use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::FrameCatalog;
 use deckmaste_syntax::Gap;
@@ -294,14 +295,12 @@ fn multiword_lexeme_is_atomic_and_needs_its_separator() {
     first_strike.surface_structure = SurfaceStructure::Multiword;
     first_strike.forms[0].form = WordForm::Singular;
     first_strike.forms[0].features = number(Number::Singular);
-    let lexicon = Lexicon::new([
-        first_strike,
+    let words = [
         word("a:first", "first", Category::Adjective),
         noun("strike"),
-    ])
-    .unwrap();
-    let grammar = bind(
-        r#"(
+    ];
+    let lexicon = Lexicon::new([first_strike].into_iter().chain(words.clone())).unwrap();
+    let source = r#"(
             root: "Sentence",
             categories: { "Sentence": (), "Nominal": () },
             productions: [
@@ -309,16 +308,25 @@ fn multiword_lexeme_is_atomic_and_needs_its_separator() {
                 (name: "Noun", lhs: "Nominal", rhs: [Lex("head", Noun)]),
                 (name: "Premodified", lhs: "Nominal", rhs: [Lex("modifier", Adjective), Cat("head", "Nominal")]),
             ],
-        )"#,
-        &lexicon,
-        NO_FRAMES,
-    )
-    .unwrap();
+        )"#;
+    let grammar = bind(source, &lexicon, NO_FRAMES).unwrap();
     let found: BTreeSet<Vec<String>> = readings(&grammar, &lexicon, "First strike.")
         .iter()
         .map(lexemes)
         .collect();
     assert_eq!(found, BTreeSet::from([vec!["n:first-strike".to_owned()],]));
+    // Admission rejects the separate-word Reading, whose leaves are values of
+    // this lexicon too: no leaf of it spells the multiword noun.
+    let separate = Lexicon::new(words).unwrap();
+    let decomposed = bind(source, &separate, NO_FRAMES)
+        .unwrap()
+        .parse(&separate, "First strike.")
+        .readings();
+    assert_eq!(decomposed.len(), 1);
+    assert!(matches!(
+        grammar.admit(&decomposed[0], &lexicon),
+        Err(AdmissionError::Rejected { production, .. }) if production == "lexical atomicity"
+    ));
     // Neither lexical nor constructional realization inserts two spaces.
     // Reject the source rather than admitting a law-one failure.
     let spaced = grammar.parse(&lexicon, "First  strike.");
@@ -1168,4 +1176,39 @@ fn numeral_sign_survives_phrase_projection_and_controls_admission() {
             );
         }
     }
+}
+
+/// Round-trip law 2 for a Category its Readings report under another
+/// Category's name: the parse of the realization is made for the same
+/// Category, not for the one whose name the Readings carry.
+#[test]
+fn reparse_keeps_a_category_reported_under_another_name() {
+    let lexicon = Lexicon::new([
+        word("a:first", "first", Category::Adjective),
+        noun("strike"),
+    ])
+    .unwrap();
+    let grammar = bind(
+        r#"(
+            root: "Nominal",
+            categories: { "Nominal": (), "Premodified": (category: Some("Nominal")) },
+            productions: [
+                (name: "Noun", lhs: "Nominal", rhs: [Lex("head", Noun)]),
+                (name: "Premodified", lhs: "Premodified", rhs: [Lex("modifier", Adjective), Cat("head", "Nominal")]),
+            ],
+        )"#,
+        &lexicon,
+        NO_FRAMES,
+    )
+    .unwrap();
+    let analyzed = lexicon.analyze("first strike");
+    let parse = grammar.parse_category(&analyzed, "Premodified").unwrap();
+    let readings = parse.readings();
+    assert_eq!(readings.len(), 1);
+    let reading = &readings[0];
+    assert_eq!(parse.category(), "Nominal");
+    assert_eq!(reading.node().unwrap().category, "Nominal");
+    assert!(parse.reparse(&analyzed).contains(reading));
+    let named = grammar.parse_category(&analyzed, parse.category()).unwrap();
+    assert!(!named.contains(reading));
 }
