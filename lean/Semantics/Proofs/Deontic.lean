@@ -13,11 +13,11 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.Deontic
 
-private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs instruction).1
+private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs instruction).1
 
 /-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Instruction) : Ability :=
+def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
   .activated cost instruction none none none none
 
 /-- "you may play …" with no zone, limit, timing, or payment named. -/
@@ -38,7 +38,7 @@ theorem badStateBasedLossOnCreature :
 
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
-    Instruction.check (DRS.ofList []) (.establish
+    Action.check (DRS.ofList []) (.establish
       (.cant (.actor (target .anyPlayer)) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) }) (some thisTurn)) = [] := by decide
 
 theorem badStateBasedCauseWithoutDeed :
@@ -51,21 +51,21 @@ theorem badStateBasedLossPatientRole :
 
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.cant .any (.block (target creature)) { rider := .noRider })
         (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature can't be attacked this turn." -/
 theorem badCantBeAttacked :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.cant .any (.attack (some (target creature))) { rider := .noRider })
         (some thisTurn)) = [.deedFits] := by
   decide
 
 /-- "Target creature card in a graveyard can't block this turn." -/
 theorem badCantInGraveyard :
-    Instruction.check (DRS.ofList []) (forbidBlock (target (.and [creature, .inZone graveyard])) (some
+    Action.check (DRS.ofList []) (forbidBlock (target (.and [creature, .inZone graveyard])) (some
         soFarThisTurn))
       = [.deedFits] := by
   decide
@@ -106,7 +106,7 @@ theorem okMixedCharacteristicDisjunct :
   decide
 
 /-- "You pay 2 life." -/
-theorem okPayLifeCost : Instruction.check (DRS.ofList []) (.pay (payLife 2) .once .paid none none) = [] :=
+theorem okPayLifeCost : Action.check (DRS.ofList []) (.pay (payLife 2) .once .paid none none) = [] :=
     by decide
 
 /-- "Sacrifice a creature: Draw a card." -/
@@ -143,14 +143,14 @@ theorem okStaticUntargeting :
 
 /-- "You may play a card in your graveyard this turn." -/
 theorem okPlayFromGraveyard :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish
         (.may (.actor .you) (.procedure .play (a (.and [.isCard, .inZone graveyard])) .itsOwnCost none none none) { rider := playRider }) (some thisTurn)) = [] := by
   decide
 
 /-- "You may play a land card from your graveyard this turn." -/
 theorem okPlayLandFromGraveyard :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish
         (.may (.actor .you) (.procedure .play (a (.and [land, .inZone (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
       = [] := by
@@ -158,7 +158,7 @@ theorem okPlayLandFromGraveyard :
 
 /-- "You may cast a creature card from your graveyard this turn." -/
 theorem okCastCreatureFromGraveyard :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish
         (.may (.actor .you) (.procedure .cast (a (.and [creature, .inZone (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
       = [] := by
@@ -183,7 +183,7 @@ theorem badUnlessOnPositive :
 
 /-- "Target creature attacks each combat if able." -/
 theorem okMustAttackCreature :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.must (.actor (target creature)) (.attack none) { rider := .noRider })
         (some thisTurn)) = [] := by
   decide
@@ -192,7 +192,7 @@ theorem okMustAttackCreature :
 land type [CR#205.1b]. This fixture keeps the requirement available if it can attack
 [CR#508.1a]. -/
 theorem okMustAttackLand :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.must (.actor (target land)) (.attack none) { rider := .noRider })
         (some thisTurn)) = [] := by
   decide
@@ -217,20 +217,20 @@ theorem okRingBearerOnBattlefield :
 
 /-- "This creature can't attack target planeswalker this turn." -/
 theorem okForbidAttackPlaneswalker :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish
         (.cant (.actor thisCreature) (.attack (some (target (.hasType .planeswalker)))) { rider := .noRider }) (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature blocks itself this turn." -/
 theorem badBlocksItself :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.must (.actor (target creature)) (.block (.refl .one)) { rider := .noRider })
         (some thisTurn)) = [.deonticPatientOk] := by
   decide
 
 theorem bareBlockPatientCannotReadItsCoargument :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (.must (.actor (target creature)) (.block it) { rider := .noRider })
         (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
@@ -256,15 +256,15 @@ theorem okCoordinatedLandHostBlocks :
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAfterDealing :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ (Instruction.instruct .this (.dealDamage (.lit 4) (target creature) .any)),
+        [ (Action.instruct .this (.dealDamage (.lit 4) (target creature) .any)),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ]) = [] := by
   decide
 
 /-- "You gain 3 life. The damage can't be prevented." -/
 theorem badTheDamageAfterLifeGain :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .changeLife (.up (.lit 3)),
           .establish (.preventionBan .any .thatDamage .noPreventionOnly) none ])
@@ -272,7 +272,7 @@ theorem badTheDamageAfterLifeGain :
   decide
 
 def afterDamageDealt : DRS :=
-  instructionResult (DRS.ofList []) (Instruction.instruct .this (.dealDamage (.lit 4) (target creature) .any))
+  instructionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target creature) .any))
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :
@@ -318,7 +318,7 @@ theorem badCantCounterCreatures :
 
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doOnlyIf (.sequentially [Macros.instruct (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
@@ -326,7 +326,7 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doAndForbid (Macros.instruct (each .opponent) (sacrifice (a creature))) (.action "regenerate")
         (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
   decide
@@ -341,7 +341,7 @@ theorem enchantedPlayerDamageReadsBackAsThey :
 /-- "Target creature attacks a player other than you during its controller's next turn if
 able." No printed card on the bench. -/
 theorem goadedAttacksOther :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish
         (.must (.actor (target creature)) (.attack (some (a otherPlayer))) { rider := .noRider })
         (some untilYourNextTurn)) = [] := by

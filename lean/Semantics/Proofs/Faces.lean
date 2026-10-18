@@ -17,7 +17,7 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.Faces
 
 /-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Instruction) (timing : Option Timing := none) : Ability :=
+def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timing := none) : Ability :=
   .activated cost instruction timing none none none
 
 /-- A single-faced card. -/
@@ -152,11 +152,11 @@ theorem turnedFaceDownHeader :
 
 /-- "Target creature doesn't untap during its controller's next untap step." -/
 theorem okDoesntUntapNextOnBattlefield :
-    Instruction.check (DRS.ofList []) (.skipUntap (target creature) (.lit 1)) = [] := by decide
+    Action.check (DRS.ofList []) (.skipUntap (target creature) (.lit 1)) = [] := by decide
 
 /-- "Turn target creature face down." -/
 theorem okTurnFaceDownOnBattlefield :
-    Instruction.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
 
 /-- a white creature face reading "Protection from red" -/
 theorem okProtectionOnCreature :
@@ -297,7 +297,7 @@ theorem okPlaneswalkerAttacks :
   decide
 
 /-- "you pay {2}" -/
-theorem okPayMana : Instruction.check (DRS.ofList []) (.pay (.mana [generic 2]) .once .paid none none) = [] := by
+theorem okPayMana : Action.check (DRS.ofList []) (.pay (.mana [generic 2]) .once .paid none none) = [] := by
     decide
 
 /-- A legendary Jace planeswalker face with no text or loyalty yet. -/
@@ -324,35 +324,35 @@ theorem badLoyaltySorcery :
 
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
-    Instruction.check (DRS.ofList [])
-      (Primitives.Instruction.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
+    Action.check (DRS.ofList [])
+      (Primitives.Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [])
+    Action.check (DRS.ofList []) (Primitives.Action.create (.lit 1) (.copyOf (target creature) [Primitives.CopyExcept.types [] []]) [])
       = [.lineNonEmpty] := by
   decide
 
 /-- "Copy target instant or sorcery spell." -/
 theorem okCopyStackSpell :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) []) = []
           := by
   decide
 
 /-- "Create a token that's a copy of target creature. Untap that token." -/
 theorem okSetStatusOnBattlefield :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Instruction.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Primitives.Action.create (.lit 1) (.copyOf (target creature) []) [],
           .setStatus .untapped (that .token) ]) = [] := by
   decide
 
 /-- "Copy target instant or sorcery spell. Untap that token." The Idris pin refutes the
 anaphor. -/
 theorem badStackCopyAsToken :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
           .setStatus .untapped (that .token) ])
@@ -361,9 +361,9 @@ theorem badStackCopyAsToken :
 
 /-- "Create a token that's a copy of target creature. Untap that copy." -/
 theorem badTokenCopyAsCopyMention :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Instruction.create (.lit 1) (.copyOf (target creature) []) [],
+        [ Primitives.Action.create (.lit 1) (.copyOf (target creature) []) [],
           .setStatus .untapped (that .copy) ])
       = [.anaphor (.word .copy) .one 0] := by
   decide
@@ -596,7 +596,7 @@ theorem badFlashbackOnPermanentCard :
 
 /-- "for each attacking creature you control. You gain that much life." -/
 theorem okThatMuchAfterQuantity :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ Macros.instruct (target .opponent) (loseLife
             (forEach 1 (.and [attacking, creature, .hasPossessor .controller .you]))),
@@ -605,30 +605,30 @@ theorem okThatMuchAfterQuantity :
 
 /-- "Flip a coin. Draw that many cards." -/
 theorem badThatMuchAfterFlip :
-    Instruction.check (DRS.ofList []) (.sequentially [flipCoins 1, draw .thatMuch])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, draw .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Flip a coin. If you win the flip, draw a card." -/
 theorem okFlipArmAfterFlip :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [flipCoins 1, doIf (.flipCalled .you .wins) (draw (.lit 1))])
       = [] := by
   decide
 
 /-- "If you win the flip, draw a card." -/
 theorem badFlipArmWithoutFlip :
-    Instruction.check (DRS.ofList []) (doIf (.flipCalled .you .wins) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.flipCalled .you .wins) (draw (.lit 1)))
       = [.coinFlipInScope] := by
   decide
 
 /-- "Roll a d6." -/
-theorem okSixSidedDie : Instruction.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 6) .one .anyResult) = [] :=
+theorem okSixSidedDie : Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 6) .one .anyResult) = [] :=
     by decide
 
 /-- "Roll a d0." -/
 theorem badNoughtSidedDie :
-    Instruction.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 0) .one .anyResult) = [.nonZeroQ] := by decide
+    Action.check (DRS.ofList []) (.rollDice (.lit 1) (.sides 0) .one .anyResult) = [.nonZeroQ] := by decide
 
 /-- a planeswalker card printing its starting loyalty -/
 theorem okPlaneswalkerLoyaltyBox : Card.check (one { jace with loyalty := stat 3 }) = [] := by
@@ -724,25 +724,25 @@ theorem badPluralDevotion :
 
 /-- "Flip a coin. Take an extra turn for each coin that comes up heads." -/
 theorem okCoinsShowingAfterFlip :
-    Instruction.check (DRS.ofList []) (.sequentially [flipCoins 1, extraTurn (.coinsShowing .heads)])
+    Action.check (DRS.ofList []) (.sequentially [flipCoins 1, extraTurn (.coinsShowing .heads)])
       = [] := by
   decide
 
 /-- "Take an extra turn for each coin that comes up heads." -/
 theorem badCoinsShowingWithoutFlip :
-    Instruction.check (DRS.ofList []) (extraTurn (.coinsShowing .heads)) = [.coinFlipInScope] :=
+    Action.check (DRS.ofList []) (extraTurn (.coinsShowing .heads)) = [.coinFlipInScope] :=
         by
   decide
 
 /-- "Transform target creature." -/
-theorem okTurnOverOnField : Instruction.check (DRS.ofList []) (.turnOver (target creature)) = [] := by decide
+theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target creature)) = [] := by decide
 
 /-- "Room" -/
 def room : Predicate := .hasSubtype (enchantmentType "Room")
 
 /-- "unlock a locked door of a Room you control" -/
 theorem okUnlockRoomDoor :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.unlock
         (.doorOf (some .locked)
           (.described (.target (upTo 1)) (.and [room, .hasPossessor .controller .you]))))
@@ -752,7 +752,7 @@ theorem okUnlockRoomDoor :
 /-- "When you unlock this door, this Room deals N damage to each opponent." -/
 def doorDamage (amount : Nat) : Ability :=
   when (.does (.actor .you) (.unlock .thisDoor))
-    (Instruction.instruct thisRoom (.dealDamage (.lit amount) (each .opponent) .any))
+    (Action.instruct thisRoom (.dealDamage (.lit amount) (each .opponent) .any))
 
 /-- "When you unlock this door, this Room deals 1 damage to each opponent.": a door header
 belongs to a Room's shared line. -/
@@ -780,19 +780,19 @@ theorem playerItRead :
     NounPhrase.checkAt (some .player) [({ det := .a, plur := .one, payload := .player false, idents := [] } : Referent)] they = [] := by decide
 
 theorem delayedDoorTraversal :
-    Instruction.namesThisDoor (delay (.does (.actor .you) (.unlock .thisDoor)) (draw (.lit 1)))
+    Action.namesThisDoor (delay (.does (.actor .you) (.unlock .thisDoor)) (draw (.lit 1)))
       = true := by
   decide
 
 theorem distributiveGroupSurvives :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ Macros.instruct (each .opponent) (.enact (.action "shuffle") (.shuffle (library .actor)) none none),
           Macros.instruct (those .player) (.changeLife (.down (.lit 1))) ]) = [] := by
   decide
 
 theorem redundantSameClauseShuffleHandoffIsRefused :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (Macros.instruct (each .opponent)
         (.enact (.action "shuffle")
           (Macros.instruct they (.shuffle (library .actor))) none none)) =
@@ -825,15 +825,15 @@ theorem modalCostReadbacks :
 
 /-- "It doesn't untap during its controller's next untap step." -/
 theorem okUntapNextSingleIt :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target creature), .skipUntap it (.lit 1)])
       = [] := by
   decide
 
 theorem recentTappedArtifactIsSelectedForUntapSkip :
     let taps := .sequentially [.setStatus .tapped (target creature), .setStatus .tapped (target artifact)]
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) taps).1
-    Instruction.check (DRS.ofList []) (.sequentially
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) taps).1
+    Action.check (DRS.ofList []) (.sequentially
       [.setStatus .tapped (target creature), .setStatus .tapped (target artifact), .skipUntap it (.lit 1)]) = [] ∧
       (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
       (after.findById? 1).map (·.ty) = some [.artifact] := by decide
@@ -856,14 +856,14 @@ theorem badRepeatedChapterMark :
 
 /-- "Roll a d20. 1—9 | Draw a card." -/
 theorem okResultsTableAfterRoll :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [rollDice 1 20, .applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩]])
       = [] := by
   decide
 
 /-- "1—9 | Draw a card." -/
 theorem badTableWithoutRoll :
-    Instruction.check (DRS.ofList []) (.applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩])
+    Action.check (DRS.ofList []) (.applyResultsTable [⟨fromTo 1 9, draw (.lit 1)⟩])
       = [.outcomeInScope .rollResult 0] := by
   decide
 

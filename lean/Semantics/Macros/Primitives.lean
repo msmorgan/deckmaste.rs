@@ -11,23 +11,23 @@ declare_semantic_primitives
 rider's place (`#[macro_ron(embed)]`), and the bench writes it the same way. -/
 instance : Coe Semantics.EntryRider Semantics.MoveRider := ⟨Semantics.Macros.Primitives.MoveRider.entry⟩
 
-namespace Semantics.Macros.Primitives.Instruction
+namespace Semantics.Macros.Primitives.Action
 
 /-- A numeric definition at instruction position uses the shared static definition. -/
-semantic_template define (letter : Letter) (amount : Amount) : Semantics.Instruction :=
+semantic_template define (letter : Letter) (amount : Amount) : Semantics.Action :=
   .establish (.letterDefinition letter amount) none
 
-semantic_template offer (body : Semantics.Instruction) (ifDid ifNot : Option Semantics.Instruction) :
-    Semantics.Instruction :=
+semantic_template offer (body : Semantics.Action) (ifDid ifNot : Option Semantics.Action) :
+    Semantics.Action :=
   .withContinuation .optional body ifDid ifNot
 
-semantic_template doIfDone (body : Semantics.Instruction) (ifDid ifNot : Option Semantics.Instruction) :
-    Semantics.Instruction := .withContinuation .required body ifDid ifNot
+semantic_template doIfDone (body : Semantics.Action) (ifDid ifNot : Option Semantics.Action) :
+    Semantics.Action := .withContinuation .required body ifDid ifNot
 
-semantic_template repeatTimes (times : Amount) (body : Semantics.Instruction) : Semantics.Instruction :=
+semantic_template repeatTimes (times : Amount) (body : Semantics.Action) : Semantics.Action :=
   .repeat_ (.fixed times body)
 
-end Semantics.Macros.Primitives.Instruction
+end Semantics.Macros.Primitives.Action
 
 namespace Semantics.Macros.Primitives.NounPhrase
 
@@ -86,51 +86,51 @@ semantic_template color (color : Color) : Semantics.CopyExcept := .edits [.color
 
 end Semantics.Macros.Primitives.CopyExcept
 
-namespace Semantics.Macros.Primitives.Instruction
+namespace Semantics.Macros.Primitives.Action
 
-semantic_template removeFromCombat (subject : NounPhrase) : Semantics.Instruction :=
+semantic_template removeFromCombat (subject : NounPhrase) : Semantics.Action :=
   .combat subject (.participation .outsideCombat)
 
-semantic_template becomeAttacking (subject : NounPhrase) (defender : Option NounPhrase) : Semantics.Instruction :=
+semantic_template becomeAttacking (subject : NounPhrase) (defender : Option NounPhrase) : Semantics.Action :=
   .combat subject (.participation (.attacking defender))
 
-semantic_template becomeBlocking (subject blocked : NounPhrase) : Semantics.Instruction :=
+semantic_template becomeBlocking (subject blocked : NounPhrase) : Semantics.Action :=
   .combat subject (.blocking .attached blocked)
 
-semantic_template stopBlocking (subject blocked : NounPhrase) : Semantics.Instruction :=
+semantic_template stopBlocking (subject blocked : NounPhrase) : Semantics.Action :=
   .combat subject (.blocking .unattached blocked)
 
-semantic_definition attachTo (subject host : NounPhrase) : Semantics.Instruction :=
+semantic_definition attachTo (subject host : NounPhrase) : Semantics.Action :=
   .ownScope (some (.action "attach"))
     (.enact (.action "attach") (.attachment .attached (.inCaller (.firstMention "attachTo.subject" subject)) (some (.inCaller (.firstMention "attachTo.host" host)))) none none)
 
-semantic_template unattach (subject : NounPhrase) : Semantics.Instruction :=
+semantic_template unattach (subject : NounPhrase) : Semantics.Action :=
   .attachment .unattached subject none
 
-end Semantics.Macros.Primitives.Instruction
+end Semantics.Macros.Primitives.Action
 
-namespace Semantics.Macros.Primitives.Instruction
+namespace Semantics.Macros.Primitives.Action
 
 semantic_definition create (count : Amount) (token : TokenSpec) (riders : List EntryRider) :
-    Semantics.Instruction :=
+    Semantics.Action :=
   .ownScope (some (.action "create"))
     (.enact (.action "create") (.createObject (.inCaller count) (.token (.inCaller token) (riders.map EntryRider.inCaller)) true none) none none)
 
-semantic_template getEmblem (abilities : List Ability) : Semantics.Instruction :=
+semantic_template getEmblem (abilities : List Ability) : Semantics.Action :=
   .createObject (.lit 1) (.emblem none abilities) true none
 
-end Semantics.Macros.Primitives.Instruction
+end Semantics.Macros.Primitives.Action
 
-namespace Semantics.Macros.Primitives.Instruction
+namespace Semantics.Macros.Primitives.Action
 
 /-- Counter is one labeled stack-to-graveyard move [CR#701.6a]. -/
-semantic_definition counterSpell (subject : NounPhrase) : Semantics.Instruction :=
+semantic_definition counterSpell (subject : NounPhrase) : Semantics.Action :=
   .ownScope (some (.action "counter"))
     (.enact (.action "counter")
       (.move (.inCaller (.firstMention "counterSpell.subject" subject)) (.zones [.zone .stack .bare]) (some (.zone .graveyard .bare)) .arrival none [])
       none none)
 
-end Semantics.Macros.Primitives.Instruction
+end Semantics.Macros.Primitives.Action
 
 namespace Semantics.Macros.Primitives.StaticSpec
 

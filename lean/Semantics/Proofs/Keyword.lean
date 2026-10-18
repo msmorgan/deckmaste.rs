@@ -17,7 +17,7 @@ private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 
 /-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Instruction) : Ability :=
+def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
   .activated cost instruction none none none none
 
 /-- "Sacrifice a creature: Draw a card." -/
@@ -27,7 +27,7 @@ theorem okSacrificeAsCost :
 
 /-- "Target creature gains flying." -/
 theorem okGainsKeyword :
-    Instruction.check (DRS.ofList []) (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
+    Action.check (DRS.ofList []) (gain (target creature) (keyword (.named "flying")) none) = [] := by decide
 
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
@@ -101,7 +101,7 @@ theorem badCoordinatedHostPlural :
 
 /-- "Create a 1/1 white Soldier creature token with flying." -/
 theorem okTokenKeywordAbility :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (create (.lit 1)
         { characteristics :=
           { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
@@ -255,12 +255,12 @@ theorem okActivatedOpensItsOwnLetter :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
         (.sequentially
-          [(Instruction.instruct .this (.dealDamage (.letter .x) (target anyTarget) .any)), Primitives.Instruction.define .x (.lit 3)])) = [] := by
+          [(Action.instruct .this (.dealDamage (.letter .x) (target anyTarget) .any)), Primitives.Action.define .x (.lit 3)])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/
 theorem badActivatedClosesCardLetter :
-    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (Primitives.Instruction.define .x (.lit 3)))
+    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (Primitives.Action.define .x (.lit 3)))
       = [.openLetter .x] := by
   decide
 
@@ -270,7 +270,7 @@ theorem activatedManaCostIntroducesItsOwnX :
   decide
 
 theorem sharedSubjectSurvivesSecondSingular :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ exile (target artifact),
           establishFor (.firstMention "sharedSubject.subject" (target creature))
@@ -297,11 +297,11 @@ theorem okOwnPayerCost : Ability.check (DRS.ofList []) (activatedAbility (payLif
   decide
 
 /-- "Counter target spell." -/
-theorem okCounterSpell : Instruction.check (DRS.ofList []) (Primitives.Instruction.counterSpell (target spell)) = [] := by decide
+theorem okCounterSpell : Action.check (DRS.ofList []) (Primitives.Action.counterSpell (target spell)) = [] := by decide
 
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.counterSpell (target anyTarget))
+    Action.check (DRS.ofList []) (Primitives.Action.counterSpell (target anyTarget))
       = [.deedFits, .kindLte (.join .object .player) (.join .object .pile)] := by
   decide
 
@@ -356,15 +356,15 @@ theorem badCompanionSharedCounterKind :
 /-- "Each player scries 1.": one scry clause over a distributed player reference
 [CR#701.22a,701.22c]. -/
 theorem okEachPlayerScriesOne :
-    Instruction.check (DRS.ofList []) (Macros.instruct (each .anyPlayer) (scry (.lit 1))) = [] := by decide
+    Action.check (DRS.ofList []) (Macros.instruct (each .anyPlayer) (scry (.lit 1))) = [] := by decide
 
 /-- "Fateseal 2.": the sorted library is an opponent's [CR#701.29a]. -/
 theorem okFatesealAnOpponent :
-    Instruction.check (DRS.ofList []) (fateseal anOpponent (.lit 2)) = [] := by decide
+    Action.check (DRS.ofList []) (fateseal anOpponent (.lit 2)) = [] := by decide
 
 /-- "Choose flying or trample. This creature gains that ability until end of turn." -/
 theorem okThatAbilityAfterChoice :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ choose (a (qualityFrom .ability (.abilitiesAmong [.the (.named "flying"), .the (.named "trample")]))),
           gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn) ]) = [] := by
@@ -373,7 +373,7 @@ theorem okThatAbilityAfterChoice :
 /-- "This creature gains that ability until end of turn", with no ability chosen anywhere in
 the text. -/
 theorem badThatAbilityWithoutChoice :
-    Instruction.check (DRS.ofList []) (gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn))
+    Action.check (DRS.ofList []) (gain thisCreature (.thatAbility .theChoice) (some untilEndOfTurn))
       = [.choiceRef .theChoice (.quality .ability) 0] := by
   decide
 

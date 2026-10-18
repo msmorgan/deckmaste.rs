@@ -6,8 +6,8 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.MacroParameters
 
-private def instructionResult (drs : DRS) (body : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs body).1
+private def instructionResult (drs : DRS) (body : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs body).1
 private def nounResult (drs : DRS) (body : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false body).1
 private def selected (drs : DRS) (body : NounPhrase) : List Referent :=
@@ -18,7 +18,7 @@ private def callerCreature : DRS := DRS.ofList
 private def callerCreatureSpell : DRS := DRS.ofList
   [{ det := .the, plur := .one, payload := .object [.creature] (some .stack) none none none }]
 
-private semantic_template drawTwice (amount : Amount) : Instruction :=
+private semantic_template drawTwice (amount : Amount) : Action :=
   .sequentially [draw amount, draw amount]
 private semantic_template forwardedSubject (subject : NounPhrase) : NounPhrase := subject
 private semantic_template subjectPower (subject : NounPhrase) : Amount := .statOf (.stat .power) subject
@@ -31,36 +31,36 @@ private semantic_template powerEquals (amount : Amount) : Predicate := .compare 
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
 private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : StaticSpec :=
   .modification subject .power (.up amount)
-private semantic_template unusedSubject (_chosen : NounPhrase) : Instruction := .draw (.lit 1)
+private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.lit 1)
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
-private semantic_template moveSubject (subject : NounPhrase) : Instruction :=
+private semantic_template moveSubject (subject : NounPhrase) : Action :=
   .move subject .anywhere (some graveyard) .arrival none []
-private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhrase → Instruction)) : Instruction :=
+private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhrase → Action)) : Action :=
   body chosen
-private abbrev SubjectBody := NounPhrase → Instruction
-private semantic_template withSubjectBody (subject : NounPhrase) (body : splice SubjectBody) : Instruction := body subject
-private semantic_template configuredDraw (_flag : Bool) : Instruction := .draw (.lit 1)
+private abbrev SubjectBody := NounPhrase → Action
+private semantic_template withSubjectBody (subject : NounPhrase) (body : splice SubjectBody) : Action := body subject
+private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.lit 1)
 private structure Flag where
   bit : Bool
-private def discardedInstruction (_ : Instruction) : Flag := ⟨true⟩
+private def discardedInstruction (_ : Action) : Flag := ⟨true⟩
 private def ordinarySubjectIdentity (subject : NounPhrase) : NounPhrase := subject
-private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Instruction := draw (.lit 1)
-private def applyWithForgedContext (body : MacroContext → NounPhrase → Instruction)
-    (left right : NounPhrase) : Instruction := instruct left (body ⟨999⟩ right)
+private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Action := draw (.lit 1)
+private def applyWithForgedContext (body : MacroContext → NounPhrase → Action)
+    (left right : NounPhrase) : Action := instruct left (body ⟨999⟩ right)
 private def discardedSubjectFunction : Bool :=
   let _function : NounPhrase → NounPhrase := fun subject => subject
   true
 private def subjectFunctions : List (NounPhrase → NounPhrase) := [fun subject => subject]
-private semantic_template functionListConfig (_functions : List (NounPhrase → NounPhrase)) : Instruction := draw (.lit 1)
+private semantic_template functionListConfig (_functions : List (NounPhrase → NounPhrase)) : Action := draw (.lit 1)
 
-private semantic_definition selectThenTap (subject : NounPhrase) : Instruction :=
+private semantic_definition selectThenTap (subject : NounPhrase) : Action :=
   .ownScope none (.sequentially
     [.setStatus .tapped (.inCaller (.firstMention "select.subject" subject)),
       .setStatus .untapped (.laterMention "select.subject" .any)])
-private semantic_definition selectThenMove (subject : NounPhrase) : Instruction :=
+private semantic_definition selectThenMove (subject : NounPhrase) : Action :=
   .ownScope none (.move (.inCaller (.firstMention "select.subject" subject))
     .anywhere (some graveyard) .arrival none [])
-private semantic_definition announceThen (chosen : NounPhrase) (body : Instruction) : Instruction :=
+private semantic_definition announceThen (chosen : NounPhrase) (body : Action) : Action :=
   .ownScope none (.sequentially [.setStatus .tapped (.firstMention "announce.subject" (.inCaller chosen)),
     .inCaller body])
 
@@ -74,13 +74,13 @@ private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Macro body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-      (onChosen (target creature) (fun chosen => Primitives.Instruction.setStatus .tapped chosen))] } }
+      (onChosen (target creature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
 theorem suppliedBodyCanNameTheMacroSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
 private def aliasedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Aliased body witness", types := [.sorcery],
       text := [Primitives.Ability.spell none
-      (withSubjectBody (target creature) (fun subject => Primitives.Instruction.setStatus .tapped subject))] } }
+      (withSubjectBody (target creature) (fun subject => Primitives.Action.setStatus .tapped subject))] } }
 theorem bodyTypeAliasesRetainParameterEvidence : aliasedBodyParameter.card.check = [] := aliasedBodyParameter.ok
 private def nestedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
@@ -172,11 +172,11 @@ theorem eventParametersPublishTheirOutcome :
     countOutcomes .damageDealt (GameEvent.extend (DRS.ofList [])
       (.does (.actor thisCreature) (.dealDamage .anyAmount .you .any))) = 1 := by decide
 theorem templateUseRemainsInsideCondition :
-    Instruction.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target creature)) none =
+    Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target creature)) none =
       .doIf (.compareAmt (.lit 1) .eq (.lit 1))
         (.move (target creature) .anywhere (some graveyard) .arrival none []) none := by rfl
 theorem templateUseRemainsInsideRepetition :
-    Instruction.repeat_ (.fixed (.lit 2) (moveSubject (target creature))) =
+    Action.repeat_ (.fixed (.lit 2) (moveSubject (target creature))) =
       .repeat_ (.fixed (.lit 2)
         (.move (target creature) .anywhere (some graveyard) .arrival none [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
@@ -185,16 +185,16 @@ theorem forwardedYouRemainsThePayer : (forwardedSubject Primitives.NounPhrase.yo
 theorem forwardedOpponentIsNotThePayer : (forwardedSubject anOpponent).isYou = false := by decide
 
 theorem firstMentionUsesTextualOrder :
-    Instruction.check (DRS.ofList []) (.sequentially
+    Action.check (DRS.ofList []) (.sequentially
       [.setStatus .tapped (.laterMention "late" .any),
         .setStatus .untapped (.firstMention "late" (target creature))]) = [.bindingIdentity "late"] := by decide
 theorem firstMentionMakesLaterMentionAvailable :
-    Instruction.check (DRS.ofList []) (.sequentially
+    Action.check (DRS.ofList []) (.sequentially
       [.setStatus .tapped (.firstMention "early" (target creature)),
         .setStatus .untapped (.laterMention "early" .any)]) = [] := by decide
 
 theorem scopedNumberRegimeIsPreserved :
-    (Instruction.ownScope none (.establish (.letterDefinition .x (.lit 2)) none)).numberSlots =
+    (Action.ownScope none (.establish (.letterDefinition .x (.lit 2)) none)).numberSlots =
       [(.lit 2, .clamped)] := rfl
 
 theorem possessorQueryPreservesSubjectUpdate :
@@ -202,11 +202,11 @@ theorem possessorQueryPreservesSubjectUpdate :
       (·.zone) = some .battlefield := by decide
 
 theorem sameSelectedSubjectIsReadBackThroughTemplate :
-    (Instruction.exchange (.values (subjectPower (target creature)) (powerOf it))).check (DRS.ofList []) = [] := by decide
+    (Action.exchange (.values (subjectPower (target creature)) (powerOf it))).check (DRS.ofList []) = [] := by decide
 theorem independentValueSubjectsRemainIndependent :
-    (Instruction.exchange (.values (subjectPower (target creature))
+    (Action.exchange (.values (subjectPower (target creature))
       (subjectPower (target creature)))).check (DRS.ofList []) = [] := by decide
-private semantic_template rereadDamage (amount : Amount) : Instruction :=
+private semantic_template rereadDamage (amount : Amount) : Action :=
   .sequentially [instruct .this (.dealDamage amount .you .any), instruct .this (.dealDamage amount .you .any)]
 theorem expressionAmountObservesNewOutcomes :
     (rereadDamage .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [.quantOutcomeInScope 2] := by decide
@@ -226,7 +226,7 @@ theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
         {rider := .noRider}) = [] := by decide
 
 theorem namedSubjectAndCounterpartStillShareIdentity :
-    Instruction.check (DRS.ofList []) (.establish
+    Action.check (DRS.ofList []) (.establish
       (.must (.actor (.firstMention "block.subject" (target creature)))
         (.block (.laterMention "block.subject" .any)) {rider := .noRider})
       (some thisTurn)) = [.deonticPatientOk] := by decide
@@ -244,10 +244,10 @@ theorem secondSubjectSelectsOnlyItsTextuallyUsedArgument :
       after.visibleReferents.map (·.zone) = [some .graveyard] := by decide
 
 theorem nestedForwardingPreservesMoveAndTapBehavior :
-    Instruction.check (DRS.ofList []) (.sequentially
+    Action.check (DRS.ofList []) (.sequentially
       [moveSubject (forwardedSubject (target creature)), .setStatus .tapped (that .permanent)]) =
         [.anaphor (.word .permanent) .one 0] ∧
-      Instruction.check (DRS.ofList []) (.sequentially
+      Action.check (DRS.ofList []) (.sequentially
         [.setStatus .tapped (forwardedSubject (target creature)), .setStatus .untapped (that .permanent)]) = [] := by decide
 
 theorem sourceViewPreservesStaticDefinitionRole :
@@ -257,7 +257,7 @@ theorem forwardedBareThisRetainsDefinitionZoneExemption :
     (destroy (forwardedSubject .this)).check (DRS.ofList []) = [] := by decide
 
 theorem forwardedLibraryOwnerRetainsOpponentClassification :
-    (Instruction.enact (.action "fateseal") (lookAndSort (forwardedSubject anOpponent) (.lit 2)) none none).check
+    (Action.enact (.action "fateseal") (lookAndSort (forwardedSubject anOpponent) (.lit 2)) none none).check
       (DRS.ofList []) = [] := by decide
 
 theorem librarySlicePreservesExplicitOwnerUpdate :
@@ -266,7 +266,7 @@ theorem librarySlicePreservesExplicitOwnerUpdate :
         (·.zone) = some .battlefield := by decide
 
 theorem forwardedCoordinationRetainsTwoParties :
-    (Instruction.exchange (.lifeTotals (forwardedSubject (.and [.you, anOpponent])))).check
+    (Action.exchange (.lifeTotals (forwardedSubject (.and [.you, anOpponent])))).check
       (DRS.ofList []) = [] := by decide
 
 /-- error: Macro Semantics.Macros.fight uses a lexical context outside its authoring scope -/
@@ -285,7 +285,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (onChosen (target creature) (fun _ => moveSubject outside))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.draw] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -293,7 +293,7 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (configuredDraw (discardedInstruction (.draw (.lit 1))).bit)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.setStatus] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.setStatus] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -301,7 +301,7 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (onChosen (target creature) (fun chosen => .setStatus .tapped chosen))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.draw] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -351,7 +351,7 @@ private semantic_template predicateBodyInCaller (_subject : NounPhrase)
 private semantic_template eventWithSubject (subject : NounPhrase) : GameEvent :=
   .does (.actor subject) (.dealDamage .anyAmount .you .any)
 private semantic_template playerIgnoringSubject (_subject : NounPhrase) : NounPhrase := .you
-private semantic_template nestedRereadDamage (amount : Amount) : Instruction :=
+private semantic_template nestedRereadDamage (amount : Amount) : Action :=
   .sequentially [rereadDamage amount, rereadDamage amount]
 
 theorem amountBodyReadsItsCallerSubject :
@@ -413,7 +413,7 @@ theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
       [(2, .object, some .library), (1, .player, none), (0, .object, some .stack)] := by decide
 
 theorem templatePatientCannotReadItsCoargument :
-    Instruction.check (DRS.ofList []) (.establish
+    Action.check (DRS.ofList []) (.establish
       (.must (.actor (target creature)) (.block (forwardedSubject it)) { rider := .noRider })
       (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
@@ -440,7 +440,7 @@ theorem targetGroupsRemainCountableThroughTemplate :
       (DRS.ofList []) = [] := by decide
 
 theorem templateBareThisRetainsEnactedZoneExemption :
-    (Instruction.enact (.action "destroy") (moveSubject .this) none none).check (DRS.ofList []) =
+    (Action.enact (.action "destroy") (moveSubject .this) none none).check (DRS.ofList []) =
       [] := by decide
 
 end Semantics.Proofs.MacroParameters

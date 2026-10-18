@@ -54,7 +54,7 @@ for example, "permanent", "colorless", "historic", "spell", "attacking", and
 
 Instructions and their macros use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
-Event constructors retain their predication forms. Instruction composition uses `sequentially` and `simultaneously`; fixed repetition
+Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
 lives in `Repetition.fixed`. No instruction writes its performer: it is
 `actor`, the controller unless an enclosing `act performer body` hands it to
 another player or a permanent; "target player draws a card" is
@@ -107,7 +107,7 @@ carries an `Int` and a printed negative face is spellable — Spinal Parasite's
 the result of an effect yields zero rather than a negative, except where the
 effect sets, doubles, or triples a life total or a creature's power and
 toughness. So every position that consumes an `Amount` declares its regime as
-data the engine reads, in `Instruction.numberSlots`, `StaticSpec.numberSlots`,
+data the engine reads, in `Action.numberSlots`, `StaticSpec.numberSlots`,
 `Cost.numberSlots`, and `GameEvent.numberSlots`: `clamped` for damage, life
 gain and loss, draws, counts, costs, choices, and the letter X; `signed` for
 an effect that sets a value, for exchanges of values, and for the raw reads
@@ -148,7 +148,7 @@ proves the exact expected list. For example, `Proofs/Anaphora.lean` contains:
 
 ```lean
 theorem badChooseYou :
-    Instruction.check [] (.choose none .you .openly none) = [.choiceClause] := by decide
+    Action.check [] (.choose none .you .openly none) = [.choiceClause] := by decide
 ```
 
 `okX` / `badX` names and card sentences are retained when a term is re-spelled.

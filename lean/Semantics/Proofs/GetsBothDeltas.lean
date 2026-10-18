@@ -9,8 +9,8 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.GetsBothDeltas
 
-private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs instruction).1
+private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs instruction).1
 
 theorem getsPtIsOneNode (subject : NounPhrase) (power toughness : Delta Amount) :
     getsPt subject power toughness = .ptModification subject power toughness := rfl
@@ -35,7 +35,7 @@ theorem ptModificationSlots :
   rfl
 
 theorem okDeltasReadTheirSubject :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (get (target creature) (.up (.statOf (.stat .power) it)) (.up (.statOf (.stat .power) it))
         (some untilEndOfTurn)) = [] := by
   decide
@@ -59,7 +59,7 @@ theorem selectedPtSubjectHasStableIdentity :
       (selectedSubjectContext.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem deltasReadSelectedSubjectAfterUnrelatedObject :
-    Instruction.check (DRS.ofList []) (.sequentially
+    Action.check (DRS.ofList []) (.sequentially
       [.setStatus .tapped (target artifact),
         get (.firstMention "pump.subject" (target creature))
           (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)]) = [] := by decide
@@ -89,14 +89,14 @@ theorem nestedModernCoordinationIsRefused :
 private def abilityTrace (context : DRS) (ability : Ability) : DRS × List Refusal :=
   match ability with
   | .static spec => stepStaticSpec 32 context spec
-  | .spell none body => stepInstruction 32 .postEvent .obj context body
+  | .spell none body => stepAction 32 .postEvent .obj context body
   | .triggered event alternatives while_ [] none none guard body =>
     let (header, headerErrors) := stepTriggerHeaderWith (stepOps 32) context
       event alternatives while_ none
     let (condition, conditionErrors) := match guard with
       | some condition => stepCondition 32 (nextClause header) condition
       | none => (header, [])
-    let (out, bodyErrors) := stepInstruction 32 .postEvent .obj (nextClause condition) body
+    let (out, bodyErrors) := stepAction 32 .postEvent .obj (nextClause condition) body
     (out, headerErrors ++ conditionErrors ++ bodyErrors)
   | _ => (context, [.recursionLimit])
 
@@ -146,7 +146,7 @@ theorem diminishKeepsOneTargetForBothSetDeltas :
   · decide
 
 theorem cycleOfLifeKeepsItsCastCreatureTarget :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
+    let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.cycleOfLife
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.det) = some .target ∧
       Cards.cycleOfLife = get (target (.and [creature, castBy .you]))
@@ -160,7 +160,7 @@ theorem bondsOfFaithConditionReadsItsEnchantedSubject :
       (result.1.findById? 0).map (·.attachmentHost) = some true := by decide
 
 theorem builtToSmashConditionAndTrampleReadThePumpedTarget :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList []) Cards.builtToSmash
+    let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.builtToSmash
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.ty) = some [.creature, .artifact] := by decide
 
@@ -193,17 +193,17 @@ theorem nightmarishEndKeepsItsTargetAndDefinesBothDeltaLetters :
       anyOpenLetter .x result.1 = false := by decide
 
 theorem distortionStrikeProhibitionReadsItsPumpedTarget :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList []) Cards.distortionStrikeLine
+    let result := stepAction 32 .postEvent .obj (DRS.ofList []) Cards.distortionStrikeLine
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.det) = some .target ∧
       (match Cards.distortionStrikeLine with
       | .sequentially [pump, .establish (.cant .any (.block patient) _) _] =>
-        let pumped := (stepInstruction 32 .postEvent .obj (DRS.ofList []) pump).1
+        let pumped := (stepAction 32 .postEvent .obj (DRS.ofList []) pump).1
         (stepNounPhrase 32 (nextClause pumped) .obj true patient).2.1 = [0]
       | _ => False) := by
   refine ⟨by decide, by decide, by decide, ?_⟩
   change (stepNounPhrase 32
-    (nextClause ((stepInstruction 32 .postEvent .obj (DRS.ofList [])
+    (nextClause ((stepAction 32 .postEvent .obj (DRS.ofList [])
       (get (target creature) (.up (.lit 1)) (.up (.lit 0))
         (some untilEndOfTurn))).1)) .obj true (that (.type .creature))).2.1 = [0]
   decide
@@ -252,12 +252,12 @@ theorem eachCreaturePumpKeepsItsDistributedSubject :
       (fun ref => ref.ty.contains .creature && ref.det == .each)).length = 1 := by decide
 
 theorem deltasReadTheirNewlyIntroducedTarget :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList [])
+    let result := stepAction 32 .postEvent .obj (DRS.ofList [])
       (get (target creature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn))
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
 theorem deltaSubjectSurvivesAnEarlierArtifactDestruction :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList [])
+    let result := stepAction 32 .postEvent .obj (DRS.ofList [])
       (.sequentially [destroy (target artifact),
         get (target creature) (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)])
     result.2 = [] ∧ result.1.resolvedIds = [2] ∧
@@ -265,7 +265,7 @@ theorem deltaSubjectSurvivesAnEarlierArtifactDestruction :
       (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 theorem nextUpkeepPumpKeepsItsCreatureTarget :
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList [])
+    let result := stepAction 32 .postEvent .obj (DRS.ofList [])
       (get (target creature) (.up (.lit 3)) (.up (.lit 3))
         (some (untilEvent (.beginningOf .upkeep (some .you) (.next none)))))
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
@@ -329,12 +329,12 @@ theorem modernStaticLetterCannotBeDefinedTwice :
         .letterDefinition .x (countOf creature)]) = [.openLetter .x] := by decide
 
 theorem modernSharedSubjectSurvivesAnEarlierExile :
-    let body := Instruction.sequentially [exile (target artifact),
+    let body := Action.sequentially [exile (target artifact),
       establishFor (.firstMention "audit.shared" (target creature))
         [getsPt (.laterMention "audit.shared" it) (.up (.lit 1)) (.up (.lit 1)),
           .abilityGrant (.laterMention "audit.shared" it) (keyword (.named "flying"))]
         (some untilEndOfTurn)]
-    let result := stepInstruction 32 .postEvent .obj (DRS.ofList []) body
+    let result := stepAction 32 .postEvent .obj (DRS.ofList []) body
     result.2 = [] ∧ (identityBinding "audit.shared" result.1).map (·.id) = some 2 ∧
       (result.1.findById? 2).map (·.ty) = some [.creature] ∧
       (result.1.findById? 1).map (·.zone) = some (some .exile) := by decide

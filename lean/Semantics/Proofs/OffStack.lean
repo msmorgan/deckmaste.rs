@@ -40,7 +40,7 @@ theorem okWhileHoldsCitysBlessing :
 
 /-- "Return the permanent this spell becomes to its owner's hand" [CR#400.7,702.109a]. -/
 theorem okBecomesThisSpell :
-    Instruction.check (DRS.ofList []) (move (.becomes thisSpell) hand) = [] := by decide
+    Action.check (DRS.ofList []) (move (.becomes thisSpell) hand) = [] := by decide
 
 /-- Only an object changes zones [CR#400.7]: what a player "becomes" is refused as a kind. -/
 theorem badBecomesOfAPlayer :

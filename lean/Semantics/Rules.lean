@@ -9,7 +9,7 @@ what the *rules* do to every object that matches a scope, so they are the same s
 against a scope predicate rather than against a printed face.
 
 Nothing here is a new grammar. A conferral confers an ordinary `Ability`; a state-based
-action performs an ordinary `Instruction` under an ordinary `Condition`; a predefined token is
+action performs an ordinary `Action` under an ordinary `Condition`; a predefined token is
 the `CharacteristicBundle` a `TokenSpec.written` already carries. The tables add the scope and
 the naming, and `Semantics.Check.Rules` adds the obligations that scope imposes.
 -/
@@ -25,7 +25,7 @@ obligation. -/
 structure SbaRule where
   scope : Predicate
   when : Condition
-  then_ : Instruction
+  then_ : Action
 
 /-- A rules-defined conferral, authored under `rules/grant/`: *every object matching `scope`
 has `confer`*. There is no `when`, because a conferred ability carries its own conditionality —
@@ -67,9 +67,9 @@ inductive Conferral where
   /-- A state-based action the definition puts on every object that holds its subject
   [CR#704.1]: once per holder per check [CR#704.3], however many counters of the kind it holds,
   and free to read counts (ruling 2026-10-10). -/
-  | stateBased (when : Condition) (then_ : Instruction)
+  | stateBased (when : Condition) (then_ : Action)
   /-- A turn-based action the definition puts on every object it names [CR#703.1]. -/
-  | turnBased (part : TurnPart) (then_ : Instruction)
+  | turnBased (part : TurnPart) (then_ : Action)
 
 /-- What one registry declaration MEANS: the rules content the declared name stands for. A
 registry declares a namespace's members [CR#122.1,205.3,701.15b]; this is one member's

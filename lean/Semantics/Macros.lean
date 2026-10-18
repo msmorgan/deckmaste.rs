@@ -432,7 +432,7 @@ semantic_template onceEachYourTurn : UsageLimit := ⟨.moreThan (.lit 1), .yourT
 /-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
 semantic_template oncePerObject : UsageLimit := ⟨.moreThan (.lit 1), .thisObject⟩
 /-- "<instruction>. Do this only once each turn." [CR#603.2h] -/
-semantic_template doOnlyOnceEachTurn (instruction : Instruction) : Instruction :=
+semantic_template doOnlyOnceEachTurn (instruction : Action) : Action :=
   .limited instruction oncePerTurn
 
 /-! ## Amounts -/
@@ -479,20 +479,20 @@ semantic_template grants (keyword : KeywordLabel) : Conferral :=
 /-- What the creature type confers [CR#508.1a]: its object is a Combatant. -/
 semantic_template combatant : Conferral := .property (.combatant .this)
 
-/-! ## Instructions -/
+/-! ## Actions -/
 
-semantic_template move (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
+semantic_template move (subject : NounPhrase) (destination : ZoneExpr) : Action :=
   .move subject .anywhere (some destination) .arrival none []
 
 /-- "destroy <subject>" (`Definition`, [CR#701.8]). -/
-semantic_definition destroy (subject : NounPhrase) : Instruction :=
+semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
     (.enact (.action "destroy")
       (.move (.inCaller (.firstMention "destroy.subject" subject)) (.zones [.zone .battlefield .bare]) (some graveyard) .departure none [])
       none none)
 
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
-semantic_definition exile (subject : NounPhrase) : Instruction :=
+semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
       (.move (.inCaller (.firstMention "exile.subject" subject)) .anywhere (some exileZone) .arrival none [])
@@ -510,7 +510,7 @@ semantic_template faceDownWardedCreature : FaceDown :=
           power := some (.lit 2), toughness := some (.lit 2) }⟩
 
 /-- "exile <subject> face down" (`Definition`, [CR#701.13,406.3]). -/
-semantic_definition exileFaceDown (subject : NounPhrase) : Instruction :=
+semantic_definition exileFaceDown (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
       (.move (.inCaller (.firstMention "exileFaceDown.subject" subject)) .anywhere (some exileZone) .arrival none
@@ -519,7 +519,7 @@ semantic_definition exileFaceDown (subject : NounPhrase) : Instruction :=
 
 /-- "exile <subject> with N <kind> counters on it" (`Definition`, [CR#701.13]). -/
 semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
-    Instruction :=
+    Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
       (.move (.inCaller (.firstMention "exileWithCounters.subject" subject)) .anywhere (some exileZone) .arrival none
@@ -527,130 +527,130 @@ semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount) (
       none none)
 
 /-- "sacrifice <subject>" (`Definition`, [CR#701.21]). -/
-semantic_definition sacrifice (subject : NounPhrase) : Instruction :=
+semantic_definition sacrifice (subject : NounPhrase) : Action :=
   .ownScope (some (.action "sacrifice"))
     (.enact (.action "sacrifice")
       (.move (.inCaller (.firstMention "sacrifice.subject" subject)) (.zones [.zone .battlefield .bare]) (some graveyard) .departure none [])
       none none)
 
 /-- "put <subject> <destination>" -/
-semantic_template put (subject : NounPhrase) (destination : ZoneExpr) : Instruction :=
+semantic_template put (subject : NounPhrase) (destination : ZoneExpr) : Action :=
   .enact (.core .put) (.move subject .anywhere (some destination) .arrival none []) none none
 
 /-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
 bottom") -/
 semantic_template putWith (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
-    Instruction :=
+    Action :=
   .enact (.core .put) (.move subject .anywhere (some destination) .arrival none riders) none none
 
 /-- "return <subject> to <zone>" -/
 semantic_template returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
-    Instruction :=
+    Action :=
   .enact (.core .return_) (.move subject .anywhere (some destination) .arrival none riders) none none
 
 /-- "return <subject> to the battlefield" -/
-semantic_template returnToBattlefield (subject : NounPhrase) : Instruction := returnTo subject battlefield []
+semantic_template returnToBattlefield (subject : NounPhrase) : Action := returnTo subject battlefield []
 
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
-semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Instruction :=
+semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Action :=
   returnTo subject battlefield [.entry .entersTransformed, .entry (.under controller)]
 
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
-    (kind : CounterKind) : Instruction :=
+    (kind : CounterKind) : Action :=
   .move subject .anywhere (some battlefield) .arrival none
     [.entry (.under who), .entry (.withCounters amount (.printed kind) .fresh)]
 
 /-- "transform <subject>" (`Definition`, [CR#701.27]). -/
-semantic_definition transform (subject : NounPhrase) : Instruction :=
+semantic_definition transform (subject : NounPhrase) : Action :=
   .ownScope (some (.action "transform"))
     (.enact (.action "transform") (.turnOver (.inCaller (.firstMention "transform.subject" subject))) none none)
 
 /-- "meld <subject> into <name>" (`Definition`, [CR#701.42]). -/
-semantic_definition meldInto (subject : NounPhrase) (into : String) : Instruction :=
+semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))
     (.enact (.action "meld")
       (.move (.inCaller (.firstMention "meldInto.subject" subject)) .anywhere (some battlefield) .arrival none [.entry (.entersMelded into)])
       none none)
 
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a]. -/
-semantic_definition manifestPlacement (subject : NounPhrase) : Instruction :=
+semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (.enact (.action "manifest") (.move (.inCaller (.firstMention "manifestPlacement.subject" subject)) .anywhere (some battlefield) .arrival none []) none none)
 
 /-- "tap <subject>" (`Definition`, [CR#701.26a]). -/
-semantic_definition tap (subject : NounPhrase) : Instruction :=
+semantic_definition tap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "tap"))
     (.enact (.action "tap") (.setStatus .tapped (.inCaller (.firstMention "tap.subject" subject))) none none)
 
 /-- "discard <subject>" (`Definition`, [CR#701.9a]). -/
-semantic_definition discard (subject : NounPhrase) : Instruction :=
+semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (.enact (.action "discard")
       (.move (.inCaller (.firstMention "discard.subject" subject)) (.zones [.zone .hand .bare]) (some graveyard) .arrival none [])
       none none)
 
 /-- A bare "shuffle": the performer's own library (`Definition`, [CR#701.24a]). -/
-semantic_definition shuffle : Instruction :=
+semantic_definition shuffle : Action :=
   .ownScope (some (.action "shuffle"))
     (.enact (.action "shuffle") (.shuffle (library .actor)) none none)
 
 /-- "untap <subject>" (`Definition`, [CR#701.26b]). -/
-semantic_definition untap (subject : NounPhrase) : Instruction :=
+semantic_definition untap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "untap"))
     (.enact (.action "untap") (.setStatus .untapped (.inCaller (.firstMention "untap.subject" subject))) none none)
 
 /-- "Exile <subject> until <event>." -/
-semantic_template exileUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
+semantic_template exileUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (exile subject) event
 
 /-- "mill <amount> cards" from <whose> library (`Definition`, [CR#701.17]). -/
-semantic_definition mill (amount : Amount) (whose : NounPhrase) : Instruction :=
+semantic_definition mill (amount : Amount) (whose : NounPhrase) : Action :=
   .ownScope (some (.action "mill"))
     (.enact (.action "mill")
       (.move (.slice .top (.inCaller amount) (library (.inCaller (.firstMention "mill.whose" whose))))
         (.zones [.zone .library .bare]) (some graveyard) .arrival none [])
       none none)
 
-semantic_template putOntoBattlefield (subject : NounPhrase) : Instruction :=
+semantic_template putOntoBattlefield (subject : NounPhrase) : Action :=
   .move subject .anywhere (some battlefield) .arrival none []
-semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Instruction :=
+semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
   .move subject .anywhere (some battlefield) .arrival none [.entry (.entersAs .tapped)]
 /-- "put <subject> onto the battlefield under your control" -/
-semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Instruction :=
+semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Action :=
   .move subject .anywhere (some battlefield) .arrival none [.entry (.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
-    (from_ : EventSource := .anywhere) : Instruction :=
+    (from_ : EventSource := .anywhere) : Action :=
   .move subject from_ (some battlefield) .arrival none
     [.entry (.entersAs .tapped), .entry (.entersAttacking none)]
 /-- A search of one zone: the scope constructor, which has no generated primitive because
 `SearchScope` is not a `semantic_expression` type. -/
 semantic_template oneZone (zone : ZoneExpr) : SearchScope := .oneZone zone
 /-- "Search your library for <quantity> <p>" (`Definition`, [CR#701.23]). -/
-semantic_definition searchLibraryFor (quantity : Quantity) (p : Predicate) : Instruction :=
+semantic_definition searchLibraryFor (quantity : Quantity) (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
     (.enact (.action "search") (.search (.oneZone yourLibrary) (.inCaller quantity) (.inCaller p)) none none)
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" (`Definition`, [CR#701.23]). -/
-semantic_definition searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Instruction :=
+semantic_definition searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
     (.enact (.action "search")
       (.search (.someZones (some (.inCaller (.firstMention "searchZonesOf.whose" whose))) [.graveyard, .hand, .library])
         (.inCaller quantity) (.inCaller p))
       none none)
 /-- "search your library and/or graveyard for a <p>" (`Definition`, [CR#701.23]). -/
-semantic_definition searchLibraryOrGraveyard (p : Predicate) : Instruction :=
+semantic_definition searchLibraryOrGraveyard (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
     (.enact (.action "search")
       (.search (.someZones (some .you) [.library, .graveyard]) (exactly 1) (.inCaller p))
       none none)
 /-- "reveal their hand" -/
-semantic_definition revealTheirHand : Instruction :=
+semantic_definition revealTheirHand : Action :=
   .ownScope (some (.action "reveal"))
     (.enact (.action "reveal") (.expose .reveal (.zone (handOf (.inCaller they)))) none none)
 
 /-- "<creature> fights <creature>" (`Definition`, [CR#701.14a]). -/
-semantic_definition fight (other : NounPhrase) : Instruction :=
+semantic_definition fight (other : NounPhrase) : Action :=
   .ownScope (some (.action "fight"))
     (.enact (.action "fight")
       (.doIf (.and [
@@ -667,7 +667,7 @@ semantic_definition fight (other : NounPhrase) : Instruction :=
 
 /-- The replacement's application, rather than installation of a new shield
 [CR#701.19b,701.19c]. -/
-semantic_template regenerationApplication (subject : NounPhrase) : Instruction :=
+semantic_template regenerationApplication (subject : NounPhrase) : Action :=
   .enact (.action "regenerate")
     (.sequentially [
       .clearDamage (.firstMention "regenerationApplication.subject" subject),
@@ -680,7 +680,7 @@ semantic_template regenerationApplication (subject : NounPhrase) : Instruction :
 
 /-- A resolving regeneration instruction installs a single-use shield for this turn;
 only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
-semantic_definition regenerate (subject : NounPhrase) : Instruction :=
+semantic_definition regenerate (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))
     (.establish (.instead
       (.would .any (destroy (.firstMention "regenerate.0" (.inCaller subject))))
@@ -689,77 +689,77 @@ semantic_definition regenerate (subject : NounPhrase) : Instruction :=
 
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
+    (agent : NounPhrase := Primitives.NounPhrase.you) : Action :=
   .removeCounters (amount.map Quantity.exactlyOf) kind agent .one true
-semantic_template loseLife (amount : Amount) : Instruction :=
+semantic_template loseLife (amount : Amount) : Action :=
   .changeLife (.down amount)
-semantic_template gainLife (amount : Amount) : Instruction :=
+semantic_template gainLife (amount : Amount) : Action :=
   .changeLife (.up amount)
 /-- "<player>'s life total becomes <amount>" -/
-semantic_template setLife (amount : Amount) : Instruction :=
+semantic_template setLife (amount : Amount) : Action :=
   .changeLife (.set amount)
-semantic_template draw (amount : Amount) : Instruction := .draw amount
+semantic_template draw (amount : Amount) : Action := .draw amount
 
-semantic_template lookAt (cards : NounPhrase) : Instruction := .expose .lookAt (.cards cards)
+semantic_template lookAt (cards : NounPhrase) : Action := .expose .lookAt (.cards cards)
 /-- "look at <player>'s hand" -/
-semantic_template lookAtHandOf (player : NounPhrase) : Instruction :=
+semantic_template lookAtHandOf (player : NounPhrase) : Action :=
   .expose .lookAt (.zone (handOf player))
 /-- "reveal <cards>" (`Definition`, [CR#701.20]). -/
-semantic_definition revealCards (cards : NounPhrase) : Instruction :=
+semantic_definition revealCards (cards : NounPhrase) : Action :=
   .ownScope (some (.action "reveal"))
     (.enact (.action "reveal") (.expose .reveal (.cards (.inCaller (.firstMention "revealCards.cards" cards)))) none none)
 /-- "shuffle <subject> into its owner's library": the move, then the shuffle of that library,
 which happens even if nothing moved (`Definition`, [CR#701.24c,701.24d]). -/
-semantic_definition shuffleInto (subject : NounPhrase) : Instruction :=
+semantic_definition shuffleInto (subject : NounPhrase) : Action :=
   .ownScope (some (.action "shuffle"))
     (.sequentially
       [ .enact (.action "shuffle")
           (.move (.inCaller (.firstMention "shuffleInto.subject" subject)) .anywhere (some (.zone .library .bare)) .arrival none []) none none,
         .shuffle (.library .bare) ])
-semantic_template doIf (condition : Condition) (instruction : Instruction)
-    (otherwise : Option Instruction := none) : Instruction :=
+semantic_template doIf (condition : Condition) (instruction : Action)
+    (otherwise : Option Action := none) : Action :=
   .doIf condition instruction otherwise
 /-- "choose <subject>" -/
-semantic_template choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Instruction :=
+semantic_template choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Action :=
   .choose none subject disclosure none
 /-- "choose <subject> as you <event>" -/
-semantic_template chooseWhile (subject : NounPhrase) (while_ : Timing) : Instruction :=
+semantic_template chooseWhile (subject : NounPhrase) (while_ : Timing) : Action :=
   .choose none subject .openly (some while_)
-semantic_template rollDice (count : Nat) (sides : Nat) : Instruction :=
+semantic_template rollDice (count : Nat) (sides : Nat) : Action :=
   .rollDice (.lit count) (.sides sides) .one .anyResult
 /-- One row of a results table: "<results> — <instruction>". -/
-semantic_template rollRow (results : Quantity) (instruction : Instruction) : RollRow := ⟨results, instruction⟩
-semantic_template flipCoins (count : Nat) : Instruction :=
+semantic_template rollRow (results : Quantity) (instruction : Action) : RollRow := ⟨results, instruction⟩
+semantic_template flipCoins (count : Nat) : Action :=
   .flipCoins (.count (.lit count)) none none
 /-- "<player> flips a coin" as an event -/
 semantic_template flipsCoin (player : NounPhrase) : GameEvent :=
   .does (.actor player) (.flipCoins (.count (.lit 1)) none none)
 /-- "may <body>" -/
-semantic_template offer (body : Instruction) : Instruction := Primitives.Instruction.offer body none none
+semantic_template offer (body : Action) : Action := Primitives.Action.offer body none none
 /-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
-semantic_template offerWhen (body : Instruction) (triggerBody : Instruction) : Instruction :=
-  .triggerReflexively (Primitives.Instruction.offer body none none) triggerBody
+semantic_template offerWhen (body : Action) (triggerBody : Action) : Action :=
+  .triggerReflexively (Primitives.Action.offer body none none) triggerBody
 /-- "the chosen number" -/
 semantic_template chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
-semantic_template chooseSpree (modes : List (Option Cost × Instruction)) : Instruction :=
+semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
   .chooseModes (atLeast 1) (modes.map fun (c, e) => (c, none, e))
 /-- "vote for <ballot>" (`Definition`, [CR#701.38]). -/
-semantic_definition vote (disclosure : Disclosure) (ballot : Ballot) : Instruction :=
+semantic_definition vote (disclosure : Disclosure) (ballot : Ballot) : Action :=
   .ownScope (some (.action "vote"))
     (.enact (.action "vote") (.vote none disclosure ballot) none none)
 /-- "Starting with <first>, vote for <ballot>" (`Definition`, [CR#701.38]). -/
 semantic_definition voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) :
-    Instruction :=
+    Action :=
   .ownScope (some (.action "vote"))
     (.enact (.action "vote") (.vote (some (.inCaller (.firstMention "voteStartingWith.first" first))) disclosure ballot) none none)
 /-- "Choose N — <modes>", no mode costing anything. -/
-semantic_template chooseModes (quantity : Quantity) (modes : List Instruction) : Instruction :=
+semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
 /-- "<source> deals damage equal to its power to <recipient>" (`Template`, `firstMention` /
 `laterMention` without `Window.top`). -/
 semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
-    Instruction :=
+    Action :=
   .instruct (.firstMention "dealDamageOwnPower.source" source)
     (.dealDamage (.statOf (.stat .power) (.laterMention "dealDamageOwnPower.source" source))
       recipient .any)
@@ -774,11 +774,11 @@ semantic_template creatureToken (power toughness : Nat) (colors : List Color) (s
     CharacteristicBundle :=
   creatureTokenOf (.lit power) (.lit toughness) colors subtypes
 /-- "create N <token>" (`Definition`, [CR#701.7]). -/
-semantic_definition create (count : Amount) (token : CharacteristicBundle) : Instruction :=
-  Primitives.Instruction.create count (.written token) []
+semantic_definition create (count : Amount) (token : CharacteristicBundle) : Action :=
+  Primitives.Action.create count (.written token) []
 /-- "create N <token> tapped and attacking" (`Definition`, [CR#701.7]). -/
-semantic_definition createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Instruction :=
-  Primitives.Instruction.create count (.written token) [.entersAs .tapped, .entersAttacking none]
+semantic_definition createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Action :=
+  Primitives.Action.create count (.written token) [.entersAs .tapped, .entersAttacking none]
 
 /-- "for each color of mana spent to cast <n>" -/
 semantic_template colorsSpentToCast (spell : NounPhrase) : Amount := .paid .colorsSpent spell
@@ -799,22 +799,22 @@ semantic_template fromTo (low high : Nat) : Quantity := .range (some low) (some 
 /-- The participant described by the nearest enclosing lookback (`NounPhrase.which`). -/
 semantic_template relative (_kind : Kind) : NounPhrase := .which
 /-- The number of occurrences of a historical action clause. -/
-semantic_template eventCount (action : Instruction) (subj : Subject) (within : Duration)
+semantic_template eventCount (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
   .tally ⟨subj, action, .duration within timing⟩ .events
 /-- A historical action clause. -/
-semantic_template happened (action : Instruction) (subj : Subject) (within : Duration)
+semantic_template happened (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Condition :=
   .did ⟨subj, action, .duration within timing⟩
 /-- The action the enclosing instruction caused: "if you searched your library this way". -/
-semantic_template happenedThisWay (action : Instruction) (subj : Subject) : Condition :=
+semantic_template happenedThisWay (action : Action) (subj : Subject) : Condition :=
   .did ⟨subj, action, .thisWay⟩
 /-- A historical action clause whose `.which` stands for the entity being described. -/
-semantic_template happenedTo (subj : Subject) (action : Instruction) (within : Duration)
+semantic_template happenedTo (subj : Subject) (action : Action) (within : Duration)
     (timing : Option Timing := none) : Predicate :=
   .did ⟨subj, action, .duration within timing⟩
 /-- The accumulated magnitude of historical action events. -/
-semantic_template eventSum (action : Instruction) (subj : Subject) (within : Duration)
+semantic_template eventSum (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
   .tally ⟨subj, action, .duration within timing⟩ .quantity
 /-- "if there is no <designation>" -/
@@ -861,10 +861,10 @@ semantic_template shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "the number of counters removed this way" -/
 semantic_template removedThisWay : Amount := .theOutcome .countersRemoved
 /-- "increase or decrease the result by N" -/
-semantic_template shiftResult (amount : Amount) : Instruction := .shiftResult none amount
+semantic_template shiftResult (amount : Amount) : Action := .shiftResult none amount
 
-/-- Map a legacy `Deed` + patient to its `v3` `Instruction` for deontic helper templates. -/
-def deonticActionFor (deed : Deed) (patient : NounPhrase) : Instruction :=
+/-- Map a legacy `Deed` + patient to its `v3` `Action` for deontic helper templates. -/
+def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
   match deed with
   | .core .attack => .attack (match patient with | .any => none | p => some p)
   | .core .block => .block patient
@@ -932,65 +932,65 @@ semantic_template castableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :
   .property (mayPlayDeed (.action "cast") .you .this none
     (.play (some zone) none (some timing) false .itsOwnCost))
 /-- "When <event>, <instruction>" as a delayed trigger. -/
-semantic_template delay (event : GameEvent) (instruction : Instruction)
-    (alternatives : List GameEvent := []) : Instruction :=
+semantic_template delay (event : GameEvent) (instruction : Action)
+    (alternatives : List GameEvent := []) : Action :=
   .delay event alternatives none instruction
 /-- "When <event> <duration>, <instruction>": a delayed trigger with a window. -/
-semantic_template delayWithin (event : GameEvent) (duration : Duration) (instruction : Instruction) :
-    Instruction :=
+semantic_template delayWithin (event : GameEvent) (duration : Duration) (instruction : Action) :
+    Action :=
   .delay event [] (some duration) instruction
 /-- "<subject> phases out until <event>" -/
-semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Instruction :=
+semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (.setStatus .phasedOut subject) event
 /-- "attach <what> to it": ordinary pronoun `it` resolved by `D′` (no `Window` override). -/
-semantic_template attachToIt (what : NounPhrase) : Instruction :=
-  Primitives.Instruction.attachTo what it
+semantic_template attachToIt (what : NounPhrase) : Action :=
+  Primitives.Action.attachTo what it
 /-- "take <count> extra turns after this one": the performer takes them [CR#500.7]. -/
-semantic_template extraTurn (count : Amount) : Instruction := .addTurnPart .turn none count none
+semantic_template extraTurn (count : Amount) : Action := .addTurnPart .turn none count none
 /-- "there is an additional <part> [after <anchor>] [, followed by an additional <next>]": phases
 added to the current turn [CR#500.8]. -/
 semantic_template additionalPhase (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
-    (followedBy : Option TurnPart := none) : Instruction :=
+    (followedBy : Option TurnPart := none) : Action :=
   .addTurnPart part anchor count followedBy
 /-- "there is an additional <part> [after <anchor>]": steps added to the current turn's phase
 [CR#500.9]. -/
 semantic_template additionalStep (part : TurnPart) (anchor : Option TurnPart) (count : Amount) :
-    Instruction :=
+    Action :=
   .addTurnPart part anchor count none
 /-- "<subject> can't attack [this turn]" -/
-semantic_template forbidAttack (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_template forbidAttack (subject : NounPhrase) (duration : Option Duration) : Action :=
   .establish (.cant (.actor subject) (.attack none) { rider := .noRider }) duration
 /-- "<subject> can't block [this turn]" -/
-semantic_template forbidBlock (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_template forbidBlock (subject : NounPhrase) (duration : Option Duration) : Action :=
   .establish (.cant (.actor subject) (.block .any) { rider := .noRider }) duration
 /-- "<subject> can't be blocked [this turn]" -/
-semantic_template forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_template forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Action :=
   .establish (.cant .any (.block subject) { rider := .noRider }) duration
 /-- "<subject> blocks it this turn if able": ordinary pronoun `it` resolved by `D′` (no `Window`
 override). -/
-semantic_template requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_template requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Action :=
   .establish (.must (.actor subject) (.block it) { rider := .noRider }) duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
-semantic_template dealDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Instruction :=
+semantic_template dealDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Action :=
   .distribute (.damage source) amount among
 /-- "distribute N <kind> counters among <among>" -/
-semantic_template distributeCounters (amount : Amount) (kind : CounterKind) (among : NounPhrase) : Instruction :=
+semantic_template distributeCounters (amount : Amount) (kind : CounterKind) (among : NounPhrase) : Action :=
   .distribute (.counters kind) amount among
 /-- "remove <q> <kind> counters from <from>" -/
 semantic_template removeCounters (quantity : Quantity) (kind : Option CounterKindSource) (from_ : NounPhrase) :
-    Instruction :=
+    Action :=
   .removeCounters (some quantity) kind from_ .one true
 /-- "<who> loses all [<kind>] counters" -/
-semantic_template loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := Primitives.NounPhrase.you) : Instruction :=
+semantic_template loseAllCounters (kind : Option CounterKindSource) (agent : NounPhrase := Primitives.NounPhrase.you) : Action :=
   loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
-semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Instruction :=
+semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) : Action :=
   .removeCounters none kind from_ .one true
 
 /-- "may pay <cost>. If they don't, <instruction>." -/
-semantic_template doUnless (instruction : Instruction) (cost : Cost) : Instruction :=
-  Primitives.Instruction.offer (.pay cost .once .paid none none) none (some instruction)
+semantic_template doUnless (instruction : Action) (cost : Cost) : Action :=
+  Primitives.Action.offer (.pay cost .once .paid none none) none (some instruction)
 
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
@@ -1001,7 +1001,7 @@ semantic_template getsBase (subject : NounPhrase) (power toughness : Amount) : S
 
 /-- "<subject>'s controller sacrifices it" (`Template` using `firstMention` / `laterMention`
 without `Window` plumbing, [CR#701.21a]). -/
-semantic_template controllerSacrifices (subject : NounPhrase) : Instruction :=
+semantic_template controllerSacrifices (subject : NounPhrase) : Action :=
   .instruct (.possessorOf .controller (.firstMention "controllerSacrifices.subject" subject))
     (sacrifice (.laterMention "controllerSacrifices.subject" subject))
 
@@ -1009,7 +1009,7 @@ semantic_template controllerSacrifices (subject : NounPhrase) : Instruction :=
 owner's library in any order" (`Template` using `firstMention` / `laterMention` without `Window`
 plumbing). -/
 semantic_template lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr)
-    (spillRiders : List MoveRider := []) : Instruction :=
+    (spillRiders : List MoveRider := []) : Action :=
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anywhere
@@ -1021,7 +1021,7 @@ namespace Actor
 
 /-- "<performer> discards <subject>": a move from the performer's hand to the graveyard
 (`Definition`, [CR#701.9a]). -/
-semantic_definition discard (subject : NounPhrase) : Instruction :=
+semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (.enact (.action "discard")
       (.move (.inCaller (.firstMention "discard.subject" subject)) (.zones [.zone .hand (.possessedBy .actor)]) (some graveyard) .arrival none [])
@@ -1031,8 +1031,8 @@ end Actor
 
 /-- "discard <discarded>, then <step> for each nonland card discarded this way" (`Template` using
 moved-parameter readback, [CR#701.50a,400.7,400.7j]). -/
-semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Instruction) :
-    Instruction :=
+semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Action) :
+    Action :=
   .sequentially
     [ Actor.discard discarded,
       .doForEach
@@ -1042,7 +1042,7 @@ semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Ins
 /-- "look at the top N cards of <whose> library, put any number of them on the bottom in any order
 and the rest on top in any order" (`Template` using `firstMention` / `laterMention` without
 `Window` plumbing). -/
-semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Instruction :=
+semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Action :=
   let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
@@ -1052,7 +1052,7 @@ semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Instructi
         [.placement (.inOrder .anyOrder)] ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
 semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
-    Instruction :=
+    Action :=
   let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
@@ -1060,19 +1060,19 @@ semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill 
       .move (theRest .object) .anywhere (some onTop) .arrival none
         [.placement (.inOrder .anyOrder)] ]
 /-- "scry N" (`Definition`, [CR#701.22a]): the performer's own library. -/
-semantic_definition scry (amount : Amount) : Instruction :=
+semantic_definition scry (amount : Amount) : Action :=
   .ownScope (some (.action "scry"))
     (.enact (.action "scry") (lookAndSort .actor (.inCaller amount)) none none)
 /-- "fateseal N" (`Definition`, [CR#701.29a]). -/
-semantic_definition fateseal (whose : NounPhrase) (amount : Amount) : Instruction :=
+semantic_definition fateseal (whose : NounPhrase) (amount : Amount) : Action :=
   .ownScope (some (.action "fateseal"))
     (.enact (.action "fateseal") (lookAndSort (.inCaller (.firstMention "fateseal.whose" whose)) (.inCaller amount)) none none)
 /-- "surveil N" (`Definition`, [CR#701.25a]): the performer's own library. -/
-semantic_definition surveil (amount : Amount) : Instruction :=
+semantic_definition surveil (amount : Amount) : Action :=
   .ownScope (some (.action "surveil"))
     (.enact (.action "surveil") (lookAndSortInto .actor (.inCaller amount) graveyard) none none)
 /-- "Proliferate" with its reminder text (`Definition`, [CR#701.34a]). -/
-semantic_definition proliferate : Instruction :=
+semantic_definition proliferate : Action :=
   .ownScope (some (.action "proliferate"))
     (.enact (.action "proliferate") (.sequentially
       [ .choose none (counted anyNumber
@@ -1081,7 +1081,7 @@ semantic_definition proliferate : Instruction :=
         .putCounters (.lit 1) .own (.eachOf (those .join)) .one true ])
       none none)
 /-- "amass <subtype> N" with its reminder text (`Definition`, [CR#701.47a]). -/
-semantic_definition amass (subtype : String) (count : Nat) : Instruction :=
+semantic_definition amass (subtype : String) (count : Nat) : Action :=
   .ownScope (some (.action "amass"))
     (.enact (.action "amass") (.sequentially
       [ .doIf (.not (exists_ armyYouControl))
@@ -1098,7 +1098,7 @@ semantic_definition amass (subtype : String) (count : Nat) : Instruction :=
           none ])
       none none)
 /-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]). -/
-semantic_definition makeMonstrous (amount : Amount) : Instruction :=
+semantic_definition makeMonstrous (amount : Amount) : Action :=
   .ownScope (some (.action "monstrosity"))
     (.enact (.action "monstrosity")
       (.doIf (.not (.matches thisPermanent (.hasDesignation (.named "monstrous") none)))
@@ -1108,50 +1108,50 @@ semantic_definition makeMonstrous (amount : Amount) : Instruction :=
         none)
       none none)
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .establish (getsPt subject power toughness) duration
 
-semantic_template gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Instruction :=
+semantic_template gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) : Action :=
   .establish (.abilityGrant subject ability) duration
 /-- "<subject> gains haste [until …]" -/
-semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration) : Action :=
   gain subject (.keyword (.named "haste") [] []) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
 semantic_template become (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .establish (Primitives.StaticSpec.qualityChange subject .adds (.bundle added none)) duration
 /-- "<subject> becomes <colors> [until …]" -/
 semantic_template becomeColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .establish (Primitives.StaticSpec.qualityChange subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one instruction. -/
 semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .establish (.conjunction (some subject) parts) duration
 /-- "If <clause> would happen, <replacement> instead [duration]." -/
-semantic_template replaceEvent (clause : WouldClause) (replacement : Instruction) (duration : Option Duration) :
-    Instruction :=
+semantic_template replaceEvent (clause : WouldClause) (replacement : Action) (duration : Option Duration) :
+    Action :=
   .establish (.instead clause replacement none .repeatedly none) duration
 /-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
 semantic_template preventAll (kind : DamageKind) (scope : DamageScope) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .establish (.damageRule kind .unattributed scope (.prevent .all none) .repeatedly) duration
 /-- "Prevent the next N <kind> damage that would be dealt <scope> [duration]." -/
 semantic_template preventNext (kind : DamageKind) (scope : DamageScope) (amount : Amount)
-    (duration : Option Duration) : Instruction :=
+    (duration : Option Duration) : Action :=
   .establish (.damageRule kind .unattributed scope (.prevent (.shield amount) none) .repeatedly)
     duration
 /-- "Prevent all <kind> damage that would be dealt by <source> <scope> [duration]." -/
 semantic_template preventAllBy (kind : DamageKind) (source : NounPhrase) (scope : DamageScope)
-    (duration : Option Duration) : Instruction :=
+    (duration : Option Duration) : Action :=
   .establish (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
 /-- "The next time <clause> would happen, <replacement> instead [duration]." -/
-semantic_template replaceNextEvent (clause : WouldClause) (replacement : Instruction)
-    (duration : Option Duration) : Instruction :=
+semantic_template replaceNextEvent (clause : WouldClause) (replacement : Action)
+    (duration : Option Duration) : Action :=
   .establish (.instead clause replacement none .nextTimeOnly none) duration
 /-- "<player> gains control of <subject> [duration]" -/
 semantic_template gainControl (subject : NounPhrase) (duration : Option Duration) (agent : NounPhrase := Primitives.NounPhrase.you) :
-    Instruction :=
+    Action :=
   .establish (.controlGrant agent subject) duration
 /-- "<subject> can't be <deed>ed" -/
 semantic_template objectCant (deed : Deed) (subject : NounPhrase) : StaticSpec :=
@@ -1181,7 +1181,7 @@ semantic_template cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
 semantic_template canBeTargetedAsThough (what by_ : NounPhrase) (p : Predicate) : StaticSpec :=
   .may (.by by_) (.target what) { asThough := some (.of p), rider := .noRider }
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
-semantic_template establishThroughout (spec : StaticSpec) (duration : Duration) : Instruction :=
+semantic_template establishThroughout (spec : StaticSpec) (duration : Duration) : Action :=
   .establish spec (some duration)
 /-- "<n> doesn't untap during [<whose>] untap step" -/
 semantic_template doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
@@ -1210,7 +1210,7 @@ semantic_template maySpendAsThough (who : NounPhrase) (what : Option ColorOrColo
 /-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
 role [CR#701.3a,301.5]. -/
 semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
-  .may .any (Primitives.Instruction.attachTo subject host) { rider := .noRider }
+  .may .any (Primitives.Action.attachTo subject host) { rider := .noRider }
 /-- "<player> can't <deed> more than N <p>" -/
 semantic_template cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=
@@ -1221,18 +1221,18 @@ semantic_template cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat)
 
 /-- "whoever performs this instruction" -/
 semantic_template actor : NounPhrase := .actor
-/-- "<performer> <body>": the handoff (`Instruction.instruct`), to a player or a permanent. -/
-semantic_template instruct (performer : NounPhrase) (body : Instruction) : Instruction :=
+/-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
+semantic_template instruct (performer : NounPhrase) (body : Action) : Action :=
   .instruct performer body
 /-- Alias for `instruct` for compatibility during porting. -/
-semantic_template act (performer : NounPhrase) (body : Instruction) : Instruction :=
+semantic_template act (performer : NounPhrase) (body : Action) : Action :=
   .instruct performer body
 /-- "… <performer> controls" -/
 semantic_template actorControls : Predicate := .hasPossessor .controller .actor
 
 /-- "For each <pip> mana …, you may <action> rather than pay that mana": a Mana Substitute
 [CR#702.51a,702.66a,702.126a,701.67a], spelled as the RON helper `substitute`. -/
-semantic_template substitute (action : Instruction) (pays : List PipPaid) : ManaSubstitute :=
+semantic_template substitute (action : Action) (pays : List PipPaid) : ManaSubstitute :=
   { action, pays }
 
 /-! ## Text Changes -/
@@ -1258,7 +1258,7 @@ semantic_template exchangeWith (other : NounPhrase) : TextChange := .exchangeWit
 namespace Actor
 
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
-semantic_definition revealHand : Instruction :=
+semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))
     (.enact (.action "reveal") (.expose .reveal (.zone (handOf .actor))) none none)
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
@@ -1268,7 +1268,7 @@ semantic_template mayCastFrom (what : NounPhrase) (zone : ZoneExpr) : StaticSpec
 semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
 /-- "<performer> amasses <subtype> N" (`Definition`, [CR#701.47a]): resolved via `that (.type .creature)`
 and `it` inside `ownScope` without `itPrior` window overrides. -/
-semantic_definition amass (subtype : String) (count : Nat) : Instruction :=
+semantic_definition amass (subtype : String) (count : Nat) : Action :=
   .ownScope (some (.action "amass"))
     (.enact (.action "amass") (.sequentially
       [ .doIf (.not (exists_ army))
@@ -1289,7 +1289,7 @@ semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound :
     (group : NounPhrase) : NounPhrase :=
   .someOf (.totalling axis comparator bound) none group
 /-- "<performer> collects evidence N" (`Definition`, [CR#701.59a]). -/
-semantic_definition collectEvidence (amount : Amount) : Instruction :=
+semantic_definition collectEvidence (amount : Amount) : Action :=
   .ownScope (some (.action "collectEvidence"))
     (.enact (.action "collectEvidence")
       (move (withTotal (.stat .manaValue) .atLeast (.inCaller amount)
@@ -1298,13 +1298,13 @@ semantic_definition collectEvidence (amount : Amount) : Instruction :=
 /-- "<performer> casts <subject> without paying its mana cost [if the resulting spell is …]"
 (`Definition`, [CR#701.5,601.2]). -/
 semantic_definition castWithoutPaying (subject : NounPhrase) (resulting : Option Predicate) :
-    Instruction :=
+    Action :=
   .ownScope (some (.action "cast"))
     (.enact (.action "cast")
       (.procedure .cast (.inCaller (.firstMention "castWithoutPaying.subject" subject)) .withoutPaying (resulting.map Predicate.inCaller) none none)
       none none)
 /-- "<performer> discovers N" (`Definition`, [CR#701.57a]). -/
-semantic_definition discover (amount : Amount) : Instruction :=
+semantic_definition discover (amount : Amount) : Action :=
   let fits : Predicate := .compare [.stat .manaValue] .atMost (.inCaller amount)
   .ownScope (some (.action "discover"))
     (.enact (.action "discover") (.sequentially
@@ -1315,7 +1315,7 @@ semantic_definition discover (amount : Amount) : Instruction :=
           [.placement (.inOrder .randomOrder)] ])
       none none)
 /-- "<performer> incubates N" (`Definition`, [CR#701.53a,701.53b]). -/
-semantic_definition incubate (amount : Amount) : Instruction :=
+semantic_definition incubate (amount : Amount) : Action :=
   .ownScope (some (.action "incubate"))
     (.enact (.action "incubate") (.createObject (.lit 1) (.token
       (.doubleFaced
@@ -1329,7 +1329,7 @@ semantic_definition incubate (amount : Amount) : Instruction :=
       [.withCounters (.inCaller amount) (.printed p1p1Counter) .fresh]) true none)
       none none)
 /-- "<performer> waterbends <cost>" (`Definition`, [CR#701.67a,701.67b]). -/
-semantic_definition waterbend (cost : Cost) : Instruction :=
+semantic_definition waterbend (cost : Cost) : Action :=
   .ownScope (some (.action "waterbend"))
     (.enact (.action "waterbend")
       (.pay (.withSubstitute (.inCaller cost)
@@ -1337,7 +1337,7 @@ semantic_definition waterbend (cost : Cost) : Instruction :=
         .once .paid none none)
       none none)
 /-- "<performer> manifests <subject>" (`Definition`, [CR#701.40a,708.2,708.2a]). -/
-semantic_definition manifest (subject : NounPhrase) : Instruction :=
+semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (.enact (.action "manifest") (.sequentially
       [ .turnFaceDown (.inCaller (.firstMention "manifest.subject" subject)) faceDownCreature,
@@ -1345,7 +1345,7 @@ semantic_definition manifest (subject : NounPhrase) : Instruction :=
           [.entry (.faceDown faceDownCreature)] ])
       none none)
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
-semantic_definition cloak (subject : NounPhrase) : Instruction :=
+semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (.enact (.action "cloak") (.sequentially
       [ .turnFaceDown (.inCaller (.firstMention "cloak.subject" subject)) faceDownWardedCreature,
@@ -1353,7 +1353,7 @@ semantic_definition cloak (subject : NounPhrase) : Instruction :=
           [.entry (.faceDown faceDownWardedCreature)] ])
       none none)
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
-semantic_definition manifestDread : Instruction :=
+semantic_definition manifestDread : Action :=
   .ownScope (some (.action "manifestDread"))
     (.enact (.action "manifestDread") (.sequentially
       [ .expose .lookAt (.cards (.slice .top (.lit 2) (library .actor))),
@@ -1361,7 +1361,7 @@ semantic_definition manifestDread : Instruction :=
         move (theRest .object) graveyard ])
       none none)
 /-- "support N" (`Definition`, [CR#701.41a]). -/
-semantic_definition support (amount : Amount) : Instruction :=
+semantic_definition support (amount : Amount) : Action :=
   .ownScope (some (.action "support"))
     (.enact (.action "support") (.putCounters (.lit 1) (.printed p1p1Counter)
       (.eachOf (.described (.target (.upToOf (.inCaller amount))) (.and [creature, .otherThan .this])))
@@ -1371,7 +1371,7 @@ semantic_definition support (amount : Amount) : Instruction :=
 end Actor
 
 /-- "<performer> explores" (`Definition`, [CR#701.44a]). -/
-semantic_definition explore : Instruction :=
+semantic_definition explore : Action :=
   .ownScope (some (.action "explore"))
     (.enact (.action "explore")
       (.instruct (controllerOf (.firstMention "explore.permanent" .actor))
@@ -1387,7 +1387,7 @@ semantic_definition explore : Instruction :=
 
 /-- "<performer> connives [N]" (`Definition`, [CR#701.50a,701.50d]): loops over
 `"each nonland card discarded this way"` (`allOf(and([not(land), card, did(any, discard(which), thisWay)]))`). -/
-semantic_definition connive (amount : Amount := .lit 1) : Instruction :=
+semantic_definition connive (amount : Amount := .lit 1) : Action :=
   .ownScope (some (.action "connive"))
     (.enact (.action "connive")
       (.instruct (controllerOf (.firstMention "connive.permanent" .actor))
@@ -1403,7 +1403,7 @@ semantic_definition connive (amount : Amount := .lit 1) : Instruction :=
 /-- "Airbend <subject>" (`Definition`, [CR#701.65a]): per-card `doForEach` loop over
 `allOf(and([card, did(any, exile(which), thisWay)]))` where `it` resolves by `D′` to the
 singular loop referent. -/
-semantic_definition airbend (subject : NounPhrase) : Instruction :=
+semantic_definition airbend (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend"))
     (.enact (.action "airbend")
       (.sequentially
@@ -1417,21 +1417,21 @@ semantic_definition airbend (subject : NounPhrase) : Instruction :=
       none none)
 
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
-semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration) : Instruction :=
+semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration) : Action :=
   .ownScope (some (.action "double"))
     (.establish (.ptModification (.firstMention "doublePower.0" (.inCaller subject))
       (.up (powerOf (.laterMention "doublePower.0" (.inCaller subject)))) (.up (.lit 0)))
       duration)
 /-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
 semantic_definition triplePowerAndToughness (subject : NounPhrase) (duration : Option Duration) :
-    Instruction :=
+    Action :=
   .ownScope (some (.action "triple"))
     (.establish (.ptModification (.firstMention "triplePT.0" (.inCaller subject))
       (.up (times (.lit 2) (powerOf (.laterMention "triplePT.0" (.inCaller subject)))))
       (.up (times (.lit 2) (toughnessOf (.laterMention "triplePT.0" (.inCaller subject))))))
       duration)
 /-- "double <performer>'s life total" (`Definition`, [CR#701.10d]), written as that total's set [CR#119.5]. -/
-semantic_definition doubleLifeTotal : Instruction :=
+semantic_definition doubleLifeTotal : Action :=
   .ownScope (some (.action "double"))
     (.changeLife (.set (times (.lit 2) (lifeTotalOf .actor))))
 
@@ -1517,13 +1517,13 @@ private theorem regenerationEventUsesTheApplication :
 private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
     let event := regenerates thisCreature
     let applied := (stepGameEvent 64 (DRS.ofList []) event).1
-    let shield := (stepInstruction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
+    let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
     GameEvent.check (DRS.ofList []) event = [] ∧
       countOnes .object applied = 1 ∧
       (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
         some (.object, some .battlefield) ∧
       countOnes .object shield = 0 ∧
-      Instruction.check (DRS.ofList [])
+      Action.check (DRS.ofList [])
         (.triggerThisWay (regenerate thisCreature) event
           (.putCounters (.lit 1) (.printed (.named "m1m1Counter")) it .many true)) = [] := by decide
 
@@ -1573,10 +1573,10 @@ semantic_template keywordNumberCosting (label : KeywordLabel) (amount : Amount) 
 semantic_definition levelUp (cost : Cost) : Ability := keywordCosting (.named "levelUp") cost
 /-- "When <event>, if <condition>, <instruction>" -/
 semantic_template triggeredIf (event : GameEvent) (condition : Condition)
-    (instruction : Instruction) : Ability :=
+    (instruction : Action) : Ability :=
   .triggered event [] none [] none none (some condition) instruction
 /-- "Whenever <event>, <instruction>. This ability triggers only once each turn." -/
-semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : Instruction) :
+semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit) (instruction : Action) :
     Ability :=
   .triggered event [] none [] none (some limit) none instruction
 /-- "As <subject> enters, choose a <quality>." -/
@@ -1611,38 +1611,38 @@ semantic_template entersWithFewerCounters (subject : NounPhrase) (amount : Amoun
     StaticSpec :=
   .entryRider subject (.withCounters amount (.printed kind) .fewer)
 
-semantic_template triggered (event : GameEvent) (instruction : Instruction) : Ability :=
+semantic_template triggered (event : GameEvent) (instruction : Action) : Ability :=
   .triggered event [] none [] none none none instruction
 /-- "Whenever <event> and whenever <joined events>, <instruction>" -/
-semantic_template triggeredJoined (event : GameEvent) (joins : List JoinedHeader) (instruction : Instruction) :
+semantic_template triggeredJoined (event : GameEvent) (joins : List JoinedHeader) (instruction : Action) :
     Ability :=
   .triggered event [] none joins none none none instruction
 /-- A further "whenever <event>" header joined onto a trigger. -/
 semantic_template joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
 /-- "Whenever <event> or <alternatives>, <instruction>" -/
-semantic_template triggeredOr (event : GameEvent) (alternatives : List GameEvent) (instruction : Instruction) :
+semantic_template triggeredOr (event : GameEvent) (alternatives : List GameEvent) (instruction : Action) :
     Ability :=
   .triggered event alternatives none [] none none none instruction
 /-- "Whenever <event> while <concurrent>, <instruction>" -/
-semantic_template triggeredWhile (event : GameEvent) (while_ : Timing) (instruction : Instruction) :
+semantic_template triggeredWhile (event : GameEvent) (while_ : Timing) (instruction : Action) :
     Ability :=
   .triggered event [] (some while_) [] none none none instruction
 /-- "Whenever <event> during <timing>, <instruction>" -/
-semantic_template triggeredOnlyDuring (event : GameEvent) (timing : Timing) (instruction : Instruction) :
+semantic_template triggeredOnlyDuring (event : GameEvent) (timing : Timing) (instruction : Action) :
     Ability :=
   .triggered event [] none [] (some timing) none none instruction
 /-- A joined "whenever <event> while <concurrent>" header. -/
 semantic_template joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
   ⟨event, [], some while_, none⟩
 /-- "When <event>, <instruction>" -/
-semantic_template when (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
+semantic_template when (event : GameEvent) (instruction : Action) : Ability := triggered event instruction
 /-- "Whenever <event>, <instruction>" -/
-semantic_template whenever (event : GameEvent) (instruction : Instruction) : Ability :=
+semantic_template whenever (event : GameEvent) (instruction : Action) : Ability :=
   triggered event instruction
 /-- "At <event>, <instruction>" (`at` is a Lean keyword). -/
-semantic_template at_ (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
+semantic_template at_ (event : GameEvent) (instruction : Action) : Ability := triggered event instruction
 /-- "After <event>, <instruction>": the dice template's word. -/
-semantic_template after (event : GameEvent) (instruction : Instruction) : Ability := triggered event instruction
+semantic_template after (event : GameEvent) (instruction : Action) : Ability := triggered event instruction
 
 /-- Renown N's reminder text: "When this creature deals combat damage to a player, if it isn't
 renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
@@ -1679,7 +1679,7 @@ without paying their mana costs, then put all revealed cards not cast this way o
 your library in any order." -/
 semantic_definition rippleExpansion (amount : Amount) : Ability :=
   when (.does (.actor .you) (.procedure .cast thisSpell .itsOwnCost none none none))
-    (Primitives.Instruction.offer (revealCards (.slice .top amount (library .you)))
+    (Primitives.Action.offer (revealCards (.slice .top amount (library .you)))
       (some (.sequentially
         [ Actor.castWithoutPaying
             (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) (those .card)) none,
@@ -1698,7 +1698,7 @@ semantic_definition cumulativeUpkeepExpansion (cost : Cost) : Ability :=
     (.matches thisPermanent permanent)
     (.sequentially
       [ .putCounters (.lit 1) (.printed (.named "ageCounter")) thisPermanent .one true,
-        Primitives.Instruction.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once .paid none none)
+        Primitives.Action.offer (.pay (.scaled cost (times (.lit 1) (countersOn (.named "ageCounter") thisPermanent))) .once .paid none none)
           none (some (sacrifice thisPermanent)) ])
 /-- "Cumulative upkeep [cost]" with its reminder text. -/
 semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
@@ -1728,19 +1728,19 @@ semantic_definition modularExpansion (count : Nat) : List Ability :=
 /-- "Modular N" with its definition. -/
 semantic_definition modular (count : Nat) : Ability :=
   .keyword (.named "modular") [.number (.lit count)] (modularExpansion count)
-semantic_template activated (cost : Cost) (instruction : Instruction) : Ability :=
+semantic_template activated (cost : Cost) (instruction : Action) : Ability :=
   .activated cost instruction none none none none
 /-- "[cost]: <instruction>. Activate only <timing>." -/
-semantic_template activatedOnlyDuring (cost : Cost) (instruction : Instruction) (timing : Timing) : Ability :=
+semantic_template activatedOnlyDuring (cost : Cost) (instruction : Action) (timing : Timing) : Ability :=
   .activated cost instruction (some timing) none none none
 /-- "[cost]: <instruction>. Only <who> may activate this ability." -/
-semantic_template activatedBy (cost : Cost) (instruction : Instruction) (who : NounPhrase) : Ability :=
+semantic_template activatedBy (cost : Cost) (instruction : Action) (who : NounPhrase) : Ability :=
   .activated cost instruction none none none (some who)
 /-- "[cost]: <instruction>. Activate only once <limit>." -/
-semantic_template activatedOnlyOnce (cost : Cost) (instruction : Instruction) (limit : UsageLimit) : Ability :=
+semantic_template activatedOnlyOnce (cost : Cost) (instruction : Action) (limit : UsageLimit) : Ability :=
   .activated cost instruction none (some limit) none none
 /-- "[cost]: <instruction>. Activate only if <guard>." -/
-semantic_template activatedOnlyIf (cost : Cost) (instruction : Instruction) (guard : Condition) : Ability :=
+semantic_template activatedOnlyIf (cost : Cost) (instruction : Action) (guard : Condition) : Ability :=
   .activated cost instruction none none (some guard) none
 /-- `ability` with the restrictions a keyword or a granting effect adds to it [CR#113.10a]. -/
 semantic_template qualified (ability : Ability) (timing : Option Timing := none)
@@ -1752,7 +1752,7 @@ semantic_template abilityGrantSelected (subject : NounPhrase) (source : NounPhra
     (selection : AbilitySelection) : StaticSpec :=
   .abilityGrantSelected subject source selection
 /-- "[cost]: <instruction>. Activate only once <limit> and only if <guard>." -/
-semantic_template activatedOnlyOnceIf (cost : Cost) (instruction : Instruction) (limit : UsageLimit)
+semantic_template activatedOnlyOnceIf (cost : Cost) (instruction : Action) (limit : UsageLimit)
     (guard : Condition) : Ability :=
   .activated cost instruction none (some limit) (some guard) none
 
@@ -1850,8 +1850,8 @@ semantic_template treasureToken : CharacteristicBundle :=
               (.addMana (.lit 1) (.anyColor .sameColor) []) ] } }
 /-- "create N tapped <token>" [CR#111.2] -/
 semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := .lit 1) :
-    Instruction :=
-  Primitives.Instruction.create count (.written token) [.entersAs .tapped]
+    Action :=
+  Primitives.Action.create count (.written token) [.entersAs .tapped]
 
 theorem okAirbendOne :
     (airbend (target creature)).check (DRS.ofList []) = [] := by decide

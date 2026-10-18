@@ -38,7 +38,7 @@ def onPermanentCard : Condition := .matches .this permanentCard
 def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
 
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
-def chosenDraws : Instruction := instruct (chosenAsPaid (.named "gift") .this) (draw (.lit 1))
+def chosenDraws : Action := instruct (chosenAsPaid (.named "gift") .this) (draw (.lit 1))
 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/

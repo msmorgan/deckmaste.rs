@@ -23,43 +23,43 @@ namespace Semantics.Proofs.Possessor
 /-- "Sacrifice a creature you don't control." The indefinite's own conjunct names another
 controller than the performer. -/
 theorem badSacrificeCreatureYouDontControl :
-    Instruction.check (DRS.ofList []) (sacrifice (a creatureYouDontControl)) = [.patientPossessor] := by
+    Action.check (DRS.ofList []) (sacrifice (a creatureYouDontControl)) = [.patientPossessor] := by
   decide
 
 /-- "Sacrifice a creature you control." -/
 theorem okSacrificeCreatureYouControl :
-    Instruction.check (DRS.ofList []) (sacrifice (a creatureYouControl)) = [] := by
+    Action.check (DRS.ofList []) (sacrifice (a creatureYouControl)) = [] := by
   decide
 
 /-- "Target opponent sacrifices a creature you control.": the performer is the opponent. -/
 theorem badOpponentSacrificesCreatureYouControl :
-    Instruction.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a creatureYouControl))) =
+    Action.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a creatureYouControl))) =
       [.patientPossessor] := by
   decide
 
 /-- "Target opponent sacrifices a creature they control." -/
 theorem okOpponentSacrificesCreatureTheyControl :
-    Instruction.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a (.and [creature, actorControls])))) =
+    Action.check (DRS.ofList []) (instruct (target .opponent) (sacrifice (a (.and [creature, actorControls])))) =
       [] := by
   decide
 
 /-- "Choose a creature you don't control. Sacrifice that permanent.": the definite referent's
 binding carries the possessor its choice recorded. -/
 theorem badSacrificeChosenCreatureYouDontControl :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [choose (a creatureYouDontControl), sacrifice (that .permanent)]) =
       [.patientPossessor] := by
   decide
 
 /-- "Choose a creature you control. Sacrifice that permanent." -/
 theorem okSacrificeChosenCreatureYouControl :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [choose (a creatureYouControl), sacrifice (that .permanent)]) = [] := by
   decide
 
 /-- "Its controller sacrifices it": a possessor the text leaves unknown is not refused. -/
 theorem okControllerSacrificesTarget :
-    Instruction.check (DRS.ofList []) (controllerSacrifices (target creatureYouDontControl)) = [] := by
+    Action.check (DRS.ofList []) (controllerSacrifices (target creatureYouDontControl)) = [] := by
   decide
 
 /-! ## Discard [CR#701.9a] -/
@@ -67,33 +67,33 @@ theorem okControllerSacrificesTarget :
 /-- "Choose a card in your hand. Target opponent discards that card.": the card is in the
 controller's hand, not the discarder's. -/
 theorem badOpponentDiscardsCardInYourHand :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [choose (a (.inZone yourHand)), instruct (target .opponent) (discard (that .card))]) =
       [.patientPossessor] := by
   decide
 
 /-- "Choose a card in your hand. Discard that card." -/
 theorem okDiscardChosenCardInYourHand :
-    Instruction.check (DRS.ofList []) (.sequentially [choose (a (.inZone yourHand)), discard (that .card)]) =
+    Action.check (DRS.ofList []) (.sequentially [choose (a (.inZone yourHand)), discard (that .card)]) =
       [] := by
   decide
 
 /-- "Target opponent chooses a card in their hand and discards that card." -/
 theorem okOpponentDiscardsCardInTheirHand :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct (target .opponent)
         (.sequentially [choose (a (.inZone (handOf .actor))), discard (that .card)])) = [] := by
   decide
 
 /-- "Target opponent discards a card in your hand.": the indefinite's own conjunct. -/
 theorem badOpponentDiscardsACardInYourHand :
-    Instruction.check (DRS.ofList []) (instruct (target .opponent) (discard (a (.inZone yourHand)))) =
+    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a (.inZone yourHand)))) =
       [.patientPossessor] := by
   decide
 
 /-- "Target opponent discards a card." names no hand: the deed's own [CR#701.9a]. -/
 theorem okOpponentDiscardsACard :
-    Instruction.check (DRS.ofList []) (instruct (target .opponent) (discard (a .isCard))) = [] := by
+    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a .isCard))) = [] := by
   decide
 
 /-! ## What a binding records -/
@@ -101,7 +101,7 @@ theorem okOpponentDiscardsACard :
 /-- A card chosen from your hand records you as its possessor. -/
 theorem chosenCardInYourHandIsYours :
     possessorOfReach (.word .card) .one
-      (stepInstruction 64 .postEvent .obj (DRS.ofList []) (choose (a (.inZone yourHand)))).1 =
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (choose (a (.inZone yourHand)))).1 =
       some .you := by
   decide
 
@@ -116,7 +116,7 @@ theorem possessorThroughMoves :
   decide
 
 theorem destroyedPermanentControllerReadUsesLastKnownInformation :
-    let destroyed := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let destroyed := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (destroy (target artifact))).1
     let (after, ids, errors) := stepNounPhrase 64 (nextClause destroyed) .obj true
       (controllerOf (that .permanent))
@@ -126,7 +126,7 @@ theorem destroyedPermanentControllerReadUsesLastKnownInformation :
       after.characteristicRead = false := by decide
 
 theorem controllerReadDoesNotPermitUntappingDestroyedPermanent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target artifact),
         .dealDamage (.lit 2) (controllerOf (that .permanent)) .noncombatOnly,
         untap (that .permanent)]) = [.anaphor (.word .permanent) .one 0] := by decide

@@ -152,7 +152,7 @@ def keptPossessor (p : Option Deed) (oldZn z : Option Zone) (ps : Option Possess
     if oldZn == z || (oldZn.elim false Zone.possessable && z.elim false Zone.possessable) then ps
     else none
 
-def Instruction.enactPatientFuel (fuel : Nat) : Instruction → Option NounPhrase :=
+def Action.enactPatientFuel (fuel : Nat) : Action → Option NounPhrase :=
   match fuel with
   | 0 => fun _ => none
   | fuel + 1 => fun
@@ -162,10 +162,10 @@ def Instruction.enactPatientFuel (fuel : Nat) : Instruction → Option NounPhras
       | _ => none
 termination_by structural fuel
 
-def Instruction.enactPatient := Instruction.enactPatientFuel 64
+def Action.enactPatient := Action.enactPatientFuel 64
 
 def enactPatientPossessorOk (bs : DRS) (v : Deed) (perf : Option NounPhrase)
-    (e : Instruction) : Bool :=
+    (e : Action) : Bool :=
   !actOwnPatient v ||
     match e.enactPatient, perf with
     | some n, some who => !Possessor.differs (NounPhrase.possessor bs n) (who.possessorSide bs)

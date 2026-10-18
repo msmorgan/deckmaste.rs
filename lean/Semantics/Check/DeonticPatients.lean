@@ -4,7 +4,7 @@ import Semantics.Check.Events
 
 namespace Semantics
 
-def deonticPatientOk (before after : DRS) (action : Instruction)
+def deonticPatientOk (before after : DRS) (action : Action)
     (patientRole : GramRole) : Bool :=
   match action.scopeBody with
   | .block _ =>
@@ -15,7 +15,7 @@ def deonticPatientOk (before after : DRS) (action : Instruction)
     !(mentions.any fun (id, role) => role == patientRole && actors.contains id)
   | _ => true
 
-def Instruction.deonticDeed (action : Instruction) (fuel : Nat := 32) : Option Deed :=
+def Action.deonticDeed (action : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, action with
   | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope none body => body.deonticDeed n
   | _ + 1, .ownScope (some deed) _ | _ + 1, .enact deed _ _ _ => some deed
@@ -41,7 +41,7 @@ def deonticReferentFits (deed : Deed) (isAgent : Bool) (ref : Referent)
     deedKindOk deed isAgent ref.kind && deedClassOk deed isAgent ability && typeFits &&
       zoneFits (if checkZone then ref.zone else none) (deedZoneOf deed isAgent)
 
-def Instruction.canonicalPatient (action : Instruction) (fuel : Nat := 32) : Option NounPhrase :=
+def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPhrase :=
   match fuel, action with
   | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
   | n + 1, .bracketed body => body.canonicalPatient n
@@ -51,7 +51,7 @@ def Instruction.canonicalPatient (action : Instruction) (fuel : Nat := 32) : Opt
   | _, _ => none
 termination_by structural fuel
 
-def Instruction.checksEnactPatient (action : Instruction) (fuel : Nat := 32) : Bool :=
+def Action.checksEnactPatient (action : Action) (fuel : Nat := 32) : Bool :=
   match fuel, action with
   | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body =>
     body.checksEnactPatient n
@@ -59,7 +59,7 @@ def Instruction.checksEnactPatient (action : Instruction) (fuel : Nat := 32) : B
   | _, _ => false
 termination_by structural fuel
 
-def deonticDeedFits (before after : DRS) (action : Instruction)
+def deonticDeedFits (before after : DRS) (action : Action)
     (patientRole : GramRole) : Bool :=
   match action.deonticDeed with
   | none => true

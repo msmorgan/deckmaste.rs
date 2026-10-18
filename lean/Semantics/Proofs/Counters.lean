@@ -117,7 +117,7 @@ theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
       (.triggered (attacks thisCreature)
         [blocks thisCreature none, .does (.by (a spell)) (.target thisCreature)] none [] none none none
-        (Instruction.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each .opponent) .any)))
+        (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each .opponent) .any)))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
         (nextClause (GameEvent.extend (DRS.ofList []) (attacks thisCreature)))).map (·.id) = some 0 := by
@@ -132,41 +132,41 @@ theorem badJoinedHeaderReadback :
 
 /-- "Remove a +1/+1 counter from target creature." -/
 theorem okRemoveCounterFromTarget :
-    Instruction.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some p11) (target creature) .one true)
+    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some p11) (target creature) .one true)
       = [] := by
   decide
 
 theorem badRemoveCountersDead :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature),
         .removeCounters (some (exactly 1)) (some p11) it .one true]) = [.counterMemory] := by decide
 
 theorem destructionPreservesMovedCardIdentityWithoutCounterMemory :
     let destroyed := destroy (target creature)
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) destroyed).1
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) destroyed).1
     after.findById? 0 = none ∧
       (firstReach .bare .one (nextClause after)).map (·.id) = some 1 ∧
       (after.findById? 1).map (fun r => (r.zone, r.idents)) = some (some .graveyard, []) := by decide
 
 theorem newCountersOnMovedCardCanBeRemoved :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature),
         .putCounters (.lit 1) p11 (that .card) .one true,
         .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [] := by decide
 
 theorem badMoveCountersFromDeadCreature :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature),
         .moveCounters (.lit 1) (some p11) it thisCreature]) = [.counterMemory] := by decide
 
 theorem zeroCountersDoNotRestoreMovedCounterMemory :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature),
         .putCounters (.lit 0) p11 (that .card) .one true,
         .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [.counterMemory] := by decide
 
 theorem countersPlacedDuringMoveCanBeRemoved :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [
         .move (target creature) .anywhere (some exileZone) .arrival none
           [.placement (.withCounters (.lit 1) p11 .fresh)],
@@ -174,12 +174,12 @@ theorem countersPlacedDuringMoveCanBeRemoved :
 
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :
-    Instruction.check (DRS.ofList []) (.moveCounters (.lit 1) none (target creature) thisCreature) = [] := by
+    Action.check (DRS.ofList []) (.moveCounters (.lit 1) none (target creature) thisCreature) = [] := by
   decide
 
 /-- "Create a 1/1 creature creature token." -/
 theorem badTokenDuplicateType :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (create (.lit 1)
         { characteristics :=
           { types := [.creature, .creature], power := some (.lit 1), toughness := some (.lit 1) } })
@@ -188,27 +188,27 @@ theorem badTokenDuplicateType :
 
 /-- "Create a 1/1 white white Soldier creature token." -/
 theorem badTokenDuplicateColor :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (create (.lit 1) (creatureToken 1 1 [.white, .white] [creatureType "Soldier"]))
       = [.distinct] := by
   decide
 
 /-- "Target opponent loses 2 life. You gain that much life." -/
 theorem okThatMuchAfterOutcome :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [instruct (target .opponent) (loseLife (.lit 2)), gainLife .thatMuch]) = [] := by
   decide
 
 /-- "This deals 2 damage to target creature and you gain that much life." -/
 theorem badSimultaneousReadsOutcome :
-    Instruction.check (DRS.ofList [])
-      (.simultaneously [(Instruction.instruct .this (.dealDamage (.lit 2) (target creature) .any)), gainLife .thatMuch])
+    Action.check (DRS.ofList [])
+      (.simultaneously [(Action.instruct .this (.dealDamage (.lit 2) (target creature) .any)), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "You may create a token and put a +1/+1 counter on it." -/
 theorem badSimultaneousReadsMayDeed :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.simultaneously
         [ offer (create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"])),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
@@ -216,15 +216,15 @@ theorem badSimultaneousReadsMayDeed :
 
 /-- "You may have this deal 2 damage and you gain that much life." -/
 theorem badSimultaneousReadsMayOutcome :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.simultaneously
-        [offer (Instruction.instruct .this (.dealDamage (.lit 2) (target creature) .any)), gainLife .thatMuch])
+        [offer (Action.instruct .this (.dealDamage (.lit 2) (target creature) .any)), gainLife .thatMuch])
       = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Create a Plant token and a Soldier token. Put a +1/+1 counter on it." -/
 theorem badBatchTwoCreatesThenIt :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
             [ create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
@@ -233,56 +233,56 @@ theorem badBatchTwoCreatesThenIt :
   decide
 
 theorem badBatchTwoOutcomesThenThatMuch :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
-            [(Instruction.instruct .this (.dealDamage (.lit 2) (target creature) .any)), instruct (target .opponent) (loseLife (.lit 3))],
+            [(Action.instruct .this (.dealDamage (.lit 2) (target creature) .any)), instruct (target .opponent) (loseLife (.lit 3))],
           gainLife .thatMuch ]) = [.quantOutcomeInScope 2] := by
   decide
 
 /-- "Create a 1/1 green Plant creature token. Put a +1/+1 counter on it." -/
 theorem okCreatedThenCountered :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Instruction.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+        [ Primitives.Action.create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
           (.putCounters (.lit 1) p11 it .one true) ]) = [] := by
   decide
 
 theorem badDistributedCreationIt :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (Primitives.Instruction.create (.lit 1)
+        [ instruct (each .anyPlayer) (Primitives.Action.create (.lit 1)
             (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) []),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Put a +1/+1 counter on each of up to two target creatures." -/
 theorem okDistributedCounterRecipient :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.putCounters (.lit 1) p11 (.eachOf (.described (.target (upTo 2)) creature)) .one true) = [] := by
   decide
 
 /-- "Put a +1/+1 counter on up to two target creatures." -/
 theorem badBarePluralCounterRecipient :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) p11 (.described (.target (upTo 2)) creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) p11 (.described (.target (upTo 2)) creature) .one true)
       = [.perMember] := by
   decide
 
 /-- "This deals 1 damage to each of up to two target creatures." -/
 theorem okDistributedDamageRecipient :
-    Instruction.check (DRS.ofList [])
-      (Instruction.instruct .this (.dealDamage (.lit 1) (.eachOf (.described (.target (upTo 2)) creature)) .any)) = [] := by
+    Action.check (DRS.ofList [])
+      (Action.instruct .this (.dealDamage (.lit 1) (.eachOf (.described (.target (upTo 2)) creature)) .any)) = [] := by
   decide
 
 /-- "This deals 1 damage to up to two target creatures." -/
 theorem badBarePluralDamageRecipient :
-    Instruction.check (DRS.ofList []) (Instruction.instruct .this (.dealDamage (.lit 1) (.described (.target (upTo 2)) creature) .any))
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (.described (.target (upTo 2)) creature) .any))
       = [.perMember] := by
   decide
 
 /-- "Choose any number of target creatures. Put a +1/+1 counter on them." -/
 theorem badThemCounterRecipient :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [choose (.described (.target anyNumber) creature), (.putCounters (.lit 1) p11 them .one true)])
       = [.perMember] := by
@@ -290,24 +290,24 @@ theorem badThemCounterRecipient :
 
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.enact (.action "exile") (.move (target creature) .anywhere (some exileZone) .arrival none [.placement (.withCounters (.lit 1) p11 .fresh)]) none none) =
             [] := by
   decide
 
 /-- "Put a +1/+1 counter on target creature." -/
 theorem okPutBoostCounterOnCreature :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) p11 (target creature) .one true) = [] := by decide
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) p11 (target creature) .one true) = [] := by decide
 
 /-- "Put a poison counter on target creature." -/
 theorem badPutPoisonOnCreature :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target creature) .one true)
       = [.counterSourceScope] := by
   decide
 
 /-- "You get a +1/+1 counter." -/
 theorem badGetsBoostCounter :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) p11 .you .one true) = [.counterSourceScope] := by decide
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) p11 .you .one true) = [.counterSourceScope] := by decide
 
 /-- "a +1/+1 counter": a +X/+Y counter is a declared kind like any other [CR#122.1a]. -/
 theorem okBoostCounterKind : CounterKind.check p1p1Counter = [] := by decide
@@ -319,14 +319,14 @@ theorem badSetBoostCounter :
 
 /-- "Each opponent loses all poison counters." -/
 theorem okLosesAllPoisonCounters :
-    Instruction.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := (each
+    Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := (each
         .opponent)))
       = [] := by
   decide
 
 /-- "Each opponent loses all +1/+1 counters." -/
 theorem badLosesAllBoostCounters :
-    Instruction.check (DRS.ofList []) (loseCounters (some p11) none (agent := (each .opponent)))
+    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := (each .opponent)))
       = [.counterSourceScope] := by
   decide
 
@@ -355,13 +355,13 @@ theorem badLastPoisonCounterRemoved :
 
 /-- "Put a charge counter on this artifact." -/
 theorem okChargeCounterOnArtifact :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) thisArtifact .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) thisArtifact .one true)
       = [] := by
   decide
 
 /-- "Each player gets a charge counter." -/
 theorem badGetsChargeCounter :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) .you .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) .you .one true)
       = [.counterSourceScope] := by
   decide
 
@@ -425,40 +425,40 @@ theorem badEmptyCounterMenu :
 
 /-- "Put your choice of a +1/+1 counter or a first strike counter on target creature." -/
 theorem okSameScopeCounterMenu :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) (target creature) .one true)
       = [] := by
   decide
 
 /-- "Put your choice of a +1/+1 counter or a poison counter on target creature." -/
 theorem badMixedScopeCounterMenu :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "poison"]) (target creature) .one true)
       = [.counterSourceScope] := by
   decide
 
 /-- "Put a poison counter on target opponent." -/
 theorem okPoisonCounterLabel :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target .opponent) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target .opponent) .one true)
       = [] := by
   decide
 
 /-- "Put a zorp counter on target creature." -/
 theorem badUnknownCounterLabel :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "Zorp")) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "Zorp")) (target creature) .one true)
       = [.knownCounter] := by
   decide
 
 /-- "Put a flying counter on target creature." [CR#122.1b], written with the keyword's label:
 the kind is the declaration's name, `flyingCounter`, and "Flying" names no counter. -/
 theorem badKeywordCounterNamedPlainly :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "Flying")) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "Flying")) (target creature) .one true)
       = [.knownCounter] := by
   decide
 
 /-- "Put a flying counter on target creature." [CR#122.1b], written with the declared name. -/
 theorem okKeywordCounterByName :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.printed flyingCounter) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed flyingCounter) (target creature) .one true)
       = [] := by
   decide
 
@@ -468,11 +468,11 @@ def afterCountersPut : DRS :=
 
 /-- "Put that many counters of each of those kinds on this creature." -/
 theorem okThoseKindsAfterCountersPut :
-    Instruction.check afterCountersPut (.putCounters .thatMuch .those .this .one true) = [] := by decide
+    Action.check afterCountersPut (.putCounters .thatMuch .those .this .one true) = [] := by decide
 
 /-- "Put a counter of each of those kinds on target creature." -/
 theorem badThoseKindsUnannounced :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) .those (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) .those (target creature) .one true)
       = [.outcomeInScope .countersPut 0] := by
   decide
 
@@ -484,55 +484,55 @@ theorem okInterceptsCounterEvent :
 
 /-- "Target creature becomes an artifact in addition to its other types." -/
 theorem okBecomesArtifact :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (become (target creature) { characteristics := { types := [.artifact] } } none) = [] := by
   decide
 
 /-- "Target creature becomes in addition to its other types." -/
 theorem badBecomesNothing :
-    Instruction.check (DRS.ofList []) (become (target creature) { characteristics := {} } none)
+    Action.check (DRS.ofList []) (become (target creature) { characteristics := {} } none)
       = [.lineNonEmpty] := by
   decide
 
 /-- The Idris pin refutes the anaphor. -/
 theorem badOtherwiseReadsIfArm :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doOnlyIf (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (exists_ creatureYouControl) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Create a 1/1 black Zombie creature token. Create two of those tokens." -/
 theorem okAnaphoricTokenAfterToken :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]),
-          Primitives.Instruction.create (.lit 2) .asThose [] ]) = [] := by
+          Primitives.Action.create (.lit 2) .asThose [] ]) = [] := by
   decide
 
 /-- "Destroy target creature. Create two of those tokens." -/
 theorem badAnaphoricTokenAfterNonToken :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [destroy (target creature), Primitives.Instruction.create (.lit 2) .asThose []])
+    Action.check (DRS.ofList [])
+      (.sequentially [destroy (target creature), Primitives.Action.create (.lit 2) .asThose []])
       = [.tokenSpecInScope 0] := by
   decide
 
 theorem badAnaphoricTokenAfterTwoDistinctSpecs :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [create (.lit 1) (creatureToken 1 1 [.green] [creatureType "Plant"]),
           create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]),
-          Primitives.Instruction.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
+          Primitives.Action.create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
 
 /-- "Put a +1/+1 counter on target creature card in your graveyard." No printed card on the
 bench. -/
 theorem counterOnGraveyardCard :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.putCounters (.lit 1) p11 (target (.and [creature, .inZone (graveyardOf .you)])) .one true) = [] := by
   decide
 
 /-- "put a counter of each kind that's on this creature on target creature" -/
 theorem okSameKindsOnCreature :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target creature) .one true)
       = [] := by
   decide
 
@@ -540,7 +540,7 @@ theorem okSameKindsOnCreature :
 modifies an object's power and toughness [CR#122.1a], so the kinds read off a creature stay on
 objects. -/
 theorem badSameKindsOnPlayer :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target .anyPlayer) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target .anyPlayer) .one true)
       = [.counterSourceScope] := by
   decide
 
@@ -548,7 +548,7 @@ theorem badSameKindsOnPlayer :
 same-counters reading carries the number as well as the kinds, so the amount slot holds no
 other literal. -/
 theorem badSameKindsSevenEach :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 7) (.sameAs thisCreature) (target creature) .one true)
+    Action.check (DRS.ofList []) (.putCounters (.lit 7) (.sameAs thisCreature) (target creature) .one true)
       = [.kindAmountOk] := by
   decide
 

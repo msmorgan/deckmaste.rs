@@ -445,7 +445,7 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
         { r with payload := newPayload }) drs
 
 /-- Infer the canonical `Deed` of an instruction for `.actedOn` stamping. -/
-def Instruction.inferredDeed (inst : Instruction) (fuel : Nat := 32) : Option Deed :=
+def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
   | n + 1, .inCaller body | n + 1, .bracketed body => body.inferredDeed n
@@ -482,7 +482,7 @@ structure StepOps where
   amt  : DRS → Amount → DRS × List Refusal
   cond : DRS → Condition → DRS × List Refusal
   ev   : DRS → GameEvent → DRS × List Refusal
-  inst : StepPhase → GramRole → DRS → Instruction → DRS × List Refusal
+  inst : StepPhase → GramRole → DRS → Action → DRS × List Refusal
   spec : DRS → StaticSpec → DRS × List Refusal
   cost : DRS → Cost → DRS × List Refusal
   ab   : DRS → Ability → List Refusal
@@ -802,7 +802,7 @@ private def stepDeonticAsThoughWith (ops : StepOps) (drs : DRS) (mods : DeonticM
     | _ => []
   (out, errors ++ exceptErrors)
 
-def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Instruction) : List Refusal :=
+def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Action) : List Refusal :=
   let agent := match subject with | .any => none | .actor noun | .by noun => some noun
   let agentRead := agent.all NounPhrase.eventAgentOk
   match action.scopeBody with
@@ -838,7 +838,7 @@ private def triggerActorRefusals (drs : DRS) : List Refusal :=
     refuse (shape.kind == .object && (refs.isEmpty || refs.all (fun ref =>
       match ref.payload with | .ability .. => true | _ => false))) .eventAgent
 
-def Instruction.performed (action : Instruction) : Bool :=
+def Action.performed (action : Action) : Bool :=
   match action.scopeBody with
   | .conclude _ | .separateIntoPiles .. | .choose .. | .vote ..
   | .copy .. | .changeLife _ | .addMana .. | .draw _ | .expose ..
@@ -847,14 +847,14 @@ def Instruction.performed (action : Instruction) : Bool :=
   | .procedure .. | .withContinuation .optional .. => true
   | _ => false
 
-def clauseActorKind (action : Instruction) : Option Kind :=
+def clauseActorKind (action : Action) : Option Kind :=
   match action.scopeBody with
   | .draw _ | .procedure .. | .flipCoins .. | .rollDice ..
   | .createObject .. | .putCounters .. | .removeCounters .. => some .player
   | .dealDamage .. => some .object
   | _ => none
 
-private def eventActionRefusals (action : Instruction) : List Refusal :=
+private def eventActionRefusals (action : Action) : List Refusal :=
   match action.scopeBody with
   | .procedure _ subject .. => refuse (subject.plur == .one) .singular
   | _ => []
@@ -1239,7 +1239,7 @@ def stepRollRowListWith (ops : StepOps) (drs : DRS) (rows : List RollRow) : DRS 
     (d2, es ++ e1 ++ refuse q.nonZero .nonZeroQ ++ refuse q.literal .quantLiteral ++ e2))
       (drs, [])
 
-def Instruction.hasRepeatedPayment (instruction : Instruction) (fuel : Nat := 32) : Bool :=
+def Action.hasRepeatedPayment (instruction : Action) (fuel : Nat := 32) : Bool :=
   match fuel, instruction with
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body =>
     body.hasRepeatedPayment n
@@ -1277,7 +1277,7 @@ def stepModeChangeWith (ops : StepOps) (drs : DRS) (mc : ModeChange) : DRS × Li
   | .notChosenBefore dur => stepDurationWith ops drs dur
 
 def stepModeListWith (ops : StepOps) (drs : DRS)
-    (modes : List (Option Cost × Option Nat × Instruction)) : DRS × List Refusal :=
+    (modes : List (Option Cost × Option Nat × Action)) : DRS × List Refusal :=
   modes.foldl (fun (out, errors) (cost, _, instruction) =>
     let branch := { drs with nextId := out.nextId }
     let (afterCost, costErrors) := match cost with
@@ -2728,7 +2728,7 @@ def stepOps : Nat → StepOps
             | some w => let (d, _, e) := ops.np drs .subj true w; (d, e)
             | none => (drs, [])
           let (drs2, e2) := ops.cost drs1 cost
-          let repeated := (Instruction.pay cost times outcome whose keyword).hasRepeatedPayment
+          let repeated := (Action.pay cost times outcome whose keyword).hasRepeatedPayment
           let out := if phase == .postEvent && repeated then
               drs2.push (outcomeB .repeatCount) .other false
             else drs2
@@ -3196,8 +3196,8 @@ def stepCondition (fuel : Nat) (drs : DRS) (c : Condition) : DRS × List Refusal
 def stepGameEvent (fuel : Nat) (drs : DRS) (ev : GameEvent) : DRS × List Refusal :=
   (stepOps fuel).ev drs ev
 
-def stepInstruction (fuel : Nat) (phase : StepPhase) (patientRole : GramRole) (drs : DRS)
-    (inst : Instruction) : DRS × List Refusal :=
+def stepAction (fuel : Nat) (phase : StepPhase) (patientRole : GramRole) (drs : DRS)
+    (inst : Action) : DRS × List Refusal :=
   (stepOps fuel).inst phase patientRole drs inst
 
 def stepStaticSpec (fuel : Nat) (drs : DRS) (s : StaticSpec) : DRS × List Refusal :=
@@ -3233,8 +3233,8 @@ def Amount.check (drs : DRS) (a : Amount) : List Refusal :=
 def Condition.check (drs : DRS) (c : Condition) : List Refusal :=
   (stepCondition 64 drs c).2
 
-def Instruction.check (drs : DRS) (i : Instruction) : List Refusal :=
-  (stepInstruction 64 .postEvent .obj drs i).2
+def Action.check (drs : DRS) (i : Action) : List Refusal :=
+  (stepAction 64 .postEvent .obj drs i).2
 
 def StaticSpec.check (drs : DRS) (s : StaticSpec) : List Refusal :=
   (stepStaticSpec 64 drs s).2

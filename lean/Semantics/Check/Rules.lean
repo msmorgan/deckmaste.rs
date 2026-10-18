@@ -9,18 +9,18 @@ Scope and registry-definition checking for rules-as-data.
 
 namespace Semantics
 
-def Instruction.checkDefinition (drs : DRS) (body : Instruction) : List Refusal :=
+def Action.checkDefinition (drs : DRS) (body : Action) : List Refusal :=
   match body with
   | .ownScope (some deed) (.enact inner action becomes locus) =>
     if deed == inner && action.eventHeadOk then
-      (Instruction.enact inner action becomes locus).check drs
+      (Action.enact inner action becomes locus).check drs
     else body.check drs
   | _ => body.check drs
 
 def SbaRule.check (r : SbaRule) : List Refusal :=
   let (drs1, e1) := stepPredicate 64 (DRS.ofList []) r.scope
   let (drs2, e2) := stepCondition 64 drs1 r.when
-  let (_, e3) := stepInstruction 64 .postEvent .obj (nextClause drs2) r.then_
+  let (_, e3) := stepAction 64 .postEvent .obj (nextClause drs2) r.then_
   e1 ++ refuse (Kind.lte (r.scope.kindOr .object) (.join .object .player))
     (.kindLte (r.scope.kindOr .object) (.join .object .player)) ++ e2 ++ e3
 
@@ -35,10 +35,10 @@ def Conferral.check : Conferral → List Refusal
   | .property spec => (stepStaticSpec 64 (DRS.ofList []) spec).2
   | .stateBased when then_ =>
     let (drs1, e1) := stepCondition 64 (DRS.ofList []) when
-    let (_, e2) := stepInstruction 64 .postEvent .obj (nextClause drs1) then_
+    let (_, e2) := stepAction 64 .postEvent .obj (nextClause drs1) then_
     e1 ++ e2
   | .turnBased _ then_ =>
-    (stepInstruction 64 .postEvent .obj (DRS.ofList []) then_).2
+    (stepAction 64 .postEvent .obj (DRS.ofList []) then_).2
 
 def Definition.check : Definition → List Refusal
   | .counter kind k confers =>

@@ -62,13 +62,13 @@ private def selectedCreature : NounPhrase :=
 
 /-- A lazily evaluated caller argument is already supplied to its definition's test. -/
 theorem callerOwnedTestSubjectsDoNotPermitFreshLocalTestSelections :
-    let test := Instruction.doIf
+    let test := Action.doIf
       (.matches (.firstMention "tested.parameter" (.inCaller selectedCreature))
         (.hasType .creature)) (.draw (.lit 1)) none
-    Instruction.check emptyContext (.ownScope none test) = [] ∧
+    Action.check emptyContext (.ownScope none test) = [] ∧
       Condition.check emptyContext (.matches selectedCreature (.hasType .creature)) =
         [.testSubject] ∧
-      Instruction.check emptyContext (.ownScope none
+      Action.check emptyContext (.ownScope none
         (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.lit 1)) none)) =
         [.testSubject] := by decide
 

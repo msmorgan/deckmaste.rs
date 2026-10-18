@@ -14,8 +14,8 @@ namespace Semantics
 class MacroExpansion (α : Type) where
   caller : α → α
 
-instance : MacroExpansion Instruction where
-  caller := Instruction.inCaller
+instance : MacroExpansion Action where
+  caller := Action.inCaller
 
 instance : MacroExpansion Cost where
   caller := Cost.inCaller

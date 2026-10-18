@@ -21,7 +21,7 @@ private def nounSelected (drs : DRS) (noun : NounPhrase) : List Referent :=
   result.2.1.filterMap result.1.findById?
 
 /-- An instant whose whole text is one spell ability. -/
-def instantSaying (instruction : Instruction) : Card :=
+def instantSaying (instruction : Action) : Card :=
   .singleFaced
     { characteristics :=
       { name := some "", types := [.instant], text := [.spell none instruction] } }
@@ -38,13 +38,13 @@ theorem badSingletonBallot : Ballot.check (DRS.ofList []) (.byLabel ["death"]) =
 
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.move (target (.and [creature, .inZone (graveyardOf .you)])) .anywhere (some battlefield) .arrival none [.entry .entersTransformed]) = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
 piles." -/
-def revealAndSplit : List Instruction :=
+def revealAndSplit : List Action :=
   [revealCards (topSlice (.lit 5)), instruct anOpponent (.separateIntoPiles them 2 [])]
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
@@ -71,17 +71,17 @@ theorem badPileWordWithoutAPartition :
 
 /-- "... into two piles. Put one pile into your hand." -/
 theorem okOnePileAfterPartition :
-    Instruction.check (DRS.ofList []) (.sequentially (revealAndSplit ++ [move onePile hand])) = [] := by decide
+    Action.check (DRS.ofList []) (.sequentially (revealAndSplit ++ [move onePile hand])) = [] := by decide
 
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Instruction.check (DRS.ofList []) (.move (target .anyPlayer) .anywhere (some hand) .arrival none [])
+    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anywhere (some hand) .arrival none [])
       = [.kindLte .player (.join .object .pile)] := by decide
 
 /-- "Put one pile into your hand." -/
 theorem badPilePartitiveWithoutAPartition :
-    Instruction.check (DRS.ofList []) (move onePile hand) = [.anaphor (.word .pile) .many 0] := by decide
+    Action.check (DRS.ofList []) (move onePile hand) = [.anaphor (.word .pile) .many 0] := by decide
 
 /-- "Put each card in the pile of your choice into your hand." -/
 theorem okMembershipInAPile :
@@ -105,7 +105,7 @@ theorem badMembershipWithoutAPartition :
 
 /-- "Turn target creature face down." -/
 theorem okStatusOnBattlefieldNoun :
-    Instruction.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .faceDown (target creature)) = [] := by decide
 
 /-- "An opponent separates all creatures into two piles. Turn each creature in the pile of your
 choice face down." Only permanents have status [CR#110.5d]; a pile is not one [CR#700.3b]. -/
@@ -140,7 +140,7 @@ theorem zonePilesFixTheirFaces :
 
 /-- "Exile the top card of your graveyard.": a graveyard is ordered too [CR#404.2]. -/
 theorem okSliceOfAGraveyard :
-    Instruction.check (DRS.ofList []) (exile (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))) = [] := by
+    Action.check (DRS.ofList []) (exile (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))) = [] := by
   decide
 
 /-- The slice of a graveyard is a group in that graveyard: grouping moves nothing, and the order
@@ -151,16 +151,16 @@ theorem sliceOfAGraveyardStaysInIt :
 
 /-- Bare "Shuffle" uses the performer's library in this fixture; shuffling randomizes the
 chosen library [CR#701.24a]. -/
-theorem okBareShuffle : Instruction.check (DRS.ofList []) shuffle = [] := by decide
+theorem okBareShuffle : Action.check (DRS.ofList []) shuffle = [] := by decide
 
 /-- "Shuffle that pile.": no instruction made a pile. -/
 theorem badThatPileWithoutAPile :
-    Instruction.check (DRS.ofList []) (.shuffle .that) = [.anaphor (.word .pile) .one 0] := by decide
+    Action.check (DRS.ofList []) (.shuffle .that) = [.anaphor (.word .pile) .one 0] := by decide
 
 /-- "An opponent separates all creatures into two face-down piles. Choose one pile. Shuffle that
 pile." -/
 theorem okShuffleTheChosenPile :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 [.faceDown, .faceDown]),
           choose onePile, .shuffle .that ]) = [] := by
@@ -174,8 +174,8 @@ those cards with the same name as this spell without paying their mana costs, th
 revealed cards not cast this way on the bottom of your library in any order." The reveal result
 remains accessible through the cast selection and subsequent move. -/
 theorem rippleRevealedCardsRemainAccessible :
-    Instruction.check (DRS.ofList [])
-      (Primitives.Instruction.offer (revealCards (.slice .top (.lit 4) (library .actor)))
+    Action.check (DRS.ofList [])
+      (Primitives.Action.offer (revealCards (.slice .top (.lit 4) (library .actor)))
         (some (.sequentially
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
@@ -197,7 +197,7 @@ theorem nestedTurnPartWindows :
   decide
 
 theorem voteStartingWithSpecifiedPlayer :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]))) =
           [] := by
   decide
@@ -206,7 +206,7 @@ theorem voteStartingWithSpecifiedPlayer :
 no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlayer` is the
 same order over every player). -/
 theorem badOrderedSingularVoter :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"])))
       = [.choiceOrder] := by
   decide
@@ -214,7 +214,7 @@ theorem badOrderedSingularVoter :
 /-- "Each player votes for alpha or beta. You draw a card for each alpha vote. If beta gets more
 votes or the vote is tied, exile each permanent with the most votes." -/
 theorem okVoteReadsAfterVote :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (each .anyPlayer) (vote .openly (.byLabel ["alpha", "beta"])),
           draw (.votesFor "alpha"),
@@ -226,39 +226,39 @@ theorem okVoteReadsAfterVote :
 so there are no votes to count [CR#701.38a] (`okVoteReadsAfterVote` is the same read after a
 vote). -/
 theorem badVotesForWithoutVote :
-    Instruction.check (DRS.ofList []) (draw (.votesFor "alpha")) = [.outcomeInScope .voteHeld 0]
+    Action.check (DRS.ofList []) (draw (.votesFor "alpha")) = [.outcomeInScope .voteHeld 0]
         := by
   decide
 
 /-- "If beta gets more votes, draw a card.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` is the same condition after a vote). -/
 theorem badVoteLeadWithoutVote :
-    Instruction.check (DRS.ofList []) (doIf (.voteLead "beta" true) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (doIf (.voteLead "beta" true) (draw (.lit 1)))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 
 /-- "Exile each permanent with the most votes.": the same missing vote [CR#701.38a]
 (`okVoteReadsAfterVote` exiles by the same predicate after a vote). -/
 theorem badWithMostVotesWithoutVote :
-    Instruction.check (DRS.ofList []) (exile (allOf (.and [permanent, .withMostVotes])))
+    Action.check (DRS.ofList []) (exile (allOf (.and [permanent, .withMostVotes])))
       = [.outcomeInScope .voteHeld 0] := by
   decide
 
 theorem oneWayResultShift :
-    Instruction.check (DRS.ofList []) (.sequentially [rollDice 1 6, .shiftResult (some .up) (.lit
+    Action.check (DRS.ofList []) (.sequentially [rollDice 1 6, .shiftResult (some .up) (.lit
         1)])
       = [] := by
   decide
 
 theorem abilityCounterRecipient :
-    Instruction.check (DRS.ofList []) (.putCounters (.lit 1) .own (a (.abilityHead .anyOnStack)) .one true) = [] := by
+    Action.check (DRS.ofList []) (.putCounters (.lit 1) .own (a (.abilityHead .anyOnStack)) .one true) = [] := by
   decide
 
 theorem removeOwnCounterKinds :
-    Instruction.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some .own) .you .one true) = [] := by decide
+    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some .own) .you .one true) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.addTurnPart .upkeep (some .mainPhase) (.lit 1) none)
+    Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) (.lit 1) none)
       = [] := by
   decide
 

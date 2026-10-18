@@ -5,12 +5,12 @@ import Semantics.Events
 
 The Semantics v3 unified action-clause spine: phrases (`ZoneExpr`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
-headers and bounds (`CountBound`, `UsageLimit`, `JoinedHeader`), instructions (`Instruction`),
+headers and bounds (`CountBound`, `UsageLimit`, `JoinedHeader`), instructions (`Action`),
 static specifications (`StaticSpec`, `WouldClause`, `DeonticMods`, `DamageResult`), costs
 (`Cost`), and abilities (`Ability`).
 
 Because `GameEvent.does` and `DidClause` (`Predicate.did`, `Amount.tally`, `Condition.did`)
-embed `action : Instruction` directly, the phrase, trigger, and ability grammars form a single
+embed `action : Action` directly, the phrase, trigger, and ability grammars form a single
 mutually recursive block (`docs/decisions/semantics-v3.md` §3).
 -/
 
@@ -148,7 +148,7 @@ mutual
   and `Amount.tally`. -/
   structure DidClause where
     subj : Subject
-    action : Instruction
+    action : Action
     within : LookbackSpan
 
   /-- Which turn a timing or duration names. `that` reads back the turn an earlier phrase
@@ -317,7 +317,7 @@ mutual
     | theGrantor (marker : MarkerWord)
     | you
     /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],
-    unless an enclosing `Instruction.instruct` hands the instruction to another player or to a
+    unless an enclosing `Action.instruct` hands the instruction to another player or to a
     permanent, which it then is. -/
     | actor
     | combatPlayer (role : CombatRole)
@@ -450,7 +450,7 @@ mutual
     | inCaller (body : GameEvent)
     /-- An action event: active (`subj = .actor np`), unspecified-agent passive (`subj = .any`),
     or explicit-agent passive (`subj = .by np`). -/
-    | does (subj : Subject) (action : Instruction)
+    | does (subj : Subject) (action : Action)
     /-- The beginning of `part` of the turn `which` names, whose turn it is being `whose`'s. -/
     | beginningOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
     | endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
@@ -526,7 +526,7 @@ mutual
     while_ : Option Timing
     timing : Option Timing
 
-  -- ## Instructions, Static Specs, Costs, and Abilities
+  -- ## Actions, Static Specs, Costs, and Abilities
 
   /-- What mana may be spent on. -/
   inductive SpendPurpose where
@@ -695,7 +695,7 @@ mutual
     | anyNumber
     | untilCond (condition : Condition)
     | againExcludingChosen
-    | fixed (times : Amount) (body : Instruction)
+    | fixed (times : Amount) (body : Action)
 
   /-- An object's characteristics: name, mana cost, color and color indicator, card type,
   subtype, supertype, rules text and abilities, power, toughness, loyalty, and defense
@@ -762,7 +762,7 @@ mutual
   /-- A prospective action clause ("if you would draw a card", "if this creature would be
   destroyed") for replacement effects [CR#614.1]. -/
   inductive WouldClause where
-    | would (subj : Subject) (action : Instruction)
+    | would (subj : Subject) (action : Action)
     | wouldAny (clauses : List WouldClause)
     /-- The named cause of a prospective event [CR#700.1,614.1a]. -/
     | causedBy (cause : Causing) (clause : WouldClause)
@@ -781,7 +781,7 @@ mutual
     source : Subject
     recipient : Predicate
     mode : ResultMode
-    does : Instruction
+    does : Action
 
   inductive StaticSpec where
     | inCaller (body : StaticSpec)
@@ -809,13 +809,13 @@ mutual
     | abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
         (selection : AbilitySelection)
     /-- Deontic prohibition ("can't") [CR#101.2]. -/
-    | cant (subj : Subject) (action : Instruction) (mods : DeonticMods)
+    | cant (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Deontic requirement ("must" / "if able"). -/
-    | must (subj : Subject) (action : Instruction) (mods : DeonticMods)
+    | must (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Deontic permission ("may"). -/
-    | may (subj : Subject) (action : Instruction) (mods : DeonticMods)
+    | may (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Cost-gated deontic rule ("can't … unless … pays …") [CR#508.1d,509.1c]. -/
-    | gatedBy (cost : Cost) (subj : Subject) (action : Instruction) (mods : DeonticMods)
+    | gatedBy (cost : Cost) (subj : Subject) (action : Action) (mods : DeonticMods)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)
     | partSkip (player : NounPhrase) (part : TurnPart)
     | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
@@ -823,7 +823,7 @@ mutual
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     /-- A replacement effect ("If … would …, … instead") [CR#614.1]. -/
-    | instead (event : WouldClause) (replacement : Instruction) (timing : Option Timing)
+    | instead (event : WouldClause) (replacement : Action) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
     /-- A static damage-result modification (lifelink, wither, infect)
     [CR#120.3,120.4c,702.15b,702.80a]. -/
@@ -845,14 +845,14 @@ mutual
     /-- A special action: any time you have priority, within `when`, you may pay `cost` and do
     `does`, without using the stack [CR#116.1,116.2c]. Morph's turning face up, foretell's and
     plot's exiling are each one [CR#116.2b,116.2h,116.2k]. -/
-    | specialAction (when : Option Timing) (cost : Cost) (does : Instruction)
+    | specialAction (when : Option Timing) (cost : Cost) (does : Action)
     /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
     using the stack [CR#604.1,614.1c]. A delayed trigger it creates has this static's object as
     its source [CR#603.7a,603.7g]. -/
-    | asEvent (event : GameEvent) (does : Instruction)
+    | asEvent (event : GameEvent) (does : Action)
     /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
     is carried out without using the stack [CR#604.1,702.131b]. -/
-    | whileHolds (condition : Condition) (does : Instruction)
+    | whileHolds (condition : Condition) (does : Action)
     /-- "<subject> is a Combatant": the creature-like combat rules apply to it. Its power deals
     combat and fight damage, marked damage is compared with its toughness, it may be declared an
     attacker or a blocker, and the summoning-sickness rule applies to it
@@ -900,7 +900,7 @@ mutual
         (exclusive : Bool) (payment : PlayPayment)
 
   inductive DamageOp where
-    | prevent (cut : PreventCut) (also : Option Instruction)
+    | prevent (cut : PreventCut) (also : Option Action)
     | redirect (cut : PreventCut) (to : NounPhrase)
     | scale (scale : DamageScale)
 
@@ -950,7 +950,7 @@ mutual
     | untapSymbol
     | loyaltySymbol (loyalty : LoyaltyCost)
     /-- An instruction performed as a cost ("Sacrifice a creature:") [CR#602.2b,118.1]. -/
-    | perform (instruction : Instruction)
+    | perform (instruction : Action)
     | compound (costs : List Cost)
     | or (costs : List Cost)
     | itsManaCost
@@ -962,13 +962,13 @@ mutual
   mana" [CR#702.51a,702.66a,702.126a,701.67a]: the action first, then the mana each act pays,
   read back from the acted-on object by anaphora ("that creature's color"). -/
   structure ManaSubstitute where
-    action : Instruction
+    action : Action
     pays : List PipPaid
 
   inductive ManaRider where
     | spendOnly (purposes : List SpendPurpose)
     | spendNotOn (purposes : List SpendPurpose)
-    | onSpent (mode : SpentMode) (only : Bool) (spell : NounPhrase) (says : Instruction)
+    | onSpent (mode : SpentMode) (only : Bool) (spell : NounPhrase) (says : Action)
 
   inductive CopyExcept where
     | edits (edits : List CharacteristicEdit)
@@ -978,22 +978,22 @@ mutual
 
   structure RollRow where
     results : Quantity
-    instruction : Instruction
+    instruction : Action
 
   inductive CreationSpec where
     | token (spec : TokenSpec) (riders : List EntryRider)
     /-- An emblem, named where the rules name it ("an emblem named The Ring" [CR#701.54c]). -/
     | emblem (name : Option String) (abilities : List Ability)
 
-  inductive Instruction where
-    | inCaller (body : Instruction)
+  inductive Action where
+    | inCaller (body : Action)
     /-- A `Definition` body read in its own Reference Scope (`enterOwnScope` / `leaveOwnScope`),
     carrying its optional `Deed` identity (`some (.action name)`) for `does`/`would`/`did`/`cant`
     and composite action lowering [CR#701.22b]. -/
-    | ownScope (deed : Option Deed) (body : Instruction)
+    | ownScope (deed : Option Deed) (body : Action)
     /-- Rules text printed in square brackets, kept in place so a Text Change can find it
     [CR#702.148a]: transparent, it means what `instruction` means. -/
-    | bracketed (instruction : Instruction)
+    | bracketed (instruction : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
     clause's subject or performer). -/
     | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : DamageKind)
@@ -1028,7 +1028,7 @@ mutual
     /-- Gain or change control of `subject`. -/
     | changeControl (subject : NounPhrase)
     /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
-    | doAndForbid (instruction : Instruction) (deed : Deed) (subject : NounPhrase)
+    | doAndForbid (instruction : Action) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
     | unlock (door : Door)
@@ -1083,39 +1083,39 @@ mutual
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/
-    | enact (verb : Deed) (instruction : Instruction) (becomes : Option Predicate)
+    | enact (verb : Deed) (instruction : Action) (becomes : Option Predicate)
         (locus : Option ZoneExpr)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)
         (whose : Option NounPhrase) (keyword : Option KeywordLabel)
     /-- 3rd-person imperative handoff: `subj`, a player or a permanent, performs `action`
     ("target player discards a card", "target creature explores" [CR#701.44a]). Inside `action`,
     `NounPhrase.actor` is that performer. -/
-    | instruct (subj : NounPhrase) (action : Instruction)
+    | instruct (subj : NounPhrase) (action : Action)
     /-- Branch on the decision or start of payment, independently of resulting events. -/
-    | withContinuation (policy : ContinuationPolicy) (body : Instruction)
-        (ifDid : Option Instruction) (ifNot : Option Instruction)
-    | doOnlyIf (instruction : Instruction) (condition : Condition) (otherwise : Option Instruction)
+    | withContinuation (policy : ContinuationPolicy) (body : Action)
+        (ifDid : Option Action) (ifNot : Option Action)
+    | doOnlyIf (instruction : Action) (condition : Condition) (otherwise : Option Action)
     /-- "<instruction>. Do this only once each turn.": the instruction is limited, not the
     ability that carries it; the ability still triggers, and is done only within `limit`
     [CR#603.2h]. -/
-    | limited (instruction : Instruction) (limit : UsageLimit)
-    | doIf (condition : Condition) (instruction : Instruction) (otherwise : Option Instruction)
-    | doForEach (group : NounPhrase) (body : Instruction)
+    | limited (instruction : Action) (limit : UsageLimit)
+    | doIf (condition : Condition) (instruction : Action) (otherwise : Option Action)
+    | doForEach (group : NounPhrase) (body : Action)
     | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)
-        (body : Instruction)
+        (body : Action)
     | repeat_ (repetition : Repetition)
-    | sequentially (steps : List Instruction)
-    | simultaneously (steps : List Instruction)
+    | sequentially (steps : List Action)
+    | simultaneously (steps : List Action)
     /-- "Choose <quantity> —" over bulleted modes [CR#700.2]: each mode is its cost (spree's and
     tiered's priced bullets [CR#700.2h]), its weight (a pawprint mode's count of {P}
     [CR#700.2i]) and its instruction. -/
-    | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Instruction))
+    | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Action))
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
-        (body : Instruction)
-    | replace (replaced : Instruction) (replacement : Instruction)
-    | holdUntil (instruction : Instruction) (event : GameEvent)
-    | triggerReflexively (body : Instruction) (trigger : Instruction)
-    | triggerThisWay (body : Instruction) (event : GameEvent) (trigger : Instruction)
+        (body : Action)
+    | replace (replaced : Action) (replacement : Action)
+    | holdUntil (instruction : Action) (event : GameEvent)
+    | triggerReflexively (body : Action) (trigger : Action)
+    | triggerThisWay (body : Action) (event : GameEvent) (trigger : Action)
     | skipUntap (subject : NounPhrase) (steps : Amount)
     | skipPart (part : TurnPart) (count : Amount)
     | addTurnPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
@@ -1158,13 +1158,13 @@ mutual
     box holds rules text [CR#109.3]: empty where the card writes the keyword bare, and otherwise
     the abilities the keyword represents. -/
     | keyword (keyword : KeywordLabel) (params : List KeywordParam) (body : List Ability)
-    | activated (cost : Cost) (instruction : Instruction) (timing : Option Timing)
+    | activated (cost : Cost) (instruction : Action) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
     | triggered (event : GameEvent) (alternatives : List GameEvent)
         (while_ : Option Timing) (joins : List JoinedHeader) (timing : Option Timing)
-        (limit : Option UsageLimit) (intervening : Option Condition) (instruction : Instruction)
+        (limit : Option UsageLimit) (intervening : Option Condition) (instruction : Action)
     | static (spec : StaticSpec)
-    | spell (timing : Option Timing) (instruction : Instruction)
+    | spell (timing : Option Timing) (instruction : Action)
     /-- "You may begin the game with this on the battlefield" (the Leylines). -/
     | mayBeginOnBattlefield
     /-- "The same is true for first strike, double strike, …" (Odric). -/
@@ -1222,7 +1222,7 @@ end Semantics
 attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
   Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition Semantics.Duration
   Semantics.Timing Semantics.Subject Semantics.LookbackSpan Semantics.WouldClause
-  Semantics.Instruction Semantics.StaticSpec Semantics.Cost Semantics.Ability Semantics.TokenSpec
+  Semantics.Action Semantics.StaticSpec Semantics.Cost Semantics.Ability Semantics.TokenSpec
 
 classify_semantic_syntax
 
@@ -1230,7 +1230,7 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.NounPhrase.firstMention Semantics.NounPhrase.laterMention
   Semantics.Quantity.inCaller Semantics.ZoneExpr.inCaller Semantics.Condition.inCaller
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
-  Semantics.Predicate.inCaller Semantics.Instruction.enact Semantics.Instruction.inCaller
-  Semantics.Instruction.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
+  Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
+  Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit

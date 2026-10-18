@@ -88,10 +88,10 @@ private def ramSource : NounPhrase :=
   .firstMention "ram.source" (target creatureYouControl)
 private def ramRecipient : NounPhrase :=
   .firstMention "ram.recipient" (target (.and [creature, .not (.hasPossessor .controller .you)]))
-private def ramDamage : Instruction :=
+private def ramDamage : Action :=
   instruct ramSource (.dealDamage (powerOf it) ramRecipient .any)
 private def ramAfterDamage : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) ramDamage).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) ramDamage).1
 private def ramAfterCondition : DRS :=
   (stepCondition 64 (nextClause ramAfterDamage)
     (.matches (.laterMention "ram.source" ramSource) (.hasKeyword (.the (.named "trample"))))).1
@@ -160,14 +160,14 @@ private def scytheDeath : GameEvent :=
   Primitives.GameEvent.dies (damagedVictim .equipped)
 private def scytheAfterDeath : DRS :=
   (stepGameEvent 64 (DRS.ofList []) scytheDeath).1
-private def scytheReturn : Instruction :=
+private def scytheReturn : Action :=
   .move (that .card) .anywhere (some battlefield) .arrival none []
 private def scytheAfterReturn : DRS :=
-  (stepInstruction 64 .postEvent .obj (nextClause scytheAfterDeath) scytheReturn).1
+  (stepAction 64 .postEvent .obj (nextClause scytheAfterDeath) scytheReturn).1
 
 theorem scytheDeathAndReturnCheck :
     (stepGameEvent 64 (DRS.ofList []) scytheDeath).2 = [] ∧
-      Instruction.check (nextClause scytheAfterDeath) scytheReturn = [] := by decide
+      Action.check (nextClause scytheAfterDeath) scytheReturn = [] := by decide
 
 theorem scytheRawDemonstrativeSelectsReturnedCreature :
     let selected := resolveCandidates (.word (.type .creature)) .one (nextClause scytheAfterReturn)
@@ -192,7 +192,7 @@ theorem vampiricDeadCreatureIsExcludedByZone :
     dead.length = 1 ∧ dead.all (fun r => !r.attachmentHost) := by decide
 
 theorem vampiricCountersUseEnchantedCreature :
-    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause vampiricAfterDeath)
+    let (after, errors) := stepAction 64 .postEvent .obj (nextClause vampiricAfterDeath)
       (.putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .many true)
     let patients := (after.pendingRoles.filter (fun p => p.2 == .obj)).map (·.1)
     errors = [] ∧ patients.length = 1 ∧
@@ -200,19 +200,19 @@ theorem vampiricCountersUseEnchantedCreature :
       (patients.filterMap after.findById?).all (fun r => r.zone == some .battlefield) := by decide
 
 private def cycledContext : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+  (stepAction 64 .postEvent .obj (DRS.ofList [])
     (.enact (.ofAbility (.named "cycling")) (discard (a .isCard)) none none)).1
 private def cycloneFinalCard : NounPhrase :=
   a (.and [.isCard, .inZone yourLibrary,
     .shares .cardType .share
       (theVerbed (.ofAbility (.named "cycling")) .one (some .card) .attributive)])
-private def cycloneExile : Instruction :=
+private def cycloneExile : Action :=
   .move cycloneFinalCard (.zones [yourLibrary]) (some exileZone) .arrival none []
 private def cycloneAfter : DRS :=
-  (stepInstruction 64 .postEvent .obj (nextClause cycledContext) cycloneExile).1
+  (stepAction 64 .postEvent .obj (nextClause cycledContext) cycloneExile).1
 
 theorem unpredictableCycloneTerminalCardDescriptionChecks :
-    Instruction.check (nextClause cycledContext) cycloneExile = [] := by decide
+    Action.check (nextClause cycledContext) cycloneExile = [] := by decide
 
 theorem unpredictableCycloneRawDemonstrativeSelectsNewlyExiledCard :
     let refs := resolveCandidates (.word .card) .one (nextClause cycloneAfter)

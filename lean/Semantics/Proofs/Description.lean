@@ -17,8 +17,8 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.Description
 
-private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs instruction).1
+private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs instruction).1
 
 /-- "a creature target opponent controls" -/
 theorem okControlledByOne :
@@ -40,18 +40,18 @@ theorem badEachOfSingular :
 
 /-- "Look at the top card of target player's library." -/
 theorem okSliceOfOnePossessor :
-    Instruction.check (DRS.ofList []) (lookAt (.slice .top (.lit 1) (library (target .anyPlayer)))) = [] := by decide
+    Action.check (DRS.ofList []) (lookAt (.slice .top (.lit 1) (library (target .anyPlayer)))) = [] := by decide
 
 /-- "Look at the top card of two target players' library." -/
 theorem badSliceOfCountedPossessor :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (lookAt (.slice .top (.lit 1) (library (.described (.target (exactly 2)) .anyPlayer))))
       = [.slicePossessor] := by
   decide
 
 /-- "Tap target creature an opponent controls. That player loses 1 life." -/
 theorem okThatPlayer :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .setStatus .tapped (target (.and [creature, .hasPossessor .controller anOpponent])),
           instruct (that .player) (loseLife (.lit 1)) ]) = [] := by
@@ -59,7 +59,7 @@ theorem okThatPlayer :
 
 /-- "Tap target creature an opponent controls or land you control. That player loses 1 life." -/
 theorem badDisjunctAntecedent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .setStatus .tapped (target (.or [.and [creature, .hasPossessor .controller anOpponent],
                                            .and [land, .hasPossessor .controller .you]])),
@@ -69,20 +69,20 @@ theorem badDisjunctAntecedent :
 
 /-- "Tap target creature with flying." -/
 theorem okKeywordConjunction :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying"))]))) = [] := by
   decide
 
 /-- "Tap target creature with flying that doesn't have flying." -/
 theorem okKeywordSelfNegation :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.setStatus .tapped (target (.and [creature, .hasKeyword (.the (.named "flying")),
                                          .not (.hasKeyword (.the (.named "flying")))]))) = [] := by
   decide
 
 /-- "Tap target nonland Forest." -/
 theorem badForestNonland :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not land])))
       = [.contradictionFree] := by
   decide
@@ -146,7 +146,7 @@ theorem badMatchesTargetSubject :
 
 /-- "Tap target creature. You gain 1 life if it's an artifact." -/
 theorem okMatchesArtifact :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target creature),
                       .doOnlyIf (gainLife (.lit 1)) (.matches it artifact) none]) =
                           [] := by
@@ -154,7 +154,7 @@ theorem okMatchesArtifact :
 
 /-- "Tap target creature. You gain 1 life if it's." -/
 theorem badMatchesNothing :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target creature),
                       .doOnlyIf (gainLife (.lit 1)) (.matches it (.and [])) none])
       = [.predSays] := by
@@ -197,21 +197,21 @@ theorem badColorlessWhite :
 
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Instruction.define .x (countOf creatureYouControl)]) = []
+    Action.check (DRS.ofList [])
+      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf creatureYouControl)]) = []
           := by
   decide
 
 theorem badDoubleXRider :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Instruction.define .x (countOf creatureYouControl),
-                      Primitives.Instruction.define .x (countOf creature)]) = [.openLetter .x] := by
+    Action.check (DRS.ofList [])
+      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf creatureYouControl),
+                      Primitives.Action.define .x (countOf creature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
-    Instruction.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .y), Primitives.Instruction.define .x (countOf creatureYouControl)])
+    Action.check (DRS.ofList [])
+      (.sequentially [.draw (.letter .y), Primitives.Action.define .x (countOf creatureYouControl)])
       = [.openLetter .x] := by
   decide
 
@@ -316,13 +316,13 @@ theorem badPartitiveOfCountedGroup :
 
 /-- "Destroy target creature. Its controller loses life equal to its power." -/
 theorem okItAfterAntecedent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature), instruct (controllerOf it) (loseLife (.statOf (.stat .power) it))])
       = [] := by
   decide
 
 theorem badOtherwiseReadsLeadingArm :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doIf (exists_ creatureYouControl)
         (create (.lit 1) (creatureToken 1 1 [.black] [creatureType "Zombie"]))
         (some (.setStatus .tapped it)))
@@ -332,8 +332,8 @@ theorem badOtherwiseReadsLeadingArm :
 theorem noElseConditionExportsItsOpponent :
     let conditional := .doIf (.compareAmt (lifeTotalOf .you) .less
       (lifeTotalOf anOpponent)) (gainLife (.lit 6)) none
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) conditional).1
-    Instruction.check (DRS.ofList [])
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) conditional).1
+    Action.check (DRS.ofList [])
       (.sequentially [conditional, instruct (that .player) (loseLife (.lit 1))]) = [] ∧
       (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) = [1] ∧
       (after.findById? 1).map (·.kind) = some .player := by decide
@@ -361,7 +361,7 @@ theorem badNestedConjunction :
 
 /-- "Roll two d6. If you rolled 7, sacrifice this creature." -/
 theorem okTotalAfterRoll :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [ rollDice 2 6,
                        doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7))
                               (sacrifice thisCreature) ]) = [] := by
@@ -369,7 +369,7 @@ theorem okTotalAfterRoll :
 
 /-- "If you rolled 7, sacrifice this creature." -/
 theorem badTotalWithoutRoll :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (doIf (.compareAmt (.theOutcome .rollResult) .eq (.lit 7)) (sacrifice thisCreature))
       = [.outcomeInScope .rollResult 0] := by
   decide
@@ -469,23 +469,23 @@ theorem badCardCopyOfACard :
 
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
-    Instruction.check (DRS.ofList []) (forbidAttack (target creature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidAttack (target creature) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack this turn." [CR#508.1a,205.1b] -/
 theorem okCantAttackLand :
-    Instruction.check (DRS.ofList []) (forbidAttack (target land) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidAttack (target land) (some thisTurn)) = [] := by decide
 
 /-- "Target land can't attack." -/
-theorem okCantAttackLandNoSpan : Instruction.check (DRS.ofList []) (forbidAttack (target land) none) = [] := by
+theorem okCantAttackLandNoSpan : Action.check (DRS.ofList []) (forbidAttack (target land) none) = [] := by
     decide
 
 /-- "Target creature can't block this turn." -/
 theorem okCantBlockCreature :
-    Instruction.check (DRS.ofList []) (forbidBlock (target creature) (some thisTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (forbidBlock (target creature) (some thisTurn)) = [] := by decide
 
 /-- "Target creature or land can't block this turn." [CR#205.1b,509.1a] -/
 theorem okCantDisjunctSubject :
-    Instruction.check (DRS.ofList []) (forbidBlock (target (.or [creature, land])) (some thisTurn)) = [] := by
+    Action.check (DRS.ofList []) (forbidBlock (target (.or [creature, land])) (some thisTurn)) = [] := by
         decide
 
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/

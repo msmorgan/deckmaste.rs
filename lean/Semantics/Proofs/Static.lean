@@ -73,38 +73,38 @@ theorem badGrantedPtDefinition :
 
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousClause :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))
         (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "You become the monarch." -/
 theorem okBecomesMonarch :
-    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "monarch") none) = [] := by decide
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "monarch") none) = [] := by decide
 
 /-- "You become goaded." The Idris pin refutes the scope; a player is not a holder of it
 either. -/
 theorem badGoadedPlayer :
-    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "goaded") none)
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "goaded") none)
       = [.designationScope (.named "goaded"), .designationHolder (.named "goaded") .player] := by
   decide
 
 /-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
 theorem okBecomesMonstrous :
-    Instruction.check (DRS.ofList []) (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
+    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "monstrous") none) = [] := by
   decide
 
 /-- The commander is held by a card, not granted to an object, so the scope and holder
 refusals land. That a rule confers it and no instruction may is a game rule the checker does not
 assert (`lean-checker-sweep-game-rules`). -/
 theorem badGainsCommander :
-    Instruction.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander") none)
+    Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander") none)
       = [.designationScope (.named "commander"), .designationHolder (.named "commander") .object] := by
   decide
 
 /-- "You get an enduring story," the grant the storied keyword ability's expansion writes. -/
 theorem okGetsAnEnduringStory :
-    Instruction.check (DRS.ofList []) (.gainDesignation .you (.named "enduringStory") none) = [] := by
+    Action.check (DRS.ofList []) (.gainDesignation .you (.named "enduringStory") none) = [] := by
   decide
 
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/
@@ -159,20 +159,20 @@ theorem badUnlessConjunction :
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking thisCreature (a (.and [creature, attacking])))
+    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (a (.and [creature, attacking])))
       = [] := by
   decide
 
 /-- "Target land blocks an attacking creature.": a land an effect has made a creature blocks
 [CR#205.1b,509.1a]. -/
 theorem okLandBecomesBlocking :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking (target land) (a (.and [creature, attacking])))
+    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking (target land) (a (.and [creature, attacking])))
       = [] := by
   decide
 
 /-- "This creature blocks target planeswalker." -/
 theorem badBecomesBlockingPlaneswalker :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.becomeBlocking thisCreature (target (.hasType .planeswalker)))
+    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (target (.hasType .planeswalker)))
       = [.deedNounOk (.core .block)] := by
   decide
 
@@ -192,7 +192,7 @@ theorem badPluralNextTurnDuration :
 
 /-- "Target opponent skips all combat phases of their next turn." -/
 theorem okSkipDuringTheirNextTurn :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (establishThroughout (.partSkip (target .opponent) .combat) (duringNextTurnOf (that
           .player)))
       = [] := by
@@ -201,7 +201,7 @@ theorem okSkipDuringTheirNextTurn :
 /-- The duration's possessor can read the explicit "you" in the preceding subject slot. -/
 theorem durationPossessorReadsTheExplicitPlayer :
     let instruction := establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))
-    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList []) instruction
+    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList []) instruction
     errors = [] ∧ (identityBinding "duringNextTurnOf.player" after).map (·.id) = some 0 ∧
       after.referents.map (·.id) = [0] := by decide
 

@@ -17,106 +17,106 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Cards
 
-def cloudshift : Instruction :=
-  Primitives.Instruction.sequentially
+def cloudshift : Action :=
+  Primitives.Action.sequentially
     [exile (target creatureYouControl), putOntoBattlefieldUnderYourControl (that .card)]
-theorem okCloudshift : Instruction.check (DRS.ofList []) cloudshift = [] := by decide
+theorem okCloudshift : Action.check (DRS.ofList []) cloudshift = [] := by decide
 
-def bitterDownfall : Instruction :=
-  Primitives.Instruction.sequentially [destroy (target creature), instruct (controllerOf it) (loseLife (.lit 2))]
-theorem okBitterDownfall : Instruction.check (DRS.ofList []) bitterDownfall = [] := by decide
+def bitterDownfall : Action :=
+  Primitives.Action.sequentially [destroy (target creature), instruct (controllerOf it) (loseLife (.lit 2))]
+theorem okBitterDownfall : Action.check (DRS.ofList []) bitterDownfall = [] := by decide
 
-def suspendedSentence : Instruction :=
-  Primitives.Instruction.sequentially
+def suspendedSentence : Action :=
+  Primitives.Action.sequentially
     [ destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller anOpponent])),
       instruct (that .player) (loseLife (.lit 3)) ]
-theorem okSuspendedSentence : Instruction.check (DRS.ofList []) suspendedSentence = [] := by decide
+theorem okSuspendedSentence : Action.check (DRS.ofList []) suspendedSentence = [] := by decide
 
-def flickeringSpirit : Instruction :=
-  Primitives.Instruction.sequentially [exile thisCreature, Primitives.Instruction.move it Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf it))]]
-theorem okFlickeringSpirit : Instruction.check (DRS.ofList []) flickeringSpirit = [] := by decide
+def flickeringSpirit : Action :=
+  Primitives.Action.sequentially [exile thisCreature, Primitives.Action.move it Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf it))]]
+theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
-def bondOfRevival : Instruction :=
-  Primitives.Instruction.sequentially
+def bondOfRevival : Action :=
+  Primitives.Action.sequentially
     [ returnToBattlefield (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])),
       gainHaste (theVerbed (.core .return_) .one) (some untilYourNextTurn) ]
-theorem okBondOfRevival : Instruction.check (DRS.ofList []) bondOfRevival = [] := by decide
+theorem okBondOfRevival : Action.check (DRS.ofList []) bondOfRevival = [] := by decide
 
-def vraskasStoneglare : Instruction :=
-  Primitives.Instruction.sequentially [destroy (target creature), gainLife (Primitives.Amount.statOf (.stat .toughness) it)]
-theorem okVraskasStoneglare : Instruction.check (DRS.ofList []) vraskasStoneglare = [] := by decide
+def vraskasStoneglare : Action :=
+  Primitives.Action.sequentially [destroy (target creature), gainLife (Primitives.Amount.statOf (.stat .toughness) it)]
+theorem okVraskasStoneglare : Action.check (DRS.ofList []) vraskasStoneglare = [] := by decide
 
-def phthisis : Instruction :=
-  Primitives.Instruction.sequentially
+def phthisis : Action :=
+  Primitives.Action.sequentially
     [ destroy (target creature),
       instruct (controllerOf it) (loseLife
         (plus (Primitives.Amount.statOf (.stat .power) it) (Primitives.Amount.statOf (.stat .toughness) it))) ]
-theorem okPhthisis : Instruction.check (DRS.ofList []) phthisis = [] := by decide
+theorem okPhthisis : Action.check (DRS.ofList []) phthisis = [] := by decide
 
-def foulTongueShriek : Instruction :=
-  Primitives.Instruction.sequentially
+def foulTongueShriek : Action :=
+  Primitives.Action.sequentially
     [ instruct (target Primitives.Predicate.opponent) (loseLife
         (forEach 1 (Primitives.Predicate.and [attacking, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]))),
       gainLife Primitives.Amount.thatMuch ]
-theorem okFoulTongueShriek : Instruction.check (DRS.ofList []) foulTongueShriek = [] := by decide
+theorem okFoulTongueShriek : Action.check (DRS.ofList []) foulTongueShriek = [] := by decide
 
-def phyrexianInfiltrator : Instruction :=
-  Primitives.Instruction.simultaneously
+def phyrexianInfiltrator : Action :=
+  Primitives.Action.simultaneously
     [ gainControl thisCreature none (agent := (controllerOf (target creature))),
       gainControl (that (.type .creature)) none (agent := (controllerOf thisCreature)) ]
-theorem okPhyrexianInfiltrator : Instruction.check (DRS.ofList []) phyrexianInfiltrator = [] := by decide
+theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrator = [] := by decide
 
-def impulse : Instruction :=
-  Primitives.Instruction.sequentially
+def impulse : Action :=
+  Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 4)), move (someOf (exactly 1) them) hand,
-      Primitives.Instruction.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
-theorem okImpulse : Instruction.check (DRS.ofList []) impulse = [] := by decide
+      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+theorem okImpulse : Action.check (DRS.ofList []) impulse = [] := by decide
 
-def anticipate : Instruction :=
-  Primitives.Instruction.sequentially
+def anticipate : Action :=
+  Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 3)), move (someOf (exactly 1) them) hand,
-      Primitives.Instruction.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
-theorem okAnticipate : Instruction.check (DRS.ofList []) anticipate = [] := by decide
+      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 
-def revealFourPartition : Instruction :=
-  Primitives.Instruction.sequentially
+def revealFourPartition : Action :=
+  Primitives.Action.sequentially
     [ revealCards (topSlice (.lit 4)), move (someOf (exactly 1) (those .card)) hand,
       move (theRest .object) graveyard ]
-theorem okRevealFourPartition : Instruction.check (DRS.ofList []) revealFourPartition = [] := by decide
+theorem okRevealFourPartition : Action.check (DRS.ofList []) revealFourPartition = [] := by decide
 
-def exileFourOfThem : Instruction :=
-  Primitives.Instruction.sequentially
+def exileFourOfThem : Action :=
+  Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 8)), exile (someOf (exactly 4) them),
-      Primitives.Instruction.move (theRest .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
-theorem okExileFourOfThem : Instruction.check (DRS.ofList []) exileFourOfThem = [] := by decide
+      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+theorem okExileFourOfThem : Action.check (DRS.ofList []) exileFourOfThem = [] := by decide
 
-def sylvanScrying : Instruction :=
-  Primitives.Instruction.sequentially [searchLibraryFor (exactly 1) land, revealCards it, move it hand, shuffle]
-theorem okSylvanScrying : Instruction.check (DRS.ofList []) sylvanScrying = [] := by decide
+def sylvanScrying : Action :=
+  Primitives.Action.sequentially [searchLibraryFor (exactly 1) land, revealCards it, move it hand, shuffle]
+theorem okSylvanScrying : Action.check (DRS.ofList []) sylvanScrying = [] := by decide
 
-def searchToBattlefield : Instruction :=
-  Primitives.Instruction.sequentially [searchLibraryFor (exactly 1) creature, move it battlefield, shuffle]
-theorem okSearchToBattlefield : Instruction.check (DRS.ofList []) searchToBattlefield = [] := by decide
+def searchToBattlefield : Action :=
+  Primitives.Action.sequentially [searchLibraryFor (exactly 1) creature, move it battlefield, shuffle]
+theorem okSearchToBattlefield : Action.check (DRS.ofList []) searchToBattlefield = [] := by decide
 
-def glimpseTheUnthinkable : Instruction := instruct (target Primitives.Predicate.anyPlayer) (mill (.lit 10) they)
-theorem okGlimpseTheUnthinkable : Instruction.check (DRS.ofList []) glimpseTheUnthinkable = [] := by decide
+def glimpseTheUnthinkable : Action := instruct (target Primitives.Predicate.anyPlayer) (mill (.lit 10) they)
+theorem okGlimpseTheUnthinkable : Action.check (DRS.ofList []) glimpseTheUnthinkable = [] := by decide
 
-def millThenReadGroup : Instruction :=
-  Primitives.Instruction.sequentially [mill (.lit 3) Primitives.NounPhrase.you, exile (those .card)]
-theorem okMillThenReadGroup : Instruction.check (DRS.ofList []) millThenReadGroup = [] := by decide
+def millThenReadGroup : Action :=
+  Primitives.Action.sequentially [mill (.lit 3) Primitives.NounPhrase.you, exile (those .card)]
+theorem okMillThenReadGroup : Action.check (DRS.ofList []) millThenReadGroup = [] := by decide
 
-def takeIntoCustody : Instruction :=
-  Primitives.Instruction.sequentially [Primitives.Instruction.setStatus .tapped (target creature), Primitives.Instruction.skipUntap it (.lit 1)]
-theorem okTakeIntoCustody : Instruction.check (DRS.ofList []) takeIntoCustody = [] := by decide
+def takeIntoCustody : Action :=
+  Primitives.Action.sequentially [Primitives.Action.setStatus .tapped (target creature), Primitives.Action.skipUntap it (.lit 1)]
+theorem okTakeIntoCustody : Action.check (DRS.ofList []) takeIntoCustody = [] := by decide
 
 /-- Frenzied Gorespawn -/
-def frenziedGorespawnGoad : Instruction :=
-  Primitives.Instruction.doForEach (each Primitives.Predicate.opponent)
-    (Primitives.Instruction.gainDesignation
+def frenziedGorespawnGoad : Action :=
+  Primitives.Action.doForEach (each Primitives.Predicate.opponent)
+    (Primitives.Action.gainDesignation
       (target (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller (that .player)])) (.named "goaded")
       none)
-theorem okFrenziedGorespawnGoad : Instruction.check (DRS.ofList []) frenziedGorespawnGoad = [] := by decide
+theorem okFrenziedGorespawnGoad : Action.check (DRS.ofList []) frenziedGorespawnGoad = [] := by decide
 
 def spaceTimeAnomaly : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -126,7 +126,7 @@ def spaceTimeAnomaly : Spelled := spelled <| .singleFaced
 
 /-- Consecrate // Consume -/
 def consume : Ability :=
-  Primitives.Ability.spell none (Primitives.Instruction.sequentially
+  Primitives.Ability.spell none (Primitives.Action.sequentially
     [ instruct (target Primitives.Predicate.anyPlayer) (sacrifice
         (a (Primitives.Predicate.and [ creature,
                    Primitives.Predicate.superlative .max (.stat .power)
@@ -138,7 +138,7 @@ def bifurcate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Bifurcate", cost := some [generic 3, pip .green], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ searchLibraryFor (exactly 1)
                 (Primitives.Predicate.and [permanentCard, (Primitives.Predicate.shares .cardName .share (target (Primitives.Predicate.and [creature, nontoken])))]),
               putOntoBattlefield (that .card),
@@ -150,7 +150,7 @@ def manaLeak : Spelled := spelled <| .singleFaced
     { name := "Mana Leak", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
         [ Primitives.Ability.spell none (instruct (controllerOf (target spell)) (doUnless
-            (Primitives.Instruction.counterSpell it)
+            (Primitives.Action.counterSpell it)
             (Primitives.Cost.mana [generic 3]))) ] } }
 
 /-- Oust {W} — Sorcery. "Put target creature into its owner's library second from the top.
@@ -159,121 +159,121 @@ def oust : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Oust", cost := some [pip .white], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
-            [ Primitives.Instruction.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))],
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
+            [ Primitives.Action.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))],
               instruct (controllerOf it) (gainLife (.lit 3)) ]) ] } }
 
-def riseFromTheGrave : Instruction :=
-  Primitives.Instruction.sequentially
+def riseFromTheGrave : Action :=
+  Primitives.Action.sequentially
     [ putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone graveyard])),
       become (that (.type .creature))
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none ]
-theorem okRiseFromTheGrave : Instruction.check (DRS.ofList []) riseFromTheGrave = [] := by decide
+theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] := by decide
 
-def everAfter : Instruction :=
-  Primitives.Instruction.sequentially
+def everAfter : Action :=
+  Primitives.Action.sequentially
     [ move (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))
         battlefield,
       become (those (.type .creature))
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none,
       move Primitives.NounPhrase.this onBottom ]
-theorem okEverAfter : Instruction.check (DRS.ofList []) everAfter = [] := by decide
+theorem okEverAfter : Action.check (DRS.ofList []) everAfter = [] := by decide
 
-def martyrsCry : Instruction :=
-  Primitives.Instruction.sequentially
+def martyrsCry : Action :=
+  Primitives.Action.sequentially
     [ exile (allOf (Primitives.Predicate.and [creature, Primitives.Predicate.colorIs .white])),
-      Primitives.Instruction.doForEach (theVerbed (.action "exile") .many (some (.type .creature)) .thisWay)
-        (instruct (controllerOf it) (Primitives.Instruction.draw (.lit 1))) ]
-theorem okMartyrsCry : Instruction.check (DRS.ofList []) martyrsCry = [] := by decide
+      Primitives.Action.doForEach (theVerbed (.action "exile") .many (some (.type .creature)) .thisWay)
+        (instruct (controllerOf it) (Primitives.Action.draw (.lit 1))) ]
+theorem okMartyrsCry : Action.check (DRS.ofList []) martyrsCry = [] := by decide
 
-def anotherRound : Instruction :=
-  Primitives.Instruction.sequentially
+def anotherRound : Action :=
+  Primitives.Action.sequentially
     [ exile (counted anyNumber creatureYouControl),
-      Primitives.Instruction.move them Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf them))],
-      Primitives.Instruction.repeat_ (Primitives.Repetition.moreTimes (Primitives.Amount.letter .x)) ]
-theorem okAnotherRound : Instruction.check (DRS.ofList []) anotherRound = [] := by decide
+      Primitives.Action.move them Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf them))],
+      Primitives.Action.repeat_ (Primitives.Repetition.moreTimes (Primitives.Amount.letter .x)) ]
+theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by decide
 
 /-- Eradicate -/
-def eradicateSearch : Instruction :=
-  Primitives.Instruction.sequentially
+def eradicateSearch : Action :=
+  Primitives.Action.sequentially
     [ exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber ((Primitives.Predicate.shares .cardName .share (that .card))),
       exile (theVerbed (.action "search") .many),
       instruct (that .player) shuffle ]
-theorem okEradicateSearch : Instruction.check (DRS.ofList []) eradicateSearch = [] := by decide
+theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] := by decide
 
 /-- Deem Inferior -/
-def deemInferior : Instruction :=
+def deemInferior : Action :=
   instruct (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (putWith it onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2)), Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd])
-theorem okDeemInferior : Instruction.check (DRS.ofList []) deemInferior = [] := by decide
+theorem okDeemInferior : Action.check (DRS.ofList []) deemInferior = [] := by decide
 
 /-- Write into Being -/
-def writeIntoBeingPlacement : Instruction :=
-  Primitives.Instruction.sequentially
+def writeIntoBeingPlacement : Action :=
+  Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 2)),
       manifestPlacement (someOf (exactly 1) them),
-      Primitives.Instruction.move (theOther .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd] ]
-theorem okWriteIntoBeingPlacement : Instruction.check (DRS.ofList []) writeIntoBeingPlacement = [] := by decide
+      Primitives.Action.move (theOther .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd] ]
+theorem okWriteIntoBeingPlacement : Action.check (DRS.ofList []) writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
-def mysticalTutor : Instruction :=
-  Primitives.Instruction.sequentially
+def mysticalTutor : Action :=
+  Primitives.Action.sequentially
     [searchLibraryFor (exactly 1) instantOrSorcery, revealCards it, shuffle, move it onTop]
-theorem okMysticalTutor : Instruction.check (DRS.ofList []) mysticalTutor = [] := by decide
+theorem okMysticalTutor : Action.check (DRS.ofList []) mysticalTutor = [] := by decide
 
 /-- Demonic Tutor -/
-def demonicTutor : Instruction :=
-  Primitives.Instruction.sequentially [searchLibraryFor (exactly 1) (Primitives.Predicate.and []), move it hand, shuffle]
-theorem okDemonicTutor : Instruction.check (DRS.ofList []) demonicTutor = [] := by decide
+def demonicTutor : Action :=
+  Primitives.Action.sequentially [searchLibraryFor (exactly 1) (Primitives.Predicate.and []), move it hand, shuffle]
+theorem okDemonicTutor : Action.check (DRS.ofList []) demonicTutor = [] := by decide
 
 /-- Thalia's Lancers -/
-def thaliasLancersSearch : Instruction :=
+def thaliasLancersSearch : Action :=
   offer
-    (Primitives.Instruction.sequentially
+    (Primitives.Action.sequentially
       [ searchLibraryFor (exactly 1) (Primitives.Predicate.and [Primitives.Predicate.hasSupertype .legendary]), revealCards it,
         move it hand, shuffle ])
-theorem okThaliasLancersSearch : Instruction.check (DRS.ofList []) thaliasLancersSearch = [] := by decide
+theorem okThaliasLancersSearch : Action.check (DRS.ofList []) thaliasLancersSearch = [] := by decide
 
-def contrabandLivestock : Instruction :=
-  Primitives.Instruction.sequentially
+def contrabandLivestock : Action :=
+  Primitives.Action.sequentially
     [ exile (target creature),
       rollDice 1 20,
-      Primitives.Instruction.applyResultsTable
+      Primitives.Action.applyResultsTable
         [ rollRow (fromTo 1 9)
-            (instruct (controllerOf it) (Primitives.Instruction.create (.lit 1)
+            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 4 4 [.green] [creatureType "Ox"])) [])),
           rollRow (fromTo 10 19)
-            (instruct (controllerOf it) (Primitives.Instruction.create (.lit 1)
+            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 2 2 [.green] [creatureType "Boar"])) [])),
           rollRow (exactly 20)
-            (instruct (controllerOf it) (Primitives.Instruction.create (.lit 1)
+            (instruct (controllerOf it) (Primitives.Action.create (.lit 1)
               (Primitives.TokenSpec.written (creatureToken 0 1 [.white] [creatureType "Goat"])) [])) ] ]
-theorem okContrabandLivestock : Instruction.check (DRS.ofList []) contrabandLivestock = [] := by decide
+theorem okContrabandLivestock : Action.check (DRS.ofList []) contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
-def hypnoticSpecterDiscard : Instruction := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)]))
+def hypnoticSpecterDiscard : Action := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)]))
 theorem okHypnoticSpecterDiscard :
-    Instruction.check (DRS.ofList [{ det := .the, plur := .one, payload := .player false }]) hypnoticSpecterDiscard = [] := by decide
+    Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .player false }]) hypnoticSpecterDiscard = [] := by decide
 
 /-- Wyll, Blade of Frontiers -/
-def wyllExtraDie : Instruction :=
-  replaceEvent (Primitives.WouldClause.would (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Instruction.rollDice Primitives.Amount.anyAmount .anyDie .many Primitives.RollWatch.anyResult))
-    (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice .many .anyResult,
-        Primitives.Instruction.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest) ])
+def wyllExtraDie : Action :=
+  replaceEvent (Primitives.WouldClause.would (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.rollDice Primitives.Amount.anyAmount .anyDie .many Primitives.RollWatch.anyResult))
+    (Primitives.Action.sequentially
+      [ Primitives.Action.rollDice (plus Primitives.Amount.thatMuch (.lit 1)) .thoseDice .many .anyResult,
+        Primitives.Action.ignoreOutcomes (Primitives.IgnoredOutcomes.extreme .lowest) ])
     none
-theorem okWyllExtraDie : Instruction.check (DRS.ofList []) wyllExtraDie = [] := by decide
+theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by decide
 
 /-- Vedalken Squirrel-Whacker -/
-def vedalkenSquirrelWhackerReroll : Instruction :=
-  replaceEvent (Primitives.WouldClause.would (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Instruction.rollDice Primitives.Amount.anyAmount (.sides 6) .many Primitives.RollWatch.anyResult))
-    (Primitives.Instruction.sequentially
-      [ Primitives.Instruction.rollDice Primitives.Amount.thatMuch .thoseDice .many .anyResult,
+def vedalkenSquirrelWhackerReroll : Action :=
+  replaceEvent (Primitives.WouldClause.would (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.rollDice Primitives.Amount.anyAmount (.sides 6) .many Primitives.RollWatch.anyResult))
+    (Primitives.Action.sequentially
+      [ Primitives.Action.rollDice Primitives.Amount.thatMuch .thoseDice .many .anyResult,
         offer
-          (Primitives.Instruction.exchange (Primitives.Exchanged.values (Primitives.Amount.theOutcome .rollResult) (Primitives.Amount.statOf (.stat .power) thisCreature))) ])
+          (Primitives.Action.exchange (Primitives.Exchanged.values (Primitives.Amount.theOutcome .rollResult) (Primitives.Amount.statOf (.stat .power) thisCreature))) ])
     none
 theorem okVedalkenSquirrelWhackerReroll :
-    Instruction.check (DRS.ofList []) vedalkenSquirrelWhackerReroll = [] := by decide
+    Action.check (DRS.ofList []) vedalkenSquirrelWhackerReroll = [] := by decide
 
 /-- Investigator's Journal's count -/
 def greatestCreaturesAPlayerControls : Amount :=
@@ -322,7 +322,7 @@ def ertaisTrickery : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ertai's Trickery", cost := some [pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
+        [ Primitives.Ability.spell none (Primitives.Action.doOnlyIf (Primitives.Action.counterSpell (target spell))
             (costWasPaid (.byKeyword (.named "kicker")) none it) none) ] } }
 
 /-- Celebrate the Harvest -/
@@ -330,9 +330,9 @@ def celebrateTheHarvest : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Celebrate the Harvest", cost := some [generic 3, pip .green], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ searchLibraryFor (Primitives.Quantity.upToOf (Primitives.Amount.letter .x)) (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic]),
-              Primitives.Instruction.define .x (Primitives.Amount.distinctCount (.value .power) (allOf creatureYouControl)),
+              Primitives.Action.define .x (Primitives.Amount.distinctCount (.value .power) (allOf creatureYouControl)),
               putOntoBattlefieldTapped (those .card),
               shuffle ]) ] } }
 
@@ -347,37 +347,37 @@ def bioplasmCardTest : Condition := Primitives.Condition.matches itCard creature
 theorem okBioplasmCardTest : Condition.check (nextClause bioplasmAfterExile) bioplasmCardTest = [] := by decide
 
 /-- Blessed Respite -/
-def blessedRespiteShuffle : Instruction :=
+def blessedRespiteShuffle : Action :=
   instruct (target Primitives.Predicate.anyPlayer) (shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])))
-theorem okBlessedRespiteShuffle : Instruction.check (DRS.ofList []) blessedRespiteShuffle = [] := by decide
+theorem okBlessedRespiteShuffle : Action.check (DRS.ofList []) blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
 def nekrataalEntry : GameEvent := Primitives.GameEvent.enters thisCreature none
 theorem okNekrataalEntry : GameEvent.check (DRS.ofList []) nekrataalEntry = [] := by decide
-def nekrataalDestroy : Instruction :=
+def nekrataalDestroy : Action :=
   destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)]))
 theorem okNekrataalDestroy :
-    Instruction.check ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy = [] := by decide
+    Action.check ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy = [] := by decide
 def nekrataalRider : Bindings :=
-  (stepInstruction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy).1
+  (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy).1
 theorem nekrataalOneCreatureWord : countReach (.word (.type .creature)) .one nekrataalRider = 1 := by
   decide
 theorem nekrataalOneDestroyed : countReach (.verbed (.action "destroy") none .attributive) .one nekrataalRider = 1 := by
   decide
 
-def sequencedRiderBody : Instruction :=
-  Primitives.Instruction.sequentially [exile (target artifact), destroy (target creature)]
-theorem okSequencedRiderBody : Instruction.check (DRS.ofList []) sequencedRiderBody = [] := by decide
-def sequencedRider : Bindings := (stepInstruction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
+def sequencedRiderBody : Action :=
+  Primitives.Action.sequentially [exile (target artifact), destroy (target creature)]
+theorem okSequencedRiderBody : Action.check (DRS.ofList []) sequencedRiderBody = [] := by decide
+def sequencedRider : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
 theorem sequencedRiderOneDestroyed :
     countReach (.verbed (.action "destroy") none .attributive) .one sequencedRider = 1 := by decide
 theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .attributive) .one sequencedRider = 1 := by
   decide
 
 /-- Engulfing Flames -/
-def engulfingFlamesBody : Instruction := instruct Primitives.NounPhrase.this (Primitives.Instruction.dealDamage (.lit 1) (target creature) .noncombatOnly)
-theorem okEngulfingFlamesBody : Instruction.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
-def engulfingFlamesRider : Bindings := (stepInstruction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
+def engulfingFlamesBody : Action := instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target creature) .noncombatOnly)
+theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
+def engulfingFlamesRider : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :
     countReach (.verbed (.action "destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
@@ -411,13 +411,13 @@ theorem bioplasmTypedCardReadWrites :
   decide
 
 /-- Scapeshift -/
-def scapeshiftSacrifice : Instruction := sacrifice (counted anyNumber land)
-theorem okScapeshiftSacrifice : Instruction.check (DRS.ofList []) scapeshiftSacrifice = [] := by decide
-def scapeshiftSacrificed : Bindings := (stepInstruction 512 .postEvent .obj (DRS.ofList []) scapeshiftSacrifice).1
-def scapeshiftSearch : Instruction := searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land
-theorem okScapeshiftSearch : Instruction.check scapeshiftSacrificed scapeshiftSearch = [] := by
+def scapeshiftSacrifice : Action := sacrifice (counted anyNumber land)
+theorem okScapeshiftSacrifice : Action.check (DRS.ofList []) scapeshiftSacrifice = [] := by decide
+def scapeshiftSacrificed : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) scapeshiftSacrifice).1
+def scapeshiftSearch : Action := searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land
+theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch = [] := by
   decide
-def scapeshiftAfterSearch : Bindings := (stepInstruction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
+def scapeshiftAfterSearch : Bindings := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
     countReach (.verbed (.action "search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
@@ -429,32 +429,32 @@ def scapeshift : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Scapeshift", cost := some [generic 2, pip .green, pip .green], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ sacrifice (counted anyNumber land),
               searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land,
               putOntoBattlefieldTapped (theVerbed (.action "search") .many),
               shuffle ]) ] } }
 
 /-- Bind to Life, Vastlands Scavenger's adventure -/
-def bindToLife : Instruction :=
-  Primitives.Instruction.sequentially
+def bindToLife : Action :=
+  Primitives.Action.sequentially
     [mill (.lit 7) Primitives.NounPhrase.you, move (fromAmong (exactly 1) creature them) battlefield]
-theorem okBindToLife : Instruction.check (DRS.ofList []) bindToLife = [] := by decide
+theorem okBindToLife : Action.check (DRS.ofList []) bindToLife = [] := by decide
 
 /-- Glamdring, Foe-hammer's Gleam of Death -/
-def gleamOfDeath : Instruction :=
-  Primitives.Instruction.sequentially
+def gleamOfDeath : Action :=
+  Primitives.Action.sequentially
     [mill (.lit 6) Primitives.NounPhrase.you, move (allFromAmong (Primitives.Predicate.or [instant, sorcery]) them) hand]
-theorem okGleamOfDeath : Instruction.check (DRS.ofList []) gleamOfDeath = [] := by decide
+theorem okGleamOfDeath : Action.check (DRS.ofList []) gleamOfDeath = [] := by decide
 
 /-- Tezzeret, Master of the Bridge -/
-def tezzeretAllArtifacts : Instruction :=
-  Primitives.Instruction.sequentially
+def tezzeretAllArtifacts : Action :=
+  Primitives.Action.sequentially
     [ exile (topSlice (.lit 10)),
       move (allFromAmong artifact (theVerbed (.action "exile") .many (some .card) .thisWay)) battlefield ]
-theorem okTezzeretAllArtifacts : Instruction.check (DRS.ofList []) tezzeretAllArtifacts = [] := by decide
+theorem okTezzeretAllArtifacts : Action.check (DRS.ofList []) tezzeretAllArtifacts = [] := by decide
 
-def companyContext : Bindings := (stepInstruction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice (.lit 6)))).1
+def companyContext : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice (.lit 6)))).1
 def companyDescribedSlice : NounPhrase :=
   fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them
 theorem okCompanyDescribedSlice :
@@ -464,15 +464,15 @@ theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) (companyContext) 
   decide
 
 /-- Lord of the Void -/
-def exileTopThenPutFromAmong : Instruction :=
-  Primitives.Instruction.sequentially
+def exileTopThenPutFromAmong : Action :=
+  Primitives.Action.sequentially
     [ exile (Primitives.NounPhrase.slice .top (.lit 7) (library (target Primitives.Predicate.opponent))),
       putOntoBattlefieldUnderYourControl (fromAmong (exactly 1) creature them) ]
-theorem okExileTopThenPutFromAmong : Instruction.check (DRS.ofList []) exileTopThenPutFromAmong = [] := by decide
+theorem okExileTopThenPutFromAmong : Action.check (DRS.ofList []) exileTopThenPutFromAmong = [] := by decide
 
 /-- Thought Sponge -/
 def greatestCardsAnOpponentDrew : Amount :=
-  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount (Primitives.Instruction.draw Primitives.Amount.anyAmount) (Primitives.Subject.actor they) soFarThisTurn)
+  Primitives.Amount.aggregateOver .max Primitives.Predicate.opponent (eventCount (Primitives.Action.draw Primitives.Amount.anyAmount) (Primitives.Subject.actor they) soFarThisTurn)
 theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCardsAnOpponentDrew = [] := by
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
@@ -492,9 +492,9 @@ theorem eachPlayerDoesNotIntroduceASeparateGroup :
     countManys .player ((stepNounPhrase 512 (DRS.ofList []) .obj true eachPlayerBase).1) = 0 := by decide
 
 /-- Soul Ransom -/
-def soulRansomRansom : Instruction :=
-  Primitives.Instruction.sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (Primitives.Instruction.draw (.lit 2))]
-theorem okSoulRansomRansom : Instruction.check (DRS.ofList []) soulRansomRansom = [] := by decide
+def soulRansomRansom : Action :=
+  Primitives.Action.sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (Primitives.Action.draw (.lit 2))]
+theorem okSoulRansomRansom : Action.check (DRS.ofList []) soulRansomRansom = [] := by decide
 def thisAurasController : NounPhrase := controllerOf thisAura
 theorem okThisAurasController : NounPhrase.checkAt (some .player) (DRS.ofList []) thisAurasController = [] := by
   decide
@@ -538,34 +538,34 @@ def hijack : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Hijack", cost := some [generic 1, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ gainControl (target (Primitives.Predicate.or [artifact, creature])) (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
               untap it,
               gainHaste it (some untilEndOfTurn) ]) ] } }
 
-def hijackDeedDescriptions : Instruction :=
-  Primitives.Instruction.sequentially
+def hijackDeedDescriptions : Action :=
+  Primitives.Action.sequentially
     [ gainControl (target (Primitives.Predicate.or [artifact, creature]))
         (some untilEndOfTurn) (agent := Primitives.NounPhrase.you),
       untap (theVerbed (.core .gainControl) .one),
       gainHaste (theVerbed (.action "untap") .one) (some untilEndOfTurn) ]
 theorem okHijackDeedDescriptions :
-    Instruction.check (DRS.ofList []) hijackDeedDescriptions = [] := by decide
+    Action.check (DRS.ofList []) hijackDeedDescriptions = [] := by decide
 
 /-- Open the Vaults -/
-def openTheVaults : Instruction :=
+def openTheVaults : Action :=
   returnTo
     (allOf (Primitives.Predicate.and [ Primitives.Predicate.isCard, Primitives.Predicate.or [artifact, enchantment],
                    Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers)) ]))
     battlefield [Primitives.EntryRider.under (ownerOf them)]
-theorem okOpenTheVaults : Instruction.check (DRS.ofList []) openTheVaults = [] := by decide
+theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by decide
 
 /-- Codecracker Hound -/
-def codecrackerHoundLook : Instruction :=
-  Primitives.Instruction.sequentially
+def codecrackerHoundLook : Action :=
+  Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 2)), move (someOf (exactly 1) them) hand,
       move (theOther .object) graveyard ]
-theorem okCodecrackerHoundLook : Instruction.check (DRS.ofList []) codecrackerHoundLook = [] := by decide
+theorem okCodecrackerHoundLook : Action.check (DRS.ofList []) codecrackerHoundLook = [] := by decide
 
 def oneOfTheTopTwo : NounPhrase := someOf (exactly 1) (Primitives.NounPhrase.slice .top (.lit 2) (library Primitives.NounPhrase.you))
 theorem okOneOfTheTopTwo : NounPhrase.checkAt (some .object) (DRS.ofList []) oneOfTheTopTwo = [] := by decide
@@ -588,37 +588,37 @@ theorem theOtherRefusesTheUniversalSlice :
      theRestOk .object ((stepNounPhrase 512 (DRS.ofList []) .obj true theArtifactsAmongTheTopFive).1)) = (false, true) := by
   decide
 
-def eachPlayerShufflesTheirHandAndGraveyard : Instruction :=
+def eachPlayerShufflesTheirHandAndGraveyard : Action :=
   instruct (each Primitives.Predicate.anyPlayer) (shuffleInto
     (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)]))))
 theorem okEachPlayerShufflesTheirHandAndGraveyard :
-    Instruction.check (DRS.ofList []) eachPlayerShufflesTheirHandAndGraveyard = [] := by decide
+    Action.check (DRS.ofList []) eachPlayerShufflesTheirHandAndGraveyard = [] := by decide
 
 /-- Fact or Fiction -/
 def factOrFiction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fact or Fiction", cost := some [generic 3, pip .blue], types := [.instant],
       text :=
-        [ Primitives.Ability.spell none (Primitives.Instruction.sequentially
+        [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ revealCards (topSlice (.lit 5)),
-              instruct anOpponent (Primitives.Instruction.separateIntoPiles them 2 []),
+              instruct anOpponent (Primitives.Action.separateIntoPiles them 2 []),
               move onePile hand,
               move (theOther .pile) graveyard ]) ] } }
 
-def unsummon : Instruction := move (target creature) hand
-theorem okUnsummon : Instruction.check (DRS.ofList []) unsummon = [] := by decide
-def grismold : Instruction :=
-  instruct (each Primitives.Predicate.anyPlayer) (Primitives.Instruction.create (.lit 1)
+def unsummon : Action := move (target creature) hand
+theorem okUnsummon : Action.check (DRS.ofList []) unsummon = [] := by decide
+def grismold : Action :=
+  instruct (each Primitives.Predicate.anyPlayer) (Primitives.Action.create (.lit 1)
     (Primitives.TokenSpec.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [])
-theorem okGrismold : Instruction.check (DRS.ofList []) grismold = [] := by decide
+theorem okGrismold : Action.check (DRS.ofList []) grismold = [] := by decide
 /-- Grenzo, Dungeon Warden -/
-def grenzoBottomCard : Instruction := move bottomCard graveyard
-theorem okGrenzoBottomCard : Instruction.check (DRS.ofList []) grenzoBottomCard = [] := by decide
+def grenzoBottomCard : Action := move bottomCard graveyard
+theorem okGrenzoBottomCard : Action.check (DRS.ofList []) grenzoBottomCard = [] := by decide
 
 def chronostutter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chronostutter", cost := some [generic 5, pip .blue], types := [.instant],
-      text := [ Primitives.Ability.spell none (Primitives.Instruction.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))]) ] } }
+      text := [ Primitives.Ability.spell none (Primitives.Action.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))]) ] } }
 
 theorem nekrataalTwoObjects : countOnes .object nekrataalRider = 2 := by decide
 theorem bioplasmTestMintsNothing : countOnes .object bioplasmAfterTest = 2 := by decide
@@ -652,7 +652,7 @@ def secretRendezvous : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secret Rendezvous", cost := some [generic 1, pip .white, pip .white],
       types := [.sorcery],
-      text := [ Primitives.Ability.spell none (instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))) (Primitives.Instruction.draw (.lit 3))) ]
+      text := [ Primitives.Ability.spell none (instruct (Primitives.NounPhrase.eachOf (Primitives.NounPhrase.both Primitives.NounPhrase.you (target Primitives.Predicate.opponent))) (Primitives.Action.draw (.lit 3))) ]
           } }
 
 /-- Aggressive Instinct -/
@@ -664,9 +664,9 @@ def aggressiveInstinct : Spelled := spelled <| .singleFaced
             (target creatureYouDontControl)) ] } }
 
 /-- Arcum Dagsson -/
-def arcumDagssonSacrifice : Instruction :=
+def arcumDagssonSacrifice : Action :=
   controllerSacrifices (target (Primitives.Predicate.and [artifact, creature]))
-theorem okArcumDagssonSacrifice : Instruction.check (DRS.ofList []) arcumDagssonSacrifice = [] := by decide
+theorem okArcumDagssonSacrifice : Action.check (DRS.ofList []) arcumDagssonSacrifice = [] := by decide
 
 /-- Vaevictis Asmadi, the Dire -/
 def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
@@ -678,17 +678,17 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           whenever (attacks thisCreature)
-            (Primitives.Instruction.sequentially
-              [ Primitives.Instruction.doForEach (each Primitives.Predicate.anyPlayer)
+            (Primitives.Action.sequentially
+              [ Primitives.Action.doForEach (each Primitives.Predicate.anyPlayer)
                   (choose (target (Primitives.Predicate.and [permanent, Primitives.Predicate.hasPossessor .controller they]))),
                 instruct (those .player) (sacrifice (those .permanent)),
-                Primitives.Instruction.doForEach
+                Primitives.Action.doForEach
                   (each (Primitives.Predicate.and [ Primitives.Predicate.anyPlayer,
                                 Primitives.Predicate.did (⟨(Primitives.Subject.actor (relative .player)), (sacrifice ((a permanent))), Primitives.LookbackSpan.thisWay⟩)
                                   ]))
-                  (Primitives.Instruction.sequentially
-                    [ instruct they (Primitives.Instruction.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.slice .top (.lit 1) (library they)))),
-                      Primitives.Instruction.doIf (Primitives.Condition.matches itCard permanentCard) (move itCard battlefield)
+                  (Primitives.Action.sequentially
+                    [ instruct they (Primitives.Action.expose .reveal (Primitives.Exposed.cards (Primitives.NounPhrase.slice .top (.lit 1) (library they)))),
+                      Primitives.Action.doIf (Primitives.Condition.matches itCard permanentCard) (move itCard battlefield)
                         none ]) ]) ],
       power := stat 6, toughness := stat 6 } }
 

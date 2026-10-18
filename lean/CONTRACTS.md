@@ -88,7 +88,7 @@ Semantic expressions must use registered macro declarations. Printed-data
 records, enumerated leaf values, and numeric literals remain ordinary data;
 their semantic fields are inspected recursively. `Semantics.Macros.Primitives`
 provides named wrappers with definitionally identical constructor signatures.
-`Instruction.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
+`Action.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
 they are expansion carriers owned by the trusted macro layer. Existing idiomatic
 macros use `semantic_macro` declarations. Defaults retain their macro calls.
 
@@ -209,7 +209,7 @@ never an assumed fixed depth. The audit covers every affected helper:
 
 | Scope macro | Owning phrase and boundary |
 | --- | --- |
-| `itPrior` | The preceding instruction's output, through `Instruction.intro`; existing outer mentions are not part of the empty-input pattern. |
+| `itPrior` | The preceding instruction's output, through `Action.intro`; existing outer mentions are not part of the empty-input pattern. |
 | `itCondSubject` | The condition's published mentions. The author no longer supplies a `Bindings` argument. |
 | `dealDamageOwnPower` | The source's self-subject introduction before the amount is read. The author no longer supplies a `Bindings` argument. |
 | `agentRef` | The agent's own introduction, including singularization of distributive agents. An agent introducing nothing is re-read directly. |
@@ -260,7 +260,7 @@ execution proof.
 ## The performer and the handoff
 
 `NounPhrase.actor` is whoever performs the instruction it is part of: the
-controller [CR#109.5] unless an enclosing `Instruction.act` names another
+controller [CR#109.5] unless an enclosing `Action.act` names another
 player or a permanent. `act performer body` takes a player, or an object whose
 zone is the battlefield, a permanent [CR#110.1]; any other object is refused
 `handoffPerformer`. Its body is checked in `actorCtx`. A handoff frame records
@@ -280,9 +280,9 @@ the performer [CR#500.7]; an added phase or step is added to the current turn
 context, `performerOf perf` (`Check/Abilities.lean`): the actor, or the group a
 handoff hands this very instruction. A handoff to a group (`each opponent`)
 whose body is one instruction that has a performer of its own
-(`Instruction.performed`: a deed, a life change, a draw, a choice, a vote, an
+(`Action.performed`: a deed, a life change, a draw, a choice, a vote, an
 offer, …) hands it to each member as that instruction's performer:
-`Instruction.checkWith`/`profileWith` check and profile the body with the group
+`Action.checkWith`/`profileWith` check and profile the body with the group
 as `perf`, under the handoff frame alone (`performerFrame`), exactly as the
 deleted explicit plural agent was judged (`enactKeepsOuter`, `doesProfile`,
 `chosenIntroBy`, one `voteHeld`). A group handoff over any other body, and every
@@ -379,7 +379,7 @@ record, is refused `bindingIdentity`, never read as a second selection. Updates
 in place (`moveIntro`, `refine`, `setBindingAt`) keep a binding's identities.
 
 A keyword action body is read in its own Reference Scope:
-`Instruction.ownScope scope body`, which the loader writes inside the action's
+`Action.ownScope scope body`, which the loader writes inside the action's
 `enact` wrapper, masks every mention of the calling text but the performer the
 innermost handoff names: its frame and the bindings it put in view
 (`Payload.actor`'s width, `enterOwnScope`). The body's parameters are written
@@ -388,7 +388,7 @@ parameter, masks the body's own mentions and the scope's frame, so a parameter
 forwarded into a nested body reads the next scope out (`enterCaller`). Leaving
 the scope keeps what the body introduced and every update (`leaveOwnScope`). A
 caller view with no frame open is the phrase's own view: the structural reads of
-an `enact` wrapper (`enactPatient`, `Instruction.unscoped` for the provenance a
+an `enact` wrapper (`enactPatient`, `Action.unscoped` for the provenance a
 deed stamps) see a parameter where the call writes it. A keyword ability body is
 checked from an empty context, its own scope. `Proofs/BindingIdentity.lean` pins
 the identity reads, fight, regenerate, the looks of scry, surveil and fateseal
@@ -583,7 +583,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `PreventCut` | `PreventCut.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageScale` | `DamageScale.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedVerb` | `DividedVerb.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `DividedTakes` | `Instruction.distribute` checks the recipient kind (`objectOrPlayerCheck`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
+| `DividedTakes` | `Action.distribute` checks the recipient kind (`objectOrPlayerCheck`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
 | `CtrlOverrideOk` | `EntryRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
 | `ProducedMana` | `ProducedMana.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Repetition` | `Repetition.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -601,10 +601,10 @@ by exact-refusal theorems; it is not an authorable term.
 | `Cost` | `Cost.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `ManaRider` | `ManaRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CopyExcept` | `CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `RollRow` | `Instruction.checkRows` checks the range and each row body; row bodies start at the same outer bindings. |
-| `Instruction` | `Instruction.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `Instructions` | The length is the actual list length; `Instruction.check` checks nonemptiness and `checkSeq` threads `Instruction.intro`. No independent length value remains. |
-| `SimInstructions` | The length is the actual list length; nonemptiness is checked and `checkSim` threads `Instruction.annIntro`, keeping simultaneous outcomes out of sibling inputs. |
+| `RollRow` | `Action.checkRows` checks the range and each row body; row bodies start at the same outer bindings. |
+| `Action` | `Action.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
+| `Instructions` | The length is the actual list length; `Action.check` checks nonemptiness and `checkSeq` threads `Action.intro`. No independent length value remains. |
+| `SimInstructions` | The length is the actual list length; nonemptiness is checked and `checkSim` threads `Action.annIntro`, keeping simultaneous outcomes out of sibling inputs. |
 | `KeywordParam` | `KeywordParam.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `AbilityLost` | `AbilityLost.checkAll` checks each carried keyword term or chosen-ability reference. |
 | `AbilityAt` | `Ability.check` dispatches each ability constructor, its expected phrase kinds, and its explicit local contexts. |
@@ -662,10 +662,10 @@ by exact-refusal theorems; it is not an authorable term.
 | `Exposed` | `Exposed.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `VisibleThing` | `VisibleThing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageRecipient` | `objectOrPlayerCheck` in damage instructions, `DamagePatient.check` and the damage-result rule: the recipient's kind alone. Which objects can be dealt damage [CR#120.1a] and where they are are not checked (`lean-checker-sweep-zone`). |
-| `StatusHolder` | `Instruction.setStatus` requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
+| `StatusHolder` | `Action.setStatus` requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
 | `DiscardOk` | Discard is an enacted move. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): its source zone is not checked. The macro authoring boundary above excludes arbitrary authored tag/body combinations. |
-| `Movable` | `Instruction.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
+| `Movable` | `Action.move` checks the moved kind against `object ∨ pile` (`kindLte`), so objects (including abilities) and piles move and players and quality values are refused. The destination's riders, arrangement and card types are not checked (`lean-checker-sweep-zone`). |
 
 ### Triggers
 
@@ -704,7 +704,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `BasicLandType` | The old `basicLandLine` macro has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `Delta Amount` consumers check the carried amount. |
-| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Instruction.gainDesignation` checks the designation's own row: its scope and holder. Whether an instruction may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
+| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder. Whether an instruction may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
 | `DesignationHolder` | `designationHolderOk` and the declared designation scope/holder checks at designation consumers. |
 | `AxesAt` | `axesAt` in `Predicate.check` requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | `Status.category` derives the category from the status. No separate category argument can disagree; consumers retain `Status.markable` and status-holder checks. |
@@ -895,7 +895,7 @@ facets join the five:
 
 A Relation (`RelationLabel`) is declared as a designation is, under
 `plugins_v2/builtin/macros/relations/`, as `Definition.relation label left
-right`; `cargo xtask facts` writes `relationTable`. `Instruction.relate`,
+right`; `cargo xtask facts` writes `relationTable`. `Action.relate`,
 `Predicate.related` and `NounPhrase.counterpart` check each side at the kind
 the declaration gives it, so a side of the wrong kind is refused
 `kindMismatch`, and an undeclared label `knownRelation`. These are kind and
@@ -938,7 +938,7 @@ Pins: `Semantics/Proofs/AbilityQualifiers.lean`.
 
 ### Movement destinations
 
-`Instruction.move` requires a destination. Every move checks its destination's
+`Action.move` requires a destination. Every move checks its destination's
 references and the moved kind (an object or a pile), and publishes the stated
 destination. The destination's shape, the arrangement's fit to the moved
 plurality, the subject's card types and the riders' fit to the destination are
@@ -958,7 +958,7 @@ zone while retaining its ability identity and copy origin. A stack reference
 resolves on actual stack evidence; counter and copy check no zone. Element bindings and
 unions retain location evidence rather than restoring a hardcoded stack location.
 
-`Instruction.clearDamage` removes all marked damage from a permanent. Its
+`Action.clearDamage` removes all marked damage from a permanent. Its
 subject must be an object; where it is is not checked, and it need not
 currently be a creature [CR#120.6]. It publishes the ordinary subject reference and no damage
 outcome. Regeneration composes this primitive with tapping and conditional
@@ -975,7 +975,7 @@ arguments substitute an expression that can be read repeatedly. The overloaded
 capture operation derives its input kind from the annotated Lean type.
 
 `withBindings` and `inCaller` are private expansion forms for NounPhrase,
-Predicate, Amount, Quantity, ZoneExpr, Condition, GameEvent, Cost, Instruction,
+Predicate, Amount, Quantity, ZoneExpr, Condition, GameEvent, Cost, Action,
 and StaticSpec. Bindings contain an ordered list of typed inputs. Captures occur
 left to right at that node, including inside conditions and repetition. Two
 identical argument expressions remain two selections. A nested macro forwards

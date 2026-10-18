@@ -13,32 +13,32 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.Anaphora
 
-private def instructionResult (drs : DRS) (i : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs i).1
+private def instructionResult (drs : DRS) (i : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs i).1
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
 
 
 /-- "Choose two — Draw a card; draw a card." [CR#700.2d] -/
 theorem identicalModesAllowed :
-    Instruction.check (DRS.ofList []) (chooseModes (exactly 2) [draw (.lit 1), draw (.lit 1)])
+    Action.check (DRS.ofList []) (chooseModes (exactly 2) [draw (.lit 1), draw (.lit 1)])
       = [] := by
   decide
 
 /-- "Choose a player or planeswalker." -/
 theorem okChoosePlayerOrPlaneswalker :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.choose none (a (.or [.hasType .planeswalker, .anyPlayer])) .openly none) =
           [] := by
   decide
 
 /-- "Choose you." -/
 theorem badChooseYou :
-    Instruction.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] := by
+    Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] := by
         decide
 
 theorem badConditionalArmAntecedent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .doOnlyIf (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"]))
             (exists_ creatureYouControl) none,
@@ -46,9 +46,9 @@ theorem badConditionalArmAntecedent :
   decide
 
 theorem badBothArmsAntecedent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Instruction.offer (gainLife (.lit 1))
+        [ Primitives.Action.offer (gainLife (.lit 1))
             (some (create (.lit 1) (creatureToken 1 1 [.white] [creatureType "Soldier"])))
             (some (create (.lit 2) (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
@@ -56,11 +56,11 @@ theorem badBothArmsAntecedent :
 
 /-- "Put target creature onto the battlefield." -/
 theorem okMoveToBattlefield :
-    Instruction.check (DRS.ofList []) (.move (target creature) .anywhere (some battlefield) .arrival none []) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some battlefield) .arrival none []) = [] := by decide
 
 /-- "Look at the top four cards of your library. You choose one of them." -/
 theorem okAgentChoiceOfSome :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
           .choose none (someOf (exactly 1) them) .openly none ]) = [] := by
@@ -69,7 +69,7 @@ theorem okAgentChoiceOfSome :
 /-- "Look at the top four cards of your library. Choose one of them." The chooser is the actor
 in context, so the bare imperative is the same term as "You choose one of them." -/
 theorem okChooseSomeOf :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ lookAt (topSlice (.lit 4)),
           .choose none (someOf (exactly 1) them) .openly none ]) = [] := by
@@ -77,7 +77,7 @@ theorem okChooseSomeOf :
 
 /-- "Exile target creature." -/
 theorem okMoveToExile :
-    Instruction.check (DRS.ofList []) (.move (target creature) .anywhere (some exileZone) .arrival none []) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some exileZone) .arrival none []) = [] := by decide
 
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
@@ -126,12 +126,12 @@ theorem badHappenedToPlayerDied :
 
 /-- "Choose a creature you control." -/
 theorem okChooseIndefinite :
-    Instruction.check (DRS.ofList []) (.choose none (a creatureYouControl) .openly none) = [] :=
+    Action.check (DRS.ofList []) (.choose none (a creatureYouControl) .openly none) = [] :=
         by decide
 
 /-- "Choose the creature with the least toughness among creatures you control." -/
 theorem badChooseDefinite :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.choose none
         (the (.and [creature, .superlative .min (.stat .toughness) creatureYouControl]))
         .openly none) = [.choiceClause] := by
@@ -139,7 +139,7 @@ theorem badChooseDefinite :
 
 /-- "This deals 1 damage to that permanent or player." -/
 theorem okUnionAnaphorAfterJoin :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ instruct .this (.dealDamage (.lit 3) (target (.or [creature, .anyPlayer])) .any),
           instruct .this (.dealDamage (.lit 1) (that .join) .any) ]) = [] := by
@@ -147,13 +147,13 @@ theorem okUnionAnaphorAfterJoin :
 
 /-- "This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorNoAntecedent :
-    Instruction.check (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (that .join) .any))
+    Action.check (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (that .join) .any))
       = [.anaphor (.word .join) .one 0] := by
   decide
 
 /-- "Destroy target creature. This deals 3 damage to that permanent or player." -/
 theorem badUnionAnaphorOnObject :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature), instruct .this (.dealDamage (.lit 3) (that .join) .any)])
       = [.anaphor (.word .join) .one 0] := by
   decide
@@ -161,9 +161,9 @@ theorem badUnionAnaphorOnObject :
 /-- A countered ability has left the stack. A subsequent stack-zone reference cannot
 reach it [CR#701.6a]. -/
 theorem badStackAnaphorAfterCounteringAbility :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated)), Primitives.Instruction.counterSpell (that .stack) ])
+        [ Primitives.Action.counterSpell (target (.abilityHead .anyActivated)), Primitives.Action.counterSpell (that .stack) ])
       = [.anaphor (.word .stack) .one 0] := by
   decide
 
@@ -303,18 +303,18 @@ theorem okEntryLookbackWithoutOrigin :
 
 /-- "For each opponent, you draw a card." -/
 theorem okPluralForEach :
-    Instruction.check (DRS.ofList []) (.doForEach (each .opponent) (draw (.lit 1))) = [] := by
+    Action.check (DRS.ofList []) (.doForEach (each .opponent) (draw (.lit 1))) = [] := by
         decide
 
 /-- "For each of target creature, its controller draws a card." -/
 theorem badSingletonForEach :
-    Instruction.check (DRS.ofList []) (.doForEach (target creature) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (.doForEach (target creature) (draw (.lit 1)))
       = [.plural] := by decide
 
 /-- "For each player, choose target permanent that player controls. Those players draw a
 card." (Vaevictis Asmadi, the Dire's opening loop): the group survives it, pluralised. -/
 theorem okLoopGroupSurvives :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
@@ -325,7 +325,7 @@ theorem okLoopGroupSurvives :
 card." The element the loop binds is body-local, so only the group reads back, and only as a
 plural. -/
 theorem badLoopElementRead :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .doForEach (each .anyPlayer)
             (choose (target (.and [permanent, .hasPossessor .controller they]))),
@@ -348,7 +348,7 @@ theorem okOneEndArrangedOrdinal :
 
 /-- "Shuffle those cards into your library.": the library they go into, then its shuffle. -/
 theorem okShuffledPlain :
-    ZoneExpr.check (DRS.ofList []) (.zone .library .bare) ++ Instruction.check (DRS.ofList []) (.shuffle (.library .bare))
+    ZoneExpr.check (DRS.ofList []) (.zone .library .bare) ++ Action.check (DRS.ofList []) (.shuffle (.library .bare))
       = [] := by decide
 
 /-- "third from the top" -/
@@ -365,7 +365,7 @@ theorem copyParticipleUnwritten : participleOf (.core .copy) = none := by decide
 A copy of a spell is itself a spell [CR#707.10,112.1a], so the plural spell read reaches the
 copies. -/
 theorem okPluralSpellReadAfterCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 2) [],
           offer (.chooseNewTargets (those .spell)) ]) = [] := by
@@ -373,7 +373,7 @@ theorem okPluralSpellReadAfterCopy :
 
 /-- "Copy target instant or sorcery spell. You may choose new targets for the copy." -/
 theorem okCopyReadAfterCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
           offer (.chooseNewTargets (that .copy)) ]) = [] := by
@@ -382,7 +382,7 @@ theorem okCopyReadAfterCopy :
 /-- "Copy target instant or sorcery spell. You may choose new targets for that spell."
 The copy is itself a spell [CR#707.10]; AC>R1 selects its newer referent. -/
 theorem singularSpellReadSelectsCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.and [instantOrSorcery, spell])) (.lit 1) [],
           offer (.chooseNewTargets (that .spell)) ]) = [] := by
@@ -392,7 +392,7 @@ theorem singularSpellReadSelectsCopy :
 copy of an ability is itself an ability [CR#707.10], so the plural ability read reaches the
 copies. -/
 theorem okPluralAbilityReadAfterCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 2) [],
           offer (.chooseNewTargets (those .ability)) ]) = [] := by
@@ -401,7 +401,7 @@ theorem okPluralAbilityReadAfterCopy :
 /-- "Copy target activated ability. You may choose new targets for that ability."
 The copy is an ability [CR#707.10]; AC>R1 selects its newer referent. -/
 theorem singularAbilityReadSelectsCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
           offer (.chooseNewTargets (that .ability)) ]) = [] := by
@@ -409,7 +409,7 @@ theorem singularAbilityReadSelectsCopy :
 
 /-- "Copy target activated ability. You may choose new targets for the copy." -/
 theorem okAbilityCopyReadAfterCopy :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [],
           offer (.chooseNewTargets (that (.copied .ability))) ]) = [] := by
@@ -427,7 +427,7 @@ theorem joinedCreatureTy :
 theorem anyTargetIsPlaceless : NounPhrase.zone (DRS.ofList []) (target anyTarget) = none := by decide
 
 theorem anyTargetTakesDamage :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct .this (.dealDamage (.lit 1) (target anyTarget) .any)) = [] := by decide
 
 theorem youAndPublishesBothParticipants :
@@ -436,7 +436,7 @@ theorem youAndPublishesBothParticipants :
 
 /-- "If a player is dealt damage this way, you draw a card." -/
 theorem okDealtThisWayAfterDamage :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ instruct .this (.dealDamage (.lit 3) (target anyTarget) .any),
           .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ]) = [] := by
@@ -444,7 +444,7 @@ theorem okDealtThisWayAfterDamage :
 
 /-- "You draw a card. If a player is dealt damage this way, you draw a card." -/
 theorem badDealtThisWayNoDamage :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ draw (.lit 1), .doIf (.dealtThisWay .anyPlayer) (draw (.lit 1)) none ])
       = [.damageDealtInScope] := by
@@ -486,14 +486,14 @@ theorem youRolledADieThisTurn :
 
 /-- "Roll two d20. Ignore the lowest roll." -/
 theorem okIgnoreAfterRoll :
-    Instruction.check (DRS.ofList []) (.sequentially [rollDice 2 20, .ignoreOutcomes (.extreme
+    Action.check (DRS.ofList []) (.sequentially [rollDice 2 20, .ignoreOutcomes (.extreme
         .lowest)])
       = [] := by
   decide
 
 /-- "Ignore the lowest roll." -/
 theorem badIgnoreWithoutRoll :
-    Instruction.check (DRS.ofList []) (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
+    Action.check (DRS.ofList []) (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
 
 def afterATwoDieRoll : Bindings := instructionResult (DRS.ofList []) (rollDice 2 6)
 
@@ -532,11 +532,11 @@ theorem badZeroRollTest :
 
 /-- "Roll two d6. Ignore the lowest roll." -/
 theorem okExtremeOverRolls :
-    Instruction.check afterATwoDieRoll (.ignoreOutcomes (.extreme .lowest)) = [] := by decide
+    Action.check afterATwoDieRoll (.ignoreOutcomes (.extreme .lowest)) = [] := by decide
 
 /-- "If you would flip a coin, instead flip two coins and ignore the lower one." -/
 theorem badExtremeOverFlips :
-    Instruction.check afterACoinFlip (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by
+    Action.check afterACoinFlip (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by
   decide
 
 /-- "When a player doesn't pay this creature's cumulative upkeep, …" -/
@@ -561,13 +561,13 @@ theorem badRestWithoutAPartition :
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterCountedChoice :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [choose (counted (upTo 1) creature), destroy (theRest .object)]) = [] := by
   decide
 
 /-- "Choose any number of target creatures. Destroy the rest." -/
 theorem badRestAfterTargetChoice :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [choose (.described (.target anyNumber) creature), destroy (theRest .object)])
       = [.theRestFits .object] := by
@@ -642,7 +642,7 @@ theorem lastChosenPlayerRead :
 
 /-- "... a chosen player. ... the chosen player." -/
 theorem okDefiniteChosenPlayerRead :
-    Instruction.check [ChoiceSort.binding .player]
+    Action.check [ChoiceSort.binding .player]
       (.sequentially
         [ instruct .this (.dealDamage (.lit 3) (a chosenPlayer) .any),
           instruct .this (.dealDamage (.lit 3) (the chosenPlayer) .any) ])
@@ -651,7 +651,7 @@ theorem okDefiniteChosenPlayerRead :
 
 /-- "... a chosen player. ... that player." AC>R1 selects the player just mentioned. -/
 theorem chosenPlayerDemonstrativeSelectsNewMention :
-    Instruction.check [ChoiceSort.binding .player]
+    Action.check [ChoiceSort.binding .player]
       (.sequentially
         [ instruct .this (.dealDamage (.lit 3) (a chosenPlayer) .any), instruct .this (.dealDamage (.lit 3) they .any) ])
       = [] := by
@@ -699,7 +699,7 @@ theorem youNeedsNoAntecedent : NounPhrase.checkAt (some .player) (DRS.ofList [])
 theorem letterValIntroducesAtEmptyPrefix : Amount.check (DRS.ofList []) (.letter .x) = [] := by decide
 
 theorem ownSurvivesSecondSingular :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ exile (target artifact),
           dealDamageOwnPower (target creature)
@@ -708,13 +708,13 @@ theorem ownSurvivesSecondSingular :
 
 /-- "Exile target creature. Draw cards equal to its power." -/
 theorem okItReadsTheOnlyBareSingular :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [exile (target creature), draw (.statOf (.stat .power) it)]) = []
           := by
   decide
 
 theorem possessiveItReadsCurrentSubject :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ exile (target artifact),
           instruct (target creature) (.dealDamage (.statOf (.stat .power) it) (target anyTarget) .any) ])
@@ -723,7 +723,7 @@ theorem possessiveItReadsCurrentSubject :
 
 /-- "Draw cards equal to its power." -/
 theorem badSingularReadOfBarePlural :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ get (bare creatureYouControl) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
           draw (.statOf (.stat .power) it) ]) = [.anaphor .bare .one 0] := by
@@ -731,7 +731,7 @@ theorem badSingularReadOfBarePlural :
 
 /-- The definite source remains available outside its negated property test. -/
 theorem conditionItReadsCurrentSource :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ destroy (target creature),
           .doIf (.not (.matches thisEnchantment creature))
@@ -742,14 +742,14 @@ theorem conditionItReadsCurrentSource :
   decide
 
 theorem okOwnPowerWithoutNewMention :
-    Instruction.check (DRS.ofList []) (dealDamageOwnPower .this (target anyTarget))
+    Action.check (DRS.ofList []) (dealDamageOwnPower .this (target anyTarget))
       = [] := by
   decide
 
 /-- "Target creature gets +1/+1": the shared subject is read once by the stat change.
 `GetsBothDeltas.selectedPtSubjectHasStableIdentity` pins that subject's identity. -/
 theorem okOwnReadsOneInDelta :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (establishFor (target creature)
         [ .ptModification it
             (.up (.lit 1)) (.up (.lit 1)) ]
@@ -760,7 +760,7 @@ theorem okOwnReadsOneInDelta :
 ambiguous between the two, refused once. The corresponding modern shape is also pinned by
 `GetsBothDeltas.ambiguousSingularPtSubjectIsRefused`. -/
 theorem badSharedSubjectTwoInDelta :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (establishFor (Primitives.NounPhrase.both (target creature) (target artifact))
         [ .ptModification
             it
@@ -769,13 +769,13 @@ theorem badSharedSubjectTwoInDelta :
   decide
 
 theorem badOwnTwoInDelta :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (dealDamageOwnPower (Primitives.NounPhrase.both (target creature) (target creature)) (target anyTarget))
       = [.singular] := by
   decide
 
 theorem distributedDeedReadsBackPlural :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
           exile (theVerbed (.action "discard") .many (some .card)) ]) = [] := by
@@ -783,7 +783,7 @@ theorem distributedDeedReadsBackPlural :
 
 /-- "Discard a card. Exile the discarded card." -/
 theorem okTheVerbedAfterSingularDiscard :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ discard (a (.and [.isCard, .inZone yourHand])),
           exile (theVerbed (.action "discard") .one (some .card)) ])
@@ -792,7 +792,7 @@ theorem okTheVerbedAfterSingularDiscard :
 
 /-- "Each opponent discards a card. Exile that card." -/
 theorem badDistributedDiscardSingular :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [ .sequentially [instruct (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them],
           exile (theVerbed (.action "discard") .one (some .card)) ])
@@ -801,7 +801,7 @@ theorem badDistributedDiscardSingular :
 
 /-- "Tap target creature." -/
 theorem okTapBattlefieldPermanent :
-    Instruction.check (DRS.ofList []) (.setStatus .tapped (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (.setStatus .tapped (target creature)) = [] := by decide
 
 /-- "if there is no monarch" -/
 theorem okNoHolderOnPlayer : Condition.check (DRS.ofList []) (.noHolder (.named "monarch")) = [] := by decide
@@ -812,24 +812,24 @@ theorem badNoHolderOnObject :
 
 /-- "Roll five d6. Store those results on this creature." -/
 theorem okStoreResultsAfterRoll :
-    Instruction.check (DRS.ofList []) (.sequentially [rollDice 5 6, .storeResults thisCreature]) = []
+    Action.check (DRS.ofList []) (.sequentially [rollDice 5 6, .storeResults thisCreature]) = []
         := by
   decide
 
 /-- "Store those results on this creature." -/
 theorem badStoreResultsWithoutRoll :
-    Instruction.check (DRS.ofList []) (.storeResults thisCreature) = [.outcomeInScope .rollResult 0] := by decide
+    Action.check (DRS.ofList []) (.storeResults thisCreature) = [.outcomeInScope .rollResult 0] := by decide
 
 /-- "If you would roll one or more d6, instead roll that many of those dice." -/
 theorem okThoseDiceAfterRollEvent :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (replaceEvent (.would (.actor .you) (.rollDice .anyAmount (.sides 6) .many .anyResult))
         (.rollDice .thatMuch .thoseDice .many .anyResult) none) = [] := by
   decide
 
 /-- "Roll that many dice." -/
 theorem badAnaphoricSidesWithoutRoll :
-    Instruction.check (DRS.ofList []) (.rollDice (.lit 1) .thoseDice .one .anyResult)
+    Action.check (DRS.ofList []) (.rollDice (.lit 1) .thoseDice .one .anyResult)
       = [.outcomeInScope .diceRolled 0] := by
   decide
 

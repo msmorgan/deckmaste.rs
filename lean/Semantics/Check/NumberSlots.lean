@@ -144,7 +144,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
 termination_by structural fuel
 
 /-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
-def Instruction.numberSlots (value : Instruction) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
+def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
   | _n + 1, .inCaller body | _n + 1, .ownScope _ body | _n + 1, .bracketed body | _n + 1, .instruct _ body => body.numberSlots _n

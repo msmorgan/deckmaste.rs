@@ -83,18 +83,18 @@ theorem badTakenUnnamed :
 
 /-- Required pin: "exile it haunting target creature" relates two objects [CR#702.55a]. -/
 theorem okRelateHaunting :
-    Instruction.check (DRS.ofList []) (.relate .this haunting (target creature)) = [] := by
+    Action.check (DRS.ofList []) (.relate .this haunting (target creature)) = [] := by
   decide
 
 /-- Required pin: `relate` against a declared kind mismatch is refused: a haunting's second side
 is an object, never a player [CR#702.55b]. -/
 theorem badRelateKindMismatch :
-    Instruction.check (DRS.ofList []) (.relate .this haunting .you) = [.kindMismatch .object .player] := by
+    Action.check (DRS.ofList []) (.relate .this haunting .you) = [.kindMismatch .object .player] := by
   decide
 
 /-- An undeclared relation is refused. -/
 theorem badRelateUndeclared :
-    Instruction.check (DRS.ofList []) (.relate .this (.named "befriended") (target creature))
+    Action.check (DRS.ofList []) (.relate .this (.named "befriended") (target creature))
       = [.knownRelation (.named "befriended")] := by
   decide
 
@@ -120,12 +120,12 @@ theorem okRelationDefinition :
 
 /-- Required pin: a mutating spell merges with one permanent [CR#730.2]. -/
 theorem okMerge :
-    Instruction.check (DRS.ofList []) (.merge .this (target creature) .top) = [] := by
+    Action.check (DRS.ofList []) (.merge .this (target creature) .top) = [] := by
   decide
 
 /-- A merge onto a group is refused: one permanent is merged with. -/
 theorem badMergeOntoGroup :
-    Instruction.check (DRS.ofList []) (.merge .this (allOf creature) .bottom) = [.singular] := by
+    Action.check (DRS.ofList []) (.merge .this (allOf creature) .bottom) = [.singular] := by
   decide
 
 /-- Required pin: mutate's target, gained with its alternative cost [CR#702.140a]. -/

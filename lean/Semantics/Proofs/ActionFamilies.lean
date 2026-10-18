@@ -9,8 +9,8 @@ private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
   let result := stepNounPhrase 64 drs .other false noun
   result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
 
-private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs instruction).1
+private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs instruction).1
 
 private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
@@ -19,21 +19,21 @@ private def outcomeReferents (drs : DRS) : List Referent :=
   drs.referents.filter fun ref => match ref.payload with | .outcome _ => true | _ => false
 
 theorem okBlockednessWithoutChangingBlockingRelations :
-    Instruction.check (DRS.ofList []) (.combat thisCreature (.participation (.blocked false))) = [] := by decide
+    Action.check (DRS.ofList []) (.combat thisCreature (.participation (.blocked false))) = [] := by decide
 
 theorem okRemoveAttackedPlaneswalkerFromCombat :
-    Instruction.check (DRS.ofList []) (.combat (.asType .planeswalker .this none)
+    Action.check (DRS.ofList []) (.combat (.asType .planeswalker .this none)
       (.participation .outsideCombat)) = [] := by decide
 
 theorem okRemoveAttackedBattleFromCombat :
-    Instruction.check (DRS.ofList []) (.combat (.asType .battle .this none)
+    Action.check (DRS.ofList []) (.combat (.asType .battle .this none)
       (.participation .outsideCombat)) = [] := by decide
 
 theorem okAttachToPlayer :
-    Instruction.check (DRS.ofList []) (.attachment .attached thisAura (some .you)) = [] := by decide
+    Action.check (DRS.ofList []) (.attachment .attached thisAura (some .you)) = [] := by decide
 
 theorem okDetachWithoutKnowingOldHost :
-    Instruction.check (DRS.ofList []) (.attachment .unattached thisArtifact none) = [] := by decide
+    Action.check (DRS.ofList []) (.attachment .unattached thisArtifact none) = [] := by decide
 
 theorem okExtraTurnPublishesTurnReference :
     TurnRef.check (instructionResult (DRS.ofList []) (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
@@ -43,13 +43,13 @@ theorem okExtraTurnPublishesTurnReference :
 [CR#500.7]: the turn's taker is the player the instruction is handed to, and a permanent is
 not one. -/
 theorem badExtraTurnWithoutPlayer :
-    Instruction.check (DRS.ofList []) (instruct (target creature) (.addTurnPart .turn none (.lit 1) none))
+    Action.check (DRS.ofList []) (instruct (target creature) (.addTurnPart .turn none (.lit 1) none))
       = [.kindMismatch .player .object] := by decide
 
 def emblemAbilities : List Ability := [.static (.abilityGrant (allOf creatureYouControl) (keyword (.named "haste")))]
 
 theorem okCreateSeveralEmblems :
-    Instruction.check (DRS.ofList []) (.createObject (.lit 2) (.emblem none emblemAbilities) true none) = [] := by decide
+    Action.check (DRS.ofList []) (.createObject (.lit 2) (.emblem none emblemAbilities) true none) = [] := by decide
 
 theorem okEmblemPublication :
     (instructionResult (DRS.ofList [])
@@ -90,10 +90,10 @@ theorem movementPublishesItsRequiredDestination :
     nounZone graveyardAbility (that .ability) = some .graveyard := by decide
 
 theorem movementAcceptsAnAbilitySubject :
-    Instruction.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none []) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none []) = [] := by decide
 
 theorem graveyardDestinationAcceptsCounterRiders :
-    Instruction.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none [.placement (.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
+    Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anywhere (some graveyard) .arrival none [.placement (.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
     (instructionResult (DRS.ofList [
@@ -123,10 +123,10 @@ theorem abilityElementRetainsItsLocation :
 
 /-- Marked damage remains even when a permanent stops being a creature [CR#120.6]. -/
 theorem clearDamageAdmitsALand :
-    Instruction.check (DRS.ofList []) (.clearDamage (target land)) = [] := by decide
+    Action.check (DRS.ofList []) (.clearDamage (target land)) = [] := by decide
 
 theorem clearDamageRejectsAPlayer :
-    Instruction.check (DRS.ofList []) (.clearDamage .you) =
+    Action.check (DRS.ofList []) (.clearDamage .you) =
       [.kindMismatch .object .player] := by decide
 
 theorem clearDamagePublishesItsSubject :
@@ -158,7 +158,7 @@ private def operandIdentity (drs : DRS) (i : Nat) : Option ReferentId :=
   (drs.visibleReferents.find? (fun ref => ref.idents.contains (operandKey i))).map (·.id)
 
 private def movedOperand (drs : DRS) (subject : NounPhrase) (to : Option Zone) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs
+  (stepAction 64 .postEvent .obj drs
     (.move subject .anywhere (to.map fun zone => .zone zone .bare) .arrival none [])).1
 
 /-- Equal-looking target phrases name two objects, rather than one shared payload. -/
@@ -205,30 +205,30 @@ theorem nestedCaptureUpdatesAnInlineOuterOperand :
       operandIdentity moved 0 = none := by decide
 
 theorem fightAcceptsAnExistingReference :
-    Instruction.check (nounResult (DRS.ofList []) (target creature))
+    Action.check (nounResult (DRS.ofList []) (target creature))
       (instruct it (fight (target creature))) = [] := by decide
 
 theorem fightAcceptsItsOwnSource :
-    Instruction.check (DRS.ofList []) (instruct thisCreature (fight thisCreature)) = [] := by decide
+    Action.check (DRS.ofList []) (instruct thisCreature (fight thisCreature)) = [] := by decide
 
 theorem regenerationApplicationChecks :
-    Instruction.check (DRS.ofList []) (regenerationApplication thisCreature) = [] := by decide
+    Action.check (DRS.ofList []) (regenerationApplication thisCreature) = [] := by decide
 
 theorem regenerationInstallationPublishesNoImmediateOutcome :
     outcomeReferents (instructionResult (DRS.ofList []) (regenerate thisCreature)) = [] := by decide
 
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
     nounZone (instructionResult (DRS.ofList [])
-      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (Primitives.Action.counterSpell (target (.abilityHead .anyActivated))))
       (that .ability) = some .graveyard := by decide
 
 theorem counterPreservesTheAbilityCategory :
     NounPhrase.checkAt none (instructionResult (DRS.ofList [])
-      (Primitives.Instruction.counterSpell (target (.abilityHead .anyActivated))))
+      (Primitives.Action.counterSpell (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
 theorem counterIsSingleEnactedMove (subject : NounPhrase) :
-    Primitives.Instruction.counterSpell subject =
+    Primitives.Action.counterSpell subject =
       .ownScope (some (.action "counter"))
         (.enact (.action "counter")
           (.move (.inCaller (.firstMention "counterSpell.subject" subject))
@@ -240,7 +240,7 @@ theorem losingCountersPublishesTheSharedRemovalOutcome :
         (some (.lit 1)) .you)) = 1 := by decide
 
 theorem ownPowerCanReadAnExistingReference :
-    Instruction.check (nounResult (DRS.ofList []) (target creature)) (dealDamageOwnPower it .you) = [] := by decide
+    Action.check (nounResult (DRS.ofList []) (target creature)) (dealDamageOwnPower it .you) = [] := by decide
 
 
 theorem forgottenOperandDoesNotRedirectToNeighbor :
@@ -256,21 +256,21 @@ theorem forgottenOperandDoesNotRedirectToNeighbor :
       moved.sameReferents shuffled = true := by decide
 
 theorem postposedCounterConditionReadsTheUnmovedSpell :
-    Instruction.check (DRS.ofList []) (.doOnlyIf (Primitives.Instruction.counterSpell (target spell))
+    Action.check (DRS.ofList []) (.doOnlyIf (Primitives.Action.counterSpell (target spell))
       (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
 
 
 theorem losingCountersAmountReadsItsPlayer :
-    Instruction.check (DRS.ofList []) (loseCounters
+    Action.check (DRS.ofList []) (loseCounters
       (some (.printed (.named "poison"))) (some (lifeTotalOf they)) (a .opponent)) = [] := by decide
 
 theorem regenerationCanProtectANoncreaturePermanent :
-    Instruction.check (DRS.ofList []) (regenerate (target artifact)) = [] := by decide
+    Action.check (DRS.ofList []) (regenerate (target artifact)) = [] := by decide
 
 
 theorem alternativeDoesNotObserveThePrimaryBranchesMove :
-    Instruction.check (DRS.ofList []) (.doOnlyIf (move (target spell) exileZone)
-      (.matches it (.colorIs .red)) (some (Primitives.Instruction.counterSpell it))) = [] := by decide
+    Action.check (DRS.ofList []) (.doOnlyIf (move (target spell) exileZone)
+      (.matches it (.colorIs .red)) (some (Primitives.Action.counterSpell it))) = [] := by decide
 
 
 theorem forgottenAliasesAreBothRefused :
@@ -286,19 +286,19 @@ theorem forgottenNestedAliasIsRefused :
       [.bindingIdentity (operandKey 0)] := by decide
 
 theorem conditionalShuffleForgetsPrivateOperand :
-    Instruction.check (DRS.ofList []) (.ownScope none (.sequentially [
+    Action.check (DRS.ofList []) (.ownScope none (.sequentially [
       .expose .lookAt (.cards (.firstMention (operandKey 0) (a (.and [.isCard, .inZone yourLibrary])))),
       .doIf (.matches .you .anyPlayer) (.shuffle (library .actor)) none,
       .move (operand 0) .anywhere (some graveyard) .arrival none []])) =
       [.bindingIdentity (operandKey 0)] := by decide
 
 theorem capturePreservesTheResolvedPermanentView :
-    Instruction.check (DRS.ofList []) (instruct
+    Action.check (DRS.ofList []) (instruct
       (.resolvedPermanent (target (.and [spell, creature]))) (fight (target creature))) = [] := by decide
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
-    let context := (fun instruction => (stepInstruction 64 .preEvent .obj (DRS.ofList []) instruction).1) (Instruction.instruct .this (.dealDamage (.lit 3) .you .any))
+    let context := (fun instruction => (stepAction 64 .preEvent .obj (DRS.ofList []) instruction).1) (Action.instruct .this (.dealDamage (.lit 3) .you .any))
     Amount.check context .thatMuch = [] ∧
       Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 

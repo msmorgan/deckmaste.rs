@@ -24,7 +24,7 @@ import Semantics.Proofs.Faces
 import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.GiftVariants
 import Semantics.Proofs.HistoricalMove
-import Semantics.Proofs.InstructionForms
+import Semantics.Proofs.ActionForms
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.KeywordAbilityCensus
 import Semantics.Proofs.KeywordActionResidues

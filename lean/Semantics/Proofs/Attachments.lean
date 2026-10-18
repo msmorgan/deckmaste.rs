@@ -61,18 +61,18 @@ theorem okAttachedHostRetainsCreatureType :
       [.creature] := by rfl
 
 theorem okNestedCounterpartTargetRemainsAvailable :
-    Instruction.check (DRS.ofList []) (.sequentially [
+    Action.check (DRS.ofList []) (.sequentially [
       exile (target (.and [artifact, .attachment .attachment none (some (target creature))])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
 /-- The explicit source mention remains available after the attached artifact is exiled. -/
 theorem sourceCounterpartRemainsAvailable :
-    Instruction.check (DRS.ofList []) (.sequentially [
+    Action.check (DRS.ofList []) (.sequentially [
       exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])),
       .setStatus .tapped (that (.type .creature))]) = [] := by decide
 
 private def sourceCounterpartAfterExile : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+  (stepAction 64 .postEvent .obj (DRS.ofList [])
     (exile (target (.and [artifact, .attachment .attachment none (some thisCreature)])))).1
 
 theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
@@ -114,7 +114,7 @@ theorem okAuraMayBeAttachedToAPlayer :
 theorem passiveAgentAndAttachmentHostAreDistinct :
     (.by (allOf creature) : Subject).patientRole = .subj ∧
       mayBeAttachedTo thisEquipment (allOf creature) =
-        .may .any (Primitives.Instruction.attachTo thisEquipment (allOf creature))
+        .may .any (Primitives.Action.attachTo thisEquipment (allOf creature))
           { rider := .noRider } := by
   constructor <;> rfl
 

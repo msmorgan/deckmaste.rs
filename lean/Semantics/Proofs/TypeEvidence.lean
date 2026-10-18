@@ -60,7 +60,7 @@ theorem targetTypeOrderKeepsBinding :
 theorem conjunctionDoesNotInventLand :
     countReach (.word (.type .land)) .one (afterTarget artifactCreature) = 0 := by decide
 
-private def afterExile (p : Predicate) : Bindings := (stepInstruction 64 .postEvent .obj (DRS.ofList []) (exile (target p))).1
+private def afterExile (p : Predicate) : Bindings := (stepAction 64 .postEvent .obj (DRS.ofList []) (exile (target p))).1
 
 theorem movedArtifactCreatureReadsCreatureCard :
     countReach (.word (.ofType .card .creature)) .one (afterExile artifactCreature) = 1 := by decide
@@ -123,7 +123,7 @@ theorem unrelatedTypeRefinementsDoNotDescribeEquipmentHost :
     attachHeadOk .equipped (.ofType (.type .artifact) .land) = false := by decide
 
 theorem damageAcceptsArtifactCreature :
-    Instruction.check (DRS.ofList []) (Instruction.instruct .this (.dealDamage (.lit 1) (target artifactCreature) .any)) = [] := by decide
+    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (target artifactCreature) .any)) = [] := by decide
 
 private def equipmentHost : NounPhrase :=
   .attachHost .equipped (.ofType (.type .artifact) .creature)
@@ -134,14 +134,14 @@ theorem equipmentHostSeedsBothTypes :
 
 theorem movedEquipmentHostKeepsCreatureCardEvidence :
     countReach (.word (.ofType .card .creature)) .one
-      (stepInstruction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 1 := by decide
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 1 := by decide
 
 theorem movedEquipmentHostKeepsArtifactCardEvidence :
     countReach (.word (.ofType .card .artifact)) .one
-      (stepInstruction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 1 := by decide
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 1 := by decide
 
 theorem movedEquipmentHostLosesPermanentCarrier :
     countReach (.word (.type .creature)) .one
-      (stepInstruction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 0 := by decide
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (exile equipmentHost)).1 = 0 := by decide
 
 end Semantics.Proofs.TypeEvidence

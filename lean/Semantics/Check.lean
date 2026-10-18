@@ -46,7 +46,7 @@ private def graveyardZone : ZoneExpr :=
 
 /-- Representative multi-step definition 1: `explore` [CR#701.44a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
-def exploreDef (subject : NounPhrase) : Instruction :=
+def exploreDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "explore")) <|
     .instruct (.inCaller (.firstMention "subject" subject)) <|
       .sequentially [
@@ -63,7 +63,7 @@ theorem explore_def_sound :
 
 /-- Representative multi-step definition 2: `connive` [CR#701.50a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` + `doIf`). -/
-def conniveDef (subject : NounPhrase) : Instruction :=
+def conniveDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "connive")) <|
     .instruct (.inCaller (.firstMention "subject" subject)) <|
       .instruct (.possessorOf .controller .actor) <|
@@ -86,7 +86,7 @@ theorem connive_def_sound :
 
 /-- Representative multi-step definition 3: `airbend`
 (`ownScope` + `inCaller` + `firstMention` + zone-changing `move` + stamped participle `"the exiled card"`). -/
-def airbendDef (subject : NounPhrase) : Instruction :=
+def airbendDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" subject))
@@ -105,7 +105,7 @@ theorem airbend_def_sound :
 
 /-- Zone-change identity clearing (`[CR#400.7,400.7j]`): a post-move `laterMention` of a pre-move
 `firstMention` parameter is deterministically refused with `Refusal.bindingIdentity`. -/
-def postMoveLaterMentionRefused : Instruction :=
+def postMoveLaterMentionRefused : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" targetCreature))
@@ -120,11 +120,11 @@ theorem post_move_later_mention_refused :
 `"Target creature deals 2 damage to itself"` succeeds, whereas `"Target creature deals 2 damage to it"`
 is refused because the only referent in scope is a clause-mate. -/
 theorem reflexive_subject_succeeds :
-    (Instruction.instruct targetCreature
+    (Action.instruct targetCreature
       (.dealDamage (.lit 2) (.refl .one) .any)).check (DRS.ofList []) = [] := by decide
 
 theorem clause_mate_pronoun_refused :
-    (Instruction.instruct targetCreature
+    (Action.instruct targetCreature
       (.dealDamage (.lit 2) (.pro .bare .one) .any)).check (DRS.ofList []) =
       [.anaphor .bare .one 0] := by decide
 
@@ -132,13 +132,13 @@ theorem clause_mate_pronoun_refused :
 records `(r.id, .subj)` in `drs.pendingRoles`, licensing `"itself"` and excluding `"it"` in the
 object slot. -/
 theorem rementioned_subject_licenses_reflexive :
-    (Instruction.sequentially [
+    (Action.sequentially [
       .setStatus .tapped targetCreature,
       .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.refl .one) .any)
     ]).check (DRS.ofList []) = [] := by decide
 
 theorem rementioned_subject_excludes_clause_mate_pronoun :
-    (Instruction.sequentially [
+    (Action.sequentially [
       .setStatus .tapped targetCreature,
       .instruct (.pro .bare .one) (.dealDamage (.lit 2) (.pro .bare .one) .any)
     ]).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
@@ -148,7 +148,7 @@ Clause 0 introduces subject (`targetCreature`) and object (`anotherTargetCreatur
 Clause 1 resolves `"it"` (`.pro .bare .one`) to the subject via `D′` (setting `pronounResolved := true`),
 and resolves `"that creature"` (`.pro (.word (.type .creature)) .one`) to the remaining creature via `AC>R1`. -/
 theorem pronoun_and_demonstrative_split :
-    (Instruction.sequentially [
+    (Action.sequentially [
       .instruct targetCreature (.dealDamage (.lit 1) anotherTargetCreature .any),
       .instruct (.pro .bare .one)
         (.dealDamage (.lit 2) (.pro (.word (.type .creature)) .one) .any)

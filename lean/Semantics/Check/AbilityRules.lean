@@ -16,7 +16,7 @@ private def choiceSortAtKind : Kind → Option ChoiceSort
   | .player => some .player
   | _ => none
 
-private def instructionTextChoices (instruction : Instruction) (fuel : Nat := 64) : List ChoiceSort :=
+private def instructionTextChoices (instruction : Action) (fuel : Nat := 64) : List ChoiceSort :=
   match fuel, instruction with
   | 0, _ => []
   | n+1, .inCaller body | n+1, .ownScope _ body | n+1, .bracketed body
@@ -182,8 +182,8 @@ private theorem cardTextThreadsChoicesButIndependentAbilitiesDoNot :
         [.choiceRef .theChoice (.quality .color) 0] := by decide
 
 private theorem choiceNeedsAnIndefiniteOrSelectingPhrase :
-    Instruction.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] ∧
-      Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] ∧
+      Action.check (DRS.ofList [])
         (.choose none (.described .the (.superlative .max (.playerStat .lifeTotal) .anyPlayer)) .openly none) = [.choiceClause] := by decide
 
 private theorem cardTextDoesNotExportOrdinaryObjectMentions :
@@ -192,7 +192,7 @@ private theorem cardTextDoesNotExportOrdinaryObjectMentions :
        .spell none (.changeControl (.pro .bare .one))] = [.anaphor .bare .one 0] := by decide
 
 private theorem selectedPlayerCanBeReadWithinTheSameInstruction :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially
         [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,
          .draw (.devotion (.described .the (.chosenPlayer .theChoice)) (.lit .red) none)]) = [] := by decide
@@ -220,7 +220,7 @@ private theorem theirChoiceUsesTheActivePlayerIdentity :
       choiceModeChecks (chooserFrameContext .object [23]) .theirChoice = [.chooserInScope 0] := by decide
 
 private theorem eachPlayerChoosesLocallyAmongUnrelatedPlayers :
-    Instruction.check (DRS.ofList [kindBinding .player, kindBinding .player])
+    Action.check (DRS.ofList [kindBinding .player, kindBinding .player])
       (.instruct (.described .each .anyPlayer)
         (.choose none (.described (.a .theirChoice) (.hasType .creature)) .openly none)) = [] := by decide
 

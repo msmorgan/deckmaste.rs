@@ -28,15 +28,15 @@ theorem historicalDeathPreservesTheCurrentObject :
 theorem historicalDeathDoesNotMakeTheDeadCreatureCurrent :
     let out := (stepDidClause 64 context deathLookback).1
     NounPhrase.check out creatureRead = [.anaphor (.word (.type .creature)) .one 0] ∧
-      Instruction.check out (.setStatus .untapped creatureRead) =
+      Action.check out (.setStatus .untapped creatureRead) =
         [.anaphor (.word (.type .creature)) .one 0] ∧
-      Instruction.check out
+      Action.check out
         (.putCounters (.lit 1) (.printed (.named "p1p1Counter")) creatureRead .many true) =
         [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 /-- An ordinary move and a lookback from another origin cannot borrow battlefield type reach. -/
 theorem historicalEligibilityRequiresItsWrittenOrigin :
-    Instruction.check context deathLookback.action =
+    Action.check context deathLookback.action =
       [.anaphor (.word (.type .creature)) .one 0] ∧
     Condition.check context (.did ⟨.any,
       .move creatureRead (.zones [.zone .hand .bare])

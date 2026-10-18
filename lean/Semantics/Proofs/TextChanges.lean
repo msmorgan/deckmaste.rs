@@ -7,7 +7,7 @@ import Semantics.Check.Card
 
 A Text Change is a specified rewrite of an object's rules text, applied in layer 3
 [CR#612.1,613.1c]; the card is written once, its bracketed words in place as the transparent
-markers `Predicate.bracketed` and `Instruction.bracketed` (`docs/decisions/semantics-v2.md` §7,
+markers `Predicate.bracketed` and `Action.bracketed` (`docs/decisions/semantics-v2.md` §7,
 ruling 2026-10-09). The checker checks a marker's contents and nothing else, and checks a Text
 Change by kinds only: the rewritten text is not checked again.
 -/
@@ -35,14 +35,14 @@ theorem okBracketedDescription :
       (target (.and [spell, .bracketed (.not (.castFrom (.zone .hand .bare)))])) = [] := by decide
 
 /-- "[Draw a card.]": an instruction checks as its contents. -/
-theorem okBracketedInstruction : Instruction.check (DRS.ofList []) (.bracketed (draw (.lit 1))) = [] := by
+theorem okBracketedInstruction : Action.check (DRS.ofList []) (.bracketed (draw (.lit 1))) = [] := by
   decide
 
 /-- "[This spell deals 2 damage to target creature.]" read as dealt to a player: refused inside
 the brackets as outside. -/
 theorem bracketedInstructionMismatchStillRefused :
-    Instruction.check (DRS.ofList []) (.bracketed (Instruction.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)))
-      = Instruction.check (DRS.ofList []) (Instruction.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)) := by decide
+    Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)))
+      = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target creature) .any)) := by decide
 
 /-- Cleave's Text Change on a spell that prints no brackets removes nothing and still checks. -/
 theorem okRemoveBracketedWithoutBrackets :
@@ -51,13 +51,13 @@ theorem okRemoveBracketedWithoutBrackets :
 /-- "Change the text of target permanent by replacing all instances of one basic land type with
 another." [CR#612.2] -/
 theorem okReplaceLandTypeWord :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (textChange (target permanent) (replaceWord [.subtype .land])) none) = [] := by
   decide
 
 /-- "… one color word with Swamp": a replaced word of another sort than the row's is refused. -/
 theorem badReplaceWordSort :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (textChange (target permanent)
         (replaceWord [.color] none (some (.basicLandType (landType "Swamp"))))) none)
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
@@ -65,7 +65,7 @@ theorem badReplaceWordSort :
 /-- "Change the text of target spell or permanent by replacing all instances of one color word
 with another or one basic land type with another." [CR#612.2] -/
 theorem okReplaceColorOrLandTypeWord :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (textChange (target (.or [spell, permanent]))
         (replaceWord [.color, .subtype .land])) none) = [] := by decide
 

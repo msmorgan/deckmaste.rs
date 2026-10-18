@@ -108,47 +108,47 @@ theorem typeViewRefusesMovedPronounWithoutChangingItsZone :
     errors = [.ascribable] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
       after.referents.map (·.zone) = [some .exile] := by decide
 
-private def moveOuter : Instruction :=
+private def moveOuter : Action :=
   .move (.laterMention "subject" .any) .anywhere
     (some (.zone .exile .bare)) .departure none []
 
 theorem loopPreservesFreshSuccessorOfOuterReferent :
-    let loop := Instruction.doForEach (.described .each .anyPlayer) moveOuter
-    let result := stepInstruction 64 .postEvent .obj original loop
+    let loop := Action.doForEach (.described .each .anyPlayer) moveOuter
+    let result := stepAction 64 .postEvent .obj original loop
     result.2 = [] ∧ result.1.findById? 0 = none ∧
       (result.1.findById? 3).map (fun ref => (ref.ty, ref.zone)) =
         some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem nestedLoopsPreserveOuterSuccessor :
-    let inner := Instruction.doForEach (.described .each .anyPlayer) moveOuter
-    let outer := Instruction.doForEach (.described .each .anyPlayer) inner
-    let result := stepInstruction 64 .postEvent .obj original outer
+    let inner := Action.doForEach (.described .each .anyPlayer) moveOuter
+    let outer := Action.doForEach (.described .each .anyPlayer) inner
+    let result := stepAction 64 .postEvent .obj original outer
     result.2 = [] ∧ result.1.findById? 0 = none ∧
       (result.1.findById? 5).map (fun ref => (ref.ty, ref.zone)) =
         some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem kindLoopPreservesFreshSuccessorOfOuterReferent :
-    let loop := Instruction.doForEachKind .color none .color moveOuter
-    let result := stepInstruction 64 .postEvent .obj original loop
+    let loop := Action.doForEachKind .color none .color moveOuter
+    let result := stepAction 64 .postEvent .obj original loop
     result.2 = [] ∧ result.1.findById? 0 = none ∧
       (result.1.findById? 2).map (fun ref => (ref.ty, ref.zone)) =
         some ([.creature], some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
 theorem consumingActionChecksThePreMoveZone :
-    let destruction := Instruction.enact (.action "destroy")
+    let destruction := Action.enact (.action "destroy")
       (.move (.laterMention "subject" .any) .anywhere
         (some (.zone .graveyard .bare)) .departure none []) none none
-    let result := stepInstruction 64 .postEvent .obj original destruction
+    let result := stepAction 64 .postEvent .obj original destruction
     result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 theorem untapRejectsTheMovedCardByActionDomain :
-    Instruction.check (nextClause moved)
+    Action.check (nextClause moved)
       (.enact (.action "untap") (.setStatus .untapped (.pro (.word .card) .one)) none none) =
         [.deedFits] := by decide
 
 theorem distributedMovementKeepsAnOuterCardSingular :
-    let instruction := Instruction.instruct (.described .each .anyPlayer) moveOuter
-    let result := stepInstruction 64 .postEvent .obj original instruction
+    let instruction := Action.instruct (.described .each .anyPlayer) moveOuter
+    let result := stepAction 64 .postEvent .obj original instruction
     result.2 = [] ∧ (result.1.findById? 3).map (fun ref => (ref.plur, ref.zone)) =
       some (.one, some .exile) ∧ result.1.outerReferentIds = [] := by decide
 
@@ -164,9 +164,9 @@ theorem explicitSourceCarrierSuppliesItsZone :
       spell.referents.map (·.zone) = [some .stack] := by decide
 
 theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
-    let searched := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (searchLibraryFor (exactly 1) instantOrSorcery)).1
-    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause searched)
+    let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched)
       (.sequentially [revealCards it, shuffle])
     let beforeIds := (searched.referents.filter (·.librarySearchResult)).map (·.id)
     errors = [] ∧ beforeIds.length = 1 ∧
@@ -175,14 +175,14 @@ theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
         .one (nextClause after)).map (·.id) = beforeIds := by decide
 
 theorem revealedTopCardDoesNotAcquireSearchProvenance :
-    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (.sequentially [revealCards (topSlice (.lit 1)), shuffle])
     errors = [] ∧ resolveCandidates .bare .one (nextClause after) = [] := by decide
 
 theorem zoneMoveClearsSearchProvenance :
-    let searched := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (searchLibraryFor (exactly 1) instantOrSorcery)).1
-    let (after, errors) := stepInstruction 64 .postEvent .obj (nextClause searched) (move it hand)
+    let (after, errors) := stepAction 64 .postEvent .obj (nextClause searched) (move it hand)
     errors = [] ∧ after.referents.all (fun r => !r.librarySearchResult) := by decide
 
 end Semantics.Proofs.MovementScopes

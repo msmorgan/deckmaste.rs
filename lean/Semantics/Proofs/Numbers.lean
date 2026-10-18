@@ -61,13 +61,13 @@ theorem okDrawClamped :
 /-- "This spell deals X damage to target creature": you can't deal negative damage
 [CR#107.1b]. -/
 theorem okDealDamageClamped :
-    (Instruction.instruct .this (.dealDamage (.letter .x) (target creature) .any)).numberSlots
+    (Action.instruct .this (.dealDamage (.letter .x) (target creature) .any)).numberSlots
       = [(.letter .x, .clamped)] := by rfl
 
 /-- "X is the number of creatures you control": the letter X, defined by the text, is a count
 [CR#107.1b,107.3c]. -/
 theorem okDefineClamped :
-    (Primitives.Instruction.define .x (.countOf (.described .all creature))).numberSlots
+    (Primitives.Action.define .x (.countOf (.described .all creature))).numberSlots
       = [(.countOf (.described .all creature), .clamped)] := by rfl
 
 /-- The same letter defined by a static ability [CR#107.1b,107.3c]. -/
@@ -104,13 +104,13 @@ theorem okModifySetSigned :
 /-- "Your life total becomes twice your life total": doubling a life total is written as a
 set, and a set of a life total is the other half of the [CR#107.1b] exception. -/
 theorem okLifeTotalBecomesSigned :
-    (Instruction.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2)))).numberSlots
+    (Action.changeLife (.set (.arith .times (lifeTotalOf .you) (.lit 2)))).numberSlots
       = [(.arith .times (lifeTotalOf .you) (.lit 2), .signed)] := by rfl
 
 /-- "Exchange life totals" and the other numerical exchanges [CR#701.12g] set each side to the
 other's value, so both stand below zero [CR#107.1b]. -/
 theorem okExchangeValuesSigned :
-    (Instruction.exchange
+    (Action.exchange
       (.values (lifeTotalOf .you) (lifeTotalOf (target .opponent)))).numberSlots
       = [(lifeTotalOf .you, .signed), (lifeTotalOf (target .opponent), .signed)] := by rfl
 

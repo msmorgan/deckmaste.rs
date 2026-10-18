@@ -5,7 +5,7 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.DrtWitnesses
 
-private def kalitasBody : Instruction := .sequentially [
+private def kalitasBody : Action := .sequentially [
   destroy (target creature),
   .doIf (happenedThisWay
       (.move (that (.type .creature)) (.zones [battlefield])
@@ -18,11 +18,11 @@ private def kalitasBody : Instruction := .sequentially [
         (.set (toughnessOf (that (.type .creature))))) none]) none]
 
 
-theorem kalitasReadback : Instruction.check (DRS.ofList []) kalitasBody = [] := by decide
+theorem kalitasReadback : Action.check (DRS.ofList []) kalitasBody = [] := by decide
 
 
 theorem kalitasSelectsTokenThenDestroyedCreature :
-    let result := (stepInstruction 64 .postEvent .obj (DRS.ofList []) kalitasBody).1
+    let result := (stepAction 64 .postEvent .obj (DRS.ofList []) kalitasBody).1
     result.resolvedIds.contains 1 = true ∧ result.resolvedIds.contains 2 = true ∧
       (result.findById? 2).map (·.pronounResolved) = some true ∧
       (result.findById? 2).map (·.payload.orig) = some (some .token) ∧
@@ -30,10 +30,10 @@ theorem kalitasSelectsTokenThenDestroyedCreature :
       (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide
 
 private def destroyedCreature : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) (destroy (target creature))).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) (destroy (target creature))).1
 
 theorem destroyThenReadItsPower :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [destroy (target creature), gainLife (powerOf it)]) = [] := by decide
 
 theorem destroyedCreatureHistoricalPower :
@@ -44,12 +44,12 @@ theorem historicalReadDoesNotChangeCurrentZone :
       (fun r => r.zone)) = [some .graveyard] := by decide
 
 theorem historicalReadDoesNotLeakIntoFollowingAction :
-    Instruction.check destroyedCreature
+    Action.check destroyedCreature
       (.sequentially [gainLife (powerOf (that (.type .creature))),
         .putCounters (.lit 1) (.printed p1p1Counter) (that (.type .creature)) .one true]) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
-private def brokenVisageBody : Instruction := .sequentially [
+private def brokenVisageBody : Action := .sequentially [
   destroy (target (.and [creature, .not artifact, attacking])),
   create (.lit 1)
     { characteristics :=
@@ -58,10 +58,10 @@ private def brokenVisageBody : Instruction := .sequentially [
     (.set (toughnessOf (that (.type .creature))))) none]
 
 theorem brokenVisageReadback :
-    Instruction.check (DRS.ofList []) brokenVisageBody = [] := by decide
+    Action.check (DRS.ofList []) brokenVisageBody = [] := by decide
 
 theorem brokenVisageSelectsTokenThenDestroyedCreature :
-    let result := (stepInstruction 64 .postEvent .obj (DRS.ofList []) brokenVisageBody).1
+    let result := (stepAction 64 .postEvent .obj (DRS.ofList []) brokenVisageBody).1
     result.resolvedIds = [1, 2] ∧
       (result.findById? 2).map (·.pronounResolved) = some true ∧
       (result.findById? 1).map (·.zone) = some (some .graveyard) := by decide

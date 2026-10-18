@@ -443,7 +443,7 @@ def GramRole.rank : GramRole → Nat
   | .obj   => 1
   | .other => 2
 
-/-- Checker-internal performer metadata for `Instruction.instruct` handoffs. -/
+/-- Checker-internal performer metadata for `Action.instruct` handoffs. -/
 structure ActorShape where
   kind         : Kind
   isYou        : Bool
@@ -471,7 +471,7 @@ inductive Payload where
   | pile (zone : Option Zone) (size : Option Nat) (face : Option PileFace)
   | join (l r : Payload)
   /-- Checker-private handoff frame: the facts of the player or permanent performing the
-  enclosing `Instruction.instruct` body. It is never a discourse referent. -/
+  enclosing `Action.instruct` body. It is never a discourse referent. -/
   | actor (shape : ActorShape)
   deriving DecidableEq, Repr
 
@@ -586,7 +586,7 @@ structure SelectionEvidence where
   scope : Nat
   deriving DecidableEq, Repr
 
-/-- Explicit Reference Scope frame for `Instruction.ownScope` (`semantics-v3.md` §1.2, §1.4). -/
+/-- Explicit Reference Scope frame for `Action.ownScope` (`semantics-v3.md` §1.2, §1.4). -/
 structure OwnScopeFrame where
   preEntryIds   : List ReferentId
   maskedIds     : List ReferentId
@@ -1353,7 +1353,7 @@ def leaveRelative (before after : DRS) : DRS :=
     referents := hosts ++ before.referents
     nextId := max before.nextId after.nextId }
 
-/-- Open a keyword action body's own Reference Scope (`Instruction.ownScope`, `semantics-v3.md` §1.4):
+/-- Open a keyword action body's own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4):
 pushes an `OwnScopeFrame` masking all pre-entry referents except the active performer. -/
 def enterOwnScope (drs : DRS) : DRS :=
   let preIds := drs.referents.map (·.id)
@@ -1416,7 +1416,7 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
         pendingRoles  := addedPending ++ before.pendingRoles
         resolvedIds   := before.resolvedIds }
 
-/-- Close an own Reference Scope (`Instruction.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
+/-- Close an own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
 drops definition-internal scratch referents (`.part` and `.player _`), and stamps surviving
 referents introduced during `topFrame` with `clause := topFrame.callerClause` and `role := .obj`. -/
 def leaveOwnScope (drs : DRS) : DRS :=

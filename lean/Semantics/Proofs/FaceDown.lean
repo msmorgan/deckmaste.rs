@@ -17,25 +17,25 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.FaceDown
 
 /-- "Exile target creature face down." -/
-theorem okExileFaceDown : Instruction.check (DRS.ofList []) (exileFaceDown (target creature)) = [] := by decide
+theorem okExileFaceDown : Action.check (DRS.ofList []) (exileFaceDown (target creature)) = [] := by decide
 
 /-- "Turn target creature face down. It's a 2/2 creature." -/
 theorem okTurnFaceDown :
-    Instruction.check (DRS.ofList []) (.turnFaceDown (target creature) faceDownCreature) = [] := by decide
+    Action.check (DRS.ofList []) (.turnFaceDown (target creature) faceDownCreature) = [] := by decide
 
 /-- Only an object is turned face down [CR#708.2]. -/
 theorem badTurnAPlayerFaceDown :
-    Instruction.check (DRS.ofList []) (.turnFaceDown (target .opponent) faceDownCreature) =
+    Action.check (DRS.ofList []) (.turnFaceDown (target .opponent) faceDownCreature) =
       [.kindMismatch .object .player] := by decide
 
 /-- An entry rider into exile is not of the kind exile allows. -/
 theorem badEntryRiderIntoExile :
-    Instruction.check (DRS.ofList []) (.move (target creature) .anywhere (some exileZone) .arrival none [.entry (.entersAs .tapped)]) =
+    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some exileZone) .arrival none [.entry (.entersAs .tapped)]) =
       [.riderKind .placement .entry] := by decide
 
 /-- A placement onto the battlefield is not of the kind the battlefield allows. -/
 theorem badPlacementOntoBattlefield :
-    Instruction.check (DRS.ofList []) (.move (target creature) .anywhere (some battlefield) .arrival none
+    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some battlefield) .arrival none
       [.placement (.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
 
 /-- A special action whose instruction reads an anaphor with no antecedent is refused. -/

@@ -2,15 +2,15 @@ import Semantics.Check.AbilityRules
 
 namespace Semantics
 
-private def optionalCreature : Instruction :=
+private def optionalCreature : Action :=
   .withContinuation .optional
     (.choose none (.described (.a .unmarked) (.hasType .creature)) .openly none) none none
 
 private def afterOptionalCreature : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) optionalCreature).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) optionalCreature).1
 
 private theorem optionalChoiceKeepsEvidenceWithoutTheCreature :
-    Instruction.check (DRS.ofList []) optionalCreature = [] ∧
+    Action.check (DRS.ofList []) optionalCreature = [] ∧
       Predicate.checkAt .object afterOptionalCreature .notChosen = [] ∧
       NounPhrase.check afterOptionalCreature (.pro .bare .one) = [.anaphor .bare .one 0] := by decide
 
@@ -18,16 +18,16 @@ private def fiveCards : DRS :=
   (stepNounPhrase 64 (DRS.ofList []) .obj true
     (.slice .top (.lit 5) (.library .bare))).1
 
-private def optionalSubset : Instruction :=
+private def optionalSubset : Action :=
   .withContinuation .optional
     (.ownScope none (.expose .reveal (.cards (.inCaller
       (.someOf (.counted (.range (some 1) (some 1))) none (.pro .bare .many)))))) none none
 
 private def afterOptionalSubset : DRS :=
-  (stepInstruction 64 .postEvent .obj fiveCards optionalSubset).1
+  (stepAction 64 .postEvent .obj fiveCards optionalSubset).1
 
 private theorem optionalSubsetKeepsItsGroupWithoutTheSelectedCard :
-    Instruction.check fiveCards optionalSubset = [] ∧
+    Action.check fiveCards optionalSubset = [] ∧
       NounPhrase.check afterOptionalSubset (.theRest .object .many) = [] ∧
       countParts .object afterOptionalSubset = 0 ∧
       countOnes .object afterOptionalSubset = 0 ∧
@@ -41,7 +41,7 @@ private theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
     let context := fiveCards.recordSelection .object (some 999) false
     NounPhrase.check context (.theRest .object .many) = [.theRestFits .object] ∧
       NounPhrase.check
-        (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+        (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional
             (.expose .reveal (.cards (.someOf (.counted (.range (some 1) (some 1))) none
               (.slice .top (.lit 5) (.library .bare)))) ) none none)).1
@@ -76,24 +76,24 @@ private theorem possibleChoiceHistoryDoesNotExportLoopReferences :
          .spell none (.dealDamage (.lit 1)
            (.described .each (.and [.hasType .creature, .notChosen])) .noncombatOnly)] =
         [.choiceInScope .object] ∧
-      let out := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+      let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
         (.doForEach (.described .each .anyPlayer) optionalCreature)).1
       out.choiceWasPossible .object = true ∧ countParts .object out = 0 ∧
         countOnes .object out = 0 ∧ countManys .object out = 0 := by decide
 
-private def loopTarget (predicate : Predicate) : Instruction :=
+private def loopTarget (predicate : Predicate) : Action :=
   .choose none (.described (.target (.range (some 1) (some 1))) predicate) .openly none
 
-private def targetForEachPlayer : Instruction :=
+private def targetForEachPlayer : Action :=
   .doForEach (.described .each .anyPlayer)
     (loopTarget (.and [.inZone (.zone .battlefield .bare),
       .hasPossessor .controller (.pro (.word .player) .one)]))
 
 private def afterTargetLoop : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) targetForEachPlayer).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) targetForEachPlayer).1
 
 private theorem targetLoopPublishesAFreshPluralResult :
-    Instruction.check (DRS.ofList []) targetForEachPlayer = [] ∧
+    Action.check (DRS.ofList []) targetForEachPlayer = [] ∧
       afterTargetLoop.referents.map (·.id) = [3, 0] ∧
       countOnes .object afterTargetLoop = 0 ∧
       countManys .object afterTargetLoop = 1 ∧
@@ -105,15 +105,15 @@ private theorem targetLoopPublishesAFreshPluralResult :
       NounPhrase.check afterTargetLoop (.pro .bare .one) = [.anaphor .bare .one 0] := by decide
 
 private theorem playersCanSacrificeTheCollectedTargets :
-    Instruction.check (DRS.ofList []) (.sequentially [targetForEachPlayer,
+    Action.check (DRS.ofList []) (.sequentially [targetForEachPlayer,
       .instruct (.pro (.word .player) .many)
         (.enact (.action "sacrifice")
           (.move (.pro (.word .permanent) .many)
             (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare))
             .departure none []) none none)]) = [] := by decide
 
-private def afterPlayerLoop (body : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+private def afterPlayerLoop (body : Action) : DRS :=
+  (stepAction 64 .postEvent .obj (DRS.ofList [])
     (.doForEach (.described .each .anyPlayer) body)).1
 
 private theorem ordinaryLocalsAndOptionalTargetsRemainClosed :
@@ -148,7 +148,7 @@ private theorem preexistingTargetsAreNotReaggregated :
       id := 10, det := .target, plur := .one,
       payload := .object [.artifact] (some .battlefield) none none none none,
       announcedTargetResult := true }]
-    let out := (stepInstruction 64 .postEvent .obj outer
+    let out := (stepAction 64 .postEvent .obj outer
       (.doForEach (.described .each .anyPlayer) (.draw (.lit 1)))).1
     (out.findById? 10).map (·.plur) = some .one ∧
       countManys .object out = 0 ∧ countOnes .object out = 1 := by decide
@@ -213,7 +213,7 @@ private theorem postposedTollSeesItsAttachmentPatient :
           (.attack none) { rider := .noRider }) = [.concreteCost] := by decide
 
 private theorem linkedProhibitionStartsANewClauseAfterItsAction :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doAndForbid
         (.enact (.action "destroy")
           (.move (.described .all (.hasType .creature))
@@ -254,7 +254,7 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
     let group := DRS.ofList [{
       det := .all, plur := .many,
       payload := .object [.creature] (some .battlefield) none none none none }]
-    Instruction.check group (.instruct .you (.draw .groupSize)) = [] ∧
+    Action.check group (.instruct .you (.draw .groupSize)) = [] ∧
       StaticSpec.check group
         (.gatedBy tollCost (.actor (.asType .creature .this none))
           (.attack none) { rider := .noRider }) = [.groupSizeInScope 0] ∧
@@ -272,37 +272,37 @@ private theorem eachModificationHasAMemberViewAndAPluralResult :
       NounPhrase.check (nextClause out) (.pro (.word (.type .creature)) .many) = [] ∧
       NounPhrase.check (nextClause out) (.pro (.word (.type .creature)) .one) =
         [.anaphor (.word (.type .creature)) .one 0] ∧
-      Instruction.check (DRS.ofList []) (.sequentially [
+      Action.check (DRS.ofList []) (.sequentially [
         .establish (.ptModification subject (.up (.letter .x)) (.up (.letter .x))) none,
         .establish (.letterDefinition .x (.distinctCount .color
           (.pro (.word (.type .creature)) .many))) none]) = [] := by decide
 
-private def repeatedManaPayment : Instruction :=
+private def repeatedManaPayment : Action :=
   .pay (.mana [.simple (.generic 2), .simple (.specific (.of .black))]) .anyNumberOfTimes .paid none none
 
 private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
-    let offered := Instruction.withContinuation .optional repeatedManaPayment none none
-    let out := (stepInstruction 64 .postEvent .obj (DRS.ofList []) offered).1
-    Instruction.check (DRS.ofList []) offered = [] ∧
+    let offered := Action.withContinuation .optional repeatedManaPayment none none
+    let out := (stepAction 64 .postEvent .obj (DRS.ofList []) offered).1
+    Action.check (DRS.ofList []) offered = [] ∧
       countOutcomes .repeatCount out = 1 ∧ countOnes .object out = 0 ∧
       Amount.check out .thatMuch = [] ∧
-      Instruction.check (DRS.ofList [])
+      Action.check (DRS.ofList [])
         (.triggerReflexively offered
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
             (.asType .creature .this none) .many true)) = [] := by decide
 
 private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
     let mana := Cost.mana [.simple (.generic 1)]
-    let once := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let once := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (.pay mana .once .paid none none)).1
-    let unpaid := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let unpaid := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (.pay mana .anyNumberOfTimes .unpaid none none)).1
-    let prospective := (stepInstruction 64 .preEvent .obj (DRS.ofList []) repeatedManaPayment).1
+    let prospective := (stepAction 64 .preEvent .obj (DRS.ofList []) repeatedManaPayment).1
     Amount.check once .thatMuch = [.quantOutcomeInScope 0] ∧
       Amount.check unpaid .thatMuch = [.quantOutcomeInScope 0] ∧
       Amount.check prospective .thatMuch = [.quantOutcomeInScope 0] ∧
       countOutcomes .repeatCount
-        (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+        (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.lit 1)))) none none)).1 = 0 := by decide
 
 private theorem oneDiceBatchHasOneNumericResultRead :
@@ -326,9 +326,9 @@ private theorem numericDiceResultRequiresOneUnambiguousRoll :
 
 private theorem performedReplacementResultTakesPriorityOverItsDiceCount :
     let prospective := DRS.ofList [outcomeB .diceRolled]
-    let performed := (stepInstruction 64 .postEvent .obj prospective
+    let performed := (stepAction 64 .postEvent .obj prospective
       (.rollDice .thatMuch .thoseDice .many .anyResult)).1
-    Instruction.check prospective (.rollDice .thatMuch .thoseDice .many .anyResult) = [] ∧
+    Action.check prospective (.rollDice .thatMuch .thoseDice .many .anyResult) = [] ∧
       countOutcomes .diceRolled performed = 1 ∧
       countOutcomes .rollResult performed = 1 ∧
       Amount.check performed (.theOutcome .rollResult) = [] ∧

@@ -40,7 +40,7 @@ theorem absentSourceCannotSupplyReference :
 theorem occurredDamageComposesSourceThenBodyForEveryContext
     (fuel : Nat) (drs : DRS) (source patient : NounPhrase) (kind : DamageKind) :
     let subjectContext := (stepSubjectBeforeWith (stepOps fuel) drs (.actor source)).1
-    let bodyContext := (stepInstruction fuel .postEvent .obj
+    let bodyContext := (stepAction fuel .postEvent .obj
       { subjectContext with actionPattern := true } (.dealDamage .anyAmount patient kind)).1
     (stepGameEvent (fuel + 1) drs
       (.does (.actor source) (.dealDamage .anyAmount patient kind))).1 =

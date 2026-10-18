@@ -5,12 +5,12 @@ open Semantics Semantics.Macros
 namespace Semantics.Proofs.ControllerSacrifice
 
 private def subject : NounPhrase := target (.and [artifact, creature])
-private def instruction : Instruction := controllerSacrifices subject
+private def instruction : Action := controllerSacrifices subject
 private def afterSacrifice : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) instruction).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) instruction).1
 private def nestedSubject : NounPhrase := target (.and [creature,
   .hasPossessor .controller (controllerOf (target artifact))])
-private def nestedInstruction : Instruction := controllerSacrifices nestedSubject
+private def nestedInstruction : Action := controllerSacrifices nestedSubject
 
 -- Parameter identity selects the target before its zone change.
 theorem expansionIntroducesTheTargetOnce :
@@ -22,7 +22,7 @@ theorem targetMultiplicity :
     afterSacrifice.referents.countP (·.det == .target) = 1 := by decide
 
 theorem instructionIsAdmitted :
-    Instruction.check (DRS.ofList []) instruction = [] := by decide
+    Action.check (DRS.ofList []) instruction = [] := by decide
 
 theorem laterCardRetainsBothTypes :
     (firstReach (.word .card) .one afterSacrifice).map (·.ty) =
@@ -39,7 +39,7 @@ theorem laterCardReadIsAdmitted :
     NounPhrase.checkAt (some .object) afterSacrifice (that .card) = [] := by decide
 
 theorem nestedDescriptionIsAdmitted :
-    Instruction.check (DRS.ofList []) nestedInstruction = [] := by decide
+    Action.check (DRS.ofList []) nestedInstruction = [] := by decide
 
 theorem nestedDescriptionPreservesEveryOuterContextBeforeSacrifice
     (fuel : Nat) (drs : DRS) :
@@ -53,12 +53,12 @@ theorem nestedSubjectPublishesExactlyItsFourParticipants :
         (1, .player, none, []), (0, .object, some .battlefield, [.artifact])] := by decide
 
 theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
-    (stepInstruction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1.referents.countP
+    (stepAction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1.referents.countP
       (·.det == .target) = 2 := by decide
 
 -- P08: replacing the explicit parameter read with an ordinary pronoun leaves a true tie.
 theorem wholeOwnedScopeWouldBeAmbiguous :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct (controllerOf nestedSubject) (sacrifice it)) =
         [.anaphor .bare .one 2] := by decide
 
@@ -71,11 +71,11 @@ theorem formerPermanentReadIsAdmitted :
       (theVerbed (.action "sacrifice") .one (some .permanent) .thisWay) = [] := by decide
 
 theorem thatPlayerCanTakeTheFollowingAction :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [instruction, instruct (that .player) (draw (.lit 1))]) = [] := by decide
 
 private def nestedAfter : DRS :=
-  (stepInstruction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1
 
 theorem nestedDescriptionMovesOnlyItsOwnReferentWithoutOuterContext :
     (firstReach (.word (.type .artifact)) .one nestedAfter).map (·.zone) = some (some .battlefield) ∧
@@ -91,7 +91,7 @@ theorem compositionPassesTheAuthoringBoundary :
     authoringWitness.authoring.onlyMacros = true := by decide
 
 theorem controlGrantRecordsItsPatientIdentity :
-    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (gainControl (target creature) (some untilEndOfTurn))
     let refs := resolveCandidates (.verbed (.core .gainControl) none .attributive)
       .one (nextClause after)
@@ -104,10 +104,10 @@ private def existingTarget : Referent :=
 private def existingTargetContext : DRS := DRS.ofList [existingTarget]
 
 theorem existingReferenceIsAdmitted :
-    Instruction.check existingTargetContext (controllerSacrifices it) = [] := by decide
+    Action.check existingTargetContext (controllerSacrifices it) = [] := by decide
 
 theorem existingReferenceIsNotIntroducedAgain :
-    let after := (stepInstruction 64 .postEvent .obj existingTargetContext
+    let after := (stepAction 64 .postEvent .obj existingTargetContext
       (controllerSacrifices it)).1
     after.visibleReferents.countP (fun ref => ref.kind == .object) = 1 ∧
       after.visibleReferents.countP (fun ref => ref.det == .target) = 1 ∧
@@ -121,7 +121,7 @@ theorem reflexiveFollowUpRemainsAvailable :
 theorem riderReadsTheStampedPatient :
     let patient := theVerbed (.action "sacrifice") .one (some .card) .thisWay
     let (after, ids, errors) := stepNounPhrase 64 (nextClause afterSacrifice) .obj true patient
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.withContinuation .required instruction (some (.expose .reveal (.cards patient))) none) = [] ∧
       errors = [] ∧ ids = [3] ∧
       (ids.filterMap after.findById?).map (fun ref => (ref.zone, ref.ty)) =
@@ -134,7 +134,7 @@ theorem controllerSacrificesExpansionForEverySubject (chosen : NounPhrase) :
         (sacrifice (.laterMention "controllerSacrifices.subject" chosen)) := by rfl
 
 theorem repeatedControllerSacrificesKeepDistinctPatients :
-    let (after, errors) := stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
       (.sequentially [instruction, instruction])
     errors = [] ∧
       (after.referents.filter (fun ref => ref.kind == .object)).map
@@ -142,7 +142,7 @@ theorem repeatedControllerSacrificesKeepDistinctPatients :
         [(7, some .graveyard, []), (3, some .graveyard, [])] := by decide
 
 theorem duplicatingThePatientWouldIntroduceTwoTargets :
-    (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    (stepAction 64 .postEvent .obj (DRS.ofList [])
       (instruct (controllerOf subject) (sacrifice subject))).1.referents.countP
         (·.det == .target) = 2 := by decide
 
@@ -162,7 +162,7 @@ theorem outerArtifactDoesNotStealThePatient :
     let outer : DRS := DRS.ofList
       [{ det := .target, plur := .one,
          payload := .object [.artifact] (some .battlefield) none none (some 1) none }]
-    let (after, errors) := stepInstruction 64 .postEvent .obj outer instruction
+    let (after, errors) := stepAction 64 .postEvent .obj outer instruction
     errors = [] ∧ after.findById? 0 = outer.findById? 0 ∧
       (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 4 := by decide
 
@@ -303,32 +303,32 @@ private def selectedContext (drs : DRS) : DRS :=
   { named with characteristicRead := drs.characteristicRead }.push
     { det := .the, plur := .one, payload := .player false } .subj true
 
-private def sacrificeEnactState (fuel : Nat) (drs : DRS) (body : Instruction) : DRS :=
+private def sacrificeEnactState (fuel : Nat) (drs : DRS) (body : Action) : DRS :=
  let priorMentions := drs.pendingRoles.length
- let (after, _) := stepInstruction fuel .postEvent .obj drs body
+ let (after, _) := stepAction fuel .postEvent .obj drs body
  let mentions := if after.currentClause == drs.currentClause then
     after.pendingRoles.take (after.pendingRoles.length - priorMentions)
     else after.pendingRoles
  let actedIds := mentions.filterMap fun (id, role) => if role == .obj then some id else none
  applyInPlaceStamp after actedIds (some (.action "sacrifice"))
-private theorem sacrificeEnactStep (fuel : Nat) (drs : DRS) (body : Instruction) :
- (stepInstruction (fuel + 1) .postEvent .obj drs (.enact (.action "sacrifice") body none none)).1 =
+private theorem sacrificeEnactStep (fuel : Nat) (drs : DRS) (body : Action) :
+ (stepAction (fuel + 1) .postEvent .obj drs (.enact (.action "sacrifice") body none none)).1 =
  sacrificeEnactState fuel drs body := by rfl
 
-private theorem sacrificeEnactProjected (fuel : Nat) (drs : DRS) (body : Instruction) :
+private theorem sacrificeEnactProjected (fuel : Nat) (drs : DRS) (body : Action) :
  sacrificeEnactState fuel drs body =
- let after := (stepInstruction fuel .postEvent .obj drs body).1
+ let after := (stepAction fuel .postEvent .obj drs body).1
  let mentions := if after.currentClause == drs.currentClause then
    after.pendingRoles.take (after.pendingRoles.length - drs.pendingRoles.length)
     else after.pendingRoles
  let actedIds := mentions.filterMap fun (id, role) => if role == .obj then some id else none
  applyInPlaceStamp after actedIds (some (.action "sacrifice")) := by
  unfold sacrificeEnactState
- cases stepInstruction fuel .postEvent .obj drs body
+ cases stepAction fuel .postEvent .obj drs body
  rfl
-private theorem ownScopeStep (fuel : Nat) (drs : DRS) (body : Instruction) :
- (stepInstruction (fuel + 1) .postEvent .obj drs (.ownScope (some (.action "sacrifice")) body)).1 =
- leaveOwnScope (stepInstruction fuel .postEvent .obj (enterOwnScope drs) body).1 := by rfl
+private theorem ownScopeStep (fuel : Nat) (drs : DRS) (body : Action) :
+ (stepAction (fuel + 1) .postEvent .obj drs (.ownScope (some (.action "sacrifice")) body)).1 =
+ leaveOwnScope (stepAction fuel .postEvent .obj (enterOwnScope drs) body).1 := by rfl
 private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
  let tracked : DRS := { referents := rs, nextId := fresh, outerReferentIds := [rs.map (·.id)]}
  let source := selectedContext tracked
@@ -340,10 +340,10 @@ private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
 private def moveArg : NounPhrase :=
  .inCaller (.firstMention "sacrifice.subject"
    (.laterMention "controllerSacrifices.subject" nestedSubject))
-private def moveBody : Instruction :=
+private def moveBody : Action :=
  .move moveArg (.zones [.zone .battlefield .bare]) (some graveyard) .departure none []
 private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPattern = false) :
- (stepInstruction (fuel + 1) .postEvent .obj drs moveBody).1 =
+ (stepAction (fuel + 1) .postEvent .obj drs moveBody).1 =
  let selected := stepNounPhrase fuel drs .obj true moveArg
  applyZoneMove { selected.1 with historicalMoveFrom := drs.historicalMoveFrom }
    selected.2.1 (some (.core .put)) (some .graveyard) := by
@@ -672,11 +672,11 @@ private theorem actualTailReduction (fuel fresh : Nat) (rs : List Referent)
  (noNames : ∀ r ∈ rs, r.idents.elem "controllerSacrifices.subject" = false)
  (actorLinks : ∀ r ∈ rs, ∀ shape, r.payload = .actor shape →
       ∀ value ∈ shape.refIds, value ≠ fresh + 2) :
- (dropActorFrame (stepInstruction (fuel + 10) .postEvent .obj (prepared fresh rs)
+ (dropActorFrame (stepAction (fuel + 10) .postEvent .obj (prepared fresh rs)
    (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents =
  (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
    [fresh + 5] (some (.action "sacrifice"))))).referents := by
- change (dropActorFrame (stepInstruction (fuel + 10) .postEvent .obj (prepared fresh rs)
+ change (dropActorFrame (stepAction (fuel + 10) .postEvent .obj (prepared fresh rs)
    (.ownScope (some (.action "sacrifice")) (.enact (.action "sacrifice") moveBody none none))).1).referents =
      (dropActorFrame (leaveOwnScope (applyInPlaceStamp (movedOut fresh rs)
        [fresh + 5] (some (.action "sacrifice"))))).referents
@@ -854,7 +854,7 @@ private theorem actualFullTail (fuel fresh : Nat) (rs : List Referent)
     (noNames : ∀ r ∈ rs, r.idents.elem "controllerSacrifices.subject" = false)
  (actorLinks : ∀ r ∈ rs, ∀ shape, r.payload = .actor shape →
       ∀ value ∈ shape.refIds, value ≠ fresh + 2) :
- (dropActorFrame (stepInstruction (fuel + 10) .postEvent .obj (prepared fresh rs)
+ (dropActorFrame (stepAction (fuel + 10) .postEvent .obj (prepared fresh rs)
    (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents =
  afterPrefix fresh++rs := by
  rw [actualTailReduction fuel fresh rs older noNames actorLinks]
@@ -869,7 +869,7 @@ private theorem sourceCanonical (fuel : Nat) (drs : DRS) :
       selectedContext drs := by rfl
 
 private def controllerInstructState (fuel : Nat) (drs : DRS)
-    (patient : NounPhrase) (body : Instruction) : DRS :=
+    (patient : NounPhrase) (body : Action) : DRS :=
   let subject := controllerOf patient
   let tracked := { drs with
     outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
@@ -888,13 +888,13 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
     refIds := ids }
   let framed := selected.push
     { det := .the, plur := .one, payload := .actor shape } .other false
-  let (after, _) := stepInstruction fuel .postEvent .obj framed body
+  let (after, _) := stepAction fuel .postEvent .obj framed body
   let out := dropActorFrame after
   { out with outerReferentIds := out.outerReferentIds.drop 1 }
 
 private theorem controllerInstructStep (fuel : Nat) (drs : DRS)
-    (patient : NounPhrase) (body : Instruction) :
-    (stepInstruction (fuel + 1) .postEvent .obj drs
+    (patient : NounPhrase) (body : Action) :
+    (stepAction (fuel + 1) .postEvent .obj drs
       (.instruct (controllerOf patient) body)).1 =
       controllerInstructState fuel drs patient body := by rfl
 
@@ -923,12 +923,12 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
       refIds := [drs.nextId + 3] }
     let prepared := source.push
       { det := .the, plur := .one, payload := .actor frame } .other false
-    (stepInstruction (fuel + 11) .postEvent .obj drs
+    (stepAction (fuel + 11) .postEvent .obj drs
       (controllerSacrifices nestedSubject)).1.referents =
-      (dropActorFrame (stepInstruction (fuel + 10) .postEvent .obj prepared
+      (dropActorFrame (stepAction (fuel + 10) .postEvent .obj prepared
         (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents := by
   dsimp only
-  change (stepInstruction (fuel + 11) .postEvent .obj drs
+  change (stepAction (fuel + 11) .postEvent .obj drs
     (.instruct (controllerOf (.firstMention "controllerSacrifices.subject" nestedSubject))
       (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject)))).1.referents = _
   rw [show fuel + 11 = (fuel + 10) + 1 by omega, controllerInstructStep]
@@ -945,12 +945,12 @@ theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : R
     (nameFresh : ∀ ref ∈ rs, ref.idents.elem "controllerSacrifices.subject" = false)
     (actorLinks : ∀ ref ∈ rs, ∀ shape, ref.payload = .actor shape →
       ∀ linked ∈ shape.refIds, linked ≠ fresh + 2) :
-    (stepInstruction 64 .postEvent .obj { referents := rs, nextId := fresh }
+    (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
       nestedInstruction).1.referents = afterPrefix fresh ++ rs := by
-  change (stepInstruction 64 .postEvent .obj { referents := rs, nextId := fresh }
+  change (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
     (controllerSacrifices nestedSubject)).1.referents = _
   rw [controllerSourceAndBody 53]
-  change (dropActorFrame (stepInstruction 63 .postEvent .obj (prepared fresh rs)
+  change (dropActorFrame (stepAction 63 .postEvent .obj (prepared fresh rs)
     (sacrifice (.laterMention "controllerSacrifices.subject" nestedSubject))).1).referents = _
   exact actualFullTail 53 fresh rs older nameFresh actorLinks
 

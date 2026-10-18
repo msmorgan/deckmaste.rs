@@ -109,7 +109,7 @@ def StaticSpec.printedAfterKeywords (s : StaticSpec) (fuel : Nat := 64) : List K
   | _, _ => []
 termination_by structural fuel
 
-def Instruction.printedAfterKeywords (i : Instruction) (fuel : Nat := 64) : List KeywordLabel :=
+def Action.printedAfterKeywords (i : Action) (fuel : Nat := 64) : List KeywordLabel :=
   match fuel, i with
   | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .instruct _ b
   | n + 1, .limited b _ => b.printedAfterKeywords n
@@ -275,7 +275,7 @@ def jointDRS (qs : List QualitySort) (cost : Option ManaCost) : DRS :=
 def Ability.introducedChoices (drs : DRS) (a : Ability) : List Referent :=
   let out := match a with
     | .activated _ i _ _ _ _ | .triggered _ _ _ _ _ _ _ i | .spell _ i =>
-      (stepInstruction 64 .postEvent .obj drs i).1
+      (stepAction 64 .postEvent .obj drs i).1
     | .static se => (stepStaticSpec 64 drs se).1
     | _ => drs
   out.referents.filter (fun r => r.id ≥ drs.nextId)

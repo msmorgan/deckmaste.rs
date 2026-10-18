@@ -30,14 +30,14 @@ def onPermanent : Condition := .matches .this permanentType
 def onInstantOrSorcery : Condition := .matches .this instantOrSorcery
 
 /-- "if its gift cost was paid, the chosen player <effect>" -/
-def handed (effect : Instruction) : Instruction :=
+def handed (effect : Action) : Action :=
   doIf (costWasPaid giftCost none .this) (instruct (chosenAsPaid (.named "gift") .this) effect)
 
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
 
 /-- Gift's term with its effect, as the declaration builds it [CR#702.174a,702.174b]. -/
-def gift (effect : Instruction) : Ability :=
+def gift (effect : Action) : Ability :=
   .keyword (.named "gift") []
     [ costPart,
       triggeredIf (Declared.enters thisPermanent none) onPermanent (handed effect),

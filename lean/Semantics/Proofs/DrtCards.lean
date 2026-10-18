@@ -4,13 +4,13 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.DrtCards
 
-private def feralContest : Instruction := .sequentially [
+private def feralContest : Action := .sequentially [
   .putCounters (.lit 1) (.printed p1p1Counter) (target creatureYouControl) .one true,
   .establish
     (.must (.actor (target (.and [creature, .other]))) (.block it) { rider := .noRider })
     (some thisTurn)]
 
-private def monstrousStep : Instruction := .sequentially [
+private def monstrousStep : Action := .sequentially [
   get (target creature) (.up (.lit 7)) (.up (.lit 7)) (some untilEndOfTurn),
   .establish
     (.must (.actor (.described (.target (upTo 1)) (.and [creature, .other])))
@@ -18,33 +18,33 @@ private def monstrousStep : Instruction := .sequentially [
 
 private def cloudAttach : Ability :=
   when (.does .any (putOntoBattlefield thisCreature))
-    (Primitives.Instruction.attachTo
+    (Primitives.Action.attachTo
       (.described (.target (upTo 1))
         (.and [.hasSubtype (artifactType "Equipment"), .hasPossessor .controller .you])) it)
 
 theorem feralContestUsesOrdinaryPronoun :
-    Instruction.check (DRS.ofList []) feralContest = [] := by decide
+    Action.check (DRS.ofList []) feralContest = [] := by decide
 
 theorem monstrousStepUsesOrdinaryPronoun :
-    Instruction.check (DRS.ofList []) monstrousStep = [] := by decide
+    Action.check (DRS.ofList []) monstrousStep = [] := by decide
 
 theorem cloudUsesOrdinaryPronoun :
     Ability.check (DRS.ofList []) cloudAttach = [] := by decide
 
 
 theorem feralContestBlocksFirstCreature :
-    (stepInstruction 64 .postEvent .obj (DRS.ofList []) feralContest).1.resolvedIds = [1] := by
+    (stepAction 64 .postEvent .obj (DRS.ofList []) feralContest).1.resolvedIds = [1] := by
   decide
 
 theorem monstrousStepBlocksFirstCreature :
-    (stepInstruction 64 .postEvent .obj (DRS.ofList []) monstrousStep).1.resolvedIds = [0] := by
+    (stepAction 64 .postEvent .obj (DRS.ofList []) monstrousStep).1.resolvedIds = [0] := by
   decide
 
 theorem airbendSingleTargetUsesPerCardLoop :
-    Instruction.check (DRS.ofList []) (Declared.airbend (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (Declared.airbend (target creature)) = [] := by decide
 
 theorem airbendMultipleTargetsUsePerCardLoop :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (Declared.airbend (.described (.target (upTo 2)) creature)) = [] := by decide
 
 theorem selfCounterProhibitionIsValidInstantText :
@@ -78,7 +78,7 @@ theorem anyDieResultRejectsAmbiguousBatches :
       (.anyResultIs .atLeast (.lit 10)) = [.outcomeInScope .rollResult 2] := by decide
 
 theorem distributedLifeLossKeepsOneScalarLetter :
-    let out := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let out := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (instruct (each .opponent) (loseLife (.letter .x)))).1
     countLetter .x out = 1 ∧ anyOpenLetter .x out = true := by decide
 
@@ -109,18 +109,18 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
       (initial.findById? 17).map (·.payload) := by decide
 
 theorem distributedDamagePublishesItsRecipientGroup :
-    let out := (stepInstruction 12 .postEvent .obj (DRS.ofList [])
+    let out := (stepAction 12 .postEvent .obj (DRS.ofList [])
       (.dealDamage (.lit 1) (each .opponent) .noncombatOnly)).1
     (resolveCandidates (.word .player) .many (nextClause out)).map (·.id) = [0] := by decide
 
 theorem conditionalModificationKeepsItsAnnouncedTarget :
-    let out := stepInstruction 12 .postEvent .obj (DRS.ofList [])
+    let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doOnlyIf (get (target creature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
 
 theorem conditionalModificationDoesNotExportAnIndefiniteSubject :
-    let out := stepInstruction 12 .postEvent .obj (DRS.ofList [])
+    let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doOnlyIf (get (a creature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).isEmpty = true := by decide
@@ -141,17 +141,17 @@ theorem prohibitionsStillRefuseMissingCallerParameters :
       [.anaphor (.word .spell) .one 0] := by decide
 
 theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
-    let dead := (stepInstruction 16 .postEvent .obj (DRS.ofList [])
+    let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
       (destroy (allOf creature))).1
-    let out := stepInstruction 16 .postEvent .obj (nextClause dead)
+    let out := stepAction 16 .postEvent .obj (nextClause dead)
       (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw (.lit 1))))
     out.2 = [] ∧ (out.1.visibleReferents.filter (fun ref => ref.kind == .object)).all
       (fun ref => ref.zone == some .graveyard) = true := by decide +kernel
 
 theorem historicalIterationDoesNotPermitTappingDepartedPermanents :
-    let dead := (stepInstruction 16 .postEvent .obj (DRS.ofList [])
+    let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
       (destroy (allOf creature))).1
-    (stepInstruction 16 .postEvent .obj (nextClause dead)
+    (stepAction 16 .postEvent .obj (nextClause dead)
       (.doForEach (those .permanent) (tap it))).2 = [.deedFits] := by decide +kernel
 
 theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
@@ -170,15 +170,15 @@ theorem aNewHistoricalDeathStillPublishesItsMovedReferent :
     out.2 = [] ∧ out.1.visibleReferents.any
       (fun ref => ref.zone == some .graveyard && ref.id == 1) = true := by decide +kernel
 
-private def createdCreature : Instruction :=
+private def createdCreature : Action :=
   .createObject (.lit 1)
     (.token (.written { characteristics := { types := [.creature] } }) []) true none
 
-private def creatureCreationLoop : Instruction :=
+private def creatureCreationLoop : Action :=
   .doForEach (.described .all (.hasType .creature)) createdCreature
 
 theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
-    let out := stepInstruction 12 .postEvent .obj (DRS.ofList []) creatureCreationLoop
+    let out := stepAction 12 .postEvent .obj (DRS.ofList []) creatureCreationLoop
     let groups := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ groups.map (·.id) = [3] ∧ groups.map (·.plur) = [.many] ∧
       groups.all (fun ref => ref.idents.isEmpty && ref.payload.size.isNone) = true ∧
@@ -186,20 +186,20 @@ theorem aCreationLoopPublishesAFreshGroupRatherThanItsLocalIdentity :
       NounPhrase.checkAt (some .object) (nextClause out.1) (those .token) = [] := by decide +kernel
 
 theorem aTokenMentionIsNotACreationResult :
-    let mention := Instruction.putCounters (.lit 1) (.printed p1p1Counter)
+    let mention := Action.putCounters (.lit 1) (.printed p1p1Counter)
       (.described (.a .unmarked) (.isToken)) .one true
-    let out := stepInstruction 12 .postEvent .obj (DRS.ofList [])
+    let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) mention)
     out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧
       (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
 
 theorem prospectiveCreationDoesNotPublishALoopResult :
-    let out := stepInstruction 12 .preEvent .obj (DRS.ofList []) creatureCreationLoop
+    let out := stepAction 12 .preEvent .obj (DRS.ofList []) creatureCreationLoop
     out.2 = [] ∧ out.1.visibleReferents.any (·.createdResult) = false ∧
       (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
 
 theorem nestedCreationLoopsRetainOnlyTheirFreshAggregate :
-    let out := stepInstruction 16 .postEvent .obj (DRS.ofList [])
+    let out := stepAction 16 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .land)) creatureCreationLoop)
     let groups := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ groups.length = 1 ∧ groups.all (fun ref => ref.plur == .many) = true ∧
@@ -207,20 +207,20 @@ theorem nestedCreationLoopsRetainOnlyTheirFreshAggregate :
       NounPhrase.checkAt (some .object) (nextClause out.1) (those .token) = [] := by decide +kernel
 
 theorem creationResultsKeepTheirActualDestinationAfterAMove :
-    let moved := Instruction.sequentially [createdCreature,
+    let moved := Action.sequentially [createdCreature,
       .move (.pro .bare .one) (.zones [battlefield]) (some exileZone) .departure none []]
-    let out := stepInstruction 16 .postEvent .obj (DRS.ofList [])
+    let out := stepAction 16 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) moved)
     let groups := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ groups.length = 1 ∧
       groups.all (fun ref => ref.zone == some .exile && !ref.counterMemoryAvailable) = true ∧
-      (stepInstruction 8 .postEvent .obj (nextClause out.1)
+      (stepAction 8 .postEvent .obj (nextClause out.1)
         (.setStatus .tapped (those .token))).2 = [.anaphor (.word .token) .many 0] := by decide +kernel
 
 
 theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
-    let initial := nextClause ((stepInstruction 8 .postEvent .obj (DRS.ofList []) createdCreature).1)
-    let out := stepInstruction 12 .postEvent .obj initial
+    let initial := nextClause ((stepAction 8 .postEvent .obj (DRS.ofList []) createdCreature).1)
+    let out := stepAction 12 .postEvent .obj initial
       (.doForEach (.described .all (.hasType .creature))
         (.move (.pro (.word .token) .one) (.zones [battlefield])
           (some exileZone) .departure none []))
@@ -255,7 +255,7 @@ theorem weepingAngelNestedPossessorDoesNotMakeItsCreatureAClauseMate :
       (owner.1.pendingRoles.contains (4, .subj)) = true := by decide +kernel
 
 theorem weepingAngelOwnerCanShuffleItsCreatureIntoTheirLibrary :
-    Instruction.check (nextClause weepingAngelRecipientContext)
+    Action.check (nextClause weepingAngelRecipientContext)
       (instruct (ownerOf (that (.type .creature)))
         (shuffleInto (.laterMention "weeping.recipient" it))) = [] := by decide +kernel
 
@@ -271,12 +271,12 @@ theorem weepingAngelRawPronounCurrentlySelectsTheDamageSource :
 theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
     let shuffleInstruction := shuffleInto (.laterMention "weeping.recipient" it)
     let movePrefix := match shuffleInstruction with
-      | .ownScope name (.sequentially (first :: _)) => Instruction.ownScope name first
+      | .ownScope name (.sequentially (first :: _)) => Action.ownScope name first
       | _ => .sequentially []
     let initial := nextClause weepingAngelRecipientContext
-    let moved := stepInstruction 12 .postEvent .obj initial
+    let moved := stepAction 12 .postEvent .obj initial
       (instruct (ownerOf (that (.type .creature))) movePrefix)
-    let out := stepInstruction 12 .postEvent .obj initial
+    let out := stepAction 12 .postEvent .obj initial
       (instruct (ownerOf (that (.type .creature))) shuffleInstruction)
     moved.2 = [] ∧ out.2 = [] ∧
       (moved.1.visibleReferents.filter

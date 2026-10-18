@@ -12,11 +12,11 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.Mana
 
-private def instructionResult (drs : DRS) (instruction : Instruction) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs instruction).1
+private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs instruction).1
 
 /-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Instruction) (timing : Option Timing := none) : Ability :=
+def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timing := none) : Ability :=
   .activated cost instruction timing none none none
 
 /-- "your hand" -/
@@ -27,13 +27,13 @@ target." -/
 theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .inZone yourHand]))))
-        (Instruction.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target anyTarget) .any))) = [] := by
+        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target anyTarget) .any))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
       (activatedAbility (.perform (discard (aAtRandom (.and [creature, .inZone yourHand]))))
-        (Instruction.instruct .this (.dealDamage (.statOf (.stat .manaValue)
+        (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
             (theVerbed (.action "discard") .one (some (.type .creature)))) (target anyTarget) .any)))
       = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
   decide
@@ -68,20 +68,20 @@ theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSy
 
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
-    Instruction.check (DRS.ofList [])
-      (Primitives.Instruction.doIfDone (exile (a creatureYouControl)) (some (move it battlefield)) none) = [] := by
+    Action.check (DRS.ofList [])
+      (Primitives.Action.doIfDone (exile (a creatureYouControl)) (some (move it battlefield)) none) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMandatoryBody :
-    Instruction.check (DRS.ofList []) (Primitives.Instruction.doIfDone (sacrifice (a creature)) none (some (exile it)))
+    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a creature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
 /-- "Counter target spell unless its controller pays {3}." -/
 theorem okUnlessManaCost :
-    Instruction.check (DRS.ofList [])
-      (Macros.instruct (controllerOf (target spell)) (doUnless (Primitives.Instruction.counterSpell it) (.mana [generic 3]))) =
+    Action.check (DRS.ofList [])
+      (Macros.instruct (controllerOf (target spell)) (doUnless (Primitives.Action.counterSpell it) (.mana [generic 3]))) =
           [] := by
   decide
 
@@ -132,30 +132,30 @@ theorem badUnknownKeywordLabel :
 
 /-- "Add {R}." -/
 theorem okSingleProduction :
-    Instruction.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red]]) []) = [] := by
+    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red]]) []) = [] := by
         decide
 
 /-- "Add." -/
 theorem badEmptyProduction :
-    Instruction.check (DRS.ofList []) (.addMana (.lit 1) (.runs []) []) = [.producedRuns] := by
+    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs []) []) = [.producedRuns] := by
         decide
 
 /-- "Add {R} or ." -/
 theorem badEmptyAlternative :
-    Instruction.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red], []]) [])
+    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.of .red], []]) [])
       = [.producedRuns] := by
   decide
 
 /-- "Add {C}. Spend this mana only to activate abilities." -/
 theorem okSpendPurpose :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly [.toActivate none]]) =
           [] := by
   decide
 
 /-- "Add {C}. Spend this mana only." -/
 theorem badPurposelessSpend :
-    Instruction.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly []])
+    Action.check (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [.spendOnly []])
       = [.nonEmpty] := by
   decide
 
@@ -165,7 +165,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "{U}: Counter target spell with the chosen name." -/
 def counterChosenName : Ability :=
-  activatedAbility (.mana [pip .blue]) (Primitives.Instruction.counterSpell (target (.and [spell, .named .chosen])))
+  activatedAbility (.mana [pip .blue]) (Primitives.Action.counterSpell (target (.and [spell, .named .chosen])))
 
 /-- "… Counter target spell with the chosen name." -/
 theorem okNameMatchAfterChooser :
@@ -202,7 +202,7 @@ theorem okAddedCostSacrifice :
 
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousPumpClause :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.establish (getsPt (allOf creatureYouControl) (.up (.lit 1)) (.up (.lit 1)))
         (some untilEndOfTurn)) = [] := by
   decide
@@ -265,29 +265,29 @@ def permanentsYouControl : NounPhrase := allOf (.and [permanent, .hasPossessor .
 
 /-- "For each color among permanents you control, add one mana of that color." -/
 theorem okChosenColorPerColor :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doForEachKind .color (some permanentsYouControl) .color
         (.addMana (.lit 1) (.ofChosenColor none) [])) = [] := by
   decide
 
 /-- "For each color among permanents you control, add one mana of that color" -/
 theorem badRepeatedCarriesNoColor :
-    Instruction.check (DRS.ofList [])
-      (Primitives.Instruction.repeatTimes (.distinctCount .color permanentsYouControl)
+    Action.check (DRS.ofList [])
+      (Primitives.Action.repeatTimes (.distinctCount .color permanentsYouControl)
         (.addMana (.lit 1) (.ofChosenColor none) []))
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 
 /-- "For each color among permanents you control, … of that creature type." -/
 theorem badAxisValueCrossing :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doForEachKind .color (some permanentsYouControl) (.subtype .creature) (draw (.lit 1)))
       = [.kindAxisSort] := by
   decide
 
 /-- "For each creature type, …" -/
 theorem badDomainlessOpenAxis :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.doForEachKind (.subtype .creature .any) none (.subtype .creature) (draw (.lit 1)))
       = [.kindDomainOk] := by
   decide
@@ -368,23 +368,23 @@ theorem badThisManaWithoutAdd :
 
 /-- "Target player sacrifices a creature of their choice." -/
 theorem okBoundTheirChoice :
-    Instruction.check (DRS.ofList []) (Macros.instruct (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
+    Action.check (DRS.ofList []) (Macros.instruct (target .anyPlayer) (sacrifice (aTheirChoice creature))) = [] :=
         by decide
 
 /-- "Destroy a creature of their choice." -/
 theorem badUnboundTheirChoice :
-    Instruction.check (DRS.ofList []) (destroy (aTheirChoice creature)) = [.chooserInScope 0] := by decide
+    Action.check (DRS.ofList []) (destroy (aTheirChoice creature)) = [.chooserInScope 0] := by decide
 
 /-- "Target creature becomes a black Zombie in addition to its other types." -/
 theorem okUnnamedAddition :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (become (target creature)
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none)
       = [] := by
   decide
 
 theorem badRepeatedAdditionColor :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (become (target creature)
         { characteristics :=
           { colors := [.black, .black], subtypes := [creatureType "Zombie"] } } none)
@@ -392,7 +392,7 @@ theorem badRepeatedAdditionColor :
   decide
 
 theorem badRepeatedAdditionType :
-    Instruction.check (DRS.ofList []) (become (target creature) { characteristics :=
+    Action.check (DRS.ofList []) (become (target creature) { characteristics :=
                                                       { types := [.artifact, .artifact] } } none)
       = [.distinct] := by
   decide

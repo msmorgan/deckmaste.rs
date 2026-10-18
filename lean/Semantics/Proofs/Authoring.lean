@@ -47,14 +47,14 @@ example : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (instruct .you (draw (.lit 1)))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.lit 1)) none none)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -62,12 +62,12 @@ example : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none
         (.enact (.action "destroy") (.move (target creature) (.zones [.zone .battlefield .bare]) (some (.zone .hand .bare)) .arrival none []) none none)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Instruction.enact] -/
+/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (Primitives.Instruction.sequentially
+      text := [Primitives.Ability.spell none (Primitives.Action.sequentially
         [.enact (.action "destroy") (.sequentially [.move (target creature) (.zones [.zone .battlefield .bare]) (some (.zone .hand .bare)) .arrival none []]) none none])] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/

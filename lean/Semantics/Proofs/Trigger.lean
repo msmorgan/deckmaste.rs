@@ -188,18 +188,18 @@ theorem okMultipliedTrigger :
 
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :
-    Instruction.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (target .opponent)))) = [] := by
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (target .opponent)))) = [] := by
   decide
 
 /-- "Exchange life totals with target opponent" with one party: the row states both halves at
 once, so an exchange that can't be completed in its entirety is unwritable rather than half-done
 [CR#701.12a,701.12c]. -/
 theorem badExchangeOneParty :
-    Instruction.check (DRS.ofList []) (.exchange (.lifeTotals (target .opponent))) = [.twoParties] := by decide
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (target .opponent))) = [.twoParties] := by decide
 
 /-- "You and your opponents exchange life totals." -/
 theorem badExchangePluralParty :
-    Instruction.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (.playerGroup .yourOpponents))))
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (.playerGroup .yourOpponents))))
       = [.twoParties] := by
   decide
 
@@ -220,8 +220,8 @@ theorem badCrimeByAllPlayers :
 
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
-def rollShiftBody : Instruction :=
-  Primitives.Instruction.offer (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature .one true)
+def rollShiftBody : Action :=
+  Primitives.Action.offer (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature .one true)
     (some (shiftResult (.lit 1))) none
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,

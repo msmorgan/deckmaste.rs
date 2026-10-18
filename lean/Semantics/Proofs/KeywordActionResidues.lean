@@ -15,41 +15,41 @@ named emblem. Each keyword action's bench macro checks clean, and each shape has
 namespace Semantics.Proofs.KeywordActionResidues
 
 /-- "Collect evidence 3" [CR#701.59a]. -/
-theorem okCollectEvidence : Instruction.check (DRS.ofList []) (Actor.collectEvidence (.lit 3)) = [] := by decide
+theorem okCollectEvidence : Action.check (DRS.ofList []) (Actor.collectEvidence (.lit 3)) = [] := by decide
 
 /-- A total's bound is an amount like any other: an unresolved "its power" is refused. -/
 theorem badWithTotalUnresolvedBound :
-    Instruction.check (DRS.ofList []) (move (Actor.withTotal (.stat .manaValue) .atLeast
+    Action.check (DRS.ofList []) (move (Actor.withTotal (.stat .manaValue) .atLeast
       (powerOf (that (.type .creature))) (allOf (.and [.isCard, .inZone (graveyardOf .you)])))
       exileZone) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 /-- "Discover 5" [CR#701.57a]: "that card" reads the card that stopped the run, and "the
 remaining exiled cards" the rest of the run. -/
-theorem okDiscover : Instruction.check (DRS.ofList []) (Actor.discover (.lit 5)) = [] := by decide
+theorem okDiscover : Action.check (DRS.ofList []) (Actor.discover (.lit 5)) = [] := by decide
 
 /-- A run comes from a pile, and a library pile is a player's: a creature has none, so "its
 library" names no pile to run. -/
 theorem badLibraryRunOfAnObject :
-    Instruction.check (DRS.ofList []) (move (.run .top land (library thisCreature)) exileZone) =
+    Action.check (DRS.ofList []) (move (.run .top land (library thisCreature)) exileZone) =
       [.kindMismatch .player .object] := by decide
 
 /-- "Incubate 3" [CR#701.53a,701.53b]. -/
-theorem okIncubate : Instruction.check (DRS.ofList []) (Actor.incubate (.lit 3)) = [] := by decide
+theorem okIncubate : Action.check (DRS.ofList []) (Actor.incubate (.lit 3)) = [] := by decide
 
 /-- Each face of a double-faced token is a characteristics set, written once per value. -/
 theorem badDoubleFacedRepeatedType :
-    Instruction.check (DRS.ofList []) (.createObject (.lit 1) (.token (.doubleFaced
+    Action.check (DRS.ofList []) (.createObject (.lit 1) (.token (.doubleFaced
       { characteristics := { types := [.artifact, .artifact] } }
       { characteristics := { types := [.creature] } }) []) true none) = [.distinct] := by decide
 
 /-- "Waterbend {4}" [CR#701.67a]. -/
-theorem okWaterbend : Instruction.check (DRS.ofList []) (Actor.waterbend (.mana [generic 4])) = [] := by decide
+theorem okWaterbend : Action.check (DRS.ofList []) (Actor.waterbend (.mana [generic 4])) = [] := by decide
 
 /-- What tapping pays with is a permanent, not a player: a substitute whose action names
 players. -/
 theorem badSubstituteWithPlayers :
-    Instruction.check (DRS.ofList []) (.pay (.withSubstitute (.mana [generic 4])
+    Action.check (DRS.ofList []) (.pay (.withSubstitute (.mana [generic 4])
       (substitute (tap (a .anyPlayer)) [.generic])) .once .paid none none) =
       [.deedFits, .kindMismatch .object .player] := by decide
 
@@ -77,51 +77,51 @@ theorem okCrewCost :
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/
 theorem okManifest :
-    Instruction.check (DRS.ofList []) (Actor.manifest (.slice .top (.lit 1) (library .you))) = [] := by decide
+    Action.check (DRS.ofList []) (Actor.manifest (.slice .top (.lit 1) (library .you))) = [] := by decide
 
 /-- "Cloak the top card of your library" [CR#701.58a]. -/
 theorem okCloak :
-    Instruction.check (DRS.ofList []) (Actor.cloak (.slice .top (.lit 1) (library .you))) = [] := by decide
+    Action.check (DRS.ofList []) (Actor.cloak (.slice .top (.lit 1) (library .you))) = [] := by decide
 
 /-- "Manifest dread" [CR#701.62a]: the manifested card is a part of the look, and the rest the
 other card. -/
-theorem okManifestDread : Instruction.check (DRS.ofList []) Actor.manifestDread = [] := by decide
+theorem okManifestDread : Action.check (DRS.ofList []) Actor.manifestDread = [] := by decide
 
 /-- "Support 2" [CR#701.41a]. -/
-theorem okSupport : Instruction.check (DRS.ofList []) (Actor.support (.lit 2)) = [] := by decide
+theorem okSupport : Action.check (DRS.ofList []) (Actor.support (.lit 2)) = [] := by decide
 
 /-- "Cast target instant or sorcery card" [CR#701.5a], "play target land card without paying"
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as
 instructions. -/
 theorem okCastProcedure :
-    Instruction.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [instantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
+    Action.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [instantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
   decide
 theorem okPlayProcedure :
-    Instruction.check (DRS.ofList []) (.enact (.action "play") (.procedure .play (target (.and [land, .isCard])) .withoutPaying none none none) none none) = [] := by decide
+    Action.check (DRS.ofList []) (.enact (.action "play") (.procedure .play (target (.and [land, .isCard])) .withoutPaying none none none) none none) = [] := by decide
 theorem okActivateProcedure :
-    Instruction.check (DRS.ofList []) (.enact (.action "activate") (.procedure .activate (target (.abilityHead .anyActivated)) .itsOwnCost none none none) none none) = [] := by
+    Action.check (DRS.ofList []) (.enact (.action "activate") (.procedure .activate (target (.abilityHead .anyActivated)) .itsOwnCost none none none) none none) = [] := by
   decide
 
 /-- A procedure is carried out on an object: a player is not cast. -/
 theorem badProcedureOnAPlayer :
-    Instruction.check (DRS.ofList []) (.procedure .cast .you .itsOwnCost none none none) =
+    Action.check (DRS.ofList []) (.procedure .cast .you .itsOwnCost none none none) =
       [.kindMismatch .object .player] := by decide
 
 /-- "Double the power of target creature until end of turn" [CR#701.10b]. -/
 theorem okDoublePower :
-    Instruction.check (DRS.ofList []) (doublePower (target creature) (some untilEndOfTurn)) = [] := by decide
+    Action.check (DRS.ofList []) (doublePower (target creature) (some untilEndOfTurn)) = [] := by decide
 
 /-- "Triple target creature's power and toughness until end of turn" [CR#701.11b]. -/
 theorem okTriplePowerAndToughness :
-    Instruction.check (DRS.ofList []) (triplePowerAndToughness (target creature) (some untilEndOfTurn)) = [] := by
+    Action.check (DRS.ofList []) (triplePowerAndToughness (target creature) (some untilEndOfTurn)) = [] := by
   decide
 
 /-- "Double your life total" [CR#701.10d]. -/
-theorem okDoubleLifeTotal : Instruction.check (DRS.ofList []) doubleLifeTotal = [] := by decide
+theorem okDoubleLifeTotal : Action.check (DRS.ofList []) doubleLifeTotal = [] := by decide
 
 /-- A named emblem still has abilities [CR#114.1]. -/
 theorem badNamedEmblemWithoutAbilities :
-    Instruction.check (DRS.ofList []) (.createObject (.lit 1) (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by
+    Action.check (DRS.ofList []) (.createObject (.lit 1) (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by
   decide
 
 end Semantics.Proofs.KeywordActionResidues

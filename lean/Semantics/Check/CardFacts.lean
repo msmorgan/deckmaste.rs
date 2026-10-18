@@ -3,7 +3,7 @@ import Semantics.Check.Keywords
 
 namespace Semantics
 
-def Instruction.scopeBody (i : Instruction) (fuel : Nat := 64) : Instruction :=
+def Action.scopeBody (i : Action) (fuel : Nat := 64) : Action :=
   match fuel, i with
   | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .bracketed b => b.scopeBody n
   | _, b => b
@@ -50,7 +50,7 @@ def Condition.impliedClass (c : Condition) (fuel : Nat := 64) : Option CardClass
   | _, _ => none
 termination_by structural fuel
 
-def Instruction.classGuard (i : Instruction) : Option CardClass :=
+def Action.classGuard (i : Action) : Option CardClass :=
   match i.scopeBody with | .doIf c _ none => c.impliedClass | _ => none
 
 def StaticSpec.classGuard (s : StaticSpec) : Option CardClass :=
@@ -77,7 +77,7 @@ def Cost.offBattlefield (c : Cost) (fuel : Nat := 64) : Bool :=
 termination_by structural fuel
 
 mutual
-  def Instruction.namesThisDoor (i : Instruction) (fuel : Nat := 64) : Bool :=
+  def Action.namesThisDoor (i : Action) (fuel : Nat := 64) : Bool :=
     match fuel, i with
     | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .bracketed b
     | n + 1, .enact _ b _ _ | n + 1, .instruct _ b | n + 1, .limited b _
@@ -210,15 +210,15 @@ def JoinedHeader.namesThisDoor (j : JoinedHeader) : Bool :=
   j.event.namesThisDoor || j.alternatives.any (fun e => e.namesThisDoor) || Timing.namesThisDoor j.while_
 
 private theorem delayedDoorReferenceIsFound :
-    (Instruction.delay (.does .any (.unlock .thisDoor)) [] none
+    (Action.delay (.does .any (.unlock .thisDoor)) [] none
       (.sequentially [])).namesThisDoor = true := by decide
 
 private theorem nestedDoorReferenceIsFound :
-    (Instruction.sequentially [.replace (.sequentially [])
+    (Action.sequentially [.replace (.sequentially [])
       (.holdUntil (.unlock .thisDoor) .now)]).namesThisDoor = true := by decide
 
 private theorem unrelatedUnlockIsNotThisDoor :
-    (Instruction.sequentially []).namesThisDoor = false := by decide
+    (Action.sequentially []).namesThisDoor = false := by decide
 
 def Ability.grantedKeyword : Ability → Option KeywordLabel
   | .keyword k [] _ => if keywordParamless k then some k else none
@@ -231,7 +231,7 @@ def StaticSpec.keyword (spec : StaticSpec) (fuel : Nat := 64) : Option KeywordLa
   | _, _ => none
 termination_by structural fuel
 
-def Instruction.keyword (instruction : Instruction) (fuel : Nat := 64) : Option KeywordLabel :=
+def Action.keyword (instruction : Action) (fuel : Nat := 64) : Option KeywordLabel :=
   match fuel, instruction with
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.keyword n
   | n + 1, .establish spec _ => spec.keyword n

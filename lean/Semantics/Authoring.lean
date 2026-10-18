@@ -228,9 +228,9 @@ elab_rules : command
       let info ← getConstInfo declaration
       if let .defnInfo definition := info then
         lambdaTelescope definition.value fun _ body => do
-          if (← whnf (← inferType body)).isConstOf `Semantics.Instruction then
-            unless (← whnf body).getAppFn.isConstOf `Semantics.Instruction.ownScope do
-              throwError "An Instruction Definition must establish its own Reference Scope"
+          if (← whnf (← inferType body)).isConstOf `Semantics.Action then
+            unless (← whnf body).getAppFn.isConstOf `Semantics.Action.ownScope do
+              throwError "An Action Definition must establish its own Reference Scope"
     elabCommand (← `(attribute [«semantic_definition»] $identifier:ident))
   | `($mods:declModifiers semantic_template $name:declId
       $signature:optDeclSig $value:declVal) => do

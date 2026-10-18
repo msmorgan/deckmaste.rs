@@ -17,8 +17,8 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.BindingIdentity
 
-private def instructionResult (i : Instruction) (drs : DRS) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs i).1
+private def instructionResult (i : Action) (drs : DRS) : DRS :=
+  (stepAction 64 .postEvent .obj drs i).1
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
 
@@ -30,22 +30,22 @@ private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
 private def targets (bs : DRS) : Nat := bs.referents.countP (·.det == .target)
 
 /-- "Tap <x>. Untap <x>.": a body that mentions its parameter twice. -/
-private def tapThenUntap (x : NounPhrase) : Instruction :=
+private def tapThenUntap (x : NounPhrase) : Action :=
   .sequentially [tap (.firstMention "tapThenUntap.0" x), untap (.laterMention "tapThenUntap.0" x)]
 
 /-- The same body with the argument copied into both mentions: two selections. -/
-private def tapThenUntapCopied (x : NounPhrase) : Instruction :=
+private def tapThenUntapCopied (x : NounPhrase) : Action :=
   .sequentially [tap x, untap x]
 
 /-- The first creature is handed the fight; the Definition names both participants before
 checking its creature guards, then reads those same identities in the opposite damage directions
 [CR#701.14a,701.14b]. -/
-private def fightByIdentity (l r : NounPhrase) : Instruction := instruct l (fight r)
+private def fightByIdentity (l r : NounPhrase) : Action := instruct l (fight r)
 
 /-! ## Two mentions, one binding -/
 
 /-- "Tap target creature. Untap it.", spelled by identity, checks. -/
-theorem okTwoMentionsByIdentity : Instruction.check (DRS.ofList []) (tapThenUntap (target creature)) = [] := by
+theorem okTwoMentionsByIdentity : Action.check (DRS.ofList []) (tapThenUntap (target creature)) = [] := by
   decide
 
 /-- Both mentions are one binding: the body introduces one target. -/
@@ -74,26 +74,26 @@ theorem interveningBindingDoesNotShiftTheRead :
 
 /-- Two calls of the same macro each read their own first mention. -/
 theorem eachCallReadsItsOwnBinding :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.sequentially [tapThenUntap (target creature), tapThenUntap (target artifact)]) = [] := by
   decide
 
 /-- A later mention with no first mention, whose phrase would select anew, is refused rather
 than read as a second selection. -/
 theorem badLaterMentionWithoutFirst :
-    Instruction.check (DRS.ofList []) (untap (.laterMention "m.0" (target creature))) =
+    Action.check (DRS.ofList []) (untap (.laterMention "m.0" (target creature))) =
       [.bindingIdentity "m.0"] := by
   decide
 
 /-- A phrase that introduces nothing ("this creature") records nothing; its later mentions read
 the phrase again. -/
 theorem selfDenotingArgumentIsReadAgain :
-    Instruction.check (DRS.ofList []) (tapThenUntap thisCreature) = [] := by
+    Action.check (DRS.ofList []) (tapThenUntap thisCreature) = [] := by
   decide
 
 /-- An existing reference ("it") is recorded where it resolves and read back by identity. -/
 theorem existingReferenceIsRecorded :
-    Instruction.check (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none none }])
+    Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none none }])
       (tapThenUntap it) = [] := by
   decide
 
@@ -102,7 +102,7 @@ theorem existingReferenceIsRecorded :
 /-- "Target creature fights target creature." by identity checks: the first creature handed the
 deed, `instruct(target(creature), fight(target(creature)))`. -/
 theorem okFightByIdentity :
-    Instruction.check (DRS.ofList []) (fightByIdentity (target creature) (target creature)) = [] := by
+    Action.check (DRS.ofList []) (fightByIdentity (target creature) (target creature)) = [] := by
   decide
 
 /-- Each `target creature` is one targeting: the handoff selects the first once, and the body
@@ -113,14 +113,14 @@ theorem fightTargetsEachArgumentOnce :
 
 /-- "This creature fights target creature you don't control." -/
 theorem okFightByIdentityThisCreature :
-    Instruction.check (DRS.ofList []) (fightByIdentity thisCreature (target creatureYouDontControl)) = [] := by
+    Action.check (DRS.ofList []) (fightByIdentity thisCreature (target creatureYouDontControl)) = [] := by
   decide
 
 /-- A group fighting creature is refused by the singular power read and the per-member damage
 check, as the bench's captured `fight` refuses it (`Damage.badFightGroup`). Handed the deed,
 the first creature is the performer, so the group is the parameter. -/
 theorem badFightByIdentityGroup :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (fightByIdentity (target creature) (.described (.target (exactly 2)) creature)) =
       [.perMember, .singular] := by
   decide
@@ -128,14 +128,14 @@ theorem badFightByIdentityGroup :
 /-- A group handed the deed distributes it, each member performing it in turn and `actor` that
 member, as every group handoff does: "two target creatures each fight target creature". -/
 theorem okFightHandedToEachOfAGroup :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (fightByIdentity (.described (.target (exactly 2)) creature) (target creature)) = [] := by
   decide
 
 /-! ## A group handoff still distributes -/
 
 /-- "Discard <x>, then exile <x>.": a two-mention body. -/
-private def discardThenExile (x : NounPhrase) : Instruction :=
+private def discardThenExile (x : NounPhrase) : Action :=
   .sequentially
     [ Actor.discard (.firstMention "discardThenExile.0" x),
       exile (.laterMention "discardThenExile.0" x) ]
@@ -143,7 +143,7 @@ private def discardThenExile (x : NounPhrase) : Instruction :=
 /-- "Each opponent discards a card, then exiles it": the first mention is checked where it
 stands, inside the handoff, so each opponent chooses their own card. -/
 theorem groupHandoffRefusesPreMoveIdentity :
-    Instruction.check (DRS.ofList []) (instruct (each .opponent) (discardThenExile (a .isCard))) =
+    Action.check (DRS.ofList []) (instruct (each .opponent) (discardThenExile (a .isCard))) =
       [.bindingIdentity "discardThenExile.0"] := by
   decide
 
@@ -164,7 +164,7 @@ scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 /-- The `plugins_v3` helper `lookAndSortSlice` as the loader expands it: the generated
 `Semantics.Macros.Declared` macro (`cargo xtask lean macros`). -/
 private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List MoveRider) :
-    Instruction :=
+    Action :=
   Semantics.Macros.Declared.lookAndSortSlice slice spill spillRiders
 
 /-- The generated macro is the expansion this file spelled by hand before it was generated. -/
@@ -178,14 +178,14 @@ theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Zon
           .move (.theRest .object .many) .anywhere (some onTop) .arrival none [.placement (.inOrder .anyOrder)] ] :=
   rfl
 
-private def scryBy (amount : Amount) : Instruction :=
+private def scryBy (amount : Amount) : Action :=
   .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.placement (.inOrder .anyOrder)]) none none
 
 /-- "Scry 1." -/
-theorem okScryOne : Instruction.check (DRS.ofList []) (scryBy (.lit 1)) = [] := by decide
+theorem okScryOne : Action.check (DRS.ofList []) (scryBy (.lit 1)) = [] := by decide
 
 /-- "Scry 2." -/
-theorem okScryTwo : Instruction.check (DRS.ofList []) (scryBy (.lit 2)) = [] := by decide
+theorem okScryTwo : Action.check (DRS.ofList []) (scryBy (.lit 2)) = [] := by decide
 
 /-- Scry 1's read back is singular: "that card". -/
 theorem scryOneReadsThatCard :
@@ -199,13 +199,13 @@ theorem scryTwoReadsThoseCards :
 
 /-- "Surveil 2." [CR#701.25a] -/
 theorem okSurveilTwo :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.enact (.action "surveil") (lookAndSortSlice (.slice .top (.lit 2) (library .actor)) graveyard []) none none)
       = [] := by decide
 
 /-- "Fateseal 2." [CR#701.29a]: an opponent's library. -/
 theorem okFatesealTwo :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (.enact (.action "fateseal") (lookAndSortSlice (.slice .top (.lit 2) (library (a .opponent))) onBottom
           [.placement (.inOrder .anyOrder)]) none none)
       = [] := by decide
@@ -216,23 +216,23 @@ theorem okFatesealTwo :
 and puts a +1/+1 counter on the permanent for each nonland card discarded this way. The
 loop includes a single discarded card without forming a singular partitive phrase. -/
 
-private def conniveDiscards (discarded : NounPhrase) : Instruction :=
+private def conniveDiscards (discarded : NounPhrase) : Action :=
   .sequentially
     [ Actor.discard (.firstMention "conniveDiscards.discarded" discarded),
       .doForEach (allOf (.and [.not land, .isCard,
         .did ⟨.any, Actor.discard .which, .thisWay⟩]))
         (.putCounters (.lit 1) (.printed p1p1Counter) (that .permanent) .one true) ]
 
-private def conniveBy (amount : Amount) : Instruction :=
+private def conniveBy (amount : Amount) : Action :=
   .enact (.action "connive") (instruct (controllerOf .actor)
     (.sequentially [draw amount, conniveDiscards (counted (.exactlyOf amount) .isCard)])) none none
 
 /-- "Connive" (connive 1), performed by the source permanent [CR#701.50a]. -/
-theorem okConniveOne : Instruction.check (DRS.ofList []) (conniveBy (.lit 1)) = [] := by decide
+theorem okConniveOne : Action.check (DRS.ofList []) (conniveBy (.lit 1)) = [] := by decide
 
 /-- "Target creature connives 2." [CR#701.50d]: the action is handed to the creature. -/
 theorem okConniveTwoHandedToTarget :
-    Instruction.check (DRS.ofList []) (instruct (target creature) (conniveBy (.lit 2))) = [] := by decide
+    Action.check (DRS.ofList []) (instruct (target creature) (conniveBy (.lit 2))) = [] := by decide
 
 /-- The discarded cards are read back with the discard's number: one card for connive 1,
 several for connive 2. -/
@@ -253,10 +253,10 @@ private def regenerationApplicationBy := regenerationApplication
 private def regenerateBy := regenerate
 
 /-- "Regenerate target creature." -/
-theorem okRegenerateTarget : Instruction.check (DRS.ofList []) (regenerateBy (target creature)) = [] := by decide
+theorem okRegenerateTarget : Action.check (DRS.ofList []) (regenerateBy (target creature)) = [] := by decide
 
 /-- "Regenerate this creature." -/
-theorem okRegenerateThisCreature : Instruction.check (DRS.ofList []) (regenerateBy thisCreature) = [] := by decide
+theorem okRegenerateThisCreature : Action.check (DRS.ofList []) (regenerateBy thisCreature) = [] := by decide
 
 /-- The replacement pattern selects its target once; the application keeps that identity. -/
 theorem regenerateTargetsOnce :
@@ -271,7 +271,7 @@ theorem regenerationPatternDoesNotLeakIntoFollowingText :
 
 /-- The application alone, as a static regeneration ability applies it [CR#701.19b]. -/
 theorem okRegenerationApplication :
-    Instruction.check (DRS.ofList []) (regenerationApplicationBy (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (regenerationApplicationBy (target creature)) = [] := by decide
 /-! ## Airbend, card by card
 
 "Airbend [objects]" [CR#701.65a]: the performer exiles them, and for each card exiled this way,
@@ -285,11 +285,11 @@ available through the handoff to its owner. -/
 private def airbendByCard := Declared.airbend
 
 theorem okAirbendByCardUpToTwo :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (airbendByCard (.described (.target (upTo 2)) creature)) = [] := by decide
 
 -- The distributive loop now outranks the outer singular referent under D′.
 theorem okAirbendItOne :
-    Instruction.check (DRS.ofList []) (airbendByCard (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (airbendByCard (target creature)) = [] := by decide
 
 end Semantics.Proofs.BindingIdentity

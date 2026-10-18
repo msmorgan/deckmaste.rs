@@ -18,7 +18,7 @@ private def creatureX : NounPhrase :=
 private def artifactX : NounPhrase :=
   target (.and [artifact, .compare [.stat .manaValue] .eq (.letter .x)])
 private def powerAfter (drs : DRS) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs
+  (stepAction 64 .postEvent .obj drs
     (.establish (.modification (target creature) .power (.up (.letter .x))) none)).1
 
 private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
@@ -105,7 +105,7 @@ theorem ownStatKeepsCreature :
 private def sharedAfter (drs : DRS) : DRS :=
   (stepNounPhrase 64 drs .subj true creatureX).1
 private def previousAfter (drs : DRS) : DRS :=
-  (stepInstruction 64 .postEvent .obj drs
+  (stepAction 64 .postEvent .obj drs
     (.putCounters (.lit 1) (.printed p1p1Counter) creatureX .one false)).1
 private def conditionAfter (drs : DRS) : DRS :=
   (stepCondition 64 drs (.matches creatureX creature)).1
@@ -166,21 +166,21 @@ theorem implicitChooserDoesNotIgnoreAnotherPlayer :
 
 /-- An explicit performer determines the chooser despite other players in discourse. -/
 theorem explicitChooserWinsOverOuterPlayers :
-    Instruction.check (DRS.ofList [playerBinding, playerBinding])
+    Action.check (DRS.ofList [playerBinding, playerBinding])
       (instruct (target .anyPlayer) (choose (aTheirChoice creature))) = [] := by decide
 
 theorem agentWithoutOuter :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
 
 theorem agentWithOuter :
-    Instruction.check (DRS.ofList [playerBinding, letterB .x])
+    Action.check (DRS.ofList [playerBinding, letterB .x])
       (instruct playerX (instruct .actor (gainLife (.lit 1)))) = [] := by decide
 
 theorem scopedMovePreservesTheOuterBindings :
     let before := nextClause (powerAfter outer)
-    let after := (stepInstruction 64 .postEvent .obj before (exile it)).1
-    Instruction.check before (exile it) = [] ∧
+    let after := (stepAction 64 .postEvent .obj before (exile it)).1
+    Action.check before (exile it) = [] ∧
       (after.findById? 0) = (before.findById? 0) ∧
       (after.findById? 1) = (before.findById? 1) ∧
       (after.findById? 2) = none ∧
@@ -198,48 +198,48 @@ theorem ownStatSameClauseSubjectsStillTie :
       [.anaphor .bare .one 2] := by decide
 
 theorem attachWithoutOuterLetter :
-    Instruction.check (DRS.ofList [creatureBinding]) (attachToIt artifactX) = [] := by decide
+    Action.check (DRS.ofList [creatureBinding]) (attachToIt artifactX) = [] := by decide
 
 theorem attachWithOuterLetter :
-    Instruction.check (DRS.ofList [creatureBinding, playerBinding, letterB .x])
+    Action.check (DRS.ofList [creatureBinding, playerBinding, letterB .x])
       (attachToIt artifactX) = [] := by decide
 
 -- P15: the new attachment's clause-mate exclusion preserves the outer tie.
 theorem attachKeepsOuterAmbiguity :
-    Instruction.check (DRS.ofList [creatureBinding, creatureBinding, letterB .x])
+    Action.check (DRS.ofList [creatureBinding, creatureBinding, letterB .x])
       (attachToIt artifactX) = [.anaphor .bare .one 2] := by decide
 
 theorem blockWithoutOuterLetter :
-    Instruction.check (DRS.ofList [creatureBinding])
+    Action.check (DRS.ofList [creatureBinding])
       (requireBlockIt creatureX (some untilEndOfTurn)) = [] := by decide
 
 theorem blockWithOuterLetter :
-    Instruction.check (DRS.ofList [creatureBinding, playerBinding, letterB .x])
+    Action.check (DRS.ofList [creatureBinding, playerBinding, letterB .x])
       (requireBlockIt creatureX (some untilEndOfTurn)) = [] := by decide
 
 theorem damageOwnPowerWithoutOuter :
-    Instruction.check (DRS.ofList []) (dealDamageOwnPower creatureX (target creature)) = [] := by decide
+    Action.check (DRS.ofList []) (dealDamageOwnPower creatureX (target creature)) = [] := by decide
 
 theorem damageOwnPowerWithOuter :
-    Instruction.check outer (dealDamageOwnPower creatureX (target creature)) = [] := by decide
+    Action.check outer (dealDamageOwnPower creatureX (target creature)) = [] := by decide
 
-private def playerLoop : Instruction :=
+private def playerLoop : Action :=
   .doForEach (each .anyPlayer)
     (choose (target (.and [permanent, .hasPossessor .controller they])))
 
 theorem loopPlayerRetainsPlayerKind :
-    Instruction.check (DRS.ofList []) playerLoop = [] := by decide
+    Action.check (DRS.ofList []) playerLoop = [] := by decide
 
 theorem loopExportsPluralGroupWithoutSingularMember :
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) playerLoop).1
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) playerLoop).1
     (resolveCandidates (.word .player) .many (nextClause after)).length = 1 ∧
       resolveCandidates (.word .player) .one (nextClause after) = [] := by decide
 
 theorem optionalBranchesDoNotExportCreatedObjects :
-    let branch := Primitives.Instruction.offer (gainLife (.lit 1))
+    let branch := Primitives.Action.offer (gainLife (.lit 1))
       (some (create (.lit 1) (creatureToken 1 1 [.white] [])))
       (some (create (.lit 2) (creatureToken 1 1 [.white] [])))
-    let after := (stepInstruction 64 .postEvent .obj (DRS.ofList []) branch).1
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) branch).1
     resolveCandidates (.word (.type .creature)) .one (nextClause after) = [] := by decide
 
 theorem sourceTypeRefinesOneIdentity :
@@ -248,7 +248,7 @@ theorem sourceTypeRefinesOneIdentity :
       after.nextId = 1 := by decide
 
 theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
-    let before := (stepInstruction 64 .postEvent .obj (DRS.ofList [])
+    let before := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (destroy (target creature))).1
     let after := (stepCondition 64 (nextClause before)
       (.not (.matches thisEnchantment creature))).1
@@ -257,9 +257,9 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
       selected.map (·.id) = [after.nextId - 1] := by decide
 
 theorem optionalBodyReadsItsEnclosingPlayer :
-    Instruction.check (DRS.ofList [])
+    Action.check (DRS.ofList [])
       (instruct (target .opponent)
-        (Primitives.Instruction.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
+        (Primitives.Action.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
   decide
 
 private def powerSubject : Referent := {

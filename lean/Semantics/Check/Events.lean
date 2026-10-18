@@ -32,10 +32,10 @@ def Delta.outcome : Delta Amount → Option OutcomeSort
   | .set _ => none
 
 /-- Closed event head-gating (`semantics-v3.md` §3.6): `does`, `would`, and `did` only admit
-event-capable `Instruction` heads (Table 3.6A) plus CR §701 keyword-action definitions wrapped in
+event-capable `Action` heads (Table 3.6A) plus CR §701 keyword-action definitions wrapped in
 `ownScope (some (.action name))`, refusing compound or control-flow instructions (`sequentially`,
 `doIf`, `doForEach`, `chooseModes`, `establish`, etc.). -/
-def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
+def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .bracketed body => body.eventHeadOk n
@@ -58,7 +58,7 @@ def Instruction.eventHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
 termination_by structural fuel
 
 /-- The closed instruction heads which a deontic clause can constrain. -/
-def Instruction.deonticHeadOk (e : Instruction) (fuel : Nat := 16) : Bool :=
+def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .bracketed body => body.deonticHeadOk n
@@ -79,7 +79,7 @@ termination_by structural fuel
 
 /-- Whether an event-capable instruction carries a quantity or magnitude that `TallyMode.quantity`
 can sum (`semantics-v3.md` §3.8). -/
-def Instruction.eventHasMagnitude (e : Instruction) (fuel : Nat := 16) : Bool :=
+def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .bracketed body | n + 1, .ownScope _ body | n + 1, .enact _ body _ _ =>
