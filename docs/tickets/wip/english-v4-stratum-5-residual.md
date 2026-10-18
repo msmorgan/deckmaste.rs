@@ -52,6 +52,15 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      - Remove `Exclude("clause.Polarity", "Affirmative")` from
        `BarePredicativeRelative` (and remove the now-unused `Polarity` feature
        from `VerbPhrase`, `Clause`, and `Coordination` in `english.ron`).
+   - **As landed:** the engine adds `Test::FreeFrame` and a `Free` symbol
+     (`SymbolDecl::Free`: the constituent's first atom does not glue to the
+     one before). The single participle productions are `Nominal` over a
+     `BareNominal` head, so they stay outside premodifiers without commuting
+     duplicates. `SubjectGerund` builds a `GerundClause` (a Clause) that only
+     `GerundClauseSubject` takes, because as a `Gerund` it also fed depictive
+     and complement slots. By owner ruling the depictive gerund-participial
+     Adjunct excludes an auxiliary host (new `equations` on the `Adjunct`
+     schema), removing *the player [it is \_\_] attacking*.
 
 2. ***any number of other target X*** (Appa, Steadfast Guardian; Broodlord;
    Guardian of Faith; Lagrella, the Magpie; Lathiel, the Bounteous Dawn; Silver
@@ -72,6 +81,9 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      `+Nominal other target creatures` and `+NounPhrase two other target
      creatures` at a single Reading, and enables `phase_in_out.txt:19`
      (Guardian of Faith).
+   - **As landed:** `OtherTargetedPlural` uses a new `Carry` equation (the
+     child carries the value, not merely admits it): `Require` would value an
+     unvalued Determination and double every *other* + plural.
 
 3. **Count-noun pro-form *one*** (Ezuri's Predation: *a different one of those
    creatures*; Coveted Falcon: *each one they gained control of*; Xyris, the
@@ -116,9 +128,12 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
        `cost: 3`) following an optional end `AdverbPhrase` (*divided evenly,
        rounded down, among …* and *deals half X damage, rounded down, to any
        target*).
+   - **As landed:** `InterleavedSupplementedAdverb` is not added: the engine
+     already chains an `InterleavedAdverb` and an `InterleavedSupplement`, so
+     it only duplicated trees.
 
 5. ***Choose up to five {P} worth of modes*** (Season of the Bold, Season of the
-   Burrow, Season of Gathering, Season of Loss, Season of Weaving; `[CR#700.2h]`).
+   Burrow, Season of Gathering, Season of Loss, Season of Weaving; `[CR#700.2i]`).
    - In `crates/deckmaste_lexical_source_v4/lexicon/english/nouns.ron`, give
      `worth` `distribution: DirectMeasure`:
      `(lemma: "worth", distribution: DirectMeasure, countability: [Mass],
@@ -133,6 +148,9 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      Require("head.Countability", "Mass"), Require("head.Number", "Singular"),
      Require("$.Determination", "Overt"), Require("$.Case", "Plain"),
      Require("$.Person", "Third")]`).
+   - **As landed:** `MaximumMeasuredMass` excludes a Count determiner
+     (`Countability` on `PrepositionPhrase`, owner correction), keeping
+     `*up to that many life` rejected.
 
 6. **Single units:**
    - **Taste of Paradise** (*pay {1}{G} any number of times*): Propagate
@@ -197,6 +215,14 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      creatures than you do …*). Combined with item 11 below, restore
      `readings 1` on `less than this creature's power` in
      `crates/deckmaste_english_v4/judgments/5/comparative_complements.txt`.
+   - **As landed:** Taste of Paradise needed `TemporalQuantity` (no path made
+     the Noun Phrase a `TemporalNounPhrase`). Change of Plans names *each* the
+     `quantifier`, not the `head`, which would impose its singular Number. Keeper
+     of the Beasts uses a lexical `than` FiniteClause frame in
+     `prepositions.ron`: the authored production was never selected and
+     attached anywhere. The `adj:less` exclusion is not implemented (no feature
+     path, no witness needs it). The noun *maximum* is `HeadOnly`; attributive
+     *maximum* stays the adjective's.
 
 ## Pre-Stratum 6 ambiguity cleanup
 
@@ -210,6 +236,9 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      "Bare")` to `ComparativeFusedHead` so fused comparative heads (*more than
      {5}*, *more than two*) take only bare numeral/symbol standards, never an
      overtly determined full NP (*one creature*).
+   - **As landed:** the feature is `ObliqueDetermination` on
+     `DeterminerPhrase`; `Determination` there clashed with the fused head's
+     inherited Determination.
 
 8. **Prevent `MeasuredComparativeHead` and `MeasuredComparativeStandard` from
    consuming ordinary count NPs as measure modifiers (`english.ron`):**
@@ -224,6 +253,9 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      already parsed by `MeasuredComparativeDetermined`, whereas NP measures
      before fused *more*/*less* are either bare symbols/numbers or `DirectMeasure`
      mass nouns like *7 life more than …*).
+   - **As landed:** the Count exclusion is on `MeasuredComparativeHead` only;
+     Yorion, Sky Nomad (*at least twenty cards more than the minimum deck
+     size*) needs a count measure before *more … than*.
 
 9. **Exclude `Genitive`, `Nominative`, and `Manner` NPs from
    `NonNumericComplement` and `Manner` NPs from `SubjectPredicate`
@@ -237,6 +269,12 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
      "Genitive")`, and `Exclude("head.NounKind", "Manner")` to
      `NonNumericComplement`, and `Exclude("subject.NounKind", "Manner")` to
      `SubjectPredicate`.
+   - **As landed:** the exclusions removed wrong Readings that some units
+     relied on. `IndependentGenitivePhrase` (*less than Mirko's*),
+     `MaximumPossessor` (*up to one target player's life total*) and
+     `MultipliedNounPhrase` (*three times this creature's power*) supply their
+     analyses; *regenerate* gains an Intransitive frame (*when it regenerates
+     this way*, formerly *this way* as its Object).
 
 10. **Require `ComplementKind: Intransitive` on prenominal and interleaved
     adjectives (`english.ron`):**
@@ -274,6 +312,9 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
       focusing/multiplier NP modifiers (*only*, *twice*, *not*, *just*,
       *immediately* — `AdverbModifiedNounPhrase`), so determined noun phrases
       modified by a phrasal adverb have a single attachment site.
+    - **Amended (owner):** `AdverbModifiedAmount` takes bounding and phrasal
+      adverbs (*up to twice X target cards*, item 6); a new adverb position
+      `Bounding` holds *at least*, *at most*, *exactly* and *how*.
 
 13. **Prevent `AdverbModifiedAdverbPhrase` from applying outside
     `FrequencyInterval` (`english.ron`):**
@@ -283,6 +324,8 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
     - Prevent `AdverbModifiedAdverbPhrase` from taking a `FrequencyInterval`
       head (so degree/focusing adverbs modify the adverb head *inside*
       `FrequencyInterval`: `[AdvP [AdvP so far] [NP this turn]]`).
+    - **As landed:** `light: ["head"]` on `AdverbModifiedAdverbPhrase`; no
+      feature tells a `FrequencyInterval` apart.
 
 ## Parser and realizer performance
 
@@ -338,3 +381,6 @@ them, and eliminate three parser/realizer hot-path bottlenecks in
   (`comparative_complements.txt:4`) enforced.
 
 Standard constraints apply.
+
+Census delta (`upuwzwrs` → `olnvztuz`): faces read 20,352 → 20,391; total Readings 181,454 → 173,844; lost faces: none. Strata 0–5: 75,047 units read, 0 deferred, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–5 pass (2,408 enforced, 708 pending); tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4 and deckmaste_english_v4; citation checks pass.
