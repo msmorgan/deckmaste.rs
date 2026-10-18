@@ -50,10 +50,10 @@ def tyrantsChoice : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (spell (sequentially
-              [ instruct (each isPlayer) (voteStartingWith you .openly (byLabel ["death", "torture"])),
+              [ instruct eachPlayer (voteStartingWith you .openly (byLabel ["death", "torture"])),
                 doIf (voteLead "death" false)
-                  (instruct (each (isOpponentOf you)) (sacrifice (aTheirChoice isCreature))),
-                doIf (voteLead "torture" true) (instruct (each (isOpponentOf you)) (loseLife (.lit 4))) ]))
+                  (instruct eachOpponent (sacrifice (aTheirChoice isCreature))),
+                doIf (voteLead "torture" true) (instruct eachOpponent (loseLife (.lit 4))) ]))
                     ] } }
 
 /-- Council's Judgment -/
@@ -64,8 +64,8 @@ def councilsJudgment : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (spell (sequentially
-              [ instruct (each isPlayer) (voteStartingWith you .openly
-                  (byCandidate (a (and [ isPermanent, not isLand,
+              [ instruct eachPlayer (voteStartingWith you .openly
+                  (byCandidate (a (and [ isPermanent, non isLand,
                                            not (hasPossessor .controller you) ])))),
                 exile (allOf (and [isPermanent, withMostVotes])) ])) ] } }
 
@@ -78,7 +78,7 @@ def orchardElemental : Spelled := spelled <| .singleFaced
         [ abilityWord "council's dilemma"
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
-                [ instruct (each isPlayer) (voteStartingWith you .openly
+                [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["sprout", "harvest"])),
                   putCounters (times (.lit 2) (votesFor "sprout")) (printedKind p1p1Counter)
                     thisCreature .many,
@@ -92,7 +92,7 @@ def pleaForPower : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "will of the council"
             (spell (sequentially
-              [ instruct (each isPlayer) (voteStartingWith you .openly (byLabel ["time", "knowledge"])),
+              [ instruct eachPlayer (voteStartingWith you .openly (byLabel ["time", "knowledge"])),
                 doIf (voteLead "time" false) (extraTurn (.lit 1)),
                 doIf (voteLead "knowledge" true) (draw (.lit 3)) ])) ] } }
 
@@ -104,12 +104,12 @@ def coercivePortal : Spelled := spelled <| .singleFaced
         [ abilityWord "will of the council"
             (at_ (beginningOfYour .upkeep)
               (sequentially
-                [ instruct (each isPlayer) (voteStartingWith you .openly
+                [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["carnage", "homage"])),
                   doIf (voteLead "carnage" false)
                     (sequentially
                       [ sacrifice thisArtifact,
-                        destroy (allOf (and [isPermanent, not isLand])) ]),
+                        destroy (allOf (and [isPermanent, non isLand])) ]),
                   doIf (voteLead "homage" true) (draw (.lit 1)) ])) ] } }
 
 /-- Custodi Squire -/
@@ -122,7 +122,7 @@ def custodiSquire : Spelled := spelled <| .singleFaced
           abilityWord "will of the council"
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
-                [ instruct (each isPlayer) (voteStartingWith you .openly
+                [ instruct eachPlayer (voteStartingWith you .openly
                     (byCandidate
                       (a (and [ or [isArtifact, isCreature, isEnchantment],
                                  in_ (graveyardOf you) ])))),
@@ -138,7 +138,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
         [ abilityWord "council's dilemma"
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
-                [ instruct (each isPlayer) (voteStartingWith you .openly
+                [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["strength", "numbers"])),
                   putCounters (votesFor "strength") (printedKind p1p1Counter) thisCreature .many,
                   createToken (creatureToken 1 1 [.white] [creatureType "Soldier"]) (count := (votesFor "numbers")) ])) ],
@@ -148,7 +148,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
 def truthOrConsequencesVote : Ability :=
   abilityWord "secret council"
     (spell (sequentially
-      [ instruct (each isPlayer) (vote .secretly (byLabel ["truth", "consequences"])),
+      [ instruct eachPlayer (vote .secretly (byLabel ["truth", "consequences"])),
         draw (votesFor "truth"),
         choose (aAtRandom (isOpponentOf you)),
         instruct «this»
@@ -197,7 +197,7 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [planeswalkerType "Liliana"],
       text :=
-        [ activated (loyaltySymbol (.up 1)) (sequentially [instruct (each isPlayer) (choose (a (and [isCard, in_ hand]))), discard them]),
+        [ activated (loyaltySymbol (.up 1)) (sequentially [instruct eachPlayer (choose (a (and [isCard, in_ hand]))), discard them]),
           activated (loyaltySymbol (.down 2)) (instruct (target isPlayer) (sacrifice (a isCreature))),
           activated (loyaltySymbol (.down 6))
             (sequentially
