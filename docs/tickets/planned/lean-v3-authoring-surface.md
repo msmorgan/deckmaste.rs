@@ -52,7 +52,7 @@ Standard constraints apply.
    Retire the `deonticActionFor` `v2`-port shim and all `Deed`-taking deontic
    signatures in favor of `v3` `Action`-taking templates (`cant`, `can`, `must`,
    `gatedBy`).
-2. [`lean-v3-authoring-2-verb-and-clause-spine`](lean-v3-authoring-2-verb-and-clause-spine.md):
+2. [`lean-v3-authoring-2-verb-and-clause-spine`](../wip/lean-v3-authoring-2-verb-and-clause-spine.md):
    Introduce `Action` templates for verbs and observations (`die`, `enter`,
    `leave`, `putInto`, `phaseOut`, `phaseIn`, `turnFaceUp`, `loseGame`,
    `winGame`, `cast`, `attack`, `block`, `dealDamage`, etc.) so `does`,
@@ -235,8 +235,26 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
 
 ---
 
-### 4. Stage 2 Foundation: Intransitive vs. Transitive Move Actions
+### 4. Stage 2: Verb and Clause Spine
 
+#### 4.1 Retire 3p-Singular `GameEvent` Wrappers in Favor of `does <subj> <action>`
+- Retire all ~35 `v2`-port 3rd-person singular `GameEvent` wrapper templates in
+  `Primitives.lean`, `Macros.lean`, and `Declared.lean` (`dies`, `enters`,
+  `leaves`, `leavesZone`, `attacks`, `attacksPlayer`, `attacksWith`, `blocks`,
+  `becomesBlocked`, `becomesTarget`, `casts`, `activates`, `discards`, `draws`,
+  `losesGame`, `commitsCrime`, `flipsCoin`, `regenerates`, `dealsDamage`,
+  `dealsCombatDamage`, `isDealtDamage`, `tappedForMana`, `unlocksDoor`,
+  `statusEvent`, `zoneChange`, `verbedEvent`, etc.).
+- Every event trigger uses `does <subj> <action>` with the exact same `Action`
+  verb templates used in `would`, `cant`/`can`/`must`/`gatedBy`, `did`, and
+  `instruct`:
+  - `when (does thisCreature die)`
+  - `whenever (does thisCreature attack)`
+  - `whenever (does you (cast (a spell)))`
+  - `whenever (does any (block thisCreature))` (*"becomes blocked"*)
+  - `whenever (does (by_ (a spell)) (target thisCreature))` (*"becomes the target of a spell"*)
+
+#### 4.2 Intransitive (`.actor`) vs. Transitive (`subject`) Zone Transitions
 - `Action.move` remains the single Core AST zone-transition primitive.
 - **Transitive move definitions/templates** (`putInto X loc`, `exile X`,
   `destroy X`, `sacrifice X`, `discard X`) take `X : NounPhrase` as their
@@ -272,6 +290,61 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     `whenever (does (a (youControl land)) (enter (from_ := not yourHand)))`
   - *"Creatures can't enter from graveyards"*:
     `cant (a creature) (enter (from_ := graveyard))`
+
+#### 4.3 Status Changes (`setStatus`): Intransitive vs. Transitive
+- **`phaseOut` and `phaseIn` are intransitive (`[CR#702.26b]`):**
+  ```lean
+  semantic_template phaseOut : Action := .setStatus .phasedOut .actor
+  semantic_template phaseIn : Action := .setStatus .phasedIn .actor
+  ```
+  - *"Target creature phases out"*: `instruct (target creature) phaseOut`
+  - *"Whenever ~ phases out"*: `whenever (does thisCreature phaseOut)`
+- **`become (status : Status)` (`becomeTapped`, `becomeUntapped`) is intransitive (`[CR#603.2e]`):**
+  ```lean
+  semantic_template become (status : Status) : Action := .setStatus status .actor
+  ```
+  - *"Whenever a permanent becomes untapped"*:
+    `whenever (does (a permanent) (become .untapped))`
+  - Distinct from the transitive keyword actions `tap (subject : NounPhrase)`
+    and `untap (subject : NounPhrase)` (`[CR#701.26a..701.26b]`), which wrap
+    `.enact (.action "tap" / "untap")`.
+- **`turnFaceUp` and `turnFaceDown` are transitive:**
+  ```lean
+  semantic_template turnFaceUp (subject : NounPhrase) : Action :=
+    .setStatus .faceUp subject
+  ```
+  - *"Whenever a permanent you control is turned face up"*:
+    `whenever (does any (turnFaceUp (a (youControl permanent))))`
+
+#### 4.4 `dealDamage`, `winGame` / `loseGame`, `flipCoins`, and `rollDice` with Optional Kwargs
+- **`dealDamage`:**
+  ```lean
+  semantic_template dealDamage (amount : Amount := any)
+      (to : NounPhrase := any)
+      (kind : DamageKind := .any) : Action :=
+    .dealDamage amount to kind
+  ```
+  - Imperative: `instruct thisCreature (dealDamage 3 (to := target anyTarget))`
+  - Active trigger: `whenever (does thisCreature (dealDamage (to := a anyPlayer) (kind := .combatOnly)))`
+  - Passive trigger: `whenever (does any (dealDamage (to := thisCreature)))`
+- **`winGame` and `loseGame` (`Action.conclude`):**
+  ```lean
+  semantic_template winGame : Action := .conclude .winGame
+  semantic_template loseGame : Action := .conclude .loseGame
+  ```
+  - Used uniformly in `winGame`, `instruct (that .player) loseGame`,
+    `would you loseGame`, `cant you loseGame`, `cant (each opponent) winGame`.
+- **`flipCoins`:**
+  ```lean
+  semantic_template flipCoins (count : Amount := any)
+      (watch : Option FlipWatch := none)
+      (caller : Option NounPhrase := none) : Action :=
+    .flipCoins (.count count) watch caller
+  ```
+  - Imperative: `flipCoins 5`
+  - Replacement: `would you (flipCoins 1)`
+  - Trigger (*"Whenever you win a coin flip"*):
+    `whenever (does you (flipCoins (watch := .wins)))`
 
 ---
 
