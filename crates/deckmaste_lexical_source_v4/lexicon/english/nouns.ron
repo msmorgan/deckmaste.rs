@@ -86,8 +86,8 @@
     (lemma: "life", distribution: DirectMeasure, countability: [Mass]),
     (lemma: "loyalty", distribution: DirectMeasure, countability: [Mass]),
     (lemma: "mana", distribution: DirectMeasure, countability: [Mass]),
-    // *to a maximum of 10*
-    (lemma: "maximum", frames: [Complement(PP(["of"]))]),
+    // *to a maximum of 10*; the attributive *maximum* is the adjective's.
+    (lemma: "maximum", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "mode",
     "name",
     (lemma: "number", distribution: Quantity, frames: [Complement(PP(["of"]))]),

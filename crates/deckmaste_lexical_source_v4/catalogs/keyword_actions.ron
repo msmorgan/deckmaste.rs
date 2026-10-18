@@ -60,7 +60,8 @@
         (lemma: "play", frames: [Monotransitive, Intransitive]),
     ]),
     (rule: "[CR#701.19]", name: "Regenerate", verbs: [
-        (lemma: "regenerate", frames: [Monotransitive]),
+        // *When it regenerates this way*
+        (lemma: "regenerate", frames: [Intransitive, Monotransitive]),
     ]),
     (rule: "[CR#701.20]", name: "Reveal", verbs: [
         (lemma: "reveal", frames: [Monotransitive]),

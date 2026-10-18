@@ -84,7 +84,8 @@ grade, and *same* declares `Equative`, which licenses its *as* Complement. A
 preposition may declare what it marks as `PrepositionMarking`: *of* an
 oblique, *than* a comparative Complement. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
-`EndAdverb`, `PhrasalAdverb`); an interrogative adverb (*how*) is also an
+`EndAdverb`, `PhrasalAdverb` for a focusing or multiplying one, `BoundingAdverb`
+for one bounding a quantity, *at least*, *exactly*); an interrogative adverb (*how*) is also an
 `InterrogativeAdverb`. Subtypes record their families as classes
 (`CreatureType`, `PlaneswalkerType`, …).
 
