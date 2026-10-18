@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-4-subordinate-clauses-and-triggers]
+needs: [english-v4-stratum-4-residual]
 ---
 # Stratum 5: Comparatives, measures, partitives, and arithmetic modifiers
 
