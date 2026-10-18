@@ -164,18 +164,18 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   `.additional (quantity : Quantity)` (`additional q`) to `Quantity` so noun
   phrases carry their own quantifiers directly:
   - *"Each player can't cast more than one spell each turn"* (*Arcane Laboratory*):
-    `cant (each anyPlayer) (cast (counted (moreThan 1) spell)) (timing := eachTurn)`
+    `cant (each isPlayer) (cast (counted (moreThan 1) isSpell)) (timing := eachTurn)`
   - *"~ can't be blocked by more than one creature"* (*Alpha Authority*):
-    `cant (by_ (counted (moreThan 1) creature)) (block enchantedCreature)`
+    `cant (by_ (counted (moreThan 1) isCreature)) (block (enchanted creature))`
   - *"You may play an additional land on each of your turns"* (*Exploration*):
-    `can you (play (counted (additional (exactly 1)) land)) (timing := onEachOfYourTurns)`
+    `can you (play (counted (additional (exactly 1)) isLand)) (timing := onEachOfYourTurns)`
   - *"~ can block an additional creature each combat"* (*Hundred-Handed One*):
-    `can thisCreature (block (counted (additional (exactly 1)) creature)) (timing := eachCombat)`
+    `can thisCreature (block (counted (additional (exactly 1)) isCreature)) (timing := eachCombat)`
   - *"You may vote an additional time"* (*Brago's Representative*):
     `can you (vote (times := additional (exactly 1)))`
 - Replace `allPlayers` in active subjects where Oracle English says *"Each
-  player"* (`each anyPlayer`) or *"Players"* (`bare anyPlayer`), and replace
-  `cast (allOf spell)` with `cast (a spell)` / `cast (bare spell)`.
+  player"* (`each isPlayer`) or *"Players"* (`bare isPlayer`), and replace
+  `cast (allOf isSpell)` with `cast (a isSpell)` / `cast (bare isSpell)`.
 
 #### 2.5 `AsThough` Carries a `Condition` (Preserving Pronouns & Fixing Polarity)
 - Replace `AsThough.of (predicate : Predicate)` with
@@ -186,9 +186,9 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - *Warmonger's Chariot*:
     `can thisCreature attack (asThough := matches it (not (hasKeyword defender)))`
   - *Glaring Spotlight*:
-    `can (by_ (or [spellYouControl, abilityYouControl])) (target (allOf (opponentsControl creature))) (asThough := matches them (not (hasKeyword hexproof)))`
+    `can (by_ (allOf (and [or [isSpell, isAbilityOnStack], youControl]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := matches them (not (hasKeyword hexproof)))`
   - *Teferi, Mage of Zhalfir*:
-    `can you (cast (a (and [creature, isCard]))) (asThough := matches them (hasKeyword flash))`
+    `can you (cast (a (and [isCreature, isCard]))) (asThough := matches them (hasKeyword flash))`
 - Fix the inverted `asThough` polarity on *Warmonger's Chariot* and *Glaring
   Spotlight* (which previously encoded positive `hasKeyword` instead of
   `not (hasKeyword ...)`).
@@ -250,18 +250,18 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   `instruct`:
   - `when (does thisCreature die)`
   - `whenever (does thisCreature attack)`
-  - `whenever (does you (cast (a spell)))`
+  - `whenever (does you (cast (a isSpell)))`
   - `whenever (does any (block thisCreature))` (*"becomes blocked"*)
-  - `whenever (does (by_ (a spell)) (target thisCreature))` (*"becomes the target of a spell"*)
+  - `whenever (does (by_ (a isSpell)) (target thisCreature))` (*"becomes the target of a spell"*)
 
 #### 4.2 Intransitive (`.actor`) vs. Transitive (`subject`) Zone Transitions
 - `Action.move` remains the single Core AST zone-transition primitive.
 - **Transitive move definitions/templates** (`putInto X loc`, `exile X`,
   `destroy X`, `sacrifice X`, `discard X`) take `X : NounPhrase` as their
   patient argument, leaving the enclosing clause's `Subject` (`you`,
-  `target opponent`, `any`) as the performing agent:
+  `target isOpponent`, `any`) as the performing agent:
   - *"Target opponent sacrifices a creature"*:
-    `instruct (target opponent) (sacrifice (a creature))`
+    `instruct (target isOpponent) (sacrifice (a isCreature))`
   - *"Whenever a card is put into your graveyard from anywhere other than the
     battlefield"*:
     `whenever (does any (putInto (a isCard) yourGraveyard (from_ := not battlefield)))`
@@ -283,13 +283,13 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   ```
   - *"When this creature dies"*: `when (does thisCreature die)`
   - *"If a creature an opponent controls would die"*:
-    `instead (would (a (opponentsControl creature)) die) ...`
+    `instead (would (a (and [isCreature, opponentsControl])) die) ...`
   - *"a creature that died this turn"*:
-    `a (and [creature, did which die thisTurn])`
+    `a (and [isCreature, did which die thisTurn])`
   - *"Whenever a land you control enters from anywhere other than your hand"*:
-    `whenever (does (a (youControl land)) (enter (from_ := not yourHand)))`
+    `whenever (does (a (and [isLand, youControl])) (enter (from_ := not yourHand)))`
   - *"Creatures can't enter from graveyards"*:
-    `cant (a creature) (enter (from_ := graveyard))`
+    `cant (a isCreature) (enter (from_ := graveyard))`
 
 #### 4.3 Status Changes (`setStatus`): Intransitive vs. Transitive
 - **`phaseOut` and `phaseIn` are intransitive (`[CR#702.26b]`):**
@@ -297,14 +297,14 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   semantic_template phaseOut : Action := .setStatus .phasedOut .actor
   semantic_template phaseIn : Action := .setStatus .phasedIn .actor
   ```
-  - *"Target creature phases out"*: `instruct (target creature) phaseOut`
+  - *"Target creature phases out"*: `instruct (target isCreature) phaseOut`
   - *"Whenever ~ phases out"*: `whenever (does thisCreature phaseOut)`
 - **`become (status : Status)` (`becomeTapped`, `becomeUntapped`) is intransitive (`[CR#603.2e]`):**
   ```lean
   semantic_template become (status : Status) : Action := .setStatus status .actor
   ```
   - *"Whenever a permanent becomes untapped"*:
-    `whenever (does (a permanent) (become .untapped))`
+    `whenever (does (a isPermanent) (become untapped))`
   - Distinct from the transitive keyword actions `tap (subject : NounPhrase)`
     and `untap (subject : NounPhrase)` (`[CR#701.26a..701.26b]`), which wrap
     `.enact (.action "tap" / "untap")`.
@@ -314,7 +314,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     .setStatus .faceUp subject
   ```
   - *"Whenever a permanent you control is turned face up"*:
-    `whenever (does any (turnFaceUp (a (youControl permanent))))`
+    `whenever (does any (turnFaceUp (a (and [isPermanent, youControl]))))`
 
 #### 4.4 `dealDamage`, `winGame` / `loseGame`, `flipCoins`, and `rollDice` with Optional Kwargs
 - **`dealDamage`:**
@@ -324,16 +324,16 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
       (kind : DamageKind := .any) : Action :=
     .dealDamage amount to kind
   ```
-  - Imperative: `instruct thisCreature (dealDamage 3 (to := target anyTarget))`
-  - Active trigger: `whenever (does thisCreature (dealDamage (to := a anyPlayer) (kind := .combatOnly)))`
+  - Imperative: `instruct thisCreature (dealDamage 3 (to := target isAnyTarget))`
+  - Active trigger: `whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))`
   - Passive trigger: `whenever (does any (dealDamage (to := thisCreature)))`
 - **`winGame` and `loseGame` (`Action.conclude`):**
   ```lean
   semantic_template winGame : Action := .conclude .winGame
   semantic_template loseGame : Action := .conclude .loseGame
   ```
-  - Used uniformly in `winGame`, `instruct (that .player) loseGame`,
-    `would you loseGame`, `cant you loseGame`, `cant (each opponent) winGame`.
+  - Used uniformly in `winGame`, `instruct (that player) loseGame`,
+    `would you loseGame`, `cant you loseGame`, `cant (each isOpponent) winGame`.
 - **`flipCoins`:**
   ```lean
   semantic_template flipCoins (count : Amount := any)
@@ -345,6 +345,124 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - Replacement: `would you (flipCoins 1)`
   - Trigger (*"Whenever you win a coin flip"*):
     `whenever (does you (flipCoins (watch := .wins)))`
+
+---
+
+### 5. Stage 3: Composable Nominals, Predicates, and Top-Level Combinators (`lean-v3-authoring-3-nominals-and-predicates`)
+
+#### 5.1 List and Wrapper Coercions in the Rust DSL vs. Explicit Top-Level Templates in Lean
+- **In the Rust `v3` DSL (`deckmaste_dsl_v3` / `plugins_v3`):**
+  - List literals coerce by default in each domain slot at the syntax/serde layer:
+    - `[p1, p2, ...] : Predicate` → `Predicate::And(vec![p1, p2, ...])`
+    - `[a1, a2, ...] : Action` → `Action::Sequentially(vec![a1, a2, ...])`
+    - `[c1, c2, ...] : Cost` → `Cost::Compound(vec![c1, c2, ...])`
+    - `[s1, s2, ...] : StaticSpec` → `StaticSpec::Conjunction(None, vec![s1, s2, ...])`
+  - Wrapper and literal coercions (`1` → `Amount::Lit(1)`, `.x` → `Amount::Letter(X)`, `you` → `Subject::Actor(You)`, `p1p1Counter` → `CounterKindSource::Printed(p1p1Counter)`) are likewise desugared by the Rust DSL parser with zero Lean elaboration cost.
+- **In Lean (`lean/Semantics/Templates.lean`, `Definitions.lean`, `Cards/*.lean`):**
+  - To avoid Lean typeclass resolution (`CoeHTCT` → `CoeTC` → `CoeB` → `Coe` / `OfNat`), loss of top-down expected-type propagation inside list literals, and 4-layer typeclass projection unfolding in `Authoring.inspect` and kernel `by decide`, Lean uses direct top-level `semantic_template`s (`and [...]`, `or [...]`, `not ...`, `sequentially [...]`, `simultaneously [...]`, `compound [...]`, `conjunction [...]`).
+
+#### 5.2 Uniform Boolean-Like (`is*` / `has*` / Participial / Prepositional) Naming for All `Predicate`s
+- **Adopt boolean-like naming across all `Predicate` constructors and templates:**
+  - **Types, kinds, and roles (`is*`):**
+    - `isCreature`, `isArtifact`, `isEnchantment`, `isLand`, `isInstant`, `isSorcery`, `isPlaneswalker`, `isBattle`, `isKindred`, `isInstantOrSorcery`, `isPermanentType`
+    - `isPermanent`, `isPermanentCard`, `isSpell`, `isCard`, `isToken`, `isNontoken`, `isCopyOfACard`, `isSource`, `isEmblem`, `isManaAbility`
+    - `isPlayer` (replacing `anyPlayer`), `isOpponent` (replacing `opponent`), `isChosenPlayer`, `isOtherPlayer`, `isOutlaw`, `isHistoric`, `isAnyTarget`, `isAnyOtherTarget`
+  - **States and characteristics (`is*`):**
+    - `isTapped`, `isUntapped`, `isFaceDown`, `isFaceUp`, `isPhasedOut`, `isTransformed`, `isAttached`
+    - `isAttacking`, `isBlocking`, `isBlocked`, `isUnblocked`
+    - `isColorless`, `isMonocolored`, `isMulticolored`
+    - `isOther` (for `"another ..."` anchored on a prior mention)
+  - **Properties, possessors, locations, and relations (`has*` / participial / prepositional):**
+    - **Possessors (`Predicate.hasPossessor`):**
+      - `controlledBy (who : NounPhrase) : Predicate := .hasPossessor .controller who`
+      - `youControl : Predicate := controlledBy you`
+      - `youDontControl : Predicate := not (controlledBy you)`
+      - `opponentsControl : Predicate := controlledBy yourOpponents`
+      - `ownedBy (who : NounPhrase) : Predicate := .hasPossessor .owner who`
+      - `youOwn : Predicate := ownedBy you`
+      - `opponentsOwn : Predicate := ownedBy yourOpponents`
+    - **Locations (via unified `Location` from §3):**
+      - `in_ (loc : Location) : Predicate := .in_ loc`
+      - Examples: `and [isCard, in_ yourGraveyard]`, `and [isCreature, isCard, in_ yourHand]`, `and [isCard, in_ (exiledWith thisArtifact)]`.
+    - **Identity and Negation:**
+      - `otherThan (np : NounPhrase) : Predicate := .otherThan np`
+      - `non (p : Predicate) : Predicate := .not p` (e.g., `non isLand`, `non isCreature`, `non isToken`)
+    - **Characteristics and Stat Comparisons:**
+      - `hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw`
+      - `hasCounter (kind : CounterKindSource) (bound : CountBound := .atLeast (.lit 1)) : Predicate := .hasCounters kind bound`
+      - `named (name : NameSource) : Predicate := .named name`
+      - `hasType (t : CardType) : Predicate`, `hasSubtype (s : Subtype) : Predicate`, `hasSupertype (s : Supertype) : Predicate`, `hasColor (c : ColorTerm) : Predicate`
+      - `hasPower (cmp : Comparator) (amt : Amount) : Predicate := .compare [.stat .power] cmp amt`
+      - `hasToughness (cmp : Comparator) (amt : Amount) : Predicate := .compare [.stat .toughness] cmp amt`
+      - `hasManaValue (cmp : Comparator) (amt : Amount) : Predicate := .compare [.stat .manaValue] cmp amt`
+- **Delete ad-hoc compound predicate macros:**
+  - Retire `creatureYouControl`, `creatureYouDontControl`, `creatureYourOpponentsControl`, `outlawYouControl`, `armyYouControl`, `otherCreature`, and `otherCreatureYouControl`.
+- **Unlocks bare nouns and statuses for non-predicate positions:**
+  - Because `isCreature`, `isCard`, `isPermanent`, `isPlayer`, `isSpell`, and `isTapped` carry the `is` prefix:
+    - `spell (body : Action) (sub : Option Subtype := none) : Ability := .spell sub body` keeps the natural name `spell` without colliding with `isSpell : Predicate` (e.g., `spell (counter (target isSpell))`).
+    - `creature`, `artifact`, `enchantment`, `land`, `planeswalker`, `battle`, `card`, `permanent`, `player`, `token`, `copy` are free for `NounWord` / `CardType` (`that creature`, `that card`, `those cards`, `enchanted creature`, `equipped creature`, `fortified land`).
+    - `tapped`, `untapped`, `faceDown`, `faceUp`, `phasedIn`, `phasedOut` are free for `Status` (`become tapped`, `become untapped`, `entersAs tapped`).
+
+#### 5.3 Attached Hosts (`enchanted`, `equipped`, `fortified`) & Quantified `targets`
+- **Attached Hosts (`NounPhrase.attachHost` — 126 occurrences in `Cards/`):**
+  ```lean
+  semantic_template enchanted (w : NounWord) : NounPhrase := .attachHost .enchanted w
+  semantic_template equipped (w : NounWord) : NounPhrase := .attachHost .equipped w
+  semantic_template fortified (w : NounWord) : NounPhrase := .attachHost .fortified w
+  ```
+  - Examples: `enchanted creature`, `enchanted permanent`, `enchanted player`, `equipped creature`, `fortified land`.
+- **Quantified `targets` (`DetPhrase.target` — 35 occurrences in `Cards/`):**
+  ```lean
+  semantic_template targets (q : Quantity) (p : Predicate) : NounPhrase :=
+    .described (.target q) p
+  ```
+  - Examples: `targets (upTo 2) isCreature`, `targets (oneThrough 3) isAnyTarget`, `targets anyNumber isAnyTarget`.
+
+#### 5.4 Top-Level Templates Eliminating All Remaining `Primitives.*` Qualifications
+- **Expose top-level `semantic_template`s for all remaining `Primitives.*` constructors used in `Cards/`:**
+  - **Abilities:** `static (spec : StaticSpec) : Ability := .static spec`, `spell (body : Action) (sub : Option Subtype := none) : Ability := .spell sub body`.
+  - **Nouns & Subjects:** `you`, `this`, `yourOpponents`, `eachPlayer`, `eachOpponent`, `actor (np : NounPhrase) : Subject`, `by_ (np : NounPhrase) : Subject`, `any : Subject / NounPhrase / Amount / Location`.
+  - **Combinators:** `and`, `or`, `not` (`Predicate` / `Condition`), `sequentially`, `simultaneously`, `compound`, `conjunction`.
+  - **Deltas & Amounts:** `up`, `down`, `setTo`, `letter (l : Letter) : Amount`, `thatMuch : Amount`, `anyAmount : Amount`.
+  - **Costs:** `mana`, `tapSymbol`, `untapSymbol`, `loyaltySymbol`, `perform`, `itsManaCost`, `anyCost`.
+  - **Continuous & Static Specs:** `establish`, `abilityGrant`, `qualityChange`, `ptDefinition`, `letterDefinition`, `instead`, `damageRule`, `costShift`, `altCost`, `addedCost`, `visibility`, `controlGrant`, `copyChange`.
+  - **Conditions & Durations:** `matches (np : NounPhrase) (p : Predicate) : Condition`, `compareAmt`, `forAsLongAs`.
+
+---
+
+### 6. Stage 4: Consolidating `Templates` and `Definitions` and Retiring `v1`/`v2` Holdover Names (`lean-v3-authoring-4-declared-bodies`)
+
+#### 6.1 Module Consolidation (`Primitives.lean`, `Templates.lean`, `Definitions.lean`)
+- Retire `lean/Semantics/Macros.lean`, `lean/Semantics/Macros/Primitives.lean`, `lean/Semantics/Macros/Declared.lean`, `lean/Semantics/Macros/CharacteristicInputs.lean`, and `lean/Semantics/Macros/Checks.lean`, replacing them with:
+  - **`lean/Semantics/Primitives.lean`**: `Semantics.Primitives` namespace for `declare_semantic_primitives` + `CharacteristicInputs`.
+  - **`lean/Semantics/Templates.lean`**: Single authoritative module of `semantic_template` phrasing helpers.
+  - **`lean/Semantics/Definitions.lean`**: Single authoritative module of `semantic_definition` rules-defined vocabulary (`[CR#701.1]` keyword actions, `[CR#702.1]` keyword abilities, and counters/tokens/designations), with bodies expressed through `Templates.lean` helpers instead of single-line raw constructor dumps.
+  - **`lean/Semantics/Proofs/DefinitionsAndTemplates.lean`**: Replaces `Macros/Checks.lean`.
+
+#### 6.2 Reconciling the `Macros.lean` vs. `Declared.lean` Signature and Body Drifts
+- **Generalize `Nat`/`String` parameters to `Amount`/`Subtype`:**
+  - `amass (subtype : Subtype) (count : Amount)` (`[CR#701.47a]`)
+  - `bushido (count : Amount)` (`[CR#702.45a]`), `modular (count : Amount)` (`[CR#702.43a]`), `renown (count : Amount)` (`[CR#702.112a]`)
+  - `forEach (per : Amount) (p : Predicate) : Amount`
+- **Rules-accurate signatures and bodies:**
+  - `fateseal (amount : Amount)` (`[CR#701.29a]` — looks at the top `amount` cards of an opponent's library (`a isOpponent`), retiring the extra `whose` parameter in `Macros.lean`).
+  - `companion (condition : DeckCondition)` (`[CR#702.139a]` — uses `DeckCondition` from `Macros.lean`, not `Condition` from `Declared.lean`).
+  - `levelUp (cost : Cost)` (`[CR#702.87a]` — uses the full sorcery-speed activated-ability expansion body from `Declared.lean`, not the empty-body stub in `Macros.lean`).
+  - `gainControl (subject : NounPhrase) (duration : Option Duration := none) (controller : NounPhrase := .actor)` — defaults `controller` to `.actor` so both `"gain control of target creature"` (`you`) and `"target player gains control of..."` (`instruct`) work uniformly.
+  - `creatureToken` / `creatureTokenOf` — include `(abilities : List Ability := [])` from `Declared.lean`.
+  - `create (count : Amount) (token : TokenSpec) (riders : List MoveRider := [])` — unified `Definition` (`[CR#701.7]`), with convenience templates `createToken`, `createTappedToken`, `createTappedAttacking`, `createTokenCopy`.
+  - `lookAndSortSlice` — single helper backing `scry`, `surveil`, and `fateseal`, retiring `lookAndSort`, `lookAndSortInto`, and `lookedCards`.
+
+#### 6.3 Retiring `v1`/`v2` Holdover Names & Amending the Glossary
+- **`Authoring.lean` & `CallerScope.lean`:**
+  - Rename `lean/Semantics/MacroParameters.lean` (`MacroExpansion`, `MacroSplice`) and `lean/Semantics/Proofs/MacroParameters.lean` → `lean/Semantics/CallerScope.lean` (`CallerScope`, `CallerSplice`) and `lean/Semantics/Proofs/CallerScope.lean`.
+  - In `lean/Semantics/Authoring.lean`, retire raw `semantic_macro` and `macroAttribute` so only `semantic_definition` and `semantic_template` exist; rename `MacroContext` → `AuthoringContext`, `contextualMacroAttribute` → `contextualAuthoringAttribute`, `macro_splice_type%` → `caller_splice_type%`, and `Form.onlyMacros` / `Forms.onlyMacros` → `Form.onlyAuthored` / `Forms.onlyAuthored`.
+- **Retire `v2` shims and holdover identifiers:**
+  - Delete empty 12-line shims `lean/Semantics/Phrase.lean` and `lean/Semantics/Triggers.lean`; fold the 1-function `Check/Triggers.lean`, `Check/EventContext.lean`, and `Check/PhraseRules.lean` micro-files into `Check/Phrase.lean`.
+  - Delete `abbrev Binding := Referent` and `abbrev Bindings := DRS` in `lean/Semantics/Check/Words.lean`.
+  - Rename `Payload.gap`, `Referent.isGap`, `gapB`, `countGaps`, and `Refusal.gapInScope` → `Payload.difference`, `Referent.isDifference`, `differenceB`, `countDifferences`, and `Refusal.differenceInScope`.
+- **Amend Game Model Glossary (`docs/contexts/game-model/CONTEXT.md`):**
+  - Replace the legacy **Semantic Macro** entry with **Definition** and **Template** (`[CR#701.1,702.1]`), listing `_Avoid_: Semantic Macro, macro`.
 
 ---
 
