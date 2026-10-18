@@ -421,6 +421,14 @@ matches a description, that one included ([CR#701.57a,702.85a]). An ordered
 group, the stopping Object a part of it.
 _Avoid_: library run
 
+**Location** (project term):
+Where Objects are, or where a move takes them from or puts them: a Zone,
+possibly a Player's own ([CR#400.1]), a place counted from one end of a Pile
+("seventh from the top", [CR#401.7]), the cards exiled with an Object, a Pile
+an Effect made, anywhere, or the complement or union of Locations ("from
+anywhere other than the battlefield").
+_Avoid_: zone expression, event source, search scope, for the one notion
+
 **Entry Rider**:
 How a Permanent arrives on the battlefield, said with what puts it there:
 tapped, attacking, transformed, under a Player's control, with counters, as a
@@ -566,13 +574,26 @@ marker means what its contents mean.
 
 ## Engine semantic language
 
-**Semantic Macro** (project term):
-A named, trusted expansion into semantic expressions. Its name provides an
-attachment point for spellings; its expansion supplies the modeled meaning.
-Its named arguments can capture a subject's identity or a numeric value, or
-supply syntax whose references retain their caller's scope.
-Checking the expansion's admissibility does not establish its rules fidelity.
-_Avoid_: treating a deed label alone as its meaning
+**Definition** (project term):
+A named, trusted expansion into semantic expressions for vocabulary the rules
+define: a keyword action ([CR#701.1]), a keyword ability ([CR#702.1]), a
+Counter, a Token or a Designation. Its name provides an attachment point for
+spellings; its expansion supplies the modeled meaning, and an action's
+expansion reads its arguments in its own Reference Scope. Its named arguments
+can capture a subject's identity or a numeric value, or supply syntax whose
+references retain their caller's scope. Checking the expansion's admissibility
+does not establish its rules fidelity.
+_Avoid_: Semantic Macro, macro; treating a deed label alone as its meaning;
+Registry Definition, which is what a registry declaration means
+
+**Template** (project term):
+A named, transparent expansion into semantic expressions for a phrasing the
+rules do not define as a keyword ([CR#701.1,702.1]): a wording a card prints
+("can't be blocked by more than one creature"), expanded into the same
+expressions its parts would be written as. Its name provides an attachment
+point for spellings and nothing more; it adds no rules meaning of its own.
+_Avoid_: Semantic Macro, macro; Definition, for a phrasing the rules do not
+define
 
 **Entity** (project term):
 An addressable game-state thing. Deckmaste's current Entity domain contains
@@ -632,7 +653,7 @@ The identity of one mention's binding in the checker's context, fixed when the
 mention introduces it. In discourse-representation terms a binding is a
 discourse referent and its Binding Identity is that referent; Reference Scope
 is accessibility. A later Reference that names the binding by its identity
-resolves to it without a pronoun search: a registry macro's referent parameter
+resolves to it without a pronoun search: a Definition's referent parameter
 is bound at the body's first mention, and each later mention of the parameter
 refers back by Binding Identity.
 _Avoid_: stack position or depth for the identity — a position shifts as
