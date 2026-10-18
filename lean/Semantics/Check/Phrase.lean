@@ -2081,6 +2081,7 @@ def stepOps : Nat → StepOps
         | .upTo inner =>
           let (out, errors) := ops.amt drs inner
           (out.push (outcomeB .ceilingShortfall) .other false, errors)
+        | .moreThan inner => ops.amt drs inner
         | .aggregateOver _ dom body =>
           let (drs1, e1) := ops.pred drs dom
           let k := dom.kindOr .object

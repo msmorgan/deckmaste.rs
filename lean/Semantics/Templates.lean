@@ -57,6 +57,43 @@ stamped: "it" or "them", "the exiled card". -/
 semantic_template theVerbed (verb : Deed) (plurality : Plurality) (word : Option NounWord := none)
     (marking : VerbedMarking := .attributive) : NounPhrase :=
   .pro (.verbed verb word marking) plurality
+/-! ## Wildcards
+
+`any` is the unconstrained value of its sort: the unspecified agent of a passive ("can't be
+blocked"), any object or player, any amount, cost, ballot, counter kind, roll, location or
+timing. Each sort's `AnyValue` instance is its template, so the call survives inspection. -/
+
+semantic_template Subject.any : Subject := .any
+semantic_template NounPhrase.any : NounPhrase := .any
+/-- "any kind of counter" -/
+semantic_template anyKind : CounterKindSource := .anyKind
+/-- "any result" of a roll -/
+semantic_template anyResult : RollWatch := .anyResult
+/-- "at any time" -/
+semantic_template anyTiming : Timing := .anyTiming
+/-- "<np> <verb>s": the clause's subject, in the active voice. -/
+semantic_template actor (np : NounPhrase) : Subject := .actor np
+/-- "… by <np>": the clause's subject, in the passive voice. -/
+semantic_template by_ (np : NounPhrase) : Subject := .by np
+/-- "any amount" -/
+semantic_template anyAmount : Amount := .anyAmount
+/-- "any cost" -/
+semantic_template anyCost : Cost := .anyCost
+/-- Any of the listed choices, as a vote leaves them open [CR#701.38a]. -/
+semantic_template anyBallot : Ballot := .anyBallot
+/-- "anywhere" -/
+semantic_template wherever : Location := .anyLocation
+/-- A bare noun phrase in a subject's place is the active voice: `cant you …`. -/
+instance [AuthoringContext] : Coe NounPhrase Subject := ⟨actor⟩
+instance [AuthoringContext] : AnyValue Subject := ⟨Templates.Subject.any⟩
+instance [AuthoringContext] : AnyValue NounPhrase := ⟨Templates.NounPhrase.any⟩
+instance [AuthoringContext] : AnyValue Ballot := ⟨anyBallot⟩
+instance [AuthoringContext] : AnyValue Cost := ⟨anyCost⟩
+instance [AuthoringContext] : AnyValue Amount := ⟨anyAmount⟩
+instance [AuthoringContext] : AnyValue CounterKindSource := ⟨anyKind⟩
+instance [AuthoringContext] : AnyValue RollWatch := ⟨anyResult⟩
+instance [AuthoringContext] : AnyValue Location := ⟨wherever⟩
+instance [AuthoringContext] : AnyValue Timing := ⟨anyTiming⟩
 /-! ## Quantities -/
 
 semantic_template exactly (n : Nat) : Quantity := .range (some n) (some n)
@@ -148,11 +185,6 @@ semantic_template onBottom : Location := .fromEnd .bottom (.nth 1) (.zone .libra
 /-- "on top of its owner's library" -/
 semantic_template onTop : Location := .fromEnd .top (.nth 1) (.zone .library none)
 semantic_template place (end_ : PileEnd) (pile : Location) : Location := .fromEnd end_ (.nth 1) pile
-/-- "<loc> or <loc>", as "on the top or bottom of your library". -/
-semantic_template Location.or (locs : List Location) : Location := .or locs
-/-- "anywhere other than <loc>" -/
-semantic_template Location.not (loc : Location) : Location := .not loc
-semantic_template wherever : Location := .anyLocation
 semantic_template zone (zone : Zone) (scope : Option NounPhrase) : Location := .zone zone scope
 /-! ## Predicates
 
@@ -161,16 +193,79 @@ roles and states, `has*` for characteristics, and a participle or preposition fo
 locations and relations, leaving the bare nouns and statuses free for `NounWord` and `Status`.
 -/
 
-/-! ### Combinators -/
+/-! ### Combinators
+
+`and`, `or` and `not` combine predicates, conditions, noun phrases, locations, timings and costs.
+Each sort has its own namespaced template (`Predicate.and`, `Condition.or`, `Location.not`, …);
+the bare spelling is dispatched on the expected type (`elabExpectedTypeDispatch` below). -/
 
 /-- "<p> and <q>": every conjunct holds. -/
-semantic_template and (conjuncts : List Predicate) : Predicate := .and conjuncts
+semantic_template Predicate.and (conjuncts : List Predicate) : Predicate := .and conjuncts
 /-- "<p> or <q>": some disjunct holds. -/
-semantic_template or (disjuncts : List Predicate) : Predicate := .or disjuncts
+semantic_template Predicate.or (disjuncts : List Predicate) : Predicate := .or disjuncts
 /-- "not <p>" -/
-semantic_template not (p : Predicate) : Predicate := .not p
+semantic_template Predicate.not (p : Predicate) : Predicate := .not p
 /-- "non<p>", as "nonland" or "noncreature". -/
 semantic_template non (p : Predicate) : Predicate := .not p
+semantic_template Condition.and (conjuncts : List Condition := []) : Condition := .and conjuncts
+semantic_template Condition.or (disjuncts : List Condition := []) : Condition := .or disjuncts
+semantic_template Condition.not (condition : Condition) : Condition := .not condition
+semantic_template NounPhrase.and (phrases : List NounPhrase := []) : NounPhrase := .and phrases
+semantic_template NounPhrase.or (phrases : List NounPhrase := []) : NounPhrase := .or phrases
+/-- "<loc> or <loc>", as "on the top or bottom of your library". -/
+semantic_template Location.or (locs : List Location) : Location := .or locs
+/-- "anywhere other than <loc>" -/
+semantic_template Location.not (loc : Location) : Location := .not loc
+semantic_template Timing.and (conjuncts : List Timing := []) : Timing := .and conjuncts
+semantic_template Timing.or (disjuncts : List Timing := []) : Timing := .or disjuncts
+semantic_template Timing.not (timing : Timing) : Timing := .not timing
+semantic_template Cost.or (costs : List Cost := []) : Cost := .or costs
+
+open Lean Elab Term in
+/-- Words several sorts share, each sort's template by the result type it builds: the combinators
+`and`, `or` and `not`, and the bounds `moreThan` and `upTo` (a `Quantity` of a noun phrase, or an
+`Amount`). -/
+private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
+  [ (`and, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.and),
+             (``Semantics.Condition, `Semantics.Templates.Condition.and),
+             (``Semantics.NounPhrase, `Semantics.Templates.NounPhrase.and),
+             (``Semantics.Timing, `Semantics.Templates.Timing.and) ]),
+    (`or, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.or),
+            (``Semantics.Condition, `Semantics.Templates.Condition.or),
+            (``Semantics.NounPhrase, `Semantics.Templates.NounPhrase.or),
+            (``Semantics.Location, `Semantics.Templates.Location.or),
+            (``Semantics.Timing, `Semantics.Templates.Timing.or),
+            (``Semantics.Cost, `Semantics.Templates.Cost.or) ]),
+    (`not, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.not),
+             (``Semantics.Condition, `Semantics.Templates.Condition.not),
+             (``Semantics.Location, `Semantics.Templates.Location.not),
+             (``Semantics.Timing, `Semantics.Templates.Timing.not) ]),
+    (`moreThan, [ (``Semantics.Quantity, `Semantics.Templates.moreThan),
+                  (``Semantics.Amount, `Semantics.Templates.Amount.moreThan) ]),
+    (`upTo, [ (``Semantics.Quantity, `Semantics.Templates.upTo),
+              (``Semantics.Amount, `Semantics.Templates.Amount.upTo) ]) ]
+
+open Lean Elab Term Meta in
+/-- Top-down dispatch of a shared word on the expected type: `and [p, q]` elaborates as the one
+template its expected type names, so a nested combinator costs one elaboration per node (an
+overload would elaborate every alternative, bottom-up) and the elaborated term is that template's
+call, as `Authoring.inspect` records it. With no expected type known, or a sort without such a
+template, the ordinary application elaborator takes over. -/
+@[scoped term_elab Lean.Parser.Term.app]
+def elabExpectedTypeDispatch : TermElab := fun stx expectedType? => do
+  let fn := stx[0]
+  unless fn.isIdent do throwUnsupportedSyntax
+  let some sorts := expectedTypeDispatch.lookup fn.getId | throwUnsupportedSyntax
+  if (← getLCtx).findFromUserName? fn.getId |>.isSome then throwUnsupportedSyntax
+  let some expected := expectedType? | throwUnsupportedSyntax
+  let expected ← instantiateMVars expected
+  if expected.getAppFn.isMVar then
+    tryPostpone
+    throwUnsupportedSyntax
+  let some sort := (← whnfR expected).getAppFn.constName? | throwUnsupportedSyntax
+  let some template := sorts.lookup sort | throwUnsupportedSyntax
+  let call := stx.setArg 0 (mkCIdentFrom fn template)
+  withMacroExpansion stx call <| elabTerm call expectedType?
 
 /-! ### Subtype words -/
 
@@ -509,7 +604,6 @@ semantic_template fullParty : Condition := fullPartyOf .you
 semantic_template agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase) :
     NounPhrase :=
   .agree axis agreement group
-semantic_template NounPhrase.and (phrases : List NounPhrase := []) : NounPhrase := .and phrases
 semantic_template asMarker (marker : MarkerWord) (subject : NounPhrase) : NounPhrase :=
   .asMarker marker subject
 semantic_template asType (type : CardType) (subject : NounPhrase)
@@ -531,7 +625,6 @@ set_option linter.unusedVariables false in
 semantic_template gap (kind : Kind) : NounPhrase := .which
 semantic_template oneEachOf (pool : NounPhrase) (roles : List Predicate := []) : NounPhrase :=
   .oneEachOf roles pool
-semantic_template NounPhrase.or (phrases : List NounPhrase := []) : NounPhrase := .or phrases
 semantic_template pileOf (count : SliceCount) (by_ : Option NounPhrase := none) : NounPhrase :=
   .pileOf count by_
 semantic_template possessorOf (axis : PossessorAxis) (subject : NounPhrase) : NounPhrase :=
@@ -667,6 +760,13 @@ semantic_template eachCombat : Timing := .inPart .combat none (.each none)
 resolved to the players the deontic subject names ("Players can't untap …") [CR#502.3]. -/
 semantic_template duringTheirUntapSteps : Timing :=
   .inPart .untapStep (some (.pro (.word .player) .many)) (.each none)
+/-- "during your untap step": each of your untap steps [CR#502.3]. -/
+semantic_template duringYourUntapStep : Timing := .inPart .untapStep (some .you) (.each none)
+/-- "on each of their turns": each of the turns of the player the deontic subject names, "their"
+the singular pronoun resolved distributively ("Each player may play an additional land on each
+of their turns"). -/
+semantic_template onEachOfTheirTurns : Timing :=
+  .inPart .turn (some (.pro (.word .player) .one)) (.each none)
 /-- "while you're searching your library" -/
 semantic_template whileSearchingYourLibrary : Timing :=
   .whileDoing (.does (.actor .you) (.search (yourLibrary) anyNumber (.and [])))
@@ -674,9 +774,6 @@ semantic_template whileSearchingYourLibrary : Timing :=
 semantic_template whileDoing (event : GameEvent) : Timing := .whileDoing event
 /-- "while <condition>" -/
 semantic_template whileTrue (condition : Condition) : Timing := .onlyIf condition
-semantic_template Timing.and (conjuncts : List Timing := []) : Timing := .and conjuncts
-semantic_template Timing.not (timing : Timing) : Timing := .not timing
-semantic_template Timing.or (disjuncts : List Timing := []) : Timing := .or disjuncts
 /-! ## Usage limits -/
 
 /-- "only once each turn" [CR#602.5b] -/
@@ -741,14 +838,14 @@ semantic_template paid (facet : LinkedFacet) (subject : NounPhrase) : Amount := 
 semantic_template setTo (amount : Amount) : (Delta Amount) := .set amount
 semantic_template statOf (axis : ProjAxis) (subject : NounPhrase) : Amount := .statOf axis subject
 semantic_template thatMuch : Amount := .thatMuch
-/-- "any amount" -/
-semantic_template anyAmount : Amount := .anyAmount
 semantic_template theDifference : Amount := .theDifference
 semantic_template theOutcome (sort : OutcomeSort) : Amount := .theOutcome sort
 semantic_template totalOf (axis : ProjAxis) (group : NounPhrase) : Amount :=
   .aggregate .sum axis group
 semantic_template up (amount : Amount) : (Delta Amount) := .up amount
 semantic_template Amount.upTo (bound : Amount) : Amount := .upTo bound
+/-- "more than N", as a prohibition bounds an amount ("can't draw more than one card"). -/
+semantic_template Amount.moreThan (n : Nat) : Amount := .moreThan (.lit n)
 semantic_template votesFor (label : String) : Amount := .votesFor label
 /-! ## Counters -/
 
@@ -838,7 +935,7 @@ semantic_template turnFaceUp (subject : NounPhrase) : Action := .setStatus .face
 /-- "<subject> attacks [<defender>]" [CR#508.1a] -/
 semantic_template attack (defender : Option NounPhrase := none) : Action := .attack defender
 /-- "<subject> blocks [<attacker>]" [CR#509.1a] -/
-semantic_template block (attacker : NounPhrase := Primitives.NounPhrase.any) : Action :=
+semantic_template block (attacker : NounPhrase := Templates.NounPhrase.any) : Action :=
   .block attacker
 /-- "<subject> attacks with <attackers> [<defender>]" -/
 semantic_template attackWith (attackers : NounPhrase) (defender : Option NounPhrase := none) :
@@ -847,8 +944,8 @@ semantic_template attackWith (attackers : NounPhrase) (defender : Option NounPhr
 /-- "target <subject>": the act of targeting [CR#115.1]. -/
 semantic_template Action.target (subject : NounPhrase) : Action := .target subject
 /-- "<subject> deals [<amount>] [<kind>] damage [to <to>]" -/
-semantic_template dealDamage (amount : Amount := Primitives.Amount.anyAmount)
-    (to : NounPhrase := Primitives.NounPhrase.any) (kind : DamageKind := .any) : Action :=
+semantic_template dealDamage (amount : Amount := anyAmount)
+    (to : NounPhrase := Templates.NounPhrase.any) (kind : DamageKind := .any) : Action :=
   .dealDamage amount to kind
 /-- "<subject> wins the game" -/
 semantic_template winGame : Action := .conclude .winGame
@@ -863,13 +960,13 @@ semantic_template tapForMana (permanent : NounPhrase) (type : Option ManaTypeTer
     Action :=
   .tapForMana permanent type
 /-- "flip <count> coins [and win/lose] [showing <outcome>]" -/
-semantic_template flipCoins (count : Amount := Primitives.Amount.anyAmount)
+semantic_template flipCoins (count : Amount := anyAmount)
     (call : Option FlipCall := none) (outcome : Option CoinFace := none) : Action :=
   .flipCoins (.count count) call outcome
 /-- "roll <count> <sides>-sided dice [and watch for <watch>]" -/
 semantic_template rollDice (count : Amount := Primitives.Amount.lit 1)
     (sides : DieSides := .sides 6) (batch : DiceBatch := .one)
-    (watch : RollWatch := Primitives.RollWatch.anyResult) : Action :=
+    (watch : RollWatch := anyResult) : Action :=
   .rollDice count sides batch watch
 
 /-! ## Actions -/
@@ -924,7 +1021,7 @@ semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
     [(.entersAs .tapped), (.entersAttacking none)]
 /-- Losing counters is removal from the named player. -/
 semantic_template loseCounters (kind : Option CounterKindSource) (amount : Option Amount)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Action :=
+    (agent : NounPhrase := you) : Action :=
   .removeCounters (amount.map Quantity.exactlyOf) kind agent .one true
 semantic_template loseLife (amount : Amount) : Action :=
   .changeLife (.down amount)
@@ -1107,7 +1204,7 @@ semantic_template removeCounters (quantity : Quantity) (kind : Option CounterKin
   .removeCounters (some quantity) kind from_ .one true
 /-- "<who> loses all [<kind>] counters" -/
 semantic_template loseAllCounters (kind : Option CounterKindSource)
-    (agent : NounPhrase := Primitives.NounPhrase.you) : Action :=
+    (agent : NounPhrase := you) : Action :=
   loseCounters kind none (agent := agent)
 /-- "remove all [<kind>] counters from <from>" -/
 semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase) :
@@ -1353,10 +1450,7 @@ semantic_template withContinuation (policy : ContinuationPolicy) (body : Action)
 
 /-- "whoever performs this instruction" -/
 semantic_template theActor : NounPhrase := .actor
-/-- "<np> <verb>s": the clause's subject, in the active voice. -/
-semantic_template actor (np : NounPhrase) : Subject := .actor np
-/-- "… by <np>": the clause's subject, in the passive voice. -/
-semantic_template by_ (np : NounPhrase) : Subject := .by np
+
 /-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
 semantic_template instruct (performer : NounPhrase) (body : Action) : Action :=
   .instruct performer body
@@ -1400,6 +1494,10 @@ semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound :
 
 /-- "<subj> <action>s": an action event, in the voice `subj` carries. -/
 semantic_template does (subj : Subject) (action : Action) : GameEvent := .does subj action
+/-- "if <subj> would <action>": the event a replacement watches [CR#614.1]. -/
+semantic_template would (subj : Subject) (action : Action) : WouldClause := .would subj action
+/-- "if <clause> or <clause> would happen": any of several events [CR#614.1]. -/
+semantic_template wouldAny (clauses : List WouldClause) : WouldClause := .wouldAny clauses
 /-- "at the beginning of <possessor>'s <part>", each time it comes -/
 semantic_template beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
   .beginningOf part (some possessor) (.each none)
@@ -1683,8 +1781,14 @@ semantic_template instead (event : WouldClause) (replacement : Action)
 semantic_template italicHead (word : ItalicWord) (ability : Ability) : Ability :=
   .italicHead word ability
 semantic_template itsManaCost : Cost := .itsManaCost
-/-- "any cost" -/
-semantic_template anyCost : Cost := .anyCost
+/-! ## Play payments and ballots -/
+
+/-- Paying the spell's or ability's own cost [CR#601.2f]. -/
+semantic_template itsOwnCost : PlayPayment := .itsOwnCost
+/-- "without paying its mana cost": an alternative cost [CR#118.9]. -/
+semantic_template withoutPaying : PlayPayment := .withoutPaying
+/-- "by paying <cost> rather than paying its mana cost": an alternative cost [CR#118.9]. -/
+semantic_template payingInstead (cost : Cost) : PlayPayment := .payingInstead cost
 semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticSpec :=
   .letterDefinition letter amount
 semantic_template loyaltySymbol (loyalty : LoyaltyCost) : Cost := .loyaltySymbol loyalty
@@ -1697,7 +1801,6 @@ semantic_template modification (subject : NounPhrase) (stat : Stat) (delta : Del
     StaticSpec :=
   .modification subject stat delta
 semantic_template notChosenBefore (within : Duration) : ModeChange := .notChosenBefore within
-semantic_template Cost.or (costs : List Cost := []) : Cost := .or costs
 semantic_template partSkip (player : NounPhrase) (part : TurnPart) : StaticSpec :=
   .partSkip player part
 semantic_template paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute) : StaticSpec :=
@@ -1755,7 +1858,6 @@ semantic_template prototypeAlt (cost : ManaCost) (power toughness : Nat) : Proto
   { cost := some cost, power := stat power, toughness := stat toughness }
 /-! ## Conditions -/
 
-semantic_template Condition.and (conjuncts : List Condition := []) : Condition := .and conjuncts
 semantic_template anyResultIs (comparator : Comparator) (bound : Amount) : Condition :=
   .anyResultIs comparator bound
 semantic_template choseThisWay (chooser : NounPhrase) (predicate : Predicate) : Condition :=
@@ -1776,21 +1878,10 @@ semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) 
 semantic_template matches_ (subject : NounPhrase) (predicate : Predicate) : Condition :=
   .matches subject predicate
 semantic_template noHolder (designation : DesignationLabel) : Condition := .noHolder designation
-semantic_template Condition.not (condition : Condition) : Condition := .not condition
-semantic_template Condition.or (disjuncts : List Condition := []) : Condition := .or disjuncts
 semantic_template preventedFromSource (predicate : Predicate) : Condition :=
   .preventedFromSource predicate
 semantic_template rolledDoubles : Condition := .rolledDoubles
 semantic_template voteLead (label : String) (orTied : Bool) : Condition := .voteLead label orTied
-/- `and`, `or` and `not` serve `Condition`, `NounPhrase` and `Location` as well as `Predicate`:
-their namespaced templates are exported under the same names, and the expected type picks the
-overload. A class (as `AnyValue` serves `any`) would hide the template call behind an instance
-projection; the overloads keep each call a template call, at an elaboration cost that grows with
-the nesting depth of the combinators. (The namespaced spellings themselves are ambiguous with the
-constructors under `open Semantics`.) -/
-export Semantics.Templates.Condition (and or not)
-export Semantics.Templates.NounPhrase (and or)
-export Semantics.Templates.Location (or not)
 /- The verb `target` (`Action`) shares its name with the determiner `target` (`NounPhrase`), and
 the verb `become` (a `Status`) with the characteristic change `become`; the argument types pick
 the overload. -/

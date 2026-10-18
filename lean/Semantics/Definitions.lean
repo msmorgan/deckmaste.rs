@@ -267,21 +267,21 @@ semantic_definition wishCounter : CounterKind := .named "wishCounter"
 
 /-- "cast <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.5a]). -/
 semantic_definition cast (subject : NounPhrase) (from_ : Option Location := none)
-    (payment : PlayPayment := Primitives.PlayPayment.itsOwnCost)
+    (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "cast"))
     (.procedure .cast (.inCaller subject) payment.inCaller (resulting.map .inCaller)
       (from_.map .inCaller) none)
 /-- "play <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.18a]). -/
 semantic_definition play (subject : NounPhrase) (from_ : Option Location := none)
-    (payment : PlayPayment := Primitives.PlayPayment.itsOwnCost)
+    (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "play"))
     (.procedure .play (.inCaller subject) payment.inCaller (resulting.map .inCaller)
       (from_.map .inCaller) none)
 /-- "activate <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.2a]). -/
 semantic_definition activate (subject : NounPhrase) (from_ : Option Location := none)
-    (payment : PlayPayment := Primitives.PlayPayment.itsOwnCost)
+    (payment : PlayPayment := itsOwnCost)
     (resulting : Option Predicate := none) : Action :=
   .ownScope (some (.action "activate"))
     (.procedure .activate (.inCaller subject) payment.inCaller (resulting.map .inCaller)
@@ -437,7 +437,7 @@ semantic_definition shuffleInto (subject : NounPhrase) : Action :=
         .shuffle (.zone .library none) ])
 /-- "vote for <ballot> [<times> times]" (`Definition`, [CR#701.38]). -/
 semantic_definition vote (disclosure : Disclosure := .openly)
-    (ballot : Ballot := Primitives.Ballot.anyBallot)
+    (ballot : Ballot := anyBallot)
     (times : Option Quantity := none) : Action :=
   .ownScope (some (.action "vote"))
     (.enact (.action "vote") (.vote none disclosure ballot times) none none)

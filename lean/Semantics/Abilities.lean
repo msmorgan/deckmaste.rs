@@ -380,6 +380,9 @@ mutual
     | aggregateOf (op : AggregateOp) (amounts : List Amount)
     | distinctCount (axis : KindAxis) (domain : NounPhrase)
     | upTo (bound : Amount)
+    /-- "More than N": an amount a prohibition bounds ("can't draw more than one card each
+    turn"), never a value read. -/
+    | moreThan (bound : Amount)
     | anyAmount
 
   inductive Quantity where
@@ -1152,36 +1155,6 @@ mutual
         (guard : Option Condition) (from_ : Option Zone)
 end
 
-instance : AnyValue Subject where
-  any := .any
-
-instance : Coe NounPhrase Subject where
-  coe := .actor
-
-instance : AnyValue NounPhrase where
-  any := .any
-
-instance : AnyValue Ballot where
-  any := .anyBallot
-
-instance : AnyValue Cost where
-  any := .anyCost
-
-instance : AnyValue Amount where
-  any := .anyAmount
-
-instance : AnyValue CounterKindSource where
-  any := .anyKind
-
-instance : AnyValue RollWatch where
-  any := .anyResult
-
-instance : AnyValue Location where
-  any := .anyLocation
-
-instance : AnyValue Timing where
-  any := .anyTiming
-
 /-- The positive locations `loc` names, as a list of its disjuncts, or none when it names a
 complement ("anywhere other than …") or anywhere. A move from a positive list of zones, observed
 on its departure, is read with its objects' last known information [CR#603.6c,603.10a]. -/
@@ -1201,8 +1174,6 @@ instance : Coe Condition AsThough where
   coe := .condition
 
 abbrev did := DidClause.mk
-abbrev would := WouldClause.would
-abbrev wouldAny := WouldClause.wouldAny
 
 end Semantics
 
