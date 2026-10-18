@@ -88,7 +88,7 @@
     (lemma: "mana", distribution: DirectMeasure, countability: [Mass]),
     "mode",
     "name",
-    (lemma: "number", frames: [Complement(PP(["of"]))]),
+    (lemma: "number", distribution: Quantity, frames: [Complement(PP(["of"]))]),
     "offer",
     "opponent",
     (lemma: "order", countability: [Count, Mass]),
@@ -139,6 +139,8 @@
     "type",
     // "for the same value", "double the value of X".
     (lemma: "value", frames: [Complement(PP(["of"]))]),
+    // *the total of those results*; the attributive word is the adjective.
+    (lemma: "total", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
     "vote",
     "voter",
     (lemma: "way", kind: Manner),
@@ -160,11 +162,15 @@
     "command zone",
     // [CR#506.2]; no verb `defend` stands behind `defending`.
     (lemma: "defending player", distribution: BareSingular),
+    // [CR#506.2]
+    (lemma: "attacking player", distribution: BareSingular),
     "life total",
     (lemma: "mana cost", frames: [Complement(PP(["for", "of"]))]),
     (lemma: "mana value", countability: [Count, Mass], frames: [Complement(Amount)]),
     // [CR#103.6]; `opening` occurs in no other sense.
     "opening hand",
+    // The mana cost of a locked half, paid to unlock it [CR#709.5e].
+    "unlock cost",
 
     // Ordinary nouns that cards name as vote or choice options.
     (lemma: "aid", countability: [Mass]),

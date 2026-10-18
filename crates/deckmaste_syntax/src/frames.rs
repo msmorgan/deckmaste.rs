@@ -65,6 +65,9 @@ pub enum SlotFill {
     PP(Vec<LexemeId>),
     Pred,
     AdjP,
+    /// An adverbial: an Adverb Phrase or a Noun Phrase of frequency, as
+    /// *twice* or *three times* in *more than twice*.
+    AdvP,
     LocativeNP,
     Clause(ClauseKind),
     ToInf,
@@ -98,6 +101,7 @@ pub enum SlotKind {
     PP,
     Pred,
     AdjP,
+    AdvP,
     LocativeNP,
     FiniteClause,
     VerblessClause,
@@ -122,6 +126,7 @@ impl SlotFill {
             Self::PP(_) => SlotKind::PP,
             Self::Pred => SlotKind::Pred,
             Self::AdjP => SlotKind::AdjP,
+            Self::AdvP => SlotKind::AdvP,
             Self::LocativeNP => SlotKind::LocativeNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,

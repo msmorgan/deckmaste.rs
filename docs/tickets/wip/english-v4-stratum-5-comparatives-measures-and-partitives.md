@@ -35,3 +35,7 @@ judgments in `postpositive_comparative_property.txt` and
 `spelled_cardinal_scalar_measure.txt` assert.
 
 Standard constraints apply.
+
+
+Census delta (`npnwlulw` → `pmvxkuzp`): faces read 18,805 → 20,352; total Readings 146,555 → 181,454; lost faces: none. Strata 0–5: 75,014 units read, 33 deferred to `english-v4-stratum-5-residual`, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–5 pass (2,362 enforced, 709 pending, one of them pending for a deferral); tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4 and deckmaste_english_v4; citation checks pass.

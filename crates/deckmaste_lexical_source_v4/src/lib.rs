@@ -318,8 +318,9 @@ impl Sources {
                     entry.binding,
                     core(CLOSED_CLASS, &id),
                 );
-                // Initial capitalization belongs to the affix, so sentence-initial
-                // forms need no duplicate capitalized catalog spellings.
+                // Initial capitalization belongs to the affix, so
+                // sentence-initial forms need no duplicate
+                // capitalized catalog spellings.
                 if category == Category::Affix {
                     lexeme.capitalization = deckmaste_lexical::Capitalization::Initial;
                 }
@@ -342,7 +343,12 @@ impl Sources {
         }
         for entry in &self.prepositions {
             let id = format!("prep:{}", entry.lemma);
-            builder.preposition(&entry.lemma, &entry.frames, core(PREPOSITIONS, &id));
+            builder.preposition(
+                &entry.lemma,
+                &entry.frames,
+                entry.marking,
+                core(PREPOSITIONS, &id),
+            );
         }
         for entry in &self.verbs {
             let id = format!("verb:{}", entry.lemma);
@@ -385,7 +391,12 @@ impl Sources {
                 builder.adjective("status_adj", &adjective.entry(), &source);
             }
             for preposition in &status.prepositions {
-                builder.preposition(&preposition.lemma, &preposition.frames, source.clone());
+                builder.preposition(
+                    &preposition.lemma,
+                    &preposition.frames,
+                    preposition.marking,
+                    source.clone(),
+                );
             }
         }
         for part in &self.turn_parts {

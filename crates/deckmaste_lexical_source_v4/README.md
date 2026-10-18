@@ -76,7 +76,13 @@ is spelled like a declared Adjective (*tapped*, *transformed*) carries
 `AdjectivalPassive: Lexical`: that Adjective is its Adjectival Passive, as
 *attached* (predicative, with its *to* Complement) is *attach*'s.
 
-Adjective grades are adjectives of their own with a `Grade` feature. Adverbs
+Adjective grades are adjectives of their own with a `Grade` feature
+(`Plain`, `Comparative`, `Superlative`) that share their adjective's lemma
+(*greater* is a grade of *great*); a comparative grade selects a *than*
+Complement. A lemma that is itself comparative (*less*, *lesser*) declares its
+grade, and *same* declares `Equative`, which licenses its *as* Complement. A
+preposition may declare what it marks as `PrepositionMarking`: *of* an
+oblique, *than* a comparative Complement. Adverbs
 record their clause positions as classes (`FrontAdverb`, `CentralAdverb`,
 `EndAdverb`, `PhrasalAdverb`); an interrogative adverb (*how*) is also an
 `InterrogativeAdverb`. Subtypes record their families as classes
@@ -163,9 +169,12 @@ The Targeting Marker `adj:target` requires overt determination in prenominal
 use. The count noun `noun:target` has `HeadOnly` nominal distribution, keeping
 its head uses without duplicating that adjective as a noun premodifier.
 Scalar degree adverbs (`as`, `most`) have Degree position within their scalar
-phrase, separate from general phrasal focus modifiers such as `only`.
+phrase, separate from general phrasal focus modifiers such as `only`. A
+number-transparent quantificational noun (*number*) has `Quantity`
+distribution.
 
 Determiner distributions distinguish the indefinite article, distributive
 quantifiers, and singular-or-quantified selection (CGEL, Ch. 5 §3.4,
-pp. 353–354). These feed general quantity determination without an additive
+pp. 353–354), free-choice *any*, and the fraction and multiplier
+predeterminers (*half*, *double*). These feed general quantity determination without an additive
 adjective list.

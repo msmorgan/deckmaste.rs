@@ -18,10 +18,12 @@ pub struct Grammar {
     #[serde(default)]
     pub features: BTreeMap<String, Vec<String>>,
     pub categories: BTreeMap<String, CategoryDecl>,
-    /// Closed Words by grammar name, each naming one core closed-class lexeme id.
+    /// Closed Words by grammar name, each naming one core closed-class lexeme
+    /// id.
     #[serde(default)]
     pub closed_words: BTreeMap<String, String>,
-    /// Lexical Classes by grammar name, each listing core closed-class lexeme ids.
+    /// Lexical Classes by grammar name, each listing core closed-class lexeme
+    /// ids.
     #[serde(default)]
     pub lexical_classes: BTreeMap<String, Vec<String>>,
     /// Classes whose membership is declared by the lexical environment.
@@ -116,14 +118,19 @@ pub enum SymbolDecl {
     /// A Constituent of a Category whose preposition, if any, admits the Host
     /// Category: a Preposition Phrase that could also modify such a host.
     Hosted(String, String, HostKind),
-    /// Literal punctuation: it may decide an analysis but is not stored in a Reading.
+    /// A Preposition Phrase headed by one of the named Closed Words, as a
+    /// Frame Slot `PP([...])` selects one.
+    Selected(String, String, Vec<String>),
+    /// Literal punctuation: it may decide an analysis but is not stored in a
+    /// Reading.
     Punct(char),
     /// Structural punctuation with explicit attachment to adjacent atoms.
     Mark(char, deckmaste_lexical::Binding),
 }
 
 /// A feature equation over `$.Feature` (the mother) or `child.Feature` paths.
-/// A child named `head` implicitly agrees with the mother on every feature both carry.
+/// A child named `head` implicitly agrees with the mother on every feature both
+/// carry.
 #[derive(Debug, Clone, Deserialize)]
 pub enum Equation {
     Agree(String, String),
@@ -171,6 +178,11 @@ pub enum SchemaDecl {
         interleaved: Option<String>,
         #[serde(default)]
         heavy_shift: bool,
+        /// `(phrase feature, slot feature)` pairs: the phrase's feature
+        /// agrees with that feature of each Frame Slot child that carries it
+        /// (a Preposition Phrase takes its Complement's Number).
+        #[serde(default)]
+        agree: Vec<(String, String)>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {
@@ -204,7 +216,7 @@ pub enum Side {
 }
 
 /// The kind of host an Adjunct schema attaches to.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Ord, PartialOrd)]
 pub enum HostKind {
     Nominal,
     Predicate,

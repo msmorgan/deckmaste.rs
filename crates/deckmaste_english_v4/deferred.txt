@@ -1,3 +1,38 @@
 # Units at or below the completed Stratum left unread on purpose: `NAME | TEXT`,
 # one per line, each owned by a ticket. The census counts them apart; a
 # deferred unit that reads is stale and fails `strata --check`.
+
+# english-v4-stratum-5-residual
+Appa, Steadfast Guardian | When Appa enters, airbend any number of other target nonland permanents you control.
+Birgi, God of Storytelling | Creatures you control can boast twice during each of your turns rather than once.
+Bound | Sacrifice a creature. Return up to X cards from your graveyard to your hand, where X is the number of colors that creature was. Exile this card.
+Broodlord | Brood Telepathy — When this creature enters, distribute X +1/+1 counters among any number of other target creatures you control.
+Change of Plans | Each of X target creatures you control connive. You may have any number of them phase out.
+Coveted Falcon | When this creature is turned face up, target opponent gains control of any number of target permanents you control. Draw a card for each one they gained control of this way.
+Crystal, Inhuman Princess | Whenever you cast a noncreature spell, Crystal deals X damage to each opponent, where X is the number of colors that spell is.
+Defensive Formation | Rather than the attacking player, you assign the combat damage of each creature attacking you. You can divide that creature's combat damage as you choose among any of the creatures blocking it.
+Diligent Zookeeper | Each non-Human creature you control gets +1/+1 for each of its creature types, to a maximum of 10.
+Dwarven Catapult | Dwarven Catapult deals X damage divided evenly, rounded down, among all creatures target opponent controls.
+Erebos's Intervention | • Exile up to twice X target cards from graveyards.
+Ezuri's Predation | For each creature your opponents control, create a 4/4 green Phyrexian Beast creature token. Each of those tokens fights a different one of those creatures.
+Fireball | Fireball deals X damage divided evenly, rounded down, among any number of targets.
+Guardian of Faith | When this creature enters, any number of other target creatures you control phase out.
+Jared Carthalion | −3: Choose up to two target creatures. For each of them, put a number of +1/+1 counters on it equal to the number of colors it is.
+Keeper of the Beasts | {G}, {T}: Choose target opponent who controls more creatures than you do as you activate this ability. Create a 2/2 green Beast creature token.
+Lagrella, the Magpie | When Lagrella enters, exile any number of other target creatures controlled by different players until Lagrella leaves the battlefield. When an exiled card enters under your control this way, put two +1/+1 counters on it.
+Lathiel, the Bounteous Dawn | At the beginning of each end step, if you gained life this turn, distribute up to that many +1/+1 counters among any number of other target creatures.
+Leela, Sevateem Warrior | Whenever an opponent draws a card except the first one they draw in each of their draw steps, put a +1/+1 counter on Leela.
+Luck Bobblehead | {1}, {T}: Roll X six-sided dice, where X is the number of Bobbleheads you control. Create a tapped Treasure token for each even result. If you rolled 6 exactly seven times, you win the game.
+Mana Cannons | Whenever you cast a multicolored spell, this enchantment deals X damage to any target, where X is the number of colors that spell is.
+Reverse Polarity | You gain X life, where X is twice the damage dealt to you so far this turn by artifacts.
+Seal of the Guildpact | Each spell you cast costs {1} less to cast for each of the chosen colors it is.
+Season of Gathering | Choose up to five {P} worth of modes. You may choose the same mode more than once.
+Season of Loss | Choose up to five {P} worth of modes. You may choose the same mode more than once.
+Season of Weaving | Choose up to five {P} worth of modes. You may choose the same mode more than once.
+Season of the Bold | Choose up to five {P} worth of modes. You may choose the same mode more than once.
+Season of the Burrow | Choose up to five {P} worth of modes. You may choose the same mode more than once.
+Silver Surfer, Cosmic Voyager | When Silver Surfer enters, exile any number of other target permanents you control. Return those cards to the battlefield under their owner's control at the beginning of the next end step. If a land enters this way, it enters tapped.
+Stabwhisker the Odious | At the beginning of each opponent's upkeep, that player loses 1 life for each card fewer than three in their hand.
+Tablet of the Guilds | Whenever you cast a spell, if it's at least one of the chosen colors, you gain 1 life for each of the chosen colors it is.
+Taste of Paradise | As an additional cost to cast this spell, you may pay {1}{G} any number of times.
+Xyris, the Writhing Storm | Whenever an opponent draws a card except the first one they draw in each of their draw steps, create a 1/1 green Snake creature token.

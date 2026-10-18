@@ -1,6 +1,7 @@
 //! The judgment set (`judgments/README.md`): every file parses; the seed file
 //! holds on the seed lexicon; every entry at or below the completed Stratum
-//! holds on the full lexical environment.
+//! holds on the full lexical environment, except one whose text is a deferred
+//! unit (`deferred.txt`), which is pending while it stays deferred.
 
 #[allow(dead_code, reason = "the seed module also serves seed_proof.rs")]
 mod seed;
@@ -81,6 +82,11 @@ fn catalog_determinative_judgments_hold() {
 fn check_judgments(completed: Option<u8>) {
     let files = files();
     let (env, grammar) = environment();
+    let deferred: std::collections::BTreeSet<&str> = deckmaste_english_v4::census::deferrals()
+        .into_iter()
+        .map(|(_, text)| text)
+        .collect();
+    let deferred = &deferred;
     let entries: Vec<_> = files
         .iter()
         .filter(|(name, _)| name != "seed.txt")
@@ -108,7 +114,9 @@ fn check_judgments(completed: Option<u8>) {
                             &deckmaste_english_v4::judgment::scope(entry),
                         );
                         let stratum = profiler.profile(UnitKind::Line, &analyzed).stratum;
-                        if completed.is_none_or(|done| stratum > done) {
+                        if completed.is_none_or(|done| stratum > done)
+                            || deferred.contains(entry.text.as_str())
+                        {
                             pending += 1;
                             continue;
                         }
@@ -124,7 +132,8 @@ fn check_judgments(completed: Option<u8>) {
                 })
             })
             .collect();
-        // Joining contiguous chunks in input order keeps diagnostics deterministic.
+        // Joining contiguous chunks in input order keeps diagnostics
+        // deterministic.
         workers.into_iter().fold(
             (0, 0, Vec::new()),
             |(enforced, pending, mut failures), worker| {

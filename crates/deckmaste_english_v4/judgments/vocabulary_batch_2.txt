@@ -74,8 +74,8 @@
 +Clause <card=Marit Lage's Slumber> create Marit Lage => NounPhrase "Marit Lage"
 +Clause <card=The Book of Vile Darkness> Create Vecna => NounPhrase "Vecna"
 +NounPhrase <card=Hand of Vecna> a creature you control named Vecna => NounPhrase "Vecna"
-+ <card=Gor Muldrak, Amphinologist> At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token. => Nominal "fewest creatures"
-+NounPhrase <card=Gor Muldrak, Amphinologist> each player who controls the fewest creatures => Nominal "fewest creatures"
++ <card=Gor Muldrak, Amphinologist> At the beginning of your end step, each player who controls the fewest creatures creates a 4/3 blue Salamander Warrior creature token. => DeterminerPhrase "the fewest" as Determiner of creature
++NounPhrase <card=Gor Muldrak, Amphinologist> each player who controls the fewest creatures => DeterminerPhrase "the fewest" as Determiner of creature
 + <card=The Seventh Doctor> If they guessed wrong, you may cast it without paying its mana cost. => AdverbPhrase "wrong"
 + <card=Liar's Pendulum> If you do and your opponent guessed wrong, draw a card. => AdverbPhrase "wrong"
 +NounPhrase <card=Torment of Hailfire> the following process => AdjectivePhrase "following"

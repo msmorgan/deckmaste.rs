@@ -9,7 +9,9 @@
         (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
         (lemma: "all", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "another", distribution: SingularOrQuantified, frames: [Complement(PP(["of"]))]),
-        (lemma: "any", frames: [Complement(PP(["of"]))]),
+        // Its partitive is the grammar's: with a plural oblique the Noun
+        // Phrase may be singular or plural (*if any of those cards shares ...*).
+        (lemma: "any", distribution: FreeChoice),
         // Compound determinatives (CGEL p. 423): *from anywhere*, *protection from everything*.
         (lemma: "anywhere", distribution: Independent, noun_kind: Some(Locative)),
         (number: Plural, countability: Count, lemma: "both", frames: [Complement(PP(["of"]))]),
@@ -17,19 +19,23 @@
         (number: Singular, countability: Count, lemma: "either", distribution: Distributive, frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "every", distribution: Distributive),
         (lemma: "everything"),
-        (lemma: "fewer", frames: [Complement(PP(["than"]))]),
-        (lemma: "fewest"),
-        (lemma: "least"),
-        (lemma: "less", frames: [Complement(PP(["than"]))]),
+        (number: Plural, countability: Count, lemma: "fewer", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
+        (number: Plural, countability: Count, lemma: "fewest"),
+        // Fraction and multiplier predeterminers (*half their life*, *double
+        // that damage*; CGEL, Ch. 5 §7.3, p. 434); the verb is a keyword action.
+        (lemma: "half", distribution: Multiplier),
+        (lemma: "double", distribution: Multiplier),
+        (number: Singular, countability: Mass, lemma: "least"),
+        (number: Singular, countability: Mass, lemma: "less", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (number: Plural, countability: Count, lemma: "many", frames: [Complement(PP(["of"]))]),
         (lemma: "more", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
-        (lemma: "most"),
+        (lemma: "most", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Mass, lemma: "much", frames: [Complement(PP(["of"]))]),
-        (number: Singular, countability: Count, lemma: "neither", distribution: Distributive),
+        (number: Singular, countability: Count, lemma: "neither", distribution: Distributive, frames: [Complement(PP(["of"]))]),
         (lemma: "no"),
         // The independent form of *no* (CGEL p. 356).
         (lemma: "none", distribution: Independent, frames: [Complement(PP(["of"]))]),
-        (lemma: "some"),
+        (lemma: "some", frames: [Complement(PP(["of"]))]),
         // Oracle determiner use; other lexical categories remain independent.
         (lemma: "target"),
         (number: Singular, lemma: "that", distribution: Deictic),

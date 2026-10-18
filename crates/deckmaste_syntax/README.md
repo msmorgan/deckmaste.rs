@@ -62,8 +62,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Predicative`; a verb marked `AdjectivalPassive: Lexical` (a declared Adjective
   spells it) or `VerbKind: Auxiliary` derives none. A preposition with an NP
   complement also strands; an Intransitive Preposition heads its phrase alone.
-  Where the phrase's Category carries `ComplementKind`, a Preposition Phrase
-  bears its Complement's Slot Kind (`NP`, `AdjP`, ...).
+  Where the phrase's Category carries `ComplementKind`, a phrase bears its
+  Complement's Slot Kind (`NP`, `AdjP`, ...); a non-verbal phrase without one
+  is `Intransitive`. `agree` pairs make a phrase's feature agree with that
+  feature of each Frame Slot child that carries it (a Preposition Phrase takes
+  its Complement's Number; a determinative its oblique's).
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).
@@ -110,6 +113,11 @@ slots select grammar Categories; markers, bound stems and head identities stay
 in the catalog. Noun notation parameters support indexed headers by the same
 mechanism as keyword parameters. `ModifiedWords` builds a restricted word set with recursive
 premodification inside its projected category.
+
+`Selected` names a Preposition Phrase child headed by one of the listed
+Closed Words, as a `PP([...])` Frame Slot selects one (*up to two*, a partitive
+*of* oblique). An `AdvP` Frame Slot is an adverbial Complement (*more than
+twice*).
 
 `Mark` specifies structural punctuation and its attachment at either edge;
 `Attached` attaches a constituent at its outer boundaries, for adjacent symbol

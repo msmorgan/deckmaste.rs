@@ -4,8 +4,8 @@
 +NounPhrase equal toughness => AdjectivePhrase "equal" as Modifier of toughness
 +NounPhrase equal or lesser mana value => AdjectivePhrase "equal or lesser" as Modifier of "mana value"; AdjectivePhrase "equal"; AdjectivePhrase "lesser"
 +NounPhrase equal or lesser power => AdjectivePhrase "equal or lesser" as Modifier of power; AdjectivePhrase "equal"; AdjectivePhrase "lesser"
-+NounPhrase greater power than this creature => PrepositionPhrase "than this creature" as Complement of great; NounPhrase "this creature" as Complement of than
-+NounPhrase lesser mana value than it => PrepositionPhrase "than it" as Complement of lesser; NounPhrase "it" as Complement of than
++NounPhrase greater power than this creature => PrepositionPhrase "than this creature"; NounPhrase "this creature" as Complement of than
++NounPhrase lesser mana value than it => PrepositionPhrase "than it"; NounPhrase "it" as Complement of than
 +NounPhrase equal or lesser mana value than that spell => PrepositionPhrase "than that spell"; NounPhrase "that spell" as Complement of than
 + <card=Reinterpret> Counter target spell. You may cast a spell with equal or lesser mana value from your hand without paying its mana cost.
 + <card=Body Launderer> When this creature dies, return another target non-Rogue creature card with equal or lesser power from your graveyard to the battlefield.

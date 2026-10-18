@@ -182,6 +182,30 @@ a noun premodifier never precedes a determined head (*amount {G}*). Keyword
 rules declare the nouns they define (*if tribute wasn't paid*). *Do the same* is a pro-form, at
 Stratum 7 with *do so*.
 
+Stratum 5 adds partitives, comparisons and arithmetic. A determinative heads a
+partitive Noun Phrase with its selected *of* oblique (*each of them*, *all of
+that mana*), which takes the oblique's Number, a distributive head's singular,
+or with free-choice *any* either (*if any of those cards shares ...*); a
+quantity takes one too (*two of those cards*, *that many of those tokens*, *up
+to two of them*, *a third of their life*), and a relative clause may follow
+(*each of those cards that has suspend*). A number-transparent noun under *any*
+takes its oblique's Number (*any number of target creatures become ...*); *the
+number of* stays singular. *Up to N* is a Preposition Phrase in Determiner
+function or a fused head (*choose up to one*); *at least*, *exactly* and *no*
+modify a quantity (*no more than one creature*). A comparative determinative
+selects *than* (*more than one creature*, *more than twice*) and may postpose
+it past its head (*more lands than you*); a comparative adjective selects it
+(*greater than 2*), postposes it as an indirect Complement (*greater power than
+this creature*), as *same* does *as*, or takes a measure phrase (*2 greater*,
+*{1} less*, *at least 7 life more than ...*). A postpositive Adjective Phrase
+with a Complement follows its noun (*damage equal to its power*, *turns other
+than yours*). Superlative quantifiers determine under *the* (*the most
+creatures*); a fraction or multiplier precedes a determined Noun Phrase (*half
+their life*, *double that damage*), and *, rounded up* is a participial
+Supplement, of a verbal cost too. *Plus* and *minus* head Preposition Phrases
+on a quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
+one*), and *N times X* multiplies an amount.
+
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)
 belongs to Stratum 3 even inside a keyword parameter.

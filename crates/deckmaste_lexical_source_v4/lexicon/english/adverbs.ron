@@ -5,6 +5,9 @@
     // *Also put a +1/+1 counter on that creature*; *it also gains trample*
     (lemma: "also", positions: [Front, Central]),
     (lemma: "already", positions: [Central]),
+    // Bounding idioms on a quantity (CGEL p. 1129): *at least two creatures*.
+    (lemma: "at least", positions: [Phrasal]),
+    (lemma: "at most", positions: [Phrasal]),
     // The degree adverb of scalar equality (CGEL p. 1130): *twice as much*.
     (lemma: "as", positions: [Degree]),
     (lemma: "continuously", positions: [End]),

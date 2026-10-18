@@ -74,7 +74,7 @@
 * You gain life equal than 3.
 * You gain life greater to 3.
 +AdjectivePhrase second
-+ 1,000 minus X
++Amount 1,000 minus X
 + Gain 1 life. => readings 1
 + +3/-2
 + 1/1

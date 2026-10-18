@@ -112,12 +112,37 @@ fn pronoun(lemma: &str, person: Person, number: Option<Number>) -> Lexeme {
     lexeme
 }
 
+/// Fused heads and comparative and superlative determinatives the grammar
+/// names.
+const DEPENDENT_HEADS: [&str; 13] = [
+    "both",
+    "more",
+    "everything",
+    "many",
+    "much",
+    "anywhere",
+    "this",
+    "none",
+    "less",
+    "fewer",
+    "most",
+    "least",
+    "fewest",
+];
+
 #[must_use]
 pub fn lexicon() -> Lexicon {
     use Number::Singular;
-    use Person::{First, Second, Third};
-    use SourceKind::{Catalog, Core, Keyword};
-    use WordForm::{GerundParticiple, PastParticiple, Present, Preterite};
+    use Person::First;
+    use Person::Second;
+    use Person::Third;
+    use SourceKind::Catalog;
+    use SourceKind::Core;
+    use SourceKind::Keyword;
+    use WordForm::GerundParticiple;
+    use WordForm::PastParticiple;
+    use WordForm::Present;
+    use WordForm::Preterite;
 
     let mut put = verb("put", Core);
     set(&mut put, Preterite, None, None, "put");
@@ -195,23 +220,15 @@ pub fn lexicon() -> Lexicon {
         lexemes.push(det);
     }
     for word in [
-        "in", "into", "on", "onto", "for", "with", "from", "during", "by",
+        "in", "into", "on", "onto", "for", "with", "from", "during", "by", "up", "of", "than",
+        "plus", "minus", "as",
     ] {
         lexemes.push(invariant("prep", word, Category::Preposition, Core));
     }
     for word in ["and", "or"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
-    for word in [
-        "both",
-        "more",
-        "everything",
-        "many",
-        "much",
-        "anywhere",
-        "this",
-        "none",
-    ] {
+    for word in DEPENDENT_HEADS {
         let mut det = invariant("det", word, Category::Determinative, Core);
         det.properties
             .features
@@ -227,7 +244,8 @@ pub fn lexicon() -> Lexicon {
         lexemes.push(det);
     }
     lexemes.push(invariant("sub", "to", Category::Subordinator, Core));
-    // Relative *that* is a subordinator; *which* and *who* are relative pronouns.
+    // Relative *that* is a subordinator; *which* and *who* are relative
+    // pronouns.
     lexemes.push(invariant("sub", "that", Category::Subordinator, Core));
     lexemes.push(invariant("sub", "whether", Category::Subordinator, Core));
     for lemma in ["which", "who"] {

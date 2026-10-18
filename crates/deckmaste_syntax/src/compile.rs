@@ -81,7 +81,8 @@ pub struct CompiledGrammar {
     /// by (lexeme, selected frame).
     pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<Extension>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
-    /// Projected inflectional feature ids; additional properties are grammar-declared.
+    /// Projected inflectional feature ids; additional properties are
+    /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
     report: LoadReport,
 }
@@ -594,56 +595,7 @@ impl<'a> Binder<'a> {
             draft.introduces = gap;
         }
         for symbol in &declaration.rhs {
-            let (name, symbol) = match symbol {
-                SymbolDecl::Cat(name, category) => (
-                    name.as_str(),
-                    Symbol::Cat {
-                        binding: None,
-                        category: self.category(category).map_err(context)?,
-                        prepositions: None,
-                        host: None,
-                    },
-                ),
-                SymbolDecl::Attached(name, category, binding) => (
-                    name.as_str(),
-                    Symbol::Cat {
-                        category: self.category(category).map_err(context)?,
-                        binding: Some(*binding),
-                        prepositions: None,
-                        host: None,
-                    },
-                ),
-                SymbolDecl::Numeral(name, notation) => {
-                    (name.as_str(), Symbol::Leaf(Test::Numeral(*notation)))
-                }
-                SymbolDecl::FreeLex(name, category) => {
-                    (name.as_str(), Symbol::Leaf(Test::FreeLexical(*category)))
-                }
-                SymbolDecl::Lex(name, category) => {
-                    (name.as_str(), Symbol::Leaf(Test::Lexical(*category)))
-                }
-                SymbolDecl::Word(name, word) => (
-                    name.as_str(),
-                    Symbol::Leaf(Test::Word(self.word(word).map_err(context)?)),
-                ),
-                SymbolDecl::Hosted(name, category, host) => (
-                    name.as_str(),
-                    Symbol::Cat {
-                        binding: None,
-                        category: self.category(category).map_err(context)?,
-                        prepositions: None,
-                        host: Some(*host),
-                    },
-                ),
-                SymbolDecl::Class(name, class) => (
-                    name.as_str(),
-                    Symbol::Leaf(Test::Class(*self.class_names.get(class).ok_or_else(
-                        || context(invalid(format!("unknown class `{class}`"))),
-                    )?)),
-                ),
-                SymbolDecl::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
-                SymbolDecl::Punct(c) => ("", Symbol::Punct(*c, Binding::Suffix)),
-            };
+            let (name, symbol) = self.symbol(symbol).map_err(context)?;
             let transparent = declaration.transparent.iter().any(|t| t == name);
             let gap = if let Some(gap) = required_gaps.remove(name) {
                 // A transparent child with a required Gap raises it.
@@ -710,6 +662,76 @@ impl<'a> Binder<'a> {
             }
         }
         Ok(draft)
+    }
+
+    /// A right-hand-side declaration's child name and Symbol.
+    fn symbol<'d>(&self, symbol: &'d SymbolDecl) -> Result<(&'d str, Symbol), LoadError> {
+        Ok(match symbol {
+            SymbolDecl::Cat(name, category) => (
+                name.as_str(),
+                Symbol::Cat {
+                    binding: None,
+                    category: self.category(category)?,
+                    prepositions: None,
+                    host: None,
+                },
+            ),
+            SymbolDecl::Attached(name, category, binding) => (
+                name.as_str(),
+                Symbol::Cat {
+                    category: self.category(category)?,
+                    binding: Some(*binding),
+                    prepositions: None,
+                    host: None,
+                },
+            ),
+            SymbolDecl::Numeral(name, notation) => {
+                (name.as_str(), Symbol::Leaf(Test::Numeral(*notation)))
+            }
+            SymbolDecl::FreeLex(name, category) => {
+                (name.as_str(), Symbol::Leaf(Test::FreeLexical(*category)))
+            }
+            SymbolDecl::Lex(name, category) => {
+                (name.as_str(), Symbol::Leaf(Test::Lexical(*category)))
+            }
+            SymbolDecl::Word(name, word) => {
+                (name.as_str(), Symbol::Leaf(Test::Word(self.word(word)?)))
+            }
+            SymbolDecl::Hosted(name, category, host) => (
+                name.as_str(),
+                Symbol::Cat {
+                    binding: None,
+                    category: self.category(category)?,
+                    prepositions: None,
+                    host: Some(*host),
+                },
+            ),
+            SymbolDecl::Selected(name, category, words) => (
+                name.as_str(),
+                Symbol::Cat {
+                    binding: None,
+                    category: self.category(category)?,
+                    prepositions: Some(
+                        words
+                            .iter()
+                            .map(|w| self.word(w))
+                            .collect::<Result<_, _>>()?,
+                    ),
+                    host: None,
+                },
+            ),
+            SymbolDecl::Class(name, class) => (
+                name.as_str(),
+                Symbol::Leaf(Test::Class(
+                    *self
+                        .class_names
+                        .get(class)
+                        .ok_or_else(|| invalid(format!("unknown class `{class}`")))?,
+                )),
+            ),
+            SymbolDecl::Mark(c, binding) => ("", Symbol::Punct(*c, *binding)),
+            SymbolDecl::Punct(c) => ("", Symbol::Punct(*c, Binding::Suffix)),
+        })
     }
 
     fn path(&self, draft: &Draft, text: &str) -> Result<Path, LoadError> {
@@ -830,14 +852,16 @@ impl<'a> Binder<'a> {
                 adjectival,
                 interleaved,
                 heavy_shift,
+                agree,
             } => {
-                let drafts = self.valence(
+                let mut drafts = self.valence(
                     *head,
                     phrase,
                     *cost,
                     passive.as_deref(),
                     adjectival.as_deref(),
                 )?;
+                self.slot_agreement(phrase, &mut drafts, agree)?;
                 self.valence_order(drafts, interleaved.as_deref(), *heavy_shift)
             }
             SchemaDecl::Adjunct {
@@ -906,6 +930,41 @@ impl<'a> Binder<'a> {
                 unshared,
             } => self.coordination(category, coordinators, *cost, unshared),
         }
+    }
+
+    /// Adds a Valence Schema's `agree` equations: each `(phrase, slot)`
+    /// feature pair makes the phrase's feature agree with the slot feature
+    /// of every Frame Slot child that carries it.
+    fn slot_agreement(
+        &self,
+        phrase: &str,
+        drafts: &mut [Draft],
+        agree: &[(String, String)],
+    ) -> Result<(), LoadError> {
+        for (mother, slot) in agree {
+            let mother = self.feature(mother)?;
+            let slot = self.feature(slot)?;
+            let lhs = self.category(phrase)?;
+            if !self.out.category_features[lhs].contains(&mother) {
+                return Err(invalid(format!(
+                    "Valence agreement: `{phrase}` does not carry `{}`",
+                    self.out.features[mother]
+                )));
+            }
+            for draft in drafts.iter_mut() {
+                for (i, child) in draft.children.iter().enumerate() {
+                    if child.name != "head"
+                        && matches!(child.symbol, Symbol::Cat { .. })
+                        && self.carries(&child.symbol, slot)
+                    {
+                        draft
+                            .equations
+                            .push((Path::Mother(mother), Target::Path(Path::Child(i, slot))));
+                    }
+                }
+            }
+        }
+        Ok(())
     }
 
     fn premodification(
@@ -1114,6 +1173,16 @@ impl<'a> Binder<'a> {
             return self.preposition_valence(lhs, phrase, cost, gap_capable);
         }
         let used = self.used_frames(head)?;
+        // A non-verbal phrase's ComplementKind, where its Category carries
+        // one, names its Complement's Slot Kind, or `Intransitive` without one.
+        let complement_kind = self
+            .out
+            .features
+            .iter()
+            .position(|f| f == "ComplementKind")
+            .filter(|f| {
+                head != LexicalCategory::Verb && self.out.category_features[lhs].contains(f)
+            });
         if head != LexicalCategory::Verb {
             let mut bare = Draft::new(format!("Valence:{phrase}/Bare"), lhs, cost);
             bare.child(
@@ -1121,6 +1190,10 @@ impl<'a> Binder<'a> {
                 Symbol::Leaf(Test::FreeLexical(head)),
                 GapRule::Closed,
             );
+            if let Some(f) = complement_kind {
+                let kind = self.value(f, "Intransitive")?;
+                bare.equations.push((Path::Mother(f), Target::Value(kind)));
+            }
             drafts.push(bare);
         }
         let voice = self.out.features.iter().position(|f| f == "Voice");
@@ -1137,13 +1210,19 @@ impl<'a> Binder<'a> {
             let name = frame_name(phrase, frame);
             let slots: Vec<&SlotFill> = frame.slots.iter().map(|s| &s.fill).collect();
             let gappable = gap_capable && head == LexicalCategory::Verb;
-            // Active, with every NP slot optionally extracted. Voice is a verb's;
-            // another head's phrase takes its Voice from the head (a declared
-            // Adjectival Passive).
+            // Active, with every NP slot optionally extracted. Voice is a
+            // verb's; another head's phrase takes its Voice from
+            // the head (a declared Adjectival Passive).
             let active = if head == LexicalCategory::Verb { voice_value("Active")? } else { None };
-            drafts.extend(
-                self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?,
-            );
+            let mut family =
+                self.valence_family(lhs, &name, index, cost, &slots, 0, false, active, gappable)?;
+            if let (Some(f), Some(first)) = (complement_kind, slots.first()) {
+                let kind = self.value(f, &format!("{:?}", first.kind()))?;
+                for draft in &mut family {
+                    draft.equations.push((Path::Mother(f), Target::Value(kind)));
+                }
+            }
+            drafts.extend(family);
             if let (Some(by), true) = (passive, head == LexicalCategory::Verb)
                 && matches!(slots.first(), Some(SlotFill::NP))
             {

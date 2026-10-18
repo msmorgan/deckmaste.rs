@@ -1,5 +1,5 @@
 # The source of remove (from combat, from this land) as a complement, and the bare passive removed this way
-+ <card=Saprazzan Cove> {T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way. => VerbPhrase "removed this way" as Modifier of counter
++ <card=Saprazzan Cove> {T}, Remove any number of storage counters from this land: Add {U} for each storage counter removed this way. => VerbPhrase "removed this way" as Modifier of "storage counter"
 + <card=Catti-brie of Mithral Hall> {1}, Remove all +1/+1 counters from Catti-brie: It deals X damage to target attacking or blocking creature an opponent controls, where X is the number of counters removed this way. => VerbPhrase "removed this way" as Modifier of counter
 + This effect doesn't remove this Aura. => NounPhrase "this Aura" as Object of remove
 + {T}: Untap target attacking creature an opponent controls and remove it from combat. => PrepositionPhrase "from combat" as Complement of remove; !PrepositionPhrase "from combat" as Adjunct of remove

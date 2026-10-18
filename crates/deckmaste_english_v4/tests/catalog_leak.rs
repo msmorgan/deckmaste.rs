@@ -102,6 +102,10 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
                 | SymbolDecl::Hosted(child, name, _)
                 | SymbolDecl::Word(child, name)
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
+                SymbolDecl::Selected(child, name, words) => {
+                    names.extend([child.as_str(), name.as_str()]);
+                    names.extend(words.iter().map(String::as_str));
+                }
                 SymbolDecl::FreeLex(child, _)
                 | SymbolDecl::Numeral(child, _)
                 | SymbolDecl::Lex(child, _) => names.push(child),

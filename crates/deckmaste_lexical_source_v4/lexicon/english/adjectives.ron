@@ -38,7 +38,10 @@
     // Directional *the left half*; predicative *left* is the participle of *leave*.
     (lemma: "left", position: Some(Attributive)),
     "legal",
-    "lesser",
+    (lemma: "lesser", grade: Some(Comparative), frames: [Complement(PP(["than"]))]),
+    // Scalar *less* (CGEL, Ch. 13 §4.1.1, p. 1126): *power less than X*; the
+    // determinative is *less mana*.
+    (lemma: "less", position: Some(Predicative), grade: Some(Comparative), frames: [Complement(PP(["than"]))]),
     "lethal",
     (lemma: "long", comparative: "longer", superlative: "longest"),
     (lemma: "low", comparative: "lower", superlative: "lowest"),
@@ -68,7 +71,7 @@
     "random",
     "recent",
     "right",
-    (lemma: "same", frames: [Complement(PP(["as"]))]),
+    (lemma: "same", grade: Some(Equative), frames: [Complement(PP(["as"]))]),
     "single",
     "six-sided",
     (lemma: "small", comparative: "smaller", superlative: "smallest"),

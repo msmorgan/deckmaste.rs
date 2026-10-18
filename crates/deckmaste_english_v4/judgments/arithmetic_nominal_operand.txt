@@ -4,10 +4,10 @@
 + <card=Allosaurus Rider> Allosaurus Rider's power and toughness are each equal to 1 plus the number of lands you control. => NounPhrase "the number of lands you control"
 + <card=Haunting Apparition> Haunting Apparition's power is equal to 1 plus the number of green creature cards in the chosen player's graveyard. => NounPhrase "the number of green creature cards in the chosen player's graveyard"
 + <card=Food Chain> Exile a creature you control: Add X mana of any one color, where X is 1 plus the exiled creature's mana value. => NounPhrase "the exiled creature's mana value"
-+ the number of creatures on the battlefield plus the number of artifacts on the battlefield => NounPhrase "the number of creatures on the battlefield"; NounPhrase "the number of artifacts on the battlefield"
-+ that much damage plus 2 => NounPhrase "that much damage"; DeterminerPhrase "that much" as Determiner of damage; Nominal "damage"
++NounPhrase the number of creatures on the battlefield plus the number of artifacts on the battlefield => NounPhrase "the number of creatures on the battlefield"; NounPhrase "the number of artifacts on the battlefield"
++NounPhrase that much damage plus 2 => NounPhrase "that much damage"; DeterminerPhrase "that much" as Determiner of damage; Nominal "damage"
 # a chain of two operators keeps both bracketings
-+ 1 plus the exiled creature's mana value minus 4 => readings 2
++NounPhrase 1 plus the exiled creature's mana value minus 4 => readings 2
 # a scalar complement of be
 +Clause <card=Banefire> X is 5 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 5 or more"; Predicative "5 or more" as PredicativeComplement of be
 +Clause <card=Finale of Glory> X is 10 or more => NounPhrase "X" as Subject of be; VerbPhrase "is 10 or more"; Predicative "10 or more" as PredicativeComplement of be

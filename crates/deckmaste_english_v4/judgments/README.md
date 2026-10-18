@@ -18,8 +18,9 @@ index or any other internal detail of a Reading.
 An entry's Complexity Stratum is the Stratum the profiler assigns to its text
 (`deckmaste_english_v4::profile`). `tests/judgments.rs` fails on any entry at
 or below the completed Stratum (`deckmaste_english_v4::COMPLETED_STRATUM`) that
-does not hold, and reports the others as pending. `seed.txt` is always
-enforced. Every file is always parsed, so a malformed entry fails at once.
+does not hold, and reports the others as pending, as it does an entry whose
+text is a unit named in [`deferred.txt`](../deferred.txt) while that unit stays
+deferred. `seed.txt` is always enforced. Every file is always parsed, so a malformed entry fails at once.
 
 The census uses the same entries: a corpus unit with an entry whose text it
 equals, none of whose Readings satisfies that entry, is `known-wrong-only`.

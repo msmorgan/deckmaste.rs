@@ -75,6 +75,8 @@ pub enum FillSpec {
     PP(Vec<String>),
     Pred,
     AdjP,
+    /// An Adverb Phrase or a Noun Phrase of frequency (*than twice*).
+    AdvP,
     LocativeNP,
     FiniteClause,
     VerblessClause,
@@ -270,8 +272,21 @@ pub struct AdjectiveEntry {
     pub comparative: Option<String>,
     #[serde(default)]
     pub superlative: Option<String>,
+    /// The grade of a lemma that is itself comparative (*less*, *lesser*).
+    #[serde(default)]
+    pub grade: Option<AdjectiveGrade>,
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
+}
+
+/// An adjective's grade, as the grammar's `Grade` feature: inflectional, or
+/// the equality of *same*, which licenses an *as* Complement (CGEL, Ch. 13
+/// §1, p. 1100).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum AdjectiveGrade {
+    Comparative,
+    Superlative,
+    Equative,
 }
 
 /// The function to which an adjective is restricted (CGEL Ch. 6 §4).
@@ -299,6 +314,7 @@ impl AdjectiveDecl {
                 fused_head: false,
                 lemma: lemma.clone(),
                 comparative: None,
+                grade: None,
                 superlative: None,
                 frames: Vec::new(),
             },
@@ -349,6 +365,19 @@ pub struct PrepositionFrameSpec {
 pub struct PrepositionEntry {
     pub lemma: String,
     pub frames: Vec<PrepositionFrameSpec>,
+    /// What a grammaticised preposition marks, as the grammar's
+    /// `PrepositionMarking` feature.
+    #[serde(default)]
+    pub marking: Option<PrepositionMarking>,
+}
+
+/// A grammaticised preposition's role: *of* marks an oblique (*each of
+/// them*; CGEL, Ch. 5 §9.3, pp. 408–410), *than* a comparative Complement
+/// (*more than one*; Ch. 13 §2.1, p. 1104).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+pub enum PrepositionMarking {
+    Oblique,
+    Comparative,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -373,7 +402,8 @@ pub struct DeterminativeEntry {
     pub frames: Vec<FrameSpec>,
 }
 
-/// The distribution of a determinative, including articles and distributive quantifiers.
+/// The distribution of a determinative, including articles and distributive
+/// quantifiers.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
 pub enum DeterminativeDistribution {
     #[default]
@@ -385,8 +415,16 @@ pub enum DeterminativeDistribution {
     /// a Noun Phrase Adjunct of temporal location (*this turn*; CGEL, Ch. 8
     /// §6.3, p. 698).
     Deictic,
-    /// Selects a singular head or a quantified plural (CGEL, Ch. 5 §3.4, p. 353).
+    /// Selects a singular head or a quantified plural (CGEL, Ch. 5 §3.4, p.
+    /// 353).
     SingularOrQuantified,
+    /// Free-choice *any* (CGEL, Ch. 5 §7.5, p. 381): with a quantificational
+    /// noun the Noun Phrase takes the Number of its oblique (*any number of
+    /// target creatures become ...*).
+    FreeChoice,
+    /// A fraction or multiplier before a determined Noun Phrase (*half their
+    /// life*, *double that damage*; CGEL, Ch. 5 §7.3, p. 434).
+    Multiplier,
 }
 
 /// One cell of a pronoun paradigm.
@@ -688,6 +726,9 @@ pub struct Status {
 pub enum NounDistribution {
     #[default]
     Ordinary,
+    /// A number-transparent quantificational noun (*any number of*; CGEL,
+    /// Ch. 5 §3.3, pp. 349–351).
+    Quantity,
     /// An atomic count-noun term also used as a bare singular NP.
     BareSingular,
     /// A mass noun accepting a direct cardinal measure without a unit noun.

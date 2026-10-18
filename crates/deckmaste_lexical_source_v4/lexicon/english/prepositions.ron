@@ -118,14 +118,16 @@
     ]),
     (lemma: "into", frames: [(complement: NP, hosts: ComplementOnly)]),
     // *5 minus X damage*
-    (lemma: "minus", frames: [(complement: NP, hosts: Nominal)]),
+    (lemma: "minus", frames: [(complement: Amount, hosts: ComplementOnly), (complement: NP, hosts: ComplementOnly)]),
     // Temporal intransitive preposition (CGEL p. 615): *Those creatures are now
     // attacking that player.*
     (lemma: "now", frames: [(complement: Intransitive, hosts: Predicate)]),
     // *a creature of the chosen type*; *end of turn*; *instead of putting*;
     // *your choice of flying, first strike, or trample*
-    (lemma: "of", frames: [
+    (lemma: "of", marking: Some(Oblique), frames: [
         (complement: NP, hosts: Nominal),
+        // *the value of X*
+        (complement: Amount, hosts: ComplementOnly),
         (complement: Nominal, hosts: ComplementOnly),
         (complement: Gerund, hosts: ComplementOnly),
         (complement: KeywordPhrase, hosts: ComplementOnly),
@@ -144,7 +146,8 @@
     // *trample over planeswalkers*
     (lemma: "over", frames: [(complement: NP, hosts: ComplementOnly)]),
     // *the number of Elves you control plus the number of Elf cards*
-    (lemma: "plus", frames: [(complement: NP, hosts: Nominal)]),
+    // *the card's mana cost plus exile three other cards from your graveyard*
+    (lemma: "plus", frames: [(complement: Amount, hosts: ComplementOnly), (complement: NP, hosts: ComplementOnly), (complement: BareInf, hosts: ComplementOnly)]),
     // Not coordinative, since it can be fronted (CGEL p. 1317): *If you control
     // a Forest, rather than pay this spell's mana cost, you may ...*;
     // *its toughness rather than its power*; *by paying {X} rather than paying*.
@@ -152,14 +155,17 @@
         (complement: NP, hosts: Nominal),
         (complement: BareInf, hosts: Predicate),
         (complement: Gerund, hosts: Predicate),
+        // *twice each turn rather than only once*
+        (complement: AdvP, hosts: Predicate),
     ]),
     // *controlled continuously since the beginning of the turn*
     (lemma: "since", frames: [(complement: NP, hosts: Predicate)]),
-    // Selected by comparatives: *greater than 2*; *more lands than you*.
-    (lemma: "than", frames: [
+    // Selected by comparatives: *greater than 2*; *more lands than you*;
+    // *more than twice*.
+    (lemma: "than", marking: Some(Comparative), frames: [
         (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
-        (complement: FiniteClause, hosts: ComplementOnly),
+        (complement: AdvP, hosts: ComplementOnly),
     ]),
     // *was put there from anywhere*
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),

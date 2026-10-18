@@ -31,6 +31,7 @@ use deckmaste_syntax::frames::SlotRelation::PredicativeComplement;
 
 use crate::SourceError;
 use crate::schema::AdjectiveEntry;
+use crate::schema::AdjectiveGrade;
 use crate::schema::Catenation;
 use crate::schema::DeterminativeEntry;
 use crate::schema::FillSpec;
@@ -38,6 +39,7 @@ use crate::schema::FrameSpec;
 use crate::schema::IdiomPart;
 use crate::schema::NounEntry;
 use crate::schema::PrepositionFrameSpec;
+use crate::schema::PrepositionMarking;
 use crate::schema::VerbEntry;
 
 /// Lexemes and frames gathered from every data file, with frames still naming
@@ -273,19 +275,35 @@ impl Builder {
     }
 
     pub(crate) fn adjective(&mut self, prefix: &str, entry: &AdjectiveEntry, source: &Source) {
+        let own = match entry.grade {
+            None => "Plain",
+            Some(AdjectiveGrade::Comparative) => "Comparative",
+            Some(AdjectiveGrade::Superlative) => "Superlative",
+            Some(AdjectiveGrade::Equative) => "Equative",
+        };
         let grades = [
-            (Some(&entry.lemma), None),
+            (Some(&entry.lemma), Some(own)),
             (entry.comparative.as_ref(), Some("Comparative")),
             (entry.superlative.as_ref(), Some("Superlative")),
         ];
-        for (lemma, grade) in grades {
-            let Some(lemma) = lemma else { continue };
+        for (spelling, grade) in grades {
+            let Some(spelling) = spelling else { continue };
+            // A grade is an inflection of its adjective: it shares the lemma.
             let mut lexeme = Lexeme::invariant(
-                format!("{prefix}:{lemma}"),
-                lemma,
+                format!("{prefix}:{spelling}"),
+                &entry.lemma,
                 Category::Adjective,
                 source.clone(),
             );
+            if spelling != &entry.lemma {
+                replace(
+                    &mut lexeme,
+                    WordForm::Invariant,
+                    None,
+                    None,
+                    std::slice::from_ref(spelling),
+                );
+            }
             if let Some(position) = entry.position {
                 lexeme
                     .properties
@@ -312,8 +330,16 @@ impl Builder {
             }
             let id = lexeme.id;
             self.push(lexeme);
-            if grade.is_none() {
-                self.frames(id, Category::Adjective, &entry.frames);
+            match grade {
+                Some(g) if g == own => self.frames(id, Category::Adjective, &entry.frames),
+                // A comparative selects its *than* Complement (CGEL, Ch. 13
+                // §2.1, p. 1104).
+                Some("Comparative") => self.frames(
+                    id,
+                    Category::Adjective,
+                    &[FrameSpec::Complement(FillSpec::PP(vec!["than".into()]))],
+                ),
+                _ => {}
             }
         }
     }
@@ -322,14 +348,21 @@ impl Builder {
         &mut self,
         lemma: &str,
         frames: &[PrepositionFrameSpec],
+        marking: Option<PrepositionMarking>,
         source: Source,
     ) {
-        let lexeme = Lexeme::invariant(
+        let mut lexeme = Lexeme::invariant(
             format!("prep:{lemma}"),
             lemma,
             Category::Preposition,
             source,
         );
+        if let Some(marking) = marking {
+            lexeme
+                .properties
+                .features
+                .insert("PrepositionMarking".into(), format!("{marking:?}"));
+        }
         let id = lexeme.id;
         self.push(lexeme);
         self.prepositions
@@ -434,6 +467,7 @@ impl Resolver<'_> {
             FillSpec::PP(lemmas) => self.pp(lemmas, owner)?,
             FillSpec::Pred => SlotFill::Pred,
             FillSpec::AdjP => SlotFill::AdjP,
+            FillSpec::AdvP => SlotFill::AdvP,
             FillSpec::LocativeNP => SlotFill::LocativeNP,
             FillSpec::FiniteClause => SlotFill::Clause(ClauseKind::Finite),
             FillSpec::VerblessClause => SlotFill::Clause(ClauseKind::Verbless),
@@ -509,7 +543,10 @@ impl Resolver<'_> {
             ),
             FrameSpec::ContentClause => (
                 FrameFamily::ContentClause,
-                vec![slot(Complement, SlotFill::Clause(ClauseKind::Interrogative))],
+                vec![slot(
+                    Complement,
+                    SlotFill::Clause(ClauseKind::Interrogative),
+                )],
             ),
             FrameSpec::Amount => (
                 FrameFamily::Amount,
