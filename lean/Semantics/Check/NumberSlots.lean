@@ -36,7 +36,7 @@ def CountBound.numberSlots : CountBound → List (Amount × NumberRegime)
 /-- "as though its power were greater than 4" compares a game value, and a comparison uses a
 negative when it needs one [CR#107.1b]. -/
 def AsThough.numberSlots : AsThough → List (Amount × NumberRegime)
-  | .of _ | .mana _ _ _ => []
+  | .condition _ | .mana _ _ _ => []
   | .greater _ amount => [(amount, .signed)]
 
 /-- How much damage a prevention shield stops: damage is never negative [CR#107.1b]. -/
@@ -118,8 +118,8 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   -- [CR#107.1b,107.3].
   | _n + 1, .letterDefinition _ amount => [(amount, .clamped)]
   | _n + 1, .abilityGrant _ _ | _n + 1, .abilityGrantFrom _ _ _ _ | _n + 1, .abilityGrantSelected _ _ _ => []
-  | _n + 1, .cant _ _ mods | _n + 1, .must _ _ mods | _n + 1, .may _ _ mods | _n + 1, .gatedBy _ _ _ mods =>
-    mods.bound.toList.flatMap CountBound.numberSlots ++ mods.asThough.toList.flatMap AsThough.numberSlots
+  | _n + 1, .cant _ _ mods | _n + 1, .must _ _ mods | _n + 1, .can _ _ mods | _n + 1, .gatedBy _ _ _ mods =>
+    mods.asThough.toList.flatMap AsThough.numberSlots
   | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ | _n + 1, .characteristicChange _ _ => []
   | _n + 1, .retention _ _ => []
   | _n + 1, .copyChange _ _ _ | _n + 1, .controlGrant _ _ => []
@@ -146,7 +146,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ | _n + 1, .doAndForbid _ _ _ => []
   | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ => []
   | _n + 1, .drawGame | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
-  | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ => []
+  | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ _ => []
   | _n + 1, .move _ _ _ _ _ riders => MoveRider.ridersSlots riders
   | _n + 1, .turnFaceDown _ _ => []
   -- How many copies to make: a count [CR#107.1b].

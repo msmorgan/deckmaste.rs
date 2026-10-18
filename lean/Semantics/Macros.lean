@@ -748,12 +748,12 @@ semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
 /-- "vote for <ballot>" (`Definition`, [CR#701.38]). -/
 semantic_definition vote (disclosure : Disclosure) (ballot : Ballot) : Action :=
   .ownScope (some (.action "vote"))
-    (.enact (.action "vote") (.vote none disclosure ballot) none none)
+    (.enact (.action "vote") (.vote none disclosure ballot none) none none)
 /-- "Starting with <first>, vote for <ballot>" (`Definition`, [CR#701.38]). -/
 semantic_definition voteStartingWith (first : NounPhrase) (disclosure : Disclosure) (ballot : Ballot) :
     Action :=
   .ownScope (some (.action "vote"))
-    (.enact (.action "vote") (.vote (some (.inCaller (.firstMention "voteStartingWith.first" first))) disclosure ballot) none none)
+    (.enact (.action "vote") (.vote (some (.inCaller (.firstMention "voteStartingWith.first" first))) disclosure ballot none) none none)
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
@@ -917,21 +917,25 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
 
 /-- "<player> may play N additional lands" -/
 semantic_template mayPlayAdditionalLands (player : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .may (.actor player) (.procedure .play (allOf land) .itsOwnCost none none none)
-    { bound := some (.additional quantity), rider := .noRider }
-/-- "<player> may <deed> <what> [as though …] [rider]" -/
+  .can (.actor player) (.procedure .play (counted (.additional quantity) land) .itsOwnCost none none none) {}
+/-- The procedure a play deed names: casting, activating, or playing [CR#701.5a,701.2a,701.18a]. -/
+def procedureOfDeed : Deed → Procedure
+  | .action "cast" => .cast
+  | .action "activate" => .activate
+  | _ => .play
+/-- "<player> may <deed> <what> [from <zone>] [<timing>] [paying …] [as though …]" -/
 semantic_template mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough : Option AsThough)
-    (rider : DeonticRider) : StaticSpec :=
-  .may (.actor player) (deonticActionFor deed what) { asThough := asThough, rider := rider }
+    (from_ : Option Location) (limit : Option UsageLimit) (timing : Option Timing)
+    (payment : PlayPayment) : StaticSpec :=
+  .can (.actor player) (.procedure (procedureOfDeed deed) what payment none from_ none)
+    { asThough, timing, limit }
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (mayPlayDeed (.action "play") .you .this none
-    (.play (some zone) none (some timing) false .itsOwnCost))
+  .property (mayPlayDeed (.action "play") .you .this none (some zone) none (some timing) .itsOwnCost)
 /-- "You may cast this card from <zone> <timing>": the instant type's cast permission
 [CR#304.1]. -/
 semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (mayPlayDeed (.action "cast") .you .this none
-    (.play (some zone) none (some timing) false .itsOwnCost))
+  .property (mayPlayDeed (.action "cast") .you .this none (some zone) none (some timing) .itsOwnCost)
 /-- "When <event>, <instruction>" as a delayed trigger. -/
 semantic_template delay (event : GameEvent) (instruction : Action)
     (alternatives : List GameEvent := []) : Action :=
@@ -960,17 +964,17 @@ semantic_template additionalStep (part : TurnPart) (anchor : Option TurnPart) (c
   .addTurnPart part anchor count none
 /-- "<subject> can't attack [this turn]" -/
 semantic_template forbidAttack (subject : NounPhrase) (duration : Option Duration) : Action :=
-  .establish (.cant (.actor subject) (.attack none) { rider := .noRider }) duration
+  .establish (.cant (.actor subject) (.attack none) {}) duration
 /-- "<subject> can't block [this turn]" -/
 semantic_template forbidBlock (subject : NounPhrase) (duration : Option Duration) : Action :=
-  .establish (.cant (.actor subject) (.block .any) { rider := .noRider }) duration
+  .establish (.cant (.actor subject) (.block .any) {}) duration
 /-- "<subject> can't be blocked [this turn]" -/
 semantic_template forbidBeingBlocked (subject : NounPhrase) (duration : Option Duration) : Action :=
-  .establish (.cant .any (.block subject) { rider := .noRider }) duration
+  .establish (.cant .any (.block subject) {}) duration
 /-- "<subject> blocks it this turn if able": ordinary pronoun `it` resolved by `D′` (no `Window`
 override). -/
 semantic_template requireBlockIt (subject : NounPhrase) (duration : Option Duration) : Action :=
-  .establish (.must (.actor subject) (.block it) { rider := .noRider }) duration
+  .establish (.must (.actor subject) (.block it) {}) duration
 
 /-- "<source> deals N damage divided as you choose among <among>" -/
 semantic_template dealDivided (source : NounPhrase) (amount : Amount) (among : NounPhrase) : Action :=
@@ -1156,10 +1160,10 @@ semantic_template gainControl (subject : NounPhrase) (duration : Option Duration
   .establish (.controlGrant agent subject) duration
 /-- "<subject> can't be <deed>ed" -/
 semantic_template objectCant (deed : Deed) (subject : NounPhrase) : StaticSpec :=
-  .cant .any (deonticActionFor deed subject) { rider := .noRider }
+  .cant .any (deonticActionFor deed subject) {}
 /-- "<player> can't <deed>" -/
 semantic_template playerCant (deed : Deed) (player : NounPhrase) : StaticSpec :=
-  .cant (.actor player) (deonticActionFor deed .any) { rider := .noRider }
+  .cant (.actor player) (deonticActionFor deed .any) {}
 /-- "<spec> as long as <condition>" -/
 semantic_template onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .asLongAs
@@ -1171,16 +1175,16 @@ semantic_template onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticS
   .conditional spec condition .ifSo
 /-- "<who> can't <deed> <what>" -/
 semantic_template cantDoTo (deed : Deed) (who what : NounPhrase) : StaticSpec :=
-  .cant (.actor who) (deonticActionFor deed what) { rider := .noRider }
+  .cant (.actor who) (deonticActionFor deed what) {}
 /-- "<n> can <deed> as though it didn't have <p>" -/
 semantic_template canDoAsThough (n : NounPhrase) (deed : Deed) (p : Predicate) : StaticSpec :=
-  .may (.actor n) (deonticActionFor deed .any) { asThough := some (.of p), rider := .noRider }
+  .can (.actor n) (deonticActionFor deed .any) { asThough := some (.condition (.matches (.pro .bare .one) p)) }
 /-- "<what> can't be the target of <by>" -/
 semantic_template cantBeTargetedBy (what by_ : NounPhrase) : StaticSpec :=
-  .cant (.by by_) (.target what) { rider := .noRider }
+  .cant (.by by_) (.target what) {}
 /-- "<what> can be the target of <by> as though it didn't have <p>" -/
 semantic_template canBeTargetedAsThough (what by_ : NounPhrase) (p : Predicate) : StaticSpec :=
-  .may (.by by_) (.target what) { asThough := some (.of p), rider := .noRider }
+  .can (.by by_) (.target what) { asThough := some (.condition (.matches (.pro .bare .many) p)) }
 /-- "<spec> <duration>": a clause holding for a stated duration. -/
 semantic_template establishThroughout (spec : StaticSpec) (duration : Duration) : Action :=
   .establish spec (some duration)
@@ -1190,33 +1194,33 @@ semantic_template doesntUntap (subject : NounPhrase) (whose : Option NounPhrase)
 /-- "you may choose not to untap <subject> during [<whose>] untap step" -/
 semantic_template mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.may .any (untap subject) { rider := .noRider })
+    (.can .any (untap subject) {})
 /-- "untap <subject> during [<whose>] untap step" -/
 semantic_template untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
   Primitives.StaticSpec.partScope .untapStep whose
-    (.must .any (untap subject) { rider := .noRider })
+    (.must .any (untap subject) {})
 /-- "<subject> can block an additional creature each combat" -/
 semantic_template mayBlockAdditional (subject : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .may (.actor subject) (.block (allOf creature))
-    { bound := some (.additional quantity), rider := .noRider }
+  .can (.actor subject) (.block (counted (.additional quantity) creature)) {}
 /-- "<who> may vote an additional time" -/
 semantic_template mayVoteAdditional (who : NounPhrase) (quantity : Quantity) : StaticSpec :=
-  .may (.actor who) (vote .openly .anyBallot)
-    { bound := some (.additional quantity), rider := .noRider }
+  .can (.actor who)
+    (.ownScope (some (.action "vote"))
+      (.enact (.action "vote") (.vote none .openly .anyBallot (some (.additional quantity))) none none))
+    {}
 /-- "<who> may spend mana as though it were mana of <as> [to <purpose>]" -/
 semantic_template maySpendAsThough (who : NounPhrase) (what : Option ColorOrColorless) (as_ : ManaMatch)
     (purpose : Option SpendPurpose) : StaticSpec :=
-  .may (.actor who) (.pay .anyCost .once .paid none none)
-    { asThough := some (.mana what as_ purpose), rider := .noRider }
+  .can (.actor who) (.pay .anyCost .once .paid none none)
+    { asThough := some (.mana what as_ purpose) }
 /-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
 role [CR#701.3a,301.5]. -/
 semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
-  .may .any (Primitives.Action.attachTo subject host) { rider := .noRider }
+  .can .any (Primitives.Action.attachTo subject host) {}
 /-- "<player> can't <deed> more than N <p>" -/
 semantic_template cantMoreThan (player : NounPhrase) (deed : Deed) (bound : Nat) (p : Predicate) :
     StaticSpec :=
-  .cant (.actor player) (deonticActionFor deed (allOf p))
-    { bound := some (.moreThan (.lit bound)), rider := .noRider }
+  .cant (.actor player) (deonticActionFor deed (counted (.moreThanOf (.lit bound)) p)) {}
 
 /-! ## The performer and the handoff -/
 
@@ -1264,7 +1268,7 @@ semantic_definition revealHand : Action :=
     (.enact (.action "reveal") (.expose .reveal (.zone (handOf .actor))) none none)
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
 semantic_template mayCastFrom (what : NounPhrase) (zone : Location) : StaticSpec :=
-  mayPlayDeed (.action "cast") .actor what none (.play (some zone) none none false .itsOwnCost)
+  mayPlayDeed (.action "cast") .actor what none (some zone) none none .itsOwnCost
 /-- An Army the performer controls. -/
 semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
 /-- "<performer> amasses <subtype> N" (`Definition`, [CR#701.47a]): resolved via `that (.type .creature)`
@@ -1413,7 +1417,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
             (.instruct (ownerOf it)
               (.establish
                 (mayPlayDeed (.action "cast") (ownerOf it) it none
-                  (.play (some exileZone) none none false (.payingInstead (.mana [generic 2]))))
+                  (some exileZone) none none (.payingInstead (.mana [generic 2])))
                 (some (.forAsLongAs (.matches it (.in_ exileZone)))))) ])
       none none)
 
@@ -1708,8 +1712,7 @@ semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
 with flying and/or reach." [CR#702.9b] -/
 semantic_definition flyingExpansion : Ability :=
   .static (.cant .any (.block thisCreature)
-    { rider := .noRider,
-      except := some (.byObjects (.and [creature,
+    { except := some (.byObjects (.and [creature,
         .or [.hasKeyword (.the (.named "flying")), .hasKeyword (.the (.named "reach"))]])) })
 /-- "Flying" with its definition. -/
 semantic_definition flying : Ability := .keyword (.named "flying") [] [flyingExpansion]
@@ -1765,28 +1768,27 @@ semantic_definition cyclingExpansion (cost : Cost) : Ability :=
 [CR#702.8a] -/
 semantic_definition flashExpansion : Ability :=
   .static (mayPlayDeed (.action "play") .you .this none
-    (.play none none (some asInstant) false .itsOwnCost))
+    none none (some asInstant) .itsOwnCost)
 /-- Sneak [cost]'s definition [CR#702.190a]. -/
 semantic_definition sneakExpansion (cost : Cost) : Ability :=
   .static (mayPlayDeed (.action "cast") .you .this none
-    (.play none none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) false
-      (.payingInstead (.compound [cost,
-        .perform (returnTo (a (.and [creature, unblocked, .hasPossessor .controller .you])) hand [])]))))
+    none none (some (.and [asInstant, duringPart .declareBlockers (some .you)])) (.payingInstead (.compound [cost,
+        .perform (returnTo (a (.and [creature, unblocked, .hasPossessor .controller .you])) hand [])])))
 /-- Morph [cost]'s definition [CR#702.37a,702.37e,116.2b]. -/
 semantic_definition morphExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      (.play none none none false (.faceDown faceDownCreature (.mana [generic 3])))),
+      none none none (.faceDown faceDownCreature (.mana [generic 3]))),
     .static (.specialAction none cost (.setStatus .faceUp .this)) ]
 /-- Megamorph [cost]'s definition [CR#702.37b]. -/
 semantic_definition megamorphExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      (.play none none none false (.faceDown faceDownCreature (.mana [generic 3])))),
+      none none none (.faceDown faceDownCreature (.mana [generic 3]))),
     .static (.specialAction none cost
       (.sequentially [.setStatus .faceUp .this, .putCounters (.lit 1) (.printed p1p1Counter) .this .one true])) ]
 /-- Disguise [cost]'s definition [CR#702.168a,702.168d]. -/
 semantic_definition disguiseExpansion (cost : Cost) : List Ability :=
   [ .static (mayPlayDeed (.action "cast") .you .this none
-      (.play none none none false (.faceDown faceDownWardedCreature (.mana [generic 3])))),
+      none none none (.faceDown faceDownWardedCreature (.mana [generic 3]))),
     .static (.specialAction none cost (.setStatus .faceUp .this)) ]
 /-- Foretell [cost]'s definition [CR#702.143a,116.2h]. -/
 semantic_definition foretellExpansion (cost : Cost) : List Ability :=
@@ -1797,7 +1799,7 @@ semantic_definition foretellExpansion (cost : Cost) : List Ability :=
             (some (.forAsLongAs (.matches it (.in_ exileZone)))),
           .establish
             (mayPlayDeed (.action "cast") .you it none
-              (.play (some exileZone) none none false (.payingInstead cost)))
+              (some exileZone) none none (.payingInstead cost))
             (some onALaterTurn) ])) ]
 /-- Plot [cost]'s definition [CR#702.170a,702.170d,116.2k]. -/
 semantic_definition plotExpansion (cost : Cost) : List Ability :=
@@ -1806,7 +1808,7 @@ semantic_definition plotExpansion (cost : Cost) : List Ability :=
         [ exile .this,
           .establish
             (mayPlayDeed (.action "cast") .you it none
-              (.play (some exileZone) none (some asSorcery) false .withoutPaying))
+              (some exileZone) none (some asSorcery) .withoutPaying)
             (some onALaterTurn) ])) ]
 /-- Hideaway N's definition [CR#702.75a]. -/
 semantic_definition hideawayExpansion (amount : Amount) : List Ability :=

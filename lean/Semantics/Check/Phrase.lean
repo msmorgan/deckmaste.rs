@@ -61,6 +61,7 @@ def Quantity.plur (q : Quantity) (fuel : Nat := 16) : Plurality :=
   | n + 1, .inCaller body => body.plur n
   | _ + 1, .range _ (some 1) => .one
   | n + 1, .exactlyOf amount => amount.plur n
+  | n + 1, .additional q => q.plur n
   | _ + 1, _ => .many
 termination_by structural fuel
 
@@ -518,7 +519,8 @@ def stepQuantityWith (ops : StepOps) (drs : DRS) (q : Quantity) (fuel : Nat := 8
     (leaveCaller drs callerDrs, errs)
   | _ + 1, .range (some lo) (some hi) => (drs, if lo ≤ hi then [] else [.wellFormedQ])
   | _ + 1, .range _ _ | _ + 1, .worth _ => (drs, [])
-  | _ + 1, .upToOf a | _ + 1, .exactlyOf a => ops.amt drs a
+  | _ + 1, .upToOf a | _ + 1, .exactlyOf a | _ + 1, .moreThanOf a => ops.amt drs a
+  | n + 1, .additional q => stepQuantityWith ops drs q n
 termination_by structural fuel
 
 def ChoiceDomain.sort : ChoiceDomain → ChoiceSort
@@ -789,25 +791,29 @@ private def attachmentHostKindCheck (word : Option AttachWord) (kind : Kind) : L
 def stepAsThoughWith (ops : StepOps) (drs : DRS) (asThough : AsThough) :
     DRS × List Refusal :=
   match asThough with
-  | .of predicate =>
-    let (out, errors) := ops.pred drs predicate
-    (out, errors ++ kindCheck .object predicate.kind?)
+  | .condition cond =>
+    -- "as though it didn't have defender" is a clause of its own, its pronouns reading the
+    -- deontic's participants.
+    ops.cond (nextClause drs) cond
   | .greater _ amount =>
     let (out, errors) := ops.amt drs amount
     (out, errors ++ refuse (out.nextId == drs.nextId) .bindingless)
   | .mana .. => (drs, [])
 
-private def stepDeonticAsThoughWith (ops : StepOps) (drs : DRS) (mods : DeonticMods) :
+private def stepDeonticModsWith (ops : StepOps) (drs : DRS) (mods : DeonticMods) :
     DRS × List Refusal :=
   let (out, errors) := match mods.asThough with
     | none => (drs, [])
     | some asThough => stepAsThoughWith ops drs asThough
+  let (out, timingErrors) := match mods.timing with
+    | none => (out, [])
+    | some timing => stepTimingWith ops out timing
   let exceptErrors := match mods.except with
     | some (.byObjects predicate) =>
       let (_, errs) := ops.pred { drs with relativeKind := some .object } predicate
       errs ++ kindCheck .object predicate.kind?
     | _ => []
-  (out, errors ++ exceptErrors)
+  (out, errors ++ timingErrors ++ exceptErrors)
 
 def eventVoiceChecks (drs : DRS) (subject : Subject) (action : Action) : List Refusal :=
   let agent := match subject with | .any => none | .actor noun | .by noun => some noun
@@ -2494,10 +2500,13 @@ def stepOps : Nat → StepOps
           let (drs3, e3) := match optWhen with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
           (drs3, e1 ++ e2 ++ refuse chosen.agentChoosable .choiceClause ++
             refuse (first.isNone || actorPlurality drs == .many) .choiceOrder ++ e3)
-        | .vote first _ ballot =>
+        | .vote first _ ballot times =>
           let (drs1, e1) := match first with
             | some f => let (d, _, e) := ops.np drs .subj true f; (d, e)
             | none => (drs, [])
+          let (drs1, e1) := match times with
+            | some q => let (d, e) := stepQuantityWith ops drs1 q; (d, e1 ++ e)
+            | none => (drs1, e1)
           let (drs2, e2) := stepBallotWith ops drs1 ballot
           let drs3 := drs2.push (outcomeB .voteHeld) .other false
           (drs3, e1 ++ e2 ++ refuse (first.isNone || actorPlurality drs == .many) .choiceOrder)
@@ -2993,16 +3002,16 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let e2 := e2 ++ refuse (deonticDeedFits drs1 drs2 action subj.patientRole) .deedFits ++
             refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
-          let (drs3, e3) := stepDeonticAsThoughWith ops drs2 mods
+          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj none false action.deonticDeed
           (publishProhibitionSources drs drs4, headErr ++ e1 ++ e2 ++ e3 ++ e4)
-        | .must subj action mods | .may subj action mods =>
+        | .must subj action mods | .can subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
           let (drs1, e1) := stepSubjectBeforeWith ops drs subj
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let e2 := e2 ++ refuse (deonticDeedFits drs1 drs2 action subj.patientRole) .deedFits ++
             refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
-          let (drs3, e3) := stepDeonticAsThoughWith ops drs2 mods
+          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj none false action.deonticDeed
           ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .gatedBy cost subj action mods =>
@@ -3011,7 +3020,7 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let e2 := e2 ++ refuse (deonticDeedFits drs1 drs2 action subj.patientRole) .deedFits ++
             refuse (deonticPatientOk drs1 drs2 action subj.patientRole) .deonticPatientOk
-          let (drs3, e3) := stepDeonticAsThoughWith ops drs2 mods
+          let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let payerId := drs3.nextId
           let payer := kindBinding .player
           let costContext := { (nextClause drs3) with

@@ -181,7 +181,7 @@ def warTaxScaledPayment : Action :=
           (countOf (Primitives.Predicate.and [creature, attacking,
             Primitives.Predicate.hasPossessor .controller they]))))
       (Primitives.Subject.actor (allOf creature)) (Primitives.Action.attack none)
-      { rider := Primitives.DeonticRider.noRider })
+      {})
     (some thisTurn)
 theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxScaledPayment = [] := by
   decide

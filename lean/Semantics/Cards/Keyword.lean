@@ -63,7 +63,7 @@ def yotianSoldier : Spelled := spelled <| .singleFaced
 def pymParticlesGrant : Action :=
   Primitives.Action.sequentially
     [ gain (target creature) (keyword (.named "vigilance")) (some untilEndOfTurn),
-      Primitives.Action.establish (Primitives.StaticSpec.cant Primitives.Subject.any (Primitives.Action.block (that (.type .creature))) { rider := Primitives.DeonticRider.noRider })
+      Primitives.Action.establish (Primitives.StaticSpec.cant Primitives.Subject.any (Primitives.Action.block (that (.type .creature))) {})
         (some thisTurn) ]
 theorem okPymParticlesGrant : Action.check (DRS.ofList []) pymParticlesGrant = [] := by decide
 def bladebrand : Action := gain (target creature) (keyword (.named "deathtouch")) (some untilEndOfTurn)
@@ -624,7 +624,7 @@ def akroanSergeant : Spelled := spelled <| .singleFaced
 
 def castCreatureSpellsFromTop : StaticSpec :=
   mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, creature])) none
-    (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)
+    (some onTop) none none Primitives.PlayPayment.itsOwnCost
 theorem okCastCreatureSpellsFromTop : StaticSpec.check (DRS.ofList []) castCreatureSpellsFromTop = [] := by decide
 
 def garruksHorde : Spelled := spelled <| .singleFaced
@@ -1228,7 +1228,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 def veilingOddityLine : Ability :=
   triggeredWhile (lastCounterRemoved (.named "timeCounter") Primitives.NounPhrase.this)
     (whileTrue (Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ exileZone])))
-    (Primitives.Action.establish (Primitives.StaticSpec.cant Primitives.Subject.any (Primitives.Action.block (allOf creature)) { rider := Primitives.DeonticRider.noRider })
+    (Primitives.Action.establish (Primitives.StaticSpec.cant Primitives.Subject.any (Primitives.Action.block (allOf creature)) {})
       (some thisTurn))
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide
 

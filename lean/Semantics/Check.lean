@@ -89,11 +89,11 @@ def airbendDef (subject : NounPhrase) : Action :=
       .move (.inCaller (.firstMention "subject" subject))
         .anyLocation (some exileZone) .departure (some .anEffect) [],
       .establish
-        (.may (.actor .you)
+        (.can (.actor .you)
           (.procedure .cast
             (.pro (.verbed (.action "exile") (some .card) .attributive) .one)
             (.payingInstead (.mana [.simple (.generic 2)])) none none none)
-          { rider := .noRider })
+          {})
         none
     ]
 
@@ -248,7 +248,7 @@ def sliceDVoteAndChoicePin : Ability :=
     .sequentially [
       .establish (.choice .entry .you (.quality .color) none .openly) none,
       .instruct (.described .each .anyPlayer)
-        (.vote (some .you) .openly (.byLabel ["grace", "condemnation"])),
+        (.vote (some .you) .openly (.byLabel ["grace", "condemnation"]) none),
       .draw (.votesFor "grace"),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
         (.zone .battlefield none) (some handZone) .departure (some .anEffect) []

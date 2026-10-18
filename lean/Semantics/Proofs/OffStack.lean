@@ -9,7 +9,7 @@ Off-Stack Statics (`semantics-v2-off-stack-statics`, `docs/decisions/semantics-v
 2026-10-09): "as [event], do" (`StaticSpec.asEvent`) and "any time [condition] holds, do"
 (`StaticSpec.whileHolds`), which carry an instruction that never uses the stack
 [CR#604.1,603.7a,603.7g,614.1c]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
-and a deontic rule's one exempt source (`Cause`, [CR#702.145b,702.13b]). The keyword bodies are
+and a deontic rule's one exempt source (`DeonticExcept`, [CR#702.145b,702.13b]). The keyword bodies are
 read through their declarations (`Semantics.Macros.Declared`). Each pin is closed by `decide`.
 -/
 
@@ -50,7 +50,7 @@ theorem badBecomesOfAPlayer :
 theorem okExceptByKeyword :
     StaticSpec.check (DRS.ofList [])
       (.cant .any (transform thisPermanent)
-        { rider := .noRider, except := some (.byKeyword (.named "daybound")) }) = [] := by
+        { except := some (.byKeyword (.named "daybound")) }) = [] := by
   decide
 
 /-- "This creature can't be blocked except by artifact creatures and/or black creatures"
@@ -58,14 +58,14 @@ theorem okExceptByKeyword :
 theorem okExceptByObjects :
     StaticSpec.check (DRS.ofList [])
       (.cant .any (.block thisCreature)
-        { rider := .noRider, except := some (.byObjects (.and [creature, .or [artifact, .colorIs .black]])) }) = [] := by
+        { except := some (.byObjects (.and [creature, .or [artifact, .colorIs .black]])) }) = [] := by
   decide
 
 /-- An exception by objects describes objects: "except by opponents" is refused as a kind. -/
 theorem badExceptByPlayers :
     StaticSpec.check (DRS.ofList [])
       (.cant .any (.block thisCreature)
-        { rider := .noRider, except := some (.byObjects (.isOpponentOf .you)) }) = [.kindMismatch .object .player] := by
+        { except := some (.byObjects (.isOpponentOf .you)) }) = [.kindMismatch .object .player] := by
   decide
 
 /-! ## The keyword bodies -/

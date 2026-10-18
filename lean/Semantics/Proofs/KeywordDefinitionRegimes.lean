@@ -43,7 +43,7 @@ def endStepPart : Ability :=
 
 /-- "You may cast this card by paying {2} rather than its mana cost." -/
 def castPermission : Ability :=
-  .static (.may (.actor .you) (.procedure .cast .this .itsOwnCost none none none) { rider := (.play none none none false (.payingInstead two)) })
+  .static (.can (.actor .you) (.procedure .cast .this (.payingInstead two) none none none) {})
 
 /-- "if this is a permanent card" -/
 def onPermanentCard : Condition := .matches .this permanentCard

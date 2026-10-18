@@ -299,7 +299,7 @@ theorem modernStaticSelfRemainsReadableAsThatCreature :
 theorem modernLandHostProhibitionKeepsItsPumpedHost :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
       [getsPt (.attachHost .enchanted (.type .land)) (.up (.lit 1)) (.up (.lit 1)),
-        .cant (.actor it) (.block .any) { rider := .noRider }])
+        .cant (.actor it) (.block .any) {}])
     result.2 = [] ∧ (result.1.findById? 0).map (·.ty) = some [.land] ∧
       (result.1.findById? 0).map (·.attachmentHost) = some true := by decide
 

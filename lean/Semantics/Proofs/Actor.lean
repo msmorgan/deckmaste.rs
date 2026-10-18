@@ -302,15 +302,15 @@ theorem heatWaveHandoffTwin :
     Ability.check (DRS.ofList [])
         (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
             (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) { rider := .noRider })) = [] ∧
+            (.block (allOf creatureYouControl)) {})) = [] ∧
       Ability.check (DRS.ofList [])
           (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
             (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) { rider := .noRider })) =
+            (.block (allOf creatureYouControl)) {})) =
         Ability.check (DRS.ofList [])
           (.static (.gatedBy (.perform (instruct they (loseLife blockersTheyControl)))
             (.actor (allOf (.and [creature, .not (.colorIs .blue)])))
-            (.block (allOf creatureYouControl)) { rider := .noRider })) := by
+            (.block (allOf creatureYouControl)) {})) := by
   decide
 
 /-- Killing Wave: "For each creature, its controller sacrifices it unless they pay X life." -/
@@ -514,7 +514,7 @@ theorem okStaticActorPermission :
       Ability.check (DRS.ofList []) (.static (Actor.mayCastFrom (allOf spell) (graveyardOf actor))) =
         Ability.check (DRS.ofList [])
           (.static (mayPlayDeed (.action "cast") .you (allOf spell) none
-            (.play (some (graveyardOf .you)) none none false .itsOwnCost))) := by
+            (some (graveyardOf .you)) none none .itsOwnCost)) := by
   decide
 
 /-- "Exile target creature. Its owner may cast it from exile.": the permission handed to the

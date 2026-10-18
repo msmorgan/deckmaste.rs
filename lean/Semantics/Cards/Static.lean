@@ -795,7 +795,7 @@ def revelation : Spelled := spelled <| .singleFaced
 
 /-- Phyrexian Unlife -/
 def phyrexianUnlifeImmunity : Ability :=
-  Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.conclude .loseGame) { bound := none, asThough := none, rider := (Primitives.DeonticRider.stateBased .nonpositiveLife), except := none })
+  Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.conclude .loseGame) { stateBased := some .nonpositiveLife })
 theorem okPhyrexianUnlifeImmunity : Ability.check (DRS.ofList []) phyrexianUnlifeImmunity = [] := by decide
 /-- Umbris, Fear Manifest -/
 def umbrisPump : Ability :=

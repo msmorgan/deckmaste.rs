@@ -59,7 +59,7 @@ def flawlessForgeryLine : Action :=
       Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Action.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
-          (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.withoutPaying))
+          none none none Primitives.PlayPayment.withoutPaying)
         none ]
 theorem okFlawlessForgeryLine : Action.check (DRS.ofList []) flawlessForgeryLine = [] := by decide
 
@@ -217,7 +217,7 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.visibility .reveal Primitives.NounPhrase.you Primitives.VisibleThing.topOfLibrary),
           Primitives.Ability.static
             (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (allOf (Primitives.Predicate.and [spell, instantOrSorcery])) none
-              (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)),
+              (some onTop) none none Primitives.PlayPayment.itsOwnCost),
           whenever
             (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a (Primitives.Predicate.and
               [instantOrSorcery, spell]))) Primitives.PlayPayment.itsOwnCost none (some (yourLibrary)) none))

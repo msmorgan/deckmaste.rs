@@ -223,12 +223,12 @@ theorem templatePredicatesDoNotConcealContradictions :
 theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
     StaticSpec.check (DRS.ofList [])
       (.must (.actor (target creature)) (.block (target creature))
-        {rider := .noRider}) = [] := by decide
+        {}) = [] := by decide
 
 theorem namedSubjectAndCounterpartStillShareIdentity :
     Action.check (DRS.ofList []) (.establish
       (.must (.actor (.firstMention "block.subject" (target creature)))
-        (.block (.laterMention "block.subject" .any)) {rider := .noRider})
+        (.block (.laterMention "block.subject" .any)) {})
       (some thisTurn)) = [.deonticPatientOk] := by decide
 
 theorem containingNounRetainsIndependentSelection :
@@ -414,7 +414,7 @@ theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
 
 theorem templatePatientCannotReadItsCoargument :
     Action.check (DRS.ofList []) (.establish
-      (.must (.actor (target creature)) (.block (forwardedSubject it)) { rider := .noRider })
+      (.must (.actor (target creature)) (.block (forwardedSubject it)) {})
       (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
 theorem nestedTemplatesRereadTheCurrentOutcome :

@@ -114,8 +114,8 @@ theorem okAuraMayBeAttachedToAPlayer :
 theorem passiveAgentAndAttachmentHostAreDistinct :
     (.by (allOf creature) : Subject).patientRole = .subj ∧
       mayBeAttachedTo thisEquipment (allOf creature) =
-        .may .any (Primitives.Action.attachTo thisEquipment (allOf creature))
-          { rider := .noRider } := by
+        .can .any (Primitives.Action.attachTo thisEquipment (allOf creature))
+          {} := by
   constructor <;> rfl
 
 /-! ## The chapter axis (ruling 2026-10-10) -/

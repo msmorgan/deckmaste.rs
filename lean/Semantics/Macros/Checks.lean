@@ -36,7 +36,7 @@ theorem keywordCostReadsCaller :
 
 theorem keywordBodyCannotReadCaller :
     (Ability.keyword (.named "flying") []
-      [.static (.cant .any (.block it) { rider := .noRider })]).check callerContext =
+      [.static (.cant .any (.block it) {})]).check callerContext =
         [.anaphor .bare .one 0] := by decide
 
 theorem callerPronoun :

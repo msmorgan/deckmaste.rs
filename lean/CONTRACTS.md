@@ -5,7 +5,7 @@
 > `J1` accessibility, `J2` clause-mate exclusion, `D′` bare-pronoun resolution,
 > and `AC>R1` demonstrative resolution), the explicit `Definition` vs.
 > `Template` split, and the Unified Action-Clause Spine (`instruct`, `does`,
-> `would`, `cant`/`must`/`may`/`gatedBy`, `did`, `by`, `any`, `which`) that
+> `would`, `cant`/`must`/`can`/`gatedBy`, `did`, `by`, `any`, `which`) that
 > replace the `Bindings` stack, `Window`, and strict `countReach == 1` rules
 > described below as the `lean-v3-*` tickets land.
 

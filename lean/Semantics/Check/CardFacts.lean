@@ -135,7 +135,7 @@ mutual
     | n + 1, .conditional s condition _ => s.namesThisDoor n || condition.namesThisDoor n
     | n + 1, .conjunction _ parts => parts.any (fun s => s.namesThisDoor n)
     | n + 1, .abilityGrant _ a => a.namesThisDoor n
-    | n + 1, .cant _ i _ | n + 1, .must _ i _ | n + 1, .may _ i _ => i.namesThisDoor n
+    | n + 1, .cant _ i _ | n + 1, .must _ i _ | n + 1, .can _ i _ => i.namesThisDoor n
     | n + 1, .gatedBy cost _ i _ => cost.namesThisDoor n || i.namesThisDoor n
     | n + 1, .instead event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .whileHolds condition i => condition.namesThisDoor n || i.namesThisDoor n
@@ -271,7 +271,7 @@ def StaticSpec.regimeFits (r : Option StackRegime) (s : StaticSpec)
   | _ + 1, .costShift (.asMarker .ability _) _ => r == none
   | _ + 1, .addedCost .. | _ + 1, .costShift .. | _ + 1, .paySubstitute ..
   | _ + 1, .modeChoice .. | _ + 1, .addsTarget .. => r == some .atCasting
-  | _ + 1, .altCost .. | _ + 1, .may _ (.procedure ..) _ => r != some .atResolution
+  | _ + 1, .altCost .. | _ + 1, .can _ (.procedure ..) _ => r != some .atResolution
   | _ + 1, .instead (.would _ (.move n (.zone .stack none) _ _ _ _)) _ _ _ _ =>
     if n.namesThis then r != some .atResolution else r == none
   | _, _ => r == none

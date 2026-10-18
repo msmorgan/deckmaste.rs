@@ -20,46 +20,43 @@ private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
 def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
   .activated cost instruction none none none none
 
-/-- "you may play …" with no zone, limit, timing, or payment named. -/
-def playRider : DeonticRider := .play none none none false .itsOwnCost
-
 /-- A cause qualifier narrows the ordinary loss prohibition. -/
 theorem okStateBasedLossGate :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor .you) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [] := by decide
+      (.cant (.actor .you) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [] := by decide
 
 theorem okStateBasedLossForPlayerGroup :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [] := by decide
+      (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [] := by decide
 
 theorem badStateBasedLossOnCreature :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor thisCreature) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [.deedFits] := by decide
+      (.cant (.actor thisCreature) (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [.deedFits] := by decide
 
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Action.check (DRS.ofList []) (.establish
-      (.cant (.actor (target .anyPlayer)) (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) }) (some thisTurn)) = [] := by decide
+      (.cant (.actor (target .anyPlayer)) (.conclude .loseGame) { stateBased := some .nonpositiveLife }) (some thisTurn)) = [] := by decide
 
 theorem badStateBasedCauseWithoutDeed :
     Ability.check (DRS.ofList []) (.static
-      (.cant (.actor .you) (.sequentially []) { rider := (.stateBased .nonpositiveLife) })) = [.eventHead, .nonEmpty] := by decide
+      (.cant (.actor .you) (.sequentially []) { stateBased := some .nonpositiveLife })) = [.eventHead, .nonEmpty] := by decide
 
 theorem badStateBasedLossPatientRole :
     Ability.check (DRS.ofList []) (.static
-      (.cant .any (.conclude .loseGame) { rider := (.stateBased .nonpositiveLife) })) = [.deedFits] := by decide
+      (.cant .any (.conclude .loseGame) { stateBased := some .nonpositiveLife })) = [.deedFits] := by decide
 
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
     Action.check (DRS.ofList [])
-      (.establish (.cant .any (.block (target creature)) { rider := .noRider })
+      (.establish (.cant .any (.block (target creature)) {})
         (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature can't be attacked this turn." -/
 theorem badCantBeAttacked :
     Action.check (DRS.ofList [])
-      (.establish (.cant .any (.attack (some (target creature))) { rider := .noRider })
+      (.establish (.cant .any (.attack (some (target creature))) {})
         (some thisTurn)) = [.deedFits] := by
   decide
 
@@ -137,7 +134,7 @@ theorem badEmptyCompound :
 
 /-- "Creatures can't attack." -/
 theorem okStaticUntargeting :
-    Ability.check (DRS.ofList []) (.static (.cant (.actor (allOf creature)) (.attack none) { rider := .noRider }))
+    Ability.check (DRS.ofList []) (.static (.cant (.actor (allOf creature)) (.attack none) {}))
       = [] := by
   decide
 
@@ -145,14 +142,14 @@ theorem okStaticUntargeting :
 theorem okPlayFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .play (a (.and [.isCard, .in_ graveyard])) .itsOwnCost none none none) { rider := playRider }) (some thisTurn)) = [] := by
+        (.can (.actor .you) (.procedure .play (a (.and [.isCard, .in_ graveyard])) .itsOwnCost none none none) {}) (some thisTurn)) = [] := by
   decide
 
 /-- "You may play a land card from your graveyard this turn." -/
 theorem okPlayLandFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .play (a (.and [land, .in_ (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
+        (.can (.actor .you) (.procedure .play (a (.and [land, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
       = [] := by
   decide
 
@@ -160,7 +157,7 @@ theorem okPlayLandFromGraveyard :
 theorem okCastCreatureFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .cast (a (.and [creature, .in_ (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
+        (.can (.actor .you) (.procedure .cast (a (.and [creature, .in_ (graveyardOf .you)])) .itsOwnCost none (some (graveyardOf .you)) none) {}) (some thisTurn))
       = [] := by
   decide
 
@@ -168,7 +165,7 @@ theorem okCastCreatureFromGraveyard :
 theorem okUnlessOnNegated :
     Ability.check (DRS.ofList [])
       (.static
-        (.conditional (.cant (.actor thisCreature) (.attack none) { rider := .noRider })
+        (.conditional (.cant (.actor thisCreature) (.attack none) {})
           (.not (exists_ (.and [artifact, .hasPossessor .controller .you]))) .unless_)) = [] := by
   decide
 
@@ -176,7 +173,7 @@ theorem okUnlessOnNegated :
 theorem badUnlessOnPositive :
     Ability.check (DRS.ofList [])
       (.static
-        (.conditional (.cant (.actor thisCreature) (.attack none) { rider := .noRider })
+        (.conditional (.cant (.actor thisCreature) (.attack none) {})
           (exists_ (.and [artifact, .hasPossessor .controller .you])) .unless_))
       = [.markingOk] := by
   decide
@@ -184,7 +181,7 @@ theorem badUnlessOnPositive :
 /-- "Target creature attacks each combat if able." -/
 theorem okMustAttackCreature :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.attack none) { rider := .noRider })
+      (.establish (.must (.actor (target creature)) (.attack none) {})
         (some thisTurn)) = [] := by
   decide
 
@@ -193,7 +190,7 @@ land type [CR#205.1b]. This fixture keeps the requirement available if it can at
 [CR#508.1a]. -/
 theorem okMustAttackLand :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target land)) (.attack none) { rider := .noRider })
+      (.establish (.must (.actor (target land)) (.attack none) {})
         (some thisTurn)) = [] := by
   decide
 
@@ -219,26 +216,26 @@ theorem okRingBearerOnBattlefield :
 theorem okForbidAttackPlaneswalker :
     Action.check (DRS.ofList [])
       (.establish
-        (.cant (.actor thisCreature) (.attack (some (target (.hasType .planeswalker)))) { rider := .noRider }) (some thisTurn)) = [] := by
+        (.cant (.actor thisCreature) (.attack (some (target (.hasType .planeswalker)))) {}) (some thisTurn)) = [] := by
   decide
 
 /-- "Target creature blocks itself this turn." -/
 theorem badBlocksItself :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.block (.refl .one)) { rider := .noRider })
+      (.establish (.must (.actor (target creature)) (.block (.refl .one)) {})
         (some thisTurn)) = [.deonticPatientOk] := by
   decide
 
 theorem bareBlockPatientCannotReadItsCoargument :
     Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target creature)) (.block it) { rider := .noRider })
+      (.establish (.must (.actor (target creature)) (.block it) {})
         (some thisTurn)) = [.anaphor .bare .one 0] := by decide
 
 /-- "Enchanted creature can't block." -/
 theorem okEnchantedCreatureCantBlock :
     Ability.check (DRS.ofList [])
       (.static
-        (.cant (.actor (.attachHost .enchanted (.type .creature))) (.block .any) { rider := .noRider }))
+        (.cant (.actor (.attachHost .enchanted (.type .creature))) (.block .any) {}))
       = [] := by
   decide
 
@@ -251,7 +248,7 @@ theorem okCoordinatedLandHostBlocks :
         (.conjunction none
           [ .modification (.attachHost .enchanted (.type .land)) .power (.up (.lit 1)),
             .modification it .toughness (.up (.lit 1)),
-            .cant (.actor it) (.block .any) { rider := .noRider } ])) = [] := by
+            .cant (.actor it) (.block .any) {} ])) = [] := by
   decide
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
@@ -289,13 +286,13 @@ theorem badTheDamageUnannounced :
 /-- "You may cast spells as though they had flash." -/
 theorem okObjectPremiseAtCast :
     StaticSpec.check (DRS.ofList [])
-      (.may (.actor .you) (.procedure .cast (allOf spell) .itsOwnCost none none none) { asThough := (some (.of (.hasKeyword (.the (.named "flash"))))), rider := playRider }) = [] := by
+      (.can (.actor .you) (.procedure .cast (allOf spell) .itsOwnCost none none none) { asThough := (some (.condition (.matches (.pro .bare .many) (.hasKeyword (.the (.named "flash")))))) }) = [] := by
   decide
 
 /-- "This creature can't be blocked by more than one creature." -/
 theorem okBlockBoundOnBlock :
     StaticSpec.check (DRS.ofList [])
-      (.cant (.by (allOf creature)) (.block thisCreature) { rider := .noRider, bound := (some (.moreThan (.lit 1))) }) = [] := by
+      (.cant (.by (counted (.moreThanOf (.lit 1)) creature)) (.block thisCreature) {}) = [] := by
   decide
 
 /-- "Spells and abilities can't be countered.": an effect that says so counters abilities
@@ -343,7 +340,7 @@ able." No printed card on the bench. -/
 theorem goadedAttacksOther :
     Action.check (DRS.ofList [])
       (.establish
-        (.must (.actor (target creature)) (.attack (some (a otherPlayer))) { rider := .noRider })
+        (.must (.actor (target creature)) (.attack (some (a otherPlayer))) {})
         (some untilYourNextTurn)) = [] := by
   decide
 
@@ -360,7 +357,7 @@ theorem okGatedCostReadsPayer :
     StaticSpec.check [letterB .x]
       (.gatedBy (Primitives.Cost.scaled (.mana [generic 1])
             (times (.letter .x)
-              (countOf (.and [creature, attacking, .hasPossessor .controller they])))) (.actor (allOf creature)) (.attack none) { rider := .noRider }) = [] := by
+              (countOf (.and [creature, attacking, .hasPossessor .controller they])))) (.actor (allOf creature)) (.attack none) {}) = [] := by
   decide
 
 /-- "{X} for each attacking creature": the same scaled cost with no read. -/
@@ -381,6 +378,41 @@ theorem badBareCostReadsPayer :
 /-- "This card can't be revealed": what is revealed is a card [CR#701.20a], so a deontic rule
 names it in the reveal deed's patient role. -/
 theorem okCantBeRevealed :
-    StaticSpec.check (DRS.ofList []) (.cant .any (revealCards .this) { rider := .noRider }) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (.cant .any (revealCards .this) {}) = [] := by decide
+
+/-- "Each player can't cast more than one spell each turn.": the bound is the noun phrase's own
+quantity, the rate the rule's timing. -/
+theorem okMoreThanOneSpellEachTurn :
+    StaticSpec.check (DRS.ofList [])
+      (.cant (.actor (each .anyPlayer))
+        (.procedure .cast (counted (.moreThanOf (.lit 1)) spell) .itsOwnCost none none none)
+        { timing := some (.inPart .turn none (.each none)) }) = [] := by decide
+
+/-- "You may play an additional land on each of your turns." -/
+theorem okAdditionalLandEachOfYourTurns :
+    StaticSpec.check (DRS.ofList [])
+      (.can (.actor .you) (.procedure .play (counted (.additional (exactly 1)) land) .itsOwnCost none none none)
+        { timing := some (.inPart .turn (some .you) (.each (some .you))) }) = [] := by decide
+
+/-- The rule's timing is checked: a "that turn" with no turn named before it reads nothing. -/
+theorem badDeonticTimingReadsNoTurn :
+    StaticSpec.check (DRS.ofList [])
+      (.can (.actor .you) (.procedure .play (a land) .itsOwnCost none none none)
+        { timing := some (.inPart .turn none .that) }) = [.turnAntecedent 0] := by decide
+
+/-- "This creature can attack as though it didn't have defender.": the "as though" clause's
+pronoun reads the rule's subject. -/
+theorem okAsThoughReadsTheSubject :
+    StaticSpec.check (DRS.ofList [])
+      (.can (.actor thisCreature) (.attack none)
+        { asThough := some (.condition (.matches it (.not (.hasKeyword (.the (.named "defender")))))) }) =
+      [] := by decide
+
+/-- An "as though" clause whose pronoun has no participant to read is refused. -/
+theorem badAsThoughPronounWithoutParticipant :
+    StaticSpec.check (DRS.ofList [])
+      (.can (.actor .you) (.draw .anyAmount)
+        { asThough := some (.condition (.matches them (.hasKeyword (.the (.named "flash"))))) }) =
+      [.anaphor .bare .many 0] := by decide
 
 end Semantics.Proofs.Deontic

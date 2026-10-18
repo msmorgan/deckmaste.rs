@@ -263,7 +263,7 @@ theorem okSagaDefinition : Definition.check sagaDefinition = [] := by decide
 theorem combatantIsTheRole : combatant = .property (.combatant .this) := rfl
 theorem playableFromIsThePlayPermission :
     playableFrom yourHand asSorcery =
-      .property (.may (.actor .you) (.procedure .play .this .itsOwnCost none none none) { rider := (.play (some yourHand) none (some asSorcery) false .itsOwnCost) }) := rfl
+      .property (.can (.actor .you) (.procedure .play .this .itsOwnCost none (some yourHand) none) { timing := (some asSorcery) }) := rfl
 
 /-- [CR#725.1] "The monarch is a designation a player can have. There is no monarch in a game
 until an effect instructs a player to become the monarch" — so the designation is effectful. -/

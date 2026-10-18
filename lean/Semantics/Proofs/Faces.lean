@@ -85,7 +85,7 @@ theorem badCastWindowAsDeonticStatic :
           text :=
             [ .static
                 (Primitives.StaticSpec.partScope .declareAttackers none
-                  (.may .any (.procedure .cast .this .itsOwnCost none none none) { rider := .noRider })),
+                  (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
               .spell none (draw (.lit 1)) ] }) = [.cardText] := by
   decide
 
@@ -283,7 +283,7 @@ theorem badKindredAlone :
 theorem okEnchantedCreatureCantAttack :
     Ability.check (DRS.ofList [])
       (.static
-        (.cant (.actor (.attachHost .enchanted (.type .creature))) (.attack none) { rider := .noRider }))
+        (.cant (.actor (.attachHost .enchanted (.type .creature))) (.attack none) {}))
       = [] := by
   decide
 
@@ -293,7 +293,7 @@ when attackers are chosen [CR#508.1a]. -/
 theorem okPlaneswalkerAttacks :
     Ability.check (DRS.ofList [])
       (.static
-        (.cant (.actor (.attachHost .enchanted (.type .planeswalker))) (.attack none) { rider := .noRider })) = [] := by
+        (.cant (.actor (.attachHost .enchanted (.type .planeswalker))) (.attack none) {})) = [] := by
   decide
 
 /-- "you pay {2}" -/

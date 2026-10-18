@@ -7,14 +7,14 @@ namespace Semantics.Proofs.DrtCards
 private def feralContest : Action := .sequentially [
   .putCounters (.lit 1) (.printed p1p1Counter) (target creatureYouControl) .one true,
   .establish
-    (.must (.actor (target (.and [creature, .other]))) (.block it) { rider := .noRider })
+    (.must (.actor (target (.and [creature, .other]))) (.block it) {})
     (some thisTurn)]
 
 private def monstrousStep : Action := .sequentially [
   get (target creature) (.up (.lit 7)) (.up (.lit 7)) (some untilEndOfTurn),
   .establish
     (.must (.actor (.described (.target (upTo 1)) (.and [creature, .other])))
-      (.block it) { rider := .noRider }) (some thisTurn)]
+      (.block it) {}) (some thisTurn)]
 
 private def cloudAttach : Ability :=
   when (.does .any (putOntoBattlefield thisCreature))

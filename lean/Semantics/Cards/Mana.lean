@@ -435,7 +435,7 @@ def theFlux : Spelled := spelled <| .singleFaced
               [ exile (topSlice (.lit 1)),
                 Primitives.Action.establish
                   (mayPlayDeed (.action "play") Primitives.NounPhrase.you (that .card) none
-                    (Primitives.DeonticRider.play none none none false Primitives.PlayPayment.itsOwnCost))
+                    none none none Primitives.PlayPayment.itsOwnCost)
                   (some thisTurn) ]),
           when (Primitives.GameEvent.chapterMark [6]) (Primitives.Action.addMana (.lit 6) (Primitives.ProducedMana.runs [[.of .red]]) []) ] } }
 

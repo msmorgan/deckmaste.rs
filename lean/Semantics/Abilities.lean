@@ -112,7 +112,7 @@ mutual
     | abilitiesAmong (keywords : List KeywordTerm)
 
   /-- The grammatical subject and voice of an action clause (`does`, `would`, `cant`, `must`,
-  `may`, `gatedBy`, `did`). -/
+  `can`, `gatedBy`, `did`). -/
   inductive Subject where
     | actor (np : NounPhrase)
     | any
@@ -389,6 +389,11 @@ mutual
     | exactlyOf (amount : Amount)
     /-- "Up to N {P} worth of modes": any modes whose weights total at most `n` [CR#700.2i]. -/
     | worth (n : Nat)
+    /-- "More than N": what a "can't" bounds ("can't cast more than one spell each turn"). -/
+    | moreThanOf (amount : Amount)
+    /-- "An additional N": `quantity` beyond what is otherwise allowed ("play an additional land
+    on each of your turns"). -/
+    | additional (quantity : Quantity)
 
   inductive SliceCount where
     | counted (quantity : Quantity)
@@ -518,7 +523,9 @@ mutual
     | toPay (cost : CostNamed)
 
   inductive AsThough where
-    | of (predicate : Predicate)
+    /-- "As though it didn't have defender": the rule applies as though `cond` held, its pronouns
+    reading the deontic's own participants. -/
+    | condition (cond : Condition)
     | mana (what : Option ColorOrColorless) (as_ : ManaMatch) (purpose : Option SpendPurpose)
     | greater (stat : Stat) (amount : Amount)
 
@@ -592,7 +599,7 @@ mutual
   of the subject ("can't transform except due to its daybound ability" [CR#702.145b]);
   `byObjects` describes the objects that are exempt ("can't be blocked except by artifact
   creatures and/or black creatures" [CR#702.36b]). -/
-  inductive Cause where
+  inductive DeonticExcept where
     | byKeyword (label : KeywordLabel)
     | byObjects (predicate : Predicate)
 
@@ -750,13 +757,19 @@ mutual
     /-- The named cause of a prospective event [CR#700.1,614.1a]. -/
     | causedBy (cause : Causing) (clause : WouldClause)
 
-  /-- Optional modifiers on a deontic rule (`cant`, `must`, `may`, `gatedBy`)
-  [CR#702.13b,702.111b,702.145b]. -/
+  /-- Optional modifiers on a deontic rule (`cant`, `can`, `must`, `gatedBy`)
+  [CR#702.13b,702.111b,702.145b]: when or how often it applies (`timing`, "each turn", "during
+  each of your turns"), what it applies as though, and the one source it exempts. -/
   structure DeonticMods where
-    bound : Option CountBound := none
+    timing : Option Timing := none
     asThough : Option AsThough := none
-    rider : DeonticRider
-    except : Option Cause := none
+    except : Option DeonticExcept := none
+    /-- Interim, pending a ruling: how often a permission may be used ("once during each of your
+    turns"). -/
+    limit : Option UsageLimit := none
+    /-- Interim, pending a ruling: the one state-based cause a prohibition is narrowed to ("for
+    having 0 or less life" [CR#704.5a]). -/
+    stateBased : Option StateBasedCause := none
 
   /-- A rules- or static-defined damage result [CR#120.3,120.4c,702.15b,702.80a]. -/
   structure DamageResult where
@@ -795,8 +808,9 @@ mutual
     | cant (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Deontic requirement ("must" / "if able"). -/
     | must (subj : Subject) (action : Action) (mods : DeonticMods)
-    /-- Deontic permission ("may"). -/
-    | may (subj : Subject) (action : Action) (mods : DeonticMods)
+    /-- Deontic permission ("can", "may play …") [CR#101.2]. "May" for an optional one-shot action
+    is `Action.withContinuation .optional` [CR#603.5]. -/
+    | can (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Cost-gated deontic rule ("can't … unless … pays …") [CR#508.1d,509.1c]. -/
     | gatedBy (cost : Cost) (subj : Subject) (action : Action) (mods : DeonticMods)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)
@@ -875,12 +889,6 @@ mutual
     /-- Cast face down as `spec` says, paying `cost` rather than the mana cost: morph and
     disguise [CR#702.37a,702.168a,708.4]. -/
     | faceDown (spec : FaceDown) (cost : Cost)
-
-  inductive DeonticRider where
-    | stateBased (cause : StateBasedCause)
-    | noRider
-    | play (from_ : Option Location) (limit : Option UsageLimit) (timing : Option Timing)
-        (exclusive : Bool) (payment : PlayPayment)
 
   inductive DamageOp where
     | prevent (cut : PreventCut) (also : Option Action)
@@ -1012,7 +1020,9 @@ mutual
     | choose (first : Option NounPhrase) (chosen : NounPhrase) (disclosure : Disclosure)
         (when : Option Timing)
     | revealChoices (sort : HiddenSort)
+    /-- Vote [CR#701.38a]; `times` how many votes, none for one ("vote an additional time"). -/
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
+        (times : Option Quantity)
     /-- Move `subject` from `from_` to `to`, observed at `at_` [CR#603.6a,603.6c,603.10a,700.4]. -/
     | move (subject : NounPhrase) (from_ : Location) (to : Option Location)
         (at_ : ObservationPoint) (cause : Option Causing) (riders : List MoveRider)
@@ -1195,6 +1205,9 @@ def Location.positiveZones? (loc : Location) (fuel : Nat := 16) : Option (List L
       | _, _ => none) (some [])
   | _ + 1, .anyLocation | _ + 1, .not _ => none
 termination_by structural fuel
+
+instance : Coe Condition AsThough where
+  coe := .condition
 
 abbrev did := DidClause.mk
 abbrev would := WouldClause.would

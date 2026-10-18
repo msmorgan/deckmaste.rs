@@ -199,7 +199,7 @@ theorem nestedTurnPartWindows :
 
 theorem voteStartingWithSpecifiedPlayer :
     Action.check (DRS.ofList [])
-      (instruct (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]))) =
+      (instruct (each .anyPlayer) (.vote (some anOpponent) .openly (.byLabel ["alpha", "beta"]) none)) =
           [] := by
   decide
 
@@ -208,7 +208,7 @@ no order for the vote to proceed in [CR#701.38a] (`voteStartingWithSpecifiedPlay
 same order over every player). -/
 theorem badOrderedSingularVoter :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"])))
+      (instruct (target .anyPlayer) (.vote (some .you) .openly (.byLabel ["alpha", "beta"]) none))
       = [.choiceOrder] := by
   decide
 
