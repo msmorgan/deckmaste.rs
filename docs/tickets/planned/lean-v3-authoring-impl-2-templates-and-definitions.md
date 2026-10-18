@@ -80,7 +80,15 @@ constraints apply.
        `abilityGrant`, `qualityChange`, `ptDefinition`, `letterDefinition`,
        `instead`, `damageRule`, `costShift`, `altCost`, `addedCost`, `visibility`,
        `controlGrant`, `copyChange`, `matches`, `compareAmt`, `forAsLongAs`).
-3. **Re-express `Definition` Bodies & Update `Proofs/` (`lean-v3-authoring-surface.md` §6.2):**
+3. **Re-express `Definition` Bodies, Fix `menace`, & Update `Proofs/` and `lean/CONTRACTS.md` (`lean-v3-authoring-surface.md` §§2.4, 6.2–6.3):**
+   - Change `DeonticExcept.byObjects (predicate : Predicate)` to
+     `DeonticExcept.byObjects (objects : NounPhrase)` so `flying` (`[CR#702.9b]`),
+     `fear` (`[CR#702.36b]`), `intimidate` (`[CR#702.13b]`), and `menace`
+     (`[CR#702.111b]`: *"can't be blocked except by two or more creatures"*,
+     `counted (atLeast 2) isCreature`, fixing the legacy `moreThan 1` error) all
+     use `cant any (block thisCreature) (except := byObjects ...)`; retire the
+     now-unused `CountBound` wrapper on `UsageLimit.mk (times : Amount) (per : Period)`
+     (`[CR#602.5b]`).
    - Re-express all `Definition` bodies in `lean/Semantics/Definitions.lean`
      through `Templates.lean` helpers, reconciling the 15 signature drifts and 2
      body drifts (`amass` `[CR#701.47a]`, `bushido` `[CR#702.45a]`, `modular`
@@ -88,13 +96,14 @@ constraints apply.
      `[CR#701.29a]`, `companion` `[CR#702.139a]`, `levelUp` `[CR#702.87a]`,
      `gainControl`, `creatureToken[Of]`, `create` `[CR#701.7]`,
      `lookAndSortSlice`).
-   - Update `lean/Semantics/Proofs/*.lean` to use `Primitives.lean`,
-     `Templates.lean`, and `Definitions.lean`.
+   - Update `lean/Semantics/Proofs/*.lean` and `lean/CONTRACTS.md` to reflect
+     `Primitives.lean`, `Templates.lean`, and `Definitions.lean` and retire
+     remaining `v2` holdover references.
 
 ## Proof
 
 - `lean/Semantics/Macros.lean` and `lean/Semantics/Macros/` no longer exist.
-- `grep -rn "deonticActionFor" lean/Semantics/` returns zero matches.
+- `grep -rn "deonticActionFor\|CountBound" lean/Semantics/` returns zero matches.
 - `./lean/scripts/build` (`lake build --wfail`) passes with zero warnings and
   zero `sorry`s.
 - `cargo xtask cite check --list-noncompliant` is empty and

@@ -173,6 +173,17 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     the noun phrase, the rate as timing, by analogy with *Exploration*:
     `can you (cast (counted (exactly 1) …)) (timing := onEachOfYourTurns)`; there is no usage
     limit on a deontic.
+- **`DeonticExcept.byObjects (objects : NounPhrase)` and Menace (`[CR#702.111b]`):**
+  - Replace `DeonticExcept.byObjects (predicate : Predicate)` with
+    `DeonticExcept.byObjects (objects : NounPhrase)` so quantified and bare-plural evasion
+    exceptions share one representation:
+    - `flying` (`[CR#702.9b]`): `cant any (block thisCreature) (except := byObjects (bare (and [isCreature, or [hasKeyword flying, hasKeyword reach]])))`
+    - `fear` (`[CR#702.36b]`): `cant any (block thisCreature) (except := byObjects (bare (and [isCreature, or [isArtifact, isBlack]])))`
+    - `intimidate` (`[CR#702.13b]`): `cant any (block thisCreature) (except := byObjects (bare (and [isCreature, or [isArtifact, shares .color .share thisCreature]])))`
+    - `menace` (`[CR#702.111b]`): `cant any (block thisCreature) (except := byObjects (counted (atLeast 2) isCreature))` (fixing the legacy `moreThan 1` definition in `Declared.lean`).
+  - With `DeonticMods.bound` retired, `CountBound.atLeast` and `CountBound.additional` have zero
+    remaining callers; simplify `UsageLimit.mk (times : Amount) (per : Period)` (`[CR#602.5b]`)
+    and retire `CountBound`.
 - Replace `allPlayers` in active subjects where Oracle English says *"Each
   player"* (`each isPlayer`) or *"Players"* (`bare isPlayer`), and replace
   `cast (allOf isSpell)` with `cast (a isSpell)` / `cast (bare isSpell)`.
