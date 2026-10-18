@@ -5,8 +5,9 @@ import Semantics.Check.Phrase
 # Semantics.Primitives
 
 The authoring boundary's primitive layer: the characteristic inputs that quality wording
-expands through, the generated constructor wrappers (`declare_semantic_primitives`, under
-`Semantics.Primitives.<Type>`), and a few worded primitive templates over them.
+expands through, and the generated constructor wrappers (`declare_semantic_primitives`, under
+`Semantics.Primitives.<Type>`). Worded phrasings over a primitive are templates
+(`Semantics.Templates`).
 -/
 
 namespace Semantics
@@ -60,127 +61,7 @@ def PlayPayment.inCaller : PlayPayment → PlayPayment
 
 end Semantics
 
-/-! Named wrappers for exposed primitives and fixed wording. Generated wrappers preserve
-constructor signatures; the worded forms below expand into shared operations. The authoring
-boundary records their names. -/
+/-! Named wrappers for exposed primitives. Generated wrappers preserve constructor signatures;
+the authoring boundary records their names. -/
 
 declare_semantic_primitives
-
-namespace Semantics.Primitives.Action
-
-/-- A numeric definition at instruction position uses the shared static definition. -/
-semantic_template define (letter : Letter) (amount : Amount) : Semantics.Action :=
-  .establish (.letterDefinition letter amount) none
-
-semantic_template offer (body : Semantics.Action) (ifDid ifNot : Option Semantics.Action) :
-    Semantics.Action :=
-  .withContinuation .optional body ifDid ifNot
-
-semantic_template doIfDone (body : Semantics.Action) (ifDid ifNot : Option Semantics.Action) :
-    Semantics.Action := .withContinuation .required body ifDid ifNot
-
-semantic_template repeatTimes (times : Amount) (body : Semantics.Action) : Semantics.Action :=
-  .repeat_ (.fixed times body)
-
-end Semantics.Primitives.Action
-
-namespace Semantics.Primitives.NounPhrase
-
-semantic_template both (left right : Semantics.NounPhrase) : Semantics.NounPhrase := .and [left, right]
-semantic_template eitherOf (left right : Semantics.NounPhrase) : Semantics.NounPhrase := .or [left, right]
-
-end Semantics.Primitives.NounPhrase
-
-namespace Semantics.Primitives.Cost
-
-semantic_template either (left right : Semantics.Cost) : Semantics.Cost := .or [left, right]
-
-end Semantics.Primitives.Cost
-
-namespace Semantics.Primitives.Predicate
-
-semantic_template isAttached (word : Option AttachWord) : Semantics.Predicate :=
-  .attachment .host word none
-
-semantic_template attachedBy (word : Option AttachWord) (by_ : NounPhrase) : Semantics.Predicate :=
-  .attachment .host word (some by_)
-
-semantic_template attachedTo (host : NounPhrase) : Semantics.Predicate :=
-  .attachment .attachment none (some host)
-
-/-- A transformed permanent is the whole double-faced permanent with its back face up. -/
-semantic_template isTransformed : Semantics.Predicate := .currentFace .back
-
-end Semantics.Primitives.Predicate
-
-namespace Semantics.Primitives.StaticSpec
-
-semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload : QualityPayload) :
-    Semantics.StaticSpec := .characteristicChange subject (payload.edits op)
-
-semantic_template abilityLoss (subject : NounPhrase) (abilities : List AbilityLost) : Semantics.StaticSpec :=
-  .characteristicChange subject [.removedAbilities (.specified abilities)]
-
-semantic_template allAbilityLoss (subject : NounPhrase) (except : Option Semantics.Predicate) :
-    Semantics.StaticSpec := .characteristicChange subject [.removedAbilities (.allExcept except)]
-
-end Semantics.Primitives.StaticSpec
-
-namespace Semantics.Primitives.CopyExcept
-
-semantic_template types (types : List CardType) (subtypes : List Subtype) : Semantics.CopyExcept :=
-  .edits [.typeLine .adds (({ types := types, subtypes := subtypes } :
-    Characteristics).typeChanges)]
-
-semantic_template name (name : String) : Semantics.CopyExcept := .edits [.name .sets name]
-semantic_template pt (power toughness : Amount) : Semantics.CopyExcept :=
-  .edits [.stat .sets .power power, .stat .sets .toughness toughness]
-semantic_template nonlegendary : Semantics.CopyExcept :=
-  .edits [.typeLine .loses { supertypes := some [.legendary] }]
-semantic_template color (color : Color) : Semantics.CopyExcept := .edits [.colors .sets (.some [color])]
-
-end Semantics.Primitives.CopyExcept
-
-namespace Semantics.Primitives.Action
-
-semantic_template removeFromCombat (subject : NounPhrase) : Semantics.Action :=
-  .combat subject (.participation .outsideCombat)
-
-semantic_template becomeAttacking (subject : NounPhrase) (defender : Option NounPhrase) : Semantics.Action :=
-  .combat subject (.participation (.attacking defender))
-
-semantic_template becomeBlocking (subject blocked : NounPhrase) : Semantics.Action :=
-  .combat subject (.blocking .attached blocked)
-
-semantic_template stopBlocking (subject blocked : NounPhrase) : Semantics.Action :=
-  .combat subject (.blocking .unattached blocked)
-
-semantic_template unattach (subject : NounPhrase) : Semantics.Action :=
-  .attachment .unattached subject none
-
-end Semantics.Primitives.Action
-
-namespace Semantics.Primitives.Action
-
-semantic_template getEmblem (abilities : List Ability) : Semantics.Action :=
-  .createObject (.lit 1) (.emblem none abilities) true none
-
-end Semantics.Primitives.Action
-
-namespace Semantics.Primitives.StaticSpec
-
-semantic_template entryChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
-    (disclosure : Disclosure) : Semantics.StaticSpec :=
-  .choice .entry subject sort domain disclosure
-
-semantic_template attachmentChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain) :
-    Semantics.StaticSpec := .choice .attachment subject sort domain .openly
-
-end Semantics.Primitives.StaticSpec
-
-namespace Semantics.Primitives.StaticSpec
-
-semantic_template partScope (part : TurnPart) (whose : Option NounPhrase) (spec : Semantics.StaticSpec) :
-    Semantics.StaticSpec := .conditional spec (.duringPart part whose) .asLongAs
-
-end Semantics.Primitives.StaticSpec

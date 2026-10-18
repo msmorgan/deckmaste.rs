@@ -135,7 +135,7 @@ theorem badReadsAfterModal :
 /-- "you pay 1 life" -/
 theorem okMatchedPayer :
     Action.check (DRS.ofList [])
-      (Primitives.Action.offer (.pay (payLife 1) .once .paid none none) none (some (draw (.lit 1)))) = [] := by
+      (may (.pay (payLife 1) .once .paid none none) none (some (draw (.lit 1)))) = [] := by
   decide
 
 /-- "Choose new targets for target instant or sorcery spell." -/
@@ -156,14 +156,14 @@ def chosenBasicLandType : QualityPayload :=
 /-- "Target land becomes the basic land type of your choice until end of turn." -/
 theorem okChosenBasicTypeOnLand :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target isLand) .sets chosenBasicLandType) (some untilEndOfTurn))
+      (.establish (qualityChange (target isLand) .sets chosenBasicLandType) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Lands you control are Mountains." -/
 theorem okLandsAreMountains :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.qualityChange (allOf (.and [isLand, .hasPossessor .controller .you])) .sets
+      (qualityChange (allOf (.and [isLand, .hasPossessor .controller .you])) .sets
         (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
   decide
 
@@ -182,7 +182,7 @@ theorem badNonCreatureTypeExclusion :
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target isLand) .sets (.everyTypeOf .basicLand))
+      (.establish (qualityChange (target isLand) .sets (.everyTypeOf .basicLand))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -190,7 +190,7 @@ theorem setsEveryBasicLandType :
 theorem losesChosenCreatureType :
     Action.check (DRS.ofList [])
       (.establish
-        (Primitives.StaticSpec.qualityChange (target isCreature) .loses
+        (qualityChange (target isCreature) .loses
           (.chosenQuality (.ofYourChoice (.subtype .creature) none))) (some untilEndOfTurn))
       = [] := by
   decide
@@ -198,24 +198,24 @@ theorem losesChosenCreatureType :
 /-- "Target creature loses all colors until end of turn." -/
 theorem losesAllColors :
     Action.check (DRS.ofList [])
-      (.establish (Primitives.StaticSpec.qualityChange (target isCreature) .loses (.colored .every)) (some untilEndOfTurn))
+      (.establish (qualityChange (target isCreature) .loses (.colored .every)) (some untilEndOfTurn))
       = [] := by
   decide
 
 /-- "Target creature is white." -/
 theorem okAddsAColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .adds (.colored (.some [.white]))) = [] :=
+    StaticSpec.check (DRS.ofList []) (qualityChange (target isCreature) .adds (.colored (.some [.white]))) = [] :=
         by
   decide
 
 theorem badAddsNoColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .adds (.colored (.some [])))
+    StaticSpec.check (DRS.ofList []) (qualityChange (target isCreature) .adds (.colored (.some [])))
       = [.nonEmpty] := by
   decide
 
 /-- "Target creature loses colorless until end of turn." -/
 theorem badLosesNoColor :
-    StaticSpec.check (DRS.ofList []) (Primitives.StaticSpec.qualityChange (target isCreature) .loses (.colored (.some [])))
+    StaticSpec.check (DRS.ofList []) (qualityChange (target isCreature) .loses (.colored (.some [])))
       = [.nonEmpty] := by
   decide
 
@@ -512,7 +512,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (may
         (instruct they (shuffleInto
-          (Primitives.NounPhrase.both (allOf (.and [.isCard, .in_ (handOf they)])) (allOf (.and [.isCard, .in_ (graveyardOf they)])))))))
+          (both (allOf (.and [.isCard, .in_ (handOf they)])) (allOf (.and [.isCard, .in_ (graveyardOf they)])))))))
       = [] := by
   decide
 
@@ -530,12 +530,12 @@ def eachPlayerOffered : NounPhrase := each .anyPlayer
 
 theorem eachPlayerOfferBindsOneMember :
     Action.check (DRS.ofList [])
-      (instruct eachPlayerOffered (Primitives.Action.offer (instruct they (draw (.lit 1))) none none)) = [] := by decide
+      (instruct eachPlayerOffered (may (instruct they (draw (.lit 1))))) = [] := by decide
 
 theorem eachPlayerOfferDropsTheGroup :
     Action.check (DRS.ofList [])
-      (instruct eachPlayerOffered (Primitives.Action.offer
-        (instruct (those .player) (draw (.lit 1))) none none)) = [.anaphor (.word .player) .many 0] := by decide
+      (instruct eachPlayerOffered (may
+        (instruct (those .player) (draw (.lit 1))))) = [.anaphor (.word .player) .many 0] := by decide
 
 /-- "target opponent who has more life than you do" -/
 def opponentWithMoreLife : NounPhrase :=
@@ -596,22 +596,22 @@ theorem okCompleteColorChoiceWithColorDomain :
 
 theorem badEntersChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))) .openly)
+      (entryChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))) .openly)
       = [.kindAxisSort] := by decide
 
 theorem okEntersChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
+      (entryChoice thisCreature (.quality .color) (some (.colorOtherThan .red)) .openly)
       = [] := by decide
 
 theorem badAttachmentChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))))
+      (attachmentChoice thisCreature (.quality .color) (some (.players (.isOpponentOf .you))))
       = [.kindAxisSort] := by decide
 
 theorem okAttachmentChoiceDomainSort :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.attachmentChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
+      (attachmentChoice thisCreature (.quality .color) (some (.colorOtherThan .red)))
       = [] := by decide
 
 theorem badLandSubtypeDomainForCreatureType :

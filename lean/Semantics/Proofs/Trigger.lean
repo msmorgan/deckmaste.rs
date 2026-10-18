@@ -187,7 +187,7 @@ theorem okMultipliedTrigger :
 
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (target (.isOpponentOf .you))))) = [] := by
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (both .you (target (.isOpponentOf .you))))) = [] := by
   decide
 
 /-- "Exchange life totals with target opponent" with one party: the row states both halves at
@@ -198,7 +198,7 @@ theorem badExchangeOneParty :
 
 /-- "You and your opponents exchange life totals." -/
 theorem badExchangePluralParty :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (Primitives.NounPhrase.both .you (.described .all (.isOpponentOf .you)))))
+    Action.check (DRS.ofList []) (.exchange (.lifeTotals (both .you (.described .all (.isOpponentOf .you)))))
       = [.twoParties] := by
   decide
 
@@ -220,8 +220,8 @@ theorem badCrimeByAllPlayers :
 /-- "… you may remove a +1/+1 counter from this creature. If you do, increase or decrease the
 result by 1." -/
 def rollShiftBody : Action :=
-  Primitives.Action.offer (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature .one true)
-    (some (shiftResult (.lit 1))) none
+  may (.removeCounters (some (exactly 1)) (some (.printed p1p1Counter)) thisCreature .one true)
+    (some (shiftResult (.lit 1)))
 
 /-- "After you roll a die, you may remove a +1/+1 counter from this creature. If you do,
 increase or decrease the result by 1." (Xenosquirrels) -/

@@ -442,7 +442,7 @@ theorem okCreatureOntoBattlefieldTapped :
 
 /-- "Remove target creature from combat." -/
 theorem okRemoveFromCombatOnBattlefield :
-    Action.check (DRS.ofList []) (Primitives.Action.removeFromCombat (target isCreature)) = [] := by decide
+    Action.check (DRS.ofList []) (removeFromCombat (target isCreature)) = [] := by decide
 
 /-- "Players can't untap more than one creature during each untap step." -/
 theorem okUntapCapBattlefieldSet :

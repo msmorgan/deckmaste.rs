@@ -110,7 +110,7 @@ theorem okGetsAnEnduringStory :
 /-- "Each land you control becomes a 2/2 creature. It's still a land." -/
 theorem okStillALand :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.qualityChange (allOf isLand) .sets
+      (qualityChange (allOf isLand) .sets
         (.bundle { characteristics :=
                    { types := [.creature], power := some (.lit 2), toughness := some (.lit 2) } }
           (some .land))) = [] := by
@@ -128,7 +128,7 @@ theorem badEmptyCoordination : StaticSpec.check (DRS.ofList []) (.conjunction no
 /-- Explicit controlled permanents, controlled spells, and owned cards outside the battlefield. -/
 theorem okSingleExtension :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.qualityChange
+      (qualityChange
         (Primitives.NounPhrase.and [
               allOf (Primitives.Predicate.and [isCreature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [isCreature, isSpell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
@@ -159,20 +159,20 @@ theorem badUnlessConjunction :
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :
-    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (a (.and [isCreature, isAttacking])))
+    Action.check (DRS.ofList []) (becomeBlocking thisCreature (a (.and [isCreature, isAttacking])))
       = [] := by
   decide
 
 /-- "Target land blocks an attacking creature.": a land an effect has made a creature blocks
 [CR#205.1b,509.1a]. -/
 theorem okLandBecomesBlocking :
-    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking (target isLand) (a (.and [isCreature, isAttacking])))
+    Action.check (DRS.ofList []) (becomeBlocking (target isLand) (a (.and [isCreature, isAttacking])))
       = [] := by
   decide
 
 /-- "This creature blocks target planeswalker." -/
 theorem badBecomesBlockingPlaneswalker :
-    Action.check (DRS.ofList []) (Primitives.Action.becomeBlocking thisCreature (target (.hasType .planeswalker)))
+    Action.check (DRS.ofList []) (becomeBlocking thisCreature (target (.hasType .planeswalker)))
       = [.deedNounOk (.core .block)] := by
   decide
 

@@ -175,11 +175,11 @@ revealed cards not cast this way on the bottom of your library in any order." Th
 remains accessible through the cast selection and subsequent move. -/
 theorem rippleRevealedCardsRemainAccessible :
     Action.check (DRS.ofList [])
-      (Primitives.Action.offer (reveal (.slice .top (.lit 4) (libraryOf .actor)))
+      (may (reveal (.slice .top (.lit 4) (libraryOf .actor)))
         (some (.sequentially
           [ castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
-            (.move (allFromAmong (.not wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])) none)
+            (.move (allFromAmong (.not wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])))
       = [] := by
   decide
 
@@ -192,8 +192,8 @@ theorem nestedStaticConditionals :
 
 theorem nestedTurnPartWindows :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.partScope .combat none
-        (Primitives.StaticSpec.partScope .mainPhase none (.manaRetention .you (.unspent none)))) = [] := by
+      (partScope .combat none
+        (partScope .mainPhase none (.manaRetention .you (.unspent none)))) = [] := by
   decide
 
 theorem voteStartingWithSpecifiedPlayer :

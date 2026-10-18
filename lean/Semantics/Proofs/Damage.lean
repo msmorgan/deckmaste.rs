@@ -237,7 +237,7 @@ theorem badConditionAntecedent :
 
 /-- "You may sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMayBody :
-    Action.check (DRS.ofList []) (Primitives.Action.offer (sacrifice (a isCreature)) none (some (exile it)))
+    Action.check (DRS.ofList []) (may (sacrifice (a isCreature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -568,7 +568,7 @@ theorem okLastChosenAfterChooser :
         { characteristics :=
           { name := "", types := [.enchantment],
             text :=
-              [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly),
+              [ .static (entryChoice thisEnchantment (.quality .color) none .openly),
                 .static preventLastChosenColor ] } }) = [] := by
   decide
 
@@ -579,7 +579,7 @@ theorem badLastChosenBeforeChooser :
           { name := "", types := [.enchantment],
             text :=
               [ .static preventLastChosenColor,
-                .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly) ] } })
+                .static (entryChoice thisEnchantment (.quality .color) none .openly) ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
 
@@ -590,7 +590,7 @@ theorem badLastChosenWrongSort :
           { name := "", types := [.enchantment],
             text :=
               [ .static
-                  (Primitives.StaticSpec.entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
+                  (entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
                 .static preventLastChosenColor ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
@@ -640,7 +640,7 @@ theorem badCreatureHalfRead :
     Action.check (DRS.ofList [])
       (.sequentially
         [ (Action.instruct .this (.dealDamage (.lit 3) (target (.or [.hasType .planeswalker, .anyPlayer])) .any)),
-          discard (a (.and [.isCard, .in_ (handOf (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one)
+          discard (a (.and [.isCard, .in_ (handOf (eitherOf (.pro (.unionHalf .player) .one)
               (controllerOf (that (.type .creature)))))])) ]) = [.anaphor (.word (.type .creature))
                   .one 0] := by
   decide

@@ -198,20 +198,20 @@ theorem badColorlessWhite :
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf (and [isCreature, youControl]))]) = []
+      (.sequentially [.draw (.letter .x), define .x (countOf (and [isCreature, youControl]))]) = []
           := by
   decide
 
 theorem badDoubleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), Primitives.Action.define .x (countOf (and [isCreature, youControl])),
-                      Primitives.Action.define .x (countOf isCreature)]) = [.openLetter .x] := by
+      (.sequentially [.draw (.letter .x), define .x (countOf (and [isCreature, youControl])),
+                      define .x (countOf isCreature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .y), Primitives.Action.define .x (countOf (and [isCreature, youControl]))])
+      (.sequentially [.draw (.letter .y), define .x (countOf (and [isCreature, youControl]))])
       = [.openLetter .x] := by
   decide
 
@@ -504,11 +504,11 @@ theorem badEmptyPartyRoles :
 
 /-- "a fortified land" -/
 theorem okFortifiedLand :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isLand, Primitives.Predicate.isAttached (some .fortified)])) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isLand, isAttached (some .fortified)])) = [] := by decide
 
 /-- "a fortified creature" [CR#301.6,301.5]. -/
 theorem badFortifiedCreature :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isCreature, Primitives.Predicate.isAttached (some .fortified)]))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isCreature, isAttached (some .fortified)]))
       = [.contradictionFree] := by
   decide
 

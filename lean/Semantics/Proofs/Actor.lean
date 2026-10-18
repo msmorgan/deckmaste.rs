@@ -114,7 +114,7 @@ private def literalAmass : Action :=
       choose (a army),
       .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)) .one true,
       .doIf (.not (.matches it (.hasSubtype (creatureType "Orc"))))
-        (.establish (Primitives.StaticSpec.qualityChange it .adds
+        (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [creatureType "Orc"] } } none)) none)
         none ]
 
@@ -169,7 +169,7 @@ private def scopedAmassOf (amount : Amount) : Action :=
       choose (a army),
       .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) .one true,
       .doIf (.not (.matches it (.hasSubtype (creatureType "Goblin"))))
-        (.establish (Primitives.StaticSpec.qualityChange it .adds
+        (.establish (qualityChange it .adds
           (.bundle { characteristics := { subtypes := [creatureType "Goblin"] } } none)) none)
         none ])) none none
 
@@ -223,7 +223,7 @@ theorem actorLoseLifeIsYouLoseLife :
 /-- "You may pay 1 life. If you do, draw a card." (`Choice.okMatchedPayer` with the actor) -/
 theorem okActorMatchedPayer :
     Action.check (DRS.ofList [])
-      (Primitives.Action.offer (.pay (payLife 1) .once .paid none none) none
+      (may (.pay (payLife 1) .once .paid none none) none
         (some (draw (.lit 1)))) = [] := by
   decide
 
@@ -362,13 +362,13 @@ theorem opponentPaysYourCostHandoffTwin :
 `Choice.badMismatchedPayer`, retired with `payAgrees` by `lean-checker-sweep-costs`) -/
 theorem mismatchedPayerHandoffTwin :
     Action.check (DRS.ofList [])
-        (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
+        (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
           none (some drawOne)) = [] ∧
       Action.check (DRS.ofList [])
-          (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
+          (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
             none (some drawOne)) =
         Action.check (DRS.ofList [])
-          (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
+          (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none)
             none (some drawOne)) := by
   decide
 
@@ -388,7 +388,7 @@ private semantic_template capturedLifeLoss (who : NounPhrase) : Action :=
 
 /-- "You may pay 1 life of <who>. If you do, draw a card.", the payer being "you". -/
 private def youPayWith (c : Cost) : Action :=
-  instruct .you (Primitives.Action.offer (.pay c .once .paid none none) none (some (draw (.lit 1))))
+  instruct .you (may (.pay c .once .paid none none) none (some (draw (.lit 1))))
 
 /-- With no handoff, `theActor` passed through a `capture` parameter is the controller, so the
 controller pays their own life. -/
@@ -431,7 +431,7 @@ player's handoff. -/
 theorem okEachOpponentMayPayElseYouDraw :
     Action.check (DRS.ofList [])
       (instruct (each (.isOpponentOf .you))
-        (Primitives.Action.offer (.pay (.mana [generic 2]) .once .paid none none) none
+        (may (.pay (.mana [generic 2]) .once .paid none none) none
           (some (instruct .you (draw (.lit 1)))))) = [] := by
   decide
 
@@ -466,7 +466,7 @@ handoff the payer is the opponent. Who pays a cost is not checked (`lean-checker
 theorem okHandedPayerIsTheTarget :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
-        (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
+        (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
           (some (draw (.lit 1))))) = [] := by
   decide
 
@@ -477,7 +477,7 @@ theorem badNestedHandoffInnermost :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
         (instruct .you
-          (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
+          (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
             (some (draw (.lit 1))))))
       = [] ∧
       performerIsYou (handoff (handoff (DRS.ofList []) (target (.isOpponentOf .you))) .you) = true ∧
@@ -495,7 +495,7 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
         (.establish
           (.abilityGrant (target isCreature)
             (.activated .tapSymbol
-              (Primitives.Action.offer (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
+              (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
                 (some (draw (.lit 1))))
               none none none none))
           (some untilEndOfTurn)))

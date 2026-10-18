@@ -84,7 +84,7 @@ theorem badCastWindowAsDeonticStatic :
         { name := some "", cost := some [pip .blue], types := [.instant],
           text :=
             [ .static
-                (Primitives.StaticSpec.partScope .declareAttackers none
+                (partScope .declareAttackers none
                   (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
               .spell none (draw (.lit 1)) ] }) = [.cardText] := by
   decide
@@ -325,12 +325,12 @@ theorem badLoyaltySorcery :
 /-- "a token that's a copy of target creature, except it's an artifact" -/
 theorem okCopyTypeException :
     Action.check (DRS.ofList [])
-      (create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [.artifact] []]) []) = []
+      (create (.lit 1) (.copyOf (target isCreature) [isAlso [.artifact] []]) []) = []
           := by
   decide
 
 theorem badEmptyCopyTypeException :
-    Action.check (DRS.ofList []) (create (.lit 1) (.copyOf (target isCreature) [Primitives.CopyExcept.types [] []]) [])
+    Action.check (DRS.ofList []) (create (.lit 1) (.copyOf (target isCreature) [isAlso [] []]) [])
       = [.lineNonEmpty] := by
   decide
 

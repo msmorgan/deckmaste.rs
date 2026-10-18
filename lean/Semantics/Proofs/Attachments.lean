@@ -82,7 +82,7 @@ theorem sourceCounterpartDemonstrativeSelectsTheSourceIdentity :
       selected.all (fun ref => ref.zone == some .battlefield && ref.ty.contains .creature) := by decide
 
 theorem isTransformedTemplateReadsWholeBackFace :
-    Primitives.Predicate.isTransformed = Predicate.currentFace .back := by rfl
+    isTransformed = Predicate.currentFace .back := by rfl
 
 theorem frontAndBackAreDistinct :
     Predicate.currentFace .front ≠ Predicate.currentFace .back := by

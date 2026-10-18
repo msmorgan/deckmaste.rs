@@ -194,7 +194,7 @@ theorem badThisWayOnDelayed :
 
 theorem badReflexiveOnBranchedMay :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Primitives.Action.offer (sacrifice (a isCreature)) (some (draw (.lit 1))) none)
+      (.triggerReflexively (may (sacrifice (a isCreature)) (some (draw (.lit 1))))
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
@@ -243,14 +243,14 @@ theorem badDurationEndAnOpponent :
 /-- "You get an emblem with 'At the beginning of your end step, draw a card.'" -/
 theorem okTriggeredEmblem :
     Action.check (DRS.ofList [])
-      (Primitives.Action.getEmblem
+      (getEmblem
         [at_ (.beginningOf .endStep (some .you) (.each none)) (draw (.lit 1))])
       = [] := by
   decide
 
 /-- "You get an emblem." -/
 theorem badEmptyEmblem :
-    Action.check (DRS.ofList []) (Primitives.Action.getEmblem []) = [.nonEmpty] := by decide
+    Action.check (DRS.ofList []) (getEmblem []) = [.nonEmpty] := by decide
 
 /-- "… At the beginning of that turn's end step, you lose the game." -/
 theorem okDeicticTurnAfterExtraTurn :
@@ -352,26 +352,25 @@ theorem okAttackedByPlayer :
 
 /-- "Sacrifice a creature. If you do, draw a card." -/
 theorem okIfDoneWithArm :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) (some (draw (.lit 1))) none)
+    Action.check (DRS.ofList []) (doIfDone (sacrifice (a isCreature)) (some (draw (.lit 1))))
       = [] := by
   decide
 
 /-- "Sacrifice a creature." -/
 theorem badIfDoneWithNeitherArm :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) none none) =
+    Action.check (DRS.ofList []) (doIfDone (sacrifice (a isCreature))) =
         [.ifDoneArmed] := by
   decide
 
 /-- "This creature deals 3 damage to any target. If you do, draw a card." -/
 theorem badIfDoneOverAgentlessBody :
     Action.check (DRS.ofList [])
-      (Primitives.Action.doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget) .any)) (some (draw (.lit 1)))
-        none) = [.reflexEnclosure] := by
+      (doIfDone (Action.instruct thisCreature (.dealDamage (.lit 3) (target isAnyTarget) .any)) (some (draw (.lit 1)))) = [.reflexEnclosure] := by
   decide
 
 /-- "Take an extra turn after this one. If you do, draw a card." -/
 theorem badIfDoneOverScheduledBody :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (extraTurn (.lit 1)) (some (draw (.lit 1))) none)
+    Action.check (DRS.ofList []) (doIfDone (extraTurn (.lit 1)) (some (draw (.lit 1))))
       = [.reflexEnclosure] := by
   decide
 

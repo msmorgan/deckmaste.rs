@@ -48,7 +48,7 @@ theorem badConditionalArmAntecedent :
 theorem badBothArmsAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ Primitives.Action.offer (gainLife (.lit 1))
+        [ may (gainLife (.lit 1))
             (some (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))))
             (some (create (.lit 2) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))),
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
@@ -762,7 +762,7 @@ ambiguous between the two, refused once. The corresponding modern shape is also 
 `GetsBothDeltas.ambiguousSingularPtSubjectIsRefused`. -/
 theorem badSharedSubjectTwoInDelta :
     Action.check (DRS.ofList [])
-      (establishFor (Primitives.NounPhrase.both (target isCreature) (target isArtifact))
+      (establishFor (both (target isCreature) (target isArtifact))
         [ .ptModification
             it
             (.up (.lit 1)) (.up (.lit 1)) ]
@@ -771,7 +771,7 @@ theorem badSharedSubjectTwoInDelta :
 
 theorem badOwnTwoInDelta :
     Action.check (DRS.ofList [])
-      (dealDamageOwnPower (Primitives.NounPhrase.both (target isCreature) (target isCreature)) (target isAnyTarget))
+      (dealDamageOwnPower (both (target isCreature) (target isCreature)) (target isAnyTarget))
       = [.singular] := by
   decide
 

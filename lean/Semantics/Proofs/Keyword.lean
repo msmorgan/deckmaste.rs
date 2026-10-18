@@ -129,7 +129,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "As this enchantment enters, choose a creature type." -/
 def choosesCreatureType : Ability :=
-  .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly)
+  .static (entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly)
 
 /-- "Creatures of the chosen type get +1/+1." -/
 def chosenTypeGets : Ability :=
@@ -154,7 +154,7 @@ theorem badTwoChoosersOneSortRead :
 theorem badChosenReadWrongSort :
     Card.check
       (enchantmentWith
-        [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly),
+        [ .static (entryChoice thisEnchantment (.quality .color) none .openly),
           chosenTypeGets ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 
@@ -168,7 +168,7 @@ theorem badChosenProtectionBeforeChoice :
               [ .static
                   (.abilityGrant thisCreature
                     (.keyword (.named "protection") [.quality (ofChosen .color)] [])),
-                .static (Primitives.StaticSpec.entryChoice thisCreature (.quality .color) none .openly) ] } })
+                .static (entryChoice thisCreature (.quality .color) none .openly) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 
@@ -176,7 +176,7 @@ theorem badAscribedQualityBeforeChoice :
     Card.check
       (enchantmentWith
         [ .static
-            (Primitives.StaticSpec.qualityChange (allOf (.and [isCreature, .hasPossessor .controller .you])) .adds
+            (qualityChange (allOf (.and [isCreature, .hasPossessor .controller .you])) .adds
               (.chosenQuality (ofChosen (.subtype .creature)))),
           choosesCreatureType ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
@@ -254,12 +254,12 @@ theorem okActivatedOpensItsOwnLetter :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
         (.sequentially
-          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget) .any)), Primitives.Action.define .x (.lit 3)])) = [] := by
+          [(Action.instruct .this (.dealDamage (.letter .x) (target isAnyTarget) .any)), define .x (.lit 3)])) = [] := by
   decide
 
 /-- "{T}: … , where X is 3" -/
 theorem badActivatedClosesCardLetter :
-    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (Primitives.Action.define .x (.lit 3)))
+    Ability.check (costLetters (some [.variable])) (activated .tapSymbol (define .x (.lit 3)))
       = [.openLetter .x] := by
   decide
 

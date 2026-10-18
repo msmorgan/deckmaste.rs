@@ -236,7 +236,7 @@ theorem loopExportsPluralGroupWithoutSingularMember :
       resolveCandidates (.word .player) .one (nextClause after) = [] := by decide
 
 theorem optionalBranchesDoNotExportCreatedObjects :
-    let branch := Primitives.Action.offer (gainLife (.lit 1))
+    let branch := may (gainLife (.lit 1))
       (some (create (.lit 1) (.written (creatureToken 1 1 [.white] []))))
       (some (create (.lit 2) (.written (creatureToken 1 1 [.white] []))))
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) branch).1
@@ -259,7 +259,7 @@ theorem negatedSourcePropertyKeepsSourceWithoutPositiveRefinement :
 theorem optionalBodyReadsItsEnclosingPlayer :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
-        (Primitives.Action.offer (instruct they (gainLife (.lit 1))) none none)) = [] := by
+        (may (instruct they (gainLife (.lit 1))))) = [] := by
   decide
 
 private def powerSubject : Referent := {

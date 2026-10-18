@@ -153,12 +153,12 @@ theorem partConditionChecksPlayer :
 
 theorem applicabilityReadsTheSpecSubject :
     StaticSpec.check (DRS.ofList [])
-      (Primitives.StaticSpec.partScope .turn (some (that .player))
+      (partScope .turn (some (that .player))
         (.manaRetention (a .anyPlayer) (.unspent none))) = [] := by decide
 
 theorem applicabilityPreservesNumericDefinition :
     Amount.check (stepStaticSpec 64 (DRS.ofList [])
-      (Primitives.StaticSpec.partScope .turn none (.letterDefinition .x (.lit 2)))).1
+      (partScope .turn none (.letterDefinition .x (.lit 2)))).1
       (.letter .x) = [] := by decide
 
 theorem ownedOutsideCardsAreAdmitted :

@@ -2308,7 +2308,7 @@ semantic_definition rebound : Ability :=
               [ .ownScope (some (.action "exile"))
                   (enact (.action "exile")
                     (.move (.inCaller thisSpell) .anyLocation (some exileZone) .arrival none [])),
-                delay (beginningOf .upkeep .you (.next none))
+                delay (beginningOf .upkeep (some .you) (.next none))
                   (may (enact (.action "cast") (procedure .cast .this .withoutPaying))) ])
             none .repeatedly none)
           (.matches thisSpell (.castFrom yourHand))) ]

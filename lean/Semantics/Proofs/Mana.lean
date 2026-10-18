@@ -69,12 +69,12 @@ theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSy
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Action.check (DRS.ofList [])
-      (Primitives.Action.doIfDone (exile (a (and [isCreature, youControl]))) (some (putInto it battlefield)) none) = [] := by
+      (doIfDone (exile (a (and [isCreature, youControl]))) (some (putInto it battlefield))) = [] := by
   decide
 
 /-- "Sacrifice a creature. If you don't, exile it." -/
 theorem badIfNotReadsMandatoryBody :
-    Action.check (DRS.ofList []) (Primitives.Action.doIfDone (sacrifice (a isCreature)) none (some (exile it)))
+    Action.check (DRS.ofList []) (doIfDone (sacrifice (a isCreature)) none (some (exile it)))
       = [.anaphor .bare .one 0] := by
   decide
 
@@ -171,7 +171,7 @@ def counterChosenName : Ability :=
 theorem okNameMatchAfterChooser :
     Card.check
       (enchantmentWith
-        [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .cardName) none .openly),
+        [ .static (entryChoice thisEnchantment (.quality .cardName) none .openly),
           counterChosenName ]) = [] := by
   decide
 
@@ -179,14 +179,14 @@ theorem badNameMatchBeforeChooser :
     Card.check
       (enchantmentWith
         [ counterChosenName,
-          .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .cardName) none .openly) ])
+          .static (entryChoice thisEnchantment (.quality .cardName) none .openly) ])
       = [.choiceRef .theChoice (.quality .cardName) 0] := by
   decide
 
 theorem badNameMatchWrongSort :
     Card.check
       (enchantmentWith
-        [ .static (Primitives.StaticSpec.entryChoice thisEnchantment (.quality .color) none .openly),
+        [ .static (entryChoice thisEnchantment (.quality .color) none .openly),
           counterChosenName ]) = [.choiceRef .theChoice (.quality .cardName) 0] := by
   decide
 
@@ -218,7 +218,7 @@ def tapForChosenColor : Ability := activatedAbility .tapSymbol (.addMana (.lit 1
 theorem okChosenColorAfterChooser :
     Card.check
       (landWith
-        [.static (Primitives.StaticSpec.entryChoice thisLand (.quality .color) none .openly), tapForChosenColor])
+        [.static (entryChoice thisLand (.quality .color) none .openly), tapForChosenColor])
       = [] := by
   decide
 
@@ -273,7 +273,7 @@ theorem okChosenColorPerColor :
 /-- "For each color among permanents you control, add one mana of that color" -/
 theorem badRepeatedCarriesNoColor :
     Action.check (DRS.ofList [])
-      (Primitives.Action.repeatTimes (.distinctCount .color permanentsYouControl)
+      (repeatTimes (.distinctCount .color permanentsYouControl)
         (.addMana (.lit 1) (.ofChosenColor none) []))
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
