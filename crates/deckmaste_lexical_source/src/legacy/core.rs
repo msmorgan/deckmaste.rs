@@ -85,7 +85,8 @@ struct InflectionOverride {
     surface: String,
 }
 
-// Retain the authored recipes even though lexical export uses its own morphology.
+// Retain the authored recipes even though lexical export uses its own
+// morphology.
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Morphology {
@@ -183,9 +184,12 @@ fn export_vocab(vocab: Vocab, provenance_path: &str, output: &mut LexicalSources
             category,
             source(SourceKind::Core, provenance_path, &owner),
         );
-        lexeme.properties.classes = member.classes;
-        lexeme.properties.features = defaults.clone();
-        lexeme.properties.features.extend(member.features);
+        lexeme.properties.classes = member.classes.iter().map(|c| dpsi::Ident::new(c)).collect();
+        lexeme.properties.features = crate::interned(&defaults);
+        lexeme
+            .properties
+            .features
+            .extend(crate::interned(&member.features));
         match inventory.as_str() {
             "SubjectPronoun" => lexeme.forms[0].features.case = Some(Case::Nominative),
             "ObjectPronoun" => lexeme.forms[0].features.case = Some(Case::Accusative),
@@ -238,7 +242,7 @@ fn export_noun(
             countability,
             source(SourceKind::Core, provenance_path, &owner),
         );
-        lexeme.properties.features = features;
+        lexeme.properties.features = crate::interned(&features);
         for replacement in member.overrides {
             let form = match replacement.form.as_str() {
                 "Singular" => WordForm::Singular,
@@ -330,10 +334,10 @@ fn export_verb(
         return;
     }
     let mut lexeme = Lexeme::verb(&owner, &verb.bare, source(SourceKind::Core, path, &owner));
-    lexeme
-        .properties
-        .features
-        .insert("OriginalIdentity".into(), format!("{:?}", verb.identity));
+    lexeme.properties.features.insert(
+        "OriginalIdentity".into(),
+        format!("{:?}", verb.identity).as_str().into(),
+    );
     lexeme.forms.retain_mut(|slot| match slot.form {
         WordForm::Preterite => {
             slot.surfaces = verb.preterite.clone().map(|surface| vec![surface]);
@@ -356,7 +360,10 @@ fn export_verb(
     if let Some(paradigm) = paradigm {
         lexeme.forms = paradigm.forms;
         lexeme.properties.frames = paradigm.frames;
-        lexeme.properties.features.extend(paradigm.features);
+        lexeme
+            .properties
+            .features
+            .extend(crate::interned(&paradigm.features));
         lexeme
             .properties
             .features

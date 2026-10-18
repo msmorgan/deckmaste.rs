@@ -99,8 +99,10 @@ fn apply_declarations(
             format!(
                 "{OVERRIDE_SOURCE_PREFIX}{:?}:{:?}:{:?}",
                 replacement.form, replacement.number, replacement.person
-            ),
-            path.to_string(),
+            )
+            .as_str()
+            .into(),
+            path.into(),
         );
     }
     Ok(())

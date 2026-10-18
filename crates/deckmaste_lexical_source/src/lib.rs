@@ -34,7 +34,8 @@ pub struct LexicalSources {
 /// # Errors
 /// Returns an error when a source cannot be read or normalized, an override
 /// has no target, two declarations produce the same lexical identity, or a
-/// registry reference, membership Category or grammatical property value is invalid.
+/// registry reference, membership Category or grammatical property value is
+/// invalid.
 pub fn load_workspace(
     root: &Path,
     registry: &deckmaste_lexical::LexicalRegistry,
@@ -139,6 +140,17 @@ pub fn load_workspace(
     output.unmapped.sort();
     output.unmapped.dedup();
     Ok(output)
+}
+
+/// Interns authored feature names and values, which the lexical model keeps
+/// as declaration identities.
+fn interned<'a>(
+    features: impl IntoIterator<Item = (&'a String, &'a String)>,
+) -> std::collections::BTreeMap<dpsi::Ident, dpsi::Ident> {
+    features
+        .into_iter()
+        .map(|(name, value)| (dpsi::Ident::new(name), dpsi::Ident::new(value)))
+        .collect()
 }
 
 fn source(kind: SourceKind, path: &str, owner: &str) -> Source {

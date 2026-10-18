@@ -99,10 +99,10 @@ fn lexicon() -> Lexicon {
         ("homograph-with", "with", "To"),
     ] {
         let mut lexeme = Lexeme::invariant(id, spelling, Pos::Preposition, source(id));
-        lexeme
-            .properties
-            .features
-            .insert("FrameMarker".into(), format!("Preposition/{member}"));
+        lexeme.properties.features.insert(
+            "FrameMarker".into(),
+            format!("Preposition/{member}").as_str().into(),
+        );
         entries.push(lexeme);
     }
     for (id, pos, reference) in [

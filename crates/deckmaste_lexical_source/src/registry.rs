@@ -1,6 +1,10 @@
+use std::collections::BTreeMap;
+use std::collections::BTreeSet;
+
+use deckmaste_lexical::Lexeme;
+use deckmaste_lexical::LexicalRegistry;
+
 use crate::LoadError;
-use deckmaste_lexical::{Lexeme, LexicalRegistry};
-use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) fn apply(lexemes: &mut [Lexeme], registry: &LexicalRegistry) -> Result<(), LoadError> {
     let fail = |message| LoadError::Registry(message);
@@ -89,7 +93,8 @@ pub(crate) fn apply(lexemes: &mut [Lexeme], registry: &LexicalRegistry) -> Resul
 }
 
 fn core_closed_class(word: &Lexeme) -> bool {
-    use deckmaste_lexical::{Category, SourceKind};
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::SourceKind;
     if word.source.kind != SourceKind::Core {
         return false;
     }
@@ -154,8 +159,13 @@ fn metadata(name: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use deckmaste_lexical::Category;
+    use deckmaste_lexical::LexicalClass;
+    use deckmaste_lexical::PropertyDomain;
+    use deckmaste_lexical::Source;
+    use deckmaste_lexical::SourceKind;
+
     use super::*;
-    use deckmaste_lexical::{Category, LexicalClass, PropertyDomain, Source, SourceKind};
 
     fn fixture() -> (Vec<Lexeme>, LexicalRegistry) {
         let word = Lexeme::invariant(
@@ -356,8 +366,8 @@ mod tests {
         );
         let property_key = format!("{}Kind", crate::native::FEATURE_SOURCE_PREFIX);
         words[0].properties.features.extend([
-            (override_key, "overrides.ron".into()),
-            (property_key, "core.ron".into()),
+            (dpsi::Ident::new(&override_key), "overrides.ron".into()),
+            (dpsi::Ident::new(&property_key), "core.ron".into()),
         ]);
         let expected = words.clone();
         apply(&mut words, &registry).unwrap();

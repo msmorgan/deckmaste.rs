@@ -77,7 +77,7 @@ pub(crate) fn add_bound_keyword_stems(
         if let Some(value) = noun.properties.features.get("CreatureSubtypeStem") {
             stem.properties
                 .features
-                .insert("CreatureSubtypeStem".into(), value.clone());
+                .insert("CreatureSubtypeStem".into(), *value);
         }
         stem.properties.frames = vec![Frame {
             kind: "BoundKeywordStem".into(),
@@ -301,7 +301,7 @@ pub(crate) fn add_participial_adjectives(
                 Category::Adjective,
                 verb.source.clone(),
             );
-            adjective.properties.features = class.features.clone();
+            adjective.properties.features = crate::interned(&class.features);
             adjective.forms[0].surfaces = Some(surfaces);
             adjective.capitalization = verb.capitalization;
             adjective.binding = verb.binding;
@@ -365,18 +365,21 @@ pub(crate) fn add_adjective_classes(
                         value: value.clone(),
                     });
                 }
-                if let Some(declared) = lexeme.properties.features.get(name)
-                    && declared != value
+                if let Some(declared) = lexeme.properties.features.get(name.as_str())
+                    && declared != value.as_str()
                 {
                     return Err(LoadError::ConflictingFeature {
                         owner,
                         name: name.clone(),
-                        declared: declared.clone(),
+                        declared: declared.to_string(),
                         requested: value.clone(),
                     });
                 }
             }
-            lexeme.properties.features.extend(class.features.clone());
+            lexeme
+                .properties
+                .features
+                .extend(crate::interned(&class.features));
             lexeme.category = deckmaste_lexical::Category::Adjective;
             if lexeme.surface_structure == deckmaste_lexical::SurfaceStructure::Opaque {
                 lexeme.surface_structure = if lexeme.lemma.contains(' ') {
@@ -480,14 +483,14 @@ pub(crate) fn load(root: &Path) -> Result<Inventory, LoadError> {
 
 fn collect_frame_markers(
     item: &FrameItem,
-    references: &mut std::collections::BTreeSet<(String, String)>,
+    references: &mut std::collections::BTreeSet<(dpsi::Ident, dpsi::Ident)>,
 ) {
     match item {
         FrameItem::Marker { vocabulary, member }
         | FrameItem::Marked {
             vocabulary, member, ..
         } => {
-            references.insert((vocabulary.clone(), member.clone()));
+            references.insert((*vocabulary, *member));
         }
         FrameItem::Optional(item) => collect_frame_markers(item, references),
         _ => {}
@@ -558,7 +561,7 @@ pub(crate) fn reconcile_frames(
             .properties
             .features
             .get("FrameMarker")
-            .is_some_and(|value| value != &reference)
+            .is_some_and(|value| *value != reference.as_str())
         {
             return Err(LoadError::DuplicateFeature {
                 owner: marker.id.to_string(),
@@ -568,7 +571,7 @@ pub(crate) fn reconcile_frames(
         marker
             .properties
             .features
-            .insert("FrameMarker".into(), reference);
+            .insert("FrameMarker".into(), reference.as_str().into());
     }
     Ok(())
 }
@@ -674,15 +677,15 @@ pub(crate) fn add_category_feature_defaults(
                         value: value.clone(),
                     });
                 }
-                if !lexeme.properties.features.contains_key(name) {
+                if !lexeme.properties.features.contains_key(name.as_str()) {
                     lexeme
                         .properties
                         .features
-                        .insert(name.clone(), value.clone());
-                    lexeme
-                        .properties
-                        .features
-                        .insert(format!("{FEATURE_SOURCE_PREFIX}{name}"), PATH.into());
+                        .insert(name.as_str().into(), value.as_str().into());
+                    lexeme.properties.features.insert(
+                        format!("{FEATURE_SOURCE_PREFIX}{name}").as_str().into(),
+                        PATH.into(),
+                    );
                 }
             }
         }
@@ -706,14 +709,17 @@ pub(crate) fn add_features(
             if name.is_empty() || value.is_empty() {
                 return Err(LoadError::EmptyFeature { owner, name, value });
             }
-            if lexeme.properties.features.contains_key(&name) {
+            if lexeme.properties.features.contains_key(name.as_str()) {
                 return Err(LoadError::DuplicateFeature { owner, name });
             }
+            lexeme.properties.features.insert(
+                format!("{FEATURE_SOURCE_PREFIX}{name}").as_str().into(),
+                PATH.into(),
+            );
             lexeme
                 .properties
                 .features
-                .insert(format!("{FEATURE_SOURCE_PREFIX}{name}"), PATH.into());
-            lexeme.properties.features.insert(name, value);
+                .insert(name.as_str().into(), value.as_str().into());
         }
     }
     Ok(())
@@ -755,8 +761,8 @@ fn reconcile_item(
                     surface: surface.clone(),
                 })?;
         *item = FrameItem::Marker {
-            vocabulary: vocabulary.clone(),
-            member: member.clone(),
+            vocabulary: vocabulary.as_str().into(),
+            member: member.as_str().into(),
         };
     }
     match item {

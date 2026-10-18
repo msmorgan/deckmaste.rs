@@ -268,7 +268,7 @@ fn grammar_lexeme(
                     lexeme
                         .properties
                         .features
-                        .insert(name.into(), format!("{onset:?}"));
+                        .insert(name.into(), format!("{onset:?}").as_str().into());
                 }
             }
             lexeme.properties.frames = frames(&frame_set);
@@ -292,7 +292,7 @@ fn grammar_lexeme(
                     lexeme
                         .properties
                         .features
-                        .insert(name.into(), format!("{onset:?}"));
+                        .insert(name.into(), format!("{onset:?}").as_str().into());
                 }
             }
             lexeme
@@ -303,7 +303,7 @@ fn grammar_lexeme(
                 lexeme
                     .properties
                     .features
-                    .insert("Onset".into(), format!("{onset:?}"));
+                    .insert("Onset".into(), format!("{onset:?}").as_str().into());
             }
             lexeme
         }
@@ -323,7 +323,7 @@ fn grammar_lexeme(
                 lexeme
                     .properties
                     .features
-                    .insert("Onset".into(), format!("{onset:?}"));
+                    .insert("Onset".into(), format!("{onset:?}").as_str().into());
             }
             lexeme
         }
@@ -361,7 +361,7 @@ fn grammar_lexeme(
                 lexeme
                     .properties
                     .features
-                    .insert("Onset".into(), format!("{onset:?}"));
+                    .insert("Onset".into(), format!("{onset:?}").as_str().into());
             }
             if let Some(metadata::FixedKeywordParameterGrammar::Quality {
                 preposition,
@@ -371,10 +371,13 @@ fn grammar_lexeme(
                 lexeme
                     .properties
                     .features
-                    .insert("KeywordMarker".into(), preposition.1.clone());
+                    .insert("KeywordMarker".into(), preposition.1.as_str().into());
                 lexeme.properties.features.insert(
                     "KeywordQualityNumber".into(),
-                    nominal_number.map_or_else(|| "Any".into(), |number| format!("{number:?}")),
+                    nominal_number.map_or_else(
+                        || "Any".into(),
+                        |number| format!("{number:?}").as_str().into(),
+                    ),
                 );
             }
             if let Some(metadata::FixedKeywordParameterGrammar::Subject { indefinite_article }) =
@@ -389,13 +392,13 @@ fn grammar_lexeme(
                 lexeme
                     .properties
                     .features
-                    .insert("KeywordMarker".into(), preposition.1.clone());
+                    .insert("KeywordMarker".into(), preposition.1.as_str().into());
             }
             if let Some(parameter) = parameter {
-                lexeme
-                    .properties
-                    .features
-                    .insert("KeywordParameter".into(), format!("{parameter:?}"));
+                lexeme.properties.features.insert(
+                    "KeywordParameter".into(),
+                    format!("{parameter:?}").as_str().into(),
+                );
             }
             lexeme
         }
@@ -435,34 +438,38 @@ fn export_distribution(
         lexeme.properties.features.insert(
             "KeywordParameterClass".into(),
             match parameter {
-                metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
-                class => format!("{class:?}"),
+                metadata::KeywordParameterClass::Unsupported(class) => {
+                    format!("{class:?}").as_str().into()
+                }
+                class => format!("{class:?}").as_str().into(),
             },
         );
     }
     if let Some(syntax) = normalized.keyword_syntax() {
         lexeme.properties.features.insert(
             "KeywordPayloadOrder".into(),
-            format!("{:?}", syntax.payload_order),
+            format!("{:?}", syntax.payload_order).as_str().into(),
         );
         lexeme.properties.features.insert(
             "KeywordSeparator".into(),
-            format!("{:?}", syntax.head_separator),
+            format!("{:?}", syntax.head_separator).as_str().into(),
         );
         lexeme.properties.features.insert(
             "KeywordParameterSeparator".into(),
-            format!("{:?}", syntax.parameter_separator),
+            format!("{:?}", syntax.parameter_separator).as_str().into(),
         );
     }
     if let Some(class) = noun_class {
         lexeme.properties.features.insert(
             "locative_temporal_license".into(),
-            format!("{:?}", class.locative_temporal_license),
+            format!("{:?}", class.locative_temporal_license)
+                .as_str()
+                .into(),
         );
-        lexeme
-            .properties
-            .features
-            .insert("relationality".into(), format!("{:?}", class.relationality));
+        lexeme.properties.features.insert(
+            "relationality".into(),
+            format!("{:?}", class.relationality).as_str().into(),
+        );
     }
 }
 
@@ -478,10 +485,10 @@ fn export_grammar_distribution(lexeme: &mut Lexeme, grammar: &metadata::GrammarR
             );
         }
     }
-    lexeme
-        .properties
-        .features
-        .insert("source_recipe".into(), format!("{:?}", grammar.recipe()));
+    lexeme.properties.features.insert(
+        "source_recipe".into(),
+        format!("{:?}", grammar.recipe()).as_str().into(),
+    );
 }
 
 fn bound_suffix_lexeme(
@@ -521,8 +528,10 @@ fn bound_suffix_lexeme(
         lexeme.properties.features.insert(
             "KeywordParameterClass".into(),
             match class {
-                metadata::KeywordParameterClass::Unsupported(class) => format!("{class:?}"),
-                class => format!("{class:?}"),
+                metadata::KeywordParameterClass::Unsupported(class) => {
+                    format!("{class:?}").as_str().into()
+                }
+                class => format!("{class:?}").as_str().into(),
             },
         );
     }
@@ -558,7 +567,7 @@ fn participial_adjective_lexeme(
         lexeme
             .properties
             .features
-            .insert("Onset".into(), format!("{onset:?}"));
+            .insert("Onset".into(), format!("{onset:?}").as_str().into());
     }
     lexeme
 }
@@ -575,7 +584,7 @@ fn block_label_lexeme(owner: &str, path: &str, label: metadata::BlockLabelGramma
         lexeme
             .properties
             .features
-            .insert("Onset".into(), format!("{onset:?}"));
+            .insert("Onset".into(), format!("{onset:?}").as_str().into());
     }
     lexeme
 }
@@ -671,13 +680,13 @@ fn frames(source: &metadata::VerbFrameSet) -> Vec<Frame> {
 fn argument(relation: Relation, category: &str) -> FrameItem {
     FrameItem::Argument(FrameSlot {
         relation,
-        category: category.to_owned(),
+        category: category.into(),
     })
 }
 fn marker(vocabulary: &str, member: &str) -> FrameItem {
     FrameItem::Marker {
-        vocabulary: vocabulary.to_owned(),
-        member: member.to_owned(),
+        vocabulary: vocabulary.into(),
+        member: member.into(),
     }
 }
 fn relation(source: metadata::FrameRelation) -> Relation {
@@ -693,11 +702,11 @@ pub(super) fn frame_item(item: &metadata::FrameItem) -> FrameItem {
         metadata::FrameItem::Argument(value) => argument(relation(value.relation), &value.category),
         metadata::FrameItem::Fixed(value) => marker(&value.vocabulary, &value.member),
         metadata::FrameItem::Marked(mark, value) => FrameItem::Marked {
-            vocabulary: mark.vocabulary.clone(),
-            member: mark.member.clone(),
+            vocabulary: mark.vocabulary.as_str().into(),
+            member: mark.member.as_str().into(),
             slot: FrameSlot {
                 relation: relation(value.relation),
-                category: value.category.clone(),
+                category: value.category.as_str().into(),
             },
         },
         metadata::FrameItem::Optional(value) => FrameItem::Optional(Box::new(frame_item(value))),
@@ -707,20 +716,20 @@ pub(super) fn frame_item(item: &metadata::FrameItem) -> FrameItem {
             FrameItem::Optional(Box::new(marker(vocabulary, member)))
         }
         metadata::FrameItem::MarkedRole(vocabulary, member, category) => FrameItem::Marked {
-            vocabulary: vocabulary.clone(),
-            member: member.clone(),
+            vocabulary: vocabulary.as_str().into(),
+            member: member.as_str().into(),
             slot: FrameSlot {
                 relation: Relation::Complement,
-                category: category.clone(),
+                category: category.as_str().into(),
             },
         },
         metadata::FrameItem::OptionalMarkedRole(vocabulary, member, category) => {
             FrameItem::Optional(Box::new(FrameItem::Marked {
-                vocabulary: vocabulary.clone(),
-                member: member.clone(),
+                vocabulary: vocabulary.as_str().into(),
+                member: member.as_str().into(),
                 slot: FrameSlot {
                     relation: Relation::Complement,
-                    category: category.clone(),
+                    category: category.as_str().into(),
                 },
             }))
         }

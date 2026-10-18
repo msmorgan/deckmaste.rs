@@ -76,22 +76,24 @@ pub(crate) fn add_compound_nouns(
         }
         for feature in ["Onset", "SingularOnset", "PluralOnset"] {
             noun.properties.features.remove(feature);
-            noun.properties.features.remove(&format!(
-                "{}{feature}",
-                crate::native::FEATURE_SOURCE_PREFIX
-            ));
+            noun.properties
+                .features
+                .remove(format!("{}{feature}", crate::native::FEATURE_SOURCE_PREFIX).as_str());
         }
         noun.properties
             .features
-            .insert("CompoundHead".into(), compound.recipe.head);
+            .insert("CompoundHead".into(), compound.recipe.head.as_str().into());
         if let Some(class) = compound.noun_class {
             noun.properties.features.insert(
                 "locative_temporal_license".into(),
-                format!("{:?}", class.locative_temporal_license),
+                format!("{:?}", class.locative_temporal_license)
+                    .as_str()
+                    .into(),
             );
-            noun.properties
-                .features
-                .insert("relationality".into(), format!("{:?}", class.relationality));
+            noun.properties.features.insert(
+                "relationality".into(),
+                format!("{:?}", class.relationality).as_str().into(),
+            );
         }
         noun.surface_structure = match compound.recipe.stem_structure {
             metadata::CompoundStemStructure::Word => deckmaste_lexical::SurfaceStructure::Multiword,

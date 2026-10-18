@@ -82,10 +82,10 @@ fn lexicon() -> Lexicon {
     }
     for (word, member) in [("onto", "Onto"), ("into", "Into"), ("to", "To")] {
         let mut lexeme = Lexeme::invariant(word, word, Pos::Preposition, source(word));
-        lexeme
-            .properties
-            .features
-            .insert("FrameMarker".into(), format!("Preposition/{member}"));
+        lexeme.properties.features.insert(
+            "FrameMarker".into(),
+            format!("Preposition/{member}").as_str().into(),
+        );
         entries.push(lexeme);
     }
     let mut put = Lexeme::verb("put", "put", source("put"));

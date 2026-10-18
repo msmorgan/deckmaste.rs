@@ -104,15 +104,21 @@ impl Grammar for Fixture {
                         .flat_map(|frame| frame.items.iter())
                         .filter_map(|item| {
                             if let FrameItem::Argument(slot) = item {
-                                Some(slot.category.clone())
+                                Some(slot.category.to_string())
                             } else {
                                 None
                             }
                         })
                         .collect(),
-                    extraction: properties.features.get("extraction").cloned(),
-                    sharing: properties.features.get("sharing").cloned(),
-                    recoverability: properties.features.get("recoverability").cloned(),
+                    extraction: properties
+                        .features
+                        .get("extraction")
+                        .map(ToString::to_string),
+                    sharing: properties.features.get("sharing").map(ToString::to_string),
+                    recoverability: properties
+                        .features
+                        .get("recoverability")
+                        .map(ToString::to_string),
                 };
                 if self.split_countability && !properties.countability.is_empty() {
                     properties

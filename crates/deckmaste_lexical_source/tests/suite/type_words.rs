@@ -281,7 +281,7 @@ fn subtype_nouns_are_the_single_owner_for_type_line_and_rules_text() {
                             .properties
                             .features
                             .get("TypeLineRole")
-                            .map(String::as_str)
+                            .map(dpsi::Ident::as_str)
                             == Some("Subtype") =>
                 {
                     Some(v.lexeme)
@@ -298,7 +298,7 @@ fn subtype_nouns_are_the_single_owner_for_type_line_and_rules_text() {
                     .properties
                     .features
                     .get("TypeLineRole")
-                    .map(String::as_str)
+                    .map(dpsi::Ident::as_str)
                     == Some("Subtype"))
         );
         if let Some(base) = lexeme.id.as_str().strip_suffix("/non") {

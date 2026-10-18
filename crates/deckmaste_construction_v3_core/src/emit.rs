@@ -412,13 +412,13 @@ fn projection(ir: &Ir) -> TokenStream {
 }
 
 fn frame_tokens(frame: &Frame) -> TokenStream {
-    let kind = &frame.kind;
+    let kind = frame.kind.as_str();
     let items = frame.items.iter().map(frame_item);
     quote!(::deckmaste_lexical::Frame { kind: #kind.into(), items: vec![#(#items),*] })
 }
 fn frame_slot(slot: &FrameSlot) -> TokenStream {
     let relation = format_ident!("{}", format!("{:?}", slot.relation));
-    let category = &slot.category;
+    let category = slot.category.as_str();
     quote!(::deckmaste_lexical::FrameSlot { relation: ::deckmaste_lexical::Relation::#relation, category: #category.into() })
 }
 fn frame_item(item: &FrameItem) -> TokenStream {
@@ -428,6 +428,7 @@ fn frame_item(item: &FrameItem) -> TokenStream {
             quote!(::deckmaste_lexical::FrameItem::Argument(#slot))
         }
         FrameItem::Marker { vocabulary, member } => {
+            let (vocabulary, member) = (vocabulary.as_str(), member.as_str());
             quote!(::deckmaste_lexical::FrameItem::Marker { vocabulary: #vocabulary.into(), member: #member.into() })
         }
         FrameItem::Marked {
@@ -436,6 +437,7 @@ fn frame_item(item: &FrameItem) -> TokenStream {
             slot,
         } => {
             let slot = frame_slot(slot);
+            let (vocabulary, member) = (vocabulary.as_str(), member.as_str());
             quote!(::deckmaste_lexical::FrameItem::Marked { vocabulary: #vocabulary.into(), member: #member.into(), slot: #slot })
         }
         FrameItem::Optional(item) => {
@@ -471,18 +473,13 @@ fn optional_word_checks(
     let Build::Construction { slots, .. } = &ir.rules[form.rule].build else {
         unreachable!()
     };
-    let Symbol::Nonterminal(category) =
-        ir.rules[form.rule].symbols[slots[field]]
-    else {
+    let Symbol::Nonterminal(category) = ir.rules[form.rule].symbols[slots[field]] else {
         unreachable!()
     };
     let rule = ir
         .rules
         .iter()
-        .find(|rule| {
-            rule.category == category
-                && matches!(rule.build, Build::PresentWord)
-        })
+        .find(|rule| rule.category == category && matches!(rule.build, Build::PresentWord))
         .unwrap();
     let checks = rule.checks[word_slot].iter().map(|(feature, register)| {
         let expected = rule.initial[*register].as_ref().unwrap();

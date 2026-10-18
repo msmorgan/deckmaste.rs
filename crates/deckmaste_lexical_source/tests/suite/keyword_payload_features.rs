@@ -15,7 +15,7 @@ fn entry(lemma: &str, category: Category) -> &'static Lexeme {
 
 fn feature(entry: &Lexeme, name: &str, expected: &str) {
     assert_eq!(
-        entry.properties.features.get(name).map(String::as_str),
+        entry.properties.features.get(name).map(dpsi::Ident::as_str),
         Some(expected),
         "{} {name}",
         entry.id
@@ -295,10 +295,12 @@ fn keyword_declarations_mint_premodifier_permissions_without_changing_category()
     }) {
         assert_eq!(entry.category, Category::Keyword);
         let features = &entry.properties.features;
-        let unmarked_quality_cost = features.get("KeywordParameterClass").map(String::as_str)
+        let unmarked_quality_cost = features
+            .get("KeywordParameterClass")
+            .map(dpsi::Ident::as_str)
             == Some("QualityCost")
-            && features.get("KeywordMarker").map(String::as_str) == Some("None")
-            && features.get("KeywordPayloadOrder").map(String::as_str) == Some("AfterHead");
+            && features.get("KeywordMarker").map(dpsi::Ident::as_str) == Some("None")
+            && features.get("KeywordPayloadOrder").map(dpsi::Ident::as_str) == Some("AfterHead");
         feature(
             entry,
             "NounPremodifier",

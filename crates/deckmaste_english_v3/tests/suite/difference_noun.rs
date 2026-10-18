@@ -1,11 +1,19 @@
 use std::collections::BTreeSet;
 
-use deckmaste_english_v3::grammar::{Category, Reading, Word};
-use deckmaste_lexical::{
-    Countability, FeatureBundle, LexicalReading, LexicalValue, Number, SurfaceCase, WordForm,
-};
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::Countability;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Number;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
-use crate::common::{lexicon, readings, readings_on_card};
+use crate::common::lexicon;
+use crate::common::readings;
+use crate::common::readings_on_card;
 
 fn noun(form: WordForm, number: Number) -> Word {
     Word {
@@ -83,7 +91,7 @@ fn difference_owns_its_regular_count_noun_paradigm() {
             .properties
             .features
             .get("ScalarDenotation")
-            .map(String::as_str),
+            .map(AsRef::<str>::as_ref),
         Some("Yes")
     );
     assert_eq!(

@@ -290,7 +290,7 @@ fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
             base.properties
                 .features
                 .get("NominalModifierOrder")
-                .map(String::as_str),
+                .map(dpsi::Ident::as_str),
             Some("Commuting")
         );
         assert_eq!(
@@ -298,7 +298,7 @@ fn color_negative_hosts_use_joined_formation_and_preserve_base_provenance() {
                 .properties
                 .features
                 .get("NominalModifierOrder")
-                .map(String::as_str),
+                .map(dpsi::Ident::as_str),
             Some("Commuting")
         );
         assert_eq!(negative.properties, base.properties);

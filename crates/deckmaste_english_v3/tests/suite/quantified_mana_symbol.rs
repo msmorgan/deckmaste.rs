@@ -1,10 +1,18 @@
 use std::collections::BTreeSet;
 
-use deckmaste_english_v3::grammar::{Category, FrameValue, Reading, Word};
-use deckmaste_lexical::{
-    FeatureBundle, FrameItem, FrameSlot, LexicalReading, LexicalValue, Numeral, Relation,
-    SurfaceCase, WordForm,
-};
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::FrameValue;
+use deckmaste_english_v3::grammar::Reading;
+use deckmaste_english_v3::grammar::Word;
+use deckmaste_lexical::FeatureBundle;
+use deckmaste_lexical::FrameItem;
+use deckmaste_lexical::FrameSlot;
+use deckmaste_lexical::LexicalReading;
+use deckmaste_lexical::LexicalValue;
+use deckmaste_lexical::Numeral;
+use deckmaste_lexical::Relation;
+use deckmaste_lexical::SurfaceCase;
+use deckmaste_lexical::WordForm;
 
 use crate::common;
 
@@ -247,13 +255,13 @@ fn declared_mana_class_supplies_the_quantified_paradigm() {
             .properties
             .features
             .get("ManaSymbolUse")
-            .map(String::as_str)
+            .map(AsRef::<str>::as_ref)
             == Some("Yes")
             && lexeme
                 .properties
                 .features
                 .get("SymbolNominalUse")
-                .map(String::as_str)
+                .map(AsRef::<str>::as_ref)
                 == Some("Count")
     }) {
         let expected = quantified(cardinal(6), symbol(lexeme.id.as_str(), None));

@@ -1,7 +1,11 @@
+use std::collections::BTreeSet;
+
+use deckmaste_english_v3::grammar::Category;
+use deckmaste_english_v3::grammar::Grammar;
+use deckmaste_english_v3::grammar::Value;
+
 use super::*;
 use crate::english_v3::tests::lexicon;
-use deckmaste_english_v3::grammar::{Category, Grammar, Value};
-use std::collections::BTreeSet;
 
 fn readings(text: &str, category: Category) -> Vec<Reading> {
     let grammar = Grammar::with_lexicon(lexicon());
@@ -298,10 +302,14 @@ fn normal_form_version_identifies_the_exact_reviewed_source() {
 
 #[test]
 fn perilous_predicament_census_records_the_committed_normal_forms() {
-    use crate::english_v3::report::{Measurements, Report};
-    use crate::english_v3::tests::{args, selected_corpus};
-    use crate::english_v3::{analyze_cards, write_report};
     use serde_json::json;
+
+    use crate::english_v3::analyze_cards;
+    use crate::english_v3::report::Measurements;
+    use crate::english_v3::report::Report;
+    use crate::english_v3::tests::args;
+    use crate::english_v3::tests::selected_corpus;
+    use crate::english_v3::write_report;
 
     let text =
         "Each opponent sacrifices an artifact creature and a nonartifact creature of their choice.";
@@ -377,7 +385,7 @@ fn lexical_modifier_order_agrees_with_the_independent_reviewed_inventory() {
             .properties
             .features
             .get("NominalModifierOrder")
-            .map_or("Barrier", String::as_str);
+            .map_or("Barrier", |value| value.as_str());
         assert_eq!(
             declared,
             if reviewed { "Commuting" } else { "Barrier" },

@@ -959,7 +959,7 @@ fn parse_frame(input: ParseStream<'_>) -> syn::Result<Frame> {
     let items;
     parenthesized!(items in input);
     Ok(Frame {
-        kind: kind.to_string(),
+        kind: kind.to_string().as_str().into(),
         items: items
             .parse_terminated(parse_frame_item, Token![,])?
             .into_iter()
@@ -1000,7 +1000,7 @@ fn frame_slot(relation: &Ident, category: ParseStream<'_>) -> syn::Result<FrameS
     };
     Ok(FrameSlot {
         relation,
-        category: frame_name(category)?,
+        category: frame_name(category)?.as_str().into(),
     })
 }
 
@@ -1019,8 +1019,8 @@ fn parse_frame_item(input: ParseStream<'_>) -> syn::Result<FrameItem> {
             arguments.parse::<Token![,]>()?;
             let slot = parse_frame_slot(&arguments)?;
             FrameItem::Marked {
-                vocabulary,
-                member,
+                vocabulary: vocabulary.as_str().into(),
+                member: member.as_str().into(),
                 slot,
             }
         }
@@ -1028,13 +1028,13 @@ fn parse_frame_item(input: ParseStream<'_>) -> syn::Result<FrameItem> {
             let vocabulary = frame_name(&arguments)?;
             arguments.parse::<Token![,]>()?;
             FrameItem::Marker {
-                vocabulary,
-                member: frame_name(&arguments)?,
+                vocabulary: vocabulary.as_str().into(),
+                member: frame_name(&arguments)?.as_str().into(),
             }
         }
         _ => FrameItem::Marker {
-            vocabulary: kind.to_string(),
-            member: frame_name(&arguments)?,
+            vocabulary: kind.to_string().as_str().into(),
+            member: frame_name(&arguments)?.as_str().into(),
         },
     };
     if !arguments.is_empty() {
@@ -1466,8 +1466,9 @@ impl Equation {
 
 #[cfg(test)]
 mod lexical_selector_tests {
-    use super::*;
     use syn::parse::Parser;
+
+    use super::*;
 
     #[test]
     fn uninstantiated_selectors_have_a_distinct_ast_variant() {

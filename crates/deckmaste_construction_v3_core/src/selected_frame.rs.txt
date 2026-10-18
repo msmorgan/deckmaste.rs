@@ -405,7 +405,7 @@ impl Grammar {
             let marker = properties.features.get("FrameMarker").and_then(|class| {
                 self.marker_classes
                     .iter()
-                    .position(|(candidate, _)| candidate == class)
+                    .position(|(candidate, _)| candidate == class.as_str())
             });
             for summary in &mut summaries {
                 summary.marker_class = marker;
@@ -542,7 +542,7 @@ impl Grammar {
                     .properties
                     .features
                     .get("FrameMarker")
-                    .map(|class| (class.clone(), lexeme.category))
+                    .map(|class| (class.to_string(), lexeme.category))
             })
             .collect();
         self.marker_classes.sort();
@@ -567,7 +567,7 @@ impl Grammar {
         for frame in frames {
             if !SELECTED_FRAME_TEMPLATES
                 .iter()
-                .any(|(_, kind)| *kind == frame.kind) && !self.rules.iter().any(|rule| matches!(&rule.segments, SegmentRule::Build { kind, .. } if *kind == frame.kind))
+                .any(|(_, kind)| frame.kind == *kind) && !self.rules.iter().any(|rule| matches!(&rule.segments, SegmentRule::Build { kind, .. } if frame.kind == kind.as_str()))
             {
                 continue;
             }
@@ -622,7 +622,7 @@ impl Grammar {
                 let SegmentRule::Build { kind, .. } = &self.rules[index].segments else {
                     continue;
                 };
-                if *kind != self.programs[program].kind {
+                if self.programs[program].kind != kind.as_str() {
                     continue;
                 }
                 for layout in &variants {
@@ -827,7 +827,7 @@ impl Grammar {
         // An intransitive marker cannot head the following frame Argument.
         lexicon.lexemes().values().any(|lexeme| {
             lexeme.category == *category
-                && lexeme.properties.features.get("FrameMarker") == Some(name)
+                && lexeme.properties.features.get("FrameMarker").map(|marker| marker.as_str()) == Some(name.as_str())
                 && lexeme
                     .properties
                     .features
