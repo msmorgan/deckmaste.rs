@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-5-comparatives-measures-and-partitives, english-v4-stratum-5-residual]
+needs: [english-v4-stratum-5-comparatives-measures-and-partitives, english-v4-stratum-5-residual, english-v4-intern-declaration-identities]
 ---
 # Stratum 6: Coordination and Right-Node Raising
 
