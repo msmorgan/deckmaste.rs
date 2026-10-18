@@ -27,3 +27,6 @@ Implement **Stratum 4** in `crates/deckmaste_english_v4` per
 - Stratum 0–4 judgment suite passes with zero regressions.
 
 Standard constraints apply.
+
+Census delta (`pkqyzzvz` → `qsruvtzr`): faces read 9,931 → 18,780; total Readings 93,673 → 159,769; lost faces: none. Strata 0–4: 71,870 units read, 20 deferred to `english-v4-stratum-4-residual`, 0 known-wrong-only, 0 unread, 0 law failures.
+Judgment set: seed and cumulative Strata 0–4 pass (1,948 enforced, 1,106 pending); tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4, deckmaste_english_v4 and xtask; citation checks pass.

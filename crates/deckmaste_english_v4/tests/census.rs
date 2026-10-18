@@ -173,3 +173,18 @@ fn a_face_counts_the_sum_of_its_units() {
         ["Destroy target creature.", "\"Destroy\ntarget creature.\""]
     );
 }
+
+#[test]
+fn the_deferral_list_names_each_unit_once() {
+    let lines = deckmaste_english_v4::DEFERRED
+        .lines()
+        .filter(|l| !l.trim().is_empty() && !l.trim_start().starts_with('#'))
+        .count();
+    let deferrals = deckmaste_english_v4::census::deferrals();
+    assert_eq!(deferrals.len(), lines);
+    assert!(
+        deferrals
+            .iter()
+            .all(|(name, text)| !name.is_empty() && !text.is_empty())
+    );
+}

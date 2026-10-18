@@ -48,7 +48,8 @@ struct StrataArgs {
     /// Skeletons listed per Stratum in the summary.
     #[arg(long, default_value_t = 15)]
     top: usize,
-    /// Fail when a unit at or below the completed Stratum is not read.
+    /// Fail when a unit at or below the completed Stratum is neither read nor
+    /// deferred, or when a deferred unit is read.
     #[arg(long)]
     check: bool,
 }
@@ -117,6 +118,12 @@ fn strata(args: &StrataArgs, output: &mut dyn Write) -> Result<()> {
         anyhow::bail!(
             "{} units at or below the completed stratum are not read",
             report.regressions.len()
+        );
+    }
+    if args.check && !report.stale_deferrals.is_empty() {
+        anyhow::bail!(
+            "{} deferred units are read; remove them from deferred.txt",
+            report.stale_deferrals.len()
         );
     }
     Ok(())

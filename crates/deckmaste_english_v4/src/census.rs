@@ -9,6 +9,11 @@
 //! except for a unit with a judgment, whose Readings are checked against it
 //! up to [`judgment::READING_LIMIT`]. A unit is known-wrong-only when it has a
 //! judgment none of its Readings satisfies.
+//!
+//! A unit the tracked deferral list ([`crate::DEFERRED`]) names, by card and
+//! text, is deferred while it is not read: counted apart and never a
+//! regression. A law failure is a defect and is never deferred. A deferral
+//! whose unit is read is stale.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
@@ -72,6 +77,9 @@ pub struct StratumRow {
     pub read: usize,
     pub known_wrong_only: usize,
     pub unread: usize,
+    /// Units not read that the deferral list names (not counted in `unread`
+    /// or `known_wrong_only`).
+    pub deferred: usize,
     /// Units with a round-trip law failure (counted in `unread`).
     pub law_failures: usize,
     /// Faces whose highest unit is in this Stratum.
@@ -105,8 +113,11 @@ pub struct Report {
     /// Baseline-unread faces absent from this corpus (they should be none).
     pub baseline_unread_missing: Option<Vec<String>>,
     pub skeletons: Vec<SkeletonRow>,
-    /// Units at or below the completed Stratum that are not read.
+    /// Units at or below the completed Stratum that are not read and not
+    /// deferred.
     pub regressions: Vec<String>,
+    /// Deferrals whose unit is read.
+    pub stale_deferrals: Vec<String>,
     pub total_derivations: u128,
     pub units: Vec<UnitResult>,
 }
@@ -259,12 +270,21 @@ fn summarize(
     let mut by_face: BTreeMap<&str, (Stratum, bool)> = BTreeMap::new();
     let mut regressions = Vec::new();
     let mut total_derivations = 0u128;
+    let mut stale_deferrals = Vec::new();
+    let deferrals = deferrals();
     let residual = |face: &str| baseline.is_some_and(|b| b.get(face) == Some(&false));
     for unit in &units {
         let stratum = unit.profile.stratum;
         let row = &mut strata[usize::from(stratum)];
         row.units += 1;
+        let named = deferrals.contains(&(unit.name.as_str(), unit.text.as_str()));
+        let deferred = named
+            && !matches!(
+                unit.verdict,
+                Verdict::Read | Verdict::Unread(Unread::Law(_))
+            );
         match &unit.verdict {
+            _ if deferred => row.deferred += 1,
             Verdict::Read => row.read += 1,
             Verdict::KnownWrongOnly => row.known_wrong_only += 1,
             Verdict::Unread(reason) => {
@@ -274,7 +294,13 @@ fn summarize(
                 }
             }
         }
-        if unit.verdict != Verdict::Read && completed.is_some_and(|done| stratum <= done) {
+        if named && unit.verdict == Verdict::Read {
+            stale_deferrals.push(format!("{} | {}", unit.name, unit.text));
+        }
+        if unit.verdict != Verdict::Read
+            && !deferred
+            && completed.is_some_and(|done| stratum <= done)
+        {
             regressions.push(format!("{} ({}): {}", unit.name, unit.face, unit.text));
         }
         total_derivations = total_derivations.saturating_add(unit.derivations);
@@ -333,9 +359,30 @@ fn summarize(
         baseline_unread_missing,
         skeletons,
         regressions,
+        stale_deferrals,
         total_derivations,
         units,
     }
+}
+
+/// The tracked deferral list as (card name, unit text) pairs: one `NAME |
+/// TEXT` line each, with `#` comments naming the ticket that owns them.
+///
+/// # Panics
+/// On a malformed line, which `tests/census.rs` rejects first.
+#[must_use]
+pub fn deferrals() -> BTreeSet<(&'static str, &'static str)> {
+    crate::DEFERRED
+        .lines()
+        .map(str::trim)
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .map(|line| {
+            let (name, text) = line
+                .split_once(" | ")
+                .unwrap_or_else(|| panic!("deferral `{line}` is not `NAME | TEXT`"));
+            (name.trim(), text.trim())
+        })
+        .collect()
 }
 
 impl Report {
@@ -362,17 +409,18 @@ impl Report {
         );
         let _ = writeln!(
             out,
-            "stratum  units   read  known-wrong-only  unread  law-failures   faces  faces-read  baseline-unread-faces"
+            "stratum  units   read  known-wrong-only  unread  deferred  law-failures   faces  faces-read  baseline-unread-faces"
         );
         for row in &self.strata {
             let _ = writeln!(
                 out,
-                "{:>7}  {:>5}  {:>5}  {:>16}  {:>6}  {:>12}  {:>6}  {:>10}  {:>21}",
+                "{:>7}  {:>5}  {:>5}  {:>16}  {:>6}  {:>8}  {:>12}  {:>6}  {:>10}  {:>21}",
                 row.stratum,
                 row.units,
                 row.read,
                 row.known_wrong_only,
                 row.unread,
+                row.deferred,
                 row.law_failures,
                 row.faces,
                 row.faces_read,
@@ -418,6 +466,12 @@ impl Report {
         if !self.regressions.is_empty() {
             let _ = writeln!(out, "\nregressions at or below the completed stratum:");
             for line in &self.regressions {
+                let _ = writeln!(out, "  {line}");
+            }
+        }
+        if !self.stale_deferrals.is_empty() {
+            let _ = writeln!(out, "\nstale deferrals (the unit is read):");
+            for line in &self.stale_deferrals {
                 let _ = writeln!(out, "  {line}");
             }
         }

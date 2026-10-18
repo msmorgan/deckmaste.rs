@@ -38,7 +38,11 @@ pub mod profile;
 /// The highest Complexity Stratum whose gate has been met, if any. Judgments
 /// at or below it are enforced, and the census reports a unit at or below it
 /// that is not read as a regression.
-pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(3);
+pub const COMPLETED_STRATUM: Option<profile::Stratum> = Some(4);
+
+/// The tracked deferral list: units at or below the completed Stratum left
+/// unread on purpose, each owned by a ticket (`census::deferrals`).
+pub const DEFERRED: &str = include_str!("../deferred.txt");
 
 /// The directory of the judgment set.
 #[must_use]
