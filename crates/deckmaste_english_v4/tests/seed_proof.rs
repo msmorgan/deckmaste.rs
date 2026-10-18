@@ -28,15 +28,16 @@ fn seed() -> Seed {
 /// Gap, and the surfaces of its children.
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct Constituent {
-    category: String,
+    category: dpsi::Ident,
     surface: String,
     gap: Gap,
-    production: String,
+    production: dpsi::Ident,
     children: Vec<String>,
 }
 
 impl Seed {
-    /// Every Reading of `text`, each checked for Admission and round-trip law 1.
+    /// Every Reading of `text`, each checked for Admission and round-trip law
+    /// 1.
     fn readings(&self, text: &str) -> Vec<Reading> {
         let parse = self.grammar.parse(&self.lexicon, text);
         assert!(
@@ -72,10 +73,10 @@ impl Seed {
         }) = reading
         {
             out.push(Constituent {
-                category: category.clone(),
+                category: *category,
                 surface: self.surface(reading),
                 gap: *gap,
-                production: production.clone(),
+                production: *production,
                 children: children.iter().map(|c| self.surface(c)).collect(),
             });
             for child in children {
@@ -181,7 +182,8 @@ fn seedborn_muse_keeps_both_temporal_attachments() {
     let during = "during each other player's untap step";
     // Exactly one Reading per attachment site. Every Reading keeps `during ...`
     // whole: an Oracle possessor is never postmodified, so
-    // `[all permanents you control during each other player]'s` is not a possessor.
+    // `[all permanents you control during each other player]'s` is not a
+    // possessor.
     let mut sites: Vec<Vec<String>> = s
         .readings(text)
         .iter()
@@ -371,7 +373,11 @@ fn node(reading: &Reading) -> &ReadingNode {
 
 #[test]
 fn normal_form_identifies_same_head_complement_priority() {
-    use deckmaste_syntax::frames::{Frame, FrameFamily, FrameSlot, SlotFill, SlotRelation};
+    use deckmaste_syntax::frames::Frame;
+    use deckmaste_syntax::frames::FrameFamily;
+    use deckmaste_syntax::frames::FrameSlot;
+    use deckmaste_syntax::frames::SlotFill;
+    use deckmaste_syntax::frames::SlotRelation;
     let s = seed();
     let complement = s.readings("Search your library for a card.").remove(0);
     let sentence = node(&complement);
@@ -380,7 +386,7 @@ fn normal_form_identifies_same_head_complement_priority() {
     // Hand-build the analysis same-head priority excludes: the monotransitive
     // frame with `for a card` as an unselected predicate adjunct.
     let monotransitive = ReadingNode {
-        production: "Valence:VerbPhrase/Monotransitive(NP)".to_owned(),
+        production: dpsi::Ident::new("Valence:VerbPhrase/Monotransitive(NP)"),
         selected_frame: Some(Frame {
             family: FrameFamily::Monotransitive,
             slots: vec![FrameSlot {
@@ -392,7 +398,7 @@ fn normal_form_identifies_same_head_complement_priority() {
         ..vp.clone()
     };
     let adjunct = ReadingNode {
-        production: "Adjunct:VerbPhrase+PrepositionPhrase/After/Predicate".to_owned(),
+        production: dpsi::Ident::new("Adjunct:VerbPhrase+PrepositionPhrase/After/Predicate"),
         selected_frame: None,
         children: vec![Reading::Node(monotransitive), vp.children[2].clone()],
         ..vp.clone()
@@ -425,7 +431,7 @@ fn normal_form_identifies_groupings_of_one_coordinator() {
     let top = node(&clause.children[0]);
     let tail = node(&top.children[1]);
     let nested = ReadingNode {
-        production: "Coordination:VerbPhrase/binary".to_owned(),
+        production: dpsi::Ident::new("Coordination:VerbPhrase/binary"),
         children: vec![
             node(&node(&binary).children[0]).children[0].clone(),
             tail.children[1].clone(),

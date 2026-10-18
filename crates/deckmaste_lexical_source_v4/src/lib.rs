@@ -20,6 +20,7 @@ use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::SourceKind;
 use deckmaste_lexical::SurfaceStructure;
 use deckmaste_syntax::FrameCatalog;
+use dpsi::Ident;
 use serde::de::DeserializeOwned;
 
 use crate::build::Builder;
@@ -266,10 +267,10 @@ impl Sources {
                 Category::Pronoun,
                 core(CLOSED_CLASS, &id),
             );
-            lexeme
-                .properties
-                .features
-                .insert("PronounKind".into(), format!("{:?}", entry.kind));
+            lexeme.properties.features.insert(
+                "PronounKind".into(),
+                Ident::new(&format!("{:?}", entry.kind)),
+            );
             lexeme.forms = entry
                 .forms
                 .iter()
@@ -338,7 +339,7 @@ impl Sources {
             lexeme
                 .properties
                 .classes
-                .extend(symbol.classes.iter().cloned());
+                .extend(symbol.classes.iter().map(|class| Ident::new(class)));
             builder.push(lexeme);
         }
         for entry in &self.prepositions {
@@ -370,7 +371,7 @@ impl Sources {
             lexeme.properties.classes = entry
                 .positions
                 .iter()
-                .map(|position| format!("{position:?}Adverb"))
+                .map(|position| Ident::new(&format!("{position:?}Adverb")))
                 .collect();
             if entry.interrogative {
                 lexeme
@@ -458,8 +459,8 @@ impl Sources {
             let lexeme = builder.lexemes.last_mut().expect("just pushed");
             lexeme.properties.classes = families
                 .iter()
-                .map(|family| format!("{family:?}Type"))
-                .chain(std::iter::once("Subtype".to_owned()))
+                .map(|family| Ident::new(&format!("{family:?}Type")))
+                .chain(std::iter::once(Ident::new("Subtype")))
                 .collect();
         }
         self.keywords(builder)?;
@@ -551,7 +552,7 @@ impl Sources {
             lexeme
                 .properties
                 .features
-                .insert("LabelKind".to_owned(), "AbilityWord".to_owned());
+                .insert("LabelKind".into(), "AbilityWord".into());
             lexeme.properties.classes.insert("AbilityWord".into());
             builder.push(lexeme);
         }
@@ -576,7 +577,7 @@ impl Sources {
             lexeme
                 .properties
                 .features
-                .insert("LabelKind".to_owned(), "AnchorWord".to_owned());
+                .insert("LabelKind".into(), "AnchorWord".into());
             lexeme.properties.classes.insert("AnchorWord".into());
             builder.push(card_scoped(lexeme, &anchor.cards));
         }
@@ -867,7 +868,7 @@ fn mark_lexical_adjectival_passives(lexemes: &mut [Lexeme]) -> Result<(), Source
         l.properties
             .features
             .get("AdjectivePosition")
-            .map(String::as_str)
+            .map(Ident::as_str)
             != Some("Attributive")
     };
     for adjective in lexemes
@@ -891,7 +892,7 @@ fn mark_lexical_adjectival_passives(lexemes: &mut [Lexeme]) -> Result<(), Source
         lexeme
             .properties
             .features
-            .insert("AdjectivalPassive".to_owned(), "Lexical".to_owned());
+            .insert("AdjectivalPassive".into(), "Lexical".into());
     }
     Ok(())
 }

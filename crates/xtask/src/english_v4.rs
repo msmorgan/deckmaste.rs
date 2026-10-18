@@ -257,7 +257,7 @@ fn dump_reading(
             c.category,
             c.span,
             &text[c.span.clone()],
-            c.function,
+            c.function.map_or("", |function| function.as_str()),
             c.gap
         )?;
     }
@@ -275,8 +275,9 @@ fn node_productions<'a>(reading: &'a deckmaste_syntax::Reading, out: &mut Vec<&'
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use clap::Parser;
+
+    use super::*;
 
     #[derive(Parser)]
     struct Cli {

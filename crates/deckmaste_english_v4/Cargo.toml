@@ -12,6 +12,7 @@ deckmaste_data = { version = "0.1.0", path = "../deckmaste_data" }
 deckmaste_lexical = { version = "0.1.0", path = "../deckmaste_lexical" }
 deckmaste_lexical_source_v4 = { version = "0.1.0", path = "../deckmaste_lexical_source_v4" }
 deckmaste_syntax = { version = "0.1.0", path = "../deckmaste_syntax" }
+dpsi = { version = "0.1.0", features = ["serde"] }
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = { workspace = true }
 

@@ -28,6 +28,7 @@ use deckmaste_syntax::frames::SlotRelation::Complement;
 use deckmaste_syntax::frames::SlotRelation::IndirectObject;
 use deckmaste_syntax::frames::SlotRelation::Object;
 use deckmaste_syntax::frames::SlotRelation::PredicativeComplement;
+use dpsi::Ident;
 
 use crate::SourceError;
 use crate::schema::AdjectiveEntry;
@@ -105,21 +106,21 @@ impl Builder {
         let mut lexeme = Lexeme::invariant(id, &entry.lemma, Category::Determinative, source);
         lexeme.properties.features.insert(
             "DeterminativeDistribution".into(),
-            format!("{:?}", entry.distribution),
+            Ident::new(&format!("{:?}", entry.distribution)),
         );
         lexeme.forms[0].surfaces.clone_from(&entry.spellings);
         lexeme.forms[0].features.number = entry.number;
         if let Some(countability) = entry.countability {
-            lexeme
-                .properties
-                .features
-                .insert("Countability".into(), format!("{countability:?}"));
+            lexeme.properties.features.insert(
+                "Countability".into(),
+                Ident::new(&format!("{countability:?}")),
+            );
         }
         if let Some(kind) = entry.noun_kind {
             lexeme
                 .properties
                 .features
-                .insert("NounKind".into(), format!("{kind:?}"));
+                .insert("NounKind".into(), Ident::new(&format!("{kind:?}")));
         }
         lexeme.article_onsets.clone_from(&entry.article_onsets);
         self.push(lexeme);
@@ -219,7 +220,7 @@ impl Builder {
             lexeme
                 .properties
                 .features
-                .insert("VerbKind".to_owned(), "Auxiliary".to_owned());
+                .insert("VerbKind".into(), "Auxiliary".into());
         }
         if let Some(base) = &entry.form_of {
             if !auxiliary {
@@ -243,8 +244,8 @@ impl Builder {
         }
         if auxiliary {
             lexeme.properties.features.insert(
-                "Polarity".to_owned(),
-                if entry.negative { "Negative" } else { "Affirmative" }.to_owned(),
+                "Polarity".into(),
+                if entry.negative { "Negative" } else { "Affirmative" }.into(),
             );
         }
         let id = lexeme.id;
@@ -257,12 +258,12 @@ impl Builder {
         let mut lexeme = Lexeme::noun(id, &entry.lemma, entry.countability.clone(), source);
         lexeme.properties.features.insert(
             "NounDistribution".into(),
-            format!("{:?}", entry.distribution),
+            Ident::new(&format!("{:?}", entry.distribution)),
         );
         lexeme
             .properties
             .features
-            .insert("NounKind".into(), format!("{:?}", entry.kind));
+            .insert("NounKind".into(), Ident::new(&format!("{:?}", entry.kind)));
         if let Some(plural) = &entry.plural {
             replace(&mut lexeme, WordForm::Plural, None, None, &plural.to_vec());
         }
@@ -305,16 +306,16 @@ impl Builder {
                 );
             }
             if let Some(position) = entry.position {
-                lexeme
-                    .properties
-                    .features
-                    .insert("AdjectivePosition".into(), format!("{position:?}"));
+                lexeme.properties.features.insert(
+                    "AdjectivePosition".into(),
+                    Ident::new(&format!("{position:?}")),
+                );
             }
             if let Some(determination) = entry.determination {
-                lexeme
-                    .properties
-                    .features
-                    .insert("Determination".into(), format!("{determination:?}"));
+                lexeme.properties.features.insert(
+                    "Determination".into(),
+                    Ident::new(&format!("{determination:?}")),
+                );
             }
             if entry.fused_head {
                 lexeme
@@ -326,7 +327,7 @@ impl Builder {
                 lexeme
                     .properties
                     .features
-                    .insert("Grade".to_owned(), grade.to_owned());
+                    .insert("Grade".into(), grade.into());
             }
             let id = lexeme.id;
             self.push(lexeme);
@@ -358,10 +359,10 @@ impl Builder {
             source,
         );
         if let Some(marking) = marking {
-            lexeme
-                .properties
-                .features
-                .insert("PrepositionMarking".into(), format!("{marking:?}"));
+            lexeme.properties.features.insert(
+                "PrepositionMarking".into(),
+                Ident::new(&format!("{marking:?}")),
+            );
         }
         let id = lexeme.id;
         self.push(lexeme);

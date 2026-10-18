@@ -21,7 +21,7 @@ const GRAMMATICAL_TERMS: [&str; 1] = ["case"];
 fn the_grammar_names_only_core_closed_class_lexemes() {
     let grammar = deckmaste_english_v4::grammar().unwrap();
     let (lexemes, _) = Sources::load().unwrap().vocabulary().unwrap();
-    let ids: Vec<&String> = grammar
+    let ids: Vec<&dpsi::Ident> = grammar
         .closed_words
         .values()
         .chain(grammar.lexical_classes.values().flatten())
@@ -83,18 +83,18 @@ fn catalog_lemmas() -> BTreeSet<String> {
 
 /// Every name the grammar declares or uses, with each catalog item it spells.
 fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
-    let mut names: Vec<&str> = vec![grammar.root.as_str()];
-    names.extend(grammar.features.keys().map(String::as_str));
-    names.extend(grammar.features.values().flatten().map(String::as_str));
-    names.extend(grammar.categories.keys().map(String::as_str));
-    names.extend(grammar.closed_words.keys().map(String::as_str));
-    names.extend(grammar.lexical_classes.keys().map(String::as_str));
-    names.extend(grammar.typed_classes.iter().map(String::as_str));
-    names.extend(grammar.slot_categories.values().map(String::as_str));
+    let mut names: Vec<&str> = vec![&grammar.root];
+    names.extend(grammar.features.keys().map(|name| &**name));
+    names.extend(grammar.features.values().flatten().map(|name| &**name));
+    names.extend(grammar.categories.keys().map(|name| &**name));
+    names.extend(grammar.closed_words.keys().map(|name| &**name));
+    names.extend(grammar.lexical_classes.keys().map(|name| &**name));
+    names.extend(grammar.typed_classes.iter().map(|name| &**name));
+    names.extend(grammar.slot_categories.values().map(|name| &**name));
     for production in &grammar.productions {
         names.push(&production.name);
         names.push(&production.lhs);
-        names.extend(production.transparent.iter().map(String::as_str));
+        names.extend(production.transparent.iter().map(|name| &**name));
         for symbol in &production.rhs {
             match symbol {
                 SymbolDecl::Attached(child, name, _)
@@ -104,7 +104,7 @@ fn leaks(grammar: &Grammar, catalog: &BTreeSet<String>) -> BTreeSet<String> {
                 | SymbolDecl::Class(child, name) => names.extend([child.as_str(), name.as_str()]),
                 SymbolDecl::Selected(child, name, words) => {
                     names.extend([child.as_str(), name.as_str()]);
-                    names.extend(words.iter().map(String::as_str));
+                    names.extend(words.iter().map(|name| &**name));
                 }
                 SymbolDecl::FreeLex(child, _)
                 | SymbolDecl::Numeral(child, _)
@@ -169,7 +169,7 @@ fn no_grammar_name_spells_a_catalog_item() {
 #[test]
 fn the_lint_finds_a_keyword_action_named_in_a_production() {
     let mut grammar = deckmaste_english_v4::grammar().unwrap();
-    grammar.productions[0].name = "DestroyTarget".to_owned();
+    grammar.productions[0].name = "DestroyTarget".into();
     assert_eq!(
         leaks(&grammar, &catalog_lemmas()),
         BTreeSet::from(["DestroyTarget: destroy".to_owned()])

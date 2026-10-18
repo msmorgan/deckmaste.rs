@@ -12,6 +12,7 @@ use deckmaste_syntax::Constituent;
 use deckmaste_syntax::Gap;
 use deckmaste_syntax::Parse;
 use deckmaste_syntax::Reading;
+use dpsi::Ident;
 
 use crate::corpus::card_name_lexeme;
 
@@ -67,7 +68,7 @@ impl Function {
 /// One assertion about a Constituent.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Assertion {
-    pub category: String,
+    pub category: Ident,
     pub surface: String,
     /// The 1-based occurrence of `surface` in the text, or any occurrence.
     pub occurrence: Option<usize>,
@@ -88,7 +89,7 @@ pub struct Judgment {
     /// `+` (true) or `*` (false).
     pub grammatical: bool,
     /// The Category to parse as, or the grammar's root.
-    pub category: Option<String>,
+    pub category: Option<Ident>,
     pub card: Option<String>,
     pub text: String,
     /// Alternative groups; each must be satisfied by some one Reading.
@@ -167,7 +168,7 @@ fn parse_entry(line: &str, location: &str) -> Result<Judgment, String> {
     let category_end = rest
         .find(|c: char| !c.is_ascii_alphabetic())
         .unwrap_or(rest.len());
-    let category = (category_end > 0).then(|| rest[..category_end].to_owned());
+    let category = (category_end > 0).then(|| Ident::new(&rest[..category_end]));
     let mut rest = rest[category_end..].trim_start();
     let mut card = None;
     if let Some(after) = rest.strip_prefix("<card=") {
@@ -300,7 +301,7 @@ fn parse_assertion(text: &str) -> Result<Assertion, String> {
     if category_end == 0 {
         return Err(format!("an assertion starts with a Category: {text}"));
     }
-    let category = text[..category_end].to_owned();
+    let category = Ident::new(&text[..category_end]);
     let (surface, mut rest) = quoted(&text[category_end..])?;
     let mut assertion = Assertion {
         category,
@@ -538,7 +539,7 @@ impl Judge<'_> {
                     .as_ref()
                     .is_none_or(|h| self.names(c.head.as_ref(), h))
                 && assertion.function.as_ref().is_none_or(|(function, of)| {
-                    c.function == function.child_name()
+                    bears(c.function, function.child_name())
                         && c.parent
                             .is_some_and(|p| self.names(reading.constituents[p].head.as_ref(), of))
                 })
@@ -599,15 +600,15 @@ fn has_antecedent(reading: &Located, index: usize, antecedent: &str) -> bool {
     let spelled = |c: &Constituent| reading.text.get(c.span.clone()) == Some(antecedent);
     let children = |of: usize| cs.iter().filter(move |c| c.parent == Some(of));
     let child_of = |of: usize, function: &str| {
-        (0..cs.len()).find(|&c| cs[c].parent == Some(of) && cs[c].function == function)
+        (0..cs.len()).find(|&c| cs[c].parent == Some(of) && bears(cs[c].function, function))
     };
-    if cs[child].function == "head" {
-        return children(binder).any(|c| c.function != "head" && spelled(c));
+    if bears(cs[child].function, "head") {
+        return children(binder).any(|c| !bears(c.function, "head") && spelled(c));
     }
     let Some(host) = cs[binder].parent else {
         return false;
     };
-    if children(host).any(|c| c.function == "head" && spelled(c)) {
+    if children(host).any(|c| bears(c.function, "head") && spelled(c)) {
         return true;
     }
     if cs[host].category != "VerbPhrase" {
@@ -632,4 +633,9 @@ fn has_antecedent(reading: &Located, index: usize, antecedent: &str) -> bool {
         nominal = head;
     }
     spelled(&cs[nominal])
+}
+
+/// Whether a Constituent bearing `function` (none at the root) bears `name`.
+fn bears(function: Option<Ident>, name: &str) -> bool {
+    function.is_some_and(|f| f == name)
 }

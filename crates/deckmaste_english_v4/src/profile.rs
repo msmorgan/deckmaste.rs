@@ -29,6 +29,7 @@ use deckmaste_syntax::frames::Frame;
 use deckmaste_syntax::frames::FrameFamily;
 use deckmaste_syntax::frames::PrepositionFrame;
 use deckmaste_syntax::frames::SlotFill;
+use dpsi::Ident;
 
 use crate::corpus::UnitKind;
 
@@ -822,7 +823,8 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             if t.lemma_in(&["do", "have"]) && !t.lemma_in(&["be"]) {
                 // Main-verb *do* and *have* are core clauses; the pro-form is
                 // Stratum 7.
-                // *do so* and *do the same* (CGEL, Ch. 17 §7.5, pp. 1529–1532; §7.6, p. 1533).
+                // *do so* and *do the same* (CGEL, Ch. 17 §7.5, pp. 1529–1532;
+                // §7.6, p. 1533).
                 let same = next(i).is_some_and(|n| n.is(Category::Determinative, "the"))
                     && tokens.get(i + 2).is_some_and(|n| n.lemma_in(&["same"]));
                 if t.lemma_in(&["do"])
@@ -845,7 +847,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             }
             if t.alts().iter().any(|a| {
                 a.lexeme.is_some_and(|l| {
-                    l.properties.features.get("Polarity").map(String::as_str) == Some("Negative")
+                    l.properties.features.get("Polarity").map(Ident::as_str) == Some("Negative")
                 })
             }) {
                 families.insert(NEGATION);
