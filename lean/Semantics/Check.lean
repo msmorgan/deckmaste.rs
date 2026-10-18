@@ -32,14 +32,14 @@ private def anotherTargetCreature : NounPhrase :=
 private def aCreature : NounPhrase :=
   .described (.a .unmarked) (.hasType .creature)
 
-private def exileZone : ZoneExpr :=
-  .zone .exile .bare
+private def exileZone : Location :=
+  .zone .exile none
 
-private def handZone : ZoneExpr :=
-  .zone .hand (.possessedBy .you)
+private def handZone : Location :=
+  .zone .hand (some .you)
 
-private def graveyardZone : ZoneExpr :=
-  .zone .graveyard (.possessedBy .you)
+private def graveyardZone : Location :=
+  .zone .graveyard (some .you)
 
 /-- Representative multi-step definition 1: `explore` [CR#701.44a]
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
@@ -47,10 +47,10 @@ def exploreDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "explore")) <|
     .instruct (.inCaller (.firstMention "subject" subject)) <|
       .sequentially [
-        .expose .reveal (.cards (.slice .top (.lit 1) (.library (.possessedBy .you)))),
+        .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
         .doIf
           (.matches (.pro .bare .one) (.hasType .land))
-          (.move (.pro .bare .one) .anywhere (some handZone) .departure (some .anEffect) [])
+          (.move (.pro .bare .one) .anyLocation (some handZone) .departure (some .anEffect) [])
           (some (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.inCaller (.laterMention "subject" subject)) .one true))
       ]
@@ -66,12 +66,12 @@ def conniveDef (subject : NounPhrase) : Action :=
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [
         .draw (.lit 1),
-        .move (.described (.a .unmarked) (.and [.isCard, .inZone handZone]))
-          (.zones [handZone]) (some graveyardZone) .departure (some .anEffect) [],
+        .move (.described (.a .unmarked) (.and [.isCard, .in_ handZone]))
+          (handZone) (some graveyardZone) .departure (some .anEffect) [],
         .doIf
           (.did ⟨.actor .you,
             .move (.described (.a .unmarked) (.not (.hasType .land)))
-              (.zones [handZone]) (some graveyardZone) .departure (some .anEffect) [],
+              (handZone) (some graveyardZone) .departure (some .anEffect) [],
             .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
             (.inCaller (.laterMention "subject" subject)) .one true)
@@ -87,7 +87,7 @@ def airbendDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" subject))
-        .anywhere (some exileZone) .departure (some .anEffect) [],
+        .anyLocation (some exileZone) .departure (some .anEffect) [],
       .establish
         (.may (.actor .you)
           (.procedure .cast
@@ -106,7 +106,7 @@ def postMoveLaterMentionRefused : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
       .move (.inCaller (.firstMention "subject" targetCreature))
-        .anywhere (some exileZone) .departure (some .anEffect) [],
+        .anyLocation (some exileZone) .departure (some .anEffect) [],
       .setStatus .tapped (.inCaller (.laterMention "subject" targetCreature))
     ]
 
@@ -159,9 +159,9 @@ def kalitasReplacement : Ability :=
       (.would .any
         (.move (.described (.a .unmarked)
             (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) .opponent)]))
-          (.zones [.zone .battlefield .bare]) (some graveyardZone) .departure (some .anEffect) []))
+          (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) []))
       (.sequentially [
-        .move (.pro (.word (.type .creature)) .one) .anywhere (some exileZone) .departure (some .anEffect) [],
+        .move (.pro (.word (.type .creature)) .one) .anyLocation (some exileZone) .departure (some .anEffect) [],
         .createObject (.lit 1)
           (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) [])
           true none
@@ -176,7 +176,7 @@ theorem kalitas_replacement_sound :
 def sacrificeDrawActivated : Ability :=
   .activated
     (.perform (.enact (.action "sacrifice")
-      (.move aCreature (.zones [.zone .battlefield .bare]) (some graveyardZone) .departure (some .anEffect) [])
+      (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) [])
       none none))
     (.draw (.statOf (.stat .power) (.pro .bare .one)))
     none none none none
@@ -225,17 +225,17 @@ def sliceBCountersAndCharPin : Ability :=
 theorem slice_b_counters_and_char_pin_sound :
     sliceBCountersAndCharPin.check = [] := by decide
 
-/-- Slice C pin (library slice + pile split + `pileOf` + `inPile` + `theRest`):
+/-- Slice C pin (library slice + pile split + `pileOf` + `in_` + `theRest`):
 `"Reveal the top five cards of your library. An opponent separates those cards into two piles. Put one pile into your hand and the other into your graveyard."` -/
 def sliceCFactOrFictionPin : Ability :=
   .spell none <|
     .sequentially [
-      .expose .reveal (.cards (.slice .top (.lit 5) (.library (.possessedBy .you)))),
+      .expose .reveal (.cards (.slice .top (.lit 5) (.zone .library (some .you)))),
       .instruct (.described (.a .unmarked) .opponent)
         (.separateIntoPiles (.pro .bare .many) 2 []),
-      .move (.described .all (.and [.isCard, .inPile (.pileOf (.counted (.range (some 1) (some 1))) none)]))
-        .anywhere (some handZone) .departure (some .anEffect) [],
-      .move (.theRest .pile .one) .anywhere (some graveyardZone) .departure (some .anEffect) []
+      .move (.described .all (.and [.isCard, .in_ (.pile (.pileOf (.counted (.range (some 1) (some 1))) none))]))
+        .anyLocation (some handZone) .departure (some .anEffect) [],
+      .move (.theRest .pile .one) .anyLocation (some graveyardZone) .departure (some .anEffect) []
     ]
 
 theorem slice_c_fact_or_fiction_pin_sound :
@@ -251,7 +251,7 @@ def sliceDVoteAndChoicePin : Ability :=
         (.vote (some .you) .openly (.byLabel ["grace", "condemnation"])),
       .draw (.votesFor "grace"),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
-        (.zones [.zone .battlefield .bare]) (some handZone) .departure (some .anEffect) []
+        (.zone .battlefield none) (some handZone) .departure (some .anEffect) []
     ]
 
 theorem slice_d_vote_and_choice_pin_sound :

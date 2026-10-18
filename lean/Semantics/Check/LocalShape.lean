@@ -42,10 +42,6 @@ def DieSides.localChecks (drs : DRS) : DieSides → List Refusal
     localRefuse (n == 1) (.outcomeInScope .diceRolled n)
   | .anyDie => []
 
-def PilePlacement.localChecks : PilePlacement → List Refusal
-  | .nthFromEnd ordinal => localRefuse ordinal.ok .ordinalNonZero
-  | _ => []
-
 def ProducedMana.localChecks (drs : DRS) : ProducedMana → List Refusal
   | .runs rs => localRefuse (producedRunsWritten rs) .producedRuns
   | .ofChosenColor _ =>

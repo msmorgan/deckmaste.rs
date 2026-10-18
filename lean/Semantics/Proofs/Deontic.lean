@@ -65,7 +65,7 @@ theorem badCantBeAttacked :
 
 /-- "Target creature card in a graveyard can't block this turn." -/
 theorem badCantInGraveyard :
-    Action.check (DRS.ofList []) (forbidBlock (target (.and [creature, .inZone graveyard])) (some
+    Action.check (DRS.ofList []) (forbidBlock (target (.and [creature, .in_ graveyard])) (some
         soFarThisTurn))
       = [.deedFits] := by
   decide
@@ -127,7 +127,7 @@ theorem okCompoundCost :
     Ability.check (DRS.ofList [])
       (activatedAbility
         (.compound
-          [.perform (discard (a (.and [.isCard, .inZone yourHand]))), .perform (sacrifice (a creature))])
+          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a creature))])
         (draw (.lit 1))) = [] := by
   decide
 
@@ -145,14 +145,14 @@ theorem okStaticUntargeting :
 theorem okPlayFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .play (a (.and [.isCard, .inZone graveyard])) .itsOwnCost none none none) { rider := playRider }) (some thisTurn)) = [] := by
+        (.may (.actor .you) (.procedure .play (a (.and [.isCard, .in_ graveyard])) .itsOwnCost none none none) { rider := playRider }) (some thisTurn)) = [] := by
   decide
 
 /-- "You may play a land card from your graveyard this turn." -/
 theorem okPlayLandFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .play (a (.and [land, .inZone (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
+        (.may (.actor .you) (.procedure .play (a (.and [land, .in_ (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
       = [] := by
   decide
 
@@ -160,7 +160,7 @@ theorem okPlayLandFromGraveyard :
 theorem okCastCreatureFromGraveyard :
     Action.check (DRS.ofList [])
       (.establish
-        (.may (.actor .you) (.procedure .cast (a (.and [creature, .inZone (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
+        (.may (.actor .you) (.procedure .cast (a (.and [creature, .in_ (graveyardOf .you)])) .itsOwnCost none none none) { rider := (.play (some (graveyardOf .you)) none none false .itsOwnCost) }) (some thisTurn))
       = [] := by
   decide
 
@@ -212,7 +212,7 @@ theorem badMonarchHolder :
 /-- "target creature you control that is your Ring-bearer" -/
 theorem okRingBearerOnBattlefield :
     Predicate.checkAt .object (DRS.ofList [])
-      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .inZone battlefield]) = [] := by
+      (.and [creature, .hasDesignation (.named "ringBearer") (some .you), .in_ battlefield]) = [] := by
   decide
 
 /-- "This creature can't attack target planeswalker this turn." -/
@@ -319,7 +319,7 @@ theorem badCantCounterCreatures :
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (.sequentially [Macros.instruct (each .opponent) (choose (a (.and [.isCard, .inZone hand]))), discard them]) (.matches (those .card)
+      (.doOnlyIf (.sequentially [Macros.instruct (each .opponent) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
           creature)
         none) = [] := by
   decide

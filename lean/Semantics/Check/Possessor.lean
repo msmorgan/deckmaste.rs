@@ -64,18 +64,17 @@ def NounPhrase.possessorSide (bs : DRS) (who : NounPhrase) : Option Possessor :=
 
 /-- The possessor a zone expression names: the player whose hand, graveyard or library it is
 [CR#400.1,400.3]. A shared zone has no possessor. -/
-def ZoneExpr.seedPossessorFuel (fuel : Nat) (bs : DRS) : ZoneExpr → Option Possessor :=
+def Location.seedPossessorFuel (fuel : Nat) (bs : DRS) : Location → Option Possessor :=
   match fuel with
   | 0 => fun _ => none
   | fuel + 1 => fun
       | .inCaller body => body.seedPossessorFuel fuel (enterCaller bs)
-      | .zone z (.possessedBy who) => if z.possessable then who.possessorSide bs else none
-      | .place _ (.library (.possessedBy who)) | .place _ (.graveyard (.possessedBy who)) =>
-        who.possessorSide bs
+      | .zone z (some who) => if z.possessable then who.possessorSide bs else none
+      | .fromEnd _ _ inner => inner.seedPossessorFuel fuel bs
       | _ => none
 termination_by structural fuel
 
-def ZoneExpr.seedPossessor (bs : DRS) := ZoneExpr.seedPossessorFuel 64 bs
+def Location.seedPossessor (bs : DRS) := Location.seedPossessorFuel 64 bs
 
 mutual
   /-- The possessor a description fixes for the object it describes: the possessor of the hand,
@@ -88,7 +87,7 @@ mutual
     | fuel + 1 => fun
         | .inCaller body => body.seedPossessorFuel fuel (enterCaller bs)
         | .bracketed body => body.seedPossessorFuel fuel bs
-        | .inZone z => z.seedPossessorFuel fuel bs
+        | .in_ z => z.seedPossessorFuel fuel bs
         | .hasPossessor .controller who => who.possessorSide bs
         | .not (.hasPossessor .controller who) =>
           if who.possessorSide bs == some .you then some .other else none

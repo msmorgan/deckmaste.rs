@@ -38,13 +38,13 @@ def kaitoBaneOfNightmares : Action :=
 theorem okKaitoBaneOfNightmares : Action.check (DRS.ofList []) kaitoBaneOfNightmares = [] := by decide
 def jhoiraOfTheGhitu : Ability :=
   activated
-    (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))])
+    (Primitives.Cost.compound [Primitives.Cost.mana [generic 2], Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))])
     (Primitives.Action.putCounters (.lit 4) (Primitives.CounterKindSource.printed (.named "timeCounter"))
       (theVerbed (.action "exile") .one (some .card)) .many true)
 theorem okJhoiraOfTheGhitu : Ability.check (DRS.ofList []) jhoiraOfTheGhitu = [] := by decide
 def alaundoTheSeer : Action :=
   Primitives.Action.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "timeCounter")))
-    (each (Primitives.Predicate.and [Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.inZone exileZone])) .many true
+    (each (Primitives.Predicate.and [Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.in_ exileZone])) .many true
 theorem okAlaundoTheSeer : Action.check (DRS.ofList []) alaundoTheSeer = [] := by decide
 
 def daydream : Spelled := spelled <| .singleFaced
@@ -131,7 +131,7 @@ theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = 
 def vashtaNerada : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
     (happened (Primitives.Action.move (a creature)
-      (Primitives.EventSource.zones [battlefield]) (some graveyard) .departure none []) Primitives.Subject.any soFarThisTurn)
+      (battlefield) (some graveyard) .departure none []) Primitives.Subject.any soFarThisTurn)
     (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true)
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
@@ -273,8 +273,8 @@ def voraciousBrood : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Alien", creatureType "Insect"],
       text :=
         [ Primitives.Ability.static (entersWithCounters thisCreature
-            (forEach 1 (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) p1p1Counter),
-          whenever (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) (graveyardOf Primitives.NounPhrase.you) Primitives.EventSource.anywhere)
+            (forEach 1 (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) p1p1Counter),
+          whenever (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, creature])) (graveyardOf Primitives.NounPhrase.you) Primitives.Location.anyLocation)
             (Primitives.Action.putCounters Primitives.Amount.groupSize (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -302,8 +302,8 @@ def rakshasaVizier : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [creatureType "Demon"],
       text :=
         [ whenever
-            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) exileZone
-              (Primitives.EventSource.zones [graveyardOf Primitives.NounPhrase.you]))
+            (putIntoFrom (counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) exileZone
+              (graveyardOf Primitives.NounPhrase.you))
             (Primitives.Action.putCounters Primitives.Amount.groupSize (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -382,7 +382,7 @@ def denryKlin : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Cat", creatureType "Advisor"],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.entryRider thisCreature
-            (Primitives.EntryRider.withCounters (.lit 1)
+            (Primitives.MoveRider.withCounters (.lit 1)
               (Primitives.CounterKindSource.chosen [p1p1Counter, .named "firstStrikeCounter", .named "vigilanceCounter"]) .fresh)),
           denryKlinSameKinds ],
       power := stat 2, toughness := stat 2 } }
@@ -420,7 +420,7 @@ def tromell : Spelled := spelled <| .singleFaced
               [ Primitives.Action.repeatTimes (Primitives.Amount.letter .x) proliferate,
                 Primitives.Action.define .x
                   (countOf (Primitives.Predicate.and [ nontoken, creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you,
-                                   Primitives.Predicate.did (⟨Primitives.Subject.any, (Primitives.Action.move (relative .object) Primitives.EventSource.anywhere (some battlefield) .arrival none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩) ])) ]) ],
+                                   Primitives.Predicate.did (⟨Primitives.Subject.any, (Primitives.Action.move (relative .object) Primitives.Location.anyLocation (some battlefield) .arrival none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩) ])) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Runadi, Behemoth Caller -/
@@ -697,7 +697,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
             (dealsCombatDamage
               (a (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you, Primitives.Predicate.hasCounters (some p1p1Counter)]))
               (a Primitives.Predicate.anyPlayer))
-            (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))]))) ],
+            (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))]))) ],
       power := stat 1, toughness := stat 1 } }
 
 def crumblingAshes : Spelled := spelled <| .singleFaced
@@ -760,11 +760,11 @@ def urborgScavengers : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOr (Primitives.GameEvent.enters thisCreature none) [attacks thisCreature]
             (Primitives.Action.sequentially
-              [ exile (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone graveyard])),
+              [ exile (target (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ graveyard])),
                 Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true ]),
           Primitives.Ability.alsoForKeywords
             (Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.abilityGrant thisCreature (keyword (.named "flying")))
-              (exists_ (Primitives.Predicate.and [Primitives.Predicate.exiledWith thisCreature, Primitives.Predicate.hasKeyword (.the (.named "flying"))]))))
+              (exists_ (Primitives.Predicate.and [Primitives.Predicate.in_ (Primitives.Location.exiledWith thisCreature), Primitives.Predicate.hasKeyword (.the (.named "flying"))]))))
             (["firstStrike", "doubleStrike", "deathtouch", "haste", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ],
       power := stat 2, toughness := stat 2 } }
@@ -870,7 +870,7 @@ def korvoldCombatTrigger : Ability :=
     (Primitives.Action.sequentially
       [ Primitives.Action.putCounters (Primitives.Amount.letter .x) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true,
         Primitives.Action.draw (Primitives.Amount.letter .x),
-        Primitives.Action.define .x (Primitives.Amount.distinctCount .permanentType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))) ])
+        Primitives.Action.define .x (Primitives.Amount.distinctCount .permanentType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))) ])
 theorem okKorvoldCombatTrigger : Ability.check (DRS.ofList []) korvoldCombatTrigger = [] := by decide
 /-- Mirelurk Queen -/
 def mirelurkQueenTrigger : Ability :=
@@ -878,8 +878,8 @@ def mirelurkQueenTrigger : Ability :=
     (Primitives.GameEvent.does Primitives.Subject.any (Semantics.Action.ownScope (some (.action "mill"))
       (Semantics.Action.enact (.action "mill")
         (Primitives.Action.move (Semantics.NounPhrase.inCaller ((counted (atLeast 1) (Primitives.Predicate.and [Primitives.Predicate.not land,
-        Primitives.Predicate.inZone (Primitives.ZoneExpr.zone .library .bare)]))))
-          (Primitives.EventSource.zones [Primitives.ZoneExpr.zone .library .bare])
+        Primitives.Predicate.in_ (Primitives.Location.zone .library none)]))))
+          (Primitives.Location.zone .library none)
           (some graveyard) .arrival none []) none none)))
     oncePerTurn
     (Primitives.Action.sequentially [Primitives.Action.draw (.lit 1), Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter)
@@ -905,7 +905,7 @@ def ichorShade : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Phyrexian", creatureType "Shade"],
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (Primitives.Condition.did (⟨Primitives.Subject.any, (Primitives.Action.move (a (Primitives.Predicate.or [artifact, creature])) (Primitives.EventSource.zones [battlefield]) (some graveyard) .departure none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩))
+            (Primitives.Condition.did (⟨Primitives.Subject.any, (Primitives.Action.move (a (Primitives.Predicate.or [artifact, creature])) (battlefield) (some graveyard) .departure none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩))
             (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -919,8 +919,7 @@ def asmiraHolyAvenger : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           at_ (Primitives.GameEvent.beginningOf .endStep (some (each Primitives.Predicate.anyPlayer)) (Primitives.TurnRef.each none))
             (Primitives.Action.putCounters
-              (Primitives.Amount.tally (⟨Primitives.Subject.any, (Primitives.Action.move (a creature) (Primitives.EventSource.zones
-                  [battlefield]) (some (graveyardOf Primitives.NounPhrase.you)) .departure none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩) .events)
+              (Primitives.Amount.tally (⟨Primitives.Subject.any, (Primitives.Action.move (a creature) (battlefield) (some (graveyardOf Primitives.NounPhrase.you)) .departure none []), (Primitives.LookbackSpan.duration soFarThisTurn none)⟩) .events)
               (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1054,7 +1053,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
                   (Primitives.Action.doOnlyIf (sacrifice thisEnchantment)
                     (Primitives.Condition.compareAmt (countersOn (.named "bloodstainCounter") thisEnchantment) .atLeast (.lit 5))
                     none)
-                  (move (target (Primitives.Predicate.and [creature, Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) hand) ]) ] } }
+                  (move (target (Primitives.Predicate.and [creature, Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) hand) ]) ] } }
 
 /-- Bewitching Leechcraft -/
 def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
@@ -1126,13 +1125,13 @@ def charnelTroll : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "trample"),
           at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (Primitives.Action.doIfDone (exile (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))
+            (Primitives.Action.doIfDone (exile (a (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))
               (some (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true))
               (some (sacrifice thisCreature))),
           activated
             (Primitives.Cost.compound
               [ Primitives.Cost.mana [pip .black, pip .green],
-                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone yourHand]))) ])
+                Primitives.Cost.perform (discard (a (Primitives.Predicate.and [creature, Primitives.Predicate.in_ yourHand]))) ])
             (Primitives.Action.putCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) thisCreature .many true) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1193,7 +1192,7 @@ def neurokTransmuter : Action :=
 theorem okNeurokTransmuter : Action.check (DRS.ofList []) neurokTransmuter = [] := by decide
 def syphonMind : Action :=
   Primitives.Action.sequentially
-    [ Primitives.Action.sequentially [instruct (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand]))), discard them],
+    [ Primitives.Action.sequentially [instruct (each otherPlayer) (choose (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand]))), discard them],
       Primitives.Action.doForEach (theVerbed (.action "discard") .many (some .card) .thisWay) (Primitives.Action.draw (.lit 1)) ]
 theorem okSyphonMind : Action.check (DRS.ofList []) syphonMind = [] := by decide
 def peek : Action := Primitives.Action.sequentially [lookAtHandOf (target Primitives.Predicate.anyPlayer), Primitives.Action.draw (.lit 1)]

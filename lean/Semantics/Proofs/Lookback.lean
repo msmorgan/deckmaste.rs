@@ -29,7 +29,7 @@ theorem gapRequiresLookback :
 theorem scopedCreatureDeath :
     relativeCheck .object
       ⟨.any, .move (.asType .creature .which none)
-        (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [],
+        (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [],
         withinThisTurn⟩ = [] := by decide
 
 theorem nestedLookbackBindsItsOwnParticipant :
@@ -37,9 +37,9 @@ theorem nestedLookbackBindsItsOwnParticipant :
       ⟨.actor .which,
         .procedure .cast
           (.described (.a .unmarked)
-            (.and [.hasType .creature, .inZone (.zone .stack .bare),
+            (.and [.hasType .creature, .in_ (.zone .stack none),
               .did ⟨.any, .move (.asType .creature .which none)
-                (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare))
+                (.zone .battlefield none) (some (.zone .graveyard none))
                 .departure none [], withinThisTurn⟩]))
           .itsOwnCost none none none,
         withinThisTurn⟩ = [] := by decide
@@ -49,7 +49,7 @@ theorem nestedLookbackCannotCaptureOuterGap :
       ⟨.actor .which,
         .procedure .cast
           (.described (.a .unmarked)
-            (.and [.hasType .creature, .inZone (.zone .stack .bare),
+            (.and [.hasType .creature, .in_ (.zone .stack none),
               .did ⟨.actor .which, .draw .anyAmount, withinThisTurn⟩]))
           .itsOwnCost none none none,
         withinThisTurn⟩ = [.kindMismatch .player .object] := by decide
@@ -64,8 +64,8 @@ theorem innerGapDoesNotSupplyOuterParticipant :
         .duration soFarThisTurn
           (some (.onlyIf (.exists_ (.described .bare
             (.and [.hasType .creature,
-              .did ⟨.any, .move .which (.zones [.zone .battlefield .bare])
-                (some (.zone .graveyard .bare)) .departure none [], withinThisTurn⟩])))))⟩ =
+              .did ⟨.any, .move .which (.zone .battlefield none)
+                (some (.zone .graveyard none)) .departure none [], withinThisTurn⟩])))))⟩ =
       [.lookbackSubject] := by decide
 
 theorem participantCanOccurMoreThanOnce :
@@ -95,22 +95,22 @@ theorem historyNamedParticipantAccessibleLocally :
 theorem castCanCarryExcludedOrigins :
     relativeCheck .player
       ⟨.actor .which,
-        .procedure .cast (.described (.a .unmarked) (.and [.isCard, .inZone (.zone .stack .bare)]))
-          .itsOwnCost none (some (.anywhereBut [.zone .hand (.possessedBy .you)])) none,
+        .procedure .cast (.described (.a .unmarked) (.and [.isCard, .in_ (.zone .stack none)]))
+          .itsOwnCost none (some (.not (.zone .hand (some .you)))) none,
         withinThisTurn⟩ = [] := by decide
 
 theorem namedActionCanCarryItsLocus :
     relativeCheck .player
       ⟨.actor .which,
-        .enact (.action "search") (.search (.oneZone (.zone .library (.possessedBy .you)))
-          (.range none none) (.and [])) none (some (.zone .library (.possessedBy .you))),
+        .enact (.action "search") (.search ((.zone .library (some .you)))
+          (.range none none) (.and [])) none (some (.zone .library (some .you))),
         .thisWay⟩ = [] := by decide
 
 theorem locusUsesDeclaredActionFeatures :
     relativeCheck .player
       ⟨.actor .which,
-        .enact (.action "shuffle") (.shuffle (.library (.possessedBy .you)))
-          none (some (.zone .graveyard (.possessedBy .you))),
+        .enact (.action "shuffle") (.shuffle (.zone .library (some .you)))
+          none (some (.zone .graveyard (some .you))),
         .thisWay⟩ = [.lookbackLocus] := by decide
 
 theorem nestedLookbackPreservesOuterBinder (drs : DRS) (clause : DidClause) :

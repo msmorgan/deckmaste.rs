@@ -272,7 +272,7 @@ def StaticSpec.regimeFits (r : Option StackRegime) (s : StaticSpec)
   | _ + 1, .addedCost .. | _ + 1, .costShift .. | _ + 1, .paySubstitute ..
   | _ + 1, .modeChoice .. | _ + 1, .addsTarget .. => r == some .atCasting
   | _ + 1, .altCost .. | _ + 1, .may _ (.procedure ..) _ => r != some .atResolution
-  | _ + 1, .instead (.would _ (.move n (.zones [.zone .stack .bare]) _ _ _ _)) _ _ _ _ =>
+  | _ + 1, .instead (.would _ (.move n (.zone .stack none) _ _ _ _)) _ _ _ _ =>
     if n.namesThis then r != some .atResolution else r == none
   | _, _ => r == none
 termination_by structural fuel

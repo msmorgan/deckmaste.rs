@@ -66,7 +66,7 @@ def planeswalkerLoyalty : ConferralRule :=
   { scope := .hasType .planeswalker,
     confer :=
       .static
-        (.instead (.would .any (.move .this .anywhere (some battlefield) .arrival none [])) (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "loyaltyCounter")) .this .one true) none .repeatedly none) }
+        (.instead (.would .any (.move .this .anyLocation (some battlefield) .arrival none [])) (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "loyaltyCounter")) .this .one true) none .repeatedly none) }
 theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := by decide
 
 /-- A conferral scopes what can have an ability — an object, or a player granted one
@@ -238,7 +238,7 @@ theorem okFortificationDefinition : Definition.check fortificationDefinition = [
 def auraDefinition : Definition :=
   .subtype (enchantmentType "Aura")
     [ .stateBased (.not (isAttached thisAura))
-        (.move thisAura (.zones [.zone .battlefield .bare]) (some graveyard) .arrival none []) ]
+        (.move thisAura (.zone .battlefield none) (some graveyard) .arrival none []) ]
 theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
 
 /-- [CR#714.3a,714.3c,714.4] A Saga enters with a lore counter unless it has read ahead, gets one
@@ -247,7 +247,7 @@ its final chapter number. -/
 def sagaDefinition : Definition :=
   .subtype (enchantmentType "Saga")
     [ .ability (.static (onlyUnless
-        (.asEvent (.does .any (.move thisSaga .anywhere (some battlefield) .arrival none []))
+        (.asEvent (.does .any (.move thisSaga .anyLocation (some battlefield) .arrival none []))
           (.establish (entersWithCounters thisSaga (.lit 1) (.named "loreCounter")) none))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
@@ -350,7 +350,7 @@ def blood : PredefinedToken :=
             text :=
               [ activated
                   (.compound
-                    [ .mana [generic 1], .tapSymbol, .perform (discard (a (.and [.isCard, .inZone yourHand]))),
+                    [ .mana [generic 1], .tapSymbol, .perform (discard (a (.and [.isCard, .in_ yourHand]))),
                       .perform (sacrifice .this) ])
                   (draw (.lit 1)) ] } } }
 theorem okBlood : PredefinedToken.check blood = [] := by decide

@@ -32,8 +32,8 @@ instance : CallerScope Predicate where
 instance : CallerScope Quantity where
   caller := Quantity.inCaller
 
-instance : CallerScope ZoneExpr where
-  caller := ZoneExpr.inCaller
+instance : CallerScope Location where
+  caller := Location.inCaller
 
 instance : CallerScope Condition where
   caller := Condition.inCaller

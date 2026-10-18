@@ -30,13 +30,13 @@ theorem badTurnAPlayerFaceDown :
 
 /-- An entry rider into exile is not of the kind exile allows. -/
 theorem badEntryRiderIntoExile :
-    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some exileZone) .arrival none [.entry (.entersAs .tapped)]) =
+    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some exileZone) .arrival none [(.entersAs .tapped)]) =
       [.riderKind .placement .entry] := by decide
 
 /-- A placement onto the battlefield is not of the kind the battlefield allows. -/
 theorem badPlacementOntoBattlefield :
-    Action.check (DRS.ofList []) (.move (target creature) .anywhere (some battlefield) .arrival none
-      [.placement (.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
+    Action.check (DRS.ofList []) (.move (target creature) .anyLocation (some battlefield) .arrival none
+      [(.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
 
 /-- A special action whose instruction reads an anaphor with no antecedent is refused. -/
 theorem badSpecialActionUnboundAnaphor :

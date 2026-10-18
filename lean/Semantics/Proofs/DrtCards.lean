@@ -58,7 +58,7 @@ theorem battlefieldProhibitionIsNotInstantStaticText :
 
 theorem counterAlternativesUseTheirOwnHolderKinds :
     Predicate.checkAt (.join .object .player) (DRS.ofList [])
-      (.or [.and [.inZone battlefield, .hasCounters none],
+      (.or [.and [.in_ battlefield, .hasCounters none],
         .compare [.anyCounter .player] .atLeast (.lit 1)]) = [] := by decide
 
 theorem mixedCounterAxesStillRejectOneHolder :
@@ -104,7 +104,7 @@ theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
       payload := .join (.object [.planeswalker] (some .battlefield) none none none none)
         (.player false) }
     let initial := nextClause (DRS.ofList [joinedRef])
-    let out := stepZoneScopeWith (stepOps 12) initial (.possessedBy they)
+    let out := stepZoneOwnerWith (stepOps 12) initial (some they)
     out.2 = [] ∧ (out.1.findById? 17).map (·.payload) =
       (initial.findById? 17).map (·.payload) := by decide
 
@@ -159,7 +159,7 @@ theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
       (Primitives.GameEvent.enters thisCreature none)).1)
     let original := initial.referents.head?.map (·.id)
     let out := stepCondition 16 initial
-      (.did ⟨.any, .move it (.zones [graveyardOf .you]) (some battlefield) .arrival none [],
+      (.did ⟨.any, .move it (graveyardOf .you) (some battlefield) .arrival none [],
         .triggering⟩)
     out.2 = [] ∧ (original.bind out.1.findById?).map (·.zone) = some (some .battlefield) ∧
       out.1.historicalReferentIds = [] := by decide +kernel
@@ -208,7 +208,7 @@ theorem nestedCreationLoopsRetainOnlyTheirFreshAggregate :
 
 theorem creationResultsKeepTheirActualDestinationAfterAMove :
     let moved := Action.sequentially [createdCreature,
-      .move (.pro .bare .one) (.zones [battlefield]) (some exileZone) .departure none []]
+      .move (.pro .bare .one) (battlefield) (some exileZone) .departure none []]
     let out := stepAction 16 .postEvent .obj (DRS.ofList [])
       (.doForEach (.described .all (.hasType .creature)) moved)
     let groups := out.1.visibleReferents.filter (·.createdResult)
@@ -222,7 +222,7 @@ theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
     let initial := nextClause ((stepAction 8 .postEvent .obj (DRS.ofList []) createdCreature).1)
     let out := stepAction 12 .postEvent .obj initial
       (.doForEach (.described .all (.hasType .creature))
-        (.move (.pro (.word .token) .one) (.zones [battlefield])
+        (.move (.pro (.word .token) .one) (battlefield)
           (some exileZone) .departure none []))
     let created := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ created.map (·.id) = [3] ∧ created.map (·.plur) = [.one] ∧

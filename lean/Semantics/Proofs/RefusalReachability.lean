@@ -19,14 +19,14 @@ theorem existentialRequiresAnExistentialMention :
 
 /-- A written multi-zone search names at least two different zones. -/
 theorem searchRequiresDistinctMultipleZones :
-    (stepSearchScopeWith (stepOps 64) emptyContext
-      (.someZones none [.hand, .library])).2 = [] ∧
-    (stepSearchScopeWith (stepOps 64) emptyContext
-      (.someZones none [])).2 = [.atLeastTwoZones] ∧
-    (stepSearchScopeWith (stepOps 64) emptyContext
-      (.someZones none [.library])).2 = [.atLeastTwoZones] ∧
-    (stepSearchScopeWith (stepOps 64) emptyContext
-      (.someZones none [.library, .library])).2 = [.atLeastTwoZones] := by decide
+    (stepSearchLocationWith (stepOps 64) emptyContext
+      (.or [.zone .hand none, .zone .library none])).2 = [] ∧
+    (stepSearchLocationWith (stepOps 64) emptyContext
+      (.or [])).2 = [.atLeastTwoZones] ∧
+    (stepSearchLocationWith (stepOps 64) emptyContext
+      (.or [.zone .library none])).2 = [.atLeastTwoZones] ∧
+    (stepSearchLocationWith (stepOps 64) emptyContext
+      (.or [.zone .library none, .zone .library none])).2 = [.atLeastTwoZones] := by decide
 
 /-- A multiplier used to express “for each” cannot be literally zero. -/
 theorem zeroMultiplierIsRefused :
@@ -53,8 +53,8 @@ theorem wordHeadsCannotBeNested :
 theorem inPileRequiresAPileMention :
     let context := DRS.ofList [{
       det := .the, plur := .one, payload := .pile (some .exile) none none }]
-    Predicate.checkAt .object context (.inPile (.pro (.word .pile) .one)) = [] ∧
-      Predicate.checkAt .object emptyContext (.inPile .you) =
+    Predicate.checkAt .object context (.in_ (.pile (.pro (.word .pile) .one))) = [] ∧
+      Predicate.checkAt .object emptyContext (.in_ (.pile .you)) =
         [.kindMismatch .pile .player, .pileMention] := by decide
 
 private def selectedCreature : NounPhrase :=

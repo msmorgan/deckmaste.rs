@@ -13,8 +13,8 @@ private def context : DRS := {
 private def creatureRead : NounPhrase := .pro (.word (.type .creature)) .one
 
 private def deathLookback : DidClause :=
-  ⟨.any, .move creatureRead (.zones [.zone .battlefield .bare])
-    (some (.zone .graveyard .bare)) .departure none [], .thisWay⟩
+  ⟨.any, .move creatureRead (.zone .battlefield none)
+    (some (.zone .graveyard none)) .departure none [], .thisWay⟩
 
 /-- A death lookback reads the departed participant's battlefield type without moving it again. -/
 theorem historicalDeathPreservesTheCurrentObject :
@@ -39,8 +39,8 @@ theorem historicalEligibilityRequiresItsWrittenOrigin :
     Action.check context deathLookback.action =
       [.anaphor (.word (.type .creature)) .one 0] ∧
     Condition.check context (.did ⟨.any,
-      .move creatureRead (.zones [.zone .hand .bare])
-        (some (.zone .graveyard .bare)) .departure none [], .thisWay⟩) =
+      .move creatureRead (.zone .hand none)
+        (some (.zone .graveyard none)) .departure none [], .thisWay⟩) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
 end Semantics.Proofs.HistoricalMove

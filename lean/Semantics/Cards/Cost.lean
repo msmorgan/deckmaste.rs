@@ -68,7 +68,7 @@ def charRumbler : Spelled := spelled <| .singleFaced
 /-- Sisters of Stone Death -/
 def sistersOfStoneDeathRecall : Ability :=
   activated (Primitives.Cost.mana [generic 2, pip .black])
-    (putOntoBattlefieldUnderYourControl (a (Primitives.Predicate.and [creature, Primitives.Predicate.exiledWith thisCreature])))
+    (putOntoBattlefieldUnderYourControl (a (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (Primitives.Location.exiledWith thisCreature)])))
 theorem okSistersOfStoneDeathRecall : Ability.check (DRS.ofList []) sistersOfStoneDeathRecall = [] := by decide
 /-- Synod Sanctum -/
 def synodSanctumReturn : Ability :=
@@ -445,7 +445,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
         [ activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 4], Primitives.Cost.tapSymbol])
             (Primitives.Action.sequentially
               [ revealCards (topSlice (.lit 1)),
-                Primitives.Action.doIf (Primitives.Condition.matches it ((Primitives.Predicate.shares .cardName .share (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))))
+                Primitives.Action.doIf (Primitives.Condition.matches it ((Primitives.Predicate.shares .cardName .share (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))))
                   (move it graveyard) (some (Primitives.Action.draw (.lit 1))) ]) ] } }
 
 def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
@@ -455,7 +455,7 @@ def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           activated
-            (Primitives.Cost.perform (discard (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.inZone yourHand])))))
+            (Primitives.Cost.perform (discard (withTheSameName (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.not land, Primitives.Predicate.in_ yourHand])))))
             (Primitives.Action.draw (.lit 4)) ],
       power := stat 5, toughness := stat 6 } }
 
@@ -623,7 +623,7 @@ def forceOfWill : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.compound
               [ payLife 1,
-                Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)]))) ]))),
+                Primitives.Cost.perform (exile (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)]))) ]))),
           Primitives.Ability.spell none (Primitives.Action.counterSpell (target spell)) ] } }
 
 def demonOfDeathsGate : Spelled := spelled <| .singleFaced
@@ -695,7 +695,7 @@ def shatteredEgo : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") creature,
           Primitives.Ability.static (getsPt (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.down (.lit 3)) (Primitives.Delta.down (.lit 0))),
           activated (Primitives.Cost.mana [generic 3, pip .blue, pip .blue])
-            (Primitives.Action.move (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 3))]) ] } }
+            (Primitives.Action.move (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 3) (Primitives.Location.zone .library none))) .arrival none []) ] } }
 
 def shuFarmer : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -723,7 +723,7 @@ def elspethsTalent : Spelled := spelled <| .singleFaced
 
 /-- Void Maw -/
 def voidMawPutCost : Ability :=
-  activated (Primitives.Cost.perform (put (a (Primitives.Predicate.exiledWith thisCreature)) graveyard))
+  activated (Primitives.Cost.perform (put (a (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisCreature))) graveyard))
     (get thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)) (some untilEndOfTurn))
 theorem okVoidMawPutCost : Ability.check (DRS.ofList []) voidMawPutCost = [] := by decide
 /-- Ghor-Clan Rampager -/
@@ -743,7 +743,7 @@ theorem okTymorasInvoker : Ability.check (DRS.ofList []) tymorasInvoker = [] := 
 /-- Skyblade's Boon -/
 def skybladesBoonReturn : Ability :=
   activatedOnlyIf (Primitives.Cost.mana [generic 2, pip .white]) (move Primitives.NounPhrase.this hand)
-    (Primitives.Condition.or [Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.inZone battlefield), Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])])
+    (Primitives.Condition.or [Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.in_ battlefield), Primitives.Condition.matches Primitives.NounPhrase.this (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])])
 theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonReturn = [] := by decide
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=
@@ -765,7 +765,7 @@ def generalTazriPump : Ability :=
 theorem okGeneralTazriPump : Ability.check (DRS.ofList []) generalTazriPump = [] := by decide
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [pip .blue], Primitives.Cost.tapSymbol, Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ yourHand])))])
     (Primitives.Action.counterSpell
       (target (Primitives.Predicate.and [Primitives.Predicate.or [spell, Primitives.Predicate.abilityHead .anyOnStack], Primitives.Predicate.targets (a creature) .someTarget])))
 theorem okDiplomaticEscortLine : Ability.check (DRS.ofList []) diplomaticEscortLine = [] := by decide
@@ -837,10 +837,10 @@ def deathMaskDuplicant : Spelled := spelled <| .singleFaced
       subtypes := [creatureType "Shapeshifter"],
       text :=
         [ abilityWord "imprint"
-            (activated (Primitives.Cost.mana [generic 1]) (exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))),
+            (activated (Primitives.Cost.mana [generic 1]) (exile (target (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))),
           Primitives.Ability.alsoForKeywords
             (Primitives.Ability.static (onlyWhile (Primitives.StaticSpec.abilityGrant thisCreature (keyword (.named "flying")))
-              (exists_ (Primitives.Predicate.and [Primitives.Predicate.exiledWith thisCreature, Primitives.Predicate.hasKeyword (.the (.named "flying"))]))))
+              (exists_ (Primitives.Predicate.and [Primitives.Predicate.in_ (Primitives.Location.exiledWith thisCreature), Primitives.Predicate.hasKeyword (.the (.named "flying"))]))))
             [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"), .the (.named "haste"), landwalkAbilities,
               protectionAbilities, .the (.named "trample") ] ],
       power := stat 5, toughness := stat 5 } }

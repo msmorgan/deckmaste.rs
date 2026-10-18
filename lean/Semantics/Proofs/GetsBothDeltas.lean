@@ -176,8 +176,8 @@ theorem nyxathidBothDeltasReadItsUniqueAnnouncedPlayer :
       creatureIdentity result.1 1 = true ∧
       (singleFaceText Cards.nyxathid.card)[1]? = some (.static
         (getsPt thisCreature
-          (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))])))
-          (.down (countOf (.and [.isCard, .inZone (handOf (the chosenPlayer))]))))) := by
+          (.down (countOf (.and [.isCard, .in_ (handOf (the chosenPlayer))])))
+          (.down (countOf (.and [.isCard, .in_ (handOf (the chosenPlayer))]))))) := by
   refine ⟨by decide, by decide, by decide, by decide, rfl⟩
 
 theorem archpriestOfIonaGivesFlyingToItsPumpedTarget :

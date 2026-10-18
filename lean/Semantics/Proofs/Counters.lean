@@ -168,8 +168,8 @@ theorem zeroCountersDoNotRestoreMovedCounterMemory :
 theorem countersPlacedDuringMoveCanBeRemoved :
     Action.check (DRS.ofList [])
       (.sequentially [
-        .move (target creature) .anywhere (some exileZone) .arrival none
-          [.placement (.withCounters (.lit 1) p11 .fresh)],
+        .move (target creature) .anyLocation (some exileZone) .arrival none
+          [(.withCounters (.lit 1) p11 .fresh)],
         .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [] := by decide
 
 /-- "Move a counter from target creature onto this creature." -/
@@ -291,7 +291,7 @@ theorem badThemCounterRecipient :
 /-- "Exile target creature with a +1/+1 counter on it." -/
 theorem okExileWithCounterRider :
     Action.check (DRS.ofList [])
-      (.enact (.action "exile") (.move (target creature) .anywhere (some exileZone) .arrival none [.placement (.withCounters (.lit 1) p11 .fresh)]) none none) =
+      (.enact (.action "exile") (.move (target creature) .anyLocation (some exileZone) .arrival none [(.withCounters (.lit 1) p11 .fresh)]) none none) =
             [] := by
   decide
 
@@ -527,7 +527,7 @@ theorem badAnaphoricTokenAfterTwoDistinctSpecs :
 bench. -/
 theorem counterOnGraveyardCard :
     Action.check (DRS.ofList [])
-      (.putCounters (.lit 1) p11 (target (.and [creature, .inZone (graveyardOf .you)])) .one true) = [] := by
+      (.putCounters (.lit 1) p11 (target (.and [creature, .in_ (graveyardOf .you)])) .one true) = [] := by
   decide
 
 /-- "put a counter of each kind that's on this creature on target creature" -/
@@ -582,12 +582,12 @@ ability exiled and granted to. -/
 theorem okOtherThanExiledByThisAbility :
     Ability.check (DRS.ofList [])
       (activated
-        (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .inZone (handOf .you)])))])
+        (.compound [.tapSymbol, .perform (exile (a (.and [.not land, .in_ (handOf .you)])))])
         (.sequentially
           [ (.putCounters (.lit 4) (.printed (.named "timeCounter")) (theVerbed (.action "exile") .one (some .card)) .one true),
             (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and
                 [ .otherThan (theVerbed (.action "exile") .one (some .card)),
-                  .hasPossessor .owner .you, .inZone exileZone ])) .one true) ])) = [] := by
+                  .hasPossessor .owner .you, .in_ exileZone ])) .one true) ])) = [] := by
   decide
 
 /-- The same last sentence with a bare "other": with nothing announced, there is no anchor for
@@ -596,7 +596,7 @@ targeting law the same bare "other" fails. -/
 theorem badBareOtherWithoutAnchor :
     Ability.check (DRS.ofList [])
       (activated .tapSymbol
-        (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and [.other, .hasPossessor .owner .you, .inZone exileZone])) .one true))
+        (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and [.other, .hasPossessor .owner .you, .in_ exileZone])) .one true))
       = [.anyTargeted .object, .otherAnchored] := by
   decide
 

@@ -54,7 +54,7 @@ private theorem rangedAndWholeSelectionsAreNotExact :
 
 private def oneOfTwoLibraryCards (description : Option Predicate) : NounPhrase :=
   .someOf (.counted (.range (some 1) (some 1))) description
-    (.slice .top (.lit 2) (.library (.possessedBy .you)))
+    (.slice .top (.lit 2) (.zone .library (some .you)))
 
 private theorem selectingOneOfTwoLeavesTheOther :
     let out := stepNounPhrase 512 (DRS.ofList []) .obj true (oneOfTwoLibraryCards none)
@@ -152,7 +152,7 @@ private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
 private theorem bareCountDomainDoesNotCompeteWithTheRemainderGroup :
     let phrase := NounPhrase.someOf (.counted (.range (some 1) (some 1))) none
       (.slice .top (.countOf (.described .bare (.hasType .creature)))
-        (.library (.possessedBy .you)))
+        (.zone .library (some .you)))
     let context := (stepNounPhrase 64 (DRS.ofList []) .other false phrase).1
     DetPhrase.det .bare = .bare ∧ countGroups .object context = 1 ∧
       countParts .object context = 1 ∧ theRestOk .object context = true ∧
@@ -225,9 +225,9 @@ private theorem entryRiderReadsItsWholeCallerArgument :
     let caller := nextClause (DRS.ofList [{ det := .a, plur := .one, payload := .player false, id := 7 }])
     let inner := enterOwnScope caller
     let player := NounPhrase.pro (.word .player) .one
-    let rider := EntryRider.entersAttacking (some player)
-    let result := stepEntryRiderWith (stepOps 8) inner (.inCaller rider)
-    (stepEntryRiderWith (stepOps 8) inner rider).2 = [.anaphor (.word .player) .one 0] ∧
+    let rider := MoveRider.entersAttacking (some player)
+    let result := stepMoveRiderWith (stepOps 8) inner (.inCaller rider)
+    (stepMoveRiderWith (stepOps 8) inner rider).2 = [.anaphor (.word .player) .one 0] ∧
       result.2 = [] ∧ (result.1.findById? 7).map (·.payload) = some (.player false) := by decide +kernel
 
 end Check.QueryPins

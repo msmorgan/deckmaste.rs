@@ -39,7 +39,7 @@ theorem badSingletonBallot : Ballot.check (DRS.ofList []) (.byLabel ["death"]) =
 /-- "Put target creature card ... onto the battlefield transformed." -/
 theorem okTransformedArrivalOnField :
     Action.check (DRS.ofList [])
-      (.move (target (.and [creature, .inZone (graveyardOf .you)])) .anywhere (some battlefield) .arrival none [.entry .entersTransformed]) = [] := by
+      (.move (target (.and [creature, .in_ (graveyardOf .you)])) .anyLocation (some battlefield) .arrival none [.entersTransformed]) = [] := by
   decide
 
 /-- "Reveal the top five cards of your library. An opponent separates those cards into two
@@ -76,7 +76,7 @@ theorem okOnePileAfterPartition :
 /-- "Put target player into your hand.": a zone holds objects [CR#400.1]; a player is not
 one. -/
 theorem badPlayerMovedToAZone :
-    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anywhere (some hand) .arrival none [])
+    Action.check (DRS.ofList []) (.move (target .anyPlayer) .anyLocation (some hand) .arrival none [])
       = [.kindLte .player (.join .object .pile)] := by decide
 
 /-- "Put one pile into your hand." -/
@@ -88,7 +88,7 @@ theorem okMembershipInAPile :
     Card.check
       (instantSaying
         (.sequentially
-          (revealAndSplit ++ [move (allOf (.and [.isCard, .inPile (pileOfChoice .you)])) hand])))
+          (revealAndSplit ++ [move (allOf (.and [.isCard, .in_ (.pile (pileOfChoice .you))])) hand])))
       = [] := by
   decide
 
@@ -99,7 +99,7 @@ theorem badMembershipWithoutAPartition :
       (instantSaying
         (.sequentially
           [ revealCards (topSlice (.lit 5)),
-            move (allOf (.and [.isCard, .inPile (those .pile)])) hand ]))
+            move (allOf (.and [.isCard, .in_ (.pile (those .pile))])) hand ]))
       = [.anaphor (.word .pile) .many 0] := by
   decide
 
@@ -114,7 +114,7 @@ theorem okStatusOnPermanentAfterPartition :
       (instantSaying
         (.sequentially
           [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 []),
-            .setStatus .faceDown (allOf (.and [creature, .inPile (pileOfChoice .you)])) ]))
+            .setStatus .faceDown (allOf (.and [creature, .in_ (.pile (pileOfChoice .you))])) ]))
       = [] := by
   decide
 
@@ -135,18 +135,19 @@ of one is an ordered group of its objects, which stay in their zone [CR#700.3c].
 /-- A library is kept face down [CR#401.2], a graveyard face up [CR#404.2], and face-down
 exiled cards in their own face-down pile [CR#406.4]. -/
 theorem zonePilesFixTheirFaces :
-    [Pile.face (DRS.ofList []) (.library .bare), Pile.face (DRS.ofList []) (.graveyard .bare), Pile.face (DRS.ofList []) (.exiledWith .this)]
+    [Location.face (DRS.ofList []) (.zone .library none), Location.face (DRS.ofList []) (.zone .graveyard none),
+      Location.face (DRS.ofList []) (.exiledWith .this)]
       = [some .faceDown, some .faceUp, some .faceDown] := by decide
 
 /-- "Exile the top card of your graveyard.": a graveyard is ordered too [CR#404.2]. -/
 theorem okSliceOfAGraveyard :
-    Action.check (DRS.ofList []) (exile (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))) = [] := by
+    Action.check (DRS.ofList []) (exile (.slice .top (.lit 1) (.zone .graveyard (some .you)))) = [] := by
   decide
 
 /-- The slice of a graveyard is a group in that graveyard: grouping moves nothing, and the order
 it is read in is the graveyard's [CR#700.3c]. -/
 theorem sliceOfAGraveyardStaysInIt :
-    (nounSelected (DRS.ofList []) (.slice .top (.lit 1) (.graveyard (.possessedBy .you)))).map
+    (nounSelected (DRS.ofList []) (.slice .top (.lit 1) (.zone .graveyard (some .you)))).map
       Referent.zone = [some .graveyard] := by decide
 
 /-- Bare "Shuffle" uses the performer's library in this fixture; shuffling randomizes the
@@ -155,7 +156,7 @@ theorem okBareShuffle : Action.check (DRS.ofList []) shuffle = [] := by decide
 
 /-- "Shuffle that pile.": no instruction made a pile. -/
 theorem badThatPileWithoutAPile :
-    Action.check (DRS.ofList []) (.shuffle .that) = [.anaphor (.word .pile) .one 0] := by decide
+    Action.check (DRS.ofList []) (.shuffle (.pile (.pro (.word .pile) .one))) = [.anaphor (.word .pile) .one 0] := by decide
 
 /-- "An opponent separates all creatures into two face-down piles. Choose one pile. Shuffle that
 pile." -/
@@ -163,7 +164,7 @@ theorem okShuffleTheChosenPile :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct anOpponent (.separateIntoPiles (allOf creature) 2 [.faceDown, .faceDown]),
-          choose onePile, .shuffle .that ]) = [] := by
+          choose onePile, .shuffle (.pile (.pro (.word .pile) .one)) ]) = [] := by
   decide
 
 /-- Cascade [CR#702.85a]: "cards exiled this way that weren't cast" reads the exiled run. -/
@@ -179,7 +180,7 @@ theorem rippleRevealedCardsRemainAccessible :
         (some (.sequentially
           [ Actor.castWithoutPaying
               (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) them) none,
-            (.move (allFromAmong (.not Declared.wasCast) (theVerbed (.action "reveal") .many)) .anywhere (some onBottom) .arrival none [.placement (.inOrder .anyOrder)]) ])) none)
+            (.move (allFromAmong (.not Declared.wasCast) (theVerbed (.action "reveal") .many)) .anyLocation (some onBottom) .arrival none [(.inOrder .anyOrder)]) ])) none)
       = [] := by
   decide
 

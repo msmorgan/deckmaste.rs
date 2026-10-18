@@ -171,7 +171,7 @@ inductive Zone where
   | battlefield | graveyard | exile | hand | library | stack | command
   deriving DecidableEq, Repr
 
-inductive LibraryEnd where
+inductive PileEnd where
   | top | bottom
   deriving DecidableEq, Repr
 

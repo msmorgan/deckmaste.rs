@@ -57,7 +57,7 @@ theorem okThoughtseize :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (target .anyPlayer) Actor.revealHand,
-          choose (a (.and [.not land, .and [.isCard, .inZone (handOf they)]])),
+          choose (a (.and [.not land, .and [.isCard, .in_ (handOf they)]])),
           instruct they (Actor.discard (that .card)),
           loseLife (.lit 2) ]) = [] := by
   decide
@@ -533,7 +533,7 @@ deed performed by the actor in context [CR#701.9a]. -/
 theorem okDiscardWrapperCarriesActor :
     Action.check onePlayer
       (instruct they
-        (.enact (.action "discard") (.move (a .isCard) (.zones [(.zone .hand (.possessedBy actor))]) (some graveyard) .arrival none []) none none))
+        (.enact (.action "discard") (.move (a .isCard) ((.zone .hand (some actor))) (some graveyard) .arrival none []) none none))
       = [] := by
   decide
 
@@ -541,7 +541,7 @@ theorem okDiscardWrapperCarriesActor :
 that player. -/
 theorem okDiscardWrapperWithAgent :
     Action.check (DRS.ofList [])
-      (instruct (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) (.zones [(.zone .hand .bare)]) (some graveyard) .arrival none []) none none))
+      (instruct (target .anyPlayer) (.enact (.action "discard") (.move (a .isCard) ((.zone .hand none)) (some graveyard) .arrival none []) none none))
       = [] := by
   decide
 
@@ -589,7 +589,7 @@ private def syndicOfTithes (loss : Action) : Card :=
           [ .keyword (.named "extort") []
               [ .triggered
                   (.does (.actor .you) (.procedure .cast (.described (.a .unmarked)
-                      (.and [.inZone (.zone .stack .bare), .not (.abilityHead .anyOnStack)])) .itsOwnCost none none none))
+                      (.and [.in_ (.zone .stack none), .not (.abilityHead .anyOnStack)])) .itsOwnCost none none none))
                   [] none [] none none none
                   (.withContinuation .optional
                     (.pay (.mana [hybridPip .white .black]) .once .paid none none)
@@ -677,11 +677,11 @@ permanent. -/
 private def exploreBody (perm : NounPhrase) : Action :=
   instruct (controllerOf actor) (.sequentially
     [ .expose .reveal (.cards (.slice .top (.lit 1) (library actor))),
-      .doIf (.matches (that .card) land) (.move (that .card) .anywhere (some (.zone .hand .bare)) .arrival none [])
+      .doIf (.matches (that .card) land) (.move (that .card) .anyLocation (some (.zone .hand none)) .arrival none [])
         (some (.sequentially
           [ .putCounters (.lit 1) (.printed p1p1Counter) perm .one true,
             .withContinuation .optional
-              (.move (that .card) .anywhere (some (.zone .graveyard .bare)) .arrival none []) none none ])) ])
+              (.move (that .card) .anyLocation (some (.zone .graveyard none)) .arrival none []) none none ])) ])
 
 /-- `explore` as the keyword-action loader wraps it: the deed, performed by the actor. -/
 private def literalExplore (perm : NounPhrase := that .permanent) : Action :=
@@ -749,7 +749,7 @@ theorem badExploreHandedToOpponent :
 
 /-- A graveyard card is not a permanent [CR#110.1], so this permanent-controller handoff is refused. -/
 theorem badHandoffToCardInGraveyard :
-    Action.check (DRS.ofList []) (instruct (target (.and [.isCard, .inZone graveyard]))
+    Action.check (DRS.ofList []) (instruct (target (.and [.isCard, .in_ graveyard]))
         (instruct (controllerOf actor) (draw (.lit 1))))
       = [.handoffPerformer] := by
   decide

@@ -124,25 +124,25 @@ semantic_template aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate)
 
 /-! ## Zones -/
 
-semantic_template battlefield : ZoneExpr := .zone .battlefield .bare
-semantic_template exileZone : ZoneExpr := .zone .exile .bare
-semantic_template hand : ZoneExpr := .zone .hand .bare
-semantic_template graveyard : ZoneExpr := .zone .graveyard .bare
-semantic_template stack : ZoneExpr := .zone .stack .bare
-semantic_template command : ZoneExpr := .zone .command .bare
+semantic_template battlefield : Location := .zone .battlefield none
+semantic_template exileZone : Location := .zone .exile none
+semantic_template hand : Location := .zone .hand none
+semantic_template graveyard : Location := .zone .graveyard none
+semantic_template stack : Location := .zone .stack none
+semantic_template command : Location := .zone .command none
 /-- "the command zone", scoped to nobody. -/
-semantic_template commandZone : ZoneExpr := .zone .command .bare
-semantic_template yourLibrary : ZoneExpr := .zone .library (.possessedBy .you)
+semantic_template commandZone : Location := .zone .command none
+semantic_template yourLibrary : Location := .zone .library (some .you)
 /-- "<player>'s library": a face-down pile [CR#401.2]. -/
-semantic_template library (player : NounPhrase) : Pile := .library (.possessedBy player)
+semantic_template library (player : NounPhrase) : Location := .zone .library (some player)
 /-- "on the bottom of its owner's library" -/
-semantic_template onBottom : ZoneExpr := .place .bottom (.library .bare)
+semantic_template onBottom : Location := .fromEnd .bottom (.nth 1) (.zone .library none)
 /-- "on top of its owner's library" -/
-semantic_template onTop : ZoneExpr := .place .top (.library .bare)
-semantic_template handOf (player : NounPhrase) : ZoneExpr := .zone .hand (.possessedBy player)
+semantic_template onTop : Location := .fromEnd .top (.nth 1) (.zone .library none)
+semantic_template handOf (player : NounPhrase) : Location := .zone .hand (some player)
 /-- "your hand" -/
-semantic_template yourHand : ZoneExpr := handOf .you
-semantic_template graveyardOf (player : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy player)
+semantic_template yourHand : Location := handOf .you
+semantic_template graveyardOf (player : NounPhrase) : Location := .zone .graveyard (some player)
 
 /-! ## Predicates -/
 
@@ -163,11 +163,11 @@ semantic_template faceDown : Predicate := .hasStatus .faceDown
 /-- "another player": any player other than you. -/
 semantic_template otherPlayer : Predicate := .and [.anyPlayer, .otherThan .you]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
-semantic_template spell : Predicate := .and [.inZone stack, .not (.abilityHead .anyOnStack)]
+semantic_template spell : Predicate := .and [.in_ stack, .not (.abilityHead .anyOnStack)]
 semantic_template untapped : Predicate := .hasStatus .untapped
 semantic_template nontoken : Predicate := .not .isToken
 /-- "permanent": an object on the battlefield [CR#110.1]. -/
-semantic_template permanent : Predicate := .inZone battlefield
+semantic_template permanent : Predicate := .in_ battlefield
 /-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
 battle, creature, enchantment, land, or planeswalker type [CR#110.4a]; a reading of the card's
 types, wherever it is. -/
@@ -288,7 +288,7 @@ semantic_template thisClass : NounPhrase := .asType .enchantment .this (some (en
 /-- "your commander" -/
 semantic_template yourCommander : NounPhrase := .designated (.named "commander") .you
 /-- "a card exiled with this artifact" -/
-semantic_template exiledWithThisArtifact : Predicate := .exiledWith thisArtifact
+semantic_template exiledWithThisArtifact : Predicate := .in_ (.exiledWith thisArtifact)
 /-- "the rest of them" -/
 semantic_template theRest (kind : Kind) : NounPhrase := .theRest kind .many
 /-- "the other pile": the one remaining after a choice among two. -/
@@ -402,7 +402,7 @@ semantic_template thisGame : Duration := .between none (some .now)
 
 /-- "only as a sorcery": during your main phase, while the stack is empty [CR#307.5]. -/
 semantic_template asSorcery : Timing :=
-  .and [.inPart .mainPhase (some .you) .current, .onlyIf (.not (exists_ (.inZone stack)))]
+  .and [.inPart .mainPhase (some .you) .current, .onlyIf (.not (exists_ (.in_ stack)))]
 /-- "only as an instant": any time you have priority [CR#117.1a]. -/
 semantic_template asInstant : Timing := .onlyIf (.hasPriority .you)
 /-- "during <whose> <part>" -/
@@ -415,7 +415,7 @@ semantic_template beforePart (part : TurnPart) (whose : Option NounPhrase := non
 semantic_template duringEachOfYourTurns : Timing := .inPart .turn (some .you) (.each none)
 /-- "while you're searching your library" -/
 semantic_template whileSearchingYourLibrary : Timing :=
-  .whileDoing (.does (.actor .you) (.search (.oneZone yourLibrary) anyNumber (.and [])))
+  .whileDoing (.does (.actor .you) (.search (yourLibrary) anyNumber (.and [])))
 /-- "while <event>" -/
 semantic_template whileDoing (event : GameEvent) : Timing := .whileDoing event
 /-- "while <condition>" -/
@@ -481,21 +481,21 @@ semantic_template combatant : Conferral := .property (.combatant .this)
 
 /-! ## Actions -/
 
-semantic_template move (subject : NounPhrase) (destination : ZoneExpr) : Action :=
-  .move subject .anywhere (some destination) .arrival none []
+semantic_template move (subject : NounPhrase) (destination : Location) : Action :=
+  .move subject .anyLocation (some destination) .arrival none []
 
 /-- "destroy <subject>" (`Definition`, [CR#701.8]). -/
 semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
     (.enact (.action "destroy")
-      (.move (.inCaller (.firstMention "destroy.subject" subject)) (.zones [.zone .battlefield .bare]) (some graveyard) .departure none [])
+      (.move (.inCaller (.firstMention "destroy.subject" subject)) (.zone .battlefield none) (some graveyard) .departure none [])
       none none)
 
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
-      (.move (.inCaller (.firstMention "exile.subject" subject)) .anywhere (some exileZone) .arrival none [])
+      (.move (.inCaller (.firstMention "exile.subject" subject)) .anyLocation (some exileZone) .arrival none [])
       none none)
 
 /-- A card exiled face down: no characteristics [CR#406.3a]. -/
@@ -513,8 +513,8 @@ semantic_template faceDownWardedCreature : FaceDown :=
 semantic_definition exileFaceDown (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
-      (.move (.inCaller (.firstMention "exileFaceDown.subject" subject)) .anywhere (some exileZone) .arrival none
-        [.placement (.faceDown exiledFaceDown)])
+      (.move (.inCaller (.firstMention "exileFaceDown.subject" subject)) .anyLocation (some exileZone) .arrival none
+        [(.faceDown exiledFaceDown)])
       none none)
 
 /-- "exile <subject> with N <kind> counters on it" (`Definition`, [CR#701.13]). -/
@@ -522,44 +522,44 @@ semantic_definition exileWithCounters (subject : NounPhrase) (amount : Amount) (
     Action :=
   .ownScope (some (.action "exile"))
     (.enact (.action "exile")
-      (.move (.inCaller (.firstMention "exileWithCounters.subject" subject)) .anywhere (some exileZone) .arrival none
-        [.placement (.withCounters (.inCaller amount) (.printed kind) .fresh)])
+      (.move (.inCaller (.firstMention "exileWithCounters.subject" subject)) .anyLocation (some exileZone) .arrival none
+        [(.withCounters (.inCaller amount) (.printed kind) .fresh)])
       none none)
 
 /-- "sacrifice <subject>" (`Definition`, [CR#701.21]). -/
 semantic_definition sacrifice (subject : NounPhrase) : Action :=
   .ownScope (some (.action "sacrifice"))
     (.enact (.action "sacrifice")
-      (.move (.inCaller (.firstMention "sacrifice.subject" subject)) (.zones [.zone .battlefield .bare]) (some graveyard) .departure none [])
+      (.move (.inCaller (.firstMention "sacrifice.subject" subject)) (.zone .battlefield none) (some graveyard) .departure none [])
       none none)
 
 /-- "put <subject> <destination>" -/
-semantic_template put (subject : NounPhrase) (destination : ZoneExpr) : Action :=
-  .enact (.core .put) (.move subject .anywhere (some destination) .arrival none []) none none
+semantic_template put (subject : NounPhrase) (destination : Location) : Action :=
+  .enact (.core .put) (.move subject .anyLocation (some destination) .arrival none []) none none
 
 /-- "put <subject> <destination>" with the move's riders ("second from the top", "on the top or
 bottom") -/
-semantic_template putWith (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
+semantic_template putWith (subject : NounPhrase) (destination : Location) (riders : List MoveRider) :
     Action :=
-  .enact (.core .put) (.move subject .anywhere (some destination) .arrival none riders) none none
+  .enact (.core .put) (.move subject .anyLocation (some destination) .arrival none riders) none none
 
 /-- "return <subject> to <zone>" -/
-semantic_template returnTo (subject : NounPhrase) (destination : ZoneExpr) (riders : List MoveRider) :
+semantic_template returnTo (subject : NounPhrase) (destination : Location) (riders : List MoveRider) :
     Action :=
-  .enact (.core .return_) (.move subject .anywhere (some destination) .arrival none riders) none none
+  .enact (.core .return_) (.move subject .anyLocation (some destination) .arrival none riders) none none
 
 /-- "return <subject> to the battlefield" -/
 semantic_template returnToBattlefield (subject : NounPhrase) : Action := returnTo subject battlefield []
 
 /-- "return <subject> to the battlefield transformed under <controller>'s control" -/
 semantic_template returnToBattlefieldTransformed (subject controller : NounPhrase) : Action :=
-  returnTo subject battlefield [.entry .entersTransformed, .entry (.under controller)]
+  returnTo subject battlefield [.entersTransformed, (.under controller)]
 
 /-- "return <subject> to the battlefield under <who>'s control with N <kind> counters on it" -/
 semantic_template returnToBattlefieldWithCounters (subject who : NounPhrase) (amount : Amount)
     (kind : CounterKind) : Action :=
-  .move subject .anywhere (some battlefield) .arrival none
-    [.entry (.under who), .entry (.withCounters amount (.printed kind) .fresh)]
+  .move subject .anyLocation (some battlefield) .arrival none
+    [(.under who), (.withCounters amount (.printed kind) .fresh)]
 
 /-- "transform <subject>" (`Definition`, [CR#701.27]). -/
 semantic_definition transform (subject : NounPhrase) : Action :=
@@ -570,13 +570,13 @@ semantic_definition transform (subject : NounPhrase) : Action :=
 semantic_definition meldInto (subject : NounPhrase) (into : String) : Action :=
   .ownScope (some (.action "meld"))
     (.enact (.action "meld")
-      (.move (.inCaller (.firstMention "meldInto.subject" subject)) .anywhere (some battlefield) .arrival none [.entry (.entersMelded into)])
+      (.move (.inCaller (.firstMention "meldInto.subject" subject)) .anyLocation (some battlefield) .arrival none [(.entersMelded into)])
       none none)
 
 /-- Placement-only fragment of manifest for the anaphora bench [CR#701.40a]. -/
 semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
-    (.enact (.action "manifest") (.move (.inCaller (.firstMention "manifestPlacement.subject" subject)) .anywhere (some battlefield) .arrival none []) none none)
+    (.enact (.action "manifest") (.move (.inCaller (.firstMention "manifestPlacement.subject" subject)) .anyLocation (some battlefield) .arrival none []) none none)
 
 /-- "tap <subject>" (`Definition`, [CR#701.26a]). -/
 semantic_definition tap (subject : NounPhrase) : Action :=
@@ -587,7 +587,7 @@ semantic_definition tap (subject : NounPhrase) : Action :=
 semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (.enact (.action "discard")
-      (.move (.inCaller (.firstMention "discard.subject" subject)) (.zones [.zone .hand .bare]) (some graveyard) .arrival none [])
+      (.move (.inCaller (.firstMention "discard.subject" subject)) (.zone .hand none) (some graveyard) .arrival none [])
       none none)
 
 /-- A bare "shuffle": the performer's own library (`Definition`, [CR#701.24a]). -/
@@ -609,40 +609,41 @@ semantic_definition mill (amount : Amount) (whose : NounPhrase) : Action :=
   .ownScope (some (.action "mill"))
     (.enact (.action "mill")
       (.move (.slice .top (.inCaller amount) (library (.inCaller (.firstMention "mill.whose" whose))))
-        (.zones [.zone .library .bare]) (some graveyard) .arrival none [])
+        (.zone .library none) (some graveyard) .arrival none [])
       none none)
 
 semantic_template putOntoBattlefield (subject : NounPhrase) : Action :=
-  .move subject .anywhere (some battlefield) .arrival none []
+  .move subject .anyLocation (some battlefield) .arrival none []
 semantic_template putOntoBattlefieldTapped (subject : NounPhrase) : Action :=
-  .move subject .anywhere (some battlefield) .arrival none [.entry (.entersAs .tapped)]
+  .move subject .anyLocation (some battlefield) .arrival none [(.entersAs .tapped)]
 /-- "put <subject> onto the battlefield under your control" -/
 semantic_template putOntoBattlefieldUnderYourControl (subject : NounPhrase) : Action :=
-  .move subject .anywhere (some battlefield) .arrival none [.entry (.under .you)]
+  .move subject .anyLocation (some battlefield) .arrival none [(.under .you)]
 /-- "put <subject> onto the battlefield tapped and attacking" -/
 semantic_template putOntoBattlefieldTappedAttacking (subject : NounPhrase)
-    (from_ : EventSource := .anywhere) : Action :=
+    (from_ : Location := .anyLocation) : Action :=
   .move subject from_ (some battlefield) .arrival none
-    [.entry (.entersAs .tapped), .entry (.entersAttacking none)]
-/-- A search of one zone: the scope constructor, which has no generated primitive because
-`SearchScope` is not a `semantic_expression` type. -/
-semantic_template oneZone (zone : ZoneExpr) : SearchScope := .oneZone zone
+    [(.entersAs .tapped), (.entersAttacking none)]
 /-- "Search your library for <quantity> <p>" (`Definition`, [CR#701.23]). -/
 semantic_definition searchLibraryFor (quantity : Quantity) (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
-    (.enact (.action "search") (.search (.oneZone yourLibrary) (.inCaller quantity) (.inCaller p)) none none)
+    (.enact (.action "search") (.search (yourLibrary) (.inCaller quantity) (.inCaller p)) none none)
 /-- "search <whose>'s graveyard, hand, and library for <q> <p>" (`Definition`, [CR#701.23]). -/
 semantic_definition searchZonesOf (whose : NounPhrase) (quantity : Quantity) (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
     (.enact (.action "search")
-      (.search (.someZones (some (.inCaller (.firstMention "searchZonesOf.whose" whose))) [.graveyard, .hand, .library])
+      (.search
+        (.or [.zone .graveyard (some (.inCaller (.firstMention "searchZonesOf.whose" whose))),
+          .zone .hand (some (.laterMention "searchZonesOf.whose" (.inCaller whose))),
+          .zone .library (some (.laterMention "searchZonesOf.whose" (.inCaller whose)))])
         (.inCaller quantity) (.inCaller p))
       none none)
 /-- "search your library and/or graveyard for a <p>" (`Definition`, [CR#701.23]). -/
 semantic_definition searchLibraryOrGraveyard (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
     (.enact (.action "search")
-      (.search (.someZones (some .you) [.library, .graveyard]) (exactly 1) (.inCaller p))
+      (.search (.or [.zone .library (some .you), .zone .graveyard (some .you)]) (exactly 1)
+        (.inCaller p))
       none none)
 /-- "reveal their hand" -/
 semantic_definition revealTheirHand : Action :=
@@ -714,8 +715,8 @@ semantic_definition shuffleInto (subject : NounPhrase) : Action :=
   .ownScope (some (.action "shuffle"))
     (.sequentially
       [ .enact (.action "shuffle")
-          (.move (.inCaller (.firstMention "shuffleInto.subject" subject)) .anywhere (some (.zone .library .bare)) .arrival none []) none none,
-        .shuffle (.library .bare) ])
+          (.move (.inCaller (.firstMention "shuffleInto.subject" subject)) .anyLocation (some (.zone .library none)) .arrival none []) none none,
+        .shuffle (.zone .library none) ])
 semantic_template doIf (condition : Condition) (instruction : Action)
     (otherwise : Option Action := none) : Action :=
   .doIf condition instruction otherwise
@@ -881,7 +882,7 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
   | .core .loseGame => .conclude .loseGame
   | .core .winGame => .conclude .winGame
   | .core .put => .putCounters .anyAmount .anyKind patient .one false
-  | .core .return_ => .move patient .anywhere (some (.zone .battlefield .bare)) .arrival none []
+  | .core .return_ => .move patient .anyLocation (some (.zone .battlefield none)) .arrival none []
   | .core .gainControl => .changeControl patient
   | .core .tapForMana => .tapForMana patient none
   | .action "tap" => .setStatus .tapped patient
@@ -889,12 +890,12 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
   | .action "destroy" =>
     .ownScope (some (.action "destroy"))
       (.enact (.action "destroy")
-        (.move (.inCaller patient) (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
+        (.move (.inCaller patient) (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [])
         none none)
   | .action "sacrifice" =>
     .ownScope (some (.action "sacrifice"))
       (.enact (.action "sacrifice")
-        (.move (.inCaller patient) (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare)) .departure none [])
+        (.move (.inCaller patient) (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [])
         none none)
   | .action "regenerate" =>
     .ownScope (some (.action "regenerate"))
@@ -902,13 +903,13 @@ def deonticActionFor (deed : Deed) (patient : NounPhrase) : Action :=
   | .action "counter" =>
     .ownScope (some (.action "counter"))
       (.enact (.action "counter")
-        (.move (.inCaller patient) (.zones [.zone .stack .bare]) (some (.zone .graveyard .bare)) .arrival none [])
+        (.move (.inCaller patient) (.zone .stack none) (some (.zone .graveyard none)) .arrival none [])
         none none)
   | .action "cast" => .procedure .cast patient .itsOwnCost none none none
   | .action "play" => .procedure .play patient .itsOwnCost none none none
   | .action "activate" => .procedure .activate patient .itsOwnCost none none none
   | .action "attach" => .attachment .attached .this (some patient)
-  | .action "search" => .search (.oneZone .anyZone) (.range none none) (.and [])
+  | .action "search" => .search (.anyLocation) (.range none none) (.and [])
   | .action "transform" => .turnOver patient
   | .action name =>
     .ownScope (some (.action name)) (.enact (.action name) (.clearDamage patient) none none)
@@ -923,12 +924,12 @@ semantic_template mayPlayDeed (deed : Deed) (player what : NounPhrase) (asThough
     (rider : DeonticRider) : StaticSpec :=
   .may (.actor player) (deonticActionFor deed what) { asThough := asThough, rider := rider }
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
-semantic_template playableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
+semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
   .property (mayPlayDeed (.action "play") .you .this none
     (.play (some zone) none (some timing) false .itsOwnCost))
 /-- "You may cast this card from <zone> <timing>": the instant type's cast permission
 [CR#304.1]. -/
-semantic_template castableFrom (zone : ZoneExpr) (timing : Timing) : Conferral :=
+semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
   .property (mayPlayDeed (.action "cast") .you .this none
     (.play (some zone) none (some timing) false .itsOwnCost))
 /-- "When <event>, <instruction>" as a delayed trigger. -/
@@ -1008,14 +1009,14 @@ semantic_template controllerSacrifices (subject : NounPhrase) : Action :=
 /-- "look at <slice>, put any number of them into <spill> [riders] and the rest on top of its
 owner's library in any order" (`Template` using `firstMention` / `laterMention` without `Window`
 plumbing). -/
-semantic_template lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr)
+semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
     (spillRiders : List MoveRider := []) : Action :=
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anywhere
+      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
         (some spill) .arrival none spillRiders,
-      .move (theRest .object) .anywhere (some onTop) .arrival none
-        [.placement (.inOrder .anyOrder)] ]
+      .move (theRest .object) .anyLocation (some onTop) .arrival none
+        [(.inOrder .anyOrder)] ]
 
 namespace Actor
 
@@ -1024,7 +1025,7 @@ namespace Actor
 semantic_definition discard (subject : NounPhrase) : Action :=
   .ownScope (some (.action "discard"))
     (.enact (.action "discard")
-      (.move (.inCaller (.firstMention "discard.subject" subject)) (.zones [.zone .hand (.possessedBy .actor)]) (some graveyard) .arrival none [])
+      (.move (.inCaller (.firstMention "discard.subject" subject)) (.zone .hand (some .actor)) (some graveyard) .arrival none [])
       none none)
 
 end Actor
@@ -1046,19 +1047,19 @@ semantic_template lookAndSort (whose : NounPhrase) (amount : Amount) : Action :=
   let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anywhere
-        (some onBottom) .arrival none [.placement (.inOrder .anyOrder)],
-      .move (theRest .object) .anywhere (some onTop) .arrival none
-        [.placement (.inOrder .anyOrder)] ]
+      .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation
+        (some onBottom) .arrival none [(.inOrder .anyOrder)],
+      .move (theRest .object) .anyLocation (some onTop) .arrival none
+        [(.inOrder .anyOrder)] ]
 /-- The same look, spilling the cards put aside into <spill> instead of the bottom. -/
-semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : ZoneExpr) :
+semantic_template lookAndSortInto (whose : NounPhrase) (amount : Amount) (spill : Location) :
     Action :=
   let slice : NounPhrase := .slice .top amount (library whose)
   .sequentially
     [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
       move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) spill,
-      .move (theRest .object) .anywhere (some onTop) .arrival none
-        [.placement (.inOrder .anyOrder)] ]
+      .move (theRest .object) .anyLocation (some onTop) .arrival none
+        [(.inOrder .anyOrder)] ]
 /-- "scry N" (`Definition`, [CR#701.22a]): the performer's own library. -/
 semantic_definition scry (amount : Amount) : Action :=
   .ownScope (some (.action "scry"))
@@ -1262,7 +1263,7 @@ semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))
     (.enact (.action "reveal") (.expose .reveal (.zone (handOf .actor))) none none)
 /-- "<performer> may cast <what> from <zone>", paying its own cost. -/
-semantic_template mayCastFrom (what : NounPhrase) (zone : ZoneExpr) : StaticSpec :=
+semantic_template mayCastFrom (what : NounPhrase) (zone : Location) : StaticSpec :=
   mayPlayDeed (.action "cast") .actor what none (.play (some zone) none none false .itsOwnCost)
 /-- An Army the performer controls. -/
 semantic_template army : Predicate := .and [.hasSubtype (creatureType "Army"), creature, actorControls]
@@ -1293,7 +1294,7 @@ semantic_definition collectEvidence (amount : Amount) : Action :=
   .ownScope (some (.action "collectEvidence"))
     (.enact (.action "collectEvidence")
       (move (withTotal (.stat .manaValue) .atLeast (.inCaller amount)
-        (allOf (.and [.isCard, .inZone (graveyardOf .actor)]))) exileZone)
+        (allOf (.and [.isCard, .in_ (graveyardOf .actor)]))) exileZone)
       none none)
 /-- "<performer> casts <subject> without paying its mana cost [if the resulting spell is …]"
 (`Definition`, [CR#701.5,601.2]). -/
@@ -1311,8 +1312,8 @@ semantic_definition discover (amount : Amount) : Action :=
       [ move (.run .top (.and [.not land, fits]) (library .actor)) exileZone,
         .withContinuation .optional (castWithoutPaying (that .card) (some fits)) none
           (some (move (that .card) hand)),
-        .move (theRest .object) .anywhere (some onBottom) .arrival none
-          [.placement (.inOrder .randomOrder)] ])
+        .move (theRest .object) .anyLocation (some onBottom) .arrival none
+          [(.inOrder .randomOrder)] ])
       none none)
 /-- "<performer> incubates N" (`Definition`, [CR#701.53a,701.53b]). -/
 semantic_definition incubate (amount : Amount) : Action :=
@@ -1341,16 +1342,16 @@ semantic_definition manifest (subject : NounPhrase) : Action :=
   .ownScope (some (.action "manifest"))
     (.enact (.action "manifest") (.sequentially
       [ .turnFaceDown (.inCaller (.firstMention "manifest.subject" subject)) faceDownCreature,
-        .move (that .card) .anywhere (some battlefield) .arrival none
-          [.entry (.faceDown faceDownCreature)] ])
+        .move (that .card) .anyLocation (some battlefield) .arrival none
+          [(.faceDown faceDownCreature)] ])
       none none)
 /-- "<performer> cloaks <subject>" (`Definition`, [CR#701.58a]). -/
 semantic_definition cloak (subject : NounPhrase) : Action :=
   .ownScope (some (.action "cloak"))
     (.enact (.action "cloak") (.sequentially
       [ .turnFaceDown (.inCaller (.firstMention "cloak.subject" subject)) faceDownWardedCreature,
-        .move (that .card) .anywhere (some battlefield) .arrival none
-          [.entry (.faceDown faceDownWardedCreature)] ])
+        .move (that .card) .anyLocation (some battlefield) .arrival none
+          [(.faceDown faceDownWardedCreature)] ])
       none none)
 /-- "<performer> manifests dread" (`Definition`, [CR#701.62a]). -/
 semantic_definition manifestDread : Action :=
@@ -1378,7 +1379,7 @@ semantic_definition explore : Action :=
         (.sequentially
           [ revealCards (.slice .top (.lit 1) (library .actor)),
             .doIf (.matches (that .card) land)
-              (move (that .card) (.zone .hand (.possessedBy (ownerOf (that .card)))))
+              (move (that .card) (.zone .hand (some (ownerOf (that .card)))))
               (some (.sequentially
                 [ .putCounters (.lit 1) (.printed p1p1Counter)
                     (.laterMention "explore.permanent" .actor) .one true,
@@ -1413,7 +1414,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
               (.establish
                 (mayPlayDeed (.action "cast") (ownerOf it) it none
                   (.play (some exileZone) none none false (.payingInstead (.mana [generic 2]))))
-                (some (.forAsLongAs (.matches it (.inZone exileZone)))))) ])
+                (some (.forAsLongAs (.matches it (.in_ exileZone)))))) ])
       none none)
 
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
@@ -1438,10 +1439,10 @@ semantic_definition doubleLifeTotal : Action :=
 /-! ## Events -/
 
 semantic_template leavesBattlefield (subject : NounPhrase) : GameEvent :=
-  Primitives.GameEvent.leaves subject (some (.zones [battlefield]))
+  Primitives.GameEvent.leaves subject (some (battlefield))
 /-- "<subject> leaves <zone>" -/
-semantic_template leavesZone (subject : NounPhrase) (zone : ZoneExpr) : GameEvent :=
-  Primitives.GameEvent.leaves subject (some (.zones [zone]))
+semantic_template leavesZone (subject : NounPhrase) (zone : Location) : GameEvent :=
+  Primitives.GameEvent.leaves subject (some (zone))
 /-- "at the beginning of <possessor>'s <part>", each time it comes -/
 semantic_template beginningOfPossessed (part : TurnPart) (possessor : NounPhrase) : GameEvent :=
   .beginningOf part (some possessor) (.each none)
@@ -1460,7 +1461,7 @@ semantic_template attacks (subject : NounPhrase) : GameEvent := .does (.actor su
 semantic_template attacksPlayer (subject whom : NounPhrase) : GameEvent :=
   .does (.actor subject) (.attack (some whom))
 /-- "<n> is put into <zone> from <source>" -/
-semantic_template putIntoFrom (subject : NounPhrase) (destination : ZoneExpr) (source : EventSource) : GameEvent :=
+semantic_template putIntoFrom (subject : NounPhrase) (destination : Location) (source : Location) : GameEvent :=
   Primitives.GameEvent.putInto subject destination (some source)
 /-- "N <kind> counters are put on / removed from <subject>" -/
 semantic_template counterEvent (move : CounterMove) (kind : CounterKind) (batch : CounterBatch)
@@ -1669,8 +1670,8 @@ semantic_definition cascadeExpansion : Ability :=
     (.sequentially
       [ exile (.run .top (.and [.not land, cheaper]) (library .you)),
         offer (Actor.castWithoutPaying (that .card) (some cheaper)),
-        .move (allFromAmong (.not (.did ⟨.any, .procedure .cast .which .itsOwnCost none none none, .thisWay⟩)) (theVerbed (.action "exile") .many)) .anywhere (some onBottom)
-          .arrival none [.placement (.inOrder .randomOrder)] ])
+        .move (allFromAmong (.not (.did ⟨.any, .procedure .cast .which .itsOwnCost none none none, .thisWay⟩)) (theVerbed (.action "exile") .many)) .anyLocation (some onBottom)
+          .arrival none [(.inOrder .randomOrder)] ])
 /-- "Cascade" with its reminder text. -/
 semantic_definition cascade : Ability := .keyword (.named "cascade") [] [cascadeExpansion]
 /-- Ripple N's definition [CR#702.60a]: "When you cast this spell, you may reveal the top N cards
@@ -1683,8 +1684,8 @@ semantic_definition rippleExpansion (amount : Amount) : Ability :=
       (some (.sequentially
         [ Actor.castWithoutPaying
             (.someOf (.counted anyNumber) (some (.shares .cardName .share .this)) (those .card)) none,
-          .move (allFromAmong (.not (.did ⟨.any, .procedure .cast .which .itsOwnCost none none none, .thisWay⟩)) (theVerbed (.action "reveal") .many (some .card))) .anywhere
-            (some onBottom) .arrival none [.placement (.inOrder .anyOrder)] ]))
+          .move (allFromAmong (.not (.did ⟨.any, .procedure .cast .which .itsOwnCost none none none, .thisWay⟩)) (theVerbed (.action "reveal") .many (some .card))) .anyLocation
+            (some onBottom) .arrival none [(.inOrder .anyOrder)] ]))
       none)
 /-- "Ripple N" with its definition [CR#702.60a]. -/
 semantic_definition ripple (amount : Amount) : Ability :=
@@ -1793,7 +1794,7 @@ semantic_definition foretellExpansion (cost : Cost) : List Ability :=
       (.sequentially
         [ exileFaceDown .this,
           .establish (.visibility .lookAt .you (.objects it))
-            (some (.forAsLongAs (.matches it (.inZone exileZone)))),
+            (some (.forAsLongAs (.matches it (.in_ exileZone)))),
           .establish
             (mayPlayDeed (.action "cast") .you it none
               (.play (some exileZone) none none false (.payingInstead cost)))
@@ -1814,9 +1815,9 @@ semantic_definition hideawayExpansion (amount : Amount) : List Ability :=
       (.sequentially
         [ .expose .lookAt (.cards (.slice .top amount (library .you))),
           exileFaceDown (someOf (exactly 1) them),
-          .move (theRest .object) .anywhere (some onBottom) .arrival none [.placement (.inOrder .randomOrder)],
+          .move (theRest .object) .anyLocation (some onBottom) .arrival none [(.inOrder .randomOrder)],
           .establish (.visibility .lookAt .you (.objects exiledCard))
-            (some (.forAsLongAs (.matches exiledCard (.inZone exileZone)))) ]) ]
+            (some (.forAsLongAs (.matches exiledCard (.in_ exileZone)))) ]) ]
 /-- "Cycling [cost]" with its definition. -/
 semantic_definition cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost (Semantics.Cost.inCaller cost)] [cyclingExpansion (Semantics.Cost.inCaller cost)]

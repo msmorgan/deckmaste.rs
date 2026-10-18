@@ -20,7 +20,7 @@ def boshIronGolem : Ability :=
     (instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some (.type .artifact)))) (target anyTarget) .noncombatOnly))
 theorem okBoshIronGolem : Ability.check (DRS.ofList []) boshIronGolem = [] := by decide
 def pyromancy : Ability :=
-  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])))])
+  activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 3], Primitives.Cost.perform (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ yourHand])))])
     (instruct thisEnchantment (Primitives.Action.dealDamage (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target anyTarget) .noncombatOnly))
 theorem okPyromancy : Ability.check (DRS.ofList []) pyromancy = [] := by decide
 def luckyOffering : Action :=
@@ -104,7 +104,7 @@ def femerefEnchantress : Spelled := spelled <| .singleFaced
     { name := "Femeref Enchantress", cost := some [pip .green, pip .white], types := [.creature],
       subtypes := [creatureType "Human", creatureType "Druid"],
       text :=
-        [ whenever (putIntoFrom (a enchantment) graveyard (Primitives.EventSource.zones [battlefield]))
+        [ whenever (putIntoFrom (a enchantment) graveyard (battlefield))
             (Primitives.Action.draw (.lit 1)) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -367,7 +367,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ choose (target anyTarget),
               Primitives.Action.draw (.lit 3),
-              discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone yourHand])),
+              discard (a (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ yourHand])),
               instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (Primitives.Amount.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) thatJoin .noncombatOnly) ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
@@ -484,7 +484,7 @@ def shiningShoal : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
-                        Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+                        Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none
             (Primitives.Action.establish
               (Primitives.StaticSpec.damageRule .any (Primitives.DamageAgent.dealtBy (aYourChoice source))
@@ -500,7 +500,7 @@ def disruptingShoal : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .blue, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
-                        Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+                        Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none
             (Primitives.Action.doOnlyIf (Primitives.Action.counterSpell (target spell))
               (Primitives.Condition.compareAmt (Primitives.Amount.statOf (.stat .manaValue) it) .eq (Primitives.Amount.letter .x)) none) ] } }
@@ -513,7 +513,7 @@ def blazingShoal : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .red, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
-                        Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+                        Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none
             (get (target creature) (Primitives.Delta.up (Primitives.Amount.letter .x)) (Primitives.Delta.up (.lit 0)) (some untilEndOfTurn)) ] } }
 
@@ -525,7 +525,7 @@ def sickeningShoal : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .black, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
-                        Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+                        Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none
             (get (target creature) (Primitives.Delta.down (Primitives.Amount.letter .x)) (Primitives.Delta.down (Primitives.Amount.letter .x)) (some untilEndOfTurn))
                 ] } }
@@ -538,7 +538,7 @@ def nourishingShoal : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
               (a (Primitives.Predicate.and [Primitives.Predicate.colorIs .green, Primitives.Predicate.compare [.stat .manaValue] .eq (Primitives.Amount.letter .x),
-                        Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+                        Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none (gainLife (Primitives.Amount.letter .x)) ] } }
 
 def spellSnare : Spelled := spelled <| .singleFaced
@@ -678,7 +678,7 @@ def adNauseam : Spelled := spelled <| .singleFaced
               offer (Primitives.Action.repeat_ Primitives.Repetition.anyNumber) ]) ] } }
 
 def nahiriLoyaltyRead : Predicate :=
-  Primitives.Predicate.and [ creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you),
+  Primitives.Predicate.and [ creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you),
          Primitives.Predicate.compare [.stat .manaValue] .less (Primitives.Amount.statOf (.stat .loyalty) Primitives.NounPhrase.this) ]
 theorem okNahiriLoyaltyRead : Predicate.checkAt .object (DRS.ofList []) nahiriLoyaltyRead = [] := by decide
 
@@ -695,7 +695,7 @@ theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [
 /-- Dark Fortress -/
 def darkFortressMana : Ability :=
   activatedOnlyIf Primitives.Cost.tapSymbol (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .black], [.of .red]]) [])
-    (Primitives.Condition.or [ happened (Primitives.Action.move thisLand Primitives.EventSource.anywhere (some battlefield) .arrival none []) Primitives.Subject.any soFarThisTurn,
+    (Primitives.Condition.or [ happened (Primitives.Action.move thisLand Primitives.Location.anyLocation (some battlefield) .arrival none []) Primitives.Subject.any soFarThisTurn,
            exists_ (Primitives.Predicate.and [land, Primitives.Predicate.hasSupertype .basic, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]) ])
 theorem okDarkFortressMana : Ability.check (DRS.ofList []) darkFortressMana = [] := by decide
 
@@ -825,7 +825,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           keyword (.named "vigilance"),
           triggeredIf (Primitives.GameEvent.beginningOf .endStep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-            (Primitives.Condition.not (happened (Primitives.Action.procedure .cast (((a spell))) Primitives.PlayPayment.itsOwnCost none (some (Primitives.EventSource.zones [handOf Primitives.NounPhrase.you])) none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn))
+            (Primitives.Condition.not (happened (Primitives.Action.procedure .cast (((a spell))) Primitives.PlayPayment.itsOwnCost none (some (handOf Primitives.NounPhrase.you)) none) (Primitives.Subject.actor Primitives.NounPhrase.you) soFarThisTurn))
             (Primitives.Action.draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -866,7 +866,7 @@ def collectedCompany : Spelled := spelled <| .singleFaced
             [ lookAt (topSlice (.lit 6)),
               move (fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them)
                 battlefield,
-              Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]) ] } }
+              Primitives.Action.move (theRest .object) Primitives.Location.anyLocation (some onBottom) .arrival none [(Primitives.MoveRider.inOrder .anyOrder)] ]) ] } }
 
 /-- Soldevi Adnate -/
 def soldeviAdnate : Spelled := spelled <| .singleFaced
@@ -893,7 +893,7 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
               [ searchLibraryOrGraveyard (Primitives.Predicate.and [artifact, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 2)]),
                 revealCards it,
                 move it hand,
-                Primitives.Action.doIf (happenedThisWay (Primitives.Action.search (Primitives.SearchScope.oneZone yourLibrary) anyNumber (Primitives.Predicate.and [])) (Primitives.Subject.actor Primitives.NounPhrase.you)) shuffle
+                Primitives.Action.doIf (happenedThisWay (Primitives.Action.search (yourLibrary) anyNumber (Primitives.Predicate.and [])) (Primitives.Subject.actor Primitives.NounPhrase.you)) shuffle
                     none ]) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -902,7 +902,7 @@ def heartOfYavimaya : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Heart of Yavimaya", types := [.land],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.EventSource.anywhere (some battlefield) .arrival none [])) (Primitives.Action.doIfDone (sacrifice (a (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Forest")])))
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.Location.anyLocation (some battlefield) .arrival none [])) (Primitives.Action.doIfDone (sacrifice (a (Primitives.Predicate.and [land, Primitives.Predicate.hasSubtype (landType "Forest")])))
               (some (putOntoBattlefield Primitives.NounPhrase.this)) (some (move Primitives.NounPhrase.this graveyard))) none .repeatedly none),
           activated Primitives.Cost.tapSymbol (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.runs [[.of .green]]) []),
           activated Primitives.Cost.tapSymbol
@@ -913,7 +913,7 @@ def moxDiamond : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mox Diamond", cost := some [], types := [.artifact],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.EventSource.anywhere (some battlefield) .arrival none [])) (Primitives.Action.offer (discard (a (Primitives.Predicate.and [land, Primitives.Predicate.inZone yourHand])))
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.Location.anyLocation (some battlefield) .arrival none [])) (Primitives.Action.offer (discard (a (Primitives.Predicate.and [land, Primitives.Predicate.in_ yourHand])))
               (some (putOntoBattlefield Primitives.NounPhrase.this)) (some (move Primitives.NounPhrase.this graveyard))) none .repeatedly none),
           activated Primitives.Cost.tapSymbol (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.anyColor .sameColor) []) ] } }
 
@@ -933,7 +933,7 @@ def shelteredValley : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sheltered Valley", types := [.land],
       text :=
-        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.EventSource.anywhere (some battlefield) .arrival none [])) (Primitives.Action.sequentially
+        [ Primitives.Ability.static (Primitives.StaticSpec.instead (Primitives.WouldClause.would Primitives.Subject.any (Primitives.Action.move Primitives.NounPhrase.this Primitives.Location.anyLocation (some battlefield) .arrival none [])) (Primitives.Action.sequentially
               [ sacrifice
                   (each (Primitives.Predicate.and [permanent, Primitives.Predicate.otherThan thisLand, Primitives.Predicate.named (Primitives.NameSource.printed "Sheltered Valley"),
                                Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you])),
@@ -956,7 +956,7 @@ def padeemConsulOfInnovation : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
     (Primitives.Condition.matches
       (the (Primitives.Predicate.and [artifact,
-                  Primitives.Predicate.superlative .max (.stat .manaValue) (Primitives.Predicate.and [artifact, Primitives.Predicate.inZone battlefield])]))
+                  Primitives.Predicate.superlative .max (.stat .manaValue) (Primitives.Predicate.and [artifact, Primitives.Predicate.in_ battlefield])]))
       (Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you))
     (Primitives.Action.draw (.lit 1))
 theorem okPadeemConsulOfInnovation : Ability.check (DRS.ofList []) padeemConsulOfInnovation = [] := by decide
@@ -1023,7 +1023,7 @@ def animalAttendant : Spelled := spelled <| .singleFaced
                   (a (Primitives.Predicate.and [Primitives.Predicate.not (Primitives.Predicate.hasSubtype (creatureType "Human")), creature, spell]))
                   (Primitives.Action.establish
                     (Primitives.StaticSpec.entryRider (Primitives.NounPhrase.resolvedPermanent (that .spell))
-                      (Primitives.EntryRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) .additional))
+                      (Primitives.MoveRider.withCounters (.lit 1) (Primitives.CounterKindSource.printed p1p1Counter) .additional))
                     none) ]) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1089,7 +1089,7 @@ def gauntletOfPower : Spelled := spelled <| .singleFaced
 /-- Chrome Mox -/
 def chromeMoxMana : Ability :=
   activated Primitives.Cost.tapSymbol
-    (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.amongColorsOf (the (Primitives.Predicate.exiledWith thisArtifact))) [])
+    (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.amongColorsOf (the (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisArtifact)))) [])
 theorem okChromeMoxMana : Ability.check (DRS.ofList []) chromeMoxMana = [] := by decide
 
 /-- Fellwar Stone -/
@@ -1107,7 +1107,7 @@ def iceCauldronNotedMana : Ability :=
     (Primitives.Cost.compound [Primitives.Cost.tapSymbol,
       Primitives.Cost.perform (Primitives.Action.removeCounters (some (exactly 1)) (some (Primitives.CounterKindSource.printed (.named "chargeCounter"))) thisArtifact .many true)])
     (Primitives.Action.addMana (.lit 1) (Primitives.ProducedMana.lastNoted thisArtifact)
-      [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toCast (Primitives.Predicate.exiledWith thisArtifact)]])
+      [Primitives.ManaRider.spendOnly [Primitives.SpendPurpose.toCast (Primitives.Predicate.in_ (Primitives.Location.exiledWith thisArtifact))]])
 theorem okIceCauldronNotedMana : Ability.check (DRS.ofList []) iceCauldronNotedMana = [] := by decide
 
 /-- Firemind Vessel -/

@@ -193,7 +193,7 @@ theorem okActivatedTurnLimit :
 def flyingWhileExiledFlying : Ability :=
   .static
     (.conditional (.abilityGrant thisCreature (keyword (.named "flying")))
-      (exists_ (.and [.exiledWith thisCreature, .hasKeyword (.the (.named "flying"))])) .asLongAs)
+      (exists_ (.and [.in_ (.exiledWith thisCreature), .hasKeyword (.the (.named "flying"))])) .asLongAs)
 
 /-- "The same is true for menace and trample." -/
 theorem okKeywordListOverGrant :
@@ -316,10 +316,10 @@ theorem okCompanionCharacteristicRead :
 /-- "Companion — Each card on the battlefield in your starting deck ...": a zone is a place
 objects can occupy [CR#400.1], not a characteristic [CR#109.3]. Companion evaluates its
 condition against the starting deck before the game begins [CR#702.139a]. `permanentCard` spells "each permanent card". -/
-theorem badCompanionZoneScope :
+theorem badCompanionLocationScope :
     Ability.check (DRS.ofList [])
       (companion
-        (.everyCardIs (.inZone battlefield)
+        (.everyCardIs (.in_ battlefield)
           (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2)))))
       = [.deckReadable] := by
   decide

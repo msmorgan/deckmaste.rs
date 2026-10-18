@@ -124,7 +124,7 @@ theorem okUntapLockBattlefield :
 
 theorem badUntapLockGraveyard :
     Ability.check (DRS.ofList [])
-      (.static (doesntUntap (a (.and [creature, .inZone (graveyardOf .you)])) (some .you)))
+      (.static (doesntUntap (a (.and [creature, .in_ (graveyardOf .you)])) (some .you)))
       = [.deedFits] := by
   decide
 
@@ -139,7 +139,7 @@ not a permanent [CR#110.1]. This fixture refuses handing it the fight action, wh
 participants must remain battlefield creatures [CR#701.14b]. -/
 theorem badFightGraveyard :
     Action.check (DRS.ofList [])
-      (instruct (target (.and [creature, .inZone (graveyardOf .you)])) (fight (target creature)))
+      (instruct (target (.and [creature, .in_ (graveyardOf .you)])) (fight (target creature)))
       = [.handoffPerformer] := by
   decide
 
@@ -220,7 +220,7 @@ theorem okDamageDisjunctHead :
 
 /-- "attacking or blocking creature on the battlefield" -/
 theorem okAttackingOrBlockingOnBattlefield :
-    Predicate.checkAt .object (DRS.ofList []) (.and [creature, .or [attacking, blocking], .inZone battlefield])
+    Predicate.checkAt .object (DRS.ofList []) (.and [creature, .or [attacking, blocking], .in_ battlefield])
       = [] := by
   decide
 
@@ -644,7 +644,7 @@ theorem badCreatureHalfRead :
     Action.check (DRS.ofList [])
       (.sequentially
         [ (Action.instruct .this (.dealDamage (.lit 3) (target (.or [.hasType .planeswalker, .anyPlayer])) .any)),
-          discard (a (.and [.isCard, .inZone (handOf (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one)
+          discard (a (.and [.isCard, .in_ (handOf (Primitives.NounPhrase.eitherOf (.pro (.unionHalf .player) .one)
               (controllerOf (that (.type .creature)))))])) ]) = [.anaphor (.word (.type .creature))
                   .one 0] := by
   decide

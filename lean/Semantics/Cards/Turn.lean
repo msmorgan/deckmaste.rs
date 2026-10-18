@@ -21,7 +21,7 @@ namespace Semantics.Cards
 /-- Through the Breach Splice -/
 def throughTheBreach : Action :=
   Primitives.Action.offer
-    (move (a (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) battlefield)
+    (move (a (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) battlefield)
     (some (Primitives.Action.sequentially
       [ gainHaste (that (.type .creature)) none,
         delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none))
@@ -92,7 +92,7 @@ def apathy : Spelled := spelled <| .singleFaced
           Primitives.Ability.static (doesntUntap (Primitives.NounPhrase.attachHost .enchanted (.type .creature))
             (some (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))),
           at_ (beginningOfPossessed .upkeep (controllerOf (Primitives.NounPhrase.attachHost .enchanted (.type .creature))))
-            (instruct (that .player) (Primitives.Action.offer (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])))
+            (instruct (that .player) (Primitives.Action.offer (discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))])))
               (some (untap (that (.type .creature)))) none)) ] } }
 
 def felidarSovereign : Spelled := spelled <| .singleFaced
@@ -120,7 +120,7 @@ def gloriousEnforcer : Spelled := spelled <| .singleFaced
 /-- Damia, Sage of Stone -/
 def damia : Ability :=
   triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .less (.lit 7))
+    (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) .less (.lit 7))
     (Primitives.Action.draw Primitives.Amount.theDifference)
 theorem okDamia : Ability.check (DRS.ofList []) damia = [] := by decide
 
@@ -131,7 +131,7 @@ def ivoryTower : Spelled := spelled <| .singleFaced
         [ at_ (Primitives.GameEvent.beginningOf .upkeep (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
             (Primitives.Action.sequentially
               [ gainLife (Primitives.Amount.letter .x),
-                Primitives.Action.define .x (minus (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) (.lit 4)) ]) ] } }
+                Primitives.Action.define .x (minus (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) (.lit 4)) ]) ] } }
 
 /-- Ajani, Adversary of Tyrants -/
 def ajanisEmblem : Action :=
@@ -307,7 +307,7 @@ def bleedingEffect : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.alsoForKeywords
             (triggeredIf (Primitives.GameEvent.beginningOf .combat (some Primitives.NounPhrase.you) (Primitives.TurnRef.each none))
-              (exists_ (Primitives.Predicate.and [ creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you),
+              (exists_ (Primitives.Predicate.and [ creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you),
                                Primitives.Predicate.hasKeyword (.the (.named "flying")) ]))
               (Primitives.Action.establish (Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword (.named "flying")))
                 (some untilEndOfTurn)))
@@ -349,7 +349,7 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
         [ triggeredIf (Primitives.GameEvent.beginningOf .upkeep (some (each Primitives.Predicate.opponent)) (Primitives.TurnRef.each none))
-            (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (that .player))])) .atMost (.lit 1))
+            (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (that .player))])) .atMost (.lit 1))
             (instruct they (loseLife (.lit 3))) ] } }
 
 def centaurOfAttention : Spelled := spelled <| .singleFaced
@@ -385,7 +385,7 @@ def selfSacrificeThenExile : Ability :=
     (Primitives.Action.sequentially
       [ exile (target creature),
         Primitives.Action.delay (Primitives.GameEvent.beginningOf .endStep none (Primitives.TurnRef.next none)) [] none
-          (Primitives.Action.move (that .card) Primitives.EventSource.anywhere (some battlefield) .arrival none []) ])
+          (Primitives.Action.move (that .card) Primitives.Location.anyLocation (some battlefield) .arrival none []) ])
 theorem okSelfSacrificeThenExile : Ability.check (DRS.ofList []) selfSacrificeThenExile = [] := by decide
 
 /-- Mirror Universe -/

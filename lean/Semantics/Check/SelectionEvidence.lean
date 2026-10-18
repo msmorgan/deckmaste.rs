@@ -16,7 +16,7 @@ private theorem optionalChoiceKeepsEvidenceWithoutTheCreature :
 
 private def fiveCards : DRS :=
   (stepNounPhrase 64 (DRS.ofList []) .obj true
-    (.slice .top (.lit 5) (.library .bare))).1
+    (.slice .top (.lit 5) (.zone .library none))).1
 
 private def optionalSubset : Action :=
   .withContinuation .optional
@@ -44,7 +44,7 @@ private theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
         (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional
             (.expose .reveal (.cards (.someOf (.counted (.range (some 1) (some 1))) none
-              (.slice .top (.lit 5) (.library .bare)))) ) none none)).1
+              (.slice .top (.lit 5) (.zone .library none)))) ) none none)).1
         (.theRest .object .many) = [.theRestFits .object] := by decide
 
 private theorem optionalSubsetCannotPromiseOneRemainingCard :
@@ -86,7 +86,7 @@ private def loopTarget (predicate : Predicate) : Action :=
 
 private def targetForEachPlayer : Action :=
   .doForEach (.described .each .anyPlayer)
-    (loopTarget (.and [.inZone (.zone .battlefield .bare),
+    (loopTarget (.and [.in_ (.zone .battlefield none),
       .hasPossessor .controller (.pro (.word .player) .one)]))
 
 private def afterTargetLoop : DRS :=
@@ -109,7 +109,7 @@ private theorem playersCanSacrificeTheCollectedTargets :
       .instruct (.pro (.word .player) .many)
         (.enact (.action "sacrifice")
           (.move (.pro (.word .permanent) .many)
-            (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare))
+            (.zone .battlefield none) (some (.zone .graveyard none))
             .departure none []) none none)]) = [] := by decide
 
 private def afterPlayerLoop (body : Action) : DRS :=
@@ -135,8 +135,8 @@ private theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
     let out := afterPlayerLoop (.sequentially [
       .choose none (.firstMention "loop.target"
         (.described (.target (.range (some 1) (some 1))) (.hasType .creature))) .openly none,
-      .move (.laterMention "loop.target" .any) .anywhere
-        (some (.zone .graveyard .bare)) .arrival none []])
+      .move (.laterMention "loop.target" .any) .anyLocation
+        (some (.zone .graveyard none)) .arrival none []])
     out.referents.map (·.id) = [4, 0] ∧
       (out.findById? 4).bind (·.zone) = some .graveyard ∧
       (out.findById? 4).map (·.idents) = some [] ∧
@@ -217,7 +217,7 @@ private theorem linkedProhibitionStartsANewClauseAfterItsAction :
       (.doAndForbid
         (.enact (.action "destroy")
           (.move (.described .all (.hasType .creature))
-            (.zones [.zone .battlefield .bare]) (some (.zone .graveyard .bare))
+            (.zone .battlefield none) (some (.zone .graveyard none))
             .departure none []) none none)
         (.action "regenerate") (.pro .bare .many)) = [] := by decide
 

@@ -169,7 +169,7 @@ use its own bound participant at least once.
 `GameEvent.facts` supplies the magnitude property directly from the event
 constructor; which events a replacement, a trigger multiplier, a duration or a
 "while" clause may watch is not checked (`lean-checker-sweep-timing`). Source sets and
-exclusions use `EventSource`; named actions carry an optional locus checked
+exclusions use `Location.not`; named actions carry an optional locus checked
 against their declared features. A cast may leave its spell unspecified, which
 introduces no spell reference. Historical-event profiles retain named
 participants without simulating a new event or introducing its outcome.
@@ -336,7 +336,7 @@ it through `thatMuch`. `doForEach` keeps every outcome plural.
 An object binding records its Binding Possessor (`Payload.object`'s last field,
 `Possessor`): "you" or another player, relative to the controller [CR#109.5],
 or unknown. A description seeds it (`Predicate.seedPossessor`) from a
-possessed hand, graveyard or library (`.inZone (handOf p)` [CR#400.1,400.3]) and from
+possessed hand, graveyard or library (`.in_ (handOf p)` [CR#400.1,400.3]) and from
 a controller predicate (`.hasPossessor .controller p`, and its negation on
 `you` [CR#108.4]), with `actor` read in its handoff
 (`NounPhrase.possessorSide`), so a binding made inside a handoff keeps its
@@ -584,7 +584,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `DamageScale` | `DamageScale.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedVerb` | `DividedVerb.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DividedTakes` | `Action.distribute` checks the recipient kind (`objectOrPlayerCheck`) or object kind according to the closed `DividedVerb` constructor; which objects damage reaches is not checked (`lean-checker-sweep-zone`). |
-| `CtrlOverrideOk` | `EntryRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
+| `CtrlOverrideOk` | `MoveRider.under` checks player kind. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the single-controller demand is not checked. |
 | `ProducedMana` | `ProducedMana.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `Repetition` | `Repetition.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `EachStackOk` | `eachStackOk`, used by `enactKeepsOuter`, accepts preserved outer bindings or closure of the distributive agent’s own parts. |
@@ -597,7 +597,7 @@ by exact-refusal theorems; it is not an authorable term.
 | `PlayPayment` | `PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DeonticRider` | `DeonticRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `DamageOp` | `DamageOp.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
-| `EntryRider`, `PilePlacement`, `MoveRider` | `EntryRider.check`, `PilePlacement.check` and `MoveRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) check references and expected child kinds in the supplied context; a move rider of a kind its destination does not allow is refused `riderKind` (owner ruling 2026-10-08, Q28–Q29). |
+| `MoveRider` | `MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) check references and expected child kinds in the supplied context; an Entry Rider or a Pile Placement whose kind its destination does not allow is refused `riderKind` (owner ruling 2026-10-08, Q28–Q29). |
 | `Cost` | `Cost.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `ManaRider` | `ManaRider.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
 | `CopyExcept` | `CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context. |
@@ -628,12 +628,10 @@ by exact-refusal theorems; it is not an authorable term.
 |---|---|
 | `ChoiceInScope` | `countParts` in `Predicate.notChosen` and `Condition.choseThisWay` requires a compatible standing choice. |
 | `ColorTerm` | `ColorTerm.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
-| `ZoneScope` | `ZoneScope.check` checks the possessor's player kind. |
 | `LibPlace` | `LibraryPlace.check`; the place's arrangement and ordinal fit are retired by `lean-checker-sweep-zone`. |
-| `ZoneExpr` | `ZoneExpr.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Location` | `Location.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean) checks references and expected child kinds in the supplied context: a zone's owner is a player, a place from a pile's end has a nonzero ordinal, a made pile is a written pile mention, the cards exiled with a source name a link source, and a disjunction has at least two disjuncts (a search's disjuncts name distinct zones). |
 | `NameSource` | `NameSource.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `ChoiceDomain` | `sortedDomainCheck` checks both domain contents and `ChoiceDomain.sort` at `qualityNoun`, `ofYourChoice`, `entersChoice`, and `attachChoice`. |
-| `EventSource` | `EventSource.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `EventComplement` | Retired in favor of event participant, source, destination, and locus fields. |
 | `ComplementWritten` | Required event fields cannot be omitted. An action that declares a locus requires that locus in the shared event checker. |
 | `LookbackClause` | The shared checker validates the carried event under a locally bound participant of the host kind. |
@@ -650,7 +648,6 @@ by exact-refusal theorems; it is not an authorable term.
 | `PileMention` | `NounPhrase.pileMention` plus noun checking in `Predicate.inPile`. |
 | `PaidSubject` | Object-kind checking in `Amount.paid`. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
 | `DestOk` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a move's destination shape is not checked. |
-| `SearchScope` | `SearchScope.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `FlipScope` | `FlipScope.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `IgnoredOutcomes` | `IgnoredOutcomes.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `Ballot` | `Ballot.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
@@ -975,7 +972,7 @@ arguments substitute an expression that can be read repeatedly. The overloaded
 capture operation derives its input kind from the annotated Lean type.
 
 `withBindings` and `inCaller` are private expansion forms for NounPhrase,
-Predicate, Amount, Quantity, ZoneExpr, Condition, GameEvent, Cost, Action,
+Predicate, Amount, Quantity, Location, Condition, GameEvent, Cost, Action,
 and StaticSpec. Bindings contain an ordered list of typed inputs. Captures occur
 left to right at that node, including inside conditions and repetition. Two
 identical argument expressions remain two selections. A nested macro forwards

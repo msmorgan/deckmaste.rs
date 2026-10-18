@@ -108,12 +108,12 @@ def colorClashOf : Predicate → Predicate → Bool
   | .colorIs _, p => p.isColorless
   | _, _ => false
 
-/-- "Permanent" is written `inZone battlefield` [CR#110.1]. -/
+/-- "Permanent" is written `in_ battlefield` [CR#110.1]. -/
 def Predicate.isPermanentHead (p : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, p with
   | 0, _ => false
   | n+1, .inCaller body | n+1, .bracketed body => body.isPermanentHead n
-  | _+1, .inZone (.zone .battlefield _) => true
+  | _+1, .in_ (.zone .battlefield _) => true
   | _+1, _ => false
 
 termination_by structural fuel
@@ -243,13 +243,13 @@ private theorem colorlessAndColoredContradict :
 
 private theorem typeDisjunctionIsNotTypeConjunction :
     Predicate.contradictionFree [.or [.hasType .instant, .hasType .creature],
-      .inZone (.zone .battlefield .bare)] = true := by decide
+      .in_ (.zone .battlefield none)] = true := by decide
 
 def Predicate.uniquifies (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   match fuel, predicate with
   | n + 1, .inCaller body | n + 1, .bracketed body => body.uniquifies n
   | _ + 1, .chosenPlayer _ | _ + 1, .superlative .. | _ + 1, .inCombat .attackedBy _
-  | _ + 1, .exiledWith _ | _ + 1, .related _ (some _) => true
+  | _ + 1, .in_ (.exiledWith _) | _ + 1, .related _ (some _) => true
   | _ + 1, .castBy _ rank => rank.isSome
   | n + 1, .and predicates => predicates.any (·.uniquifies n)
   | _, _ => false

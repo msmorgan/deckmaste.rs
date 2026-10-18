@@ -341,7 +341,7 @@ private def moveArg : NounPhrase :=
  .inCaller (.firstMention "sacrifice.subject"
    (.laterMention "controllerSacrifices.subject" nestedSubject))
 private def moveBody : Action :=
- .move moveArg (.zones [.zone .battlefield .bare]) (some graveyard) .departure none []
+ .move moveArg (.zone .battlefield none) (some graveyard) .departure none []
 private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPattern = false) :
  (stepAction (fuel + 1) .postEvent .obj drs moveBody).1 =
  let selected := stepNounPhrase fuel drs .obj true moveArg

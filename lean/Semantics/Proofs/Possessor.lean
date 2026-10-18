@@ -68,13 +68,13 @@ theorem okControllerSacrificesTarget :
 controller's hand, not the discarder's. -/
 theorem badOpponentDiscardsCardInYourHand :
     Action.check (DRS.ofList [])
-      (.sequentially [choose (a (.inZone yourHand)), instruct (target .opponent) (discard (that .card))]) =
+      (.sequentially [choose (a (.in_ yourHand)), instruct (target .opponent) (discard (that .card))]) =
       [.patientPossessor] := by
   decide
 
 /-- "Choose a card in your hand. Discard that card." -/
 theorem okDiscardChosenCardInYourHand :
-    Action.check (DRS.ofList []) (.sequentially [choose (a (.inZone yourHand)), discard (that .card)]) =
+    Action.check (DRS.ofList []) (.sequentially [choose (a (.in_ yourHand)), discard (that .card)]) =
       [] := by
   decide
 
@@ -82,12 +82,12 @@ theorem okDiscardChosenCardInYourHand :
 theorem okOpponentDiscardsCardInTheirHand :
     Action.check (DRS.ofList [])
       (instruct (target .opponent)
-        (.sequentially [choose (a (.inZone (handOf .actor))), discard (that .card)])) = [] := by
+        (.sequentially [choose (a (.in_ (handOf .actor))), discard (that .card)])) = [] := by
   decide
 
 /-- "Target opponent discards a card in your hand.": the indefinite's own conjunct. -/
 theorem badOpponentDiscardsACardInYourHand :
-    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a (.inZone yourHand)))) =
+    Action.check (DRS.ofList []) (instruct (target .opponent) (discard (a (.in_ yourHand)))) =
       [.patientPossessor] := by
   decide
 
@@ -101,7 +101,7 @@ theorem okOpponentDiscardsACard :
 /-- A card chosen from your hand records you as its possessor. -/
 theorem chosenCardInYourHandIsYours :
     possessorOfReach (.word .card) .one
-      (stepAction 64 .postEvent .obj (DRS.ofList []) (choose (a (.inZone yourHand)))).1 =
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (choose (a (.in_ yourHand)))).1 =
       some .you := by
   decide
 

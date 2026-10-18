@@ -72,29 +72,18 @@ def IgnoredOutcomes.numberSlots : IgnoredOutcomes → List (Amount × NumberRegi
   | .extreme _ | .allBut _ => []
   | .chosen _ amount => [(amount, .clamped)]
 
-/-- A rider's own slots: how many counters it enters with, a count [CR#107.1b]. The copy
+/-- A rider's own slots: how many counters it enters with or is exiled with, a count
+[CR#107.1b]. The copy
 exceptions of `asCopyOf` declare their own. -/
-def EntryRider.numberSlots (value : EntryRider) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
+def MoveRider.numberSlots (value : MoveRider) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
   | n + 1, .inCaller body => body.numberSlots n
   | _ + 1, .withCounters amount _ _ => [(amount, .clamped)]
   | _ + 1, .entersAs _ | _ + 1, .entersAttacking _ | _ + 1, .entersTransformed
-  | _ + 1, .entersMelded _ | _ + 1, .under _ | _ + 1, .asCopyOf _ _ _ | _ + 1, .faceDown _ => []
+  | _ + 1, .entersMelded _ | _ + 1, .under _ | _ + 1, .asCopyOf _ _ _ | _ + 1, .faceDown _
+  | _ + 1, .inOrder _ => []
 termination_by structural fuel
-
-def EntryRider.ridersSlots : List EntryRider → List (Amount × NumberRegime)
-  | [] => []
-  | rider :: rest => rider.numberSlots ++ EntryRider.ridersSlots rest
-
-/-- A placement's own slots: how many counters a card is exiled with, a count [CR#107.1b]. -/
-def PilePlacement.numberSlots : PilePlacement → List (Amount × NumberRegime)
-  | .withCounters amount _ _ => [(amount, .clamped)]
-  | .inOrder _ | .nthFromEnd _ | .orOtherEnd | .faceDown _ => []
-
-def MoveRider.numberSlots : MoveRider → List (Amount × NumberRegime)
-  | .entry rider => rider.numberSlots
-  | .placement p => p.numberSlots
 
 def MoveRider.ridersSlots : List MoveRider → List (Amount × NumberRegime)
   | [] => []
@@ -183,7 +172,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .establish _ _ => []
   | _n + 1, .createObject count spec _ _ => (count, .clamped) ::
       (match spec with
-       | .token _ riders => EntryRider.ridersSlots riders
+       | .token _ riders => MoveRider.ridersSlots riders
        | .emblem _ _ => [])
   | _n + 1, .putCounters amount _ _ _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]

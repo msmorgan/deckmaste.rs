@@ -514,7 +514,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
     Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (offer
         (instruct they (shuffleInto
-          (Primitives.NounPhrase.both (allOf (.and [.isCard, .inZone (handOf they)])) (allOf (.and [.isCard, .inZone (graveyardOf they)])))))))
+          (Primitives.NounPhrase.both (allOf (.and [.isCard, .in_ (handOf they)])) (allOf (.and [.isCard, .in_ (graveyardOf they)])))))))
       = [] := by
   decide
 
@@ -522,7 +522,7 @@ theorem eachPlayerMayShuffleTheirHandAndGraveyard :
 theorem eachPlayerMayDiscardTheirHandAndDrawSeven :
     Action.check (DRS.ofList [])
       (instruct (each .anyPlayer) (offer
-        (.sequentially [discard (allOf (.and [.isCard, .inZone (handOf they)])), instruct they (draw (.lit 7))])))
+        (.sequentially [discard (allOf (.and [.isCard, .in_ (handOf they)])), instruct they (draw (.lit 7))])))
       = [] := by
   decide
 

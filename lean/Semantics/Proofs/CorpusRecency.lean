@@ -23,7 +23,7 @@ private def erietteEvent : GameEvent :=
     (.described (.a .unmarked) (.and [
       .hasSubtype (.of .enchantment "Aura"), .hasPossessor .controller .you]))
     (some (.described (.a .unmarked) (.and [
-      .inZone (.zone .battlefield .bare), .not (.hasType .land),
+      .in_ (.zone .battlefield none), .not (.hasType .land),
       .hasPossessor .controller (.described (.a .unmarked) .opponent),
       .compare [.stat .manaValue] .atMost
         (.statOf (.stat .manaValue) (.pro (.word (.type .enchantment)) .one))]))))
@@ -77,7 +77,7 @@ private def runeswordVictim : NounPhrase :=
     .did ⟨.actor (.laterMention "runesword.source" (target creature)),
       .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩]))
 private def runeswordWould : WouldClause :=
-  .would .any (.move runeswordVictim (.zones [battlefield]) (some graveyard) .departure none [])
+  .would .any (.move runeswordVictim (battlefield) (some graveyard) .departure none [])
 
 theorem runeswordRawDemonstrativeSelectsDyingCreature :
     selected (.type .creature)
@@ -138,9 +138,9 @@ theorem mangarasEquityExplicitSelectorRestoresDamageSource :
 private def noeticUpkeep : GameEvent :=
   .beginningOf .upkeep (some (.firstMention "noetic.upkeepPlayer" (each .anyPlayer))) .current
 private def noeticContext : DRS :=
-  (stepZoneExprWith (stepOps 64)
+  (stepLocationWith (stepOps 64)
     (nextClause (stepGameEvent 64 (DRS.ofList []) noeticUpkeep).1)
-    (.zone .hand (.possessedBy (.firstMention "noetic.owner" (ownerOf (each creature)))))).1
+    (.zone .hand (some (.firstMention "noetic.owner" (ownerOf (each creature)))))).1
 
 theorem noeticScalesRawDemonstrativeSelectsWrongPlayer :
     selected .player noeticContext = [["noetic.owner"]] := by decide
@@ -161,7 +161,7 @@ private def scytheDeath : GameEvent :=
 private def scytheAfterDeath : DRS :=
   (stepGameEvent 64 (DRS.ofList []) scytheDeath).1
 private def scytheReturn : Action :=
-  .move (that .card) .anywhere (some battlefield) .arrival none []
+  .move (that .card) .anyLocation (some battlefield) .arrival none []
 private def scytheAfterReturn : DRS :=
   (stepAction 64 .postEvent .obj (nextClause scytheAfterDeath) scytheReturn).1
 
@@ -203,11 +203,11 @@ private def cycledContext : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
     (.enact (.ofAbility (.named "cycling")) (discard (a .isCard)) none none)).1
 private def cycloneFinalCard : NounPhrase :=
-  a (.and [.isCard, .inZone yourLibrary,
+  a (.and [.isCard, .in_ yourLibrary,
     .shares .cardType .share
       (theVerbed (.ofAbility (.named "cycling")) .one (some .card) .attributive)])
 private def cycloneExile : Action :=
-  .move cycloneFinalCard (.zones [yourLibrary]) (some exileZone) .arrival none []
+  .move cycloneFinalCard (yourLibrary) (some exileZone) .arrival none []
 private def cycloneAfter : DRS :=
   (stepAction 64 .postEvent .obj (nextClause cycledContext) cycloneExile).1
 

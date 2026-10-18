@@ -33,13 +33,13 @@ def suspendedSentence : Action :=
 theorem okSuspendedSentence : Action.check (DRS.ofList []) suspendedSentence = [] := by decide
 
 def flickeringSpirit : Action :=
-  Primitives.Action.sequentially [exile thisCreature, Primitives.Action.move it Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf it))]]
+  Primitives.Action.sequentially [exile thisCreature, Primitives.Action.move it Primitives.Location.anyLocation (some battlefield) .arrival none [(Primitives.MoveRider.under (ownerOf it))]]
 theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
 def bondOfRevival : Action :=
   Primitives.Action.sequentially
-    [ returnToBattlefield (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])),
+    [ returnToBattlefield (target (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])),
       gainHaste (theVerbed (.core .return_) .one) (some untilYourNextTurn) ]
 theorem okBondOfRevival : Action.check (DRS.ofList []) bondOfRevival = [] := by decide
 
@@ -70,13 +70,13 @@ theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrat
 def impulse : Action :=
   Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 4)), move (someOf (exactly 1) them) hand,
-      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+      Primitives.Action.move (theRest .object) Primitives.Location.anyLocation (some onBottom) .arrival none [(Primitives.MoveRider.inOrder .anyOrder)] ]
 theorem okImpulse : Action.check (DRS.ofList []) impulse = [] := by decide
 
 def anticipate : Action :=
   Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 3)), move (someOf (exactly 1) them) hand,
-      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onBottom) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+      Primitives.Action.move (theRest .object) Primitives.Location.anyLocation (some onBottom) .arrival none [(Primitives.MoveRider.inOrder .anyOrder)] ]
 theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 
 def revealFourPartition : Action :=
@@ -88,7 +88,7 @@ theorem okRevealFourPartition : Action.check (DRS.ofList []) revealFourPartition
 def exileFourOfThem : Action :=
   Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 8)), exile (someOf (exactly 4) them),
-      Primitives.Action.move (theRest .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.inOrder .anyOrder)] ]
+      Primitives.Action.move (theRest .object) Primitives.Location.anyLocation (some onTop) .arrival none [(Primitives.MoveRider.inOrder .anyOrder)] ]
 theorem okExileFourOfThem : Action.check (DRS.ofList []) exileFourOfThem = [] := by decide
 
 def sylvanScrying : Action :=
@@ -160,19 +160,19 @@ def oust : Spelled := spelled <| .singleFaced
     { name := "Oust", cost := some [pip .white], types := [.sorcery],
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
-            [ Primitives.Action.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))],
+            [ Primitives.Action.move (target creature) Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 2) (Primitives.Location.zone .library none))) .arrival none [],
               instruct (controllerOf it) (gainLife (.lit 3)) ]) ] } }
 
 def riseFromTheGrave : Action :=
   Primitives.Action.sequentially
-    [ putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone graveyard])),
+    [ putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.in_ graveyard])),
       become (that (.type .creature))
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none ]
 theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] := by decide
 
 def everAfter : Action :=
   Primitives.Action.sequentially
-    [ move (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))
+    [ move (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 2)) (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))
         battlefield,
       become (those (.type .creature))
         { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none,
@@ -189,7 +189,7 @@ theorem okMartyrsCry : Action.check (DRS.ofList []) martyrsCry = [] := by decide
 def anotherRound : Action :=
   Primitives.Action.sequentially
     [ exile (counted anyNumber creatureYouControl),
-      Primitives.Action.move them Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf them))],
+      Primitives.Action.move them Primitives.Location.anyLocation (some battlefield) .arrival none [(Primitives.MoveRider.under (ownerOf them))],
       Primitives.Action.repeat_ (Primitives.Repetition.moreTimes (Primitives.Amount.letter .x)) ]
 theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by decide
 
@@ -204,7 +204,7 @@ theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] :=
 
 /-- Deem Inferior -/
 def deemInferior : Action :=
-  instruct (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (putWith it onTop [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2)), Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd])
+  instruct (ownerOf (target (Primitives.Predicate.and [permanent, Primitives.Predicate.not land]))) (put it (Primitives.Location.or [(Primitives.Location.fromEnd .top (.nth 2) (Primitives.Location.zone .library none)), (Primitives.Location.fromEnd .bottom (.nth 2) (Primitives.Location.zone .library none))]))
 theorem okDeemInferior : Action.check (DRS.ofList []) deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -212,7 +212,7 @@ def writeIntoBeingPlacement : Action :=
   Primitives.Action.sequentially
     [ lookAt (topSlice (.lit 2)),
       manifestPlacement (someOf (exactly 1) them),
-      Primitives.Action.move (theOther .object) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement Primitives.PilePlacement.orOtherEnd] ]
+      Primitives.Action.move (theOther .object) Primitives.Location.anyLocation (some (Primitives.Location.or [onTop, onBottom])) .arrival none [] ]
 theorem okWriteIntoBeingPlacement : Action.check (DRS.ofList []) writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
@@ -251,7 +251,7 @@ def contrabandLivestock : Action :=
 theorem okContrabandLivestock : Action.check (DRS.ofList []) contrabandLivestock = [] := by decide
 
 /-- Hypnotic Specter -/
-def hypnoticSpecterDiscard : Action := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)]))
+def hypnoticSpecterDiscard : Action := discard (aAtRandom (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf they)]))
 theorem okHypnoticSpecterDiscard :
     Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .player false }]) hypnoticSpecterDiscard = [] := by decide
 
@@ -348,7 +348,7 @@ theorem okBioplasmCardTest : Condition.check (nextClause bioplasmAfterExile) bio
 
 /-- Blessed Respite -/
 def blessedRespiteShuffle : Action :=
-  instruct (target Primitives.Predicate.anyPlayer) (shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)])))
+  instruct (target Primitives.Predicate.anyPlayer) (shuffleInto (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf they)])))
 theorem okBlessedRespiteShuffle : Action.check (DRS.ofList []) blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
@@ -477,7 +477,7 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCar
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   Primitives.Amount.aggregateOver .max Primitives.Predicate.anyPlayer
-    (Primitives.Amount.tally (⟨(Primitives.Subject.actor they), (discard ((allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone hand])))), Primitives.LookbackSpan.thisWay⟩) .events)
+    (Primitives.Amount.tally (⟨(Primitives.Subject.actor they), (discard ((allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ hand])))), Primitives.LookbackSpan.thisWay⟩) .events)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -556,8 +556,8 @@ theorem okHijackDeedDescriptions :
 def openTheVaults : Action :=
   returnTo
     (allOf (Primitives.Predicate.and [ Primitives.Predicate.isCard, Primitives.Predicate.or [artifact, enchantment],
-                   Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers)) ]))
-    battlefield [Primitives.EntryRider.under (ownerOf them)]
+                   Primitives.Predicate.in_ (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers)) ]))
+    battlefield [Primitives.MoveRider.under (ownerOf them)]
 theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by decide
 
 /-- Codecracker Hound -/
@@ -590,7 +590,7 @@ theorem theOtherRefusesTheUniversalSlice :
 
 def eachPlayerShufflesTheirHandAndGraveyard : Action :=
   instruct (each Primitives.Predicate.anyPlayer) (shuffleInto
-    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf they)]))))
+    (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf they)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf they)]))))
 theorem okEachPlayerShufflesTheirHandAndGraveyard :
     Action.check (DRS.ofList []) eachPlayerShufflesTheirHandAndGraveyard = [] := by decide
 
@@ -618,7 +618,7 @@ theorem okGrenzoBottomCard : Action.check (DRS.ofList []) grenzoBottomCard = [] 
 def chronostutter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chronostutter", cost := some [generic 5, pip .blue], types := [.instant],
-      text := [ Primitives.Ability.spell none (Primitives.Action.move (target creature) Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 2))]) ] } }
+      text := [ Primitives.Ability.spell none (Primitives.Action.move (target creature) Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 2) (Primitives.Location.zone .library none))) .arrival none []) ] } }
 
 theorem nekrataalTwoObjects : countOnes .object nekrataalRider = 2 := by decide
 theorem bioplasmTestMintsNothing : countOnes .object bioplasmAfterTest = 2 := by decide

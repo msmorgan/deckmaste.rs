@@ -20,7 +20,7 @@ theorem okCollectEvidence : Action.check (DRS.ofList []) (Actor.collectEvidence 
 /-- A total's bound is an amount like any other: an unresolved "its power" is refused. -/
 theorem badWithTotalUnresolvedBound :
     Action.check (DRS.ofList []) (move (Actor.withTotal (.stat .manaValue) .atLeast
-      (powerOf (that (.type .creature))) (allOf (.and [.isCard, .inZone (graveyardOf .you)])))
+      (powerOf (that (.type .creature))) (allOf (.and [.isCard, .in_ (graveyardOf .you)])))
       exileZone) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 
@@ -64,7 +64,7 @@ theorem okConvokeColorReadback :
 "that creature's color" has no antecedent, even with a creature in scope outside. -/
 theorem badSubstitutePaysWithoutAntecedent :
     StaticSpec.check (DRS.ofList []) (.paySubstitute thisSpell
-      (substitute (exile (a (.and [.isCard, .inZone (graveyardOf .you)])))
+      (substitute (exile (a (.and [.isCard, .in_ (graveyardOf .you)])))
         [.ofColor (.colorOf (that (.type .creature)))])) =
       [.anaphor (.word (.type .creature)) .one 0] := by decide
 

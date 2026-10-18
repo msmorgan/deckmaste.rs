@@ -3,7 +3,7 @@ import Semantics.Events
 /-!
 # Semantics.Abilities
 
-The Semantics v3 unified action-clause spine: phrases (`ZoneExpr`, `Predicate`, `NounPhrase`,
+The Semantics v3 unified action-clause spine: phrases (`Location`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
 headers and bounds (`CountBound`, `UsageLimit`, `JoinedHeader`), instructions (`Action`),
 static specifications (`StaticSpec`, `WouldClause`, `DeonticMods`, `DamageResult`), costs
@@ -77,36 +77,27 @@ open scoped Semantics.Authoring
 mutual
   -- ## Phrase Grammar
 
-  /-- Whose zone: "your graveyard", or a bare zone name. -/
-  inductive ZoneScope where
-    | bare
-    | possessedBy (possessor : NounPhrase)
-
-  /-- A pile: objects grouped in a zone, in order, the pile itself not an object
-  [CR#700.3,700.3b]. Grouping neither moves its objects nor reorders them [CR#700.3c]. Its face,
-  not its zone, decides who may look at it: the two zone piles fix theirs, and a pile an
-  instruction makes takes the face that instruction gives it. -/
-  inductive Pile where
-    /-- "<whose> library", kept face down [CR#401.2]. -/
-    | library (whose : ZoneScope)
-    /-- "<whose> graveyard", kept face up and still ordered [CR#404.2,700.3c]. -/
-    | graveyard (whose : ZoneScope)
-    /-- "that pile": the pile an instruction just made, with the face it was given. -/
-    | that
+  /-- Where objects are, or where a move takes them from or puts them: a zone, a place in a
+  pile, or a combination of them. A pile is objects grouped in a zone, in order, the pile itself
+  not an object [CR#700.3,700.3b]; grouping neither moves its objects nor reorders them
+  [CR#700.3c]. A library is kept face down [CR#401.2], a graveyard face up and still ordered
+  [CR#404.2,700.3c]. -/
+  inductive Location where
+    | inCaller (body : Location)
+    /-- A zone: `whose` names its owner ("your graveyard"), and none is a bare zone name. -/
+    | zone (zone : Zone) (whose : Option NounPhrase)
+    /-- The `ordinal`th place from one end of a pile: "on top of", "on the bottom of", "seventh
+    from the top" [CR#401.7]. -/
+    | fromEnd (end_ : PileEnd) (ordinal : Ordinal := .nth 1) (loc : Location)
     /-- The face-down cards exiled with `source`, kept as their own pile [CR#406.4]. -/
     | exiledWith (source : NounPhrase)
-
-  inductive ZoneExpr where
-    | inCaller (body : ZoneExpr)
-    | zone (zone : Zone) (scope : ZoneScope)
-    /-- "On top of <pile>", "on the bottom of <pile>": a move destination at one end of a pile.
-    The move's riders say how the moved objects are ordered there, how deep, and whether the
-    other end may be chosen instead. -/
-    | place (end_ : LibraryEnd) (pile : Pile)
-    /-- "From wherever it is": a move's origin that names no zone, as exile's is
+    /-- A pile an instruction made ("that pile"), with the face it was given. -/
+    | pile (pile : NounPhrase)
+    /-- Anywhere: a location that names no zone, as exile's origin "from wherever it is"
     [CR#701.13a]. -/
-    | wherever
-    | anyZone
+    | anyLocation
+    | not (loc : Location)
+    | or (locs : List Location)
 
   /-- What a choice ranges over. -/
   inductive ChoiceDomain where
@@ -119,11 +110,6 @@ mutual
     | players (predicate : Predicate)
     /-- "choose flying or trample": an ability chosen among named keywords. -/
     | abilitiesAmong (keywords : List KeywordTerm)
-
-  inductive EventSource where
-    | anywhere
-    | zones (zones : List ZoneExpr)
-    | anywhereBut (zones : List ZoneExpr)
 
   /-- The grammatical subject and voice of an action clause (`does`, `would`, `cant`, `must`,
   `may`, `gatedBy`, `did`). -/
@@ -222,7 +208,7 @@ mutual
     | hasKeyword (keyword : KeywordTerm)
     | hasPossessor (axis : PossessorAxis) (possessor : NounPhrase)
     | castBy (caster : NounPhrase) (rank : Option (Ordinal × Period))
-    | castFrom (zone : ZoneExpr)
+    | castFrom (zone : Location)
     | inCombat (relation : CombatRelation) (counterpart : Option NounPhrase)
     /-- A relative-clause event filter using `NounPhrase.which` in the relativized argument slot
     ("creatures that attacked this turn", "each card exiled this way"). -/
@@ -255,9 +241,8 @@ mutual
     | withMostVotes
     | choseExtreme (op : AggregateOp)
     | compareOver (domain : Predicate) (measure : Amount) (comparator : Comparator) (bound : Amount)
-    | inZone (zone : ZoneExpr)
-    | inPile (pile : NounPhrase)
-    | exiledWith (source : NounPhrase)
+    /-- The member is at `loc`: in a zone, in a pile, or exiled with an object. -/
+    | in_ (loc : Location)
     | and (conjuncts : List Predicate)
     /-- Disjuncts of different kinds join: "creature or player" denotes either. -/
     | or (disjuncts : List Predicate)
@@ -328,10 +313,10 @@ mutual
     | or (phrases : List NounPhrase)
     /-- "The top N cards of <pile>": `amount` objects from one end of a pile, an ordered group
     [CR#700.3c]. -/
-    | slice (end_ : LibraryEnd) (amount : Amount) (pile : Pile)
+    | slice (end_ : PileEnd) (amount : Amount) (pile : Location)
     /-- "Cards from the top of <pile> until a <stop> card": the run of objects taken one at a
     time from that end, the last of them the first that matches `stop` [CR#701.57a]. -/
-    | run (end_ : LibraryEnd) (stop : Predicate) (pile : Pile)
+    | run (end_ : PileEnd) (stop : Predicate) (pile : Location)
     | someOf (count : SliceCount) (description : Option Predicate) (group : NounPhrase)
     /-- Agreement: the members of `group` share, or do not share, a value on `axis` ("two
     creatures that share a creature type"), a constraint on the selection, not a predicate on
@@ -478,10 +463,6 @@ mutual
     | event (event : GameEvent)
     | anEffect
 
-  inductive SearchScope where
-    | oneZone (zone : ZoneExpr)
-    | someZones (whose : Option NounPhrase) (zones : List Zone)
-
   inductive FlipScope where
     | count (amount : Amount)
     | per (each : NounPhrase)
@@ -498,7 +479,7 @@ mutual
 
   inductive Exposed where
     | cards (cards : NounPhrase)
-    | zone (zone : ZoneExpr)
+    | zone (zone : Location)
     | choice (sort : ChoiceSort)
 
   inductive VisibleThing where
@@ -543,7 +524,7 @@ mutual
     | lifeTotals (parties : NounPhrase)
     | controlOf (left right : NounPhrase)
     | cardsAcross (left right : NounPhrase)
-    | zones (left right : ZoneExpr)
+    | zones (left right : Location)
     /-- Two numerical values [CR#701.12g]: life totals, powers or toughnesses, rolled results. -/
     | values (left right : Amount)
 
@@ -834,7 +815,7 @@ mutual
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
-    | entryRider (subject : NounPhrase) (rider : EntryRider)
+    | entryRider (subject : NounPhrase) (rider : MoveRider)
     | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
         (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
@@ -896,7 +877,7 @@ mutual
   inductive DeonticRider where
     | stateBased (cause : StateBasedCause)
     | noRider
-    | play (from_ : Option ZoneExpr) (limit : Option UsageLimit) (timing : Option Timing)
+    | play (from_ : Option Location) (limit : Option UsageLimit) (timing : Option Timing)
         (exclusive : Bool) (payment : PlayPayment)
 
   inductive DamageOp where
@@ -904,10 +885,12 @@ mutual
     | redirect (cut : PreventCut) (to : NounPhrase)
     | scale (scale : DamageScale)
 
-  /-- How a permanent arrives on the battlefield: from a move, a token's creation, or a static
-  entry rider. -/
-  inductive EntryRider where
-    | inCaller (body : EntryRider)
+  /-- A move's rider. An Entry Rider says how a permanent arrives on the battlefield, from a
+  move, a token's creation, or a static entry rider; a Pile Placement says how a moved card is
+  placed in a zone other than the battlefield: its order in a pile, its face, and the counters
+  it is exiled with. -/
+  inductive MoveRider where
+    | inCaller (body : MoveRider)
     | entersAs (status : Status)
     | entersAttacking (defender : Option NounPhrase)
     | entersTransformed
@@ -916,29 +899,12 @@ mutual
     | under (controller : NounPhrase)
     | asCopyOf (optional : Bool) (source : NounPhrase) (exceptions : List CopyExcept)
     /-- Enters face down as `spec` lists, and with no other characteristics while it stays face
-    down [CR#708.2,708.3]. -/
+    down [CR#708.2,708.3]; or "exile it face down", `none` a card with no characteristics
+    [CR#406.3,406.3a]. -/
     | faceDown (spec : FaceDown)
-
-  /-- How a moved card is placed in a zone other than the battlefield: its order and depth in
-  a pile, its face, and the counters it is exiled with. -/
-  inductive PilePlacement where
     /-- "In any order", "in a random order": how the objects moved to one place are ordered
     there [CR#401.4]. -/
     | inOrder (arrangement : Arrangement)
-    /-- "Nth from the top": that many objects in from the place's end [CR#401.7]. -/
-    | nthFromEnd (ordinal : Ordinal)
-    /-- "On the top or bottom": the performer may choose the place's other end instead. -/
-    | orOtherEnd
-    /-- "Exile it face down": `none`, a card with no characteristics [CR#406.3,406.3a]. -/
-    | faceDown (spec : FaceDown)
-    /-- "Exile it with N time counters on it" [CR#702.62a]. -/
-    | withCounters (amount : Amount) (kind : CounterKindSource) (mark : EntryCounterMark)
-
-  /-- A move's rider, of the kind its destination allows: an entry rider onto the battlefield,
-  a placement anywhere else. -/
-  inductive MoveRider where
-    | entry (rider : EntryRider)
-    | placement (placement : PilePlacement)
 
   inductive Cost where
     /-- An unspecified cost in a payment pattern. -/
@@ -981,7 +947,7 @@ mutual
     instruction : Action
 
   inductive CreationSpec where
-    | token (spec : TokenSpec) (riders : List EntryRider)
+    | token (spec : TokenSpec) (riders : List MoveRider)
     /-- An emblem, named where the rules name it ("an emblem named The Ring" [CR#701.54c]). -/
     | emblem (name : Option String) (abilities : List Ability)
 
@@ -1046,7 +1012,7 @@ mutual
     | revealChoices (sort : HiddenSort)
     | vote (first : Option NounPhrase) (disclosure : Disclosure) (ballot : Ballot)
     /-- Move `subject` from `from_` to `to`, observed at `at_` [CR#603.6a,603.6c,603.10a,700.4]. -/
-    | move (subject : NounPhrase) (from_ : EventSource) (to : Option ZoneExpr)
+    | move (subject : NounPhrase) (from_ : Location) (to : Option Location)
         (at_ : ObservationPoint) (cause : Option Causing) (riders : List MoveRider)
     /-- Turn `subject` face down as `spec` lists: manifest's first step [CR#701.40a,708.2]. -/
     | turnFaceDown (subject : NounPhrase) (spec : FaceDown)
@@ -1059,9 +1025,9 @@ mutual
     | addMana (amount : Amount) (produced : ProducedMana) (riders : List ManaRider)
     | draw (amount : Amount)
     | expose (verb : ExposeVerb) (exposed : Exposed)
-    | search (scope : SearchScope) (quantity : Quantity) (predicate : Predicate)
+    | search (scope : Location) (quantity : Quantity) (predicate : Predicate)
     /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/
-    | shuffle (pile : Pile)
+    | shuffle (pile : Location)
     | flipCoins (count : FlipScope) (call : Option FlipCall) (outcome : Option CoinFace)
     | rollDice (count : Amount) (sides : DieSides) (batch : DiceBatch) (watch : RollWatch)
     | applyResultsTable (rows : List RollRow)
@@ -1084,7 +1050,7 @@ mutual
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/
     | enact (verb : Deed) (instruction : Action) (becomes : Option Predicate)
-        (locus : Option ZoneExpr)
+        (locus : Option Location)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)
         (whose : Option NounPhrase) (keyword : Option KeywordLabel)
     /-- 3rd-person imperative handoff: `subj`, a player or a permanent, performs `action`
@@ -1125,7 +1091,7 @@ mutual
     procedure produces must be ("if the resulting spell's mana value is N or less"
     [CR#701.57a]). -/
     | procedure (kind : Procedure) (subject : NounPhrase) (payment : PlayPayment)
-        (resulting : Option Predicate) (from_ : Option EventSource) (of_ : Option NounPhrase)
+        (resulting : Option Predicate) (from_ : Option Location) (of_ : Option NounPhrase)
     /-- Make `subject` stand in the Relation `label` with `counterpart`: "exile it haunting
     target creature", "pair this creature with another", "encoded on a creature"
     [CR#702.55b,702.95b,702.99b]. -/
@@ -1207,11 +1173,26 @@ instance : AnyValue CounterKindSource where
 instance : AnyValue RollWatch where
   any := .anyResult
 
-instance : AnyValue ZoneExpr where
-  any := .anyZone
+instance : AnyValue Location where
+  any := .anyLocation
 
 instance : AnyValue Timing where
   any := .anyTiming
+
+/-- The positive locations `loc` names, as a list of its disjuncts, or none when it names a
+complement ("anywhere other than …") or anywhere. A move from a positive list of zones, observed
+on its departure, is read with its objects' last known information [CR#603.6c,603.10a]. -/
+def Location.positiveZones? (loc : Location) (fuel : Nat := 16) : Option (List Location) :=
+  match fuel, loc with
+  | 0, _ => none
+  | n + 1, .inCaller body => body.positiveZones? n
+  | _ + 1, .zone .. | _ + 1, .fromEnd .. | _ + 1, .exiledWith _ | _ + 1, .pile _ => some [loc]
+  | n + 1, .or locs => locs.foldr (fun l acc =>
+      match l.positiveZones? n, acc with
+      | some ls, some rest => some (ls ++ rest)
+      | _, _ => none) (some [])
+  | _ + 1, .anyLocation | _ + 1, .not _ => none
+termination_by structural fuel
 
 abbrev did := DidClause.mk
 abbrev would := WouldClause.would
@@ -1220,7 +1201,7 @@ abbrev wouldAny := WouldClause.wouldAny
 end Semantics
 
 attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
-  Semantics.Amount Semantics.Quantity Semantics.ZoneExpr Semantics.Condition Semantics.Duration
+  Semantics.Amount Semantics.Quantity Semantics.Location Semantics.Condition Semantics.Duration
   Semantics.Timing Semantics.Subject Semantics.LookbackSpan Semantics.WouldClause
   Semantics.Action Semantics.StaticSpec Semantics.Cost Semantics.Ability Semantics.TokenSpec
 
@@ -1228,7 +1209,7 @@ classify_semantic_syntax
 
 attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.which
   Semantics.NounPhrase.firstMention Semantics.NounPhrase.laterMention
-  Semantics.Quantity.inCaller Semantics.ZoneExpr.inCaller Semantics.Condition.inCaller
+  Semantics.Quantity.inCaller Semantics.Location.inCaller Semantics.Condition.inCaller
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
   Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
   Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller

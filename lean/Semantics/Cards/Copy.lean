@@ -55,7 +55,7 @@ theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismC
 /-- Flawless Forgery -/
 def flawlessForgeryLine : Action :=
   Primitives.Action.sequentially
-    [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.inZone (graveyardOf (a Primitives.Predicate.opponent))])),
+    [ exile (target (Primitives.Predicate.and [instantOrSorcery, Primitives.Predicate.in_ (graveyardOf (a Primitives.Predicate.opponent))])),
       Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
       Primitives.Action.establish
         (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none
@@ -220,7 +220,7 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
               (Primitives.DeonticRider.play (some onTop) none none false Primitives.PlayPayment.itsOwnCost)),
           whenever
             (Primitives.GameEvent.does (Primitives.Subject.actor Primitives.NounPhrase.you) (Primitives.Action.procedure .cast ((a (Primitives.Predicate.and
-              [instantOrSorcery, spell]))) Primitives.PlayPayment.itsOwnCost none (some (Primitives.EventSource.zones [yourLibrary])) none))
+              [instantOrSorcery, spell]))) Primitives.PlayPayment.itsOwnCost none (some (yourLibrary)) none))
             (Primitives.Action.sequentially
               [ Primitives.Action.copy .fromStack it (.lit 1) [],
                 offer (Primitives.Action.chooseNewTargets (that .copy)) ]) ],

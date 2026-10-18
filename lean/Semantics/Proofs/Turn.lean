@@ -63,7 +63,7 @@ theorem badTwoCostMentions :
     Ability.check (DRS.ofList [])
       (activatedAbility
         (.compound
-          [.perform (discard (a (.and [.isCard, .inZone yourHand]))), .perform (sacrifice (a creature))])
+          [.perform (discard (a (.and [.isCard, .in_ yourHand]))), .perform (sacrifice (a creature))])
         (exile it)) = [.anaphor .bare .one 2] := by
   decide
 
@@ -84,14 +84,14 @@ theorem badDeadCreatureRead :
 /-- "Discard a card: Return the discarded card to the battlefield." -/
 theorem okVerbedDiscardedCard :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (a (.and [.isCard, .inZone yourHand]))))
+      (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
         (move (theVerbed (.action "discard") .one (some .card)) battlefield)) = [] := by
   decide
 
 /-- "Discard a card: Return the sacrificed card to the battlefield." -/
 theorem badVerbedWrongVerb :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (a (.and [.isCard, .inZone yourHand]))))
+      (activatedAbility (.perform (discard (a (.and [.isCard, .in_ yourHand]))))
         (move (theVerbed (.action "sacrifice") .one (some .card)) battlefield))
       = [.anaphor (.verbed (.action "sacrifice") (some .card) .attributive) .one 0] := by
   decide

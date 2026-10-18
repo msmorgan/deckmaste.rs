@@ -75,7 +75,7 @@ theorem exhaustedTraversalRefuses :
       [.recursionLimit] := by decide
 
 theorem exhaustedWrapperRefuses :
-    (stepZoneExprWith (stepOps 64) (DRS.ofList []) hand 0).2 =
+    (stepLocationWith (stepOps 64) (DRS.ofList []) hand 0).2 =
       [.recursionLimit] := by decide
 
 end Semantics.Macros.Checks

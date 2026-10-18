@@ -205,7 +205,7 @@ def ensnaringBridge : Spelled := spelled <| .singleFaced
     { name := "Ensnaring Bridge", cost := some [generic 3], types := [.artifact],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.cant (Primitives.Subject.actor (allOf (Primitives.Predicate.and [ creature,
-                           Primitives.Predicate.compare [.stat .power] .greater (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) ]))) (Primitives.Action.attack none) { rider := Primitives.DeonticRider.noRider }) ] } }
+                           Primitives.Predicate.compare [.stat .power] .greater (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) ]))) (Primitives.Action.attack none) { rider := Primitives.DeonticRider.noRider }) ] } }
 
 def undercoverButler : Spelled := spelled <| .singleFaced
   { characteristics :=

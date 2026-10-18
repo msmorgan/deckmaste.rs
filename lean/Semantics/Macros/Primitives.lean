@@ -7,10 +7,6 @@ boundary records their names. -/
 
 declare_semantic_primitives
 
-/-- An entry rider is a move rider as written: the RON mirror reads a bare entry rider at a move
-rider's place (`#[macro_ron(embed)]`), and the bench writes it the same way. -/
-instance : Coe Semantics.EntryRider Semantics.MoveRider := ⟨Semantics.Macros.Primitives.MoveRider.entry⟩
-
 namespace Semantics.Macros.Primitives.Action
 
 /-- A numeric definition at instruction position uses the shared static definition. -/
@@ -111,10 +107,10 @@ end Semantics.Macros.Primitives.Action
 
 namespace Semantics.Macros.Primitives.Action
 
-semantic_definition create (count : Amount) (token : TokenSpec) (riders : List EntryRider) :
+semantic_definition create (count : Amount) (token : TokenSpec) (riders : List MoveRider) :
     Semantics.Action :=
   .ownScope (some (.action "create"))
-    (.enact (.action "create") (.createObject (.inCaller count) (.token (.inCaller token) (riders.map EntryRider.inCaller)) true none) none none)
+    (.enact (.action "create") (.createObject (.inCaller count) (.token (.inCaller token) (riders.map MoveRider.inCaller)) true none) none none)
 
 semantic_template getEmblem (abilities : List Ability) : Semantics.Action :=
   .createObject (.lit 1) (.emblem none abilities) true none
@@ -127,7 +123,7 @@ namespace Semantics.Macros.Primitives.Action
 semantic_definition counterSpell (subject : NounPhrase) : Semantics.Action :=
   .ownScope (some (.action "counter"))
     (.enact (.action "counter")
-      (.move (.inCaller (.firstMention "counterSpell.subject" subject)) (.zones [.zone .stack .bare]) (some (.zone .graveyard .bare)) .arrival none [])
+      (.move (.inCaller (.firstMention "counterSpell.subject" subject)) (.zone .stack none) (some (.zone .graveyard none)) .arrival none [])
       none none)
 
 end Semantics.Macros.Primitives.Action
@@ -157,26 +153,26 @@ namespace Semantics.Macros.Primitives.GameEvent
 
 /-- A battlefield-to-graveyard transition observed before departure [CR#700.4,603.10a]. -/
 semantic_template dies (subject : NounPhrase) : Semantics.GameEvent :=
-  .does .any (.move subject (.zones [.zone .battlefield .bare])
-    (some (.zone .graveyard .bare)) .departure none [])
+  .does .any (.move subject (.zone .battlefield none)
+    (some (.zone .graveyard none)) .departure none [])
 
-semantic_template leaves (subject : NounPhrase) (from_ : Option EventSource) : Semantics.GameEvent :=
-  .does .any (.move subject (from_.getD .anywhere) none .departure none [])
+semantic_template leaves (subject : NounPhrase) (from_ : Option Location) : Semantics.GameEvent :=
+  .does .any (.move subject (from_.getD .anyLocation) none .departure none [])
 
-semantic_template enters (subject : NounPhrase) (from_ : Option EventSource) : Semantics.GameEvent :=
-  .does .any (.move subject (from_.getD .anywhere) (some (.zone .battlefield .bare)) .arrival none [])
+semantic_template enters (subject : NounPhrase) (from_ : Option Location) : Semantics.GameEvent :=
+  .does .any (.move subject (from_.getD .anyLocation) (some (.zone .battlefield none)) .arrival none [])
 
 /-- Observation follows the pattern, not an individual occurrence's origin. In particular,
 "from anywhere" is not a leaves-the-battlefield trigger [CR#603.6c,603.10a]. -/
-semantic_template putInto (subject : NounPhrase) (destination : ZoneExpr) (from_ : Option EventSource) :
+semantic_template putInto (subject : NounPhrase) (destination : Location) (from_ : Option Location) :
     Semantics.GameEvent :=
-  let before : Bool := match from_ with
-    | some (.zones zs) => !zs.isEmpty && zs.all (fun z =>
+  let before : Bool := match from_.bind (·.positiveZones?) with
+    | some zs => !zs.isEmpty && zs.all (fun z =>
         z.sort == some .battlefield || z.sort == some .graveyard ||
           ((destination.sort == some .hand || destination.sort == some .library) &&
             (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
-    | _ => false
-  .does .any (.move subject (from_.getD .anywhere) (some destination)
+    | none => false
+  .does .any (.move subject (from_.getD .anyLocation) (some destination)
     (if before then .departure else .arrival) none [])
 
 end Semantics.Macros.Primitives.GameEvent

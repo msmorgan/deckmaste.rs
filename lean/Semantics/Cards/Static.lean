@@ -35,7 +35,7 @@ theorem okAbandonedOutpost : Ability.check (DRS.ofList []) abandonedOutpost = []
 def timeVaultLock : Ability := Primitives.Ability.static (doesntUntap thisArtifact (some Primitives.NounPhrase.you))
 theorem okTimeVaultLock : Ability.check (DRS.ofList []) timeVaultLock = [] := by decide
 def hymnOfRebirth : Action :=
-  putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.inZone graveyard]))
+  putOntoBattlefieldUnderYourControl (target (Primitives.Predicate.and [creature, Primitives.Predicate.in_ graveyard]))
 theorem okHymnOfRebirth : Action.check (DRS.ofList []) hymnOfRebirth = [] := by decide
 def counterspell : Action := Primitives.Action.counterSpell (target spell)
 theorem okCounterspell : Action.check (DRS.ofList []) counterspell = [] := by decide
@@ -87,14 +87,14 @@ def deathsShadow : Spelled := spelled <| .singleFaced
 def spontaneousMutation : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ getsPt (Primitives.NounPhrase.attachHost .enchanted (.type .creature)) (Primitives.Delta.down (Primitives.Amount.letter .x)) (Primitives.Delta.down (.lit 0)),
-      Primitives.StaticSpec.letterDefinition .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) ])
+      Primitives.StaticSpec.letterDefinition .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) ])
 theorem okSpontaneousMutation : Ability.check (DRS.ofList []) spontaneousMutation = [] := by decide
 
 def maro : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Maro", cost := some [generic 2, pip .green, pip .green], types := [.creature],
       subtypes := [creatureType "Elemental"],
-      text := [Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))] } }
+      text := [Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .bothEach (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))] } }
 
 def peopleOfTheWoods : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -326,7 +326,7 @@ def encroachingMycosynth : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
               allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [Primitives.Predicate.or [artifact, Primitives.Predicate.hasType .battle, creature, enchantment, Primitives.Predicate.hasType .planeswalker], spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, permanentCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ])
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, permanentCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.in_ battlefield)]) ])
                 .adds
               (Primitives.QualityPayload.bundle { characteristics := { types := [.artifact] } } none)) ] } }
 
@@ -371,7 +371,7 @@ def celestialDawnAscriptions : List Ability :=
     Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
               allOf (Primitives.Predicate.and [permanent, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .sets
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.not land, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.in_ battlefield)]) ]) .sets
         (Primitives.QualityPayload.colored (.some [.white]))) ]
 theorem okCelestialDawnAscriptions : Ability.checkText (DRS.ofList []) celestialDawnAscriptions = [] := by decide
 
@@ -582,7 +582,7 @@ def abolish : Spelled := spelled <| .singleFaced
     { name := "Abolish", cost := some [generic 1, pip .white, pip .white], types := [.instant],
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
-            (some (Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (landType "Plains"), Primitives.Predicate.inZone yourHand])))))),
+            (some (Primitives.Cost.perform (discard (a (Primitives.Predicate.and [Primitives.Predicate.hasSubtype (landType "Plains"), Primitives.Predicate.in_ yourHand])))))),
           Primitives.Ability.spell none (destroy (target (Primitives.Predicate.or [artifact, enchantment]))) ] } }
 
 def gush : Spelled := spelled <| .singleFaced
@@ -602,7 +602,7 @@ def sunscour : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.static (Primitives.StaticSpec.altCost Primitives.NounPhrase.this
             (some (Primitives.Cost.perform (exile
-              (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))))),
+              (counted (exactly 2) (Primitives.Predicate.and [Primitives.Predicate.colorIs .white, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))))),
           Primitives.Ability.spell none (destroy (allOf creature)) ] } }
 
 def massacre : Spelled := spelled <| .singleFaced
@@ -663,7 +663,7 @@ def maskwoodNexusTypes : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.qualityChange (Primitives.NounPhrase.and [
               allOf (Primitives.Predicate.and [creature, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
               allOf (Primitives.Predicate.and [creature, spell, Primitives.Predicate.hasPossessor .controller Primitives.NounPhrase.you]),
-              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.inZone battlefield)]) ]) .adds (Primitives.QualityPayload.everyTypeOf
+              allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, creature, Primitives.Predicate.hasPossessor .owner Primitives.NounPhrase.you, Primitives.Predicate.not (Primitives.Predicate.in_ battlefield)]) ]) .adds (Primitives.QualityPayload.everyTypeOf
       .creature))
 theorem okMaskwoodNexusTypes : Ability.check (DRS.ofList []) maskwoodNexusTypes = [] := by decide
 /-- Luxior, Giada's Gift -/
@@ -679,7 +679,7 @@ theorem okNahiriCompleatedEntry : Ability.check (DRS.ofList []) nahiriCompleated
 def nimbleMongoose : Ability :=
   abilityWord "threshold"
     (Primitives.Ability.static (onlyWhile (getsPt thisCreature (Primitives.Delta.up (.lit 2)) (Primitives.Delta.up (.lit 2)))
-      (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) .atLeast (.lit 7))))
+      (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) .atLeast (.lit 7))))
 theorem okNimbleMongoose : Ability.check (DRS.ofList []) nimbleMongoose = [] := by decide
 /-- Anax, Hardened in the Forge -/
 def anaxPowerDefinition : Ability :=
@@ -697,7 +697,7 @@ theorem okAspectOfWolf : Ability.check (DRS.ofList []) aspectOfWolf = [] := by d
 /-- Lhurgoyf -/
 def lhurgoyfDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
-    [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.inZone graveyard])),
+    [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.in_ graveyard])),
       Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (plus Primitives.Amount.thatMuch (.lit 1)) ])
 theorem okLhurgoyfDefinition : Ability.check (DRS.ofList []) lhurgoyfDefinition = [] := by decide
 
@@ -743,21 +743,21 @@ theorem okVoltageSurgeAddedCost : Ability.check (DRS.ofList []) voltageSurgeAdde
 def tarmogoyfDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
-        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers))]))),
+        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf (Primitives.NounPhrase.playerGroup .allPlayers))]))),
       Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (plus Primitives.Amount.thatMuch (.lit 1)) ])
 theorem okTarmogoyfDefinition : Ability.check (DRS.ofList []) tarmogoyfDefinition = [] := by decide
 /-- Consuming Blob's definition -/
 def consumingBlobDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.conjunction none
     [ Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
-        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))),
+        (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))),
       Primitives.StaticSpec.ptDefinition thisCreature .toughnessAlone (plus Primitives.Amount.thatMuch (.lit 1)) ])
 theorem okConsumingBlobDefinition : Ability.check (DRS.ofList []) consumingBlobDefinition = [] := by decide
 /-- Nighthawk Scavenger's definition -/
 def nighthawkScavengerDefinition : Ability :=
   Primitives.Ability.static (Primitives.StaticSpec.ptDefinition thisCreature .powerAlone
     (plus (.lit 1)
-      (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf (Primitives.NounPhrase.playerGroup .yourOpponents))])))))
+      (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf (Primitives.NounPhrase.playerGroup .yourOpponents))])))))
 theorem okNighthawkScavengerDefinition : Ability.check (DRS.ofList []) nighthawkScavengerDefinition = [] := by
   decide
 /-- Faeburrow Elder's pump -/
@@ -801,9 +801,9 @@ theorem okPhyrexianUnlifeImmunity : Ability.check (DRS.ofList []) phyrexianUnlif
 def umbrisPump : Ability :=
   Primitives.Ability.static (getsPt thisCreature
     (Primitives.Delta.up (forEach 1
-      (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.inZone exileZone])))
+      (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.in_ exileZone])))
     (Primitives.Delta.up (forEach 1
-      (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.inZone exileZone]))))
+      (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.hasPossessor .owner (Primitives.NounPhrase.playerGroup .yourOpponents), Primitives.Predicate.in_ exileZone]))))
 theorem okUmbrisPump : Ability.check (DRS.ofList []) umbrisPump = [] := by decide
 /-- Turbulent Fen -/
 def turbulentFen : Ability :=
@@ -833,12 +833,12 @@ theorem okKasminaLoyaltySharing : StaticSpec.check (DRS.ofList []) kasminaLoyalt
 /-- Nicol Bolas, Dragon-God -/
 def nicolBolasDragonGodSharing : StaticSpec :=
   Primitives.StaticSpec.abilityGrantFrom Primitives.NounPhrase.this [.loyalty]
-    (allOf (Primitives.Predicate.and [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.inZone battlefield])) none
+    (allOf (Primitives.Predicate.and [Primitives.Predicate.hasType .planeswalker, Primitives.Predicate.otherThan Primitives.NounPhrase.this, Primitives.Predicate.in_ battlefield])) none
 theorem okNicolBolasDragonGodSharing : StaticSpec.check (DRS.ofList []) nicolBolasDragonGodSharing = [] := by
   decide
 /-- Myr Welder -/
 def myrWelderBorrowedAbilities : StaticSpec :=
-  Primitives.StaticSpec.abilityGrantFrom thisCreature [.anyActivated] (allOf (Primitives.Predicate.exiledWith Primitives.NounPhrase.this)) none
+  Primitives.StaticSpec.abilityGrantFrom thisCreature [.anyActivated] (allOf (Primitives.Predicate.in_ (Primitives.Location.exiledWith Primitives.NounPhrase.this))) none
 theorem okMyrWelderBorrowedAbilities : StaticSpec.check (DRS.ofList []) myrWelderBorrowedAbilities = [] := by
   decide
 /-- Sharkey, Tyrant of the Shire -/
@@ -902,7 +902,7 @@ def eerieUltimatum : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (move
             (withDifferentNames
-              (counted anyNumber (Primitives.Predicate.and [permanentCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])))
+              (counted anyNumber (Primitives.Predicate.and [permanentCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])))
             battlefield) ] } }
 
 /-- Gray Merchant of Asphodel -/

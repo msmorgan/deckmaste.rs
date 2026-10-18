@@ -80,7 +80,7 @@ private def additionalTapGroupCost : Cost :=
   .perform (.ownScope (some (.action "tap"))
     (.enact (.action "tap")
       (.setStatus .tapped (.described (.count (.range (some 0) none) none)
-        (.and [.hasType .creature, .inZone (.zone .battlefield .bare)]))) none none))
+        (.and [.hasType .creature, .in_ (.zone .battlefield none)]))) none none))
 
 private def additionalTapGroup : Ability :=
   .static (.addedCost additionalTapGroupCost false .once)
@@ -89,8 +89,8 @@ private def additionalHiddenGroup : Ability :=
   .static (.addedCost
     (.perform (.move
       (.described (.count (.range (some 0) none) none)
-        (.and [.isCard, .inZone (.zone .hand .bare)]))
-      (.zones [.zone .hand .bare]) (some (.zone .library .bare)) .arrival none []))
+        (.and [.isCard, .in_ (.zone .hand none)]))
+      (.zone .hand none) (some (.zone .library none)) .arrival none []))
     false .once)
 
 private theorem additionalCostPublishesTheActualGroupIdentity :
@@ -116,8 +116,8 @@ def CopyExcept.check (drs : DRS) (exception : CopyExcept) : List Refusal :=
 def CopyExcept.checkAll (drs : DRS) (exceptions : List CopyExcept) : List Refusal :=
   (stepCopyExceptListWith (stepOps 64) drs exceptions).2
 
-def ZoneExpr.check (drs : DRS) (z : ZoneExpr) : List Refusal :=
-  (stepZoneExprWith (stepOps 64) drs z).2
+def Location.check (drs : DRS) (z : Location) : List Refusal :=
+  (stepLocationWith (stepOps 64) drs z).2
 
 def PlayPayment.check (drs : DRS) (p : PlayPayment) : List Refusal :=
   (stepPlayPaymentWith (stepOps 64) drs p).2
@@ -149,22 +149,31 @@ def sortedDomainCheck (drs : DRS) (sort : ChoiceSort)
     (domain : Option ChoiceDomain) : List Refusal :=
   (sortedDomainCheckWith (stepOps 64) drs sort domain).2
 
-def PilePlacement.check (drs : DRS) (placement : PilePlacement) : List Refusal :=
-  (stepPilePlacementWith (stepOps 64) drs placement).2
+def MoveRider.check (drs : DRS) (placement : MoveRider) : List Refusal :=
+  (stepMoveRiderWith (stepOps 64) drs placement).2
 
 def MoveRider.checkAll (drs : DRS) (allowed : Option RiderKind)
     (riders : List MoveRider) : List Refusal :=
   (riders.foldl (fun (d, errors) rider =>
     let (out, errs) := stepMoveRiderWith (stepOps 64) d rider
-    let found := match rider with | .entry _ => RiderKind.entry | .placement _ => .placement
-    let shape := allowed.toList.flatMap (fun kind => refuse (kind == found) (.riderKind kind found))
+    let shape := match rider.riderKind? with
+      | some found => allowed.toList.flatMap (fun kind => refuse (kind == found) (.riderKind kind found))
+      | none => []
     (out, errors ++ errs ++ shape)) (drs, [])).2
 
-def Pile.face (drs : DRS) : Pile → Option PileFace
-  | .library _ => some .faceDown
-  | .graveyard _ => some .faceUp
-  | .exiledWith _ => some .faceDown
-  | .that => faceOfReach (.word .pile) .one drs
+/-- The face of the pile a location names: a library face down [CR#401.2], a graveyard face up
+[CR#404.2], the cards exiled with a source face down [CR#406.4], and a made pile the face it was
+given. -/
+def Location.face (drs : DRS) (loc : Location) (fuel : Nat := 8) : Option PileFace :=
+  match fuel, loc with
+  | 0, _ => none
+  | n + 1, .fromEnd _ _ inner => inner.face drs n
+  | _ + 1, .zone .library _ => some .faceDown
+  | _ + 1, .zone .graveyard _ => some .faceUp
+  | _ + 1, .exiledWith _ => some .faceDown
+  | _ + 1, .pile _ => faceOfReach (.word .pile) .one drs
+  | _ + 1, _ => none
+termination_by structural fuel
 
 def UsageLimit.check (drs : DRS) (limit : UsageLimit) : List Refusal :=
   (stepUsageLimitWith (stepOps 64) drs limit).2

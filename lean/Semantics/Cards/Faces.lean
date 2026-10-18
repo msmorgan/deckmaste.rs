@@ -35,7 +35,7 @@ def jushiApprentice : Ability :=
   activated (Primitives.Cost.compound [Primitives.Cost.mana [generic 2, pip .blue], Primitives.Cost.tapSymbol])
     (Primitives.Action.sequentially
       [ Primitives.Action.draw (.lit 1),
-        Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) .atLeast (.lit 9))
+        Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) .atLeast (.lit 9))
           (Primitives.Action.setStatus .flipped thisCreature) none ])
 theorem okJushiApprentice : Ability.check (DRS.ofList []) jushiApprentice = [] := by decide
 
@@ -55,10 +55,10 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 def missyFaceDownReturn : Ability :=
   whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.otherThan thisCreature])))
     (Primitives.Action.sequentially
-      [ Primitives.Action.move it Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.faceDown
+      [ Primitives.Action.move it Primitives.Location.anyLocation (some battlefield) .arrival none [(Primitives.MoveRider.faceDown
               { characteristics := some
                   { types := [.artifact, .creature], subtypes := [creatureType "Cyberman"],
-                    power := stat 2, toughness := stat 2 } }), Primitives.MoveRider.entry (Primitives.EntryRider.entersAs .tapped), Primitives.MoveRider.entry (Primitives.EntryRider.under Primitives.NounPhrase.you)] ])
+                    power := stat 2, toughness := stat 2 } }), (Primitives.MoveRider.entersAs .tapped), (Primitives.MoveRider.under Primitives.NounPhrase.you)] ])
 theorem okMissyFaceDownReturn : Ability.check (DRS.ofList []) missyFaceDownReturn = [] := by decide
 
 /-- Yedora, Grave Gardener -/
@@ -71,8 +71,8 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
         [ whenever (Primitives.GameEvent.dies (a (Primitives.Predicate.and [nontoken, creatureYouControl, Primitives.Predicate.otherThan thisCreature])))
             (offer
               (Primitives.Action.sequentially
-                [ Primitives.Action.move it Primitives.EventSource.anywhere (some battlefield) .arrival none [Primitives.MoveRider.entry (Primitives.EntryRider.faceDown
-                        { characteristics := some { types := [.land], subtypes := [landType "Forest"] } }), Primitives.MoveRider.entry (Primitives.EntryRider.under (ownerOf it))] ])) ],
+                [ Primitives.Action.move it Primitives.Location.anyLocation (some battlefield) .arrival none [(Primitives.MoveRider.faceDown
+                        { characteristics := some { types := [.land], subtypes := [landType "Forest"] } }), (Primitives.MoveRider.under (ownerOf it))] ])) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Ral Zarek, Guest Lecturer's ultimate -/
@@ -409,7 +409,7 @@ def midnightScavengers : Spelled := spelled <| .transforming
         [ when (Primitives.GameEvent.enters thisCreature none)
             (offer
               (returnTo
-                (target (Primitives.Predicate.and [ creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you),
+                (target (Primitives.Predicate.and [ creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you),
                                 Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3) ]))
                 hand [])) ],
       power := stat 3, toughness := stat 3 } }
@@ -573,7 +573,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
                     [ Primitives.StaticSpec.abilityGrant (allOf creatureYouControl) (keyword (.named "trample")),
                       getsPt them (Primitives.Delta.up (Primitives.Amount.letter .x)) (Primitives.Delta.up (Primitives.Amount.letter .x)) ])
                   (some untilEndOfTurn),
-                Primitives.Action.define .x (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)])) ]) ] } }
+                Primitives.Action.define .x (countOf (Primitives.Predicate.and [creature, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)])) ]) ] } }
 
 /-- Brimstone Mage -/
 def brimstoneMage : Spelled := spelled <| .leveler
@@ -619,7 +619,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                   (target (Primitives.Predicate.and [ instantOrSorcery, Primitives.Predicate.isCard,
                                   Primitives.Predicate.compare [.stat .manaValue] .atMost
                                     (Primitives.Amount.statOf (.stat .power) thisCreature),
-                                  Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you) ])),
+                                  Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you) ])),
                 Primitives.Action.copy .fromCardZone (that .card) (.lit 1) [],
                 Primitives.Action.establish
                   (mayPlayDeed (.action "cast") Primitives.NounPhrase.you (that .copy) none

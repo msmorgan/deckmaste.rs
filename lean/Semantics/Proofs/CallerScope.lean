@@ -25,7 +25,7 @@ private semantic_template subjectPower (subject : NounPhrase) : Amount := .statO
 private semantic_template repeatedValueSum (amount : Amount) : Amount := .arith .plus amount amount
 private semantic_template literalEcho (amount : Amount) : Amount := amount
 private semantic_template quantityFor (amount : Amount) : Quantity := .exactlyOf amount
-private semantic_template graveyardFor (owner : NounPhrase) : ZoneExpr := .zone .graveyard (.possessedBy owner)
+private semantic_template graveyardFor (owner : NounPhrase) : Location := .zone .graveyard (some owner)
 private semantic_template creatureCondition (subject : NounPhrase) : Condition := .matches subject creature
 private semantic_template powerEquals (amount : Amount) : Predicate := .compare [.stat .power] .eq amount
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
@@ -34,7 +34,7 @@ private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : 
 private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.lit 1)
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
 private semantic_template moveSubject (subject : NounPhrase) : Action :=
-  .move subject .anywhere (some graveyard) .arrival none []
+  .move subject .anyLocation (some graveyard) .arrival none []
 private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhrase → Action)) : Action :=
   body chosen
 private abbrev SubjectBody := NounPhrase → Action
@@ -59,7 +59,7 @@ private semantic_definition selectThenTap (subject : NounPhrase) : Action :=
       .setStatus .untapped (.laterMention "select.subject" .any)])
 private semantic_definition selectThenMove (subject : NounPhrase) : Action :=
   .ownScope none (.move (.inCaller (.firstMention "select.subject" subject))
-    .anywhere (some graveyard) .arrival none [])
+    .anyLocation (some graveyard) .arrival none [])
 private semantic_definition announceThen (chosen : NounPhrase) (body : Action) : Action :=
   .ownScope none (.sequentially [.setStatus .tapped (.firstMention "announce.subject" (.inCaller chosen)),
     .inCaller body])
@@ -124,7 +124,7 @@ theorem suppliedBodyUpdatesItsOriginalReferent :
 
 theorem forgottenParameterDoesNotSurvivePrivately :
     let drs := nounResult (DRS.ofList [])
-      (.firstMention "library.subject" (target (.and [.isCard, .inZone yourLibrary])))
+      (.firstMention "library.subject" (target (.and [.isCard, .in_ yourLibrary])))
     let after := instructionResult drs shuffle
     NounPhrase.check after (.laterMention "library.subject" .any) = [.bindingIdentity "library.subject"] ∧
       countReach .bare .one after = 0 := by decide
@@ -174,11 +174,11 @@ theorem eventParametersPublishTheirOutcome :
 theorem templateUseRemainsInsideCondition :
     Action.doIf (.compareAmt (.lit 1) .eq (.lit 1)) (moveSubject (target creature)) none =
       .doIf (.compareAmt (.lit 1) .eq (.lit 1))
-        (.move (target creature) .anywhere (some graveyard) .arrival none []) none := by rfl
+        (.move (target creature) .anyLocation (some graveyard) .arrival none []) none := by rfl
 theorem templateUseRemainsInsideRepetition :
     Action.repeat_ (.fixed (.lit 2) (moveSubject (target creature))) =
       .repeat_ (.fixed (.lit 2)
-        (.move (target creature) .anywhere (some graveyard) .arrival none [])) := by rfl
+        (.move (target creature) .anyLocation (some graveyard) .arrival none [])) := by rfl
 theorem parameterizedGroupsRemainCountable :
     (Amount.countOf (forwardedSubject (counted (exactly 2) creature))).check (DRS.ofList []) = [] := by decide
 theorem forwardedYouRemainsThePayer : (forwardedSubject Primitives.NounPhrase.you).isYou = true := by decide
@@ -387,7 +387,7 @@ theorem forwardedSourceRetainsItsSelfDefinitionRole :
 
 theorem callerExitDoesNotResurrectForgottenMentions :
     let caller := nounResult (DRS.ofList [])
-      (.firstMention "library.subject" (a (.and [.isCard, .inZone yourLibrary])))
+      (.firstMention "library.subject" (a (.and [.isCard, .in_ yourLibrary])))
     let inside := enterOwnScope caller
     let restored := leaveCaller inside (afterShuffle (enterCaller inside))
     restored.referents.map (fun ref => (ref.id, ref.kind, ref.zone)) =

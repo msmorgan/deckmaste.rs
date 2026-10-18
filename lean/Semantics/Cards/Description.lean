@@ -154,7 +154,7 @@ def nightmarishEnd : Spelled := spelled <| .singleFaced
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ get (target creature) (Primitives.Delta.down (Primitives.Amount.letter .x)) (Primitives.Delta.down (Primitives.Amount.letter .x))
                 (some untilEndOfTurn),
-              Primitives.Action.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) ]) ] } }
+              Primitives.Action.define .x (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) ]) ] } }
 
 /-- Topple {2}{W} — Sorcery. "Exile target creature with the greatest power among creatures
 on the battlefield." -/
@@ -277,7 +277,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                                "Approach of the Second Sun") ]))) Primitives.PlayPayment.itsOwnCost none none none) (Primitives.Subject.actor Primitives.NounPhrase.you) thisGame ])
             (Primitives.Action.conclude .winGame)
             (some (Primitives.Action.sequentially
-              [ Primitives.Action.move Primitives.NounPhrase.this Primitives.EventSource.anywhere (some onTop) .arrival none [Primitives.MoveRider.placement (Primitives.PilePlacement.nthFromEnd (.nth 7))], gainLife (.lit 7) ]))) ] } }
+              [ Primitives.Action.move Primitives.NounPhrase.this Primitives.Location.anyLocation (some (Primitives.Location.fromEnd .top (.nth 7) (Primitives.Location.zone .library none))) .arrival none [], gainLife (.lit 7) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
@@ -288,8 +288,8 @@ theorem okLoyaltyAbilityOfEnchanted :
 
 /-- Balance of Power -/
 def balanceOfPower : Action :=
-  Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf (target Primitives.Predicate.opponent))])) .greater
-          (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])))
+  Primitives.Action.doIf (Primitives.Condition.compareAmt (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf (target Primitives.Predicate.opponent))])) .greater
+          (countOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])))
     (Primitives.Action.draw Primitives.Amount.theDifference) none
 theorem okBalanceOfPower : Action.check (DRS.ofList []) balanceOfPower = [] := by decide
 
@@ -352,7 +352,7 @@ def lucidDreams : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.sequentially
             [ Primitives.Action.draw (Primitives.Amount.letter .x),
-              Primitives.Action.define .x (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))) ]) ] } }
+              Primitives.Action.define .x (Primitives.Amount.distinctCount .cardType (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))) ]) ] } }
 
 /-- Rogues' Gallery -/
 def roguesGallery : Spelled := spelled <| .singleFaced
@@ -361,7 +361,7 @@ def roguesGallery : Spelled := spelled <| .singleFaced
       text :=
         [ Primitives.Ability.spell none (Primitives.Action.doForEachKind .color none .color
             (move (Primitives.NounPhrase.described (Primitives.DetPhrase.target (upTo 1))
-                     (Primitives.Predicate.and [creature, ofChosen .color, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))
+                     (Primitives.Predicate.and [creature, ofChosen .color, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))
                   hand)) ] } }
 
 /-- Bioplasm -/
@@ -387,7 +387,7 @@ theorem deepglowSkateRecipientRefused : deepglowSkateRecipient.perMemberOk = fal
 /-- Weftwalking -/
 def weftwalkingShuffle : Action :=
   Primitives.Action.sequentially
-    [ shuffleInto (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (handOf Primitives.NounPhrase.you)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.inZone (graveyardOf Primitives.NounPhrase.you)]))),
+    [ shuffleInto (Primitives.NounPhrase.both (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (handOf Primitives.NounPhrase.you)])) (allOf (Primitives.Predicate.and [Primitives.Predicate.isCard, Primitives.Predicate.in_ (graveyardOf Primitives.NounPhrase.you)]))),
       Primitives.Action.draw (.lit 7) ]
 theorem okWeftwalkingShuffle : Action.check (DRS.ofList []) weftwalkingShuffle = [] := by decide
 

@@ -163,23 +163,23 @@ scry 1 reads "that card", scry 2 "those cards" (ruling 2026-10-06). -/
 
 /-- The `plugins_v3` helper `lookAndSortSlice` as the loader expands it: the generated
 `Semantics.Macros.Declared` macro (`cargo xtask lean macros`). -/
-private def lookAndSortSlice (slice : NounPhrase) (spill : ZoneExpr) (spillRiders : List MoveRider) :
+private def lookAndSortSlice (slice : NounPhrase) (spill : Location) (spillRiders : List MoveRider) :
     Action :=
   Semantics.Macros.Declared.lookAndSortSlice slice spill spillRiders
 
 /-- The generated macro is the expansion this file spelled by hand before it was generated. -/
-theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : ZoneExpr)
+theorem lookAndSortSlice_is_the_hand_expansion (slice : NounPhrase) (spill : Location)
     (spillRiders : List MoveRider) :
     lookAndSortSlice slice spill spillRiders =
       .sequentially
         [ .expose .lookAt (.cards (.firstMention "lookAndSortSlice.slice" slice)),
-          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anywhere (some spill) .arrival none
+          .move (someOf anyNumber (.laterMention "lookAndSortSlice.slice" slice)) .anyLocation (some spill) .arrival none
             spillRiders,
-          .move (.theRest .object .many) .anywhere (some onTop) .arrival none [.placement (.inOrder .anyOrder)] ] :=
+          .move (.theRest .object .many) .anyLocation (some onTop) .arrival none [(.inOrder .anyOrder)] ] :=
   rfl
 
 private def scryBy (amount : Amount) : Action :=
-  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [.placement (.inOrder .anyOrder)]) none none
+  .enact (.action "scry") (lookAndSortSlice (.slice .top amount (library .actor)) onBottom [(.inOrder .anyOrder)]) none none
 
 /-- "Scry 1." -/
 theorem okScryOne : Action.check (DRS.ofList []) (scryBy (.lit 1)) = [] := by decide
@@ -207,7 +207,7 @@ theorem okSurveilTwo :
 theorem okFatesealTwo :
     Action.check (DRS.ofList [])
       (.enact (.action "fateseal") (lookAndSortSlice (.slice .top (.lit 2) (library (a .opponent))) onBottom
-          [.placement (.inOrder .anyOrder)]) none none)
+          [(.inOrder .anyOrder)]) none none)
       = [] := by decide
 
 /-! ## Connive

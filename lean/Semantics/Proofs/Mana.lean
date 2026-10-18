@@ -20,19 +20,19 @@ def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timin
   .activated cost instruction timing none none none
 
 /-- "your hand" -/
-theorem okOwnedHand : ZoneExpr.check (DRS.ofList []) (.zone .hand (.possessedBy .you)) = [] := by decide
+theorem okOwnedHand : Location.check (DRS.ofList []) (.zone .hand (some .you)) = [] := by decide
 
 /-- "Discard a card at random. This deals damage equal to the discarded card's mana value to any
 target." -/
 theorem okDiscardedCardWord :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .inZone yourHand]))))
+      (activatedAbility (.perform (discard (aAtRandom (.and [.isCard, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) (target anyTarget) .any))) = [] := by
   decide
 
 theorem badDiscardedCreatureWord :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (discard (aAtRandom (.and [creature, .inZone yourHand]))))
+      (activatedAbility (.perform (discard (aAtRandom (.and [creature, .in_ yourHand]))))
         (Action.instruct .this (.dealDamage (.statOf (.stat .manaValue)
             (theVerbed (.action "discard") .one (some (.type .creature)))) (target anyTarget) .any)))
       = [.anaphor (.verbed (.action "discard") (some (.type .creature)) .attributive) .one 0] := by
@@ -256,7 +256,7 @@ theorem badBareCountScaledMana :
 theorem okUnearthGrantInGraveyard :
     Ability.check (DRS.ofList [])
       (.static
-        (.abilityGrant (allOf (.and [creature, .inZone (graveyardOf .you)]))
+        (.abilityGrant (allOf (.and [creature, .in_ (graveyardOf .you)]))
           (keywordCosting (.named "unearth") (.mana [generic 2])))) = [] := by
   decide
 
