@@ -115,7 +115,7 @@
     (lemma: "return", frames: [Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "reverse", frames: [Monotransitive]),
     // A die, not the Attraction keyword action [CR#701.52]: *roll a d20*.
-    (lemma: "roll", frames: [Intransitive, Monotransitive]),
+    (lemma: "roll", frames: [Intransitive, Monotransitive, Amount]),
     // *Round up each time.*; *half their life, rounded up*
     (lemma: "round", frames: [Prepositional(["down", "up"]), TransitiveWithPP(["down", "up"])]),
     (lemma: "separate", frames: [TransitiveWithPP(["into"])]),

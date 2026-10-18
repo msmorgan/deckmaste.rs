@@ -332,9 +332,12 @@ pub enum AdverbPosition {
     Central,
     /// After the verb and its Complements.
     End,
-    /// Inside a phrase, modifying an adjective, adverb, determinative or
-    /// numeral rather than a clause.
+    /// Inside a phrase, focusing or multiplying it (*only one target*,
+    /// *twice the damage*, *just beneath*) rather than modifying a clause.
     Phrasal,
+    /// Bounding a quantity: its determinative or numeral (*at least two*,
+    /// *exactly one*; CGEL p. 1129).
+    Bounding,
     /// A degree modifier within a scalar phrase.
     Degree,
 }

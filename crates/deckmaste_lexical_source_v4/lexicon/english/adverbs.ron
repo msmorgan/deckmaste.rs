@@ -6,8 +6,8 @@
     (lemma: "also", positions: [Front, Central]),
     (lemma: "already", positions: [Central]),
     // Bounding idioms on a quantity (CGEL p. 1129): *at least two creatures*.
-    (lemma: "at least", positions: [Phrasal]),
-    (lemma: "at most", positions: [Phrasal]),
+    (lemma: "at least", positions: [Bounding]),
+    (lemma: "at most", positions: [Bounding]),
     // The degree adverb of scalar equality (CGEL p. 1130): *twice as much*.
     (lemma: "as", positions: [Degree]),
     (lemma: "continuously", positions: [End]),
@@ -17,12 +17,12 @@
     // *a creature card directly above it*
     (lemma: "directly", positions: [Phrasal]),
     (lemma: "evenly", positions: [End]),
-    (lemma: "exactly", positions: [Phrasal]),
+    (lemma: "exactly", positions: [Bounding]),
     // *so far this turn*
     (lemma: "far", positions: [End]),
     (lemma: "fully", positions: [Central]),
     // *how those creatures block*; *how many cards*
-    (lemma: "how", positions: [Front, Phrasal], interrogative: true),
+    (lemma: "how", positions: [Front, Bounding], interrogative: true),
     // *Immediately after the draft*
     (lemma: "immediately", positions: [Phrasal]),
     // *just beneath the top X cards*

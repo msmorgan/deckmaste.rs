@@ -152,7 +152,8 @@
     // a Forest, rather than pay this spell's mana cost, you may ...*;
     // *its toughness rather than its power*; *by paying {X} rather than paying*.
     (lemma: "rather than", frames: [
-        (complement: NP, hosts: Nominal),
+        // *Rather than the attacking player, you assign ...*
+        (complement: NP, hosts: NominalAndPredicate),
         (complement: BareInf, hosts: Predicate),
         (complement: Gerund, hosts: Predicate),
         // *twice each turn rather than only once*
@@ -166,13 +167,17 @@
         (complement: Amount, hosts: ComplementOnly),
         (complement: NP, hosts: ComplementOnly),
         (complement: AdvP, hosts: ComplementOnly),
+        // A comparative clause: *more creatures than you do* (CGEL Ch. 13
+        // §2.1, p. 1108).
+        (complement: FiniteClause, hosts: ComplementOnly),
     ]),
     // *was put there from anywhere*
     (lemma: "there", frames: [(complement: Intransitive, hosts: ComplementOnly)]),
     // Selected goals only; *the player to your right* is `player`'s.
     (lemma: "to", frames: [
         (complement: Amount, hosts: ComplementOnly),
-        (complement: NP, hosts: ComplementOnly),
+        // *, to a maximum of 10*
+        (complement: NP, hosts: Supplement),
         (complement: Gerund, hosts: ComplementOnly),
     ]),
     // *enters under an opponent's control*; *a noncreature permanent under

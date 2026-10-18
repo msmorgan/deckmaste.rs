@@ -277,7 +277,11 @@
         ],
     ),
     (rule: "[CR#702.141]", name: "Encore", lemma: "encore", parameters: [[Cost]]),
-    (rule: "[CR#702.142]", name: "Boast", lemma: "boast", parameters: [[DashAbility]]),
+    (rule: "[CR#702.142]", name: "Boast", lemma: "boast", parameters: [[DashAbility]],
+        verbs: [
+            (lemma: "boast", frames: [Intransitive]),
+        ],
+    ),
     (rule: "[CR#702.143]", name: "Foretell", lemma: "foretell", parameters: [[Cost]],
         verbs: [
             (lemma: "foretell", past: "foretold", frames: [Monotransitive]),

@@ -86,6 +86,8 @@
     (lemma: "life", distribution: DirectMeasure, countability: [Mass]),
     (lemma: "loyalty", distribution: DirectMeasure, countability: [Mass]),
     (lemma: "mana", distribution: DirectMeasure, countability: [Mass]),
+    // *to a maximum of 10*
+    (lemma: "maximum", frames: [Complement(PP(["of"]))]),
     "mode",
     "name",
     (lemma: "number", distribution: Quantity, frames: [Complement(PP(["of"]))]),
@@ -214,5 +216,5 @@
     (lemma: "truth", countability: [Mass]),
     (lemma: "war", countability: [Count, Mass]),
     // A measure noun: *five {P} worth of modes* (CGEL Ch. 5, p. 470).
-    (lemma: "worth", countability: [Mass], frames: [Complement(PP(["of"]))]),
+    (lemma: "worth", distribution: DirectMeasure, countability: [Mass], frames: [Complement(PP(["of"]))]),
 ]
