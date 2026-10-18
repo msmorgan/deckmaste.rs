@@ -1,7 +1,5 @@
 ---
-needs:
-  - lean-v3-proofs-and-cards
-  - lean-v3-authoring-surface
+needs: [lean-v3-proofs-and-cards, lean-v3-authoring-surface]
 ---
 # Create deckmaste_semantics_v3 and plugins_v3 mirroring the proven Lean v3 specification
 
@@ -12,7 +10,7 @@ implementation step of [`docs/decisions/semantics-v3.md`](../../decisions/semant
 (§0, §§1–4). Supersedes the `v2`-specific cleanup tickets `lean-macros-cutover`,
 `plugins-v2-bodies-through-helpers`, and `semantics-v2-embed-candidates` (with
 the Lean-side `Templates.lean` / `Definitions.lean` consolidation completed in
-[`lean-v3-authoring-4-declared-bodies`](lean-v3-authoring-4-declared-bodies.md)).
+[`lean-v3-authoring-impl-2-templates-and-definitions`](lean-v3-authoring-impl-2-templates-and-definitions.md)).
 Standard constraints apply.
 
 ## Decisions already made (`docs/decisions/semantics-v3.md` §0, §§1–3)

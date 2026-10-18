@@ -1,22 +1,16 @@
 ---
-needs:
-  - lean-v3-authoring-1-deontic-cutover
-  - lean-v3-authoring-2-verb-and-clause-spine
-  - lean-v3-authoring-3-nominals-and-predicates
-  - lean-v3-authoring-4-declared-bodies
-design: true
+needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring]
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
-**[design] Refactor the `lean/Semantics/` authoring surface so that authored cards and
+**Refactor the `lean/Semantics/` authoring surface so that authored cards and
 keyword definitions read like Oracle English while expanding into the minimal
 Core AST primitives, and retire all `v1`/`v2` module, macro, and alias
 holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into
 `crates/deckmaste_semantics_v3` and `plugins_v3/`.** Umbrella epic for:
-[1 deontic cutover](lean-v3-authoring-1-deontic-cutover.md),
-[2 verb and clause spine](lean-v3-authoring-2-verb-and-clause-spine.md),
-[3 nominals and predicates](lean-v3-authoring-3-nominals-and-predicates.md), and
-[4 declared bodies and legacy name retirement](lean-v3-authoring-4-declared-bodies.md).
+[1 Core AST and checker](lean-v3-authoring-impl-1-core-ast-and-checker.md),
+[2 Templates and Definitions](lean-v3-authoring-impl-2-templates-and-definitions.md), and
+[3 Cards re-authoring](lean-v3-authoring-impl-3-cards-reauthoring.md).
 Standard constraints apply.
 
 ## Governing Principles
@@ -34,10 +28,12 @@ Standard constraints apply.
      built as `Template`s and `Definition`s expanding into the minimal Core AST
      primitives.
 3. **Literal and Enum Coercions Belong to the Rust `v3` DSL:**
-   - Bare numeral coercion (`1` vs `.lit 1`) and leading `.` enum prefixes are
-     handled by `deckmaste_dsl_v3` in `semantics-v3-dsl-and-plugins`; Lean
-     retains explicit `.lit` and `.` constructors where Lean's elaborator
-     requires them.
+   - Bare numeral coercion (`1` vs `.lit 1`), list coercions (`[...]` → `And` /
+     `Sequentially` / `Compound` / `Conjunction`), and leading `.` enum prefixes
+     are handled by `deckmaste_dsl_v3` in `semantics-v3-dsl-and-plugins`; Lean
+     retains explicit `.lit` and top-level combinator templates (`and`,
+     `sequentially`, `compound`, `conjunction`) so Lean's elaborator and kernel
+     `by decide` never pay typeclass search or projection-unfolding overhead.
 4. **No `v1`/`v2` Holdover Names:**
    - Retire the `Semantics.Macros` hierarchy, `Declared.lean` split,
      `semantic_macro` command, `MacroParameters` / `MacroContext` / `MacroSplice`
@@ -46,30 +42,27 @@ Standard constraints apply.
      `Primitives`, `Templates`, `Definitions`, `CallerScope`, `AuthoringContext`,
      `Referent`, and `DRS`.
 
-## Sub-Tickets
+## Implementation Tickets
 
-1. [`lean-v3-authoring-1-deontic-cutover`](../wip/lean-v3-authoring-1-deontic-cutover.md):
-   Retire the `deonticActionFor` `v2`-port shim and all `Deed`-taking deontic
-   signatures in favor of `v3` `Action`-taking templates (`cant`, `can`, `must`,
-   `gatedBy`).
-2. [`lean-v3-authoring-2-verb-and-clause-spine`](../wip/lean-v3-authoring-2-verb-and-clause-spine.md):
-   Introduce `Action` templates for verbs and observations (`die`, `enter`,
-   `leave`, `putInto`, `phaseOut`, `phaseIn`, `turnFaceUp`, `loseGame`,
-   `winGame`, `cast`, `attack`, `block`, `dealDamage`, etc.) so `does`,
-   `would`, `did`, and `cant` share one verb vocabulary without raw 6-argument
-   `Action.move` or `.setStatus` / `.procedure` / `.conclude` calls.
-3. [`lean-v3-authoring-3-nominals-and-predicates`](lean-v3-authoring-3-nominals-and-predicates.md):
-   Replace hardcoded compound noun macros and raw `Primitives.*` constructor
-   chains in `Cards/*.lean` with composable noun-phrase, determiner, and
-   predicate modifiers (`youControl`, `controlledBy`, `opponentsControl`,
-   `youOwn`, `ownedBy`, `in_`, `withKeyword`, `otherThan`, `which`, etc.) and
-   clean top-level combinator templates.
-4. [`lean-v3-authoring-4-declared-bodies`](lean-v3-authoring-4-declared-bodies.md):
+1. [`lean-v3-authoring-impl-1-core-ast-and-checker`](lean-v3-authoring-impl-1-core-ast-and-checker.md):
+   Land all Core AST and checker changes in one pass (`Instruction` → `Action`,
+   unified `Location` algebra + `Predicate.in_` + flattened `MoveRider`,
+   `StaticSpec.can` + simplified `DeonticMods` + `Quantity` bounds +
+   `AsThough.condition`, relational `Predicate.isOpponentOf` / `isTeammateOf`
+   retiring `PlayerGroupWord`, and `CallerScope` / `Authoring` / `Payload.difference`
+   renames + `CONTEXT.md` amendment).
+2. [`lean-v3-authoring-impl-2-templates-and-definitions`](lean-v3-authoring-impl-2-templates-and-definitions.md):
    Consolidate `Macros.lean` and `Macros/Declared.lean` into
    `lean/Semantics/Primitives.lean`, `lean/Semantics/Templates.lean`, and
-   `lean/Semantics/Definitions.lean` (with `Definition` bodies re-expressed
-   through `Template` helpers), retire all remaining `v1`/`v2` holdover module
-   and identifier names, and amend `docs/contexts/game-model/CONTEXT.md`.
+   `lean/Semantics/Definitions.lean`, landing the complete `v3` template
+   vocabulary (4 deontics, intransitive/transitive verb spine, uniform
+   boolean-like `Predicate`s, attached hosts, `Location` helpers, and top-level
+   combinators), re-expressing all `Definition` bodies through `Templates.lean`
+   helpers, and updating `lean/Semantics/Proofs/`.
+3. [`lean-v3-authoring-impl-3-cards-reauthoring`](lean-v3-authoring-impl-3-cards-reauthoring.md):
+   Re-author all 15 `lean/Semantics/Cards/*.lean` modules onto the new
+   `Templates.lean` and `Definitions.lean` surface so authored cards read like
+   Oracle English and contain zero `Primitives.*` qualifications.
 
 ---
 
@@ -366,7 +359,12 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - **Types, kinds, and roles (`is*`):**
     - `isCreature`, `isArtifact`, `isEnchantment`, `isLand`, `isInstant`, `isSorcery`, `isPlaneswalker`, `isBattle`, `isKindred`, `isInstantOrSorcery`, `isPermanentType`
     - `isPermanent`, `isPermanentCard`, `isSpell`, `isCard`, `isToken`, `isNontoken`, `isCopyOfACard`, `isSource`, `isEmblem`, `isManaAbility`
-    - `isPlayer` (replacing `anyPlayer`), `isOpponent` (replacing `opponent`), `isChosenPlayer`, `isOtherPlayer`, `isOutlaw`, `isHistoric`, `isAnyTarget`, `isAnyOtherTarget`
+    - `isPlayer` (replacing `anyPlayer`), `isChosenPlayer`, `isOtherPlayer`, `isOutlaw`, `isHistoric`, `isAnyTarget`, `isAnyOtherTarget`
+    - **Relational opponent and teammate predicates (`[CR#102.2..102.3]`):**
+      - Replace nullary `Predicate.opponent` in the Core AST with relational `Predicate.isOpponentOf (who : NounPhrase)` and `Predicate.isTeammateOf (who : NounPhrase)`.
+      - `isOpponent : Predicate := isOpponentOf you` (and inside actor-relative `Definition`s such as `fateseal` `[CR#701.29a]`, `isOpponentOf .actor`).
+      - `isTeammate : Predicate := isTeammateOf you`.
+      - Retire `PlayerGroupWord` (`allPlayers | yourOpponents | yourTeam`) and `NounPhrase.playerGroup` from the Core AST: `yourOpponents` is `allOf isOpponent`, `allPlayers` is `allOf isPlayer`, and `yourTeam` is `or [you, a isTeammate]`.
   - **States and characteristics (`is*`):**
     - `isTapped`, `isUntapped`, `isFaceDown`, `isFaceUp`, `isPhasedOut`, `isTransformed`, `isAttached`
     - `isAttacking`, `isBlocking`, `isBlocked`, `isUnblocked`
@@ -445,7 +443,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
   - `bushido (count : Amount)` (`[CR#702.45a]`), `modular (count : Amount)` (`[CR#702.43a]`), `renown (count : Amount)` (`[CR#702.112a]`)
   - `forEach (per : Amount) (p : Predicate) : Amount`
 - **Rules-accurate signatures and bodies:**
-  - `fateseal (amount : Amount)` (`[CR#701.29a]` — looks at the top `amount` cards of an opponent's library (`a isOpponent`), retiring the extra `whose` parameter in `Macros.lean`).
+  - `fateseal (amount : Amount)` (`[CR#701.29a]` — looks at the top `amount` cards of an opponent's library (`a (isOpponentOf .actor)`), retiring the extra `whose` parameter in `Macros.lean`).
   - `companion (condition : DeckCondition)` (`[CR#702.139a]` — uses `DeckCondition` from `Macros.lean`, not `Condition` from `Declared.lean`).
   - `levelUp (cost : Cost)` (`[CR#702.87a]` — uses the full sorcery-speed activated-ability expansion body from `Declared.lean`, not the empty-body stub in `Macros.lean`).
   - `gainControl (subject : NounPhrase) (duration : Option Duration := none) (controller : NounPhrase := .actor)` — defaults `controller` to `.actor` so both `"gain control of target creature"` (`you`) and `"target player gains control of..."` (`instruct`) work uniformly.
