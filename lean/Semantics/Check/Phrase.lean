@@ -1,4 +1,4 @@
-import Semantics.Phrase
+import Semantics.Abilities
 import Semantics.Check.Events
 import Semantics.Check.HeaderContext
 import Semantics.Check.CardFacts
@@ -352,7 +352,7 @@ def predicateOfKind (k : Kind) (p : Predicate) : Predicate :=
 
 def predicatePayload (drs : DRS) (k : Kind) (p : Predicate) (fuel : Nat := 64) : Payload :=
   match fuel, k with
-  | 0, _ => .gap
+  | 0, _ => .difference
   | _ + 1, .object =>
     let p := predicateOfKind .object p
     if p.seedsAbility then .ability none (p.explicitZone.orElse (fun _ => some .stack))
@@ -364,7 +364,7 @@ def predicatePayload (drs : DRS) (k : Kind) (p : Predicate) (fuel : Nat := 64) :
   | _ + 1, .turnRef => .turnRef
   | _ + 1, .pile => .pile none none none
   | n + 1, .join l r => .join (predicatePayload drs l p n) (predicatePayload drs r p n)
-  | _ + 1, _ => .gap
+  | _ + 1, _ => .difference
 termination_by structural fuel
 
 def bindFor (drs : DRS) (det : Determiner) (plur : Plurality) (k : Kind) (p : Predicate) : Referent :=
@@ -1611,7 +1611,7 @@ def stepOps : Nat → StepOps
           let domainAdditions := domainDrs.referents.filter (fun ref => ref.id ≥ drs.nextId)
           let inherited := bounded.referents.filter (fun ref => ref.id < drs.nextId)
           let out := { bounded with referents := boundAdditions ++ domainAdditions ++ inherited }
-          (out.push gapB .other false, refuse kind.phrasal (.phrasal kind) ++
+          (out.push differenceB .other false, refuse kind.phrasal (.phrasal kind) ++
             domainErrors ++ measureErrors ++ boundErrors)
         | .attachment side word counterpart =>
           let kind := drs.relativeKind.getD .object
@@ -2059,8 +2059,8 @@ def stepOps : Nat → StepOps
             | none => countManysAny drs
           (drs, if n == 1 then [] else [.groupSizeInScope n])
         | .theDifference =>
-          let n := countGaps drs
-          (drs, if n == 1 then [] else [.gapInScope n])
+          let n := countDifferences drs
+          (drs, if n == 1 then [] else [.differenceInScope n])
         | .letter l =>
           let drs' := (introducedLetters l drs).foldl (fun d r => d.push r .other false) drs
           (drs', [])
@@ -2122,7 +2122,7 @@ def stepOps : Nat → StepOps
         | .compareAmt l _ r =>
           let (drs1, e1) := ops.amt drs l
           let (drs2, e2) := ops.amt drs1 r
-          (drs2.push gapB .other false, e1 ++ e2 ++ refuse l.read .readAmount)
+          (drs2.push differenceB .other false, e1 ++ e2 ++ refuse l.read .readAmount)
         | .dealtThisWay pred =>
           let (drs1, e1) := ops.pred drs pred
           (drs1, e1 ++ (if damageDealtInScope drs then [] else [.damageDealtInScope]))
@@ -3251,5 +3251,30 @@ def Predicate.checkAt (expected : Kind) (drs : DRS) (p : Predicate) : List Refus
     (match p.scopeBody with
       | .targets .. | .compare .. | .hasDesignation .. | .attachment .. => []
       | _ => kindCheck expected p.kind?)
+
+/-! ## Clause and event checking -/
+
+def DidClause.check (drs : DRS) (c : DidClause) : List Refusal :=
+  (stepDidClause 64 drs c).2
+
+def WouldClause.check (drs : DRS) (c : WouldClause) : List Refusal :=
+  (stepWouldClause 64 drs c).2
+
+def GameEvent.check (drs : DRS) (ev : GameEvent) : List Refusal :=
+  (stepGameEvent 64 drs ev).2
+
+def GameEvent.checkAll (drs : DRS) (evs : List GameEvent) : List Refusal :=
+  (stepGameEventList 64 drs evs).2
+
+/-! ## Event-derived `DRS` extension (`docs/decisions/semantics-v3.md` §3.5) -/
+
+def DidClause.extend (drs : DRS) (c : DidClause) : DRS :=
+  (stepDidClause 64 drs c).1
+
+def WouldClause.extend (drs : DRS) (c : WouldClause) : DRS :=
+  (stepWouldClause 64 drs c).1
+
+def GameEvent.extend (drs : DRS) (ev : GameEvent) : DRS :=
+  (stepGameEvent 64 drs ev).1
 
 end Semantics

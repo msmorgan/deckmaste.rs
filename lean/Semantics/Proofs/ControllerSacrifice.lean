@@ -88,7 +88,7 @@ private def authoringWitness : Spelled := spelled <| .singleFaced
         (controllerSacrifices (target (Primitives.Predicate.and [artifact, creature])))] } }
 
 theorem compositionPassesTheAuthoringBoundary :
-    authoringWitness.authoring.onlyMacros = true := by decide
+    authoringWitness.authoring.onlyAuthored = true := by decide
 
 theorem controlGrantRecordsItsPatientIdentity :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])

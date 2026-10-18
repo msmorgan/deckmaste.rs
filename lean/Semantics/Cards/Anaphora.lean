@@ -358,7 +358,7 @@ def nekrataalDestroy : Action :=
   destroy (target (Primitives.Predicate.and [creature, Primitives.Predicate.not artifact, Primitives.Predicate.not (Primitives.Predicate.colorIs .black)]))
 theorem okNekrataalDestroy :
     Action.check ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy = [] := by decide
-def nekrataalRider : Bindings :=
+def nekrataalRider : DRS :=
   (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy).1
 theorem nekrataalOneCreatureWord : countReach (.word (.type .creature)) .one nekrataalRider = 1 := by
   decide
@@ -368,7 +368,7 @@ theorem nekrataalOneDestroyed : countReach (.verbed (.action "destroy") none .at
 def sequencedRiderBody : Action :=
   Primitives.Action.sequentially [exile (target artifact), destroy (target creature)]
 theorem okSequencedRiderBody : Action.check (DRS.ofList []) sequencedRiderBody = [] := by decide
-def sequencedRider : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
+def sequencedRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) sequencedRiderBody).1
 theorem sequencedRiderOneDestroyed :
     countReach (.verbed (.action "destroy") none .attributive) .one sequencedRider = 1 := by decide
 theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .attributive) .one sequencedRider = 1 := by
@@ -377,7 +377,7 @@ theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .at
 /-- Engulfing Flames -/
 def engulfingFlamesBody : Action := instruct Primitives.NounPhrase.this (Primitives.Action.dealDamage (.lit 1) (target creature) .noncombatOnly)
 theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
-def engulfingFlamesRider : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
+def engulfingFlamesRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :
     countReach (.verbed (.action "destroy") none .attributive) .one engulfingFlamesRider = 0 := by decide
 theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRider = 1 := by decide
@@ -391,7 +391,7 @@ theorem bioplasmNoTypedRead :
   decide
 theorem bioplasmExiledCardHasNoType :
     tyOfReach (.verbed (.action "exile") none .attributive) .one bioplasmAfterExile = [] := by decide
-def bioplasmAfterTest : Bindings := (stepCondition 512 (nextClause bioplasmAfterExile) bioplasmCardTest).1
+def bioplasmAfterTest : DRS := (stepCondition 512 (nextClause bioplasmAfterExile) bioplasmCardTest).1
 theorem bioplasmTypeTestPreservesExiledIdentity :
     let reach := Reach.verbed (.action "exile") none .attributive
     let before := resolveCandidates reach .one bioplasmAfterExile
@@ -413,11 +413,11 @@ theorem bioplasmTypedCardReadWrites :
 /-- Scapeshift -/
 def scapeshiftSacrifice : Action := sacrifice (counted anyNumber land)
 theorem okScapeshiftSacrifice : Action.check (DRS.ofList []) scapeshiftSacrifice = [] := by decide
-def scapeshiftSacrificed : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) scapeshiftSacrifice).1
+def scapeshiftSacrificed : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) scapeshiftSacrifice).1
 def scapeshiftSearch : Action := searchLibraryFor (Primitives.Quantity.upToOf Primitives.Amount.groupSize) land
 theorem okScapeshiftSearch : Action.check scapeshiftSacrificed scapeshiftSearch = [] := by
   decide
-def scapeshiftAfterSearch : Bindings := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
+def scapeshiftAfterSearch : DRS := (stepAction 512 .postEvent .obj scapeshiftSacrificed scapeshiftSearch).1
 theorem scapeshiftTwoGroups : countReach .bare .many scapeshiftAfterSearch = 2 := by decide
 theorem scapeshiftOneSearchedGroup :
     countReach (.verbed (.action "search") none .attributive) .many scapeshiftAfterSearch = 1 := by decide
@@ -454,7 +454,7 @@ def tezzeretAllArtifacts : Action :=
       move (allFromAmong artifact (theVerbed (.action "exile") .many (some .card) .thisWay)) battlefield ]
 theorem okTezzeretAllArtifacts : Action.check (DRS.ofList []) tezzeretAllArtifacts = [] := by decide
 
-def companyContext : Bindings := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice (.lit 6)))).1
+def companyContext : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) (lookAt (topSlice (.lit 6)))).1
 def companyDescribedSlice : NounPhrase :=
   fromAmong (upTo 2) (Primitives.Predicate.and [creature, Primitives.Predicate.compare [.stat .manaValue] .atMost (.lit 3)]) them
 theorem okCompanyDescribedSlice :

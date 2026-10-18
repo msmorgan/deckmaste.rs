@@ -78,7 +78,7 @@ the existence of a checking function.
 
 `spelled <| card` is the checked authoring boundary. It retains an
 `Authoring.Form` tree before unfolding erases named macro calls, and constructs
-`Spelled` with both `onlyMacros` and the existing `ok : card.check = []` proof.
+`Spelled` with both `onlyAuthored` and the existing `ok : card.check = []` proof.
 The constructor is private. Record construction and record update cannot replace
 these checks. Unregistered helper definitions and nested macro arguments are
 inspected; opaque or variable semantic content without authoring evidence is
@@ -90,7 +90,7 @@ their semantic fields are inspected recursively. `Semantics.Macros.Primitives`
 provides named wrappers with definitionally identical constructor signatures.
 `Action.enact`, `NounPhrase.pro`, and `Window` have no primitive wrapper:
 they are expansion carriers owned by the trusted macro layer. Existing idiomatic
-macros use `semantic_macro` declarations. Defaults retain their macro calls.
+templates and definitions use `semantic_template` and `semantic_definition` declarations. Defaults retain their calls.
 
 A declaration generates the hidden construction context, parameter bindings, and
 registration from one ordinary Lean definition body. It returns its semantic
@@ -619,7 +619,7 @@ by exact-refusal theorems; it is not an authorable term.
 |---|---|
 | `LookbackSubject` | `LookbackClause.check` binds the described participant, and the shared event checker validates each use. |
 | `LookbackComplement` | Ordinary `GameEvent` participant checks; there is no separate complement-kind table. |
-| `ChoiceMode` | `ChoiceMode.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `ChoiceMode` | `ChoiceMode.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `Possessable` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a possessed shared zone is not refused. `Zone.possessable` still decides which moves keep a binding's possessor. |
 
 ### Phrase
@@ -627,40 +627,40 @@ by exact-refusal theorems; it is not an authorable term.
 | Reference datatype | Lean duty |
 |---|---|
 | `ChoiceInScope` | `countParts` in `Predicate.notChosen` and `Condition.choseThisWay` requires a compatible standing choice. |
-| `ColorTerm` | `ColorTerm.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `ColorTerm` | `ColorTerm.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `ZoneScope` | `ZoneScope.check` checks the possessor's player kind. |
 | `LibPlace` | `LibraryPlace.check`; the place's arrangement and ordinal fit are retired by `lean-checker-sweep-zone`. |
-| `ZoneExpr` | `ZoneExpr.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `NameSource` | `NameSource.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `ZoneExpr` | `ZoneExpr.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `NameSource` | `NameSource.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `ChoiceDomain` | `sortedDomainCheck` checks both domain contents and `ChoiceDomain.sort` at `qualityNoun`, `ofYourChoice`, `entersChoice`, and `attachChoice`. |
-| `EventSource` | `EventSource.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `EventSource` | `EventSource.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `EventComplement` | Retired in favor of event participant, source, destination, and locus fields. |
 | `ComplementWritten` | Required event fields cannot be omitted. An action that declares a locus requires that locus in the shared event checker. |
 | `LookbackClause` | The shared checker validates the carried event under a locally bound participant of the host kind. |
 | `Predicate` | `Predicate.check` receives an expected kind, checks every child, and uses `kindCheck`; conjunction children share a scope, joined alternatives receive their own inferred kinds. |
-| `DetPhrase` | `DetPhrase.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `DetPhrase` | `DetPhrase.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `RolesOk` | `rolesOk` in `NounPhrase.oneEachOf`, alongside per-role `Predicate.checkAll` and object-kind checks. |
 | `Noun` | `NounPhrase.check` receives the expected kind, applies `ctxCheck`, and checks references in the supplied bindings. Authorable offset references remain owned by `lean-grammatical-reference-scopes`. |
-| `Amount` | `Amount.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Quantity` | `Quantity.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `Amount` | `Amount.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Quantity` | `Quantity.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `NonZeroQ` | `Quantity.nonZero` in the consumers that require nonzero cardinality; zero remains allowed in other quantity slots. |
-| `SliceCount` | `SliceCount.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `SliceCount` | `SliceCount.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `ComplementAnchor` | `NounPhrase.anchorPhrase` and singularity in `Predicate.otherThan`. |
 | `LinkSource` | `NounPhrase.linkSource` in `Predicate.exiledWith`. |
 | `PileMention` | `NounPhrase.pileMention` plus noun checking in `Predicate.inPile`. |
 | `PaidSubject` | Object-kind checking in `Amount.paid`. Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): the stack-zone demand is not checked. |
 | `DestOk` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a move's destination shape is not checked. |
-| `SearchScope` | `SearchScope.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `FlipScope` | `FlipScope.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `IgnoredOutcomes` | `IgnoredOutcomes.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Ballot` | `Ballot.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `SearchScope` | `SearchScope.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `FlipScope` | `FlipScope.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `IgnoredOutcomes` | `IgnoredOutcomes.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Ballot` | `Ballot.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `CostSubject` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a cost change's subject is not required to be on the stack. |
 | `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's enacted move checks no source zone. |
-| `Condition` | `Condition.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `Condition` | `Condition.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `MarkingOk` | `markingOk` in `StaticSpec.conditional`. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event. |
-| `Exposed` | `Exposed.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `VisibleThing` | `VisibleThing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `Exposed` | `Exposed.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `VisibleThing` | `VisibleThing.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `DamageRecipient` | `objectOrPlayerCheck` in damage instructions, `DamagePatient.check` and the damage-result rule: the recipient's kind alone. Which objects can be dealt damage [CR#120.1a] and where they are are not checked (`lean-checker-sweep-zone`). |
 | `StatusHolder` | `Action.setStatus` requires the object kind; the battlefield zone and the settable status value are not checked (`lean-checker-sweep-zone`). |
 | `NotAnAbility` | Retired at movement: the action-fold ticket explicitly corrects this false blanket prohibition; ending a turn or combat can exile stack abilities [CR#724.1b,724.2b]. |
@@ -671,21 +671,21 @@ by exact-refusal theorems; it is not an authorable term.
 
 | Reference datatype | Lean duty |
 |---|---|
-| `ManaTypeTerm` | `ManaTypeTerm.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Duration` | `Duration.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks its boundary events and condition; a boundary that names whose turn names one definite player (`durationPossessor`). |
-| `TurnRef` | `TurnRef.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean): a named player is a player, and `that` reads back exactly one turn an earlier phrase introduced (`turnAntecedent`). |
-| `UsageLimit` | `UsageLimit.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks the count's amount; its period names no referent. |
-| `AttackDefender` | `AttackDefender.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `DamagePatient` | `DamagePatient.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Door` | `Door.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `RollWatch` | `RollWatch.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `ManaTypeTerm` | `ManaTypeTerm.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Duration` | `Duration.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks its boundary events and condition; a boundary that names whose turn names one definite player (`durationPossessor`). |
+| `TurnRef` | `TurnRef.check` in [Phrase.lean](Semantics/Check/Phrase.lean): a named player is a player, and `that` reads back exactly one turn an earlier phrase introduced (`turnAntecedent`). |
+| `UsageLimit` | `UsageLimit.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks the count's amount; its period names no referent. |
+| `AttackDefender` | `AttackDefender.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `DamagePatient` | `DamagePatient.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Door` | `Door.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `RollWatch` | `RollWatch.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `CrimeSubject` | `GameEvent.commitsCrime` checks a player subject and singularity. |
-| `GameEvent` | `GameEvent.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
-| `Causing` | `Causing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and expected child kinds in the supplied context. |
+| `GameEvent` | `GameEvent.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
+| `Causing` | `Causing.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 | `TriggerWindow` | Merged into `Timing.inPart`; `Timing.check` checks the possessor's references. Which turn parts and possessors a window admits is not checked (`lean-checker-sweep-timing`). |
-| `Timing` | `Timing.check` in [PhraseRules.lean](Semantics/Check/PhraseRules.lean) checks references and kinds only: whose turn is a player's, and the events, conditions and turn references it names. |
+| `Timing` | `Timing.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and kinds only: whose turn is a player's, and the events, conditions and turn references it names. |
 | `AltEvent` | `GameEvent.check` checks each alternative event. The old header-word index is gone; the event determines its own event class. Header nontargeting is retired by `lean-checker-sweep-game-rules` (§7 charter ruling 2026-10-06). |
-| `JoinedHeader` | `JoinedHeader.check` in [Triggers.lean](Semantics/Check/Triggers.lean) checks references and expected child kinds in the supplied context. |
+| `JoinedHeader` | `JoinedHeader.check` in [Phrase.lean](Semantics/Check/Phrase.lean) checks references and expected child kinds in the supplied context. |
 
 ### Words
 
@@ -965,9 +965,9 @@ outcome. Regeneration composes this primitive with tapping and conditional
 removal from combat inside a destruction replacement.
 
 
-### Semantic macro parameters and expanded actions
+### Template and definition parameters and expanded actions
 
-`semantic_macro` accepts `capture NounPhrase`, `capture Amount`, and `splice T`
+`semantic_template` and `semantic_definition` accept `capture NounPhrase`, `capture Amount`, and `splice T`
 annotations alongside ordinary configuration arguments. A captured subject is
 selected or resolved once; its repeated uses retain that identity while reading
 current properties. A captured amount retains one value, while ordinary Amount

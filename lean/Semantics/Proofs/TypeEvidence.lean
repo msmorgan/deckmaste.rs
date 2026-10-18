@@ -40,7 +40,7 @@ theorem pureTypePermutation (xs ys : List CardType) (h : xs.Perm ys) :
 
 private def artifactCreature : Predicate := .and [artifact, creature]
 private def creatureArtifact : Predicate := .and [creature, artifact]
-private def afterTarget (p : Predicate) : Bindings := (stepNounPhrase 64 (DRS.ofList []) .other false (target p)).1
+private def afterTarget (p : Predicate) : DRS := (stepNounPhrase 64 (DRS.ofList []) .other false (target p)).1
 
 theorem artifactFirstReadsCreature :
     countReach (.word (.type .creature)) .one (afterTarget artifactCreature) = 1 := by decide
@@ -60,7 +60,7 @@ theorem targetTypeOrderKeepsBinding :
 theorem conjunctionDoesNotInventLand :
     countReach (.word (.type .land)) .one (afterTarget artifactCreature) = 0 := by decide
 
-private def afterExile (p : Predicate) : Bindings := (stepAction 64 .postEvent .obj (DRS.ofList []) (exile (target p))).1
+private def afterExile (p : Predicate) : DRS := (stepAction 64 .postEvent .obj (DRS.ofList []) (exile (target p))).1
 
 theorem movedArtifactCreatureReadsCreatureCard :
     countReach (.word (.ofType .card .creature)) .one (afterExile artifactCreature) = 1 := by decide
@@ -98,7 +98,7 @@ theorem conjunctionDistributesThroughAlternatives :
     Predicate.headTyAlts (.and [.or [artifact, land], creature]) =
       [[.creature, .artifact], [.creature, .land]] := by decide
 
-private def joined : Bindings := afterTarget (.or [artifactCreature, .anyPlayer])
+private def joined : DRS := afterTarget (.or [artifactCreature, .anyPlayer])
 
 theorem joinedObjectHalfReadsCreature :
     countReach (.unionHalf (.type .creature)) .one joined = 1 := by decide

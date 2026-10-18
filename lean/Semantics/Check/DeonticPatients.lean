@@ -85,7 +85,7 @@ def deonticDeedFits (before after : DRS) (action : Action)
 
 def publishProhibitionSources (before after : DRS) : DRS :=
   let sources := after.referents.filter (fun ref => ref.id ≥ before.nextId &&
-    !ref.isActorFrame && !ref.isGap &&
+    !ref.isActorFrame && !ref.isDifference &&
     (Kind.lte ref.kind (.join .object .player)) &&
     (ref.det == .target || ref.det == .the || ref.attachmentHost))
   let ids := sources.map (·.id)

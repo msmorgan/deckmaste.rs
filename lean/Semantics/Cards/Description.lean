@@ -370,7 +370,7 @@ theorem okBioplasmAttack : GameEvent.check (DRS.ofList []) bioplasmAttack = [] :
 def bioplasmExile : Action := exile (topSlice (.lit 1))
 theorem okBioplasmExile :
     Action.check ((stepGameEvent 512 (DRS.ofList []) bioplasmAttack).1) bioplasmExile = [] := by decide
-def bioplasmAfterExile : Bindings := (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) bioplasmAttack).1) bioplasmExile).1
+def bioplasmAfterExile : DRS := (stepAction 512 .postEvent .obj ((stepGameEvent 512 (DRS.ofList []) bioplasmAttack).1) bioplasmExile).1
 def bioplasmExiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
 theorem okBioplasmExiledCard :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide

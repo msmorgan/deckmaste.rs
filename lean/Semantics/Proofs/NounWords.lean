@@ -4,14 +4,14 @@ open Semantics Semantics.Macros
 
 namespace Semantics.Proofs.NounWords
 
-private def creatureCard : Binding :=
+private def creatureCard : Referent :=
   { det := .target, plur := .one, payload := .object [.creature] (some .exile) none none none, idents := [] }
-private def artifactCard : Binding :=
+private def artifactCard : Referent :=
   { det := .target, plur := .one, payload := .object [.artifact] (some .exile) none none none, idents := [] }
-private def creaturePermanent : Binding :=
+private def creaturePermanent : Referent :=
   { det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none, idents := [] }
-private def sourceAbility : Binding := { det := .target, plur := .one, payload := .ability none, idents := [] }
-private def copiedAbility : Binding := { det := .a, plur := .one, payload := .ability (some .copy), idents := [] }
+private def sourceAbility : Referent := { det := .target, plur := .one, payload := .ability none, idents := [] }
+private def copiedAbility : Referent := { det := .a, plur := .one, payload := .ability (some .copy), idents := [] }
 
 theorem typedCardFindsMatchingCarrier :
     countReach (.word (.ofType .card .creature)) .one
@@ -77,7 +77,7 @@ theorem unionRefinementAcceptsOneMatchingHalf :
     countReach (.unionHalf (.copied (.type .creature))) .one
       (DRS.ofList [{ det := .target, plur := .one, payload := .join artifactCard.payload copiedCreature, idents := [] }]) = 1 := by decide
 
-private def movedCopy (deed : Deed) (origin : Option Origin) : Binding :=
+private def movedCopy (deed : Deed) (origin : Option Origin) : Referent :=
   { det := .target, plur := .one, payload := .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none, idents := [] }
 
 theorem verbedRefinementsKeepCarrierTypeAndOrigin :
@@ -120,7 +120,7 @@ theorem verbedPronounIsAnObject :
 theorem verbedDescriptionTakesItsWordsKind :
     Reach.kind (.verbed (.action "exile") (some .player) .attributive) = .player := by decide
 
-theorem typeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (b : Binding) :
+theorem typeAndCopyRefinementsCommute (word : NounWord) (ty : CardType) (b : Referent) :
     wordReaches (.copied (.ofType word ty)) b =
       wordReaches (.ofType (.copied word) ty) b := by
   simp only [wordReaches, Bool.and_right_comm]

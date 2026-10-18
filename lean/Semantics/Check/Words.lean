@@ -463,7 +463,7 @@ inductive Payload where
   | player (chosen : Bool)
   | quality (q : QualitySort)
   | outcome (sort : OutcomeSort)
-  | gap
+  | difference
   | letter (l : Letter)
   | turnRef
   /-- An ability object and its remembered location [CR#113.1c,724.1b,724.2b]. -/
@@ -482,7 +482,7 @@ def kind : Payload → Kind
   | .object .. => .object
   | .player _ => .player
   | .quality q => .quality q
-  | .outcome _ | .gap | .actor _ => .outcome
+  | .outcome _ | .difference | .actor _ => .outcome
   | .letter l => .letter l
   | .turnRef => .turnRef
   | .ability _ _ => .object
@@ -557,8 +557,6 @@ structure Referent where
   counterMemoryAvailable : Bool := true
   deriving DecidableEq, Repr
 
-abbrev Binding := Referent
-
 def Referent.kind (b : Referent) : Kind := b.payload.kind
 def Referent.zone (b : Referent) : Option Zone := b.payload.zone
 def Referent.ty (b : Referent) : List CardType := b.payload.ty
@@ -571,9 +569,9 @@ def Referent.isActorFrame (b : Referent) : Bool :=
   | .actor _ => true
   | _ => false
 
-def Referent.isGap (b : Referent) : Bool :=
+def Referent.isDifference (b : Referent) : Bool :=
   match b.payload with
-  | .gap => true
+  | .difference => true
   | _ => false
 
 def Referent.sameCore (a b : Referent) : Bool :=
@@ -620,8 +618,6 @@ structure DRS where
   selectionScope : Nat := 0
   nextSelectionScope : Nat := 1
   deriving DecidableEq, Repr
-
-abbrev Bindings := DRS
 
 def DRS.ofList (rs : List Referent) : DRS :=
   let n := rs.length
@@ -751,8 +747,8 @@ inductive HeadTy where
 
 def outcomeB (s : OutcomeSort) : Referent :=
   { det := .the, plur := .one, payload := .outcome s }
-def gapB : Referent :=
-  { det := .the, plur := .one, payload := .gap }
+def differenceB : Referent :=
+  { det := .the, plur := .one, payload := .difference }
 def turnRefB : Referent :=
   { det := .the, plur := .one, payload := .turnRef }
 def letterB (l : Letter) : Referent :=
@@ -781,10 +777,10 @@ def introducedChoiceAt (k : Kind) : List Referent :=
 
 def countOnes (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
-    !b.isActorFrame && !b.isGap && b.plur.isOne && Kind.lte k b.kind).length
+    !b.isActorFrame && !b.isDifference && b.plur.isOne && Kind.lte k b.kind).length
 
-def countGaps (drs : DRS) : Nat :=
-  (drs.visibleReferents.filter fun b => b.isGap && b.plur.isOne).length
+def countDifferences (drs : DRS) : Nat :=
+  (drs.visibleReferents.filter fun b => b.isDifference && b.plur.isOne).length
 
 def countOutcomes (s : OutcomeSort) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -1587,7 +1583,7 @@ def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
   | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
   | .player, _, _, _ => .player false
   | .quality q, _, _, _ => .quality q
-  | _, _, _, _ => .gap
+  | _, _, _, _ => .difference
 
 def CopySort.landsIn : CopySort → Option Zone → Option Zone
   | .fromStack, _ => some .stack

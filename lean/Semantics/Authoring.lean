@@ -12,14 +12,14 @@ term and this tree is the elaborator's responsibility.
 namespace Semantics
 
 /-- Expansion-time lexical depth. This argument is eliminated when a macro constructs its body. -/
-class MacroContext where
+class AuthoringContext where
   depth : Nat
 
-abbrev MacroContext.root : MacroContext := ⟨0⟩
+abbrev AuthoringContext.root : AuthoringContext := ⟨0⟩
 
-instance : MacroContext := MacroContext.root
+instance : AuthoringContext := AuthoringContext.root
 
-abbrev MacroContext.child (context : MacroContext) : MacroContext := ⟨context.depth + 1⟩
+abbrev AuthoringContext.child (context : AuthoringContext) : AuthoringContext := ⟨context.depth + 1⟩
 
 end Semantics
 
@@ -38,16 +38,16 @@ inductive Form where
   deriving Repr, ToExpr
 
 mutual
-  def Form.onlyMacros : Form → Bool
-    | .data children | .call _ children | .constructor _ children => Forms.onlyMacros children
+  def Form.onlyAuthored : Form → Bool
+    | .data children | .call _ children | .constructor _ children => Forms.onlyAuthored children
     | .literal _ => true
     | .parameter _ => true
-    | .binder _ body => body.onlyMacros
+    | .binder _ body => body.onlyAuthored
     | .raw _ => false
 
-  def Forms.onlyMacros : List Form → Bool
+  def Forms.onlyAuthored : List Form → Bool
     | [] => true
-    | form :: forms => form.onlyMacros && Forms.onlyMacros forms
+    | form :: forms => form.onlyAuthored && Forms.onlyAuthored forms
 end
 
 mutual
@@ -129,9 +129,6 @@ def elabFastMutual : CommandElab := fun stx => do
     throwUnsupportedSyntax
 
 
-initialize macroAttribute : TagAttribute ←
-  registerTagAttribute `semantic_macro "A named, trusted semantic macro expansion."
-
 initialize definitionAttribute : TagAttribute ←
   registerTagAttribute `semantic_definition "A rules-defined semantic declaration."
 
@@ -147,8 +144,8 @@ initialize literalAttribute : TagAttribute ←
 initialize internalAttribute : TagAttribute ←
   registerTagAttribute `internal_expansion "An expansion carrier without an authorable primitive macro."
 
-initialize contextualMacroAttribute : TagAttribute ←
-  registerTagAttribute `contextual_macro "A semantic declaration with generated lexical context."
+initialize contextualAuthoringAttribute : TagAttribute ←
+  registerTagAttribute `contextual_authoring "A semantic declaration with generated lexical context."
 
 private def addSpliceSchema (schemas : NameMap (Array Name)) (entry : Name × Array Name) :=
   schemas.insert entry.1 entry.2
@@ -163,19 +160,23 @@ initialize spliceSchemas : SimplePersistentEnvExtension (Name × Array Name) (Na
 syntax (name := spliceMode) "splice " term : term
 
 /-- Resolve supplied-body aliases in the declaration's ordinary binder context. -/
-elab "macro_splice_type% " type:term : term => do
+elab "caller_splice_type% " type:term : term => do
   let type ← Term.elabType type
   if (← whnf type).isForall then
-    return mkForall .anonymous .instImplicit (mkConst ``MacroContext) (type.liftLooseBVars 0 1)
+    return mkForall .anonymous .instImplicit (mkConst ``AuthoringContext) (type.liftLooseBVars 0 1)
   return type
 
-/-- Declare and register one named semantic expansion, preserving ordinary Lean binders. -/
-syntax (name := semanticMacroDecl) declModifiers "semantic_macro " declId
-  ppIndent(optDeclSig) declVal : command
+/-- Whether `name` is an authored declaration: a `semantic_definition` or a `semantic_template`
+(the generated primitives are templates). -/
+def isAuthored (env : Environment) (name : Name) : Bool :=
+  definitionAttribute.hasTag env name || templateAttribute.hasTag env name
 
-elab_rules : command
-  | `($mods:declModifiers semantic_macro $name:declId $signature:optDeclSig $value:declVal) => do
-    let context ← `(bracketedBinder| [Semantics.MacroContext])
+/-- Declare one named semantic expansion, preserving ordinary Lean binders, with its generated
+lexical context and splice schema. The caller tags it a definition or a template. -/
+private def elabAuthoredDecl (mods : TSyntax ``Parser.Command.declModifiers)
+    (name : TSyntax ``Parser.Command.declId) (signature : TSyntax ``Parser.Command.optDeclSig)
+    (value : TSyntax ``Parser.Command.declVal) : CommandElabM Unit := do
+    let context ← `(bracketedBinder| [Semantics.AuthoringContext])
     let mut binders := #[context.raw]
     let mut splices : Array (TSyntax `ident) := #[]
     for binder in signature.raw[0].getArgs do
@@ -184,10 +185,10 @@ elab_rules : command
         let annotated := binder[2][1]
         if annotated.isOfKind ``spliceMode then
           let resultType : Term := ⟨annotated[1]⟩
-          let type := (← `(term| macro_splice_type% $resultType)).raw
+          let type := (← `(term| caller_splice_type% $resultType)).raw
           binder := binder.setArg 2 (binder[2].setArg 1 type)
           for identifier in binder[1].getArgs do
-            unless identifier.isIdent do throwErrorAt identifier "Macro parameters must be named"
+            unless identifier.isIdent do throwErrorAt identifier "Authored parameters must be named"
             splices := splices.push ⟨identifier⟩
       binders := binders.push binder
     let signature : TSyntax ``Lean.Parser.Command.optDeclSig :=
@@ -195,19 +196,19 @@ elab_rules : command
     let mut value := value
     if !splices.isEmpty then
       unless value.raw.isOfKind ``Parser.Command.declValSimple do
-        throwErrorAt value "A parameterized macro uses `:=` with one expansion body"
-      let closeFn := mkIdent `Semantics.MacroSplice.close
+        throwErrorAt value "A parameterized template or definition uses `:=` with one expansion body"
+      let closeFn := mkIdent `Semantics.CallerSplice.close
       let mut body : Term := ⟨value.raw[1]⟩
       for identifier in splices.reverse do
         body ← `(term| let $identifier := $closeFn $identifier; $body)
       body ← `(term|
-        letI : Semantics.MacroContext :=
-          Semantics.MacroContext.child (inferInstance : Semantics.MacroContext)
+        letI : Semantics.AuthoringContext :=
+          Semantics.AuthoringContext.child (inferInstance : Semantics.AuthoringContext)
         $body)
       value := ⟨value.raw.setArg 1 body.raw⟩
     elabCommand (← `($mods:declModifiers def $name:declId $signature:optDeclSig $value:declVal))
     let identifier : TSyntax `ident := ⟨name.raw[0]⟩
-    elabCommand (← `(attribute [«semantic_macro», contextual_macro] $identifier:ident))
+    elabCommand (← `(attribute [contextual_authoring] $identifier:ident))
     let declaration ← resolveGlobalConstNoOverload identifier
     modifyEnv fun env => spliceSchemas.addEntry env (declaration, splices.map (·.getId))
 
@@ -220,8 +221,7 @@ syntax (name := semanticTemplateDecl) declModifiers "semantic_template " declId
 elab_rules : command
   | `($mods:declModifiers semantic_definition $name:declId
       $signature:optDeclSig $value:declVal) => do
-    elabCommand (← `($mods:declModifiers semantic_macro $name:declId
-      $signature:optDeclSig $value:declVal))
+    elabAuthoredDecl mods name signature value
     let identifier : TSyntax `ident := ⟨name.raw[0]⟩
     let declaration ← resolveGlobalConstNoOverload identifier
     liftTermElabM do
@@ -234,8 +234,7 @@ elab_rules : command
     elabCommand (← `(attribute [«semantic_definition»] $identifier:ident))
   | `($mods:declModifiers semantic_template $name:declId
       $signature:optDeclSig $value:declVal) => do
-    elabCommand (← `($mods:declModifiers semantic_macro $name:declId
-      $signature:optDeclSig $value:declVal))
+    elabAuthoredDecl mods name signature value
     let identifier : TSyntax `ident := ⟨name.raw[0]⟩
     elabCommand (← `(attribute [«semantic_template»] $identifier:ident))
 
@@ -256,7 +255,7 @@ elab "declare_semantic_primitives" : command => do
           match expr with
           | .const original levels =>
             let macroName := original.replacePrefix `Semantics `Semantics.Macros.Primitives
-            if macroAttribute.hasTag current macroName then some (mkConst macroName levels)
+            if isAuthored current macroName then some (mkConst macroName levels)
             else none
           | _ => none
         let declaration : Declaration := .defnDecl {
@@ -268,7 +267,7 @@ elab "declare_semantic_primitives" : command => do
           safety := .safe
         }
         liftCoreM <| addAndCompile declaration
-        macroAttribute.setTag publicName
+        templateAttribute.setTag publicName
 
 /-- Semantic content includes expressions nested inside otherwise ordinary data records. -/
 partial def containsExpression (env : Environment) (type : Expr)
@@ -318,7 +317,7 @@ private partial def helperNeedsInspection (env : Environment) (body : Expr)
       if known.contains name || seen.contains name then visit rest seen
       else
         let seen := seen.insert name
-        if macroAttribute.hasTag env name || expressionAttribute.hasTag env name then (true, seen)
+        if isAuthored env name || expressionAttribute.hasTag env name then (true, seen)
         else match env.find? name with
           | some (.ctorInfo ctor) =>
             if expressionAttribute.hasTag env ctor.induct && !literalAttribute.hasTag env name then
@@ -355,11 +354,11 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
     | .fvar id =>
       if parameters.contains id then return .parameter (← id.getDecl).userName
       if containsExpression (← getEnv) (← inferType term) then
-        throwError "Semantic parameter {term} has no macro-authoring evidence"
+        throwError "Semantic parameter {term} has no authoring evidence"
       return .data []
     | .lam name type body info =>
       withLocalDecl name info type fun arg => do
-        if bodyParameter && (← isDefEq type (mkConst ``MacroContext)) then
+        if bodyParameter && (← isDefEq type (mkConst ``AuthoringContext)) then
           return ← inspectCore cache clean (body.instantiate1 arg) visited arg parameters true
         if bodyParameter && (← whnf type).isConstOf `Semantics.NounPhrase then
           return .binder name (← inspectCore cache clean (body.instantiate1 arg) visited context
@@ -376,7 +375,7 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
       | .const name levels =>
         let env ← getEnv
         let info ← getConstInfo name
-        if macroAttribute.hasTag env name then
+        if isAuthored env name then
           let mut arguments := []
           let splices := (spliceSchemas.getState env |>.find? name).getD #[]
           let mut type := info.type.instantiateLevelParams info.levelParams levels
@@ -385,10 +384,10 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
             if let .forallE parameter _ next _ := ← whnf type then
               type := next.instantiate1 arg
               isBody := splices.contains parameter.eraseMacroScopes
-            if contextualMacroAttribute.hasTag env name &&
-                (← isDefEq (← inferType arg) (mkConst ``MacroContext)) then
+            if contextualAuthoringAttribute.hasTag env name &&
+                (← isDefEq (← inferType arg) (mkConst ``AuthoringContext)) then
               unless ← isDefEq arg context do
-                throwError "Macro {name} uses a lexical context outside its authoring scope"
+                throwError "{name} uses a lexical context outside its authoring scope"
             else
               arguments := arguments ++ [← inspectCore cache clean arg visited context parameters isBody]
           return .call name arguments
@@ -412,10 +411,10 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
           return .data (body :: arguments)
         | _ =>
           if containsExpression env (← inferType term) then
-            throwError "Definition {name} has no macro-authoring evidence"
+            throwError "Definition {name} has no authoring evidence"
           return .data (← args.toList.mapM fun arg => inspectCore cache clean arg visited context parameters bodyParameter)
       | _ =>
-        if args.isEmpty then throwError "Cannot establish macro authorship for {term}"
+        if args.isEmpty then throwError "Cannot establish authorship for {term}"
         let arguments ← args.toList.mapM fun arg => inspectCore cache clean arg visited context parameters bodyParameter
         let body ← inspectCore cache clean (if fn.isLambda then fn.beta args else fn) visited context parameters bodyParameter
         return .data (body :: arguments)
@@ -425,7 +424,7 @@ private partial def inspectCore (cache : IO.Ref InspectionCache)
 /-- Cache only identical inspections, including lexical context, permitted parameters,
 and the unfolding path. Each occurrence still retains its own place in the authoring tree. -/
 def inspect (term : Expr) (visited : List Name := [])
-    (context : Expr := mkConst ``MacroContext.root) (parameters : List FVarId := [])
+    (context : Expr := mkConst ``AuthoringContext.root) (parameters : List FVarId := [])
     (bodyParameter : Bool := false) : MetaM Form := do
   let cache ← IO.mkRef ({} : InspectionCache)
   let clean ← IO.mkRef ({} : Std.HashSet Name)

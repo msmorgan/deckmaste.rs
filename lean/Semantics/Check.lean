@@ -6,9 +6,6 @@ import Semantics.Check.Refusal
 import Semantics.Check.Events
 import Semantics.Check.Phrase
 import Semantics.Check.Queries
-import Semantics.Check.EventContext
-import Semantics.Check.PhraseRules
-import Semantics.Check.Triggers
 import Semantics.Check.Abilities
 import Semantics.Check.AbilityRules
 import Semantics.Check.SelectionEvidence

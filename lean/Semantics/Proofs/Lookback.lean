@@ -1,5 +1,5 @@
 import Semantics.Macros
-import Semantics.Check.Triggers
+import Semantics.Check.Phrase
 
 namespace Semantics.Proofs.Lookback
 

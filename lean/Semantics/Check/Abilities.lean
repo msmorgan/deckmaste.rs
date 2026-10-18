@@ -1,5 +1,5 @@
 import Semantics.Abilities
-import Semantics.Check.Triggers
+import Semantics.Check.Phrase
 
 /-!
 # Semantics.Check.Abilities

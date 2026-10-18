@@ -78,7 +78,7 @@ inductive Refusal where
   | coinFlipInScope
   | damageDealtInScope
   | groupSizeInScope (found : Nat)
-  | gapInScope (found : Nat)
+  | differenceInScope (found : Nat)
   | theRestFits (k : Kind)
   | anyTargeted (k : Kind)
   | eventAgent

@@ -34,7 +34,7 @@ import Semantics.Proofs.KeywordDefinitionRegimes
 import Semantics.Proofs.LinkedChoiceReadback
 import Semantics.Proofs.LinkedReadback
 import Semantics.Proofs.Lookback
-import Semantics.Proofs.MacroParameters
+import Semantics.Proofs.CallerScope
 import Semantics.Proofs.Mana
 import Semantics.Proofs.MovementScopes
 import Semantics.Proofs.NounWords

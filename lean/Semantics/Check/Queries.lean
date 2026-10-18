@@ -112,7 +112,7 @@ private theorem comparisonMemberIsLocalToItsMeasure :
     let bad : Predicate := .compareOver .opponent (.lit 0) .greater (.devotion member (.lit .red) none)
     (stepPredicate 64 (DRS.ofList []) good).2 = [] ∧
       (stepPredicate 64 (DRS.ofList []) bad).2 = [.anaphor (.word .player) .one 0] ∧
-      (stepPredicate 64 (DRS.ofList []) good).1.visibleReferents.map (·.payload) = [.gap] := by decide
+      (stepPredicate 64 (DRS.ofList []) good).1.visibleReferents.map (·.payload) = [.difference] := by decide
 
 private theorem enchantedPlayerAndTypedAttachmentCounterparts :
     (stepPredicate 64 { relativeKind := some .player }

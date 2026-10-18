@@ -1,7 +1,7 @@
 import Semantics
 import Semantics.Macros.Primitives
 import Semantics.Check
-import Semantics.MacroParameters
+import Semantics.CallerScope
 
 /-!
 # Semantics.Macros

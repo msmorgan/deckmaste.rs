@@ -19,13 +19,13 @@ private def withDraw : Spelled := spelled <| .singleFaced
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (draw (.lit 1))] } }
 
-theorem printedDataNeedsNoExpressionMacro : plain.authoring.onlyMacros = true := plain.onlyMacros
+theorem printedDataNeedsNoExpressionMacro : plain.authoring.onlyAuthored = true := plain.onlyAuthored
 
-theorem keywordRecordsMacroAuthorship : withKeyword.authoring.onlyMacros = true :=
-  withKeyword.onlyMacros
+theorem keywordRecordsMacroAuthorship : withKeyword.authoring.onlyAuthored = true :=
+  withKeyword.onlyAuthored
 
-theorem macroDefaultAgentRetainsAuthorship : withDraw.authoring.onlyMacros = true :=
-  withDraw.onlyMacros
+theorem macroDefaultAgentRetainsAuthorship : withDraw.authoring.onlyAuthored = true :=
+  withDraw.onlyAuthored
 
 theorem authoredCardStillPassesSemanticCheck : withDraw.card.check = [] := withDraw.ok
 
@@ -36,25 +36,25 @@ private def rawKeywordCard : Card := .singleFaced
 
 theorem expandedValueIsDefinitionallyIdentical : withKeyword.card = rawKeywordCard := by rfl
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
 example : Spelled := spelled <| rawKeywordCard
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.NounPhrase.you] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (instruct .you (draw (.lit 1)))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
       text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.lit 1)) none none)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -62,7 +62,7 @@ example : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none
         (.enact (.action "destroy") (.move (target creature) (.zones [.zone .battlefield .bare]) (some (.zone .hand .bare)) .arrival none []) none none)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.enact] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -80,21 +80,21 @@ example : Spelled := ⟨rawKeywordCard, .data [], by decide, by decide⟩
 
 opaque hiddenCard : Card := rawKeywordCard
 
-/-- error: Definition Semantics.Proofs.Authoring.hiddenCard has no macro-authoring evidence -/
+/-- error: Definition Semantics.Proofs.Authoring.hiddenCard has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| hiddenCard
 
-/-- error: Semantic parameter card has no macro-authoring evidence -/
+/-- error: Semantic parameter card has no authoring evidence -/
 #guard_msgs in
 example (card : Card) : Spelled := spelled <| card
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
 example : Spelled := spelled <|
   let _discarded : Ability := .keyword (.named "flying") [] []
   withKeyword.card
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Ability.keyword] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Ability.keyword] -/
 #guard_msgs in
 example : Spelled := spelled <| (withKeyword.card, (Ability.keyword (.named "flying") [] [])).1
 

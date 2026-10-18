@@ -40,11 +40,11 @@ private def products (drs : DRS) : List Payload :=
   (drs.referents.filter (fun r => !r.isActorFrame && r.kind != .player)).map (·.payload)
 
 /-- Kind, number and determiner of each binding, newest first. -/
-private def shape (bs : Bindings) : List (Kind × Plurality × Determiner) :=
+private def shape (bs : DRS) : List (Kind × Plurality × Determiner) :=
   (bs.referents.filter (! ·.isActorFrame)).map fun b => (b.kind, b.plur, b.det)
 
 /-- One player already named, for "they". -/
-private def onePlayer : Bindings := (DRS.ofList [{ det := .the, plur := .one, payload := .player false }])
+private def onePlayer : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .player false }])
 
 /-! ## Cards -/
 
@@ -189,7 +189,7 @@ theorem okAzogScopedAmassX :
 /-- A body's own "it" does not see the calling text's creature, which the same words written
 outside the scope read. -/
 theorem scopedBodyCannotReadTheCaller :
-    let caller : Bindings :=
+    let caller : DRS :=
       (DRS.ofList [{ det := .target, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
     ((Action.check caller (.enact (.action "destroy") (.ownScope none (destroy it)) none none)).contains
         (.anaphor .bare .one 0),
@@ -200,7 +200,7 @@ theorem scopedBodyCannotReadTheCaller :
 of its abilities (`Ability.check` reads the body from an empty context), so a body that reads
 "it" finds nothing, while the same ability written on the card reads the card's mention. -/
 theorem keywordAbilityBodyCannotReadItsCard :
-    let card : Bindings := (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
+    let card : DRS := (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
     ((Ability.check card (.keyword (.named "flying") [] [Primitives.Ability.spell none (destroy it)])).contains
         (.anaphor .bare .one 0),
      Ability.check card (Primitives.Ability.spell none (destroy it))) = (true, []) := by

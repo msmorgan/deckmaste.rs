@@ -468,7 +468,7 @@ theorem okDifferenceAfterComparison :
 
 /-- "Draw cards equal to the difference." -/
 theorem badUnlicensedDifference :
-    Action.check (DRS.ofList []) (draw .theDifference) = [.gapInScope 0] := by decide
+    Action.check (DRS.ofList []) (draw .theDifference) = [.differenceInScope 0] := by decide
 
 /-- "When this creature enters, if you control fewer than seven creatures, draw cards equal
 to the difference." -/
@@ -482,7 +482,7 @@ theorem okDifferenceUnderComparisonTrigger :
 theorem badNonComparisonDifference :
     Ability.check (DRS.ofList [])
       (.triggered (Declared.enters thisCreature none) [] none [] none none
-        (some (exists_ creatureYouControl)) (draw .theDifference)) = [.gapInScope 0]
+        (some (exists_ creatureYouControl)) (draw .theDifference)) = [.differenceInScope 0]
             := by
   decide
 

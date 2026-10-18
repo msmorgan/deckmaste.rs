@@ -167,7 +167,7 @@ theorem badStackAnaphorAfterCounteringAbility :
       = [.anaphor (.word .stack) .one 0] := by
   decide
 
-def afterAnyTargetDamage : Bindings :=
+def afterAnyTargetDamage : DRS :=
   instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target anyTarget) .any))
 
 /-- "This deals 3 damage to any target. This deals 1 damage to that permanent or player." -/
@@ -495,7 +495,7 @@ theorem okIgnoreAfterRoll :
 theorem badIgnoreWithoutRoll :
     Action.check (DRS.ofList []) (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
 
-def afterATwoDieRoll : Bindings := instructionResult (DRS.ofList []) (rollDice 2 6)
+def afterATwoDieRoll : DRS := instructionResult (DRS.ofList []) (rollDice 2 6)
 
 /-- "if you rolled doubles" -/
 theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubles = [] := by decide
@@ -504,7 +504,7 @@ theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubl
 theorem badRolledDoublesWithoutRoll :
     Condition.check (DRS.ofList []) .rolledDoubles = [.outcomeInScope .rollResult 0] := by decide
 
-def afterACoinFlip : Bindings := instructionResult (DRS.ofList []) (flipCoins 1)
+def afterACoinFlip : DRS := instructionResult (DRS.ofList []) (flipCoins 1)
 
 /-- "a player whose coin comes up tails" -/
 theorem okCoinCameUpOnPlayer :
@@ -549,7 +549,7 @@ theorem okPayKeywordWithACost :
 theorem youPaidLifeThisTurn :
     Condition.check (DRS.ofList []) (.did ⟨.actor .you, .pay (.perform (.changeLife (.down .anyAmount))) .once .paid none none, .duration soFarThisTurn none⟩) = [] := by decide
 
-def afterAnUpToChoice : Bindings := instructionResult (DRS.ofList []) (choose (counted (upTo 1) creature))
+def afterAnUpToChoice : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) creature))
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterAPartition :
@@ -573,13 +573,13 @@ theorem badRestAfterTargetChoice :
       = [.theRestFits .object] := by
   decide
 
-def afterALook : Bindings := instructionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))
+def afterALook : DRS := instructionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
 theorem okReadsLookedAtCard : NounPhrase.checkAt (some .object) afterALook (that .card) = [] := by
   decide
 
-def afterShuffledLook : Bindings :=
+def afterShuffledLook : DRS :=
   instructionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffle])
 
 theorem badReadsShuffledLibraryCard :

@@ -418,7 +418,7 @@ structure Spelled where
   private mk ::
   card : Card
   authoring : Authoring.Form
-  onlyMacros : authoring.onlyMacros = true
+  onlyAuthored : authoring.onlyAuthored = true
   ok : card.check = []
 
 syntax (name := spelledTerm) "spelled" " <| " term : term
@@ -429,11 +429,11 @@ open Lean Meta Elab Term in
   let `(spelled <| $card) := stx | throwUnsupportedSyntax
   let value ← elabTermEnsuringType card (mkConst ``Semantics.Card)
   let form ← Authoring.inspect value
-  unless form.onlyMacros do
-    throwError "Card definitions must use semantic macros; raw constructors: {form.rawNames.eraseDups}"
+  unless form.onlyAuthored do
+    throwError "Card definitions must use semantic templates or definitions; raw constructors: {form.rawNames.eraseDups}"
   let tree := toExpr form
-  let authored ← mkEq (mkApp (mkConst ``Authoring.Form.onlyMacros) tree) (mkConst ``Bool.true)
-  let onlyMacros ← mkDecideProof authored
+  let authored ← mkEq (mkApp (mkConst ``Authoring.Form.onlyAuthored) tree) (mkConst ``Bool.true)
+  let onlyAuthored ← mkDecideProof authored
   let verdict := mkApp (mkConst ``Card.check) value
   let refusals ← evalExpr (List Refusal)
     (mkApp (mkConst ``List [Level.zero]) (mkConst ``Refusal)) verdict
@@ -441,6 +441,6 @@ open Lean Meta Elab Term in
     throwError "Card semantic check failed: {repr refusals}"
   let valid ← mkEq verdict (mkApp (mkConst ``List.nil [Level.zero]) (mkConst ``Refusal))
   let ok ← mkDecideProof valid
-  return mkAppN (mkConst ``Spelled.mk) #[value, tree, onlyMacros, ok]
+  return mkAppN (mkConst ``Spelled.mk) #[value, tree, onlyAuthored, ok]
 
 end Semantics

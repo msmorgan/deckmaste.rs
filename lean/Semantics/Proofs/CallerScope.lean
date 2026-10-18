@@ -4,7 +4,7 @@ import Semantics.Check.LocalShape
 
 open Semantics Semantics.Macros
 
-namespace Semantics.Proofs.MacroParameters
+namespace Semantics.Proofs.CallerScope
 
 private def instructionResult (drs : DRS) (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj drs body).1
@@ -45,7 +45,7 @@ private structure Flag where
 private def discardedInstruction (_ : Action) : Flag := ⟨true⟩
 private def ordinarySubjectIdentity (subject : NounPhrase) : NounPhrase := subject
 private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Action := draw (.lit 1)
-private def applyWithForgedContext (body : MacroContext → NounPhrase → Action)
+private def applyWithForgedContext (body : AuthoringContext → NounPhrase → Action)
     (left right : NounPhrase) : Action := instruct left (body ⟨999⟩ right)
 private def discardedSubjectFunction : Bool :=
   let _function : NounPhrase → NounPhrase := fun subject => subject
@@ -68,7 +68,7 @@ private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Macro expansion witness", types := [.sorcery],
       text := [Primitives.Ability.spell none (expand (drawTwice (.lit 1)))] } }
-theorem explicitExpansionPreservesAuthorship : explicitExpansion.authoring.onlyMacros = true := explicitExpansion.onlyMacros
+theorem explicitExpansionPreservesAuthorship : explicitExpansion.authoring.onlyAuthored = true := explicitExpansion.onlyAuthored
 theorem explicitExpansionChecksItsResult : explicitExpansion.card.check = [] := explicitExpansion.ok
 private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
@@ -269,7 +269,7 @@ theorem forwardedCoordinationRetainsTwoParties :
     (Action.exchange (.lifeTotals (forwardedSubject (.and [.you, anOpponent])))).check
       (DRS.ofList []) = [] := by decide
 
-/-- error: Macro Semantics.Macros.fight uses a lexical context outside its authoring scope -/
+/-- error: Semantics.Macros.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -277,7 +277,7 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (instruct (target creature) (@fight ⟨1⟩ (target creature)))] } }
 
-/-- error: Semantic parameter outside has no macro-authoring evidence -/
+/-- error: Semantic parameter outside has no authoring evidence -/
 #guard_msgs in
 example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -285,7 +285,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (onChosen (target creature) (fun _ => moveSubject outside))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.draw] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -293,7 +293,7 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (configuredDraw (discardedInstruction (.draw (.lit 1))).bit)] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.setStatus] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.setStatus] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -301,28 +301,28 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (onChosen (target creature) (fun chosen => .setStatus .tapped chosen))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.Action.draw] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Macro expansion witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (expand (.draw (.lit 1)))] } }
 
-/-- error: Card definitions must use semantic macros; raw constructors: [Semantics.NounPhrase.you] -/
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Macro expansion witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (expand (instruct .you (drawTwice (.lit 1))))] } }
 
-/-- error: Semantic parameter subject has no macro-authoring evidence -/
+/-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Unannotated function alias witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (ordinaryFunctionConfig ordinarySubjectIdentity)] } }
 
-/-- error: Macro Semantics.Macros.fight uses a lexical context outside its authoring scope -/
+/-- error: Semantics.Macros.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -330,14 +330,14 @@ example : Spelled := spelled <| .singleFaced
         text := [Primitives.Ability.spell none
         (applyWithForgedContext (@fight) (target creature) (target creature))] } }
 
-/-- error: Semantic parameter subject has no macro-authoring evidence -/
+/-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded function witness", types := [.sorcery],
         text := [Primitives.Ability.spell none (configuredDraw discardedSubjectFunction)] } }
 
-/-- error: Semantic parameter subject has no macro-authoring evidence -/
+/-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -443,4 +443,4 @@ theorem templateBareThisRetainsEnactedZoneExemption :
     (Action.enact (.action "destroy") (moveSubject .this) none none).check (DRS.ofList []) =
       [] := by decide
 
-end Semantics.Proofs.MacroParameters
+end Semantics.Proofs.CallerScope

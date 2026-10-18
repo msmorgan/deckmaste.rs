@@ -128,7 +128,7 @@ also used when a deck condition tests mana values.
    `Check/Abilities`) compute bindings and projections such as kind, number,
    zone and type. Field contexts determine which earlier introductions each
    child can read.
-3. **Rules** (`Check/PhraseRules`, `Check/Triggers`, `Check/AbilityRules`,
+3. **Rules** (`Check/Phrase`, `Check/AbilityRules`,
    `Check/Card`) check those projections and return named `Refusal` values.
    Laws read structural or declared features; labels are table keys.
 4. **Entry point**: `Card.check : Card → List Refusal`. A `Spelled` value
