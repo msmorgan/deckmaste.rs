@@ -9,6 +9,7 @@ use deckmaste_lexical::Category as LexicalCategory;
 use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::Lexicon;
 use deckmaste_lexical::SourceKind;
+use dpsi::Ident;
 
 use crate::LoadError;
 use crate::frames::Frame;
@@ -51,7 +52,7 @@ pub(crate) const PROJECTED: [&str; 8] = [
 #[derive(Debug, Clone)]
 pub(crate) struct LexemeFacts {
     pub atomic: bool,
-    pub countability: Option<String>,
+    pub countability: Option<Ident>,
     pub features: Vec<(usize, u16)>,
     pub category: LexicalCategory,
     pub binding: Binding,
@@ -62,16 +63,16 @@ pub(crate) struct LexemeFacts {
 /// A grammar bound to a lexical environment, ready to parse, admit and realize.
 #[derive(Debug)]
 pub struct CompiledGrammar {
-    pub(crate) categories: Vec<String>,
-    category_ids: BTreeMap<String, usize>,
+    pub(crate) categories: Vec<Ident>,
+    category_ids: BTreeMap<Ident, usize>,
     pub(crate) category_features: Vec<Vec<usize>>,
     pub(crate) category_gap: Vec<bool>,
     /// Categories that name a function (`CategoryDecl::function`).
-    pub(crate) function_categories: BTreeSet<String>,
-    pub(crate) features: Vec<String>,
-    pub(crate) values: Vec<Vec<String>>,
+    pub(crate) function_categories: BTreeSet<Ident>,
+    pub(crate) features: Vec<Ident>,
+    pub(crate) values: Vec<Vec<Ident>>,
     pub(crate) productions: Vec<Production>,
-    pub(crate) by_id: BTreeMap<String, usize>,
+    pub(crate) by_id: BTreeMap<Ident, usize>,
     pub(crate) by_lhs: Vec<Vec<usize>>,
     pub(crate) root: usize,
     pub(crate) lexemes: BTreeMap<LexemeId, LexemeFacts>,
@@ -131,14 +132,14 @@ struct Binder<'a> {
     grammar: &'a Grammar,
     catalog: &'a FrameCatalog,
     out: CompiledGrammar,
-    closed_words: BTreeMap<String, LexemeId>,
-    class_names: BTreeMap<String, usize>,
+    closed_words: BTreeMap<Ident, LexemeId>,
+    class_names: BTreeMap<Ident, usize>,
 }
 
 /// One child of a Production under construction.
 #[derive(Clone)]
 struct Child {
-    name: String,
+    name: Ident,
     symbol: Symbol,
     gap: GapRule,
 }
@@ -146,7 +147,7 @@ struct Child {
 /// A Production under construction, before equations are resolved.
 #[derive(Clone)]
 struct Draft {
-    id: String,
+    id: Ident,
     lhs: usize,
     children: Vec<Child>,
     equations: Vec<(Path, Target)>,
@@ -176,9 +177,9 @@ enum Target {
 }
 
 impl Draft {
-    fn new(id: String, lhs: usize, cost: u32) -> Self {
+    fn new(id: impl AsRef<str>, lhs: usize, cost: u32) -> Self {
         Self {
-            id,
+            id: Ident::new(id.as_ref()),
             lhs,
             children: Vec::new(),
             equations: Vec::new(),
@@ -198,7 +199,7 @@ impl Draft {
 
     fn child(&mut self, name: &str, symbol: Symbol, gap: GapRule) -> usize {
         self.children.push(Child {
-            name: name.to_owned(),
+            name: Ident::new(name),
             symbol,
             gap,
         });
@@ -214,7 +215,7 @@ impl<'a> Binder<'a> {
         catalog: &'a FrameCatalog,
     ) -> Result<Self, LoadError> {
         let mut report = LoadReport::default();
-        let features: Vec<String> = grammar.features.keys().cloned().collect();
+        let features: Vec<Ident> = grammar.features.keys().copied().collect();
         for name in &features {
             if FORBIDDEN_SUFFIXES.iter().any(|s| name.ends_with(s)) {
                 return Err(invalid(format!(
@@ -222,7 +223,7 @@ impl<'a> Binder<'a> {
                 )));
             }
         }
-        let values: Vec<Vec<String>> = grammar.features.values().cloned().collect();
+        let values: Vec<Vec<Ident>> = grammar.features.values().cloned().collect();
         let feature_id = |name: &str| {
             features
                 .iter()
@@ -237,10 +238,10 @@ impl<'a> Binder<'a> {
                     .get(category)
                     .cloned()
                     .ok_or_else(|| invalid(format!("unknown category `{category}`")))?;
-                declared.insert(format!("{category}#Serial"), declaration);
+                declared.insert(Ident::new(&format!("{category}#Serial")), declaration);
             }
         }
-        let categories: Vec<String> = declared.keys().cloned().collect();
+        let categories: Vec<Ident> = declared.keys().copied().collect();
         let mut category_features = Vec::new();
         for (name, declaration) in &declared {
             let ids = declaration
@@ -255,7 +256,7 @@ impl<'a> Binder<'a> {
         let function_categories = declared
             .iter()
             .filter(|(_, c)| c.function)
-            .map(|(name, _)| name.clone())
+            .map(|(name, _)| *name)
             .collect();
         let root = categories
             .iter()
@@ -305,8 +306,8 @@ impl<'a> Binder<'a> {
                         })
                         .collect::<Result<Vec<_>, _>>()?,
                     countability: match lexeme.properties.countability.as_slice() {
-                        [value] => Some(format!("{value:?}")),
-                        _ => lexeme.properties.features.get("Countability").cloned(),
+                        [value] => Some(Ident::new(&format!("{value:?}"))),
+                        _ => lexeme.properties.features.get("Countability").copied(),
                     },
                     category: lexeme.category,
                     binding: lexeme.binding,
@@ -420,16 +421,16 @@ impl<'a> Binder<'a> {
 
         let mut closed_words = BTreeMap::new();
         for (name, id) in &grammar.closed_words {
-            let id = LexemeId::new(id);
+            let id = *id;
             check_closed(lexicon, &id, &format!("closed word `{name}`"))?;
-            closed_words.insert(name.clone(), id);
+            closed_words.insert(*name, id);
         }
         let mut classes = Vec::new();
         let mut class_names = BTreeMap::new();
         for (name, members) in &grammar.lexical_classes {
             let mut set = BTreeSet::new();
             for id in members {
-                let id = LexemeId::new(id);
+                let id = *id;
                 check_closed(lexicon, &id, &format!("lexical class `{name}`"))?;
                 set.insert(id);
             }
@@ -439,7 +440,7 @@ impl<'a> Binder<'a> {
                     set.len()
                 ));
             }
-            class_names.insert(name.clone(), classes.len());
+            class_names.insert(*name, classes.len());
             classes.push(set);
         }
 
@@ -447,7 +448,7 @@ impl<'a> Binder<'a> {
             if class_names.contains_key(name) {
                 return Err(invalid(format!("duplicate lexical class `{name}`")));
             }
-            class_names.insert(name.clone(), classes.len());
+            class_names.insert(*name, classes.len());
             let members: BTreeSet<_> = lexicon
                 .lexemes()
                 .iter()
@@ -470,7 +471,7 @@ impl<'a> Binder<'a> {
                 category_ids: categories
                     .iter()
                     .enumerate()
-                    .map(|(i, name)| (name.clone(), i))
+                    .map(|(i, name)| (*name, i))
                     .collect(),
                 categories,
                 category_features,
@@ -574,7 +575,7 @@ impl<'a> Binder<'a> {
             return Err(context(invalid("empty right-hand side")));
         }
         let lhs = self.category(&declaration.lhs).map_err(context)?;
-        let mut draft = Draft::new(declaration.name.clone(), lhs, declaration.cost);
+        let mut draft = Draft::new(declaration.name, lhs, declaration.cost);
         let mut required_gaps = BTreeMap::new();
         for equation in &declaration.equations {
             if let Equation::Require(path, value) = equation
@@ -789,7 +790,7 @@ impl<'a> Binder<'a> {
         }
         let mut production = crate::step::resolve(
             &self.out,
-            draft.id.clone(),
+            draft.id,
             draft.lhs,
             draft
                 .children
@@ -833,7 +834,7 @@ impl<'a> Binder<'a> {
             )));
         }
         let index = self.out.productions.len();
-        self.out.by_id.insert(production.id.clone(), index);
+        self.out.by_id.insert(production.id, index);
         self.out.by_lhs[production.lhs].push(index);
         self.out.productions.push(production);
         Ok(())
@@ -948,7 +949,7 @@ impl<'a> Binder<'a> {
         &self,
         phrase: &str,
         drafts: &mut [Draft],
-        agree: &[(String, String)],
+        agree: &[(Ident, Ident)],
     ) -> Result<(), LoadError> {
         for (mother, slot) in agree {
             let mother = self.feature(mother)?;
@@ -1039,9 +1040,7 @@ impl<'a> Binder<'a> {
 
     fn private_category(&mut self, target: usize) -> usize {
         let category = self.out.categories.len();
-        self.out
-            .categories
-            .push(self.out.categories[target].clone());
+        self.out.categories.push(self.out.categories[target]);
         self.out
             .category_features
             .push(self.out.category_features[target].clone());
@@ -1640,7 +1639,7 @@ impl<'a> Binder<'a> {
                 })
             {
                 let mut shifted = draft.clone();
-                shifted.id.push_str("/shifted-object");
+                shifted.id = Ident::new(&format!("{}/shifted-object", shifted.id));
                 let object = shifted.children.remove(1);
                 shifted.children.push(object);
                 let last = shifted.children.len() - 1;
@@ -1670,9 +1669,7 @@ impl<'a> Binder<'a> {
                     continue;
                 }
                 let category = self.out.categories.len();
-                self.out
-                    .categories
-                    .push(self.out.categories[draft.lhs].clone());
+                self.out.categories.push(self.out.categories[draft.lhs]);
                 self.out
                     .category_features
                     .push(self.out.category_features[draft.lhs].clone());
@@ -1685,7 +1682,7 @@ impl<'a> Binder<'a> {
                     prepositions: None,
                 };
                 let mut prefix = draft.clone();
-                prefix.id = format!("{}/prefix{split}", draft.id);
+                prefix.id = Ident::new(&format!("{}/prefix{split}", draft.id));
                 prefix.lhs = category;
                 prefix.introduces = Gap::None;
                 prefix.children.truncate(split);
@@ -1716,7 +1713,7 @@ impl<'a> Binder<'a> {
                 more.host_check = Some((0, 1, HostKind::Predicate));
                 out.push(more);
                 let mut suffix = draft.clone();
-                suffix.id = format!("{}/interleaved{split}", draft.id);
+                suffix.id = Ident::new(&format!("{}/interleaved{split}", draft.id));
                 suffix.children.drain(..split);
                 suffix.children.insert(
                     0,
@@ -1772,7 +1769,7 @@ impl<'a> Binder<'a> {
         category: &str,
         coordinators: &str,
         cost: u32,
-        unshared: &[String],
+        unshared: &[Ident],
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(category)?;
         let coordinator = self.coordinator_test(coordinators)?;

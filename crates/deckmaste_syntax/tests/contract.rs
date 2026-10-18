@@ -32,6 +32,7 @@ use deckmaste_syntax::Grammar;
 use deckmaste_syntax::LoadError;
 use deckmaste_syntax::Reading;
 use deckmaste_syntax::ReadingNode;
+use dpsi::Ident;
 
 fn core() -> Source {
     Source {
@@ -130,11 +131,11 @@ fn node(
     children: Vec<Reading>,
 ) -> Reading {
     Reading::Node(ReadingNode {
-        production: production.to_owned(),
-        category: category.to_owned(),
+        production: Ident::new(production),
+        category: Ident::new(category),
         features: features
             .iter()
-            .map(|&(f, v)| (f.to_owned(), v.to_owned()))
+            .map(|&(f, v)| (Ident::new(f), Ident::new(v)))
             .collect(),
         gap: Gap::None,
         selected_frame: None,
@@ -429,7 +430,7 @@ fn distinct_summaries_stay_distinct_under_shared_prefixes() {
         .map(|reading| {
             let seq = reading.node().unwrap().children[0].node().unwrap();
             let item = seq.children[0].node().unwrap();
-            item.features.values().cloned().collect()
+            item.features.values().map(ToString::to_string).collect()
         })
         .collect();
     assert_eq!(
@@ -505,8 +506,8 @@ fn agreement_keeps_joint_alternatives_correlated() {
             .map(|reading| {
                 let subject = reading.node().unwrap().children[0].node().unwrap();
                 (
-                    subject.features["Number"].clone(),
-                    subject.features["Person"].clone(),
+                    subject.features["Number"].to_string(),
+                    subject.features["Person"].to_string(),
                 )
             })
             .collect()

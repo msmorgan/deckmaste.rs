@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use dpsi::Ident;
 use serde::Deserialize;
 
 use crate::LoadError;
@@ -13,25 +14,25 @@ use crate::frames::SlotKind;
 #[serde(deny_unknown_fields)]
 pub struct Grammar {
     /// The Category a whole input is parsed as.
-    pub root: String,
+    pub root: Ident,
     /// Finite feature domains by feature name. The Gap feature is built in.
     #[serde(default)]
-    pub features: BTreeMap<String, Vec<String>>,
-    pub categories: BTreeMap<String, CategoryDecl>,
+    pub features: BTreeMap<Ident, Vec<Ident>>,
+    pub categories: BTreeMap<Ident, CategoryDecl>,
     /// Closed Words by grammar name, each naming one core closed-class lexeme
     /// id.
     #[serde(default)]
-    pub closed_words: BTreeMap<String, String>,
+    pub closed_words: BTreeMap<Ident, Ident>,
     /// Lexical Classes by grammar name, each listing core closed-class lexeme
     /// ids.
     #[serde(default)]
-    pub lexical_classes: BTreeMap<String, Vec<String>>,
+    pub lexical_classes: BTreeMap<Ident, Vec<Ident>>,
     /// Classes whose membership is declared by the lexical environment.
     #[serde(default)]
-    pub typed_classes: Vec<String>,
+    pub typed_classes: Vec<Ident>,
     /// The Category that fills each kind of Frame Slot.
     #[serde(default)]
-    pub slot_categories: BTreeMap<SlotKind, String>,
+    pub slot_categories: BTreeMap<SlotKind, Ident>,
     #[serde(default)]
     pub productions: Vec<ProductionDecl>,
     #[serde(default)]
@@ -60,9 +61,9 @@ impl Grammar {
 pub struct CategoryDecl {
     /// The grammatical Category represented by this restricted production set.
     #[serde(default)]
-    pub category: Option<String>,
+    pub category: Option<Ident>,
     #[serde(default)]
-    pub features: Vec<String>,
+    pub features: Vec<Ident>,
     /// Whether a Constituent of this Category may contain an unfilled Gap.
     #[serde(default)]
     pub gap: bool,
@@ -77,8 +78,8 @@ pub struct CategoryDecl {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ProductionDecl {
-    pub name: String,
-    pub lhs: String,
+    pub name: Ident,
+    pub lhs: Ident,
     pub rhs: Vec<SymbolDecl>,
     #[serde(default)]
     pub equations: Vec<Equation>,
@@ -86,13 +87,13 @@ pub struct ProductionDecl {
     pub cost: u32,
     /// Children that must span more than one lexical leaf.
     #[serde(default)]
-    pub heavy: Vec<String>,
+    pub heavy: Vec<Ident>,
     /// Children that must be exactly one lexical leaf, alone or projected.
     #[serde(default)]
-    pub light: Vec<String>,
+    pub light: Vec<Ident>,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
-    pub transparent: Vec<String>,
+    pub transparent: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {
@@ -103,27 +104,27 @@ pub(crate) fn default_cost() -> u32 {
 #[derive(Debug, Clone, Deserialize)]
 pub enum SymbolDecl {
     /// A Constituent of a Category.
-    Cat(String, String),
+    Cat(Ident, Ident),
     /// A constituent attached at its outer boundaries (for symbol sequences).
-    Attached(String, String, deckmaste_lexical::Binding),
+    Attached(Ident, Ident, deckmaste_lexical::Binding),
     /// A Constituent of a Category whose first atom is a free word, never a
     /// bound clitic.
-    Free(String, String),
+    Free(Ident, Ident),
     /// A numeral in a specific notation.
-    Numeral(String, deckmaste_lexical::Numeral),
+    Numeral(Ident, deckmaste_lexical::Numeral),
     /// Any word of a lexical Category.
-    Lex(String, deckmaste_lexical::Category),
-    FreeLex(String, deckmaste_lexical::Category),
+    Lex(Ident, deckmaste_lexical::Category),
+    FreeLex(Ident, deckmaste_lexical::Category),
     /// The Closed Word of that grammar name.
-    Word(String, String),
+    Word(Ident, Ident),
     /// Any member of the Lexical Class of that grammar name.
-    Class(String, String),
+    Class(Ident, Ident),
     /// A Constituent of a Category whose preposition, if any, admits the Host
     /// Category: a Preposition Phrase that could also modify such a host.
-    Hosted(String, String, HostKind),
+    Hosted(Ident, Ident, HostKind),
     /// A Preposition Phrase headed by one of the named Closed Words, as a
     /// Frame Slot `PP([...])` selects one.
-    Selected(String, String, Vec<String>),
+    Selected(Ident, Ident, Vec<Ident>),
     /// Literal punctuation: it may decide an analysis but is not stored in a
     /// Reading.
     Punct(char),
@@ -136,10 +137,10 @@ pub enum SymbolDecl {
 /// carry.
 #[derive(Debug, Clone, Deserialize)]
 pub enum Equation {
-    Agree(String, String),
-    Require(String, String),
+    Agree(Ident, Ident),
+    Require(Ident, Ident),
     /// Excludes a value on a child without requiring an inapplicable feature.
-    Exclude(String, String),
+    Exclude(Ident, Ident),
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
@@ -149,8 +150,8 @@ pub enum SchemaDecl {
     /// An attributive lexical head retains its phrasal Category as a Modifier.
     Premodification {
         head: deckmaste_lexical::Category,
-        modifier: String,
-        host: String,
+        modifier: Ident,
+        host: Ident,
         forms: Vec<deckmaste_lexical::WordForm>,
         #[serde(default)]
         prefix: bool,
@@ -158,39 +159,39 @@ pub enum SchemaDecl {
     /// Catalog-declared ordered parameter patterns around a lexical head.
     Parameters {
         head: deckmaste_lexical::Category,
-        phrase: String,
+        phrase: Ident,
         #[serde(default)]
         binding: Option<deckmaste_lexical::Binding>,
     },
     /// Frame-driven phrases headed by every lexeme of a lexical Category.
     Valence {
         head: deckmaste_lexical::Category,
-        phrase: String,
+        phrase: Ident,
         #[serde(default)]
         cost: u32,
         /// Derive passive phrases from active verb frames, naming the Closed
         /// Word that marks the Internalised Complement (verbs only).
         #[serde(default)]
-        passive: Option<String>,
+        passive: Option<Ident>,
         /// Derive Adjectival Passives of this Category from verb frames whose
         /// passive leaves no Complement but the optional `by` phrase.
         #[serde(default)]
-        adjectival: Option<String>,
+        adjectival: Option<Ident>,
         /// Adjunct category permitted before a selected PP or shifted Object.
         #[serde(default)]
-        interleaved: Option<String>,
+        interleaved: Option<Ident>,
         #[serde(default)]
         heavy_shift: bool,
         /// `(phrase feature, slot feature)` pairs: the phrase's feature
         /// agrees with that feature of each Frame Slot child that carries it
         /// (a Preposition Phrase takes its Complement's Number).
         #[serde(default)]
-        agree: Vec<(String, String)>,
+        agree: Vec<(Ident, Ident)>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {
-        host: String,
-        adjunct: String,
+        host: Ident,
+        adjunct: Ident,
         side: Side,
         host_kind: HostKind,
         #[serde(default)]
@@ -201,14 +202,14 @@ pub enum SchemaDecl {
     /// Binary and serial coordination of a Category, with Right Node Raising
     /// when the Category may contain a Gap.
     Coordination {
-        category: String,
-        coordinators: String,
+        category: Ident,
+        coordinators: Ident,
         #[serde(default = "default_cost")]
         cost: u32,
         /// Features the conjuncts need not share, which the coordination
         /// leaves unvalued (a positive and a negative Verb Phrase).
         #[serde(default)]
-        unshared: Vec<String>,
+        unshared: Vec<Ident>,
     },
 }
 

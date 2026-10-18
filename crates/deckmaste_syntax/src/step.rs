@@ -5,6 +5,7 @@ use deckmaste_lexical::Category as LexicalCategory;
 use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::WordForm;
+use dpsi::Ident;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -97,11 +98,11 @@ pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
     /// Children that must be light or heavy.
     pub weights: Vec<(usize, Weight)>,
-    pub id: String,
+    pub id: Ident,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
     /// The name of each child: its grammatical function in the mother.
-    pub names: Vec<String>,
+    pub names: Vec<Ident>,
     pub gaps: Vec<GapRule>,
     pub cost: u32,
     /// Constant bindings of each variable.
@@ -133,9 +134,9 @@ pub(crate) type Key = (Option<usize>, usize);
 #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
 pub(crate) fn resolve(
     grammar: &CompiledGrammar,
-    id: String,
+    id: Ident,
     lhs: usize,
-    children: Vec<(String, Symbol, GapRule)>,
+    children: Vec<(Ident, Symbol, GapRule)>,
     equations: Vec<(Key, Result<Key, u16>)>,
     cost: u32,
     introduces: Gap,
@@ -220,7 +221,7 @@ pub(crate) fn resolve(
         }
     }
     let head = children.iter().position(|(name, ..)| name == "head");
-    let names = children.iter().map(|(name, ..)| name.clone()).collect();
+    let names = children.iter().map(|(name, ..)| *name).collect();
     let (rhs, gaps) = children.into_iter().map(|(_, s, g)| (s, g)).unzip();
     if introduces != Gap::None && !grammar.category_gap[lhs] {
         return Err("introduces a gap on a category that cannot contain one".to_owned());
@@ -659,13 +660,13 @@ impl CompiledGrammar {
                     verb_form.map(str::to_owned),
                     f.case.map(|c| format!("{c:?}")),
                     Some(format!("{:?}", value.form)),
-                    facts.countability.clone(),
+                    facts.countability.map(|c| c.as_str().to_owned()),
                     None,
                 ];
                 let mut features = facts.features.clone();
                 for (id, name) in self.projected.iter().zip(names) {
                     if let (Some(id), Some(name)) = (id, name) {
-                        let value = self.values[*id].iter().position(|v| *v == name)?;
+                        let value = self.values[*id].iter().position(|v| *v == name.as_str())?;
                         features.push((*id, u16::try_from(value).ok()?));
                     }
                 }

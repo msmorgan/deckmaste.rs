@@ -9,6 +9,7 @@ use deckmaste_lexical::Binding;
 use deckmaste_lexical::LexemeId;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
+use dpsi::Ident;
 use serde::Deserialize;
 use serde::Serialize;
 
@@ -34,10 +35,10 @@ pub enum Reading {
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize, Ord, PartialOrd, Serialize)]
 pub struct ReadingNode {
     /// The stable id of the Production.
-    pub production: String,
-    pub category: String,
+    pub production: Ident,
+    pub category: Ident,
     /// Bound features of the Constituent, by feature name.
-    pub features: BTreeMap<String, String>,
+    pub features: BTreeMap<Ident, Ident>,
     pub gap: Gap,
     /// The Selected Frame of a frame-headed phrase.
     pub selected_frame: Option<Frame>,
@@ -161,8 +162,8 @@ impl Parse<'_> {
                 trees.insert((
                     cost + u64::from(p.cost),
                     Reading::Node(ReadingNode {
-                        production: p.id.clone(),
-                        category: grammar.categories[p.lhs].clone(),
+                        production: p.id,
+                        category: grammar.categories[p.lhs],
                         features: grammar.feature_map(p.lhs, &packed.summary),
                         gap: packed.summary.gap,
                         selected_frame: p.frame.map(|f| grammar.frames[f].clone()),
@@ -243,22 +244,11 @@ impl CompiledGrammar {
         }
     }
 
-    pub(crate) fn feature_map(
-        &self,
-        category: usize,
-        summary: &Summary,
-    ) -> BTreeMap<String, String> {
+    pub(crate) fn feature_map(&self, category: usize, summary: &Summary) -> BTreeMap<Ident, Ident> {
         self.category_features[category]
             .iter()
             .zip(summary.values.iter())
-            .filter_map(|(&f, v)| {
-                v.map(|v| {
-                    (
-                        self.features[f].clone(),
-                        self.values[f][usize::from(v)].clone(),
-                    )
-                })
-            })
+            .filter_map(|(&f, v)| v.map(|v| (self.features[f], self.values[f][usize::from(v)])))
             .collect()
     }
 
@@ -296,7 +286,7 @@ impl CompiledGrammar {
     ) -> Result<(), AdmissionError> {
         let (category, summary) = self.summarize(reading, lexicon)?;
         if category != root || summary.gap != Gap::None {
-            return Err(AdmissionError::Root(self.categories[category].clone()));
+            return Err(AdmissionError::Root(self.categories[category].to_string()));
         }
         let mut atoms = Vec::new();
         self.atoms(reading, lexicon, &mut atoms, &mut |_, _| {})?;
@@ -329,10 +319,10 @@ impl CompiledGrammar {
         let &index = self
             .by_id
             .get(&node.production)
-            .ok_or_else(|| AdmissionError::UnknownProduction(node.production.clone()))?;
+            .ok_or_else(|| AdmissionError::UnknownProduction(node.production.to_string()))?;
         let production = &self.productions[index];
         let reject = |reason: &str| AdmissionError::Rejected {
-            production: node.production.clone(),
+            production: node.production.to_string(),
             reason: reason.to_owned(),
         };
         let mut children = node.children.iter();
@@ -413,7 +403,7 @@ impl CompiledGrammar {
         })?;
         let (text, offsets) = join(&atoms);
         let mut out = Vec::new();
-        self.locate(reading, None, "", &mut out);
+        self.locate(reading, None, None, &mut out);
         for (constituent, &(first, last)) in out.iter_mut().zip(&spans) {
             constituent.span = if first == last {
                 let at = offsets.get(first).map_or(text.len(), |r| r.start);
@@ -431,7 +421,7 @@ impl CompiledGrammar {
         &self,
         reading: &Reading,
         parent: Option<usize>,
-        function: &str,
+        function: Option<Ident>,
         out: &mut Vec<Constituent>,
     ) {
         let Reading::Node(node) = reading else {
@@ -439,9 +429,9 @@ impl CompiledGrammar {
         };
         let index = out.len();
         out.push(Constituent {
-            category: node.category.clone(),
+            category: node.category,
             span: 0..0,
-            function: function.to_owned(),
+            function,
             parent,
             head: self.head_lexeme(reading),
             gap: node.gap,
@@ -453,14 +443,14 @@ impl CompiledGrammar {
             if wraps && name == "head" {
                 self.locate(child, parent, function, out);
             } else {
-                self.locate(child, Some(index), &name, out);
+                self.locate(child, Some(index), Some(name), out);
             }
         }
     }
 
     /// The names of a node's children, in order: the grammatical function
     /// each bears in it.
-    fn child_names(&self, node: &ReadingNode) -> Vec<String> {
+    fn child_names(&self, node: &ReadingNode) -> Vec<Ident> {
         self.by_id
             .get(&node.production)
             .map_or_else(Vec::new, |&p| {
@@ -470,7 +460,7 @@ impl CompiledGrammar {
                     .iter()
                     .zip(&production.names)
                     .filter(|(symbol, _)| !matches!(symbol, Symbol::Punct(..)))
-                    .map(|(_, name)| name.clone())
+                    .map(|(_, name)| *name)
                     .collect()
             })
     }
@@ -523,10 +513,9 @@ impl CompiledGrammar {
                 out.push((text, binding, false));
             }
             Reading::Node(node) => {
-                let &index = self
-                    .by_id
-                    .get(&node.production)
-                    .ok_or_else(|| AdmissionError::UnknownProduction(node.production.clone()))?;
+                let &index = self.by_id.get(&node.production).ok_or_else(|| {
+                    AdmissionError::UnknownProduction(node.production.to_string())
+                })?;
                 let me = *next;
                 *next += 1;
                 let first = out.len();
@@ -537,7 +526,7 @@ impl CompiledGrammar {
                         out.push((c.to_string(), *binding, false));
                     } else {
                         let child = children.next().ok_or_else(|| AdmissionError::Rejected {
-                            production: node.production.clone(),
+                            production: node.production.to_string(),
                             reason: "missing child".to_owned(),
                         })?;
                         let first = out.len();
@@ -568,13 +557,13 @@ impl CompiledGrammar {
 /// it.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Constituent {
-    pub category: String,
+    pub category: Ident,
     /// Byte range in the realized text.
     pub span: Range<usize>,
     /// Its name in its mother's Production: the grammatical function it
-    /// bears there (`subject`, `object`, `modifier`, ...); empty for the
+    /// bears there (`subject`, `object`, `modifier`, ...); none for the
     /// root.
-    pub function: String,
+    pub function: Option<Ident>,
     /// Preorder index of its mother; the head of a function Category
     /// (`CategoryDecl::function`) takes that Category's mother and function.
     pub parent: Option<usize>,

@@ -3,6 +3,7 @@
 //! Readings be compared under exactly the approved canonicalizations.
 
 use deckmaste_lexical::LexicalReading;
+use dpsi::Ident;
 
 use crate::compile::CompiledGrammar;
 use crate::compile::frame_name;
@@ -18,8 +19,8 @@ impl CompiledGrammar {
     /// canonicalizations this engine derives:
     ///
     /// - the grouping within a chain joined by the same coordinator: every
-    ///   grouping, binary or serial, becomes one node listing the conjuncts
-    ///   and then the coordinator;
+    ///   grouping, binary or serial, becomes one node listing the conjuncts and
+    ///   then the coordinator;
     /// - same-head complement priority: a Preposition Phrase attached as a
     ///   Predicate adjunct to a head that has a longer frame selecting it
     ///   becomes that frame's complement.
@@ -49,9 +50,10 @@ impl CompiledGrammar {
     }
 
     fn flat_coordination(node: &ReadingNode, children: Vec<Reading>) -> Reading {
-        let category = base(&node.category).to_owned();
+        let category = Ident::new(base(&node.category));
         let id = flat_id(&category);
-        // The chain's coordinator: its own leaf, or the one its serial tail carries.
+        // The chain's coordinator: its own leaf, or the one its serial tail
+        // carries.
         let own = children.iter().rev().find_map(|child| match child {
             Reading::Leaf(leaf) => Some(leaf.clone()),
             Reading::Node(inner) if inner.production == id => split(inner).1,
@@ -114,9 +116,7 @@ impl CompiledGrammar {
                 && list.contains(&preposition.lexeme)
             {
                 let id = format!("{}{suffix}", frame_name(&host.category, longer));
-                if !self.by_id.contains_key(&id) {
-                    return None;
-                }
+                let (&id, _) = self.by_id.get_key_value(id.as_str())?;
                 let mut children = host.children.clone();
                 children.push(Reading::Node(phrase.clone()));
                 return Some(Reading::Node(ReadingNode {
@@ -135,8 +135,8 @@ fn base(category: &str) -> &str {
     category.strip_suffix("#Serial").unwrap_or(category)
 }
 
-fn flat_id(category: &str) -> String {
-    format!("Coordination:{}", base(category))
+fn flat_id(category: &str) -> Ident {
+    Ident::new(&format!("Coordination:{}", base(category)))
 }
 
 fn split(node: &ReadingNode) -> (Vec<Reading>, Option<LexicalReading>) {

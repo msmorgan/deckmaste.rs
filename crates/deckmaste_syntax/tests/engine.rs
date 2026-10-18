@@ -436,8 +436,8 @@ fn constituents_carry_span_function_and_head() {
         );
         let host = &constituents[pp.parent.unwrap()];
         hosts.push((
-            pp.function.clone(),
-            host.category.clone(),
+            pp.function.unwrap().as_str().to_owned(),
+            host.category.as_str().to_owned(),
             host.head.as_ref().map(|h| h.as_str().to_owned()),
             text[host.span.clone()].to_owned(),
         ));
