@@ -41,7 +41,7 @@
 +NounPhrase your opening hand => Nominal "opening hand"; !AdjectivePhrase "opening"
 +NounPhrase the result => Nominal "result"
 +Clause the game begins => VerbPhrase "begins"
-+NounPhrase the text of target spell or permanent => Nominal "text"
++NounPhrase the text of target spell or permanent => Nominal "text of target spell or permanent" head text; PrepositionPhrase "of target spell or permanent" as Complement of text
 +NounPhrase unspent green mana you have => AdjectivePhrase "unspent"
 +NounPhrase unspent red mana => AdjectivePhrase "unspent"
 +NounPhrase the greatest number noted for it this turn => VerbPhrase "noted for it this turn"
