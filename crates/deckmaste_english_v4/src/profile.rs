@@ -1152,6 +1152,13 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         if t.has(Category::Coordinator) {
             families.insert(COORDINATION);
         }
+        // An elliptical *but* coordinate (*but not more than ...*, *but only
+        // during their turn*) is Ellipsis, Stratum 7.
+        if t.is(Category::Coordinator, "but")
+            && next(i).is_some_and(|n| n.lemma_in(&["not", "only"]))
+        {
+            families.insert(ELLIPSIS);
+        }
         // Stratum 7.
         if t.lemma_in(&["instead"]) {
             families.insert(REPLACEMENT);
@@ -1174,6 +1181,20 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     && matches!(&a.reading, LexicalReading::Word(v) if v.form == form)
             })
         };
+        // A vote names its options; one that is no noun (*votes for
+        // planeswalk or chaos*) is the word itself.
+        if t.lemma_in(&["vote"])
+            && next(i).is_some_and(|n| n.is(Category::Preposition, "for"))
+            && tokens.get(i + 2).is_some_and(|o| {
+                o.is_word()
+                    && !o.has(Category::Noun)
+                    && !o.has(Category::Determinative)
+                    && !o.has(Category::Pronoun)
+                    && !o.has(Category::Adjective)
+            })
+        {
+            families.insert(METALINGUISTIC);
+        }
         // Text-changing effects replace instances of words (*replacing all
         // instances of one color word with another*).
         if t.is(Category::Noun, "instance") {
