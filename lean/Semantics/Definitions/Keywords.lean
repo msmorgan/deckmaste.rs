@@ -769,7 +769,7 @@ semantic_definition graft (amount : Amount) : Ability :=
       triggeredIf
         (does (a (.and [isCreature, .otherThan thisPermanent])) enter)
         (.matches thisPermanent (.hasCounters (some p1p1Counter)))
-        (may (.moveCounters (.lit 1) (some (.printed p1p1Counter)) thisPermanent (that creature))) ]
+        (may (moveCounters (.lit 1) thisPermanent (that creature) (some (.printed p1p1Counter)))) ]
 semantic_definition gravestorm : Ability :=
   .keyword (.named "gravestorm") []
     [ triggered (.does (.actor .you) (cast thisSpell))

@@ -175,9 +175,25 @@ theorem badPlayerTargetingEvent :
 theorem okMultipliedTrigger :
     StaticSpec.check (DRS.ofList [])
       (.additionalTriggers
-        (.triggers (a (.and [.abilityHead .anyTriggered, .abilityOf (a (and [isCreature, youControl]))])) none none)
+        (.does (.actor (a (.and [.abilityHead .anyTriggered, .abilityOf (a (and [isCreature, youControl]))])))
+          .trigger)
         (exactly 1)) = [] := by
   decide
+
+/-- "A triggered ability triggers" is the ability performing `trigger` [CR#603.2], and the
+ability is its event's agent: the template writes that event. -/
+theorem triggersIsTheAbilityTriggering :
+    Templates.triggers (a (.abilityHead .anyTriggered))
+      = .does (.actor (a (.abilityHead .anyTriggered))) .trigger := rfl
+
+/-- "Whenever a player triggers an ability": a player is not an ability, so it cannot be the
+event's agent. -/
+theorem badPlayerTriggers :
+    GameEvent.check (DRS.ofList []) (Templates.triggers (a .anyPlayer)) = [.eventAgent] := by
+  decide
+
+/-- "The game is a draw" is the draw outcome concluded [CR#104.4c]. -/
+theorem drawGameConcludes : Templates.drawGame = .conclude .drawGame none := rfl
 
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :

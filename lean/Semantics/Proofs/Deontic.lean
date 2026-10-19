@@ -87,7 +87,7 @@ theorem okDeedAsCost :
 term. -/
 theorem badReflexiveAsCost :
     Ability.check (DRS.ofList [])
-      (activatedAbility (.perform (.triggerReflexively (gainLife (.lit 2)) (draw (.lit 1))))
+      (activatedAbility (.perform (.triggerReflexively (gainLife (.lit 2)) none (draw (.lit 1))))
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 

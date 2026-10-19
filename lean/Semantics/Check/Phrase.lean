@@ -2197,15 +2197,6 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.amt drs1 val
           (drs2, e1 ++ e2)
         | .stateHolds c => ops.cond drs c
-        | .triggers ab optOf optBy =>
-          let (drs1, _, e1) := ops.np drs .subj true ab
-          let (drs2, e2) := match optOf with
-            | some o => let (d', _, e) := ops.np drs1 .other false o; (d', e)
-            | none => (drs1, [])
-          let (drs3, e3) := match optBy with
-            | some b => let (d', _, e) := ops.np drs2 .other false b; (d', e)
-            | none => (drs2, [])
-          (drs3, e1 ++ e2 ++ e3)
         | .nthOccurrence _ _ ev => ops.ev drs ev
         | .causes c ev =>
           let (drs1, e1) := stepCausingWith ops drs c
@@ -2393,7 +2384,7 @@ def stepOps : Nat → StepOps
           (drs, refuse (!drs.actionPattern || actorPlurality drs == .one) .singular)
         | .setGameDesignation designation =>
           (drs, refuse designation.gameWide (.designationScope designation))
-        | .conclude .. | .drawGame | .restartGame | .revealChoices _ => (drs, [])
+        | .conclude .. | .restartGame | .revealChoices _ => (drs, [])
         | .separateIntoPiles grp piles faces =>
           let (drs1, grpIds, e1) := ops.np drs patientRole true grp
           let grpZone := match grpIds.head?.bind drs1.findById? with | some r => r.zone | none => none
@@ -2638,15 +2629,6 @@ def stepOps : Nat → StepOps
             | .counters _, _ => kindCheck .object kind
             | _, _ => []
           (drs3, e1 ++ e2 ++ e3 ++ refuse among.groupMention .groupMention ++ kindErrors)
-        | .moveCounters amt optKs src dst =>
-          let (drs1, e1) := ops.amt drs amt
-          let (drs2, e2) := match optKs with | some ks => stepCounterKindSourceWith ops drs1 ks | none => (drs1, [])
-          let (drs3, sourceIds, e3) := ops.np drs2 patientRole true src
-          let (drs4, destinationIds, e4) := ops.np drs3 .other true dst
-          let sourceKind := (sourceIds.head?.bind drs3.findById?).map (·.kind)
-          let destinationKind := (destinationIds.head?.bind drs4.findById?).map (·.kind)
-          (drs4, e1 ++ e2 ++ e3 ++ e4 ++ kindCheck .object sourceKind ++ kindCheck .object destinationKind ++
-            refuse dst.perMemberOk .perMember)
         | .doubleCounters on =>
           let (drs1, ids, e1) := ops.np drs patientRole true on
           let kind := ((ids.head?.bind drs1.findById?).map (·.kind)).getD (on.kindIn drs1 .object)
@@ -2796,12 +2778,12 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.inst phase patientRole drs inst
           let (drs2, e2) := ops.ev drs1 ev
           (drs2, e1 ++ e2)
-        | .triggerReflexively body trig =>
+        | .triggerReflexively body none trig =>
           let (drs1, e1) := ops.inst phase patientRole drs body
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause (settleTargets drs1)) trig
           ({ drs1 with nextId := drs2.nextId },
             e1 ++ e2 ++ refuse body.reflexEncloseUse.admitsReflex .reflexEnclosure)
-        | .triggerThisWay body ev trig =>
+        | .triggerReflexively body (some ev) trig =>
           let (drs1, e1) := ops.inst phase patientRole drs body
           let (drs2, e2) := ops.ev (nextClause drs1) ev
           let (drs3, e3) := ops.inst .postEvent .obj (nextClause (settleTargets drs2)) trig

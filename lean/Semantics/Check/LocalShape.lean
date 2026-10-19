@@ -143,7 +143,7 @@ def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
     | _ => .agentless
   | _ + 1, .pay .. | _ + 1, .enact .. | _ + 1, .separateIntoPiles ..
   | _ + 1, .chooseNewTargets .. | _ + 1, .createObject .. | _ + 1, .putCounters ..
-  | _ + 1, .removeCounters .. | _ + 1, .moveCounters .. | _ + 1, .doubleCounters ..
+  | _ + 1, .removeCounters .. | _ + 1, .doubleCounters ..
   | _ + 1, .move .. | _ + 1, .turnFaceDown .. | _ + 1, .expose .. | _ + 1, .addMana ..
   | _ + 1, .draw .. | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .search ..
   | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
@@ -161,7 +161,7 @@ def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
   | _ + 1, .applyResultsTable .. | _ + 1, .withContinuation .. | _ + 1, .doIf ..
   | _ + 1, .doForEach .. | _ + 1, .doForEachKind .. | _ + 1, .repeat_ ..
   | _ + 1, .sequentially .. | _ + 1, .simultaneously .. | _ + 1, .chooseModes ..
-  | _ + 1, .replace .. | _ + 1, .triggerReflexively .. | _ + 1, .triggerThisWay .. => .notOneAction
+  | _ + 1, .replace .. | _ + 1, .triggerReflexively .. => .notOneAction
   | _ + 1, .delay .. | _ + 1, .holdUntil .. => .notYetTaken
   | _, _ => .agentless
 

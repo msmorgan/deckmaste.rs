@@ -61,9 +61,9 @@ mutual
       ev.namesThisDoor n || alts.any (fun e => e.namesThisDoor n) ||
       duration.any (fun d => d.namesThisDoor n) || body.namesThisDoor n
     | n + 1, .holdUntil body ev => body.namesThisDoor n || ev.namesThisDoor n
-    | n + 1, .replace a b | n + 1, .triggerReflexively a b => a.namesThisDoor n || b.namesThisDoor n
-    | n + 1, .triggerThisWay body ev consequent =>
-      body.namesThisDoor n || ev.namesThisDoor n || consequent.namesThisDoor n
+    | n + 1, .replace a b => a.namesThisDoor n || b.namesThisDoor n
+    | n + 1, .triggerReflexively body ev consequent =>
+      body.namesThisDoor n || ev.any (fun e => e.namesThisDoor n) || consequent.namesThisDoor n
     | n + 1, .establish spec duration =>
       spec.namesThisDoor n || duration.any (fun d => d.namesThisDoor n)
     | n + 1, .repeat_ (.untilCond condition) => condition.namesThisDoor n

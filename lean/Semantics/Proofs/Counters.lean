@@ -152,7 +152,15 @@ theorem countersPlacedDuringMoveCanBeRemoved :
 
 /-- "Move a counter from target creature onto this creature." -/
 theorem okMoveCounterOntoThis :
-    Action.check (DRS.ofList []) (.moveCounters (.lit 1) none (target isCreature) thisCreature) = [] := by
+    Action.check (DRS.ofList []) (moveCounters (.lit 1) (target isCreature) thisCreature) = [] := by
+  decide
+
+/-- "Move a +1/+1 counter from this creature onto target creature.": moving a counter removes it
+and puts it [CR#122.5], so the move publishes both outcomes, once each. -/
+theorem moveCounterPublishesRemovalAndPlacement :
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (moveCounters (.lit 1) thisCreature (target isCreature) (some p11))).1
+    countOutcomes .countersRemoved after = 1 ∧ countOutcomes .countersPut after = 1 := by
   decide
 
 /-- "Create a 1/1 creature creature token." -/

@@ -140,7 +140,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ | _n + 1, .doAndForbid _ _ _ => []
   | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ _ => []
-  | _n + 1, .drawGame | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
+  | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
   | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ _ => []
   | _n + 1, .move _ _ _ _ _ riders => MoveRider.ridersSlots riders
   | _n + 1, .turnFaceDown _ _ => []
@@ -172,7 +172,6 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .putCounters amount _ _ _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]
   | _n + 1, .removeCounters _ _ _ _ _ => []
-  | _n + 1, .moveCounters amount _ _ _ => [(amount, .clamped)]
   | _n + 1, .doubleCounters _ => []
   | _n + 1, .enact _ _ _ _ | _n + 1, .pay _ _ _ _ _ => []
   | _n + 1, .withContinuation _ _ _ _ | _n + 1, .doOnlyIf _ _ _ | _n + 1, .doIf _ _ _ | _n + 1, .limited _ _ => []
@@ -180,7 +179,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .repeat_ repetition => repetition.numberSlots
   | _n + 1, .sequentially _ | _n + 1, .simultaneously _ | _n + 1, .chooseModes _ _ => []
   | _n + 1, .delay _ _ _ _ | _n + 1, .replace _ _ | _n + 1, .holdUntil _ _ => []
-  | _n + 1, .triggerReflexively _ _ | _n + 1, .triggerThisWay _ _ _ => []
+  | _n + 1, .triggerReflexively _ _ _ => []
   | _n + 1, .skipUntap _ steps => [(steps, .clamped)]
   | _n + 1, .skipPart _ count => [(count, .clamped)]
   | _n + 1, .addTurnPart _ _ count _ => [(count, .clamped)]
@@ -194,7 +193,7 @@ def GameEvent.numberSlots (event : GameEvent) (fuel : Nat := 64) : List (Amount 
   | _n + 1, .inCaller body => body.numberSlots _n
   | _ + 1, .statBecomes _ _ amount => [(amount, .signed)]
   | _ + 1, .does _ _ | _ + 1, .beginningOf _ _ _ | _ + 1, .endOf _ _ _ | _ + 1, .now
-  | _ + 1, .stateHolds _ | _ + 1, .gameBecomes _ | _ + 1, .chapterMark _ | _ + 1, .triggers _ _ _
+  | _ + 1, .stateHolds _ | _ + 1, .gameBecomes _ | _ + 1, .chapterMark _
   | _ + 1, .nthOccurrence _ _ _ | _ + 1, .causes _ _ | _ + 1, .stateBasedActionsChecked => []
 termination_by structural fuel
 

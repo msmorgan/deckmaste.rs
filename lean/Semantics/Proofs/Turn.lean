@@ -148,53 +148,55 @@ theorem okUntilEndOfTurnDuration :
 
 /-- "Sacrifice a creature. When you do, draw a card." -/
 theorem okReflexiveOnSacrifice :
-    Action.check (DRS.ofList []) (.triggerReflexively (sacrifice (a isCreature)) (draw (.lit
-        1)))
+    Action.check (DRS.ofList []) (.triggerReflexively (sacrifice (a isCreature)) none
+        (draw (.lit 1)))
       = [] := by
   decide
 
 /-- "This creature deals 3 damage to any target. When you do, draw a card." -/
 theorem badReflexiveOnSourceDeed :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any)) (draw (.lit 1)))
+      (.triggerReflexively (Action.instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
+        none (draw (.lit 1)))
       = [.reflexEnclosure] := by
   decide
 
 /-- "You gain 2 life. When you do, draw a card." -/
 theorem badReflexiveOnLifeGain :
-    Action.check (DRS.ofList []) (.triggerReflexively (gainLife (.lit 2)) (draw (.lit 1)))
+    Action.check (DRS.ofList []) (.triggerReflexively (gainLife (.lit 2)) none (draw (.lit 1)))
       = [.reflexEnclosure] := by
   decide
 
 /-- "Draw a card, then sacrifice a creature. When you do, draw a card." -/
 theorem badReflexiveOnSequence :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (.sequentially [draw (.lit 1), sacrifice (a isCreature)])
+      (.triggerReflexively (.sequentially [draw (.lit 1), sacrifice (a isCreature)]) none
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
 theorem badReflexiveOnDelayed :
     Action.check (DRS.ofList [])
       (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
-        (draw (.lit 1))) = [.reflexEnclosure] := by
+        none (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
 /-- "Regenerate this creature. If it regenerates this way, draw a card." -/
 theorem okThisWayOnRegenerate :
     Action.check (DRS.ofList [])
-      (.triggerThisWay (regenerate thisCreature) (does any (regenerationApplication thisCreature)) (draw (.lit 1)))
+      (.triggerReflexively (regenerate thisCreature)
+        (some (does any (regenerationApplication thisCreature))) (draw (.lit 1)))
       = [] := by
   decide
 
 theorem badThisWayOnDelayed :
     Action.check (DRS.ofList [])
-      (.triggerThisWay (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
-        (.does (.actor .you) (.draw .anyAmount)) (draw (.lit 1))) = [.thisWayOutcome] := by
+      (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
+        (some (.does (.actor .you) (.draw .anyAmount))) (draw (.lit 1))) = [.thisWayOutcome] := by
   decide
 
 theorem badReflexiveOnBranchedMay :
     Action.check (DRS.ofList [])
-      (.triggerReflexively (may (sacrifice (a isCreature)) (some (draw (.lit 1))))
+      (.triggerReflexively (may (sacrifice (a isCreature)) (some (draw (.lit 1)))) none
         (draw (.lit 1))) = [.reflexEnclosure] := by
   decide
 
@@ -202,7 +204,7 @@ theorem badReflexiveOnBranchedMay :
 theorem badAfterReflexiveReadsTrigger :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .triggerReflexively (mill (.lit 4))
+        [ .triggerReflexively (mill (.lit 4)) none
             (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
           .setStatus .tapped (that (.type .creature)) ])
       = [.anaphor (.word (.type .creature)) .one 0] := by

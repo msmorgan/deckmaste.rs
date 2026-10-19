@@ -657,7 +657,7 @@ private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
         some (.object, some .battlefield) ∧
       countOnes .object shield = 0 ∧
       Action.check (DRS.ofList [])
-        (.triggerThisWay (regenerate thisCreature) event
+        (.triggerReflexively (regenerate thisCreature) (some event)
           (.putCounters (.lit 1) (.printed m1m1Counter) it .many true)) = [] := by decide
 
 /-! ## Keyword actions -/

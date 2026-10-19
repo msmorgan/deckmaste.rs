@@ -457,7 +457,7 @@ members in order through one `DRS`, and `nextClause` separates clauses:
 | `enact` | The performer in context (`actorShape?`) is checked at the deed's agent kind; a deed performed by a permanent with no handoff to one gets a frame for the source permanent. Post-event, the body's patients receive the deed's stamp (`applyInPlaceStamp`). |
 | `instruct` (handoff) | See "The performer and the handoff" above. |
 | `ownScope`, `inCaller` | See "Binding identity and a keyword body's own scope" above. |
-| `delay`, `triggerReflexively`, `triggerThisWay` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). |
+| `delay`, `triggerReflexively` | Step the inner body in a new clause after `settleTargets`; nothing the inner body introduces escapes (only `nextId` advances). |
 | `replace`, `holdUntil` | `replace` steps the replaced action as a pre-event pattern and the replacement after it in a new clause; `holdUntil` steps the held action, then its event. |
 | Lookbacks (`did`) and `would` clauses | Step the action as an event pattern (`actionPattern`); see "Historical events" above. |
 | Activated abilities and special actions | Step the cost after dropping its local X (`dropLetter`); the body starts in a new clause that keeps only the cost's public mentions (`publicOnly`). Timing and guard clauses read the body's output. |

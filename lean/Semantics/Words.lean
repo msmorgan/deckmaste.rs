@@ -525,8 +525,10 @@ inductive AttachWord where
   | enchanted | equipped | fortified
   deriving DecidableEq, Repr
 
+/-- How a game concludes for whoever performs it: a win, a loss, or a draw ("the game is a
+draw" [CR#104.4c]). -/
 inductive OutcomeVerb where
-  | winGame | loseGame
+  | winGame | loseGame | drawGame
   deriving DecidableEq, Repr
 
 inductive DefinedSlots where

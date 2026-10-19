@@ -272,7 +272,7 @@ private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
       countOutcomes .repeatCount out = 1 ∧ countOnes .object out = 0 ∧
       Amount.check out .thatMuch = [] ∧
       Action.check (DRS.ofList [])
-        (.triggerReflexively offered
+        (.triggerReflexively offered none
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
             (.headed (.type .creature) .this) .many true)) = [] := by decide
 

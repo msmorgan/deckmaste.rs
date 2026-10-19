@@ -1152,7 +1152,7 @@ semantic_template rollRow (results : Quantity) (action : Action) : RollRow :=
   ⟨results, action⟩
 /-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
 semantic_template offerWhen (body : Action) (triggerBody : Action) : Action :=
-  .triggerReflexively (.withContinuation .optional body none none) triggerBody
+  .triggerReflexively (.withContinuation .optional body none none) none triggerBody
 /-- "the chosen number" -/
 semantic_template chosenNumber : Amount := .chosenNumber .theChoice
 /-- "Choose one or more — [cost] — <mode>; …" [CR#702.172a] -/
@@ -1448,7 +1448,8 @@ semantic_template doIfDone (body : Action) (ifDid : Option Action := none)
 semantic_template doOnlyIf (action : Action) (condition : Condition)
     (otherwise : Option Action := none) : Action :=
   .doOnlyIf action condition otherwise
-semantic_template drawGame : Action := .drawGame
+/-- "the game is a draw" [CR#104.4c] -/
+semantic_template drawGame : Action := .conclude .drawGame none
 semantic_template enact (verb : Deed) (action : Action) : Action :=
   .enact verb action none none
 semantic_template establish (spec : StaticSpec) (duration : Option Duration := none) : Action :=
@@ -1473,9 +1474,16 @@ semantic_template may (body : Action) (ifDid : Option Action := none)
 semantic_template mayOrElse (body otherwise : Action) : Action := may body none (some otherwise)
 semantic_template merge (subject onto : NounPhrase) (position : MergePosition) : Action :=
   .merge subject onto position
+/-- "move <amount> [<kind>] counters from <source> onto <destination>": remove them from the
+source, then put them onto the destination [CR#122.5]. With no kind written, what is put is a
+counter of the kind removed from the source. -/
 semantic_template moveCounters (amount : Amount) (source destination : NounPhrase)
     (kind : Option CounterKindSource := none) : Action :=
-  .moveCounters amount kind source destination
+  .sequentially
+    [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source)
+        .one true,
+      .putCounters amount (kind.getD (.sameAs (.laterMention "moveCounters.source" source)))
+        destination .one true ]
 semantic_template pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome := .paid)
     (whose : Option NounPhrase := none) (keyword : Option KeywordLabel := none) : Action :=
   .pay cost times outcome whose keyword
@@ -1513,11 +1521,13 @@ semantic_template skipPart (part : TurnPart) (count : Amount) : Action := .skipP
 semantic_template skipUntap (subject : NounPhrase) (steps : Amount) : Action :=
   .skipUntap subject steps
 semantic_template storeResults (on : NounPhrase) : Action := .storeResults on
+/-- "<body>. When you do, <trigger>" [CR#603.12] -/
 semantic_template triggerReflexively (body triggerBody : Action) : Action :=
-  .triggerReflexively body triggerBody
+  .triggerReflexively body none triggerBody
+/-- "<body>. When <event> this way, <trigger>" [CR#603.12] -/
 semantic_template triggerThisWay (body : Action) (event : GameEvent) (triggerBody : Action) :
     Action :=
-  .triggerThisWay body event triggerBody
+  .triggerReflexively body (some event) triggerBody
 semantic_template turnFaceDown (subject : NounPhrase) (spec : FaceDown) : Action :=
   .turnFaceDown subject spec
 semantic_template turnOver (subject : NounPhrase) : Action := .turnOver subject
@@ -1652,9 +1662,13 @@ semantic_template nthOccurrence (ordinal : Ordinal) (event : GameEvent)
 semantic_template statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount) : GameEvent :=
   .statBecomes subject stat value
 semantic_template stateHolds (condition : Condition) : GameEvent := .stateHolds condition
-semantic_template triggers (ability : NounPhrase) (of_ : Option NounPhrase := none)
-    (by_ : Option NounPhrase := none) : GameEvent :=
-  .triggers ability of_ by_
+/-- "<ability> triggers [by <cause>]": the ability is the subject of `trigger` [CR#603.2]; whose
+ability it is ("a triggered ability of a creature you control") is `Predicate.abilityOf` in its
+description, and what made it trigger is a cause. -/
+semantic_template triggers (ability : NounPhrase) (by_ : Option NounPhrase := none) : GameEvent :=
+  match by_ with
+  | none => .does (.actor ability) .trigger
+  | some cause => .causes (.source cause) (.does (.actor ability) .trigger)
 /-! ## Abilities -/
 
 semantic_template keyword (label : KeywordLabel) : Ability := .keyword label [] []

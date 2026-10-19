@@ -459,8 +459,6 @@ mutual
     | gameBecomes (designation : DesignationLabel)
     /-- Saga chapter trigger mark [CR#714.2]. -/
     | chapterMark (chapters : List ChapterNumber)
-    /-- "Whenever a triggered ability of … triggers". -/
-    | triggers (ability : NounPhrase) (of_ : Option NounPhrase) (by_ : Option NounPhrase)
     /-- "Whenever you cast your second spell each turn". -/
     | nthOccurrence (ordinal : Ordinal) (per : Option TurnPart) (event : GameEvent)
     /-- "Whenever an ability you control causes you to…". -/
@@ -1003,10 +1001,9 @@ mutual
     /-- A Room gains its remaining unlocked designation, or both at once [CR#709.5i]. -/
     | fullyUnlock (room : NounPhrase)
     | setGameDesignation (designation : DesignationLabel)
-    /-- Win, lose, or draw the game; `cause` the one state-based cause it happens for, if any:
-    "lose the game for having 0 or less life" [CR#704.5a]. -/
+    /-- Win, lose, or draw the game [CR#104.4c]; `cause` the one state-based cause it happens
+    for, if any: "lose the game for having 0 or less life" [CR#704.5a]. -/
     | conclude (verb : OutcomeVerb) (cause : Option StateBasedCause := none)
-    | drawGame
     | restartGame
     | separateIntoPiles (group : NounPhrase) (piles : Nat) (faces : List PileFace)
     /-- The `when` rider is the printed "as you activate this ability": the announcement's
@@ -1049,8 +1046,6 @@ mutual
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase) (batch : CounterBatch) (byEffect : Bool)
-    | moveCounters (amount : Amount) (kind : Option CounterKindSource) (source : NounPhrase)
-        (destination : NounPhrase)
     | doubleCounters (on : NounPhrase)
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
@@ -1086,8 +1081,9 @@ mutual
         (body : Action)
     | replace (replaced : Action) (replacement : Action)
     | holdUntil (action : Action) (event : GameEvent)
-    | triggerReflexively (body : Action) (trigger : Action)
-    | triggerThisWay (body : Action) (event : GameEvent) (trigger : Action)
+    /-- A reflexive triggered ability created by `body` [CR#603.12]: with no `event`, it triggers
+    "when [the performer does]" what `body` offers; with `some ev`, "when [ev] this way". -/
+    | triggerReflexively (body : Action) (event : Option GameEvent) (trigger : Action)
     | skipUntap (subject : NounPhrase) (steps : Amount)
     | skipPart (part : TurnPart) (count : Amount)
     | addTurnPart (part : TurnPart) (anchor : Option TurnPart) (count : Amount)
