@@ -162,8 +162,8 @@ requires the adjective. Transform also explicitly declares the state adjective
 Adjunct reading. Short focused Objects may be postposed after a PP.
 Temporal/manner Objects are not globally forbidden by their game meaning.
 The scalar complement in `base power 0` attaches to `power`, with `base`
-modifying that headed nominal. `until draw cards` retains the noun-premodifier
-reading of `draw cards`, while rejecting a subjectless finite Clause.
+modifying that headed nominal. `until counter spells` retains the noun-premodifier
+reading of `counter spells`, while rejecting a subjectless finite Clause.
 
 Independent genitives agree with the possessed referent, not the possessor.
 Quantity nominals use general determination, including `an additional two

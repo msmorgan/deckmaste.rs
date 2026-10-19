@@ -48,6 +48,28 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     each equal to …]* on ~100 units: Stonework Packbeast; Burakos, Party
     Leader; Tajuru Paragon; Veteran Adventurer.
   - Non-coordination one-off: Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
+  - Serial unlike coordination beyond object lists: predicate adjuncts
+    (*only during …, only if …, and only once each turn*), Grizzled Wolverine;
+    an NP and a PP under *and/or* (*library, graveyard, and/or outside the
+    game*), Invasion of Arcavios; an adjective with subtype attributes (*the
+    basic, Sphere, and Locus lands*), Monument to Perfection.
+  - Bare mentions of choice options coordinated as a bare singular term
+    (*choose left or right*, *choose artifact or enchantment*; a single bare
+    option reads nowhere either), with the vote and mention family above: Storage Matrix; Stenn, Paranoid Partisan; Mystic Barrier; Teyo, Geometric Tactician; Orchard Elemental; Order of Succession; Virtus's Maneuver; Cloud Key; Dawn-Blessed Pennant; Pramikon, Sky Rampart; Aminatou, the Fateshifter; Season of Gathering; Winding Way; Eclipsed Realms; Turnabout; Zndrsplt's Judgment; Teferi's Realm; Archon of Valor's Reach; Messenger Jays; Sarpadian Empires, Vol. VII.
+  - Felisa, Fang of Silverquill: the second analysis of *the number of
+    counters it had on it*, *have* with an object and a locative *on*-phrase
+    (*it had __ on it*), without a general *have NP on-PP* frame. Its judgment
+    in `perfect_relative_adverbial_gap.txt` keeps only the analysis Stratum 6
+    reads until then.
+  - The Targeting Marker's scope over a coordination when the marked Noun
+    Phrase sits inside a larger first conjunct (*[control of X target
+    creatures] and/or [planeswalkers]*, *[each of up to two target creatures]
+    and/or [planeswalkers]*): mark a conjunct whose right edge is a targeted
+    Noun Phrase. Twelve units keep a narrow reading beside the wide one:
+    Meteor Swarm; Nahiri's Wrath; Saheeli, the Sun's Brilliance; Mass
+    Manipulation; Shatterskull Smashing; Ignite Disorder; Volcanic Salvo;
+    Zimone, Paradox Sculptor; Captain's Maneuver; Spinning Wheel Kick; Etched
+    Slith; Cloudspire Skycycle.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean
