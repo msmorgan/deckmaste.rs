@@ -93,8 +93,7 @@ def vodalianIllusionist : Ability :=
 theorem okVodalianIllusionist : Ability.check (DRS.ofList []) vodalianIllusionist = [] := by decide
 def witchsMist : Ability :=
   activated (compound [mana [generic 2, pip .black], tapSymbol])
-    (destroy (target (and [isCreature, happenedTo any (dealDamage anyAmount (asMarker .permanent (relative
-      .object))) soFarThisTurn])))
+    (destroy (target (and [isCreature, happenedTo any (dealDamage anyAmount which) soFarThisTurn])))
 theorem okWitchsMist : Ability.check (DRS.ofList []) witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (compound [mana [generic 3], tapSymbol])
@@ -662,7 +661,7 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
             (instruct
                (target
                   (and
-                     [isPlayer, happenedTo thisCreature (dealDamage anyAmount (relative .player))
+                     [isPlayer, happenedTo thisCreature (dealDamage anyAmount which)
                         soFarThisTurn])) (loseLife
               (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }

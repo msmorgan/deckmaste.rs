@@ -212,10 +212,13 @@ triggered the ability), which names no span. `Condition.did`, `Predicate.did` an
 `Amount.tally` carry one. `stepDidClauseWith` steps the action as an event pattern
 (`actionPattern`) after the clause's subject, so it publishes its participants without
 moving current referents or manufacturing an outcome. `Predicate.did` is a relative
-clause: it opens a new clause with one `which` referent of the enclosing predicate's
-kind (`relativeBinder`) and leaves through `leaveRelative`, which closes everything the
-clause introduced except a definite attachment host. The `relative` template writes
-`which` (`NounPhrase.which`). A `which` with no enclosing relative clause is refused
+clause: it opens a new clause with one `which` referent (`relativeBinder`) and leaves
+through `leaveRelative`, which closes everything the clause introduced except a definite
+attachment host. A relative clause conjoined in an object `Predicate.and` binds `which` as
+that whole predicate binds its head (`relativeSeed`: the sibling conjuncts' types and zone,
+so "creature that blocked" reads a creature on the battlefield); elsewhere `which` is a bare
+referent of the enclosing predicate's kind. The `which` template writes `which`
+(`NounPhrase.which`). A `which` with no enclosing relative clause is refused
 (`anaphor`); a nested relative clause binds its own `which`, and `Condition.did`
 clears the binder, so a nested lookback cannot read its parent's participant; and a relative clause that never reads its own `which` is refused
 `lookbackSubject`. Repeated reads within one clause name the same participant.

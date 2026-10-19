@@ -391,7 +391,7 @@ theorem okNongreenSpellsOrAbilities :
 /-- Hot Pursuit -/
 def twoOrMorePlayersHaveLost : Condition :=
   compareAmt (countOf (and
-    [isPlayer, happenedTo (relative .object) loseGame thisGame])) .atLeast (.lit 2)
+    [isPlayer, happenedTo which loseGame thisGame])) .atLeast (.lit 2)
 theorem okTwoOrMorePlayersHaveLost : Condition.check (DRS.ofList []) twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=

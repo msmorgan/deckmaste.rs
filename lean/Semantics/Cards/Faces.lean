@@ -220,7 +220,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
             (does (a (and [ isCreature,
                               happenedTo thisCreature
                                 (dealDamage anyAmount
-                                  (asMarker .permanent (relative .object)))
+                                  which)
                                 soFarThisTurn ])) die)
             (flip thisCreature) ],
       power := stat 1, toughness := stat 1 } }

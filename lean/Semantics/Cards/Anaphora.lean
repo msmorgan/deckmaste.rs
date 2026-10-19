@@ -691,7 +691,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                 instruct (those player) (sacrifice (those permanent)),
                 doForEach
                   (each (and [ isPlayer,
-                                did (⟨(relative .player), (sacrifice (a isPermanent)), thisWay⟩)
+                                did (⟨which, (sacrifice (a isPermanent)), thisWay⟩)
                                   ]))
                   (sequentially
                     [ instruct they (expose .reveal (cards (slice .top (.lit 1) (libraryOf they)))),

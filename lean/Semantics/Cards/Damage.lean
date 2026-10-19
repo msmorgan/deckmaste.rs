@@ -179,7 +179,7 @@ def arbalestElite : Ability :=
 theorem okArbalestElite : Ability.check (DRS.ofList []) arbalestElite = [] := by decide
 def sizzlingBarrage : Action :=
   dealDamage (.lit 4) (target
-    (and [isCreature, happenedTo (asMarker .permanent (relative .object)) block soFarThisTurn]))
+    (and [isCreature, happenedTo which block soFarThisTurn]))
         .noncombatOnly
 theorem okSizzlingBarrage : Action.check (DRS.ofList []) sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
@@ -856,7 +856,7 @@ def incinerate : Spelled := spelled <| .singleFaced
                                               [isCreature, did
                                                  (⟨any,
                                                    (dealDamage anyAmount
-                                                      (asMarker .permanent (relative .object))),
+                                                      which),
                                         thisWay⟩)])))) thisTurn ]) ] } }
 
 def ashZealot : Spelled := spelled <| .singleFaced
@@ -1264,7 +1264,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
               (would
                 (a (and [ isCreature,
                           happenedTo thisCreature
-                            (dealDamage anyAmount (asMarker .permanent (relative .object)))
+                            (dealDamage anyAmount which)
                             soFarThisTurn ]))
                 die)
               (exile it)),
@@ -1284,7 +1284,7 @@ theorem okCracklingDoom : Action.check (DRS.ofList []) cracklingDoom = [] := by 
 def theFallen : Ability :=
   at_ (beginningOfYour .upkeep)
     (instruct thisCreature (dealDamage (.lit 1) (each (and [or [isOpponent, isPlaneswalker],
-                   happenedTo thisCreature (dealDamage anyAmount (relative (.join .player .object)))
+                   happenedTo thisCreature (dealDamage anyAmount which)
                        thisGame])) .noncombatOnly))
 theorem okTheFallen : Ability.check (DRS.ofList []) theFallen = [] := by decide
 /-- Cavalcade of Calamity -/

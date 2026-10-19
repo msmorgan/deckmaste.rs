@@ -667,6 +667,26 @@ theorem badCombatDamageComplement :
       = [.kindMismatch .object (.quality .color)] := by
   decide
 
+/-- "creature that was dealt damage this turn": a relative clause conjoined with its head's
+other conjuncts reads `which` without a marker wrapper. -/
+theorem okConjunctRelativeDamaged :
+    Predicate.checkAt .object (DRS.ofList [])
+      (and [isCreature, happenedTo any (dealDamage anyAmount which) soFarThisTurn]) = [] := by
+  decide
+
+/-- "Destroy target creature that blocked this turn." -/
+theorem okConjunctRelativeBlocked :
+    Action.check (DRS.ofList [])
+      (destroy (target (and [isCreature, happenedTo which block soFarThisTurn]))) = [] := by
+  decide
+
+/-- A conjunct relative clause's `which` is seeded from its enclosing predicate: "creature that
+…" binds a creature on the battlefield, not a bare object. -/
+theorem conjunctRelativeWhichReadsItsSiblingConjuncts :
+    (relativeSeed .object (and [isCreature, happenedTo which block soFarThisTurn])).payload =
+      .object [.creature] (some .battlefield) none none none := by
+  decide
+
 /-- "Target creature gets +1/+1 until end of turn." -/
 theorem okGetsCreature :
     Action.check (DRS.ofList [])

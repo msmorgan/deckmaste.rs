@@ -115,12 +115,11 @@ theorem okLoanShark : Ability.check (DRS.ofList []) loanShark = [] := by decide
 def forceOfDespair : Action :=
   destroy (allOf
              (and
-                [isCreature, happenedTo any (putOntoBattlefield (relative .object)) soFarThisTurn]))
+                [isCreature, happenedTo any (putOntoBattlefield which) soFarThisTurn]))
 theorem okForceOfDespair : Action.check (DRS.ofList []) forceOfDespair = [] := by decide
 def cradleToGrave : Action :=
   destroy (target (and [isCreature, not
-    (hasColor .black), happenedTo any (putOntoBattlefield (relative
-    .object)) soFarThisTurn]))
+    (hasColor .black), happenedTo any (putOntoBattlefield which) soFarThisTurn]))
 theorem okCradleToGrave : Action.check (DRS.ofList []) cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
@@ -452,7 +451,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
         [ whenever
             (does (a (and [ isCreature,
                               happenedTo thisCreature
-                                (dealDamage anyAmount (asMarker .permanent (relative .object)))
+                                (dealDamage anyAmount which)
                                 soFarThisTurn ])) die)
             (sequentially
               [ putOntoBattlefieldUnderYourControl it,
@@ -569,7 +568,7 @@ def reciprocate : Spelled := spelled <| .singleFaced
         [ spell (exile
             (target
                (and
-                  [isCreature, happenedTo (relative .object) (dealDamage anyAmount you)
+                  [isCreature, happenedTo which (dealDamage anyAmount you)
                      soFarThisTurn]))) ] } }
 
 /-- Tahngarth, First Mate -/
@@ -600,7 +599,7 @@ def faithsReward : Spelled := spelled <| .singleFaced
       text :=
         [ spell (putOntoBattlefield (allOf (and [ isPermanentCard, in_ yourGraveyard,
                            happenedTo any
-                             (putInto (relative .object) yourGraveyard (from_ := some battlefield))
+                             (putInto which yourGraveyard (from_ := some battlefield))
                              soFarThisTurn ]))) ] } }
 
 /-- Oscorp Industries -/

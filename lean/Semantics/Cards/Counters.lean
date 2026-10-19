@@ -142,8 +142,7 @@ theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by d
 def furiousSpinesplitter : Ability :=
   at_ (beginningOfYour .endStep)
     (putCounters (forEach (.lit 1) (and
-      [isOpponent, happenedTo any (dealDamage anyAmount (relative
-      .player)) soFarThisTurn]))
+      [isOpponent, happenedTo any (dealDamage anyAmount which) soFarThisTurn]))
       (printedKind p1p1Counter) thisCreature .many)
 theorem okFuriousSpinesplitter : Ability.check (DRS.ofList []) furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
@@ -447,7 +446,7 @@ def tromell : Spelled := spelled <| .singleFaced
                 define .x
                   (countOf (and [ isNontoken, isCreature, youControl,
                                    happenedTo any (putOntoBattlefield
-                                                     (relative .object)) soFarThisTurn ])) ]) ],
+                                                     which) soFarThisTurn ])) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Runadi, Behemoth Caller -/
@@ -807,7 +806,7 @@ def sengirVampire : Spelled := spelled <| .singleFaced
           whenever
             (does (a (and [ isCreature,
                               happenedTo thisCreature
-                                (dealDamage anyAmount (asMarker .permanent (relative .object)))
+                                (dealDamage anyAmount which)
                                 soFarThisTurn ])) die)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 4, toughness := stat 4 } }

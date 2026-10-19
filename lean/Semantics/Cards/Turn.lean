@@ -224,7 +224,7 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
             [ untap
                 (allOf
                    (and
-                      [isCreature, happenedTo (asMarker .permanent (relative .object)) attack
+                      [isCreature, happenedTo which attack
                          soFarThisTurn])),
               additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ]) ] } }
 

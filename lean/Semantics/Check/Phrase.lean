@@ -881,6 +881,23 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
         actionPattern := drs.actionPattern
         historicalReferentIds := drs.historicalReferentIds }, headErr ++ locusErrors ++ e1 ++ actorErrors ++ e2 ++ e3 ++ e4 ++ eventVoiceChecks drs subj action)
 
+/-- Step a relative clause (`Predicate.did`) with its `which` bound to `whichRef`; the clause
+must mention `which`. -/
+def stepRelativeDidWith (ops : StepOps) (drs : DRS) (whichRef : Referent) (clause : DidClause) :
+    DRS × List Refusal :=
+  let subDrs := nextClause drs
+  let binderId := subDrs.nextId
+  let subDrs' := { subDrs.push whichRef .other false with
+    relativeBinder := some binderId, relativeUses := 0 }
+  let (out, errs) := stepDidClauseWith ops subDrs' clause
+  (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject)
+
+/-- The referent a conjunct relative clause's `which` binds: the enclosing object predicate's
+binding, so the clause reads the head's types and zone from its sibling conjuncts; any other
+head binds its bare kind. -/
+def relativeSeed (headKind : Kind) (enclosing : Predicate) : Referent :=
+  if headKind == .object then bindFor .the .one .object enclosing else kindBinding headKind
+
 def stepCausingWith (ops : StepOps) (drs : DRS) (c : Causing) : DRS × List Refusal :=
   match c with
   | .source src =>
@@ -1550,14 +1567,7 @@ def stepOps : Nat → StepOps
           let errors := errors ++ kindCheck .player ((ids.head?.bind out.findById?).map (·.kind))
           (if who.isYou then drs else out, errors)
         | .did clause =>
-          let subDrs := nextClause drs
-          let k := drs.relativeKind.getD .object
-          let whichRef := kindBinding k
-          let binderId := subDrs.nextId
-          let subDrs' := { subDrs.push whichRef .other false with
-            relativeBinder := some binderId, relativeUses := 0 }
-          let (out, errs) := stepDidClauseWith ops subDrs' clause
-          (leaveRelative drs out, errs ++ refuse (out.relativeUses != 0) .lookbackSubject)
+          stepRelativeDidWith ops drs (kindBinding (drs.relativeKind.getD .object)) clause
         | .colorCount _ _ => (drs, [])
         | .compare axes _ bound =>
           let (out, errors) := ops.amt drs bound
@@ -1672,8 +1682,12 @@ def stepOps : Nat → StepOps
             refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
         | .and ps =>
           let headKind := p.kind? <|> drs.relativeKind
+          let seed := relativeSeed (headKind.getD .object) p
           let (out, errs) := ps.foldl (fun (d, es) q =>
-            let (d', e') := ops.pred { d with relativeKind := headKind } q
+            let d := { d with relativeKind := headKind }
+            let (d', e') := match q with
+              | .did clause => stepRelativeDidWith ops d seed clause
+              | q => ops.pred d q
             (d', es ++ e')) (drs, [])
           ({ out with relativeKind := drs.relativeKind },
             errs ++ refuse (otherAnchorOkWith ops drs (headKind.getD .object) ps) .otherAnchored)

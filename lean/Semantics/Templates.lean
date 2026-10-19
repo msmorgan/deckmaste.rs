@@ -736,7 +736,6 @@ semantic_template designated (designation : DesignationLabel) (whose : NounPhras
   .designated designation whose
 semantic_template eachOf (group : NounPhrase) : NounPhrase := .eachOf group
 set_option linter.unusedVariables false in
-semantic_template gap (kind : Kind) : NounPhrase := .which
 semantic_template oneEachOf (pool : NounPhrase) (roles : List Predicate := []) : NounPhrase :=
   .oneEachOf roles pool
 semantic_template pileOf (count : SliceCount) (by_ : Option NounPhrase := none) : NounPhrase :=
@@ -1207,7 +1206,7 @@ semantic_template noManaSpentToCast (spell : NounPhrase) : Condition :=
 /-- "between N and M" -/
 semantic_template fromTo (low high : Nat) : Quantity := .range (some low) (some high)
 /-- The participant described by the nearest enclosing lookback (`NounPhrase.which`). -/
-semantic_template relative (_kind : Kind) : NounPhrase := .which
+semantic_template which : NounPhrase := .which
 /-- The number of occurrences of a historical action clause. -/
 semantic_template eventCount (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
