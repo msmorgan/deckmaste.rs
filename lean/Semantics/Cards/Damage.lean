@@ -111,7 +111,7 @@ def botBashingTime : Action :=
           (instead (exile it)) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
-  replaceNextEvent (would you (draw anyAmount))
+  replaceNextEvent (would you (draw (.lit 1)))
       (instead (instruct this_ (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))) (some thisTurn)
 theorem okWordsOfWar : Action.check (DRS.ofList []) wordsOfWar = [] := by decide
 
@@ -1344,7 +1344,7 @@ def actOfTreason : Action := gainControl (target isCreature) (some untilEndOfTur
     you)
 theorem okActOfTreason : Action.check (DRS.ofList []) actOfTreason = [] := by decide
 def wordsOfWorship : Action :=
-  replaceNextEvent (would you (draw anyAmount)) (instead (gainLife (.lit 5))) (some thisTurn)
+  replaceNextEvent (would you (draw (.lit 1))) (instead (gainLife (.lit 5))) (some thisTurn)
 theorem okWordsOfWorship : Action.check (DRS.ofList []) wordsOfWorship = [] := by decide
 def theLastRoninII : Action :=
   triggerReflexively (mill (.lit 4))

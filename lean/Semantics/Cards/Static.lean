@@ -23,7 +23,7 @@ def forkedBolt : Action :=
   dealDivided this_ (.lit 2) (targets (oneThrough 2) isAnyTarget)
 theorem okForkedBolt : Action.check (DRS.ofList []) forkedBolt = [] := by decide
 def thoughtReflection : Ability :=
-  static (replace (would you (draw anyAmount)) (instead (draw (.lit 2))))
+  static (replace (would you (draw (.lit 1))) (instead (draw (.lit 2))))
 theorem okThoughtReflection : Ability.check (DRS.ofList []) thoughtReflection = [] := by decide
 def jorKadeen : Ability :=
   static (onlyWhile (getsPt (allOf (and [isCreature, youControl])) (up (.lit 3)) (up (.lit 0)))

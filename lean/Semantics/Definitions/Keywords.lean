@@ -514,7 +514,7 @@ semantic_definition dredge (amount : Amount) : Ability :=
   .keyword (.named "dredge") [.number amount]
     [ static
         (onlyWhile
-          (replace (would you (draw anyAmount))
+          (replace (would you (draw (.lit 1)))
             (may (instead (sequentially [mill amount, returnToHand this_ yourGraveyard]))))
           (.compareAmt (countOf (cardIn yourLibrary)) .atLeast amount)) ]
 semantic_definition echo (cost : Cost) : Ability := keywordCosting (.named "echo") (.inCaller cost)
