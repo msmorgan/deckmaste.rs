@@ -131,6 +131,25 @@ const DEPENDENT_HEADS: [&str; 14] = [
     "fewest",
 ];
 
+/// *More* is two lexemes: the comparative of *many* and of *much*.
+fn more() -> Vec<Lexeme> {
+    ["count", "mass"]
+        .into_iter()
+        .map(|sense| {
+            let mut det = Lexeme::invariant(
+                format!("det:more.{sense}"),
+                "more",
+                Category::Determinative,
+                source(SourceKind::Core),
+            );
+            det.properties
+                .features
+                .insert("DeterminativeDistribution".into(), "Dependent".into());
+            det
+        })
+        .collect()
+}
+
 #[must_use]
 pub fn lexicon() -> Lexicon {
     use Number::Singular;
@@ -236,19 +255,7 @@ pub fn lexicon() -> Lexicon {
             .insert("DeterminativeDistribution".into(), "Dependent".into());
         lexemes.push(det);
     }
-    // *More* is two lexemes: the comparative of *many* and of *much*.
-    for sense in ["count", "mass"] {
-        let mut det = Lexeme::invariant(
-            format!("det:more.{sense}"),
-            "more",
-            Category::Determinative,
-            source(Core),
-        );
-        det.properties
-            .features
-            .insert("DeterminativeDistribution".into(), "Dependent".into());
-        lexemes.push(det);
-    }
+    lexemes.extend(more());
     // Only interrogative and fused relative: never a plain determiner.
     for word in ["whichever", "which"] {
         let mut det = invariant("det", word, Category::Determinative, Core);
