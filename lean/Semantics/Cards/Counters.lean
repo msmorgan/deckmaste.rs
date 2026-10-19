@@ -56,7 +56,7 @@ def daydream : Spelled := spelled <| .singleFaced
             [ exile (target (and [isCreature, youControl])),
               returnToBattlefieldWithCounters (that card) (ownerOf (that card)) (.lit 1)
                 p1p1Counter ]),
-          keywordCosting (.named "flashback") (mana [generic 2, pip .white]) ] } }
+          flashback (mana [generic 2, pip .white]) ] } }
 
 def ashnodsTransmogrant : Ability :=
   activated (compound [tapSymbol, perform (sacrifice thisArtifact)])
@@ -218,7 +218,7 @@ def curseOfVengeance : Spelled := spelled <| .singleFaced
     { name := "Curse of Vengeance", cost := some [pip .black], types := [.enchantment],
       subtypes := [aura, curse],
       text :=
-        [ keywordSubject (.named "enchant") isPlayer,
+        [ enchant isPlayer,
           whenever (does (enchanted player) (cast (a isSpell)))
             (putCounters (.lit 1) (printedKind (.named "spiteCounter")) thisAura .many),
           when (does (enchanted player) loseGame)
@@ -249,7 +249,7 @@ def chainsaw : Spelled := spelled <| .singleFaced
             (putCounters (.lit 1) (printedKind (.named "revCounter")) thisEquipment .many),
           static (conjunction [ getsPt (equipped creature) (up (letter .x)) (up (.lit 0)),
               letterDefinition .x (countersOn (.named "revCounter") thisEquipment) ]),
-          keywordCosting (.named "equip") (mana [generic 3]) ] } }
+          equip (mana [generic 3]) ] } }
 
 /-- Soul's Might -/
 def soulsMight : Spelled := spelled <| .singleFaced
@@ -604,7 +604,7 @@ def chromaticArmor : Spelled := spelled <| .singleFaced
     { name := "Chromatic Armor", cost := some [generic 1, pip .white, pip .blue],
       types := [.enchantment], subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (entersChoosing thisAura .color),
           static (entersWithCounters thisAura (.lit 1) (.named "sleightCounter")),
           static (damageRule .any (dealtBy (allOf (and [isSource, ofTheLastChosen .color])))
@@ -925,7 +925,7 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
     { name := "Whirling Dervish", cost := some [pip .green, pip .green], types := [.creature],
       subtypes := [human, monk],
       text :=
-        [ keywordQuality (.named "protection") (hasColor .black),
+        [ protection (hasColor .black),
           triggeredIf (beginningOfPossessed .endStep eachPlayer)
             (happened (dealDamage anyAmount anOpponent) thisCreature soFarThisTurn)
             (putCounters (.lit 1) (printedKind p1p1Counter) it .many) ],
@@ -1099,7 +1099,7 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
     { name := "Bewitching Leechcraft", cost := some [generic 1, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           when (does thisAura enter) (tap (enchanted creature)),
           static (abilityGrant (enchanted creature)
             (static (instead (would thisCreature (become untapped)) (doIfDone

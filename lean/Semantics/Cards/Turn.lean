@@ -84,7 +84,7 @@ def apathy : Spelled := spelled <| .singleFaced
     { name := "Apathy", cost := some [pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (doesntUntap (enchanted creature)
             (some (controllerOf (enchanted creature)))),
           at_ (beginningOfPossessed .upkeep (controllerOf (enchanted creature)))
@@ -263,7 +263,7 @@ def paradoxHaze : Spelled := spelled <| .singleFaced
     { name := "Paradox Haze", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isPlayer,
+        [ enchant isPlayer,
           at_ (nthOccurrence (.nth 1) (beginningOfPossessed .upkeep (enchanted player))
                  (some .turn))
             (instruct (that player) (additionalStep .upkeep none (.lit 1))) ] } }
@@ -340,7 +340,7 @@ def curseOfTheBloodyTome : Spelled := spelled <| .singleFaced
     { name := "Curse of the Bloody Tome", cost := some [generic 2, pip .blue],
       types := [.enchantment], subtypes := [aura, curse],
       text :=
-        [ keywordSubject (.named "enchant") isPlayer,
+        [ enchant isPlayer,
           at_ (beginningOfPossessed .upkeep (enchanted player))
             (instruct (that player) (mill (.lit 2))) ] } }
 

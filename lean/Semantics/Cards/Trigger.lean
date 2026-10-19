@@ -946,7 +946,7 @@ def vampiricEmbrace : Spelled := spelled <| .singleFaced
     { name := "Vampiric Embrace", cost := some [generic 2, pip .black, pip .black],
       types := [.enchantment], subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (getsPt
             (enchanted creature)
             (up (.lit 2)) (up (.lit 2))),
@@ -970,6 +970,6 @@ def scytheOfTheWretched : Spelled := spelled <| .singleFaced
               [ returnTo (that card) battlefield
                   [(under you)],
                 attachTo thisEquipment (that creature) ]),
-          keywordCosting (.named "equip") (mana [generic 4]) ] } }
+          equip (mana [generic 4]) ] } }
 
 end Semantics.Cards

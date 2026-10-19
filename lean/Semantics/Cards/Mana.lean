@@ -343,7 +343,7 @@ def elementalResonance : Spelled := spelled <| .singleFaced
     { name := "Elemental Resonance", cost := some [generic 2, pip .green, pip .green],
       types := [.enchantment], subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isPermanent,
+        [ enchant isPermanent,
           at_ (beginningOfYour .firstMain)
             (addMana (.lit 1) (matchingManaCostOf (enchanted permanent))) ] } }
 
@@ -1054,7 +1054,7 @@ def shimmerwildsGrowth : Spelled := spelled <| .singleFaced
     { name := "Shimmerwilds Growth", cost := some [generic 1, pip .green], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isLand,
+        [ enchant isLand,
           static (entersChoosing thisAura .color),
           static (qualityChange (enchanted land) .sets
             (chosenQuality (ofChosen .color))),

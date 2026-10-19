@@ -206,7 +206,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
     { name := "Tok-Tok, Volcano Born", supertypes := [.legendary], types := [.creature],
       subtypes := [goblin, shaman],
       text :=
-        [ keywordQuality (.named "protection") (hasColor .red),
+        [ protection (hasColor .red),
           static (damageRule .any (dealtBy (a (and [isSource, hasColor .red])))
             (toRecipient (a isPlayer)) (scale (shifted .up (.lit 1))) .repeatedly) ],
       power := stat 2, toughness := stat 2 } }
@@ -227,7 +227,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
   { characteristics :=
     { name := "Kenzo the Hardhearted", supertypes := [.legendary], types := [.creature],
       subtypes := [human, samurai],
-      text := [doubleStrike, keywordNumber (.named "bushido") (.lit 2)],
+      text := [doubleStrike, bushido (.lit 2)],
       power := stat 3, toughness := stat 4 } }
 
 /-- Kitsune Mystic -/
@@ -336,14 +336,14 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
           when
             (does any (turnOver (equipped creature)))
             (transform thisEquipment),
-          keywordCosting (.named "equip") (mana [generic 1]) ] } }
+          equip (mana [generic 1]) ] } }
   { characteristics :=
     { name := "Ashmouth Blade", types := [.artifact], subtypes := [equipment],
       text :=
         [ static (conjunction [ modification (equipped creature) .power (up (.lit 3)),
               modification it .toughness (up (.lit 3)),
               abilityGrant it firstStrike ]),
-          keywordCosting (.named "equip") (mana [generic 3]) ] } }
+          equip (mana [generic 3]) ] } }
 
 /-- Harvest Hand // Scrounged Scythe -/
 def harvestHand : Spelled := spelled <| .transforming
@@ -360,7 +360,7 @@ def harvestHand : Spelled := spelled <| .transforming
             (onlyWhile (abilityGrant (equipped creature) menace)
               (matches_ (equipped creature)
                 (hasSubtype human))),
-          keywordCosting (.named "equip") (mana [generic 2]) ] } }
+          equip (mana [generic 2]) ] } }
 
 /-- Cult of the Waxing Moon -/
 def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced

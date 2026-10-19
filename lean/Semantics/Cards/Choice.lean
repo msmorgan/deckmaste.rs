@@ -145,7 +145,7 @@ def raffinesGuidance : Spelled := spelled <| .singleFaced
     { name := "Raffine's Guidance", cost := some [pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (getsPt (enchanted creature) (up (.lit 1)) (up (.lit 1))),
           static (can you
                     (cast this_ (from_ := some yourGraveyard)
@@ -346,7 +346,7 @@ def convincingMirage : Spelled := spelled <| .singleFaced
     { name := "Convincing Mirage", cost := some [generic 1, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isLand,
+        [ enchant isLand,
           static (entersChoosingFrom thisAura (.subtype .land) basicTypesOnly),
           static (qualityChange (enchanted land) .sets
             (chosenQuality (ofChosen (.subtype .land)))) ] } }
@@ -996,7 +996,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
       subtypes := [efreet],
       text :=
         [ trample,
-          keywordCosting (.named "echo") (mana [generic 0]),
+          echo (mana [generic 0]),
           when (does any (pay anyCost .once .paid (some thisCreature) (some (.named "echo"))))
             (instruct eachOpponent (may (draw (upTo (.lit 3))))) ],
       power := stat 6, toughness := stat 6 } }
@@ -1102,7 +1102,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
     { name := "Moonlit Meditation", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") (and [or [isArtifact, isCreature], youControl]),
+        [ enchant (and [or [isArtifact, isCreature], youControl]),
           static (instead
                     (would (by_ you)
                        (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) [])
@@ -1162,7 +1162,7 @@ def soulRansom : Spelled := spelled <| .singleFaced
     { name := "Soul Ransom", cost := some [generic 2, pip .blue, pip .black], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (controlGrant you (enchanted creature)),
           activatedBy
             (perform (repeatTimes (.lit 2)
@@ -1269,7 +1269,7 @@ def trueNameNemesis : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [merfolk, rogue],
       text :=
         [ static (entersChoosingPlayer thisCreature none),
-          keywordQuality (.named "protection") isChosenPlayer ],
+          protection isChosenPlayer ],
       power := stat 3, toughness := stat 1 } }
 
 /-- Akiri, Fearless Voyager -/

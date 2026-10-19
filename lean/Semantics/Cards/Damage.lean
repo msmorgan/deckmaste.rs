@@ -192,7 +192,7 @@ def extraArms : Spelled := spelled <| .singleFaced
     { name := "Extra Arms", cost := some [generic 4, pip .red], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           whenever (does (enchanted creature) attack)
             (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ] } }
 
@@ -242,7 +242,7 @@ def lionHeart : Spelled := spelled <| .singleFaced
         [ when (does thisEquipment enter)
             (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)),
           static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 1))),
-          keywordCosting (.named "equip") (mana [generic 2]) ] } }
+          equip (mana [generic 2]) ] } }
 
 def lightmineField : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -303,7 +303,7 @@ def defang : Spelled := spelled <| .singleFaced
     { name := "Defang", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (damageRule .any (dealtBy (enchanted creature)) everywhere
             (prevent allDamage) .repeatedly) ] } }
 
@@ -371,7 +371,7 @@ def pariah : Spelled := spelled <| .singleFaced
     { name := "Pariah", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (damageRule .any unattributed (toRecipient you)
             (redirect allDamage (enchanted creature)) .repeatedly) ] } }
 
@@ -391,7 +391,7 @@ def wardOfPiety : Spelled := spelled <| .singleFaced
     { name := "Ward of Piety", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           activated (mana [generic 1, pip .white])
             (establishThroughout
                (damageRule .any unattributed (toRecipient (enchanted creature))
@@ -714,7 +714,7 @@ def spitefulShadows : Spelled := spelled <| .singleFaced
     { name := "Spiteful Shadows", cost := some [generic 1, pip .black], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           whenever (does any (dealDamage (to := enchanted creature)))
             (instruct it (dealDamage thatMuch (controllerOf it) .noncombatOnly)) ] } }
 
@@ -723,7 +723,7 @@ def bindingAgony : Spelled := spelled <| .singleFaced
     { name := "Binding Agony", cost := some [generic 1, pip .black], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           whenever (does any (dealDamage (to := enchanted creature)))
             (instruct thisAura
                (dealDamage thatMuch (controllerOf (that creature)) .noncombatOnly)) ] } }
@@ -770,7 +770,7 @@ def grievousWoundLifeLock : Spelled := spelled <| .singleFaced
     { name := "Grievous Wound", cost := some [generic 3, pip .black, pip .black], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isPlayer,
+        [ enchant isPlayer,
           static (cant (enchanted player) (gainLife anyAmount)),
           whenever (does any (dealDamage (to := enchanted player)))
             (instruct they (loseLife (half .up (lifeTotalOf they)))) ] } }
@@ -1117,7 +1117,7 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
     { name := "Tyrant of Valakut", cost := some [generic 5, pip .red, pip .red], types := [.creature],
       subtypes := [dragon],
       text :=
-        [ keywordCosting (.named "surge") (mana [generic 3, pip .red, pip .red]),
+        [ surge (mana [generic 3, pip .red, pip .red]),
           flying,
           triggeredIf (does thisCreature enter) (keywordCostPaid (.named "surge")
                                                            thisCreature)
@@ -1129,7 +1129,7 @@ def fallOfTheTitansCard : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fall of the Titans", cost := some [.variable, .variable, pip .red], types := [.instant],
       text :=
-        [ keywordCosting (.named "surge") (mana [.variable, pip .red]),
+        [ surge (mana [.variable, pip .red]),
           spell (dealDamage (letter .x) (eachOf (targets (upTo 2) isAnyTarget)) .noncombatOnly) ] } }
 
 /-- Tribal Flames -/
@@ -1235,7 +1235,7 @@ def inquisitorsFlail : Spelled := spelled <| .singleFaced
             (dealtBy (a (and [isCreature, otherThan (equipped creature)])))
             (toRecipient (equipped creature)) (scale (multiplied .doubled))
             .repeatedly),
-          keywordCosting (.named "equip") (mana [generic 2]) ] } }
+          equip (mana [generic 2]) ] } }
 
 /-- Oath of Kaya -/
 def oathOfKaya : Spelled := spelled <| .singleFaced

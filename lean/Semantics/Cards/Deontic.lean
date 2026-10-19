@@ -150,7 +150,7 @@ def bloodshedFever : Spelled := spelled <| .singleFaced
     { name := "Bloodshed Fever", cost := some [pip .red], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (must (enchanted creature) attack) ] } }
 
 /-- Pacifism -/
@@ -159,7 +159,7 @@ def pacifism : Spelled := spelled <| .singleFaced
     { name := "Pacifism", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction
                     [cant (enchanted creature) attack, cant
                        (enchanted creature) block]) ] } }
@@ -202,7 +202,7 @@ def brainwash : Spelled := spelled <| .singleFaced
     { name := "Brainwash", cost := some [pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (gatedBy (mana [generic 3]) (enchanted creature) attack) ] } }
 
 def enkiraHostileScavenger : Ability :=
@@ -239,7 +239,7 @@ def aetherTunnel : Spelled := spelled <| .singleFaced
     { name := "Aether Tunnel", cost := some [generic 1, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction [ getsPt (enchanted creature) (up (.lit 1)) (up (.lit 0)),
               cant any (block it) ]) ] } }
 
@@ -258,7 +258,7 @@ def flaringPain : Spelled := spelled <| .singleFaced
       text :=
         [ spell (establishThroughout (preventionBan .any (damageDealt unattributed everywhere)
                 .noPreventionOnly) thisTurn),
-          keywordCosting (.named "flashback") (mana [pip .red]) ] } }
+          flashback (mana [pip .red]) ] } }
 
 def gideonJura : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -462,7 +462,7 @@ def demotion : Spelled := spelled <| .singleFaced
     { name := "Demotion", cost := some [pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction [ cant (enchanted creature) block,
               cant any (activate (allOf (and [abilityHead .anyActivated, abilityOf it]))) ]) ] } }
 
@@ -594,7 +594,7 @@ def ulamogsCrusher : Spelled := spelled <| .singleFaced
     { name := "Ulamog's Crusher", cost := some [generic 8], types := [.creature],
       subtypes := [eldrazi],
       text :=
-        [ keywordNumber (.named "annihilator") (.lit 2),
+        [ annihilator (.lit 2),
           static (must thisCreature attack) ],
       power := stat 8, toughness := stat 8 } }
 
@@ -640,7 +640,7 @@ def archonOfAbsolution : Spelled := spelled <| .singleFaced
       subtypes := [archon],
       text :=
         [ flying,
-          keywordQuality (.named "protection") (hasColor .white),
+          protection (hasColor .white),
           static (gatedBy (scaledGenericMana (times (.lit 1) groupSize)) (allOf isCreature)
                     (attack (some (youOr (allOf (and [isPlaneswalker, youControl])))))) ],
       power := stat 3, toughness := stat 2 } }
@@ -682,7 +682,7 @@ def awesomePresence : Spelled := spelled <| .singleFaced
     { name := "Awesome Presence", cost := some [pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (gatedBy (scaledGenericMana (forEach (.lit 3) (and [ isCreature, controlledBy they,
                                inCombat .blockerOf (some it) ]))) any (block
                                                                          (enchanted
@@ -695,7 +695,7 @@ def oppressiveRays : Spelled := spelled <| .singleFaced
     { name := "Oppressive Rays", cost := some [pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction
                     [gatedBy (mana [generic 3]) (enchanted creature) attack,
                      gatedBy (mana [generic 3]) (enchanted creature) block]),
@@ -718,7 +718,7 @@ def retroMutation : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ flash,
-          keywordSubject (.named "enchant") isCreature,
+          enchant isCreature,
           static (conjunction [ qualityChange (enchanted creature) .sets
                 (bundle { characteristics := { subtypes := [turtle] } }),
               getsBase it (.lit 0) (.lit 1),
@@ -750,7 +750,7 @@ def revokePrivileges : Spelled := spelled <| .singleFaced
     { name := "Revoke Privileges", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction [ cant (enchanted creature) attack,
         cant (enchanted creature) block,
         cant (enchanted creature) (crew (allOf (hasSubtype
@@ -778,7 +778,7 @@ def arrest : Spelled := spelled <| .singleFaced
     { name := "Arrest", cost := some [generic 2, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keywordSubject (.named "enchant") isCreature,
+        [ enchant isCreature,
           static (conjunction
             [ cant (enchanted creature) attack,
               cant (enchanted creature) block,
