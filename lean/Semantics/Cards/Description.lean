@@ -117,7 +117,7 @@ def aerialVolley : Spelled := spelled <| .singleFaced
     { name := "Aerial Volley", cost := some [pip .green], types := [.instant],
       text :=
         [ spell (dealDivided this_ (.lit 3)
-            (targets (oneThrough 3) (and [isCreature, hasKeyword (.the (.named "flying"))]))) ] } }
+            (targets (oneThrough 3) (and [isCreature, hasKeyword flying]))) ] } }
 
 /-- Terrifying Presence -/
 def terrifyingPresenceAnchor : Predicate := and [isCreature, otherThan (target isCreature)]

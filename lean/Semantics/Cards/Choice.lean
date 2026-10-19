@@ -531,7 +531,7 @@ def foundingOfOmashu : Spelled := spelled <| .singleFaced
 
 /-- "as though they had flash" -/
 def asThoughFlash : Option AsThough :=
-  some (holds (matches_ them (hasKeyword (.the (.named "flash")))))
+  some (holds (matches_ them (hasKeyword flash)))
 
 def vedalkenOrrery : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -909,7 +909,7 @@ def tidalFlats : Spelled := spelled <| .singleFaced
     { name := "Tidal Flats", cost := some [pip .blue], types := [.enchantment],
       text :=
         [ activated (mana [pip .blue, pip .blue])
-            (doForEach (each (and [isCreature, isAttacking, not (hasKeyword (.the (.named "flying")))]))
+            (doForEach (each (and [isCreature, isAttacking, not (hasKeyword flying)]))
               (instruct (controllerOf it) (doUnless (gain
                   (allOf (and [ isCreature, youControl,
                                  inCombat .blockerOf (some (that creature)) ]))
@@ -1207,7 +1207,7 @@ def verityCircle : Spelled := spelled <| .singleFaced
             (matches_ it (not (inCombat .declaredAttacker)))
             (may (draw (.lit 1))),
           activated (mana [generic 4, pip .blue])
-            (tap (target (and [isCreature, not (hasKeyword (.the (.named "flying")))]))) ] } }
+            (tap (target (and [isCreature, not (hasKeyword flying)]))) ] } }
 
 /-- Danitha, New Benalia's Light -/
 def danithaNewBenaliasLight : Spelled := spelled <| .singleFaced

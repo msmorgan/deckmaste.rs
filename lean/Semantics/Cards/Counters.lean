@@ -111,7 +111,7 @@ theorem okAvianOddity : Action.check (DRS.ofList []) avianOddity = [] := by deci
 /-- Song of Eärendil -/
 def songOfEarendil : Action :=
   putCounters (.lit 1) (printedKind flyingCounter)
-    (each (and [isCreature, youControl, not (hasKeyword (.the (.named "flying")))])) .many
+    (each (and [isCreature, youControl, not (hasKeyword flying)])) .many
 theorem okSongOfEarendil : Action.check (DRS.ofList []) songOfEarendil = [] := by decide
 def gideonsAvenger : Ability :=
   whenever (does (a (and [isCreature, controlledBy anOpponent])) (become tapped))
@@ -793,7 +793,7 @@ def urborgScavengers : Spelled := spelled <| .singleFaced
                 putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many ]),
           alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)
-              (exists_ (and [in_ (exiledWith thisCreature), hasKeyword (.the (.named "flying"))]))))
+              (exists_ (and [in_ (exiledWith thisCreature), hasKeyword flying]))))
             (["firstStrike", "doubleStrike", "deathtouch", "haste", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ],
       power := stat 2, toughness := stat 2 } }

@@ -21,7 +21,7 @@ theorem okJump : Action.check (DRS.ofList []) jump = [] := by decide
 def gabrielAngelfire : Action :=
   sequentially
     [ choose (a (qualityFrom .ability
-        (abilitiesAmong [.the (.named "flying"), .the (.named "firstStrike"), .the (.named "trample"), .theWith (.named "rampage") 3]))),
+        (abilitiesAmong [flying, firstStrike, trample, .theWith (.named "rampage") 3]))),
       gain thisCreature (thatAbility .theChoice) (some (untilEvent (beginningOf .upkeep (some you) nextTime))) ]
 theorem okGabrielAngelfire : Action.check (DRS.ofList []) gabrielAngelfire = [] := by decide
 def builtToSmash : Action :=
@@ -96,7 +96,7 @@ def bristlepackSentry : Spelled := spelled <| .singleFaced
           static (onlyWhile
             (can thisCreature attack
                (asThough := some
-                  (holds (matches_ it (not (hasKeyword (.the (.named "defender"))))))))
+                  (holds (matches_ it (not (hasKeyword defender))))))
             (exists_ (and [ isCreature, youControl,
                              hasPower .atLeast (.lit 4) ]))) ],
       power := stat 3, toughness := stat 3 } }
@@ -128,7 +128,7 @@ def smogElemental : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           static (getsPt
-            (allOf (and [ isCreature, hasKeyword (.the (.named "flying")),
+            (allOf (and [ isCreature, hasKeyword flying,
                            opponentsControl ]))
             (down (.lit 1)) (down (.lit 1))) ],
       power := stat 3, toughness := stat 3 } }
@@ -1273,10 +1273,10 @@ def cairnWanderer : Spelled := spelled <| .singleFaced
         [ changeling,
           alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)
-              (exists_ (and [isCreature, in_ graveyard, hasKeyword (.the (.named "flying"))]))))
-            [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"), .the (.named "deathtouch"), .the (.named "haste"),
-              landwalkAbilities, .the (.named "lifelink"), protectionAbilities, .the (.named "reach"), .the (.named "trample"),
-              .the (.named "shroud"), .the (.named "vigilance") ] ],
+              (exists_ (and [isCreature, in_ graveyard, hasKeyword flying]))))
+            [ fear, firstStrike, doubleStrike, deathtouch, haste,
+              landwalkAbilities, lifelink, protectionAbilities, reach, trample,
+              shroud, vigilance ] ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Autarch Mammoth -/
@@ -1330,9 +1330,9 @@ def escapedShapeshifter : Spelled := spelled <| .singleFaced
         [ alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_
-                 (and [ isCreature, controlledBy anOpponent, hasKeyword (.the (.named "flying")),
+                 (and [ isCreature, controlledBy anOpponent, hasKeyword flying,
                                not (named (printedName "Escaped Shapeshifter")) ]))))
-            [.the (.named "firstStrike"), .the (.named "trample"), protectionFromAnyColor] ],
+            [firstStrike, trample, protectionFromAnyColor] ],
       power := stat 3, toughness := stat 4 } }
 
 /-- Ancestral Blade -/

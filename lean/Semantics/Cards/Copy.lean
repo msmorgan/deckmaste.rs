@@ -164,7 +164,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
         [ triggered
             (does you (cast (a (and [ isCreature, isSpell, not
                 (hasSupertype .legendary),
-                         hasKeyword (.the (.named "flying")) ]))))
+                         hasKeyword flying ]))))
             (doOnlyOnceEachTurn (may
               (copy .fromStack it (.lit 1)
                 (copyCharacteristics {

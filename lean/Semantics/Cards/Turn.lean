@@ -292,7 +292,7 @@ def odricLunarchMarshal : Spelled := spelled <| .singleFaced
         [ alsoForKeywords
             (triggeredIf (beginningOfPossessed .combat eachPlayer)
               (exists_ (and [ isCreature, youControl,
-                               hasKeyword (.the (.named "firstStrike")) ]))
+                               hasKeyword firstStrike ]))
               (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) firstStrike)
                  untilEndOfTurn))
             (["flying", "deathtouch", "doubleStrike", "haste", "hexproof", "indestructible",
@@ -307,7 +307,7 @@ def bleedingEffect : Spelled := spelled <| .singleFaced
         [ alsoForKeywords
             (triggeredIf (beginningOfYour .combat)
               (exists_ (and [ isCreature, in_ yourGraveyard,
-                               hasKeyword (.the (.named "flying")) ]))
+                               hasKeyword flying ]))
               (establishThroughout
                  (abilityGrant (allOf (and [isCreature, youControl]))
                     flying) untilEndOfTurn))
@@ -403,13 +403,13 @@ def concertedEffort : Spelled := spelled <| .singleFaced
         [ alsoForKeywords
             (triggeredIf (beginningOfPossessed .upkeep eachPlayer)
               (exists_ (and [ isCreature, youControl,
-                               hasKeyword (.the (.named "flying")) ]))
+                               hasKeyword flying ]))
               (establishThroughout
                  (abilityGrant (allOf (and [isCreature, youControl]))
                     flying) untilEndOfTurn))
-            [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"),
+            [ fear, firstStrike, doubleStrike,
               .anyIn ⟨(.named "landwalk"), none⟩, .anyIn ⟨(.named "protection"), none⟩,
-              .the (.named "trample"), .the (.named "vigilance") ] ] } }
+              trample, vigilance ] ] } }
 
 /-- Land Tax -/
 def landTax : Spelled := spelled <| .singleFaced

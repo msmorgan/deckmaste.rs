@@ -74,7 +74,7 @@ def hollowhengeSpirit : Ability :=
     (removeFromCombat (target (and [isCreature, or [isAttacking, isBlocking]])))
 theorem okHollowhengeSpirit : Ability.check (DRS.ofList []) hollowhengeSpirit = [] := by decide
 def netcasterSpider : Ability :=
-  whenever (does thisCreature (block (a (and [isCreature, hasKeyword (.the (.named "flying"))]))))
+  whenever (does thisCreature (block (a (and [isCreature, hasKeyword flying]))))
     (get thisCreature (up (.lit 2)) (up (.lit 0)) (some untilEndOfTurn))
 theorem okNetcasterSpider : Ability.check (DRS.ofList []) netcasterSpider = [] := by decide
 def viashinoWeaponsmith : Ability :=

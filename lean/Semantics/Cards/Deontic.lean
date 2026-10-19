@@ -186,7 +186,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
 
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
-  conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof"))))))),
+  conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof))))),
       cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those creature)]))
           trigger ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
@@ -532,7 +532,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
         [ static
             (can (by_ (allOf (and [or [isSpell, abilityHead .anyOnStack], youControl])))
                (target (allOf (and [ isCreature, opponentsControl,
-                           hasKeyword (.the (.named "hexproof")) ]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof")))))))),
+                           hasKeyword hexproof ]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof)))))),
           activated (compound [mana [generic 3], perform (sacrifice thisArtifact)])
             (sequentially
               [ gain (allOf (and [isCreature, youControl])) hexproof (some untilEndOfTurn),

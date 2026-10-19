@@ -836,9 +836,9 @@ def deathMaskDuplicant : Spelled := spelled <| .singleFaced
             (activated (mana [generic 1]) (exile (target (and [isCreature, in_ yourGraveyard])))),
           alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)
-              (exists_ (and [in_ (exiledWith thisCreature), hasKeyword (.the (.named "flying"))]))))
-            [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"), .the (.named "haste"), landwalkAbilities,
-              protectionAbilities, .the (.named "trample") ] ],
+              (exists_ (and [in_ (exiledWith thisCreature), hasKeyword flying]))))
+            [ fear, firstStrike, doubleStrike, haste, landwalkAbilities,
+              protectionAbilities, trample ] ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Darksteel Garrison -/
