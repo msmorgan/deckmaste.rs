@@ -231,6 +231,7 @@
         "Up": "prep:up",
         "Of": "prep:of",
         "Than": "prep:than",
+        "From": "prep:from",
         "As": "prep:as",
         "Plus": "prep:plus",
         "Minus": "prep:minus",
@@ -547,7 +548,10 @@
         (name: "PawprintPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Pawprints"), Cat("head", "BareNominal")]),
         (name: "SymbolPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Symbols"), Cat("head", "BareNominal")]),
         (name: "MeasureNominal", lhs: "BareNominal", rhs: [Cat("head", "Measure")], equations: [Require("$.Number", "Singular"), Require("$.Countability", "Count")]),
-        (name: "OrdinalAdjective", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal)]),
+        // A bare ordinal is attributive (*the second spell*).
+        (name: "OrdinalAdjective", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal)], equations: [Require("$.AdjectivePosition", "Attributive")]),
+        // An ordinal's position from an end (*third from the top*).
+        (name: "OrdinalFromEnd", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal), Selected("complement", "PrepositionPhrase", ["From"])], equations: [Require("complement.ComplementKind", "NP"), Require("$.AdjectivePosition", "Predicative")]),
         (name: "InterleavedPreposition", lhs: "Interleaved", rhs: [Cat("head", "PrepositionPhrase")], cost: 0),
         (name: "InterleavedTemporal", lhs: "Interleaved", rhs: [Cat("head", "TemporalNounPhrase")], cost: 0),
         // An end adverb before a later selected Complement (*divided evenly
