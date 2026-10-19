@@ -15,6 +15,9 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   (`itself`, `themselves`, `each other`), `with` / `without` counter and ability
   supplements (`enters with two +1/+1 counters on it`), and embedded quoted
   abilities (`gains "<Document>"` and `"<Ability>," "<Ability>," and "<Ability>"`).
+- **Deferred from Stratum 6:** a Preposition Phrase complement extraposed past a
+  relative clause (*Equip abilities you activate of other Equipment*, Bladehold
+  War-Whip, in `deferred.txt`).
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean

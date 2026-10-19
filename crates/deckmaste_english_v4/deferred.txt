@@ -1,3 +1,6 @@
 # Units at or below the completed Stratum left unread on purpose: `NAME | TEXT`,
 # one per line, each owned by a ticket. The census counts them apart; a
 # deferred unit that reads is stale and fails `strata --check`.
+
+# english-v4-stratum-7-discourse-and-long-tail
+Bladehold War-Whip | Equip abilities you activate of other Equipment cost {1} less to activate.
