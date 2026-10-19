@@ -124,20 +124,15 @@
     auxiliaries: [
         (lemma: "be", third_singular: "is", preterite: "were", past_participle: "been",
             gerund: "being", irrealis: "were",
-            // Oracle text has no first person: *be* has no first-person
-            // singular present (owner ruling), rather than a plain *be*.
             forms: [
-                (form: Present, person: First, number: Singular, surfaces: []),
                 (form: Present, person: Second, surfaces: "are"),
                 (form: Present, number: Plural, surfaces: "are"),
-                (form: Preterite, person: First, number: Singular, surfaces: "was"),
                 (form: Preterite, person: Third, number: Singular, surfaces: "was"),
             ],
             // A predicative or a locative Complement (CGEL Ch. 4 §5.2, p. 257).
             frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
         (lemma: "aren't", form_of: Some("be"), third_singular: "isn't", preterite: "weren't", irrealis: "weren't",
             forms: [
-                (form: Preterite, person: First, number: Singular, surfaces: "wasn't"),
                 (form: Preterite, person: Third, number: Singular, surfaces: "wasn't"),
             ],
             finite_only: true, negative: true, frames: [Copular, Prepositional(["in", "on", "under", "outside", "among"])]),
@@ -160,13 +155,11 @@
         // pp. 1613–1616): *you've*, *you're*, *it's*.
         (lemma: "'ve", form_of: Some("have"), third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
             forms: [
-                (form: Present, person: First, surfaces: ["'ve", "’ve"]),
                 (form: Present, person: Second, surfaces: ["'ve", "’ve"]),
                 (form: Present, person: Third, number: Plural, surfaces: ["'ve", "’ve"]),
             ]),
         (lemma: "'re", form_of: Some("be"), third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
             forms: [
-                (form: Present, person: First, number: Plural, surfaces: ["'re", "’re"]),
                 (form: Present, person: Second, surfaces: ["'re", "’re"]),
                 (form: Present, person: Third, number: Plural, surfaces: ["'re", "’re"]),
             ],

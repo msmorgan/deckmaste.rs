@@ -66,3 +66,6 @@
 +Clause you, they, and creatures attack => NounPhrase "you, they, and creatures" as Subject of attack; readings 1
 +Clause it has attacked or blocked => VerbPhrase "attacked or blocked" as Complement of have
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1
++ <card=Cut Down> Destroy target creature with total power and toughness 5 or less. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
++ <card=Meek Attack> {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature. => Nominal "total power and toughness"; Nominal "power and toughness"; Amount "5 or less"
++ <card=Sword of the Squeak> Equipped creature gets +1/+1 for each creature you control with base power or toughness 1. => Nominal "base power or toughness"; Amount "1"

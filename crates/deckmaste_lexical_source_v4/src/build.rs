@@ -144,6 +144,11 @@ impl Builder {
             return Err(invalid("only a contracted auxiliary is bound"));
         }
         let mut lexeme = Lexeme::verb(id, &entry.lemma, source);
+        // Oracle text has no first person (owner ruling): a paradigm has
+        // second- and third-person cells only.
+        lexeme
+            .forms
+            .retain(|slot| slot.features.person != Some(Person::First));
         if entry.frames.contains(&FrameSpec::Copular) {
             lexeme.properties.classes.insert("CopularVerb".into());
         }
@@ -191,18 +196,16 @@ impl Builder {
             }
         }
         if let Some(irrealis) = &entry.irrealis {
-            for person in [Person::First, Person::Third] {
-                lexeme.forms.push(FormDeclaration {
-                    form: WordForm::Irrealis,
-                    features: FeatureBundle {
-                        number: Some(Number::Singular),
-                        person: Some(person),
-                        finiteness: Some(Finiteness::Finite),
-                        ..FeatureBundle::default()
-                    },
-                    surfaces: Some(irrealis.to_vec()),
-                });
-            }
+            lexeme.forms.push(FormDeclaration {
+                form: WordForm::Irrealis,
+                features: FeatureBundle {
+                    number: Some(Number::Singular),
+                    person: Some(Person::Third),
+                    finiteness: Some(Finiteness::Finite),
+                    ..FeatureBundle::default()
+                },
+                surfaces: Some(irrealis.to_vec()),
+            });
         }
         for slot in &entry.forms {
             if !replace(
@@ -215,10 +218,6 @@ impl Builder {
                 return Err(invalid(&format!("no {:?} slot to spell", slot.form)));
             }
         }
-        // A slot spelled with no surface is a gap in the paradigm.
-        lexeme
-            .forms
-            .retain(|slot| slot.surfaces.as_ref().is_none_or(|s| !s.is_empty()));
         lexeme.merge_number_neutral_forms();
         if auxiliary {
             lexeme

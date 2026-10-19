@@ -113,6 +113,9 @@ Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blu
 Wild Shape | Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability.
 Lush Growth | Enchanted land is a Mountain, Forest, and Plains.
 
+Cut Down | Destroy target creature with total power and toughness 5 or less.
+Meek Attack | {1}{R}: You may put a creature card with total power and toughness 5 or less from your hand onto the battlefield. That creature gains haste. At the beginning of the next end step, sacrifice that creature.
+
 Fatespinner | At the beginning of each opponent's upkeep, that player chooses draw step, main phase, or combat phase. The player skips each instance of the chosen step or phase this turn.
 
 # english-v4-oracle-editorial-corrections

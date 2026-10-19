@@ -1139,6 +1139,8 @@ distribution.
 
 **Person**:
 The grammatical feature distinguishing speaker, addressee, and other referents.
+Oracle English has second and third person only: first person is unattested
+in Oracle text and excluded by owner ruling.
 
 **Number**:
 The grammatical feature distinguishing singular and plural values where English

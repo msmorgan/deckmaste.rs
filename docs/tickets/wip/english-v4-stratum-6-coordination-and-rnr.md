@@ -52,15 +52,39 @@ Further owner rulings:
 - The `PredicateConjunct` host on the *on* NP frame (*second from the top or
   on the bottom*) is accepted as built.
 - Wild Shape, Lush Growth and Fatespinner are approved deferrals to Stratum 7.
-- *It* and *you* have one non-genitive form, unmarked for case, in place of a
+- *It* and *you* have one non-genitive form, unmarked for case (CGEL, Ch. 5
+  §16.1, p. 458, [6]; the cite first relayed, §16.2.1 Table 24, was corrected
+  to this), in place of a
   first-conjunct case restriction on Noun Phrase coordination; conjuncts may
   differ in case (*them and all other creatures*).
-- First-person pronouns (*I, me, my, mine*) and *be*'s first-person singular
-  present (*am*, *'m*) are removed from the lexicon: Oracle text has no first
-  person (The Eleventh Doctor's *I. AM. TALKING!* is a Flavor Word label,
-  read whole).
+- First person is removed: the Person feature is Second and Third only, every
+  verb paradigm has second- and third-person cells only, and the first-person
+  pronouns (*I, me, my, mine*) and forms (*am*, *'m*, first-person *was*) are
+  gone from the lexicon. Oracle text has no first person (The Eleventh
+  Doctor's *I. AM. TALKING!* is a Flavor Word label, read whole).
 - Bare, unmodified *power* and *toughness* are no Noun Phrase by themselves
   (`Valued` distribution in `nouns.ron`).
+- *The same is true for …*: 25 units go to Stratum 7 (an earlier count of 23
+  covered only the units that moved during this feature).
+- Cut Down and Meek Attack (*total power and toughness 5 or less*) are
+  deferred to Stratum 7, which owns the summed-total reading; their judgments
+  assert it, so they are known-wrong-only until then. Sword of the Squeak's
+  shared Amount (*base power or toughness 1*) reads in Stratum 6.
+
+## Owner-accepted exception: no determined Noun Phrase before a bare mass one
+
+Noun Phrase coordination is split by the conjuncts' Determination and
+Countability: after an overtly determined first conjunct, the last is overt
+or a bare count Noun Phrase, never a bare mass one. Oracle text never
+coordinates an overtly determined Noun Phrase with a bare mass one, and colour
+nouns legitimately stand bare (*choose red*), so no lexicon fix can take the
+split's place. The split takes the Noun Phrase coordination schemas from 9 to
+17. Without it (census `c76`), 58 previously read units gained 258
+derivations, wrong ones such as *[target spell or permanent that's red] or
+[green]*, and Lush Growth read as *[a Mountain], [Forest], and [Plains]*. The
+owner accepted the 17 schemas;
+`english-v4-noun-phrase-coordination-determination` is to replace them with a
+cleaner mechanism.
 
 ## Judgment retirements
 

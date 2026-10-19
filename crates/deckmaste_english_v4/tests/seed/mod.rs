@@ -70,7 +70,12 @@ fn set(
 }
 
 fn verb(lemma: &str, kind: SourceKind) -> Lexeme {
-    Lexeme::verb(format!("verb:{lemma}"), lemma, source(kind))
+    let mut lexeme = Lexeme::verb(format!("verb:{lemma}"), lemma, source(kind));
+    // Oracle text has no first person (owner ruling).
+    lexeme
+        .forms
+        .retain(|slot| slot.features.person != Some(Person::First));
+    lexeme
 }
 
 fn invariant(prefix: &str, lemma: &str, category: Category, kind: SourceKind) -> Lexeme {
@@ -153,7 +158,6 @@ fn more() -> Vec<Lexeme> {
 #[must_use]
 pub fn lexicon() -> Lexicon {
     use Number::Singular;
-    use Person::First;
     use Person::Second;
     use Person::Third;
     use SourceKind::Catalog;
@@ -189,10 +193,8 @@ pub fn lexicon() -> Lexicon {
     set(&mut have, PastParticiple, None, None, "had");
     let mut be = verb("be", Core);
     set(&mut be, Present, None, None, "are");
-    set(&mut be, Present, Some(First), Some(Singular), "am");
     set(&mut be, Present, Some(Third), Some(Singular), "is");
     set(&mut be, Preterite, None, None, "were");
-    set(&mut be, Preterite, Some(First), Some(Singular), "was");
     set(&mut be, Preterite, Some(Third), Some(Singular), "was");
     set(&mut be, GerundParticiple, None, None, "being");
     set(&mut be, PastParticiple, None, None, "been");

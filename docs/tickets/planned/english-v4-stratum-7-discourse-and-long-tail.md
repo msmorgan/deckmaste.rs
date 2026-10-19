@@ -59,6 +59,10 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   - Bare mentions of choice options coordinated as a bare singular term
     (*choose left or right*, *choose artifact or enchantment*; a single bare
     option reads nowhere either), with the vote and mention family above: Storage Matrix; Stenn, Paranoid Partisan; Mystic Barrier; Teyo, Geometric Tactician; Orchard Elemental; Order of Succession; Virtus's Maneuver; Cloud Key; Dawn-Blessed Pennant; Pramikon, Sky Rampart; Aminatou, the Fateshifter; Season of Gathering; Winding Way; Eclipsed Realms; Turnabout; Zndrsplt's Judgment; Teferi's Realm; Archon of Valor's Reach; Messenger Jays; Sarpadian Empires, Vol. VII; Fatespinner (*draw step, main phase, or combat phase*).
+  - A summed total over coordinated property nouns (*total power and
+    toughness 5 or less*): *total* modifies [power and toughness] as a whole,
+    and the Amount bounds that sum, not each noun. Cut Down and Meek Attack are
+    deferred here; their judgments in `coordination.txt` assert that analysis.
   - Felisa, Fang of Silverquill: the second analysis of *the number of
     counters it had on it*, *have* with an object and a locative *on*-phrase
     (*it had __ on it*), without a general *have NP on-PP* frame. Stratum 6

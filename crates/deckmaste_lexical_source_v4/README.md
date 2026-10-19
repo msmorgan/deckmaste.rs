@@ -47,10 +47,7 @@ Category; the loader rejects it.
 Every verb has its full paradigm and every count noun its plural; regular
 spellings come from `deckmaste_lexical`'s default rules and irregular ones are
 explicit overrides. Only the modals and negative auxiliaries are defective
-(`finite_only`), and *be*, whose first-person singular present is an override
-with no surface (`surfaces: []`): the lexicon has no first person, by owner
-ruling, so *am* and *'m* are not declared and no plain *be* fills the slot.
-Attestation never withholds a form.
+(`finite_only`). Attestation never withholds a form.
 
 Frames are written once, in active voice, naming prepositions by lemma:
 `TransitiveWithPP(["into", "onto"])`, `ComplexTransitive` (*turn it face up*),

@@ -1028,7 +1028,7 @@ pub(crate) fn projected_values(feature: &str) -> &'static [&'static str] {
     match feature {
         "Number" => &["Singular", "Plural"],
         "Sign" => &["Negative", "Zero", "Positive"],
-        "Person" => &["First", "Second", "Third"],
+        "Person" => &["Second", "Third"],
         "Tense" => &["Present", "Past"],
         "VerbForm" => &["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         "Case" => &["Nominative", "Accusative", "Genitive"],

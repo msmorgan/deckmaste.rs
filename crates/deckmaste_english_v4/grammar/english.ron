@@ -20,7 +20,8 @@
         // The Number each conjunct of an *and*-coordination of nominals has,
         // which a determiner selects; the coordination itself is plural.
         "ConjunctNumber": ["Singular", "Plural"],
-        "Person": ["First", "Second", "Third"],
+        // Oracle text has no first person (owner ruling).
+        "Person": ["Second", "Third"],
         "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         // A to-infinitival Clause is marked by its subordinator; a relative
         // clause by *that* or a relative phrase.
