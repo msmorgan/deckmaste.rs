@@ -156,6 +156,12 @@
         // A predicate Adjunct of unlike categories coordinated (*only during
         // your turn and only once each turn*), and each of its conjuncts.
         "PredicateAdjunct": (function: true, features: ["ComplementKind"]),
+        // Premodifiers of unlike categories coordinated, with a coordinator or
+        // asyndetically (*noncreature, nonland card*; *nonartifact, nonblack
+        // creature*), and each premodifier in the chain.
+        "Attributes": (function: true, features: ["ComplementKind"]),
+        "Attribute": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
+        "AttributeChain": (category: Some("Attributes"), function: true, features: ["ComplementKind"]),
         "AdjunctCoordination": (category: Some("PredicateAdjunct"), function: true, features: ["ComplementKind"]),
         // An adverbial Complement: an Adverb Phrase or a Noun Phrase of
         // frequency (*more than twice*, *more than three times*).
@@ -807,6 +813,12 @@
         (name: "PrefixedNounPremodifier", lhs: "NounPremodifier", rhs: [Lex("prefix", Affix), Cat("head", "NounPremodifier")]),
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
+        (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
+        (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.Voice", "Passive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
+        (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
+        (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
+        (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "Attribute")]),
+        (name: "AttributedNominal", lhs: "BareNominal", rhs: [Cat("modifier", "Attributes"), Cat("head", "BareNominal")], equations: [Exclude("head.Determination", "Overt")]),
         (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
         (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
@@ -1060,6 +1072,7 @@
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
