@@ -558,11 +558,11 @@ theorem badNextTurnOfACreature :
     TurnRef.check (DRS.ofList []) (.next (some thisCreature)) = [.kindMismatch .player .object] := by decide
 
 /-- Flash's definition [CR#702.8a]: a play permission at instant speed. -/
-theorem okFlashExpansion : Ability.check (DRS.ofList []) flashExpansion = [] := by decide
+theorem okFlash : Ability.check (DRS.ofList []) flash = [] := by decide
 
 /-- Sneak {U}'s definition [CR#702.190a]: a cast permission at instant speed in your declare
 blockers step, paying {U} and returning an unblocked creature you control. -/
-theorem okSneakExpansion : Ability.check (DRS.ofList []) (sneakExpansion (.mana [pip .blue])) = [] := by decide
+theorem okSneak : Ability.check (DRS.ofList []) (sneak (.mana [pip .blue])) = [] := by decide
 
 /-- Mystic Veil: "If you cast it any time a sorcery couldn't have been cast" [CR#307.5a], the
 timing qualifier on a lookback. -/

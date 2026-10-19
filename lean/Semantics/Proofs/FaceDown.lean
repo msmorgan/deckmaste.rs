@@ -34,21 +34,21 @@ theorem badSpecialActionUnboundAnaphor :
 
 /-- Morph {1}{U}: cast face down for {3}; turning it face up for {1}{U} is a special action,
 and its values revert as it turns [CR#702.37e,708.8]. -/
-theorem okMorph : Ability.checkAll (DRS.ofList []) (morphExpansion (.mana [generic 1, pip .blue])) = [] := by
+theorem okMorph : Ability.check (DRS.ofList []) (morph (.mana [generic 1, pip .blue])) = [] := by
   decide
 
 /-- Megamorph {1}{U} [CR#702.37b]. -/
 theorem okMegamorph :
-    Ability.checkAll (DRS.ofList []) (megamorphExpansion (.mana [generic 1, pip .blue])) = [] := by decide
+    Ability.check (DRS.ofList []) (megamorph (.mana [generic 1, pip .blue])) = [] := by decide
 
 /-- Disguise {1}{U} [CR#702.168a]. -/
 theorem okDisguise :
-    Ability.checkAll (DRS.ofList []) (disguiseExpansion (.mana [generic 1, pip .blue])) = [] := by decide
+    Ability.check (DRS.ofList []) (disguise (.mana [generic 1, pip .blue])) = [] := by decide
 
 /-- Foretell {1}{U}: exile face down during your turn for {2}, cast on a later turn
 [CR#702.143a]. -/
 theorem okForetell :
-    Ability.checkAll (DRS.ofList []) (foretellExpansion (.mana [generic 1, pip .blue])) = [] := by decide
+    Ability.check (DRS.ofList []) (foretell (.mana [generic 1, pip .blue])) = [] := by decide
 
 /-- The foretold card's cast permission begins as the turn it was foretold ends, so it is not
 cast that turn [CR#702.143a]. -/
@@ -56,10 +56,10 @@ theorem foretoldCastOnALaterTurn :
     onALaterTurn = .between (some (.endOf .turn none .current)) none := rfl
 
 /-- Plot {1}{U} [CR#702.170a,702.170d]. -/
-theorem okPlot : Ability.checkAll (DRS.ofList []) (plotExpansion (.mana [generic 1, pip .blue])) = [] := by
+theorem okPlot : Ability.check (DRS.ofList []) (plot (.mana [generic 1, pip .blue])) = [] := by
   decide
 
 /-- Hideaway 4 [CR#702.75a]. -/
-theorem okHideaway : Ability.checkAll (DRS.ofList []) (hideawayExpansion (.lit 4)) = [] := by decide
+theorem okHideaway : Ability.check (DRS.ofList []) (hideaway (.lit 4)) = [] := by decide
 
 end Semantics.Proofs.FaceDown

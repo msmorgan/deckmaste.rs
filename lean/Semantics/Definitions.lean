@@ -857,70 +857,6 @@ semantic_definition modular (count : Amount) : Ability :=
 [CR#702.29a] -/
 semantic_definition cyclingExpansion (cost : Cost) : Ability :=
   activated (.compound [cost, .perform (discard .this)]) (draw (.lit 1))
-/-- Flash's definition: "You may play this card any time you could cast an instant."
-[CR#702.8a] -/
-semantic_definition flashExpansion : Ability :=
-  .static (can you (play .this) (timing := some asInstant))
-/-- Sneak [cost]'s definition [CR#702.190a]. -/
-semantic_definition sneakExpansion (cost : Cost) : Ability :=
-  .static
-    (can you
-      (cast .this
-        (payment := .payingInstead
-          (.compound
-            [ cost,
-              .perform
-                (returnTo (a (.and [isCreature, isUnblocked, .hasPossessor .controller .you])) hand
-                  []) ])))
-      (timing := some (.and [asInstant, duringPart .declareBlockers (some .you)])))
-/-- Morph [cost]'s definition [CR#702.37a,702.37e,116.2b]. -/
-semantic_definition morphExpansion (cost : Cost) : List Ability :=
-  [ .static (can you (cast .this (payment := .faceDown faceDownCreature (.mana [generic 3])))),
-    .static (.specialAction none cost (.setStatus .faceUp .this)) ]
-/-- Megamorph [cost]'s definition [CR#702.37b]. -/
-semantic_definition megamorphExpansion (cost : Cost) : List Ability :=
-  [ .static (can you (cast .this (payment := .faceDown faceDownCreature (.mana [generic 3])))),
-    .static
-      (.specialAction none cost
-        (.sequentially
-          [ .setStatus .faceUp .this,
-            .putCounters (.lit 1) (.printed p1p1Counter) .this .one true ])) ]
-/-- Disguise [cost]'s definition [CR#702.168a,702.168d]. -/
-semantic_definition disguiseExpansion (cost : Cost) : List Ability :=
-  [ .static
-      (can you (cast .this (payment := .faceDown faceDownWardedCreature (.mana [generic 3])))),
-    .static (.specialAction none cost (.setStatus .faceUp .this)) ]
-/-- Foretell [cost]'s definition [CR#702.143a,116.2h]. -/
-semantic_definition foretellExpansion (cost : Cost) : List Ability :=
-  [ .static (.specialAction (some (duringPart .turn (some .you))) (.mana [generic 2])
-      (.sequentially
-        [ exileFaceDown .this,
-          .establish (.visibility .lookAt .you (.objects it))
-            (some (.forAsLongAs (.matches it (.in_ exileZone)))),
-          .establish
-            (can you (cast it (from_ := some exileZone) (payment := .payingInstead cost)))
-            (some onALaterTurn) ])) ]
-/-- Plot [cost]'s definition [CR#702.170a,702.170d,116.2k]. -/
-semantic_definition plotExpansion (cost : Cost) : List Ability :=
-  [ .static
-      (.specialAction (some asSorcery) cost
-        (.sequentially
-          [ exile .this,
-            .establish
-              (can you (cast it (from_ := some exileZone) (payment := .withoutPaying))
-                (timing := some asSorcery))
-              (some onALaterTurn) ])) ]
-/-- Hideaway N's definition [CR#702.75a]. -/
-semantic_definition hideawayExpansion (amount : Amount) : List Ability :=
-  let exiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
-  [ when (does thisPermanent enter)
-      (.sequentially
-        [ .expose .lookAt (.cards (.slice .top amount (libraryOf .you))),
-          exileFaceDown (someOf (exactly 1) them),
-          .move (theRest .object) .anyLocation (some onBottom) .arrival none
-            [(.inOrder .randomOrder)],
-          .establish (.visibility .lookAt .you (.objects exiledCard))
-            (some (.forAsLongAs (.matches exiledCard (.in_ exileZone)))) ]) ]
 /-- "Cycling [cost]" with its definition. -/
 semantic_definition cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost (.inCaller cost)] [cyclingExpansion (.inCaller cost)]
@@ -1394,9 +1330,8 @@ semantic_definition devour (amount : Amount) : Ability :=
 semantic_definition disguise (cost : Cost) : Ability :=
   .keyword (.named "disguise") [.cost (.inCaller cost)]
     [ .static
-        (can (.actor .you)
-          (procedure .cast .this (.faceDown faceDownWardedCreature (.mana [generic 3])))),
-      .static (.specialAction none (.inCaller cost) (turnFaceUp .this)) ]
+        (can you (cast thisCard (payment := .faceDown faceDownWardedCreature (mana [generic 3])))),
+      .static (.specialAction none (.inCaller cost) (turnFaceUp this_)) ]
 semantic_definition disturb (cost : Cost) : Ability :=
   keywordCosting (.named "disturb") (.inCaller cost)
 semantic_definition doctorsCompanion : Ability := keyword (.named "doctorsCompanion")
@@ -1615,8 +1550,7 @@ semantic_definition flanking : Ability :=
           (.block thisCreature))
         (get (that creature) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)) ]
 semantic_definition flash : Ability :=
-  .keyword (.named "flash") []
-    [.static (can (.actor .you) (procedure .play .this .itsOwnCost) (some asInstant))]
+  .keyword (.named "flash") [] [.static (can you (play thisCard) (timing := some asInstant))]
 semantic_definition flashback (cost : Cost) : Ability :=
   .keyword (.named "flashback") [.cost (.inCaller cost)]
     [ .static
@@ -1648,17 +1582,14 @@ semantic_definition forecast (ability : Ability) : Ability :=
 semantic_definition foretell (cost : Cost) : Ability :=
   .keyword (.named "foretell") [.cost (.inCaller cost)]
     [ .static
-        (specialAction (duringPart .turn (some .you)) (.mana [generic 2])
-          (.sequentially
-            [ enact (.action "exile")
-                (.move .this .anyLocation (some exileZone) .arrival none
-                  [.faceDown exiledFaceDown]),
-              establishThroughout (.visibility .lookAt .you (.objects it))
-                (.forAsLongAs (.matches it (.in_ exileZone))),
+        (specialAction (duringPart .turn (some you)) (mana [generic 2])
+          (sequentially
+            [ exileFaceDown thisCard,
+              establishThroughout (visibility .lookAt you (objects it))
+                (forAsLongAs (matches_ it (in_ exileZone))),
               establishThroughout
-                (can (.actor .you)
-                  (.procedure .cast it (.payingInstead (.inCaller cost)) none (some exileZone)
-                    none))
+                (can you
+                  (cast it (from_ := some exileZone) (payment := payingInstead (.inCaller cost))))
                 onALaterTurn ])) ]
 semantic_definition fortify (cost : Cost) : Ability :=
   .keyword (.named "fortify") [.cost (.inCaller cost)]
@@ -1913,19 +1844,16 @@ semantic_definition hexproof : Ability :=
   .keyword (.named "hexproof") []
     [.static (cant (.by (allOf (.and [.in_ stack, opponentsControl]))) (.target thisPermanent))]
 semantic_definition hideaway (amount : Amount) : Ability :=
+  let exiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
   .keyword (.named "hideaway") [.number (.inCaller amount)]
-    [ triggered (.does .any (putOntoBattlefield thisPermanent))
-        (.sequentially
+    [ when (does thisPermanent enter)
+        (sequentially
           [ lookAt (topSlice (.inCaller amount)),
-            enact (.action "exile")
-              (.move (someOf (oneThrough 1) them) .anyLocation (some exileZone) .arrival none
-                [.faceDown exiledFaceDown]),
+            exileFaceDown (someOf (oneThrough 1) them),
             .move (theRest .object) .anyLocation (some onBottom) .arrival none
               [.inOrder .randomOrder],
-            establishThroughout
-              (.visibility .lookAt .you (.objects (theVerbed (.action "exile") .one (some .card))))
-              (.forAsLongAs
-                (.matches (theVerbed (.action "exile") .one (some .card)) (.in_ exileZone))) ]) ]
+            establishThroughout (visibility .lookAt you (objects exiledCard))
+              (forAsLongAs (matches_ exiledCard (in_ exileZone))) ]) ]
 semantic_definition horsemanship : Ability :=
   .keyword (.named "horsemanship") []
     [ .static
@@ -2076,12 +2004,10 @@ semantic_definition mayhem (cost : Cost) : Ability :=
             (.actor .you) soFarThisTurn)) ]
 semantic_definition megamorph (cost : Cost) : Ability :=
   .keyword (.named "megamorph") [.cost (.inCaller cost)]
-    [ .static
-        (can (.actor .you)
-          (procedure .cast .this (.faceDown faceDownCreature (.mana [generic 3])))),
+    [ .static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
       .static
         (.specialAction none (.inCaller cost)
-          (.sequentially [turnFaceUp .this, putCounters (.lit 1) (.printed p1p1Counter) .this])) ]
+          (sequentially [turnFaceUp this_, putCounters (.lit 1) p1p1Counter this_])) ]
 semantic_definition melee : Ability :=
   .keyword (.named "melee") []
     [ triggered (.does (.actor thisCreature) (.attack none))
@@ -2122,10 +2048,8 @@ semantic_definition moreThanMeetsTheEye (cost : Cost) : Ability :=
   keywordCosting (.named "moreThanMeetsTheEye") (.inCaller cost)
 semantic_definition morph (cost : Cost) : Ability :=
   .keyword (.named "morph") [.cost (.inCaller cost)]
-    [ .static
-        (can (.actor .you)
-          (procedure .cast .this (.faceDown faceDownCreature (.mana [generic 3])))),
-      .static (.specialAction none (.inCaller cost) (turnFaceUp .this)) ]
+    [ .static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
+      .static (.specialAction none (.inCaller cost) (turnFaceUp this_)) ]
 semantic_definition multikicker (cost : Cost) : Ability :=
   keywordCosting (.named "multikicker") (.inCaller cost)
 semantic_definition mutate (cost : Cost) : Ability :=
@@ -2237,13 +2161,11 @@ semantic_definition plot (cost : Cost) : Ability :=
   .keyword (.named "plot") [.cost (.inCaller cost)]
     [ .static
         (specialAction asSorcery (.inCaller cost)
-          (.sequentially
-            [ .ownScope (some (.action "exile"))
-                (enact (.action "exile")
-                  (.move (.inCaller .this) .anyLocation (some exileZone) .arrival none [])),
+          (sequentially
+            [ exile thisCard,
               establishThroughout
-                (can (.actor .you) (.procedure .cast it .withoutPaying none (some exileZone) none)
-                  (some asSorcery))
+                (can you (cast it (from_ := some exileZone) (payment := withoutPaying))
+                  (timing := some asSorcery))
                 onALaterTurn ])) ]
 semantic_definition poisonous (amount : Amount) : Ability :=
   .keyword (.named "poisonous") [.number (.inCaller amount)]
@@ -2462,13 +2384,13 @@ semantic_definition skulk : Ability :=
 semantic_definition sneak (cost : Cost) : Ability :=
   .keyword (.named "sneak") [.cost (.inCaller cost)]
     [ .static
-        (can (.actor .you)
-          (procedure .cast .this
-            (.payingInstead
-              (.compound
+        (can you
+          (cast thisSpell
+            (payment := payingInstead
+              (compound
                 [ .inCaller cost,
-                  .perform (returnToHand (a (.and [isCreature, isUnblocked, youControl]))) ])))
-          (some (.and [asInstant, duringPart .declareBlockers (some .you)]))) ]
+                  perform (returnToHand (a (and [isCreature, isUnblocked, youControl]))) ])))
+          (timing := some (and [asInstant, duringPart .declareBlockers (some you)]))) ]
 semantic_definition solved (ability : Ability) : Ability :=
   .keyword (.named "solved") [.ability ability]
     [ .qualified ability none none
