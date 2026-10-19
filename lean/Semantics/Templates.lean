@@ -1768,7 +1768,7 @@ semantic_template entryChoice (subject chosen : NounPhrase) (disclosure : Disclo
     StaticSpec :=
   .asEvent (does subject enter) (.choose none chosen disclosure none)
 /-- "As <subject> becomes attached, choose <chosen>": an Off-Stack Static whose choice is made as
-it becomes attached [CR#604.1]. -/
+it becomes attached. -/
 semantic_template attachmentChoice (subject chosen : NounPhrase) : StaticSpec :=
   .asEvent (does .any (.attachment .attached subject none)) (.choose none chosen .openly none)
 /-- "As <subject> enters, choose a <quality>." -/
@@ -1786,10 +1786,10 @@ semantic_template entersChoosingPlayerSecretly (subject player : NounPhrase) : S
   entryChoice subject player .secretly
 /-- "<subject> enters <riders>", a static ability: as `subject` would enter, it enters with
 `riders` instead, "it" read back as "them" after a plural subject ("creatures you control enter
-tapped") [CR#614.1c,614.1d]. -/
+tapped", `NounPhrase.plur`) [CR#614.1c,614.1d]. -/
 semantic_template enters (subject : NounPhrase) (riders : List MoveRider) : StaticSpec :=
   .replace (would subject enter)
-    (instruct (match subject with | .described .all _ | .described .bare _ => them | _ => it)
+    (instruct (match subject.plur with | .many => them | .one => it)
       (enter (riders := riders)))
     none .repeatedly none
 /-- "<subject> enters tapped" -/

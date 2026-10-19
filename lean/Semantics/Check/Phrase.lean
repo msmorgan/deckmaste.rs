@@ -2915,9 +2915,9 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := stepWouldClauseWith ops drs ev
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) repl
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
-          -- Nothing the replacement introduces escapes but the letters it reads: X has one value
-          -- on the object, so "enters with X counters, where X is …" defines it after
-          -- [CR#107.3i].
+          -- Nothing the `would` clause or the replacement introduces escapes but the letters
+          -- they introduce: X has one value on the object, so "enters with X counters, where X is
+          -- …" defines it after [CR#107.3i].
           let letters := drs2.visibleReferents.filter fun ref =>
             ref.id ≥ drs.nextId && (match ref.payload with | .letter _ => true | _ => false)
           ({ drs with referents := letters ++ drs.referents, nextId := Nat.max drs.nextId drs2.nextId },

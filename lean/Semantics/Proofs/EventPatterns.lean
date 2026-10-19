@@ -76,7 +76,7 @@ theorem patientOnlyDoesNotManufactureSource :
     (GameEvent.extend (DRS.ofList [])
       (.does .any (.dealDamage .anyAmount thisCreature .any))).performer = none := by decide
 
-theorem choiceOccasionsRemainDistinct :
+theorem entryAndAttachmentChoicesRemainDistinct :
     entersChoosing thisCreature .color ≠ attachChoosing thisCreature .color := by
   intro equal
   cases equal
@@ -87,17 +87,28 @@ theorem choiceDisclosureRemainsDistinct :
   intro equal
   cases equal
 
-/-- A choice made as a permanent enters or becomes attached is read by a later line of its
-text ("the chosen color"). -/
-theorem everyChoiceOccasionPublishesItsSort :
-    let reader := Ability.static (.characteristicChange .any
+/-- A quality or a player chosen as a permanent enters, openly or secretly, or as it becomes
+attached, is read by a later line of its text ("the chosen color", "the chosen player"), which
+cannot read it without the choice. -/
+theorem entryAndAttachmentChoicesPublishTheirSort :
+    let colorReader := Ability.static (.characteristicChange .any
       [.chosenQuality .adds (.ofChosen .theChoice .color)])
-    Ability.checkText (DRS.ofList []) [.static (entersChoosing thisCreature .color), reader] = [] ∧
-      Ability.checkText (DRS.ofList []) [.static (attachChoosing thisCreature .color), reader] =
-        [] := by
+    let playerReader := at_ (beginningOfPossessed .upkeep (the isChosenPlayer)) (loseLife (.lit 1))
+    Ability.checkText (DRS.ofList []) [.static (entersChoosing thisCreature .color), colorReader]
+        = [] ∧
+      Ability.checkText (DRS.ofList []) [.static (attachChoosing thisCreature .color), colorReader]
+        = [] ∧
+      Ability.checkText (DRS.ofList [])
+          [.static (entersChoosingPlayer thisCreature anOpponent), playerReader] = [] ∧
+      Ability.checkText (DRS.ofList [])
+          [.static (entersChoosingPlayerSecretly thisCreature anOpponent), playerReader] = [] ∧
+      Ability.checkText (DRS.ofList [])
+          [.static (attachmentChoice thisCreature anOpponent), playerReader] = [] ∧
+      Ability.checkText (DRS.ofList []) [colorReader] ≠ [] ∧
+      Ability.checkText (DRS.ofList []) [playerReader] ≠ [] := by
   decide
 
-theorem everyChoiceOccasionChecksDomain :
+theorem entryAndAttachmentChoicesCheckTheirDomain :
     StaticSpec.check (DRS.ofList [])
         (entryChoice thisCreature (a (qualityFrom .color (.players (.isOpponentOf .you))))) =
       [.kindAxisSort] ∧

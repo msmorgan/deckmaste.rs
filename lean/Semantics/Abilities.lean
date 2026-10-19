@@ -809,9 +809,11 @@ mutual
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     /-- A replacement effect: as `event` would happen, `replacement` happens in its place ("If …
-    would …, … instead", "this enters tapped") [CR#614.1a,614.1c,614.1d]. A `may` the player
-    declines with no failure arm ("you may instead mill …") leaves `event` to happen; a failure
-    arm ("if you don't, put it into its owner's graveyard") is what happens in its place. -/
+    would …, … instead", "this enters tapped") [CR#614.1a,614.1c,614.1d]. Only when the whole
+    `replacement` is a `may` with no failure arm ("you may instead mill …") does declining it
+    leave `event` to happen. Otherwise `replacement` is what happens in its place, a failure arm
+    ("if you don't, put it into its owner's graveyard") included, so a `may` nested inside it
+    spells out what happens on both arms. -/
     | replace (event : WouldClause) (replacement : Action) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
     /-- A static damage-result modification (lifelink, wither, infect)

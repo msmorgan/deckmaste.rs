@@ -1457,12 +1457,13 @@ semantic_definition tribute (amount : Amount) : Ability :=
           (sequentially
             [ choose anOpponent,
               instruct (the isChosenPlayer)
-                (may
+                (mayOrElse
                   (instruct thisCreature
                     (enter
                       (riders :=
                         [ .withCounters (.inCaller amount) (.printed p1p1Counter)
-                            .additional ])))) ])) ]
+                            .additional ])))
+                  (instruct thisCreature enter)) ])) ]
 /-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
 cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. -/
 semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
