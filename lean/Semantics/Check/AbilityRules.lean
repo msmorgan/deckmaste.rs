@@ -213,8 +213,7 @@ private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
 private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=
   DRS.ofList [
     { id := 30, det := .the, plur := .one, payload := .actor {
-      kind, isYou := false, selfDefined := false, ascribable := false,
-      twoParties := false, refIds := ids } },
+      kind, isYou := false, ascribable := false, refIds := ids } },
     { id := 24, det := .the, plur := .one, payload := .player false },
     { id := 23, det := .each, plur := .one, payload := .player false },
     { id := 22, det := .the, plur := .many, payload := .player false } ]

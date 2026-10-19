@@ -14,10 +14,13 @@ def LifeMove.outcome : LifeMove → OutcomeSort
   | .up => .lifeGained
   | .down => .lifeLost
 
-def Delta.outcome : Delta Amount → Option OutcomeSort
-  | .up _ => some .lifeGained
-  | .down _ => some .lifeLost
-  | .set _ => none
+/-- The life outcomes a life change publishes. Setting a life total gains or loses the necessary
+amount of life [CR#119.5], and doubling one is written as that set [CR#701.10d], so a set publishes
+both, as an exchange of life totals does. -/
+def Delta.lifeOutcomes : Delta Amount → List OutcomeSort
+  | .up _ => [.lifeGained]
+  | .down _ => [.lifeLost]
+  | .set _ => [.lifeGained, .lifeLost]
 
 /-- Closed event head-gating (`semantics-v3.md` §3.6): `does`, `would`, and `did` only admit
 event-capable `Action` heads (Table 3.6A) plus CR §701 keyword-action definitions wrapped in

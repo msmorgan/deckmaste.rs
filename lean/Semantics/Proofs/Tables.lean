@@ -40,22 +40,17 @@ theorem keywordWordsDistinct : distinctKeywordWords keywordFacts = true := by de
 
 theorem designationLabelsDistinct : distinctDesignationLabels designationTable = true := by decide
 
-theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
-
-/-- The declaration that lists two members reaches the table under each member's name, and each
-row is marked effectful. -/
-theorem everyDayNightLabelIsAnEffectfulDesignation :
+/-- The declaration that lists two members reaches the table under each member's name. -/
+theorem everyDayNightLabelIsADesignation :
     ([.named "day", .named "night"] : List DesignationLabel).all
-      (fun l => l.facts.map (·.effectful) == some true) = true := by decide
+      (fun l => l.facts.isSome) = true := by decide
+
+theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide
 
 /-- The two door designations are exactly the rows the table marks with a room half. -/
 theorem bothDoorLabelsAreDeclaredHalves :
     (designationTable.filter (·.half.isSome)).map (·.label)
       = ["leftHalfUnlocked", "rightHalfUnlocked"] := by decide
-
-/-- The one designation the table marks non-effectful: a rule confers it. -/
-theorem aRuleOnlyDesignationIsNotEffectful :
-    (DesignationLabel.named "commander").facts.map (·.effectful) = some false := by decide
 
 /-- A name outside the declared members is no designation at all. -/
 theorem anUndeclaredDayNightLabelIsNotADesignation :

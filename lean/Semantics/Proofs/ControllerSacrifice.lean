@@ -333,8 +333,7 @@ private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
  let tracked : DRS := { referents := rs, nextId := fresh, outerReferentIds := [rs.map (·.id)]}
  let source := selectedContext tracked
  let frame : ActorShape := {
-   kind := .player, isYou := false, selfDefined := false,
-   ascribable := false, twoParties := false,
+   kind := .player, isYou := false, ascribable := false,
    refIds := [fresh + 3] }
  source.push { det := .the, plur := .one, payload := .actor frame } .other false
 private def moveArg : NounPhrase :=
@@ -352,7 +351,7 @@ private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPatt
 
 private def argumentPrefix (fresh : Nat) (names : List BindingId) : List Referent :=
  [ { id := fresh + 4, det := .the, plur := .one, payload := .actor {
-       kind := .player, isYou := false, selfDefined := false, ascribable := false, twoParties := false,
+       kind := .player, isYou := false, ascribable := false,
        refIds := [fresh + 3]} },
    { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
    { id := fresh + 2, det := .target, plur := .one, idents := names,
@@ -880,9 +879,7 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
         | some prior => some (joinKinds prior ref.kind)) none
         |>.getD (subject.kindIn selected .player)
     isYou := subject.isYou
-    selfDefined := false
     ascribable := false
-    twoParties := false
     refIds := ids }
   let framed := selected.push
     { det := .the, plur := .one, payload := .actor shape } .other false
@@ -916,8 +913,7 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
       outerReferentIds := drs.referents.map (·.id) :: drs.outerReferentIds }
     let source := selectedContext tracked
     let frame : ActorShape := {
-      kind := .player, isYou := false, selfDefined := false,
-      ascribable := false, twoParties := false,
+      kind := .player, isYou := false, ascribable := false,
       refIds := [drs.nextId + 3] }
     let prepared := source.push
       { det := .the, plur := .one, payload := .actor frame } .other false

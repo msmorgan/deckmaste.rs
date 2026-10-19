@@ -23,9 +23,6 @@ structure DesignationFacts where
   /-- The designation's name (`DesignationLabel.name`): its declaration's name, or a member's. -/
   label : String
   scope : DesignationScope
-  /-- Whether an action may confer it directly ("becomes the monarch"); a designation that
-  only a rule confers (the commander) is not conferred by text. -/
-  effectful : Bool
   zone : Option Zone
   type : Option CardType
   /-- Which half of a Room permanent this designation unlocks, for the two that do. -/
@@ -33,10 +30,10 @@ structure DesignationFacts where
   deriving Repr, BEq
 
 def playerHeld (label : String) : DesignationFacts :=
-  ⟨label, .heldBy .player, true, none, none, none⟩
+  ⟨label, .heldBy .player, none, none, none⟩
 
 def permanentHeld (label : String) : DesignationFacts :=
-  ⟨label, .heldBy .object, true, some .battlefield, none, none⟩
+  ⟨label, .heldBy .object, some .battlefield, none, none⟩
 
 /-- One Relation's columns [CR#702.55b,702.95b,702.99b]: its name and the kind of each side. -/
 structure RelationFacts where

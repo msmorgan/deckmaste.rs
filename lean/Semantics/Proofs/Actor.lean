@@ -23,9 +23,7 @@ private def handoff (drs : DRS) (subject : NounPhrase) : DRS :=
   let actorShape : ActorShape := {
     kind := subject.kindIn after .player
     isYou := subject.isYou
-    selfDefined := false
     ascribable := false
-    twoParties := false
     refIds := ids }
   after.push { det := .the, plur := .one, payload := .actor actorShape } .other false
 

@@ -55,10 +55,6 @@ pub struct DesignationFacts {
     /// declaration's name, or a member's.
     pub label: String,
     pub scope: DesignationScope,
-    /// Whether an instruction may confer it directly ("becomes the monarch");
-    /// a designation that only a rule confers (the commander) is not conferred
-    /// by text.
-    pub effectful: bool,
     pub zone: Option<Zone>,
     pub r#type: Option<CardType>,
     /// Which half of a Room permanent this designation unlocks, for the two

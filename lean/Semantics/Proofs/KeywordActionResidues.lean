@@ -119,6 +119,15 @@ theorem okTriplePowerAndToughness :
 /-- "Double your life total" [CR#701.10d]. -/
 theorem okDoubleLifeTotal : Action.check (DRS.ofList []) doubleLifeTotal = [] := by decide
 
+/-- Setting a life total gains or loses the necessary life [CR#119.5], and doubling one is that
+set [CR#701.10d]: each publishes both life outcomes for a later "the life gained" or "the life
+lost" to read. -/
+theorem lifeSetsPublishGainAndLoss :
+    [Action.changeLife (.set (.lit 10)), doubleLifeTotal].map (fun action =>
+      let after := (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
+      (countOutcomes .lifeGained after, countOutcomes .lifeLost after)) = [(1, 1), (1, 1)] := by
+  decide
+
 /-- A named emblem still has abilities [CR#114.1]. -/
 theorem badNamedEmblemWithoutAbilities :
     Action.check (DRS.ofList []) (.createObject (.lit 1) (.emblem (some "The Ring") []) true none) = [.nonEmpty] := by

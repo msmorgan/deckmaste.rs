@@ -110,7 +110,7 @@ def atLeastTwo : Nat → Bool
 /-- The keyword actions [CR#701.1] a core constructor must name, declared so a guard reads a
 feature rather than a verb's spelling. -/
 inductive DeedFeature where
-  | librarySearch | sacrificing | tapping
+  | librarySearch
   deriving DecidableEq, Repr
 
 /-- What the checker knows about one deed: what reference resolution and salience read. -/
@@ -184,7 +184,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("regenerate", { participle := some "regenerated" }),
     ("reveal", {}),
     ("sacrifice",
-      { participle := some "sacrificed", dest := some .graveyard, feature := some .sacrificing }),
+      { participle := some "sacrificed", dest := some .graveyard }),
     ("scry", {}),
     ("search",
       { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
@@ -193,7 +193,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("support", {}),
     ("surveil", {}),
     ("suspect", {}),
-    ("tap", { participle := some "tapped", feature := some .tapping }),
+    ("tap", { participle := some "tapped" }),
     ("theRingTemptsYou", {}),
     ("timeTravel", {}),
     ("transform", {}),
@@ -218,9 +218,6 @@ def deedFacts : Deed → Option ActFacts
 
 def knownAct (v : Deed) : Bool := (deedFacts v).isSome
 def deedFeatureOf (v : Deed) : Option DeedFeature := deedFacts v >>= (·.feature)
-def featureLabel (f : DeedFeature) : Option Deed :=
-  (actFacts.find? (·.2.feature == some f)).map (fun row => .action row.1)
-def deedLabel (f : DeedFeature) : Deed := (featureLabel f).getD (.action "")
 def participleOf (v : Deed) : Option String := deedFacts v >>= (·.participle)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
@@ -277,10 +274,7 @@ def GramRole.rank : GramRole → Nat
 structure ActorShape where
   kind         : Kind
   isYou        : Bool
-  selfDefined  : Bool
   ascribable   : Bool
-  twoParties   : Bool
-  ability      : Bool := false
   refIds       : List ReferentId := []
   deriving DecidableEq, Repr
 
@@ -372,7 +366,6 @@ structure Referent where
   clause          : Nat := 0
   role            : GramRole := .other
   pronounResolved : Bool := false
-  targets         : List Kind := []
   attachmentHost  : Bool := false
   announcedTargetResult : Bool := false
   createdResult : Bool := false
@@ -1002,7 +995,6 @@ def Reach.kind : Reach → Kind
   | _ => .object
 
 def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
-def Stamp.feature (s : Stamp) : Option DeedFeature := deedFeatureOf s.verb
 
 def verbedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
   | .ofType word t, st, ty, zn, og => verbedWordOk word st ty zn og && tyIs t ty
@@ -1040,7 +1032,7 @@ def markFirst (q : Referent → Bool) (ty : List CardType) (drs : DRS) : DRS :=
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
-    b.librarySearchResult || st.feature == some .librarySearch
+    b.librarySearchResult || deedFeatureOf st.verb == some .librarySearch
   | .object _ (some .library) none _ _ => false
   | _ => true
 

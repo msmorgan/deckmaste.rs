@@ -642,7 +642,7 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
     let shape : ActorShape := {
       kind := (refIds.head?.bind drs1.findById?).elim (np.kindIn drs1 .player) (·.kind),
       isYou := np.isYou,
-      selfDefined := false, ascribable := false, twoParties := false,
+      ascribable := false,
       refIds := refIds
     }
     let drs2 := drs1.push { det := .the, plur := np.plur, payload := .actor shape } .other false
@@ -2225,9 +2225,7 @@ def stepOps : Nat → StepOps
           let (inner, sourceErrors) := if defaultsToSource then
             let (out, ids, errors) := ops.np drs .subj true (.asMarker .permanent .this)
             let shape : ActorShape := {
-              kind := .object, isYou := false,
-              selfDefined := true, ascribable := true, twoParties := false,
-              refIds := ids }
+              kind := .object, isYou := false, ascribable := true, refIds := ids }
             (out.push { det := .the, plur := .one, payload := .actor shape } .other false, errors)
             else (drs, [])
           let deedErrors := refuse (knownAct verb) (.knownAct verb)
@@ -2255,7 +2253,7 @@ def stepOps : Nat → StepOps
                   | none => some ref.kind
                   | some k => some (joinKinds k ref.kind)) none |>.getD (subj.kindIn drs1 .player),
             isYou := subj.isYou,
-            selfDefined := false, ascribable := false, twoParties := false,
+            ascribable := false,
             refIds := refIds
           }
           let handoffErrors := refuse (shape.kind == .player || shape.kind == .object) .handoffPerformer
@@ -2499,9 +2497,7 @@ def stepOps : Nat → StepOps
           (drs4, e1 ++ e2 ++ e3)
         | .changeLife delta =>
           let (drs1, e1) := stepDeltaWith ops drs delta
-          let drs2 := match delta.outcome with
-            | some out => drs1.push (outcomeB out) .other false
-            | none => drs1
+          let drs2 := delta.lifeOutcomes.foldl (fun d out => d.push (outcomeB out) .other false) drs1
           (drs2, e1)
         | .exchange ex => stepExchangedWith ops drs ex
         | .addMana amt prod riders =>

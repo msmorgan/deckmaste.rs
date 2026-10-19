@@ -804,7 +804,9 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
         let Definition::Designation {
             label,
             scope,
-            effectful,
+            // Whether text may confer it is a game rule the checker no
+            // longer reads.
+            effectful: _,
             zone: in_zone,
             r#type,
             half,
@@ -818,7 +820,7 @@ fn designation_rows(declarations: &[NormalizedDeclaration]) -> anyhow::Result<Ve
             DesignationScope::HeldByGame => ".heldByGame".to_owned(),
         };
         result.push(format!(
-            "{{ label := {}, scope := {scope}, effectful := {effectful}, zone := {}, type := {}, half := {} }}",
+            "{{ label := {}, scope := {scope}, zone := {}, type := {}, half := {} }}",
             quoted(label.name()),
             optional(in_zone.map(zone)),
             optional(r#type.map(card_type)),
@@ -1188,9 +1190,7 @@ mod tests {
         let source = fs::read_to_string(&path).unwrap();
         fs::write(
             &path,
-            source
-                .replace("effectful: true", "effectful: false")
-                .replace("zone: Battlefield,", "zone: Graveyard,\n    half: Left,"),
+            source.replace("zone: Battlefield,", "zone: Graveyard,\n    half: Left,"),
         )
         .unwrap();
         let generated = render(temp.path()).unwrap();
@@ -1199,9 +1199,7 @@ mod tests {
             .find(|line| line.contains("label := \"goaded\""))
             .unwrap();
         assert!(
-            row.contains(
-                "effectful := false, zone := some .graveyard, type := none, half := some .left"
-            ),
+            row.contains("zone := some .graveyard, type := none, half := some .left"),
             "{row}"
         );
     }
