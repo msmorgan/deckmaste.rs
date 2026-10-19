@@ -30,3 +30,6 @@
 + Look at the top three cards of your library. Put one of them into your hand and the rest into your graveyard. => NounPhrase "one of them" as Object of put; NounPhrase "the rest" as Object of put
 + Arc Trail deals 2 damage to any target and 1 damage to any other target. => NounPhrase "2 damage" as Object of deal; NounPhrase "1 damage" as Object of deal
 +NounPhrase creatures with mana value less than or equal to the number of void counters on it => NounPhrase "the number of void counters" as Complement of than
++ If X is 5 or more, create a 4/4 green Elephant creature token. => NounPhrase "5 or more" as PredicativeComplement of be; DeterminerPhrase "5 or more"; !NounPhrase "5"; readings 1
++ Choose one or more — => DeterminerPhrase "one or more"; !NounPhrase "one"; readings 1
++NounPhrase three or more creatures => !NounPhrase "three"; readings 1
