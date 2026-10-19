@@ -160,6 +160,10 @@
         // asyndetically (*noncreature, nonland card*; *nonartifact, nonblack
         // creature*), and each premodifier in the chain.
         "Attributes": (function: true, features: ["ComplementKind"]),
+        // An Object of unlike categories coordinated (*has base power and
+        // toughness 5/5 and vigilance*), and each of its conjuncts.
+        "ObjectConjunct": (category: Some("NounPhrase"), function: true, features: ["ComplementKind"]),
+        "ObjectCoordination": (category: Some("NounPhrase"), function: true, features: ["ComplementKind"]),
         // Postmodifiers of unlike categories coordinated (*the player with the
         // most life or tied for most life*), and each of them.
         "PostmodifierConjunct": (category: Some("Postmodifier"), function: true, features: ["ComplementKind"]),
@@ -915,6 +919,9 @@
         (name: "FusedPostmodifier", lhs: "FusedNounPhrase", rhs: [Cat("head", "FusedNounPhrase"), Cat("modifier", "RelativeClause")],
             equations: [Require("modifier.ClauseMarking", "Relative"), Agree("head.Number", "modifier.Number"), Agree("head.NounKind", "modifier.NounKind")]),
         (name: "PrepositionalConjunct", lhs: "PostmodifierConjunct", rhs: [Hosted("filler", "PrepositionPhrase", Nominal)], equations: [Require("$.ComplementKind", "PP")]),
+        (name: "NominalObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "ComplementNounPhrase")], equations: [Require("$.ComplementKind", "NP")]),
+        (name: "KeywordObjectConjunct", lhs: "ObjectConjunct", rhs: [Cat("filler", "KeywordPhrase")], equations: [Require("$.ComplementKind", "KeywordPhrase")]),
+        (name: "CoordinatedObject", lhs: "ComplementNounPhrase", rhs: [Cat("filler", "ObjectCoordination")]),
         (name: "AdjectivalConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "PP"), Exclude("filler.Voice", "Passive"), Require("$.ComplementKind", "AdjP")], heavy: ["filler"]),
         (name: "PastParticipialConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "VerbPhrase")], equations: [Require("filler.VerbForm", "PastParticiple"), Require("filler.Voice", "Passive"), Require("$.ComplementKind", "Gerund")], heavy: ["filler"]),
         (name: "GerundParticipialConjunct", lhs: "PostmodifierConjunct", rhs: [Cat("filler", "VerbPhrase")], equations: [Require("filler.VerbForm", "GerundParticiple"), Require("$.ComplementKind", "Gerund")], heavy: ["filler"]),
@@ -1092,6 +1099,7 @@
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
