@@ -1160,6 +1160,7 @@
         // that are copies of it and that are tapped and attacking*; CGEL, Ch.
         // 15 §2.1, p. 1292).
         Coordination(category: "RelativeClause", coordinators: "Coordinator", equations: [Require("first.ClauseMarking", "Relative"), Require("last.ClauseMarking", "Relative")]),
+        Coordination(category: "RelativeClause", coordinators: "But", equations: [Require("first.ClauseMarking", "Relative"), Require("last.ClauseMarking", "Relative")]),
         // Interrogative clauses coordinate (*which creatures block and how
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
