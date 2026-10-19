@@ -770,7 +770,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
       subtypes := [faerie, rogue],
       text :=
         [ flying,
-          keywordCosting (.named "prowl") (mana [generic 2, pip .blue]),
+          prowl (mana [generic 2, pip .blue]),
           triggeredIf (does thisCreature enter) (keywordCostPaid (.named "prowl")
                                                            thisCreature)
             (draw (.lit 1)) ],

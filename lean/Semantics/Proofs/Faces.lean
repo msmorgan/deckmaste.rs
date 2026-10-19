@@ -509,6 +509,10 @@ theorem okBushidoWithBushidoDefinition : Ability.check (DRS.ofList []) (bushido 
 theorem okCyclingWithCyclingDefinition :
     Ability.check (DRS.ofList []) (cycling (.mana [generic 2])) = [] := by decide
 
+/-- "Prowl {2}{U}": the damaged party is a player, so the definition closes [CR#702.76a]. -/
+theorem okProwl : Ability.check (DRS.ofList []) (prowl (.mana [generic 2, pip .blue])) = [] := by
+  decide
+
 /-- "Flying ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
 definition is static [CR#702.9a,509.1b]. -/
 theorem badActivatedBodyOnStaticKeyword :

@@ -2523,11 +2523,13 @@ semantic_definition prowess : Ability :=
     [ triggered
         (.does (.actor .you) (cast (a (.and [.in_ stack, .not isCreature]))))
         (get thisCreature (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) ]
+/-- "Prowl <cost>": cast for <cost> if a player was dealt combat damage this turn by a source
+you controlled that shared a creature type with this spell [CR#702.76a]. -/
 semantic_definition prowl (cost : Cost) : Ability :=
   .keyword (.named "prowl") [.cost (.inCaller cost)]
     [ .static
         (onlyWhile (can (.actor .you) (cast this_ (payment := .payingInstead (.inCaller cost))))
-          (happened (.dealDamage .anyAmount .which .combatOnly)
+          (happened (.dealDamage .anyAmount (a isPlayer) .combatOnly)
             (.actor (a (.and [.shares (.subtype .creature) .share thisSpell, youControl])))
             soFarThisTurn)) ]
 semantic_definition rampage (amount : Amount) : Ability :=
