@@ -9,7 +9,7 @@
 + Enchanted creature can't attack or block, and its activated abilities can't be activated. => Clause "Enchanted creature can't attack or block"; Clause "its activated abilities can't be activated"
 + When this creature enters, draw a card and you lose 1 life. => Clause "draw a card and you lose 1 life"; !Clause "When this creature enters, draw a card"
 +NounPhrase three or more creatures => DeterminerPhrase "three or more" as Determiner of creature; readings 1
-+NounPhrase power 3 or greater => Amount "3 or greater" as Complement of power; readings 1
++NounPhrase power 3 or greater => AdjectivePhrase "3 or greater" as Modifier of power; readings 1
 + Equipped creature has trample and lifelink. => KeywordPhrase "trample and lifelink" as Object of have
 + Kicker {1}{U} and/or {B}
 +AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power"; readings 1

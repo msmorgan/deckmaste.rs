@@ -599,9 +599,9 @@
         // its Number from the oblique, a distributive head's singular from the
         // head, and *any* may be singular with a plural oblique (*if any of
         // those cards shares a card type*).
-        (name: "Partitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")], uncoordinated: ["head"],
+        (name: "Partitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")],
             equations: [Require("head.ComplementKind", "PP"), Require("head.PrepositionMarking", "Oblique"), Exclude("head.DeterminativeDistribution", "Distributive"), Exclude("head.DeterminativeDistribution", "SingularOrQuantified"), Agree("$.Number", "head.ObliqueNumber"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "DistributivePartitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")], uncoordinated: ["head"],
+        (name: "DistributivePartitive", lhs: "PartitiveNounPhrase", rhs: [Cat("head", "DeterminerPhrase")],
             equations: [Require("head.ComplementKind", "PP"), Require("head.PrepositionMarking", "Oblique"), Require("head.ObliqueNumber", "Plural"), Exclude("head.DeterminativeDistribution", "Dependent"), Exclude("head.DeterminativeDistribution", "FreeChoice"), Exclude("head.DeterminativeDistribution", "Independent"), Exclude("head.DeterminativeDistribution", "Numerical"), Exclude("head.DeterminativeDistribution", "IndefiniteArticle"), Exclude("head.DeterminativeDistribution", "Deictic"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Distributive *each* with a plural oblique takes plural agreement
         // by synesis (*Each of X target creatures you control connive*;
@@ -628,10 +628,12 @@
                 Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
         (name: "PostpositiveAdjective", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "AdjectivePhrase")],
             equations: [Require("modifier.ComplementKind", "PP"), Exclude("modifier.Voice", "Passive")], heavy: ["modifier"]),
-        // An amount or a comparative adjective with that amount its
-        // understood standard (*power 3 or greater*, *X is 2 or less*).
-        (name: "ScalarAlternative", lhs: "Amount", rhs: [Cat("head", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
-            equations: [Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive")]),
+        // A number or a comparative adjective with that number its
+        // understood standard (*power 3 or greater*, *X is 2 or less*,
+        // *five or greater*).
+        (name: "ScalarAlternative", lhs: "AdjectivePhrase", rhs: [Cat("first", "DeterminerPhrase"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
+            equations: [Require("first.DeterminativeDistribution", "Numerical"), Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive"),
+                Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "PP")]),
         // A postpositive comparative quantity (*for each card fewer than
         // three in their hand*).
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
@@ -1023,7 +1025,7 @@
         // An *and*-coordination of Noun Phrases or nominals is plural; an
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).
-        Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third")], proximate: ["Case"]),
+        Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric")], proximate: ["Case", "NounKind"]),
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability"], equations: [Exclude("last.NounKind", "Numeric")], proximate: ["Number", "Person", "Case", "NounKind"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], equations: [Require("$.Number", "Plural")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"]),
@@ -1036,7 +1038,7 @@
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
         // A coordination of quantifiers determines as its last one does (*one
         // or more cards*, *one or more of them*; CGEL, Ch. 15 §3.3, p. 1330).
-        Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "PrepositionMarking", "ObliqueDetermination"]),
+        Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind"]),
     ],
     correlatives: [("Both", "And"), ("Either", "Or"), ("Neither", "Nor")],
 )
