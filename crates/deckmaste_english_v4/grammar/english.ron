@@ -17,6 +17,9 @@
         "Grade": ["Plain", "Comparative", "Superlative", "Equative"],
         // Internal numeral–noun agreement survives external group respecification.
         "QuantityNumber": ["Singular", "Plural"],
+        // The Number each conjunct of an *and*-coordination of nominals has,
+        // which a determiner selects; the coordination itself is plural.
+        "ConjunctNumber": ["Singular", "Plural"],
         "Person": ["First", "Second", "Third"],
         "VerbForm": ["Plain", "Finite", "GerundParticiple", "PastParticiple"],
         // A to-infinitival Clause is marked by its subordinator; a relative
@@ -122,7 +125,7 @@
         "ComplementNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"], gap: true),
         // A nominal's ComplementKind and ObliqueNumber are its head noun's
         // Complement's.
-        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], gap: true),
+        "Nominal": (features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], gap: true),
         "QuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         "ModifiedQuantifiedNominal": (category: Some("Nominal"), features: ["QuantityNumber", "NounKind", "Determination", "NounDistribution"]),
         // A temporal nominal bounded by a relative clause (*next time you cast a spell*).
@@ -802,6 +805,13 @@
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.DeterminativeDistribution", "Multiplier"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
+        // A distributive determiner over an *and*-coordination of singular
+        // nominals makes a singular Noun Phrase (*each creature and
+        // planeswalker you control gets ...*; CGEL, Ch. 5 §18.4, p. 508).
+        (name: "DistributiveCoordinationDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("nominal", "Nominal")],
+            equations: [Require("determiner.DeterminativeDistribution", "Distributive"), Carry("nominal.ConjunctNumber", "Singular"), Agree("$.Number", "determiner.Number"),
+                Agree("determiner.NounKind", "nominal.NounKind"), Agree("determiner.Countability", "nominal.Countability"), Agree("$.NounKind", "nominal.NounKind"), Agree("$.Countability", "nominal.Countability"),
+                Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], transparent: ["nominal"]),
         // A comparative quantity determines a count head that agrees with its
         // *than* Complement (*more than one creature*), or a mass head (*less
         // than three mana*).
@@ -1027,8 +1037,8 @@
         // pp. 507–509).
         Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric")], proximate: ["Case", "NounKind"]),
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability"], equations: [Exclude("last.NounKind", "Numeric")], proximate: ["Number", "Person", "Case", "NounKind"]),
-        Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], equations: [Require("$.Number", "Plural")]),
-        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"]),
+        Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
+        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
