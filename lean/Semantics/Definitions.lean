@@ -2314,28 +2314,19 @@ semantic_definition livingWeapon : Ability :=
 semantic_definition madness (cost : Cost) : Ability :=
   .keyword (.named "madness") [.cost (.inCaller cost)]
     [ .static
-        (.instead
-          (.would (.actor (a .anyPlayer))
-            (enact (.action "discard")
-              (.ownScope (some (.action "discard"))
-                (enact (.action "discard") (.clearDamage .this)))))
-          (enact (.action "discard") (.move .this hand (some exileZone) .arrival none []))
+        (.instead (would (a isPlayer) (discard thisCard))
+          (enact (.action "discard") (.move thisCard hand (some exileZone) .arrival none []))
           none .repeatedly none),
       triggered
-        (.causes
-          (.event
-            (.does .any
-              (enact (.action "discard")
-                (.ownScope (some (.action "discard"))
-                  (enact (.action "discard") (.clearDamage .this))))))
-          (.does .any (.move .this hand (some exileZone) .arrival none [])))
-        (.instruct (ownerOf .this)
+        (.causes (.event (does any (discard thisCard)))
+          (does any (.move thisCard hand (some exileZone) .arrival none [])))
+        (instruct (ownerOf thisCard)
           (mayOrElse
-            (.establish
-              (can (.actor .actor)
-                (cast .this (from_ := some exileZone) (payment := .payingInstead (.inCaller cost))))
-              none)
-            (.move .this .anyLocation (some graveyard) .arrival none []))) ]
+            (establish
+              (can theActor
+                (cast thisCard (from_ := some exileZone)
+                  (payment := .payingInstead (.inCaller cost)))))
+            (.move thisCard .anyLocation (some graveyard) .arrival none []))) ]
 semantic_definition maxSpeed (ability : Ability) : Ability :=
   .keyword (.named "maxSpeed") [.ability ability]
     [.static (onlyWhile (.abilityGrant .this ability) (.compareAmt (speedOf .you) .eq (.lit 4)))]
@@ -2343,13 +2334,10 @@ semantic_definition mayhem (cost : Cost) : Ability :=
   .keyword (.named "mayhem") [.cost (.inCaller cost)]
     [ .static
         (onlyWhile
-          (can (.actor .you)
-            (cast .this (from_ := some yourGraveyard) (payment := .payingInstead (.inCaller cost))))
-          (happened
-            (enact (.action "discard")
-              (.ownScope (some (.action "discard"))
-                (enact (.action "discard") (.clearDamage .this))))
-            (.actor .you) soFarThisTurn)) ]
+          (can you
+            (cast thisCard (from_ := some yourGraveyard)
+              (payment := .payingInstead (.inCaller cost))))
+          (happened (discard thisCard) you soFarThisTurn)) ]
 semantic_definition megamorph (cost : Cost) : Ability :=
   .keyword (.named "megamorph") [.cost (.inCaller cost)]
     [ .static (can you (cast thisCard (payment := .faceDown faceDownCreature (mana [generic 3])))),
@@ -2766,8 +2754,8 @@ semantic_definition splitSecond : Ability :=
     [ .static
         (onlyWhile
           (.conjunction none
-            [ cant (.actor (allOf .anyPlayer)) (cast (allOf anotherSpell)),
-              cant (.actor (allOf .anyPlayer))
+            [ cant (bare isPlayer) (cast (allOf anotherSpell)),
+              cant (bare isPlayer)
                 (activate (allOf (.and [.abilityHead .anyActivated, .not .isManaAbility]))) ])
           (.matches thisSpell (.in_ stack))) ]
 semantic_definition spree : Ability :=
@@ -2897,13 +2885,8 @@ semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
 semantic_definition umbraArmor : Ability :=
   .keyword (.named "umbraArmor") []
     [ .static
-        (.instead
-          (.would .any
-            (enact (.action "destroy")
-              (destroy (enchanted .permanent))))
-          (.sequentially
-            [ .clearDamage (enchanted .permanent),
-              destroy thisAura ])
+        (.instead (would any (destroy (enchanted .permanent)))
+          (sequentially [clearDamage (enchanted .permanent), destroy thisAura])
           none .repeatedly none) ]
 semantic_definition undaunted : Ability :=
   .keyword (.named "undaunted") []
@@ -3122,80 +3105,59 @@ semantic_definition suspect (subject : NounPhrase) : Action :=
   .ownScope (some (.action "suspect"))
     (enact (.action "suspect")
       (.gainDesignation (.inCaller (.firstMention "suspect.arg0" subject)) suspected none))
+/-- "The Ring tempts you": the Ring emblem if you have none, then you choose a creature you
+control as your Ring-bearer (`Definition`, [CR#701.54a,701.54c]). The emblem's abilities count
+the times the Ring has tempted you by the deed's own steps, `tempting`. -/
 semantic_definition theRingTemptsYou : Action :=
+  let ringBearers : Predicate := and [hasDesignation ringBearer, youControl]
+  let tempting : List Action :=
+    [ choose (a (and [isCreature, actorControls])), gainDesignation (that creature) ringBearer ]
+  let timesTempted : Amount :=
+    eventCount
+      (.ownScope (some (.action "theRingTemptsYou"))
+        (enact (.action "theRingTemptsYou") (sequentially tempting)))
+      you thisGame
   .ownScope (some (.action "theRingTemptsYou"))
     (enact (.action "theRingTemptsYou")
-      (.sequentially
-        [ .doIf (.not (exists_ (.and [.isEmblem, .named (.printed "The Ring"), ownedBy .actor])))
+      (sequentially
+        (doIf (not (exists_ (and [isEmblem, named "The Ring", ownedBy theActor])))
             (getNamedEmblem "The Ring"
-              [ .static
-                  (.characteristicChange
-                    (allOf (.and [.hasDesignation ringBearer none, youControl]))
+              [ static
+                  (characteristicChange (allOf ringBearers)
                     [.typeLine .adds { supertypes := some [.legendary] }]),
-                .static
+                static
                   (cant
-                    (.by
+                    (by_
                       (allOf
-                        (.and
+                        (and
                           [ isCreature,
                             hasPower .greater
                               (powerOf
-                                (a
-                                  (.and
-                                    [ isCreature,
-                                      .hasDesignation ringBearer none,
-                                      youControl ]))) ])))
-                    (.block
-                      (allOf (.and [isCreature, .hasDesignation ringBearer none, youControl])))),
-                .static
+                                (a (and [isCreature, hasDesignation ringBearer, youControl]))) ])))
+                    (block (allOf (and [isCreature, hasDesignation ringBearer, youControl])))),
+                static
                   (onlyWhile
-                    (.abilityGrant .this
-                      (triggered
-                        (.does (.actor (a (.and [.hasDesignation ringBearer none, youControl])))
-                          (.attack none))
-                        (.sequentially
-                          [ .draw (.lit 1),
-                            discard (a (cardIn hand)) ])))
-                    (.compareAmt
-                      (eventCount
-                        (enact (.action "theRingTemptsYou")
-                          (.ownScope (some (.action "theRingTemptsYou"))
-                            (enact (.action "theRingTemptsYou") (.clearDamage .any))))
-                        (.actor .you) thisGame)
-                      .atLeast (.lit 2))),
-                .static
+                    (abilityGrant this_
+                      (triggered (does (a ringBearers) attack)
+                        (sequentially [draw (.lit 1), discard (a (cardIn hand))])))
+                    (compareAmt timesTempted .atLeast (.lit 2))),
+                static
                   (onlyWhile
-                    (.abilityGrant .this
+                    (abilityGrant this_
                       (triggered
-                        (.does (.by (a isCreature))
-                          (.block (a (.and [.hasDesignation ringBearer none, youControl]))))
+                        (does (by_ (a isCreature)) (block (a ringBearers)))
                         (atNext .endOfCombat
-                          (.instruct (controllerOf (that creature))
-                            (sacrifice (that creature))))))
-                    (.compareAmt
-                      (eventCount
-                        (enact (.action "theRingTemptsYou")
-                          (.ownScope (some (.action "theRingTemptsYou"))
-                            (enact (.action "theRingTemptsYou") (.clearDamage .any))))
-                        (.actor .you) thisGame)
-                      .atLeast (.lit 3))),
-                .static
+                          (instruct (controllerOf (that creature)) (sacrifice (that creature))))))
+                    (compareAmt timesTempted .atLeast (.lit 3))),
+                static
                   (onlyWhile
-                    (.abilityGrant .this
+                    (abilityGrant this_
                       (triggered
-                        (.does (.actor (a (.and [.hasDesignation ringBearer none, youControl])))
-                          (.dealDamage .anyAmount (a .anyPlayer) .combatOnly))
-                        (.instruct eachOpponent (loseLife (.lit 3)))))
-                    (.compareAmt
-                      (eventCount
-                        (enact (.action "theRingTemptsYou")
-                          (.ownScope (some (.action "theRingTemptsYou"))
-                            (enact (.action "theRingTemptsYou") (.clearDamage .any))))
-                        (.actor .you) thisGame)
-                      .atLeast (.lit 4))) ])
-            none,
-          choose (a (.and [isCreature, actorControls])),
-          .gainDesignation (that creature) ringBearer none ]))
+                        (does (a ringBearers)
+                          (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+                        (instruct eachOpponent (loseLife (.lit 3)))))
+                    (compareAmt timesTempted .atLeast (.lit 4))) ])
+            :: tempting)))
 semantic_definition timeTravel : Action :=
   .ownScope (some (.action "timeTravel"))
     (enact (.action "timeTravel")

@@ -391,4 +391,25 @@ theorem keywordListOfAbilities :
       .abilitiesAmong [.the (.named "flying"), .the (.named "firstStrike"), .the (.named "trample")] := by
   rfl
 
+/-- Madness {1}{R}: discarding this card exiles it instead, and its owner may cast it from exile
+[CR#702.35a]. -/
+theorem okMadness : Ability.check (DRS.ofList []) (madness (mana [generic 1, pip .red])) = [] := by
+  decide
+
+/-- Mayhem {1}{R}: castable from your graveyard as long as you discarded this card this turn
+[CR#702.187b]. -/
+theorem okMayhem : Ability.check (DRS.ofList []) (mayhem (mana [generic 1, pip .red])) = [] := by
+  decide
+
+/-- Umbra armor: enchanted permanent's destruction becomes the removal of its damage and this
+Aura's destruction [CR#702.89a]. -/
+theorem okUmbraArmor : Ability.check (DRS.ofList []) umbraArmor = [] := by decide
+
+/-- Split second: players can't cast other spells or activate abilities that aren't mana
+abilities [CR#702.61a]. -/
+theorem okSplitSecond : Ability.check (DRS.ofList []) splitSecond = [] := by decide
+
+/-- The Ring tempts you, its emblem counting the times it has [CR#701.54a,701.54c]. -/
+theorem okTheRingTemptsYou : Action.check (DRS.ofList []) theRingTemptsYou = [] := by decide
+
 end Semantics.Proofs.Keyword
