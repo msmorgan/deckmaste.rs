@@ -56,3 +56,4 @@
 +NounPhrase up to one target artifact or creature => Nominal "target artifact or creature"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
 +NounPhrase up to two target artifacts and/or enchantments => Nominal "target artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
 +NounPhrase each other target creature => Nominal "other target creature"; Nominal "target creature"; readings 1
++ As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have

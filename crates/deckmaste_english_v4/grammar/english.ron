@@ -1211,7 +1211,7 @@
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
-        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
