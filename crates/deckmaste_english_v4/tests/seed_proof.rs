@@ -371,6 +371,31 @@ fn node(reading: &Reading) -> &ReadingNode {
     reading.node().expect("a node")
 }
 
+/// The outermost coordination in a Reading.
+fn coordination(reading: &Reading) -> &ReadingNode {
+    outermost_coordination(reading).expect("a coordination")
+}
+
+fn outermost_coordination(reading: &Reading) -> Option<&ReadingNode> {
+    let node = reading.node()?;
+    if node.production.starts_with("Coordination:") {
+        return Some(node);
+    }
+    node.children.iter().find_map(outermost_coordination)
+}
+
+/// `reading` with its subtree `old` replaced by `new`.
+fn replace(reading: &Reading, old: &ReadingNode, new: &Reading) -> Reading {
+    match reading {
+        Reading::Node(node) if node == old => new.clone(),
+        Reading::Node(node) => Reading::Node(ReadingNode {
+            children: node.children.iter().map(|c| replace(c, old, new)).collect(),
+            ..node.clone()
+        }),
+        leaf @ Reading::Leaf(_) => leaf.clone(),
+    }
+}
+
 #[test]
 fn normal_form_identifies_same_head_complement_priority() {
     use deckmaste_syntax::frames::Frame;
@@ -426,33 +451,27 @@ fn normal_form_identifies_groupings_of_one_coordinator() {
     let binary = s
         .readings("Destroy target creature or exile target creature.")
         .remove(0);
-    // Hand-build `[[Destroy … or exile …] or untap …]` from the parsed parts.
-    let clause = node(&node(&serial).children[0]);
-    let top = node(&clause.children[0]);
+    // Hand-build `[[Destroy … or exile …] or untap …]` from the parsed parts:
+    // a chain of bare imperatives is coordinated imperative Clauses.
+    let top = coordination(&serial);
     let tail = node(&top.children[1]);
-    let nested = ReadingNode {
-        production: dpsi::Ident::new("Coordination:VerbPhrase/binary"),
+    let nested = Reading::Node(ReadingNode {
+        production: coordination(&binary).production,
         children: vec![
-            node(&node(&binary).children[0]).children[0].clone(),
+            Reading::Node(coordination(&binary).clone()),
             tail.children[1].clone(),
             tail.children[2].clone(),
         ],
         ..top.clone()
-    };
-    let nested = Reading::Node(ReadingNode {
-        children: vec![Reading::Node(ReadingNode {
-            children: vec![Reading::Node(nested)],
-            ..clause.clone()
-        })],
-        ..node(&serial).clone()
     });
+    let nested = replace(&serial, top, &nested);
     assert!(
         s.grammar.admit(&nested, &s.lexicon).is_err(),
         "one tree per chain"
     );
     let normal = s.grammar.normal_form(&serial);
     assert_eq!(s.grammar.normal_form(&nested), normal);
-    let chain = node(&node(&node(&normal).children[0]).children[0]);
+    let chain = coordination(&normal);
     assert_eq!(
         chain.children.len(),
         4,

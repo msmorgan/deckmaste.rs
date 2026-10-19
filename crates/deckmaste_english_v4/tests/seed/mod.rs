@@ -114,8 +114,10 @@ fn pronoun(lemma: &str, person: Person, number: Option<Number>) -> Lexeme {
 
 /// Fused heads and comparative and superlative determinatives the grammar
 /// names.
-const DEPENDENT_HEADS: [&str; 13] = [
+const DEPENDENT_HEADS: [&str; 15] = [
     "both",
+    "either",
+    "neither",
     "more",
     "everything",
     "many",
@@ -225,7 +227,7 @@ pub fn lexicon() -> Lexicon {
     ] {
         lexemes.push(invariant("prep", word, Category::Preposition, Core));
     }
-    for word in ["and", "or"] {
+    for word in ["and", "or", "and/or", "nor"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
     for word in DEPENDENT_HEADS {
