@@ -110,7 +110,10 @@
         (complement: Intransitive, hosts: ComplementOnly),
     ]),
     // *cards you've drafted this draft round, including this card*
-    (lemma: "including", frames: [(complement: NP, hosts: Nominal)]),
+    // Oracle sets it off by a comma: a Supplement (*note how many cards
+    // you've drafted this draft round, including this card*; CGEL, Ch. 15
+    // §2.9, p. 1318).
+    (lemma: "including", frames: [(complement: NP, hosts: Supplement)]),
     // Compound preposition (CGEL p. 622): *exile it instead*;
     // *instead of putting it into your graveyard*.
     (lemma: "instead", frames: [

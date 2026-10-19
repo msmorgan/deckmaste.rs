@@ -1010,6 +1010,10 @@
             equations: [Require("clause.ClauseMarking", "To")]),
         (name: "InterrogativeDeterminer", lhs: "InterrogativePhrase", rhs: [Word("determiner", "Which"), Cat("head", "Nominal")],
             equations: [Require("$.Person", "Third")]),
+        // *How many* / *how much* determine an interrogative phrase as
+        // *which* does (*note how many cards you've drafted*).
+        (name: "DegreeInterrogativeDeterminer", lhs: "InterrogativePhrase", rhs: [Class("degree", "InterrogativeAdverb"), Class("determiner", "DegreeQuantifier"), Cat("head", "Nominal")],
+            equations: [Agree("determiner.Number", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Person", "Third")]),
         (name: "SubjectInterrogative", lhs: "InterrogativeClause", rhs: [Cat("subject", "InterrogativePhrase"), Cat("head", "VerbPhrase")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"), Require("head.VerbForm", "Finite")]),
         (name: "GapInterrogative", lhs: "InterrogativeClause", rhs: [Cat("marker", "InterrogativePhrase"), Cat("clause", "Clause")],
