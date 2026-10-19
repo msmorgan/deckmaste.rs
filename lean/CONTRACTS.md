@@ -964,6 +964,12 @@ evidence that the primary branch actually happened.
 Losing counters (`loseCounters`) is the shared counter removal (`Action.removeCounters`)
 performed from a player, with its removed-counter outcome.
 
+Moving counters (`moveCounters`) is a removal from the source followed by a placement on the
+destination, each publishing its outcome [CR#122.5]. Two parts of that rule are not modelled:
+the move is all or nothing (if either half is impossible, no counter is removed or put), and,
+with no kind written, what is put is a counter of each kind on the source (`sameAs`) rather
+than exactly the counter removed.
+
 ## Rules tables
 
 A rules table's row supplies its own subject: the scope predicate binds `this`,
