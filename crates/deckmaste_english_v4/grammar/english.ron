@@ -1126,6 +1126,9 @@
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
+        // Interrogative clauses coordinate (*which creatures block and how
+        // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
+        Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
