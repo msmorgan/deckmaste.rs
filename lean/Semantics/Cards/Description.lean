@@ -232,7 +232,8 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
                     { types := [.artifact, .creature],
                       subtypes := [phyrexian, horror],
                       power := some (letter .x), toughness := some (letter .x) } },
-              define .x (numberOf (theVerbed (.action "destroy") .many (some creature) .thisWay)) ]) ] } }
+              define .x
+                  (numberOf (theVerbed (.action "destroy") .many (some creature) .thisWay)) ]) ] } }
 
 /-- Damning Verdict -/
 def damningVerdict : Spelled := spelled <| .singleFaced

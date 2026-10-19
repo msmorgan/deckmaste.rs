@@ -68,16 +68,26 @@ def munghaWurm : Ability :=
   static (cant you (untap (counted (moreThan 1) isLand)) (timing := some duringYourUntapStep))
 theorem okMunghaWurm : Ability.check (DRS.ofList []) munghaWurm = [] := by decide
 def dampingField : Ability :=
-  static (cant (allOf isPlayer) (untap (counted (moreThan 1) isArtifact)) (timing := some duringTheirUntapSteps))
+  static
+      (cant (allOf isPlayer) (untap (counted (moreThan 1) isArtifact))
+         (timing := some duringTheirUntapSteps))
 theorem okDampingField : Ability.check (DRS.ofList []) dampingField = [] := by decide
-def smoke : Ability := static (cant (allOf isPlayer) (untap (counted (moreThan 1) isCreature)) (timing := some duringTheirUntapSteps))
+def smoke : Ability := static
+    (cant (allOf isPlayer) (untap (counted (moreThan 1) isCreature))
+       (timing := some duringTheirUntapSteps))
 theorem okSmoke : Ability.check (DRS.ofList []) smoke = [] := by decide
 def winterOrb : Ability :=
-  static (onlyWhile (cant (allOf isPlayer) (untap (counted (moreThan 1) isLand)) (timing := some duringTheirUntapSteps))
+  static
+      (onlyWhile
+         (cant (allOf isPlayer) (untap (counted (moreThan 1) isLand))
+            (timing := some duringTheirUntapSteps))
     (matches_ thisArtifact isUntapped))
 theorem okWinterOrb : Ability.check (DRS.ofList []) winterOrb = [] := by decide
 def staticOrb : Ability :=
-  static (onlyWhile (cant (allOf isPlayer) (untap (counted (moreThan 2) isPermanent)) (timing := some duringTheirUntapSteps))
+  static
+      (onlyWhile
+         (cant (allOf isPlayer) (untap (counted (moreThan 2) isPermanent))
+            (timing := some duringTheirUntapSteps))
     (matches_ thisArtifact isUntapped))
 theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 
@@ -97,7 +107,10 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=
-  static (cant (allOf isPlayer) (untap (counted (moreThan 1) (and [isLand, non (hasSupertype .basic)]))) (timing := some duringTheirUntapSteps))
+  static
+      (cant (allOf isPlayer)
+         (untap (counted (moreThan 1) (and [isLand, non (hasSupertype .basic)])))
+      (timing := some duringTheirUntapSteps))
 theorem okWinterMoon : Ability.check (DRS.ofList []) winterMoon = [] := by decide
 
 def leitmotifComposer : Ability :=
@@ -122,7 +135,9 @@ def loathsomeCatoblepas : Ability :=
 theorem okLoathsomeCatoblepas : Ability.check (DRS.ofList []) loathsomeCatoblepas = [] := by decide
 
 def hipparion : Ability :=
-  static (gatedBy (mana [generic 1]) thisCreature (block (allOf (and [isCreature, hasPower .atLeast (.lit 3)]))))
+  static
+      (gatedBy (mana [generic 1]) thisCreature
+         (block (allOf (and [isCreature, hasPower .atLeast (.lit 3)]))))
 theorem okHipparion : Ability.check (DRS.ofList []) hipparion = [] := by decide
 
 def frodoBaggins : Ability :=
@@ -165,13 +180,15 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
         [ static (cant any (counter thisSpell)),
           haste,
           static (cant (by_ (allOf (or [ and [isSpell, non (hasColor .green)],
-                          abilityOf (allOf (and [isSource, non (hasColor .green)])) ]))) (target thisCreature)) ],
+                          abilityOf (allOf (and [isSource, non (hasColor .green)])) ])))
+                              (target thisCreature)) ],
       power := stat 8, toughness := stat 5 } }
 
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
   conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof"))))))),
-      cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those creature)])) trigger ]
+      cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those creature)]))
+          trigger ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
 
 /-- Mornsong Aria -/
@@ -210,7 +227,10 @@ def undercoverButler : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, rogue],
       text :=
         [ whenever
-            (does thisCreature (attack (some (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
+            (does thisCreature
+               (attack
+                  (some
+                     (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
             (establishThroughout (cant any (block it)) thisTurn) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -633,7 +653,12 @@ def myrPrototype : Spelled := spelled <| .singleFaced
       text :=
         [ at_ (beginningOfYour .upkeep)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many),
-          static (conjunction [gatedBy (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it))) thisCreature attack, gatedBy (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it))) thisCreature block]) ],
+          static
+              (conjunction
+                 [gatedBy (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it)))
+                    thisCreature attack, gatedBy
+              (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it))) thisCreature
+              block]) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Heat Wave -/
@@ -642,7 +667,9 @@ def heatWave : Spelled := spelled <| .singleFaced
     { name := "Heat Wave", cost := some [generic 2, pip .red], types := [.enchantment],
       text :=
         [ cumulativeUpkeep (mana [pip .red]),
-          static (cant (allOf (and [isCreature, hasColor .blue])) (block (allOf (and [isCreature, youControl])))),
+          static
+              (cant (allOf (and [isCreature, hasColor .blue]))
+                 (block (allOf (and [isCreature, youControl])))),
           static (gatedBy (perform (instruct they (loseLife
               (forEach (.lit 1) (and [isCreature, isBlocking, controlledBy they]))))) (actor
                                                                                          (allOf

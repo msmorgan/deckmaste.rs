@@ -452,7 +452,8 @@ def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           activated
-            (perform (discard (withTheSameName (counted (exactly 2) (and [non isLand, in_ yourHand])))))
+            (perform
+               (discard (withTheSameName (counted (exactly 2) (and [non isLand, in_ yourHand])))))
             (draw (.lit 4)) ],
       power := stat 5, toughness := stat 6 } }
 
@@ -658,7 +659,11 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ activated (mana [pip .black])
-            (instruct (target (and [isPlayer, happenedTo thisCreature (dealDamage anyAmount (relative .player)) soFarThisTurn])) (loseLife
+            (instruct
+               (target
+                  (and
+                     [isPlayer, happenedTo thisCreature (dealDamage anyAmount (relative .player))
+                        soFarThisTurn])) (loseLife
               (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -667,7 +672,8 @@ def idolOfOblivion : Spelled := spelled <| .singleFaced
     { name := "Idol of Oblivion", cost := some [generic 2], types := [.artifact],
       text :=
         [ activatedOnlyIf tapSymbol (draw (.lit 1))
-            (happened (createObject anyAmount (token (copyOf (a isToken)) []) false) you soFarThisTurn),
+            (happened (createObject anyAmount (token (copyOf (a isToken)) []) false) you
+               soFarThisTurn),
           activated (compound [mana [generic 8], tapSymbol, perform (sacrifice thisArtifact)])
             (createToken (creatureToken 10 10 [] [eldrazi])) ] } }
 

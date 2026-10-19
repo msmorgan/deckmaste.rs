@@ -562,7 +562,9 @@ def vernalEquinox : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Vernal Equinox", cost := some [generic 3, pip .green], types := [.enchantment],
       text :=
-        [ static (can (a isPlayer) (cast (allOf (and [isSpell, or [isCreature, isEnchantment]]))) (asThough := asThoughFlash)) ] } }
+        [ static
+            (can (a isPlayer) (cast (allOf (and [isSpell, or [isCreature, isEnchantment]])))
+               (asThough := asThoughFlash)) ] } }
 
 def borneUponAWind : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -599,7 +601,9 @@ theorem okPlayLandsAndCastSpellsFromTop :
     StaticSpec.check (DRS.ofList []) playLandsAndCastSpellsFromTop = [] := by decide
 /-- Assemble the Players -/
 def castSmallCreatureFromTopOnceEachTurn : StaticSpec :=
-  can you (cast (counted (exactly 1) (and [isSpell, isCreature, hasPower .atMost (.lit 2)])) (from_ := some onTop)) (timing := some eachTurn)
+  can you
+      (cast (counted (exactly 1) (and [isSpell, isCreature, hasPower .atMost (.lit 2)]))
+         (from_ := some onTop)) (timing := some eachTurn)
 theorem okCastSmallCreatureFromTopOnceEachTurn :
     StaticSpec.check (DRS.ofList []) castSmallCreatureFromTopOnceEachTurn = [] := by decide
 
@@ -644,14 +648,19 @@ def mysticForge : Spelled := spelled <| .singleFaced
 def exploration : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Exploration", cost := some [pip .green], types := [.enchantment],
-      text := [static (can you (play (counted (additional (exactly 1)) isLand)) (timing := some onEachOfYourTurns))] } }
+      text :=
+          [static
+             (can you (play (counted (additional (exactly 1)) isLand))
+                (timing := some onEachOfYourTurns))] } }
 
 def oracleOfMulDaya : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Oracle of Mul Daya", cost := some [generic 3, pip .green], types := [.creature],
       subtypes := [elf, shaman],
       text :=
-        [ static (can you (play (counted (additional (exactly 1)) isLand)) (timing := some onEachOfYourTurns)),
+        [ static
+            (can you (play (counted (additional (exactly 1)) isLand))
+               (timing := some onEachOfYourTurns)),
           static (visibility .reveal you topOfLibrary),
           static playLandsFromTop ],
       power := stat 2, toughness := stat 2 } }
@@ -661,7 +670,10 @@ def azusaLostButSeeking : Spelled := spelled <| .singleFaced
     { name := "Azusa, Lost but Seeking", cost := some [generic 2, pip .green],
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, monk],
-      text := [static (can you (play (counted (additional (exactly 2)) isLand)) (timing := some onEachOfYourTurns))],
+      text :=
+          [static
+             (can you (play (counted (additional (exactly 2)) isLand))
+                (timing := some onEachOfYourTurns))],
       power := stat 1, toughness := stat 2 } }
 
 def summerBloom : Spelled := spelled <| .singleFaced
@@ -697,7 +709,9 @@ def dryadOfTheIlysianGrove : Spelled := spelled <| .singleFaced
     { name := "Dryad of the Ilysian Grove", cost := some [generic 2, pip .green],
       types := [.enchantment, .creature], subtypes := [nymph, dryad],
       text :=
-        [ static (can you (play (counted (additional (exactly 1)) isLand)) (timing := some onEachOfYourTurns)),
+        [ static
+            (can you (play (counted (additional (exactly 1)) isLand))
+               (timing := some onEachOfYourTurns)),
           static (qualityChange (allOf (and [isLand, youControl])) .adds
             (everyTypeOf .basicLand)) ],
       power := stat 2, toughness := stat 4 } }
@@ -729,7 +743,10 @@ def foriysianBrigade : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Foriysian Brigade", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [human, soldier],
-      text := [static (can thisCreature (block (counted (additional (exactly 1)) isCreature)) (timing := some eachCombat))],
+      text :=
+          [static
+             (can thisCreature (block (counted (additional (exactly 1)) isCreature))
+                (timing := some eachCombat))],
       power := stat 2, toughness := stat 4 } }
 
 /-- Two-Headed Giant of Foriys -/
@@ -745,7 +762,11 @@ def twoHeadedGiantOfForiys : Spelled := spelled <| .singleFaced
 def highGround : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "High Ground", cost := some [pip .white], types := [.enchantment],
-      text := [static (can (each (and [isCreature, youControl])) (block (counted (additional (exactly 1)) isCreature)) (timing := some eachCombat))] } }
+      text :=
+          [static
+             (can (each (and [isCreature, youControl]))
+                (block (counted (additional (exactly 1)) isCreature))
+          (timing := some eachCombat))] } }
 
 /-- Watcher in the Web -/
 def watcherInTheWeb : Spelled := spelled <| .singleFaced
@@ -918,7 +939,8 @@ def cultivatorColossus : Spelled := spelled <| .singleFaced
               (some (sequentially [draw (.lit 1), repeat_ again]))) ] } }
 
 def zimoneAndDina : Ability :=
-  activated (compound [tapSymbol, perform (sacrifice (a (and [isCreature, otherThan thisCreature])))])
+  activated
+      (compound [tapSymbol, perform (sacrifice (a (and [isCreature, otherThan thisCreature])))])
     (sequentially
       [ draw (.lit 1),
         may (putOntoBattlefieldTapped (a (and [isLand, in_ yourHand]))),
@@ -963,7 +985,8 @@ def fastbondLands : Ability := static (can you (play (counted (additional anyNum
 theorem okFastbondLands : Ability.check (DRS.ofList []) fastbondLands = [] := by decide
 /-- Panglacial Wurm -/
 def panglacialWurmCast : Ability :=
-  static (can you (cast «this» (from_ := some yourLibrary)) (timing := some whileSearchingYourLibrary))
+  static
+      (can you (cast «this» (from_ := some yourLibrary)) (timing := some whileSearchingYourLibrary))
 theorem okPanglacialWurmCast : Ability.check (DRS.ofList []) panglacialWurmCast = [] := by decide
 
 /-- Shah of Naar Isle -/
@@ -987,7 +1010,9 @@ def memoryPlunder : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (establish
-            (can you (cast (target (and [isInstantOrSorcery, isCard])) (from_ := some (graveyardOf anOpponent)) (payment := withoutPaying)))) ] } }
+            (can you
+               (cast (target (and [isInstantOrSorcery, isCard]))
+                  (from_ := some (graveyardOf anOpponent)) (payment := withoutPaying)))) ] } }
 
 /-- Omniscience -/
 def omniscience : Spelled := spelled <| .singleFaced
@@ -1117,13 +1142,18 @@ theorem okNautiloidShipTrigger : Ability.check (DRS.ofList []) nautiloidShipTrig
 /-- Summon: Esper Valigarmanda's II/III/IV body, in part -/
 def summonEsperValigarmandaCast : StaticSpec :=
   conjunction [ can you (cast (a (and [isInstantOrSorcery, in_ (exiledWith thisSaga)]))),
-      can you (pay anyCost .once) (asThough := some (spendManaAs none .anyType (some (toCast (and [isInstantOrSorcery, in_ (exiledWith thisSaga)]))))) ]
+      can you (pay anyCost .once)
+          (asThough := some
+             (spendManaAs none .anyType
+                (some (toCast (and [isInstantOrSorcery, in_ (exiledWith thisSaga)]))))) ]
 theorem okSummonEsperValigarmandaCast :
     StaticSpec.check (DRS.ofList []) summonEsperValigarmandaCast = [] := by decide
 /-- Rogue Class's level-3 body -/
 def rogueClassLevelThree : StaticSpec :=
   conjunction [ can you (play (allOf (in_ (exiledWith thisClass)))),
-      can you (pay anyCost .once) (asThough := some (spendManaAs none .anyColor (some (toCast (in_ (exiledWith thisClass)))))) ]
+      can you (pay anyCost .once)
+          (asThough := some
+             (spendManaAs none .anyColor (some (toCast (in_ (exiledWith thisClass)))))) ]
 theorem okRogueClassLevelThree : StaticSpec.check (DRS.ofList []) rogueClassLevelThree = [] := by decide
 
 /-- Soul Ransom -/
@@ -1198,7 +1228,8 @@ def muldrothaLandWindow : StaticSpec :=
   can you (play (a isLand) (from_ := some yourGraveyard)) (timing := some onEachOfYourTurns)
 theorem okMuldrothaLandWindow : StaticSpec.check (DRS.ofList []) muldrothaLandWindow = [] := by decide
 /-- Nahiri's Lithoforming -/
-def nahiriExtraLands : StaticSpec := can you (play (counted (additional (exactlyOf (letter .x))) isLand))
+def nahiriExtraLands : StaticSpec := can you
+    (play (counted (additional (exactlyOf (letter .x))) isLand))
 theorem okNahiriExtraLands : StaticSpec.check (DRS.ofList [letterB .x]) nahiriExtraLands = [] := by decide
 
 /-- Haakon, Stromgald Scourge -/
@@ -1256,7 +1287,8 @@ def summoningMateriaTopCast : Ability :=
 theorem okSummoningMateriaTopCast : Ability.check (DRS.ofList []) summoningMateriaTopCast = [] := by decide
 /-- Vizier of the Menagerie -/
 def vizierOfTheMenagerieSpend : StaticSpec :=
-  can you (pay anyCost .once) (asThough := some (spendManaAs none .anyType (some (toCast (and [isCreature, isSpell])))))
+  can you (pay anyCost .once)
+      (asThough := some (spendManaAs none .anyType (some (toCast (and [isCreature, isSpell])))))
 theorem okVizierOfTheMenagerieSpend : StaticSpec.check (DRS.ofList []) vizierOfTheMenagerieSpend = [] := by
   decide
 
@@ -1356,7 +1388,9 @@ def caughtInTheCrossfire : Spelled := spelled <| .singleFaced
             [ (some (mana [generic 1]),
                instruct «this» (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])) .noncombatOnly)),
               (some (mana [generic 1]),
-               instruct «this» (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw])) .noncombatOnly)) ]) ] } }
+               instruct «this»
+                   (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw]))
+                      .noncombatOnly)) ]) ] } }
 
 /-- Requisition Raid -/
 def requisitionRaid : Spelled := spelled <| .singleFaced

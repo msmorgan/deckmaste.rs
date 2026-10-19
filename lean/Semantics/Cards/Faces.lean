@@ -67,7 +67,8 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [treefolk, druid],
       text :=
-        [ whenever (does (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature])) die)
+        [ whenever
+            (does (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature])) die)
             (may
               (sequentially
                 [ putInto it battlefield (riders := [(faceDownAs
@@ -111,7 +112,8 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
 
 /-- Karplusan Minotaur's win arm -/
 def karplusanMinotaurWinFlip : Ability :=
-  whenever (does you (flipCoins anyAmount (some .wins))) (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))
+  whenever (does you (flipCoins anyAmount (some .wins)))
+      (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))
 theorem okKarplusanMinotaurWinFlip : Ability.check (DRS.ofList []) karplusanMinotaurWinFlip = [] := by decide
 
 /-- Ral Zarek's ultimate -/
@@ -216,7 +218,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
       text :=
         [ when
             (does (a (and [ isCreature,
-                              happenedTo (actor thisCreature)
+                              happenedTo thisCreature
                                 (dealDamage anyAmount
                                   (asMarker .permanent (relative .object)))
                                 soFarThisTurn ])) die)

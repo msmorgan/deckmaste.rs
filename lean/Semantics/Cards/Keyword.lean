@@ -94,7 +94,9 @@ def bristlepackSentry : Spelled := spelled <| .singleFaced
       text :=
         [ defender,
           static (onlyWhile
-            (can thisCreature attack (asThough := some (holds (matches_ it (not (hasKeyword (.the (.named "defender"))))))))
+            (can thisCreature attack
+               (asThough := some
+                  (holds (matches_ it (not (hasKeyword (.the (.named "defender"))))))))
             (exists_ (and [ isCreature, youControl,
                              hasPower .atLeast (.lit 4) ]))) ],
       power := stat 3, toughness := stat 3 } }
@@ -1217,7 +1219,8 @@ def darkbladeAgentGrants : Ability :=
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
-  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent))) (gain (those creature) menace (some untilEndOfTurn))
+  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent)))
+      (gain (those creature) menace (some untilEndOfTurn))
 theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
 /-- Pir, Imaginative Rascal's replacement -/
@@ -1225,7 +1228,8 @@ def pirDistributive : Ability :=
   static (instead
             (would any
                (putCounters anyAmount anyKind
-                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many))
+                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false))
+                      (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many))
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 
 /-- Frogmite -/
@@ -1380,7 +1384,8 @@ def enormousEnergyBlade : Spelled := spelled <| .singleFaced
       subtypes := [equipment],
       text :=
         [ static (getsPt (equipped creature) (up (.lit 4)) (up (.lit 0))),
-          whenever (does any (attachment .attached thisEquipment (some (a isCreature)))) (tap (that creature)),
+          whenever (does any (attachment .attached thisEquipment (some (a isCreature))))
+              (tap (that creature)),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
 /-- Grafted Wargear -/
@@ -1666,7 +1671,8 @@ def oboshCompanion : Ability :=
   companion (everyCardIs isCard (anyOf [manaValueParity .odd, aCharacteristic isLand]))
 theorem okOboshCompanion : Ability.check (DRS.ofList []) oboshCompanion = [] := by decide
 /-- Umori, the Collector -/
-def umoriCompanion : Ability := companion (groupAgrees (agree .cardType .share (allOf (and [non isLand, isCard]))))
+def umoriCompanion : Ability := companion
+    (groupAgrees (agree .cardType .share (allOf (and [non isLand, isCard]))))
 theorem okUmoriCompanion : Ability.check (DRS.ofList []) umoriCompanion = [] := by decide
 /-- Yorion, Sky Nomad -/
 def yorionCompanion : Ability := companion (deckSizeOverMinimum 20)

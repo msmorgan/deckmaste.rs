@@ -17,7 +17,10 @@ namespace Semantics.Cards
 
 def boshIronGolem : Ability :=
   activated (compound [mana [generic 3, pip .red], perform (sacrifice (a isArtifact))])
-    (instruct «this» (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some artifact))) (target isAnyTarget) .noncombatOnly))
+    (instruct «this»
+       (dealDamage
+          (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some artifact)))
+        (target isAnyTarget) .noncombatOnly))
 theorem okBoshIronGolem : Ability.check (DRS.ofList []) boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (compound [mana [generic 3], perform (discard (aAtRandom (cardIn yourHand)))])
@@ -368,7 +371,9 @@ def riddleOfLightning : Spelled := spelled <| .singleFaced
             [ choose (target isAnyTarget),
               scry (.lit 3),
               reveal (topSlice (.lit 1)),
-              instruct «this» (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin .noncombatOnly) ]) ] } }
+              instruct «this»
+                  (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin
+                     .noncombatOnly) ]) ] } }
 
 def unstableFrontier : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -387,7 +392,9 @@ def sanctumPrelate : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, cleric],
       text :=
         [ static (entersChoosing thisCreature .number),
-          static (cant any (cast (allOf (and [isSpell, non isCreature, hasManaValue .eq chosenNumber])))) ],
+          static
+              (cant any
+                 (cast (allOf (and [isSpell, non isCreature, hasManaValue .eq chosenNumber])))) ],
       power := stat 2, toughness := stat 2 } }
 
 def abruptDecay : Spelled := spelled <| .singleFaced
@@ -395,7 +402,9 @@ def abruptDecay : Spelled := spelled <| .singleFaced
     { name := "Abrupt Decay", cost := some [pip .black, pip .green], types := [.instant],
       text :=
         [ static (cant any (counter thisSpell)),
-          spell (destroy (target (and [isPermanent, non isLand, hasManaValue .atMost (.lit 3)]))) ] } }
+          spell
+              (destroy
+                 (target (and [isPermanent, non isLand, hasManaValue .atMost (.lit 3)]))) ] } }
 
 /-- Burn, Burn, Tree and Fern -/
 def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
@@ -458,7 +467,9 @@ def gaddockTeeg : Spelled := spelled <| .singleFaced
     { name := "Gaddock Teeg", cost := some [pip .green, pip .white], supertypes := [.legendary],
       types := [.creature], subtypes := [kithkin, advisor],
       text :=
-        [ static (cant any (cast (allOf (and [isSpell, non isCreature, hasManaValue .atLeast (.lit 4)])))),
+        [ static
+            (cant any
+               (cast (allOf (and [isSpell, non isCreature, hasManaValue .atLeast (.lit 4)])))),
           static (cant any (cast (allOf (and [isSpell, non isCreature, manaCostHas .variable])))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -742,7 +753,8 @@ theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = 
 
 /-- Hibernation's End -/
 def hibernationsEndTrigger : Ability :=
-  whenever (does you (pay anyCost .once .paid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
+  whenever
+      (does you (pay anyCost .once .paid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
     (may
       (sequentially
         [ searchLibraryFor (exactly 1)

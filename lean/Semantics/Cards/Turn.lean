@@ -222,7 +222,10 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ untap
-                (allOf (and [isCreature, happenedTo (asMarker .permanent (relative .object)) attack soFarThisTurn])),
+                (allOf
+                   (and
+                      [isCreature, happenedTo (asMarker .permanent (relative .object)) attack
+                         soFarThisTurn])),
               additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ]) ] } }
 
 def fullThrottleFirstLine : Action := additionalPhase .combat (some .mainPhase) (.lit 2)
@@ -514,6 +517,7 @@ def berserk : Spelled := spelled <| .singleFaced
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that creature))
                     (happened attack (that
-                      creature) soFarThisTurn)) ]) (timing := some (beforePart .combatDamage none)) ] } }
+                      creature) soFarThisTurn)) ])
+                          (timing := some (beforePart .combatDamage none)) ] } }
 
 end Semantics.Cards

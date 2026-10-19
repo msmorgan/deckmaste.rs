@@ -202,7 +202,8 @@ theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] :=
 
 /-- Deem Inferior -/
 def deemInferior : Action :=
-  instruct (ownerOf (target (and [isPermanent, non isLand]))) (put it (or [(fromTop 2 library), (fromBottom 2 library)]))
+  instruct (ownerOf (target (and [isPermanent, non isLand])))
+      (put it (or [(fromTop 2 library), (fromBottom 2 library)]))
 theorem okDeemInferior : Action.check (DRS.ofList []) deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -291,25 +292,35 @@ def playerOrPlaneswalkerAnnounced : NounPhrase := targetPlayerOrPlaneswalker
 /-- Chain of Plasma -/
 def chainOfPlasmaOfferee : NounPhrase := splitOverPermanent
 theorem okChainOfPlasmaOfferee :
-    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainOfPlasmaOfferee = [] := by
+    NounPhrase.checkAt (some .player)
+        ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainOfPlasmaOfferee =
+        [] := by
   decide
 /-- Chain Lightning -/
 def chainLightningPayer : NounPhrase := splitOverPermanent
 theorem okChainLightningPayer :
-    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainLightningPayer = [] := by
+    NounPhrase.checkAt (some .player)
+        ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainLightningPayer =
+        [] := by
   decide
 /-- Flames of the Blood Hand -/
 def flamesOfTheBloodHandSubject : NounPhrase := splitOverPlaneswalker
 theorem okFlamesOfTheBloodHandSubject :
-    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) flamesOfTheBloodHandSubject = [] := by
+    NounPhrase.checkAt (some .player)
+        ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)
+        flamesOfTheBloodHandSubject = [] := by
   decide
 /-- Flaming Gambit -/
 def flamingGambitOfferee : NounPhrase := splitOverPlaneswalker
 theorem okFlamingGambitOfferee :
-    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) flamingGambitOfferee = [] := by
+    NounPhrase.checkAt (some .player)
+        ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)
+        flamingGambitOfferee = [] := by
   decide
 theorem okEachCreatureThatSplitControls :
-    NounPhrase.checkAt (some .object) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) eachCreatureThatSplitControls = [] := by
+    NounPhrase.checkAt (some .object)
+        ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)
+        eachCreatureThatSplitControls = [] := by
   decide
 
 /-- Ertai's Trickery -/
@@ -456,7 +467,8 @@ def companyDescribedSlice : NounPhrase :=
 theorem okCompanyDescribedSlice :
     NounPhrase.checkAt (some .object) companyContext companyDescribedSlice = [] := by decide
 def companyBareSlice : NounPhrase := someOf (exactly 2) them
-theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) companyContext companyBareSlice = [] := by
+theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) companyContext companyBareSlice =
+    [] := by
   decide
 
 /-- Lord of the Void -/
