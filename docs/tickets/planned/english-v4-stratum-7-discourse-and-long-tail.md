@@ -21,6 +21,16 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   *counter* (*your choice of a +1/+1, first strike, or vigilance counter*), which
   needs the specifier exposed without splitting the declared compound counter
   lexemes (five units in `deferred.txt`).
+- **Also deferred from Stratum 6** (each unit in `deferred.txt`, by the
+  mechanism it needs):
+  - Ellipsis or gapping: Multiclass Baldric; Scion of Draco; Dominaria's Judgment; Akroma, Vision of Ixidor; Selective Adaptation; Detention Vortex; Oft-Nabbed Goat; Hearth Elemental; Frantic Firebolt.
+  - Elided second *with*: Ulasht, the Hate Seed.
+  - Floating quantifier: Kutzil, Malamet Exemplar; Angelic Aberration; Leonardo's Technique; Dance of the Manse; Ballroom Brawlers; Keen Duelist; Storyweave.
+  - Vote option or metalinguistic mention: Bite of the Black Rose; Lieutenants of the Guard; Capital Punishment; Trial of a Time Lord; Abundant Harvest.
+  - Villainous choice dash alternatives: Midnight Crusader Shuttle.
+  - *whichever comes first / is greater* supplement: Thought Dissector; Willowdusk, Essence Seer; Triumphant Chomp; Prophet of the Scarab.
+  - Counter kinds listed as a choice: Crystalline Giant.
+  - Non-coordination one-off: Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean
