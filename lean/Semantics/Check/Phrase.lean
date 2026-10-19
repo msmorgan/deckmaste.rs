@@ -1517,10 +1517,22 @@ def stepCreationSpecWith (ops : StepOps) (drs : DRS) (spec : CreationSpec) : DRS
   let (out, _, errors) := stepCreationSpecMetadataWith ops drs spec
   (out, errors)
 
+/-- A play's payment: the cost is paid while casting or playing [CR#601.2h], not an argument of
+the play. The cost's mentions leave the clause's pending argument roles, and the enclosing frames'
+for an `inCaller` cost, as they were (none remain pending when the cost's own steps closed the
+clause), so they never stand as patients of the deed, as the land card retrace discards does not
+[CR#702.81a]. -/
 def stepPlayPaymentWith (ops : StepOps) (drs : DRS) (pay : PlayPayment) : DRS × List Refusal :=
   match pay with
   | .itsOwnCost | .withoutPaying => (drs, [])
-  | .payingInstead c | .faceDown _ c => ops.cost drs c
+  | .payingInstead c | .faceDown _ c =>
+    let (paid, errs) := ops.cost drs c
+    let pending := if paid.currentClause == drs.currentClause then drs.pendingRoles else []
+    let frames := if paid.scopeStack.length == drs.scopeStack.length then
+        List.zipWith (fun outer inner => { inner with callerPending := outer.callerPending })
+          drs.scopeStack paid.scopeStack
+      else paid.scopeStack
+    ({ paid with pendingRoles := pending, scopeStack := frames }, errs)
 
 def stepDeltaWith (ops : StepOps) (drs : DRS) (d : Delta Amount) : DRS × List Refusal :=
   match d with

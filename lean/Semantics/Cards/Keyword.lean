@@ -932,7 +932,7 @@ theorem okThinkTwice : Ability.check (DRS.ofList []) thinkTwice = [] := by decid
 def greaterMossdog : Ability := keywordNumber (.named "dredge") (.lit 3)
 theorem okGreaterMossdog : Ability.check (DRS.ofList []) greaterMossdog = [] := by decide
 /-- Raven's Crime -/
-def ravensCrime : Ability := keyword (.named "retrace")
+def ravensCrime : Ability := retrace
 theorem okRavensCrime : Ability.check (DRS.ofList []) ravensCrime = [] := by decide
 /-- Barkhide Mauler -/
 def barkhideMauler : Ability := keywordCosting (.named "cycling") (mana [generic 2])
