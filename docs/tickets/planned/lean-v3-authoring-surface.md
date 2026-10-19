@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring]
+needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting]
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
@@ -9,8 +9,11 @@ Core AST primitives, and retire all `v1`/`v2` module, macro, and alias
 holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into
 `crates/deckmaste_semantics_v3` and `plugins_v3/`.** Umbrella epic for:
 [1 Core AST and checker](lean-v3-authoring-impl-1-core-ast-and-checker.md),
-[2 Templates and Definitions](lean-v3-authoring-impl-2-templates-and-definitions.md), and
-[3 Cards re-authoring](lean-v3-authoring-impl-3-cards-reauthoring.md).
+[2 Templates and Definitions](lean-v3-authoring-impl-2-templates-and-definitions.md),
+[3 Cards re-authoring](lean-v3-authoring-impl-3-cards-reauthoring.md),
+[4 Checker dewarting](lean-v3-authoring-impl-4-checker-dewarting.md),
+[5 Definitions dewarting](lean-v3-authoring-impl-5-definitions-dewarting.md), and
+[6 Cards dewarting](lean-v3-authoring-impl-6-cards-dewarting.md).
 Standard constraints apply.
 
 ## Governing Principles
@@ -63,6 +66,25 @@ Standard constraints apply.
    Re-author all 15 `lean/Semantics/Cards/*.lean` modules onto the new
    `Templates.lean` and `Definitions.lean` surface so authored cards read like
    Oracle English and contain zero `Primitives.*` qualifications.
+4. [`lean-v3-authoring-impl-4-checker-dewarting`](lean-v3-authoring-impl-4-checker-dewarting.md):
+   Retire the remaining non-anaphora game-rule checks in `lean/Semantics/Check/`
+   (`ActFacts` role tables, `Check/Possessor.lean`, counter-holder/memory checks,
+   `statHeadTysOk`, `contradictionFree`, zone checks in `handoffPerformer` and
+   `designationHolder`, `settableValue`, `permanentSpellType`, `ascriptionOk`,
+   and `riderKind`) and update `Proofs/` and `lean/CONTRACTS.md`.
+5. [`lean-v3-authoring-impl-5-definitions-dewarting`](lean-v3-authoring-impl-5-definitions-dewarting.md):
+   Dewart `Templates.lean` and `Definitions.lean` (`«this»` → `this_`,
+   `thisCard`/`thisToken`/`thisEmblem`, `mill` without `whose` + `millCards`,
+   `flip`, consolidated `double*`/`triple*`, deleting the 8 duplicate
+   `*Expansion` definitions, collapsing the 6 `gift*` definitions, folding
+   unfolded keyword bodies, and dispatching bare keyword definitions in
+   `hasKeyword`).
+6. [`lean-v3-authoring-impl-6-cards-dewarting`](lean-v3-authoring-impl-6-cards-dewarting.md):
+   Sweep `lean/Semantics/Cards/*.lean` onto the dewarted surface (`mirelurkQueenTrigger`
+   onto `millCards`, remaining `setStatus` calls onto `phaseOut`/`phaseIn`/`flip`,
+   ~95 parameterized `keyword*` calls onto `Definitions.lean` definitions, raw
+   counter/designation `.named "..."` literals, `hasKeyword` bare keywords, and
+   `eachPlayer`/`bare isPlayer` in active `cant` subjects).
 
 ---
 
