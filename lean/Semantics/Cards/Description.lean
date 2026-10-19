@@ -17,7 +17,7 @@ namespace Semantics.Cards
 
 /-- Glyph of Destruction -/
 def glyphOfDestruction : Action :=
-  get (target (and [isBlocking, hasSubtype (creatureType "Wall"), hasPossessor .controller you]))
+  get (target (and [isBlocking, hasSubtype wall, youControl]))
     (up (.lit 10)) (up (.lit 0)) (some untilEndOfCombat)
 theorem okGlyphOfDestruction : Action.check (DRS.ofList []) glyphOfDestruction = [] := by decide
 
@@ -27,14 +27,14 @@ theorem okRawNonattacking : Predicate.checkAt .object (DRS.ofList []) rawNonatta
 /-- Harmony of Nature -/
 def harmonyOfNature : Action :=
   sequentially
-    [ tap (counted anyNumber (and [isUntapped, isCreature, hasPossessor .controller you])),
+    [ tap (counted anyNumber (and [isUntapped, isCreature, youControl])),
       doForEach (theVerbed (.action "tap") .many (some (.type .creature)) .thisWay)
         (gainLife (.lit 4)) ]
 theorem okHarmonyOfNature : Action.check (DRS.ofList []) harmonyOfNature = [] := by decide
 
 /-- Rats of Rath -/
 def ratsOfRath : Action :=
-  destroy (target (and [or [isArtifact, isCreature, isLand], hasPossessor .controller you]))
+  destroy (target (and [or [isArtifact, isCreature, isLand], youControl]))
 theorem okRatsOfRath : Action.check (DRS.ofList []) ratsOfRath = [] := by decide
 
 /-- "another creature or land", after a target on the battlefield. -/
@@ -62,8 +62,8 @@ theorem okPillarOfLight : Action.check (DRS.ofList []) pillarOfLight = [] := by 
 def unholyAnnex : Action :=
   sequentially
     [ draw (.lit 1),
-      doIf (exists_ (and [hasSubtype (creatureType "Demon"), hasPossessor .controller you]))
-        (sequentially [instruct (each (isOpponentOf you)) (loseLife (.lit 2)), gainLife (.lit 2)])
+      doIf (exists_ (and [hasSubtype demon, youControl]))
+        (sequentially [instruct eachOpponent (loseLife (.lit 2)), gainLife (.lit 2)])
         (some (loseLife (.lit 2))) ]
 theorem okUnholyAnnex : Action.check (DRS.ofList []) unholyAnnex = [] := by decide
 
@@ -76,7 +76,7 @@ theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by de
 /-- Mind Flayer -/
 def mindFlayer : Action :=
   gainControl (target isCreature)
-    (some (forAsLongAs (matches_ thisCreature (hasPossessor .controller you)))) (controller := you)
+    (some (forAsLongAs (matches_ thisCreature youControl))) (controller := you)
 theorem okMindFlayer : Action.check (DRS.ofList []) mindFlayer = [] := by decide
 
 /-- Arc Lightning -/
@@ -91,14 +91,14 @@ theorem okBoulderfall : Action.check (DRS.ofList []) boulderfall = [] := by deci
 
 /-- Banisher Priest -/
 def banisherPriest : Action :=
-  exileUntil (target (and [isCreature, hasPossessor .controller anOpponent]))
+  exileUntil (target (and [isCreature, controlledBy anOpponent]))
     (does (actor thisCreature) leave)
 theorem okBanisherPriest : Action.check (DRS.ofList []) banisherPriest = [] := by decide
 
 /-- Tezzeret, Artifice Master -/
 def tezzeretDrawTwo : Action :=
   replace (draw (.lit 1))
-    (doIf (compareAmt (countOf (and [isArtifact, hasPossessor .controller you]))
+    (doIf (compareAmt (countOf (and [isArtifact, youControl]))
             .atLeast (.lit 3))
       (draw (.lit 2)))
 theorem okTezzeretDrawTwo : Action.check (DRS.ofList []) tezzeretDrawTwo = [] := by decide
@@ -106,7 +106,7 @@ theorem okTezzeretDrawTwo : Action.check (DRS.ofList []) tezzeretDrawTwo = [] :=
 /-- Zimone, Quandrix Prodigy -/
 def zimoneDrawTwo : Action :=
   replace (draw (.lit 1))
-    (doIf (compareAmt (countOf (and [isLand, hasPossessor .controller you])) .atLeast (.lit 8))
+    (doIf (compareAmt (countOf (and [isLand, youControl])) .atLeast (.lit 8))
       (draw (.lit 2)))
 theorem okZimoneDrawTwo : Action.check (DRS.ofList []) zimoneDrawTwo = [] := by decide
 
@@ -133,8 +133,8 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
             [ doIf (compareAmt (lifeTotalOf you) .less (lifeTotalOf anOpponent))
                 (gainLife (.lit 6)),
               doIf (compareAmt (countOf (and [isCreature, youControl])) .less
-                      (countOf (and [isCreature, hasPossessor .controller anOpponent])))
-                (createToken (creatureToken 1 1 [.white] [creatureType "Soldier"]) (count := (.lit 3))) ]) ] } }
+                      (countOf (and [isCreature, controlledBy anOpponent])))
+                (createToken (creatureToken 1 1 [.white] [soldier]) (count := (.lit 3))) ]) ] } }
 
 /-- Survival Cache -/
 def survivalCache : Action :=
@@ -152,7 +152,7 @@ def nightmarishEnd : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ get (target isCreature) (down (letter .x)) (down (letter .x))
                 (some untilEndOfTurn),
-              define .x (countOf (and [isCard, in_ (handOf you)])) ]) ] } }
+              define .x (countOf (cardIn yourHand)) ]) ] } }
 
 /-- Topple {2}{W} — Sorcery. "Exile target creature with the greatest power among creatures
 on the battlefield." -/
@@ -166,27 +166,24 @@ def topple : Spelled := spelled <| .singleFaced
 
 /-- "each opponent with three or more poison counters" -/
 def corruptedOpponents : NounPhrase :=
-  each (and [(isOpponentOf you), compare .atLeast (.lit 3) (axes := [.counter (.named "poison")])])
+  each (and [isOpponent, compare .atLeast (.lit 3) (axes := [.counter (.named "poison")])])
 theorem okCorruptedOpponents : NounPhrase.checkAt (some .player) (DRS.ofList []) corruptedOpponents = [] := by
   decide
 
 /-- War Tax -/
 def warTaxScaledPayment : Action :=
-  establish
-    (gatedBy (scaledGenericMana
-        (arith .times (letter .x)
-          (countOf (and [isCreature, isAttacking,
-            hasPossessor .controller they])))) (actor (allOf isCreature)) attack)
-    (some thisTurn)
+  establishThroughout (gatedBy (scaledGenericMana
+        (forEach (letter .x) (and [isCreature, isAttacking,
+            controlledBy they]))) (actor (allOf isCreature)) attack) thisTurn
 theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxScaledPayment = [] := by
   decide
 
 /-- Croaking Counterpart -/
 def croakingCounterpartCopy : Action :=
   create (.lit 1)
-    (copyOf (target (and [isCreature, not (hasSubtype (creatureType "Frog"))]))
+    (copyOf (target (and [isCreature, not (hasSubtype frog)]))
       (copyCharacteristics {
-                 colors := [.green], subtypes := [creatureType "Frog"], power := stat 1,
+                 colors := [.green], subtypes := [frog], power := stat 1,
                  toughness := stat 1 } false))
     []
 theorem okCroakingCounterpartCopy : Action.check (DRS.ofList []) croakingCounterpartCopy = [] := by decide
@@ -197,7 +194,7 @@ def blessedReversal : Spelled := spelled <| .singleFaced
     { name := "Blessed Reversal", cost := some [generic 1, pip .white], types := [.instant],
       text :=
         [ spell (gainLife
-            (times (.lit 3) (countOf (and [isCreature, inCombat .attackerOf (some you)])))) ] } }
+            (forEach (.lit 3) (and [isCreature, inCombat .attackerOf (some you)]))) ] } }
 
 /-- Extinction -/
 def extinction : Spelled := spelled <| .singleFaced
@@ -231,13 +228,10 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ destroy (allOf isCreature),
-              create (.lit 1)
-                (written
-                  { characteristics :=
+              createToken { characteristics :=
                     { types := [.artifact, .creature],
-                      subtypes := [creatureType "Phyrexian", creatureType "Horror"],
-                      power := some (letter .x), toughness := some (letter .x) } })
-                [],
+                      subtypes := [phyrexian, horror],
+                      power := some (letter .x), toughness := some (letter .x) } },
               define .x (numberOf (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)) ]) ] } }
 
 /-- Damning Verdict -/
@@ -264,7 +258,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
       text :=
         [ spell (doIf
             (and
-              [ matches_ «this» (castFrom (handOf you)),
+              [ matches_ «this» (castFrom yourHand),
                 happened (procedure .cast ((a
                   (and [ isSpell, otherThan
                   «this»,
@@ -276,15 +270,15 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
-  a (and [abilityHead .loyalty, abilityOf (attachHost .enchanted (.type .planeswalker))])
+  a (and [abilityHead .loyalty, abilityOf (enchanted (.type .planeswalker))])
 theorem okLoyaltyAbilityOfEnchanted :
     NounPhrase.checkAt (some .object) (DRS.ofList []) loyaltyAbilityOfEnchanted = [] := by
   decide
 
 /-- Balance of Power -/
 def balanceOfPower : Action :=
-  doIf (compareAmt (countOf (and [isCard, in_ (handOf (target (isOpponentOf you)))])) .greater
-          (countOf (and [isCard, in_ (handOf you)])))
+  doIf (compareAmt (countOf (cardIn (handOf (target isOpponent)))) .greater
+          (countOf (cardIn yourHand)))
     (draw theDifference)
 theorem okBalanceOfPower : Action.check (DRS.ofList []) balanceOfPower = [] := by decide
 
@@ -313,20 +307,20 @@ theorem okMultipleChoiceFourthGate : Condition.check (DRS.ofList []) multipleCho
 def fellTheMighty : Action :=
   destroy
     (allOf (and [isCreature,
-                  hasPower .greater (statOf (.stat .power) (target isCreature))]))
+                  hasPower .greater (powerOf (target isCreature))]))
 theorem okFellTheMighty : Action.check (DRS.ofList []) fellTheMighty = [] := by decide
 
-def targetPlayerOrPlaneswalker : NounPhrase := target (or [hasType .planeswalker, isPlayer])
+def targetPlayerOrPlaneswalker : NounPhrase := target (or [isPlaneswalker, isPlayer])
 theorem okTargetPlayerOrPlaneswalker :
     NounPhrase.checkAt none (DRS.ofList []) targetPlayerOrPlaneswalker = [] := by decide
 
-def targetOpponentOrPlaneswalker : NounPhrase := target (or [hasType .planeswalker, (isOpponentOf you)])
+def targetOpponentOrPlaneswalker : NounPhrase := target (or [isPlaneswalker, isOpponent])
 theorem okTargetOpponentOrPlaneswalker :
     NounPhrase.checkAt none (DRS.ofList []) targetOpponentOrPlaneswalker = [] := by decide
 
 /-- Baleful Mastery's paid read -/
 def balefulMasteryPaidRead : Ability :=
-  spell (doIf (costWasPaid .theAlternative none «this») (instruct (a (isOpponentOf you)) (draw (.lit 1))))
+  spell (doIf (costWasPaid .theAlternative none «this») (instruct anOpponent (draw (.lit 1))))
 theorem okBalefulMasteryPaidRead : Ability.check (DRS.ofList []) balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
@@ -346,14 +340,16 @@ def lucidDreams : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ draw (letter .x),
-              define .x (distinctCount .cardType (allOf (and [isCard, in_ (graveyardOf you)]))) ]) ] } }
+              define .x (distinctCount .cardType (allOf (cardIn yourGraveyard))) ]) ] } }
 
 /-- Rogues' Gallery -/
 def roguesGallery : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rogues' Gallery", cost := some [generic 2, pip .black], types := [.sorcery],
       text :=
-        [ spell (doForEachKind .color .color (putInto (targets (upTo 1) (and [isCreature, ofChosen .color, in_ (graveyardOf you)]))
+        [ spell
+            (doForEachKind .color .color
+               (putInto (targets (upTo 1) (and [isCreature, ofChosen .color, in_ yourGraveyard]))
                   hand)) ] } }
 
 /-- Bioplasm -/
@@ -379,7 +375,7 @@ theorem deepglowSkateRecipientRefused : deepglowSkateRecipient.perMemberOk = fal
 /-- Weftwalking -/
 def weftwalkingShuffle : Action :=
   sequentially
-    [ shuffleInto (both (allOf (and [isCard, in_ (handOf you)])) (allOf (and [isCard, in_ (graveyardOf you)]))),
+    [ shuffleInto (both (allOf (cardIn yourHand)) (allOf (cardIn yourGraveyard))),
       draw (.lit 7) ]
 theorem okWeftwalkingShuffle : Action.check (DRS.ofList []) weftwalkingShuffle = [] := by decide
 
@@ -398,7 +394,7 @@ def twoOrMorePlayersHaveLost : Condition :=
 theorem okTwoOrMorePlayersHaveLost : Condition.check (DRS.ofList []) twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
-  and [isCreature, hasDesignation (.named "commander"), hasPossessor .owner you]
+  and [isCreature, hasDesignation (.named "commander"), youOwn]
 theorem okCommanderCreaturesYouOwn : Predicate.checkAt .object (DRS.ofList []) commanderCreaturesYouOwn = [] := by
   decide
 
@@ -428,7 +424,7 @@ def eachTokenOnTheBattlefield : NounPhrase := allOf tokenOnTheBattlefield
 theorem okEachTokenOnTheBattlefield :
     NounPhrase.checkAt (some .object) (DRS.ofList []) eachTokenOnTheBattlefield = [] := by decide
 /-- "each emblem you own" -/
-def eachEmblemYouOwn : NounPhrase := allOf (and [isEmblem, hasPossessor .owner you])
+def eachEmblemYouOwn : NounPhrase := allOf (and [isEmblem, youOwn])
 theorem okEachEmblemYouOwn : NounPhrase.checkAt (some .object) (DRS.ofList []) eachEmblemYouOwn = [] := by decide
 /-- "a copy of a card" -/
 def aCopyOfACard : NounPhrase := a isCopyOfACard
@@ -436,7 +432,7 @@ theorem okACopyOfACard : NounPhrase.checkAt (some .object) (DRS.ofList []) aCopy
 
 /-- Keeper of the Flame, Keeper of the Light -/
 def opponentWithMoreLifeThanYou : Predicate :=
-  and [(isOpponentOf you), compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]
+  and [isOpponent, compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]
 theorem okOpponentWithMoreLifeThanYou :
     Predicate.checkAt .player (DRS.ofList []) opponentWithMoreLifeThanYou = [] := by decide
 /-- Namor, Atlantean King -/
@@ -445,16 +441,17 @@ def playerWithMoreLifeThanYou : Predicate :=
 theorem okPlayerWithMoreLifeThanYou :
     Predicate.checkAt .player (DRS.ofList []) playerWithMoreLifeThanYou = [] := by decide
 def noOpponentHasMoreLifeThanYou : Condition :=
-  not (exists_ (and [(isOpponentOf you), compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]))
+  not (exists_
+         (and [isOpponent, compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]))
 theorem okNoOpponentHasMoreLifeThanYou :
     Condition.check (DRS.ofList []) noOpponentHasMoreLifeThanYou = [] := by decide
 def someOpponentLacksMoreLifeThanYou : Condition :=
-  exists_ (and [(isOpponentOf you),
+  exists_ (and [isOpponent,
                  not (compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal]))])
 theorem okSomeOpponentLacksMoreLifeThanYou :
     Condition.check (DRS.ofList []) someOpponentLacksMoreLifeThanYou = [] := by decide
 def yourOpponentsHaveMoreLifeThanYou : Condition :=
-  matches_ (allOf (isOpponentOf you))
+  matches_ yourOpponents
     (compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal]))
 theorem okYourOpponentsHaveMoreLifeThanYou :
     Condition.check (DRS.ofList []) yourOpponentsHaveMoreLifeThanYou = [] := by decide
@@ -465,7 +462,7 @@ def disarm : Spelled := spelled <| .singleFaced
     { name := "Disarm", cost := some [pip .blue], types := [.instant],
       text :=
         [ spell (unattach (allOf
-            (and [hasSubtype (artifactType "Equipment"),
+            (and [hasSubtype equipment,
                    attachedTo (target isCreature)]))) ] } }
 
 def rawExile : Action := exile (target isCreature)
@@ -522,17 +519,17 @@ theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOf
 /-- Squad Commander -/
 def squadCommanderTokens : Ability :=
   when (does (actor thisCreature) enter)
-    (createToken (creatureToken 1 1 [.white] [creatureType "Kor", creatureType "Warrior"]) (count := partySize))
+    (createToken (creatureToken 1 1 [.white] [kor, warrior]) (count := partySize))
 theorem okSquadCommanderTokens : Ability.check (DRS.ofList []) squadCommanderTokens = [] := by decide
 
 /-- At Knifepoint -/
 def atKnifepointOutlaws : Ability :=
-  static (partScope .turn (some you) (abilityGrant (allOf (and [isOutlaw, youControl])) (keyword
-      (.named "firstStrike"))))
+  static (partScope .turn (some you)
+            (abilityGrant (allOf (and [isOutlaw, youControl])) firstStrike))
 def atKnifepointCrime : Ability :=
   triggeredOnlyOnce (does (actor you) commitCrime) oncePerTurn (createToken
       { characteristics :=
-        { colors := [.red], types := [.creature], subtypes := [creatureType "Mercenary"],
+        { colors := [.red], types := [.creature], subtypes := [mercenary],
           text :=
             [ activatedOnlyDuring tapSymbol
                 (get (target (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 0))
