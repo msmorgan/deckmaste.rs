@@ -64,6 +64,12 @@ pub enum Gap {
     Adjunct,
     /// An extracted predicative Complement (*whose turn it is*).
     Pred,
+    /// A keyword-phrase Complement shared by Right Node Raising (*can't have
+    /// or gain trample*).
+    Keyword,
+    /// A *to*-infinitival Complement shared by Right Node Raising (*choose
+    /// and choose to attack*).
+    ToInf,
 }
 
 /// How a child's Gap relates to its mother's.

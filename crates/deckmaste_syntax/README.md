@@ -113,7 +113,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
 - `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
   binary and Oxford-comma serial coordination, one tree per same-coordinator
   chain, across-the-board Gaps, and Right Node Raising (a coordination with a
-  shared NP Gap, filled once after it, derived for a Category's first
+  shared NP, keyword-phrase or *to*-infinitival Gap, filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which
   it takes from its last conjunct (*one or more cards*). `equations` over `$`

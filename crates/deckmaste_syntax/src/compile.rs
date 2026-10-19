@@ -1752,7 +1752,10 @@ impl<'a> Binder<'a> {
                     .enumerate()
                     .filter(|(_, fill)| {
                         gappable
-                            && (***fill == SlotFill::NP || (copular && ***fill == SlotFill::Pred))
+                            && (matches!(
+                                ***fill,
+                                SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::ToInf
+                            ) || (copular && ***fill == SlotFill::Pred))
                     })
                     .map(|(i, _)| Some(i)),
             )
@@ -1806,7 +1809,12 @@ impl<'a> Binder<'a> {
                 }
             }
             if let Some(i) = gap {
-                draft.introduces = if *slots[i] == SlotFill::Pred { Gap::Pred } else { Gap::NP };
+                draft.introduces = match slots[i] {
+                    SlotFill::Pred => Gap::Pred,
+                    SlotFill::KeywordPhrase => Gap::Keyword,
+                    SlotFill::ToInf => Gap::ToInf,
+                    _ => Gap::NP,
+                };
             }
             if let Some((feature, value)) = voice {
                 draft
@@ -2081,25 +2089,35 @@ impl<'a> Binder<'a> {
             && first.is_some_and(|first| std::ptr::eq(first, schema))
             && self.out.category_gap[conjoin.lhs]
         {
-            let np = self.slot_category(SlotKind::NP)?;
-            let mut raising = Draft::new(
-                format!("Coordination:{category}/shared"),
-                conjoin.lhs,
-                *cost,
-            );
-            let h = raising.child("head", conjoin.conjunct(), GapRule::Require(Gap::NP));
-            raising.child(
-                "shared",
-                Symbol::Cat {
-                    binding: None,
-                    category: np,
-                    prepositions: None,
-                    host: None,
-                },
-                GapRule::Closed,
-            );
-            raising.requires_coordination = Some(h);
-            drafts.push(raising);
+            // One per shareable Gap: an NP, a keyword phrase, a
+            // *to*-infinitival.
+            for (gap, kind, suffix) in [
+                (Gap::NP, SlotKind::NP, ""),
+                (Gap::Keyword, SlotKind::KeywordPhrase, "-keyword"),
+                (Gap::ToInf, SlotKind::ToInf, "-toinf"),
+            ] {
+                let Ok(shared) = self.slot_category(kind) else {
+                    continue;
+                };
+                let mut raising = Draft::new(
+                    format!("Coordination:{category}/shared{suffix}"),
+                    conjoin.lhs,
+                    *cost,
+                );
+                let h = raising.child("head", conjoin.conjunct(), GapRule::Require(gap));
+                raising.child(
+                    "shared",
+                    Symbol::Cat {
+                        binding: None,
+                        category: shared,
+                        prepositions: None,
+                        host: None,
+                    },
+                    GapRule::Closed,
+                );
+                raising.requires_coordination = Some(h);
+                drafts.push(raising);
+            }
         }
         Ok(drafts)
     }

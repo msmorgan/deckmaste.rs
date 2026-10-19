@@ -1099,7 +1099,7 @@
         Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Attributes", conjunct: Some("Attribute"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
-        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], equations: [Require("first.ComplementKind", "NP"), Require("last.ComplementKind", "KeywordPhrase")], unlike: Some("ComplementKind")),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),

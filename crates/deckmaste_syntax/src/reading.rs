@@ -452,7 +452,8 @@ impl CompiledGrammar {
             let start = out.len();
             if raising && name == "head" {
                 let mut at = start;
-                Self::gap_sites(child, &mut at, &mut sites);
+                let gap = child.node().map_or(Gap::None, |c| c.gap);
+                Self::gap_sites(child, gap, &mut at, &mut sites);
             }
             if wraps && name == "head" {
                 self.locate(child, parent, function, out);
@@ -465,14 +466,14 @@ impl CompiledGrammar {
         }
     }
 
-    /// The phrases along the NP Gap path of `reading` that introduce the
+    /// The phrases along the `gap` path of `reading` that introduce the
     /// Gap, with the function of the extracted Frame Slot, by preorder
     /// index from `at`.
-    fn gap_sites(reading: &Reading, at: &mut usize, sites: &mut Vec<(Ident, usize)>) {
+    fn gap_sites(reading: &Reading, gap: Gap, at: &mut usize, sites: &mut Vec<(Ident, usize)>) {
         let Reading::Node(node) = reading else { return };
         let index = *at;
         *at += 1;
-        let on_path = node.gap == Gap::NP;
+        let on_path = gap != Gap::None && node.gap == gap;
         let extracted = node
             .production
             .rsplit_once("/gap")
@@ -490,8 +491,8 @@ impl CompiledGrammar {
             return;
         }
         for child in &node.children {
-            if on_path && child.node().is_some_and(|c| c.gap == Gap::NP) {
-                Self::gap_sites(child, at, sites);
+            if on_path && child.node().is_some_and(|c| c.gap == gap) {
+                Self::gap_sites(child, gap, at, sites);
             } else {
                 Self::count_reading(child, at);
             }
