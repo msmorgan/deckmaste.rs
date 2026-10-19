@@ -64,6 +64,16 @@ private semantic_definition announceThen (chosen : NounPhrase) (body : Action) :
   .ownScope none (.sequentially [.setStatus .tapped (.firstMention "announce.subject" (.inCaller chosen)),
     .inCaller body])
 
+/-- "Draw a card. If you control three or more artifacts, <replacement> instead", the
+replacement supplied by the caller. -/
+private semantic_definition drawUnlessReplaced (replacement : Replacement) : Action :=
+  .ownScope none (.replace (draw (.lit 1))
+    (doIf (compareAmt (countOf isArtifact) .atLeast (.lit 3)) (.inCaller replacement)))
+/-- The same Definition, forgetting that its replacement is its caller's. -/
+private semantic_definition drawUnlessReplacedHere (replacement : Replacement) : Action :=
+  .ownScope none (.replace (draw (.lit 1))
+    (doIf (compareAmt (countOf isArtifact) .atLeast (.lit 3)) replacement))
+
 private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Expansion witness", types := [.sorcery],
@@ -428,5 +438,37 @@ theorem targetGroupsRemainCountableThroughTemplate :
 theorem templateBareThisRetainsEnactedZoneExemption :
     (Action.enact (.action "destroy") (moveSubject .this) none none).check (DRS.ofList []) =
       [] := by decide
+
+/-- "Draw a card. If it's a creature, tap it instead.": the replacement's action is a new clause
+after its condition, so both can name the same creature. -/
+theorem conditionalReplacementActionFollowsItsCondition :
+    Action.check callerCreature
+      (replace (draw (.lit 1)) (doIf (matches_ it isCreature) (instead (tap it)))) = [] := by
+  decide
+
+/-- A Definition's condition over its caller's replacement reads the caller's action in the
+caller's scope: "it" names the caller's creature. -/
+theorem conditionOverCallerReplacementReadsItsActionInTheCallersScope :
+    Action.check callerCreature (drawUnlessReplaced (instead (tap it))) = [] := by
+  decide
+
+/-- It keeps the caller's own condition beside its own, read in the caller's scope too. -/
+theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
+    Action.check callerCreature
+      (drawUnlessReplaced (instead (draw (.lit 2)) (some (matches_ it isCreature)))) = [] := by
+  decide
+
+/-- Read in the Definition's own scope instead, the caller's action names nothing. -/
+theorem callerReplacementActionReadHereNamesNothing :
+    Action.check callerCreature (drawUnlessReplacedHere (instead (tap it))) =
+      [.anaphor .bare .one 0] := by
+  decide
+
+/-- Nor does the caller's condition. -/
+theorem callerReplacementConditionReadHereNamesNothing :
+    Action.check callerCreature
+      (drawUnlessReplacedHere (instead (draw (.lit 2)) (some (matches_ it isCreature)))) =
+      [.anaphor .bare .one 0] := by
+  decide
 
 end Semantics.Proofs.CallerScope

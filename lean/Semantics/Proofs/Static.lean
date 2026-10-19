@@ -195,14 +195,18 @@ theorem conditionalReplacementChecksItsCondition :
       [.anaphor .bare .one 0] := by
   decide
 
-/-- A condition over a caller's replacement keeps the caller's parts in the caller's scope. -/
-theorem conditionOverCallerReplacementKeepsItsScope :
-    (Templates.Replacement.doIf (matches_ you (hasDesignation citysBlessing))
-      (.inCaller
-        (instead (draw (.lit 3)) (some (compareAmt (countOf isArtifact) .atLeast (.lit 3)))))) =
-      .instead (.inCaller (draw (.lit 3)))
-        (some (.and [matches_ you (hasDesignation citysBlessing),
-          .inCaller (compareAmt (countOf isArtifact) .atLeast (.lit 3))])) := rfl
+private def nestCallers : Nat → Replacement → Replacement
+  | 0, replacement => replacement
+  | n + 1, replacement => .inCaller (nestCallers n replacement)
+
+/-- A condition over a replacement nested more deeply than the checker reads leaves it as
+written, and the checker refuses it rather than reading a replacement that does nothing. -/
+theorem conditionOverTooDeepReplacementIsRefused :
+    (StaticSpec.check (DRS.ofList [])
+      (replace (would you (draw (.lit 1)))
+        (doIf (matches_ you (hasDesignation citysBlessing))
+          (nestCallers 9 (instead (draw (.lit 2))))))).contains .recursionLimit = true := by
+  decide
 
 /-- "unless you control an artifact" -/
 theorem okUnlessOverNegatedCondition :
