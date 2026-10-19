@@ -1694,8 +1694,10 @@ impl<'a> Binder<'a> {
                 if Some(i) == gap {
                     continue;
                 }
+                // The Internalised Complement strands its preposition too
+                // (*the creature that damage was dealt by*).
                 if Some(i) == agent_slot {
-                    draft.child("complement", self.slot_symbol(fill)?, GapRule::Closed);
+                    draft.child("complement", self.slot_symbol(fill)?, GapRule::Transparent);
                     continue;
                 }
                 let relation = self.out.frames[frame].slots[first_slot + i].relation;
