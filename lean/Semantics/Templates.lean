@@ -1946,29 +1946,33 @@ semantic_template StaticSpec.replace (event : WouldClause) (replacement : Replac
   .replace event replacement timing use limit
 /-- "instead": the word marking `action` as the replacement, at a replacement's action slot
 ("draw two cards instead", "you may instead mill …"), applying only while `when` holds when it
-is written [CR#614.1a]. -/
+is written [CR#614.1a]. Cards write a conditional replacement in Oracle word order,
+`doIf c (instead a)`, which builds `instead a (some c)`. -/
 semantic_template instead (action : Action) (when : Option Condition := none) : Replacement :=
   .instead action when
 /-- The action a replacement does and the condition it applies under, each kept in the scope
-that supplied it: a caller's replacement reads both in its caller's scope. -/
-def _root_.Semantics.Replacement.parts (replacement : Replacement) (fuel : Nat := 16) :
-    Action × Option Condition :=
+that supplied it: a caller's replacement reads both in its caller's scope. None when the
+replacement nests callers more deeply than `fuel`, which is deeper than the checker reads
+(`stepReplacementWith`). -/
+def _root_.Semantics.Replacement.parts? (replacement : Replacement) (fuel : Nat := 8) :
+    Option (Action × Option Condition) :=
   match fuel, replacement with
-  | _, .instead action when => (action, when)
-  | 0, .inCaller _ => (.sequentially [], none)
+  | _, .instead action when => some (action, when)
+  | 0, .inCaller _ => none
   | n + 1, .inCaller body =>
-    let (action, when) := body.parts n
-    (.inCaller action, when.map .inCaller)
+    (body.parts? n).map fun (action, when) => (.inCaller action, when.map .inCaller)
 termination_by structural fuel
 /-- "If <condition>, <replacement> instead": a replacement applying only while `condition` holds,
 the event happening unreplaced otherwise, as "draw a card. If you control three or more
 artifacts, draw two cards instead" [CR#614.1a,614.15]. A condition the replacement already
-carries is kept beside `condition`. -/
+carries is kept beside `condition`; a caller's replacement keeps its action and condition in its
+caller's scope. One nested too deeply to read is left as written, and the checker refuses it. -/
 semantic_template Replacement.doIf (condition : Condition) (replacement : Replacement) :
     Replacement :=
-  match replacement.parts with
-  | (action, none) => .instead action (some condition)
-  | (action, some also) => .instead action (some (.and [condition, also]))
+  match replacement.parts? with
+  | some (action, none) => .instead action (some condition)
+  | some (action, some also) => .instead action (some (.and [condition, also]))
+  | none => replacement
 semantic_template italicHead (word : ItalicWord) (ability : Ability) : Ability :=
   .italicHead word ability
 semantic_template itsManaCost : Cost := .itsManaCost
