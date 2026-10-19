@@ -42,10 +42,9 @@ its 15 refusals go, so the checker no longer asks who pays a cost, whether a
 symbol or an action can be a cost, whether modes are costed alike, or which
 deeds a permission, a bound, an "as though" or a play rider goes with; an empty
 mana run is refused as an empty list (`nonEmpty`), a term shape. The fifteenth,
-`deonticPatientOk`, stays narrowed to references and kinds: a counterpart is not
-the subject read back, is of a kind the deed's other role takes, and a
-complement names one of the rule's deeds once. The other game-rule bucket is
-retired (`lean-checker-sweep-game-rules`, 2026-10-08): 21 of its 43 refusals go,
+`deonticPatientOk`, which stayed narrowed to references and kinds, is retired too
+(`lean-v3-authoring-impl-7-checker-and-regime-retirement`).
+The other game-rule bucket is retired (`lean-checker-sweep-game-rules`, 2026-10-08): 21 of its 43 refusals go,
 so the checker no longer asks whether a deed rides, whether fateseal opens an
 opponent's library, whether a deed's row admits the handed performer (the
 handoff's kind is still checked, `kindMismatch`), whether a static ability, a
@@ -58,16 +57,30 @@ a token's or an emblem's types, power and toughness, subtypes, abilities and
 qualities must be. Their term shapes stay under existing constructors: an empty
 edit list, emblem or color list is `nonEmpty`, an edit that adds or removes an
 empty type line is `lineNonEmpty`, a list naming a value twice is `distinct`, and
-an edit's chosen quality is `qualityRead`. Eight stay as kind, plurality or term
-shape: `designationScope` (a designation's holder sort), `facesFit`,
-`manaSymbolOk`, `twoParties`, and the registry and table shape checks
-`tokenNamed`, `definitionHolder`, `definitionNamed` and `definitionScoped`. The
+an edit's chosen quality is `qualityRead`. Six stay as kind, plurality or term
+shape: `designationScope` (a designation's holder sort), `facesFit`, and the registry
+and table shape checks `tokenNamed`, `definitionHolder`, `definitionNamed` and
+`definitionScoped`; `manaSymbolOk` and `twoParties`, kept then, are retired with the
+phrase-level game rules below. The
 fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept: the owner
 decided so on 2026-10-08 (§7 ruling 2026-10-06, consequence (d)), because they check
 that a term is a well-formed card, not what an action does. Zone state on referents stays, because references resolve
 on it. The game-rule checks that remained outside these buckets are retired
 (`lean-v3-authoring-impl-4-checker-dewarting`), so outside the card frame the checker enforces
-reference resolution and kind agreement only. The deed table's role columns are gone, and
+reference resolution and kind agreement only. The phrase-level game rules that survived it
+are retired as well (`lean-v3-authoring-impl-7-checker-and-regime-retirement`):
+`deonticPatientOk` (a self-block), `deckReadable` and `deckComparable`, `qualifiedLimit` (a usage limit wraps an activated ability),
+`counterBatchOk` (the last counter of a kind), `selfDefinedOk` (a characteristic-defining
+ability's subject), `manaSymbolOk` (a hybrid or Phyrexian symbol's halves), `colorBoundOk`
+and `colorCountOk` (how many colors an object has), `rolesOk` (distinct party roles; an
+empty role list is `nonEmpty`), `subtypeType` (a creature-type exclusion names a creature
+type), `twoParties` (an exchange of life totals names two parties), `kindAmountOk` (the
+amount beside "the same kinds of counters") and `verbBecomesOk` (with the deed table's
+`intransitive` column). So are the keyword-definition checks (`keywordBodyFits`: a
+definition part's category, stack regime and card-class guard against the keyword's row)
+and the card face's joint choices (`jointChoices`): a later ability on a face reads a choice
+an earlier one makes through the threaded text context, as any reference does. The deed
+table's role columns are gone, and
 with them `deedFits` and `deedNounOk`: no deed asks whether its performer or its patient is a
 player or an object, which card types or object classes it is, or which zone it is in. A
 keyword action a permanent performs is refused on a player by its own Definition body, whose
@@ -300,7 +313,8 @@ the frame. `enact` does not check it against the deed: crewing, saddling, fully 
 and triggering check the frame's kind (`eventAgent`), and a deed's own body reads its
 performer like any other reference. A deed whose row says a permanent performs it
 (`ActFacts.permanentActor`: fight, explore, adapt, connive, endure, harness and
-monstrosity [CR#701.14a,701.44a,701.50a,701.63a]) written with no handoff to a permanent
+monstrosity [CR#701.14a,701.37a,701.44a,701.46a,701.50a,701.63a,701.64a]) written with no
+handoff to a permanent
 (printed "Adapt N" [CR#701.46a]) is performed by the source permanent: its body is
 stepped under a frame for "this permanent". Inside a handoff to another player there is
 no such default, and the body's reads of its performer are refused on the player:
@@ -535,7 +549,7 @@ expected child kinds in the incoming `DRS`.
 |---|---|
 | `CardLine` | `Characteristics.cardLineOk`/`lineLaws` ([Card.lean](Semantics/Check/Card.lean)) check the card-type and subtype relationships. |
 | `CardBox` | `cardBoxOk` takes face side, types and text together; it checks printed literals, type fit, and characteristic-defined absent slots. |
-| `CharacteristicsLaws` | `CardFace.check` supplies the side and checks line, text, box, cost and joint choices. |
+| `CharacteristicsLaws` | `CardFace.check` supplies the side and checks line, text, box and cost. |
 | `SharedLineHalfLaws` | `SharedLineHalf.check` receives the shared characteristics and checks each half against them. |
 | `LevelBandLaws` | `LevelBand.check` receives the inner characteristics and checks the range, text, and box. |
 | `LevelBandsLaws` | `Card.check`'s leveler case checks every band, frame eligibility (`levelerFrameOk`) and `bandsDisjoint`. |
@@ -553,8 +567,8 @@ expected child kinds in the incoming `DRS`.
 | `CounterKindSource` | `stepCounterKindSourceWith` steps it; `CounterKindSource.localChecks` checks the counter is known. |
 | `CostShift` | `stepCostShiftWith` steps it; `CostShift.localChecks` checks its shape. |
 | `CountBound` | No Lean type: a usage limit's count is an `Amount` (`UsageLimit.mk times per`), stepped by `stepUsageLimitWith`. |
-| `DeedComplement` | `deonticPatientOk` ([DeonticPatients.lean](Semantics/Check/DeonticPatients.lean)) checks a counterpart's deed membership, its kind against the deed's other role, and that it is not the subject read back. |
-| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. `deonticPatientOk` at the `cant`, `must` and `can` clauses checks a counterpart's kind and that it is not the subject read back; which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). |
+| `DeedComplement` | Retired with `deonticPatientOk` (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): a counterpart's deed membership, kind and identity with the subject are not checked beyond ordinary reference resolution. |
+| `DeonticPatient` | The old deed/role indices were parameters shared by all constructors. A counterpart is stepped as any reference; that it is not the subject read back (`deonticPatientOk`) is no longer checked (`lean-v3-authoring-impl-7-checker-and-regime-retirement`), and which deeds a patient form, a bound, an "as though" or a play rider goes with, and a counterpart's class, card types and zone, are not checked (`lean-checker-sweep-costs`). |
 | `DamageScope` | `stepDamageScopeWith` steps it. |
 | `DamageAgent` | `stepDamageAgentWith` steps it. |
 | `Unpreventable` | The `preventionBan` static case steps its described damage. |
@@ -566,8 +580,8 @@ expected child kinds in the incoming `DRS`.
 | `ProducedMana` | `stepProducedManaWith` steps it (`ProducedMana.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)); `ProducedMana.localChecks` checks its runs. |
 | `Repetition` | `stepRepetitionWith` steps it. |
 | `EachStackOk` | A distributive handoff or loop keeps every outer referent with its updates and pluralizes or aggregates only what its body introduced (`instruct`, `doForEach`). |
-| `DeckReadable` | `Predicate.deckReadable` ([Deck.lean](Semantics/Check/Deck.lean)) in `checkDeckTraitWith` and `checkDeckConditionWith`, from an empty context and at object kind. |
-| `DeckComparable` | `QualitySort.deckComparable` in `checkDeckConditionWith`. |
+| `DeckReadable` | Retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): `checkDeckTraitWith` and `checkDeckConditionWith` step a deck condition's predicates from an empty context at object kind; whether a predicate reads a characteristic of a card in a deck is not checked. |
+| `DeckComparable` | Retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): which quality a deck's cards agree on is not checked. |
 | `QualityPayload` | An authoring input in `Semantics.Primitives` that expands to edits (below); it is not checked syntax. |
 | `TokenSpec` | `stepTokenSpecWith` steps it. |
 | `StaticSpec` | `stepStaticSpec` (`StaticSpec.check`) steps it. |
@@ -615,7 +629,7 @@ expected child kinds in the incoming `DRS`.
 | `LookbackClause` | `stepDidClauseWith` steps the carried action under the clause's subject as an event pattern. |
 | `Predicate` | `stepPredicate` (`Predicate.check`, `Predicate.checkAt`) steps each child under the head's kind (`relativeKind`) and uses `kindCheck`; conjunction children share a scope, alternatives branch with their own inferred kinds. |
 | `DetPhrase` | `stepDetPhraseWith` steps it. |
-| `RolesOk` | `rolesOk` in the `oneEachOf` noun case, alongside per-role predicate and object-kind checks. |
+| `RolesOk` | The `oneEachOf` noun case steps each role's predicate and checks object kind; an empty role list is `nonEmpty`. Whether the roles are distinct (`rolesOk`) is not checked (`lean-v3-authoring-impl-7-checker-and-regime-retirement`). |
 | `Noun` | `stepNounPhrase` (`NounPhrase.check`, `NounPhrase.checkAt`) receives the expected kind and steps references in the incoming `DRS`. |
 | `Amount` | `stepAmount` (`Amount.check`) steps it. |
 | `Quantity` | `stepQuantityWith` steps it. |
@@ -679,7 +693,7 @@ expected child kinds in the incoming `DRS`.
 | `BasicLandType` | The Idris reference's `basicLandLine` helper has no Lean counterpart. No caller can supply a proof-erased list to that removed API; `SubtypeSpace.basicLand` is a closed constructor. |
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `stepDeltaWith` steps a `Delta Amount`'s carried amount. |
-| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder (`designationScope`, `designationHolder`). Whether an action may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
+| `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder (`designationScope`, `designationHolder`). Whether an action may confer it is not checked (`lean-checker-sweep-game-rules`), and the facts table no longer carries the `effectful` column (`lean-v3-authoring-impl-7-checker-and-regime-retirement`). |
 | `DesignationHolder` | `designationHolderOk` (the designation is held by a player or an object) and the declared designation scope checks at designation consumers; where the holder is is not checked. |
 | `AxesAt` | `axesAt` in the `compare` predicate case requires a nonempty list whose axes all have the expected scope. |
 | `StatusVal` | The status is the value; no separate category argument can disagree. Consumers retain the status-holder checks; a description holding two contradictory statuses is not refused. |
@@ -749,74 +763,25 @@ this fold.
 A keyword that means one ability on a permanent and another on an instant or
 sorcery spell [CR#702.55a,702.131a,702.131b,702.174b] writes one definition
 holding both halves, each guarded by the card's class with the ordinary
-conditional forms: a `doIf` with no otherwise-branch, a trigger's intervening
-condition, or a conditional (not `unless`) static ability, whose condition is
-`.matches .this p` with `p` implying a Card Class (`Predicate.impliedClass`:
-an instant or sorcery type implies the instant-or-sorcery class, a permanent
-type the permanent class [CR#110.4a]; `isPermanentCard` and `isInstantOrSorcery`
-are the templates). `semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the
-additional-cost keywords share one mechanism"); there is no selector device.
+conditional forms (a `doIf` with no otherwise-branch, a trigger's intervening
+condition, or a conditional static ability over `.matches .this p`;
+`isPermanentCard` and `isInstantOrSorcery` are the templates).
+`semantics-v2.md` §7, ruling 2026-10-06 ("Gift and the additional-cost keywords
+share one mechanism"); there is no selector device.
 
-- A spell ability [CR#113.3a] is a fourth `AbilityCategory` (`.spell`), which a
-  registry row's `definition` may declare; the facts generator reads it off a
-  `spell(…)` body part.
-- `KeywordFacts.bodyPartFits` checks each part against the row: its category
-  is declared; a class guard names a class the row admits
-  (`onPermanentCard` / `onInstantOrSorceryCard`), so a guard on a class the
-  keyword's card can never have is refused; a spell part on a keyword that
-  also appears on permanents is under the instant-or-sorcery guard; and the
-  part's form admits its own declared regime (below).
 - Each half is checked as a term on every card, with no class context
-  (`Ability.checkAll [] body`). Against the card's class, `classAbilityOk`
-  checks the parts guarded by that class and skips the parts guarded by the
-  other one, which never apply to the card. Unguarded parts are not checked
-  against the class, as before.
-- Pins: `Semantics/Proofs/KeywordByCardClass.lean`, whose definition-fit pins
-  hold a gift-shaped row of their own (written before gift was bodied), and
-  `Semantics/Proofs/GiftVariants.lean`, which checks gift's spelled variants
-  against the registry's own gift row on both card classes.
-
-### Each component of a keyword definition carries its own regime
-
-A keyword definition is a list of components, each carrying the stack regime
-the rules give it (`ComponentFacts`: a category and an `Option StackRegime`,
-`none` where it functions off the stack); `semantics-v2.md` §7, ruling
-2026-10-06 ("Gift and the additional-cost keywords share one mechanism").
-Kicker is the one-component case [CR#702.33a]; offspring and squad pair a
-cost at casting with an enters trigger [CR#702.175a,702.157a]; casualty's
-second ability is a cast trigger [CR#702.153a]; gift's is an enters trigger on
-a permanent and a spell ability on an instant or sorcery
-[CR#702.174a,702.174b]. Nothing is exempt: every part of a written definition
-must be a declared component of its category whose regime its form admits
-(`Ability.regimeFits`).
-
-- **Form-determined.** A triggered ability keys on its event's regime
-  (`bodyEventRegime`: a cast event at casting, any other off the stack); a
-  spell ability is at resolution [CR#113.3a]; an additional cost or a cost
-  change is at casting [CR#601.2f]; an activated ability and any other static
-  ability are off the stack.
-- **Open, declared.** A permission to cast the card (`altCost`, or a
-  `can` clause permitting the cast) admits either at casting or off
-  the stack, never at resolution: such an ability functions on the stack
-  unless it states its zones, and the keyword's own rule says which
-  [CR#113.6b,113.6d,702.34a,702.117a]. The facts generator takes such a
-  component's regime from the overlay's `open_regimes` (surge, spectacle,
-  web-slinging and impending declare at casting
-  [CR#702.117a,702.137a,702.188a,702.176a]; the rest default off the stack)
-  and refuses an entry for a component whose form determines its regime.
-- **The row's `regime`** stays the keyword's own regime. Where it is granted
-  to a spell [CR#113.6] it was read by `grantSubjectFits`, retired with
-  `grantSubject` by `lean-checker-sweep-game-rules`. For a keyword whose
-  definition is declared it is the summary of the components (the first
-  stack regime among them, `ComponentFacts.summary`); the generator refuses a
-  disagreeing overlay value and `Proofs/Tables`
-  (`everyDefinedKeywordRegimeIsItsComponentsSummary`) pins it.
-- A part whose declared regime does not fit its form is a term-shape matter
-  (charter, §7 2026-10-06), not a game-rule refusal: it is refused as
-  `keywordBodyFits`, as before.
-- Pins: `Semantics/Proofs/KeywordDefinitionRegimes.lean`. Impending's
-  end-step trigger now fits its own component; its twin under the old single
-  casting regime is refused.
+  (`Ability.checkAll [] body`).
+- Against the card's class, `classAbilityOk` checks the keyword itself
+  (`keywordCardOk`: the row's `onPermanentCard` / `onInstantOrSorceryCard`).
+  The parts of its definition are not checked against the row or the class:
+  the definition-fit, stack-regime and class-guard checks (`keywordBodyFits`,
+  `KeywordFacts.definition`, `StackRegime`, `ComponentFacts`, `ClassGuard`) are
+  retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`),
+  and the facts table no longer carries a definition, a regime, `functionsOnStack`
+  or `counterEligible`.
+- Pins: `Semantics/Proofs/KeywordByCardClass.lean` and
+  `Semantics/Proofs/GiftVariants.lean`, which check gift's halves and spelled
+  variants on both card classes.
 
 ### The player chosen as a cost was paid
 
@@ -882,18 +847,14 @@ The ability a keyword is printed with ("Boast — [Cost]: [Effect]") is the
 keyword's parameter, `KeywordParam.ability`, and the restriction the keyword
 adds is a qualifier on it, `Ability.qualified ability timing limit guard
 from_` (`semantics-v2.md` §7, ruling 2026-10-09) [CR#113.10a,113.6b]. A
-qualified ability keeps the wrapped ability's category, stack regime and class
-guard, so a keyword definition written as a qualifier over its argument is
-checked against the keyword's row by the printed ability's category; the
-row's `definition` names the categories the CR entry admits (solved: static,
-triggered and activated [CR#702.169a]).
+qualified ability keeps the wrapped ability's category (`Ability.category`).
 
 - The guard reads "as long as", "this ability triggers only if" or "activate
   only if" by the wrapped ability's category [CR#702.169b..702.169d]; the
   checker checks it, the timing and the limit for kinds and references only.
-- A limit is admitted on an activated ability alone (`qualifiedLimit`): a
-  usage limit restricts activation [CR#602.5b]. A triggered ability's limit
-  is written on its header.
+- Which ability a limit is written on is not checked (`qualifiedLimit` is
+  retired, `lean-v3-authoring-impl-7-checker-and-regime-retirement`).
+  A triggered ability's limit is written on its header.
 - "Activate only once" is a limit over `Period.thisObject`, reset when the
   object changes zones [CR#602.5b,702.177a].
 - `AbilitySelection.printedAfter keyword` selects the abilities printed below
@@ -902,9 +863,6 @@ triggered and activated [CR#702.169a]).
   naming a keyword the card does not print is refused as a reference of the
   card's text (`printedAfterKeyword`, `printedAfterLaws`); the walk follows
   the forms a grant is written in, as `namesThisDoor` does.
-- A cost shift on an ability ("this ability's cost is reduced", power-up
-  [CR#702.193a]) is determined as the ability is activated, so it takes no
-  stack regime [CR#602.2b,601.2f].
 - `PlayerStat.speed` is a player's speed [CR#702.179a]; its game state is
   `engine-speed`'s.
 
