@@ -542,6 +542,7 @@
         (name: "GerundDepictive", lhs: "Depictive", rhs: [Cat("filler", "Gerund")], equations: [Require("$.ComplementKind", "Gerund")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
+        (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
         (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Grade", "Comparative"), Exclude("adjunct.Determination", "Overt"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),

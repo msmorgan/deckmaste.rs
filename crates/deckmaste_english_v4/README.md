@@ -180,7 +180,8 @@ turn, ...*). A symbol sequence is a noun under a determiner (*an additional
 kicker*), as an Arabic numeral is a singular noun under one (*a natural 20*);
 a noun premodifier never precedes a determined head (*amount {G}*). Keyword
 rules declare the nouns they define (*if tribute wasn't paid*). *Do the same* is a pro-form, at
-Stratum 7 with *do so*.
+Stratum 7 with *do so*. *The same is true for ...* is one too, and a
+text-changing effect's *instances* of words are a metalinguistic mention.
 
 Stratum 5 adds partitives, comparisons and arithmetic. A determinative heads a
 partitive Noun Phrase with its selected *of* oblique (*each of them*, *all of
