@@ -144,7 +144,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .tapForMana _ _ | _n + 1, .commitCrime | _n + 1, .trigger
   | _n + 1, .crew _ | _n + 1, .saddle _ | _n + 1, .fullyUnlock _ => []
   | _n + 1, .attachment _ _ _ | _n + 1, .clearDamage _ | _n + 1, .doAndForbid _ _ _ => []
-  | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .setGameDesignation _ | _n + 1, .conclude _ _ => []
+  | _n + 1, .gainDesignation _ _ _ | _n + 1, .unlock _ | _n + 1, .conclude _ _ => []
   | _n + 1, .restartGame | _n + 1, .separateIntoPiles _ _ _ => []
   | _n + 1, .choose _ _ _ _ | _n + 1, .revealChoices _ | _n + 1, .vote _ _ _ _ => []
   | _n + 1, .move _ _ _ _ _ riders => MoveRider.ridersSlots riders
@@ -198,7 +198,7 @@ def GameEvent.numberSlots (event : GameEvent) (fuel : Nat := 64) : List (Amount 
   | _n + 1, .inCaller body => body.numberSlots _n
   | _ + 1, .statBecomes _ _ amount => [(amount, .signed)]
   | _ + 1, .does _ _ | _ + 1, .beginningOf _ _ _ | _ + 1, .endOf _ _ _ | _ + 1, .now
-  | _ + 1, .stateHolds _ | _ + 1, .gameBecomes _ | _ + 1, .chapterMark _
+  | _ + 1, .stateHolds _ | _ + 1, .chapterMark _
   | _ + 1, .nthOccurrence _ _ _ | _ + 1, .causes _ _ | _ + 1, .stateBasedActionsChecked => []
 termination_by structural fuel
 

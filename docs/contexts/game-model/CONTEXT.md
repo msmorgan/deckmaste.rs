@@ -857,6 +857,13 @@ by its name, the name the registry declares it under (`monarch`), not by the
 phrase a card prints ("the monarch"); one declaration may declare several,
 as day and night are two Designations [CR#731.1].
 
+**The Game** (as a holder):
+The game itself, as the holder of the Designations it can have: "it becomes
+night" is the game gaining night, and "it's day" is the game having day
+([CR#731.1]). It is neither an Object nor a Player, and text names it only as
+that holder.
+_Avoid_: Entity, which the game is not
+
 **Primitive Keyword Ability** (project term):
 A Keyword Ability whose semantics are represented directly rather than
 decomposed into component Abilities.

@@ -461,9 +461,9 @@ semantic_definition dash (cost : Cost) : Ability :=
           (keywordCostPaid (.named "dash") thisPermanent)) ]
 semantic_definition daybound : Ability :=
   .keyword (.named "daybound") []
-    [ .static (onlyIfSo (.entryRider thisPermanent .entersTransformed) (.gameIs night)),
+    [ .static (onlyIfSo (.entryRider thisPermanent .entersTransformed) (gameIs night)),
       .static
-        (.asEvent (.gameBecomes night)
+        (.asEvent (gameBecomes night)
           (.doIf (.matches thisPermanent (.currentFace .front))
             (transform thisPermanent)
             none)),
@@ -1034,7 +1034,7 @@ semantic_definition myriad : Ability :=
 semantic_definition nightbound : Ability :=
   .keyword (.named "nightbound") []
     [ .static
-        (.asEvent (.gameBecomes day)
+        (.asEvent (gameBecomes day)
           (.doIf (.matches thisPermanent isTransformed)
             (transform thisPermanent)
             none)),

@@ -1519,8 +1519,9 @@ semantic_template separateIntoPiles (group : NounPhrase) (piles : Nat)
     (faces : List PileFace := []) : Action :=
   .separateIntoPiles group piles faces
 semantic_template sequentially (steps : List Action := []) : Action := .sequentially steps
+/-- "it becomes <designation>": the game gains a designation the game can have [CR#731.1]. -/
 semantic_template setGameDesignation (designation : DesignationLabel) : Action :=
-  .setGameDesignation designation
+  .gainDesignation .theGame designation none
 semantic_template setStatus (status : Status) (subject : NounPhrase) : Action :=
   .setStatus status subject
 semantic_template simultaneously (steps : List Action := []) : Action := .simultaneously steps
@@ -1661,8 +1662,9 @@ semantic_template chapterMark (chapters : List Nat := []) : GameEvent := .chapte
 semantic_template endOf (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef) :
     GameEvent :=
   .endOf part whose which
+/-- "whenever it becomes <designation>": the game gaining it [CR#731.1,731.1a]. -/
 semantic_template gameBecomes (designation : DesignationLabel) : GameEvent :=
-  .gameBecomes designation
+  .does .any (.gainDesignation .theGame designation none)
 semantic_template nthOccurrence (ordinal : Ordinal) (event : GameEvent)
     (per : Option TurnPart := none) : GameEvent :=
   .nthOccurrence ordinal per event
@@ -1978,7 +1980,9 @@ semantic_template Condition.duringPart (part : TurnPart) (whose : Option NounPhr
 semantic_template flipCalled (caller : NounPhrase) (call : FlipCall) : Condition :=
   .flipCalled caller call
 semantic_template flipFace (face : CoinFace) : Condition := .flipFace face
-semantic_template gameIs (designation : DesignationLabel) : Condition := .gameIs designation
+/-- "if it's <designation>": the game has it [CR#731.1]. -/
+semantic_template gameIs (designation : DesignationLabel) : Condition :=
+  .matches .theGame (.hasDesignation designation none)
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=
   costWasPaid (.byKeyword label) none subject
 semantic_template matches_ (subject : NounPhrase) (predicate : Predicate) : Condition :=

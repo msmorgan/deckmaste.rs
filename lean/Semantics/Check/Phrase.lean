@@ -1955,6 +1955,7 @@ def stepOps : Nat → StepOps
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1)
+        | .theGame => (drs, [], [.gameReference])
         | .you =>
           let ref : Referent := { det := .the, plur := np.plur, payload := .player false }
           let rid := drs.nextId
@@ -2097,6 +2098,8 @@ def stepOps : Nat → StepOps
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
           ({ out with relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses }, errs)
+        | .matches .theGame (.hasDesignation designation none) =>
+          (drs, refuse designation.gameWide (.designationScope designation))
         | .matches subj pred =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let subjectKind := (ids.head?.bind drs1.findById?).map (·.kind)
@@ -2144,7 +2147,6 @@ def stepOps : Nat → StepOps
         | .rolledDoubles =>
           let n := countOutcomes .rollResult drs
           (drs, if n == 1 then [] else [.outcomeInScope .rollResult n])
-        | .gameIs designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .noHolder designation =>
           (drs, refuse (designation.scope == some (.heldBy .player)) (.designationScope designation))
         | .hasPriority p =>
@@ -2206,7 +2208,7 @@ def stepOps : Nat → StepOps
           let (drs2, turnErrors) := stepTurnRefWith ops drs1 turn
           (drs2, errors ++ turnErrors)
         | .chapterMark ns => (drs, refuse (chapterMarksOk ns) .chapterMarks)
-        | .gameBecomes _ | .stateBasedActionsChecked | .now => (drs, [])
+        | .stateBasedActionsChecked | .now => (drs, [])
         | .statBecomes subj _ val =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := ops.amt drs1 val
@@ -2343,6 +2345,9 @@ def stepOps : Nat → StepOps
             | some (.ofColor ct) => stepColorTermWith ops drs1 ct
             | _ => (drs1, [])
           (drs2.push (outcomeB .manaProduced) .other false, e1 ++ e2)
+        | .gainDesignation .theGame designation optDur =>
+          let (drs1, e1) := match optDur with | some d => stepDurationWith ops drs d | none => (drs, [])
+          (drs1, refuse designation.gameWide (.designationScope designation) ++ e1)
         | .gainDesignation subj designation optDur =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let source := refIds.head?.bind drs1.findById?
@@ -2397,8 +2402,6 @@ def stepOps : Nat → StepOps
         | .unlock d => stepDoorWith ops drs d
         | .commitCrime =>
           (drs, refuse (!drs.actionPattern || actorPlurality drs == .one) .singular)
-        | .setGameDesignation designation =>
-          (drs, refuse designation.gameWide (.designationScope designation))
         | .conclude .. | .restartGame | .revealChoices _ => (drs, [])
         | .separateIntoPiles grp piles faces =>
           let (drs1, grpIds, e1) := ops.np drs patientRole true grp

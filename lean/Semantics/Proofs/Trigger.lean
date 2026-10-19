@@ -192,6 +192,39 @@ theorem badPlayerTriggers :
     GameEvent.check (DRS.ofList []) (Templates.triggers (a .anyPlayer)) = [.eventAgent] := by
   decide
 
+/-- Day and night are designations the game itself has [CR#731.1]: "it becomes night" is the game
+gaining night, and "it's night" the game having it. -/
+theorem dayAndNightAreTheGamesDesignations :
+    gameBecomes night = .does .any (.gainDesignation .theGame night none) ∧
+      setGameDesignation day = .gainDesignation .theGame day none ∧
+      gameIs day = .matches .theGame (.hasDesignation day none) := ⟨rfl, rfl, rfl⟩
+
+/-- "Whenever it becomes night, draw a card.": the game gaining night is a trigger event. -/
+theorem okWheneverItBecomesNight :
+    Ability.check (DRS.ofList []) (whenever (gameBecomes night) (draw (.lit 1))) = [] := by
+  decide
+
+/-- "If it's neither day nor night, it becomes day.": the game reads and gains its own
+designations. -/
+theorem okItBecomesDayIfNeither :
+    Action.check (DRS.ofList [])
+      (.doIf (.and [.not (gameIs day), .not (gameIs night)]) (setGameDesignation day) none)
+      = [] := by
+  decide
+
+/-- The game holds only a game-wide designation, and a game-wide one only the game holds. -/
+theorem badGameHoldsAnotherScope :
+    Action.check (DRS.ofList []) (setGameDesignation monarch) = [.designationScope monarch] ∧
+      Condition.check (DRS.ofList []) (gameIs monarch) = [.designationScope monarch] ∧
+      Action.check (DRS.ofList []) (.gainDesignation .you day none) =
+        [.designationScope day, .designationHolder day .player] := by
+  decide
+
+/-- The game is named only as a designation's holder: "draw cards equal to the game" is refused. -/
+theorem badGameElsewhere :
+    (Action.check (DRS.ofList []) (.draw (.countOf .theGame))).contains .gameReference = true := by
+  decide
+
 /-- "The game is a draw" is the draw outcome concluded [CR#104.4c]. -/
 theorem drawGameConcludes : Templates.drawGame = .conclude .drawGame none := rfl
 

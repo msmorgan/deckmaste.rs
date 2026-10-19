@@ -304,6 +304,9 @@ mutual
     | becomes (subject : NounPhrase)
     | theGrantor (head : HeadNoun)
     | you
+    /-- The game itself, named only as the holder of the designations the game can have: "it
+    becomes night" is the game gaining night, "if it's day" the game having day [CR#731.1]. -/
+    | theGame
     /-- Whoever performs the action this phrase is part of: the controller [CR#109.5],
     unless an enclosing `Action.instruct` hands the action to another player or to a
     permanent, which it then is. -/
@@ -422,7 +425,6 @@ mutual
     /-- "if there is a …" -/
     | exists_ (subject : NounPhrase)
     | did (clause : DidClause)
-    | gameIs (designation : DesignationLabel)
     | noHolder (designation : DesignationLabel)
     | matches (subject : NounPhrase) (predicate : Predicate)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
@@ -455,8 +457,6 @@ mutual
     | stateHolds (condition : Condition)
     /-- A stat-threshold state event (preserves `.signed` regime). -/
     | statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount)
-    /-- The game gains a designation: "it becomes night" [CR#731.1]. -/
-    | gameBecomes (designation : DesignationLabel)
     /-- Saga chapter trigger mark [CR#714.2]. -/
     | chapterMark (chapters : List ChapterNumber)
     /-- "Whenever you cast your second spell each turn". -/
@@ -999,7 +999,6 @@ mutual
     | unlock (door : Door)
     /-- A Room gains its remaining unlocked designation, or both at once [CR#709.5i]. -/
     | fullyUnlock (room : NounPhrase)
-    | setGameDesignation (designation : DesignationLabel)
     /-- Win, lose, or draw the game [CR#104.4c]; `cause` the one state-based cause it happens
     for, if any: "lose the game for having 0 or less life" [CR#704.5a]. -/
     | conclude (verb : OutcomeVerb) (cause : Option StateBasedCause := none)
