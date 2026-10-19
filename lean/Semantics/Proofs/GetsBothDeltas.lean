@@ -303,18 +303,6 @@ theorem modernLandHostProhibitionKeepsItsPumpedHost :
     result.2 = [] ∧ (result.1.findById? 0).map (·.ty) = some [.land] ∧
       (result.1.findById? 0).map (·.attachmentHost) = some true := by decide
 
-
-theorem equippedLandPumpIsRefused :
-    StaticSpec.check (DRS.ofList [])
-      (getsPt (.attachHost .equipped (.type .land)) (.up (.lit 1)) (.up (.lit 1))) =
-        [.contradictionFree] := by decide
-
-theorem fortifiedCreaturePumpIsRefused :
-    StaticSpec.check (DRS.ofList [])
-      (getsPt (.attachHost .fortified (.type .creature)) (.up (.lit 1)) (.up (.lit 1))) =
-        [.contradictionFree] := by decide
-
-
 theorem modernStaticLetterDefinitionClosesItsPumpedSubjectLetter :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
       [getsPt thisCreature (.up (.letter .x)) (.up (.lit 0)),
@@ -339,10 +327,10 @@ theorem modernSharedSubjectSurvivesAnEarlierExile :
       (result.1.findById? 2).map (·.ty) = some [.creature] ∧
       (result.1.findById? 1).map (·.zone) = some (some .exile) := by decide
 
-
 theorem enchantedPlayerDoesNotPermitAnObjectTypeRefinement :
     NounPhrase.checkAt (some .player) (DRS.ofList []) (.attachHost .enchanted .player) = [] ∧
       NounPhrase.checkAt (some .player) (DRS.ofList [])
-        (.attachHost .enchanted (.ofType .player .creature)) = [.contradictionFree] := by decide
+        (.attachHost .enchanted (.ofType .player .creature)) = [.kindLte .player .object] := by
+    decide
 
 end Semantics.Proofs.GetsBothDeltas

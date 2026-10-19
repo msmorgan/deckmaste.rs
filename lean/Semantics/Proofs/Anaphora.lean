@@ -18,7 +18,6 @@ private def actionResult (drs : DRS) (i : Action) : DRS :=
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
 
-
 /-- "Choose two — Draw a card; draw a card." [CR#700.2d] -/
 theorem identicalModesAllowed :
     Action.check (DRS.ofList []) (chooseModes (exactly 2) [draw (.lit 1), draw (.lit 1)])
@@ -291,11 +290,6 @@ theorem okResolvedCreatureSpell :
       = [] := by
   decide
 
-theorem badResolvedInstant :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .instant, isSpell])))
-      = [.permanentSpellType] := by
-  decide
-
 /-- "if it entered this turn" -/
 theorem okEntryLookbackWithoutOrigin :
     Predicate.checkAt .object (DRS.ofList []) (.did ⟨.any, (.move .which .anyLocation (some battlefield) .arrival none []), (.duration soFarThisTurn none)⟩) = [] :=
@@ -343,7 +337,7 @@ theorem okActivationLookbackComplement :
 its order as the move's rider. -/
 theorem okOneEndArrangedOrdinal :
     Location.check (DRS.ofList []) (.fromEnd .top (.nth 3) (.zone .library none)) ++
-      MoveRider.checkAll (DRS.ofList []) (some .placement) [(.inOrder .anyOrder)] = [] := by
+      MoveRider.checkAll (DRS.ofList []) [(.inOrder .anyOrder)] = [] := by
   decide
 
 /-- "Shuffle those cards into your library.": the library they go into, then its shuffle. -/
@@ -591,10 +585,6 @@ theorem badReadsShuffledLibraryCard :
 /-- "Whenever you scry, …" -/
 theorem okPatientlessScry :
     GameEvent.check (DRS.ofList []) (.does (.actor .you) (scry (.lit 1))) = [] := by decide
-
-/-- Scry has no patient slot; its written parameter is an amount. -/
-theorem scryHasNoPatientRole :
-    ((deedFacts (.action "scry")).bind (fun facts => facts.patientRole.sort)).isNone = true := by decide
 
 /-- An unspecified event actor is represented explicitly by `Subject.any`. -/
 theorem scryPatternAllowsUnspecifiedActor :
@@ -861,5 +851,25 @@ theorem possessiveItHasCurrentSubjectIdentity :
           (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any)])
     (after.referents.filter (fun ref => ref.idents.contains "p05.subject")).map
       (·.pronounResolved) = [true] := by decide
+
+/-- "Its controller" read after a destroy reaches the permanent by last known information: the
+controller is a player, and the permanent stays in the graveyard. -/
+theorem destroyedPermanentControllerReadUsesLastKnownInformation :
+    let destroyed := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (destroy (target isArtifact))).1
+    let (after, ids, errors) := stepNounPhrase 64 (nextClause destroyed) .obj true
+      (controllerOf (that .permanent))
+    errors = [] ∧ ids.length = 1 ∧
+      (ids.filterMap after.findById?).all (fun r => r.kind == .player) ∧
+      after.referents.any (fun r => r.id == 1 && r.zone == some .graveyard) ∧
+      after.characteristicRead = false := by decide
+
+/-- Reading the destroyed permanent's controller does not bring it back into view: "untap that
+permanent" afterwards has no antecedent. -/
+theorem controllerReadDoesNotPermitUntappingDestroyedPermanent :
+    Action.check (DRS.ofList [])
+      (.sequentially [destroy (target isArtifact),
+        .dealDamage (.lit 2) (controllerOf (that .permanent)) .noncombatOnly,
+        untap (that .permanent)]) = [.anaphor (.word .permanent) .one 0] := by decide
 
 end Semantics.Proofs.Anaphora

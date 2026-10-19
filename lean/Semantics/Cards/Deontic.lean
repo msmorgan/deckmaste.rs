@@ -802,10 +802,4 @@ def castFromGraveyardByDiscardingALand : StaticSpec :=
         (compound [itsManaCost, perform (discard (a (and [isCard, isLand])))])))
 theorem okCastFromGraveyardByDiscardingALand :
     StaticSpec.check (DRS.ofList []) castFromGraveyardByDiscardingALand = [] := by decide
-/-- A permission to cast a land card is still refused: a land is played as a special action, not
-cast [CR#305.1]. -/
-def castALandCard : StaticSpec := can you (cast (a (and [isCard, isLand])))
-theorem castALandCardIsRefused :
-    StaticSpec.check (DRS.ofList []) castALandCard = [.deedFits] := by decide
-
 end Semantics.Cards

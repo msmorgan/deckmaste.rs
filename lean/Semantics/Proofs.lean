@@ -42,7 +42,6 @@ import Semantics.Proofs.NounWords
 import Semantics.Proofs.Numbers
 import Semantics.Proofs.OffStack
 import Semantics.Proofs.Piles
-import Semantics.Proofs.Possessor
 import Semantics.Proofs.ReferenceScopes
 import Semantics.Proofs.RefusalReachability
 import Semantics.Proofs.Rules

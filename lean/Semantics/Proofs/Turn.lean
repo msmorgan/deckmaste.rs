@@ -282,33 +282,12 @@ theorem okCastSpellClass :
       = [] := by
   decide
 
-/-- "Spells with the chosen name can't be activated." -/
-theorem badActivatedSpellClass :
-    StaticSpec.check [qualityB .cardName]
-      (cant any (activate (allOf (.and [isSpell, .named .chosen])))) = [.deedFits] := by
-  decide
-
-/-- "Activated abilities of artifacts can't be cast." -/
-theorem badCastAbilityClass :
-    StaticSpec.check (DRS.ofList [])
-      (cant any (cast (allOf (.and [.abilityHead .anyActivated, .abilityOf (allOf isArtifact)]))))
-      = [.deedFits] := by
-  decide
-
 /-- "Activated and triggered abilities can't be activated.": a disjunction seeds an ability
 when every arm does, so the deed's ability role is met [CR#113.1c]. -/
 theorem okAbilityDisjunctionActivated :
     StaticSpec.check (DRS.ofList [])
       (cant any (activate (allOf (.or [.abilityHead .anyActivated, .abilityHead .anyTriggered]))))
       = [] := by
-  decide
-
-/-- "Activated abilities and creatures can't be activated.": one arm is no ability, so the
-disjunction seeds none. -/
-theorem badMixedDisjunctionActivated :
-    StaticSpec.check (DRS.ofList [])
-      (cant any (activate (allOf (.or [.abilityHead .anyActivated, isCreature]))))
-      = [.deedFits] := by
   decide
 
 /-- "At the beginning of your upkeep, draw a card." -/

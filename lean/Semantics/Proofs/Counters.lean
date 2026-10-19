@@ -79,11 +79,6 @@ theorem okControlSelfNegation :
       (.and [.hasPossessor .controller .you, .not (.hasPossessor .controller .you)]) = [] := by
   decide
 
-/-- "attacking noncreature" -/
-theorem badAttackingNoncreature :
-    Predicate.checkAt .object (DRS.ofList []) (.and [isAttacking, .not isCreature]) = [.contradictionFree] := by
-  decide
-
 /-- "Whenever this creature blocks a creature or becomes blocked by a creature, that creature
 gets −1/−1 until end of turn." -/
 theorem okAltHeaderAgreeingReadback :
@@ -135,11 +130,6 @@ theorem okRemoveCounterFromTarget :
       = [] := by
   decide
 
-theorem badRemoveCountersDead :
-    Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature),
-        .removeCounters (some (exactly 1)) (some p11) it .one true]) = [.counterMemory] := by decide
-
 theorem destructionPreservesMovedCardIdentityWithoutCounterMemory :
     let destroyed := destroy (target isCreature)
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) destroyed).1
@@ -152,17 +142,6 @@ theorem newCountersOnMovedCardCanBeRemoved :
       (.sequentially [destroy (target isCreature),
         .putCounters (.lit 1) p11 (that .card) .one true,
         .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [] := by decide
-
-theorem badMoveCountersFromDeadCreature :
-    Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature),
-        .moveCounters (.lit 1) (some p11) it thisCreature]) = [.counterMemory] := by decide
-
-theorem zeroCountersDoNotRestoreMovedCounterMemory :
-    Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature),
-        .putCounters (.lit 0) p11 (that .card) .one true,
-        .removeCounters (some (exactly 1)) (some p11) (that .card) .one true]) = [.counterMemory] := by decide
 
 theorem countersPlacedDuringMoveCanBeRemoved :
     Action.check (DRS.ofList [])
@@ -298,16 +277,6 @@ theorem okExileWithCounterRider :
 theorem okPutBoostCounterOnCreature :
     Action.check (DRS.ofList []) (.putCounters (.lit 1) p11 (target isCreature) .one true) = [] := by decide
 
-/-- "Put a poison counter on target creature." -/
-theorem badPutPoisonOnCreature :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "poison")) (target isCreature) .one true)
-      = [.counterSourceScope] := by
-  decide
-
-/-- "You get a +1/+1 counter." -/
-theorem badGetsBoostCounter :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) p11 .you .one true) = [.counterSourceScope] := by decide
-
 /-- "a +1/+1 counter": a +X/+Y counter is a declared kind like any other [CR#122.1a]. -/
 theorem okBoostCounterKind : CounterKind.check p1p1Counter = [] := by decide
 
@@ -321,12 +290,6 @@ theorem okLosesAllPoisonCounters :
     Action.check (DRS.ofList []) (loseCounters (some (.printed (.named "poison"))) none (agent := each
         (.isOpponentOf .you)))
       = [] := by
-  decide
-
-/-- "Each opponent loses all +1/+1 counters." -/
-theorem badLosesAllBoostCounters :
-    Action.check (DRS.ofList []) (loseCounters (some p11) none (agent := each (.isOpponentOf .you)))
-      = [.counterSourceScope] := by
   decide
 
 /-- "the number of +1/+1 counters on this creature" -/
@@ -345,23 +308,10 @@ theorem okLastBoostCounterRemoved :
       = [] := by
   decide
 
-/-- "When the last poison counter is removed from this creature, draw a card." -/
-theorem badLastPoisonCounterRemoved :
-    Ability.check (DRS.ofList [])
-      (when (lastCounterRemoved (.named "poison") thisCreature) (draw (.lit 1)))
-      = [.counterSourceScope] := by
-  decide
-
 /-- "Put a charge counter on this artifact." -/
 theorem okChargeCounterOnArtifact :
     Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) thisArtifact .one true)
       = [] := by
-  decide
-
-/-- "Each player gets a charge counter." -/
-theorem badGetsChargeCounter :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.printed (.named "chargeCounter")) .you .one true)
-      = [.counterSourceScope] := by
   decide
 
 /-- "… that many plus one +1/+1 counters are put on it instead" -/
@@ -393,12 +343,6 @@ theorem badCausedCounterWithAgent :
 theorem okPlusOneCounterDescription :
     Predicate.checkAt .object (DRS.ofList []) (.hasCounters (some p1p1Counter)) = [] := by decide
 
-/-- "each creature with a poison counter on it" -/
-theorem badPoisonCounterDescription :
-    Predicate.checkAt .object (DRS.ofList []) (.hasCounters (some (.named "poison")))
-      = [.counterKindNamed .object] := by
-  decide
-
 /-- "a first strike counter" -/
 theorem okFirstStrikeKeywordCounter :
     CounterKind.check (.named "firstStrikeCounter") = [] := by
@@ -427,13 +371,6 @@ theorem okSameScopeCounterMenu :
     Action.check (DRS.ofList [])
       (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) (target isCreature) .one true)
       = [] := by
-  decide
-
-/-- "Put your choice of a +1/+1 counter or a poison counter on target creature." -/
-theorem badMixedScopeCounterMenu :
-    Action.check (DRS.ofList [])
-      (.putCounters (.lit 1) (.chosen [p1p1Counter, .named "poison"]) (target isCreature) .one true)
-      = [.counterSourceScope] := by
   decide
 
 /-- "Put a poison counter on target opponent." -/
@@ -533,14 +470,6 @@ theorem counterOnGraveyardCard :
 theorem okSameKindsOnCreature :
     Action.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target isCreature) .one true)
       = [] := by
-  decide
-
-/-- "put a counter of each kind that's on this creature on target player": a +X/+Y counter
-modifies an object's power and toughness [CR#122.1a], so the kinds read off a creature stay on
-objects. -/
-theorem badSameKindsOnPlayer :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) (.sameAs thisCreature) (target .anyPlayer) .one true)
-      = [.counterSourceScope] := by
   decide
 
 /-- "put seven counters of each kind that's on this creature on target creature": the

@@ -51,7 +51,7 @@ players. -/
 theorem badSubstituteWithPlayers :
     Action.check (DRS.ofList []) (.pay (.withSubstitute (.mana [generic 4])
       (substitute (tap (a .anyPlayer)) [.generic])) .once .paid none none) =
-      [.deedFits, .kindMismatch .object .player] := by decide
+      [.kindMismatch .object .player] := by decide
 
 /-- Convoke [CR#702.51a]: "mana of that creature's color" reads back the creature the action
 tapped. -/

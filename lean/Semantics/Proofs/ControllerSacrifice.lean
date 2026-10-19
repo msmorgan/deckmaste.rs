@@ -100,7 +100,7 @@ theorem controlGrantRecordsItsPatientIdentity :
 
 private def existingTarget : Referent :=
   { det := .target, plur := .one,
-    payload := .object [.creature, .artifact] (some .battlefield) none none (some 1) none }
+    payload := .object [.creature, .artifact] (some .battlefield) none none (some 1) }
 private def existingTargetContext : DRS := DRS.ofList [existingTarget]
 
 theorem existingReferenceIsAdmitted :
@@ -156,19 +156,19 @@ theorem laterCardIsTheSacrificedObject :
       (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
       some (3, .target, .one,
         .object [.creature, .artifact] (some .graveyard)
-          (some ⟨.action "sacrifice", true, true⟩) none none none) := by decide
+          (some ⟨.action "sacrifice", true, true⟩) none none) := by decide
 
 theorem outerArtifactDoesNotStealThePatient :
     let outer : DRS := DRS.ofList
       [{ det := .target, plur := .one,
-         payload := .object [.artifact] (some .battlefield) none none (some 1) none }]
+         payload := .object [.artifact] (some .battlefield) none none (some 1) }]
     let (after, errors) := stepAction 64 .postEvent .obj outer action
     errors = [] ∧ after.findById? 0 = outer.findById? 0 ∧
       (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 4 := by decide
 
 private def universallySelectedPatient (id : ReferentId) : Referent :=
   { id, det := .target, plur := .one,
-    payload := .object [.creature] (some .battlefield) none none none none }
+    payload := .object [.creature] (some .battlefield) none none none }
 
 /-- Moving the selected patient preserves every unrelated outer referent. Actor frames are
 excluded because their links to the moved patient must follow its fresh identity. -/
@@ -292,12 +292,12 @@ private def selectedContext (drs : DRS) : DRS :=
   let seen := { drs with characteristicRead := true, relativeKind := some .object }
   let artifactContext := seen.push
     { det := .target, plur := .one,
-      payload := .object [.artifact] (some .battlefield) none none none none } .other false
+      payload := .object [.artifact] (some .battlefield) none none none } .other false
   let controllerContext := artifactContext.push
     { det := .the, plur := .one, payload := .player false } .other false
   let creatureContext := controllerContext.push
     { det := .target, plur := .one,
-      payload := .object [.creature] (some .battlefield) none none none none } .other false
+      payload := .object [.creature] (some .battlefield) none none none } .other false
   let named := recordIdentityById "controllerSacrifices.subject" creatureContext
     (drs.nextId + 2)
   { named with characteristicRead := drs.characteristicRead }.push
@@ -334,7 +334,7 @@ private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
  let source := selectedContext tracked
  let frame : ActorShape := {
    kind := .player, isYou := false, selfDefined := false,
-   ascribable := false, twoParties := false, opponentOnly := false,
+   ascribable := false, twoParties := false,
    refIds := [fresh + 3] }
  source.push { det := .the, plur := .one, payload := .actor frame } .other false
 private def moveArg : NounPhrase :=
@@ -353,23 +353,23 @@ private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPatt
 private def argumentPrefix (fresh : Nat) (names : List BindingId) : List Referent :=
  [ { id := fresh + 4, det := .the, plur := .one, payload := .actor {
        kind := .player, isYou := false, selfDefined := false, ascribable := false, twoParties := false,
-       opponentOnly := false, refIds := [fresh + 3]} },
+       refIds := [fresh + 3]} },
    { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
    { id := fresh + 2, det := .target, plur := .one, idents := names,
-     payload := .object [.creature] (some .battlefield) none none none none },
+     payload := .object [.creature] (some .battlefield) none none none },
    { id := fresh + 1, det := .the, plur := .one, payload := .player false },
    { id := fresh, det := .target, plur := .one,
-     payload := .object [.artifact] (some .battlefield) none none none none } ]
+     payload := .object [.artifact] (some .battlefield) none none none } ]
 private def argumentBase (fresh : Nat) (names : List BindingId) (data : DRS) : DRS :=
  { data with referents := argumentPrefix fresh names, nextId := fresh + 5, historicalReferentIds := [] }
 private def afterPrefix (fresh : Nat) : List Referent :=
  [ { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
-   { id := fresh + 5, det := .target, plur := .one, counterMemoryAvailable := false,
+   { id := fresh + 5, det := .target, plur := .one,
      payload := .object [.creature] (some .graveyard)
-       (some ⟨.action "sacrifice", true, true⟩) none none none },
+       (some ⟨.action "sacrifice", true, true⟩) none none },
    { id := fresh + 1, det := .the, plur := .one, payload := .player false },
    { id := fresh, det := .target, plur := .one,
-     payload := .object [.artifact] (some .battlefield) none none none none } ]
+     payload := .object [.artifact] (some .battlefield) none none none } ]
 private theorem isolatedMoveStamp (fresh : Nat) (names : List BindingId) (data : DRS) :
  (dropActorFrame (applyInPlaceStamp
    (applyZoneMove (argumentBase fresh names data) [fresh + 2] (some (.core .put)) (some .graveyard))
@@ -378,7 +378,7 @@ private theorem isolatedMoveStamp (fresh : Nat) (names : List BindingId) (data :
    List.foldl_cons, List.foldl_nil]
  simp [argumentBase, argumentPrefix, afterPrefix, DRS.findById?,
    applyInPlaceStamp, DRS.updateById, dropActorFrame, dropActorFrame.dropFirst,
-   Referent.isActorFrame, mkStamp, keptPossessor, onFieldZone, zoneIsB, mergeIdents, List.foldl_cons, List.foldl_nil]
+   Referent.isActorFrame, mkStamp, onFieldZone, zoneIsB, mergeIdents, List.foldl_cons, List.foldl_nil]
 
 private theorem argumentStep (fuel : Nat) (drs : DRS) :
     stepNounPhrase (fuel + 3) drs .obj true moveArg =
@@ -406,7 +406,7 @@ private theorem preparedSuffix (fresh : Nat) (rs : List Referent)
 private def namedPatient (fresh : Nat) : Referent := {
   det := .target, plur := .one, id := fresh + 2,
   idents := ["controllerSacrifices.subject"],
-  payload := .object [.creature] (some .battlefield) none none none none }
+  payload := .object [.creature] (some .battlefield) none none none }
 
 private theorem argumentNamedPatient (fresh : Nat) (rs : List Referent)
     (older : ∀ r ∈ rs, r.id < fresh)
@@ -498,8 +498,7 @@ private theorem movingMapSuffixWithActors (suffix : List Referent) (id fresh : R
           id := fresh
           idents := []
           payload := payload
-          librarySearchResult := false
-          counterMemoryAvailable := false }
+          librarySearchResult := false }
       else match r.payload with
         | .actor shape =>
           { r with payload := .actor { shape with
@@ -560,7 +559,7 @@ private theorem movedStampedPrefixAndSuffixWithActors (fresh : Nat) (names : Lis
   dsimp only
   have found : (argumentBase fresh names data).findById? (fresh + 2) =
       some { id := fresh + 2, det := .target, plur := .one, idents := names,
-             payload := .object [.creature] (some .battlefield) none none none none } := by
+             payload := .object [.creature] (some .battlefield) none none none } := by
     simp [argumentBase, argumentPrefix, DRS.findById?]
   rw [MoveActors.applyZoneMove_appendWithActors _ rs _ _ _ _ found (by
     intro r hr; have h := older r hr; exact Nat.ne_of_lt (Nat.lt_add_right 2 h)) actorLinks]
@@ -642,7 +641,7 @@ private theorem movedOutMetadata (fresh : Nat) (rs : List Referent)
   have found : base.findById? (fresh + 2) = some {
      id := fresh + 2, det := .target, plur := .one
      idents := ["controllerSacrifices.subject", "sacrifice.subject"]
-     payload := .object [.creature] (some .battlefield) none none none none } := by
+     payload := .object [.creature] (some .battlefield) none none none } := by
     simp [base, argumentBase, argumentPrefix, DRS.findById?]
   change (applyZoneMove { base with referents := base.referents ++ rs } [fresh + 2]
        (some (.core .put)) (some .graveyard)).currentClause = 1 ∧
@@ -653,7 +652,7 @@ private theorem movedOutMetadata (fresh : Nat) (rs : List Referent)
   simp only [applyZoneMove, show [fresh + 2].eraseDups = [fresh + 2] from rfl, List.foldl_cons, List.foldl_nil]
   simp [base, argumentBase, argumentPrefix, DRS.findById?, argumentOut,
     prepared, selectedContext, DRS.push, DRS.prepend, recordIdentityById, DRS.updateById,
-    DRS.recordMention, enterOwnScope, enterCaller, leaveCaller, keptPossessor,
+    DRS.recordMention, enterOwnScope, enterCaller, leaveCaller,
     mergeIdents]
 
 private theorem movedOutStampedReferents (fresh : Nat) (rs : List Referent)
@@ -786,10 +785,10 @@ private theorem leaveStampedOwned (drs : DRS) (frame : OwnScopeFrame) (outer : L
 
 private theorem movedPreowned (drs : DRS) (frame : OwnScopeFrame) (outer : List OwnScopeFrame)
     (old : Referent) (ty : List CardType) (zn : Option Zone) (stamp : Option Stamp)
-    (orig : Option Origin) (size : Option Nat) (poss : Option Possessor)
+    (orig : Option Origin) (size : Option Nat)
     (deed : Option Deed) (dest : Option Zone)
     (found : drs.findById? old.id = some old)
-    (payload : old.payload = .object ty zn stamp orig size poss)
+    (payload : old.payload = .object ty zn stamp orig size)
     (historical : drs.historicalReferentIds.contains old.id = false)
     (stack : drs.scopeStack = frame :: outer)
     (preowned : ∀ r ∈ drs.referents, frame.preEntryIds.elem r.id = true)
@@ -833,7 +832,7 @@ private theorem actualMovedScopeClosure (fresh : Nat) (rs : List Referent)
   let old : Referent := {
     id := fresh + 2, det := .target, plur := .one,
     idents := ["controllerSacrifices.subject", "sacrifice.subject"],
-    payload := .object [.creature] (some .battlefield) none none none none }
+    payload := .object [.creature] (some .battlefield) none none none }
   have found : input.findById? old.id = some old := by
     unfold DRS.findById?
     change (argumentOut fresh rs).referents.find? _ = _
@@ -844,7 +843,7 @@ private theorem actualMovedScopeClosure (fresh : Nat) (rs : List Referent)
     change frame.callerReferentIds.elem (fresh + 2) = true at caller
     rw [caller, Bool.or_true]
   obtain ⟨next, outer, hstack, howned⟩ := movedPreowned input frame [] old
-    [.creature] (some .battlefield) none none none none
+    [.creature] (some .battlefield) none none none
     (some (.core .put)) (some .graveyard) found rfl (by rfl) stack owned selected
   exact leaveStampedOwned (movedOut fresh rs) next outer [fresh + 5]
     (some (.action "sacrifice")) hstack howned
@@ -884,7 +883,6 @@ private def controllerInstructState (fuel : Nat) (drs : DRS)
     selfDefined := false
     ascribable := false
     twoParties := false
-    opponentOnly := subject.opponentOnly
     refIds := ids }
   let framed := selected.push
     { det := .the, plur := .one, payload := .actor shape } .other false
@@ -919,7 +917,7 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
     let source := selectedContext tracked
     let frame : ActorShape := {
       kind := .player, isYou := false, selfDefined := false,
-      ascribable := false, twoParties := false, opponentOnly := false,
+      ascribable := false, twoParties := false,
       refIds := [drs.nextId + 3] }
     let prepared := source.push
       { det := .the, plur := .one, payload := .actor frame } .other false

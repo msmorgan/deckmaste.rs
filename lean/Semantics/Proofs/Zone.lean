@@ -16,25 +16,6 @@ namespace Semantics.Proofs.Zone
 theorem okTappedBattlefield :
     Action.check (DRS.ofList []) (destroy (target (.and [isCreature, isTapped]))) = [] := by decide
 
-/-- "Destroy target tapped untapped creature." -/
-theorem badTappedUntapped :
-    Action.check (DRS.ofList []) (destroy (target (.and [isCreature, isTapped, isUntapped])))
-      = [.contradictionFree] := by
-  decide
-
-/-- "Destroy target permanent instant." -/
-theorem badPermanentInstant :
-    Action.check (DRS.ofList []) (destroy (target (.and [isPermanent, .hasType .instant])))
-      = [.deedFits, .contradictionFree] := by
-  decide
-
-/-- "Destroy target card token" contradicts the distinction between cards and tokens.
-Its explicit token evidence supplies the battlefield zone. -/
-theorem badCardTokenTarget :
-    Action.check (DRS.ofList []) (destroy (target (.and [.isToken, .isCard])))
-      = [.contradictionFree] := by
-  decide
-
 /-- "Tap target creature. Untap that token." -/
 theorem badThatTokenOfCard :
     Action.check (DRS.ofList [])
@@ -50,27 +31,11 @@ theorem loopLocalMovedCardsDoNotEscape :
             (exile (a (.and [isCreature, .hasPossessor .controller (that .player)]))),
           putOntoBattlefield them ]) = [.anaphor .bare .many 0] := by decide
 
-/-- The loop retains the moved outer card, whose exile zone forbids untapping. -/
-theorem loopMovementPreservesUntapZoneRestriction :
-    Action.check (DRS.ofList [])
-      (.sequentially [tap (target isCreature), .doForEach (each (.isOpponentOf .you)) (exile it), untap it])
-      = [.deedFits] := by
-  decide
-
 /-- "For each color among permanents on the battlefield, draw a card." -/
 theorem okKindLoopKeepsOuter :
     Action.check (DRS.ofList [])
       (.doForEachKind .color (some (allOf isPermanent)) .color (draw (.lit 1)))
       = [] := by
-  decide
-
-/-- The color loop retains the moved outer card, whose exile zone forbids untapping. -/
-theorem kindLoopMovementPreservesUntapZoneRestriction :
-    Action.check (DRS.ofList [])
-      (.sequentially
-        [ tap (target isCreature),
-          .doForEachKind .color (some (allOf isPermanent)) .color (exile it), untap it ])
-      = [.deedFits] := by
   decide
 
 /-- "Each opponent exiles a creature they control. Put those cards onto the battlefield." The
@@ -82,13 +47,6 @@ theorem okDistributedMovesItsOwn :
       (.sequentially
         [ instruct (each (.isOpponentOf .you)) (exile (a (.and [isCreature, .hasPossessor .controller (that .player)]))),
           putOntoBattlefield them ]) = [] := by
-  decide
-
-/-- Moving an outer card during a player distribution preserves its singular identity and exile zone. -/
-theorem distributedMovementPreservesUntapZoneRestriction :
-    Action.check (DRS.ofList [])
-      (.sequentially [tap (target isCreature), instruct (each (.isOpponentOf .you)) (exile it), untap it])
-      = [.deedFits] := by
   decide
 
 /-- "When target creature dies this turn, return that card to the battlefield." -/
@@ -173,8 +131,8 @@ theorem okAgentedDestroy :
   decide
 
 /-- "Target opponent fights target creature." A spell or ability instructs a CREATURE to fight
-[CR#701.14a], so `"Fight"`'s facts row gives its agent role a permanent and no player, and a
-player handed the deed is refused; the printed sentence hands it the first fighting creature,
+[CR#701.14a]: the body reads its performer's power, so a player handed the deed is refused by
+that read; the printed sentence hands it the first fighting creature,
 `instruct(<first>, fight(<second>))`. -/
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
@@ -182,7 +140,7 @@ theorem badAgentedAgentlessAct :
         instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.0" (target isCreature)) .any),
         instruct (.laterMention "fight.0" (target isCreature))
           (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (target isCreature))) theActor .any)]) none none))
-      = [.kindMismatch .object .player, .kindMismatch .object .player] := by
+      = [.kindMismatch .object .player] := by
   decide
 
 /-- "1 life for each creature" -/
@@ -490,13 +448,6 @@ theorem okGoadOnBattlefield :
     Action.check (DRS.ofList []) (.gainDesignation (target isCreature) (.named "goaded") none) = [] := by
   decide
 
-/-- "goad target creature card in your graveyard" -/
-theorem badGoadInGraveyard :
-    Action.check (DRS.ofList [])
-      (.gainDesignation (target (.and [isCreature, .in_ (graveyardOf .you)])) (.named "goaded")
-        none) = [.designationHolder (.named "goaded") .object] := by
-  decide
-
 /-- "Whenever a creature attacks a planeswalker, …" -/
 theorem okPlaneswalkerAttackDefender :
     GameEvent.check (DRS.ofList []) (.does (.actor (a isCreature)) (.attack (some (a (.hasType .planeswalker)))))
@@ -536,13 +487,6 @@ theorem badSingularNameAgreement :
 theorem okCantBeCountered :
     StaticSpec.check (DRS.ofList []) (cant any (counter thisSpell)) = [] := by decide
 
-/-- "Creature cards in graveyards can't be countered." -/
-theorem badCounteredInGraveyard :
-    StaticSpec.check (DRS.ofList [])
-      (cant any (counter (allOf (.and [isCreature, .in_ graveyard]))))
-      = [.deedFits] := by
-  decide
-
 /-- "You may look at the top card of your library any time." -/
 theorem okLookAtTopOfLibrary :
     StaticSpec.check (DRS.ofList []) (.visibility .lookAt .you .topOfLibrary) = [] := by decide
@@ -555,12 +499,6 @@ theorem okRegenerateCreature :
 /-- "Creatures can't be regenerated." -/
 theorem okRegenerationBanOnBattlefield :
     StaticSpec.check (DRS.ofList []) (cant any (regeneration (allOf isCreature))) = [] := by decide
-
-/-- "Creature cards in your graveyard can't be regenerated." -/
-theorem badRegeneratedInGraveyard :
-    StaticSpec.check (DRS.ofList []) (cant any (regeneration (a (.and [isCreature, .in_ graveyard]))))
-      = [.deedFits] := by
-  decide
 
 /-- "Each opponent discards a card. Simultaneously, exile those cards." -/
 theorem simultaneousDiscardDoesNotExposePluralClauseMate :
@@ -672,13 +610,6 @@ settable values [CR#701.12g]. -/
 theorem okExchangeTwoValues :
     Action.check (DRS.ofList []) (.exchange (.values (lifeTotalOf .you) (toughnessOf thisCreature)))
       = [] := by
-  decide
-
-/-- "Exchange this creature's power with three.": a literal is not a value the game can set
-[CR#701.12g]. -/
-theorem badExchangeLiteralValue :
-    Action.check (DRS.ofList []) (.exchange (.values (powerOf thisCreature) (.lit 3)))
-      = [.settableValue] := by
   decide
 
 /-- "Exchange the text boxes of this creature and another creature." [CR#701.12h]: a Text

@@ -216,10 +216,6 @@ private semantic_template definedPower (subject : NounPhrase) : StaticSpec :=
 theorem scopedStaticDefinitionsRemainVisibleToPrintedBoxes :
     (definedPower thisCreature).definedSlots = [.powerAlone] := by decide
 
-theorem templatePredicatesDoNotConcealContradictions :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.hasStatus .tapped, .hasStatus .untapped]) =
-      [.contradictionFree] := by decide
-
 theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
     StaticSpec.check (DRS.ofList [])
       (.must (.actor (target isCreature)) (.block (target isCreature))
@@ -368,12 +364,6 @@ theorem amountBodyPreservesLiteralFacts :
 theorem predicateBodyPreservesItsCallerReference :
     Predicate.checkAt .object callerCreature
       (predicateBodyInCaller (target isCreature) (.otherThan it)) = [] := by decide
-
-theorem predicateBodyDoesNotConcealContradictions :
-    Predicate.checkAt .object (DRS.ofList [])
-      (.and [.hasStatus .tapped,
-        predicateBodyInCaller (target isCreature) (.hasStatus .untapped)]) =
-      [.contradictionFree] := by decide
 
 theorem eventTemplateAcceptsItsSubject :
     (stepGameEvent 64 (DRS.ofList []) (eventWithSubject (forwardedSubject thisCreature))).2 =

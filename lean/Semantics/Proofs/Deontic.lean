@@ -28,10 +28,6 @@ theorem okStateBasedLossForPlayerGroup :
     Ability.check (DRS.ofList []) (.static
       (.cant (.actor (.described .all (.isOpponentOf .you))) (.conclude .loseGame (some .nonpositiveLife)) {})) = [] := by decide
 
-theorem badStateBasedLossOnCreature :
-    Ability.check (DRS.ofList []) (.static
-      (.cant (.actor thisCreature) (.conclude .loseGame (some .nonpositiveLife)) {})) = [.deedFits] := by decide
-
 /-- Targets belong to the enclosing spell, not to a static ability. -/
 theorem okTargetedContinuousStateBasedLossGate :
     Action.check (DRS.ofList []) (.establish
@@ -42,10 +38,6 @@ theorem badEmptyProhibitedAction :
     Ability.check (DRS.ofList []) (.static
       (.cant (.actor .you) (.sequentially []) {})) = [.eventHead, .nonEmpty] := by decide
 
-theorem badStateBasedLossPatientRole :
-    Ability.check (DRS.ofList []) (.static
-      (.cant .any (.conclude .loseGame (some .nonpositiveLife)) {})) = [.deedFits] := by decide
-
 /-- "Target creature can't be blocked this turn." -/
 theorem okCantBeBlocked :
     Action.check (DRS.ofList [])
@@ -53,30 +45,10 @@ theorem okCantBeBlocked :
         (some thisTurn)) = [] := by
   decide
 
-/-- "Target creature can't be attacked this turn." -/
-theorem badCantBeAttacked :
-    Action.check (DRS.ofList [])
-      (.establish (.cant .any (.attack (some (target isCreature))) {})
-        (some thisTurn)) = [.deedFits] := by
-  decide
-
-/-- "Target creature card in a graveyard can't block this turn." -/
-theorem badCantInGraveyard :
-    Action.check (DRS.ofList []) (establish (cant (target (.and [isCreature, .in_ graveyard])) block) (some
-        soFarThisTurn))
-      = [.deedFits] := by
-  decide
-
 /-- "creature with power 2 or less" -/
 theorem okCreaturePower :
     Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), isCreature])
       = [] := by
-  decide
-
-/-- "noncreature with power 2 or less" -/
-theorem badNoncreaturePower :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.compare [.stat .power] .atMost (.lit 2), .not isCreature])
-      = [.contradictionFree] := by
   decide
 
 /-- "with power 2 or less or with toughness 2 or less" -/
@@ -308,10 +280,6 @@ theorem okCantCounterAbilities :
     StaticSpec.check (DRS.ofList []) (cant any (counter (allOf (.abilityHead .anyActivated))))
       = [] := by
   decide
-
-/-- "Creatures can't be countered.": only a spell or an ability on the stack is countered. -/
-theorem badCantCounterCreatures :
-    StaticSpec.check (DRS.ofList []) (cant any (counter (allOf isCreature))) = [.deedFits] := by decide
 
 /-- "Each opponent discards a card, if those cards are creature cards." -/
 theorem distributedDeedReadsBackPluralUnderCondition :

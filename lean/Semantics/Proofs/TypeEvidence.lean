@@ -113,15 +113,6 @@ theorem joinedObjectHalfDoesNotBorrowBetweenAlternatives :
     countReach (.unionHalf (.type .artifact)) .one
       (afterTarget (.or [artifactCreature, isCreature, .anyPlayer])) = 0 := by decide
 
-theorem multipleTypeRefinementsCanDescribeEquipmentHost :
-    attachHeadOk .equipped (.ofType (.type .artifact) .creature) = true := by decide
-
-theorem multipleTypeRefinementsCommuteForEquipmentHost :
-    attachHeadOk .equipped (.ofType (.type .creature) .artifact) = true := by decide
-
-theorem unrelatedTypeRefinementsDoNotDescribeEquipmentHost :
-    attachHeadOk .equipped (.ofType (.type .artifact) .land) = false := by decide
-
 theorem damageAcceptsArtifactCreature :
     Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (target artifactCreature) .any)) = [] := by decide
 

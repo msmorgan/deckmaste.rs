@@ -162,6 +162,6 @@ theorem objectSubsetRetainsItsTypeZoneAndExactSize :
       (.someOf (.counted (exactly 1)) none (allOf isCreature))
     errors = [] ∧ ids = [1] ∧
       (after.findById? 1).map (·.payload) =
-        some (.object [.creature] (some .battlefield) none none (some 1) none) := by decide
+        some (.object [.creature] (some .battlefield) none none (some 1)) := by decide
 
 end Semantics.Proofs.NounWords

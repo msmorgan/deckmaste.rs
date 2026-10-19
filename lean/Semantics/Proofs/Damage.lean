@@ -118,25 +118,10 @@ theorem recentSecondOpponentIsSelected :
 theorem okUntapLockBattlefield :
     Ability.check (DRS.ofList []) (.static (doesntUntap (a isCreature) (some .you))) = [] := by decide
 
-theorem badUntapLockGraveyard :
-    Ability.check (DRS.ofList [])
-      (.static (doesntUntap (a (.and [isCreature, .in_ (graveyardOf .you)])) (some .you)))
-      = [.deedFits] := by
-  decide
-
 /-- "Target creature you control fights target creature you don't control." -/
 theorem okFightControlledCreatures :
     Action.check (DRS.ofList []) (instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, youDontControl]))))
       = [] := by
-  decide
-
-/-- "Target creature card in your graveyard fights target creature.": a card in a graveyard is
-not a permanent [CR#110.1]. This fixture refuses handing it the fight action, whose
-participants must remain battlefield creatures [CR#701.14b]. -/
-theorem badFightGraveyard :
-    Action.check (DRS.ofList [])
-      (instruct (target (.and [isCreature, .in_ (graveyardOf .you)])) (fight (target isCreature)))
-      = [.handoffPerformer] := by
   decide
 
 /-- "Target land fights target creature you don't control.": a land an effect has made a

@@ -6,10 +6,10 @@ namespace Semantics.Proofs.ReferenceScopes
 
 private def creatureBinding : Referent :=
   { det := .target, plur := .one,
-    payload := .object [.creature] (some .battlefield) none none (some 1) none }
+    payload := .object [.creature] (some .battlefield) none none (some 1) }
 private def artifactBinding : Referent :=
   { det := .target, plur := .one,
-    payload := .object [.artifact] (some .battlefield) none none (some 1) none }
+    payload := .object [.artifact] (some .battlefield) none none (some 1) }
 private def playerBinding : Referent :=
   { det := .the, plur := .one, payload := .player false }
 private def outer : DRS := DRS.ofList [artifactBinding, letterB .x]
@@ -264,7 +264,7 @@ theorem optionalBodyReadsItsEnclosingPlayer :
 
 private def powerSubject : Referent := {
   det := .target, plur := .one,
-  payload := .object [.creature] (some .battlefield) none none none none }
+  payload := .object [.creature] (some .battlefield) none none none }
 
 private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
     ((stepOps (n + 6)).inst .postEvent .obj drs

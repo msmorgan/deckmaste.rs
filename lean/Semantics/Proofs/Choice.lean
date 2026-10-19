@@ -247,7 +247,7 @@ theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
     let before : DRS :=
       { referents := [
           { id := 0, det := .all, plur := .many,
-            payload := .object [] none none none none none }]
+            payload := .object [] none none none none }]
         selectionEvidence :=
           [{ kind := .object, sourceGroup := some 0, scope := 0 },
             chosen, otherSource, otherScope, otherKind] }

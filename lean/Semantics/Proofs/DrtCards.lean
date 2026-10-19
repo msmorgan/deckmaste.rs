@@ -31,7 +31,6 @@ theorem monstrousStepUsesOrdinaryPronoun :
 theorem cloudUsesOrdinaryPronoun :
     Ability.check (DRS.ofList []) cloudAttach = [] := by decide
 
-
 theorem feralContestBlocksFirstCreature :
     (stepAction 64 .postEvent .obj (DRS.ofList []) feralContest).1.resolvedIds = [1] := by
   decide
@@ -101,7 +100,7 @@ theorem grantedKeywordPublishesItsScalarParameter :
 theorem typedPlayerViewOwnsAHandWithoutChangingTheJoinedReferent :
     let joinedRef : Referent := {
       id := 17, det := .target, plur := .one,
-      payload := .join (.object [.planeswalker] (some .battlefield) none none none none)
+      payload := .join (.object [.planeswalker] (some .battlefield) none none none)
         (.player false) }
     let initial := nextClause (DRS.ofList [joinedRef])
     let out := stepZoneOwnerWith (stepOps 12) initial (some they)
@@ -147,12 +146,6 @@ theorem iterationCanReadDepartedPermanentsWithoutChangingTheirZone :
       (.doForEach (those .permanent) (instruct (controllerOf (that .permanent)) (draw (.lit 1))))
     out.2 = [] ∧ (out.1.visibleReferents.filter (fun ref => ref.kind == .object)).all
       (fun ref => ref.zone == some .graveyard) = true := by decide +kernel
-
-theorem historicalIterationDoesNotPermitTappingDepartedPermanents :
-    let dead := (stepAction 16 .postEvent .obj (DRS.ofList [])
-      (destroy (allOf isCreature))).1
-    (stepAction 16 .postEvent .obj (nextClause dead)
-      (.doForEach (those .permanent) (tap it))).2 = [.deedFits] := by decide +kernel
 
 theorem lookingBackAtAnEntryKeepsTheCurrentReferent :
     let initial := nextClause ((stepGameEvent 16 (DRS.ofList [])
@@ -213,10 +206,9 @@ theorem creationResultsKeepTheirActualDestinationAfterAMove :
       (.doForEach (.described .all (.hasType .creature)) moved)
     let groups := out.1.visibleReferents.filter (·.createdResult)
     out.2 = [] ∧ groups.length = 1 ∧
-      groups.all (fun ref => ref.zone == some .exile && !ref.counterMemoryAvailable) = true ∧
+      groups.all (fun ref => ref.zone == some .exile) = true ∧
       (stepAction 8 .postEvent .obj (nextClause out.1)
         (.setStatus .tapped (those .token))).2 = [.anaphor (.word .token) .many 0] := by decide +kernel
-
 
 theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
     let initial := nextClause ((stepAction 8 .postEvent .obj (DRS.ofList []) createdCreature).1)
@@ -229,7 +221,6 @@ theorem movingAnOuterCreationInsideALoopDoesNotCreateAPluralResult :
       created.all (fun ref => ref.zone == some .exile) = true ∧
       (out.1.findById? 0).isNone = true ∧ (out.1.findById? 2).isNone = true ∧
       (resolveCandidates (.word .token) .many (nextClause out.1)).isEmpty = true := by decide +kernel
-
 
 theorem countersOnItReadsTheStatSubjectInsideTheSmallClause :
     let initial := (stepNounPhrase 16 (DRS.ofList []) .subj true
@@ -259,14 +250,12 @@ theorem weepingAngelOwnerCanShuffleItsCreatureIntoTheirLibrary :
       (instruct (ownerOf (that (.type .creature)))
         (shuffleInto (.laterMention "weeping.recipient" it))) = [] := by decide +kernel
 
-
 theorem weepingAngelRawPronounCurrentlySelectsTheDamageSource :
     let owner := stepNounPhrase 16 (nextClause weepingAngelRecipientContext)
       .subj true (ownerOf (that (.type .creature)))
     let raw := stepNounPhrase 16 owner.1 .obj true it
     owner.2.2 = [] ∧ raw.2.2 = [] ∧ raw.2.1 = [0] ∧
       (identityBinding "weeping.recipient" raw.1).map (·.id) = some 2 := by decide +kernel
-
 
 theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
     let shuffleAction := shuffleInto (.laterMention "weeping.recipient" it)

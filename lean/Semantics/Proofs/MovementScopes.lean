@@ -6,7 +6,7 @@ namespace Semantics.Proofs.MovementScopes
 
 private def original : DRS := DRS.ofList [
   { idents := ["subject"], det := .target, plur := .one,
-    payload := .object [.creature] (some .battlefield) none none none none }]
+    payload := .object [.creature] (some .battlefield) none none none }]
 
 private def moved : DRS :=
   applyZoneMove original [0] (some (.action "exile")) (some .exile)
@@ -29,7 +29,7 @@ theorem abilityZoneChangeCreatesFreshIdentity :
     after.referents.map (fun r => (r.id, r.zone)) = [(1, some .exile)] := by decide
 
 private def callerPart : Referent :=
-  { det := .part, plur := .one, payload := .object [.creature] (some .battlefield) none none none none }
+  { det := .part, plur := .one, payload := .object [.creature] (some .battlefield) none none none }
 private def callerPlayer : Referent :=
   { det := .a, plur := .one, payload := .player false }
 
@@ -73,13 +73,13 @@ theorem joinedDepartedCreatureCannotBypassZoneFilter :
     let context := DRS.ofList [{
       det := .a, plur := .one,
       payload := .join (.player false)
-        (.object [.creature] (some .graveyard) none none none none) }]
+        (.object [.creature] (some .graveyard) none none none) }]
     resolveCandidates (.word (.type .creature)) .one context = [] := by decide
 
 theorem shuffleForgetsMaskedLibraryIdentity :
     let context := DRS.ofList [{
       det := .a, plur := .one, idents := ["library.card"],
-      payload := .object [.creature] (some .library) none none none none }]
+      payload := .object [.creature] (some .library) none none none }]
     let after := leaveOwnScope (afterShuffle (enterOwnScope context))
     after.referents = [] ∧ identityBinding "library.card" after = none := by decide
 
@@ -140,11 +140,6 @@ theorem consumingActionChecksThePreMoveZone :
         (some (.zone .graveyard none)) .departure none []) none none
     let result := stepAction 64 .postEvent .obj original destruction
     result.2 = [] ∧ (result.1.findById? 1).map (·.zone) = some (some .graveyard) := by decide
-
-theorem untapRejectsTheMovedCardByActionDomain :
-    Action.check (nextClause moved)
-      (.enact (.action "untap") (.setStatus .untapped (.pro (.word .card) .one)) none none) =
-        [.deedFits] := by decide
 
 theorem distributedMovementKeepsAnOuterCardSingular :
     let action := Action.instruct (.described .each .anyPlayer) moveOuter

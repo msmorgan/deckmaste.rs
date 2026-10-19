@@ -5,7 +5,7 @@ namespace Semantics.Proofs.HistoricalMove
 private def departedCreature : Referent := {
   det := .the, plur := .one, id := 7,
   payload := .object [.creature] (some .graveyard)
-    (some { verb := .action "destroy", wasField := true, moved := true }) none none none }
+    (some { verb := .action "destroy", wasField := true, moved := true }) none none }
 
 private def context : DRS := {
   referents := [departedCreature], nextId := 8, currentClause := 1 }

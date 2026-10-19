@@ -4,7 +4,7 @@ namespace Semantics.Proofs.DrtResolution
 
 private def isCreature (id clause : Nat) (role : GramRole) : Referent :=
   { id, clause, role, det := .target, plur := .one,
-    payload := .object [.creature] (some .battlefield) none none (some 1) none }
+    payload := .object [.creature] (some .battlefield) none none (some 1) }
 
 private def winners (reach : Reach) (drs : DRS) (direct : Bool := false) : List ReferentId :=
   (resolveCandidates reach .one drs direct).map (·.id)
@@ -45,7 +45,7 @@ theorem creatureDemonstrativeExcludesGraveyardCard :
     winners (.word (.type .creature))
       { referents := [isCreature 1 1 .obj,
           { isCreature 2 2 .subj with
-            payload := .object [.creature] (some .graveyard) none none (some 1) none }] } =
+            payload := .object [.creature] (some .graveyard) none none (some 1) }] } =
       [1] := by decide
 
 theorem demonstrativeRecencyIgnoresRoleRanking :

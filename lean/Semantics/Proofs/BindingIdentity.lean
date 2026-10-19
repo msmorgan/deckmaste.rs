@@ -92,7 +92,7 @@ theorem selfDenotingArgumentIsReadAgain :
 
 /-- An existing reference ("it") is recorded where it resolves and read back by identity. -/
 theorem existingReferenceIsRecorded :
-    Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none none }])
+    Action.check (DRS.ofList [{ det := .the, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
       (tapThenUntap it) = [] := by
   decide
 

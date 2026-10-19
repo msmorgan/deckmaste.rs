@@ -64,7 +64,7 @@ theorem copiedTokenUsesItsSelectedSourceRatherThanANeighbor :
     (after.findById? 0).map (·.ty) = some [.artifact] ∧
       (after.findById? 1).map (·.ty) = some [.creature] ∧
       (after.findById? before.nextId).map (·.payload) =
-        some (.object [.artifact] (some .battlefield) none (some .token) none none) := by decide
+        some (.object [.artifact] (some .battlefield) none (some .token) none) := by decide
 
 
 private def exiledAbility : DRS :=

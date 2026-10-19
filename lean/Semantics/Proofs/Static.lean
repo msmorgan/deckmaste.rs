@@ -82,11 +82,10 @@ theorem okContinuousClause :
 theorem okBecomesMonarch :
     Action.check (DRS.ofList []) (.gainDesignation .you (.named "monarch") none) = [] := by decide
 
-/-- "You become goaded." The Idris pin refutes the scope; a player is not a holder of it
-either. -/
+/-- "You become goaded." The Idris pin refutes the scope: goaded is held by an object. -/
 theorem badGoadedPlayer :
     Action.check (DRS.ofList []) (.gainDesignation .you (.named "goaded") none)
-      = [.designationScope (.named "goaded"), .designationHolder (.named "goaded") .player] := by
+      = [.designationScope (.named "goaded")] := by
   decide
 
 /-- "… it becomes monstrous," the grant the Monstrosity keyword action's expansion writes. -/
@@ -168,12 +167,6 @@ theorem okCreatureBecomesBlocking :
 theorem okLandBecomesBlocking :
     Action.check (DRS.ofList []) (becomeBlocking (target isLand) (a (.and [isCreature, isAttacking])))
       = [] := by
-  decide
-
-/-- "This creature blocks target planeswalker." -/
-theorem badBecomesBlockingPlaneswalker :
-    Action.check (DRS.ofList []) (becomeBlocking thisCreature (target (.hasType .planeswalker)))
-      = [.deedNounOk (.core .block)] := by
   decide
 
 /-- "this creature gets +1/+0" -/

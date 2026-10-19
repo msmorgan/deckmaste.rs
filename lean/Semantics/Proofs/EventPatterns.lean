@@ -196,11 +196,11 @@ theorem excludingYourGraveyardAllowsAnOpponentsGraveyard :
 
 private def headerCreature : Referent :=
   { det := .the, plur := .one, role := .subj,
-    payload := .object [.creature] (some .battlefield) none none none none }
+    payload := .object [.creature] (some .battlefield) none none none }
 
 private def headerArtifact : Referent :=
   { det := .a, plur := .one, role := .other,
-    payload := .object [.artifact] (some .battlefield) none none none none }
+    payload := .object [.artifact] (some .battlefield) none none none }
 
 theorem alternativeHeaderKeepsSourceIdentityAndClosesExtra :
     let primary := DRS.ofList [headerCreature]
@@ -232,7 +232,7 @@ theorem indistinguishableCounterpartsCannotShareOneAlternativeId :
 
 theorem commonMovedHeaderSuccessorDoesNotResurrectOldIdentity :
     let before := DRS.ofList [headerCreature]
-    let moved := { headerCreature with id := 1, role := .obj, payload := .object [.creature] (some .graveyard) none none none none }
+    let moved := { headerCreature with id := 1, role := .obj, payload := .object [.creature] (some .graveyard) none none none }
     let primary := DRS.ofList [moved]
     let alternative := DRS.ofList [{ moved with id := 2 }]
     let common := commonHeaderContext before [primary, alternative]

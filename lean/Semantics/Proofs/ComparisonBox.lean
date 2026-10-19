@@ -4,7 +4,7 @@ namespace Semantics.Proofs.ComparisonBox
 
 private def outerArtifact : DRS := DRS.ofList [{
   det := .target, plur := .one,
-  payload := .object [.artifact] (some .battlefield) none none (some 1) none }]
+  payload := .object [.artifact] (some .battlefield) none none (some 1) }]
 
 private def ownPower : Amount := .statOf (.stat .power) (.pro .bare .one)
 
@@ -13,7 +13,7 @@ private def comparison : Predicate :=
 
 /-- The subordinate comparison candidate outranks an enclosing subject from the older clause. -/
 theorem comparisonReadsItsCandidateRatherThanTheOuterArtifact :
-    let member := bindFor outerArtifact .the .one .object (.hasType .creature)
+    let member := bindFor .the .one .object (.hasType .creature)
     let localContext := (nextClause outerArtifact).push member .other false
     Predicate.checkAt .object outerArtifact comparison = [] ∧
       (resolveCandidates .bare .one localContext).map (·.id) = [1] ∧
@@ -59,7 +59,7 @@ private theorem olderClauseFilter (rs : List Referent) (clause : Nat)
 
 private def candidate (clause id : Nat) : Referent := {
   det := .the, plur := .one, clause, id, role := .other,
-  payload := .object [.creature] (some .battlefield) none none none none }
+  payload := .object [.creature] (some .battlefield) none none none }
 
 private theorem candidateWins (rs : List Referent) (clause id : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
@@ -88,7 +88,7 @@ private theorem candidateWins (rs : List Referent) (clause id : Nat)
   rfl
 
 private def comparisonContext (drs : DRS) : DRS :=
-  (nextClause drs).push (bindFor drs .the .one .object (.hasType .creature)) .other false
+  (nextClause drs).push (bindFor .the .one .object (.hasType .creature)) .other false
 
 private theorem comparisonErrors (n : Nat) (drs : DRS) :
     ((stepOps (n + 4)).pred drs
@@ -112,9 +112,7 @@ private theorem powerErrors (n : Nat) (drs : DRS) :
       let selected := (stepOps (n + 1)).np { drs with characteristicRead := true }
         .other false (.pro .bare .one)
       let refs := selected.2.1.filterMap selected.1.findById?
-      refuse (statHeadTysOk .power (refs.filterMap fun ref =>
-        if ref.ty.isEmpty then none else some ref.ty)) .statHeadTysOk ++
-        selected.2.2 ++ kindCheck .object ((refs.head?).map (·.kind)) ++
+      selected.2.2 ++ kindCheck .object ((refs.head?).map (·.kind)) ++
         refuse (!(refs.any (fun r => r.plur != .one))) .singular := by rfl
 
 private theorem powerOnCandidate (n : Nat) (rs : List Referent) (clause id : Nat)
@@ -130,7 +128,7 @@ private theorem powerOnCandidate (n : Nat) (rs : List Referent) (clause id : Nat
     currentClause := current, nextId := next, relativeKind := kind } = _ at winners
   rw [powerErrors, proStep, winners]
   simp [DRS.recordMention, DRS.findById?, candidate]
-  exact ⟨rfl, rfl, rfl⟩
+  exact ⟨rfl, rfl⟩
 
 /-- The comparison checker succeeds in every outer context whose referents belong to the
 current or an earlier clause. The subordinate candidate, rather than any outer object,

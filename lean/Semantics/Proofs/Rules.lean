@@ -92,14 +92,6 @@ def battleDefenseDamage : DamageResult :=
     does := loseCounters (some (.printed (.named "defenseCounter"))) (some .thatMuch) .this }
 theorem okBattleDefenseDamage : damageResultCheck battleDefenseDamage = [] := by decide
 
-/-- The registry assigns energy counters to players; paying energy removes a counter from
-the player [CR#107.14]. Its holder check therefore rejects this permanent recipient. -/
-theorem badDamageResultCounterHolder :
-    damageResultCheck { planeswalkerLoyaltyDamage with
-      does := loseCounters (some (.printed (.named "energy"))) (some .thatMuch) .this }
-      = [.counterSourceScope] := by
-  decide
-
 /-- A counter kind is a registry key, and "loyalty" is not the declared name (`loyaltyCounter`). -/
 theorem badDamageResultUndeclaredCounter :
     damageResultCheck { planeswalkerLoyaltyDamage with

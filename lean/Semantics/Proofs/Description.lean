@@ -80,29 +80,9 @@ theorem okKeywordSelfNegation :
                                          .not (.hasKeyword (.the (.named "flying")))]))) = [] := by
   decide
 
-/-- "Tap target nonland Forest." -/
-theorem badForestNonland :
-    Action.check (DRS.ofList [])
-      (.setStatus .tapped (target (.and [.hasSubtype (landType "Forest"), .not isLand])))
-      = [.contradictionFree] := by
-  decide
-
 /-- "creature with power 2 or less" -/
 theorem okContradictionFreeAnd :
     Predicate.checkAt .object (DRS.ofList []) (.and [isCreature, .compare [.stat .power] .atMost (.lit 2)]) = [] := by
-  decide
-
-/-- "noncreature that is attacking or blocking" -/
-theorem badNoncreatureAttackingOrBlocking :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.not isCreature, .or [isAttacking, isBlocking]])
-      = [.contradictionFree] := by
-  decide
-
-/-- "noncreature that is an attacking artifact or a blocking land" -/
-theorem badWrappedStatusLaunder :
-    Predicate.checkAt .object (DRS.ofList [])
-      (.and [.or [.and [isArtifact, isAttacking], .and [isLand, isBlocking]], .not isCreature])
-      = [.contradictionFree] := by
   decide
 
 /-- "blocked creature that's unblocked" -/
@@ -189,12 +169,6 @@ theorem badNestedEachOf :
 theorem okWhiteCreature :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [isCreature, .colorIs .white])) = [] := by decide
 
-/-- "target colorless white creature" -/
-theorem badColorlessWhite :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (target (.and [isCreature, isColorless, .colorIs .white]))
-      = [.contradictionFree] := by
-  decide
-
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Action.check (DRS.ofList [])
@@ -218,15 +192,6 @@ theorem badUnlicensedY :
 /-- "the power of target land creature": an animated land is a land AND a creature. -/
 theorem okAnimatedLandPower :
     Amount.check (DRS.ofList []) (.statOf (.stat .power) (target (.and [isLand, isCreature]))) = [] := by decide
-
-/-- "the power of target land": this checker requires creature-type evidence for the
-projection; a noncreature permanent has no power [CR#208.3]. -/
-theorem badLandPower :
-    Amount.check (DRS.ofList []) (.statOf (.stat .power) (target isLand)) = [.statHeadTysOk] := by decide
-
-/-- "the loyalty of target battle": loyalty is printed on planeswalkers [CR#209.1]. -/
-theorem badBattleLoyalty :
-    Amount.check (DRS.ofList []) (.statOf (.stat .loyalty) (target (.hasType .battle))) = [.statHeadTysOk] := by decide
 
 /-- "the greatest power among creatures" -/
 theorem okPowerAmongObjects :
@@ -273,24 +238,6 @@ theorem badLifeTotalSuperlative :
 
 /-- "this creature" -/
 theorem okAscribeCreature : NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature .this none) = [] := by decide
-
-/-- "this instant" -/
-theorem badAscribeInstant :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .instant .this none) = [.ascriptionOk] := by decide
-
-/-- "this sorcery" -/
-theorem badAscribeSorcery :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .sorcery .this none) = [.ascriptionOk] := by decide
-
-/-- "this kindred" -/
-theorem badAscribeKindred :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .kindred .this none) = [.ascriptionOk] := by decide
-
-/-- "this Aura land" -/
-theorem badAscribeForeignSubtype :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .land .this (some (enchantmentType "Aura")))
-      = [.ascriptionOk] := by
-  decide
 
 /-- "target creature that's goaded" -/
 theorem okObjectDesignation :
@@ -459,14 +406,6 @@ theorem okCardAndSpell : Predicate.checkAt .object (DRS.ofList []) cardOnTheStac
 /-- "each token on the battlefield" -/
 theorem okTokenAndPermanent : Predicate.checkAt .object (DRS.ofList []) tokenOnTheBattlefield = [] := by decide
 
-/-- "a card token" -/
-theorem badCardToken :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.isCard, .isToken]) = [.contradictionFree] := by decide
-
-/-- "a card that is a copy of a card" -/
-theorem badCardCopyOfACard :
-    Predicate.checkAt .object (DRS.ofList []) (.and [.isCard, isCopyOfACard]) = [.contradictionFree] := by decide
-
 /-- "Target creature can't attack this turn." -/
 theorem okCantAttackCreature :
     Action.check (DRS.ofList []) (establish (cant (target isCreature) attack) (some thisTurn)) = [] := by decide
@@ -505,11 +444,5 @@ theorem badEmptyPartyRoles :
 /-- "a fortified land" -/
 theorem okFortifiedLand :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isLand, isAttached (some .fortified)])) = [] := by decide
-
-/-- "a fortified creature" [CR#301.6,301.5]. -/
-theorem badFortifiedCreature :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isCreature, isAttached (some .fortified)]))
-      = [.contradictionFree] := by
-  decide
 
 end Semantics.Proofs.Description

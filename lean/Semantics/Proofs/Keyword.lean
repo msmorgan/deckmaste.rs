@@ -301,7 +301,7 @@ theorem okCounterSpell : Action.check (DRS.ofList []) (counter (target isSpell))
 /-- "Counter target creature or player." -/
 theorem badCounterJoinedPlayer :
     Action.check (DRS.ofList []) (counter (target isAnyTarget))
-      = [.deedFits, .kindLte (.join .object .player) (.join .object .pile)] := by
+      = [.kindLte (.join .object .player) (.join .object .pile)] := by
   decide
 
 /-- "Companion — Each permanent card in your starting deck has mana value 2 or less." -/

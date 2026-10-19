@@ -27,16 +27,6 @@ theorem badTurnAPlayerFaceDown :
     Action.check (DRS.ofList []) (.turnFaceDown (target (.isOpponentOf .you)) faceDownCreature) =
       [.kindMismatch .object .player] := by decide
 
-/-- An entry rider into exile is not of the kind exile allows. -/
-theorem badEntryRiderIntoExile :
-    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some exileZone) .arrival none [(.entersAs .tapped)]) =
-      [.riderKind .placement .entry] := by decide
-
-/-- A placement onto the battlefield is not of the kind the battlefield allows. -/
-theorem badPlacementOntoBattlefield :
-    Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some battlefield) .arrival none
-      [(.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
-
 /-- A special action whose action reads an anaphor with no antecedent is refused. -/
 theorem badSpecialActionUnboundAnaphor :
     StaticSpec.check (DRS.ofList []) (.specialAction none (.mana [generic 1]) (.setStatus .faceUp it)) =

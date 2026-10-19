@@ -8,10 +8,10 @@ namespace Semantics.Proofs.CorpusRecency
 -- Mentioning the Aura again in the mana-value comparison preserves its identity.
 private def erietteAura : Referent :=
   { id := 0, det := .a, plur := .one, clause := 1, role := .other,
-    payload := .object [.enchantment] (some .battlefield) none none none none }
+    payload := .object [.enchantment] (some .battlefield) none none none }
 private def eriettePermanent : Referent :=
   { id := 1, det := .a, plur := .one, clause := 0, role := .obj,
-    payload := .object [] (some .battlefield) none none none none }
+    payload := .object [] (some .battlefield) none none none }
 private def erietteContext : DRS :=
   { referents := [erietteAura, eriettePermanent], nextId := 2, currentClause := 2 }
 
