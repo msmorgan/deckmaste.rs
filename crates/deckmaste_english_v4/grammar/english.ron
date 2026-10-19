@@ -142,6 +142,10 @@
         // A single genitive over coordinated nominals (*target artifact or
         // creature's owner*; CGEL, Ch. 15 §3.4, p. 1331).
         "PossessorNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
+        // A direct multiple genitive over nominals (*that creature's or
+        // spell's controller*; CGEL, Ch. 15 §3.4, p. 1331), and each genitive.
+        "GenitiveNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
+        "GenitiveNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
         "NumericalDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative that can head a fused Noun Phrase alone (*choose
         // one*, *choose both*), and a coordination of such (*one or more*).
@@ -944,6 +948,9 @@
             equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "CoordinatedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "PossessorNominals")],
             equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
+        (name: "GenitiveConjunct", lhs: "GenitiveNominal", rhs: [Cat("head", "BareNominal"), Word("marker", "Genitive")]),
+        (name: "MultipleGenitive", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "GenitiveNominals")],
+            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Genitive"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "GenitiveDeterminedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "BareNominal")], equations: [Require("determiner.Case", "Genitive"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // *up to one target player's life total*.
         (name: "MaximumPossessor", lhs: "Possessor", rhs: [Selected("determiner", "PrepositionPhrase", ["Up"]), Cat("head", "BareNominal")],
@@ -1144,6 +1151,7 @@
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability", "DeterminativeDistribution"], equations: [Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
+        Coordination(category: "GenitiveNominals", conjunct: Some("GenitiveNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         // Relative clauses coordinate, each with its relative word (*tokens
         // that are copies of it and that are tapped and attacking*; CGEL, Ch.

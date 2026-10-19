@@ -51,3 +51,4 @@
 +Clause creatures and/or planeswalkers you control get +1/+1 => NounPhrase "creatures and/or planeswalkers you control" as Subject of get
 *Clause creatures and/or planeswalkers you control gets +1/+1
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
++NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
