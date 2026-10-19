@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting, lean-v3-authoring-impl-7-checker-and-regime-retirement, lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads, lean-v3-authoring-impl-9-primitive-decomposition, lean-v3-authoring-impl-10-definitions-and-cards-polish]
+needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting, lean-v3-authoring-impl-7-checker-and-regime-retirement, lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads, lean-v3-authoring-impl-9-primitive-decomposition, lean-v3-authoring-impl-10-definitions-and-cards-polish, lean-v3-authoring-impl-11-replacement-and-entry-unification, lean-v3-authoring-impl-12-ast-and-authoring-cleanup]
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
@@ -16,8 +16,10 @@ holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into
 [6 Cards dewarting](lean-v3-authoring-impl-6-cards-dewarting.md),
 [7 Checker & regime retirement](lean-v3-authoring-impl-7-checker-and-regime-retirement.md),
 [8 Vocabulary split & noun heads](lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads.md),
-[9 Primitive decomposition](lean-v3-authoring-impl-9-primitive-decomposition.md), and
-[10 Definitions & cards polish](lean-v3-authoring-impl-10-definitions-and-cards-polish.md).
+[9 Primitive decomposition](lean-v3-authoring-impl-9-primitive-decomposition.md),
+[10 Definitions & cards polish](lean-v3-authoring-impl-10-definitions-and-cards-polish.md),
+[11 Replacement & entry unification](lean-v3-authoring-impl-11-replacement-and-entry-unification.md), and
+[12 AST & authoring cleanup](lean-v3-authoring-impl-12-ast-and-authoring-cleanup.md).
 Standard constraints apply.
 
 ## Governing Principles
@@ -120,6 +122,19 @@ Standard constraints apply.
     eliminate the 27 remaining `.named "..."` literals and card-local
     `firstMention`/`laterMention` workarounds in `Cards/*.lean`, and fold raw
     constructors in `Proofs/*.lean`.
+11. [`lean-v3-authoring-impl-11-replacement-and-entry-unification`](lean-v3-authoring-impl-11-replacement-and-entry-unification.md):
+    Reshape static and self-replacement effects onto `replace (would ...) (instead ...)`,
+    retire `StaticSpec.entryRider` and `StaticSpec.choice` in favor of unified
+    `replace` / `asEvent` entry-modification phrasings (`[CR#614.1a,614.1c,614.1d,614.12,614.15]`),
+    fix `devour`/`tribute`/`riot`/`unleash`/`amplify`, and fix singular draw-replacement
+    amounts (`[CR#121.2,702.52a]`).
+12. [`lean-v3-authoring-impl-12-ast-and-authoring-cleanup`](lean-v3-authoring-impl-12-ast-and-authoring-cleanup.md):
+    Finish `CharacteristicEdit` unification (`ptDefinition`, `ptSwitch`,
+    `everyTypeOf`/`chosenQuality`/`colors`, `Characteristics.valueEdits`),
+    reconcile overlapping AST & vocabulary constructs (`Amount` vs `Quantity`,
+    `HeadNoun` vs `NounWord`, `Delta`, counter-kind copying, `doOnlyIf`,
+    `noHolder`, `statBecomes`, `isManaAbility`, `resolvedPermanent` vs `becomes`,
+    `theGame`), and complete authoring/layering/escape-hatch cleanup.
 
 ---
 
