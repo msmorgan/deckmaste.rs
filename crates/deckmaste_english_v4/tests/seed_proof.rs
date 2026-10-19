@@ -371,6 +371,43 @@ fn node(reading: &Reading) -> &ReadingNode {
     reading.node().expect("a node")
 }
 
+#[test]
+fn normal_form_identifies_clause_and_verb_phrase_coordination_of_imperatives() {
+    let s = seed();
+    let clauses = s
+        .readings("Destroy target creature or exile target creature.")
+        .remove(0);
+    // Hand-build the excluded `Imperative [destroy … or exile …]`.
+    let coordination = coordination(&clauses);
+    let verb_phrase = |i: usize| node(&coordination.children[i]).children[0].clone();
+    let imperative = node(&coordination.children[0]);
+    let phrases = Reading::Node(ReadingNode {
+        production: dpsi::Ident::new("Coordination:VerbPhrase#Coordinator/binary"),
+        category: dpsi::Ident::new("VerbPhrase"),
+        features: node(&verb_phrase(0)).features.clone(),
+        gap: node(&verb_phrase(0)).gap,
+        selected_frame: None,
+        children: vec![
+            verb_phrase(0),
+            coordination.children[1].clone(),
+            verb_phrase(2),
+        ],
+    });
+    let excluded = Reading::Node(ReadingNode {
+        children: vec![phrases],
+        ..imperative.clone()
+    });
+    let excluded = replace(&clauses, coordination, &excluded);
+    assert!(
+        s.grammar.admit(&excluded, &s.lexicon).is_err(),
+        "a chain of bare imperatives is coordinated imperative Clauses"
+    );
+    assert_eq!(
+        s.grammar.normal_form(&excluded),
+        s.grammar.normal_form(&clauses)
+    );
+}
+
 /// The outermost coordination in a Reading.
 fn coordination(reading: &Reading) -> &ReadingNode {
     outermost_coordination(reading).expect("a coordination")

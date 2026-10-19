@@ -187,7 +187,10 @@ Lexical Class member (perfect *have* and its forms).
 
 `normal_form(reading)` identifies only the approved canonicalizations the
 engine derives: every grouping of a chain joined by one coordinator becomes one
-node listing its conjuncts and then the coordinator, and a Preposition Phrase
+node listing its conjuncts and then the coordinator (with no features of its
+own); a Production over a coordination of its `uncoordinated` child becomes
+the coordination of that Production over each conjunct (clause versus
+verb-phrase coordination of bare imperatives); and a Preposition Phrase
 attached as a Predicate adjunct to a head with a longer frame selecting it
 becomes that frame's complement. It endorses nothing; it lets two sets of
 Readings be compared under exactly those equivalences.
