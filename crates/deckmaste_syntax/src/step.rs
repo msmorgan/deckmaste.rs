@@ -330,6 +330,7 @@ pub(crate) fn resolve(
 /// The finite grammatical summary of a completed Constituent: everything a
 /// parent may inspect. Two Constituents with equal summaries are packed.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[expect(clippy::struct_excessive_bools, reason = "independent packed facts")]
 pub(crate) struct Summary {
     pub first_glues: bool,
     pub last_glues: bool,
@@ -378,6 +379,7 @@ pub(crate) enum ChildView<'a> {
 
 /// The partial state of a Production whose first children have been found.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[expect(clippy::struct_excessive_bools, reason = "independent packed facts")]
 pub(crate) struct State {
     pub first_glues: Option<bool>,
     pub last_glues: bool,
@@ -528,6 +530,29 @@ impl Production {
         }
     }
 
+    /// Takes a conjunct's Host Categories and prepositions into a
+    /// coordination: Preposition Phrases keep up to two prepositions (*from
+    /// black and from red*, *into your hand or onto the battlefield*).
+    fn conjoin(next: &mut State, summary: &Summary) {
+        next.conjunct_hosts &= summary.hosts;
+        let own = [
+            summary.preposition.map(|(p, _)| p),
+            summary.other_preposition,
+        ];
+        if own[0].is_none() {
+            next.mixed_prepositions = true;
+        }
+        for q in own.into_iter().flatten() {
+            match (next.preposition, next.other_preposition) {
+                (None, _) => next.preposition = summary.preposition,
+                (Some((p, _)), _) if p == q => {}
+                (_, Some(o)) if o == q => {}
+                (_, None) => next.other_preposition = Some(q),
+                _ => next.mixed_prepositions = true,
+            }
+        }
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -600,7 +625,9 @@ impl Production {
                     if let Some(list) = prepositions {
                         let (prep, _) = summary.preposition.as_ref()?;
                         if !list.contains(prep)
-                            || summary.other_preposition.is_some_and(|o| !list.contains(&o))
+                            || summary
+                                .other_preposition
+                                .is_some_and(|o| !list.contains(&o))
                         {
                             return None;
                         }
@@ -621,9 +648,7 @@ impl Production {
                 if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
                     return None;
                 }
-                if summary.set_off
-                    && self.coordinator.is_some()
-                    && self.names[position] == "first"
+                if summary.set_off && self.coordinator.is_some() && self.names[position] == "first"
                 {
                     return None;
                 }
@@ -638,27 +663,8 @@ impl Production {
                 {
                     *slot = Some(c);
                 }
-                // Coordinated Preposition Phrases keep their prepositions, up
-                // to two (*from black and from red*, *into your hand or onto
-                // the battlefield*).
                 if self.coordinator.is_some() && matches!(self.gaps[position], GapRule::Shared) {
-                    next.conjunct_hosts &= summary.hosts;
-                    let own = [
-                        summary.preposition.map(|(p, _)| p),
-                        summary.other_preposition,
-                    ];
-                    if own[0].is_none() {
-                        next.mixed_prepositions = true;
-                    }
-                    for q in own.into_iter().flatten() {
-                        match (next.preposition, next.other_preposition) {
-                            (None, _) => next.preposition = summary.preposition,
-                            (Some((p, _)), _) if p == q => {}
-                            (_, Some(o)) if o == q => {}
-                            (_, None) => next.other_preposition = Some(q),
-                            _ => next.mixed_prepositions = true,
-                        }
-                    }
+                    Self::conjoin(&mut next, summary);
                 }
                 if self.coordinator == Some(position) {
                     if self
