@@ -1,6 +1,7 @@
 import Semantics.Definitions
 import Semantics.Check.Card
 import Semantics.Check.Rules
+import Semantics.Cards.Counters
 
 /-!
 # Semantics.Proofs.Counters
@@ -602,5 +603,54 @@ theorem m1m1CounterNameIsItsKind :
 /-- "whichever is greater" is the same aggregate under `max`. -/
 theorem okGreaterOf :
     greaterOf (.lit 1) (.lit 2) = .aggregateOf .max [.lit 1, .lit 2] := rfl
+
+/-! ### Anaphora across `putCounters`
+
+A pronoun after "put … counters on <target>" reads the ordinary DRS: the counters introduce no
+competing referent, so the printed card needs no card-private first/later mention. -/
+
+private def printedText (card : Spelled) : List Ability :=
+  match card.card with
+  | .singleFaced face => face.characteristics.text
+  | _ => []
+
+/-- A spell ability's body, or an (ability-word headed) triggered ability's header and body, run
+from the empty DRS. -/
+private def lineTrace (ability : Ability) : DRS × List Refusal :=
+  let ability := match ability with
+    | .italicHead _ inner => inner
+    | ability => ability
+  match ability with
+  | .spell none body => stepAction 64 .postEvent .obj (DRS.ofList []) body
+  | .triggered event alternatives while_ [] none none none body =>
+    let (header, headerErrors) :=
+      stepTriggerHeaderWith (stepOps 64) (DRS.ofList []) event alternatives while_ none
+    let (out, bodyErrors) := stepAction 64 .postEvent .obj (nextClause header) body
+    (out, headerErrors ++ bodyErrors)
+  | _ => (DRS.ofList [], [.recursionLimit])
+
+/-- Thranduil's Company: "Whenever a land you control enters, put two +1/+1 counters on target
+creature you control. It gains vigilance until end of turn." The header reads the land (3); "it"
+reads the target creature (5), not the land. -/
+theorem thranduilsCompanyItIsTheTargetCreature :
+    let result := match (printedText Cards.thranduilsCompany)[1]? with
+      | some line => lineTrace line
+      | none => (DRS.ofList [], [.nonEmpty])
+    result.2 = [] ∧ result.1.resolvedIds = [5, 3] ∧
+      (result.1.findById? 5).map (fun r => (r.det, r.ty)) = some (.target, [.creature]) ∧
+      (result.1.findById? 3).map (fun r => (r.det, r.ty)) = some (.a, [.land]) := by
+  decide
+
+/-- Stunning Shot: "Put two +1/+1 counters on up to one target creature you control. Tap up to
+one target creature an opponent controls and put a stun counter on it." "it" reads the second
+target (4, the tapped creature), not the first (1). -/
+theorem stunningShotItIsTheTappedCreature :
+    let result := match (printedText Cards.stunningShot)[0]? with
+      | some line => lineTrace line
+      | none => (DRS.ofList [], [.nonEmpty])
+    result.2 = [] ∧ result.1.resolvedIds = [4] ∧
+      (result.1.findById? 4).map (fun r => (r.det, r.clause)) = some (.target, 1) ∧
+      (result.1.findById? 1).map (fun r => (r.det, r.clause)) = some (.target, 0) := by
+  decide
 
 end Semantics.Proofs.Counters

@@ -114,7 +114,7 @@ def songOfEarendil : Action :=
     (each (and [isCreature, youControl, not (hasKeyword flying)])) .many
 theorem okSongOfEarendil : Action.check (DRS.ofList []) songOfEarendil = [] := by decide
 def gideonsAvenger : Ability :=
-  whenever (does (a (and [isCreature, controlledBy anOpponent])) (become tapped))
+  whenever (does (a (and [isCreature, anOpponentControls])) (become tapped))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okGideonsAvenger : Ability.check (DRS.ofList []) gideonsAvenger = [] := by decide
 def prologueToPhyresis : Action :=
@@ -471,7 +471,7 @@ def simicFluxmageMove : Action :=
 theorem okSimicFluxmageMove : Action.check (DRS.ofList []) simicFluxmageMove = [] := by decide
 /-- Rikku, Resourceful Guardian -/
 def rikkuStealMove : Action :=
-  moveCounters (.lit 1) (target (and [isCreature, controlledBy anOpponent])) (target
+  moveCounters (.lit 1) (target (and [isCreature, anOpponentControls])) (target
                                                                                 (and
                                                                                    [isCreature,
                                                                                     youControl]))
@@ -774,7 +774,7 @@ def shelteringAncient : Spelled := spelled <| .singleFaced
         [ trample,
           cumulativeUpkeep
             (perform (putCounters (.lit 1) (printedKind p1p1Counter)
-              (a (and [isCreature, controlledBy anOpponent])) .many)) ],
+              (a (and [isCreature, anOpponentControls])) .many)) ],
       power := stat 5, toughness := stat 5 } }
 
 def coverOfWinterPut : Ability :=
@@ -999,11 +999,6 @@ def feralContest : Spelled := spelled <| .singleFaced
               establishThroughout (must (target (and [isCreature, isOther]))
                                      (block it)) thisTurn ]) ] } }
 
-private semantic_template companyRecipient : NounPhrase :=
-  .firstMention "thranduilsCompany.recipient" (target (and [isCreature, youControl]))
-private semantic_template companyRecipientAgain : NounPhrase :=
-  .laterMention "thranduilsCompany.recipient" (target (and [isCreature, youControl]))
-
 /-- Thranduil's Company -/
 def thranduilsCompany : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -1017,18 +1012,9 @@ def thranduilsCompany : Spelled := spelled <| .singleFaced
             (whenever (does (a (and [isLand, youControl])) enter)
               (sequentially
                 [ putCounters (.lit 2) (printedKind p1p1Counter)
-                    companyRecipient .many,
-                  gain
-                    companyRecipientAgain
-                    vigilance (some untilEndOfTurn) ])) ],
+                    (target (and [isCreature, youControl])) .many,
+                  gain it vigilance (some untilEndOfTurn) ])) ],
       power := stat 3, toughness := stat 4 } }
-
-private semantic_template stunningShotRecipient : NounPhrase :=
-  .firstMention "stunningShot.tappedCreature"
-    (.described (.target (upTo 1)) (.and [isCreature, .hasPossessor .controller anOpponent]))
-private semantic_template stunningShotRecipientAgain : NounPhrase :=
-  .laterMention "stunningShot.tappedCreature"
-    (.described (.target (upTo 1)) (.and [isCreature, .hasPossessor .controller anOpponent]))
 
 /-- Stunning Shot -/
 def stunningShot : Spelled := spelled <| .singleFaced
@@ -1038,9 +1024,8 @@ def stunningShot : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ putCounters (.lit 2) (printedKind p1p1Counter)
                 (targets (upTo 1) (and [isCreature, youControl])) .many,
-              tap stunningShotRecipient,
-              putCounters (.lit 1) (printedKind stunCounter)
-                stunningShotRecipientAgain .many ]) ] } }
+              tap (targets (upTo 1) (and [isCreature, anOpponentControls])),
+              putCounters (.lit 1) (printedKind stunCounter) it .many ]) ] } }
 
 /-- Stonebinder's Familiar -/
 def stonebindersFamiliar : Spelled := spelled <| .singleFaced
@@ -1081,7 +1066,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisEnchantment enter)
             (instruct thisEnchantment
-               (dealDamage (.lit 3) (target (and [isCreature, controlledBy anOpponent]))
+               (dealDamage (.lit 3) (target (and [isCreature, anOpponentControls]))
                   .noncombatOnly)),
           whenever (does (counted (atLeast 1) isCreature) die)
             (sequentially
