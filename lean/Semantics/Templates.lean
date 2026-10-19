@@ -496,8 +496,9 @@ semantic_template otherThan (np : NounPhrase) : Predicate := .otherThan np
 semantic_template hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw
 /-- The keyword a keyword ability is, as "with flying" names it: `hasKeyword flying`, or a list
 `[flying, firstStrike, trample]`. A keyword ability is written under its declaration's name
-(`.keyword (.named "flying") …`), so that name is the keyword; an ability that is no keyword
-names none (`.named ""`). -/
+(`.keyword (.named "flying") …`), so that name is the keyword. An ability that is no keyword
+names none: its term is the empty label, which names no registered keyword and is refused
+`knownKeywordTerm` wherever a keyword term is checked. -/
 semantic_template keywordOf (ability : Ability) : KeywordTerm :=
   match ability with
   | .keyword label _ _ => .the label

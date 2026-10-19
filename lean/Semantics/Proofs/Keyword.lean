@@ -412,4 +412,17 @@ theorem okSplitSecond : Ability.check (DRS.ofList []) splitSecond = [] := by dec
 /-- The Ring tempts you, its emblem counting the times it has [CR#701.54a,701.54c]. -/
 theorem okTheRingTemptsYou : Action.check (DRS.ofList []) theRingTemptsYou = [] := by decide
 
+/-- An ability that is no keyword coerces to no keyword: "with Landfall — flying" is refused as
+an unknown keyword term rather than read as a keyword. -/
+theorem badNonKeywordAbilityAsKeyword :
+    Predicate.check (DRS.ofList []) (hasKeyword (landfall flying)) = [.knownKeywordTerm] := by
+  decide
+
+/-- The same in a keyword list. -/
+theorem badNonKeywordAbilityInKeywordList :
+    Action.check (DRS.ofList [])
+        (choose (a (qualityFrom .ability (abilitiesAmong [flying, landfall flying])))) =
+      [.knownKeywordTerm] := by
+  decide
+
 end Semantics.Proofs.Keyword
