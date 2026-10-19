@@ -215,6 +215,10 @@ impl Builder {
                 return Err(invalid(&format!("no {:?} slot to spell", slot.form)));
             }
         }
+        // A slot spelled with no surface is a gap in the paradigm.
+        lexeme
+            .forms
+            .retain(|slot| slot.surfaces.as_ref().is_none_or(|s| !s.is_empty()));
         lexeme.merge_number_neutral_forms();
         if auxiliary {
             lexeme

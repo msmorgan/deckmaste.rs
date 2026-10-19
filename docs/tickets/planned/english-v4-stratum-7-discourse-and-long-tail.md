@@ -50,7 +50,7 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     determiner, Lush Growth (*a Mountain, Forest, and Plains*) and Wild Shape
     (*that base power and toughness*), which read only through a spurious
     Noun Phrase coordination until Stratum 6 ruled it out.
-  - Non-coordination one-off: Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
+  - Non-coordination one-off (38 units, approved by the owner): Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
   - Serial unlike coordination beyond object lists: predicate adjuncts
     (*only during …, only if …, and only once each turn*), Grizzled Wolverine;
     an NP and a PP under *and/or* (*library, graveyard, and/or outside the
@@ -76,8 +76,8 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     Zimone, Paradox Sculptor; Captain's Maneuver; Spinning Wheel Kick; Etched
     Slith; Cloudspire Skycycle.
 - **Profiled into Stratum 7 by Stratum 6** (`src/profile.rs`, by rule):
-  - *The same is true for …* as a pro-form (25; the owner is confirming
-    these): Animus of Predation; Arcane Adaptation; Biotransference; Bleeding
+  - *The same is true for …* as a pro-form (25 units; the owner approved
+    them for Stratum 7, which owns discourse-anaphoric clauses): Animus of Predation; Arcane Adaptation; Biotransference; Bleeding
     Effect; Cairn Wanderer; Celestial Dawn; Concerted Effort; Conspiracy;
     Death-Mask Duplicant; Eater of Virtue; Encroaching Mycosynth; Escaped
     Shapeshifter; Indominus Rex, Alpha; Leyline of Transformation; Majestic

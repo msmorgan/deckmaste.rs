@@ -23,6 +23,8 @@
 + Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card. => VerbPhrase "control but don't own"
 + Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature" as Complement of to; NounPhrase "enchanted creature" as Complement of by
 +NounPhrase its power and toughness => Nominal "power and toughness"; readings 1
++NounPhrase base power and base toughness 4/4 => Nominal "base power and base toughness"; readings 1
++NounPhrase target creature with power or toughness 4 or greater => Nominal "power or toughness 4 or greater"; Amount "4 or greater"; readings 1
 + Each creature and planeswalker you control gets +1/+1 until end of turn. => NounPhrase "Each creature and planeswalker you control" as Subject of get
 * Each creature and planeswalker you control get +1/+1 until end of turn.
 + Activate only during your turn and only once each turn. => PrepositionPhrase "only during your turn"; AdverbPhrase "only once each turn"
@@ -60,5 +62,7 @@
 +Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
 + Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1
 +Clause you and at least one permanent become tapped => NounPhrase "you and at least one permanent" as Subject of become; readings 1
++ Exile them and all other creatures. => NounPhrase "them and all other creatures" as Object of exile; readings 1
++Clause you, they, and creatures attack => NounPhrase "you, they, and creatures" as Subject of attack; readings 1
 +Clause it has attacked or blocked => VerbPhrase "attacked or blocked" as Complement of have
 +Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1

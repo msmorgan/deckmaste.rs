@@ -52,12 +52,6 @@
     // Reflexives are Lexemes of their own: the schema has no reflexive Word
     // Form. They fill only non-subject positions, hence Accusative.
     pronouns: [
-        (lemma: "I", forms: [
-            (person: First, number: Singular, case: Nominative, surfaces: "I"),
-            (person: First, number: Singular, case: Accusative, surfaces: "me"),
-            (person: First, number: Singular, case: Genitive, surfaces: "my"),
-            (form: IndependentGenitive, person: First, number: Singular, case: Genitive, surfaces: "mine"),
-        ]),
         (lemma: "he", forms: [
             (person: Third, number: Singular, case: Nominative, surfaces: "he"),
             (person: Third, number: Singular, case: Accusative, surfaces: "him"),
@@ -67,9 +61,11 @@
         (lemma: "himself", forms: [
             (person: Third, number: Singular, case: Accusative, surfaces: "himself"),
         ]),
+        // *It* and *you* have one non-genitive form, which does not inflect
+        // for nominative or accusative (CGEL, Ch. 5 §16.1, p. 458, [6]), as
+        // relative *which* does not.
         (lemma: "it", forms: [
-            (person: Third, number: Singular, case: Nominative, surfaces: "it"),
-            (person: Third, number: Singular, case: Accusative, surfaces: "it"),
+            (person: Third, number: Singular, surfaces: "it"),
             (person: Third, number: Singular, case: Genitive, surfaces: "its"),
         ]),
         (lemma: "itself", forms: [
@@ -110,8 +106,7 @@
         ]),
         // Oracle "you" is always one player.
         (lemma: "you", forms: [
-            (person: Second, number: Singular, case: Nominative, surfaces: "you"),
-            (person: Second, number: Singular, case: Accusative, surfaces: "you"),
+            (person: Second, number: Singular, surfaces: "you"),
             (person: Second, number: Singular, case: Genitive, surfaces: "your"),
             (form: IndependentGenitive, person: Second, number: Singular, case: Genitive, surfaces: "yours"),
         ]),
@@ -129,8 +124,10 @@
     auxiliaries: [
         (lemma: "be", third_singular: "is", preterite: "were", past_participle: "been",
             gerund: "being", irrealis: "were",
+            // Oracle text has no first person: *be* has no first-person
+            // singular present (owner ruling), rather than a plain *be*.
             forms: [
-                (form: Present, person: First, number: Singular, surfaces: "am"),
+                (form: Present, person: First, number: Singular, surfaces: []),
                 (form: Present, person: Second, surfaces: "are"),
                 (form: Present, number: Plural, surfaces: "are"),
                 (form: Preterite, person: First, number: Singular, surfaces: "was"),
@@ -169,7 +166,6 @@
             ]),
         (lemma: "'re", form_of: Some("be"), third_singular: ["'s", "’s"], finite_only: true, binding: Suffix,
             forms: [
-                (form: Present, person: First, number: Singular, surfaces: ["'m", "’m"]),
                 (form: Present, person: First, number: Plural, surfaces: ["'re", "’re"]),
                 (form: Present, person: Second, surfaces: ["'re", "’re"]),
                 (form: Present, person: Third, number: Plural, surfaces: ["'re", "’re"]),

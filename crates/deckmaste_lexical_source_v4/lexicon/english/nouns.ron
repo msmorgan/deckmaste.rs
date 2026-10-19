@@ -108,7 +108,10 @@
     // "each point of bushido it has".
     (lemma: "point", frames: [Complement(PP(["of"]))]),
     "pool",
-    (lemma: "power", countability: [Count, Mass], distribution: HeadOnly, frames: [Complement(PP(["of"])), Complement(Amount)]),
+    // A bare *power* or *toughness* is never a Noun Phrase by itself (*[its
+    // power] and [toughness]*), only with a value (*power 3 or less*) or a
+    // postmodifier (*power equal to …*).
+    (lemma: "power", countability: [Count, Mass], distribution: Valued, frames: [Complement(PP(["of"])), Complement(Amount)]),
     "process",
     "quality",
     (lemma: "radiation", countability: [Mass]),
@@ -136,7 +139,7 @@
     "token",
     // *on top of*; prenominal *top* is the adjective.
     (lemma: "top", distribution: HeadOnly, frames: [Complement(PP(["of"]))]),
-    (lemma: "toughness", countability: [Count, Mass], distribution: HeadOnly, frames: [Complement(PP(["of"])), Complement(Amount)]),
+    (lemma: "toughness", countability: [Count, Mass], distribution: Valued, frames: [Complement(PP(["of"])), Complement(Amount)]),
     (lemma: "turn", kind: Temporal),
     "type",
     // "for the same value", "double the value of X".

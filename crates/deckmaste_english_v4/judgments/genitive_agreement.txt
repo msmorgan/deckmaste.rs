@@ -1,6 +1,4 @@
 # Independent genitives agree with the possessed referent, not its owner.
-+Clause mine attacks => NounPhrase "mine" as Subject of attack
-+Clause mine attack => NounPhrase "mine" as Subject of attack
 +Clause yours attacks => NounPhrase "yours" as Subject of attack
 +Clause yours attack => NounPhrase "yours" as Subject of attack
 +NounPhrase enchanted creature's controller's hand => NounPhrase "enchanted creature's controller's" as Determiner of hand

@@ -232,7 +232,9 @@ toughness 4/4, flying, and haste*). Right Node Raising shares an NP, keyword
 phrase, *to*-infinitival, predicative, bare infinitival, a noun's
 single-preposition Complement (*the top or bottom of their library*), a
 preposition's Amount (*less than or equal to X*) or, respectively, nouns'
-Amounts under a slash Measure (*base power and toughness 4/4*). The Targeting
+Amounts under a slash Measure (*base power and toughness 4/4*) or under one
+Amount (*power or toughness 2 or less*); a bare *power* or *toughness* is no
+Noun Phrase by itself. The Targeting
 Marker premodifies a whole coordination of bare nominals inside the
 determiner (*up to one target artifact or creature*).
 

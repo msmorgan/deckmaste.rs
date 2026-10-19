@@ -44,8 +44,23 @@ by `english-v4-stratum-7-discourse-and-long-tail`.
 
 The owner also kept *with [keyword and Noun Phrase]* as it reads: a keyword
 and a Noun Phrase coordinate as the Complement of *with*. Polukranos, Engine
-of Ruin went from 32 to 128 derivations, accepted at 128; it has 64 at landing,
-after the later Noun Phrase coordination splits.
+of Ruin was unread at the ticket baseline and reads with 128 derivations,
+accepted at 128.
+
+Further owner rulings:
+
+- The `PredicateConjunct` host on the *on* NP frame (*second from the top or
+  on the bottom*) is accepted as built.
+- Wild Shape, Lush Growth and Fatespinner are approved deferrals to Stratum 7.
+- *It* and *you* have one non-genitive form, unmarked for case, in place of a
+  first-conjunct case restriction on Noun Phrase coordination; conjuncts may
+  differ in case (*them and all other creatures*).
+- First-person pronouns (*I, me, my, mine*) and *be*'s first-person singular
+  present (*am*, *'m*) are removed from the lexicon: Oracle text has no first
+  person (The Eleventh Doctor's *I. AM. TALKING!* is a Flavor Word label,
+  read whole).
+- Bare, unmodified *power* and *toughness* are no Noun Phrase by themselves
+  (`Valued` distribution in `nouns.ron`).
 
 ## Judgment retirements
 
@@ -65,6 +80,11 @@ Lines are numbered as they stood when the ticket was claimed (`nzwzwknt`).
   built: lines 6 and 7 still have one Reading, as a Noun Phrase coordination of
   the colour noun *red* (and *white*) with *a creature*, which the judgments
   did not assert; line 8 has none.
+- `genitive_agreement.txt:2–3` (*mine attacks*, *mine attack*),
+  `independent_genitive_pronoun.txt:2` (*mine*) and
+  `existential_there.txt:13` (*there am a Mountain …*): first person removed
+  from the lexicon by owner ruling; unattested in Oracle text. The *yours*
+  lines beside them keep each claim.
 - `notation_coordination.txt:13, 18` (`+NounPhrase one and one creatures`,
   `*NounPhrase one and one creature`): retired as semantically anomalous and
   unattested; neither now reads. Lines 12 and 17 (*two or one creature(s)*)

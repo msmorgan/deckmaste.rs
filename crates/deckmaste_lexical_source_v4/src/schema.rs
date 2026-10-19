@@ -743,6 +743,10 @@ pub enum NounDistribution {
     DirectMeasure,
     /// Used as a nominal head, with no attributive noun use.
     HeadOnly,
+    /// A property noun stated with its bearer or its value (*its power*,
+    /// *power 3 or less*): a nominal head with no attributive noun use, and
+    /// never a bare Noun Phrase by itself.
+    Valued,
     /// Serial *time*, counting occasions: a Noun Phrase Adjunct with any
     /// determinative (*any time*, *an additional time*, *three times*),
     /// unlike a period noun (CGEL, Ch. 8 §6.3, p. 698; §9, pp. 713–716).

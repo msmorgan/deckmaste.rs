@@ -26,10 +26,35 @@ fn defective(sources: &Sources) -> BTreeSet<String> {
         .collect()
 }
 
+/// The finite cells an auxiliary declares absent by spelling them with no
+/// surface (*be* has no first-person singular present).
+fn gaps(sources: &Sources) -> Vec<(String, WordForm, Option<Person>, Option<Number>)> {
+    sources
+        .closed_class
+        .auxiliaries
+        .iter()
+        .flat_map(|entry| {
+            entry
+                .forms
+                .iter()
+                .filter(|slot| slot.surfaces.to_vec().is_empty())
+                .map(|slot| {
+                    (
+                        format!("verb:{}", entry.lemma),
+                        slot.form,
+                        slot.person,
+                        slot.number,
+                    )
+                })
+        })
+        .collect()
+}
+
 #[test]
 fn every_verb_has_its_full_paradigm() {
     let sources = Sources::load().unwrap();
     let defective = defective(&sources);
+    let gaps = gaps(&sources);
     let (lexemes, _) = sources.vocabulary().unwrap();
     let finite: Vec<(WordForm, Person, Number)> = [WordForm::Present, WordForm::Preterite]
         .into_iter()
@@ -70,6 +95,19 @@ fn every_verb_has_its_full_paradigm() {
             assert!(has(form, None, None), "{id} lacks its {form:?} form");
         }
         for (form, person, number) in &finite {
+            let declared_gap = gaps.iter().any(|(gap_id, gap_form, gap_person, gap_number)| {
+                *gap_id == id
+                    && gap_form == form
+                    && gap_person.is_none_or(|p| p == *person)
+                    && gap_number.is_none_or(|n| n == *number)
+            });
+            if declared_gap {
+                assert!(
+                    !has(*form, Some(*person), Some(*number)),
+                    "{id} spells its declared {form:?} {person:?} {number:?} gap"
+                );
+                continue;
+            }
             assert!(
                 has(*form, Some(*person), Some(*number)),
                 "{id} lacks its {form:?} {person:?} {number:?} form"

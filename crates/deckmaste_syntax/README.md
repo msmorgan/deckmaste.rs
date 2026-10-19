@@ -122,7 +122,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   shared NP, keyword-phrase, *to*-infinitival, predicative or catenative bare-infinitival Gap, a
   preposition's Amount Complement, or a noun's single-preposition
   Preposition Phrase Complement headed by that preposition (*the top or bottom of their library*),
-  or nouns' Amount Complements filled respectively by a slash Measure (*base power and toughness 4/4*),
+  or nouns' Amount Complements filled respectively by a slash Measure (*base power and toughness 4/4*)
+  or all by one Amount (*power or toughness 2 or less*),
   filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which

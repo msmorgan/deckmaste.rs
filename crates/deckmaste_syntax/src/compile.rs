@@ -2025,6 +2025,9 @@ impl<'a> Binder<'a> {
             (Gap::Pred, SlotKind::Pred, "-pred"),
             (Gap::PP, SlotKind::PP, "-pp"),
             (Gap::Measure, SlotKind::Measure, "-measure"),
+            // One Amount for every noun's Amount Complement (*power or
+            // toughness 2 or less*).
+            (Gap::Measure, SlotKind::Amount, "-measure-amount"),
             (Gap::BareInf, SlotKind::BareInf, "-bareinf"),
             (Gap::Amount, SlotKind::Amount, "-amount"),
         ] {

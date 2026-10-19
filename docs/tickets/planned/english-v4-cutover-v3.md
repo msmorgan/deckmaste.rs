@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-7-discourse-and-long-tail, english-v4-syntax-engine-obligations]
+needs: [english-v4-stratum-7-discourse-and-long-tail, english-v4-syntax-engine-obligations, english-v4-oracle-editorial-corrections]
 ---
 # Cutover 1: Switch to `english_v4` and delete `v3` and `plugins_v2/builtin`
 
