@@ -214,6 +214,9 @@ semantic_template battlefield : Location := .zone .battlefield none
 semantic_template exileZone : Location := .zone .exile none
 semantic_template hand : Location := .zone .hand none
 semantic_template graveyard : Location := .zone .graveyard none
+/-- "its owner's library": a library scoped to nobody, which an object goes to as its owner's
+[CR#400.3]. -/
+semantic_template library : Location := .zone .library none
 semantic_template stack : Location := .zone .stack none
 semantic_template command : Location := .zone .command none
 /-- "the command zone", scoped to nobody. -/
@@ -1006,12 +1009,13 @@ semantic_template phaseOut : Action := .setStatus .phasedOut .actor
 semantic_template phaseIn : Action := .setStatus .phasedIn .actor
 /-- "<subject> becomes <status>" [CR#603.2e] -/
 semantic_template Status.become (status : Status) : Action := .setStatus status .actor
-/-- "put <subject> into <destination> [from <from_>]". Observation follows the pattern, not an
-individual occurrence's origin: a move from the battlefield or a graveyard (or, to a hand or
-library, from exile, the stack or the command zone) is observed on its departure, and "from
-anywhere" is not a leaves-the-battlefield trigger [CR#603.6c,603.10a]. -/
+/-- "put <subject> into <destination> [from <from_>] [<riders>]", as "in any order" or "under
+its owner's control". Observation follows the pattern, not an individual occurrence's origin: a
+move from the battlefield or a graveyard (or, to a hand or library, from exile, the stack or the
+command zone) is observed on its departure, and "from anywhere" is not a leaves-the-battlefield
+trigger [CR#603.6c,603.10a]. -/
 semantic_template putInto (subject : NounPhrase) (destination : Location)
-    (from_ : Option Location := none) : Action :=
+    (from_ : Option Location := none) (riders : List MoveRider := []) : Action :=
   let before : Bool := match from_.bind (·.positiveZones?) with
     | some zs => !zs.isEmpty && zs.all (fun z =>
         z.sort == some .battlefield || z.sort == some .graveyard ||
@@ -1019,7 +1023,7 @@ semantic_template putInto (subject : NounPhrase) (destination : Location)
             (z.sort == some .exile || z.sort == some .stack || z.sort == some .command)))
     | none => false
   .move subject (from_.getD .anyLocation) (some destination)
-    (if before then .departure else .arrival) none []
+    (if before then .departure else .arrival) none riders
 /-- "turn <subject> face up" -/
 semantic_template turnFaceUp (subject : NounPhrase) : Action := .setStatus .faceUp subject
 /-- "<subject> attacks [<defender>]" [CR#508.1a] -/
