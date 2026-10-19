@@ -101,7 +101,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause
   or line that a comma-set Supplement is anchored to (as `supplement`, *, where
-  X is its power*). Same-head complement priority is derived from the frames: a PP, or an
+  X is its power*). An entry may admit a Predicate only as a conjunct
+  (`NominalAndPredicateConjunct`): such a phrase never attaches to a verb on its
+  own, but a Production may take it as `Hosted(.., PredicateConjunct)`, a
+  predicate adjunct coordinated with an unlike one (*second from the top or on
+  the bottom*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
   (*choose to attack* has no purpose reading).
@@ -135,7 +139,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   every conjunct admits. A coordination of a function may name its `conjunct`
   Category, and `unlike` a feature its two conjuncts must not share: unlike
   categories coordinated in one function (a depictive *tapped and attacking*),
-  binary only. A constituent that begins with a dependent set off by
+  binary unless `serial` is set (an *and*-list of an Object with keywords). A constituent that begins with a dependent set off by
   a comma (*When …, …*) is never a conjunct other than the last: the preposed
   dependent scopes over the whole coordination.
 

@@ -42,6 +42,53 @@ Riftmarked Knight 36 → 72; Liberated Livestock 12 → 36; Odric, Blood-Cursed
 units that keep a narrow Targeting Marker reading beside the wide one, owned
 by `english-v4-stratum-7-discourse-and-long-tail`.
 
+The owner also kept *with [keyword and Noun Phrase]* as it reads: a keyword
+and a Noun Phrase coordinate as the Complement of *with*. Polukranos, Engine
+of Ruin went from 32 to 128 derivations, accepted at 128; it has 64 at landing,
+after the later Noun Phrase coordination splits.
+
+## Judgment retirements
+
+Lines are numbered as they stood when the ticket was claimed (`nzwzwknt`).
+
+- `correlative_adjectives.txt:5` (`+Nominal creature both red and green`):
+  retired by owner ruling as unattested. Oracle text uses the prenominal *both
+  red and green creature* or the predicative *is both red and green*; a bare
+  postpositive Adjective Phrase has no corpus witness. It has no Reading.
+- `functions_coordination.txt:6–8` (`+Predicative red and a creature`, *red,
+  white, and a creature*, *a creature and red*, each asserting an Adjective
+  Phrase beside a Noun Phrase): retired by owner ruling as unattested. No
+  corpus unit coordinates an Adjective Phrase with a Noun Phrase
+  predicatively, and building it, even for determined Noun Phrases, added
+  wrong Readings on about 25 units (*if [this creature attacked] or [blocked]
+  this combat*). They are grammatical English, but the asserted analysis is not
+  built: lines 6 and 7 still have one Reading, as a Noun Phrase coordination of
+  the colour noun *red* (and *white*) with *a creature*, which the judgments
+  did not assert; line 8 has none.
+- `notation_coordination.txt:13, 18` (`+NounPhrase one and one creatures`,
+  `*NounPhrase one and one creature`): retired as semantically anomalous and
+  unattested; neither now reads. Lines 12 and 17 (*two or one creature(s)*)
+  were rewritten to proximity agreement instead (CGEL, Ch. 5 §18.4,
+  pp. 508–509).
+
+## Single-value features
+
+`docs/decisions/english-lexical-analysis.md` §3 reports a class with one
+member, or a feature with one holder, as a finding. Two features this ticket
+adds have one value each, and so act as privative marks whose absence is the
+unmarked case:
+
+- `AmountKind: ["ComparativeBounded"]` marks a Comparative-bounded Amount
+  (*3 or less*), which only a noun taking an Amount may use. Every other
+  Amount site excludes it; a two-valued feature would make every numeral carry
+  the unmarked value and change no analysis.
+- `Targeting: ["Marked"]` marks a Noun Phrase or Nominal under the Targeting
+  Marker. It is held by Noun Phrase, Nominal and Targeted Nominal, and is read
+  only by coordination schemas that keep the Marker's scope wide.
+
+The owner may still direct a restructure; neither feature changes a Reading
+by its spelling.
+
 1. **Census delta** (measured on `yqpnnypk`): faces read 20,391 → 28,709;
    total Readings 173,844 → 399,377; lost faces: Bladehold War-Whip
    (deferred to Stratum 7 by the owner).

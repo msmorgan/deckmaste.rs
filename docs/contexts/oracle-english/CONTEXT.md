@@ -380,6 +380,14 @@ The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in
 rules text stating that a Game Model Spell or Ability targets a Game Model
 Object or Player.
 
+**Targeted Nominal** (project term):
+A Nominal premodified by the Targeting Marker, including a Coordination of bare
+Nominals the Marker premodifies as a whole (*target artifact or creature*). No
+Conjunct of a Coordination of Nominals is itself a Targeted Nominal. A Noun
+Phrase built on one is targeted, and as a non-final Conjunct it coordinates
+only with a determined Noun Phrase.
+_Avoid_: target phrase, target description for the syntactic unit
+
 **Notation**:
 A conventional written representation using symbols, numerals, or other
 specialized marks rather than ordinary word-and-phrase grammar alone.
@@ -532,6 +540,11 @@ pp. 92–93). An auxiliary is the head of its Verb Phrase, with a nonfinite
 Catenative Complement.
 _Avoid_: treating the following lexical verb as the head of a modal or perfect
 Clause
+
+**Auxiliary Complement** (project term):
+The Catenative Complement of an Auxiliary Verb, as *attacked* in *has attacked*
+or *put* in *is put*. It bears its own function, so a Coordination of Verb
+Phrases may fill it (*has attacked or blocked*).
 
 **Purpose Adjunct**:
 An infinitival Clause that functions as an Adjunct of purpose, as in *spent to
@@ -824,7 +837,9 @@ A Category that an unselected Preposition Phrase may modify in Oracle English,
 declared for each pairing of a preposition with one of its Complement frames:
 a Nominal (as Postmodifier), a Predicate (as Adjunct), both, or neither, in
 which case the phrase occurs only as a Complement. A phrase may instead be only
-a Supplement to a Clause or line (*, where X is its power*).
+a Supplement to a Clause or line (*, where X is its power*), or modify a
+Predicate only as a Conjunct of an Unlike Coordination of Adjuncts (*second
+from the top or on the bottom*).
 
 **Valence Alternation** (project term):
 A systematic relation between the Complement realizations of one
@@ -882,6 +897,15 @@ A Complement realized by a numeral or variable stating a number, as *2* in
 Alternation. The Game Model's Amount is the semantic expression such a
 Complement may denote; the Amount Complement is its syntactic realization.
 _Avoid_: Amount for the Complement itself; Object for a numeral
+
+**Comparative-bounded Amount** (project term):
+A number coordinated by *or* with an intransitive comparative Adjective whose
+understood standard is that number (*3 or less*, *X or greater*). It is an
+Adjective Phrase as a predicative Complement (*X is 2 or less*) and the Amount
+value of a noun that takes one (*power 3 or less*), never a count or measure on
+its own.
+_Avoid_: Scalar Amount (the Scalar terms here name scales and positions on
+them); a Cardinal Modifier's bound (*at least two*), which modifies a numeral
 
 **Cost Complement** (project term):
 A Complement realized by a Cost [CR#118.1], as *{3}* in *waterbend {3}* or *{2}*
@@ -943,6 +967,11 @@ sentence-initial *Then* or *Otherwise* (CGEL, Ch. 8 §19, pp. 775, 778).
 An optional predicative Adjunct describing a participant during the situation,
 as in *enters tapped and attacking* (CGEL, Ch. 4 §5.3, pp. 262–263; Ch. 14
 §9, p. 1265).
+
+**Position Phrase** (project term):
+An ordinal with a *from* Preposition Phrase naming the end of an ordered zone
+it counts from (*second from the top*), functioning as a Depictive or
+predicate Adjunct.
 
 **Predicative Adjunct**:
 An optional predicative dependent describing a pragmatically appropriate
@@ -1032,6 +1061,27 @@ corresponding unpronounced position in each Conjunct.
 A Complement realized once after coordinated heads that each independently
 license its grammatical function.
 
+**Unlike Coordination**:
+A Coordination whose Conjuncts differ in Category but share a function, as an
+Adjective Phrase and a Preposition Phrase in predicative function (CGEL,
+Ch. 15 §3.2, pp. 1326–1329). In Oracle English it joins depictives,
+attributes, postmodifiers, predicate Adjuncts (*second from the top or on the
+bottom*) and an Object with keyword phrases (*base power and toughness 4/4,
+flying, and haste*).
+_Avoid_: mixed coordination
+
+**Delimited Polysyndetic Coordination** (project term):
+A polysyndetic Coordination, with a Coordinator before every non-initial
+Conjunct (CGEL, Ch. 15 §1.1, p. 1276), whose Conjuncts are each set off by a
+comma (*A, or B, or C*).
+
+**Complement Cluster** (project term):
+A sequence of a verb's Complements coordinated with a parallel sequence after
+the shared verb, as in *put one of them into your hand and the rest into your
+graveyard*: right nonce-constituent coordination (CGEL, Ch. 15 §4.3, p. 1341).
+Each Complement keeps its own function within its Conjunct.
+_Avoid_: gapping, which elides the verb from a second Clause
+
 **Extraction**:
 A grammatical dependency between a displaced expression and its Gap, subject to
 constraints on the intervening constituent boundaries.
@@ -1093,6 +1143,21 @@ The grammatical feature distinguishing speaker, addressee, and other referents.
 **Number**:
 The grammatical feature distinguishing singular and plural values where English
 grammar requires the distinction.
+
+**Conjunct Number** (project term):
+The Number of each Conjunct of a Coordination of Nominals, as distinct from
+the Number of the Coordination itself. A Determiner outside the Coordination
+selects it (*each creature and planeswalker*: each Conjunct singular, the
+Nominal plural), and a Postmodifier agrees with it (CGEL, Ch. 15 §2.1, p. 1291;
+Ch. 5 §18.4, p. 508).
+
+**Proximity Agreement**:
+Agreement of a Coordination with its nearest Conjunct instead of a value
+resolved from all of them (CGEL, Ch. 5 §18.4, pp. 508–509). An *or*-Coordination
+of Noun Phrases takes its last Conjunct's Number and Person, and a
+quantifier Coordination determines as its last Conjunct does (*one or more
+cards*).
+_Avoid_: attraction for this resolution rule
 
 **Finiteness**:
 The grammatical property distinguishing finite clauses and Verb Phrases from
