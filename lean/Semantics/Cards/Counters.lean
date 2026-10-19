@@ -1086,10 +1086,11 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
         [ enchant isCreature,
           when (does thisAura enter) (tap (enchanted creature)),
           static (abilityGrant (enchanted creature)
-            (static (replace (would thisCreature (become untapped)) (doIfDone
-                (instead
-                  (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true))
-                (some (untap thisCreature))) (some (duringPart .untapStep (some you)))))) ] } }
+            (static (replace (would thisCreature (become untapped)) (instead
+                (doIfDone
+                  (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature
+                    .many true)
+                  (some (untap thisCreature)))) (some (duringPart .untapStep (some you)))))) ] } }
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=
   triggeredIf (does thisCreature (attack (some (a isPlayer)))) (not

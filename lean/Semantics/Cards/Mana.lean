@@ -888,8 +888,8 @@ def heartOfYavimaya : Spelled := spelled <| .singleFaced
       text :=
         [ static
             (replace (would thisLand enter)
-              (doIfDone (instead (sacrifice (a (and [isLand, hasSubtype forest]))))
-                (some (putOntoBattlefield thisLand)) (some (putInto it graveyard)))),
+              (instead (doIfDone (sacrifice (a (and [isLand, hasSubtype forest])))
+                (some (putOntoBattlefield thisLand)) (some (putInto it graveyard))))),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.of .green]])),
           activated tapSymbol
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ] } }
@@ -901,8 +901,8 @@ def moxDiamond : Spelled := spelled <| .singleFaced
       text :=
         [ static
             (replace (would thisArtifact enter)
-              (may (instead (discard (a (and [isLand, in_ yourHand]))))
-                (some (putOntoBattlefield thisArtifact)) (some (putInto it graveyard)))),
+              (instead (may (discard (a (and [isLand, in_ yourHand])))
+                (some (putOntoBattlefield thisArtifact)) (some (putInto it graveyard))))),
           activated tapSymbol (addMana (.lit 1) (ofAnyColor .sameColor)) ] } }
 
 /-- Up the Beanstalk -/

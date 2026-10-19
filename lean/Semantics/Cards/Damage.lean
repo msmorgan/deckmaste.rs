@@ -1069,10 +1069,11 @@ def searingBlaze : Ability :=
                                    (and
                                       [isCreature, controlledBy
                                          splitOverPlaneswalker])) .noncombatOnly ])
-        (instead
-          (simultaneously
-            [ dealDamage (.lit 3) thatJoin .noncombatOnly,
-              dealDamage (.lit 3) (that creature) .noncombatOnly ]))))
+        (doIf (happened enter (a (and [isLand, youControl])) soFarThisTurn)
+          (instead
+            (simultaneously
+              [ dealDamage (.lit 3) thatJoin .noncombatOnly,
+                dealDamage (.lit 3) (that creature) .noncombatOnly ])))))
 theorem okSearingBlaze : Ability.check (DRS.ofList []) searingBlaze = [] := by decide
 
 /-- Heart of Bogardan -/

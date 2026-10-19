@@ -1106,7 +1106,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
           static (replace
                     (would (by_ you)
                        (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) [])
-                          false)) (may (instead
+                          false)) (instead (may
                                      (create groupSize (copyOf (enchanted permanent))
                                         []))) none .repeatedly (some oncePerTurn)) ] } }
 
