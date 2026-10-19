@@ -210,7 +210,7 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
                     ],
       loyalty := stat 3 } }
 
-/-- Harness Infinity: the exchange instruction alone, as the Idris bench holds it. -/
+/-- Harness Infinity: the exchange action alone, as the Idris bench holds it. -/
 def harnessInfinityExchange : Action := exchange (zones hand graveyard)
 theorem okHarnessInfinityExchange : Action.check (DRS.ofList []) harnessInfinityExchange = [] := by decide
 

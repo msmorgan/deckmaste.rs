@@ -33,7 +33,7 @@ def Delta.outcome : Delta Amount → Option OutcomeSort
 
 /-- Closed event head-gating (`semantics-v3.md` §3.6): `does`, `would`, and `did` only admit
 event-capable `Action` heads (Table 3.6A) plus CR §701 keyword-action definitions wrapped in
-`ownScope (some (.action name))`, refusing compound or control-flow instructions (`sequentially`,
+`ownScope (some (.action name))`, refusing compound or control-flow actions (`sequentially`,
 `doIf`, `doForEach`, `chooseModes`, `establish`, etc.). -/
 def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
@@ -57,7 +57,7 @@ def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
-/-- The closed instruction heads which a deontic clause can constrain. -/
+/-- The closed action heads which a deontic clause can constrain. -/
 def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with
   | 0, _ => false
@@ -77,7 +77,7 @@ def Action.deonticHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-/-- Whether an event-capable instruction carries a quantity or magnitude that `TallyMode.quantity`
+/-- Whether an event-capable action carries a quantity or magnitude that `TallyMode.quantity`
 can sum (`semantics-v3.md` §3.8). -/
 def Action.eventHasMagnitude (e : Action) (fuel : Nat := 16) : Bool :=
   match fuel, e with

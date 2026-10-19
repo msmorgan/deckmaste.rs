@@ -185,7 +185,7 @@ theorem sacrifice_draw_activated_sound :
     sacrificeDrawActivated.check = [] := by decide
 
 /-- Closed event and deontic head-gating (`semantics-v3.md` §3.6–3.7):
-compound instructions (`sequentially`) are refused inside `does`, `would`, `did`, and `cant` with
+compound actions (`sequentially`) are refused inside `does`, `would`, `did`, and `cant` with
 `Refusal.eventHead`, while `ownScope (some (.action name))` is admitted. -/
 theorem compound_event_head_refused :
     (GameEvent.does (.actor .you) (.sequentially [.draw (.lit 1), .draw (.lit 1)])).check

@@ -12,12 +12,12 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Deontic
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 /-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
-  .activated cost instruction none none none none
+def activatedAbility (cost : Cost) (action : Action) : Ability :=
+  .activated cost action none none none none
 
 /-- A cause qualifier narrows the ordinary loss prohibition. -/
 theorem okStateBasedLossGate :
@@ -269,7 +269,7 @@ theorem badTheDamageAfterLifeGain :
   decide
 
 def afterDamageDealt : DRS :=
-  instructionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any))
+  actionResult (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 4) (target isCreature) .any))
 
 /-- "This deals 4 damage to target creature. The damage can't be prevented." -/
 theorem okTheDamageAnnounced :

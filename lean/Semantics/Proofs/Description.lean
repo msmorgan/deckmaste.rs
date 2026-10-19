@@ -17,8 +17,8 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Description
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 /-- "a creature target opponent controls" -/
 theorem okControlledByOne :
@@ -376,13 +376,13 @@ theorem badTotalWithoutRoll :
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
 theorem okReadsLookedAtLibraryCard :
-    NounPhrase.checkAt (some .object) (instructionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))) (that .card)
+    NounPhrase.checkAt (some .object) (actionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))) (that .card)
       = [] := by
   decide
 
 theorem badReadsShuffledIntoLibraryCard :
     NounPhrase.checkAt (some .object)
-      (instructionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .this]))
+      (actionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .this]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
 

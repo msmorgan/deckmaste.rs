@@ -120,13 +120,13 @@ theorem sharedSubjectKeepsCreature :
     (firstReach .bare .one (sharedAfter outer)).map (·.ty) = some [.creature] ∧
       (firstReach .bare .one (sharedAfter outer)).map (·.id) = some 2 := by decide
 
-theorem previousInstructionWithoutOuter :
+theorem previousActionWithoutOuter :
     NounPhrase.checkAt (some .object) (previousAfter (DRS.ofList [])) it = [] := by decide
 
-theorem previousInstructionWithOuter :
+theorem previousActionWithOuter :
     NounPhrase.checkAt (some .object) (previousAfter outer) it = [] := by decide
 
-theorem previousInstructionKeepsCreature :
+theorem previousActionKeepsCreature :
     (firstReach .bare .one (previousAfter outer)).map (·.ty) = some [.creature] ∧
       (firstReach .bare .one (previousAfter outer)).map (·.id) = some 2 := by decide
 
@@ -302,7 +302,7 @@ private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
 
 /-- The actual modification pipeline selects its own fresh target in every earlier outer
 context, whether X was already bound or introduces a same-clause letter. -/
-theorem ownStatInstructionIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
+theorem ownStatActionIdentityStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
     resolveCandidates .bare .one
       (powerAfter { referents := rs, currentClause := clause, nextId := id }) =
@@ -320,7 +320,7 @@ theorem ownStatInstructionIdentityStableForEveryOuterContext (rs : List Referent
 
 /-- The ordinary pronoun checker accepts the result of the actual modification pipeline,
 not merely a manually constructed subject context. -/
-theorem ownStatInstructionStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
+theorem ownStatActionStableForEveryOuterContext (rs : List Referent) (clause id : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
     NounPhrase.checkAt (some .object)
       (powerAfter { referents := rs, currentClause := clause, nextId := id }) it = [] := by
@@ -329,7 +329,7 @@ theorem ownStatInstructionStableForEveryOuterContext (rs : List Referent) (claus
     (match winners with
     | [w] => (after.recordMention w.id .other false true, [w.id], ([] : List Refusal))
     | _ => (after, [], [Refusal.anaphor .bare .one winners.length])).2.2) ++ [] = []
-  rw [ownStatInstructionIdentityStableForEveryOuterContext rs clause id older]
+  rw [ownStatActionIdentityStableForEveryOuterContext rs clause id older]
   rfl
 
 end Semantics.Proofs.ReferenceScopes

@@ -33,13 +33,13 @@ theorem okBracketedDescription :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
       (target (.and [isSpell, .bracketed (.not (.castFrom (.zone .hand none)))])) = [] := by decide
 
-/-- "[Draw a card.]": an instruction checks as its contents. -/
-theorem okBracketedInstruction : Action.check (DRS.ofList []) (.bracketed (draw (.lit 1))) = [] := by
+/-- "[Draw a card.]": an action checks as its contents. -/
+theorem okBracketedAction : Action.check (DRS.ofList []) (.bracketed (draw (.lit 1))) = [] := by
   decide
 
 /-- "[This spell deals 2 damage to target creature.]" read as dealt to a player: refused inside
 the brackets as outside. -/
-theorem bracketedInstructionMismatchStillRefused :
+theorem bracketedActionMismatchStillRefused :
     Action.check (DRS.ofList []) (.bracketed (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)))
       = Action.check (DRS.ofList []) (Action.instruct thisSpell (.dealDamage (.lit 2) (target isCreature) .any)) := by decide
 

@@ -54,10 +54,10 @@ distinction its expansion would not carry. Common phrasings live in `Templates`:
 for example, "permanent", "colorless", "historic", "spell" and "attacking" expand into
 shared predicates.
 
-Instructions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
+Actions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
 static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
 Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
-lives in `Repetition.fixed`. No instruction writes its performer: it is
+lives in `Repetition.fixed`. No action writes its performer: it is
 `actor`, the controller unless an enclosing `act performer body` hands it to
 another player or a permanent; "target player draws a card" is
 `act (target .anyPlayer) (draw (.lit 1))`. A choice's chooser and an added

@@ -147,8 +147,8 @@ theorem untapRejectsTheMovedCardByActionDomain :
         [.deedFits] := by decide
 
 theorem distributedMovementKeepsAnOuterCardSingular :
-    let instruction := Action.instruct (.described .each .anyPlayer) moveOuter
-    let result := stepAction 64 .postEvent .obj original instruction
+    let action := Action.instruct (.described .each .anyPlayer) moveOuter
+    let result := stepAction 64 .postEvent .obj original action
     result.2 = [] ∧ (result.1.findById? 3).map (fun ref => (ref.plur, ref.zone)) =
       some (.one, some .exile) ∧ result.1.outerReferentIds = [] := by decide
 

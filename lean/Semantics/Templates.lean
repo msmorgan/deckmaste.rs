@@ -18,7 +18,7 @@ namespace Semantics.Templates
 
 Shared phrasings over a single primitive, spelled here so a card never names a constructor. -/
 
-/-- "X is <amount>": a numeric definition at instruction position, by the shared static
+/-- "X is <amount>": a numeric definition at action position, by the shared static
 definition. -/
 semantic_template define (letter : Letter) (amount : Amount) : Action :=
   .establish (.letterDefinition letter amount) none
@@ -877,9 +877,9 @@ semantic_template oncePerGame : UsageLimit := ⟨.lit 1, .game⟩
 semantic_template onceEachYourTurn : UsageLimit := ⟨.lit 1, .yourTurn⟩
 /-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
 semantic_template oncePerObject : UsageLimit := ⟨.lit 1, .thisObject⟩
-/-- "<instruction>. Do this only once each turn." [CR#603.2h] -/
-semantic_template doOnlyOnceEachTurn (instruction : Action) : Action :=
-  .limited instruction oncePerTurn
+/-- "<action>. Do this only once each turn." [CR#603.2h] -/
+semantic_template doOnlyOnceEachTurn (action : Action) : Action :=
+  .limited action oncePerTurn
 /-! ## Amounts -/
 
 semantic_template lifeTotalOf (player : NounPhrase) : Amount :=
@@ -1129,18 +1129,18 @@ semantic_template lookAt (cards : NounPhrase) : Action := .expose .lookAt (.card
 /-- "look at <player>'s hand" -/
 semantic_template lookAtHandOf (player : NounPhrase) : Action :=
   .expose .lookAt (.zone (handOf player))
-semantic_template doIf (condition : Condition) (instruction : Action)
+semantic_template doIf (condition : Condition) (action : Action)
     (otherwise : Option Action := none) : Action :=
-  .doIf condition instruction otherwise
+  .doIf condition action otherwise
 /-- "choose <subject>" -/
 semantic_template choose (subject : NounPhrase) (disclosure : Disclosure := .openly) : Action :=
   .choose none subject disclosure none
 /-- "choose <subject> as you <event>" -/
 semantic_template chooseWhile (subject : NounPhrase) (while_ : Timing) : Action :=
   .choose none subject .openly (some while_)
-/-- One row of a results table: "<results> — <instruction>". -/
-semantic_template rollRow (results : Quantity) (instruction : Action) : RollRow :=
-  ⟨results, instruction⟩
+/-- One row of a results table: "<results> — <action>". -/
+semantic_template rollRow (results : Quantity) (action : Action) : RollRow :=
+  ⟨results, action⟩
 /-- "may <body>. When they do, <trigger>": a reflexive trigger on the choice. -/
 semantic_template offerWhen (body : Action) (triggerBody : Action) : Action :=
   .triggerReflexively (.withContinuation .optional body none none) triggerBody
@@ -1152,8 +1152,8 @@ semantic_template chooseSpree (modes : List (Option Cost × Action)) : Action :=
 /-- "Choose N — <modes>", no mode costing anything. -/
 semantic_template chooseModes (quantity : Quantity) (modes : List Action) : Action :=
   .chooseModes quantity (modes.map (none, none, ·))
-/-- "<source> deals damage equal to its power to <recipient>" (`Template`, `firstMention` /
-`laterMention` without `Window.top`). -/
+/-- "<source> deals damage equal to its power to <recipient>" (`Template`; `firstMention` /
+`laterMention` so `source` is not duplicated). -/
 semantic_template dealDamageOwnPower (source : NounPhrase) (recipient : NounPhrase) :
     Action :=
   .instruct (.firstMention "dealDamageOwnPower.source" source)
@@ -1195,7 +1195,7 @@ semantic_template eventCount (action : Action) (subj : Subject) (within : Durati
 semantic_template happened (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Condition :=
   .did ⟨subj, action, .duration within timing⟩
-/-- The action the enclosing instruction caused: "if you searched your library this way". -/
+/-- The event the enclosing action caused: "if you searched your library this way". -/
 semantic_template happenedThisWay (action : Action) (subj : Subject) : Condition :=
   .did ⟨subj, action, .thisWay⟩
 /-- A historical action clause whose `.which` stands for the entity being described. -/
@@ -1261,14 +1261,14 @@ semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :
 semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
   .property (can you (.procedure .cast «this» .itsOwnCost none (some zone) none)
     (timing := some timing))
-/-- "When <event>, <instruction>" as a delayed trigger. -/
-semantic_template delay (event : GameEvent) (instruction : Action)
+/-- "When <event>, <action>" as a delayed trigger. -/
+semantic_template delay (event : GameEvent) (action : Action)
     (alternatives : List GameEvent := []) : Action :=
-  .delay event alternatives none instruction
-/-- "When <event> <duration>, <instruction>": a delayed trigger with a window. -/
-semantic_template delayWithin (event : GameEvent) (duration : Duration) (instruction : Action)
+  .delay event alternatives none action
+/-- "When <event> <duration>, <action>": a delayed trigger with a window. -/
+semantic_template delayWithin (event : GameEvent) (duration : Duration) (action : Action)
     (alternatives : List GameEvent := []) : Action :=
-  .delay event alternatives (some duration) instruction
+  .delay event alternatives (some duration) action
 /-- "<subject> phases out until <event>" -/
 semantic_template phaseOutUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (.setStatus .phasedOut subject) event
@@ -1304,9 +1304,9 @@ semantic_template loseAllCounters (kind : Option CounterKindSource)
 semantic_template removeAllCounters (kind : Option CounterKindSource) (from_ : NounPhrase)
     (batch : CounterBatch := .one) (byEffect : Bool := true) : Action :=
   .removeCounters none kind from_ batch byEffect
-/-- "may pay <cost>. If they don't, <instruction>." -/
-semantic_template doUnless (instruction : Action) (cost : Cost) : Action :=
-  .withContinuation .optional (.pay cost .once .paid none none) none (some instruction)
+/-- "may pay <cost>. If they don't, <action>." -/
+semantic_template doUnless (action : Action) (cost : Cost) : Action :=
+  .withContinuation .optional (.pay cost .once .paid none none) none (some action)
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
   .ptModification subject power toughness
@@ -1314,8 +1314,7 @@ semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount)
 semantic_template getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
   getsPt subject (.set power) (.set toughness)
 /-- "look at <slice>, put any number of them into <spill> [riders] and the rest on top of its
-owner's library in any order" (`Template` using `firstMention` / `laterMention` without `Window`
-plumbing). -/
+owner's library in any order" (`Template` using `firstMention` / `laterMention` for `slice`). -/
 semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
     (spillRiders : List MoveRider := []) : Action :=
   .sequentially
@@ -1324,7 +1323,7 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
         (some spill) .arrival none spillRiders,
       .move (theRest .object) .anyLocation (some onTop) .arrival none
         [(.inOrder .anyOrder)] ]
-/-- "<subject> gets +P/+T [until …]" as an instruction. -/
+/-- "<subject> gets +P/+T [until …]" as an action. -/
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
     (duration : Option Duration := none) : Action :=
   .establish (getsPt subject power toughness) duration
@@ -1342,7 +1341,7 @@ semantic_template become (subject : NounPhrase) (added : CharacteristicBundle)
 semantic_template becomeColor (subject : NounPhrase) (colors : ColorSpec)
     (duration : Option Duration) : Action :=
   .establish (qualityChange subject .sets (.colored colors)) duration
-/-- Several static clauses sharing one subject, as one instruction. -/
+/-- Several static clauses sharing one subject, as one action. -/
 semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)
     (duration : Option Duration := none) : Action :=
   .establish (.conjunction (some subject) parts) duration
@@ -1402,12 +1401,12 @@ semantic_template artifactCreatureToken (power toughness : Nat) (colors : List C
   { characteristics :=
       { colors, types := [.artifact, .creature], subtypes, text := abilities,
         power := some (.lit power), toughness := some (.lit toughness) } }
-semantic_template atNext (part : TurnPart) (instruction : Action) : Action :=
-  delay (.beginningOf part none (.next none)) instruction
+semantic_template atNext (part : TurnPart) (action : Action) : Action :=
+  delay (.beginningOf part none (.next none)) action
 semantic_template Action.attachment (move : AttachMove) (subject : NounPhrase)
     (host : Option NounPhrase := none) : Action :=
   .attachment move subject host
-semantic_template Action.bracketed (instruction : Action) : Action := .bracketed instruction
+semantic_template Action.bracketed (action : Action) : Action := .bracketed action
 semantic_template changeLife (delta : Delta Amount) : Action := .changeLife delta
 semantic_template chooseNewTargets (subject : NounPhrase) : Action := .chooseNewTargets subject
 semantic_template chooseOne (first second : Action) : Action :=
@@ -1427,9 +1426,9 @@ semantic_template createObject (count : Amount) (spec : CreationSpec) (byEffect 
   .createObject count spec byEffect under
 semantic_template distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase) : Action :=
   .distribute verb amount among
-semantic_template doAndForbid (instruction : Action) (deed : Deed) (subject : NounPhrase) :
+semantic_template doAndForbid (action : Action) (deed : Deed) (subject : NounPhrase) :
     Action :=
-  .doAndForbid instruction deed subject
+  .doAndForbid action deed subject
 semantic_template doForEach (group : NounPhrase) (body : Action) : Action := .doForEach group body
 semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : Action)
     (domain : Option NounPhrase := none) : Action :=
@@ -1437,9 +1436,9 @@ semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : A
 semantic_template doIfDone (body : Action) (ifDid : Option Action := none)
     (ifNot : Option Action := none) : Action :=
   .withContinuation .required body ifDid ifNot
-semantic_template doOnlyIf (instruction : Action) (condition : Condition)
+semantic_template doOnlyIf (action : Action) (condition : Condition)
     (otherwise : Option Action := none) : Action :=
-  .doOnlyIf instruction condition otherwise
+  .doOnlyIf action condition otherwise
 semantic_template doublePowerAndToughness (subject : NounPhrase)
     (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "double"))
@@ -1454,8 +1453,8 @@ semantic_template doubleToughness (subject : NounPhrase) (duration : Option Dura
       (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
       duration)
 semantic_template drawGame : Action := .drawGame
-semantic_template enact (verb : Deed) (instruction : Action) : Action :=
-  .enact verb instruction none none
+semantic_template enact (verb : Deed) (action : Action) : Action :=
+  .enact verb action none none
 semantic_template establish (spec : StaticSpec) (duration : Option Duration := none) : Action :=
   .establish spec duration
 semantic_template expose (verb : ExposeVerb) (exposed : Exposed) : Action := .expose verb exposed
@@ -1467,11 +1466,11 @@ semantic_template getNamedEmblem (name : String) (abilities : List Ability) : Ac
 semantic_template getsBoth (subject : NounPhrase) (delta : Delta Amount)
     (duration : Option Duration := none) : Action :=
   get subject delta delta duration
-semantic_template holdUntil (instruction : Action) (event : GameEvent) : Action :=
-  .holdUntil instruction event
+semantic_template holdUntil (action : Action) (event : GameEvent) : Action :=
+  .holdUntil action event
 semantic_template ignoreOutcomes (which : IgnoredOutcomes) : Action := .ignoreOutcomes which
-semantic_template limited (instruction : Action) (limit : UsageLimit) : Action :=
-  .limited instruction limit
+semantic_template limited (action : Action) (limit : UsageLimit) : Action :=
+  .limited action limit
 semantic_template may (body : Action) (ifDid : Option Action := none)
     (ifNot : Option Action := none) : Action :=
   .withContinuation .optional body ifDid ifNot
@@ -1546,7 +1545,7 @@ semantic_template withContinuation (policy : ContinuationPolicy) (body : Action)
   .withContinuation policy body ifDid ifNot
 /-! ## The performer and the handoff -/
 
-/-- "whoever performs this instruction" -/
+/-- "whoever performs this action" -/
 semantic_template theActor : NounPhrase := .actor
 
 /-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
@@ -1706,14 +1705,14 @@ semantic_template keywordQualityCosting (label : KeywordLabel) (quality : Predic
 semantic_template keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) :
     Ability :=
   .keyword label [.number amount, .cost cost] []
-/-- "When <event>, if <condition>, <instruction>" -/
+/-- "When <event>, if <condition>, <action>" -/
 semantic_template triggeredIf (event : GameEvent) (condition : Condition)
-    (instruction : Action) : Ability :=
-  .triggered event [] none [] none none (some condition) instruction
-/-- "Whenever <event>, <instruction>. This ability triggers only once each turn." -/
+    (action : Action) : Ability :=
+  .triggered event [] none [] none none (some condition) action
+/-- "Whenever <event>, <action>. This ability triggers only once each turn." -/
 semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit)
-    (instruction : Action) : Ability :=
-  .triggered event [] none [] none (some limit) none instruction
+    (action : Action) : Ability :=
+  .triggered event [] none [] none (some limit) none action
 /-- "As <subject> enters, choose a <quality>." -/
 semantic_template entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   entryChoice subject (.quality sort) none .openly
@@ -1747,62 +1746,62 @@ semantic_template entersWithAdditionalCounters (subject : NounPhrase) (amount : 
 semantic_template entersWithFewerCounters (subject : NounPhrase) (amount : Amount)
     (kind : CounterKind) : StaticSpec :=
   .entryRider subject (.withCounters amount (.printed kind) .fewer)
-semantic_template triggered (event : GameEvent) (instruction : Action) : Ability :=
-  .triggered event [] none [] none none none instruction
-/-- "Whenever <event> and whenever <joined events>, <instruction>" -/
+semantic_template triggered (event : GameEvent) (action : Action) : Ability :=
+  .triggered event [] none [] none none none action
+/-- "Whenever <event> and whenever <joined events>, <action>" -/
 semantic_template triggeredJoined (event : GameEvent) (joins : List JoinedHeader)
-    (instruction : Action) : Ability :=
-  .triggered event [] none joins none none none instruction
+    (action : Action) : Ability :=
+  .triggered event [] none joins none none none action
 /-- A further "whenever <event>" header joined onto a trigger. -/
 semantic_template joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
-/-- "Whenever <event> or <alternatives>, <instruction>" -/
+/-- "Whenever <event> or <alternatives>, <action>" -/
 semantic_template triggeredOr (event : GameEvent) (alternatives : List GameEvent)
-    (instruction : Action) : Ability :=
-  .triggered event alternatives none [] none none none instruction
-/-- "Whenever <event> while <concurrent>, <instruction>" -/
-semantic_template triggeredWhile (event : GameEvent) (while_ : Timing) (instruction : Action) :
+    (action : Action) : Ability :=
+  .triggered event alternatives none [] none none none action
+/-- "Whenever <event> while <concurrent>, <action>" -/
+semantic_template triggeredWhile (event : GameEvent) (while_ : Timing) (action : Action) :
     Ability :=
-  .triggered event [] (some while_) [] none none none instruction
-/-- "Whenever <event> during <timing>, <instruction>" -/
-semantic_template triggeredOnlyDuring (event : GameEvent) (timing : Timing) (instruction : Action) :
+  .triggered event [] (some while_) [] none none none action
+/-- "Whenever <event> during <timing>, <action>" -/
+semantic_template triggeredOnlyDuring (event : GameEvent) (timing : Timing) (action : Action) :
     Ability :=
-  .triggered event [] none [] (some timing) none none instruction
-/-- "Whenever <event> during <timing>, <instruction>. This ability triggers only once <limit>." -/
+  .triggered event [] none [] (some timing) none none action
+/-- "Whenever <event> during <timing>, <action>. This ability triggers only once <limit>." -/
 semantic_template triggeredOnlyOnceDuring (event : GameEvent) (timing : Timing) (limit : UsageLimit)
-    (instruction : Action) : Ability :=
-  .triggered event [] none [] (some timing) (some limit) none instruction
+    (action : Action) : Ability :=
+  .triggered event [] none [] (some timing) (some limit) none action
 /-- A joined "whenever <event> while <concurrent>" header. -/
 semantic_template joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
   ⟨event, [], some while_, none⟩
-/-- "When <event>, <instruction>" -/
-semantic_template when (event : GameEvent) (instruction : Action) : Ability :=
-  triggered event instruction
-/-- "Whenever <event>, <instruction>" -/
-semantic_template whenever (event : GameEvent) (instruction : Action) : Ability :=
-  triggered event instruction
-/-- "At <event>, <instruction>" (`at` is a Lean keyword). -/
-semantic_template at_ (event : GameEvent) (instruction : Action) : Ability :=
-  triggered event instruction
-/-- "After <event>, <instruction>": the dice template's word. -/
-semantic_template after (event : GameEvent) (instruction : Action) : Ability :=
-  triggered event instruction
-semantic_template activated (cost : Cost) (instruction : Action) : Ability :=
-  .activated cost instruction none none none none
-/-- "[cost]: <instruction>. Activate only <timing>." -/
-semantic_template activatedOnlyDuring (cost : Cost) (instruction : Action) (timing : Timing) :
+/-- "When <event>, <action>" -/
+semantic_template when (event : GameEvent) (action : Action) : Ability :=
+  triggered event action
+/-- "Whenever <event>, <action>" -/
+semantic_template whenever (event : GameEvent) (action : Action) : Ability :=
+  triggered event action
+/-- "At <event>, <action>" (`at` is a Lean keyword). -/
+semantic_template at_ (event : GameEvent) (action : Action) : Ability :=
+  triggered event action
+/-- "After <event>, <action>": the dice template's word. -/
+semantic_template after (event : GameEvent) (action : Action) : Ability :=
+  triggered event action
+semantic_template activated (cost : Cost) (action : Action) : Ability :=
+  .activated cost action none none none none
+/-- "[cost]: <action>. Activate only <timing>." -/
+semantic_template activatedOnlyDuring (cost : Cost) (action : Action) (timing : Timing) :
     Ability :=
-  .activated cost instruction (some timing) none none none
-/-- "[cost]: <instruction>. Only <who> may activate this ability." -/
-semantic_template activatedBy (cost : Cost) (instruction : Action) (who : NounPhrase) : Ability :=
-  .activated cost instruction none none none (some who)
-/-- "[cost]: <instruction>. Activate only once <limit>." -/
-semantic_template activatedOnlyOnce (cost : Cost) (instruction : Action) (limit : UsageLimit) :
+  .activated cost action (some timing) none none none
+/-- "[cost]: <action>. Only <who> may activate this ability." -/
+semantic_template activatedBy (cost : Cost) (action : Action) (who : NounPhrase) : Ability :=
+  .activated cost action none none none (some who)
+/-- "[cost]: <action>. Activate only once <limit>." -/
+semantic_template activatedOnlyOnce (cost : Cost) (action : Action) (limit : UsageLimit) :
     Ability :=
-  .activated cost instruction none (some limit) none none
-/-- "[cost]: <instruction>. Activate only if <guard>." -/
-semantic_template activatedOnlyIf (cost : Cost) (instruction : Action) (guard : Condition) :
+  .activated cost action none (some limit) none none
+/-- "[cost]: <action>. Activate only if <guard>." -/
+semantic_template activatedOnlyIf (cost : Cost) (action : Action) (guard : Condition) :
     Ability :=
-  .activated cost instruction none none (some guard) none
+  .activated cost action none none (some guard) none
 /-- `ability` with the restrictions a keyword or a granting effect adds to it [CR#113.10a]. -/
 semantic_template qualified (ability : Ability) (timing : Option Timing := none)
     (limit : Option UsageLimit := none) (guard : Option Condition := none)
@@ -1812,18 +1811,18 @@ semantic_template qualified (ability : Ability) (timing : Option Timing := none)
 semantic_template abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
     (selection : AbilitySelection) : StaticSpec :=
   .abilityGrantSelected subject source selection
-/-- "[cost]: <instruction>. Activate only once <limit> and only if <guard>." -/
-semantic_template activatedOnlyOnceIf (cost : Cost) (instruction : Action) (limit : UsageLimit)
+/-- "[cost]: <action>. Activate only once <limit> and only if <guard>." -/
+semantic_template activatedOnlyOnceIf (cost : Cost) (action : Action) (limit : UsageLimit)
     (guard : Condition) : Ability :=
-  .activated cost instruction none (some limit) (some guard) none
+  .activated cost action none (some limit) (some guard) none
 semantic_template abilityGrant (subject : NounPhrase) (ability : Ability) : StaticSpec :=
   .abilityGrant subject ability
 semantic_template abilityGrantFrom (subject source : NounPhrase)
     (classes : List AbilityClass := []) (except : Option Predicate := none) : StaticSpec :=
   .abilityGrantFrom subject classes source except
-semantic_template Ability.activatedBy (cost : Cost) (instruction : Action) (who : NounPhrase) :
+semantic_template Ability.activatedBy (cost : Cost) (action : Action) (who : NounPhrase) :
     Ability :=
-  Templates.activatedBy cost instruction who
+  Templates.activatedBy cost action who
 semantic_template addSubtype (subject : NounPhrase) (subtype : Subtype) : StaticSpec :=
   .characteristicChange subject [.typeLine .adds { subtypes := some [subtype] }]
 semantic_template addedCost (cost : Cost) (offered : Bool) (times : PayTimes := PayTimes.once) :
@@ -1906,7 +1905,7 @@ semantic_template partSkip (player : NounPhrase) (part : TurnPart) : StaticSpec 
   .partSkip player part
 semantic_template paySubstitute (subject : NounPhrase) (substitute : ManaSubstitute) : StaticSpec :=
   .paySubstitute subject substitute
-semantic_template perform (instruction : Action) : Cost := .perform instruction
+semantic_template perform (action : Action) : Cost := .perform action
 semantic_template preventionBan (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan) :
     StaticSpec :=
   .preventionBan kind damage ban
@@ -1934,8 +1933,8 @@ semantic_template static (spec : StaticSpec) : Ability := .static spec
 semantic_template tapSymbol : Cost := .tapSymbol
 semantic_template thatAbility (ref : ChoiceRef) : Ability := .thatAbility ref
 semantic_template triggeredOrOnlyOnce (event : GameEvent) (alternatives : List GameEvent)
-    (limit : UsageLimit) (instruction : Action) : Ability :=
-  .triggered event alternatives none [] none (some limit) none instruction
+    (limit : UsageLimit) (action : Action) : Ability :=
+  .triggered event alternatives none [] none (some limit) none action
 semantic_template untapSymbol : Cost := .untapSymbol
 semantic_template visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing) :
     StaticSpec :=
@@ -2016,7 +2015,7 @@ semantic_template thatTime : TurnRef := .that
 /-- "this way", "this turn": the span a historical clause looks back over. -/
 semantic_template within (d : Duration) (timing : Option Timing := none) : LookbackSpan :=
   .duration d timing
-/-- "… this way": the event the enclosing instruction caused. -/
+/-- "… this way": the event the enclosing action caused. -/
 semantic_template thisWay : LookbackSpan := .thisWay
 /-- The event that triggered the enclosing ability [CR#603.2]. -/
 semantic_template triggering : LookbackSpan := .triggering

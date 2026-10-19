@@ -17,8 +17,8 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.Faces
 
 /-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost instruction timing none none none
+def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
+  .activated cost action timing none none none
 
 /-- A single-faced card. -/
 def one (face : Characteristics) : Card := .singleFaced { characteristics := face }

@@ -89,7 +89,7 @@ def doorFrameOk (text : List Ability) : Bool := text.all fun a => !a.namesThisDo
 
 "The abilities printed below <keyword>" reads the card's own text: only printed abilities are
 selected [CR#702.165c], so the keyword is one the card prints. The walk follows the forms a
-grant is written in (a static clause, an instruction that establishes one, and the ability
+grant is written in (a static clause, an action that establishes one, and the ability
 forms around them), as `namesThisDoor` does. -/
 
 def AbilitySelection.printedKeyword : AbilitySelection → Option KeywordLabel
@@ -225,8 +225,8 @@ def Ability.writesModes (ab : Ability) (fuel : Nat := 64) : Bool :=
   match fuel with
   | 0 => false
   | n + 1 => match ab with
-    | .spell _ instruction =>
-      match instruction.scopeBody with
+    | .spell _ action =>
+      match action.scopeBody with
       | .chooseModes _ _ => true
       | _ => false
     | .italicHead _ ab => ab.writesModes n
@@ -247,15 +247,15 @@ def Ability.writesModeChoice (ab : Ability) (fuel : Nat := 64) : Bool :=
     | _ => false
 termination_by structural fuel
 
-/-- Any ability whose instruction is a modal choice: a spell, an activated ability or a
+/-- Any ability whose action is a modal choice: a spell, an activated ability or a
 triggered ability [CR#700.2a,700.2b]. -/
 def Ability.hasModes (ab : Ability) (fuel : Nat := 64) : Bool :=
   match fuel with
   | 0 => false
   | n + 1 => match ab with
-    | .spell _ instruction | .activated _ instruction _ _ _ _
-    | .triggered _ _ _ _ _ _ _ instruction =>
-      match instruction.scopeBody with
+    | .spell _ action | .activated _ action _ _ _ _
+    | .triggered _ _ _ _ _ _ _ action =>
+      match action.scopeBody with
       | .chooseModes _ _ => true
       | _ => false
     | .italicHead _ ab => ab.hasModes n

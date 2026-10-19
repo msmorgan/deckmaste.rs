@@ -46,7 +46,7 @@ def DamageScale.numberSlots : DamageScale → List (Amount × NumberRegime)
   | .multiplied _ | .halved _ => []
   | .shifted _ amount => [(amount, .clamped)]
 
-/-- A damage replacement's own slots. The `also` instruction a prevention runs declares its
+/-- A damage replacement's own slots. The `also` action a prevention runs declares its
 own. -/
 def DamageOp.numberSlots : DamageOp → List (Amount × NumberRegime)
   | .prevent cut _ | .redirect cut _ => cut.numberSlots
@@ -85,7 +85,7 @@ def MoveRider.ridersSlots : List MoveRider → List (Amount × NumberRegime)
   | rider :: rest => rider.numberSlots ++ MoveRider.ridersSlots rest
 
 /-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and
-a performed instruction declare their own. -/
+a performed action declare their own. -/
 def Cost.numberSlots (value : Cost) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
@@ -127,7 +127,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .choice _ _ _ _ _ | _n + 1, .conjunction _ _ => []
 termination_by structural fuel
 
-/-- The instruction's own slots and the regime each is read in [CR#107.1b]. -/
+/-- The action's own slots and the regime each is read in [CR#107.1b]. -/
 def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []

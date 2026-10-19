@@ -6,7 +6,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.CallerScope
 
-private def instructionResult (drs : DRS) (body : Action) : DRS :=
+private def actionResult (drs : DRS) (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj drs body).1
 private def nounResult (drs : DRS) (body : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false body).1
@@ -42,7 +42,7 @@ private semantic_template withSubjectBody (subject : NounPhrase) (body : splice 
 private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.lit 1)
 private structure Flag where
   bit : Bool
-private def discardedInstruction (_ : Action) : Flag := ⟨true⟩
+private def discardedAction (_ : Action) : Flag := ⟨true⟩
 private def ordinarySubjectIdentity (subject : NounPhrase) : NounPhrase := subject
 private semantic_template ordinaryFunctionConfig (_function : NounPhrase → NounPhrase) : Action := draw (.lit 1)
 private def applyWithForgedContext (body : AuthoringContext → NounPhrase → Action)
@@ -93,14 +93,14 @@ theorem templateArgumentsAreEvaluatedAtTheirTextualUse :
     (unusedSubject it).check (DRS.ofList []) = [] ∧
       (moveSubject (secondSubject (target isArtifact) it)).check (DRS.ofList []) = [.anaphor .bare .one 0] := by decide
 theorem unusedSubjectDoesNotIntroduceAReferent :
-    (instructionResult (DRS.ofList []) (unusedSubject (target isCreature))).referents.countP
+    (actionResult (DRS.ofList []) (unusedSubject (target isCreature))).referents.countP
       (fun ref => ref.det == .target) = 0 := by decide
 theorem identicalArgumentsRemainSeparateSelections :
-    countOnes .object (instructionResult (DRS.ofList [])
+    countOnes .object (actionResult (DRS.ofList [])
       (instruct (target isCreature) (fight (target isCreature)))) = 2 := by decide
 
 theorem namedParameterIsSelectedOnce :
-    let after := instructionResult (DRS.ofList []) (selectThenTap (target isCreature))
+    let after := actionResult (DRS.ofList []) (selectThenTap (target isCreature))
     countOnes .object after = 1 ∧
       (identityBinding "select.subject" after).map (·.id) = some 0 := by decide
 theorem nestedTemplatePreservesParameterIdentity :
@@ -110,7 +110,7 @@ theorem namedParameterCannotReadAnAmountSlot :
     NounPhrase.check (DRS.ofList [letterB .x]) (.laterMention "subject" .any) =
       [.bindingIdentity "subject"] := by decide
 theorem movedParameterLosesItsIdentity :
-    let after := instructionResult (DRS.ofList []) (selectThenMove (target isCreature))
+    let after := actionResult (DRS.ofList []) (selectThenMove (target isCreature))
     identityBinding "select.subject" after = none ∧
       (after.visibleReferents.filter (fun r => r.zone == some .graveyard)).length = 1 ∧
       after.findById? 0 = none := by decide
@@ -118,14 +118,14 @@ theorem movedParameterLosesItsIdentity :
 theorem suppliedBodyKeepsItsCallerPronoun :
     (announceThen (target isArtifact) (putInto it graveyard)).check callerCreature = [] := by decide
 theorem suppliedBodyUpdatesItsOriginalReferent :
-    let after := instructionResult callerCreature (announceThen (target isArtifact) (putInto it graveyard))
+    let after := actionResult callerCreature (announceThen (target isArtifact) (putInto it graveyard))
     (after.visibleReferents.filter (fun r => r.ty == [.creature])).map (·.zone) = [some .graveyard] ∧
       (after.visibleReferents.filter (fun r => r.ty == [.artifact])).map (·.zone) = [some .battlefield] := by decide
 
 theorem forgottenParameterDoesNotSurvivePrivately :
     let drs := nounResult (DRS.ofList [])
       (.firstMention "library.subject" (target (.and [.isCard, .in_ yourLibrary])))
-    let after := instructionResult drs shuffle
+    let after := actionResult drs shuffle
     NounPhrase.check after (.laterMention "library.subject" .any) = [.bindingIdentity "library.subject"] ∧
       countReach .bare .one after = 0 := by decide
 
@@ -239,7 +239,7 @@ theorem containingNounRetainsIndependentSelection :
         [(1, none), (0, some .battlefield)] := by decide
 
 theorem secondSubjectSelectsOnlyItsTextuallyUsedArgument :
-    let after := instructionResult (DRS.ofList []) (moveSubject (secondSubject (target isArtifact) (target isCreature)))
+    let after := actionResult (DRS.ofList []) (moveSubject (secondSubject (target isArtifact) (target isCreature)))
     after.visibleReferents.map (·.ty) = [[.creature]] ∧
       after.visibleReferents.map (·.zone) = [some .graveyard] := by decide
 
@@ -293,7 +293,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded projection witness", types := [.sorcery],
         text := [Primitives.Ability.spell none
-        (configuredDraw (discardedInstruction (.draw (.lit 1))).bit)] } }
+        (configuredDraw (discardedAction (.draw (.lit 1))).bit)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.setStatus] -/
 #guard_msgs in

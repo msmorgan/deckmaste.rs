@@ -6,7 +6,7 @@ import Semantics.Check.Card
 # Semantics.Cards.Copy
 
 Port of `idris/src/Experimental/Cards/Copy.idr`: the printed cards of the Copy family. A bench
-item that is an ability, an instruction, or a static clause rather than a whole card is a plain
+item that is an ability, an action, or a static clause rather than a whole card is a plain
 definition paired with an `ok…` theorem that runs the checker on it, as its Idris elaboration
 did.
 -/

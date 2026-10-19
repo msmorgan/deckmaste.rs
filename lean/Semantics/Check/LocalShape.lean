@@ -164,8 +164,8 @@ def EncloseUse.admitsReflex : EncloseUse → Bool
   | .reflexive => true
   | _ => false
 
-def Action.reflexEncloseUse (instruction : Action) (fuel : Nat := 64) : EncloseUse :=
-  match fuel, instruction with
+def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
+  match fuel, action with
   | 0, _ => .notOneAction
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.reflexEncloseUse n
   | _ + 1, .skipPart .. | _ + 1, .addTurnPart .turn .. => .notYetTaken
@@ -197,8 +197,8 @@ def Action.reflexEncloseUse (instruction : Action) (fuel : Nat := 64) : EncloseU
   | _ + 1, .delay .. | _ + 1, .holdUntil .. => .notYetTaken
   | _, _ => .agentless
 
-def Action.thisWayOutcomeOk (instruction : Action) (fuel : Nat := 64) : Bool :=
-  match fuel, instruction with
+def Action.thisWayOutcomeOk (action : Action) (fuel : Nat := 64) : Bool :=
+  match fuel, action with
   | 0, _ => false
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body
   | n + 1, .withContinuation _ body _ _ | n + 1, .instruct _ body

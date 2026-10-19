@@ -16,14 +16,14 @@ private def choiceSortAtKind : Kind → Option ChoiceSort
   | .player => some .player
   | _ => none
 
-private def instructionTextChoices (instruction : Action) (fuel : Nat := 64) : List ChoiceSort :=
-  match fuel, instruction with
+private def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
+  match fuel, action with
   | 0, _ => []
   | n+1, .inCaller body | n+1, .ownScope _ body | n+1, .bracketed body
-  | n+1, .instruct _ body | n+1, .limited body _ => instructionTextChoices body n
+  | n+1, .instruct _ body | n+1, .limited body _ => actionTextChoices body n
   | _+1, .choose _ (.described (.a _) predicate) _ _ =>
     (predicate.kind?.bind choiceSortAtKind).toList
-  | n+1, .sequentially steps => steps.flatMap (fun step => instructionTextChoices step n)
+  | n+1, .sequentially steps => steps.flatMap (fun step => actionTextChoices step n)
   | _+1, _ => []
 termination_by structural fuel
 
@@ -54,7 +54,7 @@ private def staticTextContext (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64)
     parts.foldl (fun context part => staticTextContext context part n) drs
   | _+1, .addedCost cost _ _ => costTextContext drs cost
   | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
-    publishTextChoices drs (instructionTextChoices action)
+    publishTextChoices drs (actionTextChoices action)
   | _+1, _ => drs
 termination_by structural fuel
 
@@ -63,7 +63,7 @@ def Ability.textContext (drs : DRS) (ability : Ability) (fuel : Nat := 64) : DRS
   match fuel, ability with
   | 0, _ => drs
   | _+1, .activated _ action _ _ _ _ | _+1, .triggered _ _ _ _ _ _ _ action
-  | _+1, .spell _ action => publishTextChoices drs (instructionTextChoices action)
+  | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
   | _+1, .static spec => staticTextContext drs spec
   | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _ =>
     Ability.textContext drs body n
@@ -200,7 +200,7 @@ private theorem cardTextDoesNotExportOrdinaryObjectMentions :
       [.spell none (.choose none (.described (.a .unmarked) (.hasType .creature)) .openly none),
        .spell none (.changeControl (.pro .bare .one))] = [.anaphor .bare .one 0] := by decide
 
-private theorem selectedPlayerCanBeReadWithinTheSameInstruction :
+private theorem selectedPlayerCanBeReadWithinTheSameAction :
     Action.check (DRS.ofList [])
       (.sequentially
         [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,

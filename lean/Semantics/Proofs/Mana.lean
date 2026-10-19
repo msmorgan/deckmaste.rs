@@ -12,12 +12,12 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Mana
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 /-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost instruction timing none none none
+def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
+  .activated cost action timing none none none
 
 /-- "your hand" -/
 theorem okOwnedHand : Location.check (DRS.ofList []) (.zone .hand (some .you)) = [] := by decide
@@ -354,7 +354,7 @@ theorem badProducedByEventWithoutEvent :
   decide
 
 def afterManaAdded : DRS :=
-  instructionResult (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [])
+  actionResult (DRS.ofList []) (.addMana (.lit 1) (.runs [[.colorless]]) [])
 
 /-- "You don't lose this mana as steps and phases end." -/
 theorem okThisManaAfterAdd :

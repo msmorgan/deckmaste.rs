@@ -5,24 +5,24 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.ControllerSacrifice
 
 private def subject : NounPhrase := target (.and [isArtifact, isCreature])
-private def instruction : Action := controllerSacrifices subject
+private def action : Action := controllerSacrifices subject
 private def afterSacrifice : DRS :=
-  (stepAction 64 .postEvent .obj (DRS.ofList []) instruction).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
 private def nestedSubject : NounPhrase := target (.and [isCreature,
   .hasPossessor .controller (controllerOf (target isArtifact))])
-private def nestedInstruction : Action := controllerSacrifices nestedSubject
+private def nestedAction : Action := controllerSacrifices nestedSubject
 
 -- Parameter identity selects the target before its zone change.
 theorem expansionIntroducesTheTargetOnce :
-    instruction = .instruct
+    action = .instruct
       (.possessorOf .controller (.firstMention "controllerSacrifices.subject" subject))
       (sacrifice (.laterMention "controllerSacrifices.subject" subject)) := by rfl
 
 theorem targetMultiplicity :
     afterSacrifice.referents.countP (·.det == .target) = 1 := by decide
 
-theorem instructionIsAdmitted :
-    Action.check (DRS.ofList []) instruction = [] := by decide
+theorem actionIsAdmitted :
+    Action.check (DRS.ofList []) action = [] := by decide
 
 theorem laterCardRetainsBothTypes :
     (firstReach (.word .card) .one afterSacrifice).map (·.ty) =
@@ -39,7 +39,7 @@ theorem laterCardReadIsAdmitted :
     NounPhrase.checkAt (some .object) afterSacrifice (that .card) = [] := by decide
 
 theorem nestedDescriptionIsAdmitted :
-    Action.check (DRS.ofList []) nestedInstruction = [] := by decide
+    Action.check (DRS.ofList []) nestedAction = [] := by decide
 
 theorem nestedDescriptionPreservesEveryOuterContextBeforeSacrifice
     (fuel : Nat) (drs : DRS) :
@@ -53,7 +53,7 @@ theorem nestedSubjectPublishesExactlyItsFourParticipants :
         (1, .player, none, []), (0, .object, some .battlefield, [.artifact])] := by decide
 
 theorem nestedDescriptionDeclaresExactlyItsTwoTargets :
-    (stepAction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1.referents.countP
+    (stepAction 64 .postEvent .obj (DRS.ofList []) nestedAction).1.referents.countP
       (·.det == .target) = 2 := by decide
 
 -- P08: replacing the explicit parameter read with an ordinary pronoun leaves a true tie.
@@ -72,10 +72,10 @@ theorem formerPermanentReadIsAdmitted :
 
 theorem thatPlayerCanTakeTheFollowingAction :
     Action.check (DRS.ofList [])
-      (.sequentially [instruction, instruct (that .player) (draw (.lit 1))]) = [] := by decide
+      (.sequentially [action, instruct (that .player) (draw (.lit 1))]) = [] := by decide
 
 private def nestedAfter : DRS :=
-  (stepAction 64 .postEvent .obj (DRS.ofList []) nestedInstruction).1
+  (stepAction 64 .postEvent .obj (DRS.ofList []) nestedAction).1
 
 theorem nestedDescriptionMovesOnlyItsOwnReferentWithoutOuterContext :
     (firstReach (.word (.type .artifact)) .one nestedAfter).map (·.zone) = some (some .battlefield) ∧
@@ -116,13 +116,13 @@ theorem existingReferenceIsNotIntroducedAgain :
       (after.findById? 3).bind (·.zone) = some .graveyard := by decide
 
 theorem reflexiveFollowUpRemainsAvailable :
-    instruction.reflexEncloseUse = .reflexive := by decide
+    action.reflexEncloseUse = .reflexive := by decide
 
 theorem riderReadsTheStampedPatient :
     let patient := theVerbed (.action "sacrifice") .one (some .card) .thisWay
     let (after, ids, errors) := stepNounPhrase 64 (nextClause afterSacrifice) .obj true patient
     Action.check (DRS.ofList [])
-      (.withContinuation .required instruction (some (.expose .reveal (.cards patient))) none) = [] ∧
+      (.withContinuation .required action (some (.expose .reveal (.cards patient))) none) = [] ∧
       errors = [] ∧ ids = [3] ∧
       (ids.filterMap after.findById?).map (fun ref => (ref.zone, ref.ty)) =
         [(some .graveyard, [.creature, .artifact])] := by decide
@@ -135,7 +135,7 @@ theorem controllerSacrificesExpansionForEverySubject (chosen : NounPhrase) :
 
 theorem repeatedControllerSacrificesKeepDistinctPatients :
     let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList [])
-      (.sequentially [instruction, instruction])
+      (.sequentially [action, action])
     errors = [] ∧
       (after.referents.filter (fun ref => ref.kind == .object)).map
         (fun ref => (ref.id, ref.zone, ref.idents)) =
@@ -162,7 +162,7 @@ theorem outerArtifactDoesNotStealThePatient :
     let outer : DRS := DRS.ofList
       [{ det := .target, plur := .one,
          payload := .object [.artifact] (some .battlefield) none none (some 1) none }]
-    let (after, errors) := stepAction 64 .postEvent .obj outer instruction
+    let (after, errors) := stepAction 64 .postEvent .obj outer action
     errors = [] ∧ after.findById? 0 = outer.findById? 0 ∧
       (firstReach (.word .card) .one (nextClause after)).map (·.id) = some 4 := by decide
 
@@ -937,7 +937,7 @@ private theorem controllerSourceAndBody (fuel : Nat) (drs : DRS) :
     selectedController, List.foldl_cons, List.foldl_nil, controllerRecord]
   rfl
 
-/-- The complete instruction moves only its selected new creature and preserves every outer
+/-- The complete action moves only its selected new creature and preserves every outer
 referent, including unrelated named referents and actor frames without a link to the newly
 selected target. -/
 theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : ReferentId)
@@ -946,7 +946,7 @@ theorem nestedDescriptionMovesOnlyItsOwnReferent (rs : List Referent) (fresh : R
     (actorLinks : ∀ ref ∈ rs, ∀ shape, ref.payload = .actor shape →
       ∀ linked ∈ shape.refIds, linked ≠ fresh + 2) :
     (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
-      nestedInstruction).1.referents = afterPrefix fresh ++ rs := by
+      nestedAction).1.referents = afterPrefix fresh ++ rs := by
   change (stepAction 64 .postEvent .obj { referents := rs, nextId := fresh }
     (controllerSacrifices nestedSubject)).1.referents = _
   rw [controllerSourceAndBody 53]

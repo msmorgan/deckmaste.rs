@@ -7,7 +7,7 @@ import Semantics.Check.Card
 
 Port of `idris/src/Experimental/Cards/Description.idr`: the printed cards of the Description
 family, and the phrase-level bench items beside them (a noun, predicate, condition,
-instruction, or ability that elaborated in Idris), each paired with an `ok…` theorem that runs
+action, or ability that elaborated in Idris), each paired with an `ok…` theorem that runs
 the checker on it at the bindings its Idris type named.
 -/
 

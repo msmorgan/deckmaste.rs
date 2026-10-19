@@ -12,8 +12,8 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Choice
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 /-- "the chosen number", one number choice standing -/
 theorem okChosenNumberOneStanding : Amount.check [qualityB .number] chosenNumber = [] := by decide
@@ -219,14 +219,14 @@ theorem badLosesNoColor :
       = [.nonEmpty] := by
   decide
 
-def afterChoiceMade : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
+def afterChoiceMade : DRS := actionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okChoiceRestStands :
     NounPhrase.checkAt (some .object) afterChoiceMade (theRest .object) = [] := by decide
 
 def afterChoiceRestDisposed : DRS :=
-  instructionResult (DRS.ofList [])
+  actionResult (DRS.ofList [])
     (.sequentially [choose (counted (upTo 1) isCreature), destroy (theRest .object)])
 
 /-- "Choose up to one creature. Destroy the rest. Destroy the rest." -/
@@ -257,7 +257,7 @@ theorem restConsumptionPreservesChoiceHistoryAndOtherSources :
 
 theorem consumingObjectRestPreservesUnrelatedPlayerChoice :
     let before := (stepNounPhrase 64 (DRS.ofList []) .other false (allOf (.isOpponentOf .you))).1
-    let after := instructionResult before
+    let after := actionResult before
       (.sequentially [choose (a (.isOpponentOf .you)), choose (counted (upTo 1) isCreature),
         destroy (theRest .object)])
     NounPhrase.checkAt (some .object) after (theRest .object) = [.theRestFits .object] ∧
@@ -284,13 +284,13 @@ theorem okDistributedRestOfOwnChoice : Action.check (DRS.ofList []) distributedR
   decide
 
 def afterDistributedChoice : DRS :=
-  instructionResult (DRS.ofList []) (instruct (each .anyPlayer) (choose upToOneTheyControl))
+  actionResult (DRS.ofList []) (instruct (each .anyPlayer) (choose upToOneTheyControl))
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest." -/
 theorem okDistributedRestStands :
     NounPhrase.checkAt (some .object) afterDistributedChoice (theRest .object) = [] := by decide
 
-def afterDistributedRestSacrificed : DRS := instructionResult (DRS.ofList []) distributedRestOfOwnChoice
+def afterDistributedRestSacrificed : DRS := actionResult (DRS.ofList []) distributedRestOfOwnChoice
 
 /-- "Each player chooses up to one creature they control, then sacrifices the rest, then
 sacrifices the rest.": the per-agent rest closes the partitives it spent, so no rest stands to
@@ -310,7 +310,7 @@ theorem okSharedGroupWithoutARest :
 theorem targetLoopPublishesAFreshPluralResult :
     let loop := Action.doForEach (each .anyPlayer)
       (choose (target (.and [isPermanent, .hasPossessor .controller they])))
-    let after := instructionResult (DRS.ofList []) loop
+    let after := actionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
       (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) = [] ∧
       after.visibleReferents.map (fun r => (r.id, r.kind, r.plur)) =
@@ -322,7 +322,7 @@ theorem targetLoopPublishesAFreshPluralResult :
 theorem ordinaryLoopChoicesRemainLocal :
     let loop := Action.doForEach (each .anyPlayer)
       (choose (a (.and [isPermanent, .hasPossessor .controller they])))
-    let after := instructionResult (DRS.ofList []) loop
+    let after := actionResult (DRS.ofList []) loop
     Action.check (DRS.ofList [])
       (.sequentially [loop, instruct (those .player) (sacrifice (those .permanent))]) =
         [.anaphor (.word .permanent) .many 0] ∧
@@ -334,19 +334,19 @@ theorem distributedRestPreservesTheUnrelatedOuterGroup :
     let sequence := Action.sequentially
       [tapping, instruct (each .anyPlayer) (choose upToOneTheyControl),
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
-    let after := instructionResult (DRS.ofList []) sequence
+    let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 7).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
         some (.object, .many, some .graveyard, [.creature]) ∧
       (after.findById? 6).isNone = true ∧
       (after.findById? 0).map (·.payload) =
-        ((instructionResult (DRS.ofList []) tapping).findById? 0).map (·.payload) := by decide
+        ((actionResult (DRS.ofList []) tapping).findById? 0).map (·.payload) := by decide
 
 theorem distributedSacrificeConsumesTheOuterRemainder :
     let sequence := Action.sequentially
       [choose (counted (upTo 1) isCreature),
         instruct (each .anyPlayer) (sacrifice (theRest .object))]
-    let after := instructionResult (DRS.ofList []) sequence
+    let after := actionResult (DRS.ofList []) sequence
     Action.check (DRS.ofList []) sequence = [] ∧
       (after.findById? 4).map (fun ref => (ref.kind, ref.plur, ref.zone, ref.ty)) =
         some (.object, .many, some .graveyard, [.creature]) ∧

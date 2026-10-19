@@ -6,7 +6,7 @@ import Semantics.Check.Card
 
 Off-Stack Statics (`semantics-v2-off-stack-statics`, `docs/decisions/semantics-v2.md` §7, ruling
 2026-10-09): "as [event], do" (`StaticSpec.asEvent`) and "any time [condition] holds, do"
-(`StaticSpec.whileHolds`), which carry an instruction that never uses the stack
+(`StaticSpec.whileHolds`), which carry an action that never uses the stack
 [CR#604.1,603.7a,603.7g,614.1c]; the object a spell becomes (`NounPhrase.becomes`, [CR#400.7]);
 and a deontic rule's one exempt source (`DeonticExcept`, [CR#702.145b,702.13b]). The keyword bodies are
 read through their declarations (`Semantics.Definitions`). Each pin is closed by `decide`.
@@ -18,7 +18,7 @@ namespace Semantics.Proofs.OffStack
 
 /-! ## The nodes -/
 
-/-- "As this permanent enters, you may draw a card": an instruction carried out as an event
+/-- "As this permanent enters, you may draw a card": an action carried out as an event
 happens [CR#614.1c]. -/
 theorem okAsEventEnters :
     StaticSpec.check (DRS.ofList [])

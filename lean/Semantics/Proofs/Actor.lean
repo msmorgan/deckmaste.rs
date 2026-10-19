@@ -4,8 +4,8 @@ import Semantics.Check.Card
 /-!
 # Semantics.Proofs.Actor
 
-The performer of an instruction and the handoff that names another one. `theActor` is whoever
-performs the instruction it is part of: by default, the player addressed by the text
+The performer of an action and the handoff that names another one. `theActor` is whoever
+performs the action it is part of: by default, the player addressed by the text
 [CR#109.5], unless an enclosing `instruct` hands it to another player or to a permanent. Each pin is closed by `decide`.
 -/
 
@@ -13,7 +13,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Actor
 
-private def instructionResult (drs : DRS) (i : Action) : DRS :=
+private def actionResult (drs : DRS) (i : Action) : DRS :=
   (stepAction 64 .postEvent .obj drs i).1
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
@@ -209,15 +209,15 @@ theorem keywordAbilityBodyCannotReadItsCard :
 /-- "Draw a card.": the same refusals and the same published bindings as handed to "you". -/
 theorem actorDrawIsYouDraw :
     Action.check (DRS.ofList []) (draw (.lit 1)) = Action.check (DRS.ofList []) (instruct .you (draw (.lit 1))) ∧
-      (products (instructionResult (DRS.ofList []) (draw (.lit 1))) == products (instructionResult (DRS.ofList []) (instruct .you (draw (.lit 1)))))
+      (products (actionResult (DRS.ofList []) (draw (.lit 1))) == products (actionResult (DRS.ofList []) (instruct .you (draw (.lit 1)))))
         = true := by
   decide
 
 /-- "Lose 2 life.": as handed to "you". -/
 theorem actorLoseLifeIsYouLoseLife :
     Action.check (DRS.ofList []) (loseLife (.lit 2)) = Action.check (DRS.ofList []) (instruct .you (loseLife (.lit 2))) ∧
-      (products (instructionResult (DRS.ofList []) (loseLife (.lit 2))) ==
-        products (instructionResult (DRS.ofList []) (instruct .you (loseLife (.lit 2))))) = true := by
+      (products (actionResult (DRS.ofList []) (loseLife (.lit 2))) ==
+        products (actionResult (DRS.ofList []) (instruct .you (loseLife (.lit 2))))) = true := by
   decide
 
 /-- "You may pay 1 life. If you do, draw a card." (`Choice.okMatchedPayer` with the actor) -/
@@ -232,7 +232,7 @@ theorem okActorOwnPayerCost :
     Ability.check (DRS.ofList []) (.activated (payLife 2) (draw (.lit 1)) none none none none) = [] := by
   decide
 
-/-- "Target opponent loses 2 life: Draw a card.": a cost may hand its instruction to another
+/-- "Target opponent loses 2 life: Draw a card.": a cost may hand its action to another
 player, and a life payment inside the handoff is that player's, not the controller's. Who pays a
 cost is not checked (`lean-checker-sweep-costs`); the cost's performer is still the handed
 player, read in the context the cost's handoff builds. -/
@@ -246,7 +246,7 @@ theorem badHandedOffLifeCost :
 
 /-! ## Costs: each handoff twin judged as its explicit-agent form
 
-Every cost instruction on the bench or in the pins whose agent is not "you", written once with
+Every cost action on the bench or in the pins whose agent is not "you", written once with
 the explicit agent and once handed off; both gave the same refusals. The explicit-agent spelling
 is gone (`semantics-v2-drop-agent-fields`): each pin's second half now names the handoff the bench
 writes for the same card, so it states that the bench's own spelling is the one judged. -/
@@ -546,27 +546,27 @@ theorem okDiscardWrapperWithAgent :
 
 /-- A targeted performer stays published after its handoff, below what the body introduced. -/
 theorem handedTargetStaysBound :
-    shape (instructionResult (DRS.ofList []) (instruct (target .anyPlayer) (discard (a .isCard)))) =
+    shape (actionResult (DRS.ofList []) (instruct (target .anyPlayer) (discard (a .isCard)))) =
       [(.object, .one, .a), (.player, .one, .target)] := by
   decide
 
 /-- "That player": a pronoun performer introduces nothing; the body's mentions sit above the
 player it read. -/
 theorem handedPronounAddsOnlyTheBody :
-    shape (instructionResult onePlayer (instruct they (discard (a .isCard)))) =
+    shape (actionResult onePlayer (instruct they (discard (a .isCard)))) =
       [(.object, .one, .a), (.player, .one, .the)] := by
   decide
 
 /-- "Each opponent": the members' mentions and the group, pluralized. -/
 theorem handedGroupPublishesPlurals :
-    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discard (a .isCard)))) =
+    shape (actionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (discard (a .isCard)))) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
 /-- `instruct you` publishes exactly what its body does with no handoff. -/
 theorem handedToYouIsTransparent :
-    (products (instructionResult (DRS.ofList []) (instruct .you (discard (a .isCard)))) ==
-      products (instructionResult (DRS.ofList []) (discard (a .isCard)))) = true := by
+    (products (actionResult (DRS.ofList []) (instruct .you (discard (a .isCard)))) ==
+      products (actionResult (DRS.ofList []) (discard (a .isCard)))) = true := by
   decide
 
 /-! ## A group handoff publishes its amount outcomes as totals
@@ -610,10 +610,10 @@ theorem extortHandoffTwin :
 /-- "Each opponent loses 1 life": the group and one `lifeLost` total, exactly what the explicit
 plural agent published (its replacement is the handoff of the bare life change). -/
 theorem handedGroupPublishesTotal :
-    shape (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1)))) =
+    shape (actionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1)))) =
         [(.outcome, .one, .the), (.player, .many, .each)] ∧
-      (instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1))) ==
-        instructionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (.changeLife (.down (.lit 1))))) = true := by
+      (actionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (loseLife (.lit 1))) ==
+        actionResult (DRS.ofList []) (instruct (each (.isOpponentOf .you)) (.changeLife (.down (.lit 1))))) = true := by
   decide
 
 /-- "Each opponent discards a card. You gain that much life.": the body has no amount outcome,
@@ -659,7 +659,7 @@ theorem badForEachLossThatMuch :
           gainLife .thatMuch ]) = [.quantOutcomeInScope 0] := by
   decide
 
-/-! ## A permanent can be handed an instruction
+/-! ## A permanent can be handed an action
 
 The rules instruct a permanent itself to explore or endure [CR#701.44a,701.63a]; the handoff
 takes a permanent as well as a player. Inside it `theActor` is the permanent, and the steps the
@@ -782,7 +782,7 @@ theorem exploreEventTakesAPermanent :
 
 /-- The source and its controller remain accessible after the handoff, along with the drawn card. -/
 theorem handedToThisPublishesSourceAndController :
-    shape (instructionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf theActor) (draw (.lit 1)))))
+    shape (actionResult (DRS.ofList []) (instruct thisCreature (instruct (controllerOf theActor) (draw (.lit 1)))))
       = [(.object, .one, .the), (.player, .one, .the), (.object, .one, .the)] := by
   decide
 
@@ -790,7 +790,7 @@ theorem amassBareItSelectsChosenArmy :
     let stepsBeforeRead := match literalAmass with
       | .sequentially steps => Action.sequentially (steps.take 2)
       | body => body
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.sequentially [destroy (target isCreature), stepsBeforeRead])
     let selected := resolveCandidates .bare .one (nextClause after)
     selected.map (·.id) = [after.nextId - 1] ∧

@@ -287,7 +287,7 @@ semantic_definition activate (subject : NounPhrase) (from_ : Option Location := 
     (.procedure .activate (.inCaller subject) payment.inCaller (resulting.map .inCaller)
       (from_.map .inCaller) none)
 /-- "the regeneration of <subject>": the deed "can't be regenerated" forbids, a shield's
-application rather than the instruction that creates one (`Definition`, [CR#701.19c]). -/
+application rather than the action that creates one (`Definition`, [CR#701.19c]). -/
 semantic_definition regeneration (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))
     (.enact (.action "regenerate") (.clearDamage (.inCaller subject)) none none)
@@ -3564,7 +3564,7 @@ semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider
 /-! The regeneration shield is a Definition, but its replacement applies
 `regenerationApplication`, a Template over `tap`, so it follows that Template here. -/
 
-/-- A resolving regeneration instruction installs a single-use shield for this turn;
+/-- A resolving regeneration action installs a single-use shield for this turn;
 only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
 semantic_definition regenerate (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))

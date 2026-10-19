@@ -5,7 +5,7 @@ import Semantics.Check.Card
 # Semantics.Proofs.FaceDown
 
 Pins for the one face-down spec and for special actions (`docs/decisions/semantics-v2.md` §7,
-ruling 2026-10-08, "Face-down is one spec, and a special action is a cost and an instruction").
+ruling 2026-10-08, "Face-down is one spec, and a special action is a cost and an action").
 A card exiled face down carries `exiledFaceDown` [CR#406.3a]; a face-down spell or permanent its
 listed characteristics [CR#708.2]; a move's riders are of the kind its destination allows
 (owner ruling 2026-10-08, Q28–Q29).
@@ -37,7 +37,7 @@ theorem badPlacementOntoBattlefield :
     Action.check (DRS.ofList []) (.move (target isCreature) .anyLocation (some battlefield) .arrival none
       [(.inOrder .anyOrder)]) = [.riderKind .entry .placement] := by decide
 
-/-- A special action whose instruction reads an anaphor with no antecedent is refused. -/
+/-- A special action whose action reads an anaphor with no antecedent is refused. -/
 theorem badSpecialActionUnboundAnaphor :
     StaticSpec.check (DRS.ofList []) (.specialAction none (.mana [generic 1]) (.setStatus .faceUp it)) =
       [.anaphor .bare .one 0] := by decide

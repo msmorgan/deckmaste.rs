@@ -454,7 +454,7 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
           | other => other
         { r with payload := newPayload }) drs
 
-/-- Infer the canonical `Deed` of an instruction for `.actedOn` stamping. -/
+/-- Infer the canonical `Deed` of an action for `.actedOn` stamping. -/
 def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   match fuel, inst with
   | 0, _ => none
@@ -837,7 +837,7 @@ def deedAgentDomain (deed : Deed) : Option EntityDomain :=
 def enactActorKind (deed : Deed) : Kind :=
   if deedAgentDomain deed == some .object then .object else .player
 
-private def instructionActorRefusals (drs : DRS) (expected : Kind) : List Refusal :=
+private def actionActorRefusals (drs : DRS) (expected : Kind) : List Refusal :=
   match actorShape? drs with
   | none => []
   | some shape => refuse (shape.kind == expected) .eventAgent
@@ -1249,8 +1249,8 @@ def stepRollRowListWith (ops : StepOps) (drs : DRS) (rows : List RollRow) : DRS 
     (d2, es ++ e1 ++ refuse q.nonZero .nonZeroQ ++ refuse q.literal .quantLiteral ++ e2))
       (drs, [])
 
-def Action.hasRepeatedPayment (instruction : Action) (fuel : Nat := 32) : Bool :=
-  match fuel, instruction with
+def Action.hasRepeatedPayment (action : Action) (fuel : Nat := 32) : Bool :=
+  match fuel, action with
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body =>
     body.hasRepeatedPayment n
   | _ + 1, .pay _ times .paid _ _ => times != .once
@@ -1288,12 +1288,12 @@ def stepModeChangeWith (ops : StepOps) (drs : DRS) (mc : ModeChange) : DRS × Li
 
 def stepModeListWith (ops : StepOps) (drs : DRS)
     (modes : List (Option Cost × Option Nat × Action)) : DRS × List Refusal :=
-  modes.foldl (fun (out, errors) (cost, _, instruction) =>
+  modes.foldl (fun (out, errors) (cost, _, action) =>
     let branch := { drs with nextId := out.nextId }
     let (afterCost, costErrors) := match cost with
       | some cost => ops.cost branch cost
       | none => (branch, [])
-    let (afterBody, bodyErrors) := ops.inst .postEvent .obj (nextClause afterCost) instruction
+    let (afterBody, bodyErrors) := ops.inst .postEvent .obj (nextClause afterCost) action
     ({ drs with nextId := max out.nextId afterBody.nextId }, errors ++ costErrors ++ bodyErrors)) (drs, [])
 
 def actorPlurality (drs : DRS) : Plurality :=
@@ -2378,7 +2378,7 @@ def stepOps : Nat → StepOps
         | .trigger => (drs, triggerActorRefusals drs)
         | .crew host | .saddle host | .fullyUnlock host =>
           let expected := match inst with | .fullyUnlock _ => Kind.player | _ => Kind.object
-          let actorErrors := instructionActorRefusals drs expected
+          let actorErrors := actionActorRefusals drs expected
           let (out, ids, errors) := ops.np drs patientRole true host
           let typeErrors := kindCheck .object ((ids.head?.bind out.findById?).map (·.kind))
           let out := if phase == .postEvent then applyInPlaceStamp out ids inst.inferredDeed else out

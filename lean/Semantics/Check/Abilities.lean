@@ -4,7 +4,7 @@ import Semantics.Check.Phrase
 /-!
 # Semantics.Check.Abilities
 
-Minimal core instruction, cost, static-spec, and ability stepping re-exports.
+Minimal core action, cost, static-spec, and ability stepping re-exports.
 -/
 
 namespace Semantics

@@ -265,7 +265,7 @@ inductive ChoiceSort where
   | player
   deriving DecidableEq, Repr
 
-/-- Which die a roll instruction or trigger names. -/
+/-- Which die a roll action or trigger names. -/
 inductive DieSides where
   | sides (sides : Nat)
   | thoseDice

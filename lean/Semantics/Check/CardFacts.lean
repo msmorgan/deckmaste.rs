@@ -105,7 +105,7 @@ mutual
     | n + 1, .addMana _ _ riders => riders.any (fun rider => match rider with
       | .onSpent _ _ _ body => body.namesThisDoor n | _ => false)
     | n + 1, .pay cost .. => cost.namesThisDoor n
-    | n + 1, .applyResultsTable rows => rows.any (fun row => row.instruction.namesThisDoor n)
+    | n + 1, .applyResultsTable rows => rows.any (fun row => row.action.namesThisDoor n)
     | n + 1, .createObject _ (.emblem _ abilities) _ _ => abilities.any (fun a => a.namesThisDoor n)
     | _, _ => false
   termination_by structural fuel
@@ -231,8 +231,8 @@ def StaticSpec.keyword (spec : StaticSpec) (fuel : Nat := 64) : Option KeywordLa
   | _, _ => none
 termination_by structural fuel
 
-def Action.keyword (instruction : Action) (fuel : Nat := 64) : Option KeywordLabel :=
-  match fuel, instruction with
+def Action.keyword (action : Action) (fuel : Nat := 64) : Option KeywordLabel :=
+  match fuel, action with
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.keyword n
   | n + 1, .establish spec _ => spec.keyword n
   | _, _ => none
@@ -240,7 +240,7 @@ termination_by structural fuel
 
 def Ability.lineKeyword : Ability → Option KeywordLabel
   | .static spec => spec.keyword
-  | .triggered _ _ _ _ _ _ _ instruction => instruction.keyword
+  | .triggered _ _ _ _ _ _ _ action => action.keyword
   | _ => none
 
 def Ability.keywordExtendable (ability : Ability) : Bool := ability.lineKeyword.isSome

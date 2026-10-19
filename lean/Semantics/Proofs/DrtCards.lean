@@ -269,15 +269,15 @@ theorem weepingAngelRawPronounCurrentlySelectsTheDamageSource :
 
 
 theorem weepingAngelDesignatedRecipientMovesAndTheSourceDoesNot :
-    let shuffleInstruction := shuffleInto (.laterMention "weeping.recipient" it)
-    let movePrefix := match shuffleInstruction with
+    let shuffleAction := shuffleInto (.laterMention "weeping.recipient" it)
+    let movePrefix := match shuffleAction with
       | .ownScope name (.sequentially (first :: _)) => Action.ownScope name first
       | _ => .sequentially []
     let initial := nextClause weepingAngelRecipientContext
     let moved := stepAction 12 .postEvent .obj initial
       (instruct (ownerOf (that (.type .creature))) movePrefix)
     let out := stepAction 12 .postEvent .obj initial
-      (instruct (ownerOf (that (.type .creature))) shuffleInstruction)
+      (instruct (ownerOf (that (.type .creature))) shuffleAction)
     moved.2 = [] ∧ out.2 = [] ∧
       (moved.1.visibleReferents.filter
         (fun ref => ref.ty.contains .creature && ref.zone == some .library)).length = 1 ∧

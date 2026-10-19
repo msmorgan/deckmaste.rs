@@ -9,19 +9,19 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.GetsBothDeltas
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 theorem getsPtIsOneNode (subject : NounPhrase) (power toughness : Delta Amount) :
     getsPt subject power toughness = .ptModification subject power toughness := rfl
 
 theorem okTargetGetsIntroducesOneTarget :
-    (instructionResult (DRS.ofList []) (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
+    (actionResult (DRS.ofList []) (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
       (fun b => b.det == .target) = 1 := by
   decide
 
 theorem subjectWrittenTwiceIntroducesTwoTargets :
-    (instructionResult (DRS.ofList [])
+    (actionResult (DRS.ofList [])
       (.establish
         (.conjunction none
           [ .modification (target isCreature) .power (.up (.lit 2)),
@@ -48,7 +48,7 @@ theorem okGetsInsideCoordination :
   decide
 
 private def selectedSubjectContext : DRS :=
-  instructionResult (DRS.ofList []) (.sequentially
+  actionResult (DRS.ofList []) (.sequentially
     [.setStatus .tapped (target isArtifact),
       get (.firstMention "pump.subject" (target isCreature))
         (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)])
@@ -65,7 +65,7 @@ theorem deltasReadSelectedSubjectAfterUnrelatedObject :
           (.up (powerOf it)) (.up (powerOf it)) (some untilEndOfTurn)]) = [] := by decide
 
 theorem pluralPtSubjectIsIntroducedOnce :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (get (counted (exactly 2) isCreature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn))
     after.visibleReferents.length = 1 ∧
       (firstReach .bare .many after).map (·.id) = some 0 ∧

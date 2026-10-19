@@ -104,7 +104,7 @@ inductive Definition where
   ability and confers nothing, so the node carries columns rather than conferrals. The label is
   the declaration's own name, or a member's where the declaration lists several (`day` and
   `night` [CR#731.1]); the registry supplies it, never the author. `effectful`
-  is whether an instruction may confer it directly; `zone`, `type` and `half` narrow the object
+  is whether an action may confer it directly; `zone`, `type` and `half` narrow the object
   that holds it. -/
   | designation (label : DesignationLabel) (scope : DesignationScope) (effectful : Bool)
       (zone : Option Zone) (type : Option CardType) (half : Option RoomHalf)

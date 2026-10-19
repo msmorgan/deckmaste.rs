@@ -9,8 +9,8 @@ private def nounZone (drs : DRS) (noun : NounPhrase) : Option Zone :=
   let result := stepNounPhrase 64 drs .other false noun
   result.2.1.head? >>= fun id => (result.1.findById? id).bind (·.zone)
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
@@ -36,11 +36,11 @@ theorem okDetachWithoutKnowingOldHost :
     Action.check (DRS.ofList []) (.attachment .unattached thisArtifact none) = [] := by decide
 
 theorem okExtraTurnPublishesTurnReference :
-    TurnRef.check (instructionResult (DRS.ofList []) (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
+    TurnRef.check (actionResult (DRS.ofList []) (.addTurnPart .turn none (.lit 1) none)) .that = [] := by
   decide
 
 /-- "Target creature takes an extra turn after this one." An extra turn is taken by a player
-[CR#500.7]: the turn's taker is the player the instruction is handed to, and a permanent is
+[CR#500.7]: the turn's taker is the player the action is handed to, and a permanent is
 not one. -/
 theorem badExtraTurnWithoutPlayer :
     Action.check (DRS.ofList []) (instruct (target isCreature) (.addTurnPart .turn none (.lit 1) none))
@@ -52,14 +52,14 @@ theorem okCreateSeveralEmblems :
     Action.check (DRS.ofList []) (.createObject (.lit 2) (.emblem none emblemAbilities) true none) = [] := by decide
 
 theorem okEmblemPublication :
-    (instructionResult (DRS.ofList [])
+    (actionResult (DRS.ofList [])
       (.createObject (.lit 1) (.emblem none emblemAbilities) true none)).sameReferents
       (DRS.ofList [({ det := .a, plur := .one, payload := .object [] (some .command) none none none } : Referent)]) = true := by decide
 
 theorem copiedTokenUsesItsSelectedSourceRatherThanANeighbor :
     let source := nounResult (DRS.ofList []) (.firstMention "token.source" (target isArtifact))
     let before := nounResult source (target isCreature)
-    let after := instructionResult before (.createObject (.lit 1)
+    let after := actionResult before (.createObject (.lit 1)
       (.token (.copyOf (.laterMention "token.source" .any) []) []) true none)
     (after.findById? 0).map (·.ty) = some [.artifact] ∧
       (after.findById? 1).map (·.ty) = some [.creature] ∧
@@ -68,10 +68,10 @@ theorem copiedTokenUsesItsSelectedSourceRatherThanANeighbor :
 
 
 private def exiledAbility : DRS :=
-  instructionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some exileZone) .arrival none [])
+  actionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some exileZone) .arrival none [])
 
 private def graveyardAbility : DRS :=
-  instructionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none [])
+  actionResult (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none [])
 
 theorem exiledAbilityKeepsItsLocation :
     nounZone exiledAbility (that .ability) = some .exile := by decide
@@ -96,7 +96,7 @@ theorem graveyardDestinationAcceptsCounterRiders :
     Action.check (DRS.ofList []) (.move (target (.abilityHead .anyActivated)) .anyLocation (some graveyard) .arrival none [(.withCounters (.lit 1) (.printed p1p1Counter) .fresh)]) = [] := by decide
 
 theorem pronounMovePreservesCopyOriginAndOuterBindings :
-    (instructionResult (DRS.ofList [
+    (actionResult (DRS.ofList [
       { det := .the, plur := .one, payload := .ability (some .copy) },
       { det := .the, plur := .one, payload := .player false }])
       (.move (that .ability) .anyLocation (some graveyard) .arrival none [])).sameReferents
@@ -130,16 +130,16 @@ theorem clearDamageRejectsAPlayer :
       [.kindMismatch .object .player] := by decide
 
 theorem clearDamagePublishesItsSubject :
-    NounPhrase.checkAt (some .object) (instructionResult (DRS.ofList []) (.clearDamage (target isCreature))) it =
+    NounPhrase.checkAt (some .object) (actionResult (DRS.ofList []) (.clearDamage (target isCreature))) it =
       [] := by decide
 
 
 theorem clearDamageDoesNotPublishDamageDealt :
-    outcomeReferents (instructionResult (DRS.ofList []) (.clearDamage (target isCreature))) = [] := by decide
+    outcomeReferents (actionResult (DRS.ofList []) (.clearDamage (target isCreature))) = [] := by decide
 
 
 theorem movingThisAbilityAllocatesFreshIdentity :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.move thisAbility .anyLocation (some exileZone) .arrival none [])
     after.findById? 0 = none ∧
       after.visibleReferents.map (fun r => (r.id, r.det, r.plur, r.payload, r.idents)) =
@@ -215,15 +215,15 @@ theorem regenerationApplicationChecks :
     Action.check (DRS.ofList []) (regenerationApplication thisCreature) = [] := by decide
 
 theorem regenerationInstallationPublishesNoImmediateOutcome :
-    outcomeReferents (instructionResult (DRS.ofList []) (regenerate thisCreature)) = [] := by decide
+    outcomeReferents (actionResult (DRS.ofList []) (regenerate thisCreature)) = [] := by decide
 
 theorem counterDoesNotLeaveAnAbilityOnTheStack :
-    nounZone (instructionResult (DRS.ofList [])
+    nounZone (actionResult (DRS.ofList [])
       (counter (target (.abilityHead .anyActivated))))
       (that .ability) = some .graveyard := by decide
 
 theorem counterPreservesTheAbilityCategory :
-    NounPhrase.checkAt none (instructionResult (DRS.ofList [])
+    NounPhrase.checkAt none (actionResult (DRS.ofList [])
       (counter (target (.abilityHead .anyActivated))))
       (that .ability) = [] := by decide
 
@@ -235,7 +235,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
             (.zone .stack none) (some graveyard) .arrival none []) none none) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :
-    countOutcomes .countersRemoved (instructionResult (DRS.ofList [])
+    countOutcomes .countersRemoved (actionResult (DRS.ofList [])
       (loseCounters (some (.printed (.named "poison")))
         (some (.lit 1)) .you)) = 1 := by decide
 
@@ -298,7 +298,7 @@ theorem capturePreservesTheResolvedPermanentView :
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
-    let context := (fun instruction => (stepAction 64 .preEvent .obj (DRS.ofList []) instruction).1) (Action.instruct .this (.dealDamage (.lit 3) .you .any))
+    let context := (fun action => (stepAction 64 .preEvent .obj (DRS.ofList []) action).1) (Action.instruct .this (.dealDamage (.lit 3) .you .any))
     Amount.check context .thatMuch = [] ∧
       Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 

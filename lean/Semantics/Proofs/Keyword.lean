@@ -16,8 +16,8 @@ private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 
 /-- An activated ability with no timing, limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Action) : Ability :=
-  .activated cost instruction none none none none
+def activatedAbility (cost : Cost) (action : Action) : Ability :=
+  .activated cost action none none none none
 
 /-- "Sacrifice a creature: Draw a card." -/
 theorem okSacrificeAsCost :

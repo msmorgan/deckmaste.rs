@@ -12,15 +12,15 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Turn
 
-private def instructionResult (drs : DRS) (instruction : Action) : DRS :=
-  (stepAction 64 .postEvent .obj drs instruction).1
+private def actionResult (drs : DRS) (action : Action) : DRS :=
+  (stepAction 64 .postEvent .obj drs action).1
 
 private def nounResult (drs : DRS) (noun : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .other false noun).1
 
 /-- An activated ability with no limit, guard, or activator. -/
-def activatedAbility (cost : Cost) (instruction : Action) (timing : Option Timing := none) : Ability :=
-  .activated cost instruction timing none none none
+def activatedAbility (cost : Cost) (action : Action) (timing : Option Timing := none) : Ability :=
+  .activated cost action timing none none none
 
 /-- "at the beginning of the end step" -/
 def atTheEndStep : GameEvent := .beginningOf .endStep none (.each none)
@@ -374,13 +374,13 @@ theorem badIfDoneOverScheduledBody :
       = [.reflexEnclosure] := by
   decide
 
-def oneExtraTurn : DRS := instructionResult (DRS.ofList []) (extraTurn (.lit 1))
+def oneExtraTurn : DRS := actionResult (DRS.ofList []) (extraTurn (.lit 1))
 
 /-- "Take an extra turn after this one. Skip the draw step of that turn." -/
 theorem okThatTurnAfterASingleTurn :
     TurnRef.check oneExtraTurn .that = [] := by decide
 
-def twoExtraTurns : DRS := instructionResult oneExtraTurn (extraTurn (.lit 1))
+def twoExtraTurns : DRS := actionResult oneExtraTurn (extraTurn (.lit 1))
 
 theorem badThatTurnAfterTwoTurns :
     TurnRef.check twoExtraTurns .that = [.turnAntecedent 2] := by
@@ -426,7 +426,7 @@ theorem okExtraTurnAmountIntroducesPlayer :
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
-    countLetter .x (instructionResult (DRS.ofList [])
+    countLetter .x (actionResult (DRS.ofList [])
       (extraTurn (plus (.letter .x) (.letter .x)))) = 1 := by decide
 
 theorem okSkipNextAmountReadsSubject :
@@ -450,7 +450,7 @@ theorem okSkipNextAmountIntroducesPlayer :
   decide
 
 theorem okSkipNextNestedAmountIntroducesLetterOnce :
-    countLetter .x (instructionResult (DRS.ofList [])
+    countLetter .x (actionResult (DRS.ofList [])
       (.skipPart .drawStep (plus (.letter .x) (.letter .x)))) = 1 := by decide
 
 theorem okAdditionalPartAmountReadsSubject :
@@ -477,7 +477,7 @@ theorem okAdditionalPartAmountIntroducesPlayer :
   decide
 
 theorem okAdditionalPartNestedAmountIntroducesLetterOnce :
-    countLetter .x (instructionResult (DRS.ofList [])
+    countLetter .x (actionResult (DRS.ofList [])
       (Primitives.Action.addTurnPart .upkeep none (plus (.letter .x) (.letter .x)) none))
       = 1 := by
   decide
@@ -493,7 +493,7 @@ theorem untapAmountReadsItsPublishedSelfSubject :
       (firstReach .bare .one selected).map (·.id) = some 1 := by decide
 
 theorem okUntapNestedAmountIntroducesLetterOnce :
-    countLetter .x (instructionResult (DRS.ofList [])
+    countLetter .x (actionResult (DRS.ofList [])
       (.skipUntap (target isCreature) (plus (.letter .x) (.letter .x)))) = 1 := by decide
 
 theorem okUntapAmountIntroducesPlayer :
@@ -511,27 +511,27 @@ theorem badAdditionalPartWithoutSubjectOrOuterContext :
 
 /-- Nested amounts preserve the identities and kinds of their introduced targets. -/
 theorem okExtraTurnNestedAmountOrder :
-    let after := instructionResult [qualityB .color]
+    let after := actionResult [qualityB .color]
       (extraTurn (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(3, .turnRef), (2, .player), (1, .object), (0, .quality .color)] ∧
       (after.findById? 1).map (·.ty) = some [.creature] := by decide
 
 theorem okSkipNextNestedAmountOrder :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.skipPart .drawStep (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okAdditionalPartNestedAmountOrder :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (Primitives.Action.addTurnPart .upkeep none
         (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))) none)
     after.visibleReferents.map (fun r => (r.id, r.kind)) = [(1, .player), (0, .object)] ∧
       (after.findById? 0).map (·.ty) = some [.creature] := by decide
 
 theorem okUntapNestedAmountOrder :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.skipUntap .this (plus (powerOf (target isCreature)) (lifeTotalOf (target (.isOpponentOf .you)))))
     after.visibleReferents.map (fun r => (r.id, r.kind)) =
       [(2, .player), (1, .object), (0, .object)] ∧
@@ -594,15 +594,15 @@ theorem okCastWhenASorceryCouldNotHaveBeen :
   decide
 
 /-- "Whenever you cast a spell, you may draw a card. Do this only once each turn." [CR#603.2h]:
-the ability triggers every time and the instruction is limited (Iron Man, Bleeding Edge and
+the ability triggers every time and the action is limited (Iron Man, Bleeding Edge and
 Donal, Herald of Wings; the retired `UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
     Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
       (doOnlyOnceEachTurn (may (draw (.lit 1))))) = [] := by
   decide
 
-/-- The limited instruction is checked as the instruction it wraps. -/
-theorem limitedChecksItsInstruction :
+/-- The limited action is checked as the action it wraps. -/
+theorem limitedChecksItsAction :
     Action.check (DRS.ofList []) (.limited (putInto it hand) oncePerTurn) =
       Action.check (DRS.ofList []) (putInto it hand) := by
   decide

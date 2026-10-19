@@ -20,10 +20,10 @@ private def nounSelected (drs : DRS) (noun : NounPhrase) : List Referent :=
   result.2.1.filterMap result.1.findById?
 
 /-- An instant whose whole text is one spell ability. -/
-def instantSaying (instruction : Action) : Card :=
+def instantSaying (action : Action) : Card :=
   .singleFaced
     { characteristics :=
-      { name := some "", types := [.instant], text := [.spell none instruction] } }
+      { name := some "", types := [.instant], text := [.spell none action] } }
 
 /-- "Starting with you, each player votes for death or torture." -/
 theorem okDistinctBallotOptions : Ballot.check (DRS.ofList []) (.byLabel ["death", "torture"]) = [] := by decide
@@ -153,7 +153,7 @@ theorem sliceOfAGraveyardStaysInIt :
 chosen library [CR#701.24a]. -/
 theorem okBareShuffle : Action.check (DRS.ofList []) shuffle = [] := by decide
 
-/-- "Shuffle that pile.": no instruction made a pile. -/
+/-- "Shuffle that pile.": no action made a pile. -/
 theorem badThatPileWithoutAPile :
     Action.check (DRS.ofList []) (.shuffle (.pile (.pro (.word .pile) .one))) = [.anaphor (.word .pile) .one 0] := by decide
 

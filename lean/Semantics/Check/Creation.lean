@@ -13,7 +13,7 @@ private def createdTokenTypes (sourceTypes : List CardType) (spec : TokenSpec)
   | _+1, .asThose | _+1, .copyOf _ _ => normalizeTypes sourceTypes
 termination_by structural fuel
 
-/-- The token or emblem produced by a creation instruction. For copied tokens, `sourceTypes`
+/-- The token or emblem produced by a creation action. For copied tokens, `sourceTypes`
 comes from the selected source, rather than another referent in the surrounding context. -/
 def CreationSpec.createdReferent (spec : CreationSpec) (countPlur performerPlur : Plurality)
     (sourceTypes : List CardType) : Referent :=

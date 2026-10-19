@@ -95,7 +95,7 @@ theorem okBecomesMonstrous :
   decide
 
 /-- The commander is held by a card, not granted to an object, so the scope and holder
-refusals land. That a rule confers it and no instruction may is a game rule the checker does not
+refusals land. That a rule confers it and no action may is a game rule the checker does not
 assert (`lean-checker-sweep-game-rules`). -/
 theorem badGainsCommander :
     Action.check (DRS.ofList []) (.gainDesignation thisCreature (.named "commander") none)
@@ -200,8 +200,8 @@ theorem okSkipDuringTheirNextTurn :
 
 /-- The duration's possessor can read the explicit "you" in the preceding subject slot. -/
 theorem durationPossessorReadsTheExplicitPlayer :
-    let instruction := establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))
-    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList []) instruction
+    let action := establishThroughout (.partSkip .you .combat) (duringNextTurnOf (that .player))
+    let (after, errors) := stepAction 64 .postEvent .obj (DRS.ofList []) action
     errors = [] ∧ (identityBinding "duringNextTurnOf.player" after).map (·.id) = some 0 ∧
       after.referents.map (·.id) = [0] := by decide
 

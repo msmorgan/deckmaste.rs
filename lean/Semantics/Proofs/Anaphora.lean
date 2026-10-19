@@ -13,7 +13,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.Anaphora
 
-private def instructionResult (drs : DRS) (i : Action) : DRS :=
+private def actionResult (drs : DRS) (i : Action) : DRS :=
   (stepAction 64 .postEvent .obj drs i).1
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
@@ -168,7 +168,7 @@ theorem badStackAnaphorAfterCounteringAbility :
   decide
 
 def afterAnyTargetDamage : DRS :=
-  instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
+  actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target isAnyTarget) .any))
 
 /-- "This deals 3 damage to any target. This deals 1 damage to that permanent or player." -/
 theorem okUnionAnaphorAfterAnyTarget :
@@ -421,7 +421,7 @@ theorem abilityIsOnTheStack : Payload.zone (.ability none) = some .stack := by d
 
 theorem joinedCreatureTy :
     tyOfReach (.word .join) .one
-      (instructionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any)))
+      (actionResult (DRS.ofList []) (instruct .this (.dealDamage (.lit 3) (target (.or [isCreature, .anyPlayer])) .any)))
       = [.creature] := by
   decide
 
@@ -496,7 +496,7 @@ theorem okIgnoreAfterRoll :
 theorem badIgnoreWithoutRoll :
     Action.check (DRS.ofList []) (.ignoreOutcomes (.extreme .lowest)) = [.ignorableFor] := by decide
 
-def afterATwoDieRoll : DRS := instructionResult (DRS.ofList []) (rollDice (.lit 2) (.sides 6))
+def afterATwoDieRoll : DRS := actionResult (DRS.ofList []) (rollDice (.lit 2) (.sides 6))
 
 /-- "if you rolled doubles" -/
 theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubles = [] := by decide
@@ -505,7 +505,7 @@ theorem okRolledDoublesAfterRoll : Condition.check afterATwoDieRoll .rolledDoubl
 theorem badRolledDoublesWithoutRoll :
     Condition.check (DRS.ofList []) .rolledDoubles = [.outcomeInScope .rollResult 0] := by decide
 
-def afterACoinFlip : DRS := instructionResult (DRS.ofList []) (flipCoins (.lit 1))
+def afterACoinFlip : DRS := actionResult (DRS.ofList []) (flipCoins (.lit 1))
 
 /-- "a player whose coin comes up tails" -/
 theorem okCoinCameUpOnPlayer :
@@ -550,7 +550,7 @@ theorem okPayKeywordWithACost :
 theorem youPaidLifeThisTurn :
     Condition.check (DRS.ofList []) (.did ⟨.actor .you, .pay (.perform (.changeLife (.down .anyAmount))) .once .paid none none, .duration soFarThisTurn none⟩) = [] := by decide
 
-def afterAnUpToChoice : DRS := instructionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
+def afterAnUpToChoice : DRS := actionResult (DRS.ofList []) (choose (counted (upTo 1) isCreature))
 
 /-- "Choose up to one creature. Destroy the rest." -/
 theorem okRestAfterAPartition :
@@ -574,14 +574,14 @@ theorem badRestAfterTargetChoice :
       = [.theRestFits .object] := by
   decide
 
-def afterALook : DRS := instructionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))
+def afterALook : DRS := actionResult (DRS.ofList []) (lookAt (topSlice (.lit 1)))
 
 /-- "Look at the top card of your library. Put that card into your graveyard." -/
 theorem okReadsLookedAtCard : NounPhrase.checkAt (some .object) afterALook (that .card) = [] := by
   decide
 
 def afterShuffledLook : DRS :=
-  instructionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffle])
+  actionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffle])
 
 theorem badReadsShuffledLibraryCard :
     NounPhrase.checkAt (some .object) afterShuffledLook (that .card)
@@ -660,7 +660,7 @@ theorem chosenPlayerDemonstrativeSelectsNewMention :
 
 /-- "that turn" after exactly one extra turn is minted -/
 theorem okThatTurnAfterOneTurn :
-    TurnRef.check (instructionResult (DRS.ofList []) (extraTurn (.lit 1))) .that = [] := by
+    TurnRef.check (actionResult (DRS.ofList []) (extraTurn (.lit 1))) .that = [] := by
   decide
 
 theorem badThatTurnWithoutTurn :
@@ -835,14 +835,14 @@ theorem badAnaphoricSidesWithoutRoll :
   decide
 
 theorem singularSpellReadHasCopyIdentity :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.copy .fromStack (target (.and [isInstantOrSorcery, isSpell])) (.lit 1) [])
     let selected := resolveCandidates (.word .spell) .one (nextClause after)
     selected.map (·.payload.orig) = [some .copy] ∧
       selected.map (·.id) = [after.nextId - 1] := by decide
 
 theorem singularAbilityReadHasCopyIdentity :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.copy .fromStack (target (.abilityHead .anyActivated)) (.lit 1) [])
     let selected := resolveCandidates (.word .ability) .one (nextClause after)
     selected.map (·.payload.orig) = [some .copy] ∧
@@ -850,12 +850,12 @@ theorem singularAbilityReadHasCopyIdentity :
 
 theorem chosenPlayerDemonstrativeHasNewMentionIdentity :
     let before := DRS.ofList [ChoiceSort.binding .player]
-    let after := instructionResult before (instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any))
+    let after := actionResult before (instruct .this (.dealDamage (.lit 3) (a isChosenPlayer) .any))
     (resolveCandidates (.word .player) .one (nextClause after)).map (·.id) =
       [after.nextId - 2] := by decide
 
 theorem possessiveItHasCurrentSubjectIdentity :
-    let after := instructionResult (DRS.ofList [])
+    let after := actionResult (DRS.ofList [])
       (.sequentially [exile (target isArtifact),
         instruct (.firstMention "p05.subject" (target isCreature))
           (.dealDamage (.statOf (.stat .power) it) (target isAnyTarget) .any)])

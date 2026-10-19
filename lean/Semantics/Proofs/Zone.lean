@@ -616,7 +616,7 @@ theorem okFlatInstead :
         = [] := by decide
 
 /-- "Untap target creature." -/
-theorem okUntapInstruction :
+theorem okUntapAction :
     Action.check (DRS.ofList []) (.setStatus .untapped (target isCreature)) = [] := by decide
 
 /-- "… if a creature died this turn, …" -/

@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Proofs.BindingIdentity
 
-private def instructionResult (i : Action) (drs : DRS) : DRS :=
+private def actionResult (i : Action) (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs i).1
 private def nounResult (drs : DRS) (n : NounPhrase) : DRS :=
   (stepNounPhrase 64 drs .obj true n).1
@@ -48,13 +48,13 @@ theorem okTwoMentionsByIdentity : Action.check (DRS.ofList []) (tapThenUntap (ta
   decide
 
 /-- Both mentions are one binding: the body introduces one target. -/
-theorem twoMentionsOneTarget : targets ((tapThenUntap (target isCreature)) |> fun i => instructionResult i (DRS.ofList [])) = 1 := by
+theorem twoMentionsOneTarget : targets ((tapThenUntap (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 1 := by
   decide
 
 /-- Copying the argument into both mentions selects twice, which the identity spelling
 does not. -/
 theorem copiedArgumentTargetsTwice :
-    targets ((tapThenUntapCopied (target isCreature)) |> fun i => instructionResult i (DRS.ofList [])) = 2 := by
+    targets ((tapThenUntapCopied (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 2 := by
   decide
 
 /-- The later mention reads the very binding the first mention introduced. -/
@@ -107,7 +107,7 @@ theorem okFightByIdentity :
 /-- Each `target creature` is one targeting: the handoff selects the first once, and the body
 mentions the second three times. -/
 theorem fightTargetsEachArgumentOnce :
-    targets ((fightByIdentity (target isCreature) (target isCreature)) |> fun i => instructionResult i (DRS.ofList [])) = 2 := by
+    targets ((fightByIdentity (target isCreature) (target isCreature)) |> fun i => actionResult i (DRS.ofList [])) = 2 := by
   decide
 
 /-- "This creature fights target creature you don't control." -/
@@ -149,7 +149,7 @@ theorem groupHandoffRefusesPreMoveIdentity :
 /-- What the members' bodies introduced is published as a group, as for a one-mention body
 (`Actor.handedGroupPublishesPlurals`): the choice is not hoisted out of the handoff. -/
 theorem groupHandoffByIdentityPublishesPlurals :
-    shape (instructionResult (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard))) (DRS.ofList [])) =
+    shape (actionResult (instruct (each (.isOpponentOf .you)) (discardThenExile (a .isCard))) (DRS.ofList [])) =
       [(.object, .many, .a), (.player, .many, .each)] := by
   decide
 
@@ -262,11 +262,11 @@ theorem regenerateTargetsOnce :
     (match (regenerateBy (target isCreature)).scopeBody with
       | .establish (.instead event body _ _ _) _ =>
         let context := (stepWouldClause 64 (DRS.ofList []) event).1
-        targets (instructionResult body context)
+        targets (actionResult body context)
       | _ => 0) = 1 := by decide
 
 theorem regenerationPatternDoesNotLeakIntoFollowingText :
-    targets (instructionResult (regenerateBy (target isCreature)) (DRS.ofList [])) = 0 := by decide
+    targets (actionResult (regenerateBy (target isCreature)) (DRS.ofList [])) = 0 := by decide
 
 /-- The application alone, as a static regeneration ability applies it [CR#701.19b]. -/
 theorem okRegenerationApplication :

@@ -23,7 +23,7 @@ structure DesignationFacts where
   /-- The designation's name (`DesignationLabel.name`): its declaration's name, or a member's. -/
   label : String
   scope : DesignationScope
-  /-- Whether an instruction may confer it directly ("becomes the monarch"); a designation that
+  /-- Whether an action may confer it directly ("becomes the monarch"); a designation that
   only a rule confers (the commander) is not conferred by text. -/
   effectful : Bool
   zone : Option Zone

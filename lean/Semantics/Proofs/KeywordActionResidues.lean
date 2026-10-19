@@ -92,7 +92,7 @@ theorem okSupport : Action.check (DRS.ofList []) (support (.lit 2)) = [] := by d
 
 /-- "Cast target instant or sorcery card" [CR#701.5a], "play target land card without paying"
 [CR#701.18a] and "activate target activated ability" [CR#701.2a]: the procedures as
-instructions. -/
+actions. -/
 theorem okCastProcedure :
     Action.check (DRS.ofList []) (.enact (.action "cast") (.procedure .cast (target (.and [isInstantOrSorcery, .isCard])) .itsOwnCost none none none) none none) = [] := by
   decide

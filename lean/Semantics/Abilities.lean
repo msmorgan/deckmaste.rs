@@ -5,7 +5,7 @@ import Semantics.Events
 
 The Semantics v3 unified action-clause spine: phrases (`Location`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
-headers and bounds (`UsageLimit`, `JoinedHeader`), instructions (`Action`),
+headers and bounds (`UsageLimit`, `JoinedHeader`), actions (`Action`),
 static specifications (`StaticSpec`, `WouldClause`, `DeonticMods`, `DamageResult`), costs
 (`Cost`), and abilities (`Ability`).
 
@@ -91,7 +91,7 @@ mutual
     | fromEnd (end_ : PileEnd) (ordinal : Ordinal := .nth 1) (loc : Location)
     /-- The face-down cards exiled with `source`, kept as their own pile [CR#406.4]. -/
     | exiledWith (source : NounPhrase)
-    /-- A pile an instruction made ("that pile"), with the face it was given. -/
+    /-- A pile an action made ("that pile"), with the face it was given. -/
     | pile (pile : NounPhrase)
     /-- Anywhere: a location that names no zone, as exile's origin "from wherever it is"
     [CR#701.13a]. -/
@@ -124,7 +124,7 @@ mutual
     when `timing` held as the action happened ("cast when a sorcery couldn't have been"
     [CR#307.5a]). -/
     | duration (d : Duration) (timing : Option Timing)
-    /-- The event the enclosing instruction caused ("the cards discarded this way"). -/
+    /-- The event the enclosing action caused ("the cards discarded this way"). -/
     | thisWay
     /-- The event that triggered the enclosing ability [CR#603.2]. -/
     | triggering
@@ -304,8 +304,8 @@ mutual
     | becomes (subject : NounPhrase)
     | theGrantor (marker : MarkerWord)
     | you
-    /-- Whoever performs the instruction this phrase is part of: the controller [CR#109.5],
-    unless an enclosing `Action.instruct` hands the instruction to another player or to a
+    /-- Whoever performs the action this phrase is part of: the controller [CR#109.5],
+    unless an enclosing `Action.instruct` hands the action to another player or to a
     permanent, which it then is. -/
     | actor
     | combatPlayer (role : CombatRole)
@@ -917,8 +917,8 @@ mutual
     | tapSymbol
     | untapSymbol
     | loyaltySymbol (loyalty : LoyaltyCost)
-    /-- An instruction performed as a cost ("Sacrifice a creature:") [CR#602.2b,118.1]. -/
-    | perform (instruction : Action)
+    /-- An action performed as a cost ("Sacrifice a creature:") [CR#602.2b,118.1]. -/
+    | perform (action : Action)
     | compound (costs : List Cost)
     | or (costs : List Cost)
     | itsManaCost
@@ -946,7 +946,7 @@ mutual
 
   structure RollRow where
     results : Quantity
-    instruction : Action
+    action : Action
 
   inductive CreationSpec where
     | token (spec : TokenSpec) (riders : List MoveRider)
@@ -960,8 +960,8 @@ mutual
     and composite action lowering [CR#701.22b]. -/
     | ownScope (deed : Option Deed) (body : Action)
     /-- Rules text printed in square brackets, kept in place so a Text Change can find it
-    [CR#702.148a]: transparent, it means what `instruction` means. -/
-    | bracketed (instruction : Action)
+    [CR#702.148a]: transparent, it means what `action` means. -/
+    | bracketed (action : Action)
     /-- Deal `amount` damage of `kind` to `recipient` (with the source supplied by the enclosing
     clause's subject or performer). -/
     | dealDamage (amount : Amount) (recipient : NounPhrase) (kind : DamageKind)
@@ -995,8 +995,8 @@ mutual
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
     /-- Gain or change control of `subject`. -/
     | changeControl (subject : NounPhrase)
-    /-- "… can't be regenerated this turn": an instruction plus the deed it forbids. -/
-    | doAndForbid (instruction : Action) (deed : Deed) (subject : NounPhrase)
+    /-- "… can't be regenerated this turn": an action plus the deed it forbids. -/
+    | doAndForbid (action : Action) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
     | unlock (door : Door)
@@ -1055,7 +1055,7 @@ mutual
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/
-    | enact (verb : Deed) (instruction : Action) (becomes : Option Predicate)
+    | enact (verb : Deed) (action : Action) (becomes : Option Predicate)
         (locus : Option Location)
     | pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome)
         (whose : Option NounPhrase) (keyword : Option KeywordLabel)
@@ -1066,12 +1066,12 @@ mutual
     /-- Branch on the decision or start of payment, independently of resulting events. -/
     | withContinuation (policy : ContinuationPolicy) (body : Action)
         (ifDid : Option Action) (ifNot : Option Action)
-    | doOnlyIf (instruction : Action) (condition : Condition) (otherwise : Option Action)
-    /-- "<instruction>. Do this only once each turn.": the instruction is limited, not the
+    | doOnlyIf (action : Action) (condition : Condition) (otherwise : Option Action)
+    /-- "<action>. Do this only once each turn.": the action is limited, not the
     ability that carries it; the ability still triggers, and is done only within `limit`
     [CR#603.2h]. -/
-    | limited (instruction : Action) (limit : UsageLimit)
-    | doIf (condition : Condition) (instruction : Action) (otherwise : Option Action)
+    | limited (action : Action) (limit : UsageLimit)
+    | doIf (condition : Condition) (action : Action) (otherwise : Option Action)
     | doForEach (group : NounPhrase) (body : Action)
     | doForEachKind (axis : KindAxis) (domain : Option NounPhrase) (sort : QualitySort)
         (body : Action)
@@ -1080,12 +1080,12 @@ mutual
     | simultaneously (steps : List Action)
     /-- "Choose <quantity> —" over bulleted modes [CR#700.2]: each mode is its cost (spree's and
     tiered's priced bullets [CR#700.2h]), its weight (a pawprint mode's count of {P}
-    [CR#700.2i]) and its instruction. -/
+    [CR#700.2i]) and its action. -/
     | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Action))
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Action)
     | replace (replaced : Action) (replacement : Action)
-    | holdUntil (instruction : Action) (event : GameEvent)
+    | holdUntil (action : Action) (event : GameEvent)
     | triggerReflexively (body : Action) (trigger : Action)
     | triggerThisWay (body : Action) (event : GameEvent) (trigger : Action)
     | skipUntap (subject : NounPhrase) (steps : Amount)
@@ -1130,13 +1130,13 @@ mutual
     box holds rules text [CR#109.3]: empty where the card writes the keyword bare, and otherwise
     the abilities the keyword represents. -/
     | keyword (keyword : KeywordLabel) (params : List KeywordParam) (body : List Ability)
-    | activated (cost : Cost) (instruction : Action) (timing : Option Timing)
+    | activated (cost : Cost) (action : Action) (timing : Option Timing)
         (limit : Option UsageLimit) (guard : Option Condition) (activator : Option NounPhrase)
     | triggered (event : GameEvent) (alternatives : List GameEvent)
         (while_ : Option Timing) (joins : List JoinedHeader) (timing : Option Timing)
-        (limit : Option UsageLimit) (intervening : Option Condition) (instruction : Action)
+        (limit : Option UsageLimit) (intervening : Option Condition) (action : Action)
     | static (spec : StaticSpec)
-    | spell (timing : Option Timing) (instruction : Action)
+    | spell (timing : Option Timing) (action : Action)
     /-- "You may begin the game with this on the battlefield" (the Leylines). -/
     | mayBeginOnBattlefield
     /-- "The same is true for first strike, double strike, …" (Odric). -/
