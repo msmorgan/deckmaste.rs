@@ -1,19 +1,19 @@
 ---
-needs: [lean-v3-authoring-impl-8-primitive-decomposition]
+needs: [lean-v3-authoring-impl-9-primitive-decomposition]
 ---
-# Polish `Definitions.lean`, `Templates.lean`, `Cards/*.lean`, and `Proofs/*.lean`
+# Polish `Definitions/`, `Templates.lean`, `Cards/*.lean`, and `Proofs/*.lean`
 
 **Fold the remaining ~546 raw dot-constructors and 10 `*Expansion` helpers in
-`lean/Semantics/Definitions.lean`, add missing `:= none` defaults on `Option`
+`lean/Semantics/Definitions/`, add missing `:= none` defaults on `Option`
 parameters, eliminate the remaining 27 raw `.named "..."` literals and AST
 plumbing in `lean/Semantics/Cards/*.lean`, and fold raw constructors in
 `lean/Semantics/Proofs/*.lean`.** Standard constraints apply.
 
 ## Scope
 
-### 1. Fold raw dot-constructors and `*Expansion` helpers in `Definitions.lean`
+### 1. Fold raw dot-constructors and `*Expansion` helpers in `Definitions/`
 
-- Across `lean/Semantics/Definitions.lean`:
+- Across `lean/Semantics/Definitions/*.lean`:
   - Replace the ~546 raw dot-constructors where `Templates.lean` helpers exist:
     - `.static` (133 sites) → `static`
     - `.and` (110 sites), `.not` (34 sites), `.or` (14 sites) → `and`, `not` / `non`, `or`
@@ -28,8 +28,8 @@ plumbing in `lean/Semantics/Cards/*.lean`, and fold raw constructors in
   - Inline the 10 remaining `*Expansion` helper definitions (`levelUpExpansion`,
     `renownExpansion`, `stormExpansion`, `cascadeExpansion`, `rippleExpansion`,
     `cumulativeUpkeepExpansion`, `flyingExpansion`, `bushidoExpansion`,
-    `modularExpansion`, `cyclingExpansion` at `Definitions.lean:1388-1496`) directly
-    into their owning keyword `semantic_definition`s.
+    `modularExpansion`, `cyclingExpansion`) directly into their owning keyword
+    `semantic_definition`s.
 
 ### 2. Add missing `:= none` defaults on `Option` parameters
 
@@ -41,11 +41,11 @@ plumbing in `lean/Semantics/Cards/*.lean`, and fold raw constructors in
     - `become (subject : NounPhrase) (added : CharacteristicBundle) (duration : Option Duration := none) : Action`
     - `becomeColor (subject : NounPhrase) (colors : ColorSpec) (duration : Option Duration := none) : Action`
     - `allAbilityLoss (subject : NounPhrase) (except : Option Predicate := none) : StaticSpec`
-  - In `lean/Semantics/Definitions.lean`:
+  - In `lean/Semantics/Definitions/`:
     - `doublePower (target : NounPhrase) (duration : Option Duration := none) : Action` (and align its body with `doubleToughness` / `doublePowerAndToughness`)
     - `triplePowerAndToughness (target : NounPhrase) (duration : Option Duration := none) : Action` (and align its body with `triplePower` / `tripleToughness`)
 - Remove trailing `none` arguments at call sites of `gain`, `gainHaste`, `become`,
-  `becomeColor`, and `allAbilityLoss` across `Cards/*.lean` and `Definitions.lean`.
+  `becomeColor`, and `allAbilityLoss` across `Cards/*.lean` and `Definitions/`.
 
 ### 3. Eliminate the remaining 27 raw `.named "..."` literals and AST plumbing in `Cards/*.lean`
 
@@ -77,14 +77,14 @@ plumbing in `lean/Semantics/Cards/*.lean`, and fold raw constructors in
      `Cards/*.lean`.
    - Fold raw `.keyword` / `.spell` / `.static` constructor calls in
      `Proofs/KeywordArguments.lean`, `Proofs/Faces.lean`, and
-     `Proofs/CallerScope.lean` onto `Templates.lean` and `Definitions.lean`.
+     `Proofs/CallerScope.lean` onto `Templates.lean` and `Definitions/`.
 
 ## Verification
 
 - `rg '\.named "' lean/Semantics/Cards/` returns 0 matches.
-- `rg '\.(static|sequentially|matches|does|doIf|instruct|entryRider)\b' lean/Semantics/Definitions.lean`
+- `rg '\.(static|sequentially|matches|does|doIf|instruct|entryRider)\b' lean/Semantics/Definitions/`
   returns 0 matches.
-- `rg 'Expansion\b' lean/Semantics/Definitions.lean` returns 0 matches.
+- `rg 'Expansion\b' lean/Semantics/Definitions/` returns 0 matches.
 - `./lean/scripts/build` (`lake build --wfail`) and `cargo xtask lean check` pass
   with zero warnings and zero `sorry`s.
 - `cargo xtask cite check --list-noncompliant` empty and `cargo xtask cite check`

@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting, lean-v3-authoring-impl-7-checker-and-regime-retirement, lean-v3-authoring-impl-8-primitive-decomposition, lean-v3-authoring-impl-9-definitions-and-cards-polish]
+needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting, lean-v3-authoring-impl-7-checker-and-regime-retirement, lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads, lean-v3-authoring-impl-9-primitive-decomposition, lean-v3-authoring-impl-10-definitions-and-cards-polish]
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
@@ -15,8 +15,9 @@ holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into
 [5 Definitions dewarting](lean-v3-authoring-impl-5-definitions-dewarting.md),
 [6 Cards dewarting](lean-v3-authoring-impl-6-cards-dewarting.md),
 [7 Checker & regime retirement](lean-v3-authoring-impl-7-checker-and-regime-retirement.md),
-[8 Primitive decomposition](lean-v3-authoring-impl-8-primitive-decomposition.md), and
-[9 Definitions & cards polish](lean-v3-authoring-impl-9-definitions-and-cards-polish.md).
+[8 Vocabulary split & noun heads](lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads.md),
+[9 Primitive decomposition](lean-v3-authoring-impl-9-primitive-decomposition.md), and
+[10 Definitions & cards polish](lean-v3-authoring-impl-10-definitions-and-cards-polish.md).
 Standard constraints apply.
 
 ## Governing Principles
@@ -96,7 +97,15 @@ Standard constraints apply.
    `manaSymbolOk`, `colorBoundOk`, `colorCountOk`, `rolesOk`, `subtypeType`,
    `twoParties`, `kindAmountOk`, `verbBecomesOk`), and dead `Check/` fields, while
    fixing `changeLife (.set _)` outcome publication (`[CR#119.5]`).
-8. [`lean-v3-authoring-impl-8-primitive-decomposition`](lean-v3-authoring-impl-8-primitive-decomposition.md):
+8. [`lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads`](lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads.md):
+   Split `Definitions.lean` into leaf catalog modules (`Counters`, `Designations`,
+   `Relations`, `Subtypes`) imported by `Templates.lean` and composite definition
+   modules (`Actions`, `Keywords`) importing `Templates.lean`; collapse
+   `NounPhrase.asType` and `NounPhrase.asMarker` (retiring `MarkerWord` and the
+   dead `Option Subtype` field); and seed `Predicate.did` (`which`) from its
+   enclosing predicate so `(asMarker .permanent (relative .object))` disappears
+   from `Cards/`.
+9. [`lean-v3-authoring-impl-9-primitive-decomposition`](lean-v3-authoring-impl-9-primitive-decomposition.md):
    Decompose CR-defined and overlapping Core AST primitives: fold Day/Night
    (`[CR#731.1]`) and Room doors (`[CR#709.5c..709.5j]`) into designations;
    decompose `moveCounters` (`[CR#122.5]`), `doubleCounters` (`[CR#701.10e]`),
@@ -105,12 +114,12 @@ Standard constraints apply.
    (`[CR#603.12]`), and `GameEvent.triggers` (`[CR#603.2]`); and unify
    `StaticSpec.modification` / `ptModification` / `abilityGrant*` into
    `CharacteristicEdit` inside `StaticSpec.characteristicChange`.
-9. [`lean-v3-authoring-impl-9-definitions-and-cards-polish`](lean-v3-authoring-impl-9-definitions-and-cards-polish.md):
-   Fold the remaining ~546 raw dot-constructors and 10 `*Expansion` helpers in
-   `Definitions.lean`, add missing `:= none` defaults on `Option` parameters,
-   eliminate the 27 remaining `.named "..."` literals and card-local
-   `firstMention`/`laterMention` workarounds in `Cards/*.lean`, and fold raw
-   constructors in `Proofs/*.lean`.
+10. [`lean-v3-authoring-impl-10-definitions-and-cards-polish`](lean-v3-authoring-impl-10-definitions-and-cards-polish.md):
+    Fold the remaining ~546 raw dot-constructors and 10 `*Expansion` helpers in
+    `Definitions/`, add missing `:= none` defaults on `Option` parameters,
+    eliminate the 27 remaining `.named "..."` literals and card-local
+    `firstMention`/`laterMention` workarounds in `Cards/*.lean`, and fold raw
+    constructors in `Proofs/*.lean`.
 
 ---
 

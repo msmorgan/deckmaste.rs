@@ -1,12 +1,12 @@
 ---
-needs: [lean-v3-authoring-impl-7-checker-and-regime-retirement]
+needs: [lean-v3-authoring-impl-8-vocabulary-split-and-noun-heads]
 ---
 # Decompose CR-defined and duplicate Core AST primitives in `lean/Semantics/`
 
 **Factor CR-defined composite primitives and overlapping constructors in
 `lean/Semantics/Words.lean` and `lean/Semantics/Abilities.lean` into the smaller
 orthogonal Core AST basis while keeping surface authoring templates and
-definitions intact in `Templates.lean` and `Definitions.lean`.** Standard
+definitions intact in `Templates.lean` and `Definitions/`.** Standard
 constraints apply.
 
 ## Scope
@@ -20,21 +20,21 @@ constraints apply.
   - Retire `Action.setGameDesignation`, `GameEvent.gameBecomes`, and
     `Condition.gameIs` from `Abilities.lean`, expressing them through
     `gainDesignation`, `GameEvent.does`, and `hasDesignation` (using `day` and
-    `night` in `Definitions.lean`), while keeping surface templates in
-    `Templates.lean` (`setGameDesignation`, `gameBecomes`, `gameIs`) expanding into
-    the unified designation primitives.
+    `night` from `Definitions/Designations.lean`), while keeping surface templates
+    in `Templates.lean` (`setGameDesignation`, `gameBecomes`, `gameIs`) expanding
+    into the unified designation primitives.
 - **Room Doors & Unlocking (`[CR#709.5c,709.5f..709.5j]`):**
   - Under `[CR#709.5c,709.5f..709.5j]`, *"left half unlocked"* and *"right half
     unlocked"* are designations on a permanent (`leftHalfUnlocked` and
-    `rightHalfUnlocked` in `Definitions.lean:282-283`), unlocking/locking a half is
-    giving/removing the appropriate unlocked designation, and *"fully unlocks"*
-    triggers when a permanent gains the remaining unlocked designation(s) so both
-    are held.
+    `rightHalfUnlocked` in `Definitions/Designations.lean`), unlocking/locking a
+    half is giving/removing the appropriate unlocked designation, and *"fully
+    unlocks"* triggers when a permanent gains the remaining unlocked
+    designation(s) so both are held.
   - Retire `Action.unlock`, `Action.fullyUnlock`, `CoreDeed.unlock`,
     `CoreDeed.fullyUnlock`, `Door`, `RoomHalf`, and `LockState` from `Words.lean`
     and `Abilities.lean`, re-expressing the surface helpers (`unlock`,
     `fullyUnlock`, `thisDoor`, `doorOf`, `isUnlocked`, `isLocked`) in
-    `Templates.lean` / `Definitions.lean` over `leftHalfUnlocked` and
+    `Templates.lean` / `Definitions/` over `leftHalfUnlocked` and
     `rightHalfUnlocked`.
 
 ### 2. Decompose CR-defined and compound `Action` and `GameEvent` primitives
@@ -53,7 +53,7 @@ constraints apply.
 3. **`Action.crew` and `Action.saddle` (`[CR#702.122b,702.122d,702.171c]`):**
    - Retire the hardcoded `Action.crew` and `Action.saddle` constructors from
      `Abilities.lean` and express `crew` (`Action`) and `saddle` (`Action`) in
-     `Definitions.lean` via `Action.enact (.ofAbility (.named "crew" / "saddle"))`.
+     `Definitions/` via `Action.enact (.ofAbility (.named "crew" / "saddle"))`.
 4. **`Action.skipUntap` (`[CR#701.43a,502.3]`):**
    - Retire `Action.skipUntap` from `Abilities.lean` and express
      `doesntUntapDuringNextUntapStep` / `exert` (`[CR#701.43a]`) via `Action.establish`
