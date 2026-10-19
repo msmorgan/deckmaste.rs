@@ -36,6 +36,8 @@
         "ObliqueKind": ["NP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
+        // An Amount bounded by a comparative (*3 or less*), only a noun's value.
+        "AmountKind": ["Scalar"],
         // A Nominal under the Targeting Marker.
         "Targeting": ["Marked"],
         "NounKind": ["Ordinary", "Temporal", "Manner", "Locative", "Numeric", "Quantity"],
@@ -213,7 +215,7 @@
         "BoundKeyword": (features: ["KeywordForm"]),
         // An Amount's QuantityNumber agrees with a counted noun (*two cards*);
         // as a Noun Phrase it is singular (*X can't be 0*).
-        "Amount": (features: ["QuantityNumber", "Sign"]),
+        "Amount": (features: ["QuantityNumber", "Sign", "AmountKind"]),
         "SignedAmount": (),
         "Cost": (),
         "FiniteClause": (category: Some("Clause")),
@@ -342,13 +344,13 @@
         (name: "GroupedNumericAmount", lhs: "Amount", rhs: [Numeral("head", Arabic(true))], equations: [Agree("$.QuantityNumber", "head.Number")]),
         // A multiplying or bounding adverb modifies a quantity (*up to
         // twice X target cards*).
-        (name: "AdverbModifiedAmount", lhs: "Amount", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "Amount")], equations: [Exclude("modifier.AdjunctPosition", "Front"), Exclude("modifier.AdjunctPosition", "Central"), Exclude("modifier.AdjunctPosition", "End")]),
-        (name: "UnsignedMeasureAmount", lhs: "SignedAmount", rhs: [Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
-        (name: "PositiveMeasureAmount", lhs: "SignedAmount", rhs: [Mark('+', Prefix), Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
-        (name: "NegativeMeasureAmount", lhs: "SignedAmount", rhs: [Mark('-', Prefix), Cat("head", "Amount")], equations: [Exclude("head.Sign", "Negative")]),
+        (name: "AdverbModifiedAmount", lhs: "Amount", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Exclude("modifier.AdjunctPosition", "Front"), Exclude("modifier.AdjunctPosition", "Central"), Exclude("modifier.AdjunctPosition", "End")]),
+        (name: "UnsignedMeasureAmount", lhs: "SignedAmount", rhs: [Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Exclude("head.Sign", "Negative")]),
+        (name: "PositiveMeasureAmount", lhs: "SignedAmount", rhs: [Mark('+', Prefix), Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Exclude("head.Sign", "Negative")]),
+        (name: "NegativeMeasureAmount", lhs: "SignedAmount", rhs: [Mark('-', Prefix), Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Exclude("head.Sign", "Negative")]),
 
         (name: "BoundKeywordItem", lhs: "KeywordParameters", rhs: [Cat("head", "BoundKeyword")]),
-        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+        (name: "NumericNounPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Require("$.NounKind", "Numeric"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "NonNumericComplement", lhs: "ComplementNounPhrase", rhs: [Cat("head", "NounPhrase")], equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.NounKind", "Manner"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Genitive")], transparent: ["head"]),
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
@@ -389,9 +391,9 @@
         (name: "SymbolCost", lhs: "Cost", rhs: [Cat("head", "SymbolCosts")]),
         (name: "SingleSymbolCost", lhs: "SymbolCosts", rhs: [Cat("head", "Symbols")]),
         (name: "CostSequence", lhs: "SymbolCosts", rhs: [Cat("first", "Symbols"), Punct(','), Cat("rest", "SymbolCosts")]),
-        (name: "NegativeLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('−', Prefix), Cat("amount", "Amount")]),
-        (name: "PositiveLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('+', Prefix), Cat("amount", "Amount")]),
-        (name: "ZeroLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Cat("amount", "Amount")]),
+        (name: "NegativeLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('−', Prefix), Cat("amount", "Amount")], equations: [Exclude("amount.AmountKind", "Scalar")]),
+        (name: "PositiveLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Mark('+', Prefix), Cat("amount", "Amount")], equations: [Exclude("amount.AmountKind", "Scalar")]),
+        (name: "ZeroLoyaltySymbolCost", lhs: "ActivationCost", rhs: [Cat("amount", "Amount")], equations: [Exclude("amount.AmountKind", "Scalar")]),
         (name: "LoyaltySymbol", lhs: "LoyaltySymbol", rhs: [Mark('[', Prefix), Cat("amount", "Amount"), Punct(']')]),
         (name: "UnicodeNegativeLoyaltySymbol", lhs: "LoyaltySymbol", rhs: [Mark('[', Prefix), Mark('−', Bound), Cat("amount", "Amount"), Punct(']')]),
         (name: "PositiveLoyaltySymbol", lhs: "LoyaltySymbol", rhs: [Mark('[', Prefix), Mark('+', Bound), Cat("amount", "Amount"), Punct(']')]),
@@ -427,8 +429,8 @@
         (name: "NamedParameter", lhs: "Name", rhs: [Lex("head", Catalog)]),
         (name: "SlashMeasure", lhs: "Measure", rhs: [Cat("first", "SignedAmount"), Mark('/', Bound), Cat("second", "SignedAmount")]),
         (name: "MeasureHeader", lhs: "Header", rhs: [Cat("head", "Measure")]),
-        (name: "RangeHeader", lhs: "Header", rhs: [Class("marker", "RangeMarker"), Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")]),
-        (name: "OpenRangeHeader", lhs: "Header", rhs: [Class("marker", "RangeMarker"), Cat("lower", "Amount"), Punct('+')]),
+        (name: "RangeHeader", lhs: "Header", rhs: [Class("marker", "RangeMarker"), Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")], equations: [Exclude("lower.AmountKind", "Scalar"), Exclude("upper.AmountKind", "Scalar")]),
+        (name: "OpenRangeHeader", lhs: "Header", rhs: [Class("marker", "RangeMarker"), Cat("lower", "Amount"), Punct('+')], equations: [Exclude("lower.AmountKind", "Scalar")]),
         (name: "SingleChapter", lhs: "Chapters", rhs: [Numeral("head", Roman)]),
         (name: "ChapterSequence", lhs: "Chapters", rhs: [Numeral("first", Roman), Punct(','), Cat("rest", "Chapters")]),
         (name: "ChapterAbility", lhs: "Ability", rhs: [Cat("chapters", "Chapters"), Mark('—', Free), Cat("head", "Ability")]),
@@ -610,7 +612,7 @@
         // A spelled cardinal is a quantity (*one or more*); an Arabic numeral
         // or variable names a number, so it is Numeric (*X is 5 or more*).
         (name: "FusableCardinal", lhs: "FusableDeterminer", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.Countability", "Count"), Require("$.NounKind", "Quantity")]),
-        (name: "FusableAmount", lhs: "FusableDeterminer", rhs: [Cat("head", "Amount")], equations: [Agree("$.Number", "head.QuantityNumber"), Require("$.Countability", "Count"), Require("$.NounKind", "Numeric")]),
+        (name: "FusableAmount", lhs: "FusableDeterminer", rhs: [Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar"), Agree("$.Number", "head.QuantityNumber"), Require("$.Countability", "Count"), Require("$.NounKind", "Numeric")]),
         (name: "FusableQuantifier", lhs: "FusableDeterminer", rhs: [Class("head", "FusedQuantifier")]),
         (name: "FusedQuantityCoordination", lhs: "FusedNounPhrase", rhs: [Cat("head", "FusedQuantity")], equations: [Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A focusing or multiplying adverb modifies a Noun Phrase (*only one
@@ -657,8 +659,8 @@
         (name: "TemporalAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "TemporalNounPhrase")], transparent: ["head"], cost: 2),
         (name: "MannerAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "NounPhrase")], equations: [Require("adjunct.NounKind", "Manner")], transparent: ["head"], cost: 2),
         (name: "FrequencyInterval", lhs: "AdverbPhrase", rhs: [Cat("head", "AdverbPhrase"), Cat("adjunct", "TemporalNounPhrase")], equations: [Exclude("head.AdjunctPosition", "Central"), Exclude("head.AdjunctPosition", "Phrasal")]),
-        (name: "NumericCountPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.QuantityNumber", "head.Number")]),
-        (name: "NumericMassPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
+        (name: "NumericCountPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Exclude("modifier.AmountKind", "Scalar"), Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.QuantityNumber", "head.Number")]),
+        (name: "NumericMassPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "Amount"), Cat("head", "BareNominal")], equations: [Exclude("modifier.AmountKind", "Scalar"), Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
         (name: "CardinalCountPremodifier", lhs: "QuantifiedNominal", rhs: [Numeral("modifier", Cardinal), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Count"), Agree("modifier.Number", "head.Number")]),
         (name: "CardinalMassPremodifier", lhs: "QuantifiedNominal", rhs: [Numeral("modifier", Cardinal), Cat("head", "BareNominal")], equations: [Agree("$.QuantityNumber", "head.Number"), Require("head.Countability", "Mass"), Require("head.NounDistribution", "DirectMeasure")]),
         (name: "ModifiedQuantity", lhs: "ModifiedQuantifiedNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "QuantifiedNominal")], equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
@@ -728,9 +730,14 @@
         // *five or greater*).
         (name: "ScalarAlternative", lhs: "AdjectivePhrase", rhs: [Cat("first", "DeterminerPhrase"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
             equations: [Require("first.DeterminativeDistribution", "Numerical"), Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive"),
-                Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "PP")]),
+                Agree("$.Grade", "last.Grade"), Agree("$.AdjectivePosition", "last.AdjectivePosition"), Agree("$.Voice", "last.Voice"), Require("$.ComplementKind", "Amount")]),
         // A postpositive comparative quantity (*for each card fewer than
         // three in their hand*).
+        // The same alternative as the value of a noun that takes an Amount
+        // (*power 3 or less*, *mana value X or greater*): the noun's frame,
+        // not a postmodifier, licenses it.
+        (name: "ScalarAmount", lhs: "Amount", rhs: [Cat("first", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
+            equations: [Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive"), Agree("$.QuantityNumber", "first.QuantityNumber"), Require("$.AmountKind", "Scalar")]),
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
             equations: [Require("head.Number", "Singular"), Require("modifier.ComplementKind", "PP"), Require("modifier.PrepositionMarking", "Comparative"), Require("modifier.Number", "Plural"), Exclude("modifier.ObliqueKind", "AdvP")], heavy: ["modifier"], cost: 2),
         (name: "PostpositiveLocativeAdjective", lhs: "LocativeHead", rhs: [Cat("head", "LocativeHead"), Cat("modifier", "AdjectivePhrase")],
@@ -761,10 +768,10 @@
         // quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
         // one*).
         (name: "AmountArithmetic", lhs: "Amount", rhs: [Cat("head", "Amount"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
-            equations: [Require("modifier.ComplementKind", "Amount")]),
+            equations: [Exclude("head.AmountKind", "Scalar"), Require("modifier.ComplementKind", "Amount")]),
         // *X minus one*: a bare quantity operand.
         (name: "AmountQuantityArithmetic", lhs: "Amount", rhs: [Cat("head", "Amount"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
-            equations: [Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Bare")]),
+            equations: [Exclude("head.AmountKind", "Scalar"), Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Bare")]),
         // *X minus one 2/2 ... tokens*: an arithmetic determiner.
         (name: "ArithmeticDeterminer", lhs: "NumericalDeterminer", rhs: [Cat("head", "NumericalDeterminer"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Bare"), Exclude("modifier.Case", "Genitive")]),
@@ -776,9 +783,9 @@
         (name: "MultipliedNounPhrase", lhs: "NounPhrase", rhs: [Numeral("factor", Cardinal), Cat("multiplier", "BareNominal"), Cat("head", "NounPhrase")],
             equations: [Require("multiplier.NounDistribution", "Serial"), Require("multiplier.Number", "Plural"), Require("head.Determination", "Overt")]),
         (name: "MultipliedAmount", lhs: "Amount", rhs: [Numeral("factor", Cardinal), Cat("multiplier", "BareNominal"), Cat("head", "Amount")],
-            equations: [Require("multiplier.NounDistribution", "Serial"), Require("multiplier.Number", "Plural")]),
+            equations: [Exclude("head.AmountKind", "Scalar"), Require("multiplier.NounDistribution", "Serial"), Require("multiplier.Number", "Plural")]),
         (name: "NumericArithmetic", lhs: "NounPhrase", rhs: [Cat("head", "Amount"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
-            equations: [Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Overt"), Require("$.NounKind", "Ordinary"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Exclude("head.AmountKind", "Scalar"), Require("modifier.ComplementKind", "NP"), Require("modifier.Determination", "Overt"), Require("$.NounKind", "Ordinary"), Require("$.Number", "Singular"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "NounPhraseArithmetic", lhs: "NounPhrase", rhs: [Cat("head", "NounPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
             equations: [Exclude("head.NounKind", "Numeric"), Exclude("head.Case", "Genitive"), Exclude("head.Case", "Nominative"), Exclude("head.Case", "Accusative")]),
         (name: "DegreeArithmetic", lhs: "DeterminerPhrase", rhs: [Cat("head", "DeterminerPhrase"), Selected("modifier", "PrepositionPhrase", ["Plus", "Minus"])],
@@ -857,10 +864,10 @@
         (name: "OtherTargetedPlural", lhs: "NounPhrase", rhs: [Class("modifier", "FusedHeadAdjective"), Cat("head", "Nominal")],
             equations: [Carry("head.Determination", "Overt"), Require("head.Number", "Plural"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "FusedAdjectiveHead", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Class("head", "FusedHeadAdjective")], equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Require("$.Determination", "Overt"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary")]),
-        (name: "SingleRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount")]),
-        (name: "OpenRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount"), Punct('+')]),
-        (name: "HyphenRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")]),
-        (name: "UnicodeRangeRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('—', Bound), Cat("upper", "Amount")]),
+        (name: "SingleRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount")], equations: [Exclude("head.AmountKind", "Scalar")]),
+        (name: "OpenRowHeader", lhs: "RowHeader", rhs: [Cat("head", "Amount"), Punct('+')], equations: [Exclude("head.AmountKind", "Scalar")]),
+        (name: "HyphenRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('-', Bound), Cat("upper", "Amount")], equations: [Exclude("lower.AmountKind", "Scalar"), Exclude("upper.AmountKind", "Scalar")]),
+        (name: "UnicodeRangeRowHeader", lhs: "RowHeader", rhs: [Cat("lower", "Amount"), Mark('—', Bound), Cat("upper", "Amount")], equations: [Exclude("lower.AmountKind", "Scalar"), Exclude("upper.AmountKind", "Scalar")]),
         (name: "TableRow", lhs: "Ability", rhs: [Cat("header", "RowHeader"), Mark('|', Free), Cat("head", "Ability")]),
         (name: "SequentialVerbalCosts", lhs: "NonManaCost", rhs: [Cat("first", "VerbPhrase"), Punct(','), Cat("rest", "Cost")], equations: [Require("first.VerbForm", "Plain")]),
         (name: "DeclarativeCost", lhs: "NonManaCost", rhs: [Cat("head", "Clause")], equations: [Require("head.VerbForm", "Finite"), Exclude("head.Inflection", "Irrealis")]),
