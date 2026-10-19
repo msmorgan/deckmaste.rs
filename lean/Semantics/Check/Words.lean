@@ -1476,17 +1476,6 @@ def distinctSubtypeFacts : List SubtypeFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
 
-def MarkerWord.grantorOrigin : MarkerWord → Option Zone
-  | .emblem => some .command
-  | _ => none
-
-def MarkerWord.zone : MarkerWord → Zone
-  | .token => .battlefield
-  | .emblem => .command
-  | .spell => .stack
-  | .permanent => .battlefield
-  | .ability => .stack
-
 def Delta.amount {α : Type} : Delta α → α
   | .up x => x
   | .down x => x
