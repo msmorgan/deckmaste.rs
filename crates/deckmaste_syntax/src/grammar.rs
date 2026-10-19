@@ -203,6 +203,11 @@ pub enum SchemaDecl {
         /// (a Preposition Phrase takes its Complement's Number).
         #[serde(default)]
         agree: Vec<(Ident, Ident)>,
+        /// Coordinators of complement clusters: a verb with two or more
+        /// Frame Slots heads a coordination of their sequences (*put one of
+        /// them into your hand and the rest into your graveyard*).
+        #[serde(default)]
+        clusters: Option<Ident>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {

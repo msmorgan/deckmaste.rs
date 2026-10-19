@@ -88,6 +88,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   is `Intransitive`. `agree` pairs make a phrase's feature agree with that
   feature of each Frame Slot child that carries it (a Preposition Phrase takes
   its Complement's Number; a determinative its oblique's).
+  With `clusters`, a verb with two or more Frame Slots also heads a coordination
+  of their sequences, its head shared on the left as the mirror of Right Node
+  Raising (*put one of them into your hand and the rest into your graveyard*,
+  *deals 2 damage to any target and 1 damage to you*); each copy of a Slot
+  bears its function.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).

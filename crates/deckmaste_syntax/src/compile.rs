@@ -965,6 +965,7 @@ impl<'a> Binder<'a> {
                 interleaved,
                 heavy_shift,
                 agree,
+                clusters,
             } => {
                 let mut drafts = self.valence(
                     *head,
@@ -974,6 +975,14 @@ impl<'a> Binder<'a> {
                     adjectival.as_deref(),
                 )?;
                 self.slot_agreement(phrase, &mut drafts, agree)?;
+                if let Some(coordinators) = clusters {
+                    let coordinator = self.coordinator_test(coordinators)?;
+                    let clustered: Vec<Draft> = drafts
+                        .iter()
+                        .filter_map(|d| complement_clusters(d, &coordinator))
+                        .collect();
+                    drafts.extend(clustered);
+                }
                 self.valence_order(drafts, interleaved.as_deref(), *heavy_shift)
             }
             SchemaDecl::Adjunct {
@@ -2235,6 +2244,68 @@ impl Conjoin {
         }
         Ok(())
     }
+}
+
+/// The coordination of an active phrase's complement sequence, its head
+/// shared on the left (the mirror of Right Node Raising): the head, its
+/// Frame Slots, a coordinator, and the Frame Slots again.
+fn complement_clusters(draft: &Draft, coordinator: &Test) -> Option<Draft> {
+    let derived = ["/gap", "/passive", "/adjectival"];
+    if draft.children.len() < 3
+        || draft.frame.is_none()
+        || derived.iter().any(|d| draft.id.contains(d))
+        || draft.children[0].name != "head"
+    {
+        return None;
+    }
+    let slots = draft.children.len() - 1;
+    let mut clustered = draft.clone();
+    clustered.id = Ident::new(&format!("{}/clusters", draft.id));
+    for child in &mut clustered.children[1..] {
+        child.gap = GapRule::Closed;
+    }
+    clustered.child(
+        "coordinator",
+        Symbol::Leaf(coordinator.clone()),
+        GapRule::Closed,
+    );
+    // The second sequence's children, at `i + slots + 1`.
+    let copy = |i: usize| if i == 0 { 0 } else { i + slots + 1 };
+    for child in draft.children[1..].iter().cloned() {
+        clustered.child(child.name.as_ref(), child.symbol, GapRule::Closed);
+    }
+    let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
+    let moved = |p: Path| match p {
+        Path::Child(i, f) => Path::Child(copy(i), f),
+        mother @ Path::Mother(_) => mother,
+    };
+    for (path, target) in &draft.equations {
+        let target_on_slot = matches!(target, Target::Path(t) if on_slot(t));
+        if on_slot(path) || target_on_slot {
+            let target = match target {
+                Target::Path(t) => Target::Path(moved(*t)),
+                value @ Target::Value(_) => value.clone(),
+            };
+            clustered.equations.push((moved(*path), target));
+        }
+    }
+    for list in [&mut clustered.exclusions, &mut clustered.carried] {
+        let more: Vec<_> = list
+            .iter()
+            .filter(|(i, ..)| *i > 0)
+            .map(|&(i, f, v)| (copy(i), f, v))
+            .collect();
+        list.extend(more);
+    }
+    let weights: Vec<_> = clustered
+        .weights
+        .iter()
+        .filter(|(i, _)| *i > 0)
+        .map(|&(i, w)| (copy(i), w))
+        .collect();
+    clustered.weights.extend(weights);
+    clustered.predicative = None;
+    Some(clustered)
 }
 
 fn equation_path(equation: &Equation) -> &str {
