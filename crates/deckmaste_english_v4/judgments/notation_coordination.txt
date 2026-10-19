@@ -1,7 +1,7 @@
 # Coordination of notation units: mana symbols, keywords, and cardinal numerals agreeing with the following noun
 + {W}
-+ {W} or {U}
-+ {W}, {U}, or {B}
++NounPhrase {W} or {U}
++NounPhrase {W}, {U}, or {B}
 + {W}{U}
 +KeywordPhrase flying
 +KeywordPhrase flying and haste

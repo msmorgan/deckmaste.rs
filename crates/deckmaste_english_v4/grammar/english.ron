@@ -1149,11 +1149,11 @@
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it
         // doesn't untap ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Finite")], delimiter: Some(',')),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Plain")], delimiter: Some(',')),
         // A declarative and then an imperative, set off by the comma (*it
         // doesn't untap ..., and at the beginning of each of your draw steps,
         // put ...*).
-        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Finite")], delimiter: Some(','), delimited: true, serial: Some(false)),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Finite"), Require("last.VerbForm", "Plain"), Require("$.VerbForm", "Plain")], delimiter: Some(','), delimited: true, serial: Some(false)),
         // An *and*-coordination of Noun Phrases or nominals is plural; an
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).

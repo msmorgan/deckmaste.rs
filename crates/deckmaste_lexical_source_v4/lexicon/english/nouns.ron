@@ -55,7 +55,7 @@
     (lemma: "door", frames: [Complement(PP(["of"]))]),
     "draft",
     // "the game is a draw".
-    "draw",
+    (lemma: "draw", distribution: HeadOnly),
     "effect",
     "emblem",
     (lemma: "end", frames: [Complement(PP(["of"]))]),

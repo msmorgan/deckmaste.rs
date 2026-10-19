@@ -21,9 +21,9 @@
 +KeywordPhrase both flying and haste
 +KeywordPhrase either flying or haste
 +KeywordPhrase neither flying nor haste
-+ both {W} and {U}
-+ either {W} or {U}
-+ neither {W} nor {U}
++NounPhrase both {W} and {U}
++NounPhrase either {W} or {U}
++NounPhrase neither {W} nor {U}
 +Clause either attack, block, or attack
 +VerbPhrase either attacks, blocks, or attacks
 +VerbPhrase neither attacks, blocks, nor attacks
@@ -39,6 +39,6 @@
 +Clause neither to attack, to block, nor to attack
 +KeywordPhrase either flying, haste, or flying
 +KeywordPhrase neither flying, haste, nor flying
-+ either {W}, {U}, or {W}
-+ neither {W}, {U}, nor {W}
++NounPhrase either {W}, {U}, or {W}
++NounPhrase neither {W}, {U}, nor {W}
 +VerbPhrase both own and control cards => NounPhrase "cards" as Object of own; NounPhrase "cards" as Object of control
