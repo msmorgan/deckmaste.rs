@@ -4,3 +4,8 @@
 
 # english-v4-stratum-7-discourse-and-long-tail
 Bladehold War-Whip | Equip abilities you activate of other Equipment cost {1} less to activate.
+Me, the Immortal | At the beginning of combat on your turn, put your choice of a +1/+1, first strike, vigilance, or menace counter on Me.
+Owen Grady, Raptor Trainer | {T}: Put your choice of a reach, menace, trample, or haste counter on target Dinosaur. Activate only as a sorcery.
+Reluctant Role Model | Survival — At the beginning of your second main phase, if this creature is tapped, put a flying, lifelink, or +1/+1 counter on it.
+The Night of the Doctor | II — Return target legendary creature card from your graveyard to the battlefield. Put your choice of a first strike, vigilance, or lifelink counter on it.
+Denry Klin, Editor in Chief | Denry Klin enters with your choice of a +1/+1, first strike, or vigilance counter on it.
