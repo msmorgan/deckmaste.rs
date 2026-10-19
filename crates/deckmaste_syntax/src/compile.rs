@@ -1094,8 +1094,7 @@ impl<'a> Binder<'a> {
         forms: &[deckmaste_lexical::WordForm],
         prefix: bool,
     ) -> Result<Vec<Draft>, LoadError> {
-        let target = self.category(modifier)?;
-        let modifier_id = self.private_category(target);
+        let modifier_id = self.category(modifier)?;
         let host_id = self.category(host)?;
         let symbol = |category| Symbol::Cat {
             category,

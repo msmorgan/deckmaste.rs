@@ -101,11 +101,25 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   selects in its place (locative *on the battlefield* after *be*). Optional
   `equations` constrain the `head` (host) and the adjunct (a depictive
   gerund-participial of a lexical verb only).
-- `Coordination { category, coordinators, unshared }`: binary and Oxford-comma serial
-  coordination, one tree per same-coordinator chain, across-the-board Gaps, and
-  Right Node Raising (a coordination with a shared NP Gap, filled once after it).
-  Conjuncts agree on every feature but the `unshared` ones, which the
-  coordination leaves unvalued.
+- `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
+  binary and Oxford-comma serial coordination, one tree per same-coordinator
+  chain, across-the-board Gaps, and Right Node Raising (a coordination with a
+  shared NP Gap, filled once after it, derived for a Category's first
+  coordination schema). Conjuncts agree on every feature but the `unshared`
+  ones, which the coordination leaves unvalued, and the `proximate` ones, which
+  it takes from its last conjunct (*one or more cards*). `equations` over `$`
+  resolve the whole coordination: a feature they value is still shared by the
+  conjuncts but not by the coordination (two singular nominals joined by *and*
+  are plural); equations over `first` hold of every conjunct but the last, over
+  `last` of the last (imperatives followed by a declarative). A `delimiter` may
+  also precede the coordinator of a binary coordination (*X, and Y*). The
+  grammar's `correlatives` pair a marker with a coordinator (*both … and*);
+  every schema whose coordinators admit the paired one also derives the
+  coordination after the marker. A coordination of Preposition Phrases keeps
+  up to two prepositions for selection, and admits only the Host Categories
+  every conjunct admits. A constituent that begins with a dependent set off by
+  a comma (*When …, …*) is never a conjunct other than the last: the preposed
+  dependent scopes over the whole coordination.
 
 Gaps pass from a child to its mother only through children the Production marks
 `transparent`; auxiliaries mark their verb-phrase complement transparent, so
@@ -163,7 +177,9 @@ Production can require that a Preposition Phrase child admit a Host Category
 (`Hosted`), as a predicative PP must be able to modify a nominal. It can also
 require a child to be `light`, one lexical leaf alone or projected, or `heavy`,
 more than one, as a single postpositive participle differs from a participial
-clause. A verb without
+clause, or `uncoordinated`, not itself a coordination, where the coordination
+one level up is the same analysis (a chain of bare imperatives is coordinated
+imperative Clauses). A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 
