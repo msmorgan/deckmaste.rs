@@ -933,7 +933,8 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
     (drs2, errors ++ clauseErrors)
 termination_by structural fuel
 
-/-- A replacement, read after the event it replaces: its `when` condition, then its action. -/
+/-- A replacement, read after the event it replaces: its `when` condition, then its action, in
+a new clause after the condition as `doIf` reads its then-branch. -/
 def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (fuel : Nat := 8) :
     DRS × List Refusal :=
   match fuel, r with
@@ -941,9 +942,10 @@ def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (fuel : Na
   | n + 1, .inCaller body =>
     let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body n
     (leaveCaller drs callerDrs, errs)
-  | _ + 1, .instead action when =>
-    let (drs1, e1) := match when with | some c => ops.cond drs c | none => (drs, [])
-    let (drs2, e2) := ops.inst .postEvent .obj drs1 action
+  | _ + 1, .instead action none => ops.inst .postEvent .obj drs action
+  | _ + 1, .instead action (some condition) =>
+    let (drs1, e1) := ops.cond drs condition
+    let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) action
     (drs2, e1 ++ e2)
 termination_by structural fuel
 
