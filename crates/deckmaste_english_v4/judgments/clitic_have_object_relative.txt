@@ -5,7 +5,7 @@
 + <card=Knowledge Is Power> Creatures you control get +X/+X, where X is the number of cards you've drawn this turn. => RelativeClause "you've drawn" gap "cards" || RelativeClause "you've drawn this turn" gap "cards" || RelativeClause "you've drawn" gap "number of cards" || RelativeClause "you've drawn this turn" gap "number of cards"
 + <card=Rug of Smothering> Whenever a player casts a spell, they lose 1 life for each spell they've cast this turn. => RelativeClause "they've cast" gap "spell" || RelativeClause "they've cast this turn" gap "spell"
 +NounPhrase the life you have lost this turn => RelativeClause "you have lost this turn" gap "life"; VerbPhrase "lost" as Complement of have
-+NounPhrase each card you've cycled or discarded this turn => VerbPhrase "cycled or discarded" as Complement of have; RelativeClause "you've cycled or discarded" gap "card" || VerbPhrase "cycled or discarded" as Complement of have; RelativeClause "you've cycled or discarded this turn" gap "card"
++NounPhrase each card you've cycled or discarded this turn => VerbPhrase "cycled or discarded" as Complement of have; RelativeClause "you've cycled or discarded this turn" gap "card"
 +RelativeClause you've drawn
 +RelativeClause you have drawn
 + Draw a card if you've cast a spell this turn. => !RelativeClause "you've cast a spell this turn"

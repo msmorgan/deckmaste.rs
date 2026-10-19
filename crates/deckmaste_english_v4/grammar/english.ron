@@ -225,7 +225,7 @@
         "HollowInf": (category: Some("Clause")),
         "BareInf": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice"], gap: true, closed_gaps: ["Pred"]),
         // An auxiliary's participial Complement (*have been __*).
-        "AuxiliaryComplement": (category: Some("VerbPhrase"), features: ["VerbForm", "Voice", "VerbKind"], gap: true, closed_gaps: ["Pred"]),
+        "AuxiliaryComplement": (category: Some("VerbPhrase"), function: true, features: ["VerbForm", "Voice", "VerbKind"], gap: true, closed_gaps: ["Pred"]),
         "Gerund": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice"], gap: true),
         // A gerund-participial Clause with its Subject, which Oracle uses as
         // a Subject only (CGEL, Ch. 14 §2.1, p. 1188).
