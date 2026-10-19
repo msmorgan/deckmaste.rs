@@ -291,4 +291,6 @@ pub enum HostKind {
     /// A Clause or line that a comma-set Supplement is anchored to (CGEL,
     /// Ch. 15 §5.1, p. 1350).
     Supplement,
+    /// A conjunct of a coordination of unlike predicate adjuncts.
+    PredicateConjunct,
 }

@@ -261,6 +261,9 @@ pub enum Hosts {
     NominalAndPredicate,
     /// Only a Supplement to a Clause or line (*, where X is its power*).
     Supplement,
+    /// A nominal, or a predicate only as a conjunct of a coordination of
+    /// unlike predicate adjuncts (*second from the top or on the bottom*).
+    NominalAndPredicateConjunct,
 }
 
 impl Hosts {
@@ -268,7 +271,12 @@ impl Hosts {
     #[must_use]
     pub(crate) fn mask(self) -> u8 {
         use crate::grammar::HostKind;
-        [HostKind::Nominal, HostKind::Predicate, HostKind::Supplement]
+        [
+            HostKind::Nominal,
+            HostKind::Predicate,
+            HostKind::Supplement,
+            HostKind::PredicateConjunct,
+        ]
             .into_iter()
             .filter(|kind| self.admits(*kind))
             .fold(0, |mask, kind| mask | host_bit(kind))
@@ -279,12 +287,16 @@ impl Hosts {
         use crate::grammar::HostKind;
         matches!(
             (self, kind),
-            (Self::Nominal | Self::NominalAndPredicate, HostKind::Nominal)
+            (
+                Self::Nominal | Self::NominalAndPredicate | Self::NominalAndPredicateConjunct,
+                HostKind::Nominal
+            )
                 | (
                     Self::Predicate | Self::NominalAndPredicate,
                     HostKind::Predicate
                 )
                 | (Self::Supplement, HostKind::Supplement)
+                | (Self::NominalAndPredicateConjunct, HostKind::PredicateConjunct)
         )
     }
 }
@@ -296,6 +308,7 @@ pub(crate) fn host_bit(kind: crate::grammar::HostKind) -> u8 {
         HostKind::Nominal => 1,
         HostKind::Predicate => 2,
         HostKind::Supplement => 4,
+        HostKind::PredicateConjunct => 8,
     }
 }
 

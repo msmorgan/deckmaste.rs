@@ -247,7 +247,6 @@
         "Of": "prep:of",
         "Than": "prep:than",
         "From": "prep:from",
-        "On": "prep:on",
         "As": "prep:as",
         "Plus": "prep:plus",
         "Minus": "prep:minus",
@@ -591,10 +590,10 @@
         (name: "CoordinatedPredicative", lhs: "Predicative", rhs: [Cat("head", "DepictiveCoordination")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
-        // A locative *on*-phrase coordinates with a depictive position
-        // (*second from the top or on the bottom*), though alone it modifies
-        // only a nominal.
-        (name: "LocativeAdjunct", lhs: "PredicateAdjunct", rhs: [Selected("filler", "PrepositionPhrase", ["On"])], equations: [Require("filler.ComplementKind", "NP"), Require("$.ComplementKind", "PP")]),
+        // A Preposition Phrase whose catalog frame hosts a predicate only as a
+        // conjunct coordinates with another predicate adjunct (*second from
+        // the top or on the bottom*).
+        (name: "LocativeAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", PredicateConjunct)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),

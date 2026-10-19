@@ -89,7 +89,7 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   - Listed vote options that are no nouns (5): Path of the Animist; Path of the
     Enigma; Path of the Ghosthunter; Path of the Pyromancer; Path of the
     Schemer.
-  - Text-changing *replacing … instances of* (13): Alter Reality; Artificial
+  - Text-changing *replacing … instances of* (13 units): Alter Reality; Artificial
     Evolution; Balduvian Shaman; Crystal Spray; Glamerdye; Magical Hack; Mind
     Bend; New Blood; Sleight of Mind; Spectral Shift; Trait Doctoring; Whim of
     Volrath.

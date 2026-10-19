@@ -139,9 +139,11 @@
         (complement: KeywordPhrase, hosts: ComplementOnly),
     ]),
     // *put it on top of its owner's library*
+    // A locative *on*-phrase may also coordinate with another predicate
+    // adjunct (*second from the top or on the bottom*), never attach alone.
     (lemma: "on", frames: [
         (complement: Amount, hosts: Nominal),
-        (complement: NP, hosts: Nominal),
+        (complement: NP, hosts: NominalAndPredicateConjunct),
         (complement: Nominal, hosts: ComplementOnly),
     ]),
     (lemma: "onto", frames: [(complement: NP, hosts: ComplementOnly)]),
