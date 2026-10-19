@@ -1024,7 +1024,7 @@
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).
         Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third")], proximate: ["Case"]),
-        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability"], proximate: ["Number", "Person", "Case", "NounKind"]),
+        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability"], equations: [Exclude("last.NounKind", "Numeric")], proximate: ["Number", "Person", "Case", "NounKind"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], equations: [Require("$.Number", "Plural")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"]),
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
