@@ -31,15 +31,10 @@ use deckmaste_macro_def::DeclarationKind;
 use deckmaste_macro_def::NormalizedDeclaration;
 use deckmaste_macro_def::SubtypeCategory;
 use deckmaste_semantics_v2::abilities::Ability;
-use deckmaste_semantics_v2::abilities::Compulsion;
-use deckmaste_semantics_v2::abilities::DeonticRider;
 use deckmaste_semantics_v2::abilities::StaticSpec;
 use deckmaste_semantics_v2::designations;
 use deckmaste_semantics_v2::keywords;
-use deckmaste_semantics_v2::phrase::EventSource;
-use deckmaste_semantics_v2::phrase::GameEvent;
 use deckmaste_semantics_v2::phrase::NounPhrase;
-use deckmaste_semantics_v2::phrase::ZoneExpr;
 use deckmaste_semantics_v2::reader::Plugin;
 use deckmaste_semantics_v2::ron::macro_set;
 use deckmaste_semantics_v2::rules::Conferral;
@@ -49,7 +44,6 @@ use deckmaste_semantics_v2::words::Deed;
 use deckmaste_semantics_v2::words::DesignationScope;
 use deckmaste_semantics_v2::words::KeywordLabel;
 use deckmaste_semantics_v2::words::Kind;
-use deckmaste_semantics_v2::words::MarkerWord;
 use deckmaste_semantics_v2::words::RoomHalf;
 use deckmaste_semantics_v2::words::Subtype;
 use deckmaste_semantics_v2::words::Zone;
@@ -59,7 +53,6 @@ use serde::de::IgnoredAny;
 
 use super::KEYWORD_ROWS_EXEMPT;
 use super::KEYWORD_STUBS_EXEMPT;
-use super::Regime;
 use super::Shape;
 use super::overlay;
 use crate::expansions::Samples;
@@ -195,9 +188,6 @@ pub(super) struct KeywordDefinition {
     /// and which the overlay's `definition` names from the CR entry
     /// [CR#702.169a] (`resolved_categories`).
     pub(super) categories: Vec<Option<&'static str>>,
-    /// Each component's stack regime as its form gives it, beside
-    /// `categories`.
-    pub(super) regimes: Vec<FormRegime>,
     pub(super) params: Vec<String>,
     /// The signatures of the general forms carrying this keyword's label
     /// with a definition of their own (`devourQuality` for devour
@@ -251,122 +241,6 @@ fn category(ability: &Ability) -> anyhow::Result<Option<&'static str>> {
     }))
 }
 
-/// The stack regime a definition component's form gives it, as Lean's
-/// `Ability.regimeFits` reads it: `Open` where the form admits more than one
-/// and the keyword's own rule says which (a permission to cast the card
-/// [CR#702.34a,702.117a]).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum FormRegime {
-    Determined(Option<Regime>),
-    Open,
-}
-
-/// A triggered component keys on its event's regime: a cast trigger at
-/// casting [CR#702.153a], any other event off the stack [CR#702.175a]
-/// (Lean `bodyEventRegime`).
-fn event_regime(event: &GameEvent) -> Option<Regime> {
-    match event {
-        GameEvent::Casts { .. } => Some(Regime::AtCasting),
-        GameEvent::NthOccurrence { event, .. } | GameEvent::Causes { event, .. } => {
-            event_regime(event)
-        }
-        _ => None,
-    }
-}
-
-/// A static component's regime (Lean `StaticSpec.regimeFits`): an
-/// additional cost or a cost change is determined as the spell is cast
-/// [CR#601.2f], and a Mana Substitute applies as its total cost is paid
-/// [CR#702.51b,601.2h], a Mode Change as its modes are chosen
-/// [CR#601.2b,700.2a], and a gained target as targets are chosen
-/// [CR#601.2c,702.140a]; a permission to cast the card is open; any other static
-/// ability functions off the stack.
-fn static_regime(spec: &StaticSpec) -> FormRegime {
-    match spec {
-        StaticSpec::WithBindings { body, .. } | StaticSpec::InCaller { body, .. } => {
-            static_regime(body)
-        }
-        StaticSpec::Conditional { spec, .. } => static_regime(spec),
-        // An ability's cost is determined as it is activated, not as a spell
-        // is cast [CR#602.2b,601.2f] (power-up [CR#702.193a]).
-        StaticSpec::CostShift {
-            subject:
-                NounPhrase::AsMarker {
-                    marker: MarkerWord::Ability,
-                    ..
-                },
-            ..
-        } => FormRegime::Determined(None),
-        StaticSpec::AddedCost { .. }
-        | StaticSpec::CostShift { .. }
-        | StaticSpec::PaySubstitute { .. }
-        | StaticSpec::ModeChoice { .. }
-        | StaticSpec::AddsTarget { .. } => FormRegime::Determined(Some(Regime::AtCasting)),
-        StaticSpec::AltCost { .. } => FormRegime::Open,
-        StaticSpec::Replacement {
-            event:
-                GameEvent::ZoneChange {
-                    subject,
-                    from: Some(from),
-                    ..
-                },
-            ..
-        } if leaves_the_stack(subject, from) => FormRegime::Open,
-        StaticSpec::DeonticRule {
-            compulsion, rider, ..
-        } if matches!(**compulsion, Compulsion::Permit)
-            && matches!(**rider, DeonticRider::Play { .. }) =>
-        {
-            FormRegime::Open
-        }
-        _ => FormRegime::Determined(None),
-    }
-}
-
-/// Whether a zone change is the source's own move off the stack: a
-/// replacement of it functions while the spell is on the stack, and the
-/// keyword's own rule says which regime it takes (rebound [CR#702.88a]; Lean
-/// `StaticSpec.regimeFits`).
-fn leaves_the_stack(subject: &NounPhrase, from: &EventSource) -> bool {
-    let EventSource::Zones { zones } = from else {
-        return false;
-    };
-    names_this(subject)
-        && matches!(
-            zones.as_slice(),
-            [ZoneExpr::Zone {
-                zone: Zone::Stack,
-                ..
-            }]
-        )
-}
-
-/// Lean `NounPhrase.namesThis`: the source, bare or as a type or marker view.
-fn names_this(subject: &NounPhrase) -> bool {
-    match subject {
-        NounPhrase::This => true,
-        NounPhrase::WithBindings { body, .. }
-        | NounPhrase::InCaller { body, .. }
-        | NounPhrase::FirstMention { phrase: body, .. }
-        | NounPhrase::AsType { subject: body, .. }
-        | NounPhrase::AsMarker { subject: body, .. } => names_this(body),
-        _ => false,
-    }
-}
-
-/// The stack regime one component of a keyword's definition takes from its
-/// form (Lean `Ability.regimeFits`); a spell ability is followed as the spell
-/// resolves [CR#113.3a].
-fn form_regime(ability: &Ability) -> FormRegime {
-    match ability {
-        Ability::Qualified { ability, .. } => form_regime(ability),
-        Ability::Static { spec } => static_regime(spec),
-        Ability::Triggered { event, .. } => FormRegime::Determined(event_regime(event)),
-        Ability::Spell { .. } => FormRegime::Determined(Some(Regime::AtResolution)),
-        _ => FormRegime::Determined(None),
-    }
-}
-
 /// The categories of a keyword ability's definition, read from the term the
 /// declaration builds when it is invoked with the deterministic sample
 /// arguments `cargo xtask expansions` prints it with — the abilities as the
@@ -375,7 +249,7 @@ fn keyword_categories(
     plugin: &Plugin,
     samples: &Samples,
     name: &str,
-) -> anyhow::Result<Vec<(Option<&'static str>, FormRegime)>> {
+) -> anyhow::Result<Vec<Option<&'static str>>> {
     let declaration = plugin
         .declarations
         .get(&(
@@ -414,7 +288,7 @@ fn keyword_categories(
             } if inner == &keyword => body.iter().collect::<Vec<_>>(),
             other => vec![other],
         })
-        .map(|ability| Ok((category(ability)?, form_regime(ability))))
+        .map(category)
         .collect()
 }
 
@@ -493,8 +367,7 @@ pub(super) fn keyword_definitions(
         };
         result.push(KeywordDefinition {
             word: overlay_key(keyword.name()),
-            categories: components.iter().map(|(category, _)| *category).collect(),
-            regimes: components.iter().map(|(_, regime)| *regime).collect(),
+            categories: components,
             params: declared
                 .params()
                 .unwrap_or_default()
@@ -652,58 +525,8 @@ fn keyword_name(overlay_key: &str) -> String {
     }
 }
 
-/// A written definition's components, each with its regime: the one its
-/// form determines, or the overlay's `open_regimes` entry where the form
-/// leaves it open (none there is a component that functions off the stack).
-/// An entry for a component whose form determines its regime is refused.
-fn written_components(
-    row: &super::Row,
-    declared: &KeywordDefinition,
-) -> anyhow::Result<Vec<(&'static str, Option<Regime>)>> {
-    for (index, _) in row.open_regimes {
-        anyhow::ensure!(
-            declared.regimes.get(*index) == Some(&FormRegime::Open),
-            "{}: component {index} takes its regime from its form, not the overlay",
-            row.label
-        );
-    }
-    let mut components = Vec::new();
-    for (index, (category, form)) in declared
-        .categories
-        .iter()
-        .zip(&declared.regimes)
-        .enumerate()
-    {
-        let Some(category) = category else {
-            // The printed ability's own: each category the CR entry admits.
-            anyhow::ensure!(
-                !row.definition.is_empty(),
-                "{}: component {index} qualifies the printed ability, so the overlay names \
-                 its categories",
-                row.label
-            );
-            components.extend(
-                row.definition
-                    .iter()
-                    .map(|(category, regime)| (category.lean(), *regime)),
-            );
-            continue;
-        };
-        let regime = match form {
-            FormRegime::Determined(regime) => *regime,
-            FormRegime::Open => row
-                .open_regimes
-                .iter()
-                .find(|(at, _)| *at == index)
-                .map(|(_, regime)| *regime),
-        };
-        components.push((*category, regime));
-    }
-    Ok(components)
-}
-
 /// A declared definition's categories, each printed-ability component read
-/// as the categories the overlay names for it (`written_components`).
+/// as the categories the overlay names for it.
 pub(super) fn resolved_categories(
     row: &super::Row,
     declared: &KeywordDefinition,
@@ -716,7 +539,7 @@ pub(super) fn resolved_categories(
             None => row
                 .definition
                 .iter()
-                .map(|(category, _)| category.lean())
+                .map(|category| category.lean())
                 .collect(),
         })
         .collect()
@@ -728,7 +551,6 @@ fn keyword_rows(
 ) -> anyhow::Result<Vec<String>> {
     let overlays = overlay();
     let definitions = keyword_definitions(declarations, plugin_dir)?;
-    let counter_keywords = counter_eligible_keywords(declarations, plugin_dir)?;
     for definition in &definitions {
         anyhow::ensure!(
             overlays.iter().any(|row| row.label == definition.word)
@@ -781,11 +603,7 @@ fn keyword_rows(
                 format!("word := .named {}", quoted(&keyword_name(row.label))),
                 format!("argumentSchemas := [{}]", schemas.join(", ")),
             ];
-            if counter_keywords.contains(row.label) {
-                fields.push("counterEligible := true".into());
-            }
             for (set, field) in [
-                (row.functions_on_stack, "functionsOnStack"),
                 (row.on_spell_card, "onInstantOrSorceryCard"),
                 (row.paid_cost, "paidCost"),
                 (row.cost_chooses_player, "costChoosesPlayer"),
@@ -797,52 +615,6 @@ fn keyword_rows(
             }
             if !row.on_permanent_card {
                 fields.push("onPermanentCard := false".into());
-            }
-            // The components a keyword's definition is written in [CR#702.1]
-            // are those of the definition the declaration WRITES, each with
-            // the regime its form gives it, or the overlay's where the form
-            // leaves it open. Where a declaration writes none — the workbench
-            // cannot spell it, and the file records the STOP — the CR entry
-            // still names them, and only those rows keep an overlay value.
-            let components = match declared.filter(|declared| !declared.categories.is_empty()) {
-                Some(declared) => written_components(row, declared)?,
-                None => row
-                    .definition
-                    .iter()
-                    .map(|(category, regime)| (category.lean(), *regime))
-                    .collect(),
-            };
-            // A keyword's own regime summarises its components': the first
-            // stack regime among them.
-            let regime = if components.is_empty() {
-                row.regime
-            } else {
-                let summary = components.iter().find_map(|(_, regime)| *regime);
-                anyhow::ensure!(
-                    row.regime == summary,
-                    "{}: the overlay regime {:?} is not its components' summary {summary:?}",
-                    row.label,
-                    row.regime
-                );
-                summary
-            };
-            if !components.is_empty() {
-                let parts = components
-                    .iter()
-                    .map(|(category, regime)| {
-                        format!(
-                            "⟨{category}, {}⟩",
-                            regime.map_or_else(
-                                || "none".to_owned(),
-                                |r| format!("some {}", r.lean())
-                            )
-                        )
-                    })
-                    .collect::<Vec<_>>();
-                fields.push(format!("definition := [{}]", parts.join(", ")));
-            }
-            if let Some(regime) = regime {
-                fields.push(format!("regime := some {}", regime.lean()));
             }
             Ok(format!("{{ {} }}", fields.join(", ")))
         })
@@ -1337,122 +1109,6 @@ mod tests {
         );
     }
 
-    /// A spell ability is the half a keyword represents on an instant or
-    /// sorcery spell, written under that class's guard [CR#113.3a,702.174b],
-    /// so a definition holding one declares the spell category.
-    #[test]
-    fn a_class_guarded_spell_ability_declares_the_spell_category() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/storm.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        fs::write(
-            &path,
-            source.replace(
-                "    ],\n)",
-                "        spell(doIf(matches(this, instantOrSorcery), draw(1))),\n    ],\n)",
-            ),
-        )
-        .unwrap();
-        let generated = render(temp.path()).unwrap();
-        let row = generated
-            .lines()
-            .find(|line| line.contains("word := .named \"storm\""))
-            .unwrap();
-        assert!(
-            row.contains(
-                "definition := [⟨.triggered, some .atCasting⟩, ⟨.spell, some .atResolution⟩]"
-            ),
-            "{row}"
-        );
-    }
-
-    /// Each component of a definition carries the regime its own form gives
-    /// it: kicker's additional cost at casting and an enters trigger off the
-    /// stack, the shape offspring's definition takes [CR#702.175a].
-    #[test]
-    fn each_component_carries_the_regime_its_form_gives() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/kicker.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        fs::write(
-            &path,
-            source.replace(
-                "    ],\n)",
-                "        triggered(enters(thisPermanent), draw(1)),\n    ],\n)",
-            ),
-        )
-        .unwrap();
-        let generated = render(temp.path()).unwrap();
-        let row = generated
-            .lines()
-            .find(|line| line.contains("word := .named \"kicker\""))
-            .unwrap();
-        assert!(
-            row.contains(
-                "definition := [⟨.static, some .atCasting⟩, ⟨.triggered, none⟩], \
-                 regime := some .atCasting"
-            ),
-            "{row}"
-        );
-    }
-
-    /// An overlay regime names only a component whose form leaves it open (a
-    /// permission to cast the card); surge's written as an additional cost
-    /// takes its regime from its form.
-    #[test]
-    fn an_open_regime_names_only_an_open_component() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/surge.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        let start = source.find("    body: [").unwrap();
-        fs::write(
-            &path,
-            format!(
-                "{}    body: [\n        static(addedCost(Param(0), true)),\n    ],\n)\n",
-                &source[..start]
-            ),
-        )
-        .unwrap();
-        let error = render(temp.path()).unwrap_err().to_string();
-        assert!(
-            error.contains("Surge: component 0 takes its regime from its form"),
-            "{error}"
-        );
-    }
-
-    /// A keyword's own regime is its components' summary: prowess written with
-    /// an enters trigger has no stack regime, so its overlay's at-casting
-    /// regime is refused.
-    #[test]
-    fn the_keyword_regime_is_its_components_summary() {
-        let temp = fixture();
-        let path = temp
-            .path()
-            .join("plugins_v2/builtin/macros/keyword_abilities/prowess.ron");
-        let source = fs::read_to_string(&path).unwrap();
-        fs::write(
-            &path,
-            source.replace(
-                "casts(you, a(and([inZone(stack), not(creature)])))",
-                "enters(thisPermanent)",
-            ),
-        )
-        .unwrap();
-        let error = render(temp.path()).unwrap_err().to_string();
-        assert!(
-            error.contains(
-                "Prowess: the overlay regime Some(AtCasting) is not its components' summary None"
-            ),
-            "{error}"
-        );
-    }
-
     #[test]
     fn new_keyword_requires_a_gate_overlay() {
         let temp = fixture();
@@ -1585,7 +1241,8 @@ mod tests {
     /// dialect. (The counter half was a counter body's `Counter(…)`; a counter
     /// declaration no longer writes its body, so it is re-spelled over the
     /// conferral helper a keyword counter writes, whose row is the keyword's
-    /// `counterEligible` column.)
+    /// `counterEligible` column. The Lean table no longer carries that column,
+    /// so the counter half is read off the Idris table, which still does.)
     #[test]
     fn a_positional_body_reads_to_the_same_row() {
         const BODIES: [(&str, &str, &str); 2] = [
@@ -1623,13 +1280,15 @@ mod tests {
             by_name.contains("label := \"citysBlessing\", scope := .heldBy .player"),
             "the designation row moved"
         );
+        assert_eq!(by_name, render(positional.path()).unwrap());
+        let idris_by_name = super::super::render(named.path()).unwrap();
         assert!(
-            by_name.contains(
-                "{ word := .named \"shadow\", argumentSchemas := [[]], counterEligible := true,"
+            idris_by_name.contains(
+                "{ word := \"Shadow\", paramShapes := [NoParam], counterEligible := True }"
             ),
             "the counter row moved"
         );
-        assert_eq!(by_name, render(positional.path()).unwrap());
+        assert_eq!(idris_by_name, super::super::render(positional.path()).unwrap());
     }
 
     #[test]

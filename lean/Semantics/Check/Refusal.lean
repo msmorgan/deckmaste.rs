@@ -123,7 +123,6 @@ inductive Refusal where
   | linkedFacetKind
   | costNameable
   | keywordParamFits (k : KeywordLabel)
-  | keywordBodyFits (k : KeywordLabel)
   /-- A qualifier's usage limit restricts activation, so it wraps an activated ability
   [CR#602.5b]. -/
   | qualifiedLimit
@@ -183,7 +182,6 @@ inductive Refusal where
   | cardName
   | cardBox
   | cardCost
-  | jointChoices
   | adventureInset
   | flipHalf
   | levelRange

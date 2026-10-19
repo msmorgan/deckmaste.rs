@@ -23,51 +23,6 @@ def NounPhrase.namesThis (p : NounPhrase) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def Predicate.impliedClass (p : Predicate) (fuel : Nat := 64) : Option CardClass :=
-  match fuel, p with
-  | n + 1, .inCaller b | n + 1, .bracketed b => b.impliedClass n
-  | _ + 1, .hasType t =>
-    if t.isInstantOrSorcery then some .instantOrSorceryCard
-    else if t.permanent then some .permanentCard else none
-  | n + 1, .or ps =>
-    match ps with
-    | [] => none
-    | p :: rest => let c := p.impliedClass n
-                   if rest.all (fun q => q.impliedClass n == c) then c else none
-  | n + 1, .and ps =>
-    let cs := (ps.filterMap fun q => q.impliedClass n).eraseDups
-    match cs with | [c] => some c | _ => none
-  | _, _ => none
-termination_by structural fuel
-
-def Condition.impliedClass (c : Condition) (fuel : Nat := 64) : Option CardClass :=
-  match fuel, c with
-  | n + 1, .inCaller b => b.impliedClass n
-  | _ + 1, .matches .this p => p.impliedClass
-  | n + 1, .and cs =>
-    let classes := (cs.filterMap fun q => q.impliedClass n).eraseDups
-    match classes with | [c] => some c | _ => none
-  | _, _ => none
-termination_by structural fuel
-
-def Action.classGuard (i : Action) : Option CardClass :=
-  match i.scopeBody with | .doIf c _ none => c.impliedClass | _ => none
-
-def StaticSpec.classGuard (s : StaticSpec) : Option CardClass :=
-  match s.scopeBody with
-  | .conditional _ _ .unless_ => none
-  | .conditional _ c _ => c.impliedClass
-  | _ => none
-
-def Ability.classGuard (a : Ability) (fuel : Nat := 64) : Option CardClass :=
-  match fuel, a with
-  | _ + 1, .spell _ i | _ + 1, .activated _ i _ _ _ _ => i.classGuard
-  | _ + 1, .triggered _ _ _ _ _ _ c i => (c >>= Condition.impliedClass) <|> i.classGuard
-  | _ + 1, .static s => s.classGuard
-  | n + 1, .qualified a _ _ _ _ => a.classGuard n
-  | _, _ => none
-termination_by structural fuel
-
 def Cost.offBattlefield (c : Cost) (fuel : Nat := 64) : Bool :=
   match fuel, c with
   | n + 1, .inCaller b | n + 1, .scaled b _ => b.offBattlefield n
@@ -263,66 +218,6 @@ termination_by structural fuel
 
 def Ability.limitFits (a : Ability) (limit : Option UsageLimit) : Bool :=
   limit.isNone || a.category == some .activated
-
-def StaticSpec.regimeFits (r : Option StackRegime) (s : StaticSpec)
-    (fuel : Nat := 64) : Bool :=
-  match fuel, s with
-  | n + 1, .inCaller b | n + 1, .conditional b _ _ => b.regimeFits r n
-  | _ + 1, .costShift (.asMarker .ability _) _ => r == none
-  | _ + 1, .addedCost .. | _ + 1, .costShift .. | _ + 1, .paySubstitute ..
-  | _ + 1, .modeChoice .. | _ + 1, .addsTarget .. => r == some .atCasting
-  | _ + 1, .altCost .. => r != some .atResolution
-  | _ + 1, .can _ action _ =>
-    match action.scopeBody with
-    | .procedure .. => r != some .atResolution
-    | _ => r == none
-  | _ + 1, .instead (.would _ (.move n (.zone .stack none) _ _ _ _)) _ _ _ _ =>
-    if n.namesThis then r != some .atResolution else r == none
-  | _, _ => r == none
-termination_by structural fuel
-
-def bodyEventRegime (e : GameEvent) (fuel : Nat := 64) : Option StackRegime :=
-  match fuel, e with
-  | n + 1, .inCaller e | n + 1, .nthOccurrence _ _ e | n + 1, .causes _ e =>
-    bodyEventRegime e n
-  | _ + 1, .does _ action =>
-    match action.scopeBody with
-    | .procedure .cast .. => some .atCasting
-    | _ => none
-  | _, _ => none
-termination_by structural fuel
-
-def Ability.regimeFits (r : Option StackRegime) (a : Ability) (fuel : Nat := 64) : Bool :=
-  match fuel, a with
-  | _ + 1, .static s => s.regimeFits r
-  | _ + 1, .triggered e _ _ _ _ _ _ _ => bodyEventRegime e == r
-  | _ + 1, .activated .. => r == none
-  | _ + 1, .spell .. => r == some .atResolution
-  | n + 1, .qualified a _ _ _ _ => a.regimeFits r n
-  | _, _ => false
-termination_by structural fuel
-
-def KeywordFacts.admitsClass (row : KeywordFacts) : CardClass → Bool
-  | .permanentCard => row.onPermanentCard
-  | .instantOrSorceryCard => row.onInstantOrSorceryCard
-
-def KeywordFacts.bodyPartFits (row : KeywordFacts) (a : Ability) : Bool :=
-  match a.category with
-  | none => false
-  | some c =>
-    row.definition.any (fun part => part.category == c && a.regimeFits part.regime) &&
-      a.classGuard.all row.admitsClass &&
-      (c != .spell || !row.onPermanentCard || a.classGuard == some .instantOrSorceryCard)
-
-def keywordBodyPartFits (k : KeywordLabel) (a : Ability) : Bool :=
-  (keywordFactsFor k).elim false (fun row => row.bodyPartFits a)
-
-def Ability.generalFormOf (k : KeywordLabel) : Ability → List Ability
-  | a@(.keyword k' _ body) => if k' == k then body else [a]
-  | a => [a]
-
-def keywordBodyFits (k : KeywordLabel) (body : List Ability) : Bool :=
-  (body.flatMap (Ability.generalFormOf k)).all (keywordBodyPartFits k)
 
 def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
   match fuel, p with

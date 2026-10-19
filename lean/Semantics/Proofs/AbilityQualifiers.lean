@@ -113,12 +113,6 @@ namespace Bodies
 
 /-- Required pin: forecast [CR#702.57a,702.57b]. -/
 theorem okForecast : Ability.check (DRS.ofList []) (forecast tapToDraw) = [] := by decide
-/-- Forecast of a static ability is refused: its definition qualifies an activated ability, and
-a static ability takes no limit. -/
-theorem badForecastOfStatic :
-    Ability.check (DRS.ofList []) (forecast pumpSelf)
-      = [.qualifiedLimit, .keywordBodyFits (.named "forecast")] := by
-  decide
 /-- Required pin: boast [CR#702.142a]. -/
 theorem okBoast : Ability.check (DRS.ofList []) (boast tapToDraw) = [] := by decide
 /-- Required pin: exhaust [CR#702.177a]. -/

@@ -447,18 +447,19 @@ theorem okModeChoiceOnTriggeredModes :
               .static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
   decide
 
-theorem jointCrossAbilityChoice :
+/-- "As this creature enters, choose a color. / This creature has protection from the chosen
+color.": a later ability reads the choice an earlier one on the face makes. -/
+theorem okCrossAbilityChoice :
     Card.check
       (.singleFaced
         { characteristics :=
-            { name := some "Joint choice witness", types := [.creature],
+            { name := some "Cross-ability choice witness", types := [.creature],
               subtypes := [creatureType "Shapeshifter"],
               text :=
-                [ .static (.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
-                    .color))),
-                  .static (entersChoosing thisCreature .color) ],
-              power := stat 1, toughness := stat 1 },
-          choices := [.color] }) = [] := by
+                [ .static (entersChoosing thisCreature .color),
+                  .static (.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
+                    .color))) ],
+              power := stat 1, toughness := stat 1 } }) = [] := by
   decide
 
 /-- "Cumulative upkeep {2}" on an enchantment card -/
@@ -483,23 +484,8 @@ theorem okRenownWithRenownExpansion :
       = [] := by
   decide
 
-/-- "Flying (When this creature deals combat damage to a player, …)": flying's definition is a
-static ability [CR#702.9a,509.1b], so a triggered body is the wrong category. Re-spelled from
-`badBodyOnBodilessKeyword`, which asserted the same refusal when no keyword took a static body. -/
-theorem badTriggeredBodyOnStaticKeyword :
-    Ability.check (DRS.ofList []) (.keyword (.named "flying") [] [renownExpansion (.lit 1)])
-      = [.keywordBodyFits (.named "flying")] := by
-  decide
-
 /-- "Flying (This creature can't be blocked except by creatures with flying and/or reach.)" -/
 theorem okFlyingWithFlyingDefinition : Ability.check (DRS.ofList []) flying = [] := by decide
-
-/-- "Renown 1 (This creature can't be blocked except by creatures with flying and/or reach.)":
-renown's definition is a triggered ability [CR#702.112a]. -/
-theorem badStaticBodyOnTriggeredKeyword :
-    Ability.check (DRS.ofList []) (.keyword (.named "renown") [.number (.lit 1)] [flyingExpansion])
-      = [.keywordBodyFits (.named "renown")] := by
-  decide
 
 /-- "Bushido 2 (Whenever this creature blocks or becomes blocked, it gets +2/+2 until end of
 turn.)" -/
@@ -513,39 +499,10 @@ theorem okCyclingWithCyclingDefinition :
 theorem okProwl : Ability.check (DRS.ofList []) (prowl (.mana [generic 2, pip .blue])) = [] := by
   decide
 
-/-- "Flying ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
-definition is static [CR#702.9a,509.1b]. -/
-theorem badActivatedBodyOnStaticKeyword :
-    Ability.check (DRS.ofList []) (.keyword (.named "flying") [] [cyclingExpansion (.mana [generic 2])])
-      = [.keywordBodyFits (.named "flying")] := by
-  decide
-
-/-- "Bushido 2 ({2}, Discard this card: Draw a card.)": an activated body on a keyword whose
-definition is triggered [CR#702.45a]. -/
-theorem badActivatedBodyOnTriggeredKeyword :
-    Ability.check (DRS.ofList []) (.keyword (.named "bushido") [.number (.lit 2)]
-        [cyclingExpansion (.mana [generic 2])])
-      = [.keywordBodyFits (.named "bushido")] := by
-  decide
-
 /-- "Modular 1 (This permanent enters with a +1/+1 counter on it. When it dies, you may put a
 +1/+1 counter on target artifact creature for each +1/+1 counter on this permanent.)": a
 definition of two abilities in two categories [CR#702.43a]. -/
 theorem okModularWithModularDefinition : Ability.check (DRS.ofList []) (modular (.lit 1)) = [] := by decide
-
-/-- "Modular 1 (… {2}, Discard this card: Draw a card.)": one element of the definition list is
-of a category modular does not declare [CR#702.43a]. -/
-theorem badUndeclaredCategoryInDefinitionList :
-    Ability.check (DRS.ofList []) (.keyword (.named "modular") [.number (.lit 1)]
-        (modularExpansion (.lit 1) ++ [cyclingExpansion (.mana [generic 2])]))
-      = [.keywordBodyFits (.named "modular")] := by
-  decide
-
-/-- "Renown 1 (When you cast this spell, copy it …)" -/
-theorem badRenownWithStormExpansion :
-    Ability.check (DRS.ofList []) (.keyword (.named "renown") [.number (.lit 1)] [stormExpansion])
-      = [.keywordBodyFits (.named "renown")] := by
-  decide
 
 /-- "your commander" -/
 theorem okPossessedCommander :

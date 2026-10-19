@@ -7,8 +7,7 @@ import Semantics.Check.Card
 The keyword abilities `semantics-v2-keyword-ability-census` bodied from vocabulary that already
 existed: saddle and teamwork over a group bounded by its total power (`SliceCount.totalling`, as
 crew's cost is written), awaken as an alternative cost and a spell ability, and indestructible as
-a prohibition over the destroy deed. Each definition is written as its declaration builds it, fits
-the registry's row, and checks.
+a prohibition over the destroy deed. Each definition is written as its declaration builds it, checks.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -23,11 +22,10 @@ def saddleDefinition : List Ability :=
         (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]])))))
       (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
 
-/-- "Saddle 2" with its Definition fits the registry's row and checks [CR#702.171a]. -/
+/-- "Saddle 2" with its Definition checks [CR#702.171a]. -/
 theorem okSaddleDefinition :
-    (keywordBodyFits (.named "saddle") saddleDefinition,
-      Ability.check (DRS.ofList []) (.keyword (.named "saddle") [.number (.lit 2)] saddleDefinition))
-      = (true, []) := by
+    Ability.check (DRS.ofList []) (.keyword (.named "saddle") [.number (.lit 2)] saddleDefinition)
+      = [] := by
   decide
 
 /-- Saddling taps other creatures: a total over "creatures you control" with no "other" may
@@ -47,12 +45,11 @@ def teamworkDefinition : List Ability :=
       (.perform (tap (withTotal (.stat .power) .atLeast (.lit 2) (allOf (and [isCreature, youControl])))))
       true .once) ]
 
-/-- "Teamwork 2" with its Definition fits the registry's row and checks
+/-- "Teamwork 2" with its Definition checks
 [CR#702.194a]. -/
 theorem okTeamworkDefinition :
-    (keywordBodyFits (.named "teamwork") teamworkDefinition,
-      Ability.check (DRS.ofList []) (.keyword (.named "teamwork") [.number (.lit 2)] teamworkDefinition))
-      = (true, []) := by
+    Ability.check (DRS.ofList []) (.keyword (.named "teamwork") [.number (.lit 2)] teamworkDefinition)
+      = [] := by
   decide
 
 /-- "{5}{U}" -/
@@ -76,25 +73,23 @@ def awakenDefinition : List Ability :=
                   .addedAbilities [keyword (.named "haste")] ])
               none ])) ]
 
-/-- "Awaken 4—{5}{U}" with its Definition fits the registry's row and checks
+/-- "Awaken 4—{5}{U}" with its Definition checks
 [CR#702.113a]. -/
 theorem okAwakenDefinition :
-    (keywordBodyFits (.named "awaken") awakenDefinition,
-      Ability.check (DRS.ofList []) (.keyword (.named "awaken") [.number (.lit 4), .cost awakenCost]
-        awakenDefinition))
-      = (true, []) := by
+    Ability.check (DRS.ofList []) (.keyword (.named "awaken") [.number (.lit 4), .cost awakenCost]
+        awakenDefinition)
+      = [] := by
   decide
 
 /-- "A permanent with indestructible can't be destroyed." [CR#702.12b] -/
 def indestructibleDefinition : List Ability :=
   [ .static (cant any (destroy thisPermanent)) ]
 
-/-- Indestructible with its Definition fits the registry's row and checks
+/-- Indestructible with its Definition checks
 [CR#702.12b]. -/
 theorem okIndestructibleDefinition :
-    (keywordBodyFits (.named "indestructible") indestructibleDefinition,
-      Ability.check (DRS.ofList []) (.keyword (.named "indestructible") [] indestructibleDefinition))
-      = (true, []) := by
+    Ability.check (DRS.ofList []) (.keyword (.named "indestructible") [] indestructibleDefinition)
+      = [] := by
   decide
 
 /-- What is destroyed is a permanent [CR#701.8a]: a player can't be named in the destroy deed's

@@ -102,12 +102,6 @@ was declared (`semantics-v2-devour-quality-keyword`). -/
 theorem okDevourQuality :
     Ability.check (DRS.ofList []) (devourQuality isArtifact (.lit 2)) = [] := by decide
 
-/-- Twin: the checker compares expanded component categories. A nested keyword line does not
-supply that expansion; keyword names abbreviate their rules text [CR#702.1]. -/
-theorem badOtherKeywordInDevourDefinition :
-    Ability.check (DRS.ofList []) (.keyword (.named "devour") [.number (.lit 1)] [riot])
-      = [.keywordBodyFits (.named "devour")] := by decide
-
 /-- Riot [CR#702.136a]. -/
 theorem okRiot : Ability.check (DRS.ofList []) riot = [] := by decide
 

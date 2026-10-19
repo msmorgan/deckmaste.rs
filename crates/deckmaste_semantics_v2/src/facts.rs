@@ -110,13 +110,6 @@ pub struct KeywordParamSpec {
 /// One ordered argument schema a keyword admits.
 pub type KeywordSchema = Vec<KeywordParamSpec>;
 
-/// When a keyword's ability applies relative to the stack.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum StackRegime {
-    AtCasting,
-    AtResolution,
-}
-
 /// The general category an ability belongs to [CR#113.3]: instructions
 /// followed while an instant or sorcery spell resolves, a statement that is
 /// simply true, a trigger condition with an effect, or a cost with an effect
@@ -132,20 +125,6 @@ pub enum AbilityCategory {
     Spell,
 }
 
-/// One ability of a keyword's definition as the registry declares it
-/// [CR#702.1]: its category and the stack regime the rules give it, `None`
-/// where it functions off the stack. A keyword's abilities need not share one
-/// regime: offspring pays its cost as the spell is cast and its second ability
-/// triggers as the permanent enters [CR#702.175a], casualty's second ability
-/// triggers as the spell is cast [CR#702.153a], and an instant or sorcery's
-/// spell ability is followed as the spell resolves [CR#113.3a,702.174b].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub struct ComponentFacts {
-    pub category: AbilityCategory,
-    #[serde(default)]
-    pub regime: Option<StackRegime>,
-}
-
 /// One keyword ability's columns.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[expect(
@@ -158,17 +137,6 @@ pub struct KeywordFacts {
     /// variants.
     #[serde(default)]
     pub argument_schemas: Vec<KeywordSchema>,
-    #[serde(default)]
-    pub counter_eligible: bool,
-    /// The keyword's own stack regime, read where it is granted to a spell
-    /// [CR#113.6]. A keyword whose definition is declared has the summary of
-    /// its components': the first stack regime among them.
-    #[serde(default)]
-    pub regime: Option<StackRegime>,
-    /// True where the ability is the spell's own, so no permanent holds it
-    /// [CR#113.6].
-    #[serde(default)]
-    pub functions_on_stack: bool,
     #[serde(default = "yes")]
     pub on_permanent_card: bool,
     #[serde(default)]
@@ -180,11 +148,6 @@ pub struct KeywordFacts {
     /// [CR#702.174a,607.2d].
     #[serde(default)]
     pub cost_chooses_player: bool,
-    /// The abilities the keyword's definition is written in [CR#702.1], each
-    /// with its category and its own stack regime. An empty list is a keyword
-    /// whose definition the workbench has not yet declared.
-    #[serde(default)]
-    pub definition: Vec<ComponentFacts>,
     #[serde(default)]
     pub wants_modes: bool,
 }

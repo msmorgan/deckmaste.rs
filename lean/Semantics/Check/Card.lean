@@ -53,8 +53,7 @@ termination_by structural fuel
 def classAbilityOk (c : CardClass) (a : Ability) (fuel : Nat := 64) : Bool :=
   match fuel, a with
   | 0, _ => false
-  | n + 1, .keyword k _ body => keywordCardOk c k &&
-    body.all (fun a => a.classGuard.all (· != c) || classAbilityOk c a n)
+  | _ + 1, .keyword k _ _ => keywordCardOk c k
   | n + 1, .alsoForKeywords a _ | n + 1, .italicHead _ a | n + 1, .qualified a _ _ _ _ =>
     classAbilityOk c a n
   | _ + 1, .spell _ _ => c == .instantOrSorceryCard
@@ -269,23 +268,6 @@ def modalFrameOk (text : List Ability) : Bool :=
   (!text.any Ability.keywordWantsModes || text.any Ability.writesModes) &&
     (!text.any Ability.writesModeChoice || text.any Ability.hasModes)
 
-def jointDRS (qs : List QualitySort) (cost : Option ManaCost) : DRS :=
-  DRS.ofList (qs.map qualityB ++ costLetters cost)
-
-def Ability.introducedChoices (drs : DRS) (a : Ability) : List Referent :=
-  let out := match a with
-    | .activated _ i _ _ _ _ | .triggered _ _ _ _ _ _ _ i | .spell _ i =>
-      (stepAction 64 .postEvent .obj drs i).1
-    | .static se => (stepStaticSpec 64 drs se).1
-    | _ => drs
-  out.referents.filter (fun r => r.id ≥ drs.nextId)
-
-def textIntroducedChoices (drs : DRS) (text : List Ability) : List Referent :=
-  text.flatMap (Ability.introducedChoices drs)
-
-def jointChoicesOk (qs : List QualitySort) (made : List Referent) : Bool :=
-  qs.all fun q => countChoice (.quality q) (DRS.ofList made) != 0
-
 /-- The text laws a shared-line half shares with a face; a door header belongs to a Room's
 shared line, so the door-frame law is a face's alone. -/
 def halfTextLaws (line : Characteristics) (text : List Ability) : List Refusal :=
@@ -307,22 +289,13 @@ def Characteristics.check (drs : DRS) (c : Characteristics) : List Refusal :=
 
 def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
   let c := f.characteristics
-  let bs := jointDRS f.choices c.cost
-  refuse c.name.isSome .cardName ++ Ability.checkText bs c.text ++ c.lineLaws ++
-    textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
-    refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD [] ++
-    refuse (jointChoicesOk f.choices (textIntroducedChoices bs c.text)) .jointChoices
-
-/-- A half reads its own cost's letters and the choices the shared line announces. -/
-def SharedLineHalf.bindings (shared : CardFace) (h : SharedLineHalf) : DRS :=
-  jointDRS shared.choices h.cost
-
-def SharedLineHalf.introducedChoices (shared : CardFace) (h : SharedLineHalf) : List Referent :=
-  textIntroducedChoices (h.bindings shared) h.text
+  refuse c.name.isSome .cardName ++ Ability.checkText (DRS.ofList (costLetters c.cost)) c.text ++
+    c.lineLaws ++ textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
+    refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD []
 
 def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
   let line := shared.characteristics
-  Ability.checkText (h.bindings shared) h.text ++ halfTextLaws line h.text ++
+  Ability.checkText (DRS.ofList (costLetters h.cost)) h.text ++ halfTextLaws line h.text ++
     refuse (cardBoxOk .front line.types h.text line) .cardBox ++
     refuse (cardCostOk .front line.types h.cost) .cardCost ++
     (h.cost.map ManaCost.check).getD []
@@ -393,9 +366,7 @@ def Card.check : Card → List Refusal
   | .sharedLineSplit shared left right =>
     let line := shared.characteristics
     line.lineLaws ++ refuse (anyPermanentType line.types) .cardLine ++
-      left.check shared ++ right.check shared ++
-      refuse (jointChoicesOk shared.choices
-        (left.introducedChoices shared ++ right.introducedChoices shared)) .jointChoices
+      left.check shared ++ right.check shared
   | .adventurer normal adventure =>
     normal.check .front ++ adventure.check .front ++
       refuse (adventureInsetOk adventure.characteristics) .adventureInset

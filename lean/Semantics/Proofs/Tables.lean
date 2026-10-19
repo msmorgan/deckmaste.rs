@@ -38,12 +38,6 @@ theorem counterLabelsDistinct : distinctCounterLabels counterFacts = true := by 
 
 theorem keywordWordsDistinct : distinctKeywordWords keywordFacts = true := by decide
 
-/-- A keyword whose definition is declared has its components' summary as its own regime: the
-first stack regime among them. -/
-theorem everyDefinedKeywordRegimeIsItsComponentsSummary :
-    keywordFacts.all (fun row => row.definition.isEmpty ||
-      row.regime == ComponentFacts.summary row.definition) = true := by decide
-
 theorem designationLabelsDistinct : distinctDesignationLabels designationTable = true := by decide
 
 theorem subtypeFactsDistinct : distinctSubtypeFacts subtypeFacts = true := by decide

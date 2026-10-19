@@ -139,13 +139,6 @@ impl Regime {
             Regime::AtResolution => "AtResolution",
         }
     }
-
-    pub(super) fn lean(self) -> &'static str {
-        match self {
-            Regime::AtCasting => ".atCasting",
-            Regime::AtResolution => ".atResolution",
-        }
-    }
 }
 
 /// The general category an ability is written in [CR#113.3]. A keyword's
@@ -186,9 +179,7 @@ struct Row {
     label: &'static str,
     extra: &'static [Shape],
     /// The keyword's own stack regime, read where it is granted to a spell
-    /// [CR#113.6]. For a keyword whose definition is declared it is the
-    /// summary of its components' regimes (the first stack regime among
-    /// them), and the generator refuses a value that disagrees.
+    /// [CR#113.6]: an Idris gate column.
     regime: Option<Regime>,
     functions_on_stack: bool,
     on_permanent_card: bool,
@@ -198,18 +189,11 @@ struct Row {
     /// cost reads back (gift's "you may choose an opponent" [CR#702.174a]).
     /// Lean only: the Idris reference table has no such column.
     cost_chooses_player: bool,
-    /// The components this keyword's definition is written in, each with
-    /// its category and its own stack regime, from its own [CR#702] entry.
-    /// Empty is a keyword whose definition the workbench has not declared
-    /// yet, and whose term therefore carries no body.
-    definition: &'static [(Category, Option<Regime>)],
-    /// The stack regime of each component of the WRITTEN definition whose
-    /// form leaves it open, by position: a permission to cast the card
-    /// functions on the stack as the spell is cast for some keywords
-    /// [CR#702.117a] and in the zone the card is cast from for others
-    /// [CR#702.34a]. A component left out here functions off the stack. A
-    /// component whose form determines its regime takes no entry.
-    open_regimes: &'static [(usize, Regime)],
+    /// The categories of the components this keyword's definition is
+    /// written in, from its own [CR#702] entry. Empty is a keyword whose
+    /// definition the workbench has not declared yet, and whose term
+    /// therefore carries no body.
+    definition: &'static [Category],
     wants_modes: bool,
 }
 
@@ -225,7 +209,6 @@ const D: Row = Row {
     paid_cost: false,
     cost_chooses_player: false,
     definition: &[],
-    open_regimes: &[],
     wants_modes: false,
 };
 
@@ -352,9 +335,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Flash",
-            // Its permission to play functions in the zone the card is played
-            // from, as the card is cast [CR#702.8a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -386,7 +366,7 @@ fn overlay() -> Vec<Row> {
             label: "Echo",
             // The workbench cannot spell this definition, so the declaration
             // writes none and the [CR#702.30a] entry is what names its category.
-            definition: &[(Category::Triggered, None)],
+            definition: &[Category::Triggered],
             paid_cost: true,
             ..D
         },
@@ -451,9 +431,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Warp",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.185a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -468,21 +445,21 @@ fn overlay() -> Vec<Row> {
             label: "Boast",
             // The definition qualifies the activated ability printed with the
             // keyword; the [CR#702.142a] entry names its category.
-            definition: &[(Category::Activated, None)],
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "Exhaust",
             // The definition qualifies the activated ability printed with the
             // keyword; the [CR#702.177a] entry names its category.
-            definition: &[(Category::Activated, None)],
+            definition: &[Category::Activated],
             ..D
         },
         Row {
             label: "PowerUp",
             // The definition qualifies the activated ability printed with the
             // keyword; the [CR#702.193a] entry names its category.
-            definition: &[(Category::Activated, None)],
+            definition: &[Category::Activated],
             ..D
         },
         Row {
@@ -558,9 +535,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Prowl",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.76a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -569,9 +543,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Surge",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.117a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -580,9 +551,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Spectacle",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.137a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -599,9 +567,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Sneak",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.190a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -690,9 +655,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Overload",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.96a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -702,9 +664,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Dash",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.109a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -717,9 +676,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Blitz",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.152a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -727,9 +683,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Cleave",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.148a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -750,9 +703,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Impending",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.176a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -760,9 +710,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Awaken",
-            // The permission to cast it for the awaken cost leaves its regime
-            // to the keyword's: it functions on the stack [CR#702.113a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -849,7 +796,7 @@ fn overlay() -> Vec<Row> {
             label: "Cascade",
             // The workbench cannot spell this definition, so the declaration
             // writes none and the [CR#702.85a] entry is what names its category.
-            definition: &[(Category::Triggered, Some(Regime::AtCasting))],
+            definition: &[Category::Triggered],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -1069,7 +1016,7 @@ fn overlay() -> Vec<Row> {
             label: "Forecast",
             // The definition qualifies the activated ability printed with the
             // keyword; the [CR#702.57a] entry names its category.
-            definition: &[(Category::Activated, None)],
+            definition: &[Category::Activated],
             on_spell_card: true,
             ..D
         },
@@ -1237,9 +1184,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "Rebound",
-            // Its replacement of the spell's move to the graveyard functions
-            // while the spell is on the stack [CR#702.88a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_permanent_card: false,
@@ -1266,7 +1210,7 @@ fn overlay() -> Vec<Row> {
         Row { label: "Riot", ..D },
         Row {
             label: "Ripple",
-            definition: &[(Category::Triggered, Some(Regime::AtCasting))],
+            definition: &[Category::Triggered],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             on_spell_card: true,
@@ -1282,9 +1226,9 @@ fn overlay() -> Vec<Row> {
             // The definition qualifies the ability printed with the keyword,
             // which is static, triggered or activated [CR#702.169a].
             definition: &[
-                (Category::Static, None),
-                (Category::Triggered, None),
-                (Category::Activated, None),
+                Category::Static,
+                Category::Triggered,
+                Category::Activated,
             ],
             ..D
         },
@@ -1390,9 +1334,6 @@ fn overlay() -> Vec<Row> {
         },
         Row {
             label: "WebSlinging",
-            // Its permission to cast functions while the spell is on the
-            // stack [CR#702.188a].
-            open_regimes: &[(0, Regime::AtCasting)],
             regime: Some(Regime::AtCasting),
             functions_on_stack: true,
             paid_cost: true,
@@ -1549,7 +1490,7 @@ fn render(root: &Path) -> anyhow::Result<String> {
         let categories = declared
             .map(|declared| lean::resolved_categories(row, declared))
             .filter(|categories| !categories.is_empty())
-            .unwrap_or_else(|| row.definition.iter().map(|(c, _)| c.lean()).collect());
+            .unwrap_or_else(|| row.definition.iter().map(|c| c.lean()).collect());
         if categories == [Category::Triggered.lean()] {
             fields.push("bodied := True".to_owned());
         }

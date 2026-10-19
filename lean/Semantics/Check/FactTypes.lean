@@ -66,10 +66,6 @@ structure KeywordParamSpec where
 
 abbrev KeywordSchema := List KeywordParamSpec
 
-inductive StackRegime where
-  | atCasting | atResolution
-  deriving DecidableEq, Repr
-
 /-- The general category an ability belongs to [CR#113.3]: instructions followed while an
 instant or sorcery spell resolves, a statement that is simply true, a trigger condition with an
 effect, or a cost with an effect [CR#113.3a,113.3b,113.3c,113.3d]. A keyword ability's definition
@@ -79,40 +75,16 @@ inductive AbilityCategory where
   | static | triggered | activated | spell
   deriving DecidableEq, Repr
 
-/-- One ability of a keyword's definition as the registry declares it [CR#702.1]: its category
-and the stack regime the rules give it, `none` where it functions off the stack. A keyword's
-abilities need not share one regime: offspring pays its cost as the spell is cast and its
-second ability triggers as the permanent enters [CR#702.175a], casualty's second ability
-triggers as the spell is cast [CR#702.153a], and an instant or sorcery's spell ability is
-followed as the spell resolves [CR#113.3a,702.174b]. -/
-structure ComponentFacts where
-  category : AbilityCategory
-  regime : Option StackRegime := none
-  deriving DecidableEq, Repr
-
 structure KeywordFacts where
   word : KeywordLabel
   /-- Ordered argument schemas admitted by the keyword declaration and its variants. -/
   argumentSchemas : List KeywordSchema := []
-  counterEligible : Bool := false
-  /-- The keyword's own stack regime, read where it is granted to a spell
-  [CR#113.6]. A keyword whose definition is declared has the summary of its components': the
-  first stack regime among them (`ComponentFacts.summary`, pinned in `Proofs/Tables`). -/
-  regime : Option StackRegime := none
-  /-- True where the ability is the spell's own, so no permanent holds it [CR#113.6]. -/
-  functionsOnStack : Bool := false
   onPermanentCard : Bool := true
   onInstantOrSorceryCard : Bool := false
   paidCost : Bool := false
   /-- True where paying the keyword's cost chooses a player, whom the ability linked to that cost
   reads back, as gift's "you may choose an opponent" [CR#702.174a,607.2d]. -/
   costChoosesPlayer : Bool := false
-  /-- The abilities the keyword's definition is written in [CR#702.1], each with its category
-  and its own stack regime. A card may leave the definition unwritten; a written one is an
-  ability of one of these components
-  [CR#702.9b,702.21a,702.24a,702.29a,702.30a,702.40a,702.45a,702.86a,702.112a,702.135a]. An
-  empty list is a keyword whose definition the workbench has not yet declared. -/
-  definition : List ComponentFacts := []
   wantsModes : Bool := false
   deriving Repr, BEq
 

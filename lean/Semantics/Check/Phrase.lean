@@ -3066,8 +3066,7 @@ def stepOps : Nat → StepOps
         | .keyword k params body =>
           checkKeywordParamsWith ops drs ((keywordSchemaFor k params).getD []) params ++
             (stepAbilityListWith ops (enterOwnScope drs) body).2 ++
-            refuse (keywordParamFits k params) (.keywordParamFits k) ++
-            refuse (keywordBodyFits k body) (.keywordBodyFits k)
+            refuse (keywordParamFits k params) (.keywordParamFits k)
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with
             | some a => let (d, _, e) := ops.np drs .subj true a; (d, e)

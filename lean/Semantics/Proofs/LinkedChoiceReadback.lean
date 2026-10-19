@@ -15,9 +15,6 @@ The facet resolves where the named cost chooses a player when it is paid (the ke
 `costChoosesPlayer`); a cost that chooses no player leaves the linked ability nothing to read,
 which is a reference refusal [CR#607.2d]. The checker requires that explicit facet for the cost link; a bare "the chosen player"
 requests a local choice instead.
-
-The definition-fit pins hold a row written here, shaped as gift's, from before gift was bodied;
-`Proofs/GiftVariants.lean` checks gift's variants against the registry's own row.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -49,12 +46,6 @@ def permanentHalf : Ability :=
 chosen player draws a card." [CR#702.174b,113.3a] -/
 def spellHalf : Ability :=
   .spell none (doIf onInstantOrSorcery (doIf (costWasPaid gift none .this) chosenDraws))
-
-/-- A definition on both classes, as gift's will be [CR#702.174a,702.174b]. -/
-def giftShapedRow : KeywordFacts :=
-  { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true,
-    paidCost := true, costChoosesPlayer := true,
-    definition := [⟨.triggered, none⟩, ⟨.spell, some .atResolution⟩] }
 
 /-- Required pin: gift's second ability reads the opponent chosen as its gift cost was paid. -/
 theorem okGiftReadsChosenPlayer :
@@ -104,17 +95,12 @@ theorem okBothHalvesReadChosenPlayer :
     Ability.checkAll (DRS.ofList []) [permanentHalf, spellHalf] = [] := by
   decide
 
-/-- Both halves fit a definition declaring a triggered and a spell ability. -/
-theorem okBothHalvesFitGiftShapedDefinition :
-    [permanentHalf, spellHalf].all giftShapedRow.bodyPartFits = true := by
-  decide
-
-/-- On a permanent card the permanent half reads the chosen player under its guard. -/
+/-- Gift's definition holding both halves is carried on a permanent card. -/
 theorem okPermanentClassReadsChosenPlayer :
     cardTextOk [.creature] [.keyword (.named "gift") [] [permanentHalf, spellHalf]] = true := by
   decide
 
-/-- On an instant card the spell half reads the chosen player under its guard. -/
+/-- Gift's definition holding both halves is carried on an instant card. -/
 theorem okSpellClassReadsChosenPlayer :
     cardTextOk [.instant] [.keyword (.named "gift") [] [permanentHalf, spellHalf]] = true := by
   decide

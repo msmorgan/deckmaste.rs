@@ -9,11 +9,9 @@ only. A face is a `CardFace`; the frames that carry more than one set name each.
 
 namespace Semantics
 
-/-- A printed face: its characteristics and the choices its text announces as it enters (the
-joint-choice device the face checker reads). -/
+/-- A printed face: its characteristics. -/
 structure CardFace where
   characteristics : Characteristics
-  choices : List QualitySort := []
 
 /-- One half of a split card whose halves share a type line: its own name, cost, and text. -/
 structure SharedLineHalf where

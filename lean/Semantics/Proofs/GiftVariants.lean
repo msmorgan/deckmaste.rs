@@ -10,8 +10,7 @@ ability guarded by the instant-or-sorcery class, each handing the effect to the 
 the gift cost was paid [CR#607.2d,607.2i]. Bare gift has no spelling; each spelled variant is gift
 with its effect (`giftACard`, `giftATappedFish`, … in `Semantics.Definitions`). These pins hold the
 two variants printed on both card classes, "Gift a card" [CR#702.174e] and "Gift a tapped Fish"
-[CR#702.174f], against the registry's own gift row, on a permanent card and on an instant, with
-twins that must stay refused.
+[CR#702.174f], on a permanent card and on an instant, with a twin that must stay refused.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -50,8 +49,8 @@ def giftACard : Ability := gift (draw (.lit 1))
 def giftATappedFish : Ability :=
   gift (createTappedToken (creatureToken 1 1 [.blue] [creatureType "Fish"]))
 
-/-- Both variants fit the registry's gift row and check with no class context. -/
-theorem okVariantsFitGiftRow :
+/-- Both variants check with no class context. -/
+theorem okVariantsCheck :
     (Ability.check (DRS.ofList []) giftACard, Ability.check (DRS.ofList []) giftATappedFish) = ([], []) := by
   decide
 
@@ -65,22 +64,6 @@ Flood Maw). -/
 theorem okGiftATappedFishOnBothClasses :
     (cardTextOk [.artifact] [giftATappedFish], cardTextOk [.instant] [giftATappedFish])
       = (true, true) := by
-  decide
-
-/-- Twin: the spell half guarded by the permanent class does not fit gift's row, which puts a
-spell ability under the instant-or-sorcery guard [CR#113.3a,702.174b], and is refused on a
-permanent card. -/
-def giftACardSpellHalfOnPermanent : Ability :=
-  .keyword (.named "gift") []
-    [ costPart,
-      triggeredIf (does thisPermanent enter) onPermanent
-        (handed (draw (.lit 1))),
-      .spell none (doIf onPermanent (handed (draw (.lit 1)))) ]
-
-theorem badSpellHalfUnderPermanentGuard :
-    (Ability.check (DRS.ofList []) giftACardSpellHalfOnPermanent,
-      cardTextOk [.creature] [giftACardSpellHalfOnPermanent])
-      = ([.keywordBodyFits (.named "gift")], false) := by
   decide
 
 /-- Twin: "the chosen player" read in the effect's own scope does not reach the opponent chosen
