@@ -1040,7 +1040,7 @@ theorem okThickSkinnedGoblinEchoAltCost :
     Ability.check (DRS.ofList []) thickSkinnedGoblinEchoAltCost = [] := by decide
 /-- Fumiko the Lowblood -/
 def fumikoBushidoX : Ability :=
-  static (conjunction [ abilityGrant thisCreature (keywordNumber (.named "bushido") (letter .x)),
+  static (conjunction [ abilityGrant thisCreature (bushido (letter .x)),
       letterDefinition .x (countOf isAttacking) ])
 theorem okFumikoBushidoX : Ability.check (DRS.ofList []) fumikoBushidoX = [] := by decide
 

@@ -2874,7 +2874,8 @@ def stepOps : Nat → StepOps
           let (drs1, _, e1) := ops.np drs .subj true subj
           let e2 := ops.ab (choiceContext drs1) ab
           let out := match ab with
-            | .keyword _ [.number (.letter l)] _ =>
+            | .keyword _ [.number (.letter l)] _
+            | .keyword _ [.number (.inCaller (.letter l))] _ =>
               (introducedLetters l drs1).foldl (fun d r => d.push r .other false) drs1
             | _ => drs1
           (out, e1 ++ e2)
