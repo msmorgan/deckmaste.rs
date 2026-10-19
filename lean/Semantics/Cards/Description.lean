@@ -69,7 +69,7 @@ theorem okUnholyAnnex : Action.check (DRS.ofList []) unholyAnnex = [] := by deci
 
 /-- War Screecher -/
 def warScreecher : Action :=
-  get (allOf ((and [isCreature, youControl, otherThan thisCreature]))) (up (.lit 1)) (up (.lit 1))
+  get (allOf (and [isCreature, youControl, otherThan thisCreature])) (up (.lit 1)) (up (.lit 1))
     (some untilEndOfTurn)
 theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by decide
 
@@ -134,7 +134,7 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
                 (gainLife (.lit 6)),
               doIf (compareAmt (countOf (and [isCreature, youControl])) .less
                       (countOf (and [isCreature, controlledBy anOpponent])))
-                (createToken (creatureToken 1 1 [.white] [soldier]) (count := (.lit 3))) ]) ] } }
+                (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)) ]) ] } }
 
 /-- Survival Cache -/
 def survivalCache : Action :=
@@ -259,11 +259,11 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
         [ spell (doIf
             (and
               [ matches_ «this» (castFrom yourHand),
-                happened (procedure .cast ((a
+                happened (cast (a
                   (and [ isSpell, otherThan
                   «this»,
                              named (printedName
-                               "Approach of the Second Sun") ]))) itsOwnCost) you thisGame ])
+                               "Approach of the Second Sun") ]))) you thisGame ])
             winGame
             (some (sequentially
               [ putInto «this» (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
@@ -405,7 +405,7 @@ theorem okCreatureSpellFromAmongExiled :
     NounPhrase.checkAt (some .object) (DRS.ofList []) creatureSpellFromAmongExiled = [] := by decide
 
 def ringHasTemptedYouTwiceThisGame : Condition :=
-  compareAmt (eventCount (theRingTemptsYou) you thisGame)
+  compareAmt (eventCount theRingTemptsYou you thisGame)
     .atLeast (.lit 2)
 theorem okRingHasTemptedYouTwiceThisGame :
     Condition.check (DRS.ofList []) ringHasTemptedYouTwiceThisGame = [] := by decide

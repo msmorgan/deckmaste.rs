@@ -103,7 +103,7 @@ def femerefEnchantress : Spelled := spelled <| .singleFaced
     { name := "Femeref Enchantress", cost := some [pip .green, pip .white], types := [.creature],
       subtypes := [human, druid],
       text :=
-        [ whenever (does any (putInto (a isEnchantment) graveyard (from_ := some (battlefield))))
+        [ whenever (does any (putInto (a isEnchantment) graveyard (from_ := some battlefield)))
             (draw (.lit 1)) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -205,7 +205,7 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
               [ createToken
                   { characteristics :=
                     { types := [.artifact, .creature], subtypes := [thopter],
-                      text := [keyword (.named "flying")], power := stat 1, toughness := stat 1 } } (count := (.lit 2)),
+                      text := [keyword (.named "flying")], power := stat 1, toughness := stat 1 } } (count := .lit 2),
                 gainHaste them (some untilEndOfTurn) ]),
           activated (loyaltySymbol (.down 4))
             (getEmblem
@@ -615,8 +615,8 @@ def secretsOfTheDead : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secrets of the Dead", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (does you (procedure .cast ((a
-          (and [isSpell, castFrom yourGraveyard]))) itsOwnCost))
+        [ whenever (does you (cast (a
+          (and [isSpell, castFrom yourGraveyard]))))
             (draw (.lit 1)) ] } }
 
 def coalStoker : Spelled := spelled <| .singleFaced
@@ -635,9 +635,9 @@ def vegaTheWatcher : Spelled := spelled <| .singleFaced
       subtypes := [bird, spirit],
       text :=
         [ keyword (.named "flying"),
-          whenever (does you (procedure .cast ((a
+          whenever (does you (cast (a
             (and [isSpell, not
-            (castFrom yourHand)]))) itsOwnCost))
+            (castFrom yourHand)]))))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -797,7 +797,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
           vigilance,
           triggeredIf (beginningOfYour .endStep)
             (not
-               (happened (procedure .cast (((a isSpell))) itsOwnCost none (some yourHand))
+               (happened (cast (a isSpell) (from_ := some yourHand))
                   you soFarThisTurn))
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
@@ -809,9 +809,9 @@ def gnarlbackRhino : Spelled := spelled <| .singleFaced
       subtypes := [rhino],
       text :=
         [ trample,
-          whenever (does you (procedure .cast ((a
+          whenever (does you (cast (a
             (and [isSpell, targeting thisCreature
-            .someTarget]))) itsOwnCost))
+            .someTarget]))))
             (draw (.lit 1)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -821,8 +821,8 @@ def prismariPianist : Spelled := spelled <| .singleFaced
     { name := "Prismari Pianist", cost := some [generic 1, pip .red, pip .red], types := [.creature],
       subtypes := [djinn, bard],
       text :=
-        [ whenever (does you (procedure .cast ((a
-          (and [isInstantOrSorcery, isSpell]))) itsOwnCost))
+        [ whenever (does you (cast (a
+          (and [isInstantOrSorcery, isSpell]))))
             (replace
               (createToken (creatureToken 1 1 [.blue, .red] [elemental]))
               (doIf (compareAmt (statOf (.stat .manaValue) (that .spell)) .atLeast (.lit 5))
@@ -899,8 +899,8 @@ def upTheBeanstalk : Spelled := spelled <| .singleFaced
     { name := "Up the Beanstalk", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
         [ triggeredJoined (does «this» enter)
-            [joinedHead (does you (procedure .cast ((a
-              (and [isSpell, hasManaValue .atLeast (.lit 5)]))) itsOwnCost))]
+            [joinedHead (does you (cast (a
+              (and [isSpell, hasManaValue .atLeast (.lit 5)]))))]
             (draw (.lit 1)) ] } }
 
 /-- Sheltered Valley -/
@@ -946,9 +946,9 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           static (entersChoosing thisCreature .number),
           whenever
-            (does anOpponent (procedure .cast ((a (and [isSpell,
+            (does anOpponent (cast (a (and [isSpell,
                         compare .eq chosenNumber (axes := [.stat .manaValue, .stat .power, .stat
-                          .toughness])]))) itsOwnCost))
+                          .toughness])]))))
             (sequentially [instruct (that .player) (loseLife (.lit 2)), draw (.lit 1)]) ],
       power := stat 3, toughness := stat 4 } }
 

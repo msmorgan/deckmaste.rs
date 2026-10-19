@@ -174,13 +174,13 @@ def firesongAndSunspeaker : Ability :=
     lifelink)
 theorem okFiresongAndSunspeaker : Ability.check (DRS.ofList []) firesongAndSunspeaker = [] := by decide
 def briaRiptideRogue : Ability :=
-  static (abilityGrant (allOf ((and [isCreature, youControl, otherThan thisCreature]))) (keyword (.named "prowess")))
+  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) (keyword (.named "prowess")))
 theorem okBriaRiptideRogue : Ability.check (DRS.ofList []) briaRiptideRogue = [] := by decide
 def narsetEnlightenedExile : Ability :=
   static (abilityGrant (allOf (and [isCreature, youControl])) (keyword (.named "prowess")))
 theorem okNarsetEnlightenedExile : Ability.check (DRS.ofList []) narsetEnlightenedExile = [] := by decide
 def pontiffOfBlight : Ability :=
-  static (abilityGrant (allOf ((and [isCreature, youControl, otherThan thisCreature]))) (keyword (.named "extort")))
+  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) (keyword (.named "extort")))
 theorem okPontiffOfBlight : Ability.check (DRS.ofList []) pontiffOfBlight = [] := by decide
 
 def prismariTheInspiration : Spelled := spelled <| .singleFaced
@@ -292,7 +292,7 @@ def colossalGraveReaver : Spelled := spelled <| .singleFaced
           whenever
             (does any
                (putInto (counted (atLeast 1) (and [isCard, isCreature])) yourGraveyard
-                  (from_ := some (yourLibrary))))
+                  (from_ := some yourLibrary)))
             (putOntoBattlefield (someOf (exactly 1) them)) ],
       power := stat 7, toughness := stat 6 } }
 
@@ -807,9 +807,9 @@ def dreamThief : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           when (does thisCreature enter)
             (doOnlyIf (draw (.lit 1))
-              (happened (procedure .cast ((a
+              (happened (cast (a
                 (and [isSpell, hasColor .blue,
-                otherThan «this»]))) itsOwnCost) you soFarThisTurn)) ],
+                otherThan «this»]))) you soFarThisTurn)) ],
       power := stat 2, toughness := stat 1 } }
 
 def brightspearZealot : Spelled := spelled <| .singleFaced
@@ -819,7 +819,7 @@ def brightspearZealot : Spelled := spelled <| .singleFaced
       text :=
         [ vigilance,
           static (onlyWhile (getsPt thisCreature (up (.lit 2)) (up (.lit 0)))
-            (compareAmt (eventCount (procedure .cast ((a isSpell)) itsOwnCost) you soFarThisTurn) .atLeast (.lit
+            (compareAmt (eventCount (cast (a isSpell)) you soFarThisTurn) .atLeast (.lit
               2))) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -1010,8 +1010,8 @@ def merfolkFalconer : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           whenever
-            (does you (procedure .cast ((a (compareOver isSpell (paidCostRead (.byKeyword (.named "kicker"))
-                none it) .atLeast (.lit 1)))) itsOwnCost))
+            (does you (cast (a (compareOver isSpell (paidCostRead (.byKeyword (.named "kicker"))
+                none it) .atLeast (.lit 1)))))
             (scry (.lit 2)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1058,8 +1058,8 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 
 /-- Tourach, Dread Cantor -/
 def tourachDiscardTrigger : Ability :=
-  whenever (does anOpponent (discard ((a
-    isCard))))
+  whenever (does anOpponent (discard (a
+    isCard)))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okTourachDiscardTrigger : Ability.check (DRS.ofList []) tourachDiscardTrigger = [] := by decide
 
@@ -1083,7 +1083,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
       text :=
         [ keywordCosting (.named "kicker") (mana [generic 6]),
           spell (replace
-            (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := (.lit 6)))
+            (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := .lit 6))
             (doIf (keywordCostPaid (.named "kicker") «this»)
               (create (.lit 12) asThose []))) ] } }
 
@@ -1118,7 +1118,7 @@ def talrandsInvocation : Action :=
   createToken
     { characteristics :=
       { colors := [.blue], types := [.creature], subtypes := [drake],
-        text := [keyword (.named "flying")], power := stat 2, toughness := stat 2 } } (count := (.lit 2))
+        text := [keyword (.named "flying")], power := stat 2, toughness := stat 2 } } (count := .lit 2)
 theorem okTalrandsInvocation : Action.check (DRS.ofList []) talrandsInvocation = [] := by decide
 
 /-- Predatory Wurm -/
@@ -1314,8 +1314,8 @@ def marketGnome : Spelled := spelled <| .singleFaced
       subtypes := [gnome],
       text :=
         [ when (does thisCreature die) (sequentially [gainLife (.lit 1), draw (.lit 1)]),
-          triggeredWhile (does any (exile ((thisCreature))))
-            (whileDoing (does you (procedure .activate (a (abilityHead (.keyword (.named "craft")))) itsOwnCost)))
+          triggeredWhile (does any (exile thisCreature))
+            (whileDoing (does you (activate (a (abilityHead (.keyword (.named "craft")))))))
             (sequentially [gainLife (.lit 1), draw (.lit 1)]) ],
       power := stat 0, toughness := stat 3 } }
 
@@ -1496,9 +1496,9 @@ def battlegateMimic : Spelled := spelled <| .singleFaced
     { name := "Battlegate Mimic", cost := some [generic 1, hybridPip .red .white], types := [.creature],
       subtypes := [shapeshifter],
       text :=
-        [ whenever (does you (procedure .cast ((a
+        [ whenever (does you (cast (a
           (and [isSpell, hasColor .red,
-          hasColor .white]))) itsOwnCost))
+          hasColor .white]))))
             (establishThroughout (conjunction [ getsBase thisCreature (.lit 4) (.lit 2),
                   abilityGrant thisCreature firstStrike ]) untilEndOfTurn) ],
       power := stat 2, toughness := stat 1 } }
@@ -1548,8 +1548,8 @@ def artificersAssistant : Spelled := spelled <| .singleFaced
       subtypes := [bird],
       text :=
         [ keyword (.named "flying"),
-          whenever (does you (procedure .cast ((a
-            (and [isHistoric, isSpell]))) itsOwnCost)) (scry (.lit 1))
+          whenever (does you (cast (a
+            (and [isHistoric, isSpell])))) (scry (.lit 1))
               ],
       power := stat 1, toughness := stat 1 } }
 

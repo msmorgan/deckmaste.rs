@@ -625,7 +625,7 @@ theorem okTheLadyOfOtariaLine : StaticSpec.check (DRS.ofList []) theLadyOfOtaria
 
 /-- Clergy of the Holy Nimbus -/
 def clergyOfTheHolyNimbus : Ability :=
-  static (instead (would any (destroy (thisCreature))) (regenerationApplication it))
+  static (instead (would any (destroy thisCreature)) (regenerationApplication it))
 theorem okClergyOfTheHolyNimbus : Ability.check (DRS.ofList []) clergyOfTheHolyNimbus = [] := by decide
 /-- Rampant Frogantua -/
 def rampantFrogantuaPump : Ability :=

@@ -93,10 +93,10 @@ theorem okAbrade : Action.check (DRS.ofList []) abrade = [] := by decide
 def nibelheimAflame : Action :=
   sequentially
     [ choose (target (and [isCreature, youControl])),
-      instruct it (dealDamage (powerOf it) (each ((and [isCreature, otherThan it])))
+      instruct it (dealDamage (powerOf it) (each (and [isCreature, otherThan it]))
                      .noncombatOnly) ]
 theorem okNibelheimAflame : Action.check (DRS.ofList []) nibelheimAflame = [] := by decide
-def brashTaunter : Action := instruct thisCreature (fight (target ((and [isCreature, otherThan thisCreature]))))
+def brashTaunter : Action := instruct thisCreature (fight (target (and [isCreature, otherThan thisCreature])))
 theorem okBrashTaunter : Action.check (DRS.ofList []) brashTaunter = [] := by decide
 def ulvenwaldTracker : Action :=
   instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, isOther])))
@@ -105,7 +105,7 @@ theorem okUlvenwaldTracker : Action.check (DRS.ofList []) ulvenwaldTracker = [] 
 def botBashingTime : Action :=
   sequentially
     [ dealDamage (.lit 6) (target isCreature) .noncombatOnly,
-      replaceEvent (would any (move (that (.type .creature)) (battlefield) (some graveyard) .departure)) (exile it) (some thisTurn) ]
+      replaceEvent (would any (move (that (.type .creature)) battlefield (some graveyard) .departure)) (exile it) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
   replaceNextEvent (would you (draw anyAmount)) (instruct «this» (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) (some thisTurn)
@@ -1213,7 +1213,7 @@ def inquisitorsFlail : Spelled := spelled <| .singleFaced
         [ static (damageRule .combatOnly (dealtBy (equipped (.type .creature))) everywhere
             (scale (multiplied .doubled)) .repeatedly),
           static (damageRule .combatOnly
-            (dealtBy (a ((and [isCreature, otherThan (equipped (.type .creature))]))))
+            (dealtBy (a (and [isCreature, otherThan (equipped (.type .creature))])))
             (toRecipient (equipped (.type .creature))) (scale (multiplied .doubled))
             .repeatedly),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
@@ -1242,7 +1242,7 @@ def frostwielder : Spelled := spelled <| .singleFaced
               happenedTo thisCreature (dealDamage anyAmount
                                                  (asMarker .permanent
                                                     (relative
-                                                       .object))) soFarThisTurn])) (battlefield) (some graveyard) .departure)) (exile it)),
+                                                       .object))) soFarThisTurn])) battlefield (some graveyard) .departure)) (exile it)),
           activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly)) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -1297,7 +1297,7 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
             (sequentially
               [ chooseWhile
                   (target (and [isOpponent, compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]))
-                  (whileDoing (does you (procedure .activate thisAbility itsOwnCost))),
+                  (whileDoing (does you (activate thisAbility))),
                 instruct thisCreature (dealDamage (.lit 2) (that .player) .noncombatOnly) ]) ],
       power := stat 1, toughness := stat 2 } }
 
@@ -1310,7 +1310,7 @@ theorem okCryOfContrition : Action.check (DRS.ofList []) cryOfContrition = [] :=
 def cyclingCost : Action := discard «this»
 theorem okCyclingCost : Action.check (DRS.ofList []) cyclingCost = [] := by decide
 def raiseTheAlarm : Action :=
-  createToken (creatureToken 1 1 [.white] [soldier]) (count := (.lit 2))
+  createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 2)
 theorem okRaiseTheAlarm : Action.check (DRS.ofList []) raiseTheAlarm = [] := by decide
 def actOfTreason : Action := gainControl (target isCreature) (some untilEndOfTurn) (controller :=
     you)

@@ -368,7 +368,7 @@ def cultOfTheWaxingMoon : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, shaman],
       text :=
         [ whenever
-            (does any (turnOver ((a (and [isPermanent, youControl])))))
+            (does any (turnOver (a (and [isPermanent, youControl]))))
             (createToken (creatureToken 2 2 [.green] [wolf])) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -382,7 +382,7 @@ def chitteringHost : CardFace :=
           when (does thisCreature enter)
             (establishThroughout
                (conjunction
-                  [ getsPt (allOf ((and [isCreature, youControl, otherThan thisCreature])))
+                  [ getsPt (allOf (and [isCreature, youControl, otherThan thisCreature]))
                     (up (.lit 1)) (up (.lit 0)),
                   abilityGrant them (keyword (.named "menace")) ]) untilEndOfTurn) ],
       power := stat 5, toughness := stat 6 } }
@@ -454,7 +454,7 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
             (triggeredJoined
               (does (a (and [isEnchantment, youControl])) enter)
               [ joinedHead
-                  (does you (fullyUnlock ((a (hasSubtype room)))))
+                  (does you (fullyUnlock (a (hasSubtype room))))
                       ]
               (instruct eachOpponent (loseLife (.lit 1)))) ],
       power := stat 2, toughness := stat 2 } }

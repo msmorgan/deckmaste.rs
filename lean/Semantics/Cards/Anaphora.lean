@@ -195,7 +195,7 @@ theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by de
 def eradicateSearch : Action :=
   sequentially
     [ exile (target (and [isCreature, not (hasColor .black)])),
-      searchZonesOf (controllerOf (that .card)) anyNumber ((shares .cardName .share (that .card))),
+      searchZonesOf (controllerOf (that .card)) anyNumber (shares .cardName .share (that .card)),
       exile (theVerbed (.action "search") .many),
       instruct (that .player) shuffle ]
 theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] := by decide
@@ -291,25 +291,25 @@ def playerOrPlaneswalkerAnnounced : NounPhrase := targetPlayerOrPlaneswalker
 /-- Chain of Plasma -/
 def chainOfPlasmaOfferee : NounPhrase := splitOverPermanent
 theorem okChainOfPlasmaOfferee :
-    NounPhrase.checkAt (some .player) (((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1)) chainOfPlasmaOfferee = [] := by
+    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainOfPlasmaOfferee = [] := by
   decide
 /-- Chain Lightning -/
 def chainLightningPayer : NounPhrase := splitOverPermanent
 theorem okChainLightningPayer :
-    NounPhrase.checkAt (some .player) (((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1)) chainLightningPayer = [] := by
+    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true anyTargetAnnounced).1) chainLightningPayer = [] := by
   decide
 /-- Flames of the Blood Hand -/
 def flamesOfTheBloodHandSubject : NounPhrase := splitOverPlaneswalker
 theorem okFlamesOfTheBloodHandSubject :
-    NounPhrase.checkAt (some .player) (((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)) flamesOfTheBloodHandSubject = [] := by
+    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) flamesOfTheBloodHandSubject = [] := by
   decide
 /-- Flaming Gambit -/
 def flamingGambitOfferee : NounPhrase := splitOverPlaneswalker
 theorem okFlamingGambitOfferee :
-    NounPhrase.checkAt (some .player) (((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)) flamingGambitOfferee = [] := by
+    NounPhrase.checkAt (some .player) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) flamingGambitOfferee = [] := by
   decide
 theorem okEachCreatureThatSplitControls :
-    NounPhrase.checkAt (some .object) (((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1)) eachCreatureThatSplitControls = [] := by
+    NounPhrase.checkAt (some .object) ((stepNounPhrase 512 (DRS.ofList []) .obj true playerOrPlaneswalkerAnnounced).1) eachCreatureThatSplitControls = [] := by
   decide
 
 /-- Ertai's Trickery -/
@@ -379,7 +379,7 @@ theorem engulfingFlamesBareReadStands : countReach .bare .one engulfingFlamesRid
 
 def bioplasmExiledPronoun : NounPhrase := theVerbed (.action "exile") .one
 theorem okBioplasmExiledPronoun :
-    NounPhrase.checkAt (some .object) (bioplasmAfterExile) bioplasmExiledPronoun = [] := by decide
+    NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledPronoun = [] := by decide
 theorem bioplasmNoTypedRead :
     countReach (.verbed (.action "exile") (some (.type .creature)) .attributive) .one bioplasmAfterExile
       = 0 := by
@@ -454,9 +454,9 @@ def companyContext : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) (loo
 def companyDescribedSlice : NounPhrase :=
   fromAmong (upTo 2) (and [isCreature, hasManaValue .atMost (.lit 3)]) them
 theorem okCompanyDescribedSlice :
-    NounPhrase.checkAt (some .object) (companyContext) companyDescribedSlice = [] := by decide
+    NounPhrase.checkAt (some .object) companyContext companyDescribedSlice = [] := by decide
 def companyBareSlice : NounPhrase := someOf (exactly 2) them
-theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) (companyContext) companyBareSlice = [] := by
+theorem okCompanyBareSlice : NounPhrase.checkAt (some .object) companyContext companyBareSlice = [] := by
   decide
 
 /-- Lord of the Void -/
@@ -473,7 +473,7 @@ theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCar
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   aggregateOver .max isPlayer
-    (eventTally (⟨they, (discard ((allOf (cardIn hand)))), thisWay⟩) .events)
+    (eventTally (⟨they, (discard (allOf (cardIn hand))), thisWay⟩) .events)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -679,7 +679,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                 instruct (those .player) (sacrifice (those .permanent)),
                 doForEach
                   (each (and [ isPlayer,
-                                did (⟨(relative .player), (sacrifice ((a isPermanent))), thisWay⟩)
+                                did (⟨(relative .player), (sacrifice (a isPermanent)), thisWay⟩)
                                   ]))
                   (sequentially
                     [ instruct they (expose .reveal (cards (slice .top (.lit 1) (libraryOf they)))),

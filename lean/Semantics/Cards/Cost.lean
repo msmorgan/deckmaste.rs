@@ -269,7 +269,7 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker], subtypes := [elspeth],
       text :=
         [ activated (loyaltySymbol (.up 1))
-            (createToken (creatureToken 1 1 [.white] [soldier]) (count := (.lit 3))),
+            (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)),
           activated (loyaltySymbol (.down 3))
             (destroy (allOf (and [isCreature, hasPower .atLeast (.lit 4)]))),
           activated (loyaltySymbol (.down 7))
@@ -282,7 +282,7 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
 def elspethsTalentGrant : StaticSpec :=
   abilityGrant (enchanted (.type .planeswalker))
     (activated (loyaltySymbol (.up 1))
-      (createToken (creatureToken 1 1 [.white] [soldier]) (count := (.lit 3))))
+      (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)))
 theorem okElspethsTalentGrant : StaticSpec.check (DRS.ofList []) elspethsTalentGrant = [] := by decide
 
 def crystalBall : Spelled := spelled <| .singleFaced
@@ -442,7 +442,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
         [ activated (compound [mana [generic 4], tapSymbol])
             (sequentially
               [ reveal (topSlice (.lit 1)),
-                doIf (matches_ it ((shares .cardName .share (a (cardIn yourGraveyard)))))
+                doIf (matches_ it (shares .cardName .share (a (cardIn yourGraveyard))))
                   (putInto it graveyard) (some (draw (.lit 1))) ]) ] } }
 
 def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
@@ -708,7 +708,7 @@ def elspethsTalent : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isPlaneswalker,
           static elspethsTalentGrant,
-          whenever (does you (procedure .activate loyaltyAbilityOfEnchanted itsOwnCost))
+          whenever (does you (activate loyaltyAbilityOfEnchanted))
             (establishThroughout
                (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 2)) (up
                       (.lit 2)),
@@ -724,9 +724,9 @@ def ghorClanRampager : Ability :=
   abilityWord "bloodrush"
     (activated (compound [mana [pip .red, pip .green], perform (discard «this»)])
       (establishFor (target (and [isCreature, isAttacking]))
-        [ getsPt ((target (and [isCreature, isAttacking]))) (up (.lit 4)) (up (.lit
+        [ getsPt (target (and [isCreature, isAttacking])) (up (.lit 4)) (up (.lit
               4)),
-          abilityGrant ((target (and [isCreature, isAttacking]))) trample ]
+          abilityGrant (target (and [isCreature, isAttacking])) trample ]
         (some untilEndOfTurn)))
 theorem okGhorClanRampager : Ability.check (DRS.ofList []) ghorClanRampager = [] := by decide
 /-- Tymora's Invoker -/
@@ -861,9 +861,9 @@ def embercleave : Spelled := spelled <| .singleFaced
                   (.lit 1)),
               abilityGrant (equipped (.type .creature)) doubleStrike,
               abilityGrant (equipped (.type .creature)) trample ] (subject :=
-                                                                     (some
+                                                                     some
                                                                         (equipped
-                                                                           (.type .creature))))),
+                                                                           (.type .creature)))),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
 
 /-- Tattoo Ward -/
@@ -878,10 +878,10 @@ def tattooWard : Spelled := spelled <| .singleFaced
                   (.lit 1)) (up (.lit 1)),
                 abilityGrant (enchanted (.type .creature))
                   (keywordQuality (.named "protection") isEnchantment) ] (subject :=
-                                                                            (some
+                                                                            some
                                                                                (enchanted
                                                                                   (.type
-                                                                                     .creature)))))
+                                                                                     .creature))))
             thisAura),
           activated (perform (sacrifice thisAura)) (destroy (target isEnchantment)) ]
               } }

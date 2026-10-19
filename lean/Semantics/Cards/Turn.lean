@@ -136,7 +136,7 @@ def ajanisEmblem : Action :=
         (createToken
           { characteristics :=
             { colors := [.white], types := [.creature], subtypes := [cat],
-              text := [lifelink], power := stat 1, toughness := stat 1 } } (count := (.lit 3))) ]
+              text := [lifelink], power := stat 1, toughness := stat 1 } } (count := .lit 3)) ]
 theorem okAjanisEmblem : Action.check (DRS.ofList []) ajanisEmblem = [] := by decide
 
 /-- Saheeli Rai -/
@@ -326,9 +326,9 @@ def fettergeist : Spelled := spelled <| .singleFaced
 
 def chainVeilEndStep : Ability :=
   triggeredIf (beginningOfYour .endStep)
-    (not (happened (procedure .activate (a
+    (not (happened (activate (a
       (and [abilityHead .loyalty,
-      abilityOf (a isPlaneswalker)])) itsOwnCost) you soFarThisTurn))
+      abilityOf (a isPlaneswalker)]))) you soFarThisTurn))
     (loseLife (.lit 2))
 theorem okChainVeilEndStep : Ability.check (DRS.ofList []) chainVeilEndStep = [] := by decide
 
@@ -468,7 +468,7 @@ def teleport : Spelled := spelled <| .singleFaced
     { name := "Teleport", cost := some [pip .blue, pip .blue, pip .blue], types := [.instant],
       text :=
         [ spell (establishThroughout (cant any (block (target isCreature))) thisTurn)
-            (timing := (some (duringPart .declareAttackers none))) ] } }
+            (timing := some (duringPart .declareAttackers none)) ] } }
 
 /-- Dazzling Beauty's cast window; its targeted effect and delayed "next turn's upkeep" draw
 need machinery outside this ticket. -/
@@ -496,9 +496,9 @@ def bloodFrenzy : Spelled := spelled <| .singleFaced
               [ get (target (and [isCreature, or [isAttacking, isBlocking]]))
                   (up (.lit 4)) (up (.lit 0)) (some untilEndOfTurn),
                 atNext .endStep (destroy (that (.type .creature))) ]) (timing :=
-                                                                         (some
+                                                                         some
                                                                             (beforePart
-                                                                               .combatDamage none))) ] } }
+                                                                               .combatDamage none)) ] } }
 
 /-- Berserk -/
 def berserk : Spelled := spelled <| .singleFaced
@@ -507,13 +507,13 @@ def berserk : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
               [ establishFor (target isCreature)
-                  [ abilityGrant ((target isCreature)) trample,
-                    modification ((target isCreature)) .power (up (letter .x)),
+                  [ abilityGrant (target isCreature) trample,
+                    modification (target isCreature) .power (up (letter .x)),
                     modification it .toughness (up (.lit 0)),
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that (.type .creature)))
                     (happened attack (that
-                      (.type .creature)) soFarThisTurn)) ]) (timing := (some (beforePart .combatDamage none))) ] } }
+                      (.type .creature)) soFarThisTurn)) ]) (timing := some (beforePart .combatDamage none)) ] } }
 
 end Semantics.Cards

@@ -457,8 +457,8 @@ def silverquillSilencer : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (not isLand))),
-          whenever (does anOpponent (procedure .cast ((a (and [isSpell,
-            named chosenName]))) itsOwnCost))
+          whenever (does anOpponent (cast (a (and [isSpell,
+            named chosenName]))))
             (sequentially [instruct they (loseLife (.lit 3)), draw (.lit 1)]) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -522,7 +522,7 @@ def foundingOfOmashu : Spelled := spelled <| .singleFaced
       subtypes := [saga],
       text :=
         [ when (chapterMark [1])
-            (createToken (creatureToken 1 1 [.white] [ally]) (count := (.lit 2))),
+            (createToken (creatureToken 1 1 [.white] [ally]) (count := .lit 2)),
           when (chapterMark [2])
             (may (discard (a (cardIn yourHand))) (some (draw (.lit 1)))),
           when (chapterMark [3])
@@ -820,7 +820,7 @@ def rhysticStudy : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rhystic Study", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (does anOpponent (procedure .cast ((a isSpell)) itsOwnCost))
+        [ whenever (does anOpponent (cast (a isSpell)))
             (instruct (that .player) (doUnless (instruct you (may (draw (.lit 1))))
               (mana [generic 1]))) ] } }
 
@@ -831,7 +831,7 @@ def gandalfWhiteRider : Spelled := spelled <| .singleFaced
       subtypes := [avatar, wizard],
       text :=
         [ vigilance,
-          whenever (does you (procedure .cast ((a isSpell)) itsOwnCost))
+          whenever (does you (cast (a isSpell)))
             (sequentially
               [ get (each (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn),
                 scry (.lit 1) ]),
@@ -918,7 +918,7 @@ def cultivatorColossus : Spelled := spelled <| .singleFaced
               (some (sequentially [draw (.lit 1), repeat_ again]))) ] } }
 
 def zimoneAndDina : Ability :=
-  activated (compound [tapSymbol, perform (sacrifice (a ((and [isCreature, otherThan thisCreature]))))])
+  activated (compound [tapSymbol, perform (sacrifice (a (and [isCreature, otherThan thisCreature])))])
     (sequentially
       [ draw (.lit 1),
         may (putOntoBattlefieldTapped (a (and [isLand, in_ yourHand]))),
@@ -948,7 +948,7 @@ theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] 
 /-- Lost Hours -/
 def lostHoursPlacement : Action :=
   sequentially
-    [ instruct (target isPlayer) (revealHand),
+    [ instruct (target isPlayer) revealHand,
       choose (a (and [not isLand, in_ (handOf they)])),
       instruct (that .player) (put it (fromTop 3 library)) ]
 theorem okLostHoursPlacement : Action.check (DRS.ofList []) lostHoursPlacement = [] := by decide
@@ -1209,8 +1209,7 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
       subtypes := [zombie, knight],
       text :=
         [ static (can you (cast «this» (from_ := some yourGraveyard))),
-          static (cant you (procedure .cast «this» itsOwnCost none
-              (some (not yourGraveyard)))),
+          static (cant you (cast «this» (from_ := some (not yourGraveyard)))),
           static (onlyWhile
                     (can you
                        (cast (allOf (and [isSpell, hasSubtype knight]))

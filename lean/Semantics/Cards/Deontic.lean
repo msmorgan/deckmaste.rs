@@ -435,7 +435,7 @@ def festival : Spelled := spelled <| .singleFaced
     { name := "Festival", cost := some [pip .white], types := [.instant],
       text :=
         [ spell (establishThroughout (cant (allOf isCreature) attack) thisTurn)
-            (timing := (some (duringPart .upkeep (some anOpponent)))) ] } }
+            (timing := some (duringPart .upkeep (some anOpponent))) ] } }
 
 def demotion : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -753,11 +753,9 @@ def arrest : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-                    [ cant (enchanted (.type .creature)) attack, cant
-                        (enchanted (.type .creature)) block,
-              cant any (procedure .activate
-                  (allOf (and [abilityHead .anyActivated,
-                    abilityOf it])) itsOwnCost) ]) ] } }
+            [ cant (enchanted (.type .creature)) attack,
+              cant (enchanted (.type .creature)) block,
+              cant any (activate (allOf (and [abilityHead .anyActivated, abilityOf it]))) ]) ] } }
 
 /-- Conqueror's Flail -/
 def conquerorsFlailProhibition : StaticSpec :=
