@@ -1453,12 +1453,13 @@ semantic_definition cumulativeUpkeepExpansion (cost : Cost) : Ability :=
 semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword (.named "cumulativeUpkeep") [.cost (.inCaller cost)]
     [cumulativeUpkeepExpansion (.inCaller cost)]
+semantic_definition reach : Ability := keyword (.named "reach")
 /-- Flying's definition, a static ability: "This creature can't be blocked except by creatures
 with flying and/or reach." [CR#702.9b] -/
 semantic_definition flyingExpansion : Ability :=
   .static (cant any (block thisCreature)
     (except := byObjects (bare (and [isCreature,
-      or [hasKeyword (.the (.named "flying")), hasKeyword (.the (.named "reach"))]]))))
+      or [hasKeyword (.the (.named "flying")), hasKeyword reach]]))))
 /-- "Flying" with its definition. -/
 semantic_definition flying : Ability := .keyword (.named "flying") [] [flyingExpansion]
 /-- Bushido N's definition, a triggered ability [CR#702.45a]. -/
@@ -1575,23 +1576,8 @@ semantic_definition afflict (amount : Amount) : Ability :=
         (.instruct defendingPlayer (loseLife (.inCaller amount))) ]
 semantic_definition afterlife (amount : Amount) : Ability :=
   .keyword (.named "afterlife") [.number (.inCaller amount)]
-    [ triggered (.does .any (.move thisPermanent battlefield (some graveyard) .departure none []))
-        (createObject (.inCaller amount)
-          (.token
-            (.written
-              (creatureTokenOf (.lit 1) (.lit 1) [.white, .black] [creatureType "Spirit"]
-                [ .keyword (.named "flying") []
-                    [ .static
-                        (cant .any (.block thisCreature) none none
-                          (some
-                            (.byObjects
-                              (bare
-                                (.and
-                                  [ isCreature,
-                                    .or
-                                      [ .hasKeyword (.the (.named "flying")),
-                                        .hasKeyword (.the (.named "reach")) ] ]))))) ] ]))
-            [])) ]
+    [ when (does thisPermanent die)
+        (createToken (creatureToken 1 1 [.white, .black] [spirit] [flying]) (.inCaller amount)) ]
 semantic_definition aftermath : Ability :=
   .keyword (.named "aftermath") []
     [ .static
@@ -2722,7 +2708,6 @@ semantic_definition ravenous : Ability :=
       triggeredIf (.does .any (putOntoBattlefield thisPermanent))
         (.compareAmt (.letter .x) .atLeast (.lit 5))
         (.draw (.lit 1)) ]
-semantic_definition reach : Ability := keyword (.named "reach")
 semantic_definition readAhead : Ability :=
   .keyword (.named "readAhead") []
     [ .static

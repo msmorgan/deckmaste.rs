@@ -380,4 +380,15 @@ theorem badThatAbilityWithoutChoice :
 theorem okHexproofFrom : Ability.check (DRS.ofList []) (hexproofFrom (hasColor .black)) = [] := by
   decide
 
+/-- A keyword ability reads as the keyword it is: "with flying" names flying's keyword, as the
+written label would. -/
+theorem hasKeywordOfAbility :
+    hasKeyword flying = Predicate.hasKeyword (.the (.named "flying")) := by rfl
+
+/-- So does each member of a keyword list: "flying, first strike, or trample". -/
+theorem keywordListOfAbilities :
+    (abilitiesAmong [flying, firstStrike, trample] : ChoiceDomain) =
+      .abilitiesAmong [.the (.named "flying"), .the (.named "firstStrike"), .the (.named "trample")] := by
+  rfl
+
 end Semantics.Proofs.Keyword

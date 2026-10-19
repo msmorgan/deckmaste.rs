@@ -494,6 +494,16 @@ semantic_template otherThan (np : NounPhrase) : Predicate := .otherThan np
 /-! ### Characteristics and stat comparisons -/
 
 semantic_template hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw
+/-- The keyword a keyword ability is, as "with flying" names it: `hasKeyword flying`, or a list
+`[flying, firstStrike, trample]`. A keyword ability is written under its declaration's name
+(`.keyword (.named "flying") …`), so that name is the keyword; an ability that is no keyword
+names none (`.named ""`). -/
+semantic_template keywordOf (ability : Ability) : KeywordTerm :=
+  match ability with
+  | .keyword label _ _ => .the label
+  | _ => .the (.named "")
+/-- A keyword ability reads as the keyword it is. -/
+instance [AuthoringContext] : Coe Ability KeywordTerm := ⟨keywordOf⟩
 /-- "with a counter on it", or "with a <kind> counter on it". -/
 semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := .hasCounters kind
 /-- "named <name>" -/
