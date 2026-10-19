@@ -47,7 +47,7 @@
 + <card=Happy Hogan, Bodyguard> When Happy Hogan enters, the owner of target creature an opponent controls puts it into their library second from the top or on the bottom. => !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
 + You choose which creatures block this turn and how those creatures block. => Clause "which creatures block this turn"; Clause "how those creatures block"
 +NounPhrase X tokens that are copies of it and that are tapped and attacking => RelativeClause "that are copies of it"; RelativeClause "that are tapped and attacking"; readings 1
-+Clause you and/or at least one permanent you control becomes the target of a spell => NounPhrase "you and/or at least one permanent you control" as Subject of become
++Clause you and/or at least one permanent you control becomes the target of a spell => NounPhrase "you and/or at least one permanent you control" as Subject of become; readings 1
 +Clause creatures and/or planeswalkers you control get +1/+1 => NounPhrase "creatures and/or planeswalkers you control" as Subject of get
 *Clause creatures and/or planeswalkers you control gets +1/+1
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
@@ -57,3 +57,6 @@
 +NounPhrase up to two target artifacts and/or enchantments => Nominal "target artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
 +NounPhrase each other target creature => Nominal "other target creature"; Nominal "target creature"; readings 1
 + As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have
++Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
++ Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1
++Clause you and at least one permanent become tapped => NounPhrase "you and at least one permanent" as Subject of become; readings 1
