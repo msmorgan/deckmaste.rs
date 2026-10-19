@@ -76,11 +76,14 @@ pub enum Gap {
     /// Nouns' Amount Complements shared, respectively, by a slash Measure
     /// (*base power and toughness 4/4*).
     Measure,
+    /// A bare infinitival Complement shared by coordinated auxiliaries (*may
+    /// and can draw cards*).
+    BareInf,
 }
 
 impl Gap {
     /// This Gap's bit in a Category's mask of the Gaps it may contain.
-    pub(crate) const fn bit(self) -> u8 {
+    pub(crate) const fn bit(self) -> u16 {
         1 << self as u8
     }
 }

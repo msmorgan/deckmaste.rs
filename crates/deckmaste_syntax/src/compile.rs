@@ -67,7 +67,7 @@ pub struct CompiledGrammar {
     category_ids: BTreeMap<Ident, usize>,
     pub(crate) category_features: Vec<Vec<usize>>,
     /// Each Category's mask of the Gaps it may contain (`Gap::bit`).
-    pub(crate) category_gap: Vec<u8>,
+    pub(crate) category_gap: Vec<u16>,
     /// Categories that name a function (`CategoryDecl::function`).
     pub(crate) function_categories: BTreeSet<Ident>,
     pub(crate) features: Vec<Ident>,
@@ -1774,6 +1774,7 @@ impl<'a> Binder<'a> {
         // p. 1045): never the objective one of *turn it face up*.
         let copular = self.out.frames[frame].family == FrameFamily::Copular;
         let noun = self.out.frames[frame].family == FrameFamily::NounComplement;
+        let catenative = self.out.frames[frame].family == FrameFamily::Catenative;
         let extractable: Vec<Option<usize>> = std::iter::once(None)
             .chain(
                 slots
@@ -1789,6 +1790,10 @@ impl<'a> Binder<'a> {
                                     ***fill,
                                     SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::ToInf
                                 ) || (copular && ***fill == SlotFill::Pred)
+                                    // An auxiliary's bare infinitival, shared
+                                    // by Right Node Raising (*may and can
+                                    // draw cards*).
+                                    || (catenative && ***fill == SlotFill::BareInf)
                             }
                     })
                     .map(|(i, _)| Some(i)),
@@ -1840,6 +1845,7 @@ impl<'a> Binder<'a> {
                 draft.introduces = match slots[i] {
                     SlotFill::PP(_) => Gap::PP,
                     SlotFill::Amount => Gap::Measure,
+                    SlotFill::BareInf => Gap::BareInf,
                     SlotFill::Pred => Gap::Pred,
                     SlotFill::KeywordPhrase => Gap::Keyword,
                     SlotFill::ToInf => Gap::ToInf,
@@ -2007,12 +2013,7 @@ impl<'a> Binder<'a> {
 
     /// Right Node Raising: a coordination with a shared Gap, filled once
     /// after it.
-    fn right_node_raising(
-        &self,
-        conjoin: &Conjoin,
-        category: &str,
-        cost: u32,
-    ) -> Vec<Draft> {
+    fn right_node_raising(&self, conjoin: &Conjoin, category: &str, cost: u32) -> Vec<Draft> {
         let mut drafts = Vec::new();
         // One per shareable Gap: an NP, a keyword phrase, a
         // *to*-infinitival, a predicative (*be and become legendary*).
@@ -2023,6 +2024,7 @@ impl<'a> Binder<'a> {
             (Gap::Pred, SlotKind::Pred, "-pred"),
             (Gap::PP, SlotKind::PP, "-pp"),
             (Gap::Measure, SlotKind::Measure, "-measure"),
+            (Gap::BareInf, SlotKind::BareInf, "-bareinf"),
         ] {
             let Ok(shared) = self.slot_category(kind) else {
                 continue;
@@ -2725,6 +2727,7 @@ fn gap_named(name: &str) -> Option<Gap> {
         "ToInf" => Gap::ToInf,
         "PP" => Gap::PP,
         "Measure" => Gap::Measure,
+        "BareInf" => Gap::BareInf,
         _ => return None,
     })
 }
