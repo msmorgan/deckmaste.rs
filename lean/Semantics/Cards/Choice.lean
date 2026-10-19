@@ -1103,12 +1103,12 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ enchant (and [or [isArtifact, isCreature], youControl]),
-          static (instead
+          static (replace
                     (would (by_ you)
                        (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) [])
-                          false)) (may
+                          false)) (may (instead
                                      (create groupSize (copyOf (enchanted permanent))
-                                        [])) none .repeatedly (some oncePerTurn)) ] } }
+                                        []))) none .repeatedly (some oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Action :=
   sequentially [discard (counted (upTo 2) (cardIn yourHand)), draw groupSize]

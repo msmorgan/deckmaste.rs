@@ -323,23 +323,23 @@ def hardenedScales : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Hardened Scales", cost := some [pip .green], types := [.enchantment],
       text :=
-        [ static (instead (would any (putCounters anyAmount (printedKind p1p1Counter) (a (and [isCreature, youControl])) .many false)) (putCounters (plus thatMuch (.lit 1)) (printedKind p1p1Counter) it .many)) ] } }
+        [ static (replace (would any (putCounters anyAmount (printedKind p1p1Counter) (a (and [isCreature, youControl])) .many false)) (instead (putCounters (plus thatMuch (.lit 1)) (printedKind p1p1Counter) it .many))) ] } }
 
 def branchingEvolution : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Branching Evolution", cost := some [generic 2, pip .green], types := [.enchantment],
       text :=
         [ static
-            (instead
+            (replace
                (would any
                   (putCounters anyAmount (printedKind p1p1Counter)
                      (a (and [isCreature, youControl])) .many false))
-            (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) (that creature)
-               .many)) ] } }
+            (instead (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) (that creature)
+               .many))) ] } }
 
 /-- Corpsejack Menace -/
 def corpsejackMenace : Ability :=
-  static (instead (would any (putCounters anyAmount (printedKind p1p1Counter) (a (and [isCreature, youControl])) .many false)) (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) it .many))
+  static (replace (would any (putCounters anyAmount (printedKind p1p1Counter) (a (and [isCreature, youControl])) .many false)) (instead (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) it .many)))
 theorem okCorpsejackMenace : Ability.check (DRS.ofList []) corpsejackMenace = [] := by decide
 
 /-- Doubling Season -/
@@ -347,20 +347,20 @@ def doublingSeason : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Doubling Season", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true (some you))) (create (times (.lit 2) groupSize) asThose [])),
-          static (instead
+        [ static (replace (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true (some you))) (instead (create (times (.lit 2) groupSize) asThose []))),
+          static (replace
                     (would any
                        (putCounters anyAmount anyKind (a (and [isPermanent, youControl]))
-                          .many)) (putCounters (times (.lit 2) thatMuch) thoseCounters
-                                     (that permanent) .many)) ] } }
+                          .many)) (instead (putCounters (times (.lit 2) thatMuch) thoseCounters
+                                     (that permanent) .many))) ] } }
 
 /-- Doc Samson, Super Psychiatrist -/
 def docSamsonDistributive : Ability :=
-  static (instead
+  static (replace
             (would you
                (putCounters anyAmount anyKind (a (and [isPermanent, youControl])) .many
-                  false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent)
-                             .many))
+                  false)) (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent)
+                             .many)))
 theorem okDocSamsonDistributive : Ability.check (DRS.ofList []) docSamsonDistributive = [] := by decide
 
 /-- Winding Constrictor -/
@@ -370,12 +370,12 @@ def windingConstrictor : Spelled := spelled <| .singleFaced
       subtypes := [snake],
       text :=
         [ static
-            (instead
+            (replace
                (would any
                   (putCounters anyAmount anyKind (a (and [or [isArtifact, isCreature], youControl]))
-                     .many false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters
-                                      (that permanent) .many)),
-          static (instead (would any (putCounters anyAmount anyKind you .many false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters you .many)) ],
+                     .many false)) (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters
+                                      (that permanent) .many))),
+          static (replace (would any (putCounters anyAmount anyKind you .many false)) (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters you .many))) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Aragorn, Company Leader -/
@@ -499,13 +499,13 @@ def primalVigor : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Primal Vigor", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) false)) (create (times (.lit 2) groupSize) asThose [])),
+        [ static (replace (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) false)) (instead (create (times (.lit 2) groupSize) asThose []))),
           static
-              (instead
+              (replace
                  (would any
                     (putCounters anyAmount (printedKind p1p1Counter) (a isCreature) .many false))
-              (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) (that creature)
-                 .many)) ] } }
+              (instead (putCounters (times (.lit 2) thatMuch) (printedKind p1p1Counter) (that creature)
+                 .many))) ] } }
 
 /-- Patrolling Peacemaker -/
 def patrollingPeacemaker : Spelled := spelled <| .singleFaced
@@ -585,7 +585,7 @@ def phytohydra : Spelled := spelled <| .singleFaced
     { name := "Phytohydra", cost := some [generic 2, pip .green, pip .white, pip .white],
       types := [.creature], subtypes := [plant, hydra],
       text :=
-        [ static (instead (would any (dealDamage anyAmount thisCreature)) (putCounters thatMuch (printedKind p1p1Counter) it .many)) ],
+        [ static (replace (would any (dealDamage anyAmount thisCreature)) (instead (putCounters thatMuch (printedKind p1p1Counter) it .many))) ],
       power := stat 1, toughness := stat 1 } }
 
 def agelessEntity : Spelled := spelled <| .singleFaced
@@ -1086,8 +1086,9 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
         [ enchant isCreature,
           when (does thisAura enter) (tap (enchanted creature)),
           static (abilityGrant (enchanted creature)
-            (static (instead (would thisCreature (become untapped)) (doIfDone
-                (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true)
+            (static (replace (would thisCreature (become untapped)) (doIfDone
+                (instead
+                  (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true))
                 (some (untap thisCreature))) (some (duringPart .untapStep (some you)))))) ] } }
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=

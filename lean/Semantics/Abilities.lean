@@ -808,8 +808,9 @@ mutual
     | retention (spec : StaticSpec) (subject : NounPhrase)
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
-    /-- A replacement effect ("If … would …, … instead") [CR#614.1]. -/
-    | instead (event : WouldClause) (replacement : Action) (timing : Option Timing)
+    /-- A replacement effect: as `event` would happen, `replacement` happens in its place ("If …
+    would …, … instead", "this enters tapped") [CR#614.1a,614.1c,614.1d]. -/
+    | replace (event : WouldClause) (replacement : Action) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
     /-- A static damage-result modification (lifelink, wither, infect)
     [CR#120.3,120.4c,702.15b,702.80a]. -/

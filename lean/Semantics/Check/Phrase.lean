@@ -2924,7 +2924,7 @@ def stepOps : Nat → StepOps
           let (out, agentErrors) := stepSubjectAfterWith ops withoutPayer subj
           ({ out with actionPattern := drs.actionPattern, groupSizeScope := drs.groupSizeScope },
             headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
-        | .instead ev repl tm _ _ =>
+        | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) repl
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])

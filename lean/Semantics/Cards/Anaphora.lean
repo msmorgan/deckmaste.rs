@@ -254,19 +254,19 @@ theorem okHypnoticSpecterDiscard :
 /-- Wyll, Blade of Frontiers -/
 def wyllExtraDie : Action :=
   replaceEvent (would you (rollDice anyAmount .anyDie .many))
-    (sequentially
+    (instead (sequentially
       [ rollDice (plus thatMuch (.lit 1)) .thoseDice .many .anyResult,
-        ignoreOutcomes (extreme .lowest) ])
+        ignoreOutcomes (extreme .lowest) ]))
     none
 theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by decide
 
 /-- Vedalken Squirrel-Whacker -/
 def vedalkenSquirrelWhackerReroll : Action :=
   replaceEvent (would you (rollDice anyAmount (.sides 6) .many))
-    (sequentially
+    (instead (sequentially
       [ rollDice thatMuch .thoseDice .many .anyResult,
         may
-          (exchange (values (theOutcome .rollResult) (powerOf thisCreature))) ])
+          (exchange (values (theOutcome .rollResult) (powerOf thisCreature))) ]))
     none
 theorem okVedalkenSquirrelWhackerReroll :
     Action.check (DRS.ofList []) vedalkenSquirrelWhackerReroll = [] := by decide

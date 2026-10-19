@@ -124,7 +124,7 @@ theorem okRalZarekUltimate : Action.check (DRS.ofList []) ralZarekUltimate = [] 
 /-- Krark's Thumb -/
 def krarksThumbExtraFlip : Action :=
   replaceEvent (would you flipCoins)
-    (sequentially [flipCoins (.lit 2), ignoreOutcomes (chosenResults none (.lit 1))]) none
+    (instead (sequentially [flipCoins (.lit 2), ignoreOutcomes (chosenResults none (.lit 1))])) none
 theorem okKrarksThumbExtraFlip : Action.check (DRS.ofList []) krarksThumbExtraFlip = [] := by decide
 
 /-- Goblin Assassin -/

@@ -39,7 +39,7 @@ def StaticSpec.onInstantOrSorceryCardOk (s : StaticSpec) (fuel : Nat := 64) : Bo
     match action.scopeBody with
     | .enact (.action "counter") body _ _ => body.canonicalPatient.any (·.namesThis)
     | _ => false
-  | _ + 1, .instead event _ _ _ _ =>
+  | _ + 1, .replace event _ _ _ _ =>
     match event with
     | .would _ action =>
       match action.scopeBody with

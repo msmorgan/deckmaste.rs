@@ -100,14 +100,14 @@ def tezzeretDrawTwo : Action :=
   replace (draw (.lit 1))
     (doIf (compareAmt (countOf (and [isArtifact, youControl]))
             .atLeast (.lit 3))
-      (draw (.lit 2)))
+      (instead (draw (.lit 2))))
 theorem okTezzeretDrawTwo : Action.check (DRS.ofList []) tezzeretDrawTwo = [] := by decide
 
 /-- Zimone, Quandrix Prodigy -/
 def zimoneDrawTwo : Action :=
   replace (draw (.lit 1))
     (doIf (compareAmt (countOf (and [isLand, youControl])) .atLeast (.lit 8))
-      (draw (.lit 2)))
+      (instead (draw (.lit 2))))
 theorem okZimoneDrawTwo : Action.check (DRS.ofList []) zimoneDrawTwo = [] := by decide
 
 /-- Aerial Volley {G} — Instant. "Aerial Volley deals 3 damage divided as you choose among

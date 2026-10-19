@@ -838,7 +838,7 @@ def prismariPianist : Spelled := spelled <| .singleFaced
             (replace
               (createToken (creatureToken 1 1 [.blue, .red] [elemental]))
               (doIf (compareAmt (statOf (.stat .manaValue) (that .spell)) .atLeast (.lit 5))
-                (create (.lit 3) asThose []))) ],
+                (instead (create (.lit 3) asThose [])))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Collected Company -/
@@ -887,9 +887,9 @@ def heartOfYavimaya : Spelled := spelled <| .singleFaced
     { name := "Heart of Yavimaya", types := [.land],
       text :=
         [ static
-            (instead (would any (putOntoBattlefield this_))
-               (doIfDone (sacrifice (a (and [isLand, hasSubtype forest])))
-              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard)))),
+            (replace (would any (putOntoBattlefield this_))
+               (instead (doIfDone (sacrifice (a (and [isLand, hasSubtype forest])))
+              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard))))),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.of .green]])),
           activated tapSymbol
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ] } }
@@ -900,9 +900,9 @@ def moxDiamond : Spelled := spelled <| .singleFaced
     { name := "Mox Diamond", cost := some [], types := [.artifact],
       text :=
         [ static
-            (instead (would any (putOntoBattlefield this_))
-               (may (discard (a (and [isLand, in_ yourHand])))
-              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard)))),
+            (replace (would any (putOntoBattlefield this_))
+               (instead (may (discard (a (and [isLand, in_ yourHand])))
+              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard))))),
           activated tapSymbol (addMana (.lit 1) (ofAnyColor .sameColor)) ] } }
 
 /-- Up the Beanstalk -/
@@ -920,11 +920,11 @@ def shelteredValley : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sheltered Valley", types := [.land],
       text :=
-        [ static (instead (would any (putOntoBattlefield this_)) (sequentially
+        [ static (replace (would any (putOntoBattlefield this_)) (instead (sequentially
               [ sacrifice
                   (each (and [isPermanent, otherThan thisLand, named (printedName "Sheltered Valley"),
                                youControl])),
-                putOntoBattlefield this_ ])),
+                putOntoBattlefield this_ ]))),
           triggeredIf (beginningOfYour .upkeep)
             (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3))
             (gainLife (.lit 1)),

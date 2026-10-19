@@ -129,7 +129,7 @@ theorem okSingleExtension :
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okDrawReplacement :
-    StaticSpec.check (DRS.ofList []) (.instead (.would (.actor .you) (.draw .anyAmount)) (draw (.lit 2)) none
+    StaticSpec.check (DRS.ofList []) (.replace (.would (.actor .you) (.draw .anyAmount)) (draw (.lit 2)) none
         .repeatedly none)
       = [] := by
   decide

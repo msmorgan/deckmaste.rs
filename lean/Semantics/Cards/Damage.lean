@@ -108,11 +108,11 @@ def botBashingTime : Action :=
   sequentially
     [ dealDamage (.lit 6) (target isCreature) .noncombatOnly,
       replaceEvent (would (that creature) die)
-          (exile it) (some thisTurn) ]
+          (instead (exile it)) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
   replaceNextEvent (would you (draw anyAmount))
-      (instruct this_ (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) (some thisTurn)
+      (instead (instruct this_ (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))) (some thisTurn)
 theorem okWordsOfWar : Action.check (DRS.ofList []) wordsOfWar = [] := by decide
 
 /-- Thunderwave -/
@@ -873,8 +873,8 @@ def ashZealot : Spelled := spelled <| .singleFaced
 
 def galvanicBlastLine : Action :=
   replace (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)
-    (doOnlyIf (dealDamage (.lit 4) thatJoin .noncombatOnly)
-      (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3)))
+    (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
+      (instead (dealDamage (.lit 4) thatJoin .noncombatOnly)))
 theorem okGalvanicBlastLine : Action.check (DRS.ofList []) galvanicBlastLine = [] := by decide
 /-- Furious Reprisal -/
 def furiousReprisal : Action :=
@@ -1069,9 +1069,10 @@ def searingBlaze : Ability :=
                                    (and
                                       [isCreature, controlledBy
                                          splitOverPlaneswalker])) .noncombatOnly ])
-        (simultaneously
-          [ dealDamage (.lit 3) thatJoin .noncombatOnly,
-            dealDamage (.lit 3) (that creature) .noncombatOnly ])))
+        (instead
+          (simultaneously
+            [ dealDamage (.lit 3) thatJoin .noncombatOnly,
+              dealDamage (.lit 3) (that creature) .noncombatOnly ]))))
 theorem okSearingBlaze : Ability.check (DRS.ofList []) searingBlaze = [] := by decide
 
 /-- Heart of Bogardan -/
@@ -1260,14 +1261,14 @@ def frostwielder : Spelled := spelled <| .singleFaced
       subtypes := [human, shaman],
       text :=
         [ static
-            (instead
+            (replace
               (would
                 (a (and [ isCreature,
                           happenedTo thisCreature
                             (dealDamage anyAmount which)
                             soFarThisTurn ]))
                 die)
-              (exile it)),
+              (instead (exile it))),
           activated tapSymbol
             (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly)) ],
       power := stat 1, toughness := stat 2 } }
@@ -1343,7 +1344,7 @@ def actOfTreason : Action := gainControl (target isCreature) (some untilEndOfTur
     you)
 theorem okActOfTreason : Action.check (DRS.ofList []) actOfTreason = [] := by decide
 def wordsOfWorship : Action :=
-  replaceNextEvent (would you (draw anyAmount)) (gainLife (.lit 5)) (some thisTurn)
+  replaceNextEvent (would you (draw anyAmount)) (instead (gainLife (.lit 5))) (some thisTurn)
 theorem okWordsOfWorship : Action.check (DRS.ofList []) wordsOfWorship = [] := by decide
 def theLastRoninII : Action :=
   triggerReflexively (mill (.lit 4))

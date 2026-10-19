@@ -55,7 +55,9 @@ for example, "permanent", "colorless", "historic", "spell" and "attacking" expan
 shared predicates.
 
 Actions and their templates and definitions use dictionary forms (`exile`, `mill`, `gainLife`);
-static-spec constructors use nouns (`modification`, `abilityGrant`, `replacement`).
+static-spec constructors use nouns (`modification`, `abilityGrant`), except that a replacement
+effect is `replace`, the word it shares with a self-replacement action, its replacement marked
+`instead` where the text says so (`replace (would you (draw (.lit 1))) (instead (draw (.lit 2)))`).
 Event constructors retain their predication forms. Action composition uses `sequentially` and `simultaneously`; fixed repetition
 lives in `Repetition.fixed`. No action writes its performer: it is
 `actor`, the controller unless an enclosing `act performer body` hands it to

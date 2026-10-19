@@ -34,8 +34,8 @@ def scholarOfStars : Ability :=
 theorem okScholarOfStars : Ability.check (DRS.ofList []) scholarOfStars = [] := by decide
 
 def miserysShadow : Ability :=
-  static (instead
-            (would (a (and [isCreature, anOpponentControls])) die) (exile it))
+  static (replace
+            (would (a (and [isCreature, anOpponentControls])) die) (instead (exile it)))
 theorem okMiserysShadow : Ability.check (DRS.ofList []) miserysShadow = [] := by decide
 
 def beastWhisperer : Ability :=
@@ -297,7 +297,7 @@ def chameleonCopy : Ability :=
 theorem okChameleonCopy : Ability.check (DRS.ofList []) chameleonCopy = [] := by decide
 
 def nefariousLichGain : Ability :=
-  static (instead (would you (gainLife anyAmount)) (draw thatMuch))
+  static (replace (would you (gainLife anyAmount)) (instead (draw thatMuch)))
 theorem okNefariousLichGain : Ability.check (DRS.ofList []) nefariousLichGain = [] := by decide
 
 def piousWarrior : Spelled := spelled <| .singleFaced
@@ -626,7 +626,7 @@ def fblthp : Spelled := spelled <| .singleFaced
               (doIf (or
                   [ did ⟨it, enter (from_ := some yourLibrary), triggering⟩,
                     matches_ it (castFrom yourLibrary) ])
-                (draw (.lit 2)))),
+                (instead (draw (.lit 2))))),
           when (does (a isSpell) (target this_)) (shuffleInto this_) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -733,7 +733,7 @@ def hallowedMoonlight : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ replaceEvent (would any (putOntoBattlefield (a (and [isCreature, not (castBy any)]))))
-                (exile it)
+                (instead (exile it))
                 (some untilEndOfTurn),
               draw (.lit 1) ]) ] } }
 
@@ -751,11 +751,11 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
 /-- Don't Blink's replacement, without its written agent -/
 def dontBlinkReplacement : Action :=
   establishThroughout
-    (instead
+    (replace
       (wouldAny
         [ would (counted (atLeast 1) isCreature) (enter (from_ := some exileZone)),
           would (counted (atLeast 1) (and [isCreature, castFrom exileZone])) enter ])
-      (shuffleInto them))
+      (instead (shuffleInto them)))
     untilEndOfTurn
 theorem okDontBlinkReplacement : Action.check (DRS.ofList []) dontBlinkReplacement = [] := by decide
 

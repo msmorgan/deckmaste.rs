@@ -212,9 +212,7 @@ semantic_definition aftermath : Ability :=
           (cast this_ (from_ := some (not yourGraveyard)))),
       static
         (onlyWhile
-          (.instead (would thisSpell (leave stack))
-            (exile thisSpell)
-            none .repeatedly none)
+          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
           (matches_ thisSpell (.castFrom graveyard))) ]
 semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
@@ -346,9 +344,8 @@ semantic_definition buyback (cost : Cost) : Ability :=
     [ static (.addedCost (.inCaller cost) true .once),
       static
         (onlyWhile
-          (.instead (.would .any (.move thisSpell stack (some graveyard) .departure none []))
-            (.move thisSpell .anyLocation (some hand) .arrival none [])
-            none .repeatedly none)
+          (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+            (instead (.move thisSpell .anyLocation (some hand) .arrival none [])))
           (keywordCostPaid (.named "buyback") thisSpell)) ]
 semantic_definition casualty (amount : Amount) : Ability :=
   .keyword (.named "casualty") [.number (.inCaller amount)]
@@ -517,11 +514,8 @@ semantic_definition dredge (amount : Amount) : Ability :=
   .keyword (.named "dredge") [.number amount]
     [ static
         (onlyWhile
-          (.instead (.would (.actor .you) (.draw .anyAmount))
-            (may
-              (sequentially
-                [ mill amount, returnToHand this_ yourGraveyard ]))
-            none .repeatedly none)
+          (replace (would you (draw anyAmount))
+            (may (instead (sequentially [mill amount, returnToHand this_ yourGraveyard]))))
           (.compareAmt (countOf (cardIn yourLibrary)) .atLeast amount)) ]
 semantic_definition echo (cost : Cost) : Ability := keywordCosting (.named "echo") (.inCaller cost)
 semantic_definition embalm (cost : Cost) : Ability :=
@@ -689,9 +683,7 @@ semantic_definition flashback (cost : Cost) : Ability :=
           (cast this_ (from_ := some yourGraveyard) (payment := .payingInstead (.inCaller cost)))),
       static
         (onlyWhile
-          (.instead (would thisSpell (leave stack))
-            (exile thisSpell)
-            none .repeatedly none)
+          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
           (keywordCostPaid (.named "flashback") thisSpell)) ]
 semantic_definition forMirrodin : Ability :=
   .keyword (.named "forMirrodin") []
@@ -781,9 +773,7 @@ semantic_definition harmonize (cost : Cost) : Ability :=
           (keywordCostPaid (.named "harmonize") thisSpell)),
       static
         (onlyWhile
-          (.instead (would thisSpell (leave stack))
-            (exile thisSpell)
-            none .repeatedly none)
+          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
           (keywordCostPaid (.named "harmonize") thisSpell)) ]
 semantic_definition haste : Ability := keyword (.named "haste")
 semantic_definition haunt : Ability :=
@@ -920,9 +910,9 @@ semantic_definition livingWeapon : Ability :=
 semantic_definition madness (cost : Cost) : Ability :=
   .keyword (.named "madness") [.cost (.inCaller cost)]
     [ static
-        (.instead (would (a isPlayer) (discard thisCard))
-          (enact (.action "discard") (.move thisCard hand (some exileZone) .arrival none []))
-          none .repeatedly none),
+        (replace (would (a isPlayer) (discard thisCard))
+          (instead
+            (enact (.action "discard") (.move thisCard hand (some exileZone) .arrival none [])))),
       triggered
         (.causes (.event (does any (discard thisCard)))
           (does any (.move thisCard hand (some exileZone) .arrival none [])))
@@ -998,7 +988,7 @@ semantic_definition mutate (cost : Cost) : Ability :=
             [isCreature, not (.hasSubtype human), ownedBy (ownerOf thisSpell)])),
       static
         (onlyWhile
-          (.instead (.would .any (putOntoBattlefield thisSpell))
+          (.replace (.would .any (putOntoBattlefield thisSpell))
             (chooseOne
               (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell) .top)
               (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell) .bottom))
@@ -1186,12 +1176,12 @@ semantic_definition rebound : Ability :=
   .keyword (.named "rebound") []
     [ static
         (onlyIfSo
-          (.instead (.would .any (.move thisSpell stack (some graveyard) .departure none []))
-            (sequentially
-              [ exile thisSpell,
-                delay (beginningOf .upkeep (some .you) (.next none))
-                  (may (cast this_ (payment := withoutPaying))) ])
-            none .repeatedly none)
+          (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+            (instead
+              (sequentially
+                [ exile thisSpell,
+                  delay (beginningOf .upkeep (some .you) (.next none))
+                    (may (cast this_ (payment := withoutPaying))) ])))
           (matches_ thisSpell (.castFrom yourHand))) ]
 semantic_definition reconfigure (cost : Cost) : Ability :=
   .keyword (.named "reconfigure") [.cost (.inCaller cost)]
@@ -1331,7 +1321,7 @@ semantic_definition spectacle (cost : Cost) : Ability :=
 semantic_definition splice_ (quality : Predicate) (cost : Cost) : Ability :=
   .keyword (.named "splice") [.quality (.inCaller quality), .cost (.inCaller cost)]
     [ static
-        (.instead
+        (.replace
           (.would (.actor .you)
             (cast (a (and [isSpell, .inCaller quality]))))
           (may (.expose .reveal (.cards this_))
@@ -1477,9 +1467,8 @@ semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
 semantic_definition umbraArmor : Ability :=
   .keyword (.named "umbraArmor") []
     [ static
-        (.instead (would any (destroy (enchanted .permanent)))
-          (sequentially [clearDamage (enchanted .permanent), destroy thisAura])
-          none .repeatedly none) ]
+        (replace (would any (destroy (enchanted .permanent)))
+          (instead (sequentially [clearDamage (enchanted .permanent), destroy thisAura]))) ]
 semantic_definition undaunted : Ability :=
   .keyword (.named "undaunted") []
     [static (.costShift thisSpell (.less (forEach (.lit 1) isOpponent) none))]
@@ -1498,7 +1487,7 @@ semantic_definition unearth (cost : Cost) : Ability :=
             atNext .endStep
               (exile thisPermanent),
             replaceEvent (would thisPermanent leave)
-              (exile thisPermanent)
+              (instead (exile thisPermanent))
               none ])
         asSorcery ]
 semantic_definition unleash : Ability :=

@@ -656,9 +656,9 @@ semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider
 only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
 semantic_definition regenerate (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))
-    (.establish (.instead
+    (.establish (.replace
       (.would .any (destroy (.firstMention "regenerate.0" (.inCaller subject))))
-      (regenerationApplication (.laterMention "regenerate.0" (.inCaller subject)))
+      (instead (regenerationApplication (.laterMention "regenerate.0" (.inCaller subject))))
       none .nextTimeOnly none) (some thisTurn))
 
 private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :

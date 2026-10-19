@@ -103,7 +103,7 @@ mutual
       | _ => false)
     | n + 1, .cant _ i _ | n + 1, .must _ i _ | n + 1, .can _ i _ => i.namesThisDoor n
     | n + 1, .gatedBy cost _ i _ => cost.namesThisDoor n || i.namesThisDoor n
-    | n + 1, .instead event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
+    | n + 1, .replace event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .whileHolds condition i => condition.namesThisDoor n || i.namesThisDoor n
     | n + 1, .specialAction timing cost i => cost.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
     | n + 1, .damageRule _ _ _ (.prevent _ also) _ => also.any (fun i => i.namesThisDoor n)

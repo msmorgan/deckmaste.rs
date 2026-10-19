@@ -65,7 +65,7 @@ def planeswalkerLoyalty : ConferralRule :=
   { scope := .hasType .planeswalker,
     confer :=
       .static
-        (.instead (.would .any (.move .this .anyLocation (some battlefield) .arrival none [])) (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "loyaltyCounter")) .this .one true) none .repeatedly none) }
+        (.replace (.would .any (.move .this .anyLocation (some battlefield) .arrival none [])) (.putCounters (.statOf (.stat .loyalty) .this) (.printed (.named "loyaltyCounter")) .this .one true) none .repeatedly none) }
 theorem okPlaneswalkerLoyalty : ConferralRule.check planeswalkerLoyalty = [] := by decide
 
 /-- A conferral scopes what can have an ability — an object, or a player granted one

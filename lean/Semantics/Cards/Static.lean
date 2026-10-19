@@ -23,7 +23,7 @@ def forkedBolt : Action :=
   dealDivided this_ (.lit 2) (targets (oneThrough 2) isAnyTarget)
 theorem okForkedBolt : Action.check (DRS.ofList []) forkedBolt = [] := by decide
 def thoughtReflection : Ability :=
-  static (instead (would you (draw anyAmount)) (draw (.lit 2)))
+  static (replace (would you (draw anyAmount)) (instead (draw (.lit 2))))
 theorem okThoughtReflection : Ability.check (DRS.ofList []) thoughtReflection = [] := by decide
 def jorKadeen : Ability :=
   static (onlyWhile (getsPt (allOf (and [isCreature, youControl])) (up (.lit 3)) (up (.lit 0)))
@@ -61,11 +61,11 @@ theorem okHithlainRopeSacrificeLock : StaticSpec.check (DRS.ofList []) hithlainR
 def lichsMasteryGate : Ability := static (cant you loseGame)
 theorem okLichsMasteryGate : Ability.check (DRS.ofList []) lichsMasteryGate = [] := by decide
 def theGoldenThrone : Ability :=
-  static (instead (would you loseGame) (sequentially [exile thisArtifact, setLife (.lit 1)]))
+  static (replace (would you loseGame) (instead (sequentially [exile thisArtifact, setLife (.lit 1)])))
 theorem okTheGoldenThrone : Ability.check (DRS.ofList []) theGoldenThrone = [] := by decide
 def stunningReversal : Ability :=
   spell (establishThroughout
-           (instead (would you loseGame) (sequentially [draw (.lit 7), setLife (.lit 1)])
+           (replace (would you loseGame) (instead (sequentially [draw (.lit 7), setLife (.lit 1)]))
               none .nextTimeOnly) thisTurn)
 theorem okStunningReversal : Ability.check (DRS.ofList []) stunningReversal = [] := by decide
 def pathOfBravery : Ability :=
@@ -156,14 +156,14 @@ def rainOfGore : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rain of Gore", cost := some [pip .black, pip .red], types := [.enchantment],
       text :=
-        [ static (instead
+        [ static (replace
       (causedBy
         (bySource (a (or [isSpell,
           abilityHead .anyOnStack])))
         (would
           (controllerOf it)
           (gainLife anyAmount)))
-      (instruct (that player) (loseLife thatMuch))) ] } }
+      (instead (instruct (that player) (loseLife thatMuch)))) ] } }
 
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
@@ -174,7 +174,7 @@ def anointedProcession : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Anointed Procession", cost := some [generic 3, pip .white], types := [.enchantment],
       text :=
-        [ static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true (some you))) (create (times (.lit 2) groupSize) asThose [])) ] } }
+        [ static (replace (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true (some you))) (instead (create (times (.lit 2) groupSize) asThose []))) ] } }
 
 def naturalAffinity : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -625,7 +625,7 @@ theorem okTheLadyOfOtariaLine : StaticSpec.check (DRS.ofList []) theLadyOfOtaria
 
 /-- Clergy of the Holy Nimbus -/
 def clergyOfTheHolyNimbus : Ability :=
-  static (instead (would any (destroy thisCreature)) (regenerationApplication it))
+  static (replace (would any (destroy thisCreature)) (regenerationApplication it))
 theorem okClergyOfTheHolyNimbus : Ability.check (DRS.ofList []) clergyOfTheHolyNimbus = [] := by decide
 /-- Rampant Frogantua -/
 def rampantFrogantuaPump : Ability :=

@@ -155,7 +155,7 @@ theorem pronoun_and_demonstrative_split :
 `"If a nontoken creature an opponent controls would die, instead exile that creature and create a 2/2 black Zombie creature token."` -/
 def kalitasReplacement : Ability :=
   .static <|
-    .instead
+    .replace
       (.would .any
         (.move (.described (.a .unmarked)
             (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you))]))

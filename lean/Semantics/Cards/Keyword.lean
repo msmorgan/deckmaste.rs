@@ -139,9 +139,9 @@ def exquisiteArchangel : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [angel],
       text :=
         [ flying,
-          static (instead (would you loseGame) (sequentially
+          static (replace (would you loseGame) (instead (sequentially
               [ exile thisCreature,
-                setLife (statOf (.playerStat .startingLifeTotal) you) ])) ],
+                setLife (statOf (.playerStat .startingLifeTotal) you) ]))) ],
       power := stat 5, toughness := stat 5 } }
 
 def adelbertSteiner : Spelled := spelled <| .singleFaced
@@ -257,7 +257,7 @@ def secretsOfTheGoldenCity : Spelled := spelled <| .singleFaced
       text :=
         [ ascend,
           spell (replace (draw (.lit 2))
-            (doIf (matches_ you (hasDesignation citysBlessing)) (draw (.lit 3)))) ] } }
+            (doIf (matches_ you (hasDesignation citysBlessing)) (instead (draw (.lit 3))))) ] } }
 
 def bombur : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -312,12 +312,12 @@ def divineVisitation : Spelled := spelled <| .singleFaced
     { name := "Divine Visitation", cost := some [generic 3, pip .white, pip .white],
       types := [.enchantment],
       text :=
-        [ static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) (and [isCreature, isToken]))) []) false (some you))) (createToken
+        [ static (replace (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) (and [isCreature, isToken]))) []) false (some you))) (instead (createToken
               { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
                   text := [flying,
                            vigilance], power := stat 4, toughness := stat 4 } } (count :=
-                                                                                   groupSize))) ] } }
+                                                                                   groupSize)))) ] } }
 
 def adrixAndNev : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -326,8 +326,8 @@ def adrixAndNev : Spelled := spelled <| .singleFaced
       subtypes := [merfolk, wizard],
       text :=
         [ ward (mana [generic 2]),
-          static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) false (some
-              you))) (create (times (.lit 2) groupSize) asThose [])) ],
+          static (replace (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) false (some
+              you))) (instead (create (times (.lit 2) groupSize) asThose []))) ],
       power := stat 2, toughness := stat 2 } }
 
 def windZendikon : Spelled := spelled <| .singleFaced
@@ -1084,7 +1084,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
           spell (replace
             (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := .lit 6))
             (doIf (keywordCostPaid kicker this_)
-              (create (.lit 12) asThose []))) ] } }
+              (instead (create (.lit 12) asThose [])))) ] } }
 
 /-- Soul of Emancipation -/
 def soulOfEmancipation : Ability :=
@@ -1188,10 +1188,10 @@ def containmentPriest : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ flash,
-          static (instead
+          static (replace
                     (would any
                        (putOntoBattlefield
-                          (a (and [isCreature, isNontoken, not (castBy any)])))) (exile it)) ],
+                          (a (and [isCreature, isNontoken, not (castBy any)])))) (instead (exile it))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Veiling Oddity -/
@@ -1224,11 +1224,11 @@ theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
 /-- Pir, Imaginative Rascal's replacement -/
 def pirDistributive : Ability :=
-  static (instead
+  static (replace
             (would any
                (putCounters anyAmount anyKind
                   (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false))
-                      (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many))
+                      (instead (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many)))
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 
 /-- Frogmite -/
@@ -1689,12 +1689,12 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
       subtypes := [mutant, mercenary, hero],
       text :=
         [ static
-            (instead (would any (putOntoBattlefield thisCreature))
-               (may
+            (replace (would any (putOntoBattlefield thisCreature))
+               (instead (may
                   (establish
                      (textChange thisCreature
                         (exchangeWith
-                           (a (and [isCreature, otherThan this_])))))) none .nextTimeOnly),
+                           (a (and [isCreature, otherThan this_]))))))) none .nextTimeOnly),
           at_ (beginningOfYour .upkeep) (loseLife (.lit 3)),
           activated (compound [mana [generic 3], perform (sacrifice thisCreature)])
             (instruct (each isOtherPlayer) (draw (.lit 1))) ],
