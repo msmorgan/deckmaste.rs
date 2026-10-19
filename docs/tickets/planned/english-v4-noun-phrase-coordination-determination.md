@@ -17,10 +17,25 @@ accepted that as an exception: it takes the schemas from 9 to 17 in
   conjunct, as before the split.
 - A lexicon fix cannot do it: colour nouns stand bare legitimately (*choose
   red*, *protection from red*).
+- Do not leave `Determination` and `Countability` unset on a coordinated
+  `NounPhrase` (or require `Carry` rather than `Require` / `Exclude` in
+  `PredeterminerCount`, `PredeterminerMass`, `MultipliedNounPhrase`,
+  `MultiplierPredetermination`, and `MeasuredComparativeHead`). Today both
+  features sit in `unshared` on every `NounPhrase` coordination schema, so
+  `Require("head.Determination", "Overt")` succeeds on bare coordinated Noun
+  Phrases—giving every *all X and Y* (*Destroy all artifacts and enchantments.*)
+  and *both X and Y* in the corpus a spurious third derivation through
+  `PredeterminerCount` (`all [[NP artifacts] and [NP enchantments]]`) and
+  admitting `*double creatures and planeswalkers` and `*creatures and
+  planeswalkers more`.
 
 ## Done when
 
 - The Noun Phrase coordination schemas are back to 9, or fewer.
+- `*NounPhrase double creatures and planeswalkers` and
+  `*NounPhrase creatures and planeswalkers more` hold in judgments, and
+  *all artifacts and enchantments* has no `PredeterminerCount` derivation over
+  bare coordinated Noun Phrases.
 - No unit gains a derivation and no face is lost against the census before
   the change; Lush Growth stays unread (deferred) until a correct reading
   exists.

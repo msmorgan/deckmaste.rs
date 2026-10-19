@@ -19,10 +19,18 @@ analyses predate Stratum 6, which found them and left them alone.
   before restricting it.
 - It is no Manner Adjunct and no bare singular Noun Phrase on its own, and it
   does not head a nominal that an attributive noun premodifies.
+- Fix the same unset-feature leak on `LoyaltyNominal`
+  (`crates/deckmaste_english_v4/grammar/english.ron:406`), which sets only
+  `Number` and `Countability` while leaving `Determination`, `NounKind`, and
+  `NounDistribution` unset (unlike `SymbolNominal`, `NumeralNominal`, and
+  `CardinalNominal`), allowing `[+1]` to project through `BareSingularTerm` to
+  `MannerAdjunct` (`*Draw a card [+1].`), `TemporalLocation`,
+  `BareSingularPossessor`, and `NominalPremodifier`.
 
 ## Done when
 
-- `*Clause Draw a card 3/3.` holds in a judgment file.
+- `*Clause Draw a card 3/3.` and `*Clause Draw a card [+1].` hold in a judgment
+  file.
 - Every unit that reads before the change still reads, with no face lost, and
   the census reports the derivation change on previously read units.
 
