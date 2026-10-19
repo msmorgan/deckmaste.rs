@@ -887,9 +887,9 @@ def heartOfYavimaya : Spelled := spelled <| .singleFaced
     { name := "Heart of Yavimaya", types := [.land],
       text :=
         [ static
-            (replace (would any (putOntoBattlefield this_))
-               (instead (doIfDone (sacrifice (a (and [isLand, hasSubtype forest])))
-              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard))))),
+            (replace (would thisLand enter)
+              (doIfDone (instead (sacrifice (a (and [isLand, hasSubtype forest]))))
+                (some (putOntoBattlefield thisLand)) (some (putInto it graveyard)))),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.of .green]])),
           activated tapSymbol
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ] } }
@@ -900,9 +900,9 @@ def moxDiamond : Spelled := spelled <| .singleFaced
     { name := "Mox Diamond", cost := some [], types := [.artifact],
       text :=
         [ static
-            (replace (would any (putOntoBattlefield this_))
-               (instead (may (discard (a (and [isLand, in_ yourHand])))
-              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard))))),
+            (replace (would thisArtifact enter)
+              (may (instead (discard (a (and [isLand, in_ yourHand]))))
+                (some (putOntoBattlefield thisArtifact)) (some (putInto it graveyard)))),
           activated tapSymbol (addMana (.lit 1) (ofAnyColor .sameColor)) ] } }
 
 /-- Up the Beanstalk -/
@@ -920,11 +920,16 @@ def shelteredValley : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sheltered Valley", types := [.land],
       text :=
-        [ static (replace (would any (putOntoBattlefield this_)) (instead (sequentially
-              [ sacrifice
-                  (each (and [isPermanent, otherThan thisLand, named (printedName "Sheltered Valley"),
-                               youControl])),
-                putOntoBattlefield this_ ]))),
+        [ static
+            (replace (would thisLand enter)
+              (instead
+                (sequentially
+                  [ sacrifice
+                      (each
+                        (and
+                          [ isPermanent, otherThan thisLand, named (printedName "Sheltered Valley"),
+                            youControl ])),
+                    putOntoBattlefield thisLand ]))),
           triggeredIf (beginningOfYour .upkeep)
             (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3))
             (gainLife (.lit 1)),

@@ -1689,12 +1689,10 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
       subtypes := [mutant, mercenary, hero],
       text :=
         [ static
-            (replace (would any (putOntoBattlefield thisCreature))
-               (instead (may
-                  (establish
-                     (textChange thisCreature
-                        (exchangeWith
-                           (a (and [isCreature, otherThan this_]))))))) none .nextTimeOnly),
+            (asEvent (does thisCreature enter)
+              (may
+                (establish
+                  (textChange thisCreature (exchangeWith (a (and [isCreature, otherThan this_]))))))),
           at_ (beginningOfYour .upkeep) (loseLife (.lit 3)),
           activated (compound [mana [generic 3], perform (sacrifice thisCreature)])
             (instruct (each isOtherPlayer) (draw (.lit 1))) ],
