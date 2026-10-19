@@ -497,10 +497,10 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
 semantic_definition monstrosity (amount : Amount) : Action :=
   .ownScope (some (.action "monstrosity"))
     (.enact (.action "monstrosity")
-      (.doIf (.not (.matches thisPermanent (.hasDesignation (.named "monstrous") none)))
+      (.doIf (.not (.matches .actor (.hasDesignation (.named "monstrous") none)))
         (.sequentially
-          [ .putCounters (.inCaller amount) (.printed p1p1Counter) thisPermanent .one true,
-            .gainDesignation thisPermanent (.named "monstrous") none ])
+          [ .putCounters (.inCaller amount) (.printed p1p1Counter) .actor .one true,
+            .gainDesignation .actor (.named "monstrous") none ])
         none)
       none none)
 semantic_definition doubleCounters (on : NounPhrase) : Action :=
@@ -2734,8 +2734,8 @@ semantic_definition wither : Ability := keyword (.named "wither")
 semantic_definition adapt (amount : Amount) : Action :=
   .ownScope (some (.action "adapt"))
     (enact (.action "adapt")
-      (.doIf (.not (.matches thisPermanent (.hasCounters (some p1p1Counter))))
-        (putCounters (.inCaller amount) (.printed p1p1Counter) thisPermanent)
+      (.doIf (.not (.matches .actor (.hasCounters (some p1p1Counter))))
+        (putCounters (.inCaller amount) (.printed p1p1Counter) .actor)
         none))
 semantic_definition behold (quality : Predicate) : Action :=
   .ownScope (some (.action "behold"))
