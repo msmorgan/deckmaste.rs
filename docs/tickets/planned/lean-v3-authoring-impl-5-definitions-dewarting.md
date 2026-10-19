@@ -4,9 +4,9 @@ needs: [lean-v3-authoring-impl-4-checker-dewarting]
 # Dewart Lean v3 `Templates.lean` and `Definitions.lean`
 
 **Eliminate the remaining identifier inconsistencies, redundant parameters,
-duplicate `*Expansion` definitions, copy-pasted `gift*` bodies, and unfolded
-constructor trees in `lean/Semantics/Templates.lean` and
-`lean/Semantics/Definitions.lean`.** Standard constraints apply.
+duplicate `*Expansion` definitions, and unfolded constructor trees in
+`lean/Semantics/Templates.lean` and `lean/Semantics/Definitions.lean`.**
+Standard constraints apply.
 
 ## Scope
 
@@ -90,16 +90,17 @@ constructor trees in `lean/Semantics/Templates.lean` and
    - Add `hexproofFrom (quality : Predicate) : Ability` alongside `hexproof`
      (`[CR#702.11d]`), and fix `equipQuality` (`Definitions.lean:1464`) to use
      `.named "equip"` instead of `.named "equipQuality"`.
-3. **Collapse the 6 copy-pasted `gift*` definitions (`Definitions.lean:1632-1806`):**
-   - Rewrite `giftACard`, `giftAFood`, `giftATappedFish`, `giftATreasure`,
-     `giftAnExtraTurn`, and `giftAnOctopus` as 1-line calls to `gift (...)` using
-     `foodToken`, `treasureToken`, and `creatureToken`.
-4. **Fold unfolded definitions and templates inside `Definitions.lean`:**
+3. **Fold unfolded definitions and templates inside `Definitions.lean`:**
    - Across `Definitions.lean`, fold inlined constructor trees back into calls to
      `sacrifice`, `exile`, `tap`, `untap`, `destroy`, `discard`, `transform`,
      `attachTo`, `cast`, `play`, `activate`, `mill`, `die`, `enter`, `leave`,
      `createToken`, `createTappedToken`, `thisPermanent`, `thisSpell`, `thisCard`,
-     and named subtypes/tokens/counters/designations.
+     and named subtypes/tokens/counters/designations (including using `foodToken`
+     and `treasureToken` inside `giftAFood` and `giftATreasure`, while keeping each
+     licensed `[CR#702.174a]` `gift*` phrasing — `giftACard`, `giftAFood`,
+     `giftATappedFish`, `giftATreasure`, `giftAnExtraTurn`, `giftAnOctopus` — as its
+     own standalone `semantic_definition` rather than collapsing them to calls to
+     bare `gift`).
    - Replace `allOf isPlayer` in `splitSecond` (`Definitions.lean:2491`) with
      `bare isPlayer` (*"Players can't cast spells or activate abilities..."*).
    - Clean up the triple-nested `enact` + dummy `.clearDamage` hack in `umbraArmor`
