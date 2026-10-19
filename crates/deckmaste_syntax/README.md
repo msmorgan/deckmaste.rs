@@ -43,6 +43,25 @@ It has no proc macros and no generated code: a grammar is data.
    phrases), `modifier` (an unselected dependent of a nominal) or `adjunct` (of
    a predicate).
 
+## Chart and realization costs
+
+Binding computes transitive left-corner terminal masks for Categories and
+Productions, including recursive Categories. Parsing builds one active terminal
+mask per chart position from the independent lexical analysis and punctuation;
+only Productions whose first terminals can match are predicted. Whitespace
+marks use the unskipped position, preserving structural line boundaries.
+
+Prediction stamps and waiting-parent lists use flat indexes. Item deduplication
+is partitioned by end position and hashes internal integer identities with a
+fixed mixer. State and Summary feature slots occupy one byte each; binding
+rejects feature domains larger than 255 values, reserving one byte value for an
+unbound slot. These representations retain the same grammatical distinctions.
+
+Packed realization verification stores its four possible boundary behaviours
+in a bitmask. Each reachable leaf is checked once per verification, including
+when unary cycles prevent memoizing a surrounding node. Successful spelling
+checks compare characters without allocating another source string.
+
 ## Schemas
 
 Authors write active Subcategorization Frames once; the engine derives the rest.

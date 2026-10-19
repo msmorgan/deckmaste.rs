@@ -1,6 +1,8 @@
 //! Engine core: loading, feature agreement, packing, Admission and both
 //! round-trip laws, over a small hand-written grammar.
 
+use std::fmt::Write;
+
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Countability;
 use deckmaste_lexical::Lexeme;
@@ -478,4 +480,140 @@ fn a_phrase_parses_and_admits_as_its_own_category() {
     assert!(grammar.admit(&readings[0], &lexicon).is_err());
     assert_eq!(parse.verify_realization(&lexicon), Ok(()));
     assert!(grammar.parse_category(&analyzed, "Nonesuch").is_none());
+}
+
+#[test]
+fn left_corner_filter_skips_unreachable_recursive_categories() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let extended = GRAMMAR
+        .replace("\"PrepositionPhrase\": (),", "\"PrepositionPhrase\": (), \"Bracket\": (), \"Alias\": (),")
+        .replace("    ],\n)", r#"
+        (name: "BracketPhrase", lhs: "NounPhrase", rhs: [Cat("head", "Bracket")]),
+        (name: "BracketAlias", lhs: "Bracket", rhs: [Cat("head", "Alias")]),
+        (name: "AliasCycle", lhs: "Alias", rhs: [Cat("head", "Bracket")]),
+        (name: "Brackets", lhs: "Alias", rhs: [Mark('(', Prefix), Cat("head", "NounPhrase"), Punct(')')]),
+    ],
+)"#);
+    let extended = bind(&extended, &lexicon).unwrap();
+    let text = "See the man on the hill with the telescope.";
+    assert_eq!(
+        readings(&extended, &lexicon, text),
+        readings(&grammar, &lexicon, text)
+    );
+    assert_eq!(
+        extended.parse(&lexicon, text).forest.metrics(),
+        grammar.parse(&lexicon, text).forest.metrics()
+    );
+    let text = "See (the man).";
+    assert_ne!(readings(&extended, &lexicon, text), [] as [Reading; 0]);
+    assert_eq!(
+        extended.parse(&lexicon, text).verify_realization(&lexicon),
+        Ok(())
+    );
+}
+
+#[test]
+fn left_corner_masks_preserve_more_than_64_distinct_terminals() {
+    let lexicon = lexicon();
+    let mut productions =
+        String::from(r#"(name: "Root", lhs: "Root", rhs: [Cat("head", "Mark")]),"#);
+    let marks: Vec<_> = (0..70)
+        .map(|i| char::from_u32(0x2500 + i).unwrap())
+        .collect();
+    for (i, mark) in marks.iter().enumerate() {
+        write!(
+            productions,
+            "(name: \"Mark{i}\", lhs: \"Mark\", rhs: [Punct('{mark}')]),"
+        )
+        .unwrap();
+    }
+    let grammar = bind(&format!(r#"(root: "Root", categories: {{"Root": (), "Mark": ()}}, productions: [{productions}])"#), &lexicon).unwrap();
+    for mark in marks {
+        let text = mark.to_string();
+        // Each distinct mark selects its own sole declared Production.
+        assert_eq!(readings(&grammar, &lexicon, &text).len(), 1);
+        assert_eq!(
+            grammar.parse(&lexicon, &text).verify_realization(&lexicon),
+            Ok(())
+        );
+    }
+    assert_eq!(readings(&grammar, &lexicon, "?"), [] as [Reading; 0]);
+}
+
+#[test]
+fn compact_feature_values_preserve_zero_last_and_unbound() {
+    let lexicon = lexicon();
+    let values = (0..255)
+        .map(|i| format!("\"V{i}\""))
+        .collect::<Vec<_>>()
+        .join(",");
+    let source = format!(
+        r#"(
+        root: "Root",
+        features: {{"Feature": [{values}]}},
+        categories: {{"Root": (features: ["Feature"])}},
+        productions: [
+            (name: "First", lhs: "Root", rhs: [Lex("head", Noun)], equations: [Require("$.Feature", "V0")]),
+            (name: "Last", lhs: "Root", rhs: [Lex("head", Noun)], equations: [Require("$.Feature", "V254")]),
+            (name: "Unbound", lhs: "Root", rhs: [Lex("head", Noun)]),
+        ],
+    )"#
+    );
+    let grammar = bind(&source, &lexicon).unwrap();
+    let values: std::collections::BTreeSet<_> = readings(&grammar, &lexicon, "card")
+        .iter()
+        .map(|r| {
+            r.node()
+                .unwrap()
+                .features
+                .get("Feature")
+                .map(ToString::to_string)
+        })
+        .collect();
+    assert_eq!(
+        values,
+        [None, Some("V0".into()), Some("V254".into())].into()
+    );
+    assert!(
+        load_error(&source.replace("\"V254\"]", "\"V254\", \"V255\"]")).contains("more than 255")
+    );
+}
+
+#[test]
+fn realization_checks_reachable_leaves_and_reports_misspellings() {
+    let lexicon = lexicon();
+    let grammar = bind(
+        r#"(
+        root: "Root", categories: {"Root": ()},
+        closed_words: {"The": "d:the"},
+        productions: [(name: "Word", lhs: "Root", rhs: [Word("head", "The")])],
+    )"#,
+        &lexicon,
+    )
+    .unwrap();
+    let mut analyzed = lexicon.analyze("the");
+    let mut unused = lexicon.analyze("hill").matches.remove(0);
+    unused.end = 3;
+    analyzed.matches.push(unused);
+    let parse = grammar.parse_analyzed(&analyzed);
+    assert_ne!(parse.readings(), [] as [Reading; 0]);
+    assert_eq!(parse.verify_realization(&lexicon), Ok(()));
+
+    let changed = Lexicon::new([Lexeme::invariant(
+        "d:the",
+        "a",
+        Category::Determinative,
+        source(SourceKind::Core),
+    )])
+    .unwrap();
+    assert_eq!(
+        parse.verify_realization(&changed),
+        Err(deckmaste_syntax::RealizationFault::Spelling {
+            start: 0,
+            end: 3,
+            realized: "a".into(),
+            source_text: "the".into(),
+        })
+    );
 }

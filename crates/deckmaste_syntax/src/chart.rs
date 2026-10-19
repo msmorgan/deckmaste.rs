@@ -1,7 +1,7 @@
 //! Earley chart parsing into a Packed Forest.
 
 use std::collections::HashMap;
-use std::collections::HashSet;
+use std::hash::BuildHasherDefault;
 use std::ops::Range;
 
 use deckmaste_lexical::AnalyzedText;
@@ -9,11 +9,14 @@ use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
 
 use crate::compile::CompiledGrammar;
+use crate::hash::ChartHasher;
 use crate::step::ChildView;
 use crate::step::LeafFacts;
 use crate::step::State;
 use crate::step::Summary;
 use crate::step::Symbol;
+
+type ChartMap<K> = HashMap<K, usize, BuildHasherDefault<ChartHasher>>;
 
 /// Sizes of one parse, for measurement only.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -190,10 +193,12 @@ impl CompiledGrammar {
             }
         }
         let mut sets: Vec<Vec<usize>> = vec![Vec::new(); n + 1];
-        let mut item_index: HashMap<(usize, usize, usize, usize, State), usize> = HashMap::new();
-        let mut node_index: HashMap<(usize, usize, usize, Summary), usize> = HashMap::new();
-        let mut waiting: HashMap<(usize, usize), Vec<usize>> = HashMap::new();
-        let mut predicted: HashSet<(usize, usize)> = HashSet::new();
+        let mut item_index: Vec<ChartMap<(usize, usize, usize, State)>> =
+            (0..=n).map(|_| ChartMap::default()).collect();
+        let mut node_index: ChartMap<(usize, usize, usize, Summary)> = ChartMap::default();
+        let categories = self.categories.len();
+        let mut waiting: Vec<Vec<usize>> = vec![Vec::new(); (n + 1) * categories];
+        let mut predicted_at = vec![usize::MAX; categories];
 
         let mut add = |forest: &mut PackedForest,
                        sets: &mut Vec<Vec<usize>>,
@@ -203,7 +208,8 @@ impl CompiledGrammar {
                        end: usize,
                        state: State,
                        family: Option<(Option<usize>, ChildRef)>| {
-            let key = (production, dot, start, end, state);
+            let key = (production, dot, start, state);
+            let item_index = &mut item_index[end];
             let index = if let Some(&i) = item_index.get(&key) {
                 i
             } else {
@@ -213,7 +219,7 @@ impl CompiledGrammar {
                     dot,
                     start,
                     end,
-                    state: key.4,
+                    state: key.3,
                     families: Vec::new(),
                 });
                 item_index.insert(key, i);
@@ -225,40 +231,39 @@ impl CompiledGrammar {
             }
         };
 
-        // Whether a Production could scan its first symbol at `position`: a
-        // terminal-initial Production predicted where no leaf or mark could
-        // begin it would never advance, so it is not predicted.
-        let viable = |production: usize, leaves: &[Leaf], position: usize| {
-            let first = self.productions[production].rhs.first();
-            match first {
-                Some(Symbol::Leaf(test)) => by_start[skip(position)]
-                    .iter()
-                    .any(|&leaf| self.leaf_matches(test, &leaves[leaf].facts)),
-                Some(Symbol::Punct(c, _)) => {
-                    let at = if c.is_whitespace() { position } else { skip(position) };
-                    at < n && tokens[at] == *c
-                }
-                _ => true,
-            }
-        };
-
-        for &p in &self.by_lhs[root] {
-            predicted.insert((0, p));
-            if !viable(p, &forest.leaves, 0) {
+        let mut active = self.prediction.signature();
+        for position in 0..=n {
+            if position != 0 && sets[position].is_empty() {
                 continue;
             }
-            add(
-                &mut forest,
-                &mut sets,
-                p,
-                0,
-                0,
-                0,
-                self.productions[p].start(),
-                None,
+            active.fill(0);
+            let at = skip(position);
+            for &leaf in &by_start[at] {
+                self.prediction
+                    .add_leaf(self, &forest.leaves[leaf].facts, &mut active);
+            }
+            self.prediction.add_punctuation(
+                tokens.get(position).copied(),
+                tokens.get(at).copied(),
+                &mut active,
             );
-        }
-        for position in 0..=n {
+            if position == 0 {
+                predicted_at[root] = position;
+                for &p in &self.by_lhs[root] {
+                    if self.prediction.production(p, &active) {
+                        add(
+                            &mut forest,
+                            &mut sets,
+                            p,
+                            0,
+                            0,
+                            0,
+                            self.productions[p].start(),
+                            None,
+                        );
+                    }
+                }
+            }
             let mut cursor = 0;
             while cursor < sets[position].len() {
                 let id = sets[position][cursor];
@@ -287,11 +292,7 @@ impl CompiledGrammar {
                         families: vec![(production_id, id)],
                     });
                     node_index.insert(key, node);
-                    let parents = waiting
-                        .get(&(start, production.lhs))
-                        .cloned()
-                        .unwrap_or_default();
-                    for parent in parents {
+                    for &parent in &waiting[start * categories + production.lhs] {
                         let item = &forest.items[parent];
                         let parent_production = &self.productions[item.production];
                         let view = ChildView::Node(&forest.nodes[node].summary);
@@ -324,11 +325,16 @@ impl CompiledGrammar {
                 }
                 match &production.rhs[dot] {
                     Symbol::Cat { category, .. } => {
-                        waiting.entry((position, *category)).or_default().push(id);
+                        waiting[position * categories + category].push(id);
+                        if predicted_at[*category] == position {
+                            continue;
+                        }
+                        predicted_at[*category] = position;
+                        if !self.prediction.category(*category, &active) {
+                            continue;
+                        }
                         for &p in &self.by_lhs[*category] {
-                            if predicted.insert((position, p))
-                                && viable(p, &forest.leaves, position)
-                            {
+                            if self.prediction.production(p, &active) {
                                 add(
                                     &mut forest,
                                     &mut sets,

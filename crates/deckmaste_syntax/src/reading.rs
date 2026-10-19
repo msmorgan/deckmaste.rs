@@ -248,7 +248,10 @@ impl CompiledGrammar {
         self.category_features[category]
             .iter()
             .zip(summary.values.iter())
-            .filter_map(|(&f, v)| v.map(|v| (self.features[f], self.values[f][usize::from(v)])))
+            .filter_map(|(&f, v)| {
+                v.get()
+                    .map(|v| (self.features[f], self.values[f][usize::from(v)]))
+            })
             .collect()
     }
 

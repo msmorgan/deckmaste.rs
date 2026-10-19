@@ -1,8 +1,6 @@
 //! Both round-trip laws, checked over the Packed Forest without building its
 //! trees.
 
-use std::collections::BTreeSet;
-
 use deckmaste_lexical::Binding;
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical::Lexicon;
@@ -37,8 +35,45 @@ pub enum RealizationFault {
 /// what follows it.
 type Edges = (bool, bool);
 
+/// The four possible pairs of edge behaviours, without per-node allocation.
+#[derive(Clone, Copy, Default)]
+struct EdgeMask(u8);
+
+impl EdgeMask {
+    fn one(edges: Edges) -> Self {
+        let mut mask = Self::default();
+        mask.insert(edges);
+        mask
+    }
+
+    fn insert(&mut self, (before, after): Edges) {
+        self.0 |= 1 << (u8::from(before) * 2 + u8::from(after));
+    }
+
+    fn extend(&mut self, other: Self) {
+        self.0 |= other.0;
+    }
+
+    fn iter(self) -> impl Iterator<Item = Edges> {
+        (0..4).filter_map(move |bit| {
+            (self.0 & (1 << bit) != 0).then_some((bit & 2 != 0, bit & 1 != 0))
+        })
+    }
+
+    fn bind(self, binding: Binding) -> Self {
+        let mut mask = Self::default();
+        for (before, after) in self.iter() {
+            mask.insert((
+                before || glues_before(binding),
+                after || glues_after(binding),
+            ));
+        }
+        mask
+    }
+}
+
 /// Memoized edge sets of forest nodes and items.
-type EdgeMemo = ForestMemo<BTreeSet<Edges>, BTreeSet<Edges>>;
+type EdgeMemo = ForestMemo<EdgeMask, EdgeMask>;
 
 impl Parse<'_> {
     /// Round-trip law 1 over the whole forest: every Reading realizes as the
@@ -52,13 +87,16 @@ impl Parse<'_> {
     pub fn verify_realization(&self, lexicon: &Lexicon) -> Result<(), RealizationFault> {
         let n = self.tokens.len();
         let mut memo = EdgeMemo::default();
+        // Only reachable leaves participate in the law. Cache their successful
+        // checks even when a unary cycle prevents memoizing a surrounding node.
+        let mut leaves = vec![None; self.forest.leaves.len()];
         for &root in &self.forest.roots {
             if self.tokens.first().is_some_and(|c| c.is_whitespace())
                 || self.forest.nodes[root].end != n
             {
                 return Err(RealizationFault::Edge);
             }
-            self.node_edges(root, lexicon, &mut memo)?;
+            self.node_edges(root, lexicon, &mut memo, &mut leaves)?;
         }
         Ok(())
     }
@@ -68,15 +106,16 @@ impl Parse<'_> {
         node: usize,
         lexicon: &Lexicon,
         memo: &mut EdgeMemo,
-    ) -> Result<BTreeSet<Edges>, RealizationFault> {
+        leaves: &mut [Option<Binding>],
+    ) -> Result<EdgeMask, RealizationFault> {
         let frame = match memo.nodes.enter(node) {
             Visit::Known(edges) => return Ok(edges),
-            Visit::Cycle => return Ok(BTreeSet::new()),
+            Visit::Cycle => return Ok(EdgeMask::default()),
             Visit::Open(frame) => frame,
         };
-        let mut edges = BTreeSet::new();
+        let mut edges = EdgeMask::default();
         for &(_, item) in &self.forest.nodes[node].families {
-            edges.extend(self.item_edges(item, lexicon, memo)?);
+            edges.extend(self.item_edges(item, lexicon, memo, leaves)?);
         }
         memo.nodes.leave(frame, &edges);
         Ok(edges)
@@ -87,38 +126,37 @@ impl Parse<'_> {
         item: usize,
         lexicon: &Lexicon,
         memo: &mut EdgeMemo,
-    ) -> Result<BTreeSet<Edges>, RealizationFault> {
+        leaves: &mut [Option<Binding>],
+    ) -> Result<EdgeMask, RealizationFault> {
         if let Some(edges) = memo.items.get(&item) {
-            return Ok(edges.clone());
+            return Ok(*edges);
         }
         let mark = memo.nodes.mark();
-        let mut edges = BTreeSet::new();
+        let mut edges = EdgeMask::default();
         for &(previous, child) in &self.forest.items[item].families {
-            let last: BTreeSet<Edges> = match child {
+            let last: EdgeMask = match child {
                 ChildRef::Node(n) => {
-                    let edges = self.node_edges(n, lexicon, memo)?;
+                    let edges = self.node_edges(n, lexicon, memo, leaves)?;
                     let state = &self.forest.items[item];
                     if let crate::step::Symbol::Cat {
                         binding: Some(binding),
                         ..
                     } = &self.grammar.productions[state.production].rhs[state.dot - 1]
                     {
-                        edges
-                            .into_iter()
-                            .map(|(before, after)| {
-                                (
-                                    before || glues_before(*binding),
-                                    after || glues_after(*binding),
-                                )
-                            })
-                            .collect()
+                        edges.bind(*binding)
                     } else {
                         edges
                     }
                 }
                 ChildRef::Leaf(l) => {
-                    let binding = self.leaf_binding(l, lexicon)?;
-                    BTreeSet::from([(glues_before(binding), glues_after(binding))])
+                    let binding = if let Some(binding) = leaves[l] {
+                        binding
+                    } else {
+                        let binding = self.leaf_binding(l, lexicon)?;
+                        leaves[l] = Some(binding);
+                        binding
+                    };
+                    EdgeMask::one((glues_before(binding), glues_after(binding)))
                 }
                 ChildRef::Punct => {
                     let state = &self.forest.items[item];
@@ -127,7 +165,7 @@ impl Parse<'_> {
                     else {
                         unreachable!()
                     };
-                    BTreeSet::from([(glues_before(*binding), glues_after(*binding))])
+                    EdgeMask::one((glues_before(*binding), glues_after(*binding)))
                 }
             };
             let Some(previous) = previous else {
@@ -142,8 +180,8 @@ impl Parse<'_> {
             } else {
                 self.space_after(at)
             };
-            for (first, before) in self.item_edges(previous, lexicon, memo)? {
-                for &(attaches, after) in &last {
+            for (first, before) in self.item_edges(previous, lexicon, memo, leaves)?.iter() {
+                for (attaches, after) in last.iter() {
                     let glue = before || attaches;
                     if space != Some(!glue) {
                         return Err(RealizationFault::Spacing { at });
@@ -153,7 +191,7 @@ impl Parse<'_> {
             }
         }
         if memo.nodes.settle(mark) {
-            memo.items.insert(item, edges.clone());
+            memo.items.insert(item, edges);
         }
         Ok(edges)
     }
@@ -175,14 +213,14 @@ impl Parse<'_> {
     /// Checks a leaf's spelling against the text and returns its binding.
     fn leaf_binding(&self, leaf: usize, lexicon: &Lexicon) -> Result<Binding, RealizationFault> {
         let leaf = &self.forest.leaves[leaf];
-        let source_text: String = self.tokens[leaf.start..leaf.end].iter().collect();
+        let source = &self.tokens[leaf.start..leaf.end];
         let realized = lexicon.realize(&leaf.reading).unwrap_or_default();
-        if realized != source_text {
+        if !realized.chars().eq(source.iter().copied()) {
             return Err(RealizationFault::Spelling {
                 start: leaf.start,
                 end: leaf.end,
                 realized,
-                source_text,
+                source_text: source.iter().collect(),
             });
         }
         Ok(match &leaf.reading {

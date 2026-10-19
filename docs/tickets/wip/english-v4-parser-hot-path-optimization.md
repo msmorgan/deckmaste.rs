@@ -60,3 +60,6 @@ Standard constraints apply.
 1. `cargo test -p deckmaste_lexical -p deckmaste_syntax -p deckmaste_english_v4`
 2. `cargo clippy -p deckmaste_lexical -p deckmaste_syntax -p deckmaste_english_v4 --tests -- -D warnings`
 3. Run `cargo xtask english-v4 strata --check` and `cargo test -p deckmaste_english_v4 --test judgments` before and after, reporting wall time and CPU time deltas and confirming zero Census delta and zero Judgment regressions.
+
+Census delta (`pkksrrlm`, baseline `rqtrxstt`): faces read 20,391 → 20,391; total Readings 173,844 → 173,844; lost faces: none. The reports for all 92,934 Corpus Units are byte-identical.
+Judgment set (`pkksrrlm`): 2,408 enforced judgments pass, 708 pending; all 6 test functions pass, with zero regressions.

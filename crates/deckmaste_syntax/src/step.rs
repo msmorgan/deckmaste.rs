@@ -10,6 +10,7 @@ use serde::Deserialize;
 use serde::Serialize;
 
 use crate::compile::CompiledGrammar;
+use crate::compile::LexemeFacts;
 use crate::frames::SlotKind;
 use crate::grammar::HostKind;
 
@@ -21,6 +22,25 @@ pub(crate) const MAX_PRODUCTION_VARS: usize = 16;
 pub(crate) const MAX_FEATURES: usize = 48;
 /// The most conjuncts one coordination Production may mark distinct.
 pub(crate) const MAX_DISTINCT_COORDINATORS: usize = 2;
+
+/// One feature value, with the final byte value reserved for an unbound slot.
+/// Binding validates the domain before any value reaches a chart State.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
+pub(crate) struct FeatureValue(u8);
+
+impl FeatureValue {
+    pub(crate) const UNSET: Self = Self(u8::MAX);
+
+    fn new(value: u16) -> Self {
+        let value = u8::try_from(value).expect("validated feature domain");
+        assert_ne!(value, u8::MAX, "validated feature domain");
+        Self(value)
+    }
+
+    pub(crate) fn get(self) -> Option<u16> {
+        (self != Self::UNSET).then_some(u16::from(self.0))
+    }
+}
 
 /// A Complement that another frame of a phrase's head selects. A longer
 /// frame's Preposition Phrase headed by the preposition, or phrase of the
@@ -235,8 +255,10 @@ pub(crate) fn resolve(
             distinct_coordinator.len()
         ));
     }
-    let mut vars = [None; MAX_PRODUCTION_VARS];
-    vars[..constants.len()].copy_from_slice(&constants);
+    let mut vars = [FeatureValue::UNSET; MAX_PRODUCTION_VARS];
+    for (slot, value) in vars.iter_mut().zip(constants) {
+        *slot = value.map_or(FeatureValue::UNSET, FeatureValue::new);
+    }
     let mut child_vars = vec![Vec::new(); children.len()];
     let mut mother_vars = vec![None; grammar.category_features[lhs].len()];
     for (i, key) in keys.iter().enumerate() {
@@ -303,8 +325,8 @@ pub(crate) struct Summary {
     pub first_glues: bool,
     pub last_glues: bool,
     /// Feature values in Category feature order; slots past the Category's
-    /// features stay `None`.
-    pub values: [Option<u16>; MAX_CATEGORY_FEATURES],
+    /// features stay unset.
+    pub values: [FeatureValue; MAX_CATEGORY_FEATURES],
     pub gap: Gap,
     pub gap_right_edge: bool,
     /// Its lexical leaves, counted to two.
@@ -341,7 +363,7 @@ pub(crate) enum ChildView<'a> {
 pub(crate) struct State {
     pub first_glues: Option<bool>,
     pub last_glues: bool,
-    vars: [Option<u16>; MAX_PRODUCTION_VARS],
+    vars: [FeatureValue; MAX_PRODUCTION_VARS],
     gap: Option<Gap>,
     gap_right_edge: bool,
     shared_gap_right_edge: bool,
@@ -518,7 +540,7 @@ impl Production {
                     let index = grammar.category_features[category]
                         .iter()
                         .position(|f| *f == feature)?;
-                    summary.values[index]
+                    summary.values[index].get()
                 }
                 ChildView::Leaf(leaf) => leaf.features[feature],
                 ChildView::Punct => None,
@@ -537,9 +559,9 @@ impl Production {
         }
         for &(feature, var) in &self.child_vars[position] {
             if let Some(value) = lookup(feature) {
-                match next.vars[var] {
+                match next.vars[var].get() {
                     Some(bound) if bound != value => return None,
-                    _ => next.vars[var] = Some(value),
+                    _ => next.vars[var] = FeatureValue::new(value),
                 }
             }
         }
@@ -640,9 +662,9 @@ impl Production {
             return None;
         }
         let coordinated = self.coordinator.is_some();
-        let mut values = [None; MAX_CATEGORY_FEATURES];
+        let mut values = [FeatureValue::UNSET; MAX_CATEGORY_FEATURES];
         for (value, var) in values.iter_mut().zip(&self.mother_vars) {
-            *value = var.and_then(|v| state.vars[v]);
+            *value = var.map_or(FeatureValue::UNSET, |v| state.vars[v]);
         }
         Some(Summary {
             first_glues: state.first_glues.unwrap_or(false),
@@ -668,6 +690,16 @@ impl CompiledGrammar {
     /// Whether a lexical leaf satisfies a test.
     pub(crate) fn leaf_matches(&self, test: &Test, leaf: &LeafFacts) -> bool {
         let facts = leaf.lexeme.as_ref().and_then(|l| self.lexemes.get(l));
+        self.leaf_matches_with_facts(test, leaf, facts)
+    }
+
+    /// The same test when the caller already has the lexeme's bound facts.
+    pub(crate) fn leaf_matches_with_facts(
+        &self,
+        test: &Test,
+        leaf: &LeafFacts,
+        facts: Option<&LexemeFacts>,
+    ) -> bool {
         match test {
             Test::Lexical(category) => leaf.category == *category,
             Test::FreeLexical(category) => {

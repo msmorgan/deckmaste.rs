@@ -87,6 +87,7 @@ pub struct CompiledGrammar {
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
+    pub(crate) prediction: crate::prediction::Prediction,
     report: LoadReport,
 }
 
@@ -235,6 +236,14 @@ impl<'a> Binder<'a> {
             )));
         }
         let values: Vec<Vec<Ident>> = grammar.features.values().cloned().collect();
+        for (name, domain) in features.iter().zip(&values) {
+            if domain.len() > usize::from(u8::MAX) {
+                return Err(invalid(format!(
+                    "feature `{name}` has {} values, more than 255",
+                    domain.len()
+                )));
+            }
+        }
         let feature_id = |name: &str| {
             features
                 .iter()
@@ -512,6 +521,7 @@ impl<'a> Binder<'a> {
                 extension_sets,
                 classes,
                 projected,
+                prediction: crate::prediction::Prediction::default(),
                 report,
             },
             closed_words,
@@ -589,6 +599,7 @@ impl<'a> Binder<'a> {
                 self.out.categories[id].clone_from(category);
             }
         }
+        self.out.prediction = crate::prediction::Prediction::compile(&self.out);
         Ok(self.out)
     }
 

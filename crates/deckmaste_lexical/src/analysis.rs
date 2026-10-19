@@ -152,8 +152,15 @@ impl AnalyzedText {
 
 #[derive(Debug, Default)]
 struct TrieNode {
-    children: BTreeMap<char, usize>,
+    children: Vec<(char, usize)>,
     values: Vec<(LexicalValue, Binding, bool)>,
+}
+
+impl TrieNode {
+    fn child(&self, ch: char) -> Option<usize> {
+        let at = self.children.binary_search_by_key(&ch, |&(c, _)| c).ok()?;
+        Some(self.children[at].1)
+    }
 }
 
 /// An immutable index built from declared forms and shared realization rules.
@@ -334,13 +341,17 @@ impl Lexicon {
     ) {
         let mut node = 0;
         for ch in surface.chars() {
-            node = if let Some(next) = self.trie[node].children.get(&ch) {
-                *next
-            } else {
-                let next = self.trie.len();
-                self.trie.push(TrieNode::default());
-                self.trie[node].children.insert(ch, next);
-                next
+            node = match self.trie[node]
+                .children
+                .binary_search_by_key(&ch, |&(c, _)| c)
+            {
+                Ok(at) => self.trie[node].children[at].1,
+                Err(at) => {
+                    let next = self.trie.len();
+                    self.trie.push(TrieNode::default());
+                    self.trie[node].children.insert(at, (ch, next));
+                    next
+                }
             };
         }
         self.trie[node]
@@ -489,7 +500,7 @@ impl Lexicon {
     ) -> Option<LexicalValue> {
         let mut node = 0;
         for ch in label.chars() {
-            node = *self.trie[node].children.get(&ch)?;
+            node = self.trie[node].child(ch)?;
         }
         let mut registered: Vec<&LexicalValue> = self.trie[node]
             .values
@@ -540,10 +551,10 @@ impl Lexicon {
         for start in 0..tokens.len() {
             let mut node = 0;
             for (end, ch) in tokens.iter().enumerate().skip(start) {
-                let Some(next) = self.trie[node].children.get(ch) else {
+                let Some(next) = self.trie[node].child(*ch) else {
                     break;
                 };
-                node = *next;
+                node = next;
                 for (value, binding, card_scoped) in &self.trie[node].values {
                     if *card_scoped && !self.in_card_scope(&value.lexeme, scope) {
                         continue;
