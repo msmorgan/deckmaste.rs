@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting]
+needs: [lean-v3-authoring-impl-1-core-ast-and-checker, lean-v3-authoring-impl-2-templates-and-definitions, lean-v3-authoring-impl-3-cards-reauthoring, lean-v3-authoring-impl-4-checker-dewarting, lean-v3-authoring-impl-5-definitions-dewarting, lean-v3-authoring-impl-6-cards-dewarting, lean-v3-authoring-impl-7-checker-and-regime-retirement, lean-v3-authoring-impl-8-primitive-decomposition, lean-v3-authoring-impl-9-definitions-and-cards-polish]
 ---
 # Refactor the Lean v3 authoring surface before mirroring into Rust and plugins_v3
 
@@ -12,8 +12,11 @@ holdovers before `semantics-v3-dsl-and-plugins` mirrors the workbench into
 [2 Templates and Definitions](lean-v3-authoring-impl-2-templates-and-definitions.md),
 [3 Cards re-authoring](lean-v3-authoring-impl-3-cards-reauthoring.md),
 [4 Checker dewarting](lean-v3-authoring-impl-4-checker-dewarting.md),
-[5 Definitions dewarting](lean-v3-authoring-impl-5-definitions-dewarting.md), and
-[6 Cards dewarting](lean-v3-authoring-impl-6-cards-dewarting.md).
+[5 Definitions dewarting](lean-v3-authoring-impl-5-definitions-dewarting.md),
+[6 Cards dewarting](lean-v3-authoring-impl-6-cards-dewarting.md),
+[7 Checker & regime retirement](lean-v3-authoring-impl-7-checker-and-regime-retirement.md),
+[8 Primitive decomposition](lean-v3-authoring-impl-8-primitive-decomposition.md), and
+[9 Definitions & cards polish](lean-v3-authoring-impl-9-definitions-and-cards-polish.md).
 Standard constraints apply.
 
 ## Governing Principles
@@ -85,6 +88,29 @@ Standard constraints apply.
    ~95 parameterized `keyword*` calls onto `Definitions.lean` definitions, raw
    counter/designation `.named "..."` literals, `hasKeyword` bare keywords, and
    `eachPlayer`/`bare isPlayer` in active `cant` subjects).
+7. [`lean-v3-authoring-impl-7-checker-and-regime-retirement`](lean-v3-authoring-impl-7-checker-and-regime-retirement.md):
+   Retire `KeywordFacts` body/regime checking (`keywordBodyFits`, `StackRegime`,
+   `ComponentFacts`, `ClassGuard`), `CardFace.choices` (`jointChoices`), the
+   remaining phrase-level game-rule refusals (`deonticPatientOk`, `deckReadable`,
+   `deckComparable`, `qualifiedLimit`, `counterBatchOk`, `selfDefinedOk`,
+   `manaSymbolOk`, `colorBoundOk`, `colorCountOk`, `rolesOk`, `subtypeType`,
+   `twoParties`, `kindAmountOk`, `verbBecomesOk`), and dead `Check/` fields, while
+   fixing `changeLife (.set _)` outcome publication (`[CR#119.5]`).
+8. [`lean-v3-authoring-impl-8-primitive-decomposition`](lean-v3-authoring-impl-8-primitive-decomposition.md):
+   Decompose CR-defined and overlapping Core AST primitives: fold Day/Night
+   (`[CR#731.1]`) and Room doors (`[CR#709.5c..709.5j]`) into designations;
+   decompose `moveCounters` (`[CR#122.5]`), `doubleCounters` (`[CR#701.10e]`),
+   `crew`/`saddle` (`[CR#702.122b,702.171c]`), `skipUntap` (`[CR#701.43a]`),
+   `doAndForbid`, `drawGame` (`[CR#104.4]`), `triggerReflexively`/`triggerThisWay`
+   (`[CR#603.12]`), and `GameEvent.triggers` (`[CR#603.2]`); and unify
+   `StaticSpec.modification` / `ptModification` / `abilityGrant*` into
+   `CharacteristicEdit` inside `StaticSpec.characteristicChange`.
+9. [`lean-v3-authoring-impl-9-definitions-and-cards-polish`](lean-v3-authoring-impl-9-definitions-and-cards-polish.md):
+   Fold the remaining ~546 raw dot-constructors and 10 `*Expansion` helpers in
+   `Definitions.lean`, add missing `:= none` defaults on `Option` parameters,
+   eliminate the 27 remaining `.named "..."` literals and card-local
+   `firstMention`/`laterMention` workarounds in `Cards/*.lean`, and fold raw
+   constructors in `Proofs/*.lean`.
 
 ---
 
