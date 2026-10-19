@@ -132,7 +132,7 @@ impl CompiledGrammar {
 }
 
 fn base(category: &str) -> &str {
-    category.strip_suffix("#Serial").unwrap_or(category)
+    category.split_once('#').map_or(category, |(base, _)| base)
 }
 
 fn flat_id(category: &str) -> Ident {

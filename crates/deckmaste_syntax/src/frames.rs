@@ -264,6 +264,16 @@ pub enum Hosts {
 }
 
 impl Hosts {
+    /// The Host Categories admitted, as a set of [`HostKind`] bits.
+    #[must_use]
+    pub(crate) fn mask(self) -> u8 {
+        use crate::grammar::HostKind;
+        [HostKind::Nominal, HostKind::Predicate, HostKind::Supplement]
+            .into_iter()
+            .filter(|kind| self.admits(*kind))
+            .fold(0, |mask, kind| mask | host_bit(kind))
+    }
+
     #[must_use]
     pub fn admits(self, kind: crate::grammar::HostKind) -> bool {
         use crate::grammar::HostKind;
@@ -276,6 +286,16 @@ impl Hosts {
                 )
                 | (Self::Supplement, HostKind::Supplement)
         )
+    }
+}
+
+/// A [`HostKind`]'s bit in a set of admitted hosts.
+pub(crate) fn host_bit(kind: crate::grammar::HostKind) -> u8 {
+    use crate::grammar::HostKind;
+    match kind {
+        HostKind::Nominal => 1,
+        HostKind::Predicate => 2,
+        HostKind::Supplement => 4,
     }
 }
 

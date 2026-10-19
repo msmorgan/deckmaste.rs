@@ -37,6 +37,11 @@ pub struct Grammar {
     pub productions: Vec<ProductionDecl>,
     #[serde(default)]
     pub schemas: Vec<SchemaDecl>,
+    /// Correlative pairs: a marker (a Closed Word or Lexical Class) that may
+    /// precede the first conjunct of a coordination joined by the paired
+    /// Closed Word (*both … and*, *either … or*, *neither … nor*).
+    #[serde(default)]
+    pub correlatives: Vec<(Ident, Ident)>,
 }
 
 impl Grammar {
@@ -94,6 +99,10 @@ pub struct ProductionDecl {
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,
+    /// Children that are not themselves a coordination, where a coordination
+    /// one level up is the same analysis (a chain of bare imperatives).
+    #[serde(default)]
+    pub uncoordinated: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {
@@ -213,9 +222,21 @@ pub enum SchemaDecl {
         #[serde(default = "default_cost")]
         cost: u32,
         /// Features the conjuncts need not share, which the coordination
-        /// leaves unvalued (a positive and a negative Verb Phrase).
+        /// leaves unvalued unless its `equations` value them.
         #[serde(default)]
         unshared: Vec<Ident>,
+        /// Equations over the whole coordination (`$`): its resolved
+        /// features (an *and*-coordination of Noun Phrases is plural).
+        #[serde(default)]
+        equations: Vec<Equation>,
+        /// Features the coordination takes from its last conjunct, which the
+        /// others need not share (proximity: *one or more cards*).
+        #[serde(default)]
+        proximate: Vec<Ident>,
+        /// Punctuation that may also precede the coordinator of a binary
+        /// coordination (two independent clauses joined by *, and*).
+        #[serde(default)]
+        delimiter: Option<char>,
     },
 }
 

@@ -151,6 +151,10 @@ pub(crate) struct Production {
     pub coordinator: Option<usize>,
     pub distinct_coordinator: Vec<usize>,
     pub requires_coordination: Option<usize>,
+    /// The coordinator a correlative coordination's serial tail must end with.
+    pub paired_coordinator: Option<LexemeId>,
+    /// Children that may not be a coordination.
+    pub uncoordinated: Vec<usize>,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -285,6 +289,8 @@ pub(crate) fn resolve(
         weights: Vec::new(),
         adjunct_slot: None,
         predicative: None,
+        paired_coordinator: None,
+        uncoordinated: Vec::new(),
         id,
         lhs,
         rhs,
@@ -312,6 +318,9 @@ pub(crate) fn resolve(
             extensions: 0,
             coordinator: None,
             conjunct_coordinators: [None; MAX_DISTINCT_COORDINATORS],
+            other_preposition: None,
+            mixed_prepositions: false,
+            conjunct_hosts: u8::MAX,
             host_extensions: 0,
             adjunct_extension: None,
         },
@@ -333,11 +342,20 @@ pub(crate) struct Summary {
     pub leaves: u8,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
+    /// A coordination's second preposition (*into your hand or onto the
+    /// battlefield*).
+    pub other_preposition: Option<LexemeId>,
     /// Complements that would extend this phrase's selected frame, as an
     /// index into [`CompiledGrammar::extension_sets`].
     pub extensions: u16,
     /// The coordinator of a coordination.
     pub coordinator: Option<LexemeId>,
+    /// The Host Categories it may modify unselected: a Preposition Phrase's
+    /// frame's, every conjunct's for a coordination, any for the rest.
+    pub hosts: u8,
+    /// It begins with a dependent set off by a comma (*When …, …*), which
+    /// scopes over a whole coordination, never over its first conjunct.
+    pub set_off: bool,
 }
 
 /// A lexical leaf as a child sees it.
@@ -373,6 +391,12 @@ pub(crate) struct State {
     extensions: u16,
     coordinator: Option<LexemeId>,
     conjunct_coordinators: [Option<LexemeId>; MAX_DISTINCT_COORDINATORS],
+    other_preposition: Option<LexemeId>,
+    /// The conjuncts of a coordination have more than two prepositions, or
+    /// one has none.
+    mixed_prepositions: bool,
+    /// The Host Categories every conjunct so far admits, or the head admits.
+    conjunct_hosts: u8,
     host_extensions: u16,
     adjunct_extension: Option<Extension>,
 }
@@ -438,7 +462,9 @@ impl Production {
         }
         if self.head == Some(position) {
             next.preposition = summary.preposition;
+            next.other_preposition = summary.other_preposition;
             next.extensions = summary.extensions;
+            next.conjunct_hosts = summary.hosts;
         }
         if let Some((host, adjunct, _)) = self.host_check {
             if position == host {
@@ -573,12 +599,14 @@ impl Production {
                 {
                     if let Some(list) = prepositions {
                         let (prep, _) = summary.preposition.as_ref()?;
-                        if !list.contains(prep) {
+                        if !list.contains(prep)
+                            || summary.other_preposition.is_some_and(|o| !list.contains(&o))
+                        {
                             return None;
                         }
                     }
-                    if let (Some(kind), Some((_, frame))) = (host, &summary.preposition)
-                        && !grammar.preposition_frames[*frame].hosts.admits(*kind)
+                    if let Some(kind) = host
+                        && summary.hosts & crate::frames::host_bit(*kind) == 0
                     {
                         return None;
                     }
@@ -590,6 +618,15 @@ impl Production {
                     }
                 }
                 self.take_gap(&mut next, position, summary.gap)?;
+                if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
+                    return None;
+                }
+                if summary.set_off
+                    && self.coordinator.is_some()
+                    && self.names[position] == "first"
+                {
+                    return None;
+                }
                 if self.requires_coordination == Some(position)
                     && (summary.coordinator.is_none() || !summary.gap_right_edge)
                 {
@@ -601,7 +638,35 @@ impl Production {
                 {
                     *slot = Some(c);
                 }
+                // Coordinated Preposition Phrases keep their prepositions, up
+                // to two (*from black and from red*, *into your hand or onto
+                // the battlefield*).
+                if self.coordinator.is_some() && matches!(self.gaps[position], GapRule::Shared) {
+                    next.conjunct_hosts &= summary.hosts;
+                    let own = [
+                        summary.preposition.map(|(p, _)| p),
+                        summary.other_preposition,
+                    ];
+                    if own[0].is_none() {
+                        next.mixed_prepositions = true;
+                    }
+                    for q in own.into_iter().flatten() {
+                        match (next.preposition, next.other_preposition) {
+                            (None, _) => next.preposition = summary.preposition,
+                            (Some((p, _)), _) if p == q => {}
+                            (_, Some(o)) if o == q => {}
+                            (_, None) => next.other_preposition = Some(q),
+                            _ => next.mixed_prepositions = true,
+                        }
+                    }
+                }
                 if self.coordinator == Some(position) {
+                    if self
+                        .paired_coordinator
+                        .is_some_and(|p| summary.coordinator != Some(p))
+                    {
+                        return None;
+                    }
                     next.coordinator = summary.coordinator;
                 }
                 self.priority(grammar, &mut next, position, summary)?;
@@ -674,9 +739,25 @@ impl Production {
             gap_right_edge: self.introduces != Gap::None
                 || (state.gap_right_edge && state.shared_gap_right_edge),
             leaves: state.leaves,
-            preposition: if coordinated { None } else { state.preposition },
+            preposition: if coordinated && state.mixed_prepositions {
+                None
+            } else {
+                state.preposition
+            },
+            other_preposition: if state.mixed_prepositions {
+                None
+            } else {
+                state.other_preposition
+            },
             extensions: if coordinated { 0 } else { state.extensions },
             coordinator: state.coordinator,
+            hosts: match state.preposition {
+                Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
+                _ => state.conjunct_hosts,
+            },
+            set_off: !coordinated
+                && matches!(self.rhs.get(1), Some(Symbol::Punct(',', _)))
+                && self.rhs.len() > 2,
         })
     }
 }

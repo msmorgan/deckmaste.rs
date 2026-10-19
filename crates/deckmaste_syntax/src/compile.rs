@@ -166,6 +166,9 @@ struct Draft {
     coordinator: Option<usize>,
     distinct_coordinator: Vec<usize>,
     requires_coordination: Option<usize>,
+    /// The coordinator a correlative coordination's serial tail must end with.
+    paired_coordinator: Option<LexemeId>,
+    uncoordinated: Vec<usize>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -199,6 +202,8 @@ impl Draft {
             coordinator: None,
             distinct_coordinator: Vec::new(),
             requires_coordination: None,
+            paired_coordinator: None,
+            uncoordinated: Vec::new(),
         }
     }
 
@@ -250,15 +255,21 @@ impl<'a> Binder<'a> {
                 .position(|f| f == name)
                 .ok_or_else(|| invalid(format!("unknown feature `{name}`")))
         };
-        // Each coordinated Category gets an engine-owned serial tail Category.
+        // Each coordination schema gets an engine-owned serial tail Category.
         let mut declared = grammar.categories.clone();
         for schema in &grammar.schemas {
-            if let SchemaDecl::Coordination { category, .. } = schema {
+            if let SchemaDecl::Coordination {
+                category,
+                coordinators,
+                ..
+            } = schema
+            {
                 let declaration = declared
                     .get(category)
                     .cloned()
                     .ok_or_else(|| invalid(format!("unknown category `{category}`")))?;
-                declared.insert(Ident::new(&format!("{category}#Serial")), declaration);
+                let tail = Ident::new(&serial_tail(&grammar.schemas, schema, category, coordinators));
+                declared.insert(tail, declaration);
             }
         }
         let categories: Vec<Ident> = declared.keys().copied().collect();
@@ -573,6 +584,34 @@ impl<'a> Binder<'a> {
             .ok_or_else(|| invalid(format!("unknown closed word or class `{name}`")))
     }
 
+    /// Whether a coordinator test admits this Closed Word.
+    fn admits(&self, test: &Test, word: LexemeId) -> bool {
+        match test {
+            Test::Word(id) => *id == word,
+            Test::Class(class) => self.out.classes[*class].contains(&word),
+            Test::Words(words) => words.contains(&word),
+            _ => false,
+        }
+    }
+
+    /// A coordinator test widened by the paired coordinators of the
+    /// correlatives, as a serial tail ends with any of them.
+    fn with_words(&self, test: Test, words: &[LexemeId]) -> Test {
+        let mut set: BTreeSet<LexemeId> = words.iter().copied().collect();
+        match &test {
+            Test::Word(id) => {
+                set.insert(*id);
+            }
+            Test::Class(class) => set.extend(self.out.classes[*class].iter().copied()),
+            Test::Words(more) => set.extend(more.iter().copied()),
+            _ => return test,
+        }
+        if words.iter().all(|w| self.admits(&test, *w)) {
+            return test;
+        }
+        Test::Words(set)
+    }
+
     fn slot_category(&self, kind: SlotKind) -> Result<usize, LoadError> {
         let name = self
             .grammar
@@ -666,6 +705,14 @@ impl<'a> Binder<'a> {
                     .ok_or_else(|| context(invalid(format!("unknown weighted child `{name}`"))))?;
                 draft.weights.push((child, weight));
             }
+        }
+        for name in &declaration.uncoordinated {
+            let child = draft
+                .children
+                .iter()
+                .position(|c| c.name == *name)
+                .ok_or_else(|| context(invalid(format!("unknown uncoordinated child `{name}`"))))?;
+            draft.uncoordinated.push(child);
         }
         self.equations(&mut draft, &declaration.equations)
             .map_err(context)?;
@@ -875,6 +922,8 @@ impl<'a> Binder<'a> {
         production.weights = draft.weights;
         production.adjunct_slot = draft.adjunct_slot;
         production.predicative = draft.predicative;
+        production.paired_coordinator = draft.paired_coordinator;
+        production.uncoordinated = draft.uncoordinated;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -998,7 +1047,32 @@ impl<'a> Binder<'a> {
                 coordinators,
                 cost,
                 unshared,
-            } => self.coordination(category, coordinators, *cost, unshared),
+                equations,
+                proximate,
+                delimiter,
+            } => {
+                // Right Node Raising is the Category's, once.
+                let raising = self
+                    .grammar
+                    .schemas
+                    .iter()
+                    .find_map(|s| match s {
+                        SchemaDecl::Coordination { category: c, .. } if c == category => Some(s),
+                        _ => None,
+                    })
+                    .is_some_and(|first| std::ptr::eq(first, schema));
+                self.coordination(
+                    schema,
+                    category,
+                    coordinators,
+                    *cost,
+                    unshared,
+                    equations,
+                    proximate,
+                    *delimiter,
+                    raising,
+                )
+            }
         }
     }
 
@@ -1826,28 +1900,83 @@ impl<'a> Binder<'a> {
     }
 
     #[expect(clippy::many_single_char_names, reason = "conjunct positions")]
+    #[expect(clippy::too_many_arguments, reason = "one schema's fields")]
     fn coordination(
         &self,
+        schema: &SchemaDecl,
         category: &str,
         coordinators: &str,
         cost: u32,
         unshared: &[Ident],
+        equations: &[Equation],
+        proximate: &[Ident],
+        delimiter: Option<char>,
+        raising: bool,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(category)?;
         let coordinator = self.coordinator_test(coordinators)?;
+        let proximate = proximate
+            .iter()
+            .map(|name| self.feature(name))
+            .collect::<Result<BTreeSet<_>, _>>()?;
         let unshared = unshared
             .iter()
             .map(|name| self.feature(name))
             .collect::<Result<BTreeSet<_>, _>>()?;
+        // The coordination takes a proximate feature from its last conjunct
+        // (or the serial tail that ends with it).
+        let take_last = |draft: &mut Draft, last: usize| {
+            for &feature in &proximate {
+                draft
+                    .equations
+                    .push((Path::Mother(feature), Target::Path(Path::Child(last, feature))));
+            }
+        };
         let conjunct = || Symbol::Cat {
             binding: None,
             category: lhs,
             prepositions: None,
             host: None,
         };
-        let agree_all = |draft: &mut Draft, conjuncts: &[usize]| {
+        // Equations over `first` hold of every conjunct but the last, over
+        // `last` of the last; the rest are over the whole coordination.
+        let conjunct_equations = |prefix: &str| -> Vec<Equation> {
+            equations
+                .iter()
+                .filter(|e| equation_path(e).starts_with(prefix))
+                .cloned()
+                .collect()
+        };
+        let (firsts, lasts) = (conjunct_equations("first."), conjunct_equations("last."));
+        let equations: Vec<Equation> = equations
+            .iter()
+            .filter(|e| equation_path(e).starts_with("$."))
+            .cloned()
+            .collect();
+        let equations = equations.as_slice();
+        // A feature the schema's equations value on the whole coordination is
+        // resolved: the conjuncts still share it, but the coordination takes
+        // the resolved value (two singular nominals coordinated by *and*).
+        let mut resolved = BTreeSet::new();
+        for equation in equations {
+            if let Equation::Require(path, _) = equation
+                && let Some(feature) = path.strip_prefix("$.")
+            {
+                resolved.insert(self.feature(feature)?);
+            }
+        }
+        let agree_all = |draft: &mut Draft, conjuncts: &[usize], outer: bool| {
             for &feature in &self.out.category_features[lhs] {
-                if unshared.contains(&feature) {
+                if unshared.contains(&feature) || proximate.contains(&feature) {
+                    continue;
+                }
+                if outer && resolved.contains(&feature) {
+                    for pair in conjuncts.windows(2) {
+                        draft.equations.push((
+                            Path::Child(pair[0], feature),
+                            Target::Path(Path::Child(pair[1], feature)),
+                        ));
+                    }
                     continue;
                 }
                 for &c in conjuncts {
@@ -1857,22 +1986,7 @@ impl<'a> Binder<'a> {
                 }
             }
         };
-        let mut drafts = Vec::new();
-        // Binary: X Coord X.
-        let mut binary = Draft::new(format!("Coordination:{category}/binary"), lhs, cost);
-        let a = binary.child("first", conjunct(), GapRule::Shared);
-        let c = binary.child(
-            "coordinator",
-            Symbol::Leaf(coordinator.clone()),
-            GapRule::Closed,
-        );
-        let b = binary.child("last", conjunct(), GapRule::Shared);
-        binary.coordinator = Some(c);
-        binary.distinct_coordinator = vec![a, b];
-        agree_all(&mut binary, &[a, b]);
-        drafts.push(binary);
-        // Serial with the Oxford comma: X , X , Coord X — one tree per chain.
-        let tail_name = format!("{category}#Serial");
+        let tail_name = serial_tail(&self.grammar.schemas, schema, category, coordinators);
         let tail = self.out.category_id(&tail_name).ok_or_else(|| {
             invalid(format!(
                 "coordination of `{category}` needs a category `{tail_name}`"
@@ -1884,33 +1998,117 @@ impl<'a> Binder<'a> {
             prepositions: None,
             host: None,
         };
-        let mut serial = Draft::new(format!("Coordination:{category}/serial"), lhs, cost);
-        let a = serial.child("first", conjunct(), GapRule::Shared);
-        serial.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-        let t = serial.child("rest", tail_symbol.clone(), GapRule::Shared);
-        serial.coordinator = Some(t);
-        serial.distinct_coordinator = vec![a];
-        agree_all(&mut serial, &[a, t]);
-        drafts.push(serial);
-        let mut more = Draft::new(format!("Coordination:{category}/serial-more"), tail, 0);
+        let mut drafts = Vec::new();
+        // The whole coordination, plain and after each correlative marker
+        // whose paired coordinator the schema's coordinators admit.
+        let mut variants = vec![(None, coordinator.clone(), None)];
+        for (marker, paired) in &self.grammar.correlatives {
+            let paired = self.word(paired)?;
+            if self.admits(&coordinator, paired) {
+                variants.push((
+                    Some(self.coordinator_test(marker)?),
+                    Test::Word(paired),
+                    Some(paired),
+                ));
+            }
+        }
+        for (marker, test, paired) in variants {
+            let suffix = paired.map_or(String::new(), |p| format!("-{p}"));
+            let mark = |draft: &mut Draft| {
+                if let Some(test) = &marker {
+                    draft.child("correlative", Symbol::Leaf(test.clone()), GapRule::Closed);
+                }
+            };
+            // Binary: X Coord X.
+            let mut binary = Draft::new(
+                format!("Coordination:{tail_name}/binary{suffix}"),
+                lhs,
+                cost,
+            );
+            mark(&mut binary);
+            let a = binary.child("first", conjunct(), GapRule::Shared);
+            let c = binary.child("coordinator", Symbol::Leaf(test), GapRule::Closed);
+            let b = binary.child("last", conjunct(), GapRule::Shared);
+            binary.coordinator = Some(c);
+            binary.distinct_coordinator = vec![a, b];
+            agree_all(&mut binary, &[a, b], true);
+            take_last(&mut binary, b);
+            self.equations(&mut binary, equations)?;
+            self.equations(&mut binary, &firsts)?;
+            self.equations(&mut binary, &lasts)?;
+            drafts.push(binary);
+            // Binary with the delimiter before the coordinator: X , Coord X.
+            if let (Some(mark), None) = (delimiter, &marker) {
+                let mut delimited = Draft::new(
+                    format!("Coordination:{tail_name}/binary-delimited"),
+                    lhs,
+                    cost,
+                );
+                let a = delimited.child("first", conjunct(), GapRule::Shared);
+                delimited.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+                let c = delimited.child(
+                    "coordinator",
+                    Symbol::Leaf(coordinator.clone()),
+                    GapRule::Closed,
+                );
+                let b = delimited.child("last", conjunct(), GapRule::Shared);
+                delimited.coordinator = Some(c);
+                delimited.distinct_coordinator = vec![a, b];
+                agree_all(&mut delimited, &[a, b], true);
+                take_last(&mut delimited, b);
+                self.equations(&mut delimited, equations)?;
+                self.equations(&mut delimited, &firsts)?;
+                self.equations(&mut delimited, &lasts)?;
+                drafts.push(delimited);
+            }
+            // Serial with the Oxford comma: X , X , Coord X — one tree per chain.
+            let mut serial = Draft::new(
+                format!("Coordination:{tail_name}/serial{suffix}"),
+                lhs,
+                cost,
+            );
+            mark(&mut serial);
+            let a = serial.child("first", conjunct(), GapRule::Shared);
+            serial.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+            let t = serial.child("rest", tail_symbol.clone(), GapRule::Shared);
+            serial.coordinator = Some(t);
+            serial.paired_coordinator = paired;
+            serial.distinct_coordinator = vec![a];
+            agree_all(&mut serial, &[a, t], true);
+            take_last(&mut serial, t);
+            self.equations(&mut serial, equations)?;
+            self.equations(&mut serial, &firsts)?;
+            drafts.push(serial);
+        }
+        let mut more = Draft::new(format!("Coordination:{tail_name}/serial-more"), tail, 0);
         let a = more.child("first", conjunct(), GapRule::Shared);
         more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
         let t = more.child("rest", tail_symbol, GapRule::Shared);
         more.coordinator = Some(t);
         more.distinct_coordinator = vec![a];
-        agree_all(&mut more, &[a, t]);
+        agree_all(&mut more, &[a, t], false);
+        take_last(&mut more, t);
+        self.equations(&mut more, &firsts)?;
         drafts.push(more);
-        let mut end = Draft::new(format!("Coordination:{category}/serial-end"), tail, 0);
+        let mut end = Draft::new(format!("Coordination:{tail_name}/serial-end"), tail, 0);
         let a = end.child("first", conjunct(), GapRule::Shared);
         end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
-        let c = end.child("coordinator", Symbol::Leaf(coordinator), GapRule::Closed);
+        let mut words = Vec::new();
+        for (_, paired) in &self.grammar.correlatives {
+            words.push(self.word(paired)?);
+        }
+        let end_test = self.with_words(coordinator, &words);
+        let c = end.child("coordinator", Symbol::Leaf(end_test), GapRule::Closed);
         let b = end.child("last", conjunct(), GapRule::Shared);
         end.coordinator = Some(c);
         end.distinct_coordinator = vec![a, b];
-        agree_all(&mut end, &[a, b]);
+        agree_all(&mut end, &[a, b], false);
+        take_last(&mut end, b);
+        self.equations(&mut end, &firsts)?;
+        self.equations(&mut end, &lasts)?;
         drafts.push(end);
         // Right Node Raising: a coordination with a shared NP gap, filled once.
-        if self.out.category_gap[lhs] {
+        if raising && self.out.category_gap[lhs] {
             let np = self.slot_category(SlotKind::NP)?;
             let mut raising = Draft::new(format!("Coordination:{category}/shared"), lhs, cost);
             let h = raising.child("head", conjunct(), GapRule::Require(Gap::NP));
@@ -1928,6 +2126,33 @@ impl<'a> Binder<'a> {
             drafts.push(raising);
         }
         Ok(drafts)
+    }
+}
+
+fn equation_path(equation: &Equation) -> &str {
+    match equation {
+        Equation::Require(p, _)
+        | Equation::Exclude(p, _)
+        | Equation::Carry(p, _)
+        | Equation::Agree(p, _) => p,
+    }
+}
+
+/// The engine-owned serial tail Category of a coordination schema: by its
+/// coordinators, numbered after the first schema with the same ones.
+fn serial_tail(schemas: &[SchemaDecl], schema: &SchemaDecl, category: &str, coordinators: &str) -> String {
+    let earlier = schemas
+        .iter()
+        .take_while(|s| !std::ptr::eq(*s, schema))
+        .filter(|s| {
+            matches!(s, SchemaDecl::Coordination { category: c, coordinators: k, .. }
+                if c == category && k == coordinators)
+        })
+        .count();
+    if earlier == 0 {
+        format!("{category}#{coordinators}")
+    } else {
+        format!("{category}#{coordinators}{}", earlier + 1)
     }
 }
 
