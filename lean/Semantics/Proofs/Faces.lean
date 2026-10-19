@@ -945,10 +945,11 @@ Storm counts the spells cast earlier in the turn [CR#702.40a], not every spell c
 it. -/
 theorem stormCountsEarlierThisTurn :
     stormExpansion =
-      when (.does (.actor .you) (.procedure .cast thisSpell .itsOwnCost none none none))
+      when (.does (.actor .you) (cast thisSpell))
         (.sequentially
           [ .copy .fromStack thisSpell
-              (eventCount (.procedure .cast (a (.and [isSpell, .otherThan thisSpell])) .itsOwnCost none none none) (.actor (a .anyPlayer)) earlierThisTurn)
+              (eventCount (cast (a (.and [isSpell, .otherThan thisSpell]))) (.actor (a .anyPlayer))
+                earlierThisTurn)
               [],
             may (.chooseNewTargets (.pro (.word .copy) .many)) ]) := by
   rfl
