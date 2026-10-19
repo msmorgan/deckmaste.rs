@@ -707,6 +707,11 @@
                 Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // A modified degree determinative (*that many of those tokens*); a
         // bare one selects its oblique.
+        // An exceptive determinative heads a partitive (*all but 1 of that
+        // damage*).
+        (name: "ExceptivePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
+            equations: [Require("head.ComplementKind", "PP"), Exclude("head.PrepositionMarking", "Oblique"), Exclude("head.PrepositionMarking", "Comparative"), Require("head.DeterminativeDistribution", "Dependent"),
+                Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "DegreePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Dependent"), Agree("head.Countability", "complement.Countability"),
                 Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
