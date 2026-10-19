@@ -43,7 +43,7 @@ Lean law; does not validate. Standard constraints apply.
      fields and the `Instruction`'s patient/destination fields into the event
      filter's subject/zone fields (`ObservationPoint.arrival` vs `.departure`
      `[CR#700.4,603.6a,603.6c,603.10a]`).
-   - Compiles `StaticSpec.instead(would(subj, action), repl, ...)` to
+   - Compiles `StaticSpec.replace(would(subj, action), instead(repl), ...)` to
      `core::Replacement` (`[CR#614.1,614.6]`), `DidClause` (`Condition.did`,
      `Predicate.did` with `NounPhrase.which`, `Amount.tally`) to `core::Lookback`,
      and `StaticSpec.cant` / `must` / `may` / `gatedBy` (over the closed set of
