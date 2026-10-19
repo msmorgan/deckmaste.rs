@@ -109,8 +109,8 @@ unmarked case:
 The owner may still direct a restructure; neither feature changes a Reading
 by its spelling.
 
-1. **Census delta** (measured on `qopyqvns`): faces read 20,391 → 28,707;
-   total Readings 173,844 → 393,896; lost faces: Bladehold War-Whip
+1. **Census delta** (measured on `nmknnkvz`): faces read 20,391 → 28,707;
+   total Readings 173,844 → 389,819; lost faces: Bladehold War-Whip
    (deferred to Stratum 7 by the owner).
 2. **Judgment set**: 2,988 enforced at `COMPLETED_STRATUM` 6, all hold; 187
    pending.
