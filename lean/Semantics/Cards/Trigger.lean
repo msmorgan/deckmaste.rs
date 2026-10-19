@@ -406,7 +406,7 @@ def chromeReplicator : Spelled := spelled <| .singleFaced
         [ triggeredIf (does thisCreature enter)
             (thereAre (withTheSameName
               (counted (atLeast 2)
-                (and [isPermanent, not isLand, isNontoken, youControl]))))
+                (and [isPermanent, non isLand, isNontoken, youControl]))))
             (createToken
               { characteristics :=
                 { types := [.artifact, .creature], subtypes := [construct],
@@ -474,8 +474,8 @@ theorem okNetheresePuzzleWardIllumination :
 def faridehResultRead : Ability :=
   whenever (does you (rollDice anyAmount .anyDie .many))
     (sequentially
-      [ gain thisCreature (keyword (.named "flying")) (some untilEndOfTurn),
-        gain thisCreature (keyword (.named "menace")) (some untilEndOfTurn),
+      [ gain thisCreature flying (some untilEndOfTurn),
+        gain thisCreature menace (some untilEndOfTurn),
         doIf (anyResultIs .atLeast (.lit 10)) (draw (.lit 1)) ])
 theorem okFaridehResultRead : Ability.check (DRS.ofList []) faridehResultRead = [] := by decide
 /-- Jaws of Defeat -/
@@ -867,7 +867,7 @@ def gravePeril : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Grave Peril", cost := some [generic 1, pip .black], types := [.enchantment],
       text :=
-        [ when (does (a (and [isCreature, not (hasColor .black)])) enter)
+        [ when (does (a (and [isCreature, non (hasColor .black)])) enter)
             (doIfDone (sacrifice thisEnchantment) (some (destroy (that (.type
                 .creature))))) ] } }
 
@@ -884,7 +884,7 @@ def bloodReckoning : Spelled := spelled <| .singleFaced
 /-- Jeskai Ascendancy's first trigger -/
 def jeskaiAscendancyPump : Ability :=
   whenever (does you (cast (a (and
-    [isSpell, not isCreature]))))
+    [isSpell, non isCreature]))))
     (sequentially
       [ get (bare (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn),
         untap (those (.type .creature)) ])
@@ -916,7 +916,7 @@ def dread : Spelled := spelled <| .singleFaced
     { name := "Dread", cost := some [generic 3, pip .black, pip .black, pip .black],
       types := [.creature], subtypes := [elemental, incarnation],
       text :=
-        [ keyword (.named "fear"),
+        [ fear,
           whenever (does (a isCreature) (dealDamage (to := you))) (destroy it),
           when (does any (putInto «this» graveyard (from_ := some any)))
             (instruct (ownerOf it) (shuffleInto it)) ],
@@ -938,7 +938,7 @@ def vampiricEmbrace : Spelled := spelled <| .singleFaced
             (enchanted (.type .creature))
             (up (.lit 2)) (up (.lit 2))),
           static (abilityGrant
-            (enchanted (.type .creature)) (keyword (.named "flying"))),
+            (enchanted (.type .creature)) flying),
           whenever (does (creatureDamagedByAttachedHostThisTurn .enchanted) die)
             (putCounters (.lit 1) (printedKind p1p1Counter)
               (that (.type .creature)) .many) ] } }

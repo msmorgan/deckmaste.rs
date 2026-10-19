@@ -21,7 +21,7 @@ def glyphOfDestruction : Action :=
     (up (.lit 10)) (up (.lit 0)) (some untilEndOfCombat)
 theorem okGlyphOfDestruction : Action.check (DRS.ofList []) glyphOfDestruction = [] := by decide
 
-def rawNonattacking : Predicate := and [isCreature, not isAttacking, not isBlocking]
+def rawNonattacking : Predicate := and [isCreature, non isAttacking, non isBlocking]
 theorem okRawNonattacking : Predicate.checkAt .object (DRS.ofList []) rawNonattacking = [] := by decide
 
 /-- Harmony of Nature -/
@@ -181,7 +181,7 @@ theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxSca
 /-- Croaking Counterpart -/
 def croakingCounterpartCopy : Action :=
   create (.lit 1)
-    (copyOf (target (and [isCreature, not (hasSubtype frog)]))
+    (copyOf (target (and [isCreature, non (hasSubtype frog)]))
       (copyCharacteristics {
                  colors := [.green], subtypes := [frog], power := stat 1,
                  toughness := stat 1 } false))
@@ -381,9 +381,9 @@ theorem okWeftwalkingShuffle : Action.check (DRS.ofList []) weftwalkingShuffle =
 
 /-- Gaea's Revenge's protection-shaped phrase -/
 def nongreenSpellsOrAbilities : Predicate :=
-  or [ and [isSpell, not (hasColor .green)],
+  or [ and [isSpell, non (hasColor .green)],
         and [ abilityHead .anyOnStack,
-               abilityOf (a (and [isSource, not (hasColor .green)])) ] ]
+               abilityOf (a (and [isSource, non (hasColor .green)])) ] ]
 theorem okNongreenSpellsOrAbilities :
     Predicate.checkAt .object (DRS.ofList []) nongreenSpellsOrAbilities = [] := by decide
 
@@ -513,7 +513,7 @@ def archpriestOfIonaFullParty : Ability :=
   triggeredIf (beginningOfYour .combat) fullParty
     (sequentially
       [ get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn),
-        gain it (keyword (.named "flying")) (some untilEndOfTurn) ])
+        gain it flying (some untilEndOfTurn) ])
 theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOfIonaFullParty = [] := by decide
 
 /-- Squad Commander -/

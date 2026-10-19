@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 
 namespace Semantics.Cards
 
-def jump : Action := gain (target isCreature) (keyword (.named "flying")) (some untilEndOfTurn)
+def jump : Action := gain (target isCreature) flying (some untilEndOfTurn)
 theorem okJump : Action.check (DRS.ofList []) jump = [] := by decide
 def gabrielAngelfire : Action :=
   sequentially
@@ -35,7 +35,7 @@ theorem okBuiltToSmash : Action.check (DRS.ofList []) builtToSmash = [] := by de
 def thopterToken : CharacteristicBundle :=
   { characteristics :=
     { types := [.artifact, .creature], subtypes := [thopter],
-      text := [keyword (.named "flying")], power := stat 1, toughness := stat 1 } }
+      text := [flying], power := stat 1, toughness := stat 1 } }
 
 def aviationPioneer : Action := createToken thopterToken
 theorem okAviationPioneer : Action.check (DRS.ofList []) aviationPioneer = [] := by decide
@@ -43,7 +43,7 @@ def fireNavyTrebuchet : Action :=
   createTappedAttacking (.lit 1)
     { characteristics :=
       { name := "Ballistic Boulder", types := [.artifact, .creature],
-        subtypes := [construct], text := [keyword (.named "flying")],
+        subtypes := [construct], text := [flying],
         power := stat 2, toughness := stat 1 } }
 theorem okFireNavyTrebuchet : Action.check (DRS.ofList []) fireNavyTrebuchet = [] := by decide
 
@@ -51,7 +51,7 @@ def rorixBladewing : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rorix Bladewing", cost := some [generic 3, pip .red, pip .red, pip .red],
       supertypes := [.legendary], types := [.creature], subtypes := [dragon],
-      text := [keyword (.named "flying"), haste], power := stat 6, toughness := stat 5 } }
+      text := [flying, haste], power := stat 6, toughness := stat 5 } }
 
 def yotianSoldier : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -76,7 +76,7 @@ theorem okLightningBlow : Action.check (DRS.ofList []) lightningBlow = [] := by 
 def deathByDragons : Action :=
   instruct (each (and [isPlayer, otherThan (target isPlayer)])) (createToken { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [dragon],
-          text := [keyword (.named "flying")], power := stat 5, toughness := stat 5 } })
+          text := [flying], power := stat 5, toughness := stat 5 } })
 theorem okDeathByDragons : Action.check (DRS.ofList []) deathByDragons = [] := by decide
 
 /-- Concordant Crossroads -/
@@ -92,7 +92,7 @@ def bristlepackSentry : Spelled := spelled <| .singleFaced
     { name := "Bristlepack Sentry", cost := some [generic 1, pip .green], types := [.creature],
       subtypes := [plant, wolf],
       text :=
-        [ keyword (.named "defender"),
+        [ defender,
           static (onlyWhile
             (can thisCreature attack (asThough := some (holds (matches_ it (not (hasKeyword (.the (.named "defender"))))))))
             (exists_ (and [ isCreature, youControl,
@@ -104,7 +104,7 @@ def platinumAngel : Spelled := spelled <| .singleFaced
     { name := "Platinum Angel", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (cant you loseGame),
           static (cant yourOpponents winGame) ],
       power := stat 4, toughness := stat 4 } }
@@ -114,7 +114,7 @@ def abyssalPersecutor : Spelled := spelled <| .singleFaced
     { name := "Abyssal Persecutor", cost := some [generic 2, pip .black, pip .black],
       types := [.creature], subtypes := [demon],
       text :=
-        [ keyword (.named "flying"), trample,
+        [ flying, trample,
           static (cant you winGame),
           static (cant yourOpponents loseGame) ],
       power := stat 6, toughness := stat 6 } }
@@ -124,7 +124,7 @@ def smogElemental : Spelled := spelled <| .singleFaced
     { name := "Smog Elemental", cost := some [generic 4, pip .black, pip .black],
       types := [.creature], subtypes := [elemental],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (getsPt
             (allOf (and [ isCreature, hasKeyword (.the (.named "flying")),
                            opponentsControl ]))
@@ -136,7 +136,7 @@ def exquisiteArchangel : Spelled := spelled <| .singleFaced
     { name := "Exquisite Archangel", cost := some [generic 5, pip .white, pip .white],
       types := [.creature], subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (instead (would you loseGame) (sequentially
               [ exile thisCreature,
                 setLife (statOf (.playerStat .startingLifeTotal) you) ])) ],
@@ -157,15 +157,13 @@ def inspiringStatuary : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Inspiring Statuary", cost := some [generic 3], types := [.artifact],
       text :=
-        [ static (abilityGrant (allOf (and [not isArtifact, isSpell, castBy you])) (keyword
-            (.named "improvise"))) ] } }
+        [ static (abilityGrant (allOf (and [non isArtifact, isSpell, castBy you])) improvise) ] } }
 
 def chiefEngineer : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chief Engineer", cost := some [generic 1, pip .blue], types := [.creature],
       subtypes := [vedalken, artificer],
-      text := [static (abilityGrant (allOf (and [isArtifact, isSpell, castBy you])) (keyword
-          (.named "convoke")))],
+      text := [static (abilityGrant (allOf (and [isArtifact, isSpell, castBy you])) convoke)],
       power := stat 1, toughness := stat 3 } }
 
 def firesongAndSunspeaker : Ability :=
@@ -174,13 +172,13 @@ def firesongAndSunspeaker : Ability :=
     lifelink)
 theorem okFiresongAndSunspeaker : Ability.check (DRS.ofList []) firesongAndSunspeaker = [] := by decide
 def briaRiptideRogue : Ability :=
-  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) (keyword (.named "prowess")))
+  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) prowess)
 theorem okBriaRiptideRogue : Ability.check (DRS.ofList []) briaRiptideRogue = [] := by decide
 def narsetEnlightenedExile : Ability :=
-  static (abilityGrant (allOf (and [isCreature, youControl])) (keyword (.named "prowess")))
+  static (abilityGrant (allOf (and [isCreature, youControl])) prowess)
 theorem okNarsetEnlightenedExile : Ability.check (DRS.ofList []) narsetEnlightenedExile = [] := by decide
 def pontiffOfBlight : Ability :=
-  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) (keyword (.named "extort")))
+  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) extort)
 theorem okPontiffOfBlight : Ability.check (DRS.ofList []) pontiffOfBlight = [] := by decide
 
 def prismariTheInspiration : Spelled := spelled <| .singleFaced
@@ -189,7 +187,7 @@ def prismariTheInspiration : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [elder, dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           keywordCosting (.named "ward") (payLife 5),
           static (abilityGrant (allOf (and [isInstantOrSorcery, isSpell, castBy you])) storm) ],
       power := stat 7, toughness := stat 7 } }
@@ -211,7 +209,7 @@ def battleSquadron : Spelled := spelled <| .singleFaced
     { name := "Battle Squadron", cost := some [generic 3, pip .red, pip .red], types := [.creature],
       subtypes := [goblin],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl]))) ] } }
 
 def eomerOfTheRiddermark : Spelled := spelled <| .singleFaced
@@ -234,7 +232,7 @@ def angelicGift : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           when (does thisAura enter) (draw (.lit 1)),
-          static (abilityGrant (enchanted (.type .creature)) (keyword (.named "flying"))) ] }
+          static (abilityGrant (enchanted (.type .creature)) flying) ] }
               }
 
 def consulsLieutenant : Spelled := spelled <| .singleFaced
@@ -255,7 +253,7 @@ def secretsOfTheGoldenCity : Spelled := spelled <| .singleFaced
     { name := "Secrets of the Golden City", cost := some [generic 1, pip .blue, pip .blue],
       types := [.sorcery],
       text :=
-        [ keyword (.named "ascend"),
+        [ ascend,
           spell (replace (draw (.lit 2))
             (doIf (matches_ you (hasDesignation (.named "citysBlessing"))) (draw (.lit 3)))) ] } }
 
@@ -265,7 +263,7 @@ def bombur : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [dwarf, bard],
       text :=
-        [ keyword (.named "storied"),
+        [ storied,
           static (onlyUnless (doesntUntap thisCreature (some you))
             (matches_ you (hasDesignation (.named "enduringStory")))) ],
       power := stat 5, toughness := stat 3 } }
@@ -277,7 +275,7 @@ def drachNyen : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisEquipment enter) (exile (targets (upTo 1) isCreature)),
           static (conjunction
-                    [ abilityGrant (equipped (.type .creature)) (keyword (.named "menace")),
+                    [ abilityGrant (equipped (.type .creature)) menace,
               getsPt (equipped (.type .creature)) (up (letter .x)) (up (.lit 0)),
               letterDefinition .x (powerOf (the (in_ (exiledWith thisEquipment)))) ]),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
@@ -287,7 +285,7 @@ def colossalGraveReaver : Spelled := spelled <| .singleFaced
     { name := "Colossal Grave-Reaver", cost := some [generic 6, pip .black, pip .green],
       types := [.creature], subtypes := [dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           triggeredOr (does thisCreature enter) [does thisCreature attack] (mill (.lit 3) you),
           whenever
             (does any
@@ -315,7 +313,7 @@ def divineVisitation : Spelled := spelled <| .singleFaced
         [ static (instead (would any (createObject anyAmount (token (copyOf (counted (atLeast 1) (and [isCreature, isToken]))) []) false (some you))) (createToken
               { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
-                  text := [keyword (.named "flying"),
+                  text := [flying,
                            vigilance], power := stat 4, toughness := stat 4 } } (count :=
                                                                                    groupSize))) ] } }
 
@@ -340,7 +338,7 @@ def windZendikon : Spelled := spelled <| .singleFaced
             (bundle
               { characteristics :=
                 { colors := [.blue], types := [.creature], subtypes := [elemental],
-                  text := [keyword (.named "flying")], power := stat 2, toughness := stat 2 } }
+                  text := [flying], power := stat 2, toughness := stat 2 } }
               (some .land))),
           when (does (enchanted (.type .land)) die) (putInto (that .card) hand) ] } }
 
@@ -368,7 +366,7 @@ def arcaneFlight : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction [ getsPt (enchanted (.type .creature)) (up (.lit 1)) (up (.lit 1)),
-              abilityGrant it (keyword (.named "flying")) ]) ] } }
+              abilityGrant it flying ]) ] } }
 
 def bootsOfSpeed : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -406,7 +404,7 @@ def darksteelMutation : Spelled := spelled <| .singleFaced
                    { characteristics := { types := [.artifact, .creature], subtypes := [insect] }
                        }),
               getsBase it (.lit 0) (.lit 1),
-              abilityGrant it (keyword (.named "indestructible")),
+              abilityGrant it indestructible,
               allAbilityLoss it none ]) ] } }
 
 def kenrithsTransformation : Spelled := spelled <| .singleFaced
@@ -423,7 +421,7 @@ def amphibianDownpour : Spelled := spelled <| .singleFaced
     { name := "Amphibian Downpour", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keyword (.named "flash"), storm,
+        [ flash, storm,
           keywordSubject (.named "enchant") isCreature,
           static (enchantedBecomesVanilla [.blue] "Frog" 1 1) ] } }
 
@@ -443,7 +441,7 @@ def nefariousImp : Spelled := spelled <| .singleFaced
     { name := "Nefarious Imp", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [imp],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever
             (does (counted (atLeast 1) (and [isPermanent, youControl])) leave)
             (scry (.lit 1)) ],
@@ -463,7 +461,7 @@ def irenicussVileDuplication : Spelled := spelled <| .singleFaced
       text :=
         [ spell (create (.lit 1)
             (copyOf (target (and [isCreature, youControl]))
-              [alsoHas (keyword (.named "flying")), isntLegendary])
+              [alsoHas flying, isntLegendary])
             []) ] } }
 
 def cacklingCounterpart : Spelled := spelled <| .singleFaced
@@ -480,7 +478,7 @@ def chandrasSpitfire : Spelled := spelled <| .singleFaced
     { name := "Chandra's Spitfire", cost := some [generic 2, pip .red], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does any (dealDamage (to := anOpponent) (kind := .noncombatOnly)))
             (get thisCreature (up (.lit 3)) (up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 1, toughness := stat 3 } }
@@ -518,7 +516,7 @@ def voiceOfAll : Spelled := spelled <| .singleFaced
     { name := "Voice of All", cost := some [generic 2, pip .white, pip .white], types := [.creature],
       subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (entersChoosing thisCreature .color),
           static (abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen .color))) ],
       power := stat 2, toughness := stat 2 } }
@@ -581,7 +579,7 @@ def ghoulflesh : Spelled := spelled <| .singleFaced
 /-- Blade of the Oni -/
 def bladeOfTheOniStatic : StaticSpec :=
   conjunction [ getsBase (equipped (.type .creature)) (.lit 5) (.lit 5),
-      abilityGrant it (keyword (.named "menace")),
+      abilityGrant it menace,
       qualityChange it .adds
         (bundle { characteristics := { colors := [.black], subtypes := [demon] } }) ]
 theorem okBladeOfTheOniStatic : StaticSpec.check (DRS.ofList []) bladeOfTheOniStatic = [] := by decide
@@ -625,7 +623,7 @@ def wanderingEye : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wandering Eye", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [illusion],
-      text := [keyword (.named "flying"), static (visibility .reveal (allOf isPlayer) wholeHand)],
+      text := [flying, static (visibility .reveal (allOf isPlayer) wholeHand)],
       power := stat 1, toughness := stat 3 } }
 
 def amorphousAxe : Spelled := spelled <| .singleFaced
@@ -676,7 +674,7 @@ def curseOfConformity : Spelled := spelled <| .singleFaced
       subtypes := [aura, curse],
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
-          static (conjunction [ getsBase (allOf (and [ isCreature, not (hasSupertype .legendary),
+          static (conjunction [ getsBase (allOf (and [ isCreature, non (hasSupertype .legendary),
                                controlledBy (enchanted .player) ])) (.lit 3) (.lit 3),
               qualityChange them .loses (everyTypeOf .creature) ]) ] } }
 
@@ -686,7 +684,7 @@ def drumbellower : Spelled := spelled <| .singleFaced
     { name := "Drumbellower", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (untapsDuring (allOf (and [isCreature, youControl]))
             (some (each isOtherPlayer))) ],
       power := stat 2, toughness := stat 1 } }
@@ -702,7 +700,7 @@ def clarionConqueror : Spelled := spelled <| .singleFaced
     { name := "Clarion Conqueror", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (cant any (activate (allOf (and [ abilityHead .anyActivated,
                            abilityOf (allOf (or [isArtifact, isCreature, isPlaneswalker])) ])))) ],
       power := stat 3, toughness := stat 3 } }
@@ -737,7 +735,7 @@ def linvalaKeeperOfSilence : Spelled := spelled <| .singleFaced
     { name := "Linvala, Keeper of Silence", cost := some [generic 2, pip .white, pip .white],
       supertypes := [.legendary], types := [.creature], subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (cant any (activate (allOf (and [ abilityHead .anyActivated,
                            abilityOf (allOf (and [isCreature, opponentsControl])) ])))) ],
       power := stat 3, toughness := stat 4 } }
@@ -777,7 +775,7 @@ def illusionaryForces : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Illusionary Forces", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [illusion],
-      text := [keyword (.named "flying"), cumulativeUpkeep (mana [pip .blue])],
+      text := [flying, cumulativeUpkeep (mana [pip .blue])],
       power := stat 4, toughness := stat 4 } }
 
 def vexingSphinx : Spelled := spelled <| .singleFaced
@@ -785,7 +783,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
     { name := "Vexing Sphinx", cost := some [generic 1, pip .blue, pip .blue], types := [.creature],
       subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           cumulativeUpkeep (perform (discard (a (cardIn yourHand)))),
           when (does thisCreature die) (draw (countersOn (.named "ageCounter") it)) ],
       power := stat 4, toughness := stat 4 } }
@@ -804,7 +802,7 @@ def dreamThief : Spelled := spelled <| .singleFaced
     { name := "Dream Thief", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [faerie, rogue],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter)
             (doOnlyIf (draw (.lit 1))
               (happened (cast (a
@@ -828,7 +826,7 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
     { name := "Deepway Navigator", cost := some [pip .white, pip .blue], types := [.creature],
       subtypes := [merfolk, wizard],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           when (does thisCreature enter)
             (setStatus .untapped
               (each (and [ hasSubtype merfolk, youControl,
@@ -858,7 +856,7 @@ def stormOfSouls : Action :=
     [ putOntoBattlefield (allOf (and [isCreature, in_ yourGraveyard])),
       become them
         { characteristics :=
-          { subtypes := [spirit], text := [keyword (.named "flying")],
+          { subtypes := [spirit], text := [flying],
             power := stat 1, toughness := stat 1 } }
         none,
       exile «this» ]
@@ -877,7 +875,7 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
                   (become thisEnchantment
                     { characteristics :=
                       { types := [.creature], subtypes := [angel],
-                        text := [keyword (.named "flying")], power := stat 3, toughness := stat 3 } }
+                        text := [flying], power := stat 3, toughness := stat 3 } }
                     (some untilEndOfTurn)) ]) ] } }
 
 /-- Hate Mirage's middle two sentences -/
@@ -893,7 +891,7 @@ def descentOfTheDragons : Action :=
       doForEach (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)
         (instruct (controllerOf it) (createToken { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [dragon],
-                text := [keyword (.named "flying")], power := stat 4, toughness := stat 4 } })) ]
+                text := [flying], power := stat 4, toughness := stat 4 } })) ]
 theorem okDescentOfTheDragons : Action.check (DRS.ofList []) descentOfTheDragons = [] := by decide
 /-- Brimaz, King of Oreskos -/
 def brimazAttackToken : Ability :=
@@ -959,7 +957,7 @@ def nezumiRonin : Ability := keywordNumber (.named "bushido") (.lit 1)
 theorem okNezumiRonin : Ability.check (DRS.ofList []) nezumiRonin = [] := by decide
 /-- Dragonlord Ojutai -/
 def dragonlordOjutaiHexproof : Ability :=
-  static (onlyWhile (abilityGrant thisCreature (keyword (.named "hexproof"))) (matches_ it isUntapped))
+  static (onlyWhile (abilityGrant thisCreature hexproof) (matches_ it isUntapped))
 theorem okDragonlordOjutaiHexproof : Ability.check (DRS.ofList []) dragonlordOjutaiHexproof = [] := by decide
 /-- Monoxa, Midway Manager -/
 def monoxaRollTrigger : Ability :=
@@ -967,7 +965,7 @@ def monoxaRollTrigger : Ability :=
     (sequentially
       [ gain thisCreature firstStrike (some untilEndOfTurn),
         doIf (compareAmt (theOutcome .rollResult) .atLeast (.lit 4))
-          (gain it (keyword (.named "menace")) (some untilEndOfTurn)),
+          (gain it menace (some untilEndOfTurn)),
         doIf (compareAmt (theOutcome .rollResult) .atLeast (.lit 5))
           (gain it lifelink (some untilEndOfTurn)) ])
 theorem okMonoxaRollTrigger : Ability.check (DRS.ofList []) monoxaRollTrigger = [] := by decide
@@ -997,7 +995,7 @@ def lightkeeperOfEmeria : Spelled := spelled <| .singleFaced
       subtypes := [angel],
       text :=
         [ keywordCosting (.named "multikicker") (mana [pip .white]),
-          keyword (.named "flying"),
+          flying,
           when (does thisCreature enter)
             (gainLife (times (.lit 2) (timesPaid (.byKeyword (.named "kicker")) thisCreature))) ],
       power := stat 2, toughness := stat 4 } }
@@ -1008,7 +1006,7 @@ def merfolkFalconer : Spelled := spelled <| .singleFaced
     { name := "Merfolk Falconer", cost := some [generic 3, pip .blue, pip .blue], types := [.creature],
       subtypes := [merfolk, wizard],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever
             (does you (cast (a (compareOver isSpell (paidCostRead (.byKeyword (.named "kicker"))
                 none it) .atLeast (.lit 1)))))
@@ -1069,7 +1067,7 @@ def shimmeringGlasskite : Spelled := spelled <| .singleFaced
     { name := "Shimmering Glasskite", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           triggeredOnlyOnce
             (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature)) oncePerTurn
             (counter (that .stack)) ],
@@ -1091,11 +1089,11 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
 def soulOfEmancipation : Ability :=
   when (does thisCreature enter)
     (sequentially
-      [ destroy (targets (upTo 3) (and [isPermanent, not isLand, otherThan «this»])),
+      [ destroy (targets (upTo 3) (and [isPermanent, non isLand, otherThan «this»])),
         doForEach (those .permanent)
           (instruct (controllerOf (that .permanent)) (createToken { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
-                  text := [keyword (.named "flying")], power := stat 3, toughness := stat 3 } })) ])
+                  text := [flying], power := stat 3, toughness := stat 3 } })) ])
 theorem okSoulOfEmancipation : Ability.check (DRS.ofList []) soulOfEmancipation = [] := by decide
 
 /-- Tourach, Dread Cantor -/
@@ -1118,7 +1116,7 @@ def talrandsInvocation : Action :=
   createToken
     { characteristics :=
       { colors := [.blue], types := [.creature], subtypes := [drake],
-        text := [keyword (.named "flying")], power := stat 2, toughness := stat 2 } } (count := .lit 2)
+        text := [flying], power := stat 2, toughness := stat 2 } } (count := .lit 2)
 theorem okTalrandsInvocation : Action.check (DRS.ofList []) talrandsInvocation = [] := by decide
 
 /-- Predatory Wurm -/
@@ -1179,7 +1177,7 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
               (createToken
                 { characteristics :=
                   { colors := [.black], types := [.creature], subtypes := [demon],
-                    text := [keyword (.named "flying")], power := stat 5, toughness := stat 5 } })) ],
+                    text := [flying], power := stat 5, toughness := stat 5 } })) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Containment Priest -/
@@ -1188,7 +1186,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
     { name := "Containment Priest", cost := some [generic 1, pip .white], types := [.creature],
       subtypes := [human, cleric],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           static (instead
                     (would any
                        (putOntoBattlefield
@@ -1206,7 +1204,7 @@ def wizenedSnitches : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wizened Snitches", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [faerie, rogue],
-      text := [keyword (.named "flying"), static (visibility .reveal (allOf isPlayer) topOfLibrary)],
+      text := [flying, static (visibility .reveal (allOf isPlayer) topOfLibrary)],
       power := stat 1, toughness := stat 3 } }
 
 /-- Darkblade Agent -/
@@ -1219,7 +1217,7 @@ def darkbladeAgentGrants : Ability :=
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
-  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent))) (gain (those (.type .creature)) (keyword (.named "menace")) (some untilEndOfTurn))
+  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent))) (gain (those (.type .creature)) menace (some untilEndOfTurn))
 theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
 /-- Pir, Imaginative Rascal's replacement -/
@@ -1243,7 +1241,7 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
     { name := "Iymrith, Desert Doom", cost := some [generic 3, pip .blue, pip .blue],
       supertypes := [.legendary], types := [.creature], subtypes := [dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (onlyWhile (abilityGrant thisCreature (keywordCosting (.named "ward") (mana [generic
               4])))
             (matches_ it isUntapped)),
@@ -1268,9 +1266,9 @@ def cairnWanderer : Spelled := spelled <| .singleFaced
     { name := "Cairn Wanderer", cost := some [generic 4, pip .black], types := [.creature],
       subtypes := [shapeshifter],
       text :=
-        [ keyword (.named "changeling"),
+        [ changeling,
           alsoForKeywords
-            (static (onlyWhile (abilityGrant thisCreature (keyword (.named "flying")))
+            (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_ (and [isCreature, in_ graveyard, hasKeyword (.the (.named "flying"))]))))
             [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"), .the (.named "deathtouch"), .the (.named "haste"),
               landwalkAbilities, .the (.named "lifelink"), protectionAbilities, .the (.named "reach"), .the (.named "trample"),
@@ -1326,7 +1324,7 @@ def escapedShapeshifter : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [shapeshifter],
       text :=
         [ alsoForKeywords
-            (static (onlyWhile (abilityGrant thisCreature (keyword (.named "flying")))
+            (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_
                  (and [ isCreature, controlledBy anOpponent, hasKeyword (.the (.named "flying")),
                                not (named (printedName "Escaped Shapeshifter")) ]))))
@@ -1414,7 +1412,7 @@ def choMannosBlessing : Spelled := spelled <| .singleFaced
     { name := "Cho-Manno's Blessing", cost := some [pip .white, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           keywordSubject (.named "enchant") isCreature,
           static (entersChoosing thisAura .color),
           static (retention
@@ -1442,7 +1440,7 @@ def benevolentBlessing : Spelled := spelled <| .singleFaced
     { name := "Benevolent Blessing", cost := some [generic 1, pip .white], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           keywordSubject (.named "enchant") isCreature,
           static (entersChoosing thisAura .color),
           static (retention
@@ -1457,7 +1455,7 @@ def wallOfShards : Spelled := spelled <| .singleFaced
     { name := "Wall of Shards", cost := some [generic 1, pip .white], supertypes := [.snow],
       types := [.creature], subtypes := [wall],
       text :=
-        [ keyword (.named "defender"), keyword (.named "flying"),
+        [ defender, flying,
           cumulativeUpkeep (perform (instruct anOpponent (gainLife (.lit 1)))) ],
       power := stat 1, toughness := stat 8 } }
 
@@ -1480,14 +1478,14 @@ def mutagenConnoisseur : Spelled := spelled <| .singleFaced
     { name := "Mutagen Connoisseur", cost := some [generic 1, pip .green, pip .blue],
       types := [.creature], subtypes := [vedalken, mutant],
       text :=
-        [ keyword (.named "flying"), vigilance,
+        [ flying, vigilance,
           static (getsPt thisCreature
             (up (forEach (.lit 1) (and [isTransformed, youControl]))) (up (.lit 0))) ],
       power := stat 0, toughness := stat 5 } }
 
 /-- Bedrock Tortoise -/
 def bedrockTortoiseWindow : StaticSpec :=
-  partScope .turn (some you) (abilityGrant (allOf (and [isCreature, youControl])) (keyword (.named "hexproof")))
+  partScope .turn (some you) (abilityGrant (allOf (and [isCreature, youControl])) hexproof)
 theorem okBedrockTortoiseWindow : StaticSpec.check (DRS.ofList []) bedrockTortoiseWindow = [] := by decide
 
 /-- Battlegate Mimic -/
@@ -1509,7 +1507,7 @@ def sphinxOfUthuun : Spelled := spelled <| .singleFaced
     { name := "Sphinx of Uthuun", cost := some [generic 5, pip .blue, pip .blue], types := [.creature],
       subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter)
             (sequentially
               [ reveal (topSlice (.lit 5)),
@@ -1522,7 +1520,7 @@ def sphinxOfUthuun : Spelled := spelled <| .singleFaced
 def maritLage : CharacteristicBundle :=
   { characteristics :=
     { name := "Marit Lage", colors := [.black], supertypes := [.legendary], types := [.creature],
-      subtypes := [avatar], text := [keyword (.named "flying"), keyword (.named "indestructible")],
+      subtypes := [avatar], text := [flying, indestructible],
       power := stat 20, toughness := stat 20 } }
 
 /-- Tuktuk the Explorer -/
@@ -1547,7 +1545,7 @@ def artificersAssistant : Spelled := spelled <| .singleFaced
     { name := "Artificer's Assistant", cost := some [pip .blue], types := [.creature],
       subtypes := [bird],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does you (cast (a
             (and [isHistoric, isSpell])))) (scry (.lit 1))
               ],
@@ -1560,14 +1558,14 @@ def ayaOfAlexandria : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, assassin],
       text :=
-        [ keyword (.named "menace"), lifelink,
+        [ menace, lifelink,
           whenever
             (does (a (and [isHistoric, isCreature, youControl]))
                (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [assassin],
-                  text := [keyword (.named "menace")], power := stat 1, toughness := stat 1 } }) ],
+                  text := [menace], power := stat 1, toughness := stat 1 } }) ],
       power := stat 4, toughness := stat 3 } }
 
 /-- Indestructibility -/
@@ -1577,7 +1575,7 @@ def indestructibility : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isPermanent,
-          static (abilityGrant (enchanted .permanent) (keyword (.named "indestructible"))) ] }
+          static (abilityGrant (enchanted .permanent) indestructible) ] }
               }
 
 /-- Seraphic Greatsword -/
@@ -1596,7 +1594,7 @@ def seraphicGreatsword : Spelled := spelled <| .singleFaced
               (written
                 { characteristics :=
                   { colors := [.white], types := [.creature], subtypes := [angel],
-                    text := [keyword (.named "flying")], power := stat 4, toughness := stat 4 } })
+                    text := [flying], power := stat 4, toughness := stat 4 } })
               [entersAs .tapped, entersAttacking (some (that .player))]),
           keywordCosting (.named "equip") (mana [generic 4]) ] } }
 
@@ -1607,7 +1605,7 @@ def amassZombiesTwo : Action := amass zombie (.lit 2)
 theorem okAmassZombiesTwo : Action.check (DRS.ofList []) amassZombiesTwo = [] := by decide
 /-- Avarice Totem -/
 def avariceTotemExchange : Action :=
-  exchange (controlOf thisArtifact (target (and [isPermanent, not isLand])))
+  exchange (controlOf thisArtifact (target (and [isPermanent, non isLand])))
 theorem okAvariceTotemExchange : Action.check (DRS.ofList []) avariceTotemExchange = [] := by decide
 /-- Arcanum Wings -- aura swap [CR#702.65a] -/
 def arcanumWingsAuraSwap : Ability :=
@@ -1661,14 +1659,14 @@ theorem okLurrusCompanion : Ability.check (DRS.ofList []) lurrusCompanion = [] :
 /-- Lutri, the Spellchaser -/
 def lutriCompanion : Ability := companion (groupAgrees
                                              (withDifferentNames
-                                                (allOf (and [not isLand, isCard]))))
+                                                (allOf (and [non isLand, isCard]))))
 theorem okLutriCompanion : Ability.check (DRS.ofList []) lutriCompanion = [] := by decide
 /-- Obosh, the Preypiercer -/
 def oboshCompanion : Ability :=
   companion (everyCardIs isCard (anyOf [manaValueParity .odd, aCharacteristic isLand]))
 theorem okOboshCompanion : Ability.check (DRS.ofList []) oboshCompanion = [] := by decide
 /-- Umori, the Collector -/
-def umoriCompanion : Ability := companion (groupAgrees (agree .cardType .share (allOf (and [not isLand, isCard]))))
+def umoriCompanion : Ability := companion (groupAgrees (agree .cardType .share (allOf (and [non isLand, isCard]))))
 theorem okUmoriCompanion : Ability.check (DRS.ofList []) umoriCompanion = [] := by decide
 /-- Yorion, Sky Nomad -/
 def yorionCompanion : Ability := companion (deckSizeOverMinimum 20)

@@ -107,7 +107,7 @@ def gloriousEnforcer : Spelled := spelled <| .singleFaced
     { name := "Glorious Enforcer", cost := some [generic 5, pip .white, pip .white],
       types := [.creature], subtypes := [angel],
       text :=
-        [ keyword (.named "flying"), lifelink,
+        [ flying, lifelink,
           triggeredIf (beginningOfPossessed .combat eachPlayer)
             (compareAmt (lifeTotalOf you) .greater (lifeTotalOf anOpponent))
             (gain thisCreature doubleStrike (some untilEndOfTurn)) ],
@@ -200,7 +200,7 @@ def chanceForGlory : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ establish
                 (abilityGrant (allOf (and [isCreature, youControl]))
-                  (keyword (.named "indestructible"))),
+                  indestructible),
               extraTurn (.lit 1),
               delay (beginningOfThatTurns .endStep) loseGame ])
                   ] } }
@@ -236,7 +236,7 @@ def sphinxOfTheSecondSun : Spelled := spelled <| .singleFaced
     { name := "Sphinx of the Second Sun", cost := some [generic 6, pip .blue, pip .blue],
       types := [.creature], subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           at_ (beginningOfYour .postcombatMain)
             (additionalPhase .beginningPhase (some .postcombatMain) (.lit 1)) ],
       power := stat 6, toughness := stat 6 } }
@@ -249,7 +249,7 @@ def obekaSplitterOfSeconds : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [ogre, warlock],
       text :=
-        [ keyword (.named "menace"),
+        [ menace,
           whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (additionalStep .upkeep none thatMuch) ],
       power := stat 2, toughness := stat 5 } }
@@ -307,7 +307,7 @@ def bleedingEffect : Spelled := spelled <| .singleFaced
                                hasKeyword (.the (.named "flying")) ]))
               (establishThroughout
                  (abilityGrant (allOf (and [isCreature, youControl]))
-                    (keyword (.named "flying"))) untilEndOfTurn))
+                    flying) untilEndOfTurn))
             (["firstStrike", "doubleStrike", "deathtouch", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ] } }
 
@@ -316,7 +316,7 @@ def fettergeist : Spelled := spelled <| .singleFaced
     { name := "Fettergeist", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           at_ (beginningOfYour .upkeep)
             (doUnless (sacrifice thisCreature)
               (scaledGenericMana
@@ -403,7 +403,7 @@ def concertedEffort : Spelled := spelled <| .singleFaced
                                hasKeyword (.the (.named "flying")) ]))
               (establishThroughout
                  (abilityGrant (allOf (and [isCreature, youControl]))
-                    (keyword (.named "flying"))) untilEndOfTurn))
+                    flying) untilEndOfTurn))
             [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"),
               .anyIn ⟨(.named "landwalk"), none⟩, .anyIn ⟨(.named "protection"), none⟩,
               .the (.named "trample"), .the (.named "vigilance") ] ] } }
@@ -427,7 +427,7 @@ def beckoningWillOWisp : Spelled := spelled <| .singleFaced
     { name := "Beckoning Will-o'-Wisp", cost := some [generic 2, pip .white],
       types := [.creature], subtypes := [spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           flavorWord "Lure the Unwary"
             (at_ (beginningOfYour .combat) (choose anOpponent)),
           static (getsPt (allOf (and [isCreature, inCombat .attackerOf (some (the isChosenPlayer))]))
@@ -444,7 +444,7 @@ def triarchStalker : Spelled := spelled <| .singleFaced
             (at_ (beginningOfYour .combat) (choose anOpponent)),
           static (abilityGrant (allOf (and [isCreature, inCombat .attackerOf (some (the
               isChosenPlayer))]))
-            (keyword (.named "menace"))) ],
+            menace) ],
       power := stat 4, toughness := stat 5 } }
 
 def raphaelAdditionalCombat : Action := additionalPhase .combat (some .combat) (.lit 1)

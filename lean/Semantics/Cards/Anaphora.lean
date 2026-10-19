@@ -194,7 +194,7 @@ theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by de
 /-- Eradicate -/
 def eradicateSearch : Action :=
   sequentially
-    [ exile (target (and [isCreature, not (hasColor .black)])),
+    [ exile (target (and [isCreature, non (hasColor .black)])),
       searchZonesOf (controllerOf (that .card)) anyNumber (shares .cardName .share (that .card)),
       exile (theVerbed (.action "search") .many),
       instruct (that .player) shuffle ]
@@ -202,7 +202,7 @@ theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] :=
 
 /-- Deem Inferior -/
 def deemInferior : Action :=
-  instruct (ownerOf (target (and [isPermanent, not isLand]))) (put it (or [(fromTop 2 library), (fromBottom 2 library)]))
+  instruct (ownerOf (target (and [isPermanent, non isLand]))) (put it (or [(fromTop 2 library), (fromBottom 2 library)]))
 theorem okDeemInferior : Action.check (DRS.ofList []) deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -350,7 +350,7 @@ theorem okBlessedRespiteShuffle : Action.check (DRS.ofList []) blessedRespiteShu
 def nekrataalEntry : GameEvent := does thisCreature enter
 theorem okNekrataalEntry : GameEvent.check (DRS.ofList []) nekrataalEntry = [] := by decide
 def nekrataalDestroy : Action :=
-  destroy (target (and [isCreature, not isArtifact, not (hasColor .black)]))
+  destroy (target (and [isCreature, non isArtifact, non (hasColor .black)]))
 theorem okNekrataalDestroy :
     Action.check ((stepGameEvent 512 (DRS.ofList []) nekrataalEntry).1) nekrataalDestroy = [] := by decide
 def nekrataalRider : DRS :=
@@ -671,7 +671,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [elder, dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does thisCreature attack)
             (sequentially
               [ doForEach eachPlayer

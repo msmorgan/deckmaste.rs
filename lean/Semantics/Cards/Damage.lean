@@ -338,7 +338,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
                       { characteristics :=
                         { types := [.creature],
                           subtypes := [human, soldier, ally],
-                          text := [keyword (.named "indestructible")], power := stat 5, toughness := stat 5 } }
+                          text := [indestructible], power := stat 5, toughness := stat 5 } }
                       (some .planeswalker))) untilEndOfTurn,
                 preventAll .any (toRecipient it) (some thisTurn) ]),
           activated (loyaltySymbol .zero)
@@ -660,8 +660,8 @@ def platedPegasus : Spelled := spelled <| .singleFaced
     { name := "Plated Pegasus", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [pegasus],
       text :=
-        [ keyword (.named "flash"),
-          keyword (.named "flying"),
+        [ flash,
+          flying,
           static (damageRule .any (dealtBy (a isSpell)) (toRecipient (a (or [isPermanent, isPlayer])))
             (prevent (ofThatDamage (.lit 1))) .repeatedly) ],
       power := stat 1, toughness := stat 2 } }
@@ -744,7 +744,7 @@ def sonicShrieker : Spelled := spelled <| .singleFaced
     { name := "Sonic Shrieker", cost := some [generic 2, pip .red, pip .white, pip .black],
       types := [.creature], subtypes := [dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter)
             (sequentially
               [ instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly),
@@ -793,7 +793,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
     { name := "Stuffy Doll", cost := some [generic 5], types := [.artifact, .creature],
       subtypes := [construct],
       text :=
-        [ keyword (.named "indestructible"),
+        [ indestructible,
           static (entersChoosingPlayer thisCreature none),
           whenever (does any (dealDamage (to := thisCreature))) (instruct it (dealDamage thatMuch (the isChosenPlayer) .noncombatOnly)),
           activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) thisCreature .noncombatOnly)) ],
@@ -824,7 +824,7 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature], subtypes := [dragon],
       text :=
         [ static (cant any (counter «this»)),
-          keyword (.named "flying"),
+          flying,
           haste,
           activated (mana [pip .red])
             (triggerThisWay (get thisCreature (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn))
@@ -1100,7 +1100,7 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
       subtypes := [dragon],
       text :=
         [ keywordCosting (.named "surge") (mana [generic 3, pip .red, pip .red]),
-          keyword (.named "flying"),
+          flying,
           triggeredIf (does thisCreature enter) (keywordCostPaid (.named "surge")
                                                            thisCreature)
             (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly)) ],
@@ -1152,7 +1152,7 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
     { name := "Aurelia, the Law Above", cost := some [generic 3, pip .red, pip .white],
       supertypes := [.legendary], types := [.creature], subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           vigilance,
           haste,
           whenever (does (a isPlayer) (attackWith (counted (atLeast 3) isCreature))) (draw (.lit 1)),

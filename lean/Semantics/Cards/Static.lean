@@ -236,7 +236,7 @@ theorem okSolfataraLandLock : Action.check (DRS.ofList []) solfataraLandLock = [
 
 /-- "each nonbasic land is a <type>": a moon effect. -/
 def nonbasicLandsAre (type : String) : StaticSpec :=
-  qualityChange (allOf (and [isLand, not (hasSupertype .basic)])) .sets
+  qualityChange (allOf (and [isLand, non (hasSupertype .basic)])) .sets
     (bundle { characteristics := { subtypes := [landType type] } })
 
 def bloodMoon : Spelled := spelled <| .singleFaced
@@ -311,11 +311,11 @@ def encroachingMycosynth : Spelled := spelled <| .singleFaced
     { name := "Encroaching Mycosynth", cost := some [generic 3, pip .blue], types := [.artifact],
       text :=
         [ static (qualityChange (and [
-              allOf (and [isPermanent, not isLand, youControl]),
+              allOf (and [isPermanent, non isLand, youControl]),
               allOf (and
                        [or [isArtifact, isBattle, isCreature, isEnchantment, isPlaneswalker],
                         isSpell, youControl]),
-              allOf (and [isCard, isPermanentCard, not isLand, youOwn, not (in_ battlefield)]) ])
+              allOf (and [isCard, isPermanentCard, non isLand, youOwn, not (in_ battlefield)]) ])
                 .adds
               (bundle { characteristics := { types := [.artifact] } })) ] } }
 
@@ -357,9 +357,9 @@ def celestialDawnAscriptions : List Ability :=
   [ static (qualityChange (allOf (and [isLand, youControl])) .sets
       (bundle { characteristics := { subtypes := [plains] } })),
     static (qualityChange (and [
-              allOf (and [isPermanent, not isLand, youControl]),
+              allOf (and [isPermanent, non isLand, youControl]),
               allOf (and [isSpell, youControl]),
-              allOf (and [isCard, not isLand, youOwn, not (in_ battlefield)]) ]) .sets
+              allOf (and [isCard, non isLand, youOwn, not (in_ battlefield)]) ]) .sets
         (colored (.some [.white]))) ]
 theorem okCelestialDawnAscriptions : Ability.checkText (DRS.ofList []) celestialDawnAscriptions = [] := by decide
 
@@ -381,7 +381,7 @@ def dovinsVeto : Spelled := spelled <| .singleFaced
     { name := "Dovin's Veto", cost := some [pip .white, pip .blue], types := [.instant],
       text :=
         [ static (cant any (counter thisSpell)),
-          spell (counter (target (and [isSpell, not isCreature]))) ] } }
+          spell (counter (target (and [isSpell, non isCreature]))) ] } }
 
 def goblinSpy : Spelled := spelled <| .singleFaced
   { characteristics :=

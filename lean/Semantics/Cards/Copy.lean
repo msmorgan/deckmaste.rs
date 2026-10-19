@@ -147,7 +147,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.artifact, .creature],
       subtypes := [human, hero],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           triggered (does you (cast (a
             (and [isArtifact, isSpell]))))
             (doOnlyOnceEachTurn (may (copy .fromStack it (.lit 1) [isntLegendary])))

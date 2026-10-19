@@ -157,7 +157,7 @@ def scourgeOfNelToth : Spelled := spelled <| .singleFaced
     { name := "Scourge of Nel Toth", cost := some [generic 5, pip .black, pip .black],
       types := [.creature], subtypes := [zombie, dragon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (can you
                     (cast «this» (from_ := some yourGraveyard) (payment := payingInstead (compound
                 [ mana [pip .black, pip .black],
@@ -381,7 +381,7 @@ def mistformDreamer : Spelled := spelled <| .singleFaced
     { name := "Mistform Dreamer", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [illusion],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           activated (mana [generic 1])
             (establishThroughout (qualityChange thisCreature .sets
                 (chosenQuality (ofYourChoice (.subtype .creature)))) untilEndOfTurn) ],
@@ -456,7 +456,7 @@ def silverquillSilencer : Spelled := spelled <| .singleFaced
     { name := "Silverquill Silencer", cost := some [pip .white, pip .black], types := [.creature],
       subtypes := [human, cleric],
       text :=
-        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (not isLand))),
+        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
           whenever (does anOpponent (cast (a (and [isSpell,
             named chosenName]))))
             (sequentially [instruct they (loseLife (.lit 3)), draw (.lit 1)]) ],
@@ -467,7 +467,7 @@ def meddlingMage : Spelled := spelled <| .singleFaced
     { name := "Meddling Mage", cost := some [pip .white, pip .blue], types := [.creature],
       subtypes := [human, wizard],
       text :=
-        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (not isLand))),
+        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
           static (cant any (cast (allOf (and [isSpell, named chosenName])))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -497,7 +497,7 @@ def nevermore : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Nevermore", cost := some [generic 1, pip .white, pip .white], types := [.enchantment],
       text :=
-        [ static (entersChoosingFrom thisEnchantment .cardName (nameOfCard (not isLand))),
+        [ static (entersChoosingFrom thisEnchantment .cardName (nameOfCard (non isLand))),
           static (cant any (cast (allOf (and [isSpell, named chosenName])))) ] } }
 
 def necromentiaChoice : Action :=
@@ -544,7 +544,7 @@ def shimmerMyr : Spelled := spelled <| .singleFaced
     { name := "Shimmer Myr", cost := some [generic 3], types := [.artifact, .creature],
       subtypes := [myr],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           static (can you (cast (allOf (and [isSpell, isArtifact]))) (asThough := asThoughFlash)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -553,7 +553,7 @@ def quickSliver : Spelled := spelled <| .singleFaced
     { name := "Quick Sliver", cost := some [generic 1, pip .green], types := [.creature],
       subtypes := [sliver],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           static (can (a isPlayer) (cast (allOf (and [isSpell, hasSubtype sliver])))
                     (asThough := asThoughFlash)) ],
       power := stat 1, toughness := stat 1 } }
@@ -716,7 +716,7 @@ def hellkiteCharger : Spelled := spelled <| .singleFaced
     { name := "Hellkite Charger", cost := some [generic 4, pip .red, pip .red],
       types := [.creature], subtypes := [dragon],
       text :=
-        [ keyword (.named "flying"), haste,
+        [ flying, haste,
           whenever (does thisCreature attack)
             (may (pay (mana [generic 5, pip .red, pip .red]) .once)
               (some (sequentially
@@ -789,7 +789,7 @@ def phyrexianRevoker : Spelled := spelled <| .singleFaced
     { name := "Phyrexian Revoker", cost := some [generic 2], types := [.artifact, .creature],
       subtypes := [phyrexian, horror],
       text :=
-        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (not isLand))),
+        [ static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
           static (cant any (activate (allOf (and [ abilityHead .anyActivated,
                            abilityOf (allOf (and [isSource, named chosenName])) ])))) ],
       power := stat 2, toughness := stat 1 } }
@@ -799,8 +799,8 @@ def voidstoneGargoyle : Spelled := spelled <| .singleFaced
     { name := "Voidstone Gargoyle", cost := some [generic 3, pip .white, pip .white],
       types := [.creature], subtypes := [gargoyle],
       text :=
-        [ keyword (.named "flying"),
-          static (entersChoosingFrom thisCreature .cardName (nameOfCard (not isLand))),
+        [ flying,
+          static (entersChoosingFrom thisCreature .cardName (nameOfCard (non isLand))),
           static (cant any (cast (allOf (and [isSpell, named chosenName])))),
           static (cant any (activate (allOf (and [ abilityHead .anyActivated,
                            abilityOf (allOf (and [isSource, named chosenName])) ])))) ],
@@ -941,7 +941,7 @@ def cryptLurker : Spelled := spelled <| .singleFaced
 /-- Memoricide -/
 def memoricideSearch : Action :=
   sequentially
-    [ choose (a (qualityFrom .cardName (nameOfCard (not isLand)))),
+    [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
       searchZonesOf (target isPlayer) (exactly 1) (named chosenName),
       instruct (that .player) shuffle ]
 theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] := by decide
@@ -949,7 +949,7 @@ theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] 
 def lostHoursPlacement : Action :=
   sequentially
     [ instruct (target isPlayer) revealHand,
-      choose (a (and [not isLand, in_ (handOf they)])),
+      choose (a (and [non isLand, in_ (handOf they)])),
       instruct (that .player) (put it (fromTop 3 library)) ]
 theorem okLostHoursPlacement : Action.check (DRS.ofList []) lostHoursPlacement = [] := by decide
 /-- Aether Gust -/
@@ -1036,7 +1036,7 @@ def sandstoneOracle : Spelled := spelled <| .singleFaced
     { name := "Sandstone Oracle", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter)
             (sequentially
               [ choose anOpponent,
@@ -1327,7 +1327,7 @@ def snowCoveredForest : Spelled := spelled <| .singleFaced
 
 /-- Not Forgotten -/
 def notForgottenPlacement : Action :=
-  move (target (cardIn graveyard)) any (some (or [onTop, onBottom])) .arrival
+  putInto (target (cardIn graveyard)) (or [onTop, onBottom])
 theorem okNotForgottenPlacement : Action.check (DRS.ofList []) notForgottenPlacement = [] := by decide
 
 def duneblastCard : Spelled := spelled <| .singleFaced
@@ -1356,7 +1356,7 @@ def caughtInTheCrossfire : Spelled := spelled <| .singleFaced
             [ (some (mana [generic 1]),
                instruct «this» (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])) .noncombatOnly)),
               (some (mana [generic 1]),
-               instruct «this» (dealDamage (.lit 2) (each (and [isCreature, not isOutlaw])) .noncombatOnly)) ]) ] } }
+               instruct «this» (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw])) .noncombatOnly)) ]) ] } }
 
 /-- Requisition Raid -/
 def requisitionRaid : Spelled := spelled <| .singleFaced
@@ -1389,8 +1389,8 @@ def consumingTide : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ instruct eachPlayer (choose
-                (a (and [isPermanent, not isLand, controlledBy they]))),
-              returnToHand (allOf (and [isPermanent, not isLand, notChosen])),
+                (a (and [isPermanent, non isLand, controlledBy they]))),
+              returnToHand (allOf (and [isPermanent, non isLand, notChosen])),
               doForEach
                 (each (compareOver isOpponent (countOf (cardIn (handOf they))) .greater
                   (countOf (cardIn yourHand))))

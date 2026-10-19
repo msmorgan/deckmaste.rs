@@ -97,7 +97,7 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=
-  static (cant (allOf isPlayer) (untap (counted (moreThan 1) (and [isLand, not (hasSupertype .basic)]))) (timing := some duringTheirUntapSteps))
+  static (cant (allOf isPlayer) (untap (counted (moreThan 1) (and [isLand, non (hasSupertype .basic)]))) (timing := some duringTheirUntapSteps))
 theorem okWinterMoon : Ability.check (DRS.ofList []) winterMoon = [] := by decide
 
 def leitmotifComposer : Ability :=
@@ -164,8 +164,8 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
       text :=
         [ static (cant any (counter thisSpell)),
           haste,
-          static (cant (by_ (allOf (or [ and [isSpell, not (hasColor .green)],
-                          abilityOf (allOf (and [isSource, not (hasColor .green)])) ]))) (target thisCreature)) ],
+          static (cant (by_ (allOf (or [ and [isSpell, non (hasColor .green)],
+                          abilityOf (allOf (and [isSource, non (hasColor .green)])) ]))) (target thisCreature)) ],
       power := stat 8, toughness := stat 5 } }
 
 /-- Nowhere to Run -/
@@ -326,7 +326,7 @@ def gideonsIntervention : Spelled := spelled <| .singleFaced
 /-- Academic Probation -/
 def academicProbationNameMode : Action :=
   sequentially
-    [ choose (a (qualityFrom .cardName (nameOfCard (not isLand)))),
+    [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
       establishThroughout (cant yourOpponents
                              (cast (allOf (and [isSpell, named chosenName])))) untilYourNextTurn ]
 theorem okAcademicProbationNameMode : Action.check (DRS.ofList []) academicProbationNameMode = [] := by
@@ -349,7 +349,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
     { name := "Blinding Angel", cost := some [generic 3, pip .white, pip .white],
       types := [.creature], subtypes := [angel],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever
             (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (instruct (that .player) (skipPart .combat (.lit 1))) ],
@@ -388,7 +388,7 @@ def wormfangManta : Spelled := spelled <| .singleFaced
       types := [.creature],
       subtypes := [nightmare, fish, beast],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter) (skipPart .turn (.lit 1)),
           when (does thisCreature leave) (extraTurn (.lit 1)) ],
       power := stat 6, toughness := stat 1 } }
@@ -451,7 +451,7 @@ def terror : Spelled := spelled <| .singleFaced
     { name := "Terror", cost := some [generic 1, pip .black], types := [.instant],
       text :=
         [ spell (doAndForbid
-            (destroy (target (and [isCreature, not isArtifact, not (hasColor .black)])))
+            (destroy (target (and [isCreature, non isArtifact, non (hasColor .black)])))
             (.action "regenerate") (theVerbed (.action "destroy") .one)) ] } }
 
 def snuffOut : Spelled := spelled <| .singleFaced
@@ -461,7 +461,7 @@ def snuffOut : Spelled := spelled <| .singleFaced
         [ static (onlyWhile (altCost «this» (some (payLife 4)))
             (exists_ (and [isLand, hasSubtype swamp, youControl]))),
           spell (doAndForbid
-            (destroy (target (and [isCreature, not (hasColor .black)])))
+            (destroy (target (and [isCreature, non (hasColor .black)])))
             (.action "regenerate") (theVerbed (.action "destroy") .one)) ] } }
 
 def wrathOfGod : Spelled := spelled <| .singleFaced
@@ -515,7 +515,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
                            hasKeyword (.the (.named "hexproof")) ]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof")))))))),
           activated (compound [mana [generic 3], perform (sacrifice thisArtifact)])
             (sequentially
-              [ gain (allOf (and [isCreature, youControl])) (keyword (.named "hexproof")) (some untilEndOfTurn),
+              [ gain (allOf (and [isCreature, youControl])) hexproof (some untilEndOfTurn),
                 establishThroughout (cant any
                                        (block
                                           (allOf (and [isCreature, youControl])))) thisTurn ]) ] } }
@@ -552,7 +552,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
       text :=
         [ firstStrike,
           when (does thisCreature enter)
-            (doAndForbid (destroy (target (and [isCreature, not isArtifact, not (hasColor
+            (doAndForbid (destroy (target (and [isCreature, non isArtifact, not (hasColor
                 .black)])))
               (.action "regenerate") (that (.type .creature))) ],
       power := stat 2, toughness := stat 1 } }
@@ -619,7 +619,7 @@ def archonOfAbsolution : Spelled := spelled <| .singleFaced
     { name := "Archon of Absolution", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [archon],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           keywordQuality (.named "protection") (hasColor .white),
           static (gatedBy (scaledGenericMana (times (.lit 1) groupSize)) (allOf isCreature)
                     (attack (some (youOr (allOf (and [isPlaneswalker, youControl])))))) ],
@@ -647,7 +647,7 @@ def heatWave : Spelled := spelled <| .singleFaced
               (forEach (.lit 1) (and [isCreature, isBlocking, controlledBy they]))))) (actor
                                                                                          (allOf
                                                                                             (and
-                                                                                               [isCreature, not (hasColor .blue)]))) (block (allOf (and [isCreature, youControl])))) ] } }
+                                                                                               [isCreature, non (hasColor .blue)]))) (block (allOf (and [isCreature, youControl])))) ] } }
 
 /-- Awesome Presence -/
 def awesomePresence : Spelled := spelled <| .singleFaced
@@ -690,7 +690,7 @@ def retroMutation : Spelled := spelled <| .singleFaced
     { name := "Retro-Mutation", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           keywordSubject (.named "enchant") isCreature,
           static (conjunction [ qualityChange (enchanted (.type .creature)) .sets
                 (bundle { characteristics := { subtypes := [turtle] } }),

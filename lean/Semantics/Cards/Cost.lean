@@ -136,7 +136,7 @@ def spellsCost (p : Predicate) (shift : CostShift) : StaticSpec := costShift (al
 def thornOfAmethyst : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Thorn of Amethyst", cost := some [generic 2], types := [.artifact],
-      text := [static (spellsCost (and [not isCreature, isSpell]) (more (.lit 1)))] } }
+      text := [static (spellsCost (and [non isCreature, isSpell]) (more (.lit 1)))] } }
 
 def ferozsBan : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -159,7 +159,7 @@ def highspireBellRinger : Spelled := spelled <| .singleFaced
     { name := "Highspire Bell-Ringer", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [djinn, monk],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (costShift (the (and [isSpell, nthCastBy (.nth 2) you .turn])) (less
               (.lit 1))) ],
       power := stat 1, toughness := stat 4 } }
@@ -226,7 +226,7 @@ def chillerpillar : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [insect],
       text :=
         [ activated (mana [generic 4, .snow, .snow]) (monstrosity (.lit 2)),
-          static (onlyWhile (abilityGrant thisCreature (keyword (.named "flying")))
+          static (onlyWhile (abilityGrant thisCreature flying)
             (matches_ thisCreature (hasDesignation (.named "monstrous")))) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -275,7 +275,7 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
           activated (loyaltySymbol (.down 7))
             (getEmblem
               [ static (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 2)) (up (.lit 2)),
-                    abilityGrant them (keyword (.named "flying")) ]) ]) ],
+                    abilityGrant them flying ]) ]) ],
       loyalty := stat 4 } }
 
 /-- Elspeth's Talent -/
@@ -373,7 +373,7 @@ def etchingsOfTheChosen : Spelled := spelled <| .singleFaced
             (compound
               [ mana [generic 1],
                 perform (sacrifice (a (and [isCreature, ofChosen (.subtype .creature)]))) ])
-            (gain (target (and [isCreature, youControl])) (keyword (.named "indestructible")) (some untilEndOfTurn)) ] }
+            (gain (target (and [isCreature, youControl])) indestructible (some untilEndOfTurn)) ] }
                 }
 
 /-- Volrath's Laboratory -/
@@ -413,7 +413,7 @@ def indigoFaerie : Spelled := spelled <| .singleFaced
     { name := "Indigo Faerie", cost := some [generic 1, pip .blue], types := [.creature],
       subtypes := [faerie, wizard],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           activated (mana [pip .blue])
             (establishThroughout
                (qualityChange (target isPermanent) .adds
@@ -450,9 +450,9 @@ def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
     { name := "Sphinx of the Chimes", cost := some [generic 4, pip .blue, pip .blue], types := [.creature],
       subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           activated
-            (perform (discard (withTheSameName (counted (exactly 2) (and [not isLand, in_ yourHand])))))
+            (perform (discard (withTheSameName (counted (exactly 2) (and [non isLand, in_ yourHand])))))
             (draw (.lit 4)) ],
       power := stat 5, toughness := stat 6 } }
 
@@ -630,7 +630,7 @@ def demonOfDeathsGate : Spelled := spelled <| .singleFaced
             (some (compound
               [ payLife 6,
                 perform (sacrifice (counted (exactly 3) (and [isCreature, hasColor .black]))) ]))),
-          keyword (.named "flying"), trample ],
+          flying, trample ],
       power := stat 9, toughness := stat 9 } }
 
 def drudgeSkeletons : Spelled := spelled <| .singleFaced
@@ -676,7 +676,7 @@ def patricianGeist : Spelled := spelled <| .singleFaced
     { name := "Patrician Geist", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [spirit, knight],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (getsPt (allOf (and [hasSubtype spirit, youControl, otherThan thisCreature]))
             (up (.lit 1)) (up (.lit 1))),
           static (spellsCost (and [isSpell, castBy you, castFrom yourGraveyard]) (less (.lit 1))) ],
@@ -789,7 +789,7 @@ def sugarCoat : Spelled := spelled <| .singleFaced
     { name := "Sugar Coat", cost := some [generic 2, pip .blue], types := [.enchantment],
       subtypes := [aura],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           keywordSubject (.named "enchant") (or [isCreature, hasSubtype food]),
           static (conjunction [ qualityChange (enchanted .permanent) .sets
                 (bundle
@@ -829,7 +829,7 @@ def deathMaskDuplicant : Spelled := spelled <| .singleFaced
         [ abilityWord "imprint"
             (activated (mana [generic 1]) (exile (target (and [isCreature, in_ yourGraveyard])))),
           alsoForKeywords
-            (static (onlyWhile (abilityGrant thisCreature (keyword (.named "flying")))
+            (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_ (and [in_ (exiledWith thisCreature), hasKeyword (.the (.named "flying"))]))))
             [ .the (.named "fear"), .the (.named "firstStrike"), .the (.named "doubleStrike"), .the (.named "haste"), landwalkAbilities,
               protectionAbilities, .the (.named "trample") ] ],
@@ -841,7 +841,7 @@ def darksteelGarrison : Spelled := spelled <| .singleFaced
     { name := "Darksteel Garrison", cost := some [generic 2], types := [.artifact],
       subtypes := [fortification],
       text :=
-        [ static (abilityGrant (fortified (.type .land)) (keyword (.named "indestructible"))),
+        [ static (abilityGrant (fortified (.type .land)) indestructible),
           whenever (does any (tapForMana (fortified (.type .land))))
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)),
           keywordCosting (.named "fortify") (mana [generic 3]) ] } }
@@ -852,7 +852,7 @@ def embercleave : Spelled := spelled <| .singleFaced
     { name := "Embercleave", cost := some [generic 4, pip .red, pip .red], supertypes := [.legendary],
       types := [.artifact], subtypes := [equipment],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           static (costShift «this»
             (less (forEach (.lit 1) (and [isCreature, isAttacking, youControl])))),
           when (does thisEquipment enter) (attachTo it (target (and [isCreature, youControl]))),
@@ -955,15 +955,15 @@ theorem okCavernHoardDragonRider : Ability.check (DRS.ofList []) cavernHoardDrag
 def shadowspearStrip : Ability :=
   activated (mana [generic 1])
     (establishThroughout (abilityLoss (allOf (and [isPermanent, opponentsControl]))
-        [written (keyword (.named "hexproof")), written
-           (keyword (.named "indestructible"))]) untilEndOfTurn)
+        [written hexproof, written
+           indestructible]) untilEndOfTurn)
 theorem okShadowspearStrip : Ability.check (DRS.ofList []) shadowspearStrip = [] := by decide
 /-- Shay Cormac -/
 def shayCormacStrip : Ability :=
   activated (mana [generic 1])
     (establishThroughout (abilityLoss (allOf (and [isPermanent, opponentsControl]))
-        [ written (keyword (.named "hexproof")), written (keyword (.named "indestructible")), abilities protectionAbilities,
-          written (keyword (.named "shroud")), abilities wardAbilities ]) untilEndOfTurn)
+        [ written hexproof, written indestructible, abilities protectionAbilities,
+          written shroud, abilities wardAbilities ]) untilEndOfTurn)
 theorem okShayCormacStrip : Ability.check (DRS.ofList []) shayCormacStrip = [] := by decide
 
 /-- Shelkin Brownie -/
@@ -1024,7 +1024,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
     { name := "Unesh, Criosphinx Sovereign", cost := some [generic 4, pip .blue, pip .blue],
       supertypes := [.legendary], types := [.creature], subtypes := [sphinx],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (spellsCost (and [hasSubtype sphinx, isSpell, castBy you]) (less (.lit 2))),
           whenever
             (does (eitherOf thisCreature

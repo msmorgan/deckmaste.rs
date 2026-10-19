@@ -83,8 +83,8 @@ def cullingScales : Spelled := spelled <| .singleFaced
     { name := "Culling Scales", cost := some [generic 3], types := [.artifact],
       text :=
         [ at_ (beginningOfYour .upkeep)
-            (destroy (target (and [isPermanent, not isLand,
-              superlative .min (.stat .manaValue) (and [isPermanent, not isLand])]))) ] } }
+            (destroy (target (and [isPermanent, non isLand,
+              superlative .min (.stat .manaValue) (and [isPermanent, non isLand])]))) ] } }
 
 def deadeyeBrawler : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -92,7 +92,7 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, pirate],
       text :=
         [ deathtouch,
-          keyword (.named "ascend"),
+          ascend,
           triggeredIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (matches_ you (hasDesignation (.named "citysBlessing")))
             (draw (.lit 1)) ],
@@ -205,7 +205,7 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
               [ createToken
                   { characteristics :=
                     { types := [.artifact, .creature], subtypes := [thopter],
-                      text := [keyword (.named "flying")], power := stat 1, toughness := stat 1 } } (count := .lit 2),
+                      text := [flying], power := stat 1, toughness := stat 1 } } (count := .lit 2),
                 gainHaste them (some untilEndOfTurn) ]),
           activated (loyaltySymbol (.down 4))
             (getEmblem
@@ -387,7 +387,7 @@ def sanctumPrelate : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, cleric],
       text :=
         [ static (entersChoosing thisCreature .number),
-          static (cant any (cast (allOf (and [isSpell, not isCreature, hasManaValue .eq chosenNumber])))) ],
+          static (cant any (cast (allOf (and [isSpell, non isCreature, hasManaValue .eq chosenNumber])))) ],
       power := stat 2, toughness := stat 2 } }
 
 def abruptDecay : Spelled := spelled <| .singleFaced
@@ -395,7 +395,7 @@ def abruptDecay : Spelled := spelled <| .singleFaced
     { name := "Abrupt Decay", cost := some [pip .black, pip .green], types := [.instant],
       text :=
         [ static (cant any (counter thisSpell)),
-          spell (destroy (target (and [isPermanent, not isLand, hasManaValue .atMost (.lit 3)]))) ] } }
+          spell (destroy (target (and [isPermanent, non isLand, hasManaValue .atMost (.lit 3)]))) ] } }
 
 /-- Burn, Burn, Tree and Fern -/
 def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
@@ -458,8 +458,8 @@ def gaddockTeeg : Spelled := spelled <| .singleFaced
     { name := "Gaddock Teeg", cost := some [pip .green, pip .white], supertypes := [.legendary],
       types := [.creature], subtypes := [kithkin, advisor],
       text :=
-        [ static (cant any (cast (allOf (and [isSpell, not isCreature, hasManaValue .atLeast (.lit 4)])))),
-          static (cant any (cast (allOf (and [isSpell, not isCreature, manaCostHas .variable])))) ],
+        [ static (cant any (cast (allOf (and [isSpell, non isCreature, hasManaValue .atLeast (.lit 4)])))),
+          static (cant any (cast (allOf (and [isSpell, non isCreature, manaCostHas .variable])))) ],
       power := stat 2, toughness := stat 2 } }
 
 def shiningShoal : Spelled := spelled <| .singleFaced
@@ -544,7 +544,7 @@ def repeal : Spelled := spelled <| .singleFaced
     { name := "Repeal", cost := some [.variable, pip .blue], types := [.instant],
       text :=
         [ spell (sequentially
-            [ putInto (target (and [not isLand, isPermanent, hasManaValue .eq (letter .x)]))
+            [ putInto (target (and [non isLand, isPermanent, hasManaValue .eq (letter .x)]))
                 hand,
               draw (.lit 1) ]) ] } }
 
@@ -562,7 +562,7 @@ def ratchetBomb : Spelled := spelled <| .singleFaced
       text :=
         [ activated tapSymbol (putCounters (.lit 1) (printedKind (.named "chargeCounter")) thisArtifact .many),
           activated (compound [tapSymbol, perform (sacrifice thisArtifact)])
-            (destroy (each (and [not isLand, isPermanent,
+            (destroy (each (and [non isLand, isPermanent,
               hasManaValue .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
 
 def solGrail : Spelled := spelled <| .singleFaced
@@ -634,7 +634,7 @@ def vegaTheWatcher : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [bird, spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does you (cast (a
             (and [isSpell, not
             (castFrom yourHand)]))))
@@ -721,7 +721,7 @@ def engineeredExplosives : Spelled := spelled <| .singleFaced
       text :=
         [ static (entersWithCounters thisArtifact (colorsSpentToCast thisArtifact) (.named "chargeCounter")),
           activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
-            (destroy (each (and [isPermanent, not isLand,
+            (destroy (each (and [isPermanent, non isLand,
               hasManaValue .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
 
 /-- Radiant Flames (converge is an ability word [CR#207.2c]) -/
@@ -757,7 +757,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
     { name := "Latchkey Faerie", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [faerie, rogue],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           keywordCosting (.named "prowl") (mana [generic 2, pip .blue]),
           triggeredIf (does thisCreature enter) (keywordCostPaid (.named "prowl")
                                                            thisCreature)
@@ -793,7 +793,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, scout],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           vigilance,
           triggeredIf (beginningOfYour .endStep)
             (not
@@ -859,7 +859,7 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
     { name := "Delivery Moogle", cost := some [generic 3, pip .white], types := [.creature],
       subtypes := [moogle],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           when (does thisCreature enter)
             (sequentially
               [ searchLibraryOrGraveyard (and [isArtifact, hasManaValue .atMost (.lit 2)]),
@@ -943,7 +943,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [faerie, noble],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (entersChoosing thisCreature .number),
           whenever
             (does anOpponent (cast (a (and [isSpell,
@@ -995,7 +995,7 @@ def animalAttendant : Spelled := spelled <| .singleFaced
         [ activated tapSymbol
             (addMana (.lit 1) (ofAnyColor .sameColor)
               [ whenSpentOn .affectsIt false
-                  (a (and [not (hasSubtype human), isCreature, isSpell]))
+                  (a (and [non (hasSubtype human), isCreature, isSpell]))
                   (establish
                     (entersWithAdditionalCounters (resolvedPermanent (that .spell)) (.lit 1)
                        p1p1Counter)) ]) ],

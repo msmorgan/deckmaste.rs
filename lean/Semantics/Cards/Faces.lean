@@ -48,11 +48,11 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
       defense := stat 5 } }
   { characteristics :=
     { name := "Serra Faithkeeper", types := [.creature], subtypes := [angel],
-      text := [keyword (.named "flying"), vigilance], power := stat 4, toughness := stat 4 } }
+      text := [flying, vigilance], power := stat 4, toughness := stat 4 } }
 
 /-- Missy -/
 def missyFaceDownReturn : Ability :=
-  whenever (does (a (and [isCreature, not isArtifact, otherThan thisCreature])) die)
+  whenever (does (a (and [isCreature, non isArtifact, otherThan thisCreature])) die)
     (sequentially
       [ putInto it battlefield (riders := [(faceDownAs
               { characteristics := some
@@ -356,7 +356,7 @@ def harvestHand : Spelled := spelled <| .transforming
       text :=
         [ static (getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 1))),
           static
-            (onlyWhile (abilityGrant (equipped (.type .creature)) (keyword (.named "menace")))
+            (onlyWhile (abilityGrant (equipped (.type .creature)) menace)
               (matches_ (equipped (.type .creature))
                 (hasSubtype human))),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
@@ -378,13 +378,13 @@ def chitteringHost : CardFace :=
     { name := "Chittering Host", types := [.creature],
       subtypes := [eldrazi, horror],
       text :=
-        [ haste, keyword (.named "menace"),
+        [ haste, menace,
           when (does thisCreature enter)
             (establishThroughout
                (conjunction
                   [ getsPt (allOf (and [isCreature, youControl, otherThan thisCreature]))
                     (up (.lit 1)) (up (.lit 0)),
-                  abilityGrant them (keyword (.named "menace")) ]) untilEndOfTurn) ],
+                  abilityGrant them menace ]) untilEndOfTurn) ],
       power := stat 5, toughness := stat 6 } }
 def chitteringHostOnScavengers : CardFace := chitteringHost
 theorem okChitteringHostOnScavengers : CardFace.check .back chitteringHostOnScavengers = [] := by
@@ -465,7 +465,7 @@ def ghostlyKeybearer : Spelled := spelled <| .singleFaced
     { name := "Ghostly Keybearer", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (unlock (doorOf (some .locked)
               (targets (upTo 1) (and [hasSubtype room, youControl])))) ],
@@ -501,7 +501,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [sphinx],
       text :=
         [ static (cant any (counter thisSpell)),
-          keyword (.named "flying"),
+          flying,
           when (does thisCreature enter)
             (sequentially
               [ lookAt (topSlice (.lit 5)),
@@ -518,7 +518,7 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, advisor],
       text :=
-        [ keyword (.named "menace"),
+        [ menace,
           when (does thisCreature enter)
             (sequentially
               [ instruct (target isOpponent) (lookAt (topSlice (.lit 3))),
@@ -590,9 +590,9 @@ def karganDragonlord : Spelled := spelled <| .leveler
     { name := "Kargan Dragonlord", cost := some [pip .red, pip .red], types := [.creature],
       subtypes := [human, warrior],
       text := [levelUp (mana [pip .red])], power := stat 2, toughness := stat 2 } }
-  [ levelBand (.between 4 7) 4 4 [keyword (.named "flying")],
+  [ levelBand (.between 4 7) 4 4 [flying],
     levelBand (.atLeast 8) 8 8
-      [ keyword (.named "flying"), trample,
+      [ flying, trample,
         activated (mana [pip .red])
           (get thisCreature (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn)) ] ]
 

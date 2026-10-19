@@ -37,7 +37,7 @@ def kaitoBaneOfNightmares : Action :=
 theorem okKaitoBaneOfNightmares : Action.check (DRS.ofList []) kaitoBaneOfNightmares = [] := by decide
 def jhoiraOfTheGhitu : Ability :=
   activated
-    (compound [mana [generic 2], perform (exile (a (and [not isLand, in_ yourHand])))])
+    (compound [mana [generic 2], perform (exile (a (and [non isLand, in_ yourHand])))])
     (putCounters (.lit 4) (printedKind (.named "timeCounter"))
       (theVerbed (.action "exile") .one (some .card)) .many)
 theorem okJhoiraOfTheGhitu : Ability.check (DRS.ofList []) jhoiraOfTheGhitu = [] := by decide
@@ -61,7 +61,7 @@ def daydream : Spelled := spelled <| .singleFaced
 def ashnodsTransmogrant : Ability :=
   activated (compound [tapSymbol, perform (sacrifice thisArtifact)])
     (sequentially
-      [ putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, not isArtifact])) .many,
+      [ putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, non isArtifact])) .many,
         become (that (.type .creature)) { characteristics := { types := [.artifact] } } none ])
 theorem okAshnodsTransmogrant : Ability.check (DRS.ofList []) ashnodsTransmogrant = [] := by decide
 def azulaAlwaysLies : Action :=
@@ -478,7 +478,7 @@ def shalaiAndHallar : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [angel, elf],
       text :=
-        [ keyword (.named "flying"), vigilance,
+        [ flying, vigilance,
           whenever (counterEvent .put p1p1Counter .many (a (and [isCreature, youControl])))
             (instruct thisCreature (dealDamage thatMuch (target isOpponent) .noncombatOnly)) ],
       power := stat 3, toughness := stat 3 } }
@@ -536,7 +536,7 @@ def stormwildCapridor : Spelled := spelled <| .singleFaced
     { name := "Stormwild Capridor", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [bird, goat],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (damageRule .noncombatOnly unattributed (toRecipient thisCreature)
             (prevent allDamage
               (some (putCounters preventedThisWay (printedKind p1p1Counter) thisCreature .many)))
@@ -635,7 +635,7 @@ def grumgully : Spelled := spelled <| .singleFaced
       text :=
         [ static (entersWithAdditionalCounters
             (each (and [ isCreature, youControl,
-                          not (hasSubtype human), otherThan thisCreature ]))
+                          non (hasSubtype human), otherThan thisCreature ]))
             (.lit 1) p1p1Counter) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -698,7 +698,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
     { name := "Oona's Blackguard", cost := some [generic 1, pip .black], types := [.creature],
       subtypes := [faerie, rogue],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           static (entersWithAdditionalCounters
             (each (and [ isCreature, hasSubtype rogue, youControl,
                           otherThan thisCreature ]))
@@ -772,7 +772,7 @@ def urborgScavengers : Spelled := spelled <| .singleFaced
               [ exile (target (cardIn graveyard)),
                 putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many ]),
           alsoForKeywords
-            (static (onlyWhile (abilityGrant thisCreature (keyword (.named "flying")))
+            (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_ (and [in_ (exiledWith thisCreature), hasKeyword (.the (.named "flying"))]))))
             (["firstStrike", "doubleStrike", "deathtouch", "haste", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ],
@@ -783,7 +783,7 @@ def sengirVampire : Spelled := spelled <| .singleFaced
     { name := "Sengir Vampire", cost := some [generic 3, pip .black, pip .black], types := [.creature],
       subtypes := [vampire],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           whenever (does (a (and [isCreature, happenedTo (actor thisCreature) (dealDamage anyAmount             (asMarker .permanent (relative .object))) soFarThisTurn])) die)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 4, toughness := stat 4 } }
@@ -891,7 +891,7 @@ def mirelurkQueenTrigger : Ability :=
   triggeredOnlyOnce
     (does any (Semantics.Action.ownScope (some (.action "mill"))
       (Semantics.Action.enact (.action "mill")
-        (move (Semantics.NounPhrase.inCaller (counted (atLeast 1) (and [not isLand,
+        (move (Semantics.NounPhrase.inCaller (counted (atLeast 1) (and [non isLand,
         in_ library])))
           library
           (some graveyard) .arrival) none none)))
@@ -932,7 +932,7 @@ def asmiraHolyAvenger : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, cleric],
       text :=
-        [ keyword (.named "flying"),
+        [ flying,
           at_ (beginningOfPossessed .endStep eachPlayer)
             (putCounters
               (eventCount (move (a isCreature) battlefield (some yourGraveyard) .departure) any
@@ -946,7 +946,7 @@ def thoughtSponge : Spelled := spelled <| .singleFaced
     { name := "Thought Sponge", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [sponge],
       text :=
-        [ keyword (.named "flash"),
+        [ flash,
           static (entersWithCounters thisCreature greatestCardsAnOpponentDrew p1p1Counter),
           when (does thisCreature die) (draw (powerOf thisCreature)) ],
       power := stat 1, toughness := stat 1 } }
@@ -1049,7 +1049,7 @@ def captainMarvelApexAvenger : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, kree, hero],
       text :=
-        [ keyword (.named "flying"), doubleStrike, keyword (.named "indestructible"),
+        [ flying, doubleStrike, indestructible,
           triggeredIf
             (does (by_ you) (putCounters anyAmount anyKind (a (and [isCreature, otherThan «this»])) .many false))
             (matches_ it (not (hasSubtype kree)))
@@ -1101,7 +1101,7 @@ def bloodlinePretender : Spelled := spelled <| .singleFaced
     { name := "Bloodline Pretender", cost := some [generic 3], types := [.artifact, .creature],
       subtypes := [shapeshifter],
       text :=
-        [ keyword (.named "changeling"),
+        [ changeling,
           static (entersChoosing thisCreature (.subtype .creature)),
           whenever
             (does (a (and [ isCreature, youControl, otherThan thisCreature,
