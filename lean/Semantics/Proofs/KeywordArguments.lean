@@ -30,6 +30,18 @@ theorem qualifiedCostRequiresObjectQuality :
     Ability.check (DRS.ofList []) (.keyword (.named "cycling") [.quality .anyPlayer, .cost (.mana [generic 2])] []) =
       [.kindMismatch .object .player] := by decide
 
+/-- "Plainscycling {2}" through the `typecycling` Definition. -/
+theorem okTypecycling :
+    Ability.check (DRS.ofList []) (typecycling (.hasSubtype (landType "Plains")) (.mana [generic 2]))
+      = [] := by decide
+
+/-- A typecycling ability is a cycling ability [CR#702.29f]: it carries the cycling label that
+an "abilityHead (.keyword (.named "cycling"))" class names, as plain cycling does. -/
+theorem typecyclingIsCycling :
+    keywordOf (typecycling (.hasSubtype (landType "Plains")) (.mana [generic 2])) =
+      .the (.named "cycling") ∧
+    keywordOf (cycling (.mana [generic 2])) = .the (.named "cycling") := by decide
+
 theorem qualityCanReadOuterChoice :
     Ability.check [(ChoiceSort.quality .color).binding]
       (.keyword (.named "protection") [.quality (ofChosen .color)] []) = [] := by decide

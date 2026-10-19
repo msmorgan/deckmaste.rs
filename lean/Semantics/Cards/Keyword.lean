@@ -952,7 +952,7 @@ theorem okKnightOfGraceHexproofFromBlack :
     Ability.check (DRS.ofList []) knightOfGraceHexproofFromBlack = [] := by decide
 /-- Eternal Dragon — "Plainscycling {2}" [CR#702.29e] -/
 def eternalDragonPlainscycling : Ability :=
-  keywordQualityCosting (.named "cycling") (hasSubtype plains) (mana [generic 2])
+  typecycling (hasSubtype plains) (mana [generic 2])
 theorem okEternalDragonPlainscycling : Ability.check (DRS.ofList []) eternalDragonPlainscycling = [] := by decide
 /-- Nezumi Ronin -/
 def nezumiRonin : Ability := bushido (.lit 1)

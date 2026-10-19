@@ -2849,8 +2849,10 @@ semantic_definition tribute (amount : Amount) : Ability :=
                   (.establish
                     (entersWithAdditionalCounters thisCreature (.inCaller amount) p1p1Counter)
                     none)) ])) ]
+/-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
+cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. -/
 semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
-  keywordQualityCosting (.named "typecycling") (.inCaller quality) (.inCaller cost)
+  keywordQualityCosting (.named "cycling") (.inCaller quality) (.inCaller cost)
 semantic_definition umbraArmor : Ability :=
   .keyword (.named "umbraArmor") []
     [ .static
