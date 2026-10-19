@@ -113,5 +113,7 @@ Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blu
 Wild Shape | Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability.
 Lush Growth | Enchanted land is a Mountain, Forest, and Plains.
 
+Fatespinner | At the beginning of each opponent's upkeep, that player chooses draw step, main phase, or combat phase. The player skips each instance of the chosen step or phase this turn.
+
 # english-v4-oracle-editorial-corrections
 Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.

@@ -58,7 +58,7 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     basic, Sphere, and Locus lands*), Monument to Perfection.
   - Bare mentions of choice options coordinated as a bare singular term
     (*choose left or right*, *choose artifact or enchantment*; a single bare
-    option reads nowhere either), with the vote and mention family above: Storage Matrix; Stenn, Paranoid Partisan; Mystic Barrier; Teyo, Geometric Tactician; Orchard Elemental; Order of Succession; Virtus's Maneuver; Cloud Key; Dawn-Blessed Pennant; Pramikon, Sky Rampart; Aminatou, the Fateshifter; Season of Gathering; Winding Way; Eclipsed Realms; Turnabout; Zndrsplt's Judgment; Teferi's Realm; Archon of Valor's Reach; Messenger Jays; Sarpadian Empires, Vol. VII.
+    option reads nowhere either), with the vote and mention family above: Storage Matrix; Stenn, Paranoid Partisan; Mystic Barrier; Teyo, Geometric Tactician; Orchard Elemental; Order of Succession; Virtus's Maneuver; Cloud Key; Dawn-Blessed Pennant; Pramikon, Sky Rampart; Aminatou, the Fateshifter; Season of Gathering; Winding Way; Eclipsed Realms; Turnabout; Zndrsplt's Judgment; Teferi's Realm; Archon of Valor's Reach; Messenger Jays; Sarpadian Empires, Vol. VII; Fatespinner (*draw step, main phase, or combat phase*).
   - Felisa, Fang of Silverquill: the second analysis of *the number of
     counters it had on it*, *have* with an object and a locative *on*-phrase
     (*it had __ on it*), without a general *have NP on-PP* frame. Its judgment
@@ -73,6 +73,26 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     Manipulation; Shatterskull Smashing; Ignite Disorder; Volcanic Salvo;
     Zimone, Paradox Sculptor; Captain's Maneuver; Spinning Wheel Kick; Etched
     Slith; Cloudspire Skycycle.
+- **Profiled into Stratum 7 by Stratum 6** (`src/profile.rs`, by rule):
+  - *The same is true for …* as a pro-form (25; the owner is confirming
+    these): Animus of Predation; Arcane Adaptation; Biotransference; Bleeding
+    Effect; Cairn Wanderer; Celestial Dawn; Concerted Effort; Conspiracy;
+    Death-Mask Duplicant; Eater of Virtue; Encroaching Mycosynth; Escaped
+    Shapeshifter; Indominus Rex, Alpha; Leyline of Transformation; Majestic
+    Myriarch; Maskwood Nexus; Odric, Lunarch Marshal; Rayami, First of the
+    Fallen; Roshan, Hidden Magister; Rukarumel, Biologist; Soulflayer;
+    Thunderous Orator; Urborg Scavengers; Ward of Bones; Wretched Bonemass.
+  - An elliptical *but not* / *but only* coordinate (12): Armageddon Clock;
+    Drain Life; Endbringer's Revel; Haakon, Stromgald Scourge; Infinite
+    Hourglass; Lightning Storm; Mana Cache; Scandalmonger; Soul Burn; Task Mage
+    Assembly; Volrath's Dungeon; Well of Knowledge.
+  - Listed vote options that are no nouns (5): Path of the Animist; Path of the
+    Enigma; Path of the Ghosthunter; Path of the Pyromancer; Path of the
+    Schemer.
+  - Text-changing *replacing … instances of* (13): Alter Reality; Artificial
+    Evolution; Balduvian Shaman; Crystal Spray; Glamerdye; Magical Hack; Mind
+    Bend; New Blood; Sleight of Mind; Spectral Shift; Trait Doctoring; Whim of
+    Volrath.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
   `...Present`). If any outlier card's wording cannot be parsed by a clean

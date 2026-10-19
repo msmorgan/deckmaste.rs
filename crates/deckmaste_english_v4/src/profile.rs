@@ -1181,7 +1181,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     && matches!(&a.reading, LexicalReading::Word(v) if v.form == form)
             })
         };
-        // A vote names its options; one that is no noun (*votes for
+        // A vote names its options; a listed one that is no noun (*votes for
         // planeswalk or chaos*) is the word itself.
         if t.lemma_in(&["vote"])
             && next(i).is_some_and(|n| n.is(Category::Preposition, "for"))
@@ -1192,12 +1192,16 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     && !o.has(Category::Pronoun)
                     && !o.has(Category::Adjective)
             })
+            && tokens
+                .get(i + 3)
+                .is_some_and(|c| c.has(Category::Coordinator))
         {
             families.insert(METALINGUISTIC);
         }
         // Text-changing effects replace instances of words (*replacing all
         // instances of one color word with another*).
-        if t.is(Category::Noun, "instance") {
+        if t.is(Category::Noun, "instance") && tokens[..i].iter().any(|w| w.lemma_in(&["replace"]))
+        {
             families.insert(METALINGUISTIC);
         }
         if previous(i).is_some_and(|p| p.has(Category::Preposition))
