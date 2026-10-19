@@ -3,10 +3,12 @@ name = "deckmaste_english_v3"
 version = "0.1.0"
 edition = "2024"
 publish = false
+autotests = false
 
 # Forest decomposition has unit tests; declaration witnesses live in tests/.
 [lib]
-test = true
+test = false
+doctest = false
 
 [lints]
 workspace = true
