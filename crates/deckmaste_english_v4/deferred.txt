@@ -9,3 +9,6 @@ Owen Grady, Raptor Trainer | {T}: Put your choice of a reach, menace, trample, o
 Reluctant Role Model | Survival — At the beginning of your second main phase, if this creature is tapped, put a flying, lifelink, or +1/+1 counter on it.
 The Night of the Doctor | II — Return target legendary creature card from your graveyard to the battlefield. Put your choice of a first strike, vigilance, or lifelink counter on it.
 Denry Klin, Editor in Chief | Denry Klin enters with your choice of a +1/+1, first strike, or vigilance counter on it.
+
+# english-v4-oracle-editorial-corrections
+Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.
