@@ -573,6 +573,9 @@
         (name: "InterleavedSupplement", lhs: "Interleaved", rhs: [Punct(','), Cat("supplement", "VerbPhrase"), Punct(',')],
             equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], heavy: ["supplement"], cost: 3),
         (name: "InterleavedDepictive", lhs: "Interleaved", rhs: [Cat("head", "AdjectivePhrase")], equations: [Require("head.ComplementKind", "Intransitive"), Exclude("head.Voice", "Passive"), Exclude("head.Grade", "Comparative"), Exclude("head.Determination", "Overt"), Exclude("head.AdjectivePosition", "Attributive")], cost: 0),
+        // Coordinated depictives interleave too (*onto the battlefield tapped
+        // and attacking and the rest on the bottom*).
+        (name: "InterleavedCoordinatedDepictive", lhs: "Interleaved", rhs: [Cat("head", "DepictiveCoordination")], cost: 0),
         (name: "AdjectivalDepictive", lhs: "Depictive", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "GerundDepictive", lhs: "Depictive", rhs: [Cat("filler", "Gerund")], equations: [Require("$.ComplementKind", "Gerund")]),
         // Unlike categories coordinated as a predicative Complement too
