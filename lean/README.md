@@ -24,7 +24,7 @@ templates and definitions, card bench and proofs, and propagates build failures.
 The obsolete `plugins_v2` card/definition emitters and macro generator have
 been retired. `lean definitions` and `lean macros generate|check|align` are no
 longer commands. The ported v3 declarations now live in `Semantics/Templates.lean` and
-`Semantics/Definitions.lean`, maintained in Lean while the replacement DSL is
+`Semantics/Definitions.lean` (re-exporting its `Semantics/Definitions/` submodules), maintained in Lean while the replacement DSL is
 designed; v2 RON output must not regenerate them. Existing v2 readers elsewhere remain until their consumers
 are cut over.
 
