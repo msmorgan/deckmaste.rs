@@ -195,6 +195,11 @@
         "That": "det:that",
         "Any": "det:any",
         "Or": "coord:or",
+        "And": "coord:and",
+        "Nor": "coord:nor",
+        "Both": "det:both",
+        "Either": "det:either",
+        "Neither": "det:neither",
         "To": "sub:to",
         "Each": "det:each",
         "All": "det:all",
@@ -206,12 +211,14 @@
         "Predeterminer": ["det:all", "det:both"],
         "LocativeQuantifier": ["det:anywhere"],
         "DegreeQuantifier": ["det:many", "det:much"],
-        "Coordinator": ["coord:and", "coord:or"],
+        "Coordinator": ["coord:and", "coord:or", "coord:and/or", "coord:nor"],
+        "Disjunctive": ["coord:or", "coord:and/or", "coord:nor"],
+        "Additive": ["coord:and", "coord:and/or"],
+        "Alternative": ["coord:or", "coord:nor"],
         // *Be* and its contracted and negative forms.
         "BeVerb": ["verb:be", "verb:'re", "verb:aren't"],
         // Perfect *have* and its contracted and negative forms.
         "HaveVerb": ["verb:have", "verb:'ve", "verb:haven't"],
-        "AlternativeQuantifier": ["det:both", "det:more"],
         // Comparative determinatives a measure phrase modifies (*{1} less*).
         "ComparativeQuantifier": ["det:more", "det:less", "det:fewer"],
         "SuperlativeQuantifier": ["det:most", "det:least", "det:fewest"],
@@ -286,7 +293,6 @@
         (name: "NumeralNominalPhrase", lhs: "FusedNounPhrase", rhs: [Cat("head", "ChoiceQuantity")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "CardinalChoice", lhs: "ChoiceQuantity", rhs: [Numeral("head", Cardinal)]),
         (name: "FusedQuantifierNominalPhrase", lhs: "NounPhrase", rhs: [Class("head", "FusedQuantifier")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        (name: "AlternativeChoice", lhs: "ChoiceQuantity", rhs: [Numeral("first", Cardinal), Word("coordinator", "Or"), Class("second", "AlternativeQuantifier")]),
         (name: "CardinalDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Cardinal)], equations: [Require("$.Countability", "Count")]),
         (name: "VariableDeterminer", lhs: "NumericalDeterminer", rhs: [Class("head", "Variable")], equations: [Require("$.Countability", "Count")]),
         (name: "ArabicDeterminer", lhs: "NumericalDeterminer", rhs: [Numeral("head", Arabic(false))], equations: [Require("$.Countability", "Count")]),
@@ -371,7 +377,7 @@
         (name: "ChoiceHeader", lhs: "ModalHeader", rhs: [Cat("head", "Clause"), Mark('—', Free)], equations: [Require("head.ClauseMarking", "Unmarked"), Exclude("head.Inflection", "Irrealis")]),
 
         // Sentences: a bare imperative or a declarative clause.
-        (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")],
+        (name: "Imperative", lhs: "Clause", rhs: [Cat("head", "VerbPhrase")], uncoordinated: ["head"],
             equations: [Require("head.VerbForm", "Plain"), Require("$.ClauseMarking", "Unmarked")]),
         (name: "ClauseFragment", lhs: "Document", rhs: [Cat("head", "Clause")]),
         (name: "Declarative", lhs: "Sentence", rhs: [Cat("clause", "Clause"), Punct('.')], equations: [Require("clause.ClauseMarking", "Unmarked"), Exclude("clause.Inflection", "Irrealis")]),
@@ -612,10 +618,6 @@
         (name: "QuantityPartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
             equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Numerical"),
                 Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
-        // An alternative quantity with its oblique (*one or more of your
-        // opponents*); a single cardinal is a determinative's.
-        (name: "AlternativePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "ChoiceQuantity"), Selected("complement", "PrepositionPhrase", ["Of"])],
-            equations: [Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
         // A modified degree determinative (*that many of those tokens*); a
         // bare one selects its oblique.
         (name: "DegreePartitive", lhs: "PartitiveHead", rhs: [Cat("head", "DeterminerPhrase"), Selected("complement", "PrepositionPhrase", ["Of"])],
@@ -623,6 +625,10 @@
                 Require("complement.ComplementKind", "NP"), Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
         (name: "PostpositiveAdjective", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "AdjectivePhrase")],
             equations: [Require("modifier.ComplementKind", "PP"), Exclude("modifier.Voice", "Passive")], heavy: ["modifier"]),
+        // An amount or a comparative adjective with that amount its
+        // understood standard (*power 3 or greater*, *X is 2 or less*).
+        (name: "ScalarAlternative", lhs: "Amount", rhs: [Cat("head", "Amount"), Word("coordinator", "Or"), Cat("last", "AdjectivePhrase")],
+            equations: [Require("last.Grade", "Comparative"), Require("last.ComplementKind", "Intransitive")]),
         // A postpositive comparative quantity (*for each card fewer than
         // three in their hand*).
         (name: "PostpositiveComparative", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "DeterminerPhrase")],
@@ -719,6 +725,10 @@
         // (*one more spell*, *one fewer revival counter*).
         (name: "MeasuredComparativeDeterminer", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "DeterminerPhrase"), Class("quantifier", "ComparativeQuantifier")],
             equations: [Require("modifier.DeterminativeDistribution", "Numerical"), Require("modifier.ComplementKind", "Intransitive"), Agree("$.Number", "modifier.Number"), Require("$.Countability", "Count"), Require("$.DeterminativeDistribution", "Numerical"), Require("$.ComplementKind", "Intransitive")]),
+        // Floated *each* before a predicative adjective (*are each equal to
+        // ...*, *power and toughness each equal to ...*; CGEL, Ch. 5 §10.1.1,
+        // p. 428).
+        (name: "FloatedEachAdjective", lhs: "AdjectivePhrase", rhs: [Word("adjunct", "Each"), Cat("head", "AdjectivePhrase")], equations: [Require("head.ComplementKind", "PP")]),
         // Floated *each* after an auxiliary (*any number of target players may
         // each search ...*; CGEL, Ch. 5 §10.1.1, p. 428).
         (name: "AuxiliaryFloatedEach", lhs: "VerbPhrase", rhs: [Word("adjunct", "Each"), Cat("head", "VerbPhrase")],
@@ -994,6 +1004,27 @@
         Adjunct(host: "VerbPhrase", adjunct: "Gerund", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.VerbKind", "Auxiliary")]),
         // A purpose *to*-infinitival, unless the head's frame selects one.
         Adjunct(host: "VerbPhrase", adjunct: "ToInf", side: After, host_kind: Predicate, cost: 2),
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator"),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
+        Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm"]),
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
+        // Imperatives and then a declarative (*tap that creature and it
+        // doesn't untap ...*).
+        Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection", "VerbForm"], equations: [Require("first.VerbForm", "Plain"), Require("last.VerbForm", "Finite"), Require("$.VerbForm", "Finite")], delimiter: Some(',')),
+        // An *and*-coordination of Noun Phrases or nominals is plural; an
+        // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
+        // pp. 507–509).
+        Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third")], proximate: ["Case"]),
+        Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability"], proximate: ["Number", "Person", "Case"]),
+        Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], equations: [Require("$.Number", "Plural")]),
+        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"]),
+        Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
+        Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
+        Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
+        Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
+        Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
+        // A coordination of quantifiers determines as its last one does (*one
+        // or more cards*, *one or more of them*; CGEL, Ch. 15 §3.3, p. 1330).
+        Coordination(category: "DeterminerPhrase", coordinators: "Coordinator", proximate: ["Number", "Countability", "DeterminativeDistribution", "NounKind", "ComplementKind", "ObliqueNumber", "ObliqueKind", "PrepositionMarking", "ObliqueDetermination"]),
     ],
+    correlatives: [("Both", "And"), ("Either", "Or"), ("Neither", "Nor")],
 )
