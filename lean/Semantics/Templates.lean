@@ -294,8 +294,8 @@ open Lean Elab Term in
 /-- Words several sorts share, each sort's template (or definition) by the result type it builds:
 the combinators `and`, `or` and `not`; the bounds `moreThan` and `upTo` (a `Quantity` of a noun
 phrase, or an `Amount`); the verb and the determiner `target`; and the other words whose sorts'
-templates are namespaced (`did`, `allBut`, `half`, `token`, `written`, `copy`, `replace`, `crew`,
-…). -/
+templates are namespaced (`did`, `allBut`, `half`, `token`, `written`, `copy`, `doIf`, `replace`,
+`crew`, …). -/
 private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
   [ (`and, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.and),
              (``Semantics.Condition, `Semantics.Templates.Condition.and),
@@ -337,6 +337,8 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
     (`ofColor, [ (``Semantics.PipPaid, `Semantics.Templates.ofColor),
                  (``Semantics.ManaTypeTerm, `Semantics.Templates.ManaTypeTerm.ofColor) ]),
     (`copy, [ (``Semantics.Action, `Semantics.Templates.Action.copy) ]),
+    (`doIf, [ (``Semantics.Action, `Semantics.Templates.doIf),
+              (``Semantics.Replacement, `Semantics.Templates.Replacement.doIf) ]),
     (`replace, [ (``Semantics.Action, `Semantics.Templates.Action.replace),
                  (``Semantics.StaticSpec, `Semantics.Templates.StaticSpec.replace) ]),
     (`crew, [ (``Semantics.Action, `Semantics.Templates.Action.crew),
@@ -1401,7 +1403,7 @@ semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)
     (duration : Option Duration := none) : Action :=
   .establish (.conjunction (some subject) parts) duration
 /-- "If <clause> would happen, <replacement> instead [duration]." -/
-semantic_template replaceEvent (clause : WouldClause) (replacement : Action)
+semantic_template replaceEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
   .establish (.replace clause replacement none .repeatedly none) duration
 /-- "Prevent all <kind> damage that would be dealt <scope> [duration]." -/
@@ -1418,7 +1420,7 @@ semantic_template preventAllBy (kind : DamageKind) (source : NounPhrase) (scope 
     (duration : Option Duration) : Action :=
   .establish (.damageRule kind (.dealtBy source) scope (.prevent .all none) .repeatedly) duration
 /-- "The next time <clause> would happen, <replacement> instead [duration]." -/
-semantic_template replaceNextEvent (clause : WouldClause) (replacement : Action)
+semantic_template replaceNextEvent (clause : WouldClause) (replacement : Replacement)
     (duration : Option Duration) : Action :=
   .establish (.replace clause replacement none .nextTimeOnly none) duration
 /-- "[<controller>] gain[s] control of <subject> [duration]": the performer by default, so "gain
@@ -1548,7 +1550,7 @@ semantic_template relate (subject : NounPhrase) (label : RelationLabel) (counter
 semantic_template repeat_ (repetition : Repetition) : Action := .repeat_ repetition
 /-- "<replaced>. <replacement>": a self-replacement, the spell's or ability's own `replaced`
 action replaced by `replacement`, as "draw a card; if …, draw two cards instead" [CR#614.15]. -/
-semantic_template Action.replace (replaced replacement : Action) : Action :=
+semantic_template Action.replace (replaced : Action) (replacement : Replacement) : Action :=
   .replace replaced replacement
 semantic_template rerollStored (quantity : Quantity) (whose : NounPhrase) : Action :=
   .rerollStored quantity whose
@@ -1789,8 +1791,10 @@ semantic_template entersChoosingPlayerSecretly (subject player : NounPhrase) : S
 tapped", `NounPhrase.plur`) [CR#614.1c,614.1d]. -/
 semantic_template enters (subject : NounPhrase) (riders : List MoveRider) : StaticSpec :=
   .replace (would subject enter)
-    (instruct (match subject.plur with | .many => them | .one => it)
-      (enter (riders := riders)))
+    (.instead
+      (instruct (match subject.plur with | .many => them | .one => it)
+        (enter (riders := riders)))
+      none)
     none .repeatedly none
 /-- "<subject> enters tapped" -/
 semantic_template entersTapped (subject : NounPhrase) : StaticSpec :=
@@ -1936,13 +1940,35 @@ semantic_template Timing.duringPart (part : TurnPart) (whose : Option NounPhrase
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
 /-- "If <event> would …, <replacement> instead": a replacement effect, `event` replaced by
 `replacement` [CR#614.1a,614.1c,614.1d]. -/
-semantic_template StaticSpec.replace (event : WouldClause) (replacement : Action)
+semantic_template StaticSpec.replace (event : WouldClause) (replacement : Replacement)
     (timing : Option Timing := none) (use : ReplUse := .repeatedly)
     (limit : Option UsageLimit := none) : StaticSpec :=
   .replace event replacement timing use limit
 /-- "instead": the word marking `action` as the replacement, at a replacement's action slot
-("draw two cards instead", "you may instead mill …") [CR#614.1a]. -/
-semantic_template instead (action : Action) : Action := action
+("draw two cards instead", "you may instead mill …"), applying only while `when` holds when it
+is written [CR#614.1a]. -/
+semantic_template instead (action : Action) (when : Option Condition := none) : Replacement :=
+  .instead action when
+/-- The action a replacement does and the condition it applies under, each kept in the scope
+that supplied it: a caller's replacement reads both in its caller's scope. -/
+def _root_.Semantics.Replacement.parts (replacement : Replacement) (fuel : Nat := 16) :
+    Action × Option Condition :=
+  match fuel, replacement with
+  | _, .instead action when => (action, when)
+  | 0, .inCaller _ => (.sequentially [], none)
+  | n + 1, .inCaller body =>
+    let (action, when) := body.parts n
+    (.inCaller action, when.map .inCaller)
+termination_by structural fuel
+/-- "If <condition>, <replacement> instead": a replacement applying only while `condition` holds,
+the event happening unreplaced otherwise, as "draw a card. If you control three or more
+artifacts, draw two cards instead" [CR#614.1a,614.15]. A condition the replacement already
+carries is kept beside `condition`. -/
+semantic_template Replacement.doIf (condition : Condition) (replacement : Replacement) :
+    Replacement :=
+  match replacement.parts with
+  | (action, none) => .instead action (some condition)
+  | (action, some also) => .instead action (some (.and [condition, also]))
 semantic_template italicHead (word : ItalicWord) (ability : Ability) : Ability :=
   .italicHead word ability
 semantic_template itsManaCost : Cost := .itsManaCost
