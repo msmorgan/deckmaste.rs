@@ -207,19 +207,34 @@ Supplement, of a verbal cost too. *Plus* and *minus* head Preposition Phrases
 on a quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
 one*), and *N times X* multiplies an amount.
 
-Stratum 6 (in progress) coordinates Clauses, Verb Phrases, Noun Phrases,
+Stratum 6 (complete) coordinates Clauses, Verb Phrases, Noun Phrases,
 nominals, noun and participle premodifiers, Adjective, Preposition and Adverb
-Phrases, keyword phrases, determinatives and symbol costs, binary and serial,
-after *both*, *either* or *neither*. An *and*-coordination of Noun Phrases or
-nominals is plural; an *or*-coordination of nominals shares its conjuncts'
-Number and of Noun Phrases takes its last one's, as a coordination of
-quantifiers determines as its last one does (*one or more cards*). A chain of
-bare imperatives is coordinated imperative Clauses, which a declarative may
-end (*tap that creature and it doesn't untap ...*); two independent Clauses
-may be joined by *, and*; a preposed adjunct scopes over the whole chain. An
-amount and a comparative adjective coordinate as an Amount (*power 3 or
-greater*), and coordinated adjectives share a Complement (*less than or equal
-to X*).
+Phrases, keyword phrases, relative and interrogative clauses, determinatives
+and symbol costs, binary and serial, after *both*, *either* or *neither*, and
+in a delimited polysyndetic chain (*A, or B, or C*). An *and*-coordination of
+Noun Phrases or nominals is plural, but singular when every conjunct is
+determined by a distributive determinative (*each attacking creature and each
+blocking creature doesn't untap*); *and/or* is plural after a plural last
+conjunct and of either Number after a singular one; an *or*-coordination of
+nominals shares its conjuncts' Number and of Noun Phrases takes its last
+one's. A coordination of quantifiers determines as its last one does (*one or
+more cards*) and, of fusable determinatives, heads a fused Noun Phrase
+(*choose one or more*, *if X is 5 or more*). A postmodifier agrees with each
+conjunct of a coordinated nominal. Bare imperatives and declaratives
+coordinate in either order (a declarative before an imperative only after a
+comma); a preposed adjunct scopes over the whole chain. A comparative-bounded
+amount (*3 or less*) is an adjective phrase predicatively and the Amount value
+of a noun that takes one (*power 3 or less*). Unlike categories coordinate in
+one function: depictives, attributes, postmodifiers, predicate adjuncts (an
+ordinal's position and a locative *on*-phrase: *second from the top or on the
+bottom*) and *and*-lists of an Object with keywords (*base power and
+toughness 4/4, flying, and haste*). Right Node Raising shares an NP, keyword
+phrase, *to*-infinitival, predicative, bare infinitival, a noun's
+single-preposition Complement (*the top or bottom of their library*), a
+preposition's Amount (*less than or equal to X*) or, respectively, nouns'
+Amounts under a slash Measure (*base power and toughness 4/4*). The Targeting
+Marker premodifies a whole coordination of bare nominals inside the
+determiner (*up to one target artifact or creature*).
 
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)

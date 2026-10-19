@@ -112,9 +112,11 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   gerund-participial of a lexical verb only).
 - `Coordination { category, coordinators, unshared, equations, proximate, delimiter, delimited, serial }`:
   binary (only with the delimiter when `delimited`) and Oxford-comma serial
-  coordination (`serial` overrides the default: like conjuncts only), a delimited polysyndetic chain
+  coordination (`serial` overrides the default: like conjuncts only; a plain serial ends with
+  one of its own coordinators), a delimited polysyndetic chain
   (*A, or B, or C*), one tree per same-coordinator chain, across-the-board Gaps, and Right Node Raising (a coordination with a
-  shared NP, keyword-phrase, *to*-infinitival or predicative Gap, or a noun's single-preposition
+  shared NP, keyword-phrase, *to*-infinitival, predicative or catenative bare-infinitival Gap, a
+  preposition's Amount Complement, or a noun's single-preposition
   Preposition Phrase Complement headed by that preposition (*the top or bottom of their library*),
   or nouns' Amount Complements filled respectively by a slash Measure (*base power and toughness 4/4*),
   filled once after it, derived for a Category's first
