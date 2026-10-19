@@ -217,16 +217,17 @@ semantic_definition aftermath : Ability :=
 semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
     [ static
-        (.asEvent (does thisPermanent enter)
+        (replace (would thisPermanent enter)
           (sequentially
             [ .expose .reveal
                 (.cards
                   (counted anyNumber
                     (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent]))),
-              .establish
-                (entersWithCounters thisPermanent (times (.inCaller amount) (.countOf them))
-                  p1p1Counter)
-                none ])) ]
+              instruct thisPermanent
+                (enter
+                  (riders :=
+                    [ .withCounters (times (.inCaller amount) (.countOf them))
+                        (.printed p1p1Counter) .fresh ])) ])) ]
 semantic_definition annihilator (amount : Amount) : Ability :=
   .keyword (.named "annihilator") [.number (.inCaller amount)]
     [ triggered (does (.actor thisCreature) (.attack none))
@@ -1224,10 +1225,11 @@ semantic_definition retrace : Ability :=
 semantic_definition riot : Ability :=
   .keyword (.named "riot") []
     [ static
-        (.asEvent (does thisPermanent enter)
+        (replace (would thisPermanent enter)
           (mayOrElse
-            (.establish (entersWithAdditionalCounters thisPermanent (.lit 1) p1p1Counter) none)
-            (gainHaste thisPermanent))) ]
+            (instruct thisPermanent
+              (enter (riders := [.withCounters (.lit 1) (.printed p1p1Counter) .additional])))
+            (sequentially [instruct thisPermanent enter, gainHaste thisPermanent]))) ]
 semantic_definition saddle (amount : Amount) : Ability :=
   .keyword (.named "saddle") [.number (.inCaller amount)]
     [ activatedOnlyDuring
@@ -1451,14 +1453,16 @@ semantic_definition transmute (cost : Cost) : Ability :=
 semantic_definition tribute (amount : Amount) : Ability :=
   .keyword (.named "tribute") [.number (.inCaller amount)]
     [ static
-        (.asEvent (does thisCreature enter)
+        (replace (would thisCreature enter)
           (sequentially
             [ choose anOpponent,
               instruct (the isChosenPlayer)
                 (may
-                  (.establish
-                    (entersWithAdditionalCounters thisCreature (.inCaller amount) p1p1Counter)
-                    none)) ])) ]
+                  (instruct thisCreature
+                    (enter
+                      (riders :=
+                        [ .withCounters (.inCaller amount) (.printed p1p1Counter)
+                            .additional ])))) ])) ]
 /-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
 cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. -/
 semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
@@ -1492,9 +1496,10 @@ semantic_definition unearth (cost : Cost) : Ability :=
 semantic_definition unleash : Ability :=
   .keyword (.named "unleash") []
     [ static
-        (.asEvent (does thisPermanent enter)
+        (replace (would thisPermanent enter)
           (may
-            (.establish (entersWithAdditionalCounters thisPermanent (.lit 1) p1p1Counter) none))),
+            (instruct thisPermanent
+              (enter (riders := [.withCounters (.lit 1) (.printed p1p1Counter) .additional]))))),
       static
         (onlyWhile (cant (.actor thisPermanent) (.block .any))
           (matches_ thisPermanent (.hasCounters (some p1p1Counter)))) ]
