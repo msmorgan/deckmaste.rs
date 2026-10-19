@@ -41,9 +41,9 @@ It has no proc macros and no generated code: a grammar is data.
    is its grammatical function: `subject`, `head`, `object`, `complement`,
    `predicative_complement` (from the Frame Slot's relation in derived valence
    phrases), `modifier` (an unselected dependent of a nominal) or `adjunct` (of
-   a predicate). A Noun Phrase shared by Right Node Raising also bears,
-   in each conjunct, the function of the Frame Slot whose Gap it fills
-   (`Constituent::also`).
+   a predicate). A phrase shared by Right Node Raising also bears, in each
+   conjunct, the function of the Frame Slot whose Gap it fills
+   (`Constituent::also`), as does the head of a function Category it is.
 
 ## Chart and realization costs
 
@@ -113,7 +113,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
 - `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
   binary and Oxford-comma serial coordination, one tree per same-coordinator
   chain, across-the-board Gaps, and Right Node Raising (a coordination with a
-  shared NP, keyword-phrase or *to*-infinitival Gap, filled once after it, derived for a Category's first
+  shared NP, keyword-phrase, *to*-infinitival or predicative Gap, filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which
   it takes from its last conjunct (*one or more cards*). `equations` over `$`
@@ -219,5 +219,8 @@ Construction boundaries enforce the spacing used by realization.
 The Valence Schema can interleave PP Adjuncts before selected complements and
 postpose an Object. Same-head complement priority still applies through these
 projections. Right Node Raising requires the shared Gap at each coordinate's
-right edge; ordinary extraction is not subject to that restriction. Adjunct
+right edge; ordinary extraction is not subject to that restriction. A
+gap-capable Category's `closed_gaps` names Gap kinds its Constituents never
+contain: a non-finite Complement passes up no predicative Gap (*can't be __*),
+so one is shared only inside it (*can't [be and become] legendary*). Adjunct
 Schemas can declare a punctuation delimiter for preposed or delimited PPs.

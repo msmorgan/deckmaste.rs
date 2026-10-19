@@ -72,6 +72,11 @@ pub struct CategoryDecl {
     /// Whether a Constituent of this Category may contain an unfilled Gap.
     #[serde(default)]
     pub gap: bool,
+    /// The Gap kinds a Constituent of this gap-capable Category never
+    /// contains, as a non-finite Complement never passes up a predicative
+    /// Gap (*can't be __*).
+    #[serde(default)]
+    pub closed_gaps: Vec<Ident>,
     /// Whether this Category names a grammatical function, as `Predicative`
     /// names the predicative Complement: its head child bears that function
     /// in the same phrase too.

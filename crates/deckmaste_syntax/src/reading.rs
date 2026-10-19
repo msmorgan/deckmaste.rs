@@ -461,7 +461,14 @@ impl CompiledGrammar {
                 self.locate(child, Some(index), Some(name), out);
             }
             if raising && name == "shared" {
-                out[start].also.clone_from(&sites);
+                // A function Category's head bears the shared function too
+                // (*be and become [legendary]*).
+                let (parent, function) = (out[start].parent, out[start].function);
+                for constituent in &mut out[start..] {
+                    if constituent.parent == parent && constituent.function == function {
+                        constituent.also.clone_from(&sites);
+                    }
+                }
             }
         }
     }

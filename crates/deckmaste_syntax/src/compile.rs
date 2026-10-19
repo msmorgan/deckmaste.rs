@@ -66,7 +66,8 @@ pub struct CompiledGrammar {
     pub(crate) categories: Vec<Ident>,
     category_ids: BTreeMap<Ident, usize>,
     pub(crate) category_features: Vec<Vec<usize>>,
-    pub(crate) category_gap: Vec<bool>,
+    /// Each Category's mask of the Gaps it may contain (`Gap::bit`).
+    pub(crate) category_gap: Vec<u8>,
     /// Categories that name a function (`CategoryDecl::function`).
     pub(crate) function_categories: BTreeSet<Ident>,
     pub(crate) features: Vec<Ident>,
@@ -296,7 +297,16 @@ impl<'a> Binder<'a> {
                 .map_err(|e| invalid(format!("category `{name}`: {e}")))?;
             category_features.push(ids);
         }
-        let category_gap = declared.values().map(|c| c.gap).collect();
+        let mut category_gap = Vec::new();
+        for (name, declaration) in &declared {
+            let mut mask = if declaration.gap { !Gap::None.bit() } else { 0 };
+            for kind in &declaration.closed_gaps {
+                mask &= !gap_named(kind)
+                    .ok_or_else(|| invalid(format!("category `{name}`: unknown gap `{kind}`")))?
+                    .bit();
+            }
+            category_gap.push(mask);
+        }
         let function_categories = declared
             .iter()
             .filter(|(_, c)| c.function)
@@ -666,13 +676,8 @@ impl<'a> Binder<'a> {
             if let Equation::Require(path, value) = equation
                 && let Some(child) = path.strip_suffix(".Gap")
             {
-                let gap = match value.as_str() {
-                    "None" => Gap::None,
-                    "NP" => Gap::NP,
-                    "Adjunct" => Gap::Adjunct,
-                    "Pred" => Gap::Pred,
-                    other => return Err(context(invalid(format!("unknown gap `{other}`")))),
-                };
+                let gap = gap_named(value.as_str())
+                    .ok_or_else(|| context(invalid(format!("unknown gap `{value}`"))))?;
                 required_gaps.insert(child.to_owned(), gap);
             }
         }
@@ -1375,7 +1380,7 @@ impl<'a> Binder<'a> {
         adjectival: Option<&str>,
     ) -> Result<Vec<Draft>, LoadError> {
         let lhs = self.category(phrase)?;
-        let gap_capable = self.out.category_gap[lhs];
+        let gap_capable = self.out.category_gap[lhs] != 0;
         let mut drafts = Vec::new();
         if head == LexicalCategory::Preposition {
             return self.preposition_valence(lhs, phrase, cost, gap_capable);
@@ -1776,15 +1781,6 @@ impl<'a> Binder<'a> {
             // extracting head is a free word.
             let test = if gap.is_some() { Test::FreeFrame(frame) } else { Test::Frame(frame) };
             draft.child("head", Symbol::Leaf(test), GapRule::Closed);
-            // A predicative Gap is extracted under a finite verb only, never
-            // a non-finite *be* (*can't be __*).
-            if gap.is_some_and(|i| *slots[i] == SlotFill::Pred) {
-                let form = self.feature("VerbForm")?;
-                draft.equations.push((
-                    Path::Child(0, form),
-                    Target::Value(self.value(form, "Finite")?),
-                ));
-            }
             for (i, fill) in slots.iter().enumerate() {
                 if Some(i) == gap {
                     continue;
@@ -2087,14 +2083,15 @@ impl<'a> Binder<'a> {
             );
         if conjoin.conjunct == conjoin.lhs
             && first.is_some_and(|first| std::ptr::eq(first, schema))
-            && self.out.category_gap[conjoin.lhs]
+            && self.out.category_gap[conjoin.lhs] != 0
         {
             // One per shareable Gap: an NP, a keyword phrase, a
-            // *to*-infinitival.
+            // *to*-infinitival, a predicative (*be and become legendary*).
             for (gap, kind, suffix) in [
                 (Gap::NP, SlotKind::NP, ""),
                 (Gap::Keyword, SlotKind::KeywordPhrase, "-keyword"),
                 (Gap::ToInf, SlotKind::ToInf, "-toinf"),
+                (Gap::Pred, SlotKind::Pred, "-pred"),
             ] {
                 let Ok(shared) = self.slot_category(kind) else {
                     continue;
@@ -2557,4 +2554,17 @@ fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
         *i = map(*i);
     }
     draft.predicative = draft.predicative.map(&map);
+}
+
+/// The Gap a grammar names.
+fn gap_named(name: &str) -> Option<Gap> {
+    Some(match name {
+        "None" => Gap::None,
+        "NP" => Gap::NP,
+        "Adjunct" => Gap::Adjunct,
+        "Pred" => Gap::Pred,
+        "Keyword" => Gap::Keyword,
+        "ToInf" => Gap::ToInf,
+        _ => return None,
+    })
 }

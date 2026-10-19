@@ -72,6 +72,13 @@ pub enum Gap {
     ToInf,
 }
 
+impl Gap {
+    /// This Gap's bit in a Category's mask of the Gaps it may contain.
+    pub(crate) const fn bit(self) -> u8 {
+        1 << self as u8
+    }
+}
+
 /// How a child's Gap relates to its mother's.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum GapRule {
@@ -293,7 +300,7 @@ pub(crate) fn resolve(
     let head = children.iter().position(|(name, ..)| name == "head");
     let names = children.iter().map(|(name, ..)| *name).collect();
     let (rhs, gaps) = children.into_iter().map(|(_, s, g)| (s, g)).unzip();
-    if introduces != Gap::None && !grammar.category_gap[lhs] {
+    if introduces != Gap::None && grammar.category_gap[lhs] & introduces.bit() == 0 {
         return Err("introduces a gap on a category that cannot contain one".to_owned());
     }
     Ok(Production {
@@ -776,7 +783,7 @@ impl Production {
             }
             self.introduces
         };
-        if gap != Gap::None && !grammar.category_gap[self.lhs] {
+        if gap != Gap::None && grammar.category_gap[self.lhs] & gap.bit() == 0 {
             return None;
         }
         let coordinated = self.coordinator.is_some();

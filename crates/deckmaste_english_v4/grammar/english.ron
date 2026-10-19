@@ -201,10 +201,15 @@
         "VerblessClause": (category: Some("Clause")),
         // Subjectless non-finite complements: a to-infinitival is a Clause,
         // a bare infinitival or gerund-participial its Verb Phrase.
-        "ToInf": (category: Some("Clause"), gap: true),
+        // A non-finite Complement never passes up a predicative Gap (*can't
+        // be __*); one is shared only inside it (*can't be and become
+        // legendary*).
+        "ToInf": (category: Some("Clause"), gap: true, closed_gaps: ["Pred"]),
         // Its object Gap is filled by the Subject of the verb selecting it.
         "HollowInf": (category: Some("Clause")),
-        "BareInf": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice"], gap: true),
+        "BareInf": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice"], gap: true, closed_gaps: ["Pred"]),
+        // An auxiliary's participial Complement (*have been __*).
+        "AuxiliaryComplement": (category: Some("VerbPhrase"), features: ["VerbForm", "Voice", "VerbKind"], gap: true, closed_gaps: ["Pred"]),
         "Gerund": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Voice"], gap: true),
         // A gerund-participial Clause with its Subject, which Oracle uses as
         // a Subject only (CGEL, Ch. 14 §2.1, p. 1188).
@@ -485,21 +490,22 @@
             equations: [Require("adjunct.AdjunctPosition", "Central")], transparent: ["head"]),
 
         // Auxiliaries take a verb phrase complement through which a Gap passes.
-        (name: "Progressive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "VerbPhrase")],
+        (name: "AuxiliaryParticiple", lhs: "AuxiliaryComplement", rhs: [Cat("head", "VerbPhrase")], transparent: ["head"]),
+        (name: "Progressive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "GerundParticiple"), Agree("$.Voice", "complement.Voice")],
             transparent: ["complement"]),
         // The perfect takes an active participle phrase or a passive one
         // headed by *been*.
-        (name: "Perfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "VerbPhrase")],
+        (name: "Perfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Active"),
                 Require("$.Voice", "Active")],
             transparent: ["complement"]),
-        (name: "PassivePerfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "VerbPhrase")],
+        (name: "PassivePerfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Passive"),
                 Require("complement.VerbKind", "Auxiliary"), Require("$.Voice", "Passive")],
             transparent: ["complement"]),
         // The passive auxiliary takes a lexical verb's passive participle phrase.
-        (name: "Passive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "VerbPhrase")],
+        (name: "Passive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Passive"),
                 Exclude("complement.VerbKind", "Auxiliary"), Require("$.Voice", "Passive")],
             transparent: ["complement"]),
