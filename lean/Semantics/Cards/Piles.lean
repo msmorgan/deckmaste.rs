@@ -26,7 +26,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
                     [ reveal
                         (fromAmong (exactly 1) (or [hasColor .blue, isArtifact]) them),
                       putInto (that .card) hand ]),
-                move (theRest .object) any (some onBottom) .arrival none [(inOrder .randomOrder)] ]),
+                putInto (theRest .object) onBottom (riders := [(inOrder .randomOrder)]) ]),
           activated
             (compound [mana [generic 5, pip .blue], tapSymbol,
                         perform (sacrifice thisArtifact)])

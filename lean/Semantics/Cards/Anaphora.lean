@@ -33,7 +33,7 @@ def suspendedSentence : Action :=
 theorem okSuspendedSentence : Action.check (DRS.ofList []) suspendedSentence = [] := by decide
 
 def flickeringSpirit : Action :=
-  sequentially [exile thisCreature, move it any (some battlefield) .arrival none [(under (ownerOf it))]]
+  sequentially [exile thisCreature, putInto it battlefield (riders := [(under (ownerOf it))])]
 theorem okFlickeringSpirit : Action.check (DRS.ofList []) flickeringSpirit = [] := by decide
 
 /-- Bond of Revival -/
@@ -70,13 +70,13 @@ theorem okPhyrexianInfiltrator : Action.check (DRS.ofList []) phyrexianInfiltrat
 def impulse : Action :=
   sequentially
     [ lookAt (topSlice (.lit 4)), putInto (someOf (exactly 1) them) hand,
-      move (theRest .object) any (some onBottom) .arrival none [(inOrder .anyOrder)] ]
+      putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
 theorem okImpulse : Action.check (DRS.ofList []) impulse = [] := by decide
 
 def anticipate : Action :=
   sequentially
     [ lookAt (topSlice (.lit 3)), putInto (someOf (exactly 1) them) hand,
-      move (theRest .object) any (some onBottom) .arrival none [(inOrder .anyOrder)] ]
+      putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]
 theorem okAnticipate : Action.check (DRS.ofList []) anticipate = [] := by decide
 
 def revealFourPartition : Action :=
@@ -88,7 +88,7 @@ theorem okRevealFourPartition : Action.check (DRS.ofList []) revealFourPartition
 def exileFourOfThem : Action :=
   sequentially
     [ lookAt (topSlice (.lit 8)), exile (someOf (exactly 4) them),
-      move (theRest .object) any (some onTop) .arrival none [(inOrder .anyOrder)] ]
+      putInto (theRest .object) onTop (riders := [(inOrder .anyOrder)]) ]
 theorem okExileFourOfThem : Action.check (DRS.ofList []) exileFourOfThem = [] := by decide
 
 def sylvanScrying : Action :=
@@ -159,7 +159,7 @@ def oust : Spelled := spelled <| .singleFaced
     { name := "Oust", cost := some [pip .white], types := [.sorcery],
       text :=
         [ spell (sequentially
-            [ move (target isCreature) any (some (fromTop 2 (zone .library none))) .arrival,
+            [ putInto (target isCreature) (fromTop 2 library),
               instruct (controllerOf it) (gainLife (.lit 3)) ]) ] } }
 
 def riseFromTheGrave : Action :=
@@ -187,7 +187,7 @@ theorem okMartyrsCry : Action.check (DRS.ofList []) martyrsCry = [] := by decide
 def anotherRound : Action :=
   sequentially
     [ exile (counted anyNumber (and [isCreature, youControl])),
-      move them any (some battlefield) .arrival none [(under (ownerOf them))],
+      putInto them battlefield (riders := [(under (ownerOf them))]),
       repeat_ (moreTimes (letter .x)) ]
 theorem okAnotherRound : Action.check (DRS.ofList []) anotherRound = [] := by decide
 
@@ -202,7 +202,7 @@ theorem okEradicateSearch : Action.check (DRS.ofList []) eradicateSearch = [] :=
 
 /-- Deem Inferior -/
 def deemInferior : Action :=
-  instruct (ownerOf (target (and [isPermanent, not isLand]))) (put it (or [(fromTop 2 (zone .library none)), (fromBottom 2 (zone .library none))]))
+  instruct (ownerOf (target (and [isPermanent, not isLand]))) (put it (or [(fromTop 2 library), (fromBottom 2 library)]))
 theorem okDeemInferior : Action.check (DRS.ofList []) deemInferior = [] := by decide
 
 /-- Write into Being -/
@@ -210,7 +210,7 @@ def writeIntoBeingPlacement : Action :=
   sequentially
     [ lookAt (topSlice (.lit 2)),
       manifestPlacement (someOf (exactly 1) them),
-      move (theOther .object) any (some (or [onTop, onBottom])) .arrival ]
+      putInto (theOther .object) (or [onTop, onBottom]) ]
 theorem okWriteIntoBeingPlacement : Action.check (DRS.ofList []) writeIntoBeingPlacement = [] := by decide
 
 /-- Mystical Tutor -/
@@ -252,7 +252,7 @@ theorem okHypnoticSpecterDiscard :
 
 /-- Wyll, Blade of Frontiers -/
 def wyllExtraDie : Action :=
-  replaceEvent (would (actor you) (rollDice anyAmount .anyDie .many))
+  replaceEvent (would you (rollDice anyAmount .anyDie .many))
     (sequentially
       [ rollDice (plus thatMuch (.lit 1)) .thoseDice .many .anyResult,
         ignoreOutcomes (extreme .lowest) ])
@@ -261,7 +261,7 @@ theorem okWyllExtraDie : Action.check (DRS.ofList []) wyllExtraDie = [] := by de
 
 /-- Vedalken Squirrel-Whacker -/
 def vedalkenSquirrelWhackerReroll : Action :=
-  replaceEvent (would (actor you) (rollDice anyAmount (.sides 6) .many))
+  replaceEvent (would you (rollDice anyAmount (.sides 6) .many))
     (sequentially
       [ rollDice thatMuch .thoseDice .many .anyResult,
         may
@@ -347,7 +347,7 @@ def blessedRespiteShuffle : Action :=
 theorem okBlessedRespiteShuffle : Action.check (DRS.ofList []) blessedRespiteShuffle = [] := by decide
 
 /-- Nekrataal -/
-def nekrataalEntry : GameEvent := does (actor thisCreature) enter
+def nekrataalEntry : GameEvent := does thisCreature enter
 theorem okNekrataalEntry : GameEvent.check (DRS.ofList []) nekrataalEntry = [] := by decide
 def nekrataalDestroy : Action :=
   destroy (target (and [isCreature, not isArtifact, not (hasColor .black)]))
@@ -468,12 +468,12 @@ theorem okExileTopThenPutFromAmong : Action.check (DRS.ofList []) exileTopThenPu
 
 /-- Thought Sponge -/
 def greatestCardsAnOpponentDrew : Amount :=
-  aggregateOver .max isOpponent (eventCount (draw anyAmount) (actor they) soFarThisTurn)
+  aggregateOver .max isOpponent (eventCount (draw anyAmount) they soFarThisTurn)
 theorem okGreatestCardsAnOpponentDrew : Amount.check (DRS.ofList []) greatestCardsAnOpponentDrew = [] := by
   decide
 def greatestCardsAPlayerDiscardedThisWay : Amount :=
   aggregateOver .max isPlayer
-    (eventTally (⟨(actor they), (discard ((allOf (cardIn hand)))), thisWay⟩) .events)
+    (eventTally (⟨they, (discard ((allOf (cardIn hand)))), thisWay⟩) .events)
 theorem okGreatestCardsAPlayerDiscardedThisWay :
     Amount.check (DRS.ofList []) greatestCardsAPlayerDiscardedThisWay = [] := by decide
 
@@ -613,7 +613,7 @@ theorem okGrenzoBottomCard : Action.check (DRS.ofList []) grenzoBottomCard = [] 
 def chronostutter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Chronostutter", cost := some [generic 5, pip .blue], types := [.instant],
-      text := [ spell (move (target isCreature) any (some (fromTop 2 (zone .library none))) .arrival) ] } }
+      text := [ spell (putInto (target isCreature) (fromTop 2 library)) ] } }
 
 theorem nekrataalTwoObjects : countOnes .object nekrataalRider = 2 := by decide
 theorem bioplasmTestMintsNothing : countOnes .object bioplasmAfterTest = 2 := by decide
@@ -672,14 +672,14 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
       subtypes := [elder, dragon],
       text :=
         [ keyword (.named "flying"),
-          whenever (does (actor thisCreature) attack)
+          whenever (does thisCreature attack)
             (sequentially
               [ doForEach eachPlayer
                   (choose (target (and [isPermanent, controlledBy they]))),
                 instruct (those .player) (sacrifice (those .permanent)),
                 doForEach
                   (each (and [ isPlayer,
-                                did (⟨(actor (relative .player)), (sacrifice ((a isPermanent))), thisWay⟩)
+                                did (⟨(relative .player), (sacrifice ((a isPermanent))), thisWay⟩)
                                   ]))
                   (sequentially
                     [ instruct they (expose .reveal (cards (slice .top (.lit 1) (libraryOf they)))),

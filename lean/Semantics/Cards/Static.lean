@@ -23,7 +23,7 @@ def forkedBolt : Action :=
   dealDivided «this» (.lit 2) (targets (oneThrough 2) isAnyTarget)
 theorem okForkedBolt : Action.check (DRS.ofList []) forkedBolt = [] := by decide
 def thoughtReflection : Ability :=
-  static (instead (would (actor you) (draw anyAmount)) (draw (.lit 2)))
+  static (instead (would you (draw anyAmount)) (draw (.lit 2)))
 theorem okThoughtReflection : Ability.check (DRS.ofList []) thoughtReflection = [] := by decide
 def jorKadeen : Ability :=
   static (onlyWhile (getsPt (allOf (and [isCreature, youControl])) (up (.lit 3)) (up (.lit 0)))
@@ -58,14 +58,14 @@ def hithlainRopeSacrificeLock : StaticSpec := cant any (sacrifice «this»)
 theorem okHithlainRopeSacrificeLock : StaticSpec.check (DRS.ofList []) hithlainRopeSacrificeLock = [] := by
   decide
 /-- Lich's Mastery -/
-def lichsMasteryGate : Ability := static (cant (actor you) loseGame)
+def lichsMasteryGate : Ability := static (cant you loseGame)
 theorem okLichsMasteryGate : Ability.check (DRS.ofList []) lichsMasteryGate = [] := by decide
 def theGoldenThrone : Ability :=
-  static (instead (would (actor you) loseGame) (sequentially [exile thisArtifact, setLife (.lit 1)]))
+  static (instead (would you loseGame) (sequentially [exile thisArtifact, setLife (.lit 1)]))
 theorem okTheGoldenThrone : Ability.check (DRS.ofList []) theGoldenThrone = [] := by decide
 def stunningReversal : Ability :=
   spell (establishThroughout
-           (instead (would (actor you) loseGame) (sequentially [draw (.lit 7), setLife (.lit 1)])
+           (instead (would you loseGame) (sequentially [draw (.lit 7), setLife (.lit 1)])
               none .nextTimeOnly) thisTurn)
 theorem okStunningReversal : Ability.check (DRS.ofList []) stunningReversal = [] := by decide
 def pathOfBravery : Ability :=
@@ -161,7 +161,7 @@ def rainOfGore : Spelled := spelled <| .singleFaced
         (bySource (a (or [isSpell,
           abilityHead .anyOnStack])))
         (would
-          (actor (controllerOf it))
+          (controllerOf it)
           (gainLife anyAmount)))
       (instruct (that .player) (loseLife thatMuch))) ] } }
 
@@ -210,13 +210,13 @@ theorem okTahngarthAttacksThatJoin :
 def mindlockOrb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mindlock Orb", cost := some [generic 3, pip .blue], types := [.artifact],
-      text := [static (cant (actor (allOf isPlayer)) (search any anyNumber (and [])))] } }
+      text := [static (cant (allOf isPlayer) (search any anyNumber (and [])))] } }
 
 def silence : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Silence", cost := some [pip .white], types := [.instant],
       text :=
-        [ spell (establishThroughout (cant (actor yourOpponents) (cast any)) thisTurn) ] } }
+        [ spell (establishThroughout (cant yourOpponents (cast any)) thisTurn) ] } }
 
 def shadowOfDoubt : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -224,14 +224,14 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (sequentially
-            [ establishThroughout (cant (actor (allOf isPlayer)) (search any anyNumber (and [])))
+            [ establishThroughout (cant (allOf isPlayer) (search any anyNumber (and [])))
                 thisTurn,
               draw (.lit 1) ]) ] } }
 
-def omenMachineDraw : Ability := static (cant (actor (allOf isPlayer)) (draw anyAmount))
+def omenMachineDraw : Ability := static (cant (allOf isPlayer) (draw anyAmount))
 theorem okOmenMachineDraw : Ability.check (DRS.ofList []) omenMachineDraw = [] := by decide
 def solfataraLandLock : Action :=
-  establishThroughout (cant (actor (target isPlayer)) (play any)) thisTurn
+  establishThroughout (cant (target isPlayer) (play any)) thisTurn
 theorem okSolfataraLandLock : Action.check (DRS.ofList []) solfataraLandLock = [] := by decide
 
 /-- "each nonbasic land is a <type>": a moon effect. -/
@@ -631,9 +631,9 @@ theorem okClergyOfTheHolyNimbus : Ability.check (DRS.ofList []) clergyOfTheHolyN
 def rampantFrogantuaPump : Ability :=
   static (getsPt thisCreature
     (up (forEach (.lit 10) (and [isPlayer,
-      happenedTo (actor (relative .object)) loseGame thisGame])))
+      happenedTo (relative .object) loseGame thisGame])))
     (up (forEach (.lit 10) (and [isPlayer,
-      happenedTo (actor (relative .object)) loseGame thisGame]))))
+      happenedTo (relative .object) loseGame thisGame]))))
 theorem okRampantFrogantuaPump : Ability.check (DRS.ofList []) rampantFrogantuaPump = [] := by decide
 /-- Maskwood Nexus -/
 def maskwoodNexusTypes : Ability :=
@@ -768,7 +768,7 @@ def revelation : Spelled := spelled <| .singleFaced
 
 /-- Phyrexian Unlife -/
 def phyrexianUnlifeImmunity : Ability :=
-  static (cant (actor you) (loseGame (some .nonpositiveLife)))
+  static (cant you (loseGame (some .nonpositiveLife)))
 theorem okPhyrexianUnlifeImmunity : Ability.check (DRS.ofList []) phyrexianUnlifeImmunity = [] := by decide
 /-- Umbris, Fear Manifest -/
 def umbrisPump : Ability :=

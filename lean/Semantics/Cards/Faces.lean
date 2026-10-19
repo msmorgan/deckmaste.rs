@@ -43,7 +43,7 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
     { name := "Invasion of Dominaria", cost := some [generic 2, pip .white],
       types := [.battle], subtypes := [.of .battle "Siege"],
       text :=
-        [ when (does (actor thisSiege) enter)
+        [ when (does thisSiege enter)
             (sequentially [gainLife (.lit 4), draw (.lit 1)]) ],
       defense := stat 5 } }
   { characteristics :=
@@ -52,12 +52,12 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 
 /-- Missy -/
 def missyFaceDownReturn : Ability :=
-  whenever (does (actor (a (and [isCreature, not isArtifact, otherThan thisCreature]))) die)
+  whenever (does (a (and [isCreature, not isArtifact, otherThan thisCreature])) die)
     (sequentially
-      [ move it any (some battlefield) .arrival none [(faceDownAs
+      [ putInto it battlefield (riders := [(faceDownAs
               { characteristics := some
                   { types := [.artifact, .creature], subtypes := [cyberman],
-                    power := stat 2, toughness := stat 2 } }), (entersAs .tapped), (under you)] ])
+                    power := stat 2, toughness := stat 2 } }), (entersAs .tapped), (under you)]) ])
 theorem okMissyFaceDownReturn : Ability.check (DRS.ofList []) missyFaceDownReturn = [] := by decide
 
 /-- Yedora, Grave Gardener -/
@@ -67,12 +67,12 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [treefolk, druid],
       text :=
-        [ whenever (does (actor (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature]))) die)
+        [ whenever (does (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature])) die)
             (may
               (sequentially
-                [ move it any (some battlefield) .arrival none [(faceDownAs
+                [ putInto it battlefield (riders := [(faceDownAs
                         { characteristics := some { types := [.land], subtypes := [forest] }
-                            }), (under (ownerOf it))] ])) ],
+                            }), (under (ownerOf it))]) ])) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Ral Zarek, Guest Lecturer's ultimate -/
@@ -103,7 +103,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
     { name := "Chance Encounter", cost := some [generic 2, pip .red, pip .red],
       types := [.enchantment],
       text :=
-        [ whenever (does (actor you) (flipCoins anyAmount (some .wins)))
+        [ whenever (does you (flipCoins anyAmount (some .wins)))
             (putCounters (.lit 1) (printedKind (.named "luckCounter")) thisEnchantment .many),
           triggeredIf (beginningOfYour .upkeep)
             (compareAmt (countersOn (.named "luckCounter") thisEnchantment) .atLeast (.lit 10))
@@ -111,7 +111,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
 
 /-- Karplusan Minotaur's win arm -/
 def karplusanMinotaurWinFlip : Ability :=
-  whenever (does (actor you) (flipCoins anyAmount (some .wins))) (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))
+  whenever (does you (flipCoins anyAmount (some .wins))) (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly))
 theorem okKarplusanMinotaurWinFlip : Ability.check (DRS.ofList []) karplusanMinotaurWinFlip = [] := by decide
 
 /-- Ral Zarek's ultimate -/
@@ -121,7 +121,7 @@ theorem okRalZarekUltimate : Action.check (DRS.ofList []) ralZarekUltimate = [] 
 
 /-- Krark's Thumb -/
 def krarksThumbExtraFlip : Action :=
-  replaceEvent (would (actor you) flipCoins)
+  replaceEvent (would you flipCoins)
     (sequentially [flipCoins (.lit 2), ignoreOutcomes (chosenResults none (.lit 1))]) none
 theorem okKrarksThumbExtraFlip : Action.check (DRS.ofList []) krarksThumbExtraFlip = [] := by decide
 
@@ -197,7 +197,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
       subtypes := [goblin, warrior],
       text :=
         [ haste,
-          whenever (does (actor thisCreature) (dealDamage (to := anOpponent)))
+          whenever (does thisCreature (dealDamage (to := anOpponent)))
             (setStatus .flipped thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
@@ -215,11 +215,11 @@ def bushiTenderfoot : Spelled := spelled <| .flip
       subtypes := [human, soldier],
       text :=
         [ when
-            (does (actor (a (and [ isCreature,
+            (does (a (and [ isCreature,
                               happenedTo (actor thisCreature)
                                 (dealDamage anyAmount
                                   (asMarker .permanent (relative .object)))
-                                soFarThisTurn ]))) die)
+                                soFarThisTurn ])) die)
             (setStatus .flipped thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
@@ -349,7 +349,7 @@ def harvestHand : Spelled := spelled <| .transforming
   { characteristics :=
     { name := "Harvest Hand", cost := some [generic 3], types := [.artifact, .creature],
       subtypes := [scarecrow],
-      text := [ when (does (actor thisCreature) die) (returnToBattlefieldTransformed it you) ],
+      text := [ when (does thisCreature die) (returnToBattlefieldTransformed it you) ],
       power := stat 2, toughness := stat 2 } }
   { characteristics :=
     { name := "Scrounged Scythe", types := [.artifact], subtypes := [equipment],
@@ -379,7 +379,7 @@ def chitteringHost : CardFace :=
       subtypes := [eldrazi, horror],
       text :=
         [ haste, keyword (.named "menace"),
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (establishThroughout
                (conjunction
                   [ getsPt (allOf ((and [isCreature, youControl, otherThan thisCreature])))
@@ -400,7 +400,7 @@ def midnightScavengers : Spelled := spelled <| .transforming
     { name := "Midnight Scavengers", cost := some [generic 4, pip .black], types := [.creature],
       subtypes := [human, rogue],
       text :=
-        [ when (does (actor thisCreature) enter)
+        [ when (does thisCreature enter)
             (may
               (returnToHand (target (and [ isCreature, in_ yourGraveyard,
                                 hasManaValue .atMost (.lit 3) ])))) ],
@@ -435,7 +435,7 @@ def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
   { characteristics := { types := [.enchantment], subtypes := [room] } }
   { name := "Glassworks", cost := some [generic 2, pip .red],
     text :=
-      [ when (does (actor you) (unlock thisDoor))
+      [ when (does you (unlock thisDoor))
           (instruct thisRoom
              (dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent]))
                 .noncombatOnly)) ] }
@@ -452,9 +452,9 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
       text :=
         [ abilityWord "eerie"
             (triggeredJoined
-              (does (actor (a (and [isEnchantment, youControl]))) enter)
+              (does (a (and [isEnchantment, youControl])) enter)
               [ joinedHead
-                  (does (actor you) (fullyUnlock ((a (hasSubtype room)))))
+                  (does you (fullyUnlock ((a (hasSubtype room)))))
                       ]
               (instruct eachOpponent (loseLife (.lit 1)))) ],
       power := stat 2, toughness := stat 2 } }
@@ -466,7 +466,7 @@ def ghostlyKeybearer : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ keyword (.named "flying"),
-          whenever (does (actor thisCreature) (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (unlock (doorOf (some .locked)
               (targets (upTo 1) (and [hasSubtype room, youControl])))) ],
       power := stat 3, toughness := stat 3 } }
@@ -502,7 +502,7 @@ def curatorOfDestinies : Spelled := spelled <| .singleFaced
       text :=
         [ static (cant any (counter thisSpell)),
           keyword (.named "flying"),
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (sequentially
               [ lookAt (topSlice (.lit 5)),
                 separateIntoPiles them 2 [.faceDown, .faceUp],
@@ -519,7 +519,7 @@ def atrisOracleOfHalfTruths : Spelled := spelled <| .singleFaced
       subtypes := [human, advisor],
       text :=
         [ keyword (.named "menace"),
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (sequentially
               [ instruct (target isOpponent) (lookAt (topSlice (.lit 3))),
                 instruct they (separateIntoPiles them 2 [.faceDown, .faceUp]),
@@ -602,7 +602,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
     { name := "Arcane Proxy", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [wizard],
       text :=
-        [ triggeredIf (does (actor thisCreature) enter) (matches_ it (castBy you))
+        [ triggeredIf (does thisCreature enter) (matches_ it (castBy you))
             (sequentially
               [ exile
                   (target (and [ isInstantOrSorcery, isCard,
@@ -610,7 +610,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                                   in_ yourGraveyard ])),
                 copy .fromCardZone (that .card) (.lit 1) [],
                 establish
-                  (can (actor you) (cast (that .copy) (payment := withoutPaying))) ]) ],
+                  (can you (cast (that .copy) (payment := withoutPaying))) ]) ],
       power := stat 4, toughness := stat 3 } }
   (prototypeAlt [generic 1, pip .blue, pip .blue] 2 1)
 

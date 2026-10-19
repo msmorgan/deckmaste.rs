@@ -26,20 +26,20 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (delayWithin
-            (does (actor you) (procedure .cast ((a (and
+            (does you (procedure .cast ((a (and
               [isInstant, isSpell]))) itsOwnCost))
             thisTurn
             (sequentially
               [ copySpell (that .stack) (.lit 2),
                 may (chooseNewTargets (those .copy)) ])
-            [ does (actor you) (procedure .cast ((a
+            [ does you (procedure .cast ((a
               (and [isSorcery, isSpell]))) itsOwnCost),
-              does (actor you) (procedure .activate (a (abilityHead .loyalty)) itsOwnCost) ]) ] } }
+              does you (procedure .activate (a (abilityHead .loyalty)) itsOwnCost) ]) ] } }
 
 /-- Frontline Heroism -/
 def frontlineHeroismCopy : Ability :=
   whenever
-    (does (actor you) (procedure .cast ((a (and [ isSpell,
+    (does you (procedure .cast ((a (and [ isSpell,
                  targeting (a (and [isCreature,
                    youControl]))
                    .soleTarget ]))) itsOwnCost))
@@ -58,7 +58,7 @@ def flawlessForgeryLine : Action :=
     [ exile (target (and [isInstantOrSorcery, in_ (graveyardOf anOpponent)])),
       copy .fromCardZone (that .card) (.lit 1) [],
       establish
-        (can (actor you) (cast (that .copy) (payment := withoutPaying))) ]
+        (can you (cast (that .copy) (payment := withoutPaying))) ]
 theorem okFlawlessForgeryLine : Action.check (DRS.ofList []) flawlessForgeryLine = [] := by decide
 
 /-- Twincast -/
@@ -121,7 +121,7 @@ theorem okMisterFantasticCopy : Ability.check (DRS.ofList []) misterFantasticCop
 /-- Rowan's Talent -/
 def rowansTalentCopy : Ability :=
   whenever
-    (does (actor you) (procedure .activate (a (and [ abilityHead .loyalty,
+    (does you (procedure .activate (a (and [ abilityHead .loyalty,
                  abilityOf (enchanted (.type .planeswalker)) ])) itsOwnCost))
     (sequentially
       [ copySpell (that .ability),
@@ -133,7 +133,7 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rings of Brighthearth", cost := some [generic 3], types := [.artifact],
       text :=
-        [ triggeredIf (does (actor you) (procedure .activate (a (abilityHead .anyActivated)) itsOwnCost))
+        [ triggeredIf (does you (procedure .activate (a (abilityHead .anyActivated)) itsOwnCost))
             (not (matches_ (that .ability) isManaAbility))
             (may (pay (mana [generic 2]) .once)
               (some (sequentially
@@ -148,7 +148,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       subtypes := [human, hero],
       text :=
         [ keyword (.named "flying"),
-          triggered (does (actor you) (procedure .cast ((a
+          triggered (does you (procedure .cast ((a
             (and [isArtifact, isSpell]))) itsOwnCost))
             (doOnlyOnceEachTurn (may (copy .fromStack it (.lit 1) [isntLegendary])))
                 ],
@@ -162,7 +162,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
       subtypes := [human, wizard],
       text :=
         [ triggered
-            (does (actor you) (procedure .cast ((a (and [ isCreature, isSpell, not
+            (does you (procedure .cast ((a (and [ isCreature, isSpell, not
                 (hasSupertype .legendary),
                          hasKeyword (.the (.named "flying")) ]))) itsOwnCost))
             (doOnlyOnceEachTurn (may
@@ -180,7 +180,7 @@ def tawnosTheToymaker : Spelled := spelled <| .singleFaced
       subtypes := [human, artificer],
       text :=
         [ whenever
-            (does (actor you) (procedure .cast ((a (and [ or [
+            (does you (procedure .cast ((a (and [ or [
                 hasSubtype beast,
                                hasSubtype bird ],
                          isCreature, isSpell ]))) itsOwnCost))
@@ -192,7 +192,7 @@ def bonusRound : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Bonus Round", cost := some [generic 1, pip .red, pip .red], types := [.sorcery],
       text :=
-        [ spell (delayWithin (does (actor (a isPlayer)) (procedure .cast ((a
+        [ spell (delayWithin (does (a isPlayer) (procedure .cast ((a
               (and [isInstantOrSorcery, isSpell]))) itsOwnCost)) untilEndOfTurn (sequentially
               [ instruct (that .player) (copySpell it),
                 instruct (that .player) (may (chooseNewTargets (that .copy))) ])) ] } }
@@ -206,9 +206,9 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
       text :=
         [ static (visibility .reveal you topOfLibrary),
           static
-            (can (actor you) (cast (allOf (and [isSpell, isInstantOrSorcery])) (from_ := some onTop))),
+            (can you (cast (allOf (and [isSpell, isInstantOrSorcery])) (from_ := some onTop))),
           whenever
-            (does (actor you) (procedure .cast ((a (and
+            (does you (procedure .cast ((a (and
               [isInstantOrSorcery, isSpell]))) itsOwnCost none (some (yourLibrary))))
             (sequentially
               [ copySpell it,

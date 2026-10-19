@@ -98,7 +98,7 @@ def woeleecher : Ability :=
       (some (gainLife (.lit 2))))
 theorem okWoeleecher : Ability.check (DRS.ofList []) woeleecher = [] := by decide
 def anointerOfValor : Ability :=
-  whenever (does (actor (a isCreature)) attack)
+  whenever (does (a isCreature) attack)
     (offerWhen (pay (mana [generic 3]) .once)
       (putCounters (.lit 1) (printedKind p1p1Counter) (that (.type .creature)) .many))
 theorem okAnointerOfValor : Ability.check (DRS.ofList []) anointerOfValor = [] := by decide
@@ -118,12 +118,12 @@ def prologueToPhyresis : Action :=
   putCounters (.lit 1) (printedKind (.named "poison")) eachOpponent .many
 theorem okPrologueToPhyresis : Action.check (DRS.ofList []) prologueToPhyresis = [] := by decide
 def screechingScorchbeast : Ability :=
-  whenever (does (actor thisCreature) attack) (putCounters (.lit 2)
+  whenever (does thisCreature attack) (putCounters (.lit 2)
                                                  (printedKind
                                                     (.named "radCounter")) eachPlayer .many)
 theorem okScreechingScorchbeast : Ability.check (DRS.ofList []) screechingScorchbeast = [] := by decide
 def merenOfClanNelToth : Ability :=
-  whenever (does (actor (a ((and [isCreature, youControl, otherThan thisCreature])))) die)
+  whenever (does (a ((and [isCreature, youControl, otherThan thisCreature]))) die)
     (putCounters (.lit 1) (printedKind (.named "experience")) you .many)
 theorem okMerenOfClanNelToth : Ability.check (DRS.ofList []) merenOfClanNelToth = [] := by decide
 def kratosStoicFather : Ability :=
@@ -146,7 +146,7 @@ def furiousSpinesplitter : Ability :=
 theorem okFuriousSpinesplitter : Ability.check (DRS.ofList []) furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
   triggeredIf (beginningOfPossessed .upkeep eachPlayer)
-    (happened (loseLife anyAmount) (actor you) lastTurn) (putCounters (.lit 1) (printedKind
+    (happened (loseLife anyAmount) you lastTurn) (putCounters (.lit 1) (printedKind
       p1p1Counter) thisCreature .many)
 theorem okPaladinOfAtonement : Ability.check (DRS.ofList []) paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
@@ -155,7 +155,7 @@ def throneWarden : Ability :=
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okThroneWarden : Ability.check (DRS.ofList []) throneWarden = [] := by decide
 def bloodTyrant : Ability :=
-  whenever (does (actor (a isPlayer)) loseGame) (putCounters (.lit 5) (printedKind p1p1Counter) thisCreature .many)
+  whenever (does (a isPlayer) loseGame) (putCounters (.lit 5) (printedKind p1p1Counter) thisCreature .many)
 theorem okBloodTyrant : Ability.check (DRS.ofList []) bloodTyrant = [] := by decide
 
 def stagBeetle : Spelled := spelled <| .singleFaced
@@ -215,9 +215,9 @@ def curseOfVengeance : Spelled := spelled <| .singleFaced
       subtypes := [aura, curse],
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
-          whenever (does (actor (enchanted .player)) (procedure .cast ((a isSpell)) itsOwnCost))
+          whenever (does (enchanted .player) (procedure .cast ((a isSpell)) itsOwnCost))
             (putCounters (.lit 1) (printedKind (.named "spiteCounter")) thisAura .many),
-          when (does (actor (enchanted .player)) loseGame)
+          when (does (enchanted .player) loseGame)
             (sequentially
               [ gainLife (letter .x), draw (letter .x),
                 define .x (countersOn (.named "spiteCounter") thisAura) ]) ] } }
@@ -228,7 +228,7 @@ def passagewaySeer : Spelled := spelled <| .singleFaced
       subtypes := [tiefling, warlock],
       text :=
         [ lifelink,
-          when (does (actor thisCreature) enter) (gainDesignation you (.named "initiative")),
+          when (does thisCreature enter) (gainDesignation you (.named "initiative")),
           triggeredIf (beginningOfYour .endStep)
             (matches_ you (hasDesignation (.named "initiative")))
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
@@ -239,9 +239,9 @@ def chainsaw : Spelled := spelled <| .singleFaced
     { name := "Chainsaw", cost := some [generic 1, pip .red], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ when (does (actor thisEquipment) enter)
+        [ when (does thisEquipment enter)
             (instruct it (dealDamage (.lit 3) (targets (upTo 1) isCreature) .noncombatOnly)),
-          whenever (does (actor (counted (atLeast 1) isCreature)) die)
+          whenever (does (counted (atLeast 1) isCreature) die)
             (putCounters (.lit 1) (printedKind (.named "revCounter")) thisEquipment .many),
           static (conjunction [ getsPt (equipped (.type .creature)) (up (letter .x)) (up (.lit 0)),
               letterDefinition .x (countersOn (.named "revCounter") thisEquipment) ]),
@@ -261,7 +261,7 @@ def woodlandChampion : Spelled := spelled <| .singleFaced
     { name := "Woodland Champion", cost := some [generic 1, pip .green], types := [.creature],
       subtypes := [elf, scout],
       text :=
-        [ whenever (does (actor (counted (atLeast 1) (and [isToken, youControl]))) enter)
+        [ whenever (does (counted (atLeast 1) (and [isToken, youControl])) enter)
             (putCounters groupSize (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -312,7 +312,7 @@ def foeLiage : Spelled := spelled <| .singleFaced
     { name := "Foe-liage", cost := some [generic 3, pip .green], types := [.creature],
       subtypes := [plant, mutant],
       text :=
-        [ triggeredOnlyDuring (does (actor (a isLand)) enter) (duringPart .turn (some you))
+        [ triggeredOnlyDuring (does (a isLand) enter) (duringPart .turn (some you))
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -348,7 +348,7 @@ def doublingSeason : Spelled := spelled <| .singleFaced
 /-- Doc Samson, Super Psychiatrist -/
 def docSamsonDistributive : Ability :=
   static (instead
-            (would (actor you)
+            (would you
                (putCounters anyAmount anyKind (a (and [isPermanent, youControl])) .many
                   false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters (that .permanent)
                              .many))
@@ -382,7 +382,7 @@ def captainMarvelSameKinds : Ability :=
 theorem okCaptainMarvelSameKinds : Ability.check (DRS.ofList []) captainMarvelSameKinds = [] := by decide
 /-- Denry Klin, Editor in Chief -/
 def denryKlinSameKinds : Ability :=
-  triggeredIf (does (actor (a (and [isNontoken, and [isCreature, youControl]]))) enter)
+  triggeredIf (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
     (matches_ thisCreature hasCounter)
     (putCounters (.lit 1) (sameKindAs thisCreature) (that (.type .creature)) .many)
 theorem okDenryKlinSameKinds : Ability.check (DRS.ofList []) denryKlinSameKinds = [] := by decide
@@ -415,7 +415,7 @@ def starPupil : Spelled := spelled <| .singleFaced
       subtypes := [human, wizard],
       text :=
         [ static (entersWithCounters thisCreature (.lit 1) p1p1Counter),
-          when (does (actor thisCreature) die) (putCounters (.lit 1) (sameKindAs it) (target (and [isCreature, youControl])) .many) ],
+          when (does thisCreature die) (putCounters (.lit 1) (sameKindAs it) (target (and [isCreature, youControl])) .many) ],
       power := stat 0, toughness := stat 0 } }
 
 /-- Tromell, Seymour's Butler -/
@@ -497,7 +497,7 @@ def patrollingPeacemaker : Spelled := spelled <| .singleFaced
       types := [.artifact, .creature], subtypes := [robot, soldier],
       text :=
         [ static (entersWithCounters thisCreature (.lit 2) p1p1Counter),
-          whenever (does (actor anOpponent) commitCrime) proliferate ],
+          whenever (does anOpponent commitCrime) proliferate ],
       power := stat 0, toughness := stat 0 } }
 
 /-- Galloping Lizrog -/
@@ -507,7 +507,7 @@ def gallopingLizrog : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [frog, lizard],
       text :=
         [ trample,
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (may
               (removeCounters anyNumber (some (printedKind p1p1Counter)) (among (allOf (and [isCreature, youControl]))) .many true)
               (some (putCounters (times (.lit 2) removedThisWay) (printedKind p1p1Counter) thisCreature .many))) ],
@@ -574,7 +574,7 @@ def agelessEntity : Spelled := spelled <| .singleFaced
     { name := "Ageless Entity", cost := some [generic 3, pip .green, pip .green], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ whenever (does (actor you) (gainLife anyAmount))
+        [ whenever (does you (gainLife anyAmount))
             (putCounters thatMuch (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -610,7 +610,7 @@ def keldonWarcaller : Spelled := spelled <| .singleFaced
     { name := "Keldon Warcaller", cost := some [generic 1, pip .red], types := [.creature],
       subtypes := [human, warrior],
       text :=
-        [ whenever (does (actor thisCreature) attack)
+        [ whenever (does thisCreature attack)
             (putCounters (.lit 1) (printedKind (.named "loreCounter"))
               (target (and [hasSubtype saga, youControl])) .many) ],
       power := stat 2, toughness := stat 2 } }
@@ -704,7 +704,7 @@ def oonasBlackguard : Spelled := spelled <| .singleFaced
                           otherThan thisCreature ]))
             (.lit 1) p1p1Counter),
           whenever
-            (does (actor (a (and [isCreature, youControl, hasCounter (some p1p1Counter)])))
+            (does (a (and [isCreature, youControl, hasCounter (some p1p1Counter)]))
                (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (discard (a (cardIn (handOf (that .player))))) ],
       power := stat 1, toughness := stat 1 } }
@@ -721,7 +721,7 @@ def hunterOfEyeblights : Spelled := spelled <| .singleFaced
     { name := "Hunter of Eyeblights", cost := some [generic 3, pip .black, pip .black],
       types := [.creature], subtypes := [elf, assassin],
       text :=
-        [ when (does (actor thisCreature) enter)
+        [ when (does thisCreature enter)
             (putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, youDontControl])) .many),
           activated (compound [mana [generic 2, pip .black], tapSymbol])
             (destroy (target (and [isCreature, hasCounter]))) ],
@@ -732,7 +732,7 @@ def pridemalkin : Spelled := spelled <| .singleFaced
     { name := "Pridemalkin", cost := some [generic 2, pip .green], types := [.creature],
       subtypes := [cat],
       text :=
-        [ when (does (actor thisCreature) enter)
+        [ when (does thisCreature enter)
             (putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, youControl])) .many),
           static (abilityGrant
             (each (and [isCreature, youControl, hasCounter (some p1p1Counter)]))
@@ -767,7 +767,7 @@ def urborgScavengers : Spelled := spelled <| .singleFaced
     { name := "Urborg Scavengers", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ triggeredOr (does (actor thisCreature) enter) [does (actor thisCreature) attack]
+        [ triggeredOr (does thisCreature enter) [does thisCreature attack]
             (sequentially
               [ exile (target (cardIn graveyard)),
                 putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many ]),
@@ -784,7 +784,7 @@ def sengirVampire : Spelled := spelled <| .singleFaced
       subtypes := [vampire],
       text :=
         [ keyword (.named "flying"),
-          whenever (does (actor (a (and [isCreature, happenedTo (actor thisCreature) (dealDamage anyAmount             (asMarker .permanent (relative .object))) soFarThisTurn]))) die)
+          whenever (does (a (and [isCreature, happenedTo (actor thisCreature) (dealDamage anyAmount             (asMarker .permanent (relative .object))) soFarThisTurn])) die)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -808,7 +808,7 @@ def infernalVessel : Spelled := spelled <| .singleFaced
     { name := "Infernal Vessel", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [human, cleric],
       text :=
-        [ triggeredIf (does (actor thisCreature) die) (not (matches_ it (hasSubtype demon)))
+        [ triggeredIf (does thisCreature die) (not (matches_ it (hasSubtype demon)))
             (sequentially
               [ returnToBattlefieldWithCounters it (ownerOf it) (.lit 2) p1p1Counter,
                 become it { characteristics := { subtypes := [demon] } } none ]) ],
@@ -816,7 +816,7 @@ def infernalVessel : Spelled := spelled <| .singleFaced
 
 /-- Vivien's Talent -/
 def viviensTalentTrigger : Ability :=
-  whenever (does (actor (a (and [isNontoken, and [isCreature, youControl]]))) enter)
+  whenever (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
     (putCounters (.lit 1) (printedKind (.named "loyaltyCounter")) (enchanted (.type .planeswalker))
        .many)
 theorem okViviensTalentTrigger : Ability.check (DRS.ofList []) viviensTalentTrigger = [] := by decide
@@ -835,21 +835,21 @@ theorem okVraskaBetrayalsStingUltimate :
     Action.check (DRS.ofList []) vraskaBetrayalsStingUltimate = [] := by decide
 /-- Vexing Puzzlebox -/
 def vexingPuzzleboxCounters : Ability :=
-  whenever (does (actor you) (rollDice anyAmount .anyDie .many))
+  whenever (does you (rollDice anyAmount .anyDie .many))
     (putCounters (theOutcome .rollResult) (printedKind (.named "chargeCounter")) thisArtifact .many)
 theorem okVexingPuzzleboxCounters : Ability.check (DRS.ofList []) vexingPuzzleboxCounters = [] := by decide
 def spaceFamilyGoblinsonRoll : Ability :=
-  whenever (does (actor you) (rollDice anyAmount .anyDie))
+  whenever (does you (rollDice anyAmount .anyDie))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okSpaceFamilyGoblinsonRoll : Ability.check (DRS.ofList []) spaceFamilyGoblinsonRoll = [] := by decide
 /-- Atomwheel Acrobats -/
 def atomwheelAcrobatsRoll : Ability :=
-  whenever (does (actor you) (rollDice (watch := resultIn (oneThrough 2))))
+  whenever (does you (rollDice (watch := resultIn (oneThrough 2))))
     (putCounters thatMuch (printedKind p1p1Counter) thisCreature .many)
 theorem okAtomwheelAcrobatsRoll : Ability.check (DRS.ofList []) atomwheelAcrobatsRoll = [] := by decide
 /-- Resolute Veggiesaur -/
 def resoluteVeggiesaurThirdDie : Ability :=
-  whenever (nthOccurrence (.nth 3) (does (actor you) (rollDice anyAmount .anyDie)) (some .turn))
+  whenever (nthOccurrence (.nth 3) (does you (rollDice anyAmount .anyDie)) (some .turn))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okResoluteVeggiesaurThirdDie : Ability.check (DRS.ofList []) resoluteVeggiesaurThirdDie = [] := by decide
 /-- Run the Play (Striding Shotcaller's other half) -/
@@ -859,7 +859,7 @@ def runThePlayCounters : Action :=
 theorem okRunThePlayCounters : Action.check (DRS.ofList [letterB .x]) runThePlayCounters = [] := by decide
 /-- Font of Agonies -/
 def fontOfAgoniesTrigger : Ability :=
-  whenever (does (actor you) (pay (perform (loseLife anyAmount)) .once)) (putCounters thatMuch
+  whenever (does you (pay (perform (loseLife anyAmount)) .once)) (putCounters thatMuch
                                                                             (printedKind
                                                                                (.named
                                                                                   "bloodCounter")) thisEnchantment .many)
@@ -874,13 +874,13 @@ def heartOfKiranCrewAltCost : Ability :=
 theorem okHeartOfKiranCrewAltCost : Ability.check (DRS.ofList []) heartOfKiranCrewAltCost = [] := by decide
 /-- Tainted Adversary -/
 def taintedAdversaryOffer : Ability :=
-  when (does (actor thisCreature) enter)
+  when (does thisCreature enter)
     (offerWhen (pay (mana [generic 2, pip .black]) .anyNumberOfTimes)
        (putCounters thatMuch (printedKind p1p1Counter) thisCreature .many))
 theorem okTaintedAdversaryOffer : Ability.check (DRS.ofList []) taintedAdversaryOffer = [] := by decide
 /-- Korvold, Gleeful Glutton -/
 def korvoldCombatTrigger : Ability :=
-  whenever (does (actor thisCreature) (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
     (sequentially
       [ putCounters (letter .x) (printedKind p1p1Counter) thisCreature .many,
         draw (letter .x),
@@ -892,8 +892,8 @@ def mirelurkQueenTrigger : Ability :=
     (does any (Semantics.Action.ownScope (some (.action "mill"))
       (Semantics.Action.enact (.action "mill")
         (move (Semantics.NounPhrase.inCaller ((counted (atLeast 1) (and [not isLand,
-        in_ (zone .library none)]))))
-          (zone .library none)
+        in_ library]))))
+          library
           (some graveyard) .arrival) none none)))
     oncePerTurn
     (sequentially [draw (.lit 1), putCounters (.lit 1) (printedKind p1p1Counter)
@@ -908,7 +908,7 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
       text :=
         [ keywordQuality (.named "protection") (hasColor .black),
           triggeredIf (beginningOfPossessed .endStep eachPlayer)
-            (happened (dealDamage anyAmount anOpponent) (actor thisCreature) soFarThisTurn)
+            (happened (dealDamage anyAmount anOpponent) thisCreature soFarThisTurn)
             (putCounters (.lit 1) (printedKind p1p1Counter) it .many) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -948,7 +948,7 @@ def thoughtSponge : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flash"),
           static (entersWithCounters thisCreature greatestCardsAnOpponentDrew p1p1Counter),
-          when (does (actor thisCreature) die) (draw (powerOf thisCreature)) ],
+          when (does thisCreature die) (draw (powerOf thisCreature)) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Skeleton Ship -/
@@ -978,7 +978,7 @@ def feralContest : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, youControl])) .many,
-              establishThroughout (must (actor (target (and [isCreature, isOther])))
+              establishThroughout (must (target (and [isCreature, isOther]))
                                      (block it)) thisTurn ]) ] } }
 
 private semantic_template companyRecipient : NounPhrase :=
@@ -992,11 +992,11 @@ def thranduilsCompany : Spelled := spelled <| .singleFaced
     { name := "Thranduil's Company", cost := some [generic 2, pip .green, pip .blue],
       types := [.creature], subtypes := [elf, soldier],
       text :=
-        [ static (onlyWhile (can (actor you) (play (counted (additional (exactly 1)) isLand)))
+        [ static (onlyWhile (can you (play (counted (additional (exactly 1)) isLand)))
             (exists_ (and [ and [isCreature, otherThan thisCreature], hasSubtype elf,
                              youControl ]))),
           abilityWord "landfall"
-            (whenever (does (actor (a (and [isLand, youControl]))) enter)
+            (whenever (does (a (and [isLand, youControl])) enter)
               (sequentially
                 [ putCounters (.lit 2) (printedKind p1p1Counter)
                     companyRecipient .many,
@@ -1037,7 +1037,7 @@ def stonebindersFamiliar : Spelled := spelled <| .singleFaced
 
 /-- Nazgûl -/
 def nazgulRingTrigger : Ability :=
-  whenever (does (actor you) (theRingTemptsYou))
+  whenever (does you (theRingTemptsYou))
     (putCounters (.lit 1) (printedKind p1p1Counter)
       (each (and [hasSubtype wraith, youControl])) .many)
 theorem okNazgulRingTrigger : Ability.check (DRS.ofList []) nazgulRingTrigger = [] := by decide
@@ -1061,11 +1061,11 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Blood Spatter Analysis", cost := some [pip .black, pip .red], types := [.enchantment],
       text :=
-        [ when (does (actor thisEnchantment) enter)
+        [ when (does thisEnchantment enter)
             (instruct thisEnchantment
                (dealDamage (.lit 3) (target (and [isCreature, controlledBy anOpponent]))
                   .noncombatOnly)),
-          whenever (does (actor (counted (atLeast 1) isCreature)) die)
+          whenever (does (counted (atLeast 1) isCreature) die)
             (sequentially
               [ mill (.lit 1) you,
                 putCounters (.lit 1) (printedKind (.named "bloodstainCounter")) thisEnchantment .many,
@@ -1081,14 +1081,14 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          when (does (actor thisAura) enter) (tap (enchanted (.type .creature))),
+          when (does thisAura enter) (tap (enchanted (.type .creature))),
           static (abilityGrant (enchanted (.type .creature))
             (static (instead (would any (setStatus .untapped thisCreature)) (doIfDone
                 (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true)
                 (some (untap thisCreature))) (some (duringPart .untapStep (some you)))))) ] } }
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=
-  triggeredIf (does (actor thisCreature) (attack (some (a isPlayer)))) (not
+  triggeredIf (does thisCreature (attack (some (a isPlayer)))) (not
                                                                           (exists_
                                                                              (and [ isOpponent,
                                  compare .greater (lifeTotalOf (that .player)) (axes := [.playerStat .lifeTotal]) ]))) (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
@@ -1104,8 +1104,8 @@ def bloodlinePretender : Spelled := spelled <| .singleFaced
         [ keyword (.named "changeling"),
           static (entersChoosing thisCreature (.subtype .creature)),
           whenever
-            (does (actor (a (and [ isCreature, youControl, otherThan thisCreature,
-                                ofChosen (.subtype .creature) ]))) enter)
+            (does (a (and [ isCreature, youControl, otherThan thisCreature,
+                                ofChosen (.subtype .creature) ])) enter)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1125,7 +1125,7 @@ def menacingOgre : Spelled := spelled <| .singleFaced
       subtypes := [ogre],
       text :=
         [ trample, haste,
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (sequentially
               [ instruct eachPlayer (choose (disclosure := .secretly) (a (quality .number))),
                 revealChoices .numbers,
@@ -1191,7 +1191,7 @@ def thallid : Spelled := spelled <| .singleFaced
 
 /-- Aether Chaser -/
 def aetherChaserEnergy : Ability :=
-  when (does (actor thisCreature) enter) (putCounters (.lit 2) (printedKind (.named "energy")) you .many)
+  when (does thisCreature enter) (putCounters (.lit 2) (printedKind (.named "energy")) you .many)
 theorem okAetherChaserEnergy : Ability.check (DRS.ofList []) aetherChaserEnergy = [] := by decide
 /-- Archfiend of the Dross -/
 def archfiendOfTheDrossEntersOiled : StaticSpec :=

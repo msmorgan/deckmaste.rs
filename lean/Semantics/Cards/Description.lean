@@ -92,7 +92,7 @@ theorem okBoulderfall : Action.check (DRS.ofList []) boulderfall = [] := by deci
 /-- Banisher Priest -/
 def banisherPriest : Action :=
   exileUntil (target (and [isCreature, controlledBy anOpponent]))
-    (does (actor thisCreature) leave)
+    (does thisCreature leave)
 theorem okBanisherPriest : Action.check (DRS.ofList []) banisherPriest = [] := by decide
 
 /-- Tezzeret, Artifice Master -/
@@ -174,7 +174,7 @@ theorem okCorruptedOpponents : NounPhrase.checkAt (some .player) (DRS.ofList [])
 def warTaxScaledPayment : Action :=
   establishThroughout (gatedBy (scaledGenericMana
         (forEach (letter .x) (and [isCreature, isAttacking,
-            controlledBy they]))) (actor (allOf isCreature)) attack) thisTurn
+            controlledBy they]))) (allOf isCreature) attack) thisTurn
 theorem okWarTaxScaledPayment : Action.check (DRS.ofList [letterB .x]) warTaxScaledPayment = [] := by
   decide
 
@@ -263,10 +263,10 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
                   (and [ isSpell, otherThan
                   «this»,
                              named (printedName
-                               "Approach of the Second Sun") ]))) itsOwnCost) (actor you) thisGame ])
+                               "Approach of the Second Sun") ]))) itsOwnCost) you thisGame ])
             winGame
             (some (sequentially
-              [ move «this» any (some (fromTop 7 (zone .library none))) .arrival, gainLife (.lit 7) ]))) ] } }
+              [ putInto «this» (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
@@ -353,7 +353,7 @@ def roguesGallery : Spelled := spelled <| .singleFaced
                   hand)) ] } }
 
 /-- Bioplasm -/
-def bioplasmAttack : GameEvent := does (actor thisCreature) attack
+def bioplasmAttack : GameEvent := does thisCreature attack
 theorem okBioplasmAttack : GameEvent.check (DRS.ofList []) bioplasmAttack = [] := by decide
 def bioplasmExile : Action := exile (topSlice (.lit 1))
 theorem okBioplasmExile :
@@ -390,7 +390,7 @@ theorem okNongreenSpellsOrAbilities :
 /-- Hot Pursuit -/
 def twoOrMorePlayersHaveLost : Condition :=
   compareAmt (countOf (and
-    [isPlayer, happenedTo (actor (relative .object)) loseGame thisGame])) .atLeast (.lit 2)
+    [isPlayer, happenedTo (relative .object) loseGame thisGame])) .atLeast (.lit 2)
 theorem okTwoOrMorePlayersHaveLost : Condition.check (DRS.ofList []) twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
@@ -405,7 +405,7 @@ theorem okCreatureSpellFromAmongExiled :
     NounPhrase.checkAt (some .object) (DRS.ofList []) creatureSpellFromAmongExiled = [] := by decide
 
 def ringHasTemptedYouTwiceThisGame : Condition :=
-  compareAmt (eventCount (theRingTemptsYou) (actor you) thisGame)
+  compareAmt (eventCount (theRingTemptsYou) you thisGame)
     .atLeast (.lit 2)
 theorem okRingHasTemptedYouTwiceThisGame :
     Condition.check (DRS.ofList []) ringHasTemptedYouTwiceThisGame = [] := by decide
@@ -492,7 +492,7 @@ theorem okIronMastiffIgnore : Action.check (DRS.ofList []) ironMastiffIgnore = [
 
 /-- Xenosquirrels -/
 def xenosquirrelsShift : Ability :=
-  triggered (does (actor you) (rollDice anyAmount .anyDie)) (may
+  triggered (does you (rollDice anyAmount .anyDie)) (may
       (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true)
       (some (shiftResult (.lit 1))))
 theorem okXenosquirrelsShift : Ability.check (DRS.ofList []) xenosquirrelsShift = [] := by decide
@@ -518,7 +518,7 @@ theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOf
 
 /-- Squad Commander -/
 def squadCommanderTokens : Ability :=
-  when (does (actor thisCreature) enter)
+  when (does thisCreature enter)
     (createToken (creatureToken 1 1 [.white] [kor, warrior]) (count := partySize))
 theorem okSquadCommanderTokens : Ability.check (DRS.ofList []) squadCommanderTokens = [] := by decide
 
@@ -527,7 +527,7 @@ def atKnifepointOutlaws : Ability :=
   static (partScope .turn (some you)
             (abilityGrant (allOf (and [isOutlaw, youControl])) firstStrike))
 def atKnifepointCrime : Ability :=
-  triggeredOnlyOnce (does (actor you) commitCrime) oncePerTurn (createToken
+  triggeredOnlyOnce (does you commitCrime) oncePerTurn (createToken
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [mercenary],
           text :=

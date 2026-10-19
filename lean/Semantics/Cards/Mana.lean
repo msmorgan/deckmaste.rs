@@ -93,7 +93,7 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
       text :=
         [ deathtouch,
           keyword (.named "ascend"),
-          triggeredIf (does (actor thisCreature) (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          triggeredIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (matches_ you (hasDesignation (.named "citysBlessing")))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
@@ -112,8 +112,8 @@ def tocasiasWelcome : Spelled := spelled <| .singleFaced
     { name := "Tocasia's Welcome", cost := some [generic 2, pip .white], types := [.enchantment],
       text :=
         [ triggeredOnlyOnce
-            (does (actor (counted (atLeast 1) (and [isCreature, youControl,
-                                                 hasManaValue .atMost (.lit 3)]))) enter)
+            (does (counted (atLeast 1) (and [isCreature, youControl,
+                                                 hasManaValue .atMost (.lit 3)])) enter)
             oncePerTurn (draw (.lit 1)) ] } }
 
 def duskLegionDuelist : Spelled := spelled <| .singleFaced
@@ -184,7 +184,7 @@ def ragingRavine : Spelled := spelled <| .singleFaced
                     { colors := [.red, .green], types := [.creature],
                       subtypes := [elemental],
                       text :=
-                        [ whenever (does (actor thisCreature) attack)
+                        [ whenever (does thisCreature attack)
                             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
                       power := stat 3, toughness := stat 3 } }
                   (some .land))) untilEndOfTurn) ] } }
@@ -243,7 +243,7 @@ def mishrasWorkshop : Spelled := spelled <| .singleFaced
               [spendOnly [toCast (and [isArtifact, isSpell])]]) ] } }
 
 def boommobile : Ability :=
-  when (does (actor thisArtifact) enter)
+  when (does thisArtifact enter)
     (addMana (.lit 4) (ofAnyColor .sameColor) [spendOnly [toActivate none]])
 theorem okBoommobile : Ability.check (DRS.ofList []) boommobile = [] := by decide
 
@@ -424,7 +424,7 @@ def theFlux : Spelled := spelled <| .singleFaced
           when (chapterMark [2, 3, 4, 5])
             (sequentially
               [ exile (topSlice (.lit 1)),
-                establishThroughout (can (actor you) (play (that .card))) thisTurn ]),
+                establishThroughout (can you (play (that .card))) thisTurn ]),
           when (chapterMark [6]) (addMana (.lit 6) (manaOf [[.of .red]])) ] } }
 
 def dragonstormGlobe : Spelled := spelled <| .singleFaced
@@ -615,7 +615,7 @@ def secretsOfTheDead : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Secrets of the Dead", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (does (actor you) (procedure .cast ((a
+        [ whenever (does you (procedure .cast ((a
           (and [isSpell, castFrom yourGraveyard]))) itsOwnCost))
             (draw (.lit 1)) ] } }
 
@@ -624,7 +624,7 @@ def coalStoker : Spelled := spelled <| .singleFaced
     { name := "Coal Stoker", cost := some [generic 3, pip .red], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ triggeredIf (does (actor thisCreature) enter) (matches_ it (castFrom yourHand))
+        [ triggeredIf (does thisCreature enter) (matches_ it (castFrom yourHand))
             (addMana (.lit 1) (manaOf [[.of .red, .of .red, .of .red]])) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -635,7 +635,7 @@ def vegaTheWatcher : Spelled := spelled <| .singleFaced
       subtypes := [bird, spirit],
       text :=
         [ keyword (.named "flying"),
-          whenever (does (actor you) (procedure .cast ((a
+          whenever (does you (procedure .cast ((a
             (and [isSpell, not
             (castFrom yourHand)]))) itsOwnCost))
             (draw (.lit 1)) ],
@@ -742,7 +742,7 @@ theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = 
 
 /-- Hibernation's End -/
 def hibernationsEndTrigger : Ability :=
-  whenever (does (actor you) (pay anyCost .once .paid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
+  whenever (does you (pay anyCost .once .paid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
     (may
       (sequentially
         [ searchLibraryFor (exactly 1)
@@ -759,7 +759,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
       text :=
         [ keyword (.named "flying"),
           keywordCosting (.named "prowl") (mana [generic 2, pip .blue]),
-          triggeredIf (does (actor thisCreature) enter) (keywordCostPaid (.named "prowl")
+          triggeredIf (does thisCreature enter) (keywordCostPaid (.named "prowl")
                                                            thisCreature)
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 1 } }
@@ -784,7 +784,7 @@ def militaryIntelligence : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Military Intelligence", cost := some [generic 1, pip .blue], types := [.enchantment],
       text :=
-        [ whenever (does (actor you) (attackWith (counted (atLeast 2) isCreature))) (draw (.lit 1)) ] } }
+        [ whenever (does you (attackWith (counted (atLeast 2) isCreature))) (draw (.lit 1)) ] } }
 
 /-- Jem Lightfoote, Sky Explorer -/
 def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
@@ -798,7 +798,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
           triggeredIf (beginningOfYour .endStep)
             (not
                (happened (procedure .cast (((a isSpell))) itsOwnCost none (some yourHand))
-                  (actor you) soFarThisTurn))
+                  you soFarThisTurn))
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -809,7 +809,7 @@ def gnarlbackRhino : Spelled := spelled <| .singleFaced
       subtypes := [rhino],
       text :=
         [ trample,
-          whenever (does (actor you) (procedure .cast ((a
+          whenever (does you (procedure .cast ((a
             (and [isSpell, targeting thisCreature
             .someTarget]))) itsOwnCost))
             (draw (.lit 1)) ],
@@ -821,7 +821,7 @@ def prismariPianist : Spelled := spelled <| .singleFaced
     { name := "Prismari Pianist", cost := some [generic 1, pip .red, pip .red], types := [.creature],
       subtypes := [djinn, bard],
       text :=
-        [ whenever (does (actor you) (procedure .cast ((a
+        [ whenever (does you (procedure .cast ((a
           (and [isInstantOrSorcery, isSpell]))) itsOwnCost))
             (replace
               (createToken (creatureToken 1 1 [.blue, .red] [elemental]))
@@ -838,7 +838,7 @@ def collectedCompany : Spelled := spelled <| .singleFaced
             [ lookAt (topSlice (.lit 6)),
               putOntoBattlefield (fromAmong (upTo 2)
                                     (and [isCreature, hasManaValue .atMost (.lit 3)]) them),
-              move (theRest .object) any (some onBottom) .arrival none [(inOrder .anyOrder)] ]) ] } }
+              putInto (theRest .object) onBottom (riders := [(inOrder .anyOrder)]) ]) ] } }
 
 /-- Soldevi Adnate -/
 def soldeviAdnate : Spelled := spelled <| .singleFaced
@@ -860,13 +860,13 @@ def deliveryMoogle : Spelled := spelled <| .singleFaced
       subtypes := [moogle],
       text :=
         [ keyword (.named "flying"),
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (sequentially
               [ searchLibraryOrGraveyard (and [isArtifact, hasManaValue .atMost (.lit 2)]),
                 reveal it,
                 putInto it hand,
                 doIf (happenedThisWay (searchLibraryFor anyNumber (and []))
-                        (actor you)) shuffle ]) ],
+                        you) shuffle ]) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Heart of Yavimaya -/
@@ -898,8 +898,8 @@ def upTheBeanstalk : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Up the Beanstalk", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
-        [ triggeredJoined (does (actor «this») enter)
-            [joinedHead (does (actor you) (procedure .cast ((a
+        [ triggeredJoined (does «this» enter)
+            [joinedHead (does you (procedure .cast ((a
               (and [isSpell, hasManaValue .atLeast (.lit 5)]))) itsOwnCost))]
             (draw (.lit 1)) ] } }
 
@@ -946,7 +946,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           static (entersChoosing thisCreature .number),
           whenever
-            (does (actor anOpponent) (procedure .cast ((a (and [isSpell,
+            (does anOpponent (procedure .cast ((a (and [isSpell,
                         compare .eq chosenNumber (axes := [.stat .manaValue, .stat .power, .stat
                           .toughness])]))) itsOwnCost))
             (sequentially [instruct (that .player) (loseLife (.lit 2)), draw (.lit 1)]) ],
@@ -1008,7 +1008,7 @@ theorem okThranTurbineMana : Action.check (DRS.ofList []) thranTurbineMana = [] 
 
 /-- Su-Chi Cave Guard -/
 def suChiCaveGuardDies : Ability :=
-  when (does (actor thisCreature) die)
+  when (does thisCreature die)
     (sequentially
       [ addMana (.lit 1)
           (manaOf [[.colorless, .colorless, .colorless, .colorless,
@@ -1032,7 +1032,7 @@ def manaFlare : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mana Flare", cost := some [generic 2, pip .red], types := [.enchantment],
       text :=
-        [ whenever (does (actor (a isPlayer)) (tapForMana (a isLand)))
+        [ whenever (does (a isPlayer) (tapForMana (a isLand)))
             (instruct (that .player) (addMana (.lit 1) (ofTypeProducedBy (that (.type .land)))))
                 ] } }
 

@@ -332,7 +332,7 @@ def aggressiveMining : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aggressive Mining", cost := some [generic 3, pip .red], types := [.enchantment],
       text :=
-        [ static (cant (actor you) (play (allOf isLand))),
+        [ static (cant you (play (allOf isLand))),
           activatedOnlyOnce (perform (sacrifice (a isLand))) (draw (.lit 2)) oncePerTurn ] } }
 
 def rootGreevil : Spelled := spelled <| .singleFaced
@@ -658,7 +658,7 @@ def wickedAkuba : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ activated (mana [pip .black])
-            (instruct (target (and [isPlayer, happenedTo (actor thisCreature) (dealDamage anyAmount (relative .player)) soFarThisTurn])) (loseLife
+            (instruct (target (and [isPlayer, happenedTo thisCreature (dealDamage anyAmount (relative .player)) soFarThisTurn])) (loseLife
               (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -667,7 +667,7 @@ def idolOfOblivion : Spelled := spelled <| .singleFaced
     { name := "Idol of Oblivion", cost := some [generic 2], types := [.artifact],
       text :=
         [ activatedOnlyIf tapSymbol (draw (.lit 1))
-            (happened (createObject anyAmount (token (copyOf (a isToken)) []) false) (actor you) soFarThisTurn),
+            (happened (createObject anyAmount (token (copyOf (a isToken)) []) false) you soFarThisTurn),
           activated (compound [mana [generic 8], tapSymbol, perform (sacrifice thisArtifact)])
             (createToken (creatureToken 10 10 [] [eldrazi])) ] } }
 
@@ -690,8 +690,7 @@ def shatteredEgo : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           static (getsPt (enchanted (.type .creature)) (down (.lit 3)) (down (.lit 0))),
           activated (mana [generic 3, pip .blue, pip .blue])
-            (move (enchanted (.type .creature)) any (some (fromTop 3 (zone .library none)))
-               .arrival) ] } }
+            (putInto (enchanted (.type .creature)) (fromTop 3 library)) ] } }
 
 def shuFarmer : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -709,7 +708,7 @@ def elspethsTalent : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isPlaneswalker,
           static elspethsTalentGrant,
-          whenever (does (actor you) (procedure .activate loyaltyAbilityOfEnchanted itsOwnCost))
+          whenever (does you (procedure .activate loyaltyAbilityOfEnchanted itsOwnCost))
             (establishThroughout
                (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 2)) (up
                       (.lit 2)),
@@ -742,7 +741,7 @@ theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonRetur
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=
   activated (compound [mana [generic 1], tapSymbol])
-    (replaceNextEvent (would (actor (target isPlayer)) (rollDice anyAmount .anyDie .many))
+    (replaceNextEvent (would (target isPlayer) (rollDice anyAmount .anyDie .many))
       (sequentially
         [ instruct they (rollDice (plus thatMuch (.lit 1)) .thoseDice .many .anyResult),
           ignoreOutcomes (chosenResults (some you) (.lit 1)) ])
@@ -856,7 +855,7 @@ def embercleave : Spelled := spelled <| .singleFaced
         [ keyword (.named "flash"),
           static (costShift «this»
             (less (forEach (.lit 1) (and [isCreature, isAttacking, youControl])))),
-          when (does (actor thisEquipment) enter) (attachTo it (target (and [isCreature, youControl]))),
+          when (does thisEquipment enter) (attachTo it (target (and [isCreature, youControl]))),
           static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit
                 1)) (up
                   (.lit 1)),
@@ -924,7 +923,7 @@ def academyJourneymage : Spelled := spelled <| .singleFaced
       text :=
         [ static (onlyIfSo (costShift «this» (less (.lit 1)))
             (exists_ (and [hasSubtype wizard, youControl]))),
-          when (does (actor thisCreature) enter)
+          when (does thisCreature enter)
             (putInto (target (and [isCreature, controlledBy anOpponent])) hand) ],
       power := stat 3, toughness := stat 2 } }
 
@@ -1028,8 +1027,8 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
         [ keyword (.named "flying"),
           static (spellsCost (and [hasSubtype sphinx, isSpell, castBy you]) (less (.lit 2))),
           whenever
-            (does (actor (eitherOf thisCreature
-              (a (and [hasSubtype sphinx, youControl, otherThan thisCreature])))) enter)
+            (does (eitherOf thisCreature
+              (a (and [hasSubtype sphinx, youControl, otherThan thisCreature]))) enter)
             (sequentially
               [ reveal (topSlice (.lit 4)),
                 instruct anOpponent (separateIntoPiles them 2),

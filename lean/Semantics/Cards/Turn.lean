@@ -58,14 +58,14 @@ theorem okKjeldoranFrostbeast : Ability.check (DRS.ofList []) kjeldoranFrostbeas
 
 /-- Tippy-Toe, Terrific Partner -/
 def tippyToe : Ability :=
-  triggeredIf (beginningOfYour .endStep) (happened (gainLife anyAmount) (actor you) soFarThisTurn)
+  triggeredIf (beginningOfYour .endStep) (happened (gainLife anyAmount) you soFarThisTurn)
     (draw (.lit 1))
 theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
   abilityWord "raid"
     (triggeredIf (beginningOfYour .postcombatMain)
-      (happened attack (actor you) soFarThisTurn)
+      (happened attack you soFarThisTurn)
       (exile (topSlice (.lit 1))))
 theorem okBrazenCannonade : Ability.check (DRS.ofList []) brazenCannonade = [] := by decide
 
@@ -222,7 +222,7 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ setStatus .untapped
-                (allOf (and [isCreature, happenedTo (actor (asMarker .permanent (relative .object))) attack soFarThisTurn])),
+                (allOf (and [isCreature, happenedTo (asMarker .permanent (relative .object)) attack soFarThisTurn])),
               additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ]) ] } }
 
 def fullThrottleFirstLine : Action := additionalPhase .combat (some .mainPhase) (.lit 2)
@@ -250,7 +250,7 @@ def obekaSplitterOfSeconds : Spelled := spelled <| .singleFaced
       subtypes := [ogre, warlock],
       text :=
         [ keyword (.named "menace"),
-          whenever (does (actor thisCreature) (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (additionalStep .upkeep none thatMuch) ],
       power := stat 2, toughness := stat 5 } }
 
@@ -277,7 +277,7 @@ def ritesOfFlourishing : Spelled := spelled <| .singleFaced
       text :=
         [ at_ (beginningOfPossessed .drawStep eachPlayer)
             (instruct (that .player) (draw (.lit 1))),
-          static (can (actor eachPlayer) (play (counted (additional (exactly 1)) isLand))
+          static (can eachPlayer (play (counted (additional (exactly 1)) isLand))
             (timing := some onEachOfTheirTurns)) ] } }
 
 def odricLunarchMarshal : Spelled := spelled <| .singleFaced
@@ -328,7 +328,7 @@ def chainVeilEndStep : Ability :=
   triggeredIf (beginningOfYour .endStep)
     (not (happened (procedure .activate (a
       (and [abilityHead .loyalty,
-      abilityOf (a isPlaneswalker)])) itsOwnCost) (actor you) soFarThisTurn))
+      abilityOf (a isPlaneswalker)])) itsOwnCost) you soFarThisTurn))
     (loseLife (.lit 2))
 theorem okChainVeilEndStep : Ability.check (DRS.ofList []) chainVeilEndStep = [] := by decide
 
@@ -354,7 +354,7 @@ def centaurOfAttention : Spelled := spelled <| .singleFaced
     { name := "Centaur of Attention", cost := some [generic 3, pip .green, pip .green],
       types := [.creature], subtypes := [centaur, performer],
       text :=
-        [ when (does (actor thisCreature) enter)
+        [ when (does thisCreature enter)
             (sequentially [rollDice (.lit 5) (.sides 6), storeResults thisCreature]),
           at_ (beginningOfYour .combat)
             (may (rerollStored anyNumber thisCreature)),
@@ -513,7 +513,7 @@ def berserk : Spelled := spelled <| .singleFaced
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that (.type .creature)))
-                    (happened attack (actor (that
-                      (.type .creature))) soFarThisTurn)) ]) (timing := (some (beforePart .combatDamage none))) ] } }
+                    (happened attack (that
+                      (.type .creature)) soFarThisTurn)) ]) (timing := (some (beforePart .combatDamage none))) ] } }
 
 end Semantics.Cards
