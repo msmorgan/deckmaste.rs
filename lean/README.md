@@ -49,7 +49,7 @@ longer apply to the native v3 workbench.
 The syntax modules are `Words`, `Events`, `Abilities`, `Card`, and `Rules`;
 `Primitives` wraps their constructors, `Templates` holds the transparent phrasings, and
 `Definitions` the rules-defined vocabulary (keyword actions and abilities, counters, tokens and
-designations), followed by the few templates written over it. A constructor earns its place through an obligation or structural
+designations), with the few templates written over it. A constructor earns its place through an obligation or structural
 distinction its expansion would not carry. Common phrasings live in `Templates`:
 for example, "permanent", "colorless", "historic", "spell" and "attacking" expand into
 shared predicates.

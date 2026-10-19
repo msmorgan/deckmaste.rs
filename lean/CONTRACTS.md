@@ -117,7 +117,9 @@ characteristic inputs. `NounPhrase.pro` and `NounPhrase.which` have no
 primitive wrapper: they are expansion carriers (`internal_expansion`) that only
 templates and definitions write. `Semantics.Templates` holds every
 `semantic_template`; `Semantics.Definitions` holds every `semantic_definition`
-and, in its last section, the few templates whose bodies need a definition.
+and the few templates whose bodies need a definition: its leaf catalogs (counters,
+designations, relations, subtypes, turn parts) come first, the templates over its actions
+follow the actions, and a keyword's licensed phrasings follow the keyword.
 Defaults retain their calls.
 
 A declaration generates the hidden construction context, splice closures, and

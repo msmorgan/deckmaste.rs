@@ -620,4 +620,13 @@ theorem okExchangeTextBoxes :
         none) = [] := by
   decide
 
+/-- "Whenever one or more nonland cards are milled": the mill whose patient is a card
+description [CR#701.17c]. -/
+theorem okMillCardsEvent :
+    GameEvent.check (DRS.ofList []) (does any (millCards (bare (and [isCard, non isLand])))) = [] := by
+  decide
+
+/-- "Flip this creature" [CR#710.1a]. -/
+theorem okFlip : Action.check (DRS.ofList []) (flip thisCreature) = [] := by decide
+
 end Semantics.Proofs.Zone

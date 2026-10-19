@@ -376,4 +376,8 @@ theorem badThatAbilityWithoutChoice :
       = [.choiceRef .theChoice (.quality .ability) 0] := by
   decide
 
+/-- "Hexproof from black": a hexproof ability with a quality [CR#702.11d]. -/
+theorem okHexproofFrom : Ability.check (DRS.ofList []) (hexproofFrom (hasColor .black)) = [] := by
+  decide
+
 end Semantics.Proofs.Keyword

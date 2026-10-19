@@ -13,33 +13,6 @@ namespace Semantics.Definitions
 
 open Semantics.Templates
 
-/-! ## Attach, create, and counter -/
-
-/-- "attach <subject> to <host>" (`Definition`, [CR#701.3a]). -/
-semantic_definition attachTo (subject host : NounPhrase) : Action :=
-  .ownScope (some (.action "attach"))
-    (.enact (.action "attach")
-      (.attachment .attached (.inCaller (.firstMention "attachTo.subject" subject))
-        (some (.inCaller (.firstMention "attachTo.host" host))))
-      none none)
-/-- "create <count> <token> [riders]": the tokens are put onto the battlefield, entering under
-their creator's control (`Definition`, [CR#701.7a,111.2]). -/
-semantic_definition create (count : Amount) (token : TokenSpec) (riders : List MoveRider := []) :
-    Action :=
-  .ownScope (some (.action "create"))
-    (.enact (.action "create")
-      (.createObject (.inCaller count) (.token (.inCaller token) (riders.map MoveRider.inCaller))
-        true none)
-      none none)
-/-- "counter <subject>": one labeled stack-to-graveyard move (`Definition`, [CR#701.6a]). -/
-semantic_definition counter (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "counter"))
-    (.enact (.action "counter")
-      (.move (.inCaller (.firstMention "counter.subject" subject)) (.zone .stack none)
-        (some (.zone .graveyard none))
-        .arrival none [])
-      none none)
-
 /-! ## Counters -/
 
 /-- A counter declaration's name read as its kind (`CounterKind.named`), so a bare
@@ -263,6 +236,549 @@ semantic_definition wageCounter : CounterKind := .named "wageCounter"
 semantic_definition winchCounter : CounterKind := .named "winchCounter"
 semantic_definition windCounter : CounterKind := .named "windCounter"
 semantic_definition wishCounter : CounterKind := .named "wishCounter"
+
+/-! ## Designations -/
+
+semantic_definition citysBlessing : DesignationLabel := .named "citysBlessing"
+semantic_definition commander : DesignationLabel := .named "commander"
+/-- Day and night, the designations the game itself holds, exactly one once either is held
+[CR#731.1]. -/
+semantic_definition day : DesignationLabel := .named "day"
+semantic_definition night : DesignationLabel := .named "night"
+semantic_definition enduringStory : DesignationLabel := .named "enduringStory"
+semantic_definition goaded : DesignationLabel := .named "goaded"
+semantic_definition harnessed : DesignationLabel := .named "harnessed"
+semantic_definition initiative : DesignationLabel := .named "initiative"
+semantic_definition leftHalfUnlocked : DesignationLabel := .named "leftHalfUnlocked"
+semantic_definition level : DesignationLabel := .named "level"
+semantic_definition monarch : DesignationLabel := .named "monarch"
+semantic_definition monstrous : DesignationLabel := .named "monstrous"
+semantic_definition prepared : DesignationLabel := .named "prepared"
+semantic_definition renowned : DesignationLabel := .named "renowned"
+semantic_definition rightHalfUnlocked : DesignationLabel := .named "rightHalfUnlocked"
+semantic_definition ringBearer : DesignationLabel := .named "ringBearer"
+semantic_definition saddled : DesignationLabel := .named "saddled"
+semantic_definition DesignationLabel.solved : DesignationLabel := .named "solved"
+semantic_definition suspected : DesignationLabel := .named "suspected"
+
+/-! ## Relations -/
+
+semantic_definition encodedOn : RelationLabel := .named "encodedOn"
+semantic_definition haunting : RelationLabel := .named "haunting"
+semantic_definition paired : RelationLabel := .named "paired"
+
+/-! ## Subtypes -/
+
+semantic_definition blood : Subtype := artifactType "Blood"
+semantic_definition bobblehead : Subtype := artifactType "Bobblehead"
+semantic_definition book : Subtype := artifactType "Book"
+semantic_definition clue : Subtype := artifactType "Clue"
+semantic_definition contraption : Subtype := artifactType "Contraption"
+semantic_definition equipment : Subtype := artifactType "Equipment"
+semantic_definition food : Subtype := artifactType "Food"
+semantic_definition fortification : Subtype := artifactType "Fortification"
+semantic_definition gold : Subtype := artifactType "Gold"
+semantic_definition incubator : Subtype := artifactType "Incubator"
+semantic_definition Subtype.infinity : Subtype := artifactType "Infinity"
+semantic_definition junk : Subtype := artifactType "Junk"
+semantic_definition lander : Subtype := artifactType "Lander"
+semantic_definition map : Subtype := artifactType "Map"
+semantic_definition mutagen : Subtype := artifactType "Mutagen"
+semantic_definition powerstone : Subtype := artifactType "Powerstone"
+semantic_definition spacecraft : Subtype := artifactType "Spacecraft"
+semantic_definition stone : Subtype := artifactType "Stone"
+semantic_definition treasure : Subtype := artifactType "Treasure"
+semantic_definition vehicle : Subtype := artifactType "Vehicle"
+semantic_definition vibranium : Subtype := artifactType "Vibranium"
+semantic_definition siege : Subtype := .of .battle "Siege"
+semantic_definition advisor : Subtype := creatureType "Advisor"
+semantic_definition aetherborn : Subtype := creatureType "Aetherborn"
+semantic_definition alien : Subtype := creatureType "Alien"
+semantic_definition ally : Subtype := creatureType "Ally"
+semantic_definition angel : Subtype := creatureType "Angel"
+semantic_definition antelope : Subtype := creatureType "Antelope"
+semantic_definition ape : Subtype := creatureType "Ape"
+semantic_definition archer : Subtype := creatureType "Archer"
+semantic_definition archon : Subtype := creatureType "Archon"
+semantic_definition armadillo : Subtype := creatureType "Armadillo"
+semantic_definition artificer : Subtype := creatureType "Artificer"
+semantic_definition assassin : Subtype := creatureType "Assassin"
+semantic_definition assemblyWorker : Subtype := creatureType "Assembly-Worker"
+semantic_definition astartes : Subtype := creatureType "Astartes"
+semantic_definition atog : Subtype := creatureType "Atog"
+semantic_definition aurochs : Subtype := creatureType "Aurochs"
+semantic_definition avatar : Subtype := creatureType "Avatar"
+semantic_definition azra : Subtype := creatureType "Azra"
+semantic_definition badger : Subtype := creatureType "Badger"
+semantic_definition balloon : Subtype := creatureType "Balloon"
+semantic_definition barbarian : Subtype := creatureType "Barbarian"
+semantic_definition bard : Subtype := creatureType "Bard"
+semantic_definition basilisk : Subtype := creatureType "Basilisk"
+semantic_definition bat : Subtype := creatureType "Bat"
+semantic_definition bear : Subtype := creatureType "Bear"
+semantic_definition beast : Subtype := creatureType "Beast"
+semantic_definition beaver : Subtype := creatureType "Beaver"
+semantic_definition beeble : Subtype := creatureType "Beeble"
+semantic_definition beholder : Subtype := creatureType "Beholder"
+semantic_definition berserker : Subtype := creatureType "Berserker"
+semantic_definition bird : Subtype := creatureType "Bird"
+semantic_definition bison : Subtype := creatureType "Bison"
+semantic_definition blinkmoth : Subtype := creatureType "Blinkmoth"
+semantic_definition boar : Subtype := creatureType "Boar"
+semantic_definition bringer : Subtype := creatureType "Bringer"
+semantic_definition brushwagg : Subtype := creatureType "Brushwagg"
+semantic_definition camarid : Subtype := creatureType "Camarid"
+semantic_definition camel : Subtype := creatureType "Camel"
+semantic_definition capybara : Subtype := creatureType "Capybara"
+semantic_definition caribou : Subtype := creatureType "Caribou"
+semantic_definition carrier : Subtype := creatureType "Carrier"
+semantic_definition cat : Subtype := creatureType "Cat"
+semantic_definition centaur : Subtype := creatureType "Centaur"
+semantic_definition child : Subtype := creatureType "Child"
+semantic_definition chimera : Subtype := creatureType "Chimera"
+semantic_definition citizen : Subtype := creatureType "Citizen"
+semantic_definition cleric : Subtype := creatureType "Cleric"
+semantic_definition clown : Subtype := creatureType "Clown"
+semantic_definition cockatrice : Subtype := creatureType "Cockatrice"
+semantic_definition construct : Subtype := creatureType "Construct"
+semantic_definition coward : Subtype := creatureType "Coward"
+semantic_definition coyote : Subtype := creatureType "Coyote"
+semantic_definition crab : Subtype := creatureType "Crab"
+semantic_definition crocodile : Subtype := creatureType "Crocodile"
+semantic_definition ctan : Subtype := creatureType "C'tan"
+semantic_definition custodes : Subtype := creatureType "Custodes"
+semantic_definition cyberman : Subtype := creatureType "Cyberman"
+semantic_definition cyclops : Subtype := creatureType "Cyclops"
+semantic_definition dalek : Subtype := creatureType "Dalek"
+semantic_definition dauthi : Subtype := creatureType "Dauthi"
+semantic_definition demigod : Subtype := creatureType "Demigod"
+semantic_definition demon : Subtype := creatureType "Demon"
+semantic_definition deserter : Subtype := creatureType "Deserter"
+semantic_definition detective : Subtype := creatureType "Detective"
+semantic_definition devil : Subtype := creatureType "Devil"
+semantic_definition dinosaur : Subtype := creatureType "Dinosaur"
+semantic_definition djinn : Subtype := creatureType "Djinn"
+semantic_definition doctor : Subtype := creatureType "Doctor"
+semantic_definition dog : Subtype := creatureType "Dog"
+semantic_definition dragon : Subtype := creatureType "Dragon"
+semantic_definition drake : Subtype := creatureType "Drake"
+semantic_definition dreadnought : Subtype := creatureType "Dreadnought"
+semantic_definition drix : Subtype := creatureType "Drix"
+semantic_definition drone : Subtype := creatureType "Drone"
+semantic_definition druid : Subtype := creatureType "Druid"
+semantic_definition dryad : Subtype := creatureType "Dryad"
+semantic_definition dwarf : Subtype := creatureType "Dwarf"
+semantic_definition echidna : Subtype := creatureType "Echidna"
+semantic_definition efreet : Subtype := creatureType "Efreet"
+semantic_definition egg : Subtype := creatureType "Egg"
+semantic_definition elder : Subtype := creatureType "Elder"
+semantic_definition eldrazi : Subtype := creatureType "Eldrazi"
+semantic_definition elemental : Subtype := creatureType "Elemental"
+semantic_definition elephant : Subtype := creatureType "Elephant"
+semantic_definition elf : Subtype := creatureType "Elf"
+semantic_definition elk : Subtype := creatureType "Elk"
+semantic_definition employee : Subtype := creatureType "Employee"
+semantic_definition eternal : Subtype := creatureType "Eternal"
+semantic_definition eye : Subtype := creatureType "Eye"
+semantic_definition faerie : Subtype := creatureType "Faerie"
+semantic_definition ferret : Subtype := creatureType "Ferret"
+semantic_definition fish : Subtype := creatureType "Fish"
+semantic_definition flagbearer : Subtype := creatureType "Flagbearer"
+semantic_definition fox : Subtype := creatureType "Fox"
+semantic_definition fractal : Subtype := creatureType "Fractal"
+semantic_definition frog : Subtype := creatureType "Frog"
+semantic_definition fungus : Subtype := creatureType "Fungus"
+semantic_definition gamer : Subtype := creatureType "Gamer"
+semantic_definition gamma : Subtype := creatureType "Gamma"
+semantic_definition gargoyle : Subtype := creatureType "Gargoyle"
+semantic_definition germ : Subtype := creatureType "Germ"
+semantic_definition giant : Subtype := creatureType "Giant"
+semantic_definition giraffe : Subtype := creatureType "Giraffe"
+semantic_definition gith : Subtype := creatureType "Gith"
+semantic_definition glimmer : Subtype := creatureType "Glimmer"
+semantic_definition gnoll : Subtype := creatureType "Gnoll"
+semantic_definition gnome : Subtype := creatureType "Gnome"
+semantic_definition goat : Subtype := creatureType "Goat"
+semantic_definition goblin : Subtype := creatureType "Goblin"
+semantic_definition god : Subtype := creatureType "God"
+semantic_definition golem : Subtype := creatureType "Golem"
+semantic_definition gorgon : Subtype := creatureType "Gorgon"
+semantic_definition graveborn : Subtype := creatureType "Graveborn"
+semantic_definition gremlin : Subtype := creatureType "Gremlin"
+semantic_definition griffin : Subtype := creatureType "Griffin"
+semantic_definition guest : Subtype := creatureType "Guest"
+semantic_definition hag : Subtype := creatureType "Hag"
+semantic_definition halfling : Subtype := creatureType "Halfling"
+semantic_definition hamster : Subtype := creatureType "Hamster"
+semantic_definition harpy : Subtype := creatureType "Harpy"
+semantic_definition hedgehog : Subtype := creatureType "Hedgehog"
+semantic_definition hellion : Subtype := creatureType "Hellion"
+semantic_definition hero : Subtype := creatureType "Hero"
+semantic_definition hippo : Subtype := creatureType "Hippo"
+semantic_definition hippogriff : Subtype := creatureType "Hippogriff"
+semantic_definition homarid : Subtype := creatureType "Homarid"
+semantic_definition homunculus : Subtype := creatureType "Homunculus"
+semantic_definition horror : Subtype := creatureType "Horror"
+semantic_definition horse : Subtype := creatureType "Horse"
+semantic_definition human : Subtype := creatureType "Human"
+semantic_definition hydra : Subtype := creatureType "Hydra"
+semantic_definition hyena : Subtype := creatureType "Hyena"
+semantic_definition illusion : Subtype := creatureType "Illusion"
+semantic_definition imp : Subtype := creatureType "Imp"
+semantic_definition incarnation : Subtype := creatureType "Incarnation"
+semantic_definition inhuman : Subtype := creatureType "Inhuman"
+semantic_definition inkling : Subtype := creatureType "Inkling"
+semantic_definition inquisitor : Subtype := creatureType "Inquisitor"
+semantic_definition insect : Subtype := creatureType "Insect"
+semantic_definition jackal : Subtype := creatureType "Jackal"
+semantic_definition jellyfish : Subtype := creatureType "Jellyfish"
+semantic_definition juggernaut : Subtype := creatureType "Juggernaut"
+semantic_definition kangaroo : Subtype := creatureType "Kangaroo"
+semantic_definition kavu : Subtype := creatureType "Kavu"
+semantic_definition kirin : Subtype := creatureType "Kirin"
+semantic_definition kithkin : Subtype := creatureType "Kithkin"
+semantic_definition knight : Subtype := creatureType "Knight"
+semantic_definition kobold : Subtype := creatureType "Kobold"
+semantic_definition kor : Subtype := creatureType "Kor"
+semantic_definition kraken : Subtype := creatureType "Kraken"
+semantic_definition kree : Subtype := creatureType "Kree"
+semantic_definition lamia : Subtype := creatureType "Lamia"
+semantic_definition lammasu : Subtype := creatureType "Lammasu"
+semantic_definition leech : Subtype := creatureType "Leech"
+semantic_definition lemur : Subtype := creatureType "Lemur"
+semantic_definition leviathan : Subtype := creatureType "Leviathan"
+semantic_definition lhurgoyf : Subtype := creatureType "Lhurgoyf"
+semantic_definition licid : Subtype := creatureType "Licid"
+semantic_definition lizard : Subtype := creatureType "Lizard"
+semantic_definition llama : Subtype := creatureType "Llama"
+semantic_definition lobster : Subtype := creatureType "Lobster"
+semantic_definition manticore : Subtype := creatureType "Manticore"
+semantic_definition masticore : Subtype := creatureType "Masticore"
+semantic_definition mercenary : Subtype := creatureType "Mercenary"
+semantic_definition merfolk : Subtype := creatureType "Merfolk"
+semantic_definition metathran : Subtype := creatureType "Metathran"
+semantic_definition minion : Subtype := creatureType "Minion"
+semantic_definition minotaur : Subtype := creatureType "Minotaur"
+semantic_definition mite : Subtype := creatureType "Mite"
+semantic_definition mole : Subtype := creatureType "Mole"
+semantic_definition monger : Subtype := creatureType "Monger"
+semantic_definition mongoose : Subtype := creatureType "Mongoose"
+semantic_definition monk : Subtype := creatureType "Monk"
+semantic_definition monkey : Subtype := creatureType "Monkey"
+semantic_definition moogle : Subtype := creatureType "Moogle"
+semantic_definition moonfolk : Subtype := creatureType "Moonfolk"
+semantic_definition mount : Subtype := creatureType "Mount"
+semantic_definition mouse : Subtype := creatureType "Mouse"
+semantic_definition mutant : Subtype := creatureType "Mutant"
+semantic_definition myr : Subtype := creatureType "Myr"
+semantic_definition mystic : Subtype := creatureType "Mystic"
+semantic_definition nautilus : Subtype := creatureType "Nautilus"
+semantic_definition necron : Subtype := creatureType "Necron"
+semantic_definition nephilim : Subtype := creatureType "Nephilim"
+semantic_definition nightmare : Subtype := creatureType "Nightmare"
+semantic_definition nightstalker : Subtype := creatureType "Nightstalker"
+semantic_definition ninja : Subtype := creatureType "Ninja"
+semantic_definition noble : Subtype := creatureType "Noble"
+semantic_definition noggle : Subtype := creatureType "Noggle"
+semantic_definition nomad : Subtype := creatureType "Nomad"
+semantic_definition nymph : Subtype := creatureType "Nymph"
+semantic_definition octopus : Subtype := creatureType "Octopus"
+semantic_definition ogre : Subtype := creatureType "Ogre"
+semantic_definition ooze : Subtype := creatureType "Ooze"
+semantic_definition orb : Subtype := creatureType "Orb"
+semantic_definition orc : Subtype := creatureType "Orc"
+semantic_definition orgg : Subtype := creatureType "Orgg"
+semantic_definition otter : Subtype := creatureType "Otter"
+semantic_definition ouphe : Subtype := creatureType "Ouphe"
+semantic_definition ox : Subtype := creatureType "Ox"
+semantic_definition oyster : Subtype := creatureType "Oyster"
+semantic_definition pangolin : Subtype := creatureType "Pangolin"
+semantic_definition peasant : Subtype := creatureType "Peasant"
+semantic_definition pegasus : Subtype := creatureType "Pegasus"
+semantic_definition pentavite : Subtype := creatureType "Pentavite"
+semantic_definition performer : Subtype := creatureType "Performer"
+semantic_definition pest : Subtype := creatureType "Pest"
+semantic_definition phelddagrif : Subtype := creatureType "Phelddagrif"
+semantic_definition phoenix : Subtype := creatureType "Phoenix"
+semantic_definition phyrexian : Subtype := creatureType "Phyrexian"
+semantic_definition pilot : Subtype := creatureType "Pilot"
+semantic_definition pincher : Subtype := creatureType "Pincher"
+semantic_definition pirate : Subtype := creatureType "Pirate"
+semantic_definition plant : Subtype := creatureType "Plant"
+semantic_definition platypus : Subtype := creatureType "Platypus"
+semantic_definition porcupine : Subtype := creatureType "Porcupine"
+semantic_definition possum : Subtype := creatureType "Possum"
+semantic_definition praetor : Subtype := creatureType "Praetor"
+semantic_definition primarch : Subtype := creatureType "Primarch"
+semantic_definition prism : Subtype := creatureType "Prism"
+semantic_definition processor : Subtype := creatureType "Processor"
+semantic_definition qu : Subtype := creatureType "Qu"
+semantic_definition rabbit : Subtype := creatureType "Rabbit"
+semantic_definition raccoon : Subtype := creatureType "Raccoon"
+semantic_definition ranger : Subtype := creatureType "Ranger"
+semantic_definition rat : Subtype := creatureType "Rat"
+semantic_definition rebel : Subtype := creatureType "Rebel"
+semantic_definition reflection : Subtype := creatureType "Reflection"
+semantic_definition rhino : Subtype := creatureType "Rhino"
+semantic_definition rigger : Subtype := creatureType "Rigger"
+semantic_definition robot : Subtype := creatureType "Robot"
+semantic_definition rogue : Subtype := creatureType "Rogue"
+semantic_definition sable : Subtype := creatureType "Sable"
+semantic_definition salamander : Subtype := creatureType "Salamander"
+semantic_definition samurai : Subtype := creatureType "Samurai"
+semantic_definition sand : Subtype := creatureType "Sand"
+semantic_definition saproling : Subtype := creatureType "Saproling"
+semantic_definition satyr : Subtype := creatureType "Satyr"
+semantic_definition scarecrow : Subtype := creatureType "Scarecrow"
+semantic_definition scientist : Subtype := creatureType "Scientist"
+semantic_definition scion : Subtype := creatureType "Scion"
+semantic_definition scorpion : Subtype := creatureType "Scorpion"
+semantic_definition scout : Subtype := creatureType "Scout"
+semantic_definition sculpture : Subtype := creatureType "Sculpture"
+semantic_definition seal_ : Subtype := creatureType "Seal"
+semantic_definition serf : Subtype := creatureType "Serf"
+semantic_definition serpent : Subtype := creatureType "Serpent"
+semantic_definition servo : Subtype := creatureType "Servo"
+semantic_definition shade : Subtype := creatureType "Shade"
+semantic_definition shaman : Subtype := creatureType "Shaman"
+semantic_definition shapeshifter : Subtype := creatureType "Shapeshifter"
+semantic_definition shark : Subtype := creatureType "Shark"
+semantic_definition sheep : Subtype := creatureType "Sheep"
+semantic_definition shiar : Subtype := creatureType "Shi'ar"
+semantic_definition siren : Subtype := creatureType "Siren"
+semantic_definition skeleton : Subtype := creatureType "Skeleton"
+semantic_definition skrull : Subtype := creatureType "Skrull"
+semantic_definition skunk : Subtype := creatureType "Skunk"
+semantic_definition slith : Subtype := creatureType "Slith"
+semantic_definition sliver : Subtype := creatureType "Sliver"
+semantic_definition sloth : Subtype := creatureType "Sloth"
+semantic_definition slug : Subtype := creatureType "Slug"
+semantic_definition snail : Subtype := creatureType "Snail"
+semantic_definition snake : Subtype := creatureType "Snake"
+semantic_definition soldier : Subtype := creatureType "Soldier"
+semantic_definition soltari : Subtype := creatureType "Soltari"
+semantic_definition sorcerer : Subtype := creatureType "Sorcerer"
+semantic_definition spawn : Subtype := creatureType "Spawn"
+semantic_definition specter : Subtype := creatureType "Specter"
+semantic_definition spellshaper : Subtype := creatureType "Spellshaper"
+semantic_definition sphinx : Subtype := creatureType "Sphinx"
+semantic_definition spider : Subtype := creatureType "Spider"
+semantic_definition spike : Subtype := creatureType "Spike"
+semantic_definition spirit : Subtype := creatureType "Spirit"
+semantic_definition splinter : Subtype := creatureType "Splinter"
+semantic_definition sponge : Subtype := creatureType "Sponge"
+semantic_definition spy : Subtype := creatureType "Spy"
+semantic_definition squid : Subtype := creatureType "Squid"
+semantic_definition squirrel : Subtype := creatureType "Squirrel"
+semantic_definition starfish : Subtype := creatureType "Starfish"
+semantic_definition surrakar : Subtype := creatureType "Surrakar"
+semantic_definition survivor : Subtype := creatureType "Survivor"
+semantic_definition symbiote : Subtype := creatureType "Symbiote"
+semantic_definition synth : Subtype := creatureType "Synth"
+semantic_definition tentacle : Subtype := creatureType "Tentacle"
+semantic_definition tetravite : Subtype := creatureType "Tetravite"
+semantic_definition thalakos : Subtype := creatureType "Thalakos"
+semantic_definition thopter : Subtype := creatureType "Thopter"
+semantic_definition thrull : Subtype := creatureType "Thrull"
+semantic_definition tiefling : Subtype := creatureType "Tiefling"
+semantic_definition timeLord : Subtype := creatureType "Time Lord"
+semantic_definition toy : Subtype := creatureType "Toy"
+semantic_definition treefolk : Subtype := creatureType "Treefolk"
+semantic_definition trilobite : Subtype := creatureType "Trilobite"
+semantic_definition triskelavite : Subtype := creatureType "Triskelavite"
+semantic_definition troll : Subtype := creatureType "Troll"
+semantic_definition turtle : Subtype := creatureType "Turtle"
+semantic_definition tyranid : Subtype := creatureType "Tyranid"
+semantic_definition unicorn : Subtype := creatureType "Unicorn"
+semantic_definition utrom : Subtype := creatureType "Utrom"
+semantic_definition vampire : Subtype := creatureType "Vampire"
+semantic_definition varmint : Subtype := creatureType "Varmint"
+semantic_definition vedalken : Subtype := creatureType "Vedalken"
+semantic_definition villain : Subtype := creatureType "Villain"
+semantic_definition volver : Subtype := creatureType "Volver"
+semantic_definition wall : Subtype := creatureType "Wall"
+semantic_definition walrus : Subtype := creatureType "Walrus"
+semantic_definition warlock : Subtype := creatureType "Warlock"
+semantic_definition warrior : Subtype := creatureType "Warrior"
+semantic_definition weasel : Subtype := creatureType "Weasel"
+semantic_definition weird : Subtype := creatureType "Weird"
+semantic_definition werewolf : Subtype := creatureType "Werewolf"
+semantic_definition whale : Subtype := creatureType "Whale"
+semantic_definition wizard : Subtype := creatureType "Wizard"
+semantic_definition wolf : Subtype := creatureType "Wolf"
+semantic_definition wolverine : Subtype := creatureType "Wolverine"
+semantic_definition wombat : Subtype := creatureType "Wombat"
+semantic_definition worm : Subtype := creatureType "Worm"
+semantic_definition wraith : Subtype := creatureType "Wraith"
+semantic_definition wurm : Subtype := creatureType "Wurm"
+semantic_definition yeti : Subtype := creatureType "Yeti"
+semantic_definition zombie : Subtype := creatureType "Zombie"
+semantic_definition zubera : Subtype := creatureType "Zubera"
+semantic_definition aura : Subtype := enchantmentType "Aura"
+semantic_definition background : Subtype := enchantmentType "Background"
+semantic_definition cartouche : Subtype := enchantmentType "Cartouche"
+semantic_definition case : Subtype := enchantmentType "Case"
+semantic_definition class_ : Subtype := enchantmentType "Class"
+semantic_definition curse : Subtype := enchantmentType "Curse"
+semantic_definition plan : Subtype := enchantmentType "Plan"
+semantic_definition role : Subtype := enchantmentType "Role"
+semantic_definition room : Subtype := enchantmentType "Room"
+semantic_definition rune : Subtype := enchantmentType "Rune"
+semantic_definition saga : Subtype := enchantmentType "Saga"
+semantic_definition shard : Subtype := enchantmentType "Shard"
+semantic_definition shrine : Subtype := enchantmentType "Shrine"
+semantic_definition cave : Subtype := landType "Cave"
+semantic_definition desert : Subtype := landType "Desert"
+semantic_definition forest : Subtype := landType "Forest"
+semantic_definition gate : Subtype := landType "Gate"
+semantic_definition island : Subtype := landType "Island"
+semantic_definition lair : Subtype := landType "Lair"
+semantic_definition locus : Subtype := landType "Locus"
+semantic_definition mine : Subtype := landType "Mine"
+semantic_definition mountain : Subtype := landType "Mountain"
+semantic_definition plains : Subtype := landType "Plains"
+semantic_definition planet : Subtype := landType "Planet"
+semantic_definition powerPlant : Subtype := landType "Power-Plant"
+semantic_definition sphere : Subtype := landType "Sphere"
+semantic_definition swamp : Subtype := landType "Swamp"
+semantic_definition tower : Subtype := landType "Tower"
+semantic_definition town : Subtype := landType "Town"
+semantic_definition urzas : Subtype := landType "Urza's"
+semantic_definition ajani : Subtype := planeswalkerType "Ajani"
+semantic_definition aminatou : Subtype := planeswalkerType "Aminatou"
+semantic_definition angrath : Subtype := planeswalkerType "Angrath"
+semantic_definition arlinn : Subtype := planeswalkerType "Arlinn"
+semantic_definition ashiok : Subtype := planeswalkerType "Ashiok"
+semantic_definition bahamut : Subtype := planeswalkerType "Bahamut"
+semantic_definition basri : Subtype := planeswalkerType "Basri"
+semantic_definition bolas : Subtype := planeswalkerType "Bolas"
+semantic_definition calix : Subtype := planeswalkerType "Calix"
+semantic_definition chandra : Subtype := planeswalkerType "Chandra"
+semantic_definition comet : Subtype := planeswalkerType "Comet"
+semantic_definition dack : Subtype := planeswalkerType "Dack"
+semantic_definition dakkon : Subtype := planeswalkerType "Dakkon"
+semantic_definition daretti : Subtype := planeswalkerType "Daretti"
+semantic_definition davriel : Subtype := planeswalkerType "Davriel"
+semantic_definition dellian : Subtype := planeswalkerType "Dellian"
+semantic_definition dihada : Subtype := planeswalkerType "Dihada"
+semantic_definition domri : Subtype := planeswalkerType "Domri"
+semantic_definition dovin : Subtype := planeswalkerType "Dovin"
+semantic_definition ellywick : Subtype := planeswalkerType "Ellywick"
+semantic_definition elminster : Subtype := planeswalkerType "Elminster"
+semantic_definition elspeth : Subtype := planeswalkerType "Elspeth"
+semantic_definition estrid : Subtype := planeswalkerType "Estrid"
+semantic_definition freyalise : Subtype := planeswalkerType "Freyalise"
+semantic_definition garruk : Subtype := planeswalkerType "Garruk"
+semantic_definition gideon : Subtype := planeswalkerType "Gideon"
+semantic_definition grist : Subtype := planeswalkerType "Grist"
+semantic_definition guff : Subtype := planeswalkerType "Guff"
+semantic_definition huatli : Subtype := planeswalkerType "Huatli"
+semantic_definition jace : Subtype := planeswalkerType "Jace"
+semantic_definition jared : Subtype := planeswalkerType "Jared"
+semantic_definition jaya : Subtype := planeswalkerType "Jaya"
+semantic_definition jeska : Subtype := planeswalkerType "Jeska"
+semantic_definition kaito : Subtype := planeswalkerType "Kaito"
+semantic_definition karn : Subtype := planeswalkerType "Karn"
+semantic_definition kasmina : Subtype := planeswalkerType "Kasmina"
+semantic_definition kaya : Subtype := planeswalkerType "Kaya"
+semantic_definition kiora : Subtype := planeswalkerType "Kiora"
+semantic_definition koth : Subtype := planeswalkerType "Koth"
+semantic_definition liliana : Subtype := planeswalkerType "Liliana"
+semantic_definition lolth : Subtype := planeswalkerType "Lolth"
+semantic_definition lukka : Subtype := planeswalkerType "Lukka"
+semantic_definition minsc : Subtype := planeswalkerType "Minsc"
+semantic_definition mordenkainen : Subtype := planeswalkerType "Mordenkainen"
+semantic_definition nahiri : Subtype := planeswalkerType "Nahiri"
+semantic_definition narset : Subtype := planeswalkerType "Narset"
+semantic_definition niko : Subtype := planeswalkerType "Niko"
+semantic_definition nissa : Subtype := planeswalkerType "Nissa"
+semantic_definition nixilis : Subtype := planeswalkerType "Nixilis"
+semantic_definition oko : Subtype := planeswalkerType "Oko"
+semantic_definition quintorius : Subtype := planeswalkerType "Quintorius"
+semantic_definition ral : Subtype := planeswalkerType "Ral"
+semantic_definition rowan : Subtype := planeswalkerType "Rowan"
+semantic_definition saheeli : Subtype := planeswalkerType "Saheeli"
+semantic_definition samut : Subtype := planeswalkerType "Samut"
+semantic_definition sarkhan : Subtype := planeswalkerType "Sarkhan"
+semantic_definition serra : Subtype := planeswalkerType "Serra"
+semantic_definition sivitri : Subtype := planeswalkerType "Sivitri"
+semantic_definition sorin : Subtype := planeswalkerType "Sorin"
+semantic_definition szat : Subtype := planeswalkerType "Szat"
+semantic_definition tamiyo : Subtype := planeswalkerType "Tamiyo"
+semantic_definition tasha : Subtype := planeswalkerType "Tasha"
+semantic_definition teferi : Subtype := planeswalkerType "Teferi"
+semantic_definition teyo : Subtype := planeswalkerType "Teyo"
+semantic_definition tezzeret : Subtype := planeswalkerType "Tezzeret"
+semantic_definition tibalt : Subtype := planeswalkerType "Tibalt"
+semantic_definition tyvar : Subtype := planeswalkerType "Tyvar"
+semantic_definition ugin : Subtype := planeswalkerType "Ugin"
+semantic_definition urza : Subtype := planeswalkerType "Urza"
+semantic_definition venser : Subtype := planeswalkerType "Venser"
+semantic_definition vivien : Subtype := planeswalkerType "Vivien"
+semantic_definition vraska : Subtype := planeswalkerType "Vraska"
+semantic_definition vronos : Subtype := planeswalkerType "Vronos"
+semantic_definition will : Subtype := planeswalkerType "Will"
+semantic_definition windgrace : Subtype := planeswalkerType "Windgrace"
+semantic_definition wrenn : Subtype := planeswalkerType "Wrenn"
+semantic_definition xenagos : Subtype := planeswalkerType "Xenagos"
+semantic_definition yanggu : Subtype := planeswalkerType "Yanggu"
+semantic_definition yanling : Subtype := planeswalkerType "Yanling"
+semantic_definition zariel : Subtype := planeswalkerType "Zariel"
+semantic_definition adventure : Subtype := .spell "Adventure"
+semantic_definition arcane : Subtype := .spell "Arcane"
+semantic_definition lesson : Subtype := .spell "Lesson"
+semantic_definition omen : Subtype := .spell "Omen"
+semantic_definition trap : Subtype := .spell "Trap"
+
+/-! ## Turn parts -/
+
+semantic_definition beginningOfCombatStep : TurnPart := .beginningOfCombat
+semantic_definition beginningPhase : TurnPart := .beginningPhase
+semantic_definition cleanup : TurnPart := .cleanup
+semantic_definition cleanupStep : TurnPart := .cleanup
+semantic_definition TurnPart.combat : TurnPart := .combat
+semantic_definition combatDamageStep : TurnPart := .combatDamage
+semantic_definition combatPhase : TurnPart := .combat
+semantic_definition declareAttackersStep : TurnPart := .declareAttackers
+semantic_definition declareBlockersStep : TurnPart := .declareBlockers
+semantic_definition drawStep : TurnPart := .drawStep
+semantic_definition endOfCombatStep : TurnPart := .endOfCombat
+semantic_definition endStep : TurnPart := .endStep
+semantic_definition endingPhase : TurnPart := .endingPhase
+semantic_definition mainPhase : TurnPart := .mainPhase
+semantic_definition postcombatMainPhase : TurnPart := .postcombatMain
+semantic_definition precombatMainPhase : TurnPart := .firstMain
+semantic_definition untapStep : TurnPart := .untapStep
+semantic_definition upkeep : TurnPart := .upkeep
+semantic_definition upkeepStep : TurnPart := .upkeep
+
+/-! ## Attach, create, and counter -/
+
+/-- "attach <subject> to <host>" (`Definition`, [CR#701.3a]). -/
+semantic_definition attachTo (subject host : NounPhrase) : Action :=
+  .ownScope (some (.action "attach"))
+    (.enact (.action "attach")
+      (.attachment .attached (.inCaller (.firstMention "attachTo.subject" subject))
+        (some (.inCaller (.firstMention "attachTo.host" host))))
+      none none)
+/-- "create <count> <token> [riders]": the tokens are put onto the battlefield, entering under
+their creator's control (`Definition`, [CR#701.7a,111.2]). -/
+semantic_definition create (count : Amount) (token : TokenSpec) (riders : List MoveRider := []) :
+    Action :=
+  .ownScope (some (.action "create"))
+    (.enact (.action "create")
+      (.createObject (.inCaller count) (.token (.inCaller token) (riders.map MoveRider.inCaller))
+        true none)
+      none none)
+/-- "counter <subject>": one labeled stack-to-graveyard move (`Definition`, [CR#701.6a]). -/
+semantic_definition counter (subject : NounPhrase) : Action :=
+  .ownScope (some (.action "counter"))
+    (.enact (.action "counter")
+      (.move (.inCaller (.firstMention "counter.subject" subject)) (.zone .stack none)
+        (some (.zone .graveyard none))
+        .arrival none [])
+      none none)
+
 /-! ## Actions -/
 
 /-- "cast <subject> [from <from_>] [paying <payment>]" (`Definition`, [CR#701.5a]). -/
@@ -553,8 +1069,6 @@ semantic_definition exileFrom (subject : NounPhrase) (from_ : Location) : Action
     (enact (.action "exile")
       (.move (.inCaller (.firstMention "exileFrom.subject" subject)) (.inCaller from_)
         (some exileZone) .arrival none []))
-/-! ## Text Changes -/
-
 /-- "<performer> reveals their hand" (`Definition`, [CR#701.20]). -/
 semantic_definition revealHand : Action :=
   .ownScope (some (.action "reveal"))
@@ -745,6 +1259,116 @@ semantic_definition tripleToughness (subject : NounPhrase) (duration : Option Du
 semantic_definition doubleLifeTotal : Action :=
   .ownScope (some (.action "double"))
     (.changeLife (.set (times (.lit 2) (lifeTotalOf .actor))))
+
+/-! ## Tokens -/
+
+/-- A Food token's characteristics: "a colorless Food artifact token with '{2}, {T}, Sacrifice
+this token: You gain 3 life.'" [CR#111.10b] -/
+semantic_definition foodToken : CharacteristicBundle :=
+  { characteristics :=
+      { types := [.artifact], subtypes := [artifactType "Food"],
+        text :=
+          [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice thisArtifact)])
+              (gainLife (.lit 3)) ] } }
+/-- A Treasure token's characteristics: "a colorless Treasure artifact token with '{T},
+Sacrifice this token: Add one mana of any color.'" [CR#111.10a] -/
+semantic_definition treasureToken : CharacteristicBundle :=
+  { characteristics :=
+      { types := [.artifact], subtypes := [artifactType "Treasure"],
+        text :=
+          [ activated (.compound [.tapSymbol, .perform (sacrifice thisArtifact)])
+              (.addMana (.lit 1) (.anyColor .sameColor) []) ] } }
+
+/-! ## Templates over Definitions -/
+
+/-- "Exile <subject> until <event>." -/
+semantic_template exileUntil (subject : NounPhrase) (event : GameEvent) : Action :=
+  .holdUntil (exile subject) event
+/-- The replacement's application, rather than installation of a new shield
+[CR#701.19b,701.19c]. -/
+semantic_template regenerationApplication (subject : NounPhrase) : Action :=
+  .enact (.action "regenerate")
+    (.sequentially
+      [ .clearDamage (.firstMention "regenerationApplication.subject" subject),
+        .instruct
+          (.possessorOf .controller (.laterMention "regenerationApplication.subject" subject))
+          (tap (.laterMention "regenerationApplication.subject" subject)),
+        .doIf
+          (.or
+            [ .matches (.laterMention "regenerationApplication.subject" subject)
+                (.inCombat .attackerOf none),
+              .matches (.laterMention "regenerationApplication.subject" subject)
+                (.inCombat .blockerOf none) ])
+          (.combat (.laterMention "regenerationApplication.subject" subject)
+            (.participation .outsideCombat))
+          none ])
+    none none
+/-- "attach <what> to it": ordinary pronoun `it` resolved by `D′` (no `Window` override). -/
+semantic_template attachToIt (what : NounPhrase) : Action :=
+  attachTo what it
+/-- "<subject>'s controller sacrifices it" (`Template` using `firstMention` / `laterMention`
+without `Window` plumbing, [CR#701.21a]). -/
+semantic_template controllerSacrifices (subject : NounPhrase) : Action :=
+  .instruct (.possessorOf .controller (.firstMention "controllerSacrifices.subject" subject))
+    (sacrifice (.laterMention "controllerSacrifices.subject" subject))
+/-- "discard <discarded>, then <step> for each nonland card discarded this way" (`Template` using
+moved-parameter readback, [CR#701.50a,400.7,400.7j]). -/
+semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Action) :
+    Action :=
+  .sequentially
+    [ discard discarded,
+      .doForEach
+        (allOf (.and [.not isLand, .isCard, .did ⟨.any, discard .which, .thisWay⟩]))
+        step ]
+/-- "you may choose not to untap <subject> during [<whose>] untap step" -/
+semantic_template mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  duringUntapStep whose (.can .any (untap subject) {})
+/-- "untap <subject> during [<whose>] untap step" -/
+semantic_template untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  duringUntapStep whose (.must .any (untap subject) {})
+/-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
+role [CR#701.3a,301.5]. -/
+semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
+  .can .any (attachTo subject host) {}
+/-- "create <count> <token>" -/
+semantic_template createToken (token : CharacteristicBundle) (count : Amount := .lit 1) : Action :=
+  create count (.written token)
+/-- "create <count> tapped <token>" -/
+semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := .lit 1) :
+    Action :=
+  create count (.written token) [.entersAs .tapped]
+/-- "create <count> <token> tapped and attacking" -/
+semantic_template createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Action :=
+  create count (.written token) [.entersAs .tapped, .entersAttacking none]
+/-- "create a token that's a copy of <source> [riders]" -/
+semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider := []) : Action :=
+  create (.lit 1) (.copyOf source []) riders
+
+/-! The regeneration shield is a Definition, but its replacement applies
+`regenerationApplication`, a Template over `tap`, so it follows that Template here. -/
+
+/-- A resolving regeneration action installs a single-use shield for this turn;
+only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
+semantic_definition regenerate (subject : NounPhrase) : Action :=
+  .ownScope (some (.action "regenerate"))
+    (.establish (.instead
+      (.would .any (destroy (.firstMention "regenerate.0" (.inCaller subject))))
+      (regenerationApplication (.laterMention "regenerate.0" (.inCaller subject)))
+      none .nextTimeOnly none) (some thisTurn))
+
+private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
+    let event := does any (regenerationApplication thisCreature)
+    let applied := (stepGameEvent 64 (DRS.ofList []) event).1
+    let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
+    GameEvent.check (DRS.ofList []) event = [] ∧
+      countOnes .object applied = 1 ∧
+      (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
+        some (.object, some .battlefield) ∧
+      countOnes .object shield = 0 ∧
+      Action.check (DRS.ofList [])
+        (.triggerThisWay (regenerate thisCreature) event
+          (.putCounters (.lit 1) (.printed (.named "m1m1Counter")) it .many true)) = [] := by decide
+
 /-! ## Abilities -/
 
 /-- "Companion — <condition>" -/
@@ -860,6 +1484,7 @@ semantic_definition cyclingExpansion (cost : Cost) : Ability :=
 /-- "Cycling [cost]" with its definition. -/
 semantic_definition cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost (.inCaller cost)] [cyclingExpansion (.inCaller cost)]
+
 /-! ## Ability words -/
 
 semantic_definition adamant (ability : Ability) : Ability := abilityWord "Adamant" ability
@@ -930,25 +1555,7 @@ semantic_definition vivid (ability : Ability) : Ability := abilityWord "Vivid" a
 semantic_definition void (ability : Ability) : Ability := abilityWord "Void" ability
 semantic_definition willOfTheCouncil (ability : Ability) : Ability :=
   abilityWord "Will of the council" ability
-/-! ## Designations -/
 
-semantic_definition citysBlessing : DesignationLabel := .named "citysBlessing"
-semantic_definition commander : DesignationLabel := .named "commander"
-semantic_definition enduringStory : DesignationLabel := .named "enduringStory"
-semantic_definition goaded : DesignationLabel := .named "goaded"
-semantic_definition harnessed : DesignationLabel := .named "harnessed"
-semantic_definition initiative : DesignationLabel := .named "initiative"
-semantic_definition leftHalfUnlocked : DesignationLabel := .named "leftHalfUnlocked"
-semantic_definition level : DesignationLabel := .named "level"
-semantic_definition monarch : DesignationLabel := .named "monarch"
-semantic_definition monstrous : DesignationLabel := .named "monstrous"
-semantic_definition prepared : DesignationLabel := .named "prepared"
-semantic_definition renowned : DesignationLabel := .named "renowned"
-semantic_definition rightHalfUnlocked : DesignationLabel := .named "rightHalfUnlocked"
-semantic_definition ringBearer : DesignationLabel := .named "ringBearer"
-semantic_definition saddled : DesignationLabel := .named "saddled"
-semantic_definition DesignationLabel.solved : DesignationLabel := .named "solved"
-semantic_definition suspected : DesignationLabel := .named "suspected"
 /-! ## Keyword abilities -/
 
 semantic_definition absorb (amount : Amount) : Ability :=
@@ -1441,7 +2048,7 @@ semantic_definition equip (cost : Cost) : Ability :=
               (some (.inCaller (target (.and [isCreature, youControl])))))))
         asSorcery ]
 semantic_definition equipQuality (quality : Predicate) (cost : Cost) : Ability :=
-  keywordQualityCosting (.named "equipQuality") (.inCaller quality) (.inCaller cost)
+  keywordQualityCosting (.named "equip") (.inCaller quality) (.inCaller cost)
 semantic_definition escalate (cost : Cost) : Ability :=
   .keyword (.named "escalate") [.cost (.inCaller cost)]
     [.static (.modeChoice (.extraModesCost (.inCaller cost)))]
@@ -1843,6 +2450,21 @@ semantic_definition haunt : Ability :=
 semantic_definition hexproof : Ability :=
   .keyword (.named "hexproof") []
     [.static (cant (.by (allOf (.and [.in_ stack, opponentsControl]))) (.target thisPermanent))]
+/-- "Hexproof from [quality]": "This permanent can't be the target of [quality] spells your
+opponents control or abilities your opponents control from [quality] sources." It is a hexproof
+ability, so it is written as hexproof with a quality (`Definition`, [CR#702.11d]). -/
+semantic_definition hexproofFrom (quality : Predicate) : Ability :=
+  .keyword (.named "hexproof") [.quality (.inCaller quality)]
+    [ .static
+        (cant
+          (by_
+            (allOf
+              (and
+                [ or
+                    [ and [isSpell, .inCaller quality],
+                      abilityOf (allOf (and [isSource, .inCaller quality])) ],
+                  opponentsControl ])))
+          (target thisPermanent)) ]
 semantic_definition hideaway (amount : Amount) : Ability :=
   let exiledCard : NounPhrase := theVerbed (.action "exile") .one (some .card)
   .keyword (.named "hideaway") [.number (.inCaller amount)]
@@ -2695,6 +3317,7 @@ semantic_definition webSlinging (cost : Cost) : Ability :=
                 [ .inCaller cost,
                   .perform (returnToHand (a (.and [isCreature, isTapped, youControl]))) ])))) ]
 semantic_definition wither : Ability := keyword (.named "wither")
+
 /-! ## Keyword actions -/
 
 semantic_definition adapt (amount : Amount) : Action :=
@@ -2954,602 +3577,5 @@ semantic_definition timeTravel : Action :=
           .doForEach them
             (chooseOne (putCounters (.lit 1) (.printed timeCounter) it)
               (removeCounters (oneThrough 1) (some (.printed timeCounter)) it)) ]))
-/-! ## Relations -/
-
-semantic_definition encodedOn : RelationLabel := .named "encodedOn"
-semantic_definition haunting : RelationLabel := .named "haunting"
-semantic_definition paired : RelationLabel := .named "paired"
-/-! ## Subtypes -/
-
-semantic_definition blood : Subtype := artifactType "Blood"
-semantic_definition bobblehead : Subtype := artifactType "Bobblehead"
-semantic_definition book : Subtype := artifactType "Book"
-semantic_definition clue : Subtype := artifactType "Clue"
-semantic_definition contraption : Subtype := artifactType "Contraption"
-semantic_definition equipment : Subtype := artifactType "Equipment"
-semantic_definition food : Subtype := artifactType "Food"
-semantic_definition fortification : Subtype := artifactType "Fortification"
-semantic_definition gold : Subtype := artifactType "Gold"
-semantic_definition incubator : Subtype := artifactType "Incubator"
-semantic_definition Subtype.infinity : Subtype := artifactType "Infinity"
-semantic_definition junk : Subtype := artifactType "Junk"
-semantic_definition lander : Subtype := artifactType "Lander"
-semantic_definition map : Subtype := artifactType "Map"
-semantic_definition mutagen : Subtype := artifactType "Mutagen"
-semantic_definition powerstone : Subtype := artifactType "Powerstone"
-semantic_definition spacecraft : Subtype := artifactType "Spacecraft"
-semantic_definition stone : Subtype := artifactType "Stone"
-semantic_definition treasure : Subtype := artifactType "Treasure"
-semantic_definition vehicle : Subtype := artifactType "Vehicle"
-semantic_definition vibranium : Subtype := artifactType "Vibranium"
-semantic_definition siege : Subtype := .of .battle "Siege"
-semantic_definition advisor : Subtype := creatureType "Advisor"
-semantic_definition aetherborn : Subtype := creatureType "Aetherborn"
-semantic_definition alien : Subtype := creatureType "Alien"
-semantic_definition ally : Subtype := creatureType "Ally"
-semantic_definition angel : Subtype := creatureType "Angel"
-semantic_definition antelope : Subtype := creatureType "Antelope"
-semantic_definition ape : Subtype := creatureType "Ape"
-semantic_definition archer : Subtype := creatureType "Archer"
-semantic_definition archon : Subtype := creatureType "Archon"
-semantic_definition armadillo : Subtype := creatureType "Armadillo"
-semantic_definition artificer : Subtype := creatureType "Artificer"
-semantic_definition assassin : Subtype := creatureType "Assassin"
-semantic_definition assemblyWorker : Subtype := creatureType "Assembly-Worker"
-semantic_definition astartes : Subtype := creatureType "Astartes"
-semantic_definition atog : Subtype := creatureType "Atog"
-semantic_definition aurochs : Subtype := creatureType "Aurochs"
-semantic_definition avatar : Subtype := creatureType "Avatar"
-semantic_definition azra : Subtype := creatureType "Azra"
-semantic_definition badger : Subtype := creatureType "Badger"
-semantic_definition balloon : Subtype := creatureType "Balloon"
-semantic_definition barbarian : Subtype := creatureType "Barbarian"
-semantic_definition bard : Subtype := creatureType "Bard"
-semantic_definition basilisk : Subtype := creatureType "Basilisk"
-semantic_definition bat : Subtype := creatureType "Bat"
-semantic_definition bear : Subtype := creatureType "Bear"
-semantic_definition beast : Subtype := creatureType "Beast"
-semantic_definition beaver : Subtype := creatureType "Beaver"
-semantic_definition beeble : Subtype := creatureType "Beeble"
-semantic_definition beholder : Subtype := creatureType "Beholder"
-semantic_definition berserker : Subtype := creatureType "Berserker"
-semantic_definition bird : Subtype := creatureType "Bird"
-semantic_definition bison : Subtype := creatureType "Bison"
-semantic_definition blinkmoth : Subtype := creatureType "Blinkmoth"
-semantic_definition boar : Subtype := creatureType "Boar"
-semantic_definition bringer : Subtype := creatureType "Bringer"
-semantic_definition brushwagg : Subtype := creatureType "Brushwagg"
-semantic_definition camarid : Subtype := creatureType "Camarid"
-semantic_definition camel : Subtype := creatureType "Camel"
-semantic_definition capybara : Subtype := creatureType "Capybara"
-semantic_definition caribou : Subtype := creatureType "Caribou"
-semantic_definition carrier : Subtype := creatureType "Carrier"
-semantic_definition cat : Subtype := creatureType "Cat"
-semantic_definition centaur : Subtype := creatureType "Centaur"
-semantic_definition child : Subtype := creatureType "Child"
-semantic_definition chimera : Subtype := creatureType "Chimera"
-semantic_definition citizen : Subtype := creatureType "Citizen"
-semantic_definition cleric : Subtype := creatureType "Cleric"
-semantic_definition clown : Subtype := creatureType "Clown"
-semantic_definition cockatrice : Subtype := creatureType "Cockatrice"
-semantic_definition construct : Subtype := creatureType "Construct"
-semantic_definition coward : Subtype := creatureType "Coward"
-semantic_definition coyote : Subtype := creatureType "Coyote"
-semantic_definition crab : Subtype := creatureType "Crab"
-semantic_definition crocodile : Subtype := creatureType "Crocodile"
-semantic_definition ctan : Subtype := creatureType "C'tan"
-semantic_definition custodes : Subtype := creatureType "Custodes"
-semantic_definition cyberman : Subtype := creatureType "Cyberman"
-semantic_definition cyclops : Subtype := creatureType "Cyclops"
-semantic_definition dalek : Subtype := creatureType "Dalek"
-semantic_definition dauthi : Subtype := creatureType "Dauthi"
-semantic_definition demigod : Subtype := creatureType "Demigod"
-semantic_definition demon : Subtype := creatureType "Demon"
-semantic_definition deserter : Subtype := creatureType "Deserter"
-semantic_definition detective : Subtype := creatureType "Detective"
-semantic_definition devil : Subtype := creatureType "Devil"
-semantic_definition dinosaur : Subtype := creatureType "Dinosaur"
-semantic_definition djinn : Subtype := creatureType "Djinn"
-semantic_definition doctor : Subtype := creatureType "Doctor"
-semantic_definition dog : Subtype := creatureType "Dog"
-semantic_definition dragon : Subtype := creatureType "Dragon"
-semantic_definition drake : Subtype := creatureType "Drake"
-semantic_definition dreadnought : Subtype := creatureType "Dreadnought"
-semantic_definition drix : Subtype := creatureType "Drix"
-semantic_definition drone : Subtype := creatureType "Drone"
-semantic_definition druid : Subtype := creatureType "Druid"
-semantic_definition dryad : Subtype := creatureType "Dryad"
-semantic_definition dwarf : Subtype := creatureType "Dwarf"
-semantic_definition echidna : Subtype := creatureType "Echidna"
-semantic_definition efreet : Subtype := creatureType "Efreet"
-semantic_definition egg : Subtype := creatureType "Egg"
-semantic_definition elder : Subtype := creatureType "Elder"
-semantic_definition eldrazi : Subtype := creatureType "Eldrazi"
-semantic_definition elemental : Subtype := creatureType "Elemental"
-semantic_definition elephant : Subtype := creatureType "Elephant"
-semantic_definition elf : Subtype := creatureType "Elf"
-semantic_definition elk : Subtype := creatureType "Elk"
-semantic_definition employee : Subtype := creatureType "Employee"
-semantic_definition eternal : Subtype := creatureType "Eternal"
-semantic_definition eye : Subtype := creatureType "Eye"
-semantic_definition faerie : Subtype := creatureType "Faerie"
-semantic_definition ferret : Subtype := creatureType "Ferret"
-semantic_definition fish : Subtype := creatureType "Fish"
-semantic_definition flagbearer : Subtype := creatureType "Flagbearer"
-semantic_definition fox : Subtype := creatureType "Fox"
-semantic_definition fractal : Subtype := creatureType "Fractal"
-semantic_definition frog : Subtype := creatureType "Frog"
-semantic_definition fungus : Subtype := creatureType "Fungus"
-semantic_definition gamer : Subtype := creatureType "Gamer"
-semantic_definition gamma : Subtype := creatureType "Gamma"
-semantic_definition gargoyle : Subtype := creatureType "Gargoyle"
-semantic_definition germ : Subtype := creatureType "Germ"
-semantic_definition giant : Subtype := creatureType "Giant"
-semantic_definition giraffe : Subtype := creatureType "Giraffe"
-semantic_definition gith : Subtype := creatureType "Gith"
-semantic_definition glimmer : Subtype := creatureType "Glimmer"
-semantic_definition gnoll : Subtype := creatureType "Gnoll"
-semantic_definition gnome : Subtype := creatureType "Gnome"
-semantic_definition goat : Subtype := creatureType "Goat"
-semantic_definition goblin : Subtype := creatureType "Goblin"
-semantic_definition god : Subtype := creatureType "God"
-semantic_definition golem : Subtype := creatureType "Golem"
-semantic_definition gorgon : Subtype := creatureType "Gorgon"
-semantic_definition graveborn : Subtype := creatureType "Graveborn"
-semantic_definition gremlin : Subtype := creatureType "Gremlin"
-semantic_definition griffin : Subtype := creatureType "Griffin"
-semantic_definition guest : Subtype := creatureType "Guest"
-semantic_definition hag : Subtype := creatureType "Hag"
-semantic_definition halfling : Subtype := creatureType "Halfling"
-semantic_definition hamster : Subtype := creatureType "Hamster"
-semantic_definition harpy : Subtype := creatureType "Harpy"
-semantic_definition hedgehog : Subtype := creatureType "Hedgehog"
-semantic_definition hellion : Subtype := creatureType "Hellion"
-semantic_definition hero : Subtype := creatureType "Hero"
-semantic_definition hippo : Subtype := creatureType "Hippo"
-semantic_definition hippogriff : Subtype := creatureType "Hippogriff"
-semantic_definition homarid : Subtype := creatureType "Homarid"
-semantic_definition homunculus : Subtype := creatureType "Homunculus"
-semantic_definition horror : Subtype := creatureType "Horror"
-semantic_definition horse : Subtype := creatureType "Horse"
-semantic_definition human : Subtype := creatureType "Human"
-semantic_definition hydra : Subtype := creatureType "Hydra"
-semantic_definition hyena : Subtype := creatureType "Hyena"
-semantic_definition illusion : Subtype := creatureType "Illusion"
-semantic_definition imp : Subtype := creatureType "Imp"
-semantic_definition incarnation : Subtype := creatureType "Incarnation"
-semantic_definition inhuman : Subtype := creatureType "Inhuman"
-semantic_definition inkling : Subtype := creatureType "Inkling"
-semantic_definition inquisitor : Subtype := creatureType "Inquisitor"
-semantic_definition insect : Subtype := creatureType "Insect"
-semantic_definition jackal : Subtype := creatureType "Jackal"
-semantic_definition jellyfish : Subtype := creatureType "Jellyfish"
-semantic_definition juggernaut : Subtype := creatureType "Juggernaut"
-semantic_definition kangaroo : Subtype := creatureType "Kangaroo"
-semantic_definition kavu : Subtype := creatureType "Kavu"
-semantic_definition kirin : Subtype := creatureType "Kirin"
-semantic_definition kithkin : Subtype := creatureType "Kithkin"
-semantic_definition knight : Subtype := creatureType "Knight"
-semantic_definition kobold : Subtype := creatureType "Kobold"
-semantic_definition kor : Subtype := creatureType "Kor"
-semantic_definition kraken : Subtype := creatureType "Kraken"
-semantic_definition kree : Subtype := creatureType "Kree"
-semantic_definition lamia : Subtype := creatureType "Lamia"
-semantic_definition lammasu : Subtype := creatureType "Lammasu"
-semantic_definition leech : Subtype := creatureType "Leech"
-semantic_definition lemur : Subtype := creatureType "Lemur"
-semantic_definition leviathan : Subtype := creatureType "Leviathan"
-semantic_definition lhurgoyf : Subtype := creatureType "Lhurgoyf"
-semantic_definition licid : Subtype := creatureType "Licid"
-semantic_definition lizard : Subtype := creatureType "Lizard"
-semantic_definition llama : Subtype := creatureType "Llama"
-semantic_definition lobster : Subtype := creatureType "Lobster"
-semantic_definition manticore : Subtype := creatureType "Manticore"
-semantic_definition masticore : Subtype := creatureType "Masticore"
-semantic_definition mercenary : Subtype := creatureType "Mercenary"
-semantic_definition merfolk : Subtype := creatureType "Merfolk"
-semantic_definition metathran : Subtype := creatureType "Metathran"
-semantic_definition minion : Subtype := creatureType "Minion"
-semantic_definition minotaur : Subtype := creatureType "Minotaur"
-semantic_definition mite : Subtype := creatureType "Mite"
-semantic_definition mole : Subtype := creatureType "Mole"
-semantic_definition monger : Subtype := creatureType "Monger"
-semantic_definition mongoose : Subtype := creatureType "Mongoose"
-semantic_definition monk : Subtype := creatureType "Monk"
-semantic_definition monkey : Subtype := creatureType "Monkey"
-semantic_definition moogle : Subtype := creatureType "Moogle"
-semantic_definition moonfolk : Subtype := creatureType "Moonfolk"
-semantic_definition mount : Subtype := creatureType "Mount"
-semantic_definition mouse : Subtype := creatureType "Mouse"
-semantic_definition mutant : Subtype := creatureType "Mutant"
-semantic_definition myr : Subtype := creatureType "Myr"
-semantic_definition mystic : Subtype := creatureType "Mystic"
-semantic_definition nautilus : Subtype := creatureType "Nautilus"
-semantic_definition necron : Subtype := creatureType "Necron"
-semantic_definition nephilim : Subtype := creatureType "Nephilim"
-semantic_definition nightmare : Subtype := creatureType "Nightmare"
-semantic_definition nightstalker : Subtype := creatureType "Nightstalker"
-semantic_definition ninja : Subtype := creatureType "Ninja"
-semantic_definition noble : Subtype := creatureType "Noble"
-semantic_definition noggle : Subtype := creatureType "Noggle"
-semantic_definition nomad : Subtype := creatureType "Nomad"
-semantic_definition nymph : Subtype := creatureType "Nymph"
-semantic_definition octopus : Subtype := creatureType "Octopus"
-semantic_definition ogre : Subtype := creatureType "Ogre"
-semantic_definition ooze : Subtype := creatureType "Ooze"
-semantic_definition orb : Subtype := creatureType "Orb"
-semantic_definition orc : Subtype := creatureType "Orc"
-semantic_definition orgg : Subtype := creatureType "Orgg"
-semantic_definition otter : Subtype := creatureType "Otter"
-semantic_definition ouphe : Subtype := creatureType "Ouphe"
-semantic_definition ox : Subtype := creatureType "Ox"
-semantic_definition oyster : Subtype := creatureType "Oyster"
-semantic_definition pangolin : Subtype := creatureType "Pangolin"
-semantic_definition peasant : Subtype := creatureType "Peasant"
-semantic_definition pegasus : Subtype := creatureType "Pegasus"
-semantic_definition pentavite : Subtype := creatureType "Pentavite"
-semantic_definition performer : Subtype := creatureType "Performer"
-semantic_definition pest : Subtype := creatureType "Pest"
-semantic_definition phelddagrif : Subtype := creatureType "Phelddagrif"
-semantic_definition phoenix : Subtype := creatureType "Phoenix"
-semantic_definition phyrexian : Subtype := creatureType "Phyrexian"
-semantic_definition pilot : Subtype := creatureType "Pilot"
-semantic_definition pincher : Subtype := creatureType "Pincher"
-semantic_definition pirate : Subtype := creatureType "Pirate"
-semantic_definition plant : Subtype := creatureType "Plant"
-semantic_definition platypus : Subtype := creatureType "Platypus"
-semantic_definition porcupine : Subtype := creatureType "Porcupine"
-semantic_definition possum : Subtype := creatureType "Possum"
-semantic_definition praetor : Subtype := creatureType "Praetor"
-semantic_definition primarch : Subtype := creatureType "Primarch"
-semantic_definition prism : Subtype := creatureType "Prism"
-semantic_definition processor : Subtype := creatureType "Processor"
-semantic_definition qu : Subtype := creatureType "Qu"
-semantic_definition rabbit : Subtype := creatureType "Rabbit"
-semantic_definition raccoon : Subtype := creatureType "Raccoon"
-semantic_definition ranger : Subtype := creatureType "Ranger"
-semantic_definition rat : Subtype := creatureType "Rat"
-semantic_definition rebel : Subtype := creatureType "Rebel"
-semantic_definition reflection : Subtype := creatureType "Reflection"
-semantic_definition rhino : Subtype := creatureType "Rhino"
-semantic_definition rigger : Subtype := creatureType "Rigger"
-semantic_definition robot : Subtype := creatureType "Robot"
-semantic_definition rogue : Subtype := creatureType "Rogue"
-semantic_definition sable : Subtype := creatureType "Sable"
-semantic_definition salamander : Subtype := creatureType "Salamander"
-semantic_definition samurai : Subtype := creatureType "Samurai"
-semantic_definition sand : Subtype := creatureType "Sand"
-semantic_definition saproling : Subtype := creatureType "Saproling"
-semantic_definition satyr : Subtype := creatureType "Satyr"
-semantic_definition scarecrow : Subtype := creatureType "Scarecrow"
-semantic_definition scientist : Subtype := creatureType "Scientist"
-semantic_definition scion : Subtype := creatureType "Scion"
-semantic_definition scorpion : Subtype := creatureType "Scorpion"
-semantic_definition scout : Subtype := creatureType "Scout"
-semantic_definition sculpture : Subtype := creatureType "Sculpture"
-semantic_definition seal_ : Subtype := creatureType "Seal"
-semantic_definition serf : Subtype := creatureType "Serf"
-semantic_definition serpent : Subtype := creatureType "Serpent"
-semantic_definition servo : Subtype := creatureType "Servo"
-semantic_definition shade : Subtype := creatureType "Shade"
-semantic_definition shaman : Subtype := creatureType "Shaman"
-semantic_definition shapeshifter : Subtype := creatureType "Shapeshifter"
-semantic_definition shark : Subtype := creatureType "Shark"
-semantic_definition sheep : Subtype := creatureType "Sheep"
-semantic_definition shiar : Subtype := creatureType "Shi'ar"
-semantic_definition siren : Subtype := creatureType "Siren"
-semantic_definition skeleton : Subtype := creatureType "Skeleton"
-semantic_definition skrull : Subtype := creatureType "Skrull"
-semantic_definition skunk : Subtype := creatureType "Skunk"
-semantic_definition slith : Subtype := creatureType "Slith"
-semantic_definition sliver : Subtype := creatureType "Sliver"
-semantic_definition sloth : Subtype := creatureType "Sloth"
-semantic_definition slug : Subtype := creatureType "Slug"
-semantic_definition snail : Subtype := creatureType "Snail"
-semantic_definition snake : Subtype := creatureType "Snake"
-semantic_definition soldier : Subtype := creatureType "Soldier"
-semantic_definition soltari : Subtype := creatureType "Soltari"
-semantic_definition sorcerer : Subtype := creatureType "Sorcerer"
-semantic_definition spawn : Subtype := creatureType "Spawn"
-semantic_definition specter : Subtype := creatureType "Specter"
-semantic_definition spellshaper : Subtype := creatureType "Spellshaper"
-semantic_definition sphinx : Subtype := creatureType "Sphinx"
-semantic_definition spider : Subtype := creatureType "Spider"
-semantic_definition spike : Subtype := creatureType "Spike"
-semantic_definition spirit : Subtype := creatureType "Spirit"
-semantic_definition splinter : Subtype := creatureType "Splinter"
-semantic_definition sponge : Subtype := creatureType "Sponge"
-semantic_definition spy : Subtype := creatureType "Spy"
-semantic_definition squid : Subtype := creatureType "Squid"
-semantic_definition squirrel : Subtype := creatureType "Squirrel"
-semantic_definition starfish : Subtype := creatureType "Starfish"
-semantic_definition surrakar : Subtype := creatureType "Surrakar"
-semantic_definition survivor : Subtype := creatureType "Survivor"
-semantic_definition symbiote : Subtype := creatureType "Symbiote"
-semantic_definition synth : Subtype := creatureType "Synth"
-semantic_definition tentacle : Subtype := creatureType "Tentacle"
-semantic_definition tetravite : Subtype := creatureType "Tetravite"
-semantic_definition thalakos : Subtype := creatureType "Thalakos"
-semantic_definition thopter : Subtype := creatureType "Thopter"
-semantic_definition thrull : Subtype := creatureType "Thrull"
-semantic_definition tiefling : Subtype := creatureType "Tiefling"
-semantic_definition timeLord : Subtype := creatureType "Time Lord"
-semantic_definition toy : Subtype := creatureType "Toy"
-semantic_definition treefolk : Subtype := creatureType "Treefolk"
-semantic_definition trilobite : Subtype := creatureType "Trilobite"
-semantic_definition triskelavite : Subtype := creatureType "Triskelavite"
-semantic_definition troll : Subtype := creatureType "Troll"
-semantic_definition turtle : Subtype := creatureType "Turtle"
-semantic_definition tyranid : Subtype := creatureType "Tyranid"
-semantic_definition unicorn : Subtype := creatureType "Unicorn"
-semantic_definition utrom : Subtype := creatureType "Utrom"
-semantic_definition vampire : Subtype := creatureType "Vampire"
-semantic_definition varmint : Subtype := creatureType "Varmint"
-semantic_definition vedalken : Subtype := creatureType "Vedalken"
-semantic_definition villain : Subtype := creatureType "Villain"
-semantic_definition volver : Subtype := creatureType "Volver"
-semantic_definition wall : Subtype := creatureType "Wall"
-semantic_definition walrus : Subtype := creatureType "Walrus"
-semantic_definition warlock : Subtype := creatureType "Warlock"
-semantic_definition warrior : Subtype := creatureType "Warrior"
-semantic_definition weasel : Subtype := creatureType "Weasel"
-semantic_definition weird : Subtype := creatureType "Weird"
-semantic_definition werewolf : Subtype := creatureType "Werewolf"
-semantic_definition whale : Subtype := creatureType "Whale"
-semantic_definition wizard : Subtype := creatureType "Wizard"
-semantic_definition wolf : Subtype := creatureType "Wolf"
-semantic_definition wolverine : Subtype := creatureType "Wolverine"
-semantic_definition wombat : Subtype := creatureType "Wombat"
-semantic_definition worm : Subtype := creatureType "Worm"
-semantic_definition wraith : Subtype := creatureType "Wraith"
-semantic_definition wurm : Subtype := creatureType "Wurm"
-semantic_definition yeti : Subtype := creatureType "Yeti"
-semantic_definition zombie : Subtype := creatureType "Zombie"
-semantic_definition zubera : Subtype := creatureType "Zubera"
-semantic_definition aura : Subtype := enchantmentType "Aura"
-semantic_definition background : Subtype := enchantmentType "Background"
-semantic_definition cartouche : Subtype := enchantmentType "Cartouche"
-semantic_definition case : Subtype := enchantmentType "Case"
-semantic_definition class_ : Subtype := enchantmentType "Class"
-semantic_definition curse : Subtype := enchantmentType "Curse"
-semantic_definition plan : Subtype := enchantmentType "Plan"
-semantic_definition role : Subtype := enchantmentType "Role"
-semantic_definition room : Subtype := enchantmentType "Room"
-semantic_definition rune : Subtype := enchantmentType "Rune"
-semantic_definition saga : Subtype := enchantmentType "Saga"
-semantic_definition shard : Subtype := enchantmentType "Shard"
-semantic_definition shrine : Subtype := enchantmentType "Shrine"
-semantic_definition cave : Subtype := landType "Cave"
-semantic_definition desert : Subtype := landType "Desert"
-semantic_definition forest : Subtype := landType "Forest"
-semantic_definition gate : Subtype := landType "Gate"
-semantic_definition island : Subtype := landType "Island"
-semantic_definition lair : Subtype := landType "Lair"
-semantic_definition locus : Subtype := landType "Locus"
-semantic_definition mine : Subtype := landType "Mine"
-semantic_definition mountain : Subtype := landType "Mountain"
-semantic_definition plains : Subtype := landType "Plains"
-semantic_definition planet : Subtype := landType "Planet"
-semantic_definition powerPlant : Subtype := landType "Power-Plant"
-semantic_definition sphere : Subtype := landType "Sphere"
-semantic_definition swamp : Subtype := landType "Swamp"
-semantic_definition tower : Subtype := landType "Tower"
-semantic_definition town : Subtype := landType "Town"
-semantic_definition urzas : Subtype := landType "Urza's"
-semantic_definition ajani : Subtype := planeswalkerType "Ajani"
-semantic_definition aminatou : Subtype := planeswalkerType "Aminatou"
-semantic_definition angrath : Subtype := planeswalkerType "Angrath"
-semantic_definition arlinn : Subtype := planeswalkerType "Arlinn"
-semantic_definition ashiok : Subtype := planeswalkerType "Ashiok"
-semantic_definition bahamut : Subtype := planeswalkerType "Bahamut"
-semantic_definition basri : Subtype := planeswalkerType "Basri"
-semantic_definition bolas : Subtype := planeswalkerType "Bolas"
-semantic_definition calix : Subtype := planeswalkerType "Calix"
-semantic_definition chandra : Subtype := planeswalkerType "Chandra"
-semantic_definition comet : Subtype := planeswalkerType "Comet"
-semantic_definition dack : Subtype := planeswalkerType "Dack"
-semantic_definition dakkon : Subtype := planeswalkerType "Dakkon"
-semantic_definition daretti : Subtype := planeswalkerType "Daretti"
-semantic_definition davriel : Subtype := planeswalkerType "Davriel"
-semantic_definition dellian : Subtype := planeswalkerType "Dellian"
-semantic_definition dihada : Subtype := planeswalkerType "Dihada"
-semantic_definition domri : Subtype := planeswalkerType "Domri"
-semantic_definition dovin : Subtype := planeswalkerType "Dovin"
-semantic_definition ellywick : Subtype := planeswalkerType "Ellywick"
-semantic_definition elminster : Subtype := planeswalkerType "Elminster"
-semantic_definition elspeth : Subtype := planeswalkerType "Elspeth"
-semantic_definition estrid : Subtype := planeswalkerType "Estrid"
-semantic_definition freyalise : Subtype := planeswalkerType "Freyalise"
-semantic_definition garruk : Subtype := planeswalkerType "Garruk"
-semantic_definition gideon : Subtype := planeswalkerType "Gideon"
-semantic_definition grist : Subtype := planeswalkerType "Grist"
-semantic_definition guff : Subtype := planeswalkerType "Guff"
-semantic_definition huatli : Subtype := planeswalkerType "Huatli"
-semantic_definition jace : Subtype := planeswalkerType "Jace"
-semantic_definition jared : Subtype := planeswalkerType "Jared"
-semantic_definition jaya : Subtype := planeswalkerType "Jaya"
-semantic_definition jeska : Subtype := planeswalkerType "Jeska"
-semantic_definition kaito : Subtype := planeswalkerType "Kaito"
-semantic_definition karn : Subtype := planeswalkerType "Karn"
-semantic_definition kasmina : Subtype := planeswalkerType "Kasmina"
-semantic_definition kaya : Subtype := planeswalkerType "Kaya"
-semantic_definition kiora : Subtype := planeswalkerType "Kiora"
-semantic_definition koth : Subtype := planeswalkerType "Koth"
-semantic_definition liliana : Subtype := planeswalkerType "Liliana"
-semantic_definition lolth : Subtype := planeswalkerType "Lolth"
-semantic_definition lukka : Subtype := planeswalkerType "Lukka"
-semantic_definition minsc : Subtype := planeswalkerType "Minsc"
-semantic_definition mordenkainen : Subtype := planeswalkerType "Mordenkainen"
-semantic_definition nahiri : Subtype := planeswalkerType "Nahiri"
-semantic_definition narset : Subtype := planeswalkerType "Narset"
-semantic_definition niko : Subtype := planeswalkerType "Niko"
-semantic_definition nissa : Subtype := planeswalkerType "Nissa"
-semantic_definition nixilis : Subtype := planeswalkerType "Nixilis"
-semantic_definition oko : Subtype := planeswalkerType "Oko"
-semantic_definition quintorius : Subtype := planeswalkerType "Quintorius"
-semantic_definition ral : Subtype := planeswalkerType "Ral"
-semantic_definition rowan : Subtype := planeswalkerType "Rowan"
-semantic_definition saheeli : Subtype := planeswalkerType "Saheeli"
-semantic_definition samut : Subtype := planeswalkerType "Samut"
-semantic_definition sarkhan : Subtype := planeswalkerType "Sarkhan"
-semantic_definition serra : Subtype := planeswalkerType "Serra"
-semantic_definition sivitri : Subtype := planeswalkerType "Sivitri"
-semantic_definition sorin : Subtype := planeswalkerType "Sorin"
-semantic_definition szat : Subtype := planeswalkerType "Szat"
-semantic_definition tamiyo : Subtype := planeswalkerType "Tamiyo"
-semantic_definition tasha : Subtype := planeswalkerType "Tasha"
-semantic_definition teferi : Subtype := planeswalkerType "Teferi"
-semantic_definition teyo : Subtype := planeswalkerType "Teyo"
-semantic_definition tezzeret : Subtype := planeswalkerType "Tezzeret"
-semantic_definition tibalt : Subtype := planeswalkerType "Tibalt"
-semantic_definition tyvar : Subtype := planeswalkerType "Tyvar"
-semantic_definition ugin : Subtype := planeswalkerType "Ugin"
-semantic_definition urza : Subtype := planeswalkerType "Urza"
-semantic_definition venser : Subtype := planeswalkerType "Venser"
-semantic_definition vivien : Subtype := planeswalkerType "Vivien"
-semantic_definition vraska : Subtype := planeswalkerType "Vraska"
-semantic_definition vronos : Subtype := planeswalkerType "Vronos"
-semantic_definition will : Subtype := planeswalkerType "Will"
-semantic_definition windgrace : Subtype := planeswalkerType "Windgrace"
-semantic_definition wrenn : Subtype := planeswalkerType "Wrenn"
-semantic_definition xenagos : Subtype := planeswalkerType "Xenagos"
-semantic_definition yanggu : Subtype := planeswalkerType "Yanggu"
-semantic_definition yanling : Subtype := planeswalkerType "Yanling"
-semantic_definition zariel : Subtype := planeswalkerType "Zariel"
-semantic_definition adventure : Subtype := .spell "Adventure"
-semantic_definition arcane : Subtype := .spell "Arcane"
-semantic_definition lesson : Subtype := .spell "Lesson"
-semantic_definition omen : Subtype := .spell "Omen"
-semantic_definition trap : Subtype := .spell "Trap"
-/-! ## Turn parts -/
-
-semantic_definition beginningOfCombatStep : TurnPart := .beginningOfCombat
-semantic_definition beginningPhase : TurnPart := .beginningPhase
-semantic_definition cleanup : TurnPart := .cleanup
-semantic_definition cleanupStep : TurnPart := .cleanup
-semantic_definition TurnPart.combat : TurnPart := .combat
-semantic_definition combatDamageStep : TurnPart := .combatDamage
-semantic_definition combatPhase : TurnPart := .combat
-semantic_definition declareAttackersStep : TurnPart := .declareAttackers
-semantic_definition declareBlockersStep : TurnPart := .declareBlockers
-semantic_definition drawStep : TurnPart := .drawStep
-semantic_definition endOfCombatStep : TurnPart := .endOfCombat
-semantic_definition endStep : TurnPart := .endStep
-semantic_definition endingPhase : TurnPart := .endingPhase
-semantic_definition mainPhase : TurnPart := .mainPhase
-semantic_definition postcombatMainPhase : TurnPart := .postcombatMain
-semantic_definition precombatMainPhase : TurnPart := .firstMain
-semantic_definition untapStep : TurnPart := .untapStep
-semantic_definition upkeep : TurnPart := .upkeep
-semantic_definition upkeepStep : TurnPart := .upkeep
-
-/-! ## Tokens -/
-
-/-- A Food token's characteristics: "a colorless Food artifact token with '{2}, {T}, Sacrifice
-this token: You gain 3 life.'" [CR#111.10b] -/
-semantic_definition foodToken : CharacteristicBundle :=
-  { characteristics :=
-      { types := [.artifact], subtypes := [artifactType "Food"],
-        text :=
-          [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice thisArtifact)])
-              (gainLife (.lit 3)) ] } }
-/-- A Treasure token's characteristics: "a colorless Treasure artifact token with '{T},
-Sacrifice this token: Add one mana of any color.'" [CR#111.10a] -/
-semantic_definition treasureToken : CharacteristicBundle :=
-  { characteristics :=
-      { types := [.artifact], subtypes := [artifactType "Treasure"],
-        text :=
-          [ activated (.compound [.tapSymbol, .perform (sacrifice thisArtifact)])
-              (.addMana (.lit 1) (.anyColor .sameColor) []) ] } }
-
-/-! ## Templates over Definitions -/
-
-/-- "Exile <subject> until <event>." -/
-semantic_template exileUntil (subject : NounPhrase) (event : GameEvent) : Action :=
-  .holdUntil (exile subject) event
-/-- The replacement's application, rather than installation of a new shield
-[CR#701.19b,701.19c]. -/
-semantic_template regenerationApplication (subject : NounPhrase) : Action :=
-  .enact (.action "regenerate")
-    (.sequentially
-      [ .clearDamage (.firstMention "regenerationApplication.subject" subject),
-        .instruct
-          (.possessorOf .controller (.laterMention "regenerationApplication.subject" subject))
-          (tap (.laterMention "regenerationApplication.subject" subject)),
-        .doIf
-          (.or
-            [ .matches (.laterMention "regenerationApplication.subject" subject)
-                (.inCombat .attackerOf none),
-              .matches (.laterMention "regenerationApplication.subject" subject)
-                (.inCombat .blockerOf none) ])
-          (.combat (.laterMention "regenerationApplication.subject" subject)
-            (.participation .outsideCombat))
-          none ])
-    none none
-/-- "attach <what> to it": ordinary pronoun `it` resolved by `D′` (no `Window` override). -/
-semantic_template attachToIt (what : NounPhrase) : Action :=
-  attachTo what it
-/-- "<subject>'s controller sacrifices it" (`Template` using `firstMention` / `laterMention`
-without `Window` plumbing, [CR#701.21a]). -/
-semantic_template controllerSacrifices (subject : NounPhrase) : Action :=
-  .instruct (.possessorOf .controller (.firstMention "controllerSacrifices.subject" subject))
-    (sacrifice (.laterMention "controllerSacrifices.subject" subject))
-/-- "discard <discarded>, then <step> for each nonland card discarded this way" (`Template` using
-moved-parameter readback, [CR#701.50a,400.7,400.7j]). -/
-semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Action) :
-    Action :=
-  .sequentially
-    [ discard discarded,
-      .doForEach
-        (allOf (.and [.not isLand, .isCard, .did ⟨.any, discard .which, .thisWay⟩]))
-        step ]
-/-- "you may choose not to untap <subject> during [<whose>] untap step" -/
-semantic_template mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  duringUntapStep whose (.can .any (untap subject) {})
-/-- "untap <subject> during [<whose>] untap step" -/
-semantic_template untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  duringUntapStep whose (.must .any (untap subject) {})
-/-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
-role [CR#701.3a,301.5]. -/
-semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
-  .can .any (attachTo subject host) {}
-/-- "create <count> <token>" -/
-semantic_template createToken (token : CharacteristicBundle) (count : Amount := .lit 1) : Action :=
-  create count (.written token)
-/-- "create <count> tapped <token>" -/
-semantic_template createTappedToken (token : CharacteristicBundle) (count : Amount := .lit 1) :
-    Action :=
-  create count (.written token) [.entersAs .tapped]
-/-- "create <count> <token> tapped and attacking" -/
-semantic_template createTappedAttacking (count : Amount) (token : CharacteristicBundle) : Action :=
-  create count (.written token) [.entersAs .tapped, .entersAttacking none]
-/-- "create a token that's a copy of <source> [riders]" -/
-semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider := []) : Action :=
-  create (.lit 1) (.copyOf source []) riders
-
-/-! The regeneration shield is a Definition, but its replacement applies
-`regenerationApplication`, a Template over `tap`, so it follows that Template here. -/
-
-/-- A resolving regeneration action installs a single-use shield for this turn;
-only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
-semantic_definition regenerate (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "regenerate"))
-    (.establish (.instead
-      (.would .any (destroy (.firstMention "regenerate.0" (.inCaller subject))))
-      (regenerationApplication (.laterMention "regenerate.0" (.inCaller subject)))
-      none .nextTimeOnly none) (some thisTurn))
-
-private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
-    let event := does any (regenerationApplication thisCreature)
-    let applied := (stepGameEvent 64 (DRS.ofList []) event).1
-    let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
-    GameEvent.check (DRS.ofList []) event = [] ∧
-      countOnes .object applied = 1 ∧
-      (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
-        some (.object, some .battlefield) ∧
-      countOnes .object shield = 0 ∧
-      Action.check (DRS.ofList [])
-        (.triggerThisWay (regenerate thisCreature) event
-          (.putCounters (.lit 1) (.printed (.named "m1m1Counter")) it .many true)) = [] := by decide
 
 end Semantics.Definitions
