@@ -868,7 +868,7 @@
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
         (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
-        (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.Voice", "Passive"), Exclude("filler.AdjectivePosition", "Predicative"), Require("$.ComplementKind", "AdjP")]),
+        (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.Voice", "Passive"), Exclude("filler.AdjectivePosition", "Predicative"), Exclude("filler.Determination", "Overt"), Require("$.ComplementKind", "AdjP")]),
         (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
         (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
         (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "Attribute")]),
