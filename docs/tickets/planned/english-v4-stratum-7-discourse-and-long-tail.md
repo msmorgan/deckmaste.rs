@@ -61,9 +61,11 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     option reads nowhere either), with the vote and mention family above: Storage Matrix; Stenn, Paranoid Partisan; Mystic Barrier; Teyo, Geometric Tactician; Orchard Elemental; Order of Succession; Virtus's Maneuver; Cloud Key; Dawn-Blessed Pennant; Pramikon, Sky Rampart; Aminatou, the Fateshifter; Season of Gathering; Winding Way; Eclipsed Realms; Turnabout; Zndrsplt's Judgment; Teferi's Realm; Archon of Valor's Reach; Messenger Jays; Sarpadian Empires, Vol. VII; Fatespinner (*draw step, main phase, or combat phase*).
   - Felisa, Fang of Silverquill: the second analysis of *the number of
     counters it had on it*, *have* with an object and a locative *on*-phrase
-    (*it had __ on it*), without a general *have NP on-PP* frame. Its judgment
-    in `perfect_relative_adverbial_gap.txt` keeps only the analysis Stratum 6
-    reads until then.
+    (*it had __ on it*), without a general *have NP on-PP* frame. Stratum 6
+    reads the relative as *it had __*, gapped on *counters*, with *on it* a
+    postmodifier of the nominal outside the relative; its judgment in `perfect_relative_adverbial_gap.txt` asserts that
+    analysis (`RelativeClause "it had" gap "counters"`) and drops the
+    alternative *NounPhrase "counters"* object until this lands.
   - The Targeting Marker's scope over a coordination when the marked Noun
     Phrase sits inside a larger first conjunct (*[control of X target
     creatures] and/or [planeswalkers]*, *[each of up to two target creatures]
