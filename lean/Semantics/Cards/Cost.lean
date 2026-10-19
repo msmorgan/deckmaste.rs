@@ -929,7 +929,7 @@ def academyJourneymage : Spelled := spelled <| .singleFaced
         [ static (onlyIfSo (costShift this_ (less (.lit 1)))
             (exists_ (and [hasSubtype wizard, youControl]))),
           when (does thisCreature enter)
-            (putInto (target (and [isCreature, controlledBy anOpponent])) hand) ],
+            (putInto (target (and [isCreature, anOpponentControls])) hand) ],
       power := stat 3, toughness := stat 2 } }
 
 /-- Alabaster Leech -/

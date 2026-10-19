@@ -146,7 +146,7 @@ def saheelisCopy : Action :=
         (copyOf (target (and [or [isArtifact, isCreature], youControl]))
           [isAlso [.artifact] []])
         [],
-      gainHaste (that .token),
+      gainHaste thatToken,
       atNext .endStep (exile it) ]
 theorem okSaheelisCopy : Action.check (DRS.ofList []) saheelisCopy = [] := by decide
 

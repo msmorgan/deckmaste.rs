@@ -73,7 +73,7 @@ def arrowsOfJustice : Action :=
 theorem okArrowsOfJustice : Action.check (DRS.ofList []) arrowsOfJustice = [] := by decide
 def flamesOfTheRazeBoar : Action :=
   sequentially
-    [ dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent])) .noncombatOnly,
+    [ dealDamage (.lit 4) (target (and [isCreature, anOpponentControls])) .noncombatOnly,
       doOnlyIf
         (dealDamage (.lit 2) (each (and [isCreature, isOther, controlledBy (that player)]))
            .noncombatOnly)
@@ -283,7 +283,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
           when
             (causes
               (bySource (a (and [or [isSpell, abilityHead .anyOnStack],
-                                 controlledBy anOpponent])))
+                                 anOpponentControls])))
               (does you (discard this_)))
             (instruct (that player) (loseLife (.lit 5))) ] } }
 
@@ -1149,7 +1149,7 @@ def explosiveProdigyTrigger : Ability :=
     (when (does thisCreature enter)
       (sequentially
         [ instruct it
-            (dealDamage (letter .x) (target (and [isCreature, controlledBy anOpponent]))
+            (dealDamage (letter .x) (target (and [isCreature, anOpponentControls]))
                .noncombatOnly),
           define .x (distinctCount .color (allOf (and [isPermanent, youControl]))) ]))
 theorem okExplosiveProdigyTrigger : Ability.check (DRS.ofList []) explosiveProdigyTrigger = [] := by decide
@@ -1401,7 +1401,7 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
             asSorcery,
           whenever
             (does any
-               (dealDamage (to := a (and [or [isCreature, isPlaneswalker], controlledBy anOpponent,
+               (dealDamage (to := a (and [or [isCreature, isPlaneswalker], anOpponentControls,
                         hasCounter (some bountyCounter)]))))
             (destroy it) ],
       power := stat 1, toughness := stat 3 } }

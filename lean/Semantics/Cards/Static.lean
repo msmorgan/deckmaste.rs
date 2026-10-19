@@ -549,7 +549,7 @@ def moggSalvage : Spelled := spelled <| .singleFaced
         [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype island,
-                                controlledBy anOpponent ]),
+                                anOpponentControls ]),
                 exists_ (and [ isLand, hasSubtype mountain,
                                 youControl ]) ])),
           spell (destroy (target isArtifact)) ] } }
@@ -589,7 +589,7 @@ def massacre : Spelled := spelled <| .singleFaced
         [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype plains,
-                                controlledBy anOpponent ]),
+                                anOpponentControls ]),
                 exists_ (and [ isLand, hasSubtype swamp,
                                 youControl ]) ])),
           spell (get (allOf isCreature) (down (.lit 2)) (down (.lit 2)) (some untilEndOfTurn))
@@ -717,7 +717,7 @@ theorem okVoltageSurgeAddedCost : Ability.check (DRS.ofList []) voltageSurgeAdde
 /-- Tarmogoyf -/
 def tarmogoyfDefinition : Ability :=
   static (conjunction [ ptDefinition thisCreature .powerAlone
-        (distinctCount .cardType (allOf (cardIn (graveyardOf (allOf isPlayer))))),
+        (distinctCount .cardType (allOf (cardIn (graveyardOf (bare isPlayer))))),
       ptDefinition thisCreature .toughnessAlone (plus thatMuch (.lit 1)) ])
 theorem okTarmogoyfDefinition : Ability.check (DRS.ofList []) tarmogoyfDefinition = [] := by decide
 /-- Consuming Blob's definition -/
@@ -753,18 +753,18 @@ def fieldOfDreams : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Field of Dreams", cost := some [pip .blue], supertypes := [.world],
       types := [.enchantment],
-      text := [static (visibility .reveal (allOf isPlayer) topOfLibrary)] } }
+      text := [static (visibility .reveal (bare isPlayer) topOfLibrary)] } }
 
 /-- Lantern of Insight -/
 def lanternOfInsightRider : Ability :=
-  static (visibility .reveal (allOf isPlayer) topOfLibrary)
+  static (visibility .reveal (bare isPlayer) topOfLibrary)
 theorem okLanternOfInsightRider : Ability.check (DRS.ofList []) lanternOfInsightRider = [] := by decide
 
 /-- Revelation -/
 def revelation : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Revelation", cost := some [pip .green], supertypes := [.world], types := [.enchantment],
-      text := [static (visibility .reveal (allOf isPlayer) wholeHand)] } }
+      text := [static (visibility .reveal (bare isPlayer) wholeHand)] } }
 
 /-- Phyrexian Unlife -/
 def phyrexianUnlifeImmunity : Ability :=

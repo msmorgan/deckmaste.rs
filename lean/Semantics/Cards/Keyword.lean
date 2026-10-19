@@ -625,7 +625,7 @@ def wanderingEye : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wandering Eye", cost := some [generic 2, pip .blue], types := [.creature],
       subtypes := [illusion],
-      text := [flying, static (visibility .reveal (allOf isPlayer) wholeHand)],
+      text := [flying, static (visibility .reveal (bare isPlayer) wholeHand)],
       power := stat 1, toughness := stat 3 } }
 
 def amorphousAxe : Spelled := spelled <| .singleFaced
@@ -750,7 +750,7 @@ def kyrenLegate : Spelled := spelled <| .singleFaced
         [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype plains,
-                                controlledBy anOpponent ]),
+                                anOpponentControls ]),
                 exists_ (and [ isLand, hasSubtype mountain,
                                 youControl ]) ])),
           haste ],
@@ -884,7 +884,7 @@ def hateMirageTokens : Action :=
   sequentially
     [ doForEach (targets (upTo 2) (and [isCreature, youDontControl]))
         (create (.lit 1) (copyOf it) []),
-      gain (those .token) haste ]
+      gain thoseTokens haste ]
 theorem okHateMirageTokens : Action.check (DRS.ofList []) hateMirageTokens = [] := by decide
 def descentOfTheDragons : Action :=
   sequentially
@@ -1205,7 +1205,7 @@ def wizenedSnitches : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wizened Snitches", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [faerie, rogue],
-      text := [flying, static (visibility .reveal (allOf isPlayer) topOfLibrary)],
+      text := [flying, static (visibility .reveal (bare isPlayer) topOfLibrary)],
       power := stat 1, toughness := stat 3 } }
 
 /-- Darkblade Agent -/
@@ -1329,7 +1329,7 @@ def escapedShapeshifter : Spelled := spelled <| .singleFaced
         [ alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_
-                 (and [ isCreature, controlledBy anOpponent, hasKeyword flying,
+                 (and [ isCreature, anOpponentControls, hasKeyword flying,
                                not (named (printedName "Escaped Shapeshifter")) ]))))
             [firstStrike, trample, protectionFromAnyColor] ],
       power := stat 3, toughness := stat 4 } }

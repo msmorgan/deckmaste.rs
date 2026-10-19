@@ -414,10 +414,10 @@ def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
       text :=
         [ when (chapterMark [1])
             (instruct this_
-               (dealDamage (.lit 6) (target (and [isCreature, controlledBy anOpponent]))
+               (dealDamage (.lit 6) (target (and [isCreature, anOpponentControls]))
                   .noncombatOnly)),
           when (chapterMark [2])
-            (destroy (target (and [isArtifact, controlledBy anOpponent]))),
+            (destroy (target (and [isArtifact, anOpponentControls]))),
           when (chapterMark [3, 4]) (addMana (.lit 1) (manaOf [[.of .red]])) ] }
               }
 
@@ -428,7 +428,7 @@ def theFlux : Spelled := spelled <| .singleFaced
       text :=
         [ when (chapterMark [1])
             (instruct this_
-               (dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent]))
+               (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls]))
                   .noncombatOnly)),
           when (chapterMark [2, 3, 4, 5])
             (sequentially
@@ -1085,7 +1085,7 @@ def fellwarStone : Spelled := spelled <| .singleFaced
       text :=
         [ activated tapSymbol
             (addMana (.lit 1)
-              (ofTypeProducibleBy (a (and [isLand, controlledBy anOpponent])))) ] } }
+              (ofTypeProducibleBy (a (and [isLand, anOpponentControls])))) ] } }
 
 /-- Ice Cauldron -/
 def iceCauldronNotedMana : Ability :=

@@ -109,6 +109,10 @@ semantic_template that (w : NounWord) : NounPhrase := .pro (.word w) .one
 semantic_template thatJoin : NounPhrase := that .join
 /-- "those <word>s", e.g. `those .card`. -/
 semantic_template those (w : NounWord) : NounPhrase := .pro (.word w) .many
+/-- "that token" -/
+semantic_template thatToken : NounPhrase := that .token
+/-- "those tokens" -/
+semantic_template thoseTokens : NounPhrase := those .token
 /-- "they": the player most recently named. -/
 semantic_template they : NounPhrase := .pro (.word .player) .one
 /-- "that player or that permanent's controller": the player half of a "target player or
@@ -661,6 +665,8 @@ semantic_template withMostVotes : Predicate := .withMostVotes
 /-! ## Nouns -/
 
 semantic_template anOpponent : NounPhrase := a (.isOpponentOf .you)
+/-- "an opponent controls" -/
+semantic_template anOpponentControls : Predicate := controlledBy anOpponent
 semantic_template thisCreature : NounPhrase := .headed (.type .creature) .this
 semantic_template thisArtifact : NounPhrase := .headed (.type .artifact) .this
 semantic_template thisLand : NounPhrase := .headed (.type .land) .this

@@ -784,7 +784,7 @@ semantic_definition populate : Action :=
     (enact (.action "populate")
       (sequentially
         [ choose (a (and [.isToken, isCreature, isPermanent, actorControls])),
-          createTokenCopy (that .token) ]))
+          createTokenCopy thatToken ]))
 semantic_definition recruit : Action :=
   .ownScope (some (.action "recruit"))
     (enact (.action "recruit")

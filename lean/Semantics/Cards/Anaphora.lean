@@ -28,7 +28,7 @@ theorem okBitterDownfall : Action.check (DRS.ofList []) bitterDownfall = [] := b
 
 def suspendedSentence : Action :=
   sequentially
-    [ destroy (target (and [isCreature, controlledBy anOpponent])),
+    [ destroy (target (and [isCreature, anOpponentControls])),
       instruct (that player) (loseLife (.lit 3)) ]
 theorem okSuspendedSentence : Action.check (DRS.ofList []) suspendedSentence = [] := by decide
 
@@ -564,7 +564,7 @@ theorem okHijackDeedDescriptions :
 def openTheVaults : Action :=
   returnTo
     (allOf (and [ isCard, or [isArtifact, isEnchantment],
-                   in_ (graveyardOf (allOf isPlayer)) ]))
+                   in_ (graveyardOf (bare isPlayer)) ]))
     battlefield [under (ownerOf them)]
 theorem okOpenTheVaults : Action.check (DRS.ofList []) openTheVaults = [] := by decide
 

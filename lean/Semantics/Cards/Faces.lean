@@ -27,7 +27,7 @@ def cyberConversion : Action :=
 theorem okCyberConversion : Action.check (DRS.ofList []) cyberConversion = [] := by decide
 
 def breakOpen : Action :=
-  turnFaceUp (target (and [isCreature, isFaceDown, controlledBy anOpponent]))
+  turnFaceUp (target (and [isCreature, isFaceDown, anOpponentControls]))
 theorem okBreakOpen : Action.check (DRS.ofList []) breakOpen = [] := by decide
 
 def jushiApprentice : Ability :=
@@ -41,7 +41,7 @@ theorem okJushiApprentice : Ability.check (DRS.ofList []) jushiApprentice = [] :
 def invasionOfDominaria : Spelled := spelled <| .transforming
   { characteristics :=
     { name := "Invasion of Dominaria", cost := some [generic 2, pip .white],
-      types := [.battle], subtypes := [.of .battle "Siege"],
+      types := [.battle], subtypes := [siege],
       text :=
         [ when (does thisSiege enter)
             (sequentially [gainLife (.lit 4), draw (.lit 1)]) ],
@@ -438,7 +438,7 @@ def glassworksShatteredYard : Spelled := spelled <| .sharedLineSplit
     text :=
       [ when (does you (unlock thisDoor))
           (instruct thisRoom
-             (dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent]))
+             (dealDamage (.lit 4) (target (and [isCreature, anOpponentControls]))
                 .noncombatOnly)) ] }
   { name := "Shattered Yard", cost := some [generic 4, pip .red],
     text :=

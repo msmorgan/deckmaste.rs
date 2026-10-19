@@ -35,7 +35,7 @@ theorem okScholarOfStars : Ability.check (DRS.ofList []) scholarOfStars = [] := 
 
 def miserysShadow : Ability :=
   static (instead
-            (would (a (and [isCreature, controlledBy anOpponent])) die) (exile it))
+            (would (a (and [isCreature, anOpponentControls])) die) (exile it))
 theorem okMiserysShadow : Ability.check (DRS.ofList []) miserysShadow = [] := by decide
 
 def beastWhisperer : Ability :=
@@ -745,7 +745,7 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
       text :=
         [ spell
             (establishThroughout
-               (entryRider (a (and [isCreature, controlledBy anOpponent]))
+               (entryRider (a (and [isCreature, anOpponentControls]))
                   (under you)) thisTurn) ] } }
 
 /-- Don't Blink's replacement, without its written agent -/

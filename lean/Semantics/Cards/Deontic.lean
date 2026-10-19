@@ -378,13 +378,13 @@ def blindingAngel : Spelled := spelled <| .singleFaced
 def eonHub : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Eon Hub", cost := some [generic 5], types := [.artifact],
-      text := [static (partSkip (allOf isPlayer) .upkeep)] } }
+      text := [static (partSkip (bare isPlayer) .upkeep)] } }
 
 def stasis : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Stasis", cost := some [generic 1, pip .blue], types := [.enchantment],
       text :=
-        [ static (partSkip (allOf isPlayer) .untapStep),
+        [ static (partSkip (bare isPlayer) .untapStep),
           at_ (beginningOfYour .upkeep)
             (doUnless (sacrifice thisEnchantment) (mana [pip .blue])) ] } }
 

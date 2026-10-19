@@ -49,7 +49,7 @@ def frontlineHeroismCopy : Ability :=
             { colors := [.red], types := [.creature], subtypes := [soldier],
               text := [haste], power := stat 1, toughness := stat 1 } },
         copySpell (that .spell),
-        copyTargets (that .copy) (that .token) ])
+        copyTargets (that .copy) thatToken ])
 theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismCopy = [] := by decide
 
 /-- Flawless Forgery -/

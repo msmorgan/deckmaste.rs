@@ -91,7 +91,7 @@ theorem okBoulderfall : Action.check (DRS.ofList []) boulderfall = [] := by deci
 
 /-- Banisher Priest -/
 def banisherPriest : Action :=
-  exileUntil (target (and [isCreature, controlledBy anOpponent]))
+  exileUntil (target (and [isCreature, anOpponentControls]))
     (does thisCreature leave)
 theorem okBanisherPriest : Action.check (DRS.ofList []) banisherPriest = [] := by decide
 
@@ -133,7 +133,7 @@ def timelyReinforcements : Spelled := spelled <| .singleFaced
             [ doIf (compareAmt (lifeTotalOf you) .less (lifeTotalOf anOpponent))
                 (gainLife (.lit 6)),
               doIf (compareAmt (countOf (and [isCreature, youControl])) .less
-                      (countOf (and [isCreature, controlledBy anOpponent])))
+                      (countOf (and [isCreature, anOpponentControls])))
                 (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)) ]) ] } }
 
 /-- Survival Cache -/
