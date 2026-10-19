@@ -387,7 +387,7 @@ def aislingLeprechaun : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOr (does thisCreature (block (a isCreature)))
             [does (by_ (a isCreature)) (block thisCreature)]
-            (becomeColor (that creature) (.some [.green]) none) ],
+            (becomeColor (that creature) (.some [.green])) ],
       power := stat 1, toughness := stat 1 } }
 
 def avenShrine : Spelled := spelled <| .singleFaced
@@ -456,8 +456,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
             (sequentially
               [ putOntoBattlefieldUnderYourControl it,
                 become (that creature)
-                  { characteristics := { colors := [.black], subtypes := [zombie] } }
-                  none ]) ],
+                  { characteristics := { colors := [.black], subtypes := [zombie] } } ]) ],
       power := stat 3, toughness := stat 5 } }
 
 /-- Steppe Lynx -/

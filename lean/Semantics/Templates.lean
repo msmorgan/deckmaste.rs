@@ -50,7 +50,8 @@ semantic_template qualityChange (subject : NounPhrase) (op : QualityOp) (payload
 semantic_template abilityLoss (subject : NounPhrase) (abilities : List AbilityLost) : StaticSpec :=
   .characteristicChange subject [.removedAbilities (.specified abilities)]
 /-- "<subject> loses all abilities [except <except>]" -/
-semantic_template allAbilityLoss (subject : NounPhrase) (except : Option Predicate) : StaticSpec :=
+semantic_template allAbilityLoss (subject : NounPhrase) (except : Option Predicate := none) :
+    StaticSpec :=
   .characteristicChange subject [.removedAbilities (.allExcept except)]
 /-- "As <subject> enters, [secretly] choose <sort> [from <domain>]." -/
 semantic_template entryChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
@@ -1343,19 +1344,19 @@ semantic_template lookAndSortSlice (slice : NounPhrase) (spill : Location)
 semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
     (duration : Option Duration := none) : Action :=
   .establish (getsPt subject power toughness) duration
-semantic_template gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) :
-    Action :=
+semantic_template gain (subject : NounPhrase) (ability : Ability)
+    (duration : Option Duration := none) : Action :=
   .establish (.characteristicChange subject [.addedAbilities [ability]]) duration
 /-- "<subject> gains haste [until …]" -/
-semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration) : Action :=
+semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration := none) : Action :=
   gain subject (.keyword (.named "haste") [] []) duration
 /-- "<subject> becomes <added> in addition to its other types [until …]" -/
 semantic_template become (subject : NounPhrase) (added : CharacteristicBundle)
-    (duration : Option Duration) : Action :=
+    (duration : Option Duration := none) : Action :=
   .establish (qualityChange subject .adds (.bundle added none)) duration
 /-- "<subject> becomes <colors> [until …]" -/
 semantic_template becomeColor (subject : NounPhrase) (colors : ColorSpec)
-    (duration : Option Duration) : Action :=
+    (duration : Option Duration := none) : Action :=
   .establish (qualityChange subject .sets (.colored colors)) duration
 /-- Several static clauses sharing one subject, as one action. -/
 semantic_template establishFor (subject : NounPhrase) (parts : List StaticSpec)

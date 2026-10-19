@@ -166,14 +166,14 @@ def riseFromTheGrave : Action :=
   sequentially
     [ putOntoBattlefieldUnderYourControl (target (and [isCreature, in_ graveyard])),
       become (that creature)
-        { characteristics := { colors := [.black], subtypes := [zombie] } } none ]
+        { characteristics := { colors := [.black], subtypes := [zombie] } } ]
 theorem okRiseFromTheGrave : Action.check (DRS.ofList []) riseFromTheGrave = [] := by decide
 
 def everAfter : Action :=
   sequentially
     [ putOntoBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard])),
       become (those creature)
-        { characteristics := { colors := [.black], subtypes := [zombie] } } none,
+        { characteristics := { colors := [.black], subtypes := [zombie] } },
       putInto this_ onBottom ]
 theorem okEverAfter : Action.check (DRS.ofList []) everAfter = [] := by decide
 

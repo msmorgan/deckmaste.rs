@@ -720,7 +720,7 @@ def retroMutation : Spelled := spelled <| .singleFaced
                 (bundle { characteristics := { subtypes := [turtle] } }),
               getsBase it (.lit 0) (.lit 1),
               cant it attack,
-              allAbilityLoss it none ]) ] } }
+              allAbilityLoss it ]) ] } }
 
 /-- Hotshot Mechanic -/
 def hotshotMechanic : Spelled := spelled <| .singleFaced

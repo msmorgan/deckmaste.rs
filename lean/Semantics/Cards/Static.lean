@@ -188,7 +188,7 @@ def turnToFrog : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Turn to Frog", cost := some [generic 1, pip .blue], types := [.instant],
       text :=
-        [ spell (establishThroughout (conjunction [ allAbilityLoss (target isCreature) none,
+        [ spell (establishThroughout (conjunction [ allAbilityLoss (target isCreature),
                 qualityChange it .sets
                   (bundle { characteristics := { colors := [.blue], subtypes := [frog] } }),
                 getsBase it (.lit 1) (.lit 1) ]) untilEndOfTurn) ] } }
@@ -197,7 +197,7 @@ def humility : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Humility", cost := some [generic 2, pip .white, pip .white], types := [.enchantment],
       text :=
-        [ static (conjunction [ allAbilityLoss (allOf isCreature) none,
+        [ static (conjunction [ allAbilityLoss (allOf isCreature),
               getsBase them (.lit 1) (.lit 1) ]) ] } }
 
 /-- Tahngarth, First Mate -/
@@ -458,7 +458,7 @@ theorem okEgoErasureBody : Action.check (DRS.ofList []) egoErasureBody = [] := b
 /-- Lithoform Blight -/
 def lithoformBlightLoss : StaticSpec :=
   conjunction [ qualityChange (enchanted land) .loses (everyTypeOf .land),
-      allAbilityLoss it none ]
+      allAbilityLoss it ]
 theorem okLithoformBlightLoss : StaticSpec.check (DRS.ofList []) lithoformBlightLoss = [] := by decide
 
 /-- Energybending -/

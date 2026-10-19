@@ -305,7 +305,7 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
         choose (a army),
         .putCounters (.inCaller count) (.printed p1p1Counter) (that (.type .creature)) .one true,
         doIf (not (matches_ it (.hasSubtype subtype)))
-          (become it { characteristics := { subtypes := [subtype] } } none)
+          (become it { characteristics := { subtypes := [subtype] } })
           none ])
       none none)
 /-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]). -/
@@ -497,10 +497,11 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
                 (some (.forAsLongAs (matches_ it (.in_ exileZone)))))) ])
       none none)
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
-semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration) : Action :=
+semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration := none) :
+    Action :=
   .ownScope (some (.action "double"))
-    (.establish (getsPt (.firstMention "doublePower.0" (.inCaller subject))
-      (.up (powerOf (.laterMention "doublePower.0" (.inCaller subject)))) (.up (.lit 0)))
+    (get (.firstMention "doublePower.subject" (.inCaller subject))
+      (.up (powerOf (.laterMention "doublePower.subject" (.inCaller subject)))) (.up (.lit 0))
       duration)
 /-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
 (`Definition`, [CR#701.10b,701.10c]). -/
@@ -520,12 +521,16 @@ semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Du
       (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
       duration)
 /-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
-semantic_definition triplePowerAndToughness (subject : NounPhrase) (duration : Option Duration) :
-    Action :=
+semantic_definition triplePowerAndToughness (subject : NounPhrase)
+    (duration : Option Duration := none) : Action :=
   .ownScope (some (.action "triple"))
-    (.establish (getsPt (.firstMention "triplePT.0" (.inCaller subject))
-      (.up (times (.lit 2) (powerOf (.laterMention "triplePT.0" (.inCaller subject)))))
-      (.up (times (.lit 2) (toughnessOf (.laterMention "triplePT.0" (.inCaller subject))))))
+    (get (.firstMention "triplePowerAndToughness.subject" (.inCaller subject))
+      (.up
+        (times (.lit 2)
+          (powerOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
+      (.up
+        (times (.lit 2)
+          (toughnessOf (.laterMention "triplePowerAndToughness.subject" (.inCaller subject)))))
       duration)
 /-- "triple <subject>'s power": it gets +X/+0, X twice its power (`Definition`,
 [CR#701.11b,701.11c]). -/

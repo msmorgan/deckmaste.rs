@@ -63,7 +63,7 @@ def ashnodsTransmogrant : Ability :=
     (sequentially
       [ putCounters (.lit 1) (printedKind p1p1Counter) (target (and [isCreature, non isArtifact]))
           .many,
-        become (that creature) { characteristics := { types := [.artifact] } } none ])
+        become (that creature) { characteristics := { types := [.artifact] } } ])
 theorem okAshnodsTransmogrant : Ability.check (DRS.ofList []) ashnodsTransmogrant = [] := by decide
 def azulaAlwaysLies : Action :=
   chooseModes (oneThrough 2)
@@ -834,7 +834,7 @@ def infernalVessel : Spelled := spelled <| .singleFaced
         [ triggeredIf (does thisCreature die) (not (matches_ it (hasSubtype demon)))
             (sequentially
               [ returnToBattlefieldWithCounters it (ownerOf it) (.lit 2) p1p1Counter,
-                become it { characteristics := { subtypes := [demon] } } none ]) ],
+                become it { characteristics := { subtypes := [demon] } } ]) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Vivien's Talent -/

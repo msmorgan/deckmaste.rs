@@ -231,7 +231,7 @@ def chillerpillar : Spelled := spelled <| .singleFaced
 
 def nullhideFerox : Ability :=
   activated (mana [generic 2])
-    (establishThroughout (allAbilityLoss thisCreature none) untilEndOfTurn)
+    (establishThroughout (allAbilityLoss thisCreature) untilEndOfTurn)
 theorem okNullhideFerox : Ability.check (DRS.ofList []) nullhideFerox = [] := by decide
 
 def causticTar : Spelled := spelled <| .singleFaced
@@ -804,7 +804,7 @@ def sugarCoat : Spelled := spelled <| .singleFaced
                         [ activated (compound [mana [generic 2], tapSymbol, perform (sacrifice
                             thisArtifact)])
                             (gainLife (.lit 3)) ] } }),
-              allAbilityLoss it none ]) ] } }
+              allAbilityLoss it ]) ] } }
 
 /-- Doc Aurlock, Grizzled Genius -/
 def docAurlockCost : StaticSpec :=

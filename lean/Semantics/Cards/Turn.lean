@@ -23,7 +23,7 @@ def throughTheBreach : Action :=
   may
     (putOntoBattlefield (a (and [isCreature, in_ yourHand])))
     (some (sequentially
-      [ gainHaste (that creature) none,
+      [ gainHaste (that creature),
         atNext .endStep (sacrifice (that creature)) ]))
 theorem okThroughTheBreach : Action.check (DRS.ofList []) throughTheBreach = [] := by decide
 
@@ -146,7 +146,7 @@ def saheelisCopy : Action :=
         (copyOf (target (and [or [isArtifact, isCreature], youControl]))
           [isAlso [.artifact] []])
         [],
-      gainHaste (that .token) none,
+      gainHaste (that .token),
       atNext .endStep (exile it) ]
 theorem okSaheelisCopy : Action.check (DRS.ofList []) saheelisCopy = [] := by decide
 

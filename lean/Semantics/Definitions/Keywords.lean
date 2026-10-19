@@ -1235,7 +1235,7 @@ semantic_definition riot : Ability :=
         (.asEvent (does thisPermanent enter)
           (mayOrElse
             (.establish (entersWithAdditionalCounters thisPermanent (.lit 1) p1p1Counter) none)
-            (gainHaste thisPermanent none))) ]
+            (gainHaste thisPermanent))) ]
 semantic_definition saddle (amount : Amount) : Ability :=
   .keyword (.named "saddle") [.number (.inCaller amount)]
     [ activatedOnlyDuring
@@ -1491,7 +1491,7 @@ semantic_definition unearth (cost : Cost) : Ability :=
     [ activatedOnlyDuring (.inCaller cost)
         (sequentially
           [ returnToBattlefield thisCard (from_ := some yourGraveyard),
-            gainHaste thisPermanent none,
+            gainHaste thisPermanent,
             atNext .endStep
               (exile thisPermanent),
             replaceEvent (would thisPermanent leave)

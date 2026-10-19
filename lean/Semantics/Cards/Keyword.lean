@@ -382,7 +382,7 @@ def bootsOfSpeed : Spelled := spelled <| .singleFaced
 /-- "enchanted creature loses all abilities and is a <colors> <subtype> with base P/T" -/
 def enchantedBecomesVanilla (colors : List Color) (subtype : String) (power toughness : Nat) :
     StaticSpec :=
-  conjunction [ allAbilityLoss (enchanted creature) none,
+  conjunction [ allAbilityLoss (enchanted creature),
       qualityChange it .sets
         (bundle { characteristics := { colors, types := [.creature], subtypes := [creatureType subtype] } }),
       getsPt it (setTo (.lit power)) (setTo (.lit toughness)) ]
@@ -407,7 +407,7 @@ def darksteelMutation : Spelled := spelled <| .singleFaced
                        }),
               getsBase it (.lit 0) (.lit 1),
               abilityGrant it indestructible,
-              allAbilityLoss it none ]) ] } }
+              allAbilityLoss it ]) ] } }
 
 def kenrithsTransformation : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -436,7 +436,7 @@ def lignify : Spelled := spelled <| .singleFaced
           static (conjunction [ qualityChange (enchanted creature) .sets
                 (bundle { characteristics := { subtypes := [treefolk] } }),
               getsBase it (.lit 0) (.lit 4),
-              allAbilityLoss it none ]) ] } }
+              allAbilityLoss it ]) ] } }
 
 def nefariousImp : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -859,8 +859,7 @@ def stormOfSouls : Action :=
       become them
         { characteristics :=
           { subtypes := [spirit], text := [flying],
-            power := stat 1, toughness := stat 1 } }
-        none,
+            power := stat 1, toughness := stat 1 } },
       exile this_ ]
 theorem okStormOfSouls : Action.check (DRS.ofList []) stormOfSouls = [] := by decide
 
@@ -885,7 +884,7 @@ def hateMirageTokens : Action :=
   sequentially
     [ doForEach (targets (upTo 2) (and [isCreature, youDontControl]))
         (create (.lit 1) (copyOf it) []),
-      gain (those .token) haste none ]
+      gain (those .token) haste ]
 theorem okHateMirageTokens : Action.check (DRS.ofList []) hateMirageTokens = [] := by decide
 def descentOfTheDragons : Action :=
   sequentially
