@@ -29,4 +29,4 @@
 + Return it to the battlefield tapped and attacking. => AdjectivePhrase "tapped"; VerbPhrase "attacking"
 + Look at the top three cards of your library. Put one of them into your hand and the rest into your graveyard. => NounPhrase "one of them" as Object of put; NounPhrase "the rest" as Object of put
 + Arc Trail deals 2 damage to any target and 1 damage to any other target. => NounPhrase "2 damage" as Object of deal; NounPhrase "1 damage" as Object of deal
-+NounPhrase creatures with mana value less than or equal to the number of void counters on it => NounPhrase "the number of void counters" as Complement of than; !PrepositionPhrase "of void counters" as Modifier of creature
++NounPhrase creatures with mana value less than or equal to the number of void counters on it => NounPhrase "the number of void counters" as Complement of than

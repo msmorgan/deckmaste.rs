@@ -104,9 +104,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   X is its power*). Same-head complement priority is derived from the frames: a PP, or an
   adjunct of a Frame Slot's Category (a purpose *to*-infinitival), may not
   attach as a Predicate adjunct to a head that has a longer frame selecting it
-  (*choose to attack* has no purpose reading), and a Preposition Phrase that a
-  noun at the host's right edge selects is that noun's Complement, never an
-  Adjunct of the host (*less than or equal to the number [of void counters]*).
+  (*choose to attack* has no purpose reading).
   Likewise a frame's predicative
   Complement is not a Preposition Phrase that a rival frame of the same head
   selects in its place (locative *on the battlefield* after *be*). Optional
