@@ -395,6 +395,11 @@ pub struct DeterminativeEntry {
     #[serde(default)]
     pub number: Option<Number>,
     pub lemma: String,
+    /// Distinguishes two determinatives of one lemma (*more*, the
+    /// comparative of both *many* and *much*), naming the lexeme
+    /// `det:LEMMA.SENSE`.
+    #[serde(default)]
+    pub sense: Option<String>,
     /// Spelling Variants, when the lemma is not the only spelling.
     #[serde(default)]
     pub spellings: Option<Vec<String>>,

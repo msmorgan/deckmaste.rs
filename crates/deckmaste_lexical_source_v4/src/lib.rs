@@ -256,7 +256,10 @@ impl Sources {
         let core = |path: &str, owner: &str| source(SourceKind::Core, path, owner);
         let closed = &self.closed_class;
         for entry in &closed.determinatives {
-            let id = format!("det:{}", entry.lemma);
+            let id = match &entry.sense {
+                Some(sense) => format!("det:{}.{sense}", entry.lemma),
+                None => format!("det:{}", entry.lemma),
+            };
             builder.determinative(&id, entry, core(CLOSED_CLASS, &id));
         }
         for entry in &closed.pronouns {

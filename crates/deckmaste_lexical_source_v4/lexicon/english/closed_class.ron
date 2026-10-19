@@ -28,7 +28,10 @@
         (number: Singular, countability: Mass, lemma: "least"),
         (number: Singular, countability: Mass, lemma: "less", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (number: Plural, countability: Count, lemma: "many", frames: [Complement(PP(["of"]))]),
-        (lemma: "more", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
+        // *More* is the comparative of both *many* and *much* (CGEL, Ch. 13
+        // §4.1.1, p. 1126): plural with a count head, singular with a mass one.
+        (number: Plural, countability: Count, lemma: "more", sense: Some("count"), frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
+        (number: Singular, countability: Mass, lemma: "more", sense: Some("mass"), frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (lemma: "most", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Mass, lemma: "much", frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "neither", distribution: Distributive, frames: [Complement(PP(["of"]))]),

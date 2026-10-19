@@ -114,11 +114,10 @@ fn pronoun(lemma: &str, person: Person, number: Option<Number>) -> Lexeme {
 
 /// Fused heads and comparative and superlative determinatives the grammar
 /// names.
-const DEPENDENT_HEADS: [&str; 15] = [
+const DEPENDENT_HEADS: [&str; 14] = [
     "both",
     "either",
     "neither",
-    "more",
     "everything",
     "many",
     "much",
@@ -232,6 +231,19 @@ pub fn lexicon() -> Lexicon {
     }
     for word in DEPENDENT_HEADS {
         let mut det = invariant("det", word, Category::Determinative, Core);
+        det.properties
+            .features
+            .insert("DeterminativeDistribution".into(), "Dependent".into());
+        lexemes.push(det);
+    }
+    // *More* is two lexemes: the comparative of *many* and of *much*.
+    for sense in ["count", "mass"] {
+        let mut det = Lexeme::invariant(
+            format!("det:more.{sense}"),
+            "more",
+            Category::Determinative,
+            source(Core),
+        );
         det.properties
             .features
             .insert("DeterminativeDistribution".into(), "Dependent".into());
