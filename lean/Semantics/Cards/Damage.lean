@@ -1119,7 +1119,7 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
       text :=
         [ surge (mana [generic 3, pip .red, pip .red]),
           flying,
-          triggeredIf (does thisCreature enter) (keywordCostPaid (.named "surge")
+          triggeredIf (does thisCreature enter) (keywordCostPaid surge
                                                            thisCreature)
             (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly)) ],
       power := stat 5, toughness := stat 4 } }

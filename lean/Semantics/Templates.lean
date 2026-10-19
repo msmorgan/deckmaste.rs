@@ -513,6 +513,43 @@ semantic_template keywordOf (ability : Ability) : KeywordTerm :=
   | _ => .the (.named "")
 /-- A keyword ability reads as the keyword it is. -/
 instance [AuthoringContext] : Coe Ability KeywordTerm := ⟨keywordOf⟩
+
+open Lean Elab Term Meta in
+/-- The label a keyword ability Definition is written under (`.keyword (.named "kicker") …`), read
+from its expansion with its parameters left abstract. -/
+private def keywordDefinitionLabel? (name : Name) : MetaM (Option String) := do
+  let some value := (← getConstInfo name).value? | return none
+  lambdaTelescope value fun _ body => do
+    let body ← whnf body
+    unless body.isAppOfArity ``Semantics.Ability.keyword 3 do return none
+    let label ← whnf body.appFn!.appFn!.appArg!
+    unless label.isAppOfArity ``Semantics.KeywordLabel.named 1 do return none
+    match ← whnf label.appArg! with
+    | .lit (.strVal label) => return some label
+    | _ => return none
+
+open Lean Elab Term Meta in
+/-- A keyword ability's Definition names its keyword wherever a `KeywordLabel` is expected:
+`keywordCostPaid kicker it`, `abilityHead (.keyword cycling)`, `.anyIn ⟨protection, none⟩`. The
+identifier elaborates as the label the Definition is written under, so the term is the label
+itself. Any other identifier, or an expected type other than `KeywordLabel`, is left to the
+ordinary elaborator. -/
+@[scoped term_elab ident]
+def elabKeywordName : TermElab := fun stx expectedType? => do
+  let some expected := expectedType? | throwUnsupportedSyntax
+  let expected ← instantiateMVars expected
+  unless expected.getAppFn.isMVar || (← whnfR expected).isConstOf ``Semantics.KeywordLabel do
+    throwUnsupportedSyntax
+  if (← getLCtx).findFromUserName? stx.getId |>.isSome then throwUnsupportedSyntax
+  let candidates ← try resolveGlobalConst stx catch _ => throwUnsupportedSyntax
+  let env ← getEnv
+  let some definition := candidates.find? (Authoring.definitionAttribute.hasTag env)
+    | throwUnsupportedSyntax
+  let some label ← keywordDefinitionLabel? definition | throwUnsupportedSyntax
+  if expected.getAppFn.isMVar then
+    tryPostpone
+    throwUnsupportedSyntax
+  return mkApp (mkConst ``Semantics.KeywordLabel.named) (mkStrLit label)
 /-- "with a counter on it", or "with a <kind> counter on it". -/
 semantic_template hasCounter (kind : Option CounterKind := none) : Predicate := .hasCounters kind
 /-- "named <name>" -/

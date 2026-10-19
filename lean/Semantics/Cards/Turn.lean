@@ -408,7 +408,7 @@ def concertedEffort : Spelled := spelled <| .singleFaced
                  (abilityGrant (allOf (and [isCreature, youControl]))
                     flying) untilEndOfTurn))
             [ fear, firstStrike, doubleStrike,
-              .anyIn ⟨(.named "landwalk"), none⟩, .anyIn ⟨(.named "protection"), none⟩,
+              .anyIn ⟨landwalk, none⟩, .anyIn ⟨protection, none⟩,
               trample, vigilance ] ] } }
 
 /-- Land Tax -/

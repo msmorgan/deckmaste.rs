@@ -290,6 +290,9 @@ semantic_definition backup (amount : Amount) : Ability :=
                 untilEndOfTurn)
               none ]) ]
 semantic_definition banding : Ability := keyword (.named "banding")
+/-- "Bands with other <quality>", a special form of banding [CR#702.22b]. -/
+semantic_definition bandsWithOther (quality : Predicate) : Ability :=
+  keywordQuality (.named "bandsWithOther") (.inCaller quality)
 semantic_definition bargain : Ability :=
   .keyword (.named "bargain") []
     [ static

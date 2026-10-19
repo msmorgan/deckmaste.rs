@@ -479,20 +479,20 @@ def fluctuator : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Fluctuator", cost := some [generic 2], types := [.artifact],
       text :=
-        [ static (costShift (allOf (and [abilityHead (.keyword (.named "cycling")), activatedBy you]))
+        [ static (costShift (allOf (and [abilityHead (.keyword Definitions.cycling), activatedBy you]))
             (less (.lit 2))) ] } }
 
 /-- Boom Scholar -/
 def boomScholarExhaustDiscount : Ability :=
   static (costShift
-    (allOf (and [ abilityHead (.keyword (.named "exhaust")),
+    (allOf (and [ abilityHead (.keyword exhaust),
                    abilityOf (allOf (and [isPermanent, otherThan thisCreature, youControl])) ]))
     (less (.lit 2)))
 theorem okBoomScholarExhaustDiscount : Ability.check (DRS.ofList []) boomScholarExhaustDiscount = [] := by decide
 /-- Hulk, Gamma Goliath -/
 def hulkPowerUpDiscount : Ability :=
   static (costShift
-    (allOf (and [ abilityHead (.keyword (.named "powerUp")),
+    (allOf (and [ abilityHead (.keyword powerUp),
                    abilityOf (allOf (and [isCreature, otherThan thisCreature, youControl])) ]))
     (less (.lit 3)))
 theorem okHulkPowerUpDiscount : Ability.check (DRS.ofList []) hulkPowerUpDiscount = [] := by decide
@@ -563,7 +563,7 @@ def powerArtifact : Spelled := spelled <| .singleFaced
 /-- Fervent Champion -/
 def ferventChampionEquipDiscount : Ability :=
   static (costShift
-    (allOf (and [abilityHead (.keyword (.named "equip")), activatedBy you, targeting thisCreature .someTarget]))
+    (allOf (and [abilityHead (.keyword equip), activatedBy you, targeting thisCreature .someTarget]))
     (less (.lit 3)))
 theorem okFerventChampionEquipDiscount : Ability.check (DRS.ofList []) ferventChampionEquipDiscount = [] := by decide
 
@@ -589,7 +589,7 @@ def bureauHeadmaster : Spelled := spelled <| .singleFaced
       subtypes := [human, assassin],
       text :=
         [ static (spellsCost (and [isSpell, hasSubtype equipment, castBy you]) (less (.lit 1))),
-          static (costShift (allOf (and [abilityHead (.keyword (.named "equip")), activatedBy you]))
+          static (costShift (allOf (and [abilityHead (.keyword equip), activatedBy you]))
               (less (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -916,7 +916,7 @@ def ghostfireBlade : Spelled := spelled <| .singleFaced
         [ static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 2))),
           equip (mana [generic 3]),
           static (costShift
-            (allOf (and [ abilityHead (.keyword (.named "equip")), abilityOf this_,
+            (allOf (and [ abilityHead (.keyword equip), abilityOf this_,
                            targeting (a (and [isCreature, isColorless])) .someTarget ]))
             (less (.lit 2))) ] } }
 

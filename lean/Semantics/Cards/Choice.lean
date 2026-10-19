@@ -997,7 +997,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
       text :=
         [ trample,
           echo (mana [generic 0]),
-          when (does any (pay anyCost .once .paid (some thisCreature) (some (.named "echo"))))
+          when (does any (pay anyCost .once .paid (some thisCreature) (some echo)))
             (instruct eachOpponent (may (draw (upTo (.lit 3))))) ],
       power := stat 6, toughness := stat 6 } }
 

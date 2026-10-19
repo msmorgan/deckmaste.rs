@@ -21,7 +21,7 @@ theorem okJump : Action.check (DRS.ofList []) jump = [] := by decide
 def gabrielAngelfire : Action :=
   sequentially
     [ choose (a (qualityFrom .ability
-        (abilitiesAmong [flying, firstStrike, trample, .theWith (.named "rampage") 3]))),
+        (abilitiesAmong [flying, firstStrike, trample, .theWith rampage 3]))),
       gain thisCreature (thatAbility .theChoice) (some (untilEvent (beginningOf .upkeep (some you) nextTime))) ]
 theorem okGabrielAngelfire : Action.check (DRS.ofList []) gabrielAngelfire = [] := by decide
 def builtToSmash : Action :=
@@ -709,7 +709,7 @@ def clarionConqueror : Spelled := spelled <| .singleFaced
 
 /-- Kang the Conqueror -/
 def kangPowerUpLock : StaticSpec :=
-  cant any (activate (allOf (abilityHead (.keyword (.named "powerUp")))))
+  cant any (activate (allOf (abilityHead (.keyword powerUp))))
 theorem okKangPowerUpLock : StaticSpec.check (DRS.ofList []) kangPowerUpLock = [] := by decide
 
 def vipersKiss : Spelled := spelled <| .singleFaced
@@ -984,7 +984,7 @@ def krosanDruid : Spelled := spelled <| .singleFaced
       subtypes := [centaur, druid],
       text :=
         [ kicker (mana [generic 4, pip .green]),
-          triggeredIf (does thisCreature enter) (keywordCostPaid (.named "kicker")
+          triggeredIf (does thisCreature enter) (keywordCostPaid kicker
                                                            thisCreature)
             (gainLife (.lit 10)) ],
       power := stat 2, toughness := stat 3 } }
@@ -998,7 +998,7 @@ def lightkeeperOfEmeria : Spelled := spelled <| .singleFaced
         [ multikicker (mana [pip .white]),
           flying,
           when (does thisCreature enter)
-            (gainLife (times (.lit 2) (timesPaid (.byKeyword (.named "kicker")) thisCreature))) ],
+            (gainLife (times (.lit 2) (timesPaid (.byKeyword kicker) thisCreature))) ],
       power := stat 2, toughness := stat 4 } }
 
 /-- Merfolk Falconer -/
@@ -1009,7 +1009,7 @@ def merfolkFalconer : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           whenever
-            (does you (cast (a (compareOver isSpell (paidCostRead (.byKeyword (.named "kicker"))
+            (does you (cast (a (compareOver isSpell (paidCostRead (.byKeyword kicker)
                 none it) .atLeast (.lit 1)))))
             (scry (.lit 2)) ],
       power := stat 4, toughness := stat 4 } }
@@ -1026,13 +1026,13 @@ def borrowedMalevolence : Spelled := spelled <| .singleFaced
 
 /-- New Perspectives -/
 def newPerspectivesCyclingAltCost : Ability :=
-  static (altCost (allOf (abilityHead (.keyword (.named "cycling")))) (some (mana [generic 0])))
+  static (altCost (allOf (abilityHead (.keyword cycling))) (some (mana [generic 0])))
 theorem okNewPerspectivesCyclingAltCost :
     Ability.check (DRS.ofList []) newPerspectivesCyclingAltCost = [] := by decide
 /-- Thick-Skinned Goblin -/
 def thickSkinnedGoblinEchoAltCost : Ability :=
   static (altCost
-    (allOf (and [ abilityHead (.keyword (.named "echo")),
+    (allOf (and [ abilityHead (.keyword echo),
                    abilityOf (allOf (and [isPermanent, youControl])) ]))
     (some (mana [generic 0])))
 theorem okThickSkinnedGoblinEchoAltCost :
@@ -1051,7 +1051,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
       text :=
         [ spectacle (mana [generic 3, pip .black, pip .red]),
           triggeredIf (does thisCreature enter)
-            (keywordCostPaid (.named "spectacle") thisCreature)
+            (keywordCostPaid spectacle thisCreature)
             (sequentially [instruct eachOpponent (choose (a (cardIn hand))), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
@@ -1083,7 +1083,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
         [ kicker (mana [generic 6]),
           spell (replace
             (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := .lit 6))
-            (doIf (keywordCostPaid (.named "kicker") this_)
+            (doIf (keywordCostPaid kicker this_)
               (create (.lit 12) asThose []))) ] } }
 
 /-- Soul of Emancipation -/
@@ -1107,7 +1107,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
         [ kicker (mana [pip .black, pip .black]),
           protection (hasColor .white),
           tourachDiscardTrigger,
-          triggeredIf (does thisCreature enter) (keywordCostPaid (.named "kicker")
+          triggeredIf (does thisCreature enter) (keywordCostPaid kicker
                                                            thisCreature)
             (instruct (target isOpponent) (discard (countedAtRandom (exactly 2) isCard))) ],
       power := stat 2, toughness := stat 1 } }
@@ -1255,13 +1255,13 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
                   (draw theDifference) ]) ],
       power := stat 5, toughness := stat 5 } }
 
-def protectionAbilities : KeywordTerm := .anyIn ⟨(.named "protection"), none⟩
-def landwalkAbilities : KeywordTerm := .anyIn ⟨(.named "landwalk"), none⟩
+def protectionAbilities : KeywordTerm := .anyIn ⟨protection, none⟩
+def landwalkAbilities : KeywordTerm := .anyIn ⟨landwalk, none⟩
 /-- Shay Cormac -/
-def wardAbilities : KeywordTerm := .anyIn ⟨(.named "ward"), none⟩
+def wardAbilities : KeywordTerm := .anyIn ⟨ward, none⟩
 /-- Tolaria, Shelkin Brownie -/
-def bandsWithOtherAbilities : KeywordTerm := .anyIn ⟨(.named "bandsWithOther"), none⟩
-def protectionFromAnyColor : KeywordTerm := .anyIn ⟨(.named "protection"), some .color⟩
+def bandsWithOtherAbilities : KeywordTerm := .anyIn ⟨bandsWithOther, none⟩
+def protectionFromAnyColor : KeywordTerm := .anyIn ⟨protection, some .color⟩
 
 /-- Cairn Wanderer -/
 def cairnWanderer : Spelled := spelled <| .singleFaced
@@ -1316,7 +1316,7 @@ def marketGnome : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisCreature die) (sequentially [gainLife (.lit 1), draw (.lit 1)]),
           triggeredWhile (does any (exile thisCreature))
-            (whileDoing (does you (activate (a (abilityHead (.keyword (.named "craft")))))))
+            (whileDoing (does you (activate (a (abilityHead (.keyword craft))))))
             (sequentially [gainLife (.lit 1), draw (.lit 1)]) ],
       power := stat 0, toughness := stat 3 } }
 

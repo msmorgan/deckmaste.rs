@@ -270,7 +270,7 @@ def adarkarUnicorn : Spelled := spelled <| .singleFaced
       text :=
         [ activated tapSymbol
             (addMana (.lit 1) (manaOf [[.of .blue], [.colorless, .of .blue]])
-              [spendOnly [toPay (.ofKeyword (.named "cumulativeUpkeep"))]]) ],
+              [spendOnly [toPay (.ofKeyword cumulativeUpkeep)]]) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Overgrown Zealot -/
@@ -282,7 +282,7 @@ def overgrownZealot : Spelled := spelled <| .singleFaced
         [ activated tapSymbol (addMana (.lit 1) (ofAnyColor .sameColor)),
           activated tapSymbol
             (addMana (.lit 2) (ofAnyColor .sameColor)
-              [spendOnly [toPay (.ofKeyword (.named "morph")), toPay (.ofKeyword (.named "disguise"))]]) ],
+              [spendOnly [toPay (.ofKeyword morph), toPay (.ofKeyword disguise)]]) ],
       power := stat 0, toughness := stat 4 } }
 
 /-- Unblinking Observer -/
@@ -293,14 +293,14 @@ def unblinkingObserver : Spelled := spelled <| .singleFaced
       text :=
         [ activated tapSymbol
             (addMana (.lit 1) (manaOf [[.of .blue]])
-              [spendOnly [toPay (.ofKeyword (.named "disturb")), toCast isInstantOrSorcery]]) ],
+              [spendOnly [toPay (.ofKeyword disturb), toCast isInstantOrSorcery]]) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Qarsi Deceiver -/
 def qarsiDeceiverMorphSpend : Ability :=
   activated tapSymbol
     (addMana (.lit 1) (manaOf [[.colorless]])
-      [spendOnly [ toCast (and [isCreature, isFaceDown]), toPay (.ofKeyword (.named "morph")) ]])
+      [spendOnly [ toCast (and [isCreature, isFaceDown]), toPay (.ofKeyword morph) ]])
 theorem okQarsiDeceiverMorphSpend : Ability.check (DRS.ofList []) qarsiDeceiverMorphSpend = [] := by decide
 
 /-- Mercadian Bazaar -/
@@ -754,7 +754,7 @@ theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = 
 /-- Hibernation's End -/
 def hibernationsEndTrigger : Ability :=
   whenever
-      (does you (pay anyCost .once .paid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
+      (does you (pay anyCost .once .paid (some thisEnchantment) (some cumulativeUpkeep)))
     (may
       (sequentially
         [ searchLibraryFor (exactly 1)
@@ -771,7 +771,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           prowl (mana [generic 2, pip .blue]),
-          triggeredIf (does thisCreature enter) (keywordCostPaid (.named "prowl")
+          triggeredIf (does thisCreature enter) (keywordCostPaid prowl
                                                            thisCreature)
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 1 } }

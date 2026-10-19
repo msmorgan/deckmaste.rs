@@ -329,7 +329,7 @@ def ertaisTrickery : Spelled := spelled <| .singleFaced
     { name := "Ertai's Trickery", cost := some [pip .blue], types := [.instant],
       text :=
         [ spell (doOnlyIf (counter (target isSpell))
-            (keywordCostPaid (.named "kicker") it)) ] } }
+            (keywordCostPaid kicker it)) ] } }
 
 /-- Celebrate the Harvest -/
 def celebrateTheHarvest : Spelled := spelled <| .singleFaced

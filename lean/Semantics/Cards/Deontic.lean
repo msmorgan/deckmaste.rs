@@ -187,7 +187,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
   conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof))))),
-      cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those creature)]))
+      cant (allOf (and [abilityHead (.keyword ward), abilityOf (those creature)]))
           trigger ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
 

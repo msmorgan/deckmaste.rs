@@ -325,7 +325,7 @@ def balefulMasteryPaidRead : Ability :=
 theorem okBalefulMasteryPaidRead : Ability.check (DRS.ofList []) balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
-def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some thisTurn) this_
+def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword sneak) (some thisTurn) this_
 theorem okKaraiSneakPaidThisTurn : Amount.check (DRS.ofList []) karaiSneakPaidThisTurn = [] := by decide
 
 /-- Requiting Hex's read -/

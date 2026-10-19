@@ -517,21 +517,21 @@ theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriu
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
   when (does (a isPlayer)
-          (pay anyCost .once .unpaid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
+          (pay anyCost .once .unpaid (some thisEnchantment) (some cumulativeUpkeep)))
     (instruct (that player) (exile (each (cardIn (libraryOf they)))))
 theorem okThoughtLashTrigger : Ability.check (DRS.ofList []) thoughtLashTrigger = [] := by decide
 /-- Heart of Bogardan -/
 def heartOfBogardanHeader : GameEvent :=
   does (a isPlayer)
-      (pay anyCost .once .unpaid (some thisEnchantment) (some (.named "cumulativeUpkeep")))
+      (pay anyCost .once .unpaid (some thisEnchantment) (some cumulativeUpkeep))
 theorem okHeartOfBogardanHeader : GameEvent.check (DRS.ofList []) heartOfBogardanHeader = [] := by decide
 /-- Balduvian Fallen -/
-def balduvianFallenHeader : GameEvent := does any (pay anyCost .once .paid (some thisCreature) (some (.named "cumulativeUpkeep")))
+def balduvianFallenHeader : GameEvent := does any (pay anyCost .once .paid (some thisCreature) (some cumulativeUpkeep))
 theorem okBalduvianFallenHeader : GameEvent.check (DRS.ofList []) balduvianFallenHeader = [] := by decide
 /-- Stormscape Battlemage -/
 def stormscapeBattlemageFirstKicker : Ability :=
   triggeredIf (does thisCreature enter)
-    (costWasPaid (.byNthKeyword (.nth 1) (.named "kicker")) none thisCreature) (gainLife (.lit 3))
+    (costWasPaid (.byNthKeyword (.nth 1) kicker) none thisCreature) (gainLife (.lit 3))
 theorem okStormscapeBattlemageFirstKicker :
     Ability.check (DRS.ofList []) stormscapeBattlemageFirstKicker = [] := by decide
 /-- All-Seeing Arbiter -/
@@ -799,7 +799,7 @@ theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] :
 def foulEmissaryLine : Ability :=
   triggeredWhile (does you (sacrifice thisCreature))
     (whileDoing (does you (cast (a
-      (and [isSpell, hasKeyword (.the (.named "emerge"))])))))
+      (and [isSpell, hasKeyword (.the emerge)])))))
     (createToken (creatureToken 3 2 [] [eldrazi, horror]))
 theorem okFoulEmissaryLine : Ability.check (DRS.ofList []) foulEmissaryLine = [] := by decide
 

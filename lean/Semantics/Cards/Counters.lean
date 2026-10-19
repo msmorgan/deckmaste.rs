@@ -889,7 +889,7 @@ def fontOfAgoniesTrigger : Ability :=
 theorem okFontOfAgoniesTrigger : Ability.check (DRS.ofList []) fontOfAgoniesTrigger = [] := by decide
 /-- Heart of Kiran -/
 def heartOfKiranCrewAltCost : Ability :=
-  static (altCost (allOf (and [abilityHead (.keyword (.named "crew")), abilityOf this_]))
+  static (altCost (allOf (and [abilityHead (.keyword crew), abilityOf this_]))
     (some
        (perform
           (removeCounters (exactly 1) (some (printedKind loyaltyCounter))
