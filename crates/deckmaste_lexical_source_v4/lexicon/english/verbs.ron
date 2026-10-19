@@ -22,7 +22,8 @@
     (lemma: "cause", frames: [ComplexCatenative(ToInf)]),
     (lemma: "change", frames: [Intransitive, Monotransitive, TransitiveWithPP(["to"])]),
     (lemma: "choose", preterite: "chose", past_participle: "chosen",
-        frames: [Intransitive, Monotransitive, Amount, Catenative(ToInf), ContentClause]),
+        // *choose first strike, vigilance, or lifelink*
+        frames: [Intransitive, Monotransitive, Transitive(KeywordPhrase), Amount, Catenative(ToInf), ContentClause]),
     (lemma: "circle", frames: [Monotransitive]),
     // *whichever comes first*; *come under your control*; *coins come up heads*
     (lemma: "come", preterite: "came", past_participle: "come",

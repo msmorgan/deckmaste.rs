@@ -19,7 +19,8 @@
         (complement: FiniteClause, hosts: Predicate),
     ]),
     // *the greatest power among creatures you control*
-    (lemma: "among", frames: [(complement: NP, hosts: Nominal)]),
+    // *from among flying, first strike, and lifelink*
+    (lemma: "among", frames: [(complement: NP, hosts: Nominal), (complement: KeywordPhrase, hosts: Nominal)]),
     // *Activate only as a sorcery*; *as it enters*; *as part of casting a spell*
     (lemma: "as", frames: [
         (complement: NP, hosts: Predicate, relation: PredicativeComplement),
