@@ -327,6 +327,8 @@ pub(crate) fn resolve(
             conjunct_hosts: u8::MAX,
             unlike_value: None,
             host_extensions: 0,
+            last_extensions: 0,
+            host_right_extensions: 0,
             adjunct_extension: None,
         },
     })
@@ -354,6 +356,10 @@ pub(crate) struct Summary {
     /// Complements that would extend this phrase's selected frame, as an
     /// index into [`CompiledGrammar::extension_sets`].
     pub extensions: u16,
+    /// The extensions of the noun at its right edge: a Preposition Phrase
+    /// that noun selects is its Complement, never an Adjunct of a phrase
+    /// ending in it (*the number of void counters*).
+    pub right_extensions: u16,
     /// The coordinator of a coordination.
     pub coordinator: Option<LexemeId>,
     /// The Host Categories it may modify unselected: a Preposition Phrase's
@@ -407,6 +413,9 @@ pub(crate) struct State {
     /// The first conjunct's value of an `unlike` feature.
     unlike_value: Option<u16>,
     host_extensions: u16,
+    /// The right-edge extensions of the last child, and of an Adjunct's host.
+    last_extensions: u16,
+    host_right_extensions: u16,
     adjunct_extension: Option<Extension>,
 }
 
@@ -478,6 +487,7 @@ impl Production {
         if let Some((host, adjunct, _)) = self.host_check {
             if position == host {
                 next.host_extensions = summary.extensions;
+                next.host_right_extensions = summary.right_extensions;
             }
             if position == adjunct {
                 next.adjunct_extension = summary
@@ -704,9 +714,11 @@ impl Production {
                     }
                     next.coordinator = summary.coordinator;
                 }
+                next.last_extensions = summary.right_extensions;
                 self.priority(grammar, &mut next, position, summary)?;
             }
             ChildView::Leaf(leaf) => {
+                next.last_extensions = 0;
                 if self.coordinator == Some(position) {
                     next.coordinator = leaf.lexeme;
                 }
@@ -721,6 +733,11 @@ impl Production {
                         .get(&(*lexeme, Some(*frame)))
                         .copied()
                         .unwrap_or(0);
+                    // A noun's selected Preposition Phrase follows it (an
+                    // *of*-complement of a relational noun).
+                    if leaf.category == LexicalCategory::Noun {
+                        next.last_extensions = next.extensions;
+                    }
                 }
                 if let (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) =
                     (&self.rhs[position], leaf.lexeme)
@@ -730,12 +747,16 @@ impl Production {
                         .get(&(lexeme, None))
                         .copied()
                         .unwrap_or(0);
+                    if leaf.category == LexicalCategory::Noun {
+                        next.last_extensions = next.extensions;
+                    }
                 }
                 if self.host_check.is_some_and(|(host, _, _)| host == position) {
                     next.host_extensions = next.extensions;
+                    next.host_right_extensions = next.last_extensions;
                 }
             }
-            ChildView::Punct => {}
+            ChildView::Punct => next.last_extensions = 0,
         }
         Some(next)
     }
@@ -745,8 +766,11 @@ impl Production {
         if state.coordinator.is_some() && state.conjunct_coordinators.contains(&state.coordinator) {
             return None;
         }
-        if let (Some((_, _, _)), Some(e)) = (self.host_check, &state.adjunct_extension)
-            && grammar.extension_set(state.host_extensions).contains(e)
+        if let (Some((host, adjunct, _)), Some(e)) = (self.host_check, &state.adjunct_extension)
+            && (grammar.extension_set(state.host_extensions).contains(e)
+                || (adjunct > host
+                    && matches!(e, Extension::Preposition(_))
+                    && grammar.extension_set(state.host_right_extensions).contains(e)))
         {
             return None;
         }
@@ -786,6 +810,7 @@ impl Production {
             },
             extensions: if coordinated { 0 } else { state.extensions },
             coordinator: state.coordinator,
+            right_extensions: state.last_extensions,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
