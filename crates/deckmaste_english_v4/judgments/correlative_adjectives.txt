@@ -1,8 +1,7 @@
-# Correlative coordination of adjectives (both...and, either...or, neither...nor), predicative and postpositive
+# Correlative coordination of adjectives (both...and, either...or, neither...nor), predicative
 +Clause it is both red and green => AdjectivePhrase "both red and green" as PredicativeComplement of be
 +Clause it is either red or green => AdjectivePhrase "either red or green" as PredicativeComplement of be
 +Clause it is neither red nor green => AdjectivePhrase "neither red nor green" as PredicativeComplement of be
-+Nominal creature both red and green => AdjectivePhrase "both red and green" as Modifier of creature
 +AdjectivePhrase either red, green, or blue
 +AdjectivePhrase neither red, green, nor blue
 +AdjectivePhrase either red, green, black, or blue

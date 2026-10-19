@@ -9,10 +9,8 @@
 +KeywordPhrase flying and/or reach
 + Flying, vigilance
 +NounPhrase one or two creatures
-+NounPhrase two or one creatures
-+NounPhrase one and one creatures
+*NounPhrase two or one creatures
 +NounPhrase one or one creature
 +NounPhrase one, two, or three creatures
 *NounPhrase one or two creature
-*NounPhrase two or one creature
-*NounPhrase one and one creature
++NounPhrase two or one creature
