@@ -748,6 +748,16 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         {
             families.insert(ABSOLUTE);
         }
+        // *The same is true for ...* refers back to the previous sentence,
+        // as *do the same* does (a pro-form, CGEL, Ch. 17 §7.6, p. 1533).
+        if token.lemma_in(&["same"])
+            && i > 0
+            && tokens[i - 1].is(Category::Determinative, "the")
+            && tokens.get(i + 1).is_some_and(|t| t.lemma_in(&["be"]))
+            && tokens.get(i + 2).is_some_and(|t| t.lemma_in(&["true"]))
+        {
+            families.insert(PRO_FORM);
+        }
         if token.is(Category::Adjective, "same")
             && tokens[i + 1..]
                 .iter()
@@ -1164,6 +1174,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                     && matches!(&a.reading, LexicalReading::Word(v) if v.form == form)
             })
         };
+        // Text-changing effects replace instances of words (*replacing all
+        // instances of one color word with another*).
+        if t.is(Category::Noun, "instance") {
+            families.insert(METALINGUISTIC);
+        }
         if previous(i).is_some_and(|p| p.has(Category::Preposition))
             && next(i).is_some_and(|n| n.is_punct('.'))
             && word_form(WordForm::Singular)
