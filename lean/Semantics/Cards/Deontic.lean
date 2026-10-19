@@ -142,7 +142,7 @@ theorem okHipparion : Ability.check (DRS.ofList []) hipparion = [] := by decide
 
 def frodoBaggins : Ability :=
   static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
-    (matches_ thisCreature (hasDesignation (.named "ringBearer") (some you))))
+    (matches_ thisCreature (hasDesignation ringBearer (some you))))
 theorem okFrodoBaggins : Ability.check (DRS.ofList []) frodoBaggins = [] := by decide
 
 def bloodshedFever : Spelled := spelled <| .singleFaced

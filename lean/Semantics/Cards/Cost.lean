@@ -98,7 +98,7 @@ def witchsMist : Ability :=
 theorem okWitchsMist : Ability.check (DRS.ofList []) witchsMist = [] := by decide
 def goadTargetCreature : Ability :=
   activated (compound [mana [generic 3], tapSymbol])
-    (gainDesignation (target isCreature) (.named "goaded"))
+    (gainDesignation (target isCreature) goaded)
 theorem okGoadTargetCreature : Ability.check (DRS.ofList []) goadTargetCreature = [] := by decide
 /-- Krenko, Mob Boss -/
 def krenko : Ability :=
@@ -227,7 +227,7 @@ def chillerpillar : Spelled := spelled <| .singleFaced
       text :=
         [ activated (mana [generic 4, .snow, .snow]) (monstrosity (.lit 2)),
           static (onlyWhile (abilityGrant thisCreature flying)
-            (matches_ thisCreature (hasDesignation (.named "monstrous")))) ],
+            (matches_ thisCreature (hasDesignation monstrous))) ],
       power := stat 3, toughness := stat 3 } }
 
 def nullhideFerox : Ability :=

@@ -97,7 +97,7 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
         [ deathtouch,
           ascend,
           triggeredIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
-            (matches_ you (hasDesignation (.named "citysBlessing")))
+            (matches_ you (hasDesignation citysBlessing))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -309,10 +309,10 @@ def mercadianBazaar : Spelled := spelled <| .singleFaced
     { name := "Mercadian Bazaar", types := [.land],
       text :=
         [ static (entersTapped thisLand),
-          activated tapSymbol (putCounters (.lit 1) (printedKind (.named "storageCounter")) thisLand .many),
+          activated tapSymbol (putCounters (.lit 1) (printedKind storageCounter) thisLand .many),
           activated
             (compound [tapSymbol,
-              perform (removeCounters anyNumber (some (printedKind (.named "storageCounter"))) thisLand .many true)])
+              perform (removeCounters anyNumber (some (printedKind storageCounter)) thisLand .many true)])
             (addMana removedThisWay (manaOf [[.of .red]])) ] } }
 
 /-- Rootcoil Creeper -/
@@ -329,10 +329,10 @@ def blackManaBattery : Spelled := spelled <| .singleFaced
     { name := "Black Mana Battery", cost := some [generic 4], types := [.artifact],
       text :=
         [ activated (compound [mana [generic 2], tapSymbol])
-            (putCounters (.lit 1) (printedKind (.named "chargeCounter")) thisArtifact .many),
+            (putCounters (.lit 1) (printedKind chargeCounter) thisArtifact .many),
           activated
             (compound [tapSymbol,
-              perform (removeCounters anyNumber (some (printedKind (.named "chargeCounter"))) thisArtifact .many true)])
+              perform (removeCounters anyNumber (some (printedKind chargeCounter)) thisArtifact .many true)])
             (sequentially
               [ addMana (.lit 1) (manaOf [[.of .black]]),
                 addMana removedThisWay (manaOf [[.of .black]]) ]) ] } }
@@ -571,10 +571,10 @@ def ratchetBomb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Ratchet Bomb", cost := some [generic 2], types := [.artifact],
       text :=
-        [ activated tapSymbol (putCounters (.lit 1) (printedKind (.named "chargeCounter")) thisArtifact .many),
+        [ activated tapSymbol (putCounters (.lit 1) (printedKind chargeCounter) thisArtifact .many),
           activated (compound [tapSymbol, perform (sacrifice thisArtifact)])
             (destroy (each (and [non isLand, isPermanent,
-              hasManaValue .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
+              hasManaValue .eq (countersOn chargeCounter thisArtifact)]))) ] } }
 
 def solGrail : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -673,7 +673,7 @@ def causticBroncoLoss : Action :=
     [ reveal (topSlice (.lit 1)),
       putInto (that card) hand,
       doOnlyIf (loseLife (statOf (.stat .manaValue) it))
-        (not (matches_ thisCreature (hasDesignation (.named "saddled"))))
+        (not (matches_ thisCreature (hasDesignation saddled)))
         (some (instruct eachOpponent (loseLife thatMuch))) ]
 theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [] := by decide
 
@@ -717,10 +717,10 @@ def investigatorsJournal : Spelled := spelled <| .singleFaced
     { name := "Investigator's Journal", cost := some [generic 2], types := [.artifact],
       subtypes := [book, clue],
       text :=
-        [ static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls (.named "suspectCounter")),
+        [ static (entersWithCounters thisArtifact greatestCreaturesAPlayerControls suspectCounter),
           activated
             (compound [mana [generic 2], tapSymbol,
-              perform (removeCounters (exactly 1) (some (printedKind (.named "suspectCounter"))) thisArtifact .many true)])
+              perform (removeCounters (exactly 1) (some (printedKind suspectCounter)) thisArtifact .many true)])
             (draw (.lit 1)),
           activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
             (draw (.lit 1)) ] } }
@@ -730,10 +730,10 @@ def engineeredExplosives : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Engineered Explosives", cost := some [.variable], types := [.artifact],
       text :=
-        [ static (entersWithCounters thisArtifact (colorsSpentToCast thisArtifact) (.named "chargeCounter")),
+        [ static (entersWithCounters thisArtifact (colorsSpentToCast thisArtifact) chargeCounter),
           activated (compound [mana [generic 2], perform (sacrifice thisArtifact)])
             (destroy (each (and [isPermanent, non isLand,
-              hasManaValue .eq (countersOn (.named "chargeCounter") thisArtifact)]))) ] } }
+              hasManaValue .eq (countersOn chargeCounter thisArtifact)]))) ] } }
 
 /-- Radiant Flames (converge is an ability word [CR#207.2c]) -/
 def radiantFlames : Spelled := spelled <| .singleFaced
@@ -758,7 +758,7 @@ def hibernationsEndTrigger : Ability :=
     (may
       (sequentially
         [ searchLibraryFor (exactly 1)
-            (and [isCreature, hasManaValue .eq (countersOn (.named "ageCounter") thisEnchantment)]),
+            (and [isCreature, hasManaValue .eq (countersOn ageCounter thisEnchantment)]),
           putOntoBattlefield (that card),
           shuffle ]))
 theorem okHibernationsEndTrigger : Ability.check (DRS.ofList []) hibernationsEndTrigger = [] := by decide
@@ -1091,7 +1091,7 @@ def fellwarStone : Spelled := spelled <| .singleFaced
 def iceCauldronNotedMana : Ability :=
   activated
     (compound [tapSymbol,
-      perform (removeCounters (exactly 1) (some (printedKind (.named "chargeCounter"))) thisArtifact .many true)])
+      perform (removeCounters (exactly 1) (some (printedKind chargeCounter)) thisArtifact .many true)])
     (addMana (.lit 1) (ofTheLastNotedType thisArtifact)
       [spendOnly [toCast exiledWithThisArtifact]])
 theorem okIceCauldronNotedMana : Ability.check (DRS.ofList []) iceCauldronNotedMana = [] := by decide

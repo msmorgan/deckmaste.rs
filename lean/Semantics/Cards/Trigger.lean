@@ -99,7 +99,7 @@ def orneryDilophosaur : Ability :=
 theorem okOrneryDilophosaur : Ability.check (DRS.ofList []) orneryDilophosaur = [] := by decide
 def incisorGlider : Ability :=
   triggeredIf (does thisCreature attack)
-    (compareAmt (countersOn (.named "poison") anOpponent) .atLeast (.lit 3))
+    (compareAmt (countersOn poison anOpponent) .atLeast (.lit 3))
     (get (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn))
 theorem okIncisorGlider : Ability.check (DRS.ofList []) incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
@@ -124,9 +124,9 @@ def cradleToGrave : Action :=
 theorem okCradleToGrave : Action.check (DRS.ofList []) cradleToGrave = [] := by decide
 
 def aragornKingOfGondor : Ability :=
-  when (does thisCreature enter) (gainDesignation you (.named "monarch"))
+  when (does thisCreature enter) (gainDesignation you monarch)
 theorem okAragornKingOfGondor : Ability.check (DRS.ofList []) aragornKingOfGondor = [] := by decide
-def firmamentSage : Ability := whenever (gameBecomes (.named "night")) (draw (.lit 1))
+def firmamentSage : Ability := whenever (gameBecomes night) (draw (.lit 1))
 theorem okFirmamentSage : Ability.check (DRS.ofList []) firmamentSage = [] := by decide
 def deeprootWarrior : Ability :=
   whenever (does any (block thisCreature))
@@ -181,8 +181,8 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
 
 def archivistOfGondor : Ability :=
   triggeredIf (does yourCommander (dealDamage (to := a isPlayer) (kind := .combatOnly)))
-      (thereIsNo (.named "monarch"))
-    (gainDesignation you (.named "monarch"))
+      (thereIsNo monarch)
+    (gainDesignation you monarch)
 theorem okArchivistOfGondor : Ability.check (DRS.ofList []) archivistOfGondor = [] := by decide
 
 def hissingMiasma : Spelled := spelled <| .singleFaced
@@ -510,11 +510,11 @@ def wavebreakHippocamp : Ability :=
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
-  nthOccurrence (.nth 12) (counterEvent .put (.named "hourCounter") .one thisArtifact)
+  nthOccurrence (.nth 12) (counterEvent .put hourCounter .one thisArtifact)
 theorem okMidnightClockHeader : GameEvent.check (DRS.ofList []) midnightClockHeader = [] := by decide
 /-- Political Triumph -/
 def politicalTriumphHeader : GameEvent :=
-  nthOccurrence (.nth 4) (counterEvent .put (.named "planCounter") .one thisEnchantment)
+  nthOccurrence (.nth 4) (counterEvent .put planCounter .one thisEnchantment)
 theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
@@ -789,7 +789,7 @@ def brazenBlademaster : Spelled := spelled <| .singleFaced
 def autarchMammothLine : Ability :=
   triggeredJoined (does thisCreature enter)
     [ joinedHeadWhile (does thisCreature attack)
-        (whileTrue (matches_ thisCreature (hasDesignation (.named "saddled")))) ]
+        (whileTrue (matches_ thisCreature (hasDesignation saddled))) ]
     (createToken (creatureToken 3 3 [.green] [elephant]))
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/

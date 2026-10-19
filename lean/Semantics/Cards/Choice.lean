@@ -239,7 +239,7 @@ def helicaGlider : Spelled := spelled <| .singleFaced
       subtypes := [nightmare, squirrel],
       text :=
         [ static (entryRider thisCreature
-            (withCounters (.lit 1) (chosenKind [flyingCounter, .named "firstStrikeCounter"]) .fresh)) ],
+            (withCounters (.lit 1) (chosenKind [flyingCounter, firstStrikeCounter]) .fresh)) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Eager Construct -/

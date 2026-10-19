@@ -114,7 +114,7 @@ theorem okTakeIntoCustody : Action.check (DRS.ofList []) takeIntoCustody = [] :=
 def frenziedGorespawnGoad : Action :=
   doForEach eachOpponent
     (gainDesignation
-      (target (and [isCreature, controlledBy (that player)])) (.named "goaded"))
+      (target (and [isCreature, controlledBy (that player)])) goaded)
 theorem okFrenziedGorespawnGoad : Action.check (DRS.ofList []) frenziedGorespawnGoad = [] := by decide
 
 def spaceTimeAnomaly : Spelled := spelled <| .singleFaced

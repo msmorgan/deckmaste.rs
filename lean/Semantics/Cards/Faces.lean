@@ -105,9 +105,9 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ whenever (does you (flipCoins anyAmount (some .wins)))
-            (putCounters (.lit 1) (printedKind (.named "luckCounter")) thisEnchantment .many),
+            (putCounters (.lit 1) (printedKind luckCounter) thisEnchantment .many),
           triggeredIf (beginningOfYour .upkeep)
-            (compareAmt (countersOn (.named "luckCounter") thisEnchantment) .atLeast (.lit 10))
+            (compareAmt (countersOn luckCounter thisEnchantment) .atLeast (.lit 10))
             winGame ] } }
 
 /-- Karplusan Minotaur's win arm -/
@@ -184,7 +184,7 @@ theorem planeswalkerBackWithoutLoyaltyOk :
 def garrukRelentlessFlip : Ability :=
   when
     (stateHolds
-      (matches_ thisPlaneswalker (compare .atMost (.lit 2) (axes := [.counter (.named "loyaltyCounter")]))))
+      (matches_ thisPlaneswalker (compare .atMost (.lit 2) (axes := [.counter loyaltyCounter]))))
     (transform thisPlaneswalker)
 theorem okGarrukRelentlessFlip : Ability.check (DRS.ofList []) garrukRelentlessFlip = [] := by decide
 

@@ -244,7 +244,7 @@ def consulsLieutenant : Spelled := spelled <| .singleFaced
       text :=
         [ firstStrike,
           renown (.lit 1),
-          triggeredIf (does thisCreature attack) (matches_ it (hasDesignation (.named "renowned")))
+          triggeredIf (does thisCreature attack) (matches_ it (hasDesignation renowned))
             (get (allOf (and [isCreature, isAttacking, youControl, otherThan
                 thisCreature]))
               (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ],
@@ -257,7 +257,7 @@ def secretsOfTheGoldenCity : Spelled := spelled <| .singleFaced
       text :=
         [ ascend,
           spell (replace (draw (.lit 2))
-            (doIf (matches_ you (hasDesignation (.named "citysBlessing"))) (draw (.lit 3)))) ] } }
+            (doIf (matches_ you (hasDesignation citysBlessing)) (draw (.lit 3)))) ] } }
 
 def bombur : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -267,7 +267,7 @@ def bombur : Spelled := spelled <| .singleFaced
       text :=
         [ storied,
           static (onlyUnless (doesntUntap thisCreature (some you))
-            (matches_ you (hasDesignation (.named "enduringStory")))) ],
+            (matches_ you (hasDesignation enduringStory))) ],
       power := stat 5, toughness := stat 3 } }
 
 def drachNyen : Spelled := spelled <| .singleFaced
@@ -304,7 +304,7 @@ def grimdancer : Spelled := spelled <| .singleFaced
       text :=
         [ static (entryRider thisCreature
             (withCounters (.lit 2)
-              (distinctChosenKinds [.named "menaceCounter", .named "deathtouchCounter", .named "lifelinkCounter"]) .fresh)) ],
+              (distinctChosenKinds [menaceCounter, deathtouchCounter, lifelinkCounter]) .fresh)) ],
       power := stat 3, toughness := stat 3 } }
 
 def divineVisitation : Spelled := spelled <| .singleFaced
@@ -694,7 +694,7 @@ def drumbellower : Spelled := spelled <| .singleFaced
 def tayamLine : StaticSpec :=
   entersWithAdditionalCounters
     (each (and [isCreature, youControl, otherThan thisCreature])) (.lit 1)
-    (.named "vigilanceCounter")
+    vigilanceCounter
 theorem okTayamLine : StaticSpec.check (DRS.ofList []) tayamLine = [] := by decide
 
 def clarionConqueror : Spelled := spelled <| .singleFaced
@@ -787,7 +787,7 @@ def vexingSphinx : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           cumulativeUpkeep (perform (discard (a (cardIn yourHand)))),
-          when (does thisCreature die) (draw (countersOn (.named "ageCounter") it)) ],
+          when (does thisCreature die) (draw (countersOn ageCounter it)) ],
       power := stat 4, toughness := stat 4 } }
 
 def manaChains : Spelled := spelled <| .singleFaced
@@ -1197,7 +1197,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
-  triggeredWhile (lastCounterRemoved (.named "timeCounter") this_)
+  triggeredWhile (lastCounterRemoved timeCounter this_)
     (whileTrue (matches_ this_ (cardIn exileZone)))
     (establishThroughout (cant any (block (allOf isCreature))) thisTurn)
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide
@@ -1360,7 +1360,7 @@ def steelclawLance : Spelled := spelled <| .singleFaced
 
 /-- Commander's Plate's equip lines -/
 def commandersPlateEquip : List Ability :=
-  [ equipQuality (hasDesignation (.named "commander")) (mana [generic 3]),
+  [ equipQuality (hasDesignation commander) (mana [generic 3]),
     equip (mana [generic 5]) ]
 theorem okCommandersPlateEquip : Ability.checkText (DRS.ofList []) commandersPlateEquip = [] := by decide
 /-- Luxior, Giada's Gift's equip lines -/
@@ -1473,8 +1473,8 @@ def earthenGoo : Spelled := spelled <| .singleFaced
         [ trample,
           cumulativeUpkeep (either (mana [pip .red]) (mana [pip .green])),
           static (getsPt thisCreature
-            (up (times (.lit 1) (countersOn (.named "ageCounter") it)))
-            (up (times (.lit 1) (countersOn (.named "ageCounter") it)))) ],
+            (up (times (.lit 1) (countersOn ageCounter it)))
+            (up (times (.lit 1) (countersOn ageCounter it)))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Mutagen Connoisseur -/
@@ -1620,7 +1620,7 @@ def arcanumWingsAuraSwap : Ability :=
           hand])))))
 theorem okArcanumWingsAuraSwap : Ability.check (DRS.ofList []) arcanumWingsAuraSwap = [] := by decide
 /-- Tovolar, Dire Overlord -/
-def tovolarNightfall : Action := setGameDesignation (.named "night")
+def tovolarNightfall : Action := setGameDesignation night
 theorem okTovolarNightfall : Action.check (DRS.ofList []) tovolarNightfall = [] := by decide
 /-- Spin into Myth -/
 def spinIntoMyth : Action :=

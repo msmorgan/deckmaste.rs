@@ -86,7 +86,7 @@ def yawgmothDemon : Action :=
 theorem okYawgmothDemon : Action.check (DRS.ofList []) yawgmothDemon = [] := by decide
 def arcBlade : Action :=
   sequentially
-    [ dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly, exileWithCounters this_ (.lit 3) (.named "timeCounter") ]
+    [ dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly, exileWithCounters this_ (.lit 3) timeCounter ]
 theorem okArcBlade : Action.check (DRS.ofList []) arcBlade = [] := by decide
 def abrade : Action :=
   chooseOne (dealDamage (.lit 3) (target isCreature) .noncombatOnly) (destroy (target isArtifact))
@@ -183,7 +183,7 @@ def sizzlingBarrage : Action :=
         .noncombatOnly
 theorem okSizzlingBarrage : Action.check (DRS.ofList []) sizzlingBarrage = [] := by decide
 def goadedAttackTrigger : Ability :=
-  whenever (does (a (and [isCreature, hasDesignation (.named "goaded")])) attack)
+  whenever (does (a (and [isCreature, hasDesignation goaded])) attack)
     (instruct it (dealDamage (.lit 1) (controllerOf it) .noncombatOnly))
 theorem okGoadedAttackTrigger : Ability.check (DRS.ofList []) goadedAttackTrigger = [] := by decide
 
@@ -1086,7 +1086,7 @@ def heartOfBogardan : Spelled := spelled <| .singleFaced
                   [ instruct this_ (dealDamage (letter .x) targetPlayerOrPlaneswalker .noncombatOnly),
                     instruct this_ (dealDamage (letter .x) eachCreatureThatSplitControls .noncombatOnly) ],
                 define .x
-                  (minus (times (.lit 2) (countersOn (.named "ageCounter") thisEnchantment))
+                  (minus (times (.lit 2) (countersOn ageCounter thisEnchantment))
                      (.lit 2)) ]) ] } }
 
 /-- Burn at the Stake -/
@@ -1396,13 +1396,13 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
       subtypes := [human, assassin],
       text :=
         [ activatedOnlyDuring tapSymbol
-            (putCounters (.lit 1) (printedKind (.named "bountyCounter"))
+            (putCounters (.lit 1) (printedKind bountyCounter)
               (target (or [isCreature, isPlaneswalker])) .many)
             asSorcery,
           whenever
             (does any
                (dealDamage (to := a (and [or [isCreature, isPlaneswalker], controlledBy anOpponent,
-                        hasCounter (some (.named "bountyCounter"))]))))
+                        hasCounter (some bountyCounter)]))))
             (destroy it) ],
       power := stat 1, toughness := stat 3 } }
 

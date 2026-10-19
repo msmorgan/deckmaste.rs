@@ -650,7 +650,7 @@ def luxiorEquippedPermanent : Ability :=
 theorem okLuxiorEquippedPermanent : Ability.check (DRS.ofList []) luxiorEquippedPermanent = [] := by decide
 /-- Nahiri, the Unforgiving's compleated reminder -/
 def nahiriCompleatedEntry : Ability :=
-  static (entersWithFewerCounters thisPlaneswalker (.lit 2) (.named "loyaltyCounter"))
+  static (entersWithFewerCounters thisPlaneswalker (.lit 2) loyaltyCounter)
 theorem okNahiriCompleatedEntry : Ability.check (DRS.ofList []) nahiriCompleatedEntry = [] := by decide
 /-- Nimble Mongoose -/
 def nimbleMongoose : Ability :=
@@ -689,7 +689,7 @@ def invigorate : Spelled := spelled <| .singleFaced
 /-- Deflecting Swat -/
 def deflectingSwatCommanderAltCost : Ability :=
   static (onlyWhile (altCost this_)
-    (exists_ (and [hasDesignation (.named "commander"), youControl])))
+    (exists_ (and [hasDesignation commander, youControl])))
 theorem okDeflectingSwatCommanderAltCost :
     Ability.check (DRS.ofList []) deflectingSwatCommanderAltCost = [] := by decide
 
@@ -787,7 +787,7 @@ theorem okTurbulentFen : Ability.check (DRS.ofList []) turbulentFen = [] := by d
 /-- Bastion Protector -/
 def bastionProtectorPump : Ability :=
   static (getsPt
-    (allOf (and [isCreature, hasDesignation (.named "commander"), youControl]))
+    (allOf (and [isCreature, hasDesignation commander, youControl]))
     (up (.lit 2)) (up (.lit 2)))
 theorem okBastionProtectorPump : Ability.check (DRS.ofList []) bastionProtectorPump = [] := by decide
 /-- Luxior, Giada's Gift -/

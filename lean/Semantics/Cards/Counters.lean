@@ -33,16 +33,16 @@ def chainbreaker : Action :=
 theorem okChainbreaker : Action.check (DRS.ofList []) chainbreaker = [] := by decide
 def kaitoBaneOfNightmares : Action :=
   sequentially
-    [tap (target isCreature), putCounters (.lit 2) (printedKind (.named "stunCounter")) it .many]
+    [tap (target isCreature), putCounters (.lit 2) (printedKind stunCounter) it .many]
 theorem okKaitoBaneOfNightmares : Action.check (DRS.ofList []) kaitoBaneOfNightmares = [] := by decide
 def jhoiraOfTheGhitu : Ability :=
   activated
     (compound [mana [generic 2], perform (exile (a (and [non isLand, in_ yourHand])))])
-    (putCounters (.lit 4) (printedKind (.named "timeCounter"))
+    (putCounters (.lit 4) (printedKind timeCounter)
       (theVerbed (.action "exile") .one (some .card)) .many)
 theorem okJhoiraOfTheGhitu : Ability.check (DRS.ofList []) jhoiraOfTheGhitu = [] := by decide
 def alaundoTheSeer : Action :=
-  removeCounters (exactly 1) (some (printedKind (.named "timeCounter"))) (each
+  removeCounters (exactly 1) (some (printedKind timeCounter)) (each
                                                                             (and
                                                                                [youOwn, in_
                                                                                   exileZone])) .many true
@@ -118,20 +118,20 @@ def gideonsAvenger : Ability :=
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okGideonsAvenger : Ability.check (DRS.ofList []) gideonsAvenger = [] := by decide
 def prologueToPhyresis : Action :=
-  putCounters (.lit 1) (printedKind (.named "poison")) eachOpponent .many
+  putCounters (.lit 1) (printedKind poison) eachOpponent .many
 theorem okPrologueToPhyresis : Action.check (DRS.ofList []) prologueToPhyresis = [] := by decide
 def screechingScorchbeast : Ability :=
   whenever (does thisCreature attack) (putCounters (.lit 2)
                                                  (printedKind
-                                                    (.named "radCounter")) eachPlayer .many)
+                                                    radCounter) eachPlayer .many)
 theorem okScreechingScorchbeast : Ability.check (DRS.ofList []) screechingScorchbeast = [] := by decide
 def merenOfClanNelToth : Ability :=
   whenever (does (a (and [isCreature, youControl, otherThan thisCreature])) die)
-    (putCounters (.lit 1) (printedKind (.named "experience")) you .many)
+    (putCounters (.lit 1) (printedKind experience) you .many)
 theorem okMerenOfClanNelToth : Ability.check (DRS.ofList []) merenOfClanNelToth = [] := by decide
 def kratosStoicFather : Ability :=
   at_ (beginningOfYour .endStep)
-    (putCounters (countersOn (.named "experience") you) (printedKind p1p1Counter)
+    (putCounters (countersOn experience you) (printedKind p1p1Counter)
       (target isCreature) .many)
 theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
@@ -153,7 +153,7 @@ def paladinOfAtonement : Ability :=
 theorem okPaladinOfAtonement : Ability.check (DRS.ofList []) paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
   triggeredIf (beginningOfYour .endStep)
-    (matches_ you (hasDesignation (.named "monarch")))
+    (matches_ you (hasDesignation monarch))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okThroneWarden : Ability.check (DRS.ofList []) throneWarden = [] := by decide
 def bloodTyrant : Ability :=
@@ -182,9 +182,9 @@ def coretapper : Spelled := spelled <| .singleFaced
     { name := "Coretapper", cost := some [generic 2], types := [.artifact, .creature],
       subtypes := [myr],
       text :=
-        [ activated tapSymbol (putCounters (.lit 1) (printedKind (.named "chargeCounter")) (target isArtifact) .many),
+        [ activated tapSymbol (putCounters (.lit 1) (printedKind chargeCounter) (target isArtifact) .many),
           activated (perform (sacrifice thisCreature))
-            (putCounters (.lit 2) (printedKind (.named "chargeCounter")) (target isArtifact) .many) ],
+            (putCounters (.lit 2) (printedKind chargeCounter) (target isArtifact) .many) ],
       power := stat 1, toughness := stat 1 } }
 
 def divineIntervention : Spelled := spelled <| .singleFaced
@@ -192,21 +192,21 @@ def divineIntervention : Spelled := spelled <| .singleFaced
     { name := "Divine Intervention", cost := some [generic 6, pip .white, pip .white],
       types := [.enchantment],
       text :=
-        [ static (entersWithCounters thisEnchantment (.lit 2) (.named "interventionCounter")),
+        [ static (entersWithCounters thisEnchantment (.lit 2) interventionCounter),
           at_ (beginningOfYour .upkeep)
-            (removeCounters (exactly 1) (some (printedKind (.named "interventionCounter"))) thisEnchantment .many true),
-          when (lastCounterRemovedBy (.named "interventionCounter") thisEnchantment you) drawGame ] } }
+            (removeCounters (exactly 1) (some (printedKind interventionCounter)) thisEnchantment .many true),
+          when (lastCounterRemovedBy interventionCounter thisEnchantment you) drawGame ] } }
 
 def celestialConvergence : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Celestial Convergence", cost := some [generic 2, pip .white, pip .white],
       types := [.enchantment],
       text :=
-        [ static (entersWithCounters thisEnchantment (.lit 7) (.named "omenCounter")),
+        [ static (entersWithCounters thisEnchantment (.lit 7) omenCounter),
           at_ (beginningOfYour .upkeep)
             (sequentially
-              [ removeCounters (exactly 1) (some (printedKind (.named "omenCounter"))) thisEnchantment .many true,
-                doIf (compareAmt (countersOn (.named "omenCounter") thisEnchantment) .atMost (.lit 0))
+              [ removeCounters (exactly 1) (some (printedKind omenCounter)) thisEnchantment .many true,
+                doIf (compareAmt (countersOn omenCounter thisEnchantment) .atMost (.lit 0))
                   (instruct (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])) winGame),
                 doIf (compareAmt
                         (countOf (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer]))
@@ -220,11 +220,11 @@ def curseOfVengeance : Spelled := spelled <| .singleFaced
       text :=
         [ enchant isPlayer,
           whenever (does (enchanted player) (cast (a isSpell)))
-            (putCounters (.lit 1) (printedKind (.named "spiteCounter")) thisAura .many),
+            (putCounters (.lit 1) (printedKind spiteCounter) thisAura .many),
           when (does (enchanted player) loseGame)
             (sequentially
               [ gainLife (letter .x), draw (letter .x),
-                define .x (countersOn (.named "spiteCounter") thisAura) ]) ] } }
+                define .x (countersOn spiteCounter thisAura) ]) ] } }
 
 def passagewaySeer : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -232,9 +232,9 @@ def passagewaySeer : Spelled := spelled <| .singleFaced
       subtypes := [tiefling, warlock],
       text :=
         [ lifelink,
-          when (does thisCreature enter) (gainDesignation you (.named "initiative")),
+          when (does thisCreature enter) (gainDesignation you initiative),
           triggeredIf (beginningOfYour .endStep)
-            (matches_ you (hasDesignation (.named "initiative")))
+            (matches_ you (hasDesignation initiative))
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -246,9 +246,9 @@ def chainsaw : Spelled := spelled <| .singleFaced
         [ when (does thisEquipment enter)
             (instruct it (dealDamage (.lit 3) (targets (upTo 1) isCreature) .noncombatOnly)),
           whenever (does (counted (atLeast 1) isCreature) die)
-            (putCounters (.lit 1) (printedKind (.named "revCounter")) thisEquipment .many),
+            (putCounters (.lit 1) (printedKind revCounter) thisEquipment .many),
           static (conjunction [ getsPt (equipped creature) (up (letter .x)) (up (.lit 0)),
-              letterDefinition .x (countersOn (.named "revCounter") thisEquipment) ]),
+              letterDefinition .x (countersOn revCounter thisEquipment) ]),
           equip (mana [generic 3]) ] } }
 
 /-- Soul's Might -/
@@ -407,7 +407,7 @@ def denryKlin : Spelled := spelled <| .singleFaced
       text :=
         [ static (entryRider thisCreature
             (withCounters (.lit 1)
-              (chosenKind [p1p1Counter, .named "firstStrikeCounter", .named "vigilanceCounter"]) .fresh)),
+              (chosenKind [p1p1Counter, firstStrikeCounter, vigilanceCounter]) .fresh)),
           denryKlinSameKinds ],
       power := stat 2, toughness := stat 2 } }
 
@@ -415,7 +415,7 @@ def denryKlin : Spelled := spelled <| .singleFaced
 def meTheImmortalCounterMenu : Ability :=
   at_ (beginningOfYour .combat)
     (putCounters (.lit 1)
-      (chosenKind [p1p1Counter, .named "firstStrikeCounter", .named "vigilanceCounter", .named "menaceCounter"])
+      (chosenKind [p1p1Counter, firstStrikeCounter, vigilanceCounter, menaceCounter])
       thisCreature .many)
 theorem okMeTheImmortalCounterMenu : Ability.check (DRS.ofList []) meTheImmortalCounterMenu = [] := by decide
 
@@ -459,11 +459,11 @@ def runadiBehemothCaller : Ability :=
 theorem okRunadiBehemothCaller : Ability.check (DRS.ofList []) runadiBehemothCaller = [] := by decide
 /-- Boon of Safety -/
 def boonOfSafetyPut : Action :=
-  putCounters (.lit 1) (printedKind (.named "shieldCounter")) (target isCreature) .many
+  putCounters (.lit 1) (printedKind shieldCounter) (target isCreature) .many
 theorem okBoonOfSafetyPut : Action.check (DRS.ofList []) boonOfSafetyPut = [] := by decide
 /-- Vivien's Talent and Teferi's Talent -/
 def talentLoyaltyPut : Action :=
-  putCounters (.lit 1) (printedKind (.named "loyaltyCounter")) (enchanted
+  putCounters (.lit 1) (printedKind loyaltyCounter) (enchanted
                                                                   planeswalker) .many
 theorem okTalentLoyaltyPut : Action.check (DRS.ofList []) talentLoyaltyPut = [] := by decide
 /-- Simic Fluxmage -/
@@ -543,10 +543,10 @@ theorem okNovijenSagesDraw : Ability.check (DRS.ofList []) novijenSagesDraw = []
 def cycloneUpkeepPayment : Ability :=
   at_ (beginningOfYour .upkeep)
     (sequentially
-      [ putCounters (.lit 1) (printedKind (.named "windCounter")) thisEnchantment .many,
+      [ putCounters (.lit 1) (printedKind windCounter) thisEnchantment .many,
         doUnless (sacrifice thisEnchantment)
           (scaled (mana [pip .green])
-            (times (.lit 1) (countersOn (.named "windCounter") thisEnchantment))) ])
+            (times (.lit 1) (countersOn windCounter thisEnchantment))) ])
 theorem okCycloneUpkeepPayment : Ability.check (DRS.ofList []) cycloneUpkeepPayment = [] := by decide
 
 def stormwildCapridor : Spelled := spelled <| .singleFaced
@@ -606,14 +606,14 @@ def chromaticArmor : Spelled := spelled <| .singleFaced
       text :=
         [ enchant isCreature,
           static (entersChoosing thisAura .color),
-          static (entersWithCounters thisAura (.lit 1) (.named "sleightCounter")),
+          static (entersWithCounters thisAura (.lit 1) sleightCounter),
           static (damageRule .any (dealtBy (allOf (and [isSource, ofTheLastChosen .color])))
             (toRecipient (enchanted creature)) (prevent allDamage) .repeatedly),
           activated (mana [.variable])
             (sequentially
-              [ putCounters (.lit 1) (printedKind (.named "sleightCounter")) thisAura .many,
+              [ putCounters (.lit 1) (printedKind sleightCounter) thisAura .many,
                 choose (a (quality .color)),
-                define .x (countersOn (.named "sleightCounter") thisAura) ]) ] } }
+                define .x (countersOn sleightCounter thisAura) ]) ] } }
 
 def vault75MiddleSchool : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -631,7 +631,7 @@ def keldonWarcaller : Spelled := spelled <| .singleFaced
       subtypes := [human, warrior],
       text :=
         [ whenever (does thisCreature attack)
-            (putCounters (.lit 1) (printedKind (.named "loreCounter"))
+            (putCounters (.lit 1) (printedKind loreCounter)
               (target (and [hasSubtype saga, youControl])) .many) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -640,11 +640,11 @@ def magistratesScepter : Spelled := spelled <| .singleFaced
     { name := "Magistrate's Scepter", cost := some [generic 3], types := [.artifact],
       text :=
         [ activated (compound [mana [generic 4], tapSymbol])
-            (putCounters (.lit 1) (printedKind (.named "chargeCounter")) thisArtifact .many),
+            (putCounters (.lit 1) (printedKind chargeCounter) thisArtifact .many),
           activated
             (compound
               [ tapSymbol,
-                perform (removeCounters (exactly 3) (some (printedKind (.named "chargeCounter"))) thisArtifact .many true) ])
+                perform (removeCounters (exactly 3) (some (printedKind chargeCounter)) thisArtifact .many true) ])
             (extraTurn (.lit 1)) ] } }
 
 def grumgully : Spelled := spelled <| .singleFaced
@@ -779,7 +779,7 @@ def shelteringAncient : Spelled := spelled <| .singleFaced
       power := stat 5, toughness := stat 5 } }
 
 def coverOfWinterPut : Ability :=
-  activated (mana [.snow]) (putCounters (.lit 1) (printedKind (.named "ageCounter")) thisEnchantment .many)
+  activated (mana [.snow]) (putCounters (.lit 1) (printedKind ageCounter) thisEnchantment .many)
 theorem okCoverOfWinterPut : Ability.check (DRS.ofList []) coverOfWinterPut = [] := by decide
 
 def urborgScavengers : Spelled := spelled <| .singleFaced
@@ -841,26 +841,26 @@ def infernalVessel : Spelled := spelled <| .singleFaced
 /-- Vivien's Talent -/
 def viviensTalentTrigger : Ability :=
   whenever (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
-    (putCounters (.lit 1) (printedKind (.named "loyaltyCounter")) (enchanted planeswalker)
+    (putCounters (.lit 1) (printedKind loyaltyCounter) (enchanted planeswalker)
        .many)
 theorem okViviensTalentTrigger : Ability.check (DRS.ofList []) viviensTalentTrigger = [] := by decide
 /-- Bioessence Hydra -/
 def bioessenceHydraTrigger : Ability :=
   whenever
-    (counterEvent .put (.named "loyaltyCounter") .many
+    (counterEvent .put loyaltyCounter .many
       (allOf (and [isPlaneswalker, youControl])))
     (putCounters thatMuch (printedKind p1p1Counter) thisCreature .many)
 theorem okBioessenceHydraTrigger : Ability.check (DRS.ofList []) bioessenceHydraTrigger = [] := by decide
 /-- Vraska, Betrayal's Sting -/
 def vraskaBetrayalsStingUltimate : Action :=
-  doIf (compareAmt (countersOn (.named "poison") (target isPlayer)) .less (.lit 9))
-    (putCounters theDifference (printedKind (.named "poison")) they .many)
+  doIf (compareAmt (countersOn poison (target isPlayer)) .less (.lit 9))
+    (putCounters theDifference (printedKind poison) they .many)
 theorem okVraskaBetrayalsStingUltimate :
     Action.check (DRS.ofList []) vraskaBetrayalsStingUltimate = [] := by decide
 /-- Vexing Puzzlebox -/
 def vexingPuzzleboxCounters : Ability :=
   whenever (does you (rollDice anyAmount .anyDie .many))
-    (putCounters (theOutcome .rollResult) (printedKind (.named "chargeCounter")) thisArtifact .many)
+    (putCounters (theOutcome .rollResult) (printedKind chargeCounter) thisArtifact .many)
 theorem okVexingPuzzleboxCounters : Ability.check (DRS.ofList []) vexingPuzzleboxCounters = [] := by decide
 def spaceFamilyGoblinsonRoll : Ability :=
   whenever (does you (rollDice anyAmount .anyDie))
@@ -893,7 +893,7 @@ def heartOfKiranCrewAltCost : Ability :=
   static (altCost (allOf (and [abilityHead (.keyword (.named "crew")), abilityOf this_]))
     (some
        (perform
-          (removeCounters (exactly 1) (some (printedKind (.named "loyaltyCounter")))
+          (removeCounters (exactly 1) (some (printedKind loyaltyCounter))
              (a (and [isPlaneswalker, youControl])) .many true))))
 theorem okHeartOfKiranCrewAltCost : Ability.check (DRS.ofList []) heartOfKiranCrewAltCost = [] := by decide
 /-- Tainted Adversary -/
@@ -1040,7 +1040,7 @@ def stunningShot : Spelled := spelled <| .singleFaced
             [ putCounters (.lit 2) (printedKind p1p1Counter)
                 (targets (upTo 1) (and [isCreature, youControl])) .many,
               tap stunningShotRecipient,
-              putCounters (.lit 1) (printedKind (.named "stunCounter"))
+              putCounters (.lit 1) (printedKind stunCounter)
                 stunningShotRecipientAgain .many ]) ] } }
 
 /-- Stonebinder's Familiar -/
@@ -1087,10 +1087,10 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
           whenever (does (counted (atLeast 1) isCreature) die)
             (sequentially
               [ mill (.lit 1),
-                putCounters (.lit 1) (printedKind (.named "bloodstainCounter")) thisEnchantment .many,
+                putCounters (.lit 1) (printedKind bloodstainCounter) thisEnchantment .many,
                 triggerReflexively
                   (doOnlyIf (sacrifice thisEnchantment)
-                    (compareAmt (countersOn (.named "bloodstainCounter") thisEnchantment) .atLeast (.lit 5)))
+                    (compareAmt (countersOn bloodstainCounter thisEnchantment) .atLeast (.lit 5)))
                   (putInto (target (and [isCreature, isCard, in_ yourGraveyard])) hand) ]) ] } }
 
 /-- Bewitching Leechcraft -/
@@ -1191,10 +1191,10 @@ def darkDepths : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Dark Depths", supertypes := [.legendary, .snow], types := [.land],
       text :=
-        [ static (entersWithCounters thisLand (.lit 10) (.named "iceCounter")),
+        [ static (entersWithCounters thisLand (.lit 10) iceCounter),
           activated (mana [generic 3])
-            (removeCounters (exactly 1) (some (printedKind (.named "iceCounter"))) thisLand),
-          when (stateHolds (not (matches_ thisLand (hasCounter (some (.named "iceCounter"))))))
+            (removeCounters (exactly 1) (some (printedKind iceCounter)) thisLand),
+          when (stateHolds (not (matches_ thisLand (hasCounter (some iceCounter)))))
             (doIfDone (sacrifice thisLand) (some (createToken maritLage)))
                 ] } }
 
@@ -1205,25 +1205,25 @@ def thallid : Spelled := spelled <| .singleFaced
       subtypes := [fungus],
       text :=
         [ at_ (beginningOfYour .upkeep)
-            (putCounters (.lit 1) (printedKind (.named "sporeCounter")) thisCreature .many),
+            (putCounters (.lit 1) (printedKind sporeCounter) thisCreature .many),
           activated
-            (perform (removeCounters (exactly 3) (some (printedKind (.named "sporeCounter"))) thisCreature .many true))
+            (perform (removeCounters (exactly 3) (some (printedKind sporeCounter)) thisCreature .many true))
             (createToken (creatureToken 1 1 [.green] [saproling])) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Aether Chaser -/
 def aetherChaserEnergy : Ability :=
-  when (does thisCreature enter) (putCounters (.lit 2) (printedKind (.named "energy")) you .many)
+  when (does thisCreature enter) (putCounters (.lit 2) (printedKind energy) you .many)
 theorem okAetherChaserEnergy : Ability.check (DRS.ofList []) aetherChaserEnergy = [] := by decide
 /-- Archfiend of the Dross -/
 def archfiendOfTheDrossEntersOiled : StaticSpec :=
-  entersWithCounters thisCreature (.lit 4) (.named "oilCounter")
+  entersWithCounters thisCreature (.lit 4) oilCounter
 theorem okArchfiendOfTheDrossEntersOiled :
     StaticSpec.check (DRS.ofList []) archfiendOfTheDrossEntersOiled = [] := by decide
 /-- Archfiend of the Dross -/
 def archfiendOfTheDrossOilUpkeep : Ability :=
   at_ (beginningOfYour .upkeep)
-    (removeCounters (exactly 1) (some (printedKind (.named "oilCounter"))) thisCreature .many true)
+    (removeCounters (exactly 1) (some (printedKind oilCounter)) thisCreature .many true)
 theorem okArchfiendOfTheDrossOilUpkeep : Ability.check (DRS.ofList []) archfiendOfTheDrossOilUpkeep = [] := by
   decide
 def neurokTransmuter : Action :=
@@ -1243,7 +1243,7 @@ theorem okBumiScryMode : Action.check (DRS.ofList []) bumiScryMode = [] := by de
 def finalActCounterMode : Action := loseAllCounters none (agent := eachOpponent)
 theorem okFinalActCounterMode : Action.check (DRS.ofList []) finalActCounterMode = [] := by decide
 def leeches : Action :=
-  loseAllCounters (some (printedKind (.named "poison"))) (agent := target isPlayer)
+  loseAllCounters (some (printedKind poison)) (agent := target isPlayer)
 theorem okLeeches : Action.check (DRS.ofList []) leeches = [] := by decide
 
 /-- Woeleecher -/

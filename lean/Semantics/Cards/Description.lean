@@ -166,7 +166,7 @@ def topple : Spelled := spelled <| .singleFaced
 
 /-- "each opponent with three or more poison counters" -/
 def corruptedOpponents : NounPhrase :=
-  each (and [isOpponent, compare .atLeast (.lit 3) (axes := [.counter (.named "poison")])])
+  each (and [isOpponent, compare .atLeast (.lit 3) (axes := [.counter poison])])
 theorem okCorruptedOpponents : NounPhrase.checkAt (some .player) (DRS.ofList []) corruptedOpponents = [] := by
   decide
 
@@ -395,7 +395,7 @@ def twoOrMorePlayersHaveLost : Condition :=
 theorem okTwoOrMorePlayersHaveLost : Condition.check (DRS.ofList []) twoOrMorePlayersHaveLost = [] := by decide
 
 def commanderCreaturesYouOwn : Predicate :=
-  and [isCreature, hasDesignation (.named "commander"), youOwn]
+  and [isCreature, hasDesignation commander, youOwn]
 theorem okCommanderCreaturesYouOwn : Predicate.checkAt .object (DRS.ofList []) commanderCreaturesYouOwn = [] := by
   decide
 
