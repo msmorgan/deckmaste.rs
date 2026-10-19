@@ -76,8 +76,9 @@ Standard constraints apply.
    Dewart `Templates.lean` and `Definitions.lean` (`«this»` → `this_`,
    `thisCard`/`thisToken`/`thisEmblem`, `mill` without `whose` + `millCards`,
    `flip`, consolidated `double*`/`triple*`, deleting the 8 duplicate
-   `*Expansion` definitions, folding unfolded keyword bodies, and dispatching
-   bare keyword definitions in `hasKeyword`).
+   `*Expansion` definitions, converting the 6 `gift*` phrasings to
+   `semantic_template`s over `gift`, folding unfolded keyword bodies, and
+   dispatching bare keyword definitions in `hasKeyword`).
 6. [`lean-v3-authoring-impl-6-cards-dewarting`](lean-v3-authoring-impl-6-cards-dewarting.md):
    Sweep `lean/Semantics/Cards/*.lean` onto the dewarted surface (`mirelurkQueenTrigger`
    onto `millCards`, remaining `setStatus` calls onto `phaseOut`/`phaseIn`/`flip`,

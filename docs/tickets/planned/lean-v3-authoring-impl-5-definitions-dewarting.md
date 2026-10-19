@@ -90,17 +90,22 @@ Standard constraints apply.
    - Add `hexproofFrom (quality : Predicate) : Ability` alongside `hexproof`
      (`[CR#702.11d]`), and fix `equipQuality` (`Definitions.lean:1464`) to use
      `.named "equip"` instead of `.named "equipQuality"`.
-3. **Fold unfolded definitions and templates inside `Definitions.lean`:**
+3. **Convert the 6 licensed `[CR#702.174a]` `gift*` phrasings to `semantic_template`s over `gift` (`Definitions.lean:1632-1806`):**
+   - Because `[CR#702.174a]`'s templating is non-normative (`"Gift a card"`, `"Gift a tapped Fish"`, etc.), bare `gift` is the `semantic_definition` while each licensed phrasing is its own **`semantic_template`** calling `gift (...)` (matching `plainscycling` .. `wizardcycling` over `typecycling`):
+     ```lean
+     semantic_template giftACard : Ability := gift (draw (.lit 1))
+     semantic_template giftAFood : Ability := gift (createToken foodToken)
+     semantic_template giftATappedFish : Ability := gift (createTappedToken (creatureToken 1 1 [.blue] [fish]))
+     semantic_template giftATreasure : Ability := gift (createToken treasureToken)
+     semantic_template giftAnExtraTurn : Ability := gift (extraTurn (.lit 1))
+     semantic_template giftAnOctopus : Ability := gift (createToken (creatureToken 8 8 [.blue] [octopus]))
+     ```
+4. **Fold unfolded definitions and templates inside `Definitions.lean`:**
    - Across `Definitions.lean`, fold inlined constructor trees back into calls to
      `sacrifice`, `exile`, `tap`, `untap`, `destroy`, `discard`, `transform`,
      `attachTo`, `cast`, `play`, `activate`, `mill`, `die`, `enter`, `leave`,
      `createToken`, `createTappedToken`, `thisPermanent`, `thisSpell`, `thisCard`,
-     and named subtypes/tokens/counters/designations (including using `foodToken`
-     and `treasureToken` inside `giftAFood` and `giftATreasure`, while keeping each
-     licensed `[CR#702.174a]` `gift*` phrasing — `giftACard`, `giftAFood`,
-     `giftATappedFish`, `giftATreasure`, `giftAnExtraTurn`, `giftAnOctopus` — as its
-     own standalone `semantic_definition` rather than collapsing them to calls to
-     bare `gift`).
+     and named subtypes/tokens/counters/designations.
    - Replace `allOf isPlayer` in `splitSecond` (`Definitions.lean:2491`) with
      `bare isPlayer` (*"Players can't cast spells or activate abilities..."*).
    - Clean up the triple-nested `enact` + dummy `.clearDamage` hack in `umbraArmor`
