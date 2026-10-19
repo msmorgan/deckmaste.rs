@@ -210,7 +210,7 @@ theorem okTahngarthAttacksThatJoin :
 def mindlockOrb : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mindlock Orb", cost := some [generic 3, pip .blue], types := [.artifact],
-      text := [static (cant (allOf isPlayer) (search any anyNumber (and [])))] } }
+      text := [static (cant (bare isPlayer) (search any anyNumber (and [])))] } }
 
 def silence : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -224,11 +224,11 @@ def shadowOfDoubt : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (sequentially
-            [ establishThroughout (cant (allOf isPlayer) (search any anyNumber (and [])))
+            [ establishThroughout (cant (bare isPlayer) (search any anyNumber (and [])))
                 thisTurn,
               draw (.lit 1) ]) ] } }
 
-def omenMachineDraw : Ability := static (cant (allOf isPlayer) (draw anyAmount))
+def omenMachineDraw : Ability := static (cant (bare isPlayer) (draw anyAmount))
 theorem okOmenMachineDraw : Ability.check (DRS.ofList []) omenMachineDraw = [] := by decide
 def solfataraLandLock : Action :=
   establishThroughout (cant (target isPlayer) (play any)) thisTurn

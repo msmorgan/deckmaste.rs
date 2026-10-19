@@ -1000,7 +1000,7 @@ def ahnCropInvader : Spelled := spelled <| .singleFaced
 def nestingDragonInnerToken : Ability :=
   activated (mana [pip .red])
     (establishThroughout
-       (conjunction [ getsPt (asMarker .token this_) (up (.lit 1)) (up (.lit 0)) ]) untilEndOfTurn)
+       (conjunction [ getsPt thisToken (up (.lit 1)) (up (.lit 0)) ]) untilEndOfTurn)
 theorem okNestingDragonInnerToken : Ability.check (DRS.ofList []) nestingDragonInnerToken = [] := by decide
 
 /-- Leonin Bola -/

@@ -1310,7 +1310,7 @@ def blindFury : Spelled := spelled <| .singleFaced
 def chandraAwakenedInfernoEmblem : Action :=
   getEmblem
     [ at_ (beginningOfYour .upkeep)
-        (instruct (asMarker .emblem this_) (dealDamage (.lit 1) you .noncombatOnly)) ]
+        (instruct thisEmblem (dealDamage (.lit 1) you .noncombatOnly)) ]
 theorem okChandraAwakenedInfernoEmblem :
     Action.check (DRS.ofList []) chandraAwakenedInfernoEmblem = [] := by decide
 

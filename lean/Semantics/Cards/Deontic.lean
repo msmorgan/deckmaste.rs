@@ -69,24 +69,24 @@ def munghaWurm : Ability :=
 theorem okMunghaWurm : Ability.check (DRS.ofList []) munghaWurm = [] := by decide
 def dampingField : Ability :=
   static
-      (cant (allOf isPlayer) (untap (counted (moreThan 1) isArtifact))
+      (cant (bare isPlayer) (untap (counted (moreThan 1) isArtifact))
          (timing := some duringTheirUntapSteps))
 theorem okDampingField : Ability.check (DRS.ofList []) dampingField = [] := by decide
 def smoke : Ability := static
-    (cant (allOf isPlayer) (untap (counted (moreThan 1) isCreature))
+    (cant (bare isPlayer) (untap (counted (moreThan 1) isCreature))
        (timing := some duringTheirUntapSteps))
 theorem okSmoke : Ability.check (DRS.ofList []) smoke = [] := by decide
 def winterOrb : Ability :=
   static
       (onlyWhile
-         (cant (allOf isPlayer) (untap (counted (moreThan 1) isLand))
+         (cant (bare isPlayer) (untap (counted (moreThan 1) isLand))
             (timing := some duringTheirUntapSteps))
     (matches_ thisArtifact isUntapped))
 theorem okWinterOrb : Ability.check (DRS.ofList []) winterOrb = [] := by decide
 def staticOrb : Ability :=
   static
       (onlyWhile
-         (cant (allOf isPlayer) (untap (counted (moreThan 2) isPermanent))
+         (cant (bare isPlayer) (untap (counted (moreThan 2) isPermanent))
             (timing := some duringTheirUntapSteps))
     (matches_ thisArtifact isUntapped))
 theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
@@ -95,7 +95,7 @@ theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 def ruleOfLaw : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rule of Law", cost := some [generic 2, pip .white], types := [.enchantment],
-      text := [static (cant (allOf isPlayer) (cast (counted (moreThan 1) isSpell))
+      text := [static (cant eachPlayer (cast (counted (moreThan 1) isSpell))
         (timing := some eachTurn))] } }
 
 /-- Spirit of the Labyrinth -/
@@ -108,7 +108,7 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
 
 def winterMoon : Ability :=
   static
-      (cant (allOf isPlayer)
+      (cant (bare isPlayer)
          (untap (counted (moreThan 1) (and [isLand, non (hasSupertype .basic)])))
       (timing := some duringTheirUntapSteps))
 theorem okWinterMoon : Ability.check (DRS.ofList []) winterMoon = [] := by decide
@@ -167,7 +167,7 @@ def pacifism : Spelled := spelled <| .singleFaced
 /-- Everybody Lives! -/
 def everybodyLivesGateLine : Action :=
   establishThroughout (conjunction
-                         [cant (allOf isPlayer) loseGame, cant (allOf isPlayer)
+                         [cant (bare isPlayer) loseGame, cant (bare isPlayer)
                             winGame]) thisTurn
 theorem okEverybodyLivesGateLine : Action.check (DRS.ofList []) everybodyLivesGateLine = [] := by decide
 
@@ -193,7 +193,7 @@ theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWa
 
 /-- Mornsong Aria -/
 def mornsongAriaLock : StaticSpec :=
-  conjunction [cant (allOf isPlayer) (draw anyAmount), cant (allOf isPlayer)
+  conjunction [cant (bare isPlayer) (draw anyAmount), cant (bare isPlayer)
                  (gainLife anyAmount)]
 theorem okMornsongAriaLock : StaticSpec.check (DRS.ofList []) mornsongAriaLock = [] := by decide
 
@@ -305,7 +305,7 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
     { name := "Call In a Professional", cost := some [generic 2, pip .red], types := [.instant],
       text :=
         [ spell (sequentially
-            [ establishThroughout (cant (allOf isPlayer) (gainLife anyAmount)) thisTurn,
+            [ establishThroughout (cant (bare isPlayer) (gainLife anyAmount)) thisTurn,
               establishThroughout (preventionBan .any (damageDealt unattributed everywhere)
                                      .noPreventionOnly) thisTurn,
               instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly) ]) ] } }
@@ -768,7 +768,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [rat],
                   text :=
-                    [ static (cant (asMarker .token this_) block) ],
+                    [ static (cant thisToken block) ],
                   power := stat 1, toughness := stat 1 } }) ],
       power := stat 1, toughness := stat 1 } }
 
