@@ -81,5 +81,10 @@ Squee's Revenge | Choose a number. Flip a coin that many times or until you lose
 Opportunistic Dragon | When this creature enters, choose target Human or artifact an opponent controls. For as long as this creature remains on the battlefield, gain control of that permanent, it loses all abilities, and it can't attack or block.
 Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/+1 counters on it, where X is the discarded card's mana value.
 
+Stonework Packbeast | Stonework Packbeast is also a Cleric, Rogue, Warrior, and Wizard.
+Burakos, Party Leader | Burakos is also a Cleric, Rogue, Warrior, and Wizard.
+Tajuru Paragon | Tajuru Paragon is also a Cleric, Rogue, Warrior, and Wizard.
+Veteran Adventurer | Veteran Adventurer is also a Cleric, Rogue, Warrior, and Wizard.
+
 # english-v4-oracle-editorial-corrections
 Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.
