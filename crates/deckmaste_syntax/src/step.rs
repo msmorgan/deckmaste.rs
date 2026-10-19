@@ -768,7 +768,9 @@ impl Production {
             && (grammar.extension_set(state.host_extensions).contains(e)
                 || (adjunct > host
                     && matches!(e, Extension::Preposition(_))
-                    && grammar.extension_set(state.host_right_extensions).contains(e)))
+                    && grammar
+                        .extension_set(state.host_right_extensions)
+                        .contains(e)))
         {
             return None;
         }

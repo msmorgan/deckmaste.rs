@@ -981,9 +981,16 @@ impl<'a> Binder<'a> {
                 self.slot_agreement(phrase, &mut drafts, agree)?;
                 if let Some(coordinators) = clusters {
                     let coordinator = self.coordinator_test(coordinators)?;
+                    let between = interleaved
+                        .as_deref()
+                        .map(|i| self.category(i))
+                        .transpose()?;
                     let clustered: Vec<Draft> = drafts
                         .iter()
-                        .filter_map(|d| complement_clusters(d, &coordinator))
+                        .filter_map(|d| complement_clusters(d, &coordinator, None))
+                        .chain(drafts.iter().filter_map(|d| {
+                            between.and_then(|b| complement_clusters(d, &coordinator, Some(b)))
+                        }))
                         .collect();
                     drafts.extend(clustered);
                 }
@@ -2271,8 +2278,10 @@ impl Conjoin {
 
 /// The coordination of an active phrase's complement sequence, its head
 /// shared on the left (the mirror of Right Node Raising): the head, its
-/// Frame Slots, a coordinator, and the Frame Slots again.
-fn complement_clusters(draft: &Draft, coordinator: &Test) -> Option<Draft> {
+/// Frame Slots, a coordinator, and the Frame Slots again; with `between`, an
+/// Adjunct of that Category ends the first sequence (*on top of your library
+/// in any order and the rest on the bottom*).
+fn complement_clusters(draft: &Draft, coordinator: &Test, between: Option<usize>) -> Option<Draft> {
     let derived = ["/gap", "/passive", "/adjectival"];
     if draft.children.len() < 3
         || draft.frame.is_none()
@@ -2283,17 +2292,31 @@ fn complement_clusters(draft: &Draft, coordinator: &Test) -> Option<Draft> {
     }
     let slots = draft.children.len() - 1;
     let mut clustered = draft.clone();
-    clustered.id = Ident::new(&format!("{}/clusters", draft.id));
+    let tag = if between.is_some() { "clusters-interleaved" } else { "clusters" };
+    clustered.id = Ident::new(&format!("{}/{tag}", draft.id));
     for child in &mut clustered.children[1..] {
         child.gap = GapRule::Closed;
+    }
+    if let Some(category) = between {
+        clustered.child(
+            "adjunct",
+            Symbol::Cat {
+                category,
+                binding: None,
+                prepositions: None,
+                host: None,
+            },
+            GapRule::Closed,
+        );
     }
     clustered.child(
         "coordinator",
         Symbol::Leaf(coordinator.clone()),
         GapRule::Closed,
     );
-    // The second sequence's children, at `i + slots + 1`.
-    let copy = |i: usize| if i == 0 { 0 } else { i + slots + 1 };
+    // The second sequence's children, after the coordinator.
+    let offset = slots + 1 + usize::from(between.is_some());
+    let copy = |i: usize| if i == 0 { 0 } else { i + offset };
     for child in draft.children[1..].iter().cloned() {
         clustered.child(child.name.as_ref(), child.symbol, GapRule::Closed);
     }
