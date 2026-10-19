@@ -1,0 +1,18 @@
+# Coordination: its level, resolved agreement, clause sequences and the scope of a preposed adjunct
++NounPhrase target artifact or enchantment => Nominal "artifact or enchantment"; readings 1
++ Target creature or Vehicle gets +2/+0 until end of turn. => Nominal "creature or Vehicle"
++Clause target creature and target player are dealt 2 damage => NounPhrase "target creature and target player" as Subject of be
+*Clause target creature and target player is dealt 2 damage
++ Each opponent loses 1 life and you gain 1 life. => Clause "Each opponent loses 1 life"; Clause "you gain 1 life"; readings 1
++ Draw two cards and create two Treasure tokens. => Clause "Draw two cards"; Clause "create two Treasure tokens"; readings 1
++ Tap that creature and it doesn't untap during its controller's next untap step. => Clause "Tap that creature"; Clause "it doesn't untap during its controller's next untap step"
++ Enchanted creature can't attack or block, and its activated abilities can't be activated. => Clause "Enchanted creature can't attack or block"; Clause "its activated abilities can't be activated"
++ When this creature enters, draw a card and you lose 1 life. => Clause "draw a card and you lose 1 life"; !Clause "When this creature enters, draw a card"
++NounPhrase three or more creatures => DeterminerPhrase "three or more" as Determiner of creature; readings 1
++NounPhrase power 3 or greater => Amount "3 or greater" as Complement of power; readings 1
++ Equipped creature has trample and lifelink. => KeywordPhrase "trample and lifelink" as Object of have
++ Kicker {1}{U} and/or {B}
++AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power"; readings 1
++ Flora Colossus's power and toughness are each equal to the number of lands you control. => NounPhrase "Flora Colossus's power and toughness" as Subject of be; AdjectivePhrase "each equal to the number of lands you control"
++ It deals 1 damage to each of up to one target creature, up to one target player, and/or up to one target planeswalker. => NounPhrase "up to one target creature, up to one target player, and/or up to one target planeswalker"
++ Cast this spell only during the declare attackers step and only if you've been attacked this step. => PrepositionPhrase "only during the declare attackers step"; PrepositionPhrase "only if you've been attacked this step"

@@ -94,6 +94,8 @@
         "SubjectGapClause": (category: Some("Clause"), features: ["Number", "Person", "VerbForm", "Inflection"], gap: true),
         // A finite clause with an extracted Adjunct.
         "AdjunctGapClause": (category: Some("Clause"), features: ["VerbForm"], gap: true),
+        // A participle premodifying a nominal (*attacking creature*).
+        "Participle": (category: Some("VerbPhrase"), features: ["Inflection"]),
         "VerbPhrase": (features: ["Number", "Person", "VerbForm", "Voice", "VerbKind", "Inflection", "AdjectivalPassive"], gap: true),
         // Existential *there* and the predicate it is subject of (CGEL, Ch. 16
         // §6.1, p. 1391).
@@ -139,7 +141,7 @@
         "PrepositionPhrase": (features: ["ComplementKind", "Number", "Determination", "Case", "PrepositionMarking", "NounKind", "Countability"], gap: true),
         // An Adjectival Passive is Passive; it is a predicative Complement
         // only, never a depictive Adjunct or a premodifier.
-        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"]),
+        "AdjectivePhrase": (features: ["Determination", "AdjectivePosition", "Voice", "ComplementKind", "Grade"], gap: true),
         "AdverbPhrase": (features: ["AdjunctPosition"]),
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
@@ -968,7 +970,7 @@
 
     ],
     schemas: [
-        Premodification(head: Verb, modifier: "VerbPhrase", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true),
+        Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true),
         Parameters(head: Noun, phrase: "IndexedNominal"),
         Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free)),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
@@ -1018,6 +1020,7 @@
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"], equations: [Require("$.Number", "Plural")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind"]),
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
+        Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),

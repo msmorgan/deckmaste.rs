@@ -206,6 +206,20 @@ Supplement, of a verbal cost too. *Plus* and *minus* head Preposition Phrases
 on a quantity (*2 plus the number of ...*, *X plus 3 life*, *that many plus
 one*), and *N times X* multiplies an amount.
 
+Stratum 6 (in progress) coordinates Clauses, Verb Phrases, Noun Phrases,
+nominals, noun and participle premodifiers, Adjective, Preposition and Adverb
+Phrases, keyword phrases, determinatives and symbol costs, binary and serial,
+after *both*, *either* or *neither*. An *and*-coordination of Noun Phrases or
+nominals is plural; an *or*-coordination of nominals shares its conjuncts'
+Number and of Noun Phrases takes its last one's, as a coordination of
+quantifiers determines as its last one does (*one or more cards*). A chain of
+bare imperatives is coordinated imperative Clauses, which a declarative may
+end (*tap that creature and it doesn't untap ...*); two independent Clauses
+may be joined by *, and*; a preposed adjunct scopes over the whole chain. An
+amount and a comparative adjective coordinate as an Amount (*power 3 or
+greater*), and coordinated adjectives share a Complement (*less than or equal
+to X*).
+
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)
 belongs to Stratum 3 even inside a keyword parameter.
