@@ -90,7 +90,7 @@ theorem okSomberwaldAlpha : Ability.check (DRS.ofList []) somberwaldAlpha = [] :
 def vertigoSpawn : Ability :=
   whenever (does thisCreature (block (a isCreature)))
     (sequentially
-      [ setStatus .tapped (that creature),
+      [ tap (that creature),
         skipUntap (that creature) (.lit 1) ])
 theorem okVertigoSpawn : Ability.check (DRS.ofList []) vertigoSpawn = [] := by decide
 def orneryDilophosaur : Ability :=
@@ -350,7 +350,7 @@ def fiendBinder : Spelled := spelled <| .singleFaced
       subtypes := [human, soldier],
       text :=
         [ whenever (does thisCreature attack)
-            (setStatus .tapped
+            (tap
               (target (and [isCreature, controlledBy defendingPlayer]))) ],
       power := stat 3, toughness := stat 2 } }
 

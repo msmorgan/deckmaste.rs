@@ -617,7 +617,7 @@ def thwart : Spelled := spelled <| .singleFaced
 
 def theLadyOfOtariaLine : StaticSpec :=
   altCost «this»
-    (some (perform (setStatus .tapped
+    (some (perform (tap
       (counted (exactly 3)
         (and [ isCreature, hasSubtype dwarf, youControl,
                 isUntapped ])))))

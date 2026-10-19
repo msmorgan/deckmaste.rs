@@ -469,7 +469,7 @@ def rawExile : Action := exile (target isCreature)
 theorem okRawExile : Action.check (DRS.ofList []) rawExile = [] := by decide
 def disenchant : Action := destroy (target (or [isArtifact, isEnchantment]))
 theorem okDisenchant : Action.check (DRS.ofList []) disenchant = [] := by decide
-def icyManipulator : Action := setStatus .tapped (target (or [isArtifact, isCreature, isLand]))
+def icyManipulator : Action := tap (target (or [isArtifact, isCreature, isLand]))
 theorem okIcyManipulator : Action.check (DRS.ofList []) icyManipulator = [] := by decide
 def divination : Action := draw (.lit 2)
 theorem okDivination : Action.check (DRS.ofList []) divination = [] := by decide

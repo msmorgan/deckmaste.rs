@@ -33,7 +33,7 @@ def chainbreaker : Action :=
 theorem okChainbreaker : Action.check (DRS.ofList []) chainbreaker = [] := by decide
 def kaitoBaneOfNightmares : Action :=
   sequentially
-    [setStatus .tapped (target isCreature), putCounters (.lit 2) (printedKind (.named "stunCounter")) it .many]
+    [tap (target isCreature), putCounters (.lit 2) (printedKind (.named "stunCounter")) it .many]
 theorem okKaitoBaneOfNightmares : Action.check (DRS.ofList []) kaitoBaneOfNightmares = [] := by decide
 def jhoiraOfTheGhitu : Ability :=
   activated

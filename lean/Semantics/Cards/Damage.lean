@@ -36,7 +36,7 @@ def arcTrail : Action :=
 theorem okArcTrail : Action.check (DRS.ofList []) arcTrail = [] := by decide
 def deadshot : Action :=
   sequentially
-    [ setStatus .tapped (target isCreature),
+    [ tap (target isCreature),
       instruct it (dealDamage (powerOf it) (target (and [isCreature, isOther])) .noncombatOnly) ]
 theorem okDeadshot : Action.check (DRS.ofList []) deadshot = [] := by decide
 def immersturmSkullcairn : Ability :=
@@ -80,7 +80,7 @@ def flamesOfTheRazeBoar : Action :=
 theorem okFlamesOfTheRazeBoar : Action.check (DRS.ofList []) flamesOfTheRazeBoar = [] := by decide
 def yawgmothDemon : Action :=
   mayOrElse (sacrifice (a isArtifact)) (sequentially
-                                          [setStatus .tapped thisCreature, instruct «this»
+                                          [tap thisCreature, instruct «this»
                                              (dealDamage (.lit 2) you .noncombatOnly)])
 theorem okYawgmothDemon : Action.check (DRS.ofList []) yawgmothDemon = [] := by decide
 def arcBlade : Action :=
@@ -162,7 +162,7 @@ def aladdinsRing : Spelled := spelled <| .singleFaced
 
 def chandrasRevolution : Action :=
   sequentially
-    [ dealDamage (.lit 4) (target isCreature) .noncombatOnly, setStatus .tapped (target isLand),
+    [ dealDamage (.lit 4) (target isCreature) .noncombatOnly, tap (target isLand),
       skipUntap (that land) (.lit 1) ]
 theorem okChandrasRevolution : Action.check (DRS.ofList []) chandrasRevolution = [] := by decide
 def arbalestElite : Ability :=

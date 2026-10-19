@@ -828,7 +828,7 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
       text :=
         [ flash,
           when (does thisCreature enter)
-            (setStatus .untapped
+            (untap
               (each (and [ hasSubtype merfolk, youControl,
                             otherThan thisCreature ]))),
           static (onlyWhile

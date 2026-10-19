@@ -27,7 +27,7 @@ theorem okZombieInfestation : Ability.check (DRS.ofList []) zombieInfestation = 
 def fulgentDistraction : Action :=
   sequentially
     [ choose (targets (exactly 2) isCreature),
-      setStatus .tapped (those creature),
+      tap (those creature),
       unattach (allOf (and [ hasSubtype equipment,
                                attachedTo (those creature) ])) ]
 theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction = [] := by decide
@@ -96,7 +96,7 @@ theorem okMyrkulsEdict : Action.check (DRS.ofList []) myrkulsEdict = [] := by de
 def moltingHarpy : Action := doUnless (sacrifice thisCreature) (mana [generic
     2])
 theorem okMoltingHarpy : Action.check (DRS.ofList []) moltingHarpy = [] := by decide
-def carnophage : Action := doUnless (setStatus .tapped thisCreature) (payLife 1)
+def carnophage : Action := doUnless (tap thisCreature) (payLife 1)
 theorem okCarnophage : Action.check (DRS.ofList []) carnophage = [] := by decide
 def solitaryConfinement : Action :=
   mayOrElse (discard (a (cardIn yourHand))) (sacrifice thisEnchantment)
@@ -121,7 +121,7 @@ theorem okBrazenCannonadePermission : Action.check (DRS.ofList []) brazenCannona
 def thousandMoonsCrackshot : Ability :=
   whenever (does thisCreature attack)
     (offerWhen (pay (mana [generic 2, pip .white]) .once)
-      (setStatus .tapped (target isCreature)))
+      (tap (target isCreature)))
 theorem okThousandMoonsCrackshot : Ability.check (DRS.ofList []) thousandMoonsCrackshot = [] := by decide
 
 def zimoneQuandrixProdigy : Ability :=
@@ -720,7 +720,7 @@ def hellkiteCharger : Spelled := spelled <| .singleFaced
           whenever (does thisCreature attack)
             (may (pay (mana [generic 5, pip .red, pip .red]) .once)
               (some (sequentially
-                [ setStatus .untapped (allOf (and [isCreature, isAttacking])),
+                [ untap (allOf (and [isCreature, isAttacking])),
                   additionalPhase .combat none (.lit 1) ]))) ],
       power := stat 5, toughness := stat 5 } }
 
@@ -1247,7 +1247,7 @@ def akiriUnattachOffer : Ability :=
     (may
       (unattach (a (and [ hasSubtype equipment,
                             attachedTo (a (and [isCreature, youControl])) ])))
-      (some (setStatus .tapped (that creature))))
+      (some (tap (that creature))))
 theorem okAkiriUnattachOffer : Ability.check (DRS.ofList []) akiriUnattachOffer = [] := by decide
 /-- Summoning Materia -/
 def summoningMateriaTopCast : Ability :=
@@ -1377,7 +1377,7 @@ def rustlerRampage : Spelled := spelled <| .singleFaced
       text :=
         [ spell (chooseSpree
             [ (some (mana [generic 1]),
-               setStatus .untapped
+               untap
                  (allOf (and [isCreature, controlledBy (target isPlayer)]))),
               (some (mana [generic 1]),
                gain (target isCreature) doubleStrike (some untilEndOfTurn)) ]) ] } }

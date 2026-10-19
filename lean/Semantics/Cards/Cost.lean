@@ -52,7 +52,7 @@ def securityDetail : Ability :=
     (not (exists_ (and [isCreature, youControl])))
 theorem okSecurityDetail : Ability.check (DRS.ofList []) securityDetail = [] := by decide
 def aphettoAlchemist : Ability :=
-  activated tapSymbol (setStatus .untapped (target (or [isArtifact, isCreature])))
+  activated tapSymbol (untap (target (or [isArtifact, isCreature])))
 theorem okAphettoAlchemist : Ability.check (DRS.ofList []) aphettoAlchemist = [] := by decide
 
 def charRumbler : Spelled := spelled <| .singleFaced
@@ -351,7 +351,7 @@ def riptideChronologist : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, wizard],
       text :=
         [ activated (compound [mana [pip .blue], perform (sacrifice thisCreature)])
-            (setStatus .untapped (allOf (and [isCreature, ofYourChoice (.subtype .creature)]))) ],
+            (untap (allOf (and [isCreature, ofYourChoice (.subtype .creature)]))) ],
       power := stat 1, toughness := stat 3 } }
 
 def urzasIncubator : Spelled := spelled <| .singleFaced
@@ -1005,7 +1005,7 @@ def leoninBola : Spelled := spelled <| .singleFaced
       text :=
         [ static (abilityGrant (equipped creature)
             (activated (compound [tapSymbol, perform (unattach (theGrantor .permanent))])
-              (setStatus .tapped (target isCreature)))),
+              (tap (target isCreature)))),
           keywordCosting (.named "equip") (mana [generic 1]) ] } }
 
 /-- Alluring Suitor // Deadly Dancer -/

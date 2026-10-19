@@ -94,7 +94,7 @@ def goblinArchaeologist : Ability :=
     (sequentially
       [ flipCoins (.lit 1),
         doIf (flipCalled you .wins)
-          (sequentially [destroy (target isArtifact), setStatus .untapped thisCreature]),
+          (sequentially [destroy (target isArtifact), untap thisCreature]),
         doIf (flipCalled you .loses) (sacrifice thisCreature) ])
 theorem okGoblinArchaeologist : Ability.check (DRS.ofList []) goblinArchaeologist = [] := by decide
 

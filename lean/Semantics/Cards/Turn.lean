@@ -211,7 +211,7 @@ def aggravatedAssault : Spelled := spelled <| .singleFaced
       text :=
         [ activatedOnlyDuring (mana [generic 3, pip .red, pip .red])
             (sequentially
-              [ setStatus .untapped (allOf (and [isCreature, youControl])),
+              [ untap (allOf (and [isCreature, youControl])),
                 additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ])
             asSorcery ] } }
 
@@ -221,7 +221,7 @@ def relentlessAssault : Spelled := spelled <| .singleFaced
       types := [.sorcery],
       text :=
         [ spell (sequentially
-            [ setStatus .untapped
+            [ untap
                 (allOf (and [isCreature, happenedTo (asMarker .permanent (relative .object)) attack soFarThisTurn])),
               additionalPhase .combat (some .mainPhase) (.lit 1) (some .mainPhase) ]) ] } }
 

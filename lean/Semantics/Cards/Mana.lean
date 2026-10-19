@@ -198,7 +198,7 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
             (sequentially
               [ scry (.lit 1),
                 may
-                  (setStatus .tapped (a (and [isArtifact, isUntapped, youControl])))
+                  (tap (a (and [isArtifact, isUntapped, youControl])))
                   (some (draw (.lit 1))) ]),
           activated (loyaltySymbol (.down 2))
             (sequentially

@@ -107,7 +107,7 @@ def millThenReadGroup : Action :=
 theorem okMillThenReadGroup : Action.check (DRS.ofList []) millThenReadGroup = [] := by decide
 
 def takeIntoCustody : Action :=
-  sequentially [setStatus .tapped (target isCreature), skipUntap it (.lit 1)]
+  sequentially [tap (target isCreature), skipUntap it (.lit 1)]
 theorem okTakeIntoCustody : Action.check (DRS.ofList []) takeIntoCustody = [] := by decide
 
 /-- Frenzied Gorespawn -/
