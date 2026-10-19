@@ -249,8 +249,8 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
 
 private theorem eachModificationHasAMemberViewAndAPluralResult :
     let subject := NounPhrase.described .each (.hasType .creature)
-    let modification := StaticSpec.ptModification subject
-      (.up (.statOf (.stat .power) (.pro .bare .one))) (.up (.lit 1))
+    let modification := StaticSpec.characteristicChange subject
+      [.stat .adds .power (.statOf (.stat .power) (.pro .bare .one)), .stat .adds .toughness (.lit 1)]
     let out := (stepStaticSpec 64 (DRS.ofList []) modification).1
     StaticSpec.check (DRS.ofList []) modification = [] ∧
       countManys .object out = 1 ∧ countOnes .object out = 0 ∧
@@ -258,7 +258,8 @@ private theorem eachModificationHasAMemberViewAndAPluralResult :
       NounPhrase.check (nextClause out) (.pro (.word (.type .creature)) .one) =
         [.anaphor (.word (.type .creature)) .one 0] ∧
       Action.check (DRS.ofList []) (.sequentially [
-        .establish (.ptModification subject (.up (.letter .x)) (.up (.letter .x))) none,
+        .establish (.characteristicChange subject
+          [.stat .adds .power (.letter .x), .stat .adds .toughness (.letter .x)]) none,
         .establish (.letterDefinition .x (.distinctCount .color
           (.pro (.word (.type .creature)) .many))) none]) = [] := by decide
 

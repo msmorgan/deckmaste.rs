@@ -736,7 +736,7 @@ theorem okOwnPowerWithoutNewMention :
 theorem okOwnReadsOneInDelta :
     Action.check (DRS.ofList [])
       (establishFor (target isCreature)
-        [ .ptModification it
+        [ Templates.ptModification it
             (.up (.lit 1)) (.up (.lit 1)) ]
         none) = [] := by
   decide
@@ -747,7 +747,7 @@ ambiguous between the two, refused once. The corresponding modern shape is also 
 theorem badSharedSubjectTwoInDelta :
     Action.check (DRS.ofList [])
       (establishFor (both (target isCreature) (target isArtifact))
-        [ .ptModification
+        [ Templates.ptModification
             it
             (.up (.lit 1)) (.up (.lit 1)) ]
         none) = [.anaphor .bare .one 2] := by

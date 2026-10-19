@@ -490,7 +490,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
 semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration) : Action :=
   .ownScope (some (.action "double"))
-    (.establish (.ptModification (.firstMention "doublePower.0" (.inCaller subject))
+    (.establish (getsPt (.firstMention "doublePower.0" (.inCaller subject))
       (.up (powerOf (.laterMention "doublePower.0" (.inCaller subject)))) (.up (.lit 0)))
       duration)
 /-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
@@ -514,7 +514,7 @@ semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Du
 semantic_definition triplePowerAndToughness (subject : NounPhrase) (duration : Option Duration) :
     Action :=
   .ownScope (some (.action "triple"))
-    (.establish (.ptModification (.firstMention "triplePT.0" (.inCaller subject))
+    (.establish (getsPt (.firstMention "triplePT.0" (.inCaller subject))
       (.up (times (.lit 2) (powerOf (.laterMention "triplePT.0" (.inCaller subject)))))
       (.up (times (.lit 2) (toughnessOf (.laterMention "triplePT.0" (.inCaller subject))))))
       duration)

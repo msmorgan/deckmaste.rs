@@ -110,16 +110,18 @@ theorem okChargeCounter : Definition.check chargeCounter = [] := by decide
 The grant states a quality of the bearer rather than giving it an ability of its own
 [CR#113.12], so it is the ability-free `property` flavor. -/
 def flyingCounter : Definition :=
-  .counter (.named "flyingCounter") .object [.property (.abilityGrant .this (keyword (.named "flying")))]
+  .counter (.named "flyingCounter") .object [.property (Templates.abilityGrant .this (keyword (.named "flying")))]
 theorem okFlyingCounter : Definition.check flyingCounter = [] := by decide
 
 /-- The conferral helpers are the raw conferrals: `grants` is `flyingCounter`'s, and `boost` is
 the one stat change carrying both deltas. -/
 theorem grantsIsTheKeywordConferral :
-    grants (.named "flying") = .property (.abilityGrant .this (keyword (.named "flying"))) := rfl
+    grants (.named "flying") =
+      .property (.characteristicChange .this [.addedAbilities [keyword (.named "flying")]]) := rfl
 theorem boostIsOneStatChange :
     boost (.up (.lit 1)) (.up (.lit 1)) =
-      .property (.ptModification .this (.up (.lit 1)) (.up (.lit 1))) := rfl
+      .property (.characteristicChange .this
+        [.stat .adds .power (.lit 1), .stat .adds .toughness (.lit 1)]) := rfl
 
 /-- [CR#122.1a] "A +X/+Y counter on a creature … adds X to that object's power and Y to that
 object's toughness." The definition states what ONE counter confers, "+1/+1" in layer 7c
@@ -147,8 +149,8 @@ and the checker computes none. -/
 def ownCount : Amount := .statOf (.counter (.named "p1p1Counter")) .this
 def p1p1CounterCountMultiplied : Definition :=
   .counter (.named "p1p1Counter") .object
-    [ .property (.modification .this .power (.up ownCount)),
-      .property (.modification .this .toughness (.up ownCount)) ]
+    [ .property (Templates.modification .this .power (.up ownCount)),
+      .property (Templates.modification .this .toughness (.up ownCount)) ]
 theorem p1p1CounterCountMultipliedTwin :
     Definition.check p1p1CounterCountMultiplied = [] := by decide
 

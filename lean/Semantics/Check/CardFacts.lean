@@ -99,7 +99,9 @@ mutual
     | n + 1, .inCaller s | n + 1, .retention s _ => s.namesThisDoor n
     | n + 1, .conditional s condition _ => s.namesThisDoor n || condition.namesThisDoor n
     | n + 1, .conjunction _ parts => parts.any (fun s => s.namesThisDoor n)
-    | n + 1, .abilityGrant _ a => a.namesThisDoor n
+    | n + 1, .characteristicChange _ edits => edits.any (fun edit => match edit with
+      | .addedAbilities abilities => abilities.any (fun a => a.namesThisDoor n)
+      | _ => false)
     | n + 1, .cant _ i _ | n + 1, .must _ i _ | n + 1, .can _ i _ => i.namesThisDoor n
     | n + 1, .gatedBy cost _ i _ => cost.namesThisDoor n || i.namesThisDoor n
     | n + 1, .instead event i timing _ _ => event.namesThisDoor n || i.namesThisDoor n || timing.any (fun t => t.namesDoor n)
@@ -192,7 +194,7 @@ def Ability.grantedKeyword : Ability → Option KeywordLabel
 def StaticSpec.keyword (spec : StaticSpec) (fuel : Nat := 64) : Option KeywordLabel :=
   match fuel, spec with
   | n + 1, .inCaller body | n + 1, .conditional body _ _ => body.keyword n
-  | _ + 1, .abilityGrant _ ability => ability.grantedKeyword
+  | _ + 1, .characteristicChange _ [.addedAbilities [ability]] => ability.grantedKeyword
   | _, _ => none
 termination_by structural fuel
 

@@ -12,8 +12,14 @@ namespace Semantics.Proofs.GetsBothDeltas
 private def actionResult (drs : DRS) (action : Action) : DRS :=
   (stepAction 64 .postEvent .obj drs action).1
 
-theorem getsPtIsOneNode (subject : NounPhrase) (power toughness : Delta Amount) :
-    getsPt subject power toughness = .ptModification subject power toughness := rfl
+/-- "<subject> gets +P/+T" is one characteristic change, the subject written once, with one
+stat edit per delta: a change by an amount raises or lowers, a set sets [CR#613.4b,613.4c]. -/
+theorem getsPtIsOneCharacteristicChange (subject : NounPhrase) (power toughness : Amount) :
+    getsPt subject (.up power) (.set toughness) =
+      .characteristicChange subject [.stat .adds .power power, .stat .sets .toughness toughness] ∧
+    getsPt subject (.down power) (.up toughness) =
+      .characteristicChange subject [.stat .loses .power power, .stat .adds .toughness toughness] :=
+  ⟨rfl, rfl⟩
 
 theorem okTargetGetsIntroducesOneTarget :
     (actionResult (DRS.ofList []) (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
@@ -24,13 +30,13 @@ theorem subjectWrittenTwiceIntroducesTwoTargets :
     (actionResult (DRS.ofList [])
       (.establish
         (.conjunction none
-          [ .modification (target isCreature) .power (.up (.lit 2)),
-            .modification (target isCreature) .toughness (.up (.lit 2)) ])
+          [ Templates.modification (target isCreature) .power (.up (.lit 2)),
+            Templates.modification (target isCreature) .toughness (.up (.lit 2)) ])
         (some untilEndOfTurn))).referents.countP (fun b => b.det == .target) = 2 := by
   decide
 
 theorem ptModificationSlots :
-    (StaticSpec.ptModification thisCreature (.up (.lit 2)) (.set (.lit (-1)))).numberSlots =
+    (Templates.ptModification thisCreature (.up (.lit 2)) (.set (.lit (-1)))).numberSlots =
       [(.lit 2, .clamped), (.lit (-1), .signed)] := by
   rfl
 
@@ -43,7 +49,7 @@ theorem okDeltasReadTheirSubject :
 theorem okGetsInsideCoordination :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [getsPt (target isCreature) (.up (.lit 1)) (.up (.lit 1)), .abilityGrant it (keyword (.named "flying"))])
+        [getsPt (target isCreature) (.up (.lit 1)) (.up (.lit 1)), Templates.abilityGrant it (keyword (.named "flying"))])
       = [] := by
   decide
 
@@ -75,16 +81,16 @@ theorem ambiguousSingularPtSubjectIsRefused :
     let before := (stepNounPhrase 64 (DRS.ofList []) .subj true
       (.and [target isCreature, target isArtifact])).1
     StaticSpec.check (nextClause before)
-      (.ptModification it (.up (.lit 1)) (.up (.lit 1))) =
+      (Templates.ptModification it (.up (.lit 1)) (.up (.lit 1))) =
       [.anaphor .bare .one 2] := by decide
 
 theorem nestedModernCoordinationIsRefused :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [.conjunction none
-          [.ptModification thisCreature (.up (.lit 1)) (.up (.lit 1)),
-            .abilityGrant thisCreature (keyword (.named "flying"))],
-          .abilityGrant thisCreature (keyword (.named "trample"))]) = [.notCoord] := by decide
+          [Templates.ptModification thisCreature (.up (.lit 1)) (.up (.lit 1)),
+            Templates.abilityGrant thisCreature (keyword (.named "flying"))],
+          Templates.abilityGrant thisCreature (keyword (.named "trample"))]) = [.notCoord] := by decide
 
 private def abilityTrace (context : DRS) (ability : Ability) : DRS × List Refusal :=
   match ability with
@@ -274,26 +280,26 @@ theorem nextUpkeepPumpKeepsItsCreatureTarget :
 theorem modernFlatCoordinationKeepsOneTarget :
     let result := stepStaticSpec 32 (DRS.ofList [])
       (.conjunction none [getsPt (target isCreature) (.up (.lit 1)) (.up (.lit 1)),
-        .abilityGrant it (keyword (.named "flying")),
-        .abilityGrant it (keyword (.named "trample"))])
+        Templates.abilityGrant it (keyword (.named "flying")),
+        Templates.abilityGrant it (keyword (.named "trample"))])
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
 theorem modernPluralCoordinationKeepsItsPumpedGroup :
     let result := stepStaticSpec 32 (DRS.ofList [])
       (.conjunction none [getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)),
-        .abilityGrant them (keyword (.named "flying"))])
+        Templates.abilityGrant them (keyword (.named "flying"))])
     result.2 = [] ∧ result.1.resolvedIds = [1] ∧ creatureIdentity result.1 1 = true ∧
       (result.1.findById? 1).map (·.plur) = some .many := by decide
 
 theorem modernEnchantedSubjectCannotBeReadAsPlural :
     StaticSpec.check (DRS.ofList []) (.conjunction none
       [getsPt (.attachHost .enchanted (.type .creature)) (.up (.lit 1)) (.up (.lit 1)),
-        .abilityGrant them (keyword (.named "flying"))]) = [.anaphor .bare .many 0] := by decide
+        Templates.abilityGrant them (keyword (.named "flying"))]) = [.anaphor .bare .many 0] := by decide
 
 theorem modernStaticSelfRemainsReadableAsThatCreature :
     let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
       [getsPt thisCreature (.up (.lit 1)) (.up (.lit 1)),
-        .abilityGrant (that (.type .creature)) (keyword (.named "flying"))])
+        Templates.abilityGrant (that (.type .creature)) (keyword (.named "flying"))])
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true := by decide
 
 theorem modernLandHostProhibitionKeepsItsPumpedHost :
@@ -316,11 +322,21 @@ theorem modernStaticLetterCannotBeDefinedTwice :
         .letterDefinition .x (countOf (and [isCreature, youControl])),
         .letterDefinition .x (countOf isCreature)]) = [.openLetter .x] := by decide
 
+/-- "This creature has toxic X, where X is the number of creatures you control.": a granted
+keyword whose number is a letter introduces that letter, so the text's definition closes it. -/
+theorem grantedKeywordLetterIsIntroducedAndClosed :
+    let grant :=
+      Templates.abilityGrant thisCreature (.keyword (.named "toxic") [.number (.letter .x)] [])
+    anyOpenLetter .x (stepStaticSpec 32 (DRS.ofList []) grant).1 = true ∧
+      let result := stepStaticSpec 32 (DRS.ofList []) (.conjunction none
+        [grant, .letterDefinition .x (countOf (and [isCreature, youControl]))])
+      result.2 = [] ∧ anyOpenLetter .x result.1 = false := by decide
+
 theorem modernSharedSubjectSurvivesAnEarlierExile :
     let body := Action.sequentially [exile (target isArtifact),
       establishFor (.firstMention "audit.shared" (target isCreature))
         [getsPt (.laterMention "audit.shared" it) (.up (.lit 1)) (.up (.lit 1)),
-          .abilityGrant (.laterMention "audit.shared" it) (keyword (.named "flying"))]
+          Templates.abilityGrant (.laterMention "audit.shared" it) (keyword (.named "flying"))]
         (some untilEndOfTurn)]
     let result := stepAction 32 .postEvent .obj (DRS.ofList []) body
     result.2 = [] ∧ (identityBinding "audit.shared" result.1).map (·.id) = some 2 ∧

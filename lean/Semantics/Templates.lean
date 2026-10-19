@@ -951,14 +951,21 @@ semantic_template Amount.moreThan (n : Nat) : Amount := .moreThan (.lit n)
 semantic_template votesFor (label : String) : Amount := .votesFor label
 /-! ## Counters -/
 
+/-- The Characteristic Edit one stat's delta writes: raised, lowered, or set. -/
+semantic_template statEdit (axis : CharacteristicStat) (delta : Delta Amount) :
+    CharacteristicEdit :=
+  match delta with
+  | .up amount => .stat .adds axis amount
+  | .down amount => .stat .loses axis amount
+  | .set amount => .stat .sets axis amount
 /-- What one +X/+Y counter confers [CR#122.1a]: "+X/+Y" to its bearer [CR#613.4c]. A counter
 definition's conferral is per counter (`Definition.counter`), so the deltas read no count. -/
 semantic_template boost (power toughness : Delta Amount) : Conferral :=
-  .property (.ptModification .this power toughness)
+  .property (.characteristicChange .this [statEdit .power power, statEdit .toughness toughness])
 /-- What one keyword counter confers [CR#122.1b]: its bearer gains the keyword [CR#613.1f], named
 by its declaration's name (`grants (.named "flying")`). -/
 semantic_template grants (keyword : KeywordLabel) : Conferral :=
-  .property (.abilityGrant .this (.keyword keyword [] []))
+  .property (.characteristicChange .this [.addedAbilities [.keyword keyword [] []]])
 /-- What the creature type confers [CR#508.1a]: its object is a Combatant. -/
 semantic_template combatant : Conferral := .property (.combatant .this)
 /-! ## Deontic clauses
@@ -1318,7 +1325,7 @@ semantic_template doUnless (action : Action) (cost : Cost) : Action :=
   .withContinuation .optional (.pay cost .once .paid none none) none (some action)
 /-- "<subject> gets +P/+T [until …]": one change to both stats, the subject written once. -/
 semantic_template getsPt (subject : NounPhrase) (power toughness : Delta Amount) : StaticSpec :=
-  .ptModification subject power toughness
+  .characteristicChange subject [statEdit .power power, statEdit .toughness toughness]
 /-- "<subject> has base power and toughness P/T" -/
 semantic_template getsBase (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
   getsPt subject (.set power) (.set toughness)
@@ -1338,7 +1345,7 @@ semantic_template get (subject : NounPhrase) (power toughness : Delta Amount)
   .establish (getsPt subject power toughness) duration
 semantic_template gain (subject : NounPhrase) (ability : Ability) (duration : Option Duration) :
     Action :=
-  .establish (.abilityGrant subject ability) duration
+  .establish (.characteristicChange subject [.addedAbilities [ability]]) duration
 /-- "<subject> gains haste [until …]" -/
 semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration) : Action :=
   gain subject (.keyword (.named "haste") [] []) duration
@@ -1806,16 +1813,18 @@ semantic_template qualified (ability : Ability) (timing : Option Timing := none)
 /-- "<subject> has <selection> of <source>" (backup [CR#702.165a]). -/
 semantic_template abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
     (selection : AbilitySelection) : StaticSpec :=
-  .abilityGrantSelected subject source selection
+  .characteristicChange subject [.addedSelectionOf source selection]
 /-- "[cost]: <action>. Activate only once <limit> and only if <guard>." -/
 semantic_template activatedOnlyOnceIf (cost : Cost) (action : Action) (limit : UsageLimit)
     (guard : Condition) : Ability :=
   .activated cost action none (some limit) (some guard) none
+/-- "<subject> has <ability>" -/
 semantic_template abilityGrant (subject : NounPhrase) (ability : Ability) : StaticSpec :=
-  .abilityGrant subject ability
+  .characteristicChange subject [.addedAbilities [ability]]
+/-- "<subject> has all <classes> abilities of <source> [except <except>]" -/
 semantic_template abilityGrantFrom (subject source : NounPhrase)
     (classes : List AbilityClass := []) (except : Option Predicate := none) : StaticSpec :=
-  .abilityGrantFrom subject classes source except
+  .characteristicChange subject [.addedAbilitiesOf source classes except]
 semantic_template Ability.activatedBy (cost : Cost) (action : Action) (who : NounPhrase) :
     Ability :=
   Templates.activatedBy cost action who
@@ -1893,9 +1902,10 @@ semantic_template manaRetention (player : NounPhrase) (mana : ManaHeld) : Static
   .manaRetention player mana
 semantic_template mayBeginOnBattlefield : Ability := .mayBeginOnBattlefield
 semantic_template modeChoice (change : ModeChange) : StaticSpec := .modeChoice change
-semantic_template modification (subject : NounPhrase) (stat : Stat) (delta : Delta Amount) :
-    StaticSpec :=
-  .modification subject stat delta
+/-- "<subject> gets <delta> to one stat" -/
+semantic_template modification (subject : NounPhrase) (stat : CharacteristicStat)
+    (delta : Delta Amount) : StaticSpec :=
+  .characteristicChange subject [statEdit stat delta]
 semantic_template notChosenBefore (within : Duration) : ModeChange := .notChosenBefore within
 semantic_template partSkip (player : NounPhrase) (part : TurnPart) : StaticSpec :=
   .partSkip player part
@@ -1910,7 +1920,7 @@ semantic_template ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (am
   .ptDefinition subject slots amount
 semantic_template ptModification (subject : NounPhrase) (power toughness : Delta Amount) :
     StaticSpec :=
-  .ptModification subject power toughness
+  getsPt subject power toughness
 semantic_template ptSwitch (subject : NounPhrase) : StaticSpec := .ptSwitch subject
 semantic_template repeatable : ModeChange := .repeatable
 semantic_template replacement (event : WouldClause) (replacement : Action) (use : ReplUse)

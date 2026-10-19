@@ -204,10 +204,11 @@ private theorem selectedPlayerCanBeReadWithinTheSameAction :
 
 private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
     Ability.check (DRS.ofList [qualityB .color])
-      (.static (.abilityGrant .any
-        (.keyword (.named "protection") [.quality (.ofChosen .theChoice .color)] []))) = [] ∧
+      (.static (.characteristicChange .any [.addedAbilities
+        [.keyword (.named "protection") [.quality (.ofChosen .theChoice .color)] []]])) = [] ∧
       Ability.check (DRS.ofList [kindBinding .object])
-        (.static (.abilityGrant .any (.spell none (.changeControl (.pro .bare .one))))) =
+        (.static (.characteristicChange .any
+          [.addedAbilities [.spell none (.changeControl (.pro .bare .one))]])) =
           [.anaphor .bare .one 0] := by decide
 
 private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=

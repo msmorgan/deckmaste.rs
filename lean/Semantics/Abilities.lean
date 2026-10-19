@@ -719,10 +719,20 @@ mutual
     | name (op : QualityOp) (name : String)
     | manaCost (cost : Option ManaCost)
     | colors (op : QualityOp) (colors : ColorSpec)
+    /-- A stat set (`sets`), or raised (`adds`) or lowered (`loses`) by `amount`. In a static
+    change of power and toughness, a set applies in layer 7b and a change by an amount in layer
+    7c [CR#613.4b,613.4c]: "<subject> gets +P/+T" is two of these, the subject written once. -/
     | stat (op : QualityOp) (axis : CharacteristicStat) (amount : Amount)
     | everyTypeOf (op : QualityOp) (space : SubtypeSpace)
     | chosenQuality (op : QualityOp) (quality : Predicate)
     | addedAbilities (abilities : List Ability)
+    /-- The abilities of `source` in the families `classes`, but for those `except` describes:
+    "<subject> has all activated abilities of <source>". -/
+    | addedAbilitiesOf (source : NounPhrase) (classes : List AbilityClass)
+        (except : Option Predicate)
+    /-- The abilities of `source` the selection picks (backup's "it gains the non-backup
+    abilities of this creature printed below this one" [CR#702.165a]). -/
+    | addedSelectionOf (source : NounPhrase) (selection : AbilitySelection)
     | removedAbilities (selection : AbilitySelection)
 
   inductive AbilitySelection where
@@ -771,12 +781,6 @@ mutual
 
   inductive StaticSpec where
     | inCaller (body : StaticSpec)
-    | modification (subject : NounPhrase) (stat : Stat) (delta : Delta Amount)
-    /-- "<subject> gets +P/+T" and "<subject> has base power and toughness P/T": one change
-    to power and toughness together, its subject written once. Each delta is the one a
-    `modification` of that stat would carry: a set applies in layer 7b, a change by an amount
-    in layer 7c [CR#613.4b,613.4c]. -/
-    | ptModification (subject : NounPhrase) (power : Delta Amount) (toughness : Delta Amount)
     | ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount)
     | ptSwitch (subject : NounPhrase)
     | costShift (subject : NounPhrase) (shift : CostShift)
@@ -786,14 +790,6 @@ mutual
     number of times" [CR#702.157a,702.56a]. -/
     | addedCost (cost : Cost) (offered : Bool) (times : PayTimes)
     | letterDefinition (letter : Letter) (amount : Amount)
-    | abilityGrant (subject : NounPhrase) (ability : Ability)
-    | abilityGrantFrom (subject : NounPhrase) (classes : List AbilityClass) (source : NounPhrase)
-        (except : Option Predicate)
-    /-- "<subject> has <selection> of <source>": the abilities of `source` the selection picks
-    (backup's "it gains the non-backup abilities of this creature printed below this one"
-    [CR#702.165a]). -/
-    | abilityGrantSelected (subject : NounPhrase) (source : NounPhrase)
-        (selection : AbilitySelection)
     /-- Deontic prohibition ("can't") [CR#101.2]. -/
     | cant (subj : Subject) (action : Action) (mods : DeonticMods)
     /-- Deontic requirement ("must" / "if able"). -/
@@ -805,6 +801,9 @@ mutual
     | gatedBy (cost : Cost) (subj : Subject) (action : Action) (mods : DeonticMods)
     | manaRetention (player : NounPhrase) (mana : ManaHeld)
     | partSkip (player : NounPhrase) (part : TurnPart)
+    /-- A continuous change to `subject`'s characteristics: its stats ("gets +P/+T", "has base
+    power and toughness P/T"), the abilities it has or gains, and the rest of its
+    characteristics, each one Characteristic Edit, the subject written once. -/
     | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
     | retention (spec : StaticSpec) (subject : NounPhrase)
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)

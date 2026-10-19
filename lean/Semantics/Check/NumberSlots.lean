@@ -96,13 +96,19 @@ def Cost.numberSlots (value : Cost) (fuel : Nat := 64) : List (Amount × NumberR
   | _n + 1, .perform _ | _n + 1, .compound _ | _n + 1, .or _ | _n + 1, .itsManaCost | _n + 1, .withSubstitute _ _ => []
 termination_by structural fuel
 
+/-- A stat edit's slot: a set stands below zero, as an effect that sets a power and toughness
+does, and a change by an amount reads one below zero as zero [CR#107.1b]. -/
+def CharacteristicEdit.numberSlots : CharacteristicEdit → List (Amount × NumberRegime)
+  | .stat .sets _ amount => [(amount, .signed)]
+  | .stat _ _ amount => [(amount, .clamped)]
+  | _ => []
+
 /-- The static spec's own slots and the regime each is read in [CR#107.1b]. -/
 def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amount × NumberRegime) :=
   match fuel, value with
   | 0, _ => []
   | _n + 1, .inCaller body => body.numberSlots _n
-  | _n + 1, .modification _ _ delta => delta.numberSlots
-  | _n + 1, .ptModification _ power toughness => power.numberSlots ++ toughness.numberSlots
+  | _n + 1, .characteristicChange _ edits => edits.flatMap CharacteristicEdit.numberSlots
   -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
   | _n + 1, .ptDefinition _ _ amount => [(amount, .signed)]
   | _n + 1, .ptSwitch _ | _n + 1, .combatant _ | _n + 1, .textChange _ _ => []
@@ -112,10 +118,9 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   -- The letter X, defined by the text: a chosen or defined value is never negative
   -- [CR#107.1b,107.3].
   | _n + 1, .letterDefinition _ amount => [(amount, .clamped)]
-  | _n + 1, .abilityGrant _ _ | _n + 1, .abilityGrantFrom _ _ _ _ | _n + 1, .abilityGrantSelected _ _ _ => []
   | _n + 1, .cant _ _ mods | _n + 1, .must _ _ mods | _n + 1, .can _ _ mods | _n + 1, .gatedBy _ _ _ mods =>
     mods.asThough.toList.flatMap AsThough.numberSlots
-  | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ | _n + 1, .characteristicChange _ _ => []
+  | _n + 1, .manaRetention _ _ | _n + 1, .partSkip _ _ => []
   | _n + 1, .retention _ _ => []
   | _n + 1, .copyChange _ _ _ | _n + 1, .controlGrant _ _ => []
   | _n + 1, .instead _ _ _ _ _ | _n + 1, .damageResult _ => []

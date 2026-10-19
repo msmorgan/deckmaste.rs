@@ -1131,7 +1131,22 @@ def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicE
   | .manaCost _ => (drs, [])
   | .stat _ _ amt => ops.amt drs amt
   | .chosenQuality _ p => ops.pred drs p
-  | .addedAbilities abs => (drs, (stepAbilityListWith ops (choiceContext drs) abs).2)
+  | .addedAbilities abs =>
+    -- A granted keyword whose number is a letter ("has toxic X") introduces that letter.
+    let out := abs.foldl (fun d ab => match ab with
+      | .keyword _ [.number (.letter l)] _
+      | .keyword _ [.number (.inCaller (.letter l))] _ =>
+        (introducedLetters l drs).foldl (fun d r => d.push r .other false) d
+      | _ => d) drs
+    (out, (stepAbilityListWith ops (choiceContext drs) abs).2)
+  | .addedAbilitiesOf src _ optEx =>
+    let (drs1, _, e1) := ops.np drs .other false src
+    let (drs2, e2) := match optEx with | some p => ops.pred drs1 p | none => (drs1, [])
+    (drs2, e1 ++ e2)
+  | .addedSelectionOf src sel =>
+    let (drs1, _, e1) := ops.np drs .other false src
+    let (drs2, e2) := stepAbilitySelectionWith ops drs1 sel
+    (drs2, e1 ++ e2)
   | .removedAbilities sel => stepAbilitySelectionWith ops drs sel
   | _ => (drs, [])
 
@@ -2806,15 +2821,6 @@ def stepOps : Nat → StepOps
         | .inCaller body =>
           let (callerDrs, errs) := ops.spec (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
-        | .modification subj _ d =>
-          let (drs1, ids, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := stepDeltaWith ops drs1 d
-          (finishEachSubject subj ids drs2, e1 ++ e2)
-        | .ptModification subj p t =>
-          let (drs1, ids, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := stepDeltaWith ops drs1 p
-          let (drs3, e3) := stepDeltaWith ops drs2 t
-          (finishEachSubject subj ids drs3, e1 ++ e2 ++ e3)
         | .ptDefinition subj _ amt =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := ops.amt drs1 amt
@@ -2841,29 +2847,10 @@ def stepOps : Nat → StepOps
         | .letterDefinition l amt =>
           let (drs1, e1) := ops.amt drs amt
           (defineLetter l drs1, e1 ++ refuse (anyOpenLetter l drs) (.openLetter l))
-        | .abilityGrant subj ab =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let e2 := ops.ab (choiceContext drs1) ab
-          let out := match ab with
-            | .keyword _ [.number (.letter l)] _
-            | .keyword _ [.number (.inCaller (.letter l))] _ =>
-              (introducedLetters l drs1).foldl (fun d r => d.push r .other false) drs1
-            | _ => drs1
-          (out, e1 ++ e2)
-        | .abilityGrantFrom subj _ src optEx =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, _, e2) := ops.np drs1 .other false src
-          let (drs3, e3) := match optEx with | some p => ops.pred drs2 p | none => (drs2, [])
-          (drs3, e1 ++ e2 ++ e3)
-        | .abilityGrantSelected subj src sel =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, _, e2) := ops.np drs1 .other false src
-          let (drs3, e3) := stepAbilitySelectionWith ops drs2 sel
-          (drs3, e1 ++ e2 ++ e3)
         | .characteristicChange subj edits =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
+          let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
-          (drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+          (finishEachSubject subj ids drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
             refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
             CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>

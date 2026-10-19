@@ -14,7 +14,7 @@ private def kalitasBody : Action := .sequentially [
       create (.lit 1)
         (.written { characteristics :=
             { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } }),
-      .establish (.ptModification it (.set (powerOf (that (.type .creature))))
+      .establish (Templates.ptModification it (.set (powerOf (that (.type .creature))))
         (.set (toughnessOf (that (.type .creature))))) none]) none]
 
 
@@ -54,7 +54,7 @@ private def brokenVisageBody : Action := .sequentially [
   create (.lit 1)
     (.written { characteristics :=
         { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } }),
-  .establish (.ptModification it (.set (powerOf (that (.type .creature))))
+  .establish (Templates.ptModification it (.set (powerOf (that (.type .creature))))
     (.set (toughnessOf (that (.type .creature))))) none]
 
 theorem brokenVisageReadback :

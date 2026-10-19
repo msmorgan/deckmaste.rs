@@ -252,7 +252,7 @@ theorem badEquippedPlayer :
 
 /-- "Target creature gains indestructible." -/
 theorem okGainsIndestructible :
-    StaticSpec.check (DRS.ofList []) (.abilityGrant (target isCreature) (keyword (.named "indestructible"))) = [] := by
+    StaticSpec.check (DRS.ofList []) (Templates.abilityGrant (target isCreature) (keyword (.named "indestructible"))) = [] := by
         decide
 
 /-- a "Kindred Enchantment — Merfolk" card -/
@@ -457,7 +457,7 @@ theorem okCrossAbilityChoice :
               subtypes := [creatureType "Shapeshifter"],
               text :=
                 [ .static (entersChoosing thisCreature .color),
-                  .static (.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
+                  .static (Templates.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
                     .color))) ],
               power := stat 1, toughness := stat 1 } }) = [] := by
   decide

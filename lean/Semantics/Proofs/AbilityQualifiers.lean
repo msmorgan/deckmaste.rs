@@ -20,7 +20,7 @@ def backupLabel : KeywordLabel := .named "backup"
 /-- "{T}: Draw a card." -/
 def tapToDraw : Ability := activated .tapSymbol (draw (.lit 1))
 /-- "This creature gets +1/+0." -/
-def pumpSelf : Ability := .static (.modification thisCreature .power (.up (.lit 1)))
+def pumpSelf : Ability := .static (Templates.modification thisCreature .power (.up (.lit 1)))
 /-- "When this creature dies, draw a card." -/
 def drawOnDeath : Ability := when (does thisCreature die) (draw (.lit 1))
 /-- "this Case is solved" -/

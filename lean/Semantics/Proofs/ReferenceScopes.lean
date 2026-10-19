@@ -19,7 +19,7 @@ private def artifactX : NounPhrase :=
   target (.and [isArtifact, .compare [.stat .manaValue] .eq (.letter .x)])
 private def powerAfter (drs : DRS) : DRS :=
   (stepAction 64 .postEvent .obj drs
-    (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1
+    (.establish (Templates.modification (target isCreature) .power (.up (.letter .x))) none)).1
 
 private theorem olderClauseMaximum (rs : List Referent) (clause : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
@@ -268,7 +268,7 @@ private def powerSubject : Referent := {
 
 private theorem actualPowerPipeline (n : Nat) (drs : DRS) :
     ((stepOps (n + 6)).inst .postEvent .obj drs
-      (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1 =
+      (.establish (Templates.modification (target isCreature) .power (.up (.letter .x))) none)).1 =
       let selected := ({ drs with relativeKind := some .object } : DRS).push powerSubject .subj true
       (introducedLetters .x selected).foldl
         (fun d ref => d.push ref .other false) selected := by rfl
@@ -310,7 +310,7 @@ theorem ownStatActionIdentityStableForEveryOuterContext (rs : List Referent) (cl
   change resolveCandidates .bare .one
     (((stepOps (58 + 6)).inst .postEvent .obj
       { referents := rs, currentClause := clause, nextId := id }
-      (.establish (.modification (target isCreature) .power (.up (.letter .x))) none)).1) = _
+      (.establish (Templates.modification (target isCreature) .power (.up (.letter .x))) none)).1) = _
   rw [actualPowerPipeline]
   dsimp only
   unfold introducedLetters

@@ -263,8 +263,9 @@ ordinary phrases now: `attachToIt` writes `it`; `dealDamageOwnPower` and
 `laterMention`; `comparesOwnStat` measures `ownMember`, a bare pronoun that the
 comparison's own clause box resolves to its candidate (`Predicate.compareOver`);
 `aTheirChoice` is a determiner mode (`ChoiceMode.theirChoice`) checked by
-`choiceModeChecks`; "gets +P/+T" is the one node `StaticSpec.ptModification`, which
-steps its subject once and its toughness delta after its power delta.
+`choiceModeChecks`; "gets +P/+T" is one `StaticSpec.characteristicChange` with a
+power and a toughness `CharacteristicEdit.stat`, which steps its subject once and its
+toughness amount after its power amount.
 
 `Proofs/DrtResolution.lean` pins each rule (nearest clause, role ranking, true ties,
 clause-mate exclusion, possessor exemption, masking, number, carrier, demonstrative
@@ -724,7 +725,11 @@ expected child kinds in the incoming `DRS`.
 ### Characteristic edits and keyword argument schemas
 
 `StaticSpec.characteristicChange` and `CopyExcept.edits` carry the same typed
-`CharacteristicEdit` list. `TypeLineChanges` uses optional axes: `none` leaves
+`CharacteristicEdit` list. A static change of stats ("gets +P/+T", "has base power and
+toughness P/T") and of abilities ("has flying", "has all activated abilities of …", backup's
+selection) is a `characteristicChange` too: a stat edit's `sets` stands below zero and its
+`adds` or `loses` is clamped (`CharacteristicEdit.numberSlots`); an "each" subject distributes
+over the whole change; a granted keyword whose number is a letter introduces it. `TypeLineChanges` uses optional axes: `none` leaves
 an axis unchanged, while `some []` explicitly clears it under `sets`. Add and
 remove operations require values. Both lists are checked for term shape only
 (`CharacteristicEdit.shape`): an empty list is `nonEmpty`, a type line that
@@ -866,7 +871,7 @@ qualified ability keeps the wrapped ability's category (`Ability.category`).
   object changes zones [CR#602.5b,702.177a].
 - `AbilitySelection.printedAfter keyword` selects the abilities printed below
   a keyword's line [CR#702.165a,702.165c], granted by
-  `StaticSpec.abilityGrantSelected subject source selection`. A selection
+  `CharacteristicEdit.addedSelectionOf source selection`. A selection
   naming a keyword the card does not print is refused as a reference of the
   card's text (`printedAfterKeyword`, `printedAfterLaws`); the walk follows
   the forms a grant is written in, as `namesThisDoor` does.
@@ -984,7 +989,7 @@ counter [CR#122.1a] and a keyword counter [CR#122.1b] included; the generator
 writes one row per counter declaration. A counter definition
 (`Definition.counter`, `Rules.lean`) states what ONE counter confers, and the
 model applies it once per counter held: the +1/+1 counter's conferral is
-"+1/+1" (`boost`, one `ptModification`), a keyword counter's is its keyword
+"+1/+1" (`boost`, one `characteristicChange`), a keyword counter's is its keyword
 (`grants`). No conferral reads the count of its own kind. That reading is the
 model's: `Definition.check` checks each conferral once in the empty
 context and computes no multiplicity, so nothing in the checker depends on it

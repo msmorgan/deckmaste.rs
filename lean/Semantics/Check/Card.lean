@@ -96,14 +96,13 @@ def AbilitySelection.printedKeyword : AbilitySelection → Option KeywordLabel
   | _ => none
 
 def CharacteristicEdit.printedKeyword : CharacteristicEdit → Option KeywordLabel
-  | .removedAbilities selection => selection.printedKeyword
+  | .removedAbilities selection | .addedSelectionOf _ selection => selection.printedKeyword
   | _ => none
 
 def StaticSpec.printedAfterKeywords (s : StaticSpec) (fuel : Nat := 64) : List KeywordLabel :=
   match fuel, s with
   | n + 1, .inCaller b | n + 1, .conditional b _ _ => b.printedAfterKeywords n
   | n + 1, .conjunction _ ps => ps.flatMap (fun p => p.printedAfterKeywords n)
-  | _ + 1, .abilityGrantSelected _ _ sel => sel.printedKeyword.toList
   | _ + 1, .characteristicChange _ es => es.filterMap CharacteristicEdit.printedKeyword
   | _, _ => []
 termination_by structural fuel

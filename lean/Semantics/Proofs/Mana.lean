@@ -242,7 +242,7 @@ theorem badBareCountScaledMana :
 theorem okUnearthGrantInGraveyard :
     Ability.check (DRS.ofList [])
       (.static
-        (.abilityGrant (allOf (.and [isCreature, .in_ (graveyardOf .you)]))
+        (Templates.abilityGrant (allOf (.and [isCreature, .in_ (graveyardOf .you)]))
           (keywordCosting (.named "unearth") (.mana [generic 2])))) = [] := by
   decide
 

@@ -488,7 +488,7 @@ theorem badGrantedAbilityKeepsItsOwnPerformer :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you))
         (.establish
-          (.abilityGrant (target isCreature)
+          (Templates.abilityGrant (target isCreature)
             (.activated .tapSymbol
               (may (.pay (.perform (instruct anOpponent (loseLife (.lit 1)))) .once .paid none none) none
                 (some (draw (.lit 1))))

@@ -302,7 +302,7 @@ semantic_definition backup (amount : Amount) : Ability :=
           [ putCounters (.inCaller amount) (.printed p1p1Counter) (target isCreature),
             .doIf (.matches (that creature) (.otherThan thisCreature))
               (establishThroughout
-                (.abilityGrantSelected (that creature) thisCreature
+                (Templates.abilityGrantSelected (that creature) thisCreature
                   (.printedAfter (.named "backup")))
                 untilEndOfTurn)
               none ]) ]
@@ -323,7 +323,7 @@ semantic_definition battleCry : Ability :=
   .keyword (.named "battleCry") []
     [ triggered (.does (.actor thisCreature) (.attack none))
         (establishThroughout
-          (.modification (each (.and [isCreature, isAttacking, .otherThan thisCreature])) .power
+          (Templates.modification (each (.and [isCreature, isAttacking, .otherThan thisCreature])) .power
             (.up (.lit 1)))
           untilEndOfTurn) ]
 semantic_definition bestow (cost : Cost) : Ability :=
@@ -338,11 +338,11 @@ semantic_definition blitz (cost : Cost) : Ability :=
             (.pay .itsManaCost .once .paid (some thisSpell) (some (.named "blitz"))))
           (atNext .endStep (sacrifice (.becomes thisSpell)))),
       .static
-        (onlyWhile (.abilityGrant thisPermanent (keyword (.named "haste")))
+        (onlyWhile (Templates.abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "blitz") thisPermanent)),
       .static
         (onlyWhile
-          (.abilityGrant thisPermanent
+          (Templates.abilityGrant thisPermanent
             (triggered (does thisPermanent die) (.draw (.lit 1))))
           (keywordCostPaid (.named "blitz") thisPermanent)) ]
 semantic_definition bloodthirst (amount : Amount) : Ability :=
@@ -398,7 +398,7 @@ semantic_definition cipher : Ability :=
                 .relate this_ encodedOn (a (.and [isCreature, youControl])) ]))
           none),
       .static
-        (.abilityGrant (.counterpart encodedOn this_)
+        (Templates.abilityGrant (.counterpart encodedOn this_)
           (triggered
             (.does (.actor thisCreature) (.dealDamage .anyAmount (a .anyPlayer) .combatOnly))
             (may
@@ -457,7 +457,7 @@ semantic_definition dash (cost : Cost) : Ability :=
             (.pay .itsManaCost .once .paid (some thisSpell) (some (.named "dash"))))
           (atNext .endStep (returnToHand (.becomes thisSpell)))),
       .static
-        (onlyWhile (.abilityGrant thisPermanent (keyword (.named "haste")))
+        (onlyWhile (Templates.abilityGrant thisPermanent (keyword (.named "haste")))
           (keywordCostPaid (.named "dash") thisPermanent)) ]
 semantic_definition daybound : Ability :=
   .keyword (.named "daybound") []
@@ -888,7 +888,7 @@ semantic_definition infect : Ability := keyword (.named "infect")
 semantic_definition infinity (ability : Ability) : Ability :=
   .keyword (.named "infinity") [.ability ability]
     [ .static
-        (onlyWhile (.abilityGrant thisPermanent ability)
+        (onlyWhile (Templates.abilityGrant thisPermanent ability)
           (.matches thisPermanent (.hasDesignation harnessed none))) ]
 semantic_definition ingest : Ability :=
   .keyword (.named "ingest") []
@@ -949,7 +949,7 @@ semantic_definition madness (cost : Cost) : Ability :=
             (putInto thisCard graveyard))) ]
 semantic_definition maxSpeed (ability : Ability) : Ability :=
   .keyword (.named "maxSpeed") [.ability ability]
-    [.static (onlyWhile (.abilityGrant this_ ability) (.compareAmt (speedOf .you) .eq (.lit 4)))]
+    [.static (onlyWhile (Templates.abilityGrant this_ ability) (.compareAmt (speedOf .you) .eq (.lit 4)))]
 semantic_definition mayhem (cost : Cost) : Ability :=
   .keyword (.named "mayhem") [.cost (.inCaller cost)]
     [ .static

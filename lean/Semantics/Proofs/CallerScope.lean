@@ -30,7 +30,7 @@ private semantic_template creatureCondition (subject : NounPhrase) : Condition :
 private semantic_template powerEquals (amount : Amount) : Predicate := .compare [.stat .power] .eq amount
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
 private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : StaticSpec :=
-  .modification subject .power (.up amount)
+  Templates.modification subject .power (.up amount)
 private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.lit 1)
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
 private semantic_template moveSubject (subject : NounPhrase) : Action :=

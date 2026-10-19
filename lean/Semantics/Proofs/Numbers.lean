@@ -78,7 +78,7 @@ theorem okDefinesLetterClamped :
 /-- "This creature gets +2/+0": the sign is the constructor, and the magnitude beneath it is a
 number the game does not take below zero [CR#107.1b]. -/
 theorem okModifyUpClamped :
-    (StaticSpec.modification thisCreature .power (.up (.lit 2))).numberSlots
+    (Templates.modification thisCreature .power (.up (.lit 2))).numberSlots
       = [(.lit 2, .clamped)] := by rfl
 
 /-! ## Signed slots: the negative stands -/
@@ -98,7 +98,7 @@ theorem okStatBecomesSigned :
 /-- "This creature's power becomes -1": a set of a power, the exception [CR#107.1b] names,
 so the printed negative stands where the `up` half of the same `Delta` would clamp. -/
 theorem okModifySetSigned :
-    (StaticSpec.modification thisCreature .power (.set (.lit (-1)))).numberSlots
+    (Templates.modification thisCreature .power (.set (.lit (-1)))).numberSlots
       = [(.lit (-1), .signed)] := by rfl
 
 /-- "Your life total becomes twice your life total": doubling a life total is written as a

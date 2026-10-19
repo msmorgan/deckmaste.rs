@@ -211,8 +211,8 @@ theorem okCoordinatedLandHostBlocks :
     Ability.check (DRS.ofList [])
       (.static
         (.conjunction none
-          [ .modification (.attachHost .enchanted (.type .land)) .power (.up (.lit 1)),
-            .modification it .toughness (.up (.lit 1)),
+          [ Templates.modification (.attachHost .enchanted (.type .land)) .power (.up (.lit 1)),
+            Templates.modification it .toughness (.up (.lit 1)),
             .cant (.actor it) (.block .any) {} ])) = [] := by
   decide
 

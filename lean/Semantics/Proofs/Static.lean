@@ -45,16 +45,16 @@ theorem okUntargetedOutcomeGate :
 theorem okSingleStaticXRider :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [ .modification thisCreature .power (.up (.letter .x)),
-          .modification thisCreature .toughness (.up (.lit 0)),
+        [ Templates.modification thisCreature .power (.up (.letter .x)),
+          Templates.modification thisCreature .toughness (.up (.lit 0)),
           .letterDefinition .x (countOf (and [isCreature, youControl])) ]) = [] := by
   decide
 
 theorem badDoubleStaticRider :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
-        [ .modification thisCreature .power (.up (.letter .x)),
-          .modification thisCreature .toughness (.up (.lit 0)),
+        [ Templates.modification thisCreature .power (.up (.letter .x)),
+          Templates.modification thisCreature .toughness (.up (.lit 0)),
           .letterDefinition .x (countOf (and [isCreature, youControl])),
           .letterDefinition .x (countOf isCreature) ]) = [.openLetter .x] := by
   decide
@@ -111,7 +111,7 @@ theorem okStillALand :
 
 /-- "Target creature gets +1/+0." -/
 theorem okSingletonCoordination :
-    StaticSpec.check (DRS.ofList []) (.conjunction none [.modification (target isCreature) .power (.up (.lit 1))])
+    StaticSpec.check (DRS.ofList []) (.conjunction none [Templates.modification (target isCreature) .power (.up (.lit 1))])
       = [] := by
   decide
 
@@ -165,7 +165,7 @@ theorem okLandBecomesBlocking :
 
 /-- "this creature gets +1/+0" -/
 theorem okAddPtUpward :
-    StaticSpec.check (DRS.ofList []) (.modification thisCreature .power (.up (.lit 1))) = [] := by decide
+    StaticSpec.check (DRS.ofList []) (Templates.modification thisCreature .power (.up (.lit 1))) = [] := by decide
 
 /-- "During target opponent's next turn, …" -/
 theorem okSingularNextTurnDuration :
