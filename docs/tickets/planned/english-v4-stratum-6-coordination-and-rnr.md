@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-stratum-5-comparatives-measures-and-partitives, english-v4-stratum-5-residual, english-v4-intern-declaration-identities, english-v4-zero-alloc-chart-state]
+needs: [english-v4-stratum-5-comparatives-measures-and-partitives, english-v4-stratum-5-residual, english-v4-intern-declaration-identities, english-v4-zero-alloc-chart-state, english-v3-disable-frozen-tests]
 ---
 # Stratum 6: Coordination and Right-Node Raising
 
