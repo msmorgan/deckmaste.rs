@@ -304,7 +304,7 @@ theorem okInsteadOfSearchRevealsIt :
 /-- "Each player mills a card. Exile it." -/
 theorem badDistributedMillSingular :
     Action.check (DRS.ofList [])
-      (.sequentially [instruct (each .anyPlayer) (mill (.lit 1) (each .anyPlayer)), exile it])
+      (.sequentially [instruct (each .anyPlayer) (mill (.lit 1)), exile it])
       = [.anaphor .bare .one 0] := by
   decide
 

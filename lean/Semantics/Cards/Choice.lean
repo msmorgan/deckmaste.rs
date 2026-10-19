@@ -581,7 +581,7 @@ def gisaAndGeralf : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, wizard],
       text :=
-        [ when (does thisCreature enter) (mill (.lit 4) you),
+        [ when (does thisCreature enter) (mill (.lit 4)),
           static (can you
                     (cast (counted (exactly 1) (and [isSpell, isCreature, hasSubtype zombie]))
                        (from_ := some yourGraveyard)) (timing := some onEachOfYourTurns)) ],

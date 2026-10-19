@@ -99,11 +99,11 @@ def searchToBattlefield : Action :=
   sequentially [searchLibraryFor (exactly 1) isCreature, putOntoBattlefield it, shuffle]
 theorem okSearchToBattlefield : Action.check (DRS.ofList []) searchToBattlefield = [] := by decide
 
-def glimpseTheUnthinkable : Action := instruct (target isPlayer) (mill (.lit 10) they)
+def glimpseTheUnthinkable : Action := instruct (target isPlayer) (mill (.lit 10))
 theorem okGlimpseTheUnthinkable : Action.check (DRS.ofList []) glimpseTheUnthinkable = [] := by decide
 
 def millThenReadGroup : Action :=
-  sequentially [mill (.lit 3) you, exile (those card)]
+  sequentially [mill (.lit 3), exile (those card)]
 theorem okMillThenReadGroup : Action.check (DRS.ofList []) millThenReadGroup = [] := by decide
 
 def takeIntoCustody : Action :=
@@ -121,7 +121,7 @@ def spaceTimeAnomaly : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Space-Time Anomaly", cost := some [generic 2, pip .white, pip .blue],
       types := [.sorcery],
-      text := [ spell (instruct (target isPlayer) (mill (lifeTotalOf you) they)) ] } }
+      text := [ spell (instruct (target isPlayer) (mill (lifeTotalOf you))) ] } }
 
 /-- Consecrate // Consume -/
 def consume : Ability :=
@@ -444,13 +444,13 @@ def scapeshift : Spelled := spelled <| .singleFaced
 /-- Bind to Life, Vastlands Scavenger's adventure -/
 def bindToLife : Action :=
   sequentially
-    [mill (.lit 7) you, putOntoBattlefield (fromAmong (exactly 1) isCreature them)]
+    [mill (.lit 7), putOntoBattlefield (fromAmong (exactly 1) isCreature them)]
 theorem okBindToLife : Action.check (DRS.ofList []) bindToLife = [] := by decide
 
 /-- Glamdring, Foe-hammer's Gleam of Death -/
 def gleamOfDeath : Action :=
   sequentially
-    [mill (.lit 6) you, putInto (allFromAmong isInstantOrSorcery them) hand]
+    [mill (.lit 6), putInto (allFromAmong isInstantOrSorcery them) hand]
 theorem okGleamOfDeath : Action.check (DRS.ofList []) gleamOfDeath = [] := by decide
 
 /-- Tezzeret, Master of the Bridge -/

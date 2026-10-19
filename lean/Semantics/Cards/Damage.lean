@@ -1191,7 +1191,7 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
               does (a (and [isCreature, in_ yourGraveyard])) (leave
                                                                         (from_ := yourGraveyard)) ]
             (instruct this_ (dealDamage (.lit 1) eachOpponent .noncombatOnly)),
-          activated (mana [generic 1, pip .black]) (instruct eachPlayer (mill (.lit 1) eachPlayer)) ],
+          activated (mana [generic 1, pip .black]) (instruct eachPlayer (mill (.lit 1))) ],
       power := stat 5, toughness := stat 4 } }
 
 /-- Destructive Revelry -/
@@ -1346,7 +1346,7 @@ def wordsOfWorship : Action :=
   replaceNextEvent (would you (draw anyAmount)) (gainLife (.lit 5)) (some thisTurn)
 theorem okWordsOfWorship : Action.check (DRS.ofList []) wordsOfWorship = [] := by decide
 def theLastRoninII : Action :=
-  triggerReflexively (mill (.lit 4) you)
+  triggerReflexively (mill (.lit 4))
     (putInto (target (and [isCreature, in_ yourGraveyard])) hand)
 theorem okTheLastRoninII : Action.check (DRS.ofList []) theLastRoninII = [] := by decide
 

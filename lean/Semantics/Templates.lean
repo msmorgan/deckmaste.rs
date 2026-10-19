@@ -1443,19 +1443,6 @@ semantic_template doIfDone (body : Action) (ifDid : Option Action := none)
 semantic_template doOnlyIf (action : Action) (condition : Condition)
     (otherwise : Option Action := none) : Action :=
   .doOnlyIf action condition otherwise
-semantic_template doublePowerAndToughness (subject : NounPhrase)
-    (duration : Option Duration := none) : Action :=
-  .ownScope (some (.action "double"))
-    (get (.firstMention "doublePowerAndToughness.subject" (.inCaller subject))
-      (.up (powerOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
-      (.up (toughnessOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
-      duration)
-semantic_template doubleToughness (subject : NounPhrase) (duration : Option Duration := none) :
-    Action :=
-  .ownScope (some (.action "double"))
-    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up (.lit 0))
-      (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
-      duration)
 semantic_template drawGame : Action := .drawGame
 semantic_template enact (verb : Deed) (action : Action) : Action :=
   .enact verb action none none
@@ -1526,20 +1513,6 @@ semantic_template triggerReflexively (body triggerBody : Action) : Action :=
 semantic_template triggerThisWay (body : Action) (event : GameEvent) (triggerBody : Action) :
     Action :=
   .triggerThisWay body event triggerBody
-semantic_template triplePower (subject : NounPhrase) (duration : Option Duration := none) :
-    Action :=
-  .ownScope (some (.action "triple"))
-    (get (.firstMention "triplePower.subject" (.inCaller subject))
-      (.up (times (.lit 2) (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
-      (.up (.lit 0)) duration)
-semantic_template tripleToughness (subject : NounPhrase) (duration : Option Duration := none) :
-    Action :=
-  .ownScope (some (.action "triple"))
-    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up (.lit 0))
-      (.up
-        (times (.lit 2)
-          (toughnessOf (.laterMention "tripleToughness.subject" (.inCaller subject)))))
-      duration)
 semantic_template turnFaceDown (subject : NounPhrase) (spec : FaceDown) : Action :=
   .turnFaceDown subject spec
 semantic_template turnOver (subject : NounPhrase) : Action := .turnOver subject

@@ -1091,7 +1091,7 @@ def bloodSpatterAnalysis : Spelled := spelled <| .singleFaced
                   .noncombatOnly)),
           whenever (does (counted (atLeast 1) isCreature) die)
             (sequentially
-              [ mill (.lit 1) you,
+              [ mill (.lit 1),
                 putCounters (.lit 1) (printedKind (.named "bloodstainCounter")) thisEnchantment .many,
                 triggerReflexively
                   (doOnlyIf (sacrifice thisEnchantment)

@@ -372,14 +372,27 @@ semantic_definition untap (subject : NounPhrase) : Action :=
     (.enact (.action "untap")
       (.setStatus .untapped (.inCaller (.firstMention "untap.subject" subject)))
       none none)
-/-- "mill <amount> cards" from <whose> library (`Definition`, [CR#701.17]). -/
-semantic_definition mill (amount : Amount) (whose : NounPhrase) : Action :=
+/-- "<performer> mills <amount> cards": from the performer's own library (`Definition`,
+[CR#701.17a]). -/
+semantic_definition mill (amount : Amount) : Action :=
   .ownScope (some (.action "mill"))
     (.enact (.action "mill")
-      (.move
-        (.slice .top (.inCaller amount) (libraryOf (.inCaller (.firstMention "mill.whose" whose))))
+      (.move (.slice .top (.inCaller amount) (libraryOf .actor))
         (.zone .library none) (some graveyard) .arrival none [])
       none none)
+/-- "<cards> are milled": the mill whose patient is a card description, as an event a trigger
+watches ("Whenever one or more nonland cards are milled") (`Definition`, [CR#701.17a,701.17c]). -/
+semantic_definition millCards (cards : NounPhrase) : Action :=
+  .ownScope (some (.action "mill"))
+    (.enact (.action "mill")
+      (.move (.inCaller (.firstMention "millCards.cards" cards))
+        library (some graveyard) .arrival none [])
+      none none)
+/-- "flip <subject>": a flip card's permanent turns to its flipped half, whose alternative name,
+text box, type line, power and toughness apply (`Definition`, [CR#710.1a,710.2]). Flipping is
+not a keyword action, so its scope names no deed. -/
+semantic_definition flip (subject : NounPhrase := .actor) : Action :=
+  .ownScope none (.setStatus .flipped (.inCaller (.firstMention "flip.subject" subject)))
 /-- "Search your library for <quantity> <p>" (`Definition`, [CR#701.23]). -/
 semantic_definition searchLibraryFor (quantity : Quantity) (p : Predicate) : Action :=
   .ownScope (some (.action "search"))
@@ -684,6 +697,23 @@ semantic_definition doublePower (subject : NounPhrase) (duration : Option Durati
     (.establish (.ptModification (.firstMention "doublePower.0" (.inCaller subject))
       (.up (powerOf (.laterMention "doublePower.0" (.inCaller subject)))) (.up (.lit 0)))
       duration)
+/-- "double <subject>'s power and toughness": it gets +X/+Y, X its power and Y its toughness
+(`Definition`, [CR#701.10b,701.10c]). -/
+semantic_definition doublePowerAndToughness (subject : NounPhrase)
+    (duration : Option Duration := none) : Action :=
+  .ownScope (some (.action "double"))
+    (get (.firstMention "doublePowerAndToughness.subject" (.inCaller subject))
+      (.up (powerOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
+      (.up (toughnessOf (.laterMention "doublePowerAndToughness.subject" (.inCaller subject))))
+      duration)
+/-- "double <subject>'s toughness": it gets +0/+X, X its toughness (`Definition`,
+[CR#701.10b,701.10c]). -/
+semantic_definition doubleToughness (subject : NounPhrase) (duration : Option Duration := none) :
+    Action :=
+  .ownScope (some (.action "double"))
+    (get (.firstMention "doubleToughness.subject" (.inCaller subject)) (.up (.lit 0))
+      (.up (toughnessOf (.laterMention "doubleToughness.subject" (.inCaller subject))))
+      duration)
 /-- "triple <subject>'s power and toughness" (`Definition`, [CR#701.11b,701.11c]). -/
 semantic_definition triplePowerAndToughness (subject : NounPhrase) (duration : Option Duration) :
     Action :=
@@ -691,6 +721,24 @@ semantic_definition triplePowerAndToughness (subject : NounPhrase) (duration : O
     (.establish (.ptModification (.firstMention "triplePT.0" (.inCaller subject))
       (.up (times (.lit 2) (powerOf (.laterMention "triplePT.0" (.inCaller subject)))))
       (.up (times (.lit 2) (toughnessOf (.laterMention "triplePT.0" (.inCaller subject))))))
+      duration)
+/-- "triple <subject>'s power": it gets +X/+0, X twice its power (`Definition`,
+[CR#701.11b,701.11c]). -/
+semantic_definition triplePower (subject : NounPhrase) (duration : Option Duration := none) :
+    Action :=
+  .ownScope (some (.action "triple"))
+    (get (.firstMention "triplePower.subject" (.inCaller subject))
+      (.up (times (.lit 2) (powerOf (.laterMention "triplePower.subject" (.inCaller subject)))))
+      (.up (.lit 0)) duration)
+/-- "triple <subject>'s toughness": it gets +0/+X, X twice its toughness (`Definition`,
+[CR#701.11b,701.11c]). -/
+semantic_definition tripleToughness (subject : NounPhrase) (duration : Option Duration := none) :
+    Action :=
+  .ownScope (some (.action "triple"))
+    (get (.firstMention "tripleToughness.subject" (.inCaller subject)) (.up (.lit 0))
+      (.up
+        (times (.lit 2)
+          (toughnessOf (.laterMention "tripleToughness.subject" (.inCaller subject)))))
       duration)
 /-- "double <performer>'s life total" (`Definition`, [CR#701.10d]), written as that total's set
 [CR#119.5]. -/
@@ -1360,11 +1408,7 @@ semantic_definition dredge (amount : Amount) : Ability :=
           (.instead (.would (.actor .you) (.draw .anyAmount))
             (may
               (.sequentially
-                [ .ownScope (some (.action "mill"))
-                    (enact (.action "mill")
-                      (.move (.slice .top (.inCaller amount) (libraryOf .actor))
-                        (.zone .library none) (some graveyard) .arrival none [])),
-                  returnToHand .this yourGraveyard ]))
+                [ mill amount, returnToHand .this yourGraveyard ]))
             none .repeatedly none)
           (.compareAmt (countOf (cardIn yourLibrary)) .atLeast amount)) ]
 semantic_definition echo (cost : Cost) : Ability := keywordCosting (.named "echo") (.inCaller cost)

@@ -602,7 +602,7 @@ theorem okIntransitiveBecomes :
 /-- "Whenever a card is milled into a Phyrexian, …" -/
 theorem badBecomesWithoutIntransitive :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.enact (.action "mill") (mill (.lit 1) .you) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [.verbBecomesOk] := by
+      (.does .any (.enact (.action "mill") (mill (.lit 1)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [.verbBecomesOk] := by
   decide
 
 /-- "Whenever you discard a card, …" -/

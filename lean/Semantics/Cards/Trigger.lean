@@ -44,7 +44,7 @@ def beastWhisperer : Ability :=
 theorem okBeastWhisperer : Ability.check (DRS.ofList []) beastWhisperer = [] := by decide
 def mesmericOrb : Ability :=
   whenever (does (a isPermanent) (become untapped))
-    (instruct (controllerOf (that permanent)) (mill (.lit 1) they))
+    (instruct (controllerOf (that permanent)) (mill (.lit 1)))
 theorem okMesmericOrb : Ability.check (DRS.ofList []) mesmericOrb = [] := by decide
 def secretPlans : Ability :=
   whenever (does any (turnFaceUp (a (and [isPermanent, youControl]))))
@@ -160,7 +160,7 @@ def carrionGrub : Spelled := spelled <| .singleFaced
         [ static (conjunction [ getsPt thisCreature (up (letter .x)) (up (.lit 0)),
               letterDefinition .x
                 (aggregate .max (.stat .power) (and [isCreature, in_ yourGraveyard])) ]),
-          when (does thisCreature enter) (mill (.lit 4) you) ],
+          when (does thisCreature enter) (mill (.lit 4)) ],
       power := stat 0, toughness := stat 5 } }
 
 /-- Once Upon a Time -/
@@ -795,7 +795,7 @@ theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine 
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
   whenever (does (a (and [isPermanent, youControl, otherThan this_])) enter)
-    (instruct eachOpponent (mill (.lit 1) they))
+    (instruct eachOpponent (mill (.lit 1)))
 theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] := by decide
 /-- Foul Emissary -/
 def foulEmissaryLine : Ability :=

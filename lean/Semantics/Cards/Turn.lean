@@ -342,7 +342,7 @@ def curseOfTheBloodyTome : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
           at_ (beginningOfPossessed .upkeep (enchanted player))
-            (instruct (that player) (mill (.lit 2) they)) ] } }
+            (instruct (that player) (mill (.lit 2))) ] } }
 
 def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=

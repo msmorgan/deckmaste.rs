@@ -202,7 +202,7 @@ theorem badReflexiveOnBranchedMay :
 theorem badAfterReflexiveReadsTrigger :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .triggerReflexively (mill (.lit 4) .you)
+        [ .triggerReflexively (mill (.lit 4))
             (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
           .setStatus .tapped (that (.type .creature)) ])
       = [.anaphor (.word (.type .creature)) .one 0] := by

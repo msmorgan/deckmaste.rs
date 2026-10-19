@@ -288,7 +288,7 @@ def colossalGraveReaver : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [dragon],
       text :=
         [ flying,
-          triggeredOr (does thisCreature enter) [does thisCreature attack] (mill (.lit 3) you),
+          triggeredOr (does thisCreature enter) [does thisCreature attack] (mill (.lit 3)),
           whenever
             (does any
                (putInto (counted (atLeast 1) (and [isCard, isCreature])) yourGraveyard

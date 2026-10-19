@@ -500,7 +500,7 @@ your hand." No printed card on the bench. -/
 theorem millThenPutFromAmongMilled :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ mill (.lit 3) .you,
+        [ mill (.lit 3),
           may
             (putInto (fromAmong (exactly 1) isArtifact (theVerbed (.action "mill") .many (some .card) .thisWay))
               hand) ]) = [] := by

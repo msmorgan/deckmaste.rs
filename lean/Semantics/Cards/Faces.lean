@@ -152,7 +152,7 @@ def merfolkSecretkeeper : Spelled := spelled <| .adventurer
   { characteristics :=
     { name := "Venture Deeper", cost := some [pip .blue], types := [.sorcery],
       subtypes := [adventure],
-      text := [ spell (instruct (target isPlayer) (mill (.lit 4) they)) ] } }
+      text := [ spell (instruct (target isPlayer) (mill (.lit 4))) ] } }
 
 def orochiEggwatcher : Spelled := spelled <| .flip
   { characteristics :=

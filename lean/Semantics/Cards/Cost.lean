@@ -259,7 +259,7 @@ def jaceBeleren : Spelled := spelled <| .singleFaced
       text :=
         [ activated (loyaltySymbol (.up 2)) (instruct eachPlayer (draw (.lit 1))),
           activated (loyaltySymbol (.down 1)) (instruct (target isPlayer) (draw (.lit 1))),
-          activated (loyaltySymbol (.down 10)) (instruct (target isPlayer) (mill (.lit 20) they))
+          activated (loyaltySymbol (.down 10)) (instruct (target isPlayer) (mill (.lit 20)))
               ],
       loyalty := stat 3 } }
 
