@@ -1,5 +1,5 @@
 ---
-needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-13-ast-and-authoring-cleanup]
+needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authoring-cleanup]
 ---
 # Fix Rules and Oracle meaning defects across Lean v3 Definitions, Templates, and Cards
 
