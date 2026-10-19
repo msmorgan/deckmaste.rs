@@ -1,7 +1,3 @@
-import Semantics.Definitions.Counters
-import Semantics.Definitions.Designations
-import Semantics.Definitions.Relations
-import Semantics.Definitions.Subtypes
 import Semantics.Templates
 
 /-!
@@ -300,7 +296,7 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
   .ownScope (some (.action "amass"))
     (.enact (.action "amass") (.sequentially
       [ .doIf (.not (exists_ army))
-          (create (.lit 1) (.written (creatureToken 0 0 [.black] [subtype, creatureType "Army"])))
+          (create (.lit 1) (.written (creatureToken 0 0 [.black] [subtype, Subtype.army])))
           none,
         choose (a army),
         .putCounters (.inCaller count) (.printed p1p1Counter) (that (.type .creature)) .one true,

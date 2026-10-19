@@ -44,6 +44,8 @@ semantic_definition ape : Subtype := .of .creature "Ape"
 semantic_definition archer : Subtype := .of .creature "Archer"
 semantic_definition archon : Subtype := .of .creature "Archon"
 semantic_definition armadillo : Subtype := .of .creature "Armadillo"
+/-- Army, named apart from the `army` predicate template (an Army the performer controls). -/
+semantic_definition Subtype.army : Subtype := .of .creature "Army"
 semantic_definition artificer : Subtype := .of .creature "Artificer"
 semantic_definition assassin : Subtype := .of .creature "Assassin"
 semantic_definition assemblyWorker : Subtype := .of .creature "Assembly-Worker"

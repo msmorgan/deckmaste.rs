@@ -121,7 +121,11 @@ ability, counter, token or designation) or a `semantic_template` (a Template,
 a transparent phrasing the rules do not define). Printed-data records,
 enumerated leaf values, and numeric literals remain ordinary data; their
 semantic fields are inspected recursively. The modules are layered
-`Semantics.Primitives` ← `Semantics.Templates` ← `Semantics.Definitions`.
+`Semantics.Primitives` ← leaf catalogs ← `Semantics.Templates` ← composite Definitions, all
+re-exported by `Semantics.Definitions`. The leaf catalogs
+(`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are spelled over
+primitives only; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`) are
+spelled over Templates.
 `Semantics.Primitives` provides the generated constructor wrappers
 (`declare_semantic_primitives`, `Semantics.Primitives.<Type>.<name>`), which
 have definitionally identical constructor signatures and are registered as
@@ -129,9 +133,9 @@ templates, together with a few worded primitive templates and the
 characteristic inputs. `NounPhrase.pro` and `NounPhrase.which` have no
 primitive wrapper: they are expansion carriers (`internal_expansion`) that only
 templates and definitions write. `Semantics.Templates` holds every
-`semantic_template`; `Semantics.Definitions` holds every `semantic_definition`
-and the few templates whose bodies need a definition: its leaf catalogs (counters,
-designations, relations, subtypes, turn parts) come first, the templates over its actions
+`semantic_template` and names leaf catalog entries rather than spelling their strings;
+the `Semantics.Definitions` submodules hold every `semantic_definition` and the few
+templates whose bodies need a composite definition: the templates over its actions
 follow the actions, and a keyword's licensed phrasings follow the keyword.
 Defaults retain their calls.
 

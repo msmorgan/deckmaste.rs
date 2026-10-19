@@ -1,6 +1,10 @@
 import Semantics.Primitives
 import Semantics.Check
 import Semantics.CallerScope
+import Semantics.Definitions.Counters
+import Semantics.Definitions.Designations
+import Semantics.Definitions.Relations
+import Semantics.Definitions.Subtypes
 
 /-!
 # Semantics.Templates
@@ -8,11 +12,15 @@ import Semantics.CallerScope
 Phrasing helpers (`Template`s, `semantic_template`) for `semantics-v3`
 (`docs/decisions/semantics-v3.md` §§1–3). A Template expands transparently in the caller's DRS
 scope and uses `firstMention` / `laterMention` whenever a `NounPhrase` parameter is mentioned more
-than once before a zone change. Templates are spelled over primitives and other Templates only;
-a phrasing helper that needs rules-defined vocabulary lives at the end of `Semantics.Definitions`.
+than once before a zone change. Templates are spelled over primitives, other Templates and the
+leaf catalogs (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`); a
+phrasing helper that needs a composite Definition lives after it, in `Semantics.Definitions.Actions`
+or `Semantics.Definitions.Keywords`.
 -/
 
 namespace Semantics.Templates
+
+open Semantics.Definitions
 
 /-! ## Worded primitives
 
@@ -422,12 +430,11 @@ semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestCho
 semantic_template isOtherPlayer : Predicate := and [isPlayer, .otherThan you]
 /-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, or Warlock [CR#700.12]. -/
 semantic_template isOutlaw : Predicate :=
-  .or [ .hasSubtype (creatureType "Assassin"), .hasSubtype (creatureType "Mercenary"),
-        .hasSubtype (creatureType "Pirate"), .hasSubtype (creatureType "Rogue"),
-        .hasSubtype (creatureType "Warlock") ]
+  .or [ .hasSubtype assassin, .hasSubtype mercenary, .hasSubtype pirate, .hasSubtype rogue,
+        .hasSubtype warlock ]
 /-- "historic": an artifact, legendary, or Saga [CR#700.6]. -/
 semantic_template isHistoric : Predicate :=
-  .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype (.of .enchantment "Saga")]
+  .or [.hasType .artifact, .hasSupertype .legendary, .hasSubtype saga]
 /-- "any target" [CR#115.4]. -/
 semantic_template isAnyTarget : Predicate :=
   .or [.hasType .creature, .hasType .planeswalker, .hasType .battle, .anyPlayer]
@@ -536,8 +543,7 @@ semantic_template tokenOnTheBattlefield : Predicate := and [isToken, isPermanent
 semantic_template targetsOnly (subject : NounPhrase) : Predicate := .targets subject .only
 /-- The four party roles, in rule order [CR#700.8]. -/
 semantic_template partyRoles : List Predicate :=
-  [ .hasSubtype (.of .creature "Cleric"), .hasSubtype (.of .creature "Rogue"),
-    .hasSubtype (.of .creature "Warrior"), .hasSubtype (.of .creature "Wizard") ]
+  [.hasSubtype cleric, .hasSubtype rogue, .hasSubtype warrior, .hasSubtype wizard]
 /-- "cast by <player>" -/
 semantic_template castBy (player : NounPhrase) : Predicate := .castBy player none
 /-- "the Nth spell <player> cast <period>" -/
@@ -623,7 +629,7 @@ semantic_template thisLand : NounPhrase := .asType .land .this none
 semantic_template thisPermanent : NounPhrase := .asMarker .permanent .this
 semantic_template thisSpell : NounPhrase := .asMarker .spell .this
 semantic_template thisRoom : NounPhrase :=
-  .asType .enchantment .this (some (enchantmentType "Room"))
+  .asType .enchantment .this (some room)
 semantic_template thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
 semantic_template thisAbility : NounPhrase := .asMarker .ability .this
 /-- "this card": the source as a card, in whatever zone it is [CR#109.1]. -/
@@ -632,24 +638,24 @@ semantic_template thisToken : NounPhrase := .asMarker .token .this
 semantic_template thisEmblem : NounPhrase := .asMarker .emblem .this
 semantic_template thisEnchantment : NounPhrase := .asType .enchantment .this none
 semantic_template thisAura : NounPhrase :=
-  .asType .enchantment .this (some (enchantmentType "Aura"))
+  .asType .enchantment .this (some aura)
 semantic_template thisEquipment : NounPhrase :=
-  .asType .artifact .this (some (artifactType "Equipment"))
-semantic_template thisSiege : NounPhrase := .asType .battle .this (some (.of .battle "Siege"))
+  .asType .artifact .this (some equipment)
+semantic_template thisSiege : NounPhrase := .asType .battle .this (some siege)
 semantic_template thisVehicle : NounPhrase :=
-  .asType .artifact .this (some (artifactType "Vehicle"))
+  .asType .artifact .this (some vehicle)
 semantic_template thisSpacecraft : NounPhrase :=
-  .asType .artifact .this (some (artifactType "Spacecraft"))
+  .asType .artifact .this (some spacecraft)
 semantic_template thisSaga : NounPhrase :=
-  .asType .enchantment .this (some (enchantmentType "Saga"))
+  .asType .enchantment .this (some saga)
 semantic_template thisFortification : NounPhrase :=
-  .asType .artifact .this (some (artifactType "Fortification"))
+  .asType .artifact .this (some fortification)
 semantic_template thisCase : NounPhrase :=
-  .asType .enchantment .this (some (enchantmentType "Case"))
+  .asType .enchantment .this (some case)
 semantic_template thisClass : NounPhrase :=
-  .asType .enchantment .this (some (enchantmentType "Class"))
+  .asType .enchantment .this (some class_)
 /-- "your commander" -/
-semantic_template yourCommander : NounPhrase := .designated (.named "commander") .you
+semantic_template yourCommander : NounPhrase := .designated commander .you
 /-- "a card exiled with this artifact" -/
 semantic_template exiledWithThisArtifact : Predicate := .in_ (.exiledWith thisArtifact)
 /-- "the rest of them" -/
@@ -1569,7 +1575,7 @@ semantic_template replaceWord (sorts : List QualitySort) (from_ : Option TextWor
 semantic_template exchangeWith (other : NounPhrase) : TextChange := .exchangeWith other
 /-- An Army the performer controls. -/
 semantic_template army : Predicate :=
-  .and [.hasSubtype (creatureType "Army"), isCreature, actorControls]
+  .and [.hasSubtype Subtype.army, isCreature, actorControls]
 /-- "any number of <group> with total <axis> <comparator> <bound>" [CR#701.59a]. -/
 semantic_template withTotal (axis : ProjAxis) (comparator : Comparator) (bound : Amount)
     (group : NounPhrase) : NounPhrase :=
