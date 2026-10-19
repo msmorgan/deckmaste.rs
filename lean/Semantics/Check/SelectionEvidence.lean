@@ -189,7 +189,7 @@ private theorem tollReadsTheActorGroupAfterTheAction :
         (.attack (some (.or [.you, .described .all (.hasType .planeswalker)])))
         {}) = [] ∧
       StaticSpec.check (DRS.ofList [])
-        (.gatedBy tollCost (.actor (.asType .creature .this none)) (.attack none)
+        (.gatedBy tollCost (.actor (.headed (.type .creature) .this)) (.attack none)
           {}) = [.groupSizeInScope 0] ∧
       StaticSpec.check (DRS.ofList [])
         (.gatedBy tollCost
@@ -214,21 +214,21 @@ private theorem linkedProhibitionStartsANewClauseAfterItsAction :
         (.action "regenerate") (.pro .bare .many)) = [] := by decide
 
 private theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
-    let change := StaticSpec.characteristicChange (.asType .planeswalker .this none)
+    let change := StaticSpec.characteristicChange (.headed (.type .planeswalker) .this)
       [.addedAbilities [.keyword (.named "indestructible") [] []]]
     let out := (stepStaticSpec 64 (DRS.ofList []) change).1
     StaticSpec.check (DRS.ofList []) change = [] ∧
       out.referents.map (·.id) = [0] ∧
       NounPhrase.check out (.pro .bare .one) = [] ∧
       StaticSpec.check (DRS.ofList [])
-        (.characteristicChange (.asType .planeswalker .this none)
+        (.characteristicChange (.headed (.type .planeswalker) .this)
           [.addedAbilities [.spell none (.clearDamage (.pro .bare .one))]]) =
         [.anaphor .bare .one 0] := by decide
 
 private theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
-    let spellClause := StaticSpec.cant (.by (.asMarker .spell .this))
+    let spellClause := StaticSpec.cant (.by (.headed .spell .this))
       (.target (.described (.a .unmarked) (.hasType .creature))) {}
-    let abilityClause := StaticSpec.cant (.by (.asMarker .ability .this))
+    let abilityClause := StaticSpec.cant (.by (.headed .ability .this))
       (.target (.described (.a .unmarked) (.hasType .creature))) {}
     StaticSpec.check (DRS.ofList []) spellClause = [] ∧
       StaticSpec.check (DRS.ofList []) abilityClause = [] ∧
@@ -241,7 +241,7 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
       payload := .object [.creature] (some .battlefield) none none none }]
     Action.check group (.instruct .you (.draw .groupSize)) = [] ∧
       StaticSpec.check group
-        (.gatedBy tollCost (.actor (.asType .creature .this none))
+        (.gatedBy tollCost (.actor (.headed (.type .creature) .this))
           (.attack none) {}) = [.groupSizeInScope 0] ∧
       (stepStaticSpec 64 group
         (.gatedBy tollCost (.actor (.described .all (.hasType .creature)))
@@ -274,7 +274,7 @@ private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
       Action.check (DRS.ofList [])
         (.triggerReflexively offered
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
-            (.asType .creature .this none) .many true)) = [] := by decide
+            (.headed (.type .creature) .this) .many true)) = [] := by decide
 
 private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
     let mana := Cost.mana [.simple (.generic 1)]

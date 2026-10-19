@@ -568,7 +568,7 @@ semantic_template abilityOf (source : NounPhrase) : Predicate := .abilityOf sour
 semantic_template Predicate.activatedBy (activator : NounPhrase) : Predicate :=
   .activatedBy activator
 semantic_template anotherSpell : Predicate :=
-  .and [isSpell, .otherThan (.asMarker .spell .this)]
+  .and [isSpell, .otherThan (.headed .spell .this)]
 semantic_template Predicate.attachment (side : AttachmentSide)
     (counterpart : Option NounPhrase := none) (word : Option AttachWord := none) : Predicate :=
   .attachment side word counterpart
@@ -623,37 +623,28 @@ semantic_template withMostVotes : Predicate := .withMostVotes
 /-! ## Nouns -/
 
 semantic_template anOpponent : NounPhrase := a (.isOpponentOf .you)
-semantic_template thisCreature : NounPhrase := .asType .creature .this none
-semantic_template thisArtifact : NounPhrase := .asType .artifact .this none
-semantic_template thisLand : NounPhrase := .asType .land .this none
-semantic_template thisPermanent : NounPhrase := .asMarker .permanent .this
-semantic_template thisSpell : NounPhrase := .asMarker .spell .this
-semantic_template thisRoom : NounPhrase :=
-  .asType .enchantment .this (some room)
-semantic_template thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
-semantic_template thisAbility : NounPhrase := .asMarker .ability .this
+semantic_template thisCreature : NounPhrase := .headed (.type .creature) .this
+semantic_template thisArtifact : NounPhrase := .headed (.type .artifact) .this
+semantic_template thisLand : NounPhrase := .headed (.type .land) .this
+semantic_template thisPermanent : NounPhrase := .headed .permanent .this
+semantic_template thisSpell : NounPhrase := .headed .spell .this
+semantic_template thisRoom : NounPhrase := .headed (.type .enchantment) .this
+semantic_template thisPlaneswalker : NounPhrase := .headed (.type .planeswalker) .this
+semantic_template thisAbility : NounPhrase := .headed .ability .this
 /-- "this card": the source as a card, in whatever zone it is [CR#109.1]. -/
-semantic_template thisCard : NounPhrase := .asMarker .card .this
-semantic_template thisToken : NounPhrase := .asMarker .token .this
-semantic_template thisEmblem : NounPhrase := .asMarker .emblem .this
-semantic_template thisEnchantment : NounPhrase := .asType .enchantment .this none
-semantic_template thisAura : NounPhrase :=
-  .asType .enchantment .this (some aura)
-semantic_template thisEquipment : NounPhrase :=
-  .asType .artifact .this (some equipment)
-semantic_template thisSiege : NounPhrase := .asType .battle .this (some siege)
-semantic_template thisVehicle : NounPhrase :=
-  .asType .artifact .this (some vehicle)
-semantic_template thisSpacecraft : NounPhrase :=
-  .asType .artifact .this (some spacecraft)
-semantic_template thisSaga : NounPhrase :=
-  .asType .enchantment .this (some saga)
-semantic_template thisFortification : NounPhrase :=
-  .asType .artifact .this (some fortification)
-semantic_template thisCase : NounPhrase :=
-  .asType .enchantment .this (some case)
-semantic_template thisClass : NounPhrase :=
-  .asType .enchantment .this (some class_)
+semantic_template thisCard : NounPhrase := .headed .card .this
+semantic_template thisToken : NounPhrase := .headed .token .this
+semantic_template thisEmblem : NounPhrase := .headed .emblem .this
+semantic_template thisEnchantment : NounPhrase := .headed (.type .enchantment) .this
+semantic_template thisAura : NounPhrase := .headed (.type .enchantment) .this
+semantic_template thisEquipment : NounPhrase := .headed (.type .artifact) .this
+semantic_template thisSiege : NounPhrase := .headed (.type .battle) .this
+semantic_template thisVehicle : NounPhrase := .headed (.type .artifact) .this
+semantic_template thisSpacecraft : NounPhrase := .headed (.type .artifact) .this
+semantic_template thisSaga : NounPhrase := .headed (.type .enchantment) .this
+semantic_template thisFortification : NounPhrase := .headed (.type .artifact) .this
+semantic_template thisCase : NounPhrase := .headed (.type .enchantment) .this
+semantic_template thisClass : NounPhrase := .headed (.type .enchantment) .this
 /-- "your commander" -/
 semantic_template yourCommander : NounPhrase := .designated commander .you
 /-- "a card exiled with this artifact" -/
@@ -718,11 +709,9 @@ semantic_template fullParty : Condition := fullPartyOf .you
 semantic_template agree (axis : QualitySort) (agreement : Agreement) (group : NounPhrase) :
     NounPhrase :=
   .agree axis agreement group
-semantic_template asMarker (marker : MarkerWord) (subject : NounPhrase) : NounPhrase :=
-  .asMarker marker subject
-semantic_template asType (type : CardType) (subject : NounPhrase)
-    (subtype : Option Subtype := none) : NounPhrase :=
-  .asType type subject subtype
+/-- `subject` named by a Head Noun: "<subject> as a <head>". -/
+semantic_template headed (head : HeadNoun) (subject : NounPhrase) : NounPhrase :=
+  .headed head subject
 semantic_template attachHost (word : AttachWord) (head : NounWord) : NounPhrase :=
   .attachHost word head
 semantic_template becomes (subject : NounPhrase) : NounPhrase := .becomes subject
@@ -747,7 +736,7 @@ semantic_template run (end_ : PileEnd) (stop : Predicate) (pile : Location) : No
   .run end_ stop pile
 semantic_template slice (end_ : PileEnd) (amount : Amount) (pile : Location) : NounPhrase :=
   .slice end_ amount pile
-semantic_template theGrantor (marker : MarkerWord) : NounPhrase := .theGrantor marker
+semantic_template theGrantor (head : HeadNoun) : NounPhrase := .theGrantor head
 semantic_template themAsTokens : NounPhrase := .pro .tokenBorn .many
 /-! ### Noun words
 

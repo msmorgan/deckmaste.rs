@@ -657,13 +657,13 @@ theorem okDestroyCreature : Action.check (DRS.ofList []) (destroy (target isCrea
 /-- "creature that was dealt combat damage by this creature this turn" [CR#120.1] -/
 theorem okCombatDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.by thisCreature, .dealDamage .anyAmount (.asMarker .permanent .which) .combatOnly, .duration soFarThisTurn none⟩) = [] := by
+      (.did ⟨.by thisCreature, .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, .duration soFarThisTurn none⟩) = [] := by
   decide
 
 /-- "creature that was dealt combat damage by a color this turn" -/
 theorem badCombatDamageComplement :
     Predicate.checkAt .object (DRS.ofList [])
-      (.did ⟨.by (a (quality .color)), .dealDamage .anyAmount (.asMarker .permanent .which) .combatOnly, .duration soFarThisTurn none⟩)
+      (.did ⟨.by (a (quality .color)), .dealDamage .anyAmount (.headed .permanent .which) .combatOnly, .duration soFarThisTurn none⟩)
       = [.kindMismatch .object (.quality .color)] := by
   decide
 

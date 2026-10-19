@@ -768,6 +768,9 @@ theorem secondChooserDevotionRead :
 theorem emblemGrantorRead : NounPhrase.checkAt (some .object) (DRS.ofList []) (.theGrantor .emblem) = [] := by
   decide
 
+theorem thisEmblemRead : NounPhrase.checkAt (some .object) (DRS.ofList []) thisEmblem = [] := by
+  decide
+
 /-- The alternative-cost keywords whose payment reads back. -/
 def alternativeCostKeywords : List KeywordLabel :=
   [ (.named "escape"), (.named "foretell"), (.named "bestow"), (.named "disguise"), (.named "mutate"), (.named "overload"), (.named "disturb"), (.named "dash"), (.named "evoke"),

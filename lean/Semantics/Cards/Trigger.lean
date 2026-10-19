@@ -586,9 +586,9 @@ def commandersInsignia : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ static (getsPt (allOf (and [isCreature, youControl]))
-            (up (eventCount (cast (asMarker .spell yourCommander) (from_ := some
+            (up (eventCount (cast (headed .spell yourCommander) (from_ := some
               commandZone)) you thisGame))
-            (up (eventCount (cast (asMarker .spell yourCommander) (from_ := some
+            (up (eventCount (cast (headed .spell yourCommander) (from_ := some
               commandZone)) you thisGame)))
               ] } }
 

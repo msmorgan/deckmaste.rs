@@ -104,7 +104,7 @@ theorem explicitCallerArgumentPreservesAuxiliaryPlayer :
 
 theorem typeViewRefusesMovedPronounWithoutChangingItsZone :
     let (after, ids, errors) := stepNounPhrase 64 moved .other false
-      (.asType .creature (.pro (.word .card) .one) none)
+      (.headed (.type .creature) (.pro (.word .card) .one))
     errors = [.ascribable] ∧ ids = [1] ∧ after.nextId = moved.nextId ∧
       after.referents.map (·.zone) = [some .exile] := by decide
 
@@ -153,10 +153,27 @@ theorem unqualifiedSourceDoesNotInventAZone :
 
 theorem explicitSourceCarrierSuppliesItsZone :
     let creature := (stepNounPhrase 64 (DRS.ofList []) .other false
-      (.asType .creature .this none)).1
-    let spell := (stepNounPhrase 64 (DRS.ofList []) .other false (.asMarker .spell .this)).1
+      (.headed (.type .creature) .this)).1
+    let spell := (stepNounPhrase 64 (DRS.ofList []) .other false (.headed .spell .this)).1
     creature.referents.map (·.zone) = [some .battlefield] ∧
       spell.referents.map (·.zone) = [some .stack] := by decide
+
+/-- Each Head Noun keeps its own reading of the source: "this emblem" is in the command zone,
+"this token" a token on the battlefield, "this ability" an ability on the stack, and "this card"
+adds nothing [CR#109.1]. -/
+theorem headNounsKeepTheirReadings :
+    let read (np : NounPhrase) :=
+      (stepNounPhrase 64 (DRS.ofList []) .other false np).1.referents.map (·.payload)
+    read thisEmblem = [.object [] (some .command) none none none] ∧
+      read thisToken = [.object [] (some .battlefield) none (some .token) none] ∧
+      read thisAbility = [.ability none (some .stack)] ∧
+      read thisCard = [.object [] none none none none] := by decide
+
+/-- "the emblem that granted it" reads the grantor as a battlefield object, whatever its Head
+Noun. -/
+theorem emblemGrantorReadsABattlefieldObject :
+    (stepNounPhrase 64 (DRS.ofList []) .other false (.theGrantor .emblem)).1.referents.map
+      (·.payload) = [.object [] (some .battlefield) none none none] := by decide
 
 theorem revealedSearchResultSurvivesShuffleWithSameIdentity :
     let searched := (stepAction 64 .postEvent .obj (DRS.ofList [])

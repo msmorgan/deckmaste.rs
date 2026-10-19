@@ -77,10 +77,10 @@ theorem writtenPluralGroupsRemainCountable :
     Amount.check emptyContext
       (.countOf (.described (.count (.range (some 2) (some 2)) none) (.hasType .creature))) = [] ∧
     NounPhrase.plur (.paid (.objects (.byKeyword (.named "devour"))
-      (.ofAbility (.named "devour")) .many) (.asType .creature .this none)) = .many ∧
+      (.ofAbility (.named "devour")) .many) (.headed (.type .creature) .this)) = .many ∧
     Amount.check emptyContext (.countOf
       (.paid (.objects (.byKeyword (.named "devour")) (.ofAbility (.named "devour")) .many)
-        (.asType .creature .this none))) = [] := by decide
+        (.headed (.type .creature) .this))) = [] := by decide
 
 /-- "An opponent" and "a teammate" relate a player to the unwritten "you", which they read
 without introducing; a written relatum is a player [CR#102.2,102.3]. -/

@@ -237,7 +237,7 @@ theorem badLifeTotalSuperlative :
   decide
 
 /-- "this creature" -/
-theorem okAscribeCreature : NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature .this none) = [] := by decide
+theorem okAscribeCreature : NounPhrase.checkAt (some .object) (DRS.ofList []) (.headed (.type .creature) .this) = [] := by decide
 
 /-- "target creature that's goaded" -/
 theorem okObjectDesignation :

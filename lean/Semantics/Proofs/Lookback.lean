@@ -28,7 +28,7 @@ theorem gapRequiresLookback :
 
 theorem scopedCreatureDeath :
     relativeCheck .object
-      ⟨.any, .move (.asType .creature .which none)
+      ⟨.any, .move (.headed (.type .creature) .which)
         (.zone .battlefield none) (some (.zone .graveyard none)) .departure none [],
         withinThisTurn⟩ = [] := by decide
 
@@ -38,7 +38,7 @@ theorem nestedLookbackBindsItsOwnParticipant :
         .procedure .cast
           (.described (.a .unmarked)
             (.and [.hasType .creature, .in_ (.zone .stack none),
-              .did ⟨.any, .move (.asType .creature .which none)
+              .did ⟨.any, .move (.headed (.type .creature) .which)
                 (.zone .battlefield none) (some (.zone .graveyard none))
                 .departure none [], withinThisTurn⟩]))
           .itsOwnCost none none none,
@@ -70,12 +70,12 @@ theorem innerGapDoesNotSupplyOuterParticipant :
 
 theorem participantCanOccurMoreThanOnce :
     relativeCheck .object
-      ⟨.actor (.asType .creature .which none),
-        .dealDamage .anyAmount (.asType .creature .which none) .any,
+      ⟨.actor (.headed (.type .creature) .which),
+        .dealDamage .anyAmount (.headed (.type .creature) .which) .any,
         withinThisTurn⟩ = [] := by decide
 
 private def damageHistory : Predicate :=
-  .did ⟨.actor (.asType .creature .which none),
+  .did ⟨.actor (.headed (.type .creature) .which),
     .dealDamage .anyAmount (.described (.a .unmarked) (.isOpponentOf .you)) .any, withinThisTurn⟩
 
 theorem historyDoesNotIntroduceDamageOutcome :
@@ -124,17 +124,17 @@ theorem unspecifiedSpellDoesNotIntroduceAReference :
 
 theorem designatedSpellIsWellKinded :
     NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.asMarker .spell (.designated (.named "commander") .you)) = [] := by decide
+      (.headed .spell (.designated (.named "commander") .you)) = [] := by decide
 
 theorem designatedSpellKeepsSelectedIdentity :
     let result := stepNounPhrase 64 (DRS.ofList []) .other false
-      (.asMarker .spell (.designated (.named "commander") .you))
+      (.headed .spell (.designated (.named "commander") .you))
     result.2.1 = [1] ∧ (result.1.findById? 1).bind (·.zone) = some .stack := by decide
 
 theorem designatedSpellCanBeMatched :
     relativeCheck .player
       ⟨.actor .which,
-        .procedure .cast (.asMarker .spell (.designated (.named "commander") .you))
+        .procedure .cast (.headed .spell (.designated (.named "commander") .you))
           .itsOwnCost none none none,
         .duration thisGame none⟩ = [] := by decide
 

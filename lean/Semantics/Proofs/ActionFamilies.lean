@@ -22,11 +22,11 @@ theorem okBlockednessWithoutChangingBlockingRelations :
     Action.check (DRS.ofList []) (.combat thisCreature (.participation (.blocked false))) = [] := by decide
 
 theorem okRemoveAttackedPlaneswalkerFromCombat :
-    Action.check (DRS.ofList []) (.combat (.asType .planeswalker .this none)
+    Action.check (DRS.ofList []) (.combat (.headed (.type .planeswalker) .this)
       (.participation .outsideCombat)) = [] := by decide
 
 theorem okRemoveAttackedBattleFromCombat :
-    Action.check (DRS.ofList []) (.combat (.asType .battle .this none)
+    Action.check (DRS.ofList []) (.combat (.headed (.type .battle) .this)
       (.participation .outsideCombat)) = [] := by decide
 
 theorem okAttachToPlayer :
@@ -198,7 +198,7 @@ theorem nestedCaptureUpdatesTheOuterOperand :
       operandIdentity moved 0 = none := by decide
 
 theorem nestedCaptureUpdatesAnInlineOuterOperand :
-    let outer := operandContext (DRS.ofList []) [.asMarker .ability .this]
+    let outer := operandContext (DRS.ofList []) [.headed .ability .this]
     let inner := operandContext outer [operand 0]
     let moved := movedOperand inner (operand 0) none
     moved.visibleReferents.map (·.zone) = [none] ∧

@@ -76,7 +76,7 @@ private theorem thatTurnNeedsExactlyOneReferent :
       ([.turnAntecedent 0], [], [.turnAntecedent 2]) := by decide
 
 private theorem turnOwnersMustBePlayersAtEveryEntry :
-    let owner : NounPhrase := .asType .creature .this none
+    let owner : NounPhrase := .headed (.type .creature) .this
     let refused := [Refusal.kindMismatch .player .object]
     (stepGameEvent 64 (DRS.ofList []) (.beginningOf .upkeep (some owner) .current)).2 =
         refused ∧

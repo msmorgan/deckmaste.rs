@@ -38,16 +38,16 @@ theorem badChosenCounterKindRead :
 
 /-- "this creature" -/
 theorem okAscribedSelf :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature .this none) = [] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.headed (.type .creature) .this) = [] := by decide
 
 theorem badAscribedTarget :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asType .creature (target isCreature) none)
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.headed (.type .creature) (target isCreature))
       = [.ascribable] := by decide
 
 theorem namedSelfTypeViewRetainsItsSelectedIdentity :
     let before := (stepNounPhrase 64 (DRS.ofList []) .other false
       (.firstMention "view.subject" .this)).1
-    let noun := NounPhrase.asType .creature (.laterMention "view.subject" .this) none
+    let noun := NounPhrase.headed (.type .creature) (.laterMention "view.subject" .this)
     let after := (stepNounPhrase 64 before .other false noun).1
     NounPhrase.checkAt (some .object) before noun = [] ∧
       after.nextId = before.nextId ∧
@@ -55,13 +55,13 @@ theorem namedSelfTypeViewRetainsItsSelectedIdentity :
       (identityBinding "view.subject" after).map (fun r => (r.id, r.ty)) = some (0, [.creature]) := by decide
 
 theorem badMarkerOnTarget :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.asMarker .spell (target isCreature)) =
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.headed .spell (target isCreature)) =
       [.ascribable] := by decide
 
 theorem namedSelfMarkerViewRetainsItsSelectedIdentity :
     let before := (stepNounPhrase 64 (DRS.ofList []) .other false
       (.firstMention "marker.subject" .this)).1
-    let noun := NounPhrase.asMarker .spell (.laterMention "marker.subject" .this)
+    let noun := NounPhrase.headed .spell (.laterMention "marker.subject" .this)
     let after := (stepNounPhrase 64 before .other false noun).1
     NounPhrase.checkAt (some .object) before noun = [] ∧
       after.nextId = before.nextId ∧

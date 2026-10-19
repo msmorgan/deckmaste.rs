@@ -330,7 +330,7 @@ termination_by structural fuel
 def NounPhrase.eventAgentOk (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, phrase with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
-  | n + 1, .asType _ body _ | n + 1, .asMarker _ body => body.eventAgentOk n
+  | n + 1, .headed _ body => body.eventAgentOk n
   | _ + 1, .you | _ + 1, .this | _ + 1, .actor | _ + 1, .pro ..
   | _ + 1, .which | _ + 1, .refl _ | _ + 1, .laterMention .. => true
   | _ + 1, phrase => phrase.playerGroupMention
@@ -549,7 +549,7 @@ def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
 def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, np with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
-  | n + 1, .laterMention _ body | n + 1, .asType _ body _ => body.selfDefinedOk n
+  | n + 1, .laterMention _ body | n + 1, .headed (.type _) body => body.selfDefinedOk n
   | _ + 1, .this => true
   | _, _ => false
 termination_by structural fuel
@@ -1870,28 +1870,16 @@ def stepOps : Nat → StepOps
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1 ++ facet.localChecks true)
-        | .asType t subj _ =>
-          let (drs1, ids, e1) := ops.np drs role inArgSlot subj
-          let errors := kindCheck .object ((ids.head?.bind drs1.findById?).map (·.kind))
-          let refined := ids.foldl (fun state id => state.updateById id fun ref =>
-            match ref.payload with
-            | .object types zone stamp origin size =>
-              { ref with
-                payload := .object (mergeTypes types [t])
-                  (zone.orElse (fun _ => if t.permanent then some .battlefield else none))
-                  stamp origin size }
-            | _ => ref) drs1
-          (refined, ids, e1 ++ errors ++ refuse (subj.ascribableIn drs) .ascribable)
-        | .agree _ _ subj =>
-          let (drs1, ids, errs) := ops.np drs role inArgSlot subj
-          (drs1, ids, errs ++ refuse (subj.plur == .many) .plural ++
-            refuse (subj.det == some .count || subj.det == some .target) .countedMention)
-        | .asMarker marker subj =>
+        | .headed head subj =>
           let (out, ids, errs) := ops.np drs role inArgSlot subj
           let refined := ids.foldl (fun d id => d.updateById id fun r =>
             let payload := match r.payload with
-              | .object ty _ stamp origin size =>
-                match marker with
+              | .object ty zone stamp origin size =>
+                match head with
+                | .type t =>
+                  .object (mergeTypes ty [t])
+                    (zone.orElse (fun _ => if t.permanent then some .battlefield else none))
+                    stamp origin size
                 | .card => r.payload
                 | .ability => .ability origin (some .stack)
                 | .spell => .object ty (some .stack) stamp origin size
@@ -1902,6 +1890,10 @@ def stepOps : Nat → StepOps
             { r with payload }) out
           (refined, ids, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)) ++
             refuse (subj.ascribableIn drs) .ascribable)
+        | .agree _ _ subj =>
+          let (drs1, ids, errs) := ops.np drs role inArgSlot subj
+          (drs1, ids, errs ++ refuse (subj.plur == .many) .plural ++
+            refuse (subj.det == some .count || subj.det == some .target) .countedMention)
         | .resolvedPermanent subj =>
           let (out, ids, errors) := ops.np drs role inArgSlot subj
           let source := ids.head?.bind out.findById?
@@ -2237,7 +2229,7 @@ def stepOps : Nat → StepOps
           let actor := actorShape? drs
           let defaultsToSource := actPermanentActorOf verb && actor.all (·.isYou)
           let (inner, sourceErrors) := if defaultsToSource then
-            let (out, ids, errors) := ops.np drs .subj true (.asMarker .permanent .this)
+            let (out, ids, errors) := ops.np drs .subj true (.headed .permanent .this)
             let shape : ActorShape := {
               kind := .object, isYou := false, ascribable := true, refIds := ids }
             (out.push { det := .the, plur := .one, payload := .actor shape } .other false, errors)

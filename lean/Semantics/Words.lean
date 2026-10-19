@@ -474,8 +474,11 @@ inductive Subtype where
   | spell (label : String)
   deriving DecidableEq, Repr
 
-inductive MarkerWord where
+/-- A Head Noun: the Object Class or Card Type a reference names its referent by ("this
+creature", "this spell", "the emblem that granted it") [CR#109.1,205.2a]. -/
+inductive HeadNoun where
   | card | token | emblem | spell | permanent | ability
+  | type (type : CardType)
   deriving DecidableEq, Repr
 
 /-- A change of a quantity: up by, down by, or set to. -/

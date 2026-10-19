@@ -296,13 +296,13 @@ mutual
     | which
     /-- the source, by self-name or "this spell" [CR#113.7] -/
     | this
-    | asType (type : CardType) (subject : NounPhrase) (subtype : Option Subtype)
-    | asMarker (marker : MarkerWord) (subject : NounPhrase)
+    /-- `subject` named by a Head Noun: "this creature", "this spell". -/
+    | headed (head : HeadNoun) (subject : NounPhrase)
     | resolvedPermanent (spell : NounPhrase)
     /-- The new object `subject` turns into at its next zone change, named before the change
     happens: "the permanent this spell becomes" [CR#400.7]. -/
     | becomes (subject : NounPhrase)
-    | theGrantor (marker : MarkerWord)
+    | theGrantor (head : HeadNoun)
     | you
     /-- Whoever performs the action this phrase is part of: the controller [CR#109.5],
     unless an enclosing `Action.instruct` hands the action to another player or to a

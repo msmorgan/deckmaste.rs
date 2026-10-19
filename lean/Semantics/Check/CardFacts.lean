@@ -18,7 +18,7 @@ termination_by structural fuel
 def NounPhrase.namesThis (p : NounPhrase) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | n + 1, .inCaller b | n + 1, .firstMention _ b => b.namesThis n
-  | n + 1, .asType _ b _ | n + 1, .asMarker _ b => b.namesThis n
+  | n + 1, .headed _ b => b.namesThis n
   | _ + 1, .this => true
   | _, _ => false
 termination_by structural fuel
