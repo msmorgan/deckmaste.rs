@@ -145,6 +145,9 @@
         "NumericalDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative that can head a fused Noun Phrase alone (*choose
         // one*, *choose both*), and a coordination of such (*one or more*).
+        // An ordinal's position from an end (*third from the top*), which
+        // describes where a card is put, never a nominal.
+        "PositionPhrase": (category: Some("AdjectivePhrase")),
         "FusableDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability", "NounKind"]),
         "FusedQuantity": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative's partitive oblique has a Number of its own (*each of
@@ -232,6 +235,7 @@
         "Of": "prep:of",
         "Than": "prep:than",
         "From": "prep:from",
+        "On": "prep:on",
         "As": "prep:as",
         "Plus": "prep:plus",
         "Minus": "prep:minus",
@@ -551,7 +555,9 @@
         // A bare ordinal is attributive (*the second spell*).
         (name: "OrdinalAdjective", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal)], equations: [Require("$.AdjectivePosition", "Attributive")]),
         // An ordinal's position from an end (*third from the top*).
-        (name: "OrdinalFromEnd", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal), Selected("complement", "PrepositionPhrase", ["From"])], equations: [Require("complement.ComplementKind", "NP"), Require("$.AdjectivePosition", "Predicative")]),
+        (name: "OrdinalFromEnd", lhs: "PositionPhrase", rhs: [Numeral("head", Ordinal), Selected("complement", "PrepositionPhrase", ["From"])], equations: [Require("complement.ComplementKind", "NP")]),
+        (name: "PositionDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "PositionPhrase")], transparent: ["head"], cost: 2),
+        (name: "PositionAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "PositionPhrase")], equations: [Require("$.ComplementKind", "AdjP")]),
         (name: "InterleavedPreposition", lhs: "Interleaved", rhs: [Cat("head", "PrepositionPhrase")], cost: 0),
         (name: "InterleavedTemporal", lhs: "Interleaved", rhs: [Cat("head", "TemporalNounPhrase")], cost: 0),
         // An end adverb before a later selected Complement (*divided evenly
@@ -570,6 +576,10 @@
         (name: "CoordinatedPredicative", lhs: "Predicative", rhs: [Cat("head", "DepictiveCoordination")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
+        // A locative *on*-phrase coordinates with a depictive position
+        // (*second from the top or on the bottom*), though alone it modifies
+        // only a nominal.
+        (name: "LocativeAdjunct", lhs: "PredicateAdjunct", rhs: [Selected("filler", "PrepositionPhrase", ["On"])], equations: [Require("filler.ComplementKind", "NP"), Require("$.ComplementKind", "PP")]),
         (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
         (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
