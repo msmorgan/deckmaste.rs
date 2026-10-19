@@ -834,7 +834,8 @@ impl Production {
         if state.coordinator.is_some() && state.conjunct_coordinators.contains(&state.coordinator) {
             return None;
         }
-        if let (Some((_, _, _)), Some(e)) = (self.host_check, &state.adjunct_extension)
+        if self.host_check.is_some()
+            && let Some(e) = &state.adjunct_extension
             && grammar.extension_set(state.host_extensions).contains(e)
         {
             return None;
