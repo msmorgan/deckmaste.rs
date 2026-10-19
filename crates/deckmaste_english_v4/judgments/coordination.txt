@@ -53,4 +53,6 @@
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
 +NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
 +Clause it doesn't untap, and at the beginning of each of your draw steps, put a counter on it => Clause "it doesn't untap"; Clause "at the beginning of each of your draw steps, put a counter on it"
-+NounPhrase up to one target artifact or creature => Nominal "target artifact or creature"; Nominal "artifact or creature"
++NounPhrase up to one target artifact or creature => Nominal "target artifact or creature"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
++NounPhrase up to two target artifacts and/or enchantments => Nominal "target artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
++NounPhrase each other target creature => Nominal "other target creature"; Nominal "target creature"; readings 1
