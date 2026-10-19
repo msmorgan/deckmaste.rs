@@ -79,6 +79,9 @@ pub enum Gap {
     /// A bare infinitival Complement shared by coordinated auxiliaries (*may
     /// and can draw cards*).
     BareInf,
+    /// A preposition's Amount Complement shared by Right Node Raising (*less
+    /// than or equal to X*).
+    Amount,
 }
 
 impl Gap {

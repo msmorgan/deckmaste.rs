@@ -1629,7 +1629,8 @@ impl<'a> Binder<'a> {
                 }
             }
             drafts.push(draft);
-            if gap_capable && frame.complement == SlotFill::NP {
+            if gap_capable && matches!(frame.complement, SlotFill::NP | SlotFill::Amount) {
+                let amount = frame.complement == SlotFill::Amount;
                 let mut stranded = Draft::new(
                     format!(
                         "Valence:{phrase}/{:?}@{:?}{}/gap0",
@@ -1649,9 +1650,9 @@ impl<'a> Binder<'a> {
                     Symbol::Leaf(Test::PrepositionFrame(index)),
                     GapRule::Closed,
                 );
-                stranded.introduces = Gap::NP;
+                stranded.introduces = if amount { Gap::Amount } else { Gap::NP };
                 if let Some(f) = complement_kind {
-                    let kind = self.value(f, "NP")?;
+                    let kind = self.value(f, if amount { "Amount" } else { "NP" })?;
                     stranded
                         .equations
                         .push((Path::Mother(f), Target::Value(kind)));
@@ -2025,6 +2026,7 @@ impl<'a> Binder<'a> {
             (Gap::PP, SlotKind::PP, "-pp"),
             (Gap::Measure, SlotKind::Measure, "-measure"),
             (Gap::BareInf, SlotKind::BareInf, "-bareinf"),
+            (Gap::Amount, SlotKind::Amount, "-amount"),
         ] {
             let Ok(shared) = self.slot_category(kind) else {
                 continue;
@@ -2728,6 +2730,7 @@ fn gap_named(name: &str) -> Option<Gap> {
         "PP" => Gap::PP,
         "Measure" => Gap::Measure,
         "BareInf" => Gap::BareInf,
+        "Amount" => Gap::Amount,
         _ => return None,
     })
 }
