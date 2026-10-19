@@ -992,8 +992,6 @@ mutual
     | attachment (move : AttachMove) (subject : NounPhrase) (host : Option NounPhrase)
     /-- Gain or change control of `subject`. -/
     | changeControl (subject : NounPhrase)
-    /-- "… can't be regenerated this turn": an action plus the deed it forbids. -/
-    | doAndForbid (action : Action) (deed : Deed) (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
     | unlock (door : Door)

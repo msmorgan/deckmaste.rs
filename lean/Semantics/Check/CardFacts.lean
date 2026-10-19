@@ -46,8 +46,7 @@ mutual
     match fuel, i with
     | n + 1, .inCaller b | n + 1, .ownScope _ b | n + 1, .bracketed b
     | n + 1, .enact _ b _ _ | n + 1, .instruct _ b | n + 1, .limited b _
-    | n + 1, .doForEach _ b | n + 1, .doForEachKind _ _ _ b
-    | n + 1, .doAndForbid b _ _ => b.namesThisDoor n
+    | n + 1, .doForEach _ b | n + 1, .doForEachKind _ _ _ b => b.namesThisDoor n
     | _ + 1, .unlock .thisDoor => true
     | n + 1, .withContinuation _ b yes no =>
       b.namesThisDoor n || yes.any (fun i => i.namesThisDoor n) || no.any (fun i => i.namesThisDoor n)

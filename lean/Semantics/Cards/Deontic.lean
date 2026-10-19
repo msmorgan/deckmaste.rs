@@ -470,9 +470,8 @@ def terror : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Terror", cost := some [generic 1, pip .black], types := [.instant],
       text :=
-        [ spell (doAndForbid
-            (destroy (target (and [isCreature, non isArtifact, non (hasColor .black)])))
-            (.action "regenerate") (theVerbed (.action "destroy") .one)) ] } }
+        [ spell (destroyCantRegenerate
+            (target (and [isCreature, non isArtifact, non (hasColor .black)]))) ] } }
 
 def snuffOut : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -480,21 +479,19 @@ def snuffOut : Spelled := spelled <| .singleFaced
       text :=
         [ static (onlyWhile (altCost this_ (some (payLife 4)))
             (exists_ (and [isLand, hasSubtype swamp, youControl]))),
-          spell (doAndForbid
-            (destroy (target (and [isCreature, non (hasColor .black)])))
-            (.action "regenerate") (theVerbed (.action "destroy") .one)) ] } }
+          spell (destroyCantRegenerate (target (and [isCreature, non (hasColor .black)]))) ] } }
 
 def wrathOfGod : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Wrath of God", cost := some [generic 2, pip .white, pip .white],
       types := [.sorcery],
-      text := [spell (doAndForbid (destroy (allOf isCreature)) (.action "regenerate") them)] }
+      text := [spell (destroyCantRegenerate (allOf isCreature))] }
           }
 
 def damnation : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Damnation", cost := some [generic 2, pip .black, pip .black], types := [.sorcery],
-      text := [spell (doAndForbid (destroy (allOf isCreature)) (.action "regenerate") them)] }
+      text := [spell (destroyCantRegenerate (allOf isCreature))] }
           }
 
 def glacialChasm : Spelled := spelled <| .singleFaced
@@ -561,8 +558,8 @@ theorem okBerserkersFrenzyLowRoll : Action.check (DRS.ofList []) berserkersFrenz
 
 /-- Damn -/
 def damnDestroyLine : Action :=
-  doAndForbid (destroy (target isCreature)) (.action "regenerate")
-    (theVerbed (.action "destroy") .one (some creature) .thisWay)
+  doAndForbid (destroy (target isCreature))
+    (regeneration (theVerbed (.action "destroy") .one (some creature) .thisWay))
 theorem okDamnDestroyLine : Action.check (DRS.ofList []) damnDestroyLine = [] := by decide
 
 def nekrataalWhole : Spelled := spelled <| .singleFaced
@@ -574,7 +571,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
           when (does thisCreature enter)
             (doAndForbid (destroy (target (and [isCreature, non isArtifact, not (hasColor
                 .black)])))
-              (.action "regenerate") (that creature)) ],
+              (regeneration (that creature))) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Concussive Bolt, both paragraphs -/

@@ -188,9 +188,8 @@ def doOrDie : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ separateIntoPiles
                 (allOf (and [isCreature, controlledBy (target isPlayer)])) 2,
-              doAndForbid
-                (destroy (allOf (and [isCreature, inPile (pileOfChoice they)])))
-                (.action "regenerate") (theVerbed (.action "destroy") .many) ]) ] } }
+              destroyCantRegenerate
+                (allOf (and [isCreature, inPile (pileOfChoice they)])) ]) ] } }
 
 /-- Liliana of the Veil -/
 def lilianaOfTheVeil : Spelled := spelled <| .singleFaced

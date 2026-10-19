@@ -206,12 +206,16 @@ private theorem postposedTollSeesItsAttachmentPatient :
 
 private theorem linkedProhibitionStartsANewClauseAfterItsAction :
     Action.check (DRS.ofList [])
-      (.doAndForbid
-        (.enact (.action "destroy")
-          (.move (.described .all (.hasType .creature))
-            (.zone .battlefield none) (some (.zone .graveyard none))
-            .departure none []) none none)
-        (.action "regenerate") (.pro .bare .many)) = [] := by decide
+      (.sequentially
+        [ .enact (.action "destroy")
+            (.move (.described .all (.hasType .creature))
+              (.zone .battlefield none) (some (.zone .graveyard none))
+              .departure none []) none none,
+          .establish (.cant .any
+            (.ownScope (some (.action "regenerate"))
+              (.enact (.action "regenerate") (.clearDamage (.inCaller (.pro .bare .many)))
+                none none)) {})
+            (some (.between none (some (.endOf .turn none .current)))) ]) = [] := by decide
 
 private theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
     let change := StaticSpec.characteristicChange (.headed (.type .planeswalker) .this)

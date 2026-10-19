@@ -96,6 +96,10 @@ semantic_definition destroy (subject : NounPhrase) : Action :=
       (.move (.inCaller (.firstMention "destroy.subject" subject)) (.zone .battlefield none)
         (some graveyard) .departure none [])
       none none)
+/-- "Destroy <subject>. It can't be regenerated." / "… They can't be regenerated.": the
+regeneration the prohibition forbids is of the object or objects just destroyed [CR#701.19c]. -/
+semantic_template destroyCantRegenerate (subject : NounPhrase) : Action :=
+  doAndForbid (destroy subject) (regeneration (.pro .bare subject.plur))
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))

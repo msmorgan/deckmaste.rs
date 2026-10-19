@@ -2364,10 +2364,6 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           let drs3 := if phase == .postEvent then applyInPlaceStamp drs2 refIds inst.inferredDeed else drs2
           (drs3, e1 ++ e2)
-        | .doAndForbid body _ subj =>
-          let (drs1, e1) := ops.inst phase patientRole drs body
-          let (drs2, _, e2) := ops.np (nextClause drs1) .other true subj
-          (drs2, e1 ++ e2)
         | .setStatus _ subj =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let kind := (refIds.head?.bind drs1.findById?).map (·.kind) |>.getD (subj.kindIn drs1 .object)

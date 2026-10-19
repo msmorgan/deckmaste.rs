@@ -1442,9 +1442,11 @@ semantic_template createObject (count : Amount) (spec : CreationSpec) (byEffect 
   .createObject count spec byEffect under
 semantic_template distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase) : Action :=
   .distribute verb amount among
-semantic_template doAndForbid (action : Action) (deed : Deed) (subject : NounPhrase) :
-    Action :=
-  .doAndForbid action deed subject
+/-- "<action>. <forbidden> can't happen this turn": the action, then a prohibition of
+`forbidden` until end of turn, its patient read back from the action ("It can't be
+regenerated"). -/
+semantic_template doAndForbid (action forbidden : Action) : Action :=
+  .sequentially [action, .establish (.cant .any forbidden {}) (some untilEndOfTurn)]
 semantic_template doForEach (group : NounPhrase) (body : Action) : Action := .doForEach group body
 semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : Action)
     (domain : Option NounPhrase := none) : Action :=

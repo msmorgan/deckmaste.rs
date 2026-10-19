@@ -285,8 +285,25 @@ theorem distributedDeedReadsBackPluralUnderCondition :
 /-- "... sacrificed permanents can't be regenerated." -/
 theorem distributedDeedRiderReadsBackPlural :
     Action.check (DRS.ofList [])
-      (.doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature))) (.action "regenerate")
-        (theVerbed (.action "sacrifice") .many (some .permanent))) = [] := by
+      (doAndForbid (Templates.instruct (each (.isOpponentOf .you)) (sacrifice (a isCreature)))
+        (regeneration (theVerbed (.action "sacrifice") .many (some .permanent)))) = [] := by
+  decide
+
+/-- "Destroy target creature. It can't be regenerated.": the destroy, then a prohibition until
+end of turn of the regeneration of what it destroyed [CR#701.19c]. -/
+theorem destroyCantRegenerateIsDestroyThenProhibition :
+    destroyCantRegenerate (target isCreature) =
+      .sequentially [destroy (target isCreature),
+        .establish (.cant .any (regeneration it) {}) (some untilEndOfTurn)] := rfl
+
+/-- The prohibition binds the destroyed object: "it" reads the one destroyed creature and "them"
+the destroyed group, and a pronoun of the other number finds nothing to read. -/
+theorem regenerationProhibitionBindsTheDestroyed :
+    Action.check (DRS.ofList []) (destroyCantRegenerate (target isCreature)) = [] ∧
+      Action.check (DRS.ofList []) (destroyCantRegenerate (allOf isCreature)) = [] ∧
+      Action.check (DRS.ofList [])
+        (doAndForbid (destroy (target isCreature)) (regeneration them)) =
+        [.anaphor .bare .many 0] := by
   decide
 
 /-- "... dealt damage, they lose half their life, rounded up." -/
