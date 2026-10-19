@@ -1010,6 +1010,9 @@
         // A purpose *to*-infinitival, unless the head's frame selects one.
         Adjunct(host: "VerbPhrase", adjunct: "ToInf", side: After, host_kind: Predicate, cost: 2),
         Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
+        // A gerund-participle and then a past participle (*blocking or
+        // blocked by this creature*).
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")]),
         // Contrastive *but* joins predicates (*you control but don't own*).
         Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm"]),
@@ -1029,6 +1032,7 @@
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
+        Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
         // A coordination of quantifiers determines as its last one does (*one
         // or more cards*, *one or more of them*; CGEL, Ch. 15 §3.3, p. 1330).

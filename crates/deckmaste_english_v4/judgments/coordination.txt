@@ -18,3 +18,7 @@
 + Cast this spell only during the declare attackers step and only if you've been attacked this step. => PrepositionPhrase "only during the declare attackers step"; PrepositionPhrase "only if you've been attacked this step"
 +AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power" as Complement of than; NounPhrase "this creature's power" as Complement of to
 +NounPhrase target permanent you own and control => RelativeClause "you own and control" gap "permanent"
++NounPhrase creatures blocking or blocked by this creature => NounPhrase "this creature" as Object of block; NounPhrase "this creature" as Complement of by
++ <card=Shapeshifter> As this creature enters, choose a number between 0 and 7. => Amount "0 and 7" as Complement of between
++ Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card. => VerbPhrase "control but don't own"
++ Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature" as Complement of to; NounPhrase "enchanted creature" as Complement of by

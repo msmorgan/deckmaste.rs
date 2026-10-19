@@ -57,7 +57,7 @@
     // *into its owner's library just beneath the top X cards*
     (lemma: "beneath", frames: [(complement: NP, hosts: Predicate)]),
     // *choose a number between 0 and 5*
-    (lemma: "between", frames: [(complement: NP, hosts: Nominal)]),
+    (lemma: "between", frames: [(complement: NP, hosts: Nominal), (complement: Amount, hosts: Nominal)]),
     // *for each target beyond the first*
     (lemma: "beyond", frames: [(complement: NP, hosts: Nominal)]),
     // Exception: *all but the bottom card of each opponent's library*.
