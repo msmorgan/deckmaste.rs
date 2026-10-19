@@ -246,6 +246,15 @@ pub enum SchemaDecl {
         /// coordination (two independent clauses joined by *, and*).
         #[serde(default)]
         delimiter: Option<char>,
+        /// The Category of the conjuncts, when the coordination is of a
+        /// function its conjuncts fill (a depictive *tapped and attacking*).
+        #[serde(default)]
+        conjunct: Option<Ident>,
+        /// A feature whose value the two conjuncts of a binary coordination
+        /// must not share: a coordination of unlike categories in one
+        /// function (CGEL, Ch. 15 §3.3); serial coordinations are not derived.
+        #[serde(default)]
+        unlike: Option<Ident>,
     },
 }
 

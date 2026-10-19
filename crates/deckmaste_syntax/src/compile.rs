@@ -169,6 +169,8 @@ struct Draft {
     /// The coordinator a correlative coordination's serial tail must end with.
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
+    /// Conjuncts that must differ in a feature: (first, last, feature).
+    unlike: Option<(usize, usize, usize)>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -204,6 +206,7 @@ impl Draft {
             requires_coordination: None,
             paired_coordinator: None,
             uncoordinated: Vec::new(),
+            unlike: None,
         }
     }
 
@@ -928,6 +931,7 @@ impl<'a> Binder<'a> {
         production.predicative = draft.predicative;
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
+        production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
                 "duplicate production id `{}`",
@@ -1990,6 +1994,9 @@ impl<'a> Binder<'a> {
                 )?);
             }
             // Serial with the Oxford comma: X , X , Coord X — one tree per chain.
+            if conjoin.unlike.is_some() {
+                continue;
+            }
             let mut serial = Draft::new(id("serial"), conjoin.lhs, *cost);
             if let Some(marker) = &marker {
                 serial.child("correlative", Symbol::Leaf(marker.clone()), GapRule::Closed);
@@ -2002,6 +2009,9 @@ impl<'a> Binder<'a> {
             serial.distinct_coordinator = vec![a];
             conjoin.close(self, &mut serial, &[a, t], Edge::Whole { last: false })?;
             drafts.push(serial);
+        }
+        if conjoin.unlike.is_some() {
+            return Ok(drafts);
         }
         let mut more = Draft::new(
             format!("Coordination:{}/serial-more", conjoin.tail_name),
@@ -2039,7 +2049,8 @@ impl<'a> Binder<'a> {
             self.grammar.schemas.iter().find(
                 |s| matches!(s, SchemaDecl::Coordination { category: c, .. } if c == category),
             );
-        if first.is_some_and(|first| std::ptr::eq(first, schema))
+        if conjoin.conjunct == conjoin.lhs
+            && first.is_some_and(|first| std::ptr::eq(first, schema))
             && self.out.category_gap[conjoin.lhs]
         {
             let np = self.slot_category(SlotKind::NP)?;
@@ -2079,6 +2090,9 @@ enum Edge {
 /// A Coordination schema's resolved conjunct agreement.
 struct Conjoin {
     lhs: usize,
+    /// The conjuncts' Category: `lhs` unless the schema names another.
+    conjunct: usize,
+    unlike: Option<usize>,
     tail_id: usize,
     tail_name: String,
     features: Vec<usize>,
@@ -2100,12 +2114,18 @@ impl Conjoin {
             unshared,
             equations,
             proximate,
+            conjunct,
+            unlike,
             ..
         } = schema
         else {
             unreachable!("a coordination schema")
         };
         let lhs = binder.category(category)?;
+        let conjunct = conjunct
+            .as_deref()
+            .map_or(Ok(lhs), |c| binder.category(c))?;
+        let unlike = unlike.as_deref().map(|f| binder.feature(f)).transpose()?;
         let features = |names: &[Ident]| {
             names
                 .iter()
@@ -2139,6 +2159,8 @@ impl Conjoin {
         })?;
         Ok(Self {
             lhs,
+            conjunct,
+            unlike,
             tail_id,
             tail_name,
             features: binder.out.category_features[lhs].clone(),
@@ -2154,7 +2176,7 @@ impl Conjoin {
     fn conjunct(&self) -> Symbol {
         Symbol::Cat {
             binding: None,
-            category: self.lhs,
+            category: self.conjunct,
             prepositions: None,
             host: None,
         }
@@ -2192,6 +2214,7 @@ impl Conjoin {
         let b = draft.child("last", self.conjunct(), GapRule::Shared);
         draft.coordinator = Some(c);
         draft.distinct_coordinator = vec![a, b];
+        draft.unlike = self.unlike.map(|f| (a, b, f));
         self.close(binder, &mut draft, &[a, b], Edge::Whole { last: true })?;
         Ok(draft)
     }

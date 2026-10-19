@@ -124,7 +124,10 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   every schema whose coordinators admit the paired one also derives the
   coordination after the marker. A coordination of Preposition Phrases keeps
   up to two prepositions for selection, and admits only the Host Categories
-  every conjunct admits. A constituent that begins with a dependent set off by
+  every conjunct admits. A coordination of a function may name its `conjunct`
+  Category, and `unlike` a feature its two conjuncts must not share: unlike
+  categories coordinated in one function (a depictive *tapped and attacking*),
+  binary only. A constituent that begins with a dependent set off by
   a comma (*When …, …*) is never a conjunct other than the last: the preposed
   dependent scopes over the whole coordination.
 

@@ -155,6 +155,9 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
+    /// Two conjuncts that may not share a feature value: (first, last,
+    /// feature).
+    pub unlike: Option<(usize, usize, usize)>,
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
@@ -291,6 +294,7 @@ pub(crate) fn resolve(
         predicative: None,
         paired_coordinator: None,
         uncoordinated: Vec::new(),
+        unlike: None,
         id,
         lhs,
         rhs,
@@ -321,6 +325,7 @@ pub(crate) fn resolve(
             other_preposition: None,
             mixed_prepositions: false,
             conjunct_hosts: u8::MAX,
+            unlike_value: None,
             host_extensions: 0,
             adjunct_extension: None,
         },
@@ -399,6 +404,8 @@ pub(crate) struct State {
     mixed_prepositions: bool,
     /// The Host Categories every conjunct so far admits, or the head admits.
     conjunct_hosts: u8,
+    /// The first conjunct's value of an `unlike` feature.
+    unlike_value: Option<u16>,
     host_extensions: u16,
     adjunct_extension: Option<Extension>,
 }
@@ -553,6 +560,27 @@ impl Production {
         }
     }
 
+    /// Records the first unlike conjunct's value, or `None` if the last one
+    /// shares it (or either has none).
+    fn unlike_conjuncts(
+        &self,
+        next: &mut State,
+        position: usize,
+        lookup: &dyn Fn(usize) -> Option<u16>,
+    ) -> Option<()> {
+        if let Some((first, last, feature)) = self.unlike {
+            let value = lookup(feature);
+            if position == first {
+                next.unlike_value = value;
+            } else if position == last
+                && (value.is_none() || next.unlike_value.is_none() || value == next.unlike_value)
+            {
+                return None;
+            }
+        }
+        Some(())
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -608,6 +636,7 @@ impl Production {
         {
             return None;
         }
+        self.unlike_conjuncts(&mut next, position, &lookup)?;
         for &(feature, var) in &self.child_vars[position] {
             if let Some(value) = lookup(feature) {
                 match next.vars[var].get() {

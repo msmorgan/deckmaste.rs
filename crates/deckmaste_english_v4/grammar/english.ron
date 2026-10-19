@@ -148,6 +148,15 @@
         "AdverbPhrase": (features: ["AdjunctPosition"]),
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
+        // A depictive Adjunct of unlike categories coordinated (*onto the
+        // battlefield tapped and attacking*; CGEL, Ch. 15 §3.3), and each of
+        // its conjuncts, by the kind of phrase that fills it.
+        "Depictive": (category: Some("Predicative"), function: true, features: ["ComplementKind"]),
+        "DepictiveCoordination": (category: Some("Predicative"), function: true, features: ["ComplementKind"]),
+        // A predicate Adjunct of unlike categories coordinated (*only during
+        // your turn and only once each turn*), and each of its conjuncts.
+        "PredicateAdjunct": (function: true, features: ["ComplementKind"]),
+        "AdjunctCoordination": (category: Some("PredicateAdjunct"), function: true, features: ["ComplementKind"]),
         // An adverbial Complement: an Adverb Phrase or a Noun Phrase of
         // frequency (*more than twice*, *more than three times*).
         "Adverbial": (function: true),
@@ -519,6 +528,12 @@
         (name: "InterleavedSupplement", lhs: "Interleaved", rhs: [Punct(','), Cat("supplement", "VerbPhrase"), Punct(',')],
             equations: [Require("supplement.VerbForm", "PastParticiple"), Require("supplement.Voice", "Passive")], heavy: ["supplement"], cost: 3),
         (name: "InterleavedDepictive", lhs: "Interleaved", rhs: [Cat("head", "AdjectivePhrase")], equations: [Require("head.ComplementKind", "Intransitive"), Exclude("head.Voice", "Passive"), Exclude("head.Grade", "Comparative"), Exclude("head.Determination", "Overt"), Exclude("head.AdjectivePosition", "Attributive")], cost: 0),
+        (name: "AdjectivalDepictive", lhs: "Depictive", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
+        (name: "GerundDepictive", lhs: "Depictive", rhs: [Cat("filler", "Gerund")], equations: [Require("$.ComplementKind", "Gerund")]),
+        (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
+        (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
+        (name: "AdverbialAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdverbPhrase")], equations: [Require("filler.AdjunctPosition", "End"), Require("$.ComplementKind", "AdvP")]),
+        (name: "CoordinatedAdjunct", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjunctCoordination")], transparent: ["head"], cost: 2),
         (name: "DepictiveAdjective", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "AdjectivePhrase")], equations: [Exclude("adjunct.Voice", "Passive"), Exclude("adjunct.Grade", "Comparative"), Exclude("adjunct.Determination", "Overt"), Exclude("adjunct.AdjectivePosition", "Attributive")], transparent: ["head"], cost: 2),
 
         (name: "PhrasalAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "PhrasalAdverb")], equations: [Require("$.AdjunctPosition", "Phrasal")]),
@@ -1044,6 +1059,8 @@
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),
         Coordination(category: "PrepositionPhrase", coordinators: "Coordinator", proximate: ["ComplementKind", "Number", "Determination", "Case", "NounKind", "Countability"]),
         Coordination(category: "AdverbPhrase", coordinators: "Coordinator"),
+        Coordination(category: "DepictiveCoordination", conjunct: Some("Depictive"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
         // A coordination of quantifiers determines as its last one does (*one
