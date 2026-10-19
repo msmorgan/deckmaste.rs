@@ -241,7 +241,7 @@ def causticTar : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isLand,
-          static (abilityGrant (enchanted (.type .land))
+          static (abilityGrant (enchanted land)
             (activated tapSymbol (instruct (target isPlayer) (loseLife (.lit 3))))) ] } }
 
 /-- Saheeli, Filigree Master -/
@@ -280,7 +280,7 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
 
 /-- Elspeth's Talent -/
 def elspethsTalentGrant : StaticSpec :=
-  abilityGrant (enchanted (.type .planeswalker))
+  abilityGrant (enchanted planeswalker)
     (activated (loyaltySymbol (.up 1))
       (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)))
 theorem okElspethsTalentGrant : StaticSpec.check (DRS.ofList []) elspethsTalentGrant = [] := by decide
@@ -557,7 +557,7 @@ def powerArtifact : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isArtifact,
           static (costShift
-            (allOf (and [abilityHead .anyActivated, abilityOf (enchanted (.type .artifact))]))
+            (allOf (and [abilityHead .anyActivated, abilityOf (enchanted artifact)]))
             (less (.lit 2) (some (.lit 1)))) ] } }
 
 /-- Fervent Champion -/
@@ -688,9 +688,9 @@ def shatteredEgo : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (getsPt (enchanted (.type .creature)) (down (.lit 3)) (down (.lit 0))),
+          static (getsPt (enchanted creature) (down (.lit 3)) (down (.lit 0))),
           activated (mana [generic 3, pip .blue, pip .blue])
-            (putInto (enchanted (.type .creature)) (fromTop 3 library)) ] } }
+            (putInto (enchanted creature) (fromTop 3 library)) ] } }
 
 def shuFarmer : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -753,7 +753,7 @@ def generalTazriPump : Ability :=
     (sequentially
       [ get (each (and [isCreature, hasSubtype ally, youControl]))
           (up (letter .x)) (up (letter .x)) (some untilEndOfTurn),
-        define .x (distinctCount .color (those (.type .creature))) ])
+        define .x (distinctCount .color (those creature)) ])
 theorem okGeneralTazriPump : Ability.check (DRS.ofList []) generalTazriPump = [] := by decide
 /-- Diplomatic Escort -/
 def diplomaticEscortLine : Ability :=
@@ -791,7 +791,7 @@ def sugarCoat : Spelled := spelled <| .singleFaced
       text :=
         [ flash,
           keywordSubject (.named "enchant") (or [isCreature, hasSubtype food]),
-          static (conjunction [ qualityChange (enchanted .permanent) .sets
+          static (conjunction [ qualityChange (enchanted permanent) .sets
                 (bundle
                   { characteristics :=
                     { types := [.artifact], subtypes := [food],
@@ -841,8 +841,8 @@ def darksteelGarrison : Spelled := spelled <| .singleFaced
     { name := "Darksteel Garrison", cost := some [generic 2], types := [.artifact],
       subtypes := [fortification],
       text :=
-        [ static (abilityGrant (fortified (.type .land)) indestructible),
-          whenever (does any (tapForMana (fortified (.type .land))))
+        [ static (abilityGrant (fortified land) indestructible),
+          whenever (does any (tapForMana (fortified land)))
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)),
           keywordCosting (.named "fortify") (mana [generic 3]) ] } }
 
@@ -856,14 +856,14 @@ def embercleave : Spelled := spelled <| .singleFaced
           static (costShift «this»
             (less (forEach (.lit 1) (and [isCreature, isAttacking, youControl])))),
           when (does thisEquipment enter) (attachTo it (target (and [isCreature, youControl]))),
-          static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit
+          static (conjunction [ getsPt (equipped creature) (up (.lit
                 1)) (up
                   (.lit 1)),
-              abilityGrant (equipped (.type .creature)) doubleStrike,
-              abilityGrant (equipped (.type .creature)) trample ] (subject :=
+              abilityGrant (equipped creature) doubleStrike,
+              abilityGrant (equipped creature) trample ] (subject :=
                                                                      some
                                                                         (equipped
-                                                                           (.type .creature)))),
+                                                                           creature))),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
 
 /-- Tattoo Ward -/
@@ -874,9 +874,9 @@ def tattooWard : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (retention
-            (conjunction [ getsPt (enchanted (.type .creature)) (up
+            (conjunction [ getsPt (enchanted creature) (up
                   (.lit 1)) (up (.lit 1)),
-                abilityGrant (enchanted (.type .creature))
+                abilityGrant (enchanted creature)
                   (keywordQuality (.named "protection") isEnchantment) ] (subject :=
                                                                             some
                                                                                (enchanted
@@ -895,7 +895,7 @@ def floatingShield : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           static (entersChoosing thisAura .color),
           static (retention
-            (abilityGrant (enchanted (.type .creature)) (keywordQuality (.named "protection")
+            (abilityGrant (enchanted creature) (keywordQuality (.named "protection")
                 (ofChosen .color)))
             thisAura),
           activated (perform (sacrifice thisAura))
@@ -908,7 +908,7 @@ def ghostfireBlade : Spelled := spelled <| .singleFaced
     { name := "Ghostfire Blade", cost := some [generic 1], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 2)) (up (.lit 2))),
+        [ static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 2))),
           keywordCosting (.named "equip") (mana [generic 3]),
           static (costShift
             (allOf (and [ abilityHead (.keyword (.named "equip")), abilityOf «this»,
@@ -1003,7 +1003,7 @@ def leoninBola : Spelled := spelled <| .singleFaced
     { name := "Leonin Bola", cost := some [generic 1], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (abilityGrant (equipped (.type .creature))
+        [ static (abilityGrant (equipped creature)
             (activated (compound [tapSymbol, perform (unattach (theGrantor .permanent))])
               (setStatus .tapped (target isCreature)))),
           keywordCosting (.named "equip") (mana [generic 1]) ] } }

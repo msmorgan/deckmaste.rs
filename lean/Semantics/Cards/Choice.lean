@@ -27,9 +27,9 @@ theorem okZombieInfestation : Ability.check (DRS.ofList []) zombieInfestation = 
 def fulgentDistraction : Action :=
   sequentially
     [ choose (targets (exactly 2) isCreature),
-      setStatus .tapped (those (.type .creature)),
+      setStatus .tapped (those creature),
       unattach (allOf (and [ hasSubtype equipment,
-                               attachedTo (those (.type .creature)) ])) ]
+                               attachedTo (those creature) ])) ]
 theorem okFulgentDistraction : Action.check (DRS.ofList []) fulgentDistraction = [] := by decide
 
 def continueSpell : Action :=
@@ -85,13 +85,13 @@ theorem okRainOfThorns : Action.check (DRS.ofList []) rainOfThorns = [] := by de
 def rankleMasterOfPranks : Action :=
   chooseModes anyNumber
     [ sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them],
-      sequentially [instruct eachPlayer (loseLife (.lit 1)), instruct (those .player)
+      sequentially [instruct eachPlayer (loseLife (.lit 1)), instruct (those player)
                       (draw (.lit 1))],
       instruct eachPlayer (sacrifice (aTheirChoice isCreature)) ]
 theorem okRankleMasterOfPranks : Action.check (DRS.ofList []) rankleMasterOfPranks = [] := by decide
 
 def myrkulsEdict : Action :=
-  sequentially [choose anOpponent, instruct (that .player) (sacrifice (aTheirChoice isCreature))]
+  sequentially [choose anOpponent, instruct (that player) (sacrifice (aTheirChoice isCreature))]
 theorem okMyrkulsEdict : Action.check (DRS.ofList []) myrkulsEdict = [] := by decide
 def moltingHarpy : Action := doUnless (sacrifice thisCreature) (mana [generic
     2])
@@ -146,7 +146,7 @@ def raffinesGuidance : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (getsPt (enchanted (.type .creature)) (up (.lit 1)) (up (.lit 1))),
+          static (getsPt (enchanted creature) (up (.lit 1)) (up (.lit 1))),
           static (can you
                     (cast «this» (from_ := some yourGraveyard)
                        (payment := payingInstead (mana [generic 2, pip .white])))) ] } }
@@ -178,7 +178,7 @@ def museVesselPlay : Ability :=
   activated (mana [generic 1])
     (sequentially
       [ choose (a exiledWithThisArtifact),
-        establishThroughout (can you (play (that .card))) thisTurn ])
+        establishThroughout (can you (play (that card))) thisTurn ])
 theorem okMuseVesselPlay : Ability.check (DRS.ofList []) museVesselPlay = [] := by decide
 
 def demonicConsultationChoice : Action := choose (a (quality .cardName))
@@ -194,7 +194,7 @@ def phyrexianIngesterPump : Ability :=
   static (conjunction [ getsPt thisCreature (up (letter .x)) (up (letter .y)),
       letterDefinition .x
         (powerOf (the (and [isCreature, in_ (exiledWith thisCreature)]))),
-      letterDefinition .y (toughnessOf (that .card)) ])
+      letterDefinition .y (toughnessOf (that card)) ])
 theorem okPhyrexianIngesterPump : Ability.check (DRS.ofList []) phyrexianIngesterPump = [] := by decide
 
 /-- Phyrexian Ingester -/
@@ -229,7 +229,7 @@ def murmursFromBeyond : Spelled := spelled <| .singleFaced
         [ spell (sequentially
             [ reveal (topSlice (.lit 3)),
               instruct anOpponent (choose (someOf (exactly 1) them)),
-              putInto (that .card) graveyard,
+              putInto (that card) graveyard,
               putInto (theRest .object) hand ]) ] } }
 
 /-- Helica Glider -/
@@ -265,7 +265,7 @@ def runeSnag : Spelled := spelled <| .singleFaced
 /-- Tahngarth, First Mate -/
 def tahngarthChoosesDefender : Action :=
   choose (a (and [ or [isPlaneswalker, isPlayer],
-               inCombat .attackedBy (some (that .player)) ]))
+               inCombat .attackedBy (some (that player)) ]))
 theorem okTahngarthChoosesDefender :
     Action.check ((stepGameEvent 512 (DRS.ofList []) tahngarthHeader).1) tahngarthChoosesDefender = [] := by
   decide
@@ -325,9 +325,9 @@ theorem okForgottenLoreChoice : Action.check (DRS.ofList []) forgottenLoreChoice
 def psychicPaperChoiceAndReads : List Ability :=
   [ static (conjunction [ attachChoosing thisEquipment .cardName,
         attachChoosing thisEquipment (.subtype .creature) ]),
-    static (conjunction [ qualityChange (equipped (.type .creature)) .sets
+    static (conjunction [ qualityChange (equipped creature) .sets
           (chosenQuality (ofTheLastChosen .cardName)),
-        qualityChange (equipped (.type .creature)) .sets
+        qualityChange (equipped creature) .sets
           (chosenQuality (ofTheLastChosen (.subtype .creature))) ]) ]
 theorem okPsychicPaperChoiceAndReads : Ability.checkText (DRS.ofList []) psychicPaperChoiceAndReads = [] := by
   decide
@@ -348,7 +348,7 @@ def convincingMirage : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isLand,
           static (entersChoosingFrom thisAura (.subtype .land) basicTypesOnly),
-          static (qualityChange (enchanted (.type .land)) .sets
+          static (qualityChange (enchanted land) .sets
             (chosenQuality (ofChosen (.subtype .land)))) ] } }
 
 /-- Realmwright -/
@@ -821,7 +821,7 @@ def rhysticStudy : Spelled := spelled <| .singleFaced
     { name := "Rhystic Study", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
         [ whenever (does anOpponent (cast (a isSpell)))
-            (instruct (that .player) (doUnless (instruct you (may (draw (.lit 1))))
+            (instruct (that player) (doUnless (instruct you (may (draw (.lit 1))))
               (mana [generic 1]))) ] } }
 
 def gandalfWhiteRider : Spelled := spelled <| .singleFaced
@@ -891,7 +891,7 @@ def tidalFlats : Spelled := spelled <| .singleFaced
             (doForEach (each (and [isCreature, isAttacking, not (hasKeyword (.the (.named "flying")))]))
               (instruct (controllerOf it) (doUnless (gain
                   (allOf (and [ isCreature, youControl,
-                                 inCombat .blockerOf (some (that (.type .creature))) ]))
+                                 inCombat .blockerOf (some (that creature)) ]))
                   firstStrike (some untilEndOfTurn)) (mana [generic 1])))) ] }
                       }
 
@@ -943,14 +943,14 @@ def memoricideSearch : Action :=
   sequentially
     [ choose (a (qualityFrom .cardName (nameOfCard (non isLand)))),
       searchZonesOf (target isPlayer) (exactly 1) (named chosenName),
-      instruct (that .player) shuffle ]
+      instruct (that player) shuffle ]
 theorem okMemoricideSearch : Action.check (DRS.ofList []) memoricideSearch = [] := by decide
 /-- Lost Hours -/
 def lostHoursPlacement : Action :=
   sequentially
     [ instruct (target isPlayer) revealHand,
       choose (a (and [non isLand, in_ (handOf they)])),
-      instruct (that .player) (put it (fromTop 3 library)) ]
+      instruct (that player) (put it (fromTop 3 library)) ]
 theorem okLostHoursPlacement : Action.check (DRS.ofList []) lostHoursPlacement = [] := by decide
 /-- Aether Gust -/
 def aetherGustPlacement : Action :=
@@ -1025,8 +1025,8 @@ def boreasChargerSpell : Action :=
   sequentially
     [ choose (a opponentWithMoreLands),
       searchLibraryFor (exactlyOf theDifference) (hasSubtype plains),
-      reveal (those .card),
-      putOntoBattlefieldTapped (someOf (exactly 1) (those .card)),
+      reveal (those card),
+      putOntoBattlefieldTapped (someOf (exactly 1) (those card)),
       putInto (theRest .object) hand ]
 theorem okBoreasChargerSpell : Action.check (DRS.ofList []) boreasChargerSpell = [] := by decide
 
@@ -1040,7 +1040,7 @@ def sandstoneOracle : Spelled := spelled <| .singleFaced
           when (does thisCreature enter)
             (sequentially
               [ choose anOpponent,
-                doIf (compareAmt (countOf (cardIn (handOf (that .player)))) .greater
+                doIf (compareAmt (countOf (cardIn (handOf (that player)))) .greater
                         (countOf (cardIn yourHand)))
                   (draw theDifference) ]) ],
       power := stat 4, toughness := stat 4 } }
@@ -1050,7 +1050,7 @@ def slithermuseTrigger : Ability :=
   when (does thisCreature leave)
     (sequentially
       [ choose anOpponent,
-        doIf (compareAmt (countOf (cardIn (handOf (that .player)))) .greater
+        doIf (compareAmt (countOf (cardIn (handOf (that player)))) .greater
                 (countOf (cardIn yourHand)))
           (draw theDifference) ])
 theorem okSlithermuseTrigger : Ability.check (DRS.ofList []) slithermuseTrigger = [] := by decide
@@ -1082,7 +1082,7 @@ def moonlitMeditation : Spelled := spelled <| .singleFaced
                     (would (by_ you)
                        (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) [])
                           false)) (may
-                                     (create groupSize (copyOf (enchanted .permanent))
+                                     (create groupSize (copyOf (enchanted permanent))
                                         [])) none .repeatedly (some oncePerTurn)) ] } }
 
 def discardUpToTwoThenDrawThatMany : Action :=
@@ -1094,7 +1094,7 @@ def drawUpToTwoThenGainPerShortfall : Action :=
   instruct eachPlayer
     (sequentially
       [ may (draw (upTo (.lit 2))),
-        instruct (that .player) (gainLife (times (.lit 2) shortOfCeiling)) ])
+        instruct (that player) (gainLife (times (.lit 2) shortOfCeiling)) ])
 theorem okDrawUpToTwoThenGainPerShortfall :
     Action.check (DRS.ofList []) drawUpToTwoThenGainPerShortfall = [] := by decide
 
@@ -1133,10 +1133,10 @@ def soulRansom : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (controlGrant you (enchanted (.type .creature))),
+          static (controlGrant you (enchanted creature)),
           activatedBy
             (perform (repeatTimes (.lit 2)
-              (sequentially [choose (a (cardIn hand)), discard (that .card)])))
+              (sequentially [choose (a (cardIn hand)), discard (that card)])))
             (sequentially [instruct (controllerOf thisAura) (sacrifice itPermanent), instruct they (draw (.lit 2))])
             yourOpponents ] } }
 
@@ -1247,7 +1247,7 @@ def akiriUnattachOffer : Ability :=
     (may
       (unattach (a (and [ hasSubtype equipment,
                             attachedTo (a (and [isCreature, youControl])) ])))
-      (some (setStatus .tapped (that (.type .creature)))))
+      (some (setStatus .tapped (that creature))))
 theorem okAkiriUnattachOffer : Ability.check (DRS.ofList []) akiriUnattachOffer = [] := by decide
 /-- Summoning Materia -/
 def summoningMateriaTopCast : Ability :=

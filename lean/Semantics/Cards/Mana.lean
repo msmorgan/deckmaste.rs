@@ -17,7 +17,7 @@ namespace Semantics.Cards
 
 def boshIronGolem : Ability :=
   activated (compound [mana [generic 3, pip .red], perform (sacrifice (a isArtifact))])
-    (instruct «this» (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some (.type .artifact)))) (target isAnyTarget) .noncombatOnly))
+    (instruct «this» (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some artifact))) (target isAnyTarget) .noncombatOnly))
 theorem okBoshIronGolem : Ability.check (DRS.ofList []) boshIronGolem = [] := by decide
 def pyromancy : Ability :=
   activated (compound [mana [generic 3], perform (discard (aAtRandom (cardIn yourHand)))])
@@ -342,7 +342,7 @@ def elementalResonance : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isPermanent,
           at_ (beginningOfYour .firstMain)
-            (addMana (.lit 1) (matchingManaCostOf (enchanted .permanent))) ] } }
+            (addMana (.lit 1) (matchingManaCostOf (enchanted permanent))) ] } }
 
 /-- Steelswarm Operator -/
 def steelswarmOperatorMana : Action :=
@@ -368,7 +368,7 @@ def riddleOfLightning : Spelled := spelled <| .singleFaced
             [ choose (target isAnyTarget),
               scry (.lit 3),
               reveal (topSlice (.lit 1)),
-              instruct «this» (dealDamage (statOf (.stat .manaValue) (that .card)) thatJoin .noncombatOnly) ]) ] } }
+              instruct «this» (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin .noncombatOnly) ]) ] } }
 
 def unstableFrontier : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -424,7 +424,7 @@ def theFlux : Spelled := spelled <| .singleFaced
           when (chapterMark [2, 3, 4, 5])
             (sequentially
               [ exile (topSlice (.lit 1)),
-                establishThroughout (can you (play (that .card))) thisTurn ]),
+                establishThroughout (can you (play (that card))) thisTurn ]),
           when (chapterMark [6]) (addMana (.lit 6) (manaOf [[.of .red]])) ] } }
 
 def dragonstormGlobe : Spelled := spelled <| .singleFaced
@@ -647,7 +647,7 @@ def adNauseam : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ reveal (topSlice (.lit 1)),
-              putInto (that .card) hand,
+              putInto (that card) hand,
               loseLife (statOf (.stat .manaValue) it),
               may (repeat_ anyNumberOfTimes) ]) ] } }
 
@@ -660,7 +660,7 @@ theorem okNahiriLoyaltyRead : Predicate.checkAt .object (DRS.ofList []) nahiriLo
 def causticBroncoLoss : Action :=
   sequentially
     [ reveal (topSlice (.lit 1)),
-      putInto (that .card) hand,
+      putInto (that card) hand,
       doOnlyIf (loseLife (statOf (.stat .manaValue) it))
         (not (matches_ thisCreature (hasDesignation (.named "saddled"))))
         (some (instruct eachOpponent (loseLife thatMuch))) ]
@@ -737,7 +737,7 @@ def birthingPodSearch : Ability :=
     (searchLibraryFor (exactly 1)
       (and [isCreature,
              hasManaValue .eq (plus (.lit 1) (statOf (.stat .manaValue)
-                   (theVerbed (.action "sacrifice") .one (some (.type .creature)))))]))
+                   (theVerbed (.action "sacrifice") .one (some creature))))]))
 theorem okBirthingPodSearch : Ability.check (DRS.ofList []) birthingPodSearch = [] := by decide
 
 /-- Hibernation's End -/
@@ -747,7 +747,7 @@ def hibernationsEndTrigger : Ability :=
       (sequentially
         [ searchLibraryFor (exactly 1)
             (and [isCreature, hasManaValue .eq (countersOn (.named "ageCounter") thisEnchantment)]),
-          putOntoBattlefield (that .card),
+          putOntoBattlefield (that card),
           shuffle ]))
 theorem okHibernationsEndTrigger : Ability.check (DRS.ofList []) hibernationsEndTrigger = [] := by decide
 
@@ -949,7 +949,7 @@ def talionTheKindlyLord : Spelled := spelled <| .singleFaced
             (does anOpponent (cast (a (and [isSpell,
                         compare .eq chosenNumber (axes := [.stat .manaValue, .stat .power, .stat
                           .toughness])]))))
-            (sequentially [instruct (that .player) (loseLife (.lit 2)), draw (.lit 1)]) ],
+            (sequentially [instruct (that player) (loseLife (.lit 2)), draw (.lit 1)]) ],
       power := stat 3, toughness := stat 4 } }
 
 /-- Braid of Fire -/
@@ -1033,7 +1033,7 @@ def manaFlare : Spelled := spelled <| .singleFaced
     { name := "Mana Flare", cost := some [generic 2, pip .red], types := [.enchantment],
       text :=
         [ whenever (does (a isPlayer) (tapForMana (a isLand)))
-            (instruct (that .player) (addMana (.lit 1) (ofTypeProducedBy (that (.type .land)))))
+            (instruct (that player) (addMana (.lit 1) (ofTypeProducedBy (that land))))
                 ] } }
 
 /-- Shimmerwilds Growth -/
@@ -1044,10 +1044,10 @@ def shimmerwildsGrowth : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isLand,
           static (entersChoosing thisAura .color),
-          static (qualityChange (enchanted (.type .land)) .sets
+          static (qualityChange (enchanted land) .sets
             (chosenQuality (ofChosen .color))),
-          whenever (does any (tapForMana (enchanted (.type .land))))
-            (instruct (controllerOf (that (.type .land))) (addMana (.lit 1) ofTheChosenColor)) ] } }
+          whenever (does any (tapForMana (enchanted land)))
+            (instruct (controllerOf (that land)) (addMana (.lit 1) ofTheChosenColor)) ] } }
 
 /-- Gauntlet of Power -/
 def gauntletOfPower : Spelled := spelled <| .singleFaced
@@ -1058,7 +1058,7 @@ def gauntletOfPower : Spelled := spelled <| .singleFaced
           static (getsPt (allOf (and [isCreature, ofChosen .color])) (up (.lit 1)) (up (.lit 1))),
           whenever
             (does any (tapForMana (a (and [isLand, hasSupertype .basic])) (some (ofColor thatColor))))
-            (instruct (controllerOf (that (.type .land))) (addMana (.lit 1) ofTheChosenColor)) ] } }
+            (instruct (controllerOf (that land)) (addMana (.lit 1) ofTheChosenColor)) ] } }
 
 /-- Chrome Mox -/
 def chromeMoxMana : Ability :=

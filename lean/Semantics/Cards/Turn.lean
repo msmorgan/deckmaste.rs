@@ -23,14 +23,14 @@ def throughTheBreach : Action :=
   may
     (putOntoBattlefield (a (and [isCreature, in_ yourHand])))
     (some (sequentially
-      [ gainHaste (that (.type .creature)) none,
-        atNext .endStep (sacrifice (that (.type .creature))) ]))
+      [ gainHaste (that creature) none,
+        atNext .endStep (sacrifice (that creature)) ]))
 theorem okThroughTheBreach : Action.check (DRS.ofList []) throughTheBreach = [] := by decide
 
 def turnToMist : Action :=
   sequentially
     [ exile (target isCreature),
-      atNext .endStep (putOntoBattlefield (that .card)) ]
+      atNext .endStep (putOntoBattlefield (that card)) ]
 theorem okTurnToMist : Action.check (DRS.ofList []) turnToMist = [] := by decide
 
 def voyagerStaff : Ability :=
@@ -85,11 +85,11 @@ def apathy : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (doesntUntap (enchanted (.type .creature))
-            (some (controllerOf (enchanted (.type .creature))))),
-          at_ (beginningOfPossessed .upkeep (controllerOf (enchanted (.type .creature))))
-            (instruct (that .player) (may (discard (aAtRandom (cardIn (handOf (that .player)))))
-              (some (untap (that (.type .creature)))))) ] } }
+          static (doesntUntap (enchanted creature)
+            (some (controllerOf (enchanted creature)))),
+          at_ (beginningOfPossessed .upkeep (controllerOf (enchanted creature)))
+            (instruct (that player) (may (discard (aAtRandom (cardIn (handOf (that player)))))
+              (some (untap (that creature))))) ] } }
 
 def felidarSovereign : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -261,9 +261,9 @@ def paradoxHaze : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
-          at_ (nthOccurrence (.nth 1) (beginningOfPossessed .upkeep (enchanted .player))
+          at_ (nthOccurrence (.nth 1) (beginningOfPossessed .upkeep (enchanted player))
                  (some .turn))
-            (instruct (that .player) (additionalStep .upkeep none (.lit 1))) ] } }
+            (instruct (that player) (additionalStep .upkeep none (.lit 1))) ] } }
 
 def ninthDoctorAdditionalUpkeep : Action := additionalStep .upkeep none (.lit 1)
 theorem okNinthDoctorAdditionalUpkeep :
@@ -276,7 +276,7 @@ def ritesOfFlourishing : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ at_ (beginningOfPossessed .drawStep eachPlayer)
-            (instruct (that .player) (draw (.lit 1))),
+            (instruct (that player) (draw (.lit 1))),
           static (can eachPlayer (play (counted (additional (exactly 1)) isLand))
             (timing := some onEachOfTheirTurns)) ] } }
 
@@ -338,15 +338,15 @@ def curseOfTheBloodyTome : Spelled := spelled <| .singleFaced
       types := [.enchantment], subtypes := [aura, curse],
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
-          at_ (beginningOfPossessed .upkeep (enchanted .player))
-            (instruct (that .player) (mill (.lit 2) they)) ] } }
+          at_ (beginningOfPossessed .upkeep (enchanted player))
+            (instruct (that player) (mill (.lit 2) they)) ] } }
 
 def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
         [ triggeredIf (beginningOfPossessed .upkeep eachOpponent)
-            (compareAmt (countOf (cardIn (handOf (that .player)))) .atMost (.lit 1))
+            (compareAmt (countOf (cardIn (handOf (that player)))) .atMost (.lit 1))
             (instruct they (loseLife (.lit 3))) ] } }
 
 def centaurOfAttention : Spelled := spelled <| .singleFaced
@@ -379,7 +379,7 @@ def selfSacrificeThenExile : Ability :=
   activated (perform (sacrifice thisArtifact))
     (sequentially
       [ exile (target isCreature),
-        atNext .endStep (putOntoBattlefield (that .card)) ])
+        atNext .endStep (putOntoBattlefield (that card)) ])
 theorem okSelfSacrificeThenExile : Ability.check (DRS.ofList []) selfSacrificeThenExile = [] := by decide
 
 /-- Mirror Universe -/
@@ -417,8 +417,8 @@ def landTax : Spelled := spelled <| .singleFaced
             (may
               (sequentially
                 [ searchLibraryFor (upTo 3) (and [isLand, hasSupertype .basic]),
-                  reveal (those .card),
-                  putInto (those .card) hand,
+                  reveal (those card),
+                  putInto (those card) hand,
                   shuffle ])) ] } }
 
 /-- Beckoning Will-o'-Wisp -/
@@ -483,7 +483,7 @@ def thawingGlaciers : Spelled := spelled <| .singleFaced
           activated (compound [mana [generic 1], tapSymbol])
             (sequentially
               [ searchLibraryFor (exactly 1) (and [isLand, hasSupertype .basic]),
-                putOntoBattlefieldTapped (that .card),
+                putOntoBattlefieldTapped (that card),
                 shuffle,
                 atNext .cleanup (putInto thisLand hand) ]) ] } }
 
@@ -495,7 +495,7 @@ def bloodFrenzy : Spelled := spelled <| .singleFaced
         [ spell (sequentially
               [ get (target (and [isCreature, or [isAttacking, isBlocking]]))
                   (up (.lit 4)) (up (.lit 0)) (some untilEndOfTurn),
-                atNext .endStep (destroy (that (.type .creature))) ]) (timing :=
+                atNext .endStep (destroy (that creature)) ]) (timing :=
                                                                          some
                                                                             (beforePart
                                                                                .combatDamage none)) ] } }
@@ -512,8 +512,8 @@ def berserk : Spelled := spelled <| .singleFaced
                     modification it .toughness (up (.lit 0)),
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
-                atNext .endStep (doOnlyIf (destroy (that (.type .creature)))
+                atNext .endStep (doOnlyIf (destroy (that creature))
                     (happened attack (that
-                      (.type .creature)) soFarThisTurn)) ]) (timing := some (beforePart .combatDamage none)) ] } }
+                      creature) soFarThisTurn)) ]) (timing := some (beforePart .combatDamage none)) ] } }
 
 end Semantics.Cards

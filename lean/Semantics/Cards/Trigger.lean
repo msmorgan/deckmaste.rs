@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 def gracefulReprieve : Action :=
-  delayWithin (does (target isCreature) die) thisTurn (putOntoBattlefield (that .card))
+  delayWithin (does (target isCreature) die) thisTurn (putOntoBattlefield (that card))
 theorem okGracefulReprieve : Action.check (DRS.ofList []) gracefulReprieve = [] := by decide
 
 def cloudkinSeer : Ability := when (does thisCreature enter) (draw (.lit 1))
@@ -46,7 +46,7 @@ def beastWhisperer : Ability :=
 theorem okBeastWhisperer : Ability.check (DRS.ofList []) beastWhisperer = [] := by decide
 def mesmericOrb : Ability :=
   whenever (does any (setStatus .untapped (a isPermanent)))
-    (instruct (controllerOf (that .permanent)) (mill (.lit 1) they))
+    (instruct (controllerOf (that permanent)) (mill (.lit 1) they))
 theorem okMesmericOrb : Ability.check (DRS.ofList []) mesmericOrb = [] := by decide
 def secretPlans : Ability :=
   whenever (does any (turnFaceUp (a (and [isPermanent, youControl]))))
@@ -90,8 +90,8 @@ theorem okSomberwaldAlpha : Ability.check (DRS.ofList []) somberwaldAlpha = [] :
 def vertigoSpawn : Ability :=
   whenever (does thisCreature (block (a isCreature)))
     (sequentially
-      [ setStatus .tapped (that (.type .creature)),
-        skipUntap (that (.type .creature)) (.lit 1) ])
+      [ setStatus .tapped (that creature),
+        skipUntap (that creature) (.lit 1) ])
 theorem okVertigoSpawn : Ability.check (DRS.ofList []) vertigoSpawn = [] := by decide
 def orneryDilophosaur : Ability :=
   triggeredIf (does thisCreature attack)
@@ -141,7 +141,7 @@ def lichsMasteryLoss : Ability :=
   when (does thisEnchantment leave) loseGame
 theorem okLichsMasteryLoss : Ability.check (DRS.ofList []) lichsMasteryLoss = [] := by decide
 def phageTheUntouchable : Ability :=
-  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (instruct (that .player) loseGame)
+  whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (instruct (that player) loseGame)
 theorem okPhageTheUntouchable : Ability.check (DRS.ofList []) phageTheUntouchable = [] := by decide
 def elderscaleWurm : Ability :=
   triggeredIf (does thisCreature enter) (compareAmt (lifeTotalOf you) .less (.lit 7))
@@ -366,7 +366,7 @@ def unstableShapeshifter : Spelled := spelled <| .singleFaced
       subtypes := [shapeshifter],
       text :=
         [ whenever (does (a (and [isCreature, otherThan «this»])) enter)
-            (establish (copyChange thisCreature (that (.type .creature)) [exceptThisAbility])) ],
+            (establish (copyChange thisCreature (that creature) [exceptThisAbility])) ],
       power := stat 0, toughness := stat 1 } }
 
 def prismRing : Spelled := spelled <| .singleFaced
@@ -385,7 +385,7 @@ def aislingLeprechaun : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOr (does thisCreature (block (a isCreature)))
             [does (by_ (a isCreature)) (block thisCreature)]
-            (becomeColor (that (.type .creature)) (.some [.green]) none) ],
+            (becomeColor (that creature) (.some [.green]) none) ],
       power := stat 1, toughness := stat 1 } }
 
 def avenShrine : Spelled := spelled <| .singleFaced
@@ -450,7 +450,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
             (does (a (and [isCreature, happenedTo (actor thisCreature) (dealDamage anyAmount               (asMarker .permanent (relative .object))) soFarThisTurn])) die)
             (sequentially
               [ putOntoBattlefieldUnderYourControl it,
-                become (that (.type .creature))
+                become (that creature)
                   { characteristics := { colors := [.black], subtypes := [zombie] } }
                   none ]) ],
       power := stat 3, toughness := stat 5 } }
@@ -482,8 +482,8 @@ theorem okFaridehResultRead : Ability.check (DRS.ofList []) faridehResultRead = 
 def jawsOfDefeat : Ability :=
   whenever (does (a (and [isCreature, youControl])) enter)
     (instruct (target isOpponent) (loseLife
-      (arith .differenceBetween (powerOf (that (.type .creature)))
-        (toughnessOf (that (.type .creature))))))
+      (arith .differenceBetween (powerOf (that creature))
+        (toughnessOf (that creature)))))
 theorem okJawsOfDefeat : Ability.check (DRS.ofList []) jawsOfDefeat = [] := by decide
 /-- Defiling Daemogoth -/
 def defilingDaemogothDrain : Action :=
@@ -493,8 +493,8 @@ def defilingDaemogothDrain : Action :=
 theorem okDefilingDaemogothDrain : Action.check (DRS.ofList []) defilingDaemogothDrain = [] := by decide
 def skullsporeNexusTrigger : Ability :=
   whenever (does (counted (atLeast 1) (and [isNontoken, and [isCreature, youControl]])) die)
-    (createToken (creatureTokenOf (totalOf (.stat .power) (those .card))
-        (totalOf (.stat .power) (those .card))
+    (createToken (creatureTokenOf (totalOf (.stat .power) (those card))
+        (totalOf (.stat .power) (those card))
         [.green] [fungus, dinosaur]))
 theorem okSkullsporeNexusTrigger : Ability.check (DRS.ofList []) skullsporeNexusTrigger = [] := by decide
 /-- Wavebreak Hippocamp -/
@@ -513,7 +513,7 @@ theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriu
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=
   when (does (a isPlayer) (pay anyCost .once .unpaid (some thisEnchantment) (some (.named "cumulativeUpkeep"))))
-    (instruct (that .player) (exile (each (cardIn (libraryOf they)))))
+    (instruct (that player) (exile (each (cardIn (libraryOf they)))))
 theorem okThoughtLashTrigger : Ability.check (DRS.ofList []) thoughtLashTrigger = [] := by decide
 /-- Heart of Bogardan -/
 def heartOfBogardanHeader : GameEvent :=
@@ -879,7 +879,7 @@ def bloodReckoning : Spelled := spelled <| .singleFaced
         [ whenever
             (does (a isCreature)
                (attack (some (youOr (a (and [isPlaneswalker, youControl]))))))
-            (instruct (controllerOf (that (.type .creature))) (loseLife (.lit 1))) ] } }
+            (instruct (controllerOf (that creature)) (loseLife (.lit 1))) ] } }
 
 /-- Jeskai Ascendancy's first trigger -/
 def jeskaiAscendancyPump : Ability :=
@@ -887,7 +887,7 @@ def jeskaiAscendancyPump : Ability :=
     [isSpell, non isCreature]))))
     (sequentially
       [ get (bare (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn),
-        untap (those (.type .creature)) ])
+        untap (those creature) ])
 theorem okJeskaiAscendancyPump : Ability.check (DRS.ofList []) jeskaiAscendancyPump = [] := by decide
 def herosDemise : Action := destroy (target (and [isCreature, hasSupertype .legendary]))
 theorem okHerosDemise : Action.check (DRS.ofList []) herosDemise = [] := by decide
@@ -924,7 +924,7 @@ def dread : Spelled := spelled <| .singleFaced
 
 private semantic_template creatureDamagedByAttachedHostThisTurn (attachment : AttachWord) : NounPhrase :=
   a (.and [isCreature,
-    .did ⟨.actor (.attachHost attachment (.type .creature)),
+    .did ⟨.actor (.attachHost attachment creature),
       .dealDamage .anyAmount .which .any, .duration soFarThisTurn none⟩])
 
 /-- Vampiric Embrace. -/
@@ -935,13 +935,13 @@ def vampiricEmbrace : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (getsPt
-            (enchanted (.type .creature))
+            (enchanted creature)
             (up (.lit 2)) (up (.lit 2))),
           static (abilityGrant
-            (enchanted (.type .creature)) flying),
+            (enchanted creature) flying),
           whenever (does (creatureDamagedByAttachedHostThisTurn .enchanted) die)
             (putCounters (.lit 1) (printedKind p1p1Counter)
-              (that (.type .creature)) .many) ] } }
+              (that creature) .many) ] } }
 
 /-- Scythe of the Wretched. -/
 def scytheOfTheWretched : Spelled := spelled <| .singleFaced
@@ -950,13 +950,13 @@ def scytheOfTheWretched : Spelled := spelled <| .singleFaced
       subtypes := [equipment],
       text :=
         [ static (getsPt
-            (equipped (.type .creature))
+            (equipped creature)
             (up (.lit 2)) (up (.lit 2))),
           whenever (does (creatureDamagedByAttachedHostThisTurn .equipped) die)
             (sequentially
-              [ returnTo (that .card) battlefield
+              [ returnTo (that card) battlefield
                   [(under you)],
-                attachTo thisEquipment (that (.type .creature)) ]),
+                attachTo thisEquipment (that creature) ]),
           keywordCosting (.named "equip") (mana [generic 4]) ] } }
 
 end Semantics.Cards

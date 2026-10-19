@@ -83,7 +83,7 @@ def deathsShadow : Spelled := spelled <| .singleFaced
       power := stat 13, toughness := stat 13 } }
 
 def spontaneousMutation : Ability :=
-  static (conjunction [ getsPt (enchanted (.type .creature)) (down (letter .x)) (down (.lit 0)),
+  static (conjunction [ getsPt (enchanted creature) (down (letter .x)) (down (.lit 0)),
       letterDefinition .x (countOf (cardIn yourGraveyard)) ])
 theorem okSpontaneousMutation : Ability.check (DRS.ofList []) spontaneousMutation = [] := by decide
 
@@ -107,7 +107,7 @@ def scourgeOfTheSkyclaves : Ability :=
     (minus (.lit 20) (aggregate .max (.playerStat .lifeTotal) isPlayer)))
 theorem okScourgeOfTheSkyclaves : Ability.check (DRS.ofList []) scourgeOfTheSkyclaves = [] := by decide
 def aettirAndPriwen : Ability :=
-  static (conjunction [ getsBase (equipped (.type .creature)) (letter .x) (letter .x),
+  static (conjunction [ getsBase (equipped creature) (letter .x) (letter .x),
       letterDefinition .x (lifeTotalOf you) ])
 theorem okAettirAndPriwen : Ability.check (DRS.ofList []) aettirAndPriwen = [] := by decide
 
@@ -163,7 +163,7 @@ def rainOfGore : Spelled := spelled <| .singleFaced
         (would
           (controllerOf it)
           (gainLife anyAmount)))
-      (instruct (that .player) (loseLife thatMuch))) ] } }
+      (instruct (that player) (loseLife thatMuch))) ] } }
 
 /-- Master Chef -/
 def masterChefGrantedAbility : Ability :=
@@ -457,7 +457,7 @@ def egoErasureBody : Action :=
 theorem okEgoErasureBody : Action.check (DRS.ofList []) egoErasureBody = [] := by decide
 /-- Lithoform Blight -/
 def lithoformBlightLoss : StaticSpec :=
-  conjunction [ qualityChange (enchanted (.type .land)) .loses (everyTypeOf .land),
+  conjunction [ qualityChange (enchanted land) .loses (everyTypeOf .land),
       allAbilityLoss it none ]
 theorem okLithoformBlightLoss : StaticSpec.check (DRS.ofList []) lithoformBlightLoss = [] := by decide
 
@@ -505,7 +505,7 @@ def blatantThievery : Spelled := spelled <| .singleFaced
       text :=
         [ spell (doForEach eachOpponent
             (establish
-              (controlGrant you (target (controlledBy (that .player)))))) ] } }
+              (controlGrant you (target (controlledBy (that player)))))) ] } }
 
 /-- "activated abilities of <p> can't be activated" -/
 def cantActivateAbilitiesOf (p : Predicate) : StaticSpec :=
@@ -645,7 +645,7 @@ def maskwoodNexusTypes : Ability :=
 theorem okMaskwoodNexusTypes : Ability.check (DRS.ofList []) maskwoodNexusTypes = [] := by decide
 /-- Luxior, Giada's Gift -/
 def luxiorEquippedPermanent : Ability :=
-  static (qualityChange (equipped .permanent) .adds
+  static (qualityChange (equipped permanent) .adds
     (bundle { characteristics := { types := [.creature] } }))
 theorem okLuxiorEquippedPermanent : Ability.check (DRS.ofList []) luxiorEquippedPermanent = [] := by decide
 /-- Nahiri, the Unforgiving's compleated reminder -/
@@ -664,7 +664,7 @@ def anaxPowerDefinition : Ability :=
 theorem okAnaxPowerDefinition : Ability.check (DRS.ofList []) anaxPowerDefinition = [] := by decide
 /-- Aspect of Wolf -/
 def aspectOfWolf : Ability :=
-  static (conjunction [ getsPt (enchanted (.type .creature)) (up (letter .x)) (up (letter .y)),
+  static (conjunction [ getsPt (enchanted creature) (up (letter .x)) (up (letter .y)),
       letterDefinition .x (half .down
         (countOf (and [hasSubtype forest, youControl]))),
       letterDefinition .y (half .up
@@ -744,7 +744,7 @@ theorem okFaeburrowElderPump : Ability.check (DRS.ofList []) faeburrowElderPump 
 /-- Bonds of Faith -/
 def bondsOfFaithPump : Ability :=
   static (onlyWhile
-    (getsPt (enchanted (.type .creature)) (up (.lit 2)) (up (.lit 2)))
+    (getsPt (enchanted creature) (up (.lit 2)) (up (.lit 2)))
     (matches_ it (hasSubtype human)))
 theorem okBondsOfFaithPump : Ability.check (DRS.ofList []) bondsOfFaithPump = [] := by decide
 
@@ -792,7 +792,7 @@ def bastionProtectorPump : Ability :=
 theorem okBastionProtectorPump : Ability.check (DRS.ofList []) bastionProtectorPump = [] := by decide
 /-- Luxior, Giada's Gift -/
 def luxiorTypeSetting : Ability :=
-  static (conjunction [ qualityChange (equipped .permanent) .loses
+  static (conjunction [ qualityChange (equipped permanent) .loses
         (bundle { characteristics := { types := [.planeswalker] } }),
       qualityChange it .adds (bundle { characteristics := { types := [.creature] } }) ])
 theorem okLuxiorTypeSetting : Ability.check (DRS.ofList []) luxiorTypeSetting = [] := by decide

@@ -269,12 +269,12 @@ def kitsuneMystic : Spelled := spelled <| .flip
         [ activated (mana [generic 1])
             (attachTo
               (target (and [hasSubtype aura, attachedTo (a isCreature)]))
-              (a (and [isCreature, otherThan (that (.type .creature))]))) ],
+              (a (and [isCreature, otherThan (that creature)]))) ],
       power := stat 4, toughness := stat 5 } }
 
 /-- Vesuvan Shapeshifter -/
 def vesuvanShapeshifterCopyDuration : Action :=
-  establishThroughout (copyChange thisCreature (that (.type .creature))
+  establishThroughout (copyChange thisCreature (that creature)
       [ alsoHas
           (at_ (beginningOfYour .upkeep)
             (may (setStatus .faceDown thisCreature))) ]) (untilEvent
@@ -331,15 +331,15 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
     { name := "Neglected Heirloom", cost := some [generic 1], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 1))),
+        [ static (getsPt (equipped creature) (up (.lit 1)) (up (.lit 1))),
           when
-            (does any (turnOver (equipped (.type .creature))))
+            (does any (turnOver (equipped creature)))
             (transform thisEquipment),
           keywordCosting (.named "equip") (mana [generic 1]) ] } }
   { characteristics :=
     { name := "Ashmouth Blade", types := [.artifact], subtypes := [equipment],
       text :=
-        [ static (conjunction [ modification (equipped (.type .creature)) .power (up (.lit 3)),
+        [ static (conjunction [ modification (equipped creature) .power (up (.lit 3)),
               modification it .toughness (up (.lit 3)),
               abilityGrant it firstStrike ]),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
@@ -354,10 +354,10 @@ def harvestHand : Spelled := spelled <| .transforming
   { characteristics :=
     { name := "Scrounged Scythe", types := [.artifact], subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 1))),
+        [ static (getsPt (equipped creature) (up (.lit 1)) (up (.lit 1))),
           static
-            (onlyWhile (abilityGrant (equipped (.type .creature)) menace)
-              (matches_ (equipped (.type .creature))
+            (onlyWhile (abilityGrant (equipped creature) menace)
+              (matches_ (equipped creature)
                 (hasSubtype human))),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
@@ -538,7 +538,7 @@ def garrukRelentless : Spelled := spelled <| .transforming
           activated (loyaltySymbol .zero)
             (sequentially
               [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature) .noncombatOnly),
-                instruct (that (.type .creature)) (dealDamage (powerOf (that (.type .creature)))
+                instruct (that creature) (dealDamage (powerOf (that creature))
                                                      thisPlaneswalker .noncombatOnly) ]),
           activated (loyaltySymbol .zero)
             (createToken (creatureToken 2 2 [.green] [wolf])) ],
@@ -608,7 +608,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
                   (target (and [ isInstantOrSorcery, isCard,
                                   hasManaValue .atMost (powerOf thisCreature),
                                   in_ yourGraveyard ])),
-                copy .fromCardZone (that .card) (.lit 1) [],
+                copy .fromCardZone (that card) (.lit 1) [],
                 establish
                   (can you (cast (that .copy) (payment := withoutPaying))) ]) ],
       power := stat 4, toughness := stat 3 } }

@@ -25,7 +25,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
                   (sequentially
                     [ reveal
                         (fromAmong (exactly 1) (or [hasColor .blue, isArtifact]) them),
-                      putInto (that .card) hand ]),
+                      putInto (that card) hand ]),
                 putInto (theRest .object) onBottom (riders := [(inOrder .randomOrder)]) ]),
           activated
             (compound [mana [generic 5, pip .blue], tapSymbol,
@@ -154,7 +154,7 @@ def truthOrConsequencesVote : Ability :=
         draw (votesFor "truth"),
         choose (aAtRandom isOpponent),
         instruct «this»
-          (dealDamage (times (.lit 3) (votesFor "consequences")) (that .player) .noncombatOnly) ]))
+          (dealDamage (times (.lit 3) (votesFor "consequences")) (that player) .noncombatOnly) ]))
 theorem okTruthOrConsequencesVote : Ability.check (DRS.ofList []) truthOrConsequencesVote = [] := by decide
 
 /-- Death or Glory -/

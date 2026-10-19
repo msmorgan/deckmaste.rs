@@ -21,7 +21,7 @@ theorem okChangeOfHeart : Action.check (DRS.ofList []) changeOfHeart = [] := by 
 def blindblast : Action :=
   sequentially
     [instruct «this» (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
-       (cant (that (.type .creature)) block) thisTurn]
+       (cant (that creature) block) thisTurn]
 theorem okBlindblast : Action.check (DRS.ofList []) blindblast = [] := by decide
 def blindingFlare : Action :=
   establishThroughout (cant (targets anyNumber isCreature) block) thisTurn
@@ -29,7 +29,7 @@ theorem okBlindingFlare : Action.check (DRS.ofList []) blindingFlare = [] := by 
 def cowardKiller : Action :=
   sequentially
     [ establishThroughout (cant (target isCreature) block) thisTurn,
-      become (that (.type .creature)) { characteristics := { subtypes := [coward] } }
+      become (that creature) { characteristics := { subtypes := [coward] } }
         (some untilEndOfTurn) ]
 theorem okCowardKiller : Action.check (DRS.ofList []) cowardKiller = [] := by decide
 
@@ -44,14 +44,14 @@ theorem okAuriokSiegeSledDenial : Ability.check (DRS.ofList []) auriokSiegeSledD
 def blindblastWhole : Action :=
   sequentially
     [ instruct «this» (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
-        (cant (that (.type .creature)) block) thisTurn,
+        (cant (that creature) block) thisTurn,
       draw (.lit 1) ]
 theorem okBlindblastWhole : Action.check (DRS.ofList []) blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Action :=
   sequentially
     [ instruct «this» (dealDamage (.lit 1) (eachOf (targets (upTo 2) isCreature)) .noncombatOnly),
-      establishThroughout (cant (those (.type .creature)) block) thisTurn ]
+      establishThroughout (cant (those creature) block) thisTurn ]
 theorem okSparkmagesGambit : Action.check (DRS.ofList []) sparkmagesGambit = [] := by decide
 
 /-- Glacial Chasm -/
@@ -136,7 +136,7 @@ def bloodshedFever : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (must (enchanted (.type .creature)) attack) ] } }
+          static (must (enchanted creature) attack) ] } }
 
 /-- Pacifism -/
 def pacifism : Spelled := spelled <| .singleFaced
@@ -146,8 +146,8 @@ def pacifism : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-                    [cant (enchanted (.type .creature)) attack, cant
-                       (enchanted (.type .creature)) block]) ] } }
+                    [cant (enchanted creature) attack, cant
+                       (enchanted creature) block]) ] } }
 
 /-- Everybody Lives! -/
 def everybodyLivesGateLine : Action :=
@@ -171,7 +171,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
   conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof"))))))),
-      cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those (.type .creature))])) trigger ]
+      cant (allOf (and [abilityHead (.keyword (.named "ward")), abilityOf (those creature)])) trigger ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
 
 /-- Mornsong Aria -/
@@ -186,7 +186,7 @@ def brainwash : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (gatedBy (mana [generic 3]) (enchanted (.type .creature)) attack) ] } }
+          static (gatedBy (mana [generic 3]) (enchanted creature) attack) ] } }
 
 def enkiraHostileScavenger : Ability :=
   static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
@@ -220,7 +220,7 @@ def aetherTunnel : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ getsPt (enchanted (.type .creature)) (up (.lit 1)) (up (.lit 0)),
+          static (conjunction [ getsPt (enchanted creature) (up (.lit 1)) (up (.lit 0)),
               cant any (block it) ]) ] } }
 
 def excruciator : Spelled := spelled <| .singleFaced
@@ -249,7 +249,7 @@ def gideonJura : Spelled := spelled <| .singleFaced
             (establishThroughout
               (must (allOf (and [isCreature, controlledBy (target isOpponent)]))
                  (attack (some thisPlaneswalker)))
-              (duringNextTurnOf (that .player))),
+              (duringNextTurnOf (that player))),
           activated (loyaltySymbol (.down 2)) (destroy (target (and [isCreature, isTapped]))),
           activated (loyaltySymbol .zero)
             (sequentially
@@ -277,7 +277,7 @@ def whippoorwillImmunity : Action :=
     [ establishThroughout (cant any (regeneration (target isCreature))) thisTurn,
       establishThroughout (preventionBan .any
           (damageDealt unattributed
-             (toRecipient (that (.type .creature)))) .noRedirectEither) thisTurn ]
+             (toRecipient (that creature))) .noRedirectEither) thisTurn ]
 theorem okWhippoorwillImmunity : Action.check (DRS.ofList []) whippoorwillImmunity = [] := by decide
 
 def callInAProfessional : Spelled := spelled <| .singleFaced
@@ -352,7 +352,7 @@ def blindingAngel : Spelled := spelled <| .singleFaced
         [ flying,
           whenever
             (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
-            (instruct (that .player) (skipPart .combat (.lit 1))) ],
+            (instruct (that player) (skipPart .combat (.lit 1))) ],
       power := stat 2, toughness := stat 4 } }
 
 def eonHub : Spelled := spelled <| .singleFaced
@@ -443,7 +443,7 @@ def demotion : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ cant (enchanted (.type .creature)) block,
+          static (conjunction [ cant (enchanted creature) block,
               cant any (activate (allOf (and [abilityHead .anyActivated, abilityOf it]))) ]) ] } }
 
 def terror : Spelled := spelled <| .singleFaced
@@ -542,7 +542,7 @@ theorem okBerserkersFrenzyLowRoll : Action.check (DRS.ofList []) berserkersFrenz
 /-- Damn -/
 def damnDestroyLine : Action :=
   doAndForbid (destroy (target isCreature)) (.action "regenerate")
-    (theVerbed (.action "destroy") .one (some (.type .creature)) .thisWay)
+    (theVerbed (.action "destroy") .one (some creature) .thisWay)
 theorem okDamnDestroyLine : Action.check (DRS.ofList []) damnDestroyLine = [] := by decide
 
 def nekrataalWhole : Spelled := spelled <| .singleFaced
@@ -554,7 +554,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
           when (does thisCreature enter)
             (doAndForbid (destroy (target (and [isCreature, non isArtifact, not (hasColor
                 .black)])))
-              (.action "regenerate") (that (.type .creature))) ],
+              (.action "regenerate") (that creature)) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Concussive Bolt, both paragraphs -/
@@ -670,18 +670,18 @@ def oppressiveRays : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-                    [gatedBy (mana [generic 3]) (enchanted (.type .creature)) attack,
-                     gatedBy (mana [generic 3]) (enchanted (.type .creature)) block]),
+                    [gatedBy (mana [generic 3]) (enchanted creature) attack,
+                     gatedBy (mana [generic 3]) (enchanted creature) block]),
           static (costShift
             (allOf (and [ abilityHead .anyActivated,
-                           abilityOf (enchanted (.type .creature)) ]))
+                           abilityOf (enchanted creature) ]))
             (more (.lit 3))) ] } }
 
 /-- Distortion Strike -/
 def distortionStrikeLine : Action :=
   sequentially
     [ get (target isCreature) (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn),
-      establishThroughout (cant any (block (that (.type .creature)))) thisTurn ]
+      establishThroughout (cant any (block (that creature))) thisTurn ]
 theorem okDistortionStrikeLine : Action.check (DRS.ofList []) distortionStrikeLine = [] := by decide
 
 /-- Retro-Mutation -/
@@ -692,7 +692,7 @@ def retroMutation : Spelled := spelled <| .singleFaced
       text :=
         [ flash,
           keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ qualityChange (enchanted (.type .creature)) .sets
+          static (conjunction [ qualityChange (enchanted creature) .sets
                 (bundle { characteristics := { subtypes := [turtle] } }),
               getsBase it (.lit 0) (.lit 1),
               cant it attack,
@@ -724,9 +724,9 @@ def revokePrivileges : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ cant (enchanted (.type .creature)) attack,
-        cant (enchanted (.type .creature)) block,
-        cant (enchanted (.type .creature)) (crew (allOf (hasSubtype
+          static (conjunction [ cant (enchanted creature) attack,
+        cant (enchanted creature) block,
+        cant (enchanted creature) (crew (allOf (hasSubtype
             vehicle))) ]) ] } }
 
 /-- Harried Spearguard -/
@@ -753,8 +753,8 @@ def arrest : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-            [ cant (enchanted (.type .creature)) attack,
-              cant (enchanted (.type .creature)) block,
+            [ cant (enchanted creature) attack,
+              cant (enchanted creature) block,
               cant any (activate (allOf (and [abilityHead .anyActivated, abilityOf it]))) ]) ] } }
 
 /-- Conqueror's Flail -/

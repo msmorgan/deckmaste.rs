@@ -55,7 +55,7 @@ theorem okPyriteSpellbomb : Ability.check (DRS.ofList []) pyriteSpellbomb = [] :
 def karplusanYeti : Action :=
   sequentially
     [ dealDamageOwnPower thisCreature (target isCreature),
-      instruct (that (.type .creature)) (dealDamage (powerOf it) thisCreature .noncombatOnly) ]
+      instruct (that creature) (dealDamage (powerOf it) thisCreature .noncombatOnly) ]
 theorem okKarplusanYeti : Action.check (DRS.ofList []) karplusanYeti = [] := by decide
 def suddenDemise : Action :=
   sequentially
@@ -65,7 +65,7 @@ theorem okSuddenDemise : Action.check (DRS.ofList []) suddenDemise = [] := by de
 def caseOfTheGatewayExpress : Action :=
   sequentially
     [ choose (target (and [isCreature, youDontControl])),
-      instruct (each (and [isCreature, youControl])) (dealDamage (.lit 1) (that (.type .creature)) .noncombatOnly) ]
+      instruct (each (and [isCreature, youControl])) (dealDamage (.lit 1) (that creature) .noncombatOnly) ]
 theorem okCaseOfTheGatewayExpress : Action.check (DRS.ofList []) caseOfTheGatewayExpress = [] := by decide
 def arrowsOfJustice : Action :=
   dealDamage (.lit 4) (target (and [isCreature, or [isAttacking, isBlocking]])) .noncombatOnly
@@ -74,7 +74,7 @@ def flamesOfTheRazeBoar : Action :=
   sequentially
     [ dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent])) .noncombatOnly,
       doOnlyIf
-        (dealDamage (.lit 2) (each (and [isCreature, isOther, controlledBy (that .player)]))
+        (dealDamage (.lit 2) (each (and [isCreature, isOther, controlledBy (that player)]))
            .noncombatOnly)
         (exists_ (and [isCreature, youControl, hasPower .atLeast (.lit 4)])) ]
 theorem okFlamesOfTheRazeBoar : Action.check (DRS.ofList []) flamesOfTheRazeBoar = [] := by decide
@@ -105,7 +105,7 @@ theorem okUlvenwaldTracker : Action.check (DRS.ofList []) ulvenwaldTracker = [] 
 def botBashingTime : Action :=
   sequentially
     [ dealDamage (.lit 6) (target isCreature) .noncombatOnly,
-      replaceEvent (would any (move (that (.type .creature)) battlefield (some graveyard) .departure)) (exile it) (some thisTurn) ]
+      replaceEvent (would any (move (that creature) battlefield (some graveyard) .departure)) (exile it) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
   replaceNextEvent (would you (draw anyAmount)) (instruct «this» (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) (some thisTurn)
@@ -163,7 +163,7 @@ def aladdinsRing : Spelled := spelled <| .singleFaced
 def chandrasRevolution : Action :=
   sequentially
     [ dealDamage (.lit 4) (target isCreature) .noncombatOnly, setStatus .tapped (target isLand),
-      skipUntap (that (.type .land)) (.lit 1) ]
+      skipUntap (that land) (.lit 1) ]
 theorem okChandrasRevolution : Action.check (DRS.ofList []) chandrasRevolution = [] := by decide
 def arbalestElite : Ability :=
   activated (compound [mana [generic 2, pip .white], tapSymbol])
@@ -186,7 +186,7 @@ def extraArms : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          whenever (does (enchanted (.type .creature)) attack)
+          whenever (does (enchanted creature) attack)
             (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ] } }
 
 def chainReaction : Spelled := spelled <| .singleFaced
@@ -204,7 +204,7 @@ def blackVise : Spelled := spelled <| .singleFaced
         [ static (entersChoosingPlayer thisArtifact (some (players isOpponent))),
           at_ (beginningOfPossessed .upkeep (the isChosenPlayer))
             (sequentially
-              [ instruct thisArtifact (dealDamage (letter .x) (that .player) .noncombatOnly),
+              [ instruct thisArtifact (dealDamage (letter .x) (that player) .noncombatOnly),
                 define .x (minus (countOf (cardIn (handOf they))) (.lit 4)) ]) ] } }
 
 def harshSustenance : Spelled := spelled <| .singleFaced
@@ -233,7 +233,7 @@ def lionHeart : Spelled := spelled <| .singleFaced
       subtypes := [equipment],
       text :=
         [ when (does thisEquipment enter) (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)),
-          static (getsPt (equipped (.type .creature)) (up (.lit 2)) (up (.lit 1))),
+          static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 1))),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
 def lightmineField : Spelled := spelled <| .singleFaced
@@ -242,7 +242,7 @@ def lightmineField : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ whenever (does (counted (atLeast 1) isCreature) attack)
-            (instruct thisEnchantment (dealDamage (numberOf (those (.type .creature))) (eachOf (those (.type .creature))) .noncombatOnly)) ] } }
+            (instruct thisEnchantment (dealDamage (numberOf (those creature)) (eachOf (those creature)) .noncombatOnly)) ] } }
 
 def ingeniousArtillerist : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -261,7 +261,7 @@ def infernoElemental : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredOr (does thisCreature (block (a isCreature)))
             [does (by_ (a isCreature)) (block thisCreature)]
-            (instruct thisCreature (dealDamage (.lit 3) (that (.type .creature)) .noncombatOnly)) ],
+            (instruct thisCreature (dealDamage (.lit 3) (that creature) .noncombatOnly)) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Psychic Purge -/
@@ -275,7 +275,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
               (bySource (a (and [or [isSpell, abilityHead .anyOnStack],
                                  controlledBy anOpponent])))
               (does you (discard «this»)))
-            (instruct (that .player) (loseLife (.lit 5))) ] } }
+            (instruct (that player) (loseLife (.lit 5))) ] } }
 
 /-- Chandra Nalaar -/
 def chandraNalaarsX : Ability :=
@@ -294,7 +294,7 @@ def defang : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (damageRule .any (dealtBy (enchanted (.type .creature))) everywhere
+          static (damageRule .any (dealtBy (enchanted creature)) everywhere
             (prevent allDamage) .repeatedly) ] } }
 
 def sphereOfPurity : Spelled := spelled <| .singleFaced
@@ -310,7 +310,7 @@ def dazzlingReflection : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ gainLife (powerOf (target isCreature)),
-              establishThroughout (damageRule .any (dealtBy (that (.type .creature))) everywhere
+              establishThroughout (damageRule .any (dealtBy (that creature)) everywhere
                                      (prevent allDamage)
                   .nextTimeOnly) thisTurn ]) ] } }
 
@@ -363,7 +363,7 @@ def pariah : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (damageRule .any unattributed (toRecipient you)
-            (redirect allDamage (enchanted (.type .creature))) .repeatedly) ] } }
+            (redirect allDamage (enchanted creature)) .repeatedly) ] } }
 
 def martyrsOfKorlis : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -384,7 +384,7 @@ def wardOfPiety : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           activated (mana [generic 1, pip .white])
             (establishThroughout
-               (damageRule .any unattributed (toRecipient (enchanted (.type .creature)))
+               (damageRule .any unattributed (toRecipient (enchanted creature))
                 (redirect (theNext (.lit 1)) (target isAnyTarget)) .repeatedly) thisTurn) ] } }
 
 def mirrorwoodTreefolk : Spelled := spelled <| .singleFaced
@@ -696,7 +696,7 @@ def repercussion : Spelled := spelled <| .singleFaced
     { name := "Repercussion", cost := some [generic 1, pip .red, pip .red], types := [.enchantment],
       text :=
         [ whenever (does any (dealDamage (to := a isCreature)))
-            (instruct thisEnchantment (dealDamage thatMuch (controllerOf (that (.type .creature))) .noncombatOnly)) ] } }
+            (instruct thisEnchantment (dealDamage thatMuch (controllerOf (that creature)) .noncombatOnly)) ] } }
 
 def spitefulShadows : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -704,7 +704,7 @@ def spitefulShadows : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          whenever (does any (dealDamage (to := enchanted (.type .creature))))
+          whenever (does any (dealDamage (to := enchanted creature)))
             (instruct it (dealDamage thatMuch (controllerOf it) .noncombatOnly)) ] } }
 
 def bindingAgony : Spelled := spelled <| .singleFaced
@@ -713,8 +713,8 @@ def bindingAgony : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          whenever (does any (dealDamage (to := enchanted (.type .creature))))
-            (instruct thisAura (dealDamage thatMuch (controllerOf (that (.type .creature))) .noncombatOnly)) ] } }
+          whenever (does any (dealDamage (to := enchanted creature)))
+            (instruct thisAura (dealDamage thatMuch (controllerOf (that creature)) .noncombatOnly)) ] } }
 
 def darienKingOfKjeldor : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -759,8 +759,8 @@ def grievousWoundLifeLock : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
-          static (cant (enchanted .player) (gainLife anyAmount)),
-          whenever (does any (dealDamage (to := enchanted .player)))
+          static (cant (enchanted player) (gainLife anyAmount)),
+          whenever (does any (dealDamage (to := enchanted player)))
             (instruct they (loseLife (half .up (lifeTotalOf they)))) ] } }
 
 def cursedScroll : Spelled := spelled <| .singleFaced
@@ -771,7 +771,7 @@ def cursedScroll : Spelled := spelled <| .singleFaced
             (sequentially
               [ choose (a (quality .cardName)),
                 reveal (aAtRandom (cardIn yourHand)),
-                doIf (matches_ (that .card) (named chosenName))
+                doIf (matches_ (that card) (named chosenName))
                   (instruct thisArtifact (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ]) ] } }
 
 def magusOfTheScroll : Spelled := spelled <| .singleFaced
@@ -783,7 +783,7 @@ def magusOfTheScroll : Spelled := spelled <| .singleFaced
             (sequentially
               [ choose (a (quality .cardName)),
                 reveal (aAtRandom (cardIn yourHand)),
-                doIf (matches_ (that .card) (named chosenName))
+                doIf (matches_ (that card) (named chosenName))
                   (instruct thisCreature (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ]) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -851,7 +851,7 @@ def ashZealot : Spelled := spelled <| .singleFaced
           haste,
           whenever (does (a isPlayer) (cast (a
             (and [isSpell, castFrom graveyard]))))
-            (instruct thisCreature (dealDamage (.lit 3) (that .player) .noncombatOnly)) ],
+            (instruct thisCreature (dealDamage (.lit 3) (that player) .noncombatOnly)) ],
       power := stat 2, toughness := stat 2 } }
 
 def galvanicBlastLine : Action :=
@@ -1053,7 +1053,7 @@ def searingBlaze : Ability :=
                                          splitOverPlaneswalker])) .noncombatOnly ])
         (simultaneously
           [ dealDamage (.lit 3) thatJoin .noncombatOnly,
-            dealDamage (.lit 3) (that (.type .creature)) .noncombatOnly ])))
+            dealDamage (.lit 3) (that creature) .noncombatOnly ])))
 theorem okSearingBlaze : Ability.check (DRS.ofList []) searingBlaze = [] := by decide
 
 /-- Heart of Bogardan -/
@@ -1182,7 +1182,7 @@ def destructiveRevelry : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ destroy (target (or [isArtifact, isEnchantment])),
-              dealDamage (.lit 2) (controllerOf (that .permanent)) .noncombatOnly ]) ] } }
+              dealDamage (.lit 2) (controllerOf (that permanent)) .noncombatOnly ]) ] } }
 
 /-- Fuming Effigy -/
 def fumingEffigy : Spelled := spelled <| .singleFaced
@@ -1200,7 +1200,7 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
 def eachOfThoseOpponentsTopCard : Action :=
   sequentially
     [ instruct «this» (dealDamage (.lit 1) eachOpponent .noncombatOnly),
-      exile (slice .top (.lit 1) (libraryOf (eachOf (those .player)))) ]
+      exile (slice .top (.lit 1) (libraryOf (eachOf (those player)))) ]
 theorem okEachOfThoseOpponentsTopCard : Action.check (DRS.ofList []) eachOfThoseOpponentsTopCard = [] := by
   decide
 
@@ -1210,11 +1210,11 @@ def inquisitorsFlail : Spelled := spelled <| .singleFaced
     { name := "Inquisitor's Flail", cost := some [generic 2], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (damageRule .combatOnly (dealtBy (equipped (.type .creature))) everywhere
+        [ static (damageRule .combatOnly (dealtBy (equipped creature)) everywhere
             (scale (multiplied .doubled)) .repeatedly),
           static (damageRule .combatOnly
-            (dealtBy (a (and [isCreature, otherThan (equipped (.type .creature))])))
-            (toRecipient (equipped (.type .creature))) (scale (multiplied .doubled))
+            (dealtBy (a (and [isCreature, otherThan (equipped creature)])))
+            (toRecipient (equipped creature)) (scale (multiplied .doubled))
             .repeatedly),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
@@ -1230,7 +1230,7 @@ def oathOfKaya : Spelled := spelled <| .singleFaced
             (does anOpponent
                (attackWith (counted (atLeast 1) isCreature)
                   (some (a (and [isPlaneswalker, youControl])))))
-            (sequentially [instruct «this» (dealDamage (.lit 2) (that .player) .noncombatOnly), gainLife (.lit 2)]) ] } }
+            (sequentially [instruct «this» (dealDamage (.lit 2) (that player) .noncombatOnly), gainLife (.lit 2)]) ] } }
 
 /-- Frostwielder -/
 def frostwielder : Spelled := spelled <| .singleFaced
@@ -1253,7 +1253,7 @@ def cracklingDoom : Action :=
       instruct eachOpponent (sacrifice
         (a (and [isCreature,
                   superlative .max (.stat .power)
-                    (and [isCreature, controlledBy (that .player)])]))) ]
+                    (and [isCreature, controlledBy (that player)])]))) ]
 theorem okCracklingDoom : Action.check (DRS.ofList []) cracklingDoom = [] := by decide
 def theFallen : Ability :=
   at_ (beginningOfYour .upkeep)
@@ -1265,7 +1265,7 @@ def cavalcadeOfCalamity : Ability :=
   whenever
     (does (a (and [isCreature, youControl, hasPower .atMost (.lit 1)])) attack)
     (instruct thisEnchantment (dealDamage (.lit 1) (the (and [or [isPlayer, isPlaneswalker],
-                  inCombat .attackedBy (some (that (.type .creature)))])) .noncombatOnly))
+                  inCombat .attackedBy (some (that creature))])) .noncombatOnly))
 theorem okCavalcadeOfCalamity : Ability.check (DRS.ofList []) cavalcadeOfCalamity = [] := by decide
 
 /-- Blind Fury -/
@@ -1298,7 +1298,7 @@ def keeperOfTheFlame : Spelled := spelled <| .singleFaced
               [ chooseWhile
                   (target (and [isOpponent, compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal])]))
                   (whileDoing (does you (activate thisAbility))),
-                instruct thisCreature (dealDamage (.lit 2) (that .player) .noncombatOnly) ]) ],
+                instruct thisCreature (dealDamage (.lit 2) (that player) .noncombatOnly) ]) ],
       power := stat 1, toughness := stat 2 } }
 
 def diabolicEdict : Action := instruct (target isPlayer) (sacrifice (aTheirChoice isCreature))

@@ -28,7 +28,7 @@ theorem okRawNonattacking : Predicate.checkAt .object (DRS.ofList []) rawNonatta
 def harmonyOfNature : Action :=
   sequentially
     [ tap (counted anyNumber (and [isUntapped, isCreature, youControl])),
-      doForEach (theVerbed (.action "tap") .many (some (.type .creature)) .thisWay)
+      doForEach (theVerbed (.action "tap") .many (some creature) .thisWay)
         (gainLife (.lit 4)) ]
 theorem okHarmonyOfNature : Action.check (DRS.ofList []) harmonyOfNature = [] := by decide
 
@@ -232,7 +232,7 @@ def phyrexianRebirth : Spelled := spelled <| .singleFaced
                     { types := [.artifact, .creature],
                       subtypes := [phyrexian, horror],
                       power := some (letter .x), toughness := some (letter .x) } },
-              define .x (numberOf (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)) ]) ] } }
+              define .x (numberOf (theVerbed (.action "destroy") .many (some creature) .thisWay)) ]) ] } }
 
 /-- Damning Verdict -/
 def damningVerdict : Spelled := spelled <| .singleFaced
@@ -270,7 +270,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
-  a (and [abilityHead .loyalty, abilityOf (enchanted (.type .planeswalker))])
+  a (and [abilityHead .loyalty, abilityOf (enchanted planeswalker)])
 theorem okLoyaltyAbilityOfEnchanted :
     NounPhrase.checkAt (some .object) (DRS.ofList []) loyaltyAbilityOfEnchanted = [] := by
   decide

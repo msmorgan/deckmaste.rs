@@ -63,7 +63,7 @@ def yotianSoldier : Spelled := spelled <| .singleFaced
 def pymParticlesGrant : Action :=
   sequentially
     [ gain (target isCreature) vigilance (some untilEndOfTurn),
-      establishThroughout (cant any (block (that (.type .creature)))) thisTurn ]
+      establishThroughout (cant any (block (that creature))) thisTurn ]
 theorem okPymParticlesGrant : Action.check (DRS.ofList []) pymParticlesGrant = [] := by decide
 def bladebrand : Action := gain (target isCreature) deathtouch (some untilEndOfTurn)
 theorem okBladebrand : Action.check (DRS.ofList []) bladebrand = [] := by decide
@@ -232,7 +232,7 @@ def angelicGift : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           when (does thisAura enter) (draw (.lit 1)),
-          static (abilityGrant (enchanted (.type .creature)) flying) ] }
+          static (abilityGrant (enchanted creature) flying) ] }
               }
 
 def consulsLieutenant : Spelled := spelled <| .singleFaced
@@ -275,8 +275,8 @@ def drachNyen : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisEquipment enter) (exile (targets (upTo 1) isCreature)),
           static (conjunction
-                    [ abilityGrant (equipped (.type .creature)) menace,
-              getsPt (equipped (.type .creature)) (up (letter .x)) (up (.lit 0)),
+                    [ abilityGrant (equipped creature) menace,
+              getsPt (equipped creature) (up (letter .x)) (up (.lit 0)),
               letterDefinition .x (powerOf (the (in_ (exiledWith thisEquipment)))) ]),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
@@ -334,13 +334,13 @@ def windZendikon : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isLand,
-          static (qualityChange (enchanted (.type .land)) .sets
+          static (qualityChange (enchanted land) .sets
             (bundle
               { characteristics :=
                 { colors := [.blue], types := [.creature], subtypes := [elemental],
                   text := [flying], power := stat 2, toughness := stat 2 } }
               (some .land))),
-          when (does (enchanted (.type .land)) die) (putInto (that .card) hand) ] } }
+          when (does (enchanted land) die) (putInto (that card) hand) ] } }
 
 def awakenTheBear : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -365,7 +365,7 @@ def arcaneFlight : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ getsPt (enchanted (.type .creature)) (up (.lit 1)) (up (.lit 1)),
+          static (conjunction [ getsPt (enchanted creature) (up (.lit 1)) (up (.lit 1)),
               abilityGrant it flying ]) ] } }
 
 def bootsOfSpeed : Spelled := spelled <| .singleFaced
@@ -373,14 +373,14 @@ def bootsOfSpeed : Spelled := spelled <| .singleFaced
     { name := "Boots of Speed", cost := some [pip .red], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 0)),
+        [ static (conjunction [ getsPt (equipped creature) (up (.lit 1)) (up (.lit 0)),
               abilityGrant it haste ]),
           keywordCosting (.named "equip") (mana [generic 1]) ] } }
 
 /-- "enchanted creature loses all abilities and is a <colors> <subtype> with base P/T" -/
 def enchantedBecomesVanilla (colors : List Color) (subtype : String) (power toughness : Nat) :
     StaticSpec :=
-  conjunction [ allAbilityLoss (enchanted (.type .creature)) none,
+  conjunction [ allAbilityLoss (enchanted creature) none,
       qualityChange it .sets
         (bundle { characteristics := { colors, types := [.creature], subtypes := [creatureType subtype] } }),
       getsPt it (setTo (.lit power)) (setTo (.lit toughness)) ]
@@ -399,7 +399,7 @@ def darksteelMutation : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ qualityChange (enchanted (.type .creature)) .sets
+          static (conjunction [ qualityChange (enchanted creature) .sets
                 (bundle
                    { characteristics := { types := [.artifact, .creature], subtypes := [insect] }
                        }),
@@ -431,7 +431,7 @@ def lignify : Spelled := spelled <| .singleFaced
       subtypes := [treefolk, aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ qualityChange (enchanted (.type .creature)) .sets
+          static (conjunction [ qualityChange (enchanted creature) .sets
                 (bundle { characteristics := { subtypes := [treefolk] } }),
               getsBase it (.lit 0) (.lit 4),
               allAbilityLoss it none ]) ] } }
@@ -506,7 +506,7 @@ def lushGrowth : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isLand,
-          static (qualityChange (enchanted (.type .land)) .sets
+          static (qualityChange (enchanted land) .sets
             (bundle
               { characteristics :=
                 { subtypes := [mountain, forest, plains] } })) ] } }
@@ -537,8 +537,8 @@ def sanctuaryBlade : Spelled := spelled <| .singleFaced
       subtypes := [equipment],
       text :=
         [ static (attachChoosing thisEquipment .color),
-          static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit 2)) (up (.lit 0)),
-              abilityGrant (equipped (.type .creature))
+          static (conjunction [ getsPt (equipped creature) (up (.lit 2)) (up (.lit 0)),
+              abilityGrant (equipped creature)
                 (keywordQuality (.named "protection") (ofTheLastChosen .color)) ]),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
 
@@ -549,7 +549,7 @@ def sinisterStrength : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ getsPt (enchanted (.type .creature)) (up (.lit 3)) (up (.lit 1)),
+          static (conjunction [ getsPt (enchanted creature) (up (.lit 3)) (up (.lit 1)),
               qualityChange it .sets (colored (.some [.black])) ]) ] } }
 
 /-- Crimson Wisps -/
@@ -571,14 +571,14 @@ def ghoulflesh : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-                    [ getsPt (enchanted (.type .creature)) (down (.lit 1)) (down (.lit 1)),
+                    [ getsPt (enchanted creature) (down (.lit 1)) (down (.lit 1)),
               qualityChange it .adds
                 (bundle
                    { characteristics := { colors := [.black], subtypes := [zombie] } }) ]) ] } }
 
 /-- Blade of the Oni -/
 def bladeOfTheOniStatic : StaticSpec :=
-  conjunction [ getsBase (equipped (.type .creature)) (.lit 5) (.lit 5),
+  conjunction [ getsBase (equipped creature) (.lit 5) (.lit 5),
       abilityGrant it menace,
       qualityChange it .adds
         (bundle { characteristics := { colors := [.black], subtypes := [demon] } }) ]
@@ -631,8 +631,8 @@ def amorphousAxe : Spelled := spelled <| .singleFaced
     { name := "Amorphous Axe", cost := some [generic 2], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit 3)) (up (.lit 0)),
-              qualityChange (equipped (.type .creature)) .adds (everyTypeOf
+        [ static (conjunction [ getsPt (equipped creature) (up (.lit 3)) (up (.lit 0)),
+              qualityChange (equipped creature) .adds (everyTypeOf
                   .creature) ]),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
 
@@ -641,8 +641,8 @@ def runedStalactite : Spelled := spelled <| .singleFaced
     { name := "Runed Stalactite", cost := some [generic 1], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (conjunction [ getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 1)),
-              qualityChange (equipped (.type .creature)) .adds (everyTypeOf
+        [ static (conjunction [ getsPt (equipped creature) (up (.lit 1)) (up (.lit 1)),
+              qualityChange (equipped creature) .adds (everyTypeOf
                   .creature) ]),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
@@ -652,9 +652,9 @@ def arachnoform : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (conjunction [ getsPt (enchanted (.type .creature)) (up (.lit 2)) (up (.lit 2)),
-              abilityGrant (enchanted (.type .creature)) reach,
-              qualityChange (enchanted (.type .creature)) .adds (everyTypeOf
+          static (conjunction [ getsPt (enchanted creature) (up (.lit 2)) (up (.lit 2)),
+              abilityGrant (enchanted creature) reach,
+              qualityChange (enchanted creature) .adds (everyTypeOf
                   .creature) ]) ] } }
 
 def nyleasPresence : Spelled := spelled <| .singleFaced
@@ -664,7 +664,7 @@ def nyleasPresence : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isLand,
           when (does thisAura enter) (draw (.lit 1)),
-          static (qualityChange (enchanted (.type .land)) .adds (everyTypeOf
+          static (qualityChange (enchanted land) .adds (everyTypeOf
               .basicLand)) ] } }
 
 /-- Curse of Conformity -/
@@ -675,7 +675,7 @@ def curseOfConformity : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isPlayer,
           static (conjunction [ getsBase (allOf (and [ isCreature, non (hasSupertype .legendary),
-                               controlledBy (enchanted .player) ])) (.lit 3) (.lit 3),
+                               controlledBy (enchanted player) ])) (.lit 3) (.lit 3),
               qualityChange them .loses (everyTypeOf .creature) ]) ] } }
 
 /-- Drumbellower -/
@@ -717,7 +717,7 @@ def vipersKiss : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (conjunction
-                    [ getsPt (enchanted (.type .creature)) (down (.lit 1)) (down (.lit 1)),
+                    [ getsPt (enchanted creature) (down (.lit 1)) (down (.lit 1)),
               cant any (activate (allOf (and [abilityHead .anyActivated, abilityOf it]))) ]) ] } }
 
 def stupefyingTouch : Spelled := spelled <| .singleFaced
@@ -728,7 +728,7 @@ def stupefyingTouch : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           when (does thisAura enter) (draw (.lit 1)),
           static (cant any (activate (allOf (and [ abilityHead .anyActivated,
-                           abilityOf (enchanted (.type .creature)) ])))) ] } }
+                           abilityOf (enchanted creature) ])))) ] } }
 
 def linvalaKeeperOfSilence : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -794,7 +794,7 @@ def manaChains : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isCreature,
-          static (abilityGrant (enchanted (.type .creature)) (cumulativeUpkeep (mana
+          static (abilityGrant (enchanted creature) (cumulativeUpkeep (mana
               [generic 1]))) ] } }
 
 def dreamThief : Spelled := spelled <| .singleFaced
@@ -888,7 +888,7 @@ theorem okHateMirageTokens : Action.check (DRS.ofList []) hateMirageTokens = [] 
 def descentOfTheDragons : Action :=
   sequentially
     [ destroy (targets anyNumber isCreature),
-      doForEach (theVerbed (.action "destroy") .many (some (.type .creature)) .thisWay)
+      doForEach (theVerbed (.action "destroy") .many (some creature) .thisWay)
         (instruct (controllerOf it) (createToken { characteristics :=
               { colors := [.red], types := [.creature], subtypes := [dragon],
                 text := [flying], power := stat 4, toughness := stat 4 } })) ]
@@ -1090,8 +1090,8 @@ def soulOfEmancipation : Ability :=
   when (does thisCreature enter)
     (sequentially
       [ destroy (targets (upTo 3) (and [isPermanent, non isLand, otherThan «this»])),
-        doForEach (those .permanent)
-          (instruct (controllerOf (that .permanent)) (createToken { characteristics :=
+        doForEach (those permanent)
+          (instruct (controllerOf (that permanent)) (createToken { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
                   text := [flying], power := stat 3, toughness := stat 3 } })) ])
 theorem okSoulOfEmancipation : Ability.check (DRS.ofList []) soulOfEmancipation = [] := by decide
@@ -1217,7 +1217,7 @@ def darkbladeAgentGrants : Ability :=
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
-  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent))) (gain (those (.type .creature)) menace (some untilEndOfTurn))
+  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent))) (gain (those creature) menace (some untilEndOfTurn))
 theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
 /-- Pir, Imaginative Rascal's replacement -/
@@ -1225,7 +1225,7 @@ def pirDistributive : Ability :=
   static (instead
             (would any
                (putCounters anyAmount anyKind
-                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters (that .permanent) .many))
+                  (a (and [isPermanent, controlledBy (youOr (a isTeammate))])) .many false)) (putCounters (plus thatMuch (.lit 1)) thoseCounters (that permanent) .many))
 theorem okPirDistributive : Ability.check (DRS.ofList []) pirDistributive = [] := by decide
 
 /-- Frogmite -/
@@ -1341,7 +1341,7 @@ def ancestralBlade : Spelled := spelled <| .singleFaced
             (sequentially
               [ createToken (creatureToken 1 1 [.white] [soldier]),
                 attachTo thisEquipment itAsToken ]),
-          static (getsPt (equipped (.type .creature)) (up (.lit 1)) (up (.lit 1))),
+          static (getsPt (equipped creature) (up (.lit 1)) (up (.lit 1))),
           keywordCosting (.named "equip") (mana [generic 1]) ] } }
 
 /-- Steelclaw Lance -/
@@ -1350,7 +1350,7 @@ def steelclawLance : Spelled := spelled <| .singleFaced
     { name := "Steelclaw Lance", cost := some [pip .black, pip .red], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 2)) (up (.lit 2))),
+        [ static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 2))),
           keywordQualityCosting (.named "equip") (hasSubtype knight) (mana [generic 1]),
           keywordCosting (.named "equip") (mana [generic 3]) ] } }
 
@@ -1379,8 +1379,8 @@ def enormousEnergyBlade : Spelled := spelled <| .singleFaced
     { name := "Enormous Energy Blade", cost := some [generic 2, pip .black], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 4)) (up (.lit 0))),
-          whenever (does any (attachment .attached thisEquipment (some (a isCreature)))) (tap (that (.type .creature))),
+        [ static (getsPt (equipped creature) (up (.lit 4)) (up (.lit 0))),
+          whenever (does any (attachment .attached thisEquipment (some (a isCreature)))) (tap (that creature)),
           keywordCosting (.named "equip") (mana [generic 2]) ] } }
 
 /-- Grafted Wargear -/
@@ -1389,9 +1389,9 @@ def graftedWargear : Spelled := spelled <| .singleFaced
     { name := "Grafted Wargear", cost := some [generic 3], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 3)) (up (.lit 2))),
+        [ static (getsPt (equipped creature) (up (.lit 3)) (up (.lit 2))),
           whenever (does any (attachment .unattached thisEquipment (some (a isPermanent))))
-            (sacrifice (that .permanent)),
+            (sacrifice (that permanent)),
           keywordCosting (.named "equip") (mana [generic 0]) ] } }
 
 /-- Black Ward -/
@@ -1402,7 +1402,7 @@ def blackWard : Spelled := spelled <| .singleFaced
       text :=
         [ keywordSubject (.named "enchant") isCreature,
           static (retention
-            (abilityGrant (enchanted (.type .creature)) (keywordQuality (.named "protection")
+            (abilityGrant (enchanted creature) (keywordQuality (.named "protection")
                 (hasColor .black)))
             thisAura) ] } }
 
@@ -1416,7 +1416,7 @@ def choMannosBlessing : Spelled := spelled <| .singleFaced
           keywordSubject (.named "enchant") isCreature,
           static (entersChoosing thisAura .color),
           static (retention
-            (abilityGrant (enchanted (.type .creature)) (keywordQuality (.named "protection")
+            (abilityGrant (enchanted creature) (keywordQuality (.named "protection")
                 (ofChosen .color)))
             thisAura) ] } }
 
@@ -1430,7 +1430,7 @@ def pentarchWard : Spelled := spelled <| .singleFaced
           static (entersChoosing thisAura .color),
           when (does thisAura enter) (draw (.lit 1)),
           static (retention
-            (abilityGrant (enchanted (.type .creature)) (keywordQuality (.named "protection")
+            (abilityGrant (enchanted creature) (keywordQuality (.named "protection")
                 (ofChosen .color)))
             thisAura) ] } }
 
@@ -1444,7 +1444,7 @@ def benevolentBlessing : Spelled := spelled <| .singleFaced
           keywordSubject (.named "enchant") isCreature,
           static (entersChoosing thisAura .color),
           static (retention
-            (abilityGrant (enchanted (.type .creature)) (keywordQuality (.named "protection")
+            (abilityGrant (enchanted creature) (keywordQuality (.named "protection")
                 (ofChosen .color)))
             (allOf (and [ or [hasSubtype aura, hasSubtype equipment],
                            youControl, attachedTo it ]))) ] } }
@@ -1575,7 +1575,7 @@ def indestructibility : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ keywordSubject (.named "enchant") isPermanent,
-          static (abilityGrant (enchanted .permanent) indestructible) ] }
+          static (abilityGrant (enchanted permanent) indestructible) ] }
               }
 
 /-- Seraphic Greatsword -/
@@ -1584,9 +1584,9 @@ def seraphicGreatsword : Spelled := spelled <| .singleFaced
     { name := "Seraphic Greatsword", cost := some [generic 1, pip .white], types := [.artifact],
       subtypes := [equipment],
       text :=
-        [ static (getsPt (equipped (.type .creature)) (up (.lit 2)) (up (.lit 2))),
+        [ static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 2))),
           whenever
-            (does (equipped (.type .creature))
+            (does (equipped creature)
                (attack
                   (some
                      (the (and [isPlayer, superlative .max (.playerStat .lifeTotal) isPlayer])))))
@@ -1595,7 +1595,7 @@ def seraphicGreatsword : Spelled := spelled <| .singleFaced
                 { characteristics :=
                   { colors := [.white], types := [.creature], subtypes := [angel],
                     text := [flying], power := stat 4, toughness := stat 4 } })
-              [entersAs .tapped, entersAttacking (some (that .player))]),
+              [entersAs .tapped, entersAttacking (some (that player))]),
           keywordCosting (.named "equip") (mana [generic 4]) ] } }
 
 def giantGrowth : Action :=

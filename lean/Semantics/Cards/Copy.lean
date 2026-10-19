@@ -56,7 +56,7 @@ theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismC
 def flawlessForgeryLine : Action :=
   sequentially
     [ exile (target (and [isInstantOrSorcery, in_ (graveyardOf anOpponent)])),
-      copy .fromCardZone (that .card) (.lit 1) [],
+      copy .fromCardZone (that card) (.lit 1) [],
       establish
         (can you (cast (that .copy) (payment := withoutPaying))) ]
 theorem okFlawlessForgeryLine : Action.check (DRS.ofList []) flawlessForgeryLine = [] := by decide
@@ -89,7 +89,7 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
         [ activated (compound [mana [generic 2, pip .blue], tapSymbol])
             (sequentially
               [ instruct (controllerOf (target (and [isInstantOrSorcery, isSpell]))) (copySpell it),
-                instruct (that .player) (may (chooseNewTargets (that .copy))) ]) ],
+                instruct (that player) (may (chooseNewTargets (that .copy))) ]) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Echo Mage, level 4+ -/
@@ -122,7 +122,7 @@ theorem okMisterFantasticCopy : Ability.check (DRS.ofList []) misterFantasticCop
 def rowansTalentCopy : Ability :=
   whenever
     (does you (activate (a (and [ abilityHead .loyalty,
-                 abilityOf (enchanted (.type .planeswalker)) ]))))
+                 abilityOf (enchanted planeswalker) ]))))
     (sequentially
       [ copySpell (that .ability),
         may (chooseNewTargets (that (.copied .ability))) ])
@@ -194,8 +194,8 @@ def bonusRound : Spelled := spelled <| .singleFaced
       text :=
         [ spell (delayWithin (does (a isPlayer) (cast (a
               (and [isInstantOrSorcery, isSpell])))) untilEndOfTurn (sequentially
-              [ instruct (that .player) (copySpell it),
-                instruct (that .player) (may (chooseNewTargets (that .copy))) ])) ] } }
+              [ instruct (that player) (copySpell it),
+                instruct (that player) (may (chooseNewTargets (that .copy))) ])) ] } }
 
 /-- Melek, Izzet Paragon -/
 def melekIzzetParagon : Spelled := spelled <| .singleFaced
