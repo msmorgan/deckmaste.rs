@@ -913,12 +913,7 @@ theorem okKorvoldCombatTrigger : Ability.check (DRS.ofList []) korvoldCombatTrig
 /-- Mirelurk Queen -/
 def mirelurkQueenTrigger : Ability :=
   triggeredOnlyOnce
-    (does any (Semantics.Action.ownScope (some (.action "mill"))
-      (Semantics.Action.enact (.action "mill")
-        (move (Semantics.NounPhrase.inCaller (counted (atLeast 1) (and [non isLand,
-        in_ library])))
-          library
-          (some graveyard) .arrival) none none)))
+    (does any (millCards (counted (atLeast 1) (and [non isLand, isCard, in_ library]))))
     oncePerTurn
     (sequentially [draw (.lit 1), putCounters (.lit 1) (printedKind p1p1Counter)
         thisCreature .many])
