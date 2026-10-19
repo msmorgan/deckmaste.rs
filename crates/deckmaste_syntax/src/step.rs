@@ -185,6 +185,8 @@ pub(crate) struct Production {
     /// The shared child of Right Node Raising, which must be headed by the
     /// preposition of the Gap it fills.
     pub fills_preposition: Option<usize>,
+    /// Coordinators a plain serial coordination's tail may not end with.
+    pub foreign_coordinators: Vec<LexemeId>,
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
@@ -330,6 +332,7 @@ pub(crate) fn resolve(
         chained: None,
         gap_preposition: None,
         fills_preposition: None,
+        foreign_coordinators: Vec::new(),
         unlike: None,
         id,
         lhs,
@@ -794,6 +797,13 @@ impl Production {
                     Self::conjoin(&mut next, summary);
                 }
                 if self.chained == Some(position) && summary.coordinator != next.coordinator {
+                    return None;
+                }
+                if self.coordinator == Some(position)
+                    && summary
+                        .coordinator
+                        .is_some_and(|c| self.foreign_coordinators.contains(&c))
+                {
                     return None;
                 }
                 if self.coordinator == Some(position) {

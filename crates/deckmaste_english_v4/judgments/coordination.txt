@@ -47,3 +47,6 @@
 + <card=Happy Hogan, Bodyguard> When Happy Hogan enters, the owner of target creature an opponent controls puts it into their library second from the top or on the bottom. => !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
 + You choose which creatures block this turn and how those creatures block. => Clause "which creatures block this turn"; Clause "how those creatures block"
 +NounPhrase X tokens that are copies of it and that are tapped and attacking => RelativeClause "that are copies of it"; RelativeClause "that are tapped and attacking"; readings 1
++Clause you and/or at least one permanent you control becomes the target of a spell => NounPhrase "you and/or at least one permanent you control" as Subject of become; readings 1
++Clause creatures and/or planeswalkers you control get +1/+1 => NounPhrase "creatures and/or planeswalkers you control" as Subject of get
+*Clause creatures and/or planeswalkers you control gets +1/+1

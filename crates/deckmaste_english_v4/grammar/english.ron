@@ -241,6 +241,7 @@
         "Any": "det:any",
         "Or": "coord:or",
         "And": "coord:and",
+        "AndOr": "coord:and/or",
         "Nor": "coord:nor",
         "But": "coord:but",
         "Both": "det:both",
@@ -259,7 +260,6 @@
         "DegreeQuantifier": ["det:many", "det:much"],
         "Coordinator": ["coord:and", "coord:or", "coord:and/or", "coord:nor"],
         "Disjunctive": ["coord:or", "coord:and/or", "coord:nor"],
-        "Additive": ["coord:and", "coord:and/or"],
         "Alternative": ["coord:or", "coord:nor"],
         // *Be* and its contracted and negative forms.
         "BeVerb": ["verb:be", "verb:'re", "verb:aren't"],
@@ -1120,8 +1120,13 @@
         // An *and*-coordination of Noun Phrases or nominals is plural; an
         // *or*-coordination has its conjuncts' Number (CGEL, Ch. 5 §18.4,
         // pp. 507–509).
-        Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability", "DeterminativeDistribution"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
-        Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "Determination", "Countability", "DeterminativeDistribution"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
+        Coordination(category: "NounPhrase", coordinators: "And", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
+        // *And/or* means "and or or" (CGEL, Ch. 15 §3.3(a), p. 1329): plural
+        // with a plural last conjunct, of either Number with a singular one
+        // (*you and/or at least one permanent you control becomes*).
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "Determination", "Countability", "DeterminativeDistribution"], equations: [Require("last.Number", "Plural"), Require("$.Number", "Plural"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Person", "Case", "NounKind"]),
+        Coordination(category: "NounPhrase", coordinators: "AndOr", unshared: ["Number", "Determination", "Countability", "DeterminativeDistribution"], equations: [Require("last.Number", "Singular"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Person", "Case", "NounKind"]),
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability", "DeterminativeDistribution"], equations: [Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind"]),
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),

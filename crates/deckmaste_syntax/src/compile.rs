@@ -179,6 +179,9 @@ struct Draft {
     chained: Option<usize>,
     gap_preposition: Option<LexemeId>,
     fills_preposition: Option<usize>,
+    /// Coordinators a serial tail admits for correlatives only, which a
+    /// plain serial coordination may not end with.
+    foreign_coordinators: Vec<LexemeId>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -219,6 +222,7 @@ impl Draft {
             chained: None,
             gap_preposition: None,
             fills_preposition: None,
+            foreign_coordinators: Vec::new(),
             unlike: None,
         }
     }
@@ -963,6 +967,7 @@ impl<'a> Binder<'a> {
         production.chained = draft.chained;
         production.gap_preposition = draft.gap_preposition;
         production.fills_preposition = draft.fills_preposition;
+        production.foreign_coordinators.clone_from(&draft.foreign_coordinators);
         production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
@@ -2065,6 +2070,14 @@ impl<'a> Binder<'a> {
             let t = serial.child("rest", conjoin.tail(), GapRule::Shared);
             serial.coordinator = Some(t);
             serial.paired_coordinator = paired;
+            if marker.is_none() {
+                for (_, word) in &self.grammar.correlatives {
+                    let word = self.word(word)?;
+                    if !self.admits(&coordinator, word) {
+                        serial.foreign_coordinators.push(word);
+                    }
+                }
+            }
             serial.distinct_coordinator = vec![a];
             conjoin.close(self, &mut serial, &[a, t], Edge::Whole { last: false })?;
             drafts.push(serial);
