@@ -42,7 +42,6 @@ def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .copy .. | _ + 1, .changeLife .. | _ + 1, .addMana .. | _ + 1, .draw ..
   | _ + 1, .expose .. | _ + 1, .search .. | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
   | _ + 1, .createObject .. | _ + 1, .putCounters .. | _ + 1, .distribute .. | _ + 1, .removeCounters ..
-  | _ + 1, .doubleCounters ..
   | _ + 1, .move .. | _ + 1, .pay .. | _ + 1, .procedure .. | _ + 1, .relate .. | _ + 1, .merge ..
   | _ + 1, .skipUntap .. | _ + 1, .skipPart .. | _ + 1, .addTurnPart .. | _ + 1, .exchange .. => true
   | _ + 1, _ => false

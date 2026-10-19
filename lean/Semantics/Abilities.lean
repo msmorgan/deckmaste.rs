@@ -1044,7 +1044,6 @@ mutual
     | distribute (verb : DividedVerb) (amount : Amount) (among : NounPhrase)
     | removeCounters (quantity : Option Quantity) (kind : Option CounterKindSource)
         (from_ : NounPhrase) (batch : CounterBatch) (byEffect : Bool)
-    | doubleCounters (on : NounPhrase)
     /-- A named deed done by the performer in context: the deed's own facts row gates that
     performer, the patient and the zones the sentence may name, whichever of the three sources
     defines it. -/

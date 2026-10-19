@@ -215,7 +215,11 @@ theorem weeping_angel_combat_pin_sound :
 def sliceBCountersAndCharPin : Ability :=
   .spell none <|
     .sequentially [
-      .doubleCounters targetCreature,
+      .ownScope (some (.action "double"))
+        (.doForEachKind .counterKind (some (.firstMention "double.on" targetCreature))
+          .counterKind
+          (.putCounters (.statOf .boundCounter (.laterMention "double.on" targetCreature))
+            .bound (.laterMention "double.on" targetCreature) .one true)),
       .establish
         (.characteristicChange (.pro .bare .one)
           [.typeLine .adds { subtypes := some [.of .creature "Dragon"] }])

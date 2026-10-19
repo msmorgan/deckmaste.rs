@@ -1999,9 +1999,16 @@ def stepOps : Nat → StepOps
           let plural := subj.det == some .each || subj.plur != .one || refs.any (fun r => r.plur != .one)
           let axisErrors := match axis with
             | .counter kind => refuse kind.known .knownCounter
+            | .boundCounter =>
+              let n := countChoice (.quality .counterKind) drs
+              refuse (n == 1) (.choiceRef .theChoice (.quality .counterKind) n)
             | _ => []
+          let kindErrors := match axis, actual with
+            | .boundCounter, some k => refuse (counterHolderKind k) .counterHolderKind
+            | .boundCounter, none => []
+            | _, _ => kindCheck axis.scope actual
           ({ out with characteristicRead := drs.characteristicRead },
-            axisErrors ++ errs ++ kindCheck axis.scope actual ++ refuse (!plural) .singular)
+            axisErrors ++ errs ++ kindErrors ++ refuse (!plural) .singular)
         | .paid facet subj =>
           let (out, _, errors) := ops.np drs .other false subj
           (out, errors ++ facet.localChecks false)
@@ -2647,10 +2654,6 @@ def stepOps : Nat → StepOps
             | .counters _, _ => kindCheck .object kind
             | _, _ => []
           (drs3, e1 ++ e2 ++ e3 ++ refuse among.groupMention .groupMention ++ kindErrors)
-        | .doubleCounters on =>
-          let (drs1, ids, e1) := ops.np drs patientRole true on
-          let kind := ((ids.head?.bind drs1.findById?).map (·.kind)).getD (on.kindIn drs1 .object)
-          (drs1, e1 ++ refuse (counterHolderKind kind) .counterHolderKind ++ refuse on.perMemberOk .perMember)
         | .pay cost times outcome whose keyword =>
           let (drs1, e1) := match whose with
             | some w => let (d, _, e) := ops.np drs .subj true w; (d, e)
@@ -2753,7 +2756,8 @@ def stepOps : Nat → StepOps
             resolvedIds := drs3.resolvedIds.filter outerIds.contains }
           let closed := publishLoopChoiceHistory (leaveSelectionScope drs1 closedDrs) drs3
           let targets := publishLoopTargetResults closed drs3 outerIds
-          let output := publishLoopCreatedResults targets drs3 outerIds
+          let created := publishLoopCreatedResults targets drs3 outerIds
+          let output := publishLoopOutcomes created drs3 outerIds
           (output, e1 ++ e2 ++ refuse (axis.sort == some q) .kindAxisSort ++
             refuse (dom.isSome || axis.closed) .kindDomainOk)
         | .repeat_ rep => stepRepetitionWith ops drs rep

@@ -27,4 +27,15 @@ def publishLoopCreatedResults (closed : DRS) (body : DRS)
         createdResult := true
       } .obj true) closed
 
+/-- The outcomes a kind loop's body published, each sort once and as a group, never as one
+antecedent: "double the number of each kind of counter on it" puts counters, whatever the kinds,
+but "that much" after a loop has no single total to read. -/
+def publishLoopOutcomes (closed : DRS) (body : DRS) (outerIds : List ReferentId) : DRS :=
+  let sorts := body.referents.foldl (fun sorts ref =>
+    match ref.payload with
+    | .outcome s => if outerIds.contains ref.id || sorts.contains s then sorts else sorts ++ [s]
+    | _ => sorts) []
+  sorts.foldl (fun state s => state.push { det := .the, plur := .many, payload := .outcome s }
+    .other false) closed
+
 end Semantics

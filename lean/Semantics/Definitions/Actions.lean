@@ -314,9 +314,14 @@ semantic_definition monstrosity (amount : Amount) : Action :=
             .gainDesignation .actor monstrous none ])
         none)
       none none)
+/-- "double the number of each kind of counter on <on>" (`Definition`, [CR#701.10e]): for each
+kind of counter on it, put as many of that kind on it as it already has. -/
 semantic_definition doubleCounters (on : NounPhrase) : Action :=
   .ownScope (some (.action "double"))
-    (.doubleCounters (.inCaller (.firstMention "doubleCounters.on" on)))
+    (.doForEachKind .counterKind (some (.firstMention "doubleCounters.on" (.inCaller on)))
+      .counterKind
+      (.putCounters (.statOf .boundCounter (.laterMention "doubleCounters.on" (.inCaller on)))
+        .bound (.laterMention "doubleCounters.on" (.inCaller on)) .one true))
 semantic_definition exchangeCards (left right : NounPhrase) : Action :=
   .ownScope (some (.action "exchange"))
     (enact (.action "exchange")

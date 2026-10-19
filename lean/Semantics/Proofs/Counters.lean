@@ -163,6 +163,26 @@ theorem moveCounterPublishesRemovalAndPlacement :
     countOutcomes .countersRemoved after = 1 ∧ countOutcomes .countersPut after = 1 := by
   decide
 
+/-- "Double the number of each kind of counter on target creature" [CR#701.10e]: counters are
+put, so the doubling publishes that it put counters, as a group of every kind's. -/
+theorem doublingCountersPublishesCountersPut :
+    let after :=
+      (stepAction 64 .postEvent .obj (DRS.ofList []) (doubleCounters (target isCreature))).1
+    Action.check (DRS.ofList []) (doubleCounters (target isCreature)) = [] ∧
+      after.visibleReferents.any (fun ref => ref.payload == .outcome .countersPut) = true := by
+  decide
+
+/-- "the number of counters of that kind on this creature" reads the one bound counter kind: with
+none bound it has no kind to read, and with one bound it reads it. -/
+theorem boundCounterReadsOnlyTheBoundKind :
+    Amount.check (DRS.ofList []) (.statOf .boundCounter thisCreature) =
+        [.choiceRef .theChoice (.quality .counterKind) 0] ∧
+      Amount.check (DRS.ofList [qualityB .counterKind]) (.statOf .boundCounter thisCreature) = [] ∧
+      Amount.check (DRS.ofList [qualityB .counterKind, qualityB .counterKind])
+        (.statOf .boundCounter thisCreature) =
+        [.choiceRef .theChoice (.quality .counterKind) 2] := by
+  decide
+
 /-- "Create a 1/1 creature creature token." -/
 theorem badTokenDuplicateType :
     Action.check (DRS.ofList [])

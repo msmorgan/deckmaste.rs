@@ -1571,6 +1571,7 @@ def ProjAxis.scope : ProjAxis → Kind
   | .playerStat _ => .player
   | .counter c => c.scope
   | .anyCounter k => k
+  | .boundCounter => .join .object .player
   | .chapter => .object
   | .markedDamage => .object
 

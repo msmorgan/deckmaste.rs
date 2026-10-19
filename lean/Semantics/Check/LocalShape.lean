@@ -143,7 +143,7 @@ def Action.reflexEncloseUse (action : Action) (fuel : Nat := 64) : EncloseUse :=
     | _ => .agentless
   | _ + 1, .pay .. | _ + 1, .enact .. | _ + 1, .separateIntoPiles ..
   | _ + 1, .chooseNewTargets .. | _ + 1, .createObject .. | _ + 1, .putCounters ..
-  | _ + 1, .removeCounters .. | _ + 1, .doubleCounters ..
+  | _ + 1, .removeCounters ..
   | _ + 1, .move .. | _ + 1, .turnFaceDown .. | _ + 1, .expose .. | _ + 1, .addMana ..
   | _ + 1, .draw .. | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .search ..
   | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..

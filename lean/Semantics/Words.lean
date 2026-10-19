@@ -550,6 +550,10 @@ inductive ProjAxis where
   | playerStat (stat : PlayerStat)
   | counter (kind : CounterKind)
   | anyCounter (kind : Kind)
+  /-- The counters on an object or a player of the one counter kind a kind loop or a choice
+  binds ("each kind of counter on it"), and of no other kind: doubling gives as many of that kind
+  as it already has [CR#701.10e]. -/
+  | boundCounter
   /-- Damage marked on a permanent [CR#120.3e,120.6,704.5g]. -/
   | markedDamage
   /-- The chapter numbers of an object's own chapter abilities [CR#714.2a,714.2d]: a Saga

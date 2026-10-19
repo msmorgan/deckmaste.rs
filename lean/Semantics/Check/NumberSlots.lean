@@ -177,7 +177,6 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .putCounters amount _ _ _ _ => [(amount, .clamped)]
   | _n + 1, .distribute _ amount _ => [(amount, .clamped)]
   | _n + 1, .removeCounters _ _ _ _ _ => []
-  | _n + 1, .doubleCounters _ => []
   | _n + 1, .enact _ _ _ _ | _n + 1, .pay _ _ _ _ _ => []
   | _n + 1, .withContinuation _ _ _ _ | _n + 1, .doOnlyIf _ _ _ | _n + 1, .doIf _ _ _ | _n + 1, .limited _ _ => []
   | _n + 1, .doForEach _ _ | _n + 1, .doForEachKind _ _ _ _ => []
