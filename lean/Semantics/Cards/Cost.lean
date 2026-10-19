@@ -89,7 +89,7 @@ def barlsCage : Ability :=
 theorem okBarlsCage : Ability.check (DRS.ofList []) barlsCage = [] := by decide
 def vodalianIllusionist : Ability :=
   activated (compound [mana [pip .blue, pip .blue], tapSymbol])
-    (setStatus .phasedOut (target isCreature))
+    (instruct (target isCreature) phaseOut)
 theorem okVodalianIllusionist : Ability.check (DRS.ofList []) vodalianIllusionist = [] := by decide
 def witchsMist : Ability :=
   activated (compound [mana [generic 2, pip .black], tapSymbol])

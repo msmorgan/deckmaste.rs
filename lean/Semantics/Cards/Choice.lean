@@ -1461,9 +1461,9 @@ def discipleOfCaelusNin : Spelled := spelled <| .singleFaced
               [ instruct eachPlayer
                   (chooseStartingWith you
                      (counted (upTo 5) (and [isPermanent, controlledBy they]))),
-                setStatus .phasedOut
-                  (allOf (and [isPermanent, otherThan thisCreature, notChosen])) ]),
-          static (cant any (setStatus .phasedIn (allOf isPermanent))) ],
+                instruct (allOf (and [isPermanent, otherThan thisCreature, notChosen]))
+                  phaseOut ]),
+          static (cant (bare isPermanent) phaseIn) ],
       power := stat 3, toughness := stat 4 } }
 
 /-- Sculpted Sunburst: "if you chose a creature this way" reads the earlier choice;

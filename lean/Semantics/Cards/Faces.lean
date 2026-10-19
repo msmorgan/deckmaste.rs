@@ -35,7 +35,7 @@ def jushiApprentice : Ability :=
     (sequentially
       [ draw (.lit 1),
         doIf (compareAmt (countOf (cardIn yourHand)) .atLeast (.lit 9))
-          (setStatus .flipped thisCreature) ])
+          (flip thisCreature) ])
 theorem okJushiApprentice : Ability.check (DRS.ofList []) jushiApprentice = [] := by decide
 
 def invasionOfDominaria : Spelled := spelled <| .transforming
@@ -163,7 +163,7 @@ def orochiEggwatcher : Spelled := spelled <| .flip
             (sequentially
               [ createToken (creatureToken 1 1 [.green] [snake]),
                 doIf (compareAmt (countOf (and [isCreature, youControl])) .atLeast (.lit 10))
-                  (setStatus .flipped thisCreature) ]) ],
+                  (flip thisCreature) ]) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
     { name := "Shidako, Broodmistress", supertypes := [.legendary], types := [.creature],
@@ -200,7 +200,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
       text :=
         [ haste,
           whenever (does thisCreature (dealDamage (to := anOpponent)))
-            (setStatus .flipped thisCreature) ],
+            (flip thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
     { name := "Tok-Tok, Volcano Born", supertypes := [.legendary], types := [.creature],
@@ -222,7 +222,7 @@ def bushiTenderfoot : Spelled := spelled <| .flip
                                 (dealDamage anyAmount
                                   (asMarker .permanent (relative .object)))
                                 soFarThisTurn ])) die)
-            (setStatus .flipped thisCreature) ],
+            (flip thisCreature) ],
       power := stat 1, toughness := stat 1 } }
   { characteristics :=
     { name := "Kenzo the Hardhearted", supertypes := [.legendary], types := [.creature],
@@ -236,7 +236,7 @@ def kitsuneMysticFlip : Ability :=
     (matches_ thisCreature
       (attachedBy (some .enchanted)
         (counted (atLeast 2) (hasSubtype aura))))
-    (setStatus .flipped thisCreature)
+    (flip thisCreature)
 theorem okKitsuneMysticFlip : Ability.check (DRS.ofList []) kitsuneMysticFlip = [] := by decide
 
 /-- Keeper of the Lens -/
@@ -279,9 +279,8 @@ def vesuvanShapeshifterCopyDuration : Action :=
   establishThroughout (copyChange thisCreature (that creature)
       [ alsoHas
           (at_ (beginningOfYour .upkeep)
-            (may (setStatus .faceDown thisCreature))) ]) (untilEvent
-                                                            (does any
-                                                               (setStatus .faceDown thisCreature)))
+            (may (turnFaceDown thisCreature faceDownCreature))) ])
+    (untilEvent (does any (turnFaceDown thisCreature faceDownCreature)))
 theorem okVesuvanShapeshifterCopyDuration :
     Action.check (DRS.ofList [{ det := .a, plur := .one, payload := .object [.creature] (some .battlefield) none none none }])
       vesuvanShapeshifterCopyDuration = [] := by

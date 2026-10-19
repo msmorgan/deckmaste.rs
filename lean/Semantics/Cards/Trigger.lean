@@ -53,11 +53,11 @@ theorem okSecretPlans : Ability.check (DRS.ofList []) secretPlans = [] := by dec
 
 /-- Teferi's Imp -/
 def teferisImpPhasesOut : Ability :=
-  whenever (does any (setStatus .phasedOut thisCreature)) (discard (a (cardIn yourHand)))
+  whenever (does thisCreature phaseOut) (discard (a (cardIn yourHand)))
 theorem okTeferisImpPhasesOut : Ability.check (DRS.ofList []) teferisImpPhasesOut = [] := by decide
 /-- Teferi's Imp -/
 def teferisImpPhasesIn : Ability :=
-  whenever (does any (setStatus .phasedIn thisCreature)) (draw (.lit 1))
+  whenever (does thisCreature phaseIn) (draw (.lit 1))
 theorem okTeferisImpPhasesIn : Ability.check (DRS.ofList []) teferisImpPhasesIn = [] := by decide
 
 /-- Oubliette -/
@@ -67,7 +67,7 @@ def oubliette : Ability :=
 theorem okOubliette : Ability.check (DRS.ofList []) oubliette = [] := by decide
 
 def shimmeringEfreet : Ability :=
-  whenever (does any (setStatus .phasedIn thisCreature)) (setStatus .phasedOut (target isCreature))
+  whenever (does thisCreature phaseIn) (instruct (target isCreature) phaseOut)
 theorem okShimmeringEfreet : Ability.check (DRS.ofList []) shimmeringEfreet = [] := by decide
 def hollowhengeSpirit : Ability :=
   when (does thisCreature enter)
