@@ -1,11 +1,11 @@
 ---
-needs: [lean-v3-authoring-impl-11-replacement-and-entry-unification]
+needs: [lean-v3-authoring-impl-12-replacement-type]
 ---
 # Finish Core AST & authoring unification (`CharacteristicEdit`, vocabulary overlaps, layering, escape hatches)
 
 **Complete the remaining Core AST, `Templates`, `Definitions`, and `Cards`
 unifications identified in [`docs/evidence/lean-v3-opus-findings.md`](../../evidence/lean-v3-opus-findings.md)
-(§§4.1–4.14, §5.4).** Twelfth implementation step of
+(§§4.1–4.14, §5.4).** Thirteenth implementation step of
 [`lean-v3-authoring-surface`](lean-v3-authoring-surface.md). Standard
 constraints apply.
 
