@@ -31,9 +31,7 @@ zone and object-state bucket's 33 refusals are retired (`lean-checker-sweep-zone
 2026-10-08): a status, damage, an attack, a move, an attachment, an exchange,
 a stack action or a stat change no longer demands where its object is or which
 objects it can reach. Where such a refusal also fixed a kind, the kind is
-checked by `kindMismatch` or `kindLte`. The deed table's role checks
-(`deedFits`, `deedNounOk`) are not in this bucket and still read a deed's zone
-and card types. The timing and window bucket's 10 refusals are retired
+checked by `kindMismatch` or `kindLte`. The timing and window bucket's 10 refusals are retired
 (`lean-checker-sweep-timing`, 2026-10-08): an activation, cast or trigger window,
 the possessor of a turn part, an added turn part and its anchor, a "while" event,
 the event that ends a duration, a usage limit, the event a replacement or a
@@ -67,7 +65,23 @@ shape: `designationScope` (a designation's holder sort), `facesFit`,
 fourteen card-frame rules (`cardLine` through `prototypeFrame`) are kept: the owner
 decided so on 2026-10-08 (§7 ruling 2026-10-06, consequence (d)), because they check
 that a term is a well-formed card, not what an action does. Zone state on referents stays, because references resolve
-on it. On the question of
+on it. The game-rule checks that remained outside these buckets are retired
+(`lean-v3-authoring-impl-4-checker-dewarting`), so outside the card frame the checker enforces
+reference resolution and kind agreement only. The deed table's role columns are gone, and
+with them `deedFits` and `deedNounOk`: no deed asks whether its performer or its patient is a
+player or an object, which card types or object classes it is, or which zone it is in. A
+keyword action a permanent performs is refused on a player by its own Definition body, whose
+reads of its performer (a controller, a counter, a designation, a power) do not resolve on a
+player. Also gone are an object's possessor and `patientPossessor`, a referent's counter
+memory and `counterMemory`, the counter holder tables (`counterSourceScope`,
+`counterKindNamed`; `counterHolderKind` still requires an object or a player), the stat
+type presupposition (`statHeadTysOk` [CR#208.3]; the projection's `.object` or `.player` scope
+stays as `projScope`), the description contradiction tables (`contradictionFree`), a settable
+exchanged value (`settableValue`), a permanent spell's card types (`permanentSpellType`),
+the ascribed card type and subtype (`ascriptionOk`), a move rider's destination
+(`riderKind`), and the zones `handoffPerformer` and `designationHolder` read. A type or
+"copied" refinement of an attachment host word that is not an object noun is refused
+`kindLte`. On the question of
 scope this supersedes "rules correctness" in the paragraph above; the rest of
 that paragraph stands.
 
@@ -155,10 +169,10 @@ mentions, including nested targets, into the surrounding phrase.
 Host predicates admit object and player domains. Enchanted-player predicates
 are accepted, consistent with the existing enchanted-player noun and
 [CR#303.4b]. Equipped or fortified player hosts are refused (`kindLte`: an
-Equipment's or Fortification's host is an object [CR#301.5,301.6]). Host
-card-type restrictions written in one description remain a contradiction
-(`contradictionFree`); a counterpart's or a host word's card types are no longer
-checked against the attachment word (`lean-checker-sweep-zone`). Quantified
+Equipment's or Fortification's host is an object [CR#301.5,301.6]), and so is a host word
+that refines a player by a card type. A host's card types, written in one description or
+in a counterpart or host word, are not checked against the attachment word
+(`lean-checker-sweep-zone`, `lean-v3-authoring-impl-4-checker-dewarting`). Quantified
 attachment counts and counterpart target publication remain checked. The `isAttached`, `attachedBy`, and `attachedTo`
 templates expand to the shared predicate.
 
@@ -268,8 +282,8 @@ performer's kind, whether it is "you", and the referents it named) and steps the
 under it. The innermost frame decides (`actorShape?`), so inside a handoff to a
 permanent `actor` is the permanent and `controllerOf(actor)` a player; outside every
 handoff, and inside `instruct you`, `actor` reads as `you`. The performer must be a
-player or a permanent, an object on the battlefield [CR#110.1] (a damage source is
-also admitted); anything else is refused `handoffPerformer`. Leaving the handoff
+player or an object; anything else is refused `handoffPerformer`. Where the object is
+(a card in a graveyard handed an action) is not checked. Leaving the handoff
 drops the frame (`dropActorFrame`): a handoff publishes the referents its subject and
 body introduced, so a handed-to target stays available, and a handoff to `this`
 publishes only the body's.
@@ -280,14 +294,17 @@ turn's taker (`semantics-v2-chooser-and-taker-fields`). A choice is judged as th
 performer's: its chosen phrase must be `agentChoosable` (`choiceClause`). An added
 turn is taken by the performer, which must be a player [CR#500.7]; an added phase or
 step is added to the current turn [CR#500.8,500.9]. A deed reads the performer from
-the frame: `enact` checks it against the kind its row's agent role takes
-(`deedAgentDomain`, refused `kindMismatch`), and crewing, saddling, fully unlocking and
-triggering check the frame's kind (`eventAgent`). A deed whose row names an object
-performer (`enactActorKind`: fight, explore, adapt, connive, endure, harness and
-monstrosity [CR#701.14a,701.44a,701.50a,701.63a]) written with no handoff to a permanent (printed "Adapt N"
-[CR#701.46a]) is performed by the source permanent: its body is stepped under a frame
-for "this permanent". Inside a handoff to another player there is no such default,
-and the player is refused at the deed's agent kind. An event's performer is written in
+the frame. `enact` does not check it against the deed: crewing, saddling, fully unlocking
+and triggering check the frame's kind (`eventAgent`), and a deed's own body reads its
+performer like any other reference. A deed whose row says a permanent performs it
+(`ActFacts.permanentActor`: fight, explore, adapt, connive, endure, harness and
+monstrosity [CR#701.14a,701.44a,701.50a,701.63a]) written with no handoff to a permanent
+(printed "Adapt N" [CR#701.46a]) is performed by the source permanent: its body is
+stepped under a frame for "this permanent". Inside a handoff to another player there is
+no such default, and the body's reads of its performer are refused on the player:
+explore, connive and endure hand their steps to the performer's controller
+(`possessorKind`), adapt reads its counters, monstrosity its designation and fight its
+power (`kindMismatch`). `Proofs/Actor.lean` pins each. An event's performer is written in
 the same kind: "whenever a creature you control explores". Who pays a cost (the
 retired `payAgrees`, `costPaidByYou` and `keywordCostPaidByYou`) is not checked
 (`lean-checker-sweep-costs`); a cost may hand its action to another player.
@@ -308,26 +325,10 @@ characteristic text and emblem abilities are stepped in `choiceContext` (only ch
 qualities and chosen players carry in, never a handoff frame), and a keyword ability
 body in its own Reference Scope (`enterOwnScope`).
 
-An object referent records its Possessor (`Payload.object`'s last field,
-`Possessor`): "you" or another player, relative to the controller [CR#109.5],
-or unknown. A description seeds it (`Predicate.seedPossessor`) from a
-possessed hand, graveyard or library (`.in_ (handOf p)` [CR#400.1,400.3]) and from
-a controller predicate (`.hasPossessor .controller p`, and its negation on
-`you` [CR#108.4]), with `actor` read in its handoff
-(`NounPhrase.possessorSide`), so a referent made inside a handoff keeps its
-meaning outside it. A move between one player's own zones keeps it; a move to
-or from a shared zone and a gain of control leave it unknown
-(`keptPossessor` [CR#110.2]). A deed whose facts row marks its patient as the
-performer's own (`ActFacts.ownPatient`: sacrifice [CR#701.21a], discard
-[CR#701.9a]) reads the patient's possessor (`NounPhrase.possessor`), the
-conjunct of an indefinite patient and the referent of a definite one
-alike, and is refused `patientPossessor` only when that possessor is known to
-be another player than the performer (`enactPatientPossessorOk`); an unknown
-possessor is not refused. This is a reference agreement, not a game rule about
-zones. `Proofs/Possessor.lean` pins both deeds in both forms with their
-passing twins. Every pattern over `Payload.object` names the possessor: the
-field defaults to unknown, and a pattern that leaves it out matches only the
-unknown possessor.
+An object referent records no possessor. Whether a sacrificed permanent is one its
+performer controls, or a discarded card one in its performer's hand, is a game rule
+[CR#701.21a,701.9a], not a reference, and is not checked
+(`lean-v3-authoring-impl-4-checker-dewarting`).
 
 `Proofs/Actor.lean` pins the handoff cards, what each kind of performer publishes,
 nested handoffs, nested abilities, the parameter `actor`, every cost the bench hands
@@ -497,11 +498,9 @@ must not be used to borrow evidence across halves. Choice-arm payloads and
 same-kind group summaries also intersect their facts; narrowing a group or
 remarking a tested referent adds facts to that referent.
 
-Type alternatives retain conjunction/disjunction structure for role checks:
-conjunction combines facts, disjunction requires each alternative to support the
-role. An entirely unknown description retains the previous no-evidence behavior
-for stat and deed checks. Contradiction checks over attachment words can use
-any supporting type within one conjunctive alternative. Attachment profiles collect every type
+Type alternatives retain conjunction/disjunction structure: conjunction combines
+facts, and disjunction requires each alternative to support a type word's reach. An
+entirely unknown description supplies no evidence. Attachment profiles collect every type
 refinement, including when seeding or moving their referent.
 
 Movement retains the remembered facts and changes the carrier separately.
@@ -547,7 +546,7 @@ expected child kinds in the incoming `DRS`.
 | `SpendPurpose` | `stepSpendPurposeWith` steps it. |
 | `ManaHeld` | The `manaRetention` static case steps its player; `ManaHeld.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |
 | `AsThough` | `stepAsThoughWith` steps it. |
-| `Exchanged` | `stepExchangedWith` steps it; `Exchanged.localChecks` checks its shape. |
+| `Exchanged` | `stepExchangedWith` steps it. Whether an exchanged value can be set is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). |
 | `TokenQuality` | `stepCharacteristicBundleWith` steps each quality of the bundle in order. |
 | `CounterKindSource` | `stepCounterKindSourceWith` steps it; `CounterKindSource.localChecks` checks the counter is known. |
 | `CostShift` | `stepCostShiftWith` steps it; `CostShift.localChecks` checks its shape. |
@@ -574,7 +573,7 @@ expected child kinds in the incoming `DRS`.
 | `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
 | `DeonticRider` | No Lean type: the rider is retired (`lean-v3-authoring-surface` §2.3). |
 | `DamageOp` | `stepDamageOpWith` steps it. |
-| `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)); an Entry Rider or a Pile Placement whose kind its destination does not allow is refused `riderKind` (owner ruling 2026-10-08, Q28–Q29). |
+| `MoveRider` | `stepMoveRiderWith` steps it (`MoveRider.check` and `MoveRider.checkAll` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). Whether its destination takes an Entry Rider or a Pile Placement is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). |
 | `Cost` | `stepCost` (`Cost.check` in [Abilities.lean](Semantics/Check/Abilities.lean)) steps it; `Cost.localChecks` checks its shape. |
 | `ManaRider` | `stepManaRiderWith` steps it; `ManaRider.localChecks` checks its shape. |
 | `CopyExcept` | `stepCopyExceptWith` steps it (`CopyExcept.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
@@ -597,7 +596,7 @@ expected child kinds in the incoming `DRS`.
 | `LookbackSubject` | `Predicate.did` binds the described participant as `which`; the event stepper validates each use (see "Historical events"). |
 | `LookbackComplement` | Ordinary event participant checks; there is no separate complement-kind table. |
 | `ChoiceMode` | `choiceModeChecks` in `stepDetPhraseWith`. |
-| `Possessable` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a possessed shared zone is not refused. `Zone.possessable` still decides which moves keep a referent's possessor. |
+| `Possessable` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a possessed shared zone is not refused. A referent records no possessor (`lean-v3-authoring-impl-4-checker-dewarting`). |
 
 ### Phrase
 
@@ -679,9 +678,9 @@ expected child kinds in the incoming `DRS`.
 | `BasicLandTypes` | Same removed `basicLandLine` API as `BasicLandType`; a printed face's subtype validation remains `subsFitLine` (the card frame). A token's or an edit's subtypes are not checked against its types (`lean-checker-sweep-game-rules`). |
 | `Delta` | The type parameter survives as `Delta α`; it was not erased. `stepDeltaWith` steps a `Delta Amount`'s carried amount. |
 | `GivingWarrant` | Retired with the conferrer tag (2026-09-07): which expansion confers a designation is not tracked. `Action.gainDesignation` checks the designation's own row: its scope and holder (`designationScope`, `designationHolder`). Whether an action may confer it (the row's `effectful`) is not checked (`lean-checker-sweep-game-rules`). |
-| `DesignationHolder` | `designationHolderOk` and the declared designation scope/holder checks at designation consumers. |
+| `DesignationHolder` | `designationHolderOk` (the designation is held by a player or an object) and the declared designation scope checks at designation consumers; where the holder is is not checked. |
 | `AxesAt` | `axesAt` in the `compare` predicate case requires a nonempty list whose axes all have the expected scope. |
-| `StatusVal` | The status is the value; no separate category argument can disagree. Consumers retain the status-holder checks, and `Status.clash` makes a description holding two contradictory statuses fail `contradictionFree`. |
+| `StatusVal` | The status is the value; no separate category argument can disagree. Consumers retain the status-holder checks; a description holding two contradictory statuses is not refused. |
 
 ### Records and dependent pairs
 
@@ -1004,9 +1003,9 @@ the `nontarget` refusal is retired here as on a static ability
 
 Two representation boundaries are named rather than hidden. A conferral confers
 an `Ability`, not a separate property type; whether it is one an effect could
-grant (`grantable`) is retired with the grant rules. A damage result names a `CounterKind`,
-and the counter registry's declared holder is what fixes the recipient's kind;
-there is no second registry lookup.
+grant (`grantable`) is retired with the grant rules. A damage result names a `CounterKind`;
+its recipient is an object or a player (`counterHolderKind`), and which of the two the
+counter registry declares is not checked.
 
 A counter's kind is a name: `CounterKind.named` carries the counter
 declaration's name verbatim (`p1p1Counter`, `flyingCounter`, `chargeCounter`),
