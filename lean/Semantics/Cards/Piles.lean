@@ -30,12 +30,13 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
           activated
             (compound [mana [generic 5, pip .blue], tapSymbol,
                         perform (sacrifice thisArtifact)])
-            (establish (cant any (block (allOf (and [isCreature, youControl])))) (some thisTurn)) ] } }
+            (establishThroughout (cant any (block (allOf (and [isCreature, youControl]))))
+               thisTurn) ] } }
 
 /-- "two cards at random" from a hand. -/
-def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (and [isCard, in_ hand])
+def twoCardsAtRandom : NounPhrase := countedAtRandom (exactly 2) (cardIn hand)
 /-- "two cards" from a hand, chosen. -/
-def twoCardsChosen : NounPhrase := counted (exactly 2) (and [isCard, in_ hand])
+def twoCardsChosen : NounPhrase := counted (exactly 2) (cardIn hand)
 
 /-- The at-random mode changes nothing a later pronoun can read. -/
 theorem atRandomModeIsAnnouncementNeutral :
@@ -66,14 +67,14 @@ def councilsJudgment : Spelled := spelled <| .singleFaced
             (spell (sequentially
               [ instruct eachPlayer (voteStartingWith you .openly
                   (byCandidate (a (and [ isPermanent, non isLand,
-                                           not (hasPossessor .controller you) ])))),
+                                           youDontControl ])))),
                 exile (allOf (and [isPermanent, withMostVotes])) ])) ] } }
 
 /-- Orchard Elemental -/
 def orchardElemental : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Orchard Elemental", cost := some [generic 5, pip .green], types := [.creature],
-      subtypes := [creatureType "Elemental"],
+      subtypes := [elemental],
       text :=
         [ abilityWord "council's dilemma"
             (when (does any (putOntoBattlefield thisCreature))
@@ -116,7 +117,7 @@ def coercivePortal : Spelled := spelled <| .singleFaced
 def custodiSquire : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Custodi Squire", cost := some [generic 4, pip .white], types := [.creature],
-      subtypes := [creatureType "Spirit", creatureType "Cleric"],
+      subtypes := [spirit, cleric],
       text :=
         [ keyword (.named "flying"),
           abilityWord "will of the council"
@@ -125,15 +126,15 @@ def custodiSquire : Spelled := spelled <| .singleFaced
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byCandidate
                       (a (and [ or [isArtifact, isCreature, isEnchantment],
-                                 in_ (graveyardOf you) ])))),
-                  returnTo (allOf (and [isCard, withMostVotes])) hand [] ])) ],
+                                 in_ yourGraveyard ])))),
+                  returnToHand (allOf (and [isCard, withMostVotes])) ])) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Lieutenants of the Guard -/
 def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Lieutenants of the Guard", cost := some [generic 4, pip .white],
-      types := [.creature], subtypes := [creatureType "Human", creatureType "Soldier"],
+      types := [.creature], subtypes := [human, soldier],
       text :=
         [ abilityWord "council's dilemma"
             (when (does any (putOntoBattlefield thisCreature))
@@ -141,7 +142,8 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["strength", "numbers"])),
                   putCounters (votesFor "strength") (printedKind p1p1Counter) thisCreature .many,
-                  createToken (creatureToken 1 1 [.white] [creatureType "Soldier"]) (count := (votesFor "numbers")) ])) ],
+                  createToken (creatureToken 1 1 [.white] [soldier]) (count :=
+                                                                        (votesFor "numbers")) ])) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Truth or Consequences: the secret-council ability alone, as the Idris bench holds it. -/
@@ -150,7 +152,7 @@ def truthOrConsequencesVote : Ability :=
     (spell (sequentially
       [ instruct eachPlayer (vote .secretly (byLabel ["truth", "consequences"])),
         draw (votesFor "truth"),
-        choose (aAtRandom (isOpponentOf you)),
+        choose (aAtRandom isOpponent),
         instruct «this»
           (dealDamage (times (.lit 3) (votesFor "consequences")) (that .player) .noncombatOnly) ]))
 theorem okTruthOrConsequencesVote : Ability.check (DRS.ofList []) truthOrConsequencesVote = [] := by decide
@@ -162,9 +164,9 @@ def deathOrGlory : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ separateIntoPiles
-                (allOf (and [isCreature, in_ (graveyardOf you)])) 2,
+                (allOf (and [isCreature, in_ yourGraveyard])) 2,
               exile (pileOfChoice anOpponent),
-              putInto (theOther .pile) battlefield ]) ] } }
+              putOntoBattlefield (theOther .pile) ]) ] } }
 
 /-- Steam Augury -/
 def steamAugury : Spelled := spelled <| .singleFaced
@@ -185,9 +187,9 @@ def doOrDie : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ separateIntoPiles
-                (allOf (and [isCreature, hasPossessor .controller (target isPlayer)])) 2,
+                (allOf (and [isCreature, controlledBy (target isPlayer)])) 2,
               doAndForbid
-                (destroy (allOf (and [isCreature, in_ (thePile (pileOfChoice they))])))
+                (destroy (allOf (and [isCreature, inPile (pileOfChoice they)])))
                 (.action "regenerate") (theVerbed (.action "destroy") .many) ]) ] } }
 
 /-- Liliana of the Veil -/
@@ -195,15 +197,16 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Liliana of the Veil", cost := some [generic 1, pip .black, pip .black],
       supertypes := [.legendary], types := [.planeswalker],
-      subtypes := [planeswalkerType "Liliana"],
+      subtypes := [liliana],
       text :=
-        [ activated (loyaltySymbol (.up 1)) (sequentially [instruct eachPlayer (choose (a (and [isCard, in_ hand]))), discard them]),
+        [ activated (loyaltySymbol (.up 1))
+            (sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them]),
           activated (loyaltySymbol (.down 2)) (instruct (target isPlayer) (sacrifice (a isCreature))),
           activated (loyaltySymbol (.down 6))
             (sequentially
               [ separateIntoPiles
-                  (allOf (and [isPermanent, hasPossessor .controller (target isPlayer)])) 2,
-                instruct they (sacrifice (allOf (and [isPermanent, in_ (thePile (pileOfChoice they))]))) ])
+                  (allOf (and [isPermanent, controlledBy (target isPlayer)])) 2,
+                instruct they (sacrifice (allOf (and [isPermanent, inPile (pileOfChoice they)]))) ])
                     ],
       loyalty := stat 3 } }
 
