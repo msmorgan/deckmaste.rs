@@ -114,7 +114,7 @@ def songOfEarendil : Action :=
     (each (and [isCreature, youControl, not (hasKeyword (.the (.named "flying")))])) .many
 theorem okSongOfEarendil : Action.check (DRS.ofList []) songOfEarendil = [] := by decide
 def gideonsAvenger : Ability :=
-  whenever (does any (setStatus .tapped (a (and [isCreature, controlledBy anOpponent]))))
+  whenever (does (a (and [isCreature, controlledBy anOpponent])) (become tapped))
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okGideonsAvenger : Ability.check (DRS.ofList []) gideonsAvenger = [] := by decide
 def prologueToPhyresis : Action :=
@@ -136,8 +136,7 @@ def kratosStoicFather : Ability :=
 theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
   triggeredIf (beginningOfPossessed .endStep eachPlayer)
-    (happened (move (a isCreature)
-      battlefield (some graveyard) .departure) any soFarThisTurn)
+    (happened die (a isCreature) soFarThisTurn)
     (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
 def furiousSpinesplitter : Ability :=
@@ -945,8 +944,8 @@ def ichorShade : Spelled := spelled <| .singleFaced
       text :=
         [ triggeredIf (beginningOfYour .endStep)
             (happened
-               (move (a (or [isArtifact, isCreature])) battlefield (some graveyard)
-                  .departure) any soFarThisTurn)
+               (putInto (a (or [isArtifact, isCreature])) graveyard (from_ := some battlefield))
+               any soFarThisTurn)
             (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -960,7 +959,7 @@ def asmiraHolyAvenger : Spelled := spelled <| .singleFaced
         [ flying,
           at_ (beginningOfPossessed .endStep eachPlayer)
             (putCounters
-              (eventCount (move (a isCreature) battlefield (some yourGraveyard) .departure) any
+              (eventCount (putInto (a isCreature) yourGraveyard (from_ := some battlefield)) any
                  soFarThisTurn)
               (printedKind p1p1Counter) thisCreature .many) ],
       power := stat 2, toughness := stat 3 } }
@@ -1108,7 +1107,7 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           when (does thisAura enter) (tap (enchanted creature)),
           static (abilityGrant (enchanted creature)
-            (static (instead (would any (setStatus .untapped thisCreature)) (doIfDone
+            (static (instead (would thisCreature (become untapped)) (doIfDone
                 (removeCounters (exactly 1) (some (printedKind p1p1Counter)) thisCreature .many true)
                 (some (untap thisCreature))) (some (duringPart .untapStep (some you)))))) ] } }
 

@@ -1173,7 +1173,7 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
         [ lifelink,
           triggeredIf (does thisCreature enter)
             (or
-              [ did (⟨any, (move it yourGraveyard (some battlefield) .arrival), triggering⟩),
+              [ did ⟨it, enter (from_ := some yourGraveyard), triggering⟩,
                 matches_ it (and [castBy you, castFrom yourGraveyard]) ])
             (triggerReflexively (exile it)
               (createToken

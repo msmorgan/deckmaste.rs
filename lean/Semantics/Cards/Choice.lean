@@ -1203,7 +1203,7 @@ def verityCircle : Spelled := spelled <| .singleFaced
     { name := "Verity Circle", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
         [ triggeredIf
-            (does any (setStatus .tapped (a (and [isCreature, controlledBy anOpponent]))))
+            (does (a (and [isCreature, controlledBy anOpponent])) (become tapped))
             (matches_ it (not (inCombat .declaredAttacker)))
             (may (draw (.lit 1))),
           activated (mana [generic 4, pip .blue])

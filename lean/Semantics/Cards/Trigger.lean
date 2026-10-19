@@ -35,9 +35,7 @@ theorem okScholarOfStars : Ability.check (DRS.ofList []) scholarOfStars = [] := 
 
 def miserysShadow : Ability :=
   static (instead
-            (would any
-               (move (a (and [isCreature, controlledBy anOpponent])) battlefield (some graveyard)
-                  .departure)) (exile it))
+            (would (a (and [isCreature, controlledBy anOpponent])) die) (exile it))
 theorem okMiserysShadow : Ability.check (DRS.ofList []) miserysShadow = [] := by decide
 
 def beastWhisperer : Ability :=
@@ -45,7 +43,7 @@ def beastWhisperer : Ability :=
     [isCreature, isSpell])))) (draw (.lit 1))
 theorem okBeastWhisperer : Ability.check (DRS.ofList []) beastWhisperer = [] := by decide
 def mesmericOrb : Ability :=
-  whenever (does any (setStatus .untapped (a isPermanent)))
+  whenever (does (a isPermanent) (become untapped))
     (instruct (controllerOf (that permanent)) (mill (.lit 1) they))
 theorem okMesmericOrb : Ability.check (DRS.ofList []) mesmericOrb = [] := by decide
 def secretPlans : Ability :=
@@ -601,8 +599,9 @@ def faithsReward : Spelled := spelled <| .singleFaced
     { name := "Faith's Reward", cost := some [generic 3, pip .white], types := [.instant],
       text :=
         [ spell (putOntoBattlefield (allOf (and [ isPermanentCard, in_ yourGraveyard,
-                           happenedTo any (move (relative .object) battlefield (some yourGraveyard)
-                                             .departure) soFarThisTurn ]))) ] } }
+                           happenedTo any
+                             (putInto (relative .object) yourGraveyard (from_ := some battlefield))
+                             soFarThisTurn ]))) ] } }
 
 /-- Oscorp Industries -/
 def oscorpIndustriesReturn : Ability :=
@@ -627,7 +626,7 @@ def fblthp : Spelled := spelled <| .singleFaced
         [ when (does «this» enter)
             (replace (draw (.lit 1))
               (doIf (or
-                  [ did (⟨any, (move it yourLibrary (some battlefield) .arrival), triggering⟩),
+                  [ did ⟨it, enter (from_ := some yourLibrary), triggering⟩,
                     matches_ it (castFrom yourLibrary) ])
                 (draw (.lit 2)))),
           when (does (a isSpell) (target «this»)) (shuffleInto «this») ],
@@ -753,16 +752,13 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
 
 /-- Don't Blink's replacement, without its written agent -/
 def dontBlinkReplacement : Action :=
-  establishThroughout (instead
-                         (wouldAny
-                            [(would any
-                                (move (counted (atLeast 1) isCreature) exileZone
-                                   (some battlefield) .arrival)), (would any
-                                                                     (putOntoBattlefield
-                                                                        (counted (atLeast 1)
-                                                                           (and
-                                                                              [isCreature, castFrom
-                                                                                 exileZone]))))]) (shuffleInto them)) untilEndOfTurn
+  establishThroughout
+    (instead
+      (wouldAny
+        [ would (counted (atLeast 1) isCreature) (enter (from_ := some exileZone)),
+          would (counted (atLeast 1) (and [isCreature, castFrom exileZone])) enter ])
+      (shuffleInto them))
+    untilEndOfTurn
 theorem okDontBlinkReplacement : Action.check (DRS.ofList []) dontBlinkReplacement = [] := by decide
 
 /-- Seasoned Warrenguard -/

@@ -107,7 +107,7 @@ theorem okUlvenwaldTracker : Action.check (DRS.ofList []) ulvenwaldTracker = [] 
 def botBashingTime : Action :=
   sequentially
     [ dealDamage (.lit 6) (target isCreature) .noncombatOnly,
-      replaceEvent (would any (move (that creature) battlefield (some graveyard) .departure))
+      replaceEvent (would (that creature) die)
           (exile it) (some thisTurn) ]
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
@@ -1259,14 +1259,17 @@ def frostwielder : Spelled := spelled <| .singleFaced
     { name := "Frostwielder", cost := some [generic 2, pip .red, pip .red], types := [.creature],
       subtypes := [human, shaman],
       text :=
-        [ static (instead (would any (move (a (and [isCreature,
-              happenedTo thisCreature (dealDamage anyAmount
-                                                 (asMarker .permanent
-                                                    (relative
-                                                       .object))) soFarThisTurn])) battlefield
-                                                           (some graveyard) .departure))
-                                                           (exile it)),
-          activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly)) ],
+        [ static
+            (instead
+              (would
+                (a (and [ isCreature,
+                          happenedTo thisCreature
+                            (dealDamage anyAmount (asMarker .permanent (relative .object)))
+                            soFarThisTurn ]))
+                die)
+              (exile it)),
+          activated tapSymbol
+            (instruct thisCreature (dealDamage (.lit 1) (target isAnyTarget) .noncombatOnly)) ],
       power := stat 1, toughness := stat 2 } }
 
 /-- Crackling Doom -/
