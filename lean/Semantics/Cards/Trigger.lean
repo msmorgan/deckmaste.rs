@@ -265,7 +265,7 @@ def clone : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Clone", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [shapeshifter],
-      text := [static (entryRider thisCreature (asCopyOf true (a isCreature) []))],
+      text := [static (enters thisCreature [asCopyOf true (a isCreature) []])],
       power := stat 0, toughness := stat 0 } }
 
 /-- Quicksilver Gargantuan -/
@@ -274,26 +274,26 @@ def quicksilverGargantuan : Spelled := spelled <| .singleFaced
     { name := "Quicksilver Gargantuan", cost := some [generic 5, pip .blue, pip .blue],
       types := [.creature], subtypes := [shapeshifter],
       text :=
-        [ static (entryRider thisCreature
-            (asCopyOf true (a isCreature) [hasPT (.lit 7) (.lit 7)])) ],
+        [ static (enters thisCreature
+            [asCopyOf true (a isCreature) [hasPT (.lit 7) (.lit 7)]]) ],
       power := stat 7, toughness := stat 7 } }
 
 /-- Sculpting Steel -/
 def sculptingSteel : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sculpting Steel", cost := some [generic 3], types := [.artifact],
-      text := [static (entryRider thisArtifact (asCopyOf true (a isArtifact) []))] } }
+      text := [static (enters thisArtifact [asCopyOf true (a isArtifact) []])] } }
 
 /-- Sakashima's Student -/
 def sakashimasStudentCopy : Ability :=
-  static (entryRider thisCreature
-    (asCopyOf true (a isCreature) [isAlso [] [ninja]]))
+  static (enters thisCreature
+    [asCopyOf true (a isCreature) [isAlso [] [ninja]]])
 theorem okSakashimasStudentCopy : Ability.check (DRS.ofList []) sakashimasStudentCopy = [] := by decide
 /-- Chameleon, Master of Disguise -/
 def chameleonCopy : Ability :=
-  static (entryRider thisCreature
-    (asCopyOf true (a (and [isCreature, youControl]))
-      [isNamed "Chameleon, Master of Disguise"]))
+  static (enters thisCreature
+    [asCopyOf true (a (and [isCreature, youControl]))
+      [isNamed "Chameleon, Master of Disguise"]])
 theorem okChameleonCopy : Ability.check (DRS.ofList []) chameleonCopy = [] := by decide
 
 def nefariousLichGain : Ability :=
@@ -745,8 +745,9 @@ def gatherSpecimens : Spelled := spelled <| .singleFaced
       text :=
         [ spell
             (establishThroughout
-               (entryRider (a (and [isCreature, anOpponentControls]))
-                  (under you)) thisTurn) ] } }
+               (replace (would (a isCreature) (enter (riders := [under anOpponent])))
+                  (instead (instruct it (enter (riders := [under you])))))
+               thisTurn) ] } }
 
 /-- Don't Blink's replacement, without its written agent -/
 def dontBlinkReplacement : Action :=

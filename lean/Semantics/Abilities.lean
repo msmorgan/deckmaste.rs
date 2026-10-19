@@ -821,7 +821,6 @@ mutual
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
-    | entryRider (subject : NounPhrase) (rider : MoveRider)
     | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
         (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)

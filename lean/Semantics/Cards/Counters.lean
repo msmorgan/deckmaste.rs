@@ -404,9 +404,9 @@ def denryKlin : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [cat, advisor],
       text :=
-        [ static (entryRider thisCreature
-            (withCounters (.lit 1)
-              (chosenKind [p1p1Counter, firstStrikeCounter, vigilanceCounter]) .fresh)),
+        [ static (enters thisCreature
+            [withCounters (.lit 1)
+              (chosenKind [p1p1Counter, firstStrikeCounter, vigilanceCounter]) .fresh]),
           denryKlinSameKinds ],
       power := stat 2, toughness := stat 2 } }
 

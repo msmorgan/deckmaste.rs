@@ -238,8 +238,8 @@ def helicaGlider : Spelled := spelled <| .singleFaced
     { name := "Helica Glider", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [nightmare, squirrel],
       text :=
-        [ static (entryRider thisCreature
-            (withCounters (.lit 1) (chosenKind [flyingCounter, firstStrikeCounter]) .fresh)) ],
+        [ static (enters thisCreature
+            [withCounters (.lit 1) (chosenKind [flyingCounter, firstStrikeCounter]) .fresh]) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Eager Construct -/

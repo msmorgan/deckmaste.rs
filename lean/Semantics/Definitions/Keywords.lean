@@ -444,7 +444,7 @@ semantic_definition dash (cost : Cost) : Ability :=
           (keywordCostPaid (.named "dash") thisPermanent)) ]
 semantic_definition daybound : Ability :=
   .keyword (.named "daybound") []
-    [ static (onlyIfSo (entryRider thisPermanent .entersTransformed) (gameIs night)),
+    [ static (onlyIfSo (enters thisPermanent [.entersTransformed]) (gameIs night)),
       static
         (.asEvent (gameBecomes night)
           (doIf (matches_ thisPermanent (.currentFace .front))
@@ -488,17 +488,16 @@ semantic_definition devoid : Ability :=
 semantic_definition devourQuality (quality : Predicate) (amount : Amount) : Ability :=
   .keyword (.named "devour") [.quality (.inCaller quality), .number (.inCaller amount)]
     [ static
-        (.asEvent
-          (does thisPermanent enter)
+        (replace (would thisPermanent enter)
           (may (sacrifice (counted anyNumber (and [.inCaller quality, .in_ battlefield])))
             (some
-              (.establish
-                (entryRider thisPermanent
-                  (.withCounters
-                    (.arith .times (.inCaller amount)
-                      (.countOf (theVerbed (.action "sacrifice") .many)))
-                    (.printed p1p1Counter) .fresh))
-                none)))) ]
+              (instruct thisPermanent
+                (enter
+                  (riders :=
+                    [ .withCounters
+                        (.arith .times (.inCaller amount)
+                          (.countOf (theVerbed (.action "sacrifice") .many)))
+                        (.printed p1p1Counter) .fresh ])))))) ]
 semantic_definition devour (amount : Amount) : Ability :=
   .keyword (.named "devour") [.number (.inCaller amount)] [devourQuality isCreature amount]
 semantic_definition disguise (cost : Cost) : Ability :=

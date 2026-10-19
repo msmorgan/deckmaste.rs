@@ -384,15 +384,15 @@ theorem badCumulativeUpkeepCounter :
 /-- "your choice of a +1/+1 counter or a first strike counter on it." -/
 theorem okCounterMenu :
     StaticSpec.check (DRS.ofList [])
-      (.entryRider thisCreature
-        (.withCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) .fresh))
+      (enters thisCreature
+        [.withCounters (.lit 1) (.chosen [p1p1Counter, .named "firstStrikeCounter"]) .fresh])
       = [] := by
   decide
 
 /-- "This creature enters with your choice of a counter on it." -/
 theorem badEmptyCounterMenu :
     StaticSpec.check (DRS.ofList [])
-      (.entryRider thisCreature (.withCounters (.lit 1) (.chosen []) .fresh)) = [.nonEmpty] := by
+      (enters thisCreature [.withCounters (.lit 1) (.chosen []) .fresh]) = [.nonEmpty] := by
   decide
 
 /-- "Put your choice of a +1/+1 counter or a first strike counter on target creature." -/

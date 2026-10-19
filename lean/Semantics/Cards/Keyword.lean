@@ -302,9 +302,9 @@ def grimdancer : Spelled := spelled <| .singleFaced
     { name := "Grimdancer", cost := some [generic 1, pip .black, pip .black], types := [.creature],
       subtypes := [nightmare],
       text :=
-        [ static (entryRider thisCreature
-            (withCounters (.lit 2)
-              (distinctChosenKinds [menaceCounter, deathtouchCounter, lifelinkCounter]) .fresh)) ],
+        [ static (enters thisCreature
+            [withCounters (.lit 2)
+              (distinctChosenKinds [menaceCounter, deathtouchCounter, lifelinkCounter]) .fresh]) ],
       power := stat 3, toughness := stat 3 } }
 
 def divineVisitation : Spelled := spelled <| .singleFaced

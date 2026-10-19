@@ -2879,10 +2879,6 @@ def stepOps : Nat → StepOps
           let (drs1, _, e1) := ops.np drs .subj true player
           let (drs2, ids, e2) := ops.np drs1 .obj true subj
           (applyInPlaceStamp drs2 ids (some (.core .gainControl)), e1 ++ e2)
-        | .entryRider subj r =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := stepMoveRiderWith ops drs1 r
-          (drs2, e1 ++ e2)
         | .choice _ subj q dom _ =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           let (drs2, e2) := sortedDomainCheckWith ops drs1 q dom
@@ -2928,7 +2924,13 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := stepWouldClauseWith ops drs ev
           let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) repl
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
-          (drs, e1 ++ e2 ++ e3)
+          -- Nothing the replacement introduces escapes but the letters it reads: X has one value
+          -- on the object, so "enters with X counters, where X is …" defines it after
+          -- [CR#107.3i].
+          let letters := drs2.visibleReferents.filter fun ref =>
+            ref.id ≥ drs.nextId && (match ref.payload with | .letter _ => true | _ => false)
+          ({ drs with referents := letters ++ drs.referents, nextId := Nat.max drs.nextId drs2.nextId },
+            e1 ++ e2 ++ e3)
         | .damageResult r =>
           match r with
           | ⟨_, source, recipient, _, does⟩ =>

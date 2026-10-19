@@ -1785,24 +1785,32 @@ semantic_template entersChoosingPlayer (subject : NounPhrase) (domain : Option C
 semantic_template entersChoosingPlayerSecretly (subject : NounPhrase)
     (domain : Option ChoiceDomain) : StaticSpec :=
   entryChoice subject .player domain .secretly
+/-- "<subject> enters <riders>", a static ability: as `subject` would enter, it enters with
+`riders` instead, "it" read back as "them" after a plural subject ("creatures you control enter
+tapped") [CR#614.1c,614.1d]. -/
+semantic_template enters (subject : NounPhrase) (riders : List MoveRider) : StaticSpec :=
+  .replace (would subject enter)
+    (instruct (match subject with | .described .all _ | .described .bare _ => them | _ => it)
+      (enter (riders := riders)))
+    none .repeatedly none
 /-- "<subject> enters tapped" -/
 semantic_template entersTapped (subject : NounPhrase) : StaticSpec :=
-  .entryRider subject (.entersAs .tapped)
+  enters subject [.entersAs .tapped]
 /-- "As <subject> becomes attached, choose a <quality>." -/
 semantic_template attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   attachmentChoice subject (.quality sort) none
 /-- "<subject> enters with N <kind> counters on it" -/
 semantic_template entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
-  .entryRider subject (.withCounters amount (.printed kind) .fresh)
+  enters subject [.withCounters amount (.printed kind) .fresh]
 /-- "<subject> enters with an additional N <kind> counters on it" -/
 semantic_template entersWithAdditionalCounters (subject : NounPhrase) (amount : Amount)
     (kind : CounterKind) : StaticSpec :=
-  .entryRider subject (.withCounters amount (.printed kind) .additional)
+  enters subject [.withCounters amount (.printed kind) .additional]
 /-- "<subject> enters with N fewer <kind> counters on it" -/
 semantic_template entersWithFewerCounters (subject : NounPhrase) (amount : Amount)
     (kind : CounterKind) : StaticSpec :=
-  .entryRider subject (.withCounters amount (.printed kind) .fewer)
+  enters subject [.withCounters amount (.printed kind) .fewer]
 semantic_template triggered (event : GameEvent) (action : Action) : Ability :=
   .triggered event [] none [] none none none action
 /-- "Whenever <event> and whenever <joined events>, <action>" -/
@@ -1929,8 +1937,6 @@ semantic_template damageRule (kind : DamageKind) (source : DamageAgent) (scope :
 semantic_template Timing.duringPart (part : TurnPart) (whose : Option NounPhrase := none) :
     Timing :=
   Templates.duringPart part whose
-semantic_template entryRider (subject : NounPhrase) (rider : MoveRider) : StaticSpec :=
-  .entryRider subject rider
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
 /-- "If <event> would …, <replacement> instead": a replacement effect, `event` replaced by
 `replacement` [CR#614.1a,614.1c,614.1d]. -/

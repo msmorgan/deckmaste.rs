@@ -128,7 +128,6 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .preventionBan _ _ _ => []
   | _n + 1, .conditional _ _ _ => []
   | _n + 1, .visibility _ _ _ | _n + 1, .additionalTriggers _ _ => []
-  | _n + 1, .entryRider _ rider => rider.numberSlots
   | _n + 1, .choice _ _ _ _ _ | _n + 1, .conjunction _ _ => []
 termination_by structural fuel
 
