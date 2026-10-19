@@ -591,6 +591,42 @@ impl Production {
         Some(())
     }
 
+    /// The engine facts a lexical leaf child adds.
+    fn accept_leaf(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        leaf: &LeafFacts,
+    ) {
+        next.last_extensions = 0;
+        if self.coordinator == Some(position) {
+            next.coordinator = leaf.lexeme;
+        }
+        if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
+            next.preposition = leaf.lexeme.map(|l| (l, *frame));
+        }
+        let key = match (&self.rhs[position], leaf.lexeme) {
+            (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) => {
+                Some((lexeme, Some(*frame)))
+            }
+            (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) => Some((lexeme, None)),
+            _ => None,
+        };
+        if let Some(key) = key {
+            next.extensions = grammar.extensions.get(&key).copied().unwrap_or(0);
+            // A noun's selected Preposition Phrase follows it (an
+            // *of*-complement of a relational noun).
+            if leaf.category == LexicalCategory::Noun {
+                next.last_extensions = next.extensions;
+            }
+        }
+        if self.host_check.is_some_and(|(host, _, _)| host == position) {
+            next.host_extensions = next.extensions;
+            next.host_right_extensions = next.last_extensions;
+        }
+    }
+
     /// Adds child `position` to `state`, or `None` if it does not fit.
     pub fn accept(
         &self,
@@ -717,45 +753,7 @@ impl Production {
                 next.last_extensions = summary.right_extensions;
                 self.priority(grammar, &mut next, position, summary)?;
             }
-            ChildView::Leaf(leaf) => {
-                next.last_extensions = 0;
-                if self.coordinator == Some(position) {
-                    next.coordinator = leaf.lexeme;
-                }
-                if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
-                    next.preposition = leaf.lexeme.map(|l| (l, *frame));
-                }
-                if let (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) =
-                    (&self.rhs[position], &leaf.lexeme)
-                {
-                    next.extensions = grammar
-                        .extensions
-                        .get(&(*lexeme, Some(*frame)))
-                        .copied()
-                        .unwrap_or(0);
-                    // A noun's selected Preposition Phrase follows it (an
-                    // *of*-complement of a relational noun).
-                    if leaf.category == LexicalCategory::Noun {
-                        next.last_extensions = next.extensions;
-                    }
-                }
-                if let (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) =
-                    (&self.rhs[position], leaf.lexeme)
-                {
-                    next.extensions = grammar
-                        .extensions
-                        .get(&(lexeme, None))
-                        .copied()
-                        .unwrap_or(0);
-                    if leaf.category == LexicalCategory::Noun {
-                        next.last_extensions = next.extensions;
-                    }
-                }
-                if self.host_check.is_some_and(|(host, _, _)| host == position) {
-                    next.host_extensions = next.extensions;
-                    next.host_right_extensions = next.last_extensions;
-                }
-            }
+            ChildView::Leaf(leaf) => self.accept_leaf(grammar, &mut next, position, leaf),
             ChildView::Punct => next.last_extensions = 0,
         }
         Some(next)
