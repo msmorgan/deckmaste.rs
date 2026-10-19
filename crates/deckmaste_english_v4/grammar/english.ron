@@ -1126,6 +1126,10 @@
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
+        // Relative clauses coordinate, each with its relative word (*tokens
+        // that are copies of it and that are tapped and attacking*; CGEL, Ch.
+        // 15 §2.1, p. 1292).
+        Coordination(category: "RelativeClause", coordinators: "Coordinator", equations: [Require("first.ClauseMarking", "Relative"), Require("last.ClauseMarking", "Relative")]),
         // Interrogative clauses coordinate (*which creatures block and how
         // those creatures block*; CGEL, Ch. 5 §18.4, p. 508).
         Coordination(category: "InterrogativeClause", coordinators: "Coordinator"),

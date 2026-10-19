@@ -46,3 +46,4 @@
 + <card=Wan Shi Tong, All-Knowing> When Wan Shi Tong enters, target nonland permanent's owner puts it into their library second from the top or on the bottom. => !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
 + <card=Happy Hogan, Bodyguard> When Happy Hogan enters, the owner of target creature an opponent controls puts it into their library second from the top or on the bottom. => !Nominal "library second from the top or on the bottom"; !PrepositionPhrase "into their library second from the top"
 + You choose which creatures block this turn and how those creatures block. => Clause "which creatures block this turn"; Clause "how those creatures block"
++NounPhrase X tokens that are copies of it and that are tapped and attacking => RelativeClause "that are copies of it"; RelativeClause "that are tapped and attacking"; readings 1
