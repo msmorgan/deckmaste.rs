@@ -1495,7 +1495,7 @@ semantic_template replace (replaced replacement : Action) : Action := .replace r
 semantic_template rerollStored (quantity : Quantity) (whose : NounPhrase) : Action :=
   .rerollStored quantity whose
 semantic_template restartGame : Action := .restartGame
-semantic_template returnToHand (subject : NounPhrase) (from_ : Location := Location.anyLocation) :
+semantic_template returnToHand (subject : NounPhrase) (from_ : Location := wherever) :
     Action :=
   enact (.core .return_) (.move subject from_ (some hand) .arrival none [])
 semantic_template revealChoices (sort : HiddenSort) : Action := .revealChoices sort
