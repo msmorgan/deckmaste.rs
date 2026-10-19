@@ -50,8 +50,8 @@ guard written in a keyword's reminder is checked as any conditional static abili
 theorem okFlyingGuardedToPermanentCard :
     Ability.check (DRS.ofList [])
       (.keyword (.named "flying") []
-        [ match flyingExpansion with
-          | .static se => .static (.conditional se onPermanentCard .asLongAs)
+        [ match flying with
+          | .keyword _ _ [.static se] => .static (.conditional se onPermanentCard .asLongAs)
           | ab => ab ])
       = [] := by
   decide

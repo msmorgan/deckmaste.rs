@@ -167,7 +167,7 @@ theorem okShuffleTheChosenPile :
   decide
 
 /-- Cascade [CR#702.85a]: "cards exiled this way that weren't cast" reads the exiled run. -/
-theorem okCascade : Ability.check (DRS.ofList []) cascadeExpansion = [] := by decide
+theorem okCascade : Ability.check (DRS.ofList []) cascade = [] := by decide
 
 /-- Ripple [CR#702.60a]: "you may reveal the top four cards of your library … you may cast any of
 those cards with the same name as this spell without paying their mana costs, then put all

@@ -479,9 +479,7 @@ theorem badCumulativeUpkeepOnSpell :
   decide
 
 /-- "Renown 1 (When this creature deals combat damage to a player, …)" -/
-theorem okRenownWithRenownExpansion :
-    Ability.check (DRS.ofList []) (.keyword (.named "renown") [.number (.lit 1)] [renownExpansion (.lit 1)])
-      = [] := by
+theorem okRenownWithRenownDefinition : Ability.check (DRS.ofList []) (renown (.lit 1)) = [] := by
   decide
 
 /-- "Flying (This creature can't be blocked except by creatures with flying and/or reach.)" -/
@@ -908,14 +906,15 @@ theorem badPrototypeOffCreatureFrame :
 Storm counts the spells cast earlier in the turn [CR#702.40a], not every spell cast during
 it. -/
 theorem stormCountsEarlierThisTurn :
-    stormExpansion =
-      when (.does (.actor .you) (cast thisSpell))
-        (.sequentially
-          [ .copy .fromStack thisSpell
-              (eventCount (cast (a (.and [isSpell, .otherThan thisSpell]))) (.actor (a .anyPlayer))
-                earlierThisTurn)
-              [],
-            may (.chooseNewTargets (.pro (.word .copy) .many)) ]) := by
+    storm =
+      .keyword (.named "storm") []
+        [ when (.does (.actor .you) (cast thisSpell))
+            (.sequentially
+              [ .copy .fromStack thisSpell
+                  (eventCount (cast (a (.and [isSpell, .otherThan thisSpell])))
+                    (.actor (a .anyPlayer)) earlierThisTurn)
+                  [],
+                may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ] := by
   rfl
 
 end Semantics.Proofs.Faces
