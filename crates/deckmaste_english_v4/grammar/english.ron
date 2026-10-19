@@ -996,7 +996,7 @@
         // Clause Complements of a Preposition (CGEL, Ch. 7 §1, pp. 599–600):
         // a finite Clause (*when this creature enters*), or a reducible
         // verbless Clause without its Subject (*if able*; Ch. 14 §10(b), p. 1267).
-        (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")],
+        (name: "FiniteComplementClause", lhs: "FiniteClause", rhs: [Cat("head", "Clause")], undelimited: ["head"],
             equations: [Require("head.VerbForm", "Finite"), Require("head.ClauseMarking", "Unmarked")]),
         (name: "VerblessComplementClause", lhs: "VerblessClause", rhs: [Cat("head", "Predicative")]),
 

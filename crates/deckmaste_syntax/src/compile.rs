@@ -169,6 +169,9 @@ struct Draft {
     /// The coordinator a correlative coordination's serial tail must end with.
     paired_coordinator: Option<LexemeId>,
     uncoordinated: Vec<usize>,
+    undelimited: Vec<usize>,
+    /// A binary coordination with a delimiter before its coordinator.
+    delimits: bool,
     /// Conjuncts that must differ in a feature: (first, last, feature).
     unlike: Option<(usize, usize, usize)>,
 }
@@ -206,6 +209,8 @@ impl Draft {
             requires_coordination: None,
             paired_coordinator: None,
             uncoordinated: Vec::new(),
+            undelimited: Vec::new(),
+            delimits: false,
             unlike: None,
         }
     }
@@ -713,6 +718,14 @@ impl<'a> Binder<'a> {
                 draft.weights.push((child, weight));
             }
         }
+        for name in &declaration.undelimited {
+            let child = draft
+                .children
+                .iter()
+                .position(|c| c.name == *name)
+                .ok_or_else(|| context(invalid(format!("unknown undelimited child `{name}`"))))?;
+            draft.undelimited.push(child);
+        }
         for name in &declaration.uncoordinated {
             let child = draft
                 .children
@@ -931,6 +944,8 @@ impl<'a> Binder<'a> {
         production.predicative = draft.predicative;
         production.paired_coordinator = draft.paired_coordinator;
         production.uncoordinated = draft.uncoordinated;
+        production.undelimited = draft.undelimited;
+        production.delimits = draft.delimits;
         production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
@@ -2222,6 +2237,7 @@ impl Conjoin {
         let a = draft.child("first", self.conjunct(), GapRule::Shared);
         if let Some(mark) = delimiter {
             draft.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+            draft.delimits = true;
         }
         let c = draft.child("coordinator", Symbol::Leaf(coordinator), GapRule::Closed);
         let b = draft.child("last", self.conjunct(), GapRule::Shared);

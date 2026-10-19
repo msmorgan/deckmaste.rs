@@ -103,6 +103,10 @@ pub struct ProductionDecl {
     /// one level up is the same analysis (a chain of bare imperatives).
     #[serde(default)]
     pub uncoordinated: Vec<Ident>,
+    /// Children that are not a coordination delimited by punctuation before
+    /// its coordinator (two independent clauses joined by *, and*).
+    #[serde(default)]
+    pub undelimited: Vec<Ident>,
 }
 
 pub(crate) fn default_cost() -> u32 {

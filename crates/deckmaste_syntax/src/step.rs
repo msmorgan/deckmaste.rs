@@ -155,6 +155,10 @@ pub(crate) struct Production {
     pub paired_coordinator: Option<LexemeId>,
     /// Children that may not be a coordination.
     pub uncoordinated: Vec<usize>,
+    /// Children that may not be a delimited coordination.
+    pub undelimited: Vec<usize>,
+    /// It is a coordination delimited before its coordinator.
+    pub delimits: bool,
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
@@ -294,6 +298,8 @@ pub(crate) fn resolve(
         predicative: None,
         paired_coordinator: None,
         uncoordinated: Vec::new(),
+        undelimited: Vec::new(),
+        delimits: false,
         unlike: None,
         id,
         lhs,
@@ -359,6 +365,8 @@ pub(crate) struct Summary {
     /// The Host Categories it may modify unselected: a Preposition Phrase's
     /// frame's, every conjunct's for a coordination, any for the rest.
     pub hosts: u8,
+    /// It is a coordination delimited before its coordinator.
+    pub delimited: bool,
     /// It begins with a dependent set off by a comma (*When …, …*), which
     /// scopes over a whole coordination, never over its first conjunct.
     pub set_off: bool,
@@ -706,6 +714,9 @@ impl Production {
                 if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
                     return None;
                 }
+                if self.undelimited.contains(&position) && summary.delimited {
+                    return None;
+                }
                 if summary.set_off && self.coordinator.is_some() && self.names[position] == "first"
                 {
                     return None;
@@ -791,6 +802,7 @@ impl Production {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),
                 _ => state.conjunct_hosts,
             },
+            delimited: self.delimits,
             set_off: !coordinated
                 && matches!(self.rhs.get(1), Some(Symbol::Punct(',', _)))
                 && self.rhs.len() > 2,
