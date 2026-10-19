@@ -2,7 +2,7 @@
 +DeterminerPhrase all but 1 => PrepositionPhrase "but 1"
 +DeterminerPhrase all but one => PrepositionPhrase "but one"
 +DeterminerPhrase all but that many => PrepositionPhrase "but that many"
-+PrepositionPhrase but 1 => NounPhrase "1" as Complement of but
++PrepositionPhrase but 1 => Amount "1" as Complement of but
 +NounPhrase all but 1 life => DeterminerPhrase "all but 1" as Determiner of life
 +NounPhrase all but one +1/+1 counter => DeterminerPhrase "all but one" as Determiner of counter
 +NounPhrase all but that many permanents => DeterminerPhrase "all but that many" as Determiner of permanent

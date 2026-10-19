@@ -61,7 +61,7 @@
     // *for each target beyond the first*
     (lemma: "beyond", frames: [(complement: NP, hosts: Nominal)]),
     // Exception: *all but the bottom card of each opponent's library*.
-    (lemma: "but", frames: [(complement: NP, hosts: Nominal)]),
+    (lemma: "but", frames: [(complement: NP, hosts: Nominal), (complement: Amount, hosts: Nominal)]),
     // The passive agent is the grammar's; *reduce that opponent's speed by 1*.
     (lemma: "by", frames: [
         (complement: Amount, hosts: ComplementOnly),

@@ -7,7 +7,7 @@
         (lemma: "last", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "next", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
-        (lemma: "all", frames: [Complement(PP(["of"]))]),
+        (lemma: "all", frames: [Complement(PP(["of"])), Complement(PP(["but"]))]),
         (number: Singular, countability: Count, lemma: "another", distribution: SingularOrQuantified, frames: [Complement(PP(["of"]))]),
         // Its partitive is the grammar's: with a plural oblique the Noun
         // Phrase may be singular or plural (*if any of those cards shares ...*).

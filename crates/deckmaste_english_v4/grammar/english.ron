@@ -199,6 +199,7 @@
         "Or": "coord:or",
         "And": "coord:and",
         "Nor": "coord:nor",
+        "But": "coord:but",
         "Both": "det:both",
         "Either": "det:either",
         "Neither": "det:neither",
@@ -1007,6 +1008,8 @@
         // A purpose *to*-infinitival, unless the head's frame selects one.
         Adjunct(host: "VerbPhrase", adjunct: "ToInf", side: After, host_kind: Predicate, cost: 2),
         Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
+        // Contrastive *but* joins predicates (*you control but don't own*).
+        Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm"]),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it

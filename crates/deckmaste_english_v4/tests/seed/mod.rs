@@ -227,7 +227,7 @@ pub fn lexicon() -> Lexicon {
     ] {
         lexemes.push(invariant("prep", word, Category::Preposition, Core));
     }
-    for word in ["and", "or", "and/or", "nor"] {
+    for word in ["and", "or", "and/or", "nor", "but"] {
         lexemes.push(invariant("coord", word, Category::Coordinator, Core));
     }
     for word in DEPENDENT_HEADS {
