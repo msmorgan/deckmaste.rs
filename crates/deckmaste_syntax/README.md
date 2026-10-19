@@ -75,7 +75,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   subjective predicative; never the objective one of *turn it face up*) and,
   when `passive` names the `by` Closed Word, passive
   phrases with and without the Internalised Complement, a `by` Preposition
-  Phrase; a non-auxiliary `Prepositional` frame's passive strands its
+  Phrase, which strands its preposition like any other; a non-auxiliary `Prepositional` frame's passive strands its
   Preposition Phrase (*each card looked at*). Only a verb's phrases are `Voice: Active`; another head's phrase
   takes its Voice from the head (a declared Adjectival Passive is Passive). When `adjectival` names a Category, a frame whose passive leaves no
   Complement also derives Adjectival Passives of it (the participle, with or
@@ -149,7 +149,9 @@ environment's declared properties, including Catalog entries. Empty and
 singleton classes are reported. The grammar never enumerates their members.
 `Parameters` compiles the catalog's ordered parameter patterns around a head:
 slots select grammar Categories; markers, bound stems and head identities stay
-in the catalog. Noun notation parameters support indexed headers by the same
+in the catalog. With `coordinators`, a pattern's final marker and slot also
+coordinate, binary and serial, the marker repeated (*protection from black and
+from red*). Noun notation parameters support indexed headers by the same
 mechanism as keyword parameters. `ModifiedWords` builds a restricted word set with recursive
 premodification inside its projected category.
 

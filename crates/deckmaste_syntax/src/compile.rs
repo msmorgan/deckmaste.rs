@@ -465,7 +465,6 @@ impl<'a> Binder<'a> {
                 }
             }
         }
-
         let mut closed_words = BTreeMap::new();
         for (name, id) in &grammar.closed_words {
             let id = *id;
@@ -955,7 +954,8 @@ impl<'a> Binder<'a> {
                 head,
                 phrase,
                 binding,
-            } => self.parameters(*head, phrase, *binding),
+                coordinators,
+            } => self.parameters(*head, phrase, *binding, coordinators.as_deref()),
             SchemaDecl::Valence {
                 head,
                 phrase,
@@ -1162,8 +1162,10 @@ impl<'a> Binder<'a> {
         head: LexicalCategory,
         phrase: &str,
         binding: Option<Binding>,
+        coordinators: Option<&str>,
     ) -> Result<Vec<Draft>, LoadError> {
         use crate::frames::ParameterPart;
+        let coordinator = coordinators.map(|c| self.coordinator_test(c)).transpose()?;
         let lhs = self.category(phrase)?;
         let mut drafts = Vec::new();
         for (id, patterns) in &self.catalog.parameters {
@@ -1268,10 +1270,59 @@ impl<'a> Binder<'a> {
                     };
                     draft.child(name, symbol, GapRule::Closed);
                 }
+                if let (Some(coordinator), [.., ParameterPart::Word(_), ParameterPart::Slot(_)]) =
+                    (&coordinator, parts.as_slice())
+                {
+                    drafts.extend(self.coordinated_parameter(&draft, coordinator));
+                }
                 drafts.push(draft);
             }
         }
         Ok(drafts)
+    }
+
+    /// A pattern's final marker and parameter, coordinated: binary (*from
+    /// black and from red*) and serial (*from X, from Y, and from Z*).
+    fn coordinated_parameter(&mut self, draft: &Draft, coordinator: &Test) -> Vec<Draft> {
+        let marked: Vec<Child> = draft.children[draft.children.len() - 2..].to_vec();
+        let push_marked = |d: &mut Draft| {
+            for c in &marked {
+                d.child(c.name.as_ref(), c.symbol.clone(), GapRule::Closed);
+            }
+        };
+        let mut binary = draft.clone();
+        binary.id = Ident::new(&format!("{}/coordinated", draft.id));
+        binary.child(
+            "coordinator",
+            Symbol::Leaf(coordinator.clone()),
+            GapRule::Closed,
+        );
+        push_marked(&mut binary);
+        let tail = self.private_category(draft.lhs);
+        let tail_symbol = Symbol::Cat {
+            category: tail,
+            binding: None,
+            prepositions: None,
+            host: None,
+        };
+        let mut serial = draft.clone();
+        serial.id = Ident::new(&format!("{}/serial", draft.id));
+        serial.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        serial.child("rest", tail_symbol.clone(), GapRule::Closed);
+        let mut more = Draft::new(format!("{}/serial-more", draft.id), tail, 0);
+        push_marked(&mut more);
+        more.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        more.child("rest", tail_symbol, GapRule::Closed);
+        let mut end = Draft::new(format!("{}/serial-end", draft.id), tail, 0);
+        push_marked(&mut end);
+        end.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        end.child(
+            "coordinator",
+            Symbol::Leaf(coordinator.clone()),
+            GapRule::Closed,
+        );
+        push_marked(&mut end);
+        vec![binary, serial, more, end]
     }
 
     fn valence(

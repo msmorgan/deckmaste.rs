@@ -174,6 +174,10 @@ pub enum SchemaDecl {
         phrase: Ident,
         #[serde(default)]
         binding: Option<deckmaste_lexical::Binding>,
+        /// Coordinators of a pattern's final marked parameter, repeated
+        /// with its marker (*protection from black and from red*).
+        #[serde(default)]
+        coordinators: Option<Ident>,
     },
     /// Frame-driven phrases headed by every lexeme of a lexical Category.
     Valence {

@@ -973,7 +973,7 @@
     schemas: [
         Premodification(head: Verb, modifier: "Participle", host: "BareNominal", forms: [GerundParticiple, PastParticiple], prefix: true),
         Parameters(head: Noun, phrase: "IndexedNominal"),
-        Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free)),
+        Parameters(head: Keyword, phrase: "KeywordParameters", binding: Some(Free), coordinators: Some("Coordinator")),
         Parameters(head: Keyword, phrase: "BoundKeyword", binding: Some(Suffix)),
         Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true),
         Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability")]),
@@ -987,7 +987,9 @@
         Adjunct(host: "LocativeHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "PartitiveHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "SymbolHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
-        Adjunct(host: "KeywordPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
+        // A keyword mentioned without its parameter takes a modifier
+        // (*landwalk of the chosen type*); a supplied parameter ends it.
+        Adjunct(host: "KeywordPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1, equations: [Exclude("head.KeywordForm", "Parametric")]),
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
         Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
