@@ -92,7 +92,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   of their sequences, its head shared on the left as the mirror of Right Node
   Raising (*put one of them into your hand and the rest into your graveyard*,
   *deals 2 damage to any target and 1 damage to you*); each copy of a Slot
-  bears its function.
+  bears its function (right nonce-constituent coordination, CGEL, Ch. 15
+  §4.3, p. 1341).
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).

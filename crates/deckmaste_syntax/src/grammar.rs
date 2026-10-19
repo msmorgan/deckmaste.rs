@@ -205,7 +205,8 @@ pub enum SchemaDecl {
         agree: Vec<(Ident, Ident)>,
         /// Coordinators of complement clusters: a verb with two or more
         /// Frame Slots heads a coordination of their sequences (*put one of
-        /// them into your hand and the rest into your graveyard*).
+        /// them into your hand and the rest into your graveyard*; CGEL,
+        /// Ch. 15 §4.3, p. 1341).
         #[serde(default)]
         clusters: Option<Ident>,
     },
@@ -252,7 +253,7 @@ pub enum SchemaDecl {
         conjunct: Option<Ident>,
         /// A feature whose value the two conjuncts of a binary coordination
         /// must not share: a coordination of unlike categories in one
-        /// function (CGEL, Ch. 15 §3.3); serial coordinations are not derived.
+        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial coordinations are not derived.
         #[serde(default)]
         unlike: Option<Ident>,
     },

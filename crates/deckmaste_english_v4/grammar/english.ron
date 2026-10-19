@@ -149,7 +149,7 @@
         // The predicative Complement function; its head bears it too.
         "Predicative": (function: true),
         // A depictive Adjunct of unlike categories coordinated (*onto the
-        // battlefield tapped and attacking*; CGEL, Ch. 15 §3.3), and each of
+        // battlefield tapped and attacking*; CGEL, Ch. 15 §3.2, pp. 1326–1329), and each of
         // its conjuncts, by the kind of phrase that fills it.
         "Depictive": (category: Some("Predicative"), function: true, features: ["ComplementKind"]),
         "DepictiveCoordination": (category: Some("Predicative"), function: true, features: ["ComplementKind"]),
