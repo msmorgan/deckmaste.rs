@@ -13,12 +13,6 @@ refusal, which is what a non-vacuous pin claims.
 
 namespace Semantics
 
-/-- The two kinds of move rider: an entry rider, which only an arrival on the battlefield
-takes, and a pile placement, which any other destination takes. -/
-inductive RiderKind where
-  | entry | placement
-  deriving DecidableEq, Repr
-
 inductive Refusal where
   | recursionLimit
   /-- A performed payment requires a specified cost. -/
@@ -27,8 +21,6 @@ inductive Refusal where
   /- sorts -/
   /-- A phrase's kind is fixed by two constraints that disagree. -/
   | kindMismatch (expected found : Kind)
-  /-- A move rider is not of the kind its destination allows. -/
-  | riderKind (allowed found : RiderKind)
   | phrasal (k : Kind)
   | targetable (k : Kind)
   | targeter (k : Kind)
@@ -36,7 +28,6 @@ inductive Refusal where
   | possessorKind (axis : PossessorAxis) (k : Kind)
   | projScope (k : Kind)
   | axesAt (k : Kind)
-  | counterKindNamed (k : Kind)
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
   /-- A Relation no declaration declares [CR#702.55b,702.95b,702.99b]. -/
@@ -60,7 +51,6 @@ inductive Refusal where
   | testSubject
   /- zones -/
   | ordinalNonZero
-  | counterMemory
   /- anaphora and scope: what the read found -/
   | anaphor (r : Reach) (pl : Plurality) (found : Nat)
   /-- "that turn" reads back the one turn an earlier phrase introduced; it found `found`. -/
@@ -95,7 +85,6 @@ inductive Refusal where
   | atLeastTwo
   | flatConjuncts
   | flatDisjuncts
-  | contradictionFree
   | otherAnchored
   | coordinableDisjuncts
   | negatable
@@ -108,15 +97,12 @@ inductive Refusal where
   | chosenQualityRead (q : QualitySort)
   | subtypeType
   | ascribable
-  | ascriptionOk
-  | permanentSpellType
   | linkSource
   | pileMention
   | predSays
   | markingOk
   | amtNonZero
   | tallyOk
-  | statHeadTysOk
   | lookbackSubject
   | lookbackLocus
   | durationPossessor
@@ -141,21 +127,14 @@ inductive Refusal where
   /-- A qualifier's usage limit restricts activation, so it wraps an activated ability
   [CR#602.5b]. -/
   | qualifiedLimit
-  | deedFits
   | eventHead
   | verbedVoiceOk
   | verbBecomesOk
-  /-- A handoff names neither a player nor a permanent [CR#110.1]. -/
+  /-- A handoff names neither a player nor an object. -/
   | handoffPerformer
-  /-- A deed whose patient is the performer's own is done to an object whose possessor is known to
-  be a different player than its performer [CR#701.21a,701.9a]. -/
-  | patientPossessor
-  /-- A noun in a deed's agent or patient role does not fit what that deed takes there. -/
-  | deedNounOk (d : Deed)
   | counterBatchOk
   | causedByOk
   | tokenPhrase
-  | settableValue
   | numberChoiceInScope
   /-- A deontic rule's counterpart is the subject read back, is of a kind the deed's other role
   does not take, or a complement names a deed outside the rule or twice. -/
@@ -176,7 +155,6 @@ inductive Refusal where
   | twoParties
   | lineNonEmpty
   | kindAmountOk
-  | counterSourceScope
   | counterHolderKind
   | qualityRead
   | keywordExtendable

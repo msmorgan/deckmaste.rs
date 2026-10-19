@@ -136,7 +136,7 @@ private theorem attachmentKindsUseTheMatchedSubjectAndOneHeadGate :
 
 private theorem unionHalfControllerUsesTheSelectedKindWithoutChangingIdentity :
     let joined : Payload := .join
-      (.object [.planeswalker] (some .battlefield) none none none none) (.player false)
+      (.object [.planeswalker] (some .battlefield) none none none) (.player false)
     let context := DRS.ofList [{ det := .target, plur := .one, payload := joined }]
     let controller : NounPhrase := .possessorOf .controller (.pro (.unionHalf (.type .planeswalker)) .one)
     let participant : NounPhrase := .or [.pro (.unionHalf .player) .one, controller]
@@ -196,14 +196,14 @@ private theorem nestedReplacementUsesItsOwnTokenDescription :
       countTokenSpecs result.1 = 1 ∧ tyOfThoseAny .token result.1 = [.creature] := by decide +kernel
 
 private theorem damageSourceRetainsItsIdentityOutsideTheBattlefield :
-    let payload := Payload.object [.artifact] (some .graveyard) none none none none
+    let payload := Payload.object [.artifact] (some .graveyard) none none none
     let context := nextClause (DRS.ofList [{ det := .the, plur := .one, payload, id := 17 }])
     let source := NounPhrase.pro .bare .one
     let result := stepAction 8 .postEvent .obj context
       (.instruct source (.dealDamage (.lit 2) .you .noncombatOnly))
     result.2 = [] ∧ (result.1.findById? 17).map (·.payload) = some payload ∧
-      (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .tapped .any))).2 = [.handoffPerformer] ∧
-      (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .untapped .any))).2 = [.handoffPerformer] := by decide
+      (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .tapped .any))).2 = [] ∧
+      (stepAction 8 .postEvent .obj context (.instruct source (.setStatus .untapped .any))).2 = [] := by decide
 
 private theorem kindLoopPublishesChoiceHistoryWithoutItsLocalCreature :
     let creature := Predicate.hasType .creature

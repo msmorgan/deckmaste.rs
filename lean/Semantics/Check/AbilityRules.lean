@@ -152,14 +152,10 @@ def sortedDomainCheck (drs : DRS) (sort : ChoiceSort)
 def MoveRider.check (drs : DRS) (placement : MoveRider) : List Refusal :=
   (stepMoveRiderWith (stepOps 64) drs placement).2
 
-def MoveRider.checkAll (drs : DRS) (allowed : Option RiderKind)
-    (riders : List MoveRider) : List Refusal :=
+def MoveRider.checkAll (drs : DRS) (riders : List MoveRider) : List Refusal :=
   (riders.foldl (fun (d, errors) rider =>
     let (out, errs) := stepMoveRiderWith (stepOps 64) d rider
-    let shape := match rider.riderKind? with
-      | some found => allowed.toList.flatMap (fun kind => refuse (kind == found) (.riderKind kind found))
-      | none => []
-    (out, errors ++ errs ++ shape)) (drs, [])).2
+    (out, errors ++ errs)) (drs, [])).2
 
 /-- The face of the pile a location names: a library face down [CR#401.2], a graveyard face up
 [CR#404.2], the cards exiled with a source face down [CR#406.4], and a made pile the face it was
@@ -218,7 +214,7 @@ private def chooserFrameContext (kind : Kind) (ids : List ReferentId) : DRS :=
   DRS.ofList [
     { id := 30, det := .the, plur := .one, payload := .actor {
       kind, isYou := false, selfDefined := false, ascribable := false,
-      twoParties := false, opponentOnly := false, refIds := ids } },
+      twoParties := false, refIds := ids } },
     { id := 24, det := .the, plur := .one, payload := .player false },
     { id := 23, det := .each, plur := .one, payload := .player false },
     { id := 22, det := .the, plur := .many, payload := .player false } ]

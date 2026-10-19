@@ -36,14 +36,6 @@ def Stat.comparedType : Stat → Option CardType
   | .loyalty => some .planeswalker
   | .defense => some .battle
 
-/-- A noncreature permanent has no power or toughness [CR#208.3], so a stat read is refused
-when every head-type alternative of the noun lacks the type the stat belongs to. No known type
-is permissive, and one alternative that carries the type suffices. -/
-def statHeadTysOk (c : Stat) (alts : List (List CardType)) : Bool :=
-  match c.comparedType with
-  | none => true
-  | some want => alts.all (·.elem want)
-
 def QualitySort.chosenReadOk : QualitySort → Bool
   | .color => true
   | .subtype _ => true
@@ -125,236 +117,102 @@ def atLeastTwo : Nat → Bool
 
 /-! ## The act facts table -/
 
-/-- The Entity domain a referent is drawn from: a player, an object, or either [CR#102.1,109.1]. -/
-inductive EntityDomain where
-  | player | object | either
-  deriving DecidableEq, Repr
-
-/-- An object class [CR#109.1]: the overlapping ways an object is classified. -/
-inductive ObjectClass where
-  | card | token | spell | permanent | emblem | ability
-  deriving DecidableEq, Repr
-
-/-- What a referent must be: an Entity domain, optionally narrowed by object classes and card
-types. Only an object has a class. Empty `classes` admit no ability; empty `types` admit only a
-noun that names no type (`deedAltOk`), so a row that takes any typed noun lists `allTypes`. -/
-structure ReferentSort where
-  domain : EntityDomain
-  classes : List ObjectClass := []
-  types : List CardType := []
-  deriving Repr, BEq
-
-/-- Which kinds a domain admits: `.either` admits both, the others admit only their own. -/
-def EntityDomain.admits : EntityDomain → Kind → Bool
-  | .player, .player => true
-  | .object, .object => true
-  | .either, .object => true
-  | .either, .player => true
-  | _, _ => false
-
-/-- A domain's admitted kinds, listed. -/
-def EntityDomain.kinds : EntityDomain → List Kind
-  | .player => [.player]
-  | .object => [.object]
-  | .either => [.object, .player]
-
-structure DeedRole where
-  sort : Option ReferentSort
-  bare : Bool
-  zone : Option Zone
-  deriving Repr, BEq
-
-def noRole : DeedRole := ⟨none, false, none⟩
-
-/-- The card types a role's sort names; an absent sort names none. -/
-def DeedRole.types (dr : DeedRole) : List CardType := dr.sort.elim [] (·.types)
-
-inductive PremiseSort where
-  | object | mana | value
-  deriving DecidableEq, Repr
-
 /-- The keyword actions [CR#701.1] a core constructor must name, declared so a guard reads a
 feature rather than a verb's spelling. -/
 inductive DeedFeature where
   | librarySearch | sacrificing | tapping
   deriving DecidableEq, Repr
 
-/-- What the checker knows about one deed. -/
+/-- What the checker knows about one deed: what reference resolution and salience read. -/
 structure ActFacts where
   participle : Option String := none
   dest : Option Zone := none
   loci : List Zone := []
   intransitive : Bool := false
-  agentRole : DeedRole := noRole
-  patientRole : DeedRole := noRole
-  hostRole : DeedRole := noRole
+  /-- A Permanent is its Actor: written with no Handoff to a Permanent, the source Permanent
+  performs it [CR#701.44a,701.63a]. -/
+  permanentActor : Bool := false
   feature : Option DeedFeature := none
-  ownPatient : Bool := false
   deriving Repr, BEq
-
-def permanentTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .planeswalker, .battle]
-def playerAgent : DeedRole := ⟨some ⟨.player, [], []⟩, true, none⟩
-def permanentAgent : DeedRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩
-def fieldObject : DeedRole := ⟨some ⟨.object, [], []⟩, false, some .battlefield⟩
-def spellTypes : List CardType :=
-  [.creature, .artifact, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred]
-def allTypes : List CardType :=
-  [.creature, .artifact, .land, .enchantment, .instant, .sorcery, .planeswalker, .battle, .kindred,
-    .dungeon]
-
-/-- The deeds the core rules define, as a total function [CR#508.1,509.1,709.5f,106.12a]. -/
-def coreDeedFacts : CoreDeed → ActFacts
-  | .attack =>
-      { agentRole := ⟨some ⟨.either, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.planeswalker, .battle]⟩, false, some .battlefield⟩ }
-  | .block =>
-      { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.creature]⟩, false, some .battlefield⟩ }
-  | .target =>
-      { agentRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩,
-        patientRole := ⟨some ⟨.either, [], allTypes⟩, true, none⟩ }
-  | .copy =>
-      { agentRole := ⟨none, true, some .stack⟩,
-        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩ }
-  | .draw =>
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, true, some .library⟩ }
-  | .gainLife => { agentRole := playerAgent }
-  | .loseGame => { agentRole := playerAgent }
-  | .winGame => { agentRole := playerAgent }
-  | .spend => { agentRole := playerAgent }
-  | .trigger =>
-      { agentRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩ }
-  | .put =>
-      { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }
-  | .return_ =>
-      { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }
-  | .gainControl => { agentRole := playerAgent, patientRole := fieldObject }
-  | .unlock => { agentRole := playerAgent, patientRole := ⟨none, false, some .battlefield⟩ }
-  | .fullyUnlock => { agentRole := playerAgent, patientRole := fieldObject }
-  | .tapForMana => { agentRole := playerAgent, patientRole := fieldObject }
 
 /-- The deeds a keyword ability defines for itself [CR#702.122b,702.171a,702.26a]. -/
 def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
-  [ ((.named "crew"),
-      { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], [.artifact]⟩, true, some .battlefield⟩ }),
-    ((.named "saddle"),
-      { agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
-    ((.named "phasing"),
-      { intransitive := true,
-        agentRole := ⟨some ⟨.object, [], []⟩, true, some .battlefield⟩ }),
-    ((.named "mutate"),
-      { intransitive := true,
-        agentRole := ⟨some ⟨.object, [], [.creature]⟩, true, some .battlefield⟩ }),
-    ((.named "devour"),
-      { agentRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, none⟩ }) ]
+  [ ((.named "crew"), {}),
+    ((.named "saddle"), {}),
+    ((.named "phasing"), { intransitive := true }),
+    ((.named "mutate"), { intransitive := true }),
+    ((.named "devour"), {}) ]
 
 /-- What the checker knows about each keyword action [CR#701.1]. -/
 def actFacts : List (KeywordActionLabel × ActFacts) :=
-  [ ("activate",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.ability], []⟩, true, some .stack⟩ }),
-    ("adapt", { agentRole := permanentAgent }),
-    ("airbend", { dest := some .exile, agentRole := playerAgent }),
-    ("amass", { agentRole := playerAgent }),
+  [ ("activate", {}),
+    ("adapt", { permanentActor := true }),
+    ("airbend", { dest := some .exile }),
+    ("amass", {}),
     ("assemble", {}),
-    ("attach",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], [.artifact, .enchantment]⟩, true, none⟩,
-        hostRole := ⟨some ⟨.either, [], []⟩, false, none⟩ }),
-    ("behold", { agentRole := playerAgent }),
-    ("blight", { agentRole := playerAgent }),
-    ("bolster", { agentRole := playerAgent }),
-    ("cast",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], spellTypes⟩, true, some .stack⟩ }),
-    ("clash", { agentRole := playerAgent }),
-    ("cloak", { dest := some .battlefield, agentRole := playerAgent }),
-    ("collectEvidence", { dest := some .exile, agentRole := playerAgent }),
-    ("connive", { agentRole := permanentAgent }),
-    ("convert", { intransitive := true, agentRole := playerAgent, patientRole := fieldObject }),
-    ("counter",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.spell, .ability], spellTypes⟩, true, some .stack⟩ }),
-    ("create", { dest := some .battlefield, agentRole := playerAgent }),
-    ("destroy",
-      { participle := some "destroyed", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
-    ("detain", { agentRole := playerAgent }),
-    ("discard",
-      { participle := some "discarded", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, some .hand⟩, ownPatient := true }),
-    ("discover", { agentRole := playerAgent }),
+    ("attach", {}),
+    ("behold", {}),
+    ("blight", {}),
+    ("bolster", {}),
+    ("cast", {}),
+    ("clash", {}),
+    ("cloak", { dest := some .battlefield }),
+    ("collectEvidence", { dest := some .exile }),
+    ("connive", { permanentActor := true }),
+    ("convert", { intransitive := true }),
+    ("counter", {}),
+    ("create", { dest := some .battlefield }),
+    ("destroy", { participle := some "destroyed", dest := some .graveyard }),
+    ("detain", {}),
+    ("discard", { participle := some "discarded", dest := some .graveyard }),
+    ("discover", {}),
     ("double", {}),
-    ("earthbend", { agentRole := playerAgent }),
-    ("endure", { agentRole := permanentAgent }),
-    ("exchange", { agentRole := playerAgent }),
-    ("exert", { agentRole := playerAgent }),
-    ("exile",
-      { participle := some "exiled", dest := some .exile, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
-    ("explore", { agentRole := permanentAgent }),
-    ("faceAVillainousChoice", { agentRole := playerAgent }),
-    ("fateseal", { agentRole := playerAgent }),
-    ("fight", { agentRole := permanentAgent }),
-    ("forage", { agentRole := playerAgent }),
-    ("goad", { agentRole := playerAgent }),
-    ("harness", { agentRole := permanentAgent }),
-    ("heal", { agentRole := playerAgent }),
-    ("incubate", { dest := some .battlefield, agentRole := playerAgent }),
-    ("investigate", { dest := some .battlefield, agentRole := playerAgent }),
+    ("earthbend", {}),
+    ("endure", { permanentActor := true }),
+    ("exchange", {}),
+    ("exert", {}),
+    ("exile", { participle := some "exiled", dest := some .exile }),
+    ("explore", { permanentActor := true }),
+    ("faceAVillainousChoice", {}),
+    ("fateseal", {}),
+    ("fight", { permanentActor := true }),
+    ("forage", {}),
+    ("goad", {}),
+    ("harness", { permanentActor := true }),
+    ("heal", {}),
+    ("incubate", { dest := some .battlefield }),
+    ("investigate", { dest := some .battlefield }),
     ("learn", {}),
-    ("manifest", { dest := some .battlefield, agentRole := playerAgent }),
-    ("manifestDread", { agentRole := playerAgent }),
-    ("meld",
-      { dest := some .battlefield, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, none⟩ }),
-    ("mill",
-      { participle := some "milled", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], []⟩, false, some .library⟩ }),
-    ("monstrosity", { agentRole := permanentAgent }),
-    ("play",
-      { agentRole := playerAgent, patientRole := ⟨some ⟨.object, [], allTypes⟩, true, none⟩ }),
-    ("populate", { agentRole := playerAgent }),
-    ("proliferate", { agentRole := playerAgent }),
-    ("recruit", { agentRole := playerAgent }),
-    ("regenerate",
-      { participle := some "regenerated", agentRole := ⟨none, true, none⟩,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
-    ("reveal",
-      { agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [.card], allTypes⟩, true, none⟩ }),
+    ("manifest", { dest := some .battlefield }),
+    ("manifestDread", {}),
+    ("meld", { dest := some .battlefield }),
+    ("mill", { participle := some "milled", dest := some .graveyard }),
+    ("monstrosity", { permanentActor := true }),
+    ("play", {}),
+    ("populate", {}),
+    ("proliferate", {}),
+    ("recruit", {}),
+    ("regenerate", { participle := some "regenerated" }),
+    ("reveal", {}),
     ("sacrifice",
-      { participle := some "sacrificed", dest := some .graveyard, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩,
-        feature := some .sacrificing, ownPatient := true }),
-    ("scry", { agentRole := playerAgent }),
+      { participle := some "sacrificed", dest := some .graveyard, feature := some .sacrificing }),
+    ("scry", {}),
     ("search",
       { loci := [.battlefield, .graveyard, .exile, .hand, .library, .stack, .command],
-        agentRole := playerAgent, feature := some .librarySearch }),
-    ("shuffle", { loci := [.library], agentRole := playerAgent }),
+        feature := some .librarySearch }),
+    ("shuffle", { loci := [.library] }),
     ("support", {}),
-    ("surveil", { agentRole := playerAgent }),
-    ("suspect", { agentRole := playerAgent }),
-    ("tap",
-      { participle := some "tapped", agentRole := playerAgent, patientRole := fieldObject,
-        feature := some .tapping }),
+    ("surveil", {}),
+    ("suspect", {}),
+    ("tap", { participle := some "tapped", feature := some .tapping }),
     ("theRingTemptsYou", {}),
-    ("timeTravel", { agentRole := playerAgent }),
-    ("transform",
-      { intransitive := true, agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
+    ("timeTravel", {}),
+    ("transform", { intransitive := true }),
     ("triple", {}),
-    ("untap",
-      { participle := some "untapped", agentRole := playerAgent,
-        patientRole := ⟨some ⟨.object, [], permanentTypes⟩, true, some .battlefield⟩ }),
+    ("untap", { participle := some "untapped" }),
     ("ventureIntoTheDungeon", {}),
-    ("vote", { agentRole := playerAgent }),
-    ("waterbend", { agentRole := playerAgent }) ]
+    ("vote", {}),
+    ("waterbend", {}) ]
 
 def distinctActLabels : List (KeywordActionLabel × ActFacts) → Bool
   | [] => true
@@ -365,7 +223,7 @@ def distinctAbilityDeedLabels : List (KeywordLabel × ActFacts) → Bool
   | f :: fs => !(fs.map (·.1)).elem f.1 && distinctAbilityDeedLabels fs
 
 def deedFacts : Deed → Option ActFacts
-  | .core d => some (coreDeedFacts d)
+  | .core _ => some {}
   | .action l => (actFacts.find? (·.1 == l)).map (·.2)
   | .ofAbility k => (abilityDeedFacts.find? (·.1 == k)).map (·.2)
 
@@ -375,15 +233,11 @@ def featureLabel (f : DeedFeature) : Option Deed :=
   (actFacts.find? (·.2.feature == some f)).map (fun row => .action row.1)
 def deedLabel (f : DeedFeature) : Deed := (featureLabel f).getD (.action "")
 def participleOf (v : Deed) : Option String := deedFacts v >>= (·.participle)
-def actPatientKindsOf (v : Deed) : List Kind :=
-  (deedFacts v).elim [] fun f => f.patientRole.sort.elim [] (·.domain.kinds)
-def actNamesPatient (v : Deed) : Bool := !(actPatientKindsOf v).isEmpty
-def actZoneOf (v : Deed) : Option Zone := deedFacts v >>= (·.patientRole.zone)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
-def actOwnPatient (v : Deed) : Bool := (deedFacts v).elim false (·.ownPatient)
 def actIntransitiveOf (v : Deed) : Bool := (deedFacts v).elim false (·.intransitive)
+def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.permanentActor)
 def actNamesParticiple (v : Deed) : Bool := (participleOf v).isSome
 
 /-! ## Discourse Representation Structure (`DRS`) -/
@@ -416,18 +270,6 @@ def pileMentionFace : List PileFace → Option PileFace
   | [] => none
   | f :: fs => if fs.all (· == f) then some f else none
 
-/-- Whose an object referent is, relative to the controller of the text ("you" [CR#109.5]):
-the player in whose hand, graveyard or library the card is [CR#400.3], or the player who
-controls the permanent [CR#108.4]. -/
-inductive Possessor where
-  | you | other
-  deriving DecidableEq, Repr
-
-/-- Two possessors are known to differ only when one is the controller and the other is not. -/
-def Possessor.differs : Option Possessor → Option Possessor → Bool
-  | some .you, some .other | some .other, some .you => true
-  | _, _ => false
-
 /-- Stable monotonic identifier assigned to each discourse referent on introduction. -/
 abbrev ReferentId := Nat
 
@@ -450,7 +292,6 @@ structure ActorShape where
   selfDefined  : Bool
   ascribable   : Bool
   twoParties   : Bool
-  opponentOnly : Bool
   ability      : Bool := false
   refIds       : List ReferentId := []
   deriving DecidableEq, Repr
@@ -459,7 +300,7 @@ structure ActorShape where
 `parameterFrame`, `scopeFrame`, `hidden`, `masked`, and `amount` are gone. -/
 inductive Payload where
   | object (ty : List CardType) (zone : Option Zone) (prov : Option Stamp) (orig : Option Origin)
-      (size : Option Nat) (possessor : Option Possessor := none)
+      (size : Option Nat)
   | player (chosen : Bool)
   | quality (q : QualitySort)
   | outcome (sort : OutcomeSort)
@@ -490,7 +331,7 @@ def kind : Payload → Kind
   | .join l r => .join l.kind r.kind
 
 def zone : Payload → Option Zone
-  | .object _ zn _ _ _ _ => zn
+  | .object _ zn _ _ _ => zn
   | .ability _ zn => zn
   | .pile zn _ _ => zn
   | .join l r => (l.zone).elim r.zone some
@@ -502,12 +343,12 @@ def joinSeed : List CardType → List CardType → List CardType
   | t, u => commonTypes t u
 
 def ty : Payload → List CardType
-  | .object t _ _ _ _ _ => t
+  | .object t _ _ _ _ => t
   | .join l r => joinSeed l.ty r.ty
   | _ => []
 
 def size : Payload → Option Nat
-  | .object _ _ _ _ sz _ => sz
+  | .object _ _ _ _ sz => sz
   | .pile _ sz _ => sz
   | .join l r => (l.size).elim r.size some
   | _ => none
@@ -517,12 +358,12 @@ def face : Payload → Option PileFace
   | _ => none
 
 def prov : Payload → Option Stamp
-  | .object _ _ pv _ _ _ => pv
+  | .object _ _ pv _ _ => pv
   | .join l r => (l.prov).elim r.prov some
   | _ => none
 
 def orig : Payload → Option Origin
-  | .object _ _ _ og _ _ => og
+  | .object _ _ _ og _ => og
   | .ability og _ => og
   | .join l r => (l.orig).elim r.orig some
   | _ => none
@@ -530,12 +371,6 @@ def orig : Payload → Option Origin
 def joined : Payload → Bool
   | .join _ _ => true
   | _ => false
-
-/-- An object's possessor, where the text fixed it; a join's object half. -/
-def possessor : Payload → Option Possessor
-  | .object _ _ _ _ _ ps => ps
-  | .join l r => (l.possessor).elim r.possessor some
-  | _ => none
 
 end Payload
 
@@ -554,7 +389,6 @@ structure Referent where
   announcedTargetResult : Bool := false
   createdResult : Bool := false
   librarySearchResult : Bool := false
-  counterMemoryAvailable : Bool := true
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -562,7 +396,6 @@ def Referent.zone (b : Referent) : Option Zone := b.payload.zone
 def Referent.ty (b : Referent) : List CardType := b.payload.ty
 def Referent.size (b : Referent) : Option Nat := b.payload.size
 def Referent.face (b : Referent) : Option PileFace := b.payload.face
-def Referent.possessor (b : Referent) : Option Possessor := b.payload.possessor
 
 def Referent.isActorFrame (b : Referent) : Bool :=
   match b.payload with
@@ -735,7 +568,7 @@ def DRS.recordMention (drs : DRS) (id : ReferentId) (role : GramRole := .other)
 /-- Re-size an object or pile referent; any other referent is returned unchanged. -/
 def sized (sz : Option Nat) (b : Referent) : Referent :=
   match b.payload with
-  | .object ty zn pv og _ ps => { b with payload := .object ty zn pv og sz ps }
+  | .object ty zn pv og _ => { b with payload := .object ty zn pv og sz }
   | .pile zn _ fc => { b with payload := .pile zn sz fc }
   | _ => b
 
@@ -989,17 +822,16 @@ def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α �
 
 /-- The payload two arms of a choice agree on, if any: the union of their payloads. -/
 def unionPayload : Payload → Payload → Option (Kind × Payload)
-  | .object t1 z1 v1 o1 s1 p1, .object t2 z2 v2 o2 s2 p2 =>
+  | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
     some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
-      (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2)
-      (agreedField (· == ·) p1 p2))
+      (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
   | .ability o1 z1, .ability o2 z2 =>
     some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
   | .player a, .player b => if a == b then some (.player, .player a) else none
-  | .object _ z1 _ o1 _ _, .ability o2 z2 =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none none)
-  | .ability o1 z1, .object _ z2 _ o2 _ _ =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none none)
+  | .object _ z1 _ o1 _, .ability o2 z2 =>
+    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
+  | .ability o1 z1, .object _ z2 _ o2 _ =>
+    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
   | p@(.object ..), .player false => some (.join .object .player, .join p (.player false))
   | .player false, q@(.object ..) => some (.join .object .player, .join q (.player false))
   | _, _ => none
@@ -1042,7 +874,7 @@ def Zone.isPublic : Zone → Bool
 
 def Referent.isPublic (b : Referent) : Bool :=
   match b.payload with
-  | .object _ (some z) _ _ _ _ => z.isPublic
+  | .object _ (some z) _ _ _ => z.isPublic
   | .pile _ _ (some face) => face == .faceUp
   | .pile (some z) _ none => z.isPublic
   | _ => true
@@ -1093,12 +925,12 @@ def mkStamp : Option Deed → Option Zone → Bool → Option Stamp
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
-  | .object ty _ _ _ _ _ => tyIs t ty
+  | .object ty _ _ _ _ => tyIs t ty
   | _ => false
 
 /-- Copy origin belongs to the same object or ability that the word selects. -/
 def payloadIsCopy : Payload → Bool
-  | .object _ _ _ og _ _ | .ability og _ => isCopyOrigin og
+  | .object _ _ _ og _ | .ability og _ => isCopyOrigin og
   | _ => false
 
 def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
@@ -1107,7 +939,7 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
   | .copied word => halfWordReaches word pl && payloadIsCopy pl
   | word =>
     match pl with
-    | .object ty zn _ _ _ _ =>
+    | .object ty zn _ _ _ =>
       match word with
       | .type t => onFieldZone zn && tyIs t ty
       | .permanent => onFieldZone zn
@@ -1126,7 +958,7 @@ def wordReaches (w : NounWord) (b : Referent) : Bool :=
   | .copied word => wordReaches word b && payloadIsCopy b.payload
   | w =>
     match b.payload with
-    | .object ty zn _ og _ _ =>
+    | .object ty zn _ og _ =>
       match w with
       | .type t => onFieldZone zn && tyIs t ty
       | .card => isCardZone zn
@@ -1170,6 +1002,11 @@ def NounWord.kind : NounWord → Kind
   | .pile => .pile
   | _ => .object
 
+/-- A noun word refined by a card type or by "copied", which only an object noun takes. -/
+def NounWord.refined : NounWord → Bool
+  | .ofType .. | .copied _ => true
+  | _ => false
+
 def Reach.kind : Reach → Kind
   | .word w => w.kind
   | .unionHalf w => w.kind
@@ -1198,8 +1035,8 @@ def Referent.stampedBy (b : Referent) (verb : Deed) : Bool :=
 
 def markTy (ty : List CardType) (b : Referent) : Referent :=
   match b.payload with
-  | .object old zn st og sz ps =>
-    { b with payload := .object (mergeTypes old ty) zn st og sz ps }
+  | .object old zn st og sz =>
+    { b with payload := .object (mergeTypes old ty) zn st og sz }
   | _ => b
 
 def markFirstList (drs : DRS) (q : Referent → Bool) (ty : List CardType) :
@@ -1214,9 +1051,9 @@ def markFirst (q : Referent → Bool) (ty : List CardType) (drs : DRS) : DRS :=
 
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
-  | .object _ (some .library) (some st) _ _ _ =>
+  | .object _ (some .library) (some st) _ _ =>
     b.librarySearchResult || st.feature == some .librarySearch
-  | .object _ (some .library) none _ _ _ => false
+  | .object _ (some .library) none _ _ => false
   | _ => true
 
 def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : List CardType)
@@ -1236,7 +1073,7 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
   | .verbed v (some w) _ =>
     match b.payload with
-    | .object ty zn (some st) og _ _ =>
+    | .object ty zn (some st) og _ =>
       pl.isOne == b.plur.isOne && b.stampedBy v && verbedWordOk w st ty zn og
     | _ => false
 
@@ -1244,7 +1081,7 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
 [CR#608.2h]. This changes accessibility, not the referent's current zone. -/
 def reachesCharacteristic (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   reaches r pl b || match r, b.payload with
-    | .word w, .object ty zn (some st) og _ _ =>
+    | .word w, .object ty zn (some st) og _ =>
       b.det != .self && pl.isOne == b.plur.isOne && st.moved &&
         verbedWordOk w st ty zn og
     | _, _ => false
@@ -1301,8 +1138,6 @@ def provOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option Stamp :=
   firstReach r pl drs >>= (·.payload.prov)
 def zoneOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option Zone :=
   firstReach r pl drs >>= (·.zone)
-def possessorOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option Possessor :=
-  firstReach r pl drs >>= (·.possessor)
 def tyOfReach (r : Reach) (pl : Plurality) (drs : DRS) : List CardType :=
   (firstReach r pl drs).elim [] (·.ty)
 def faceOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option PileFace :=
@@ -1546,11 +1381,6 @@ def tyOfThoseAny (w : NounWord) (drs : DRS) : List CardType :=
 
 def countChoosers (drs : DRS) : Nat := countOnes .player drs + countManys .player drs
 
-def zoneFits : Option Zone → Option Zone → Bool
-  | _, none => true
-  | none, some _ => true
-  | subj, some b => zoneIsB subj b
-
 /-- Which kinds "target" can precede [CR#115.1]. -/
 def Kind.targetable : Kind → Bool
   | .object => true
@@ -1579,7 +1409,7 @@ def CardType.damageable : CardType → Bool
 /-- A copy of an ability is itself an ability [CR#707.10]. -/
 def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
   | .object, true, _, z => .ability (some .copy) z
-  | .object, false, ty, z => .object ty z none (some .copy) none none
+  | .object, false, ty, z => .object ty z none (some .copy) none
   | .join l r, ab, ty, z => .join (copyPayloadIn l ab ty z) (copyPayloadIn r ab ty z)
   | .player, _, _, _ => .player false
   | .quality q, _, _, _ => .quality q
@@ -1646,10 +1476,6 @@ def distinctSubtypeFacts : List SubtypeFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.subtype)).elem f.subtype && distinctSubtypeFacts fs
 
-def CardType.ascribesAs : CardType → Bool
-  | .kindred | .instant | .sorcery | .dungeon => false
-  | _ => true
-
 def MarkerWord.grantorOrigin : MarkerWord → Option Zone
   | .emblem => some .command
   | _ => none
@@ -1660,10 +1486,6 @@ def MarkerWord.zone : MarkerWord → Zone
   | .spell => .stack
   | .permanent => .battlefield
   | .ability => .stack
-
-def ascriptionOk (t : CardType) : Option Subtype → Bool
-  | none => t.ascribesAs
-  | some s => t.ascribesAs && s.fits t
 
 def Delta.amount {α : Type} : Delta α → α
   | .up x => x
@@ -1724,10 +1546,10 @@ def DesignationLabel.heldByItsCard (label : DesignationLabel) : Bool :=
 def DesignationLabel.gameWide (label : DesignationLabel) : Bool :=
   label.scope == some .heldByGame
 
-def designationHolderOk (label : DesignationLabel) (z : Option Zone) : Bool :=
+/-- A designation that a player or an object holds. -/
+def designationHolderOk (label : DesignationLabel) : Bool :=
   match label.scope with
-  | some (.heldBy .player) => true
-  | some (.heldBy .object) => zoneIsB z .battlefield
+  | some (.heldBy _) => true
   | _ => false
 
 def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
@@ -1762,30 +1584,6 @@ def NounWord.attachHostTy : NounWord → List CardType
   | .copied word => word.attachHostTy
   | .type t => [t]
   | _ => []
-
-def NounWord.isAbility : NounWord → Bool
-  | .ability => true
-  | .ofType word _ | .copied word => word.isAbility
-  | _ => false
-
-def NounWord.attachRefinementsOk : NounWord → Bool
-  | .ofType word _ =>
-    word.attachRefinementsOk && word.kind == .object && !word.isAbility
-  | .copied word => word.attachRefinementsOk && word.kind == .object
-  | _ => true
-
-def NounWord.base : NounWord → NounWord
-  | .ofType word _ | .copied word => word.base
-  | word => word
-
-def attachHeadOk (a : AttachWord) (word : NounWord) : Bool :=
-  word.attachRefinementsOk &&
-    match a, word.base with
-    | .enchanted, _ => true
-    | .equipped, .type _ => word.attachHostTy.contains .creature
-    | .equipped, .permanent => true
-    | .fortified, .type _ => word.attachHostTy.contains .land
-    | _, _ => false
 
 def DefinedSlots.power : DefinedSlots → Bool
   | .toughnessAlone => false
@@ -1838,10 +1636,6 @@ def axesAt (k : Kind) : List ProjAxis → Bool
   | [] => false
   | as => as.all (·.scope == k)
 
-def counterKindNamed (k : Kind) : Option CounterKind → Bool
-  | none => true
-  | some c => c.scope == k
-
 def chapterMarksDistinct : List ChapterNumber → Bool
   | [] => true
   | a :: rest => !rest.elem a && chapterMarksDistinct rest
@@ -1863,18 +1657,9 @@ def CardType.permanent : CardType → Bool
   | .kindred | .instant | .sorcery | .dungeon => false
   | _ => true
 
-def permanentSpellType (types : List CardType) : Bool :=
-  types.any CardType.permanent && !types.contains .land &&
-    !types.contains .instant && !types.contains .sorcery
-
 def CardType.isInstantOrSorcery : CardType → Bool
   | .instant | .sorcery => true
   | _ => false
-
-def Status.clash : Status → Status → Bool
-  | .tapped, .untapped | .untapped, .tapped | .flipped, .unflipped | .unflipped, .flipped
-  | .faceUp, .faceDown | .faceDown, .faceUp | .phasedIn, .phasedOut | .phasedOut, .phasedIn => true
-  | _, _ => false
 
 /-- Which status values a description can be written with ("tapped creature"). -/
 def Status.word : Status → Bool

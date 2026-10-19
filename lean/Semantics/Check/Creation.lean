@@ -23,6 +23,6 @@ def CreationSpec.createdReferent (spec : CreationSpec) (countPlur performerPlur 
   { det := .a
     createdResult := true
     plur := outputPlur performerPlur countPlur
-    payload := .object types (some zone) none origin none none }
+    payload := .object types (some zone) none origin none }
 
 end Semantics

@@ -98,16 +98,6 @@ def CounterKindSource.localChecks (drs : DRS) : CounterKindSource → List Refus
 
 def counterHolderKind (kind : Kind) : Bool := Kind.lte kind (.join .object .player)
 
-def CounterKindSource.scope : CounterKindSource → Kind → Bool
-  | .printed counter, kind => counter.scope == kind
-  | .chosen menu, kind | .distinctChosen menu, kind => menu.all (fun counter => counter.scope == kind)
-  | .sameAs _, kind => Kind.lte kind .object
-  | _, kind => counterHolderKind kind
-
-def optCounterSourceScope : Option CounterKindSource → Kind → Bool
-  | none, kind => counterHolderKind kind
-  | some source, kind => source.scope kind
-
 def Amount.unit (amount : Amount) (fuel : Nat := 32) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.unit n
@@ -123,24 +113,11 @@ def optKindAmountOk (amount : Amount) : Option CounterKindSource → Bool
   | none => true
   | some source => kindAmountOk amount source
 
-def Amount.settableValue (amount : Amount) (fuel : Nat := 32) : Bool :=
-  match fuel, amount with
-  | n + 1, .inCaller body => body.settableValue n
-  | _ + 1, .statOf (.playerStat .lifeTotal) _ | _ + 1, .statOf (.stat .power) _
-  | _ + 1, .statOf (.stat .toughness) _ | _ + 1, .theOutcome .rollResult => true
-  | _, _ => false
-termination_by structural fuel
-
-def Exchanged.localChecks : Exchanged → List Refusal
-  | .values left right => localRefuse left.settableValue .settableValue ++
-    localRefuse right.settableValue .settableValue
-  | _ => []
-
 def LinkedFacet.named : LinkedFacet → Bool
   | .colorsSpent | .manaValueSpent => true
   | .timesPaid source | .readback source _ | .chosenPlayer source | .taken source => source.named
   | .objects source deed _ =>
-    source.named && knownAct deed && (actPatientKindsOf deed).elem .object && source.performs deed
+    source.named && knownAct deed && source.performs deed
 
 def LinkedFacet.choiceFound : LinkedFacet → Bool
   | .chosenPlayer source => !source.named || source.choosesPlayer

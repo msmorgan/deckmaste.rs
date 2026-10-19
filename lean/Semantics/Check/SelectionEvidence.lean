@@ -146,7 +146,7 @@ private theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
 private theorem preexistingTargetsAreNotReaggregated :
     let outer : DRS := DRS.ofList [{
       id := 10, det := .target, plur := .one,
-      payload := .object [.artifact] (some .battlefield) none none none none,
+      payload := .object [.artifact] (some .battlefield) none none none,
       announcedTargetResult := true }]
     let out := (stepAction 64 .postEvent .obj outer
       (.doForEach (.described .each .anyPlayer) (.draw (.lit 1)))).1
@@ -180,14 +180,6 @@ private theorem attachmentSourceRemainsAvailableAfterProhibition :
     let out := (stepStaticSpec 64 (DRS.ofList []) source).1
     out.referents.map (·.id) = [0] ∧
       NounPhrase.check out (.pro .bare .one) = [] := by decide
-
-private theorem explicitByPhraseIsStillAnAgent :
-    let patient := NounPhrase.described (.a .unmarked) (.hasType .creature)
-    StaticSpec.check (DRS.ofList [])
-      (.cant (.by .you) (.block patient) {}) = [.deedFits] ∧
-      StaticSpec.check (DRS.ofList [])
-        (.cant (.by (.attachHost .enchanted (.type .creature)))
-          (.block patient) {}) = [] := by decide
 
 private def tollCost : Cost := .scaled (.mana [.simple (.generic 1)]) (.arith .times (.lit 1) .groupSize)
 
@@ -241,19 +233,12 @@ private theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
     StaticSpec.check (DRS.ofList []) spellClause = [] ∧
       StaticSpec.check (DRS.ofList []) abilityClause = [] ∧
       (stepStaticSpec 64 (DRS.ofList []) spellClause).1.referents.map (·.id) = [1] ∧
-      (stepStaticSpec 64 (DRS.ofList []) abilityClause).1.referents.map (·.id) = [1] ∧
-      StaticSpec.check (DRS.ofList [])
-        (.cant (.by .you) (.target (.described (.a .unmarked) (.hasType .creature)))
-          {}) = [.deedFits] ∧
-      StaticSpec.check (DRS.ofList [])
-        (.cant (.by (.asType .land .this none))
-          (.target (.described (.a .unmarked) (.hasType .creature)))
-          {}) = [.deedFits] := by decide
+      (stepStaticSpec 64 (DRS.ofList []) abilityClause).1.referents.map (·.id) = [1] := by decide
 
 private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
     let group := DRS.ofList [{
       det := .all, plur := .many,
-      payload := .object [.creature] (some .battlefield) none none none none }]
+      payload := .object [.creature] (some .battlefield) none none none }]
     Action.check group (.instruct .you (.draw .groupSize)) = [] ∧
       StaticSpec.check group
         (.gatedBy tollCost (.actor (.asType .creature .this none))

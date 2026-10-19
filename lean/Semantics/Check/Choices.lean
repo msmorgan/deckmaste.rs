@@ -13,7 +13,7 @@ def choiceContext (drs : DRS) : DRS :=
 
 private theorem chosenContextKeepsIdentityAndDropsOrdinaryMentions :
     let source := DRS.ofList
-      [qualityB .color, ChoiceSort.binding .player, { det := .a, plur := .one, payload := .object [] none none none none none },
+      [qualityB .color, ChoiceSort.binding .player, { det := .a, plur := .one, payload := .object [] none none none none },
        { det := .a, plur := .one, payload := .player false }]
     (choiceContext source).referents.map (·.id) = [3, 2] ∧
       (choiceContext source).nextId = source.nextId ∧

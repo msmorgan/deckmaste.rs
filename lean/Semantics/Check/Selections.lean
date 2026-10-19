@@ -35,13 +35,12 @@ def selectionPayload (types : List CardType) (group : Option Referent)
   | _ =>
     .object (mergeTypes (group.map Referent.ty |>.getD []) types)
       (group.bind Referent.zone) none none count.exact
-      (group.bind (fun ref => ref.payload.possessor))
 
 def slicePayload (zone : Option Zone) (amount : Amount) : Payload :=
-  .object [] zone none none amount.exact none
+  .object [] zone none none amount.exact
 
 def runPayloads (zone : Option Zone) (stopTypes : List CardType) : Payload × Payload :=
-  (.object [] zone none none none none,
-    .object stopTypes zone none none (some 1) none)
+  (.object [] zone none none none,
+    .object stopTypes zone none none (some 1))
 
 end Semantics

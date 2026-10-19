@@ -121,63 +121,22 @@ def tallyOk : TallyMode → DidClause → Bool
   | .events, _ => true
   | .quantity, c => c.hasMagnitude
 
-def deedRoleOf (v : Deed) (isAgent : Bool) : DeedRole :=
-  if isAgent then (deedFacts v).elim noRole (·.agentRole)
-  else (deedFacts v).elim noRole (·.patientRole)
+def NounPhrase.isYouFuel (fuel : Nat) : NounPhrase → Bool :=
+  match fuel with
+  | 0 => fun _ => false
+  | fuel + 1 => fun
+      | .you => true
+      | .inCaller body | .firstMention _ body | .laterMention _ body => body.isYouFuel fuel
+      | _ => false
+termination_by structural fuel
 
-def deedKindOk (v : Deed) (isAgent : Bool) (k : Kind) : Bool :=
-  (deedRoleOf v isAgent).sort.elim false (·.domain.admits k)
+def NounPhrase.isYou := NounPhrase.isYouFuel 64
 
-/-- The kind a deed's performer is written as: an object where the deed's row admits only
-objects ("whenever a creature you control explores" [CR#701.44a]), otherwise a player. -/
-def deedAgentKind (v : Deed) : Kind :=
-  if !deedKindOk v true .player && deedKindOk v true .object then .object else .player
-
-/-- An effect can make a permanent of any type a creature that is still its other types
-[CR#205.1b], and an effect written on a noncreature permanent is created even while it isn't
-one [CR#208.3a]. So the agent slot of a deed a creature performs fits any permanent head type;
-what a deed is done to keeps the set the rules name. -/
-def deedAnimatedOk (dr : DeedRole) (isAgent : Bool) (t : CardType) : Bool :=
-  if isAgent then dr.types.elem .creature && t.permanent else false
-
-def deedTypeOk (v : Deed) (isAgent : Bool) (t : CardType) : Bool :=
-  (deedRoleOf v isAgent).types.elem t || deedAnimatedOk (deedRoleOf v isAgent) isAgent t
-
-def deedBareOk (v : Deed) (isAgent : Bool) : Bool := (deedRoleOf v isAgent).bare
-
-def deedAltOk (v : Deed) (isAgent : Bool) : List CardType → Bool
-  | [] => deedBareOk v isAgent
-  | ts => ts.any (deedTypeOk v isAgent)
-
-def deedHeadTysOk (v : Deed) (isAgent : Bool) : List (List CardType) → Bool
-  | [] => deedBareOk v isAgent
-  | alts => alts.all (deedAltOk v isAgent)
-
-def deedZoneOf (v : Deed) (isAgent : Bool) : Option Zone := (deedRoleOf v isAgent).zone
 def knownActs (ds : List Deed) : Bool := ds.all knownAct
 
 def distinctDeeds : List Deed → Bool
   | [] => true
   | d :: ds => !ds.elem d && distinctDeeds ds
-
-/-- Whether a role's noun may be an ability on the stack [CR#113.1c] or must not be one, read off
-the classes its sort declares. -/
-def deedClassOk (v : Deed) (isAgent : Bool) (ab : Bool) : Bool :=
-  let classes := (deedRoleOf v isAgent).sort.elim [] (·.classes)
-  if classes.isEmpty then !ab
-  else if ab then classes.elem .ability
-  else classes.any (· != .ability)
-
-def deedFits (ds : List Deed) (isAgent : Bool) (k : Kind) (ab : Bool) (ts : List (List CardType))
-    (z : Option Zone) : Bool :=
-  ds.all fun d =>
-    deedKindOk d isAgent k && deedClassOk d isAgent ab && deedHeadTysOk d isAgent ts &&
-      zoneFits z (deedZoneOf d isAgent)
-
-/-- Idris `Possessable z`: the zones a player owns. -/
-def Zone.possessable : Zone → Bool
-  | .hand | .graveyard | .library => true
-  | _ => false
 
 /-! ## Linked Facets -/
 
@@ -214,12 +173,12 @@ def LinkedFacet.zone : LinkedFacet → Option Zone
 /-- The referent a noun-phrase facet introduces: the chosen player, or the objects its deed acted
 on, as many as the text says. -/
 def LinkedFacet.binding (f : LinkedFacet) : Referent :=
-  if f.readsObjects then { det := .the, plur := f.plur, payload := .object [] f.zone none none none none }
+  if f.readsObjects then { det := .the, plur := f.plur, payload := .object [] f.zone none none none }
   else { det := .the, plur := .one, payload := .player false }
 
 /-- A definite referent of one entity of kind `k`: a player, or an object. -/
 def kindBinding (k : Kind) : Referent :=
   if k == .player then { det := .the, plur := .one, payload := .player false }
-  else { det := .the, plur := .one, payload := .object [] none none none none none }
+  else { det := .the, plur := .one, payload := .object [] none none none none }
 
 end Semantics
