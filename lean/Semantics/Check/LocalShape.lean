@@ -50,7 +50,6 @@ def ProducedMana.localChecks (drs : DRS) : ProducedMana → List Refusal
   | .producedByEvent _ =>
     let n := countOutcomes .manaProduced drs
     localRefuse (n == 1) (.outcomeInScope .manaProduced n)
-  | .amongWritten colors => localRefuse (colorCountOk colors.length) .colorCountOk
   | _ => []
 
 def ManaRider.localChecks : ManaRider → List Refusal
@@ -104,14 +103,6 @@ def Amount.unit (amount : Amount) (fuel : Nat := 32) : Bool :=
   | _ + 1, .lit 1 => true
   | _, _ => false
 termination_by structural fuel
-
-def kindAmountOk (amount : Amount) : CounterKindSource → Bool
-  | .sameAs _ => amount.unit
-  | _ => true
-
-def optKindAmountOk (amount : Amount) : Option CounterKindSource → Bool
-  | none => true
-  | some source => kindAmountOk amount source
 
 def LinkedFacet.named : LinkedFacet → Bool
   | .colorsSpent | .manaValueSpent => true

@@ -10,18 +10,6 @@ deed, and play-window rules (`docs/decisions/semantics-v3.md` §3.6–§3.8).
 
 namespace Semantics
 
-/-- Only a removal empties a named kind, so only it has a last counter [CR#310.12b,702.62a]. -/
-def counterBatchOk : CounterBatch → CounterMove → Option CounterKind → Bool
-  | .emptying, .removed, kind => kind.isSome
-  | .emptying, _, _ => false
-  | _, _, _ => true
-
-def counterBatchSourceOk : CounterBatch → CounterMove → Option CounterKindSource → Bool
-  | .emptying, .removed, some .anyKind => false
-  | .emptying, .removed, some _ => true
-  | .emptying, _, _ => false
-  | _, _, _ => true
-
 def LifeMove.outcome : LifeMove → OutcomeSort
   | .up => .lifeGained
   | .down => .lifeLost

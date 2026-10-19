@@ -23,6 +23,16 @@ def NounPhrase.namesThis (p : NounPhrase) (fuel : Nat := 64) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+def Action.canonicalPatient (action : Action) (fuel : Nat := 32) : Option NounPhrase :=
+  match fuel, action with
+  | n + 1, .inCaller body => (body.canonicalPatient n).map NounPhrase.inCaller
+  | n + 1, .bracketed body => body.canonicalPatient n
+  | _ + 1, .move subject .. | _ + 1, .setStatus _ subject
+  | _ + 1, .turnOver subject | _ + 1, .clearDamage subject
+  | _ + 1, .target subject | _ + 1, .block subject => some subject
+  | _, _ => none
+termination_by structural fuel
+
 def Cost.offBattlefield (c : Cost) (fuel : Nat := 64) : Bool :=
   match fuel, c with
   | n + 1, .inCaller b | n + 1, .scaled b _ => b.offBattlefield n
@@ -206,6 +216,13 @@ def keywordListOk (ability : Ability) (keywords : List KeywordTerm) : Bool :=
   | some base => !keywords.isEmpty && keywords.all KeywordTerm.bare &&
     keywords.eraseDups.length == keywords.length && !keywords.contains (.the base)
 
+/-- The general category an ability belongs to [CR#113.3]: instructions followed while an
+instant or sorcery spell resolves, a statement that is simply true, a trigger condition with an
+effect, or a cost with an effect [CR#113.3a,113.3b,113.3c,113.3d]. -/
+inductive AbilityCategory where
+  | static | triggered | activated | spell
+  deriving DecidableEq, Repr
+
 def Ability.category (a : Ability) (fuel : Nat := 64) : Option AbilityCategory :=
   match fuel, a with
   | _ + 1, .static _ => some .static
@@ -215,9 +232,6 @@ def Ability.category (a : Ability) (fuel : Nat := 64) : Option AbilityCategory :
   | n + 1, .qualified a _ _ _ _ => a.category n
   | _, _ => none
 termination_by structural fuel
-
-def Ability.limitFits (a : Ability) (limit : Option UsageLimit) : Bool :=
-  limit.isNone || a.category == some .activated
 
 def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
   match fuel, p with

@@ -132,8 +132,8 @@ theorem forgottenParameterDoesNotSurvivePrivately :
 theorem quantitiesAcceptTemplateValues : (stepQuantityWith (stepOps 64) (DRS.ofList []) (quantityFor (.lit 1))).2 = [] := by decide
 theorem templateValuesPreserveLiteralFacts :
     let value := literalEcho (.lit 1)
-    (value.exact, value.plur, value.unit, value.deckBound) =
-      (some 1, .one, true, true) := by decide
+    (value.exact, value.plur, value.unit) =
+      (some 1, .one, true) := by decide
 theorem amountTemplatesCanReuseAValue :
     (repeatedValueSum .thatMuch).check (DRS.ofList [outcomeB .damageDealt]) = [] := by decide
 theorem quantityParameterPreservesOneCardinality :
@@ -220,12 +220,6 @@ theorem independentCounterpartDoesNotBecomeSelfByPayloadEquality :
     StaticSpec.check (DRS.ofList [])
       (.must (.actor (target isCreature)) (.block (target isCreature))
         {}) = [] := by decide
-
-theorem namedSubjectAndCounterpartStillShareIdentity :
-    Action.check (DRS.ofList []) (.establish
-      (.must (.actor (.firstMention "block.subject" (target isCreature)))
-        (.block (.laterMention "block.subject" .any)) {})
-      (some thisTurn)) = [.deonticPatientOk] := by decide
 
 theorem containingNounRetainsIndependentSelection :
     let after := nounResult (DRS.ofList []) (.possessorOf .controller (forwardedSubject (target isCreature)))
@@ -358,8 +352,8 @@ theorem amountBodyReadsItsCallerSubject :
 
 theorem amountBodyPreservesLiteralFacts :
     let amount := amountBodyInCaller (target isCreature) (.lit 1)
-    (amount.exact, amount.plur, amount.unit, amount.deckBound) =
-      (some 1, .one, true, true) := by decide
+    (amount.exact, amount.plur, amount.unit) =
+      (some 1, .one, true) := by decide
 
 theorem predicateBodyPreservesItsCallerReference :
     Predicate.checkAt .object callerCreature

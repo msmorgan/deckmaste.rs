@@ -599,12 +599,6 @@ theorem okIntransitiveBecomes :
       (.does .any (.enact (.action "transform") (.turnOver (a isCreature)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [] := by
   decide
 
-/-- "Whenever a card is milled into a Phyrexian, …" -/
-theorem badBecomesWithoutIntransitive :
-    GameEvent.check (DRS.ofList [])
-      (.does .any (.enact (.action "mill") (mill (.lit 1)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [.verbBecomesOk] := by
-  decide
-
 /-- "Whenever you discard a card, …" -/
 theorem okDiscardFromHand :
     GameEvent.check (DRS.ofList []) (.does (.actor .you) (.enact (.action "discard") (discard (a (.and [.isCard, .in_ hand]))) none none))

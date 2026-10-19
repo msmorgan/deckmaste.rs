@@ -87,16 +87,6 @@ def KindAxis.closed : KindAxis → Bool
   | .counterKind => false
   | .colorPair => true
 
-def colorCountOk (n : Nat) : Bool := n ≥ 2 && n ≤ 5
-
-/-- A color count an object can have: zero ("colorless") through five; the bounds that
-compare are the ones that do not always or never hold [CR#105.2]. -/
-def colorBoundOk : Comparator → Nat → Bool
-  | .eq, n => n ≤ 5
-  | .atLeast, n => n ≥ 2 && n ≤ 5
-  | .atMost, n => n ≥ 1 && n ≤ 4
-  | .greater, n => n ≥ 1 && n ≤ 4
-  | .less, n => n ≥ 2 && n ≤ 5
 
 /-- Which outcomes can be directly compared as a game value [CR#120.3d,706.2]. -/
 def OutcomeSort.comparable : OutcomeSort → Bool
@@ -128,7 +118,6 @@ structure ActFacts where
   participle : Option String := none
   dest : Option Zone := none
   loci : List Zone := []
-  intransitive : Bool := false
   /-- A Permanent is its Actor: written with no Handoff to a Permanent, the source Permanent
   performs it [CR#701.44a,701.63a]. -/
   permanentActor : Bool := false
@@ -139,8 +128,8 @@ structure ActFacts where
 def abilityDeedFacts : List (KeywordLabel × ActFacts) :=
   [ ((.named "crew"), {}),
     ((.named "saddle"), {}),
-    ((.named "phasing"), { intransitive := true }),
-    ((.named "mutate"), { intransitive := true }),
+    ((.named "phasing"), {}),
+    ((.named "mutate"), {}),
     ((.named "devour"), {}) ]
 
 /-- What the checker knows about each keyword action [CR#701.1]. -/
@@ -159,7 +148,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("cloak", { dest := some .battlefield }),
     ("collectEvidence", { dest := some .exile }),
     ("connive", { permanentActor := true }),
-    ("convert", { intransitive := true }),
+    ("convert", {}),
     ("counter", {}),
     ("create", { dest := some .battlefield }),
     ("destroy", { participle := some "destroyed", dest := some .graveyard }),
@@ -207,7 +196,7 @@ def actFacts : List (KeywordActionLabel × ActFacts) :=
     ("tap", { participle := some "tapped", feature := some .tapping }),
     ("theRingTemptsYou", {}),
     ("timeTravel", {}),
-    ("transform", { intransitive := true }),
+    ("transform", {}),
     ("triple", {}),
     ("untap", { participle := some "untapped" }),
     ("ventureIntoTheDungeon", {}),
@@ -236,7 +225,6 @@ def participleOf (v : Deed) : Option String := deedFacts v >>= (·.participle)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
 def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
-def actIntransitiveOf (v : Deed) : Bool := (deedFacts v).elim false (·.intransitive)
 def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.permanentActor)
 def actNamesParticiple (v : Deed) : Bool := (participleOf v).isSome
 
@@ -1425,15 +1413,6 @@ def Kind.qualityParam : Kind → Bool
   | _ => false
 
 /-! ## Mana -/
-
-def halvesDistinct : SimpleManaSymbol → Color → Bool
-  | .generic _, _ => true
-  | .specific .colorless, _ => true
-  | .specific (.of c), d => c != d
-
-def phyrexianDistinct : Color → Option Color → Bool
-  | _, none => true
-  | c, some d => c != d
 
 def manaHasX : ManaCost → Bool
   | [] => false

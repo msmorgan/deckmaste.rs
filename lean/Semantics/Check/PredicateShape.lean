@@ -62,22 +62,6 @@ def Amount.read (amount : Amount) (fuel : Nat := 32) : Bool :=
   | _, _ => true
 termination_by structural fuel
 
-def Predicate.roleSubtype (predicate : Predicate) (fuel : Nat := 32) : Option Subtype :=
-  match fuel, predicate with
-  | n + 1, .inCaller body | n + 1, .bracketed body => body.roleSubtype n
-  | _ + 1, .hasSubtype sub => some sub
-  | _, _ => none
-termination_by structural fuel
-
-def rolesDistinct : List Predicate → Bool
-  | [] => true
-  | predicate :: rest =>
-    !(rest.any fun candidate => match predicate.roleSubtype, candidate.roleSubtype with
-      | some left, some right => left == right
-      | _, _ => false) && rolesDistinct rest
-
-def rolesOk (roles : List Predicate) : Bool := !roles.isEmpty && rolesDistinct roles
-
 def Condition.isAnd (condition : Condition) (fuel : Nat := 32) : Bool :=
   match fuel, condition with
   | n + 1, .inCaller body => body.isAnd n

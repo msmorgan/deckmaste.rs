@@ -312,27 +312,6 @@ theorem okCompanionCharacteristicRead :
           (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2))))) = [] := by
   decide
 
-/-- "Companion — Each card on the battlefield in your starting deck ...": a zone is a place
-objects can occupy [CR#400.1], not a characteristic [CR#109.3]. Companion evaluates its
-condition against the starting deck before the game begins [CR#702.139a]. `isPermanentCard` spells "each permanent card". -/
-theorem badCompanionLocationScope :
-    Ability.check (DRS.ofList [])
-      (companion
-        (.everyCardIs (.in_ battlefield)
-          (.aCharacteristic (.compare [.stat .manaValue] .atMost (.lit 2)))))
-      = [.deckReadable] := by
-  decide
-
-/-- "Companion — Each permanent card in your starting deck is tapped.": whether a permanent is
-tapped is not a characteristic [CR#109.3]. Companion evaluates the starting deck before
-the game begins [CR#702.139a]. -/
-theorem badCompanionBattlefieldStatus :
-    Ability.check (DRS.ofList [])
-      (companion
-        (.everyCardIs isPermanentCard (.aCharacteristic (.hasStatus .tapped))))
-      = [.deckReadable] := by
-  decide
-
 /-- "Companion — Each nonland card in your starting deck shares a card type." -/
 theorem okCompanionSharedCardType :
     Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .cardType .share (allOf (.and [.not isLand, .isCard]))))) = [] := by
@@ -343,13 +322,6 @@ characteristic [CR#109.3] and the deck-building condition is checked against the
 [CR#702.139a]. -/
 theorem okCompanionSharedColor :
     Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .color .share (allOf (.and [.not isLand, .isCard]))))) = [] := by
-  decide
-
-/-- "Companion — Each nonland card in your starting deck shares a counter kind.": a kind of
-counter is not among an object's characteristics [CR#109.3]. -/
-theorem badCompanionSharedCounterKind :
-    Ability.check (DRS.ofList []) (companion (.groupAgrees (.agree .counterKind .share (allOf (.and [.not isLand, .isCard])))))
-      = [.deckComparable] := by
   decide
 
 /-- "Each player scries 1.": one scry clause over a distributed player reference

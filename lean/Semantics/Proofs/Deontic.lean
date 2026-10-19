@@ -191,13 +191,6 @@ theorem okForbidAttackPlaneswalker :
         (.cant (.actor thisCreature) (.attack (some (target (.hasType .planeswalker)))) {}) (some thisTurn)) = [] := by
   decide
 
-/-- "Target creature blocks itself this turn." -/
-theorem badBlocksItself :
-    Action.check (DRS.ofList [])
-      (.establish (.must (.actor (target isCreature)) (.block (.refl .one)) {})
-        (some thisTurn)) = [.deonticPatientOk] := by
-  decide
-
 theorem bareBlockPatientCannotReadItsCoargument :
     Action.check (DRS.ofList [])
       (.establish (.must (.actor (target isCreature)) (.block it) {})

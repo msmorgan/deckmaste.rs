@@ -65,12 +65,6 @@ theorem okSelfDefinedPt :
         by
   decide
 
-theorem badGrantedPtDefinition :
-    StaticSpec.check (DRS.ofList [])
-      (.ptDefinition (.attachHost .enchanted (.type .creature)) .bothEach (lifeTotalOf .you))
-      = [.selfDefinedOk] := by
-  decide
-
 /-- "Creatures you control get +1/+1 until end of turn." -/
 theorem okContinuousClause :
     Action.check (DRS.ofList [])

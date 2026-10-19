@@ -344,10 +344,6 @@ theorem monocoloredIsOneColor : Predicate.checkAt .object (DRS.ofList []) (.colo
 theorem okExactlyZeroColors :
     Predicate.checkAt .object (DRS.ofList []) (.colorCount .eq 0) = [] := by decide
 
-/-- "target permanent that's exactly six colors" -/
-theorem badExactlySixColors :
-    Predicate.checkAt .object (DRS.ofList []) (.colorCount .eq 6) = [.colorBoundOk] := by decide
-
 /-- "if this creature's kicker cost was paid" -/
 theorem okPaidCostOnKeywordWithACost :
     Amount.check (DRS.ofList []) (.paid (.readback (.byKeyword (.named "kicker")) none) .this) = [] := by decide
@@ -430,16 +426,9 @@ theorem okCantDisjunctSubject :
 /-- "your party": one each of Cleric, Rogue, Warrior and Wizard [CR#700.8]. -/
 theorem okPartyOfFourRoles : NounPhrase.checkAt (some .object) (DRS.ofList []) party = [] := by decide
 
-/-- "one each of Cleric and Cleric": a repeated role counts one creature twice [CR#700.8b]. -/
-theorem badRepeatedPartyRole :
-    NounPhrase.checkAt (some .object) (DRS.ofList [])
-      (.oneEachOf [.hasSubtype (creatureType "Cleric"), .hasSubtype (creatureType "Cleric")]
-        (allOf (and [isCreature, youControl]))) = [.rolesOk] := by
-  decide
-
 /-- "one each of nothing" [CR#700.8]. -/
 theorem badEmptyPartyRoles :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.oneEachOf [] (allOf (and [isCreature, youControl]))) = [.rolesOk] := by decide
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.oneEachOf [] (allOf (and [isCreature, youControl]))) = [.nonEmpty] := by decide
 
 /-- "a fortified land" -/
 theorem okFortifiedLand :

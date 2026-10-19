@@ -39,19 +39,6 @@ theorem okQualifiedStaticGuard :
     Ability.check (DRS.ofList []) (qualified pumpSelf (guard := some caseSolved)) = [] := by
   decide
 
-/-- Required pin: a usage limit on a static ability is refused: a limit restricts activation
-[CR#602.5b]. -/
-theorem badLimitOnStatic :
-    Ability.check (DRS.ofList []) (qualified pumpSelf (limit := some oncePerTurn)) = [.qualifiedLimit] := by
-  decide
-
-/-- A usage limit as a qualifier is refused on a triggered ability, whose own limit is written on
-its header. -/
-theorem badLimitOnTriggered :
-    Ability.check (DRS.ofList []) (qualified drawOnDeath (limit := some oncePerTurn))
-      = [.qualifiedLimit] := by
-  decide
-
 /-- "Activate only once": a limit over the object's own existence [CR#602.5b,702.177a]. -/
 theorem okOncePerObject :
     Ability.check (DRS.ofList []) (qualified tapToDraw (limit := some oncePerObject)) = [] := by

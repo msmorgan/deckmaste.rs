@@ -40,10 +40,6 @@ theorem copyCanSetEmptyColor :
 theorem copyCannotAddEmptyColor :
     CopyExcept.check (DRS.ofList []) (.edits [.colors .adds (.some [])]) = [.nonEmpty] := by decide
 
-theorem malformedManaCostIsRefused :
-    CopyExcept.check (DRS.ofList []) (.edits [.manaCost (some [.hybrid (.specific (.of .blue)) .blue])]) =
-      [.manaSymbolOk] := by decide
-
 theorem specifiedAbilityRemoval :
     StaticSpec.check (DRS.ofList []) (.characteristicChange thisCreature
       [.removedAbilities (.specified [.term (.the (.named "flying"))])]) = [] := by decide

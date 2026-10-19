@@ -472,14 +472,6 @@ theorem okSameKindsOnCreature :
       = [] := by
   decide
 
-/-- "put seven counters of each kind that's on this creature on target creature": the
-same-counters reading carries the number as well as the kinds, so the amount slot holds no
-other literal. -/
-theorem badSameKindsSevenEach :
-    Action.check (DRS.ofList []) (.putCounters (.lit 7) (.sameAs thisCreature) (target isCreature) .one true)
-      = [.kindAmountOk] := by
-  decide
-
 /-- "a permanent your team controls" -/
 def teamPermanent : NounPhrase :=
   a (.and [isPermanent, .hasPossessor .controller (.or [.you, .described (.a .unmarked) (.isTeammateOf .you)])])

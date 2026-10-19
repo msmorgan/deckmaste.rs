@@ -110,21 +110,6 @@ pub struct KeywordParamSpec {
 /// One ordered argument schema a keyword admits.
 pub type KeywordSchema = Vec<KeywordParamSpec>;
 
-/// The general category an ability belongs to [CR#113.3]: instructions
-/// followed while an instant or sorcery spell resolves, a statement that is
-/// simply true, a trigger condition with an effect, or a cost with an effect
-/// [CR#113.3a,113.3b,113.3c,113.3d]. A keyword ability's definition is written
-/// in these [CR#702.1]; a spell ability in one is the half a keyword represents
-/// on an instant or sorcery spell, guarded by that class
-/// [CR#702.131a,702.174b].
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
-pub enum AbilityCategory {
-    Static,
-    Triggered,
-    Activated,
-    Spell,
-}
-
 /// One keyword ability's columns.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[expect(

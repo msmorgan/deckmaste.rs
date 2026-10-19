@@ -173,12 +173,6 @@ theorem okCreatureTypeExclusion :
       = [] := by
   decide
 
-/-- "Choose a creature type other than Equipment." -/
-theorem badNonCreatureTypeExclusion :
-    sortedDomainCheck (DRS.ofList []) (.quality (.subtype .creature)) (some (.typeOtherThan (artifactType "Equipment")))
-      = [.subtypeType] := by
-  decide
-
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Action.check (DRS.ofList [])

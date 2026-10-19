@@ -291,14 +291,13 @@ def CardFace.check (side : FaceSide) (f : CardFace) : List Refusal :=
   let c := f.characteristics
   refuse c.name.isSome .cardName ++ Ability.checkText (DRS.ofList (costLetters c.cost)) c.text ++
     c.lineLaws ++ textLaws c c.text ++ refuse (cardBoxOk side c.types c.text c) .cardBox ++
-    refuse (cardCostOk side c.types c.cost) .cardCost ++ (c.cost.map ManaCost.check).getD []
+    refuse (cardCostOk side c.types c.cost) .cardCost
 
 def SharedLineHalf.check (shared : CardFace) (h : SharedLineHalf) : List Refusal :=
   let line := shared.characteristics
   Ability.checkText (DRS.ofList (costLetters h.cost)) h.text ++ halfTextLaws line h.text ++
     refuse (cardBoxOk .front line.types h.text line) .cardBox ++
-    refuse (cardCostOk .front line.types h.cost) .cardCost ++
-    (h.cost.map ManaCost.check).getD []
+    refuse (cardCostOk .front line.types h.cost) .cardCost
 
 def adventureInsetOk (c : Characteristics) : Bool := framesWith .adventureInset c.subtypes
 def flipHalfOk (c : Characteristics) : Bool := anyPermanentType c.types
@@ -353,7 +352,6 @@ def PrototypeFrame.box (a : PrototypeFrame) : Characteristics :=
 def prototypeAltCheck (inner : Characteristics) (alternative : PrototypeFrame) : List Refusal :=
   refuse alternative.cost.isSome .cardCost ++
     refuse (alternative.cost.elim true (!·.isEmpty)) .nonEmpty ++
-    (alternative.cost.map ManaCost.check).getD [] ++
     refuse alternative.box.ptWritten .prototypeFrame ++
     refuse (cardBoxOk .front inner.types [] alternative.box) .cardBox
 

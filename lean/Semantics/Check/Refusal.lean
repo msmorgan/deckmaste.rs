@@ -89,13 +89,10 @@ inductive Refusal where
   | coordinableDisjuncts
   | negatable
   | uniquifying
-  | rolesOk
   | ballotLabelsOk
   | atLeastTwoZones
-  | colorBoundOk
   | isExtremal
   | chosenQualityRead (q : QualitySort)
-  | subtypeType
   | ascribable
   | linkSource
   | pileMention
@@ -123,37 +120,21 @@ inductive Refusal where
   | linkedFacetKind
   | costNameable
   | keywordParamFits (k : KeywordLabel)
-  /-- A qualifier's usage limit restricts activation, so it wraps an activated ability
-  [CR#602.5b]. -/
-  | qualifiedLimit
   | eventHead
   | verbedVoiceOk
-  | verbBecomesOk
   /-- A handoff names neither a player nor an object. -/
   | handoffPerformer
-  | counterBatchOk
   | causedByOk
   | tokenPhrase
   | numberChoiceInScope
-  /-- A deontic rule's counterpart is the subject read back, is of a kind the deed's other role
-  does not take, or a complement names a deed outside the rule or twice. -/
-  | deonticPatientOk
-  | deckReadable
-  | deckComparable
-  | selfDefinedOk
   | notCoord
-  /-- A hybrid or Phyrexian symbol names two different halves [CR#107.4e,107.4f]. -/
-  | manaSymbolOk
   | forEachAmount
   | notCompound
   | reflexEnclosure
   | thisWayOutcome
   | ifDoneArmed
   | producedRuns
-  | colorCountOk
-  | twoParties
   | lineNonEmpty
-  | kindAmountOk
   | counterHolderKind
   | qualityRead
   | keywordExtendable

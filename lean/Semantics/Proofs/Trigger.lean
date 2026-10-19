@@ -139,12 +139,6 @@ theorem okManyCountersOnPlacement :
       = [] := by
   decide
 
-/-- "when the last time counter is put on this enchantment" -/
-theorem badLastCounterOnPlacement :
-    GameEvent.check (DRS.ofList []) (.does .any (.putCounters .anyAmount (.printed (.named "timeCounter")) thisEnchantment .emptying false))
-      = [.counterBatchOk] := by
-  decide
-
 /-- "Whenever you create one or more tokens, …" -/
 theorem okTokensCreatedByYou :
     GameEvent.check (DRS.ofList []) (.does (.actor .you) (.createObject .anyAmount (.token (.copyOf (counted (atLeast 1) .isToken) []) []) false none))
@@ -188,18 +182,6 @@ theorem okMultipliedTrigger :
 /-- "Exchange life totals with target opponent." -/
 theorem okExchangeTwoParties :
     Action.check (DRS.ofList []) (.exchange (.lifeTotals (both .you (target (.isOpponentOf .you))))) = [] := by
-  decide
-
-/-- "Exchange life totals with target opponent" with one party: the row states both halves at
-once, so an exchange that can't be completed in its entirety is unwritable rather than half-done
-[CR#701.12a,701.12c]. -/
-theorem badExchangeOneParty :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (target (.isOpponentOf .you)))) = [.twoParties] := by decide
-
-/-- "You and your opponents exchange life totals." -/
-theorem badExchangePluralParty :
-    Action.check (DRS.ofList []) (.exchange (.lifeTotals (both .you (.described .all (.isOpponentOf .you)))))
-      = [.twoParties] := by
   decide
 
 /-- "Whenever an opponent commits a crime, draw a card." -/

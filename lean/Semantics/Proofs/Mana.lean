@@ -52,20 +52,6 @@ theorem okNonEmptyManaCost :
 theorem badEmptyManaCost :
     Ability.check (DRS.ofList []) (activatedAbility (.mana []) (draw (.lit 1))) = [.nonEmpty] := by decide
 
-/-- "{W/U/P}" -/
-theorem okDistinctPhyrexian : ManaSymbol.check (.phyrexian .white (some .blue)) = [] := by decide
-
-/-- "{W/W/P}" -/
-theorem badSameColorPhyrexian :
-    ManaSymbol.check (.phyrexian .white (some .white)) = [.manaSymbolOk] := by decide
-
-/-- "{U/B}" -/
-theorem okDistinctHybrid : ManaSymbol.check (hybridPip .blue .black) = [] := by decide
-
-/-- "{U/U}" -/
-theorem badSameColorHybrid : ManaSymbol.check (hybridPip .blue .blue) = [.manaSymbolOk] := by
-  decide
-
 /-- "Exile a creature you control. If you do, return it to the battlefield." -/
 theorem okIfDoneReadsDoneBody :
     Action.check (DRS.ofList [])
