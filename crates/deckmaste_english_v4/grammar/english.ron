@@ -141,6 +141,9 @@
         "Possessor": (category: Some("NounPhrase"), features: ["Number", "Person", "Case"]),
         // A single genitive over coordinated nominals (*target artifact or
         // creature's owner*; CGEL, Ch. 15 §3.4, p. 1331).
+        // Coordinated bare nominals under one premodifier (*up to one target
+        // artifact or creature*).
+        "BareNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind", "Determination", "NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         "PossessorNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
         // A direct multiple genitive over nominals (*that creature's or
         // spell's controller*; CGEL, Ch. 15 §3.4, p. 1331), and each genitive.
@@ -951,6 +954,7 @@
         // A noun's *of* Complement is a Noun Phrase, never a gerund-participial
         // (*the number of attacking creatures*).
         (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Exclude("head.ObliqueKind", "Gerund")], transparent: ["head"]),
+        (name: "PremodifiedCoordination", lhs: "Nominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominals")], transparent: ["head"], equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         (name: "Premodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         (name: "DeterminedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "BareNominal")],
             equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
@@ -1164,6 +1168,8 @@
         Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
         Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         Coordination(category: "GenitiveNominals", conjunct: Some("GenitiveNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
+        Coordination(category: "BareNominals", conjunct: Some("BareNominal"), coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
+        Coordination(category: "BareNominals", conjunct: Some("BareNominal"), coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
         Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         // Relative clauses coordinate, each with its relative word (*tokens
         // that are copies of it and that are tapped and attacking*; CGEL, Ch.
