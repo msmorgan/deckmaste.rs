@@ -256,13 +256,22 @@ pub enum SchemaDecl {
         /// coordination (two independent clauses joined by *, and*).
         #[serde(default)]
         delimiter: Option<char>,
+        /// The binary coordination exists only with the delimiter (a
+        /// declarative and then an imperative: *…, and put …*).
+        #[serde(default)]
+        delimited: bool,
+        /// Whether serial coordinations are derived: by default for like
+        /// conjuncts, not for unlike ones.
+        #[serde(default)]
+        serial: Option<bool>,
         /// The Category of the conjuncts, when the coordination is of a
         /// function its conjuncts fill (a depictive *tapped and attacking*).
         #[serde(default)]
         conjunct: Option<Ident>,
         /// A feature whose value the two conjuncts of a binary coordination
         /// must not share: a coordination of unlike categories in one
-        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial coordinations are not derived.
+        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial ones, derived only
+        /// with `serial`, differ first to last.
         #[serde(default)]
         unlike: Option<Ident>,
     },

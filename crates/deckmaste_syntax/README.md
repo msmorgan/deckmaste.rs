@@ -110,8 +110,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   selects in its place (locative *on the battlefield* after *be*). Optional
   `equations` constrain the `head` (host) and the adjunct (a depictive
   gerund-participial of a lexical verb only).
-- `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
-  binary and Oxford-comma serial coordination, a delimited polysyndetic chain
+- `Coordination { category, coordinators, unshared, equations, proximate, delimiter, delimited, serial }`:
+  binary (only with the delimiter when `delimited`) and Oxford-comma serial
+  coordination (`serial` overrides the default: like conjuncts only), a delimited polysyndetic chain
   (*A, or B, or C*), one tree per same-coordinator chain, across-the-board Gaps, and Right Node Raising (a coordination with a
   shared NP, keyword-phrase, *to*-infinitival or predicative Gap, or a noun's single-preposition
   Preposition Phrase Complement headed by that preposition (*the top or bottom of their library*),

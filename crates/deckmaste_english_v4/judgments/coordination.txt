@@ -52,3 +52,4 @@
 *Clause creatures and/or planeswalkers you control gets +1/+1
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
 +NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
++Clause it doesn't untap, and at the beginning of each of your draw steps, put a counter on it => Clause "it doesn't untap"; Clause "at the beginning of each of your draw steps, put a counter on it"

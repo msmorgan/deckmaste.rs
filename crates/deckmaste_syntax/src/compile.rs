@@ -967,7 +967,9 @@ impl<'a> Binder<'a> {
         production.chained = draft.chained;
         production.gap_preposition = draft.gap_preposition;
         production.fills_preposition = draft.fills_preposition;
-        production.foreign_coordinators.clone_from(&draft.foreign_coordinators);
+        production
+            .foreign_coordinators
+            .clone_from(&draft.foreign_coordinators);
         production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
@@ -2003,22 +2005,71 @@ impl<'a> Binder<'a> {
         })
     }
 
+    /// Right Node Raising: a coordination with a shared Gap, filled once
+    /// after it.
+    fn right_node_raising(
+        &self,
+        conjoin: &Conjoin,
+        category: &str,
+        cost: u32,
+    ) -> Vec<Draft> {
+        let mut drafts = Vec::new();
+        // One per shareable Gap: an NP, a keyword phrase, a
+        // *to*-infinitival, a predicative (*be and become legendary*).
+        for (gap, kind, suffix) in [
+            (Gap::NP, SlotKind::NP, ""),
+            (Gap::Keyword, SlotKind::KeywordPhrase, "-keyword"),
+            (Gap::ToInf, SlotKind::ToInf, "-toinf"),
+            (Gap::Pred, SlotKind::Pred, "-pred"),
+            (Gap::PP, SlotKind::PP, "-pp"),
+            (Gap::Measure, SlotKind::Measure, "-measure"),
+        ] {
+            let Ok(shared) = self.slot_category(kind) else {
+                continue;
+            };
+            let mut raising = Draft::new(
+                format!("Coordination:{category}/shared{suffix}"),
+                conjoin.lhs,
+                cost,
+            );
+            let h = raising.child("head", conjoin.conjunct(), GapRule::Require(gap));
+            let shared_child = raising.child(
+                "shared",
+                Symbol::Cat {
+                    binding: None,
+                    category: shared,
+                    prepositions: None,
+                    host: None,
+                },
+                GapRule::Closed,
+            );
+            raising.requires_coordination = Some(h);
+            if gap == Gap::PP {
+                raising.fills_preposition = Some(shared_child);
+            }
+            drafts.push(raising);
+        }
+        drafts
+    }
+
     /// The drafts of a Coordination schema: the whole coordination (binary,
     /// delimited binary, serial, each after a correlative marker too), its
     /// serial tail, and Right Node Raising, once per Category.
-    #[expect(clippy::many_single_char_names, reason = "conjunct positions")]
     fn coordination(&self, schema: &SchemaDecl) -> Result<Vec<Draft>, LoadError> {
         let SchemaDecl::Coordination {
             category,
             coordinators,
             cost,
             delimiter,
+            delimited,
+            serial: serial_shapes,
             ..
         } = schema
         else {
             unreachable!("a coordination schema")
         };
         let conjoin = Conjoin::new(self, schema)?;
+        let serials = serial_shapes.unwrap_or(conjoin.unlike.is_none());
         let coordinator = self.coordinator_test(coordinators)?;
         let mut drafts = Vec::new();
         // The whole coordination, plain and after each correlative marker
@@ -2038,14 +2089,16 @@ impl<'a> Binder<'a> {
             let suffix = paired.map_or(String::new(), |p| format!("-{p}"));
             let id = |shape: &str| format!("Coordination:{}/{shape}{suffix}", conjoin.tail_name);
             // Binary: X Coord X.
-            drafts.push(conjoin.binary(
-                self,
-                id("binary"),
-                marker.as_ref(),
-                test.clone(),
-                None,
-                *cost,
-            )?);
+            if !*delimited {
+                drafts.push(conjoin.binary(
+                    self,
+                    id("binary"),
+                    marker.as_ref(),
+                    test.clone(),
+                    None,
+                    *cost,
+                )?);
+            }
             // Binary with the delimiter before the coordinator: X , Coord X.
             if let (Some(mark), None) = (delimiter, &marker) {
                 drafts.push(conjoin.binary(
@@ -2057,8 +2110,9 @@ impl<'a> Binder<'a> {
                     *cost,
                 )?);
             }
-            // Serial with the Oxford comma: X , X , Coord X — one tree per chain.
-            if conjoin.unlike.is_some() {
+            // Serial with the Oxford comma: X , X , Coord X — one tree per chain;
+            // unlike conjuncts differ first to last.
+            if !serials {
                 continue;
             }
             let mut serial = Draft::new(id("serial"), conjoin.lhs, *cost);
@@ -2079,10 +2133,11 @@ impl<'a> Binder<'a> {
                 }
             }
             serial.distinct_coordinator = vec![a];
+            serial.unlike = conjoin.unlike.map(|f| (a, t, f));
             conjoin.close(self, &mut serial, &[a, t], Edge::Whole { last: false })?;
             drafts.push(serial);
         }
-        if conjoin.unlike.is_some() {
+        if !serials {
             return Ok(drafts);
         }
         drafts.extend(conjoin.polysyndetic(self, &coordinator, *delimiter, *cost)?);
@@ -2097,6 +2152,7 @@ impl<'a> Binder<'a> {
         more.coordinator = Some(t);
         more.distinct_coordinator = vec![a];
         conjoin.close(self, &mut more, &[a, t], Edge::Tail { last: false })?;
+        conjoin.carry_unlike(&mut more, t);
         drafts.push(more);
         let mut end = Draft::new(
             format!("Coordination:{}/serial-end", conjoin.tail_name),
@@ -2115,9 +2171,13 @@ impl<'a> Binder<'a> {
         end.coordinator = Some(c);
         end.distinct_coordinator = vec![a, b];
         conjoin.close(self, &mut end, &[a, b], Edge::Tail { last: true })?;
+        conjoin.carry_unlike(&mut end, b);
         drafts.push(end);
-        // Right Node Raising: a coordination with a shared NP gap, filled
-        // once, derived for the Category's first coordination schema.
+        if conjoin.unlike.is_some() {
+            return Ok(drafts);
+        }
+        // Right Node Raising, derived for the Category's first coordination
+        // schema.
         let first =
             self.grammar.schemas.iter().find(
                 |s| matches!(s, SchemaDecl::Coordination { category: c, .. } if c == category),
@@ -2126,41 +2186,7 @@ impl<'a> Binder<'a> {
             && first.is_some_and(|first| std::ptr::eq(first, schema))
             && self.out.category_gap[conjoin.lhs] != 0
         {
-            // One per shareable Gap: an NP, a keyword phrase, a
-            // *to*-infinitival, a predicative (*be and become legendary*).
-            for (gap, kind, suffix) in [
-                (Gap::NP, SlotKind::NP, ""),
-                (Gap::Keyword, SlotKind::KeywordPhrase, "-keyword"),
-                (Gap::ToInf, SlotKind::ToInf, "-toinf"),
-                (Gap::Pred, SlotKind::Pred, "-pred"),
-                (Gap::PP, SlotKind::PP, "-pp"),
-                (Gap::Measure, SlotKind::Measure, "-measure"),
-            ] {
-                let Ok(shared) = self.slot_category(kind) else {
-                    continue;
-                };
-                let mut raising = Draft::new(
-                    format!("Coordination:{category}/shared{suffix}"),
-                    conjoin.lhs,
-                    *cost,
-                );
-                let h = raising.child("head", conjoin.conjunct(), GapRule::Require(gap));
-                let shared_child = raising.child(
-                    "shared",
-                    Symbol::Cat {
-                        binding: None,
-                        category: shared,
-                        prepositions: None,
-                        host: None,
-                    },
-                    GapRule::Closed,
-                );
-                raising.requires_coordination = Some(h);
-                if gap == Gap::PP {
-                    raising.fills_preposition = Some(shared_child);
-                }
-                drafts.push(raising);
-            }
+            drafts.extend(self.right_node_raising(&conjoin, category, *cost));
         }
         Ok(drafts)
     }
@@ -2352,6 +2378,16 @@ impl Conjoin {
         self.close(binder, &mut end, &[b], Edge::Tail { last: true })?;
         drafts.push(end);
         Ok(drafts)
+    }
+
+    /// A serial tail of unlike conjuncts carries its last conjunct's value of
+    /// the unlike feature, which the whole compares with the first's.
+    fn carry_unlike(&self, draft: &mut Draft, last: usize) {
+        if let Some(f) = self.unlike {
+            draft
+                .equations
+                .push((Path::Mother(f), Target::Path(Path::Child(last, f))));
+        }
     }
 
     /// A binary coordination, after a correlative marker or with a
