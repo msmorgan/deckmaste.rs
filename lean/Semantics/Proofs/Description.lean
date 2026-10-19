@@ -434,4 +434,12 @@ theorem badEmptyPartyRoles :
 theorem okFortifiedLand :
     NounPhrase.checkAt (some .object) (DRS.ofList []) (a (.and [isLand, isAttached (some .fortified)])) = [] := by decide
 
+/-- "the top card of each player's library" is one card per player, collected: plural, so it reads
+back as "those cards". "the top card of your library" stays one card. -/
+theorem eachPlayerTopCardSliceIsPlural :
+    (slice .top (.lit 1) (libraryOf eachPlayer)).plur = .many ∧
+      (slice .top (.lit 1) (graveyardOf eachPlayer)).plur = .many ∧
+      (slice .top (.lit 1) (libraryOf you)).plur = .one := by
+  decide
+
 end Semantics.Proofs.Description

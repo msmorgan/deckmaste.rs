@@ -190,23 +190,6 @@ def Predicate.seedsToken (p : Predicate) (fuel : Nat := 32) : Bool :=
   | _ + 1, _ => false
 termination_by structural fuel
 
-def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
-  match fuel, np with
-  | 0, _ => .one
-  | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
-  | _ + 1, .described d _ => d.plur
-  | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
-  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl
-  | _ + 1, .paid (.objects _ _ pl) _ => pl
-  | n + 1, .slice _ (.lit 1) (.zone .library (some who))
-  | n + 1, .slice _ (.lit 1) (.zone .graveyard (some who)) => who.plur n
-  | _ + 1, .slice _ (.lit 1) _ => .one
-  | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
-  | _ + 1, .and _ => .many
-  | n + 1, .or (x :: _) => x.plur n
-  | _ + 1, _ => .one
-termination_by structural fuel
-
 def NounPhrase.det (np : NounPhrase) (fuel : Nat := 64) : Option Determiner :=
   match fuel, np with
   | n + 1, .inCaller b | n + 1, .firstMention _ b | n + 1, .agree _ _ b => b.det n
@@ -216,6 +199,25 @@ def NounPhrase.det (np : NounPhrase) (fuel : Nat := 64) : Option Determiner :=
   | _ + 1, .someOf .. | _ + 1, .pileOf .. => some .part
   | _ + 1, .oneEachOf .. => some .a
   | _, _ => none
+termination_by structural fuel
+
+def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
+  match fuel, np with
+  | 0, _ => .one
+  | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
+  | _ + 1, .described d _ => d.plur
+  | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
+  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl
+  | _ + 1, .paid (.objects _ _ pl) _ => pl
+  | n + 1, .slice _ (.lit 1) (.zone .library (some who))
+  | n + 1, .slice _ (.lit 1) (.zone .graveyard (some who)) =>
+    -- "the top card of each player's library": one per player, collected
+    if who.det n == some .each then .many else who.plur n
+  | _ + 1, .slice _ (.lit 1) _ => .one
+  | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .oneEachOf .. => .many
+  | _ + 1, .and _ => .many
+  | n + 1, .or (x :: _) => x.plur n
+  | _ + 1, _ => .one
 termination_by structural fuel
 
 def NounPhrase.agentChoosable (phrase : NounPhrase) (fuel : Nat := 64) : Bool :=

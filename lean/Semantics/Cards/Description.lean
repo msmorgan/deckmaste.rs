@@ -365,7 +365,7 @@ theorem okBioplasmExiledCard :
     NounPhrase.checkAt (some .object) bioplasmAfterExile bioplasmExiledCard = [] := by decide
 
 /-- "the top card of each player's library" -/
-def playersTopCardSlice : NounPhrase := slice .top (.lit 1) (libraryOf (allOf isPlayer))
+def playersTopCardSlice : NounPhrase := slice .top (.lit 1) (libraryOf eachPlayer)
 theorem okPlayersTopCardSlice : NounPhrase.checkAt (some .object) (DRS.ofList []) playersTopCardSlice = [] := by
   decide
 

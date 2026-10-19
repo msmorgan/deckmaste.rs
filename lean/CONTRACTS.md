@@ -344,6 +344,13 @@ life and you gain life equal to the total life lost this way" [CR#702.101a] read
 through `thatMuch`. `doForEach` publishes no such total, so "that much" after it is
 refused (`badForEachLossThatMuch`).
 
+A one-card slice of a library or graveyard reads its owner's number (`NounPhrase.plur`):
+"the top card of your library" is one card, "the top card of your opponents' libraries"
+several. An owner written with `each` is the exception: "the top card of each player's
+library" is one card per player, collected, so the slice is plural and reads back as
+"those cards" (`playersTopCardIsPlural`, `eachPlayerTopCardSliceIsPlural`). Any other
+one-card slice is one; a longer slice, a run and `oneEachOf` are plural.
+
 A nested ability's performer is its own controller: granted ability text, token
 characteristic text and emblem abilities are stepped in `choiceContext` (only chosen
 qualities and chosen players carry in, never a handoff frame), and a keyword ability
