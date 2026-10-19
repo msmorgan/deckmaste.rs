@@ -520,12 +520,12 @@
         // The perfect takes an active participle phrase or a passive one
         // headed by *been*.
         (name: "Perfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "AuxiliaryComplement")],
-            equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Active"),
+            equations: [Require("complement.VerbForm", "PastParticiple"), Carry("complement.Voice", "Active"),
                 Require("$.Voice", "Active")],
             transparent: ["complement"]),
         (name: "PassivePerfect", lhs: "VerbPhrase", rhs: [Class("head", "HaveVerb"), Cat("complement", "AuxiliaryComplement")],
             equations: [Require("complement.VerbForm", "PastParticiple"), Require("complement.Voice", "Passive"),
-                Require("complement.VerbKind", "Auxiliary"), Require("$.Voice", "Passive")],
+                Carry("complement.VerbKind", "Auxiliary"), Require("$.Voice", "Passive")],
             transparent: ["complement"]),
         // The passive auxiliary takes a lexical verb's passive participle phrase.
         (name: "Passive", lhs: "VerbPhrase", rhs: [Class("head", "BeVerb"), Cat("complement", "AuxiliaryComplement")],
@@ -1165,12 +1165,18 @@
         Adjunct(host: "VerbPhrase", adjunct: "Gerund", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.VerbKind", "Auxiliary")]),
         // A purpose *to*-infinitival, unless the head's frame selects one.
         Adjunct(host: "VerbPhrase", adjunct: "ToInf", side: After, host_kind: Predicate, cost: 2),
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
+        // Coordinated Verb Phrases share Voice and VerbKind, so an auxiliary
+        // that selects them sees a value (*it has attacked or blocked* is no
+        // passive perfect).
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive"]),
+        // An active and a passive Verb Phrase coordinate too (*enters
+        // or is put into a graveyard*), leaving Voice and VerbKind unvalued.
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"], unlike: Some("Voice"), serial: Some(true)),
         // A gerund-participle and then a past participle (*blocking or
         // blocked by this creature*).
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")]),
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")], proximate: ["VerbKind", "Voice"]),
         // Contrastive *but* joins predicates (*you control but don't own*).
-        Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"]),
+        Coordination(category: "VerbPhrase", coordinators: "But", unshared: ["Inflection", "AdjectivalPassive"]),
         Coordination(category: "KeywordPhrase", coordinators: "Coordinator", unshared: ["KeywordForm"]),
         Coordination(category: "Clause", coordinators: "Coordinator", unshared: ["Inflection"], delimiter: Some(',')),
         // Imperatives and then a declarative (*tap that creature and it

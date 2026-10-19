@@ -60,3 +60,5 @@
 +Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
 + Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1
 +Clause you and at least one permanent become tapped => NounPhrase "you and at least one permanent" as Subject of become; readings 1
++Clause it has attacked or blocked => VerbPhrase "attacked or blocked" as Complement of have
++Clause it has attacked => VerbPhrase "attacked" as Complement of have; readings 1
