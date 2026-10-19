@@ -111,8 +111,8 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   `equations` constrain the `head` (host) and the adjunct (a depictive
   gerund-participial of a lexical verb only).
 - `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
-  binary and Oxford-comma serial coordination, one tree per same-coordinator
-  chain, across-the-board Gaps, and Right Node Raising (a coordination with a
+  binary and Oxford-comma serial coordination, a delimited polysyndetic chain
+  (*A, or B, or C*), one tree per same-coordinator chain, across-the-board Gaps, and Right Node Raising (a coordination with a
   shared NP, keyword-phrase, *to*-infinitival or predicative Gap, filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which

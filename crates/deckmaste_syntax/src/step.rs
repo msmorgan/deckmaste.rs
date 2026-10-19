@@ -172,6 +172,8 @@ pub(crate) struct Production {
     pub undelimited: Vec<usize>,
     /// It is a coordination delimited before its coordinator.
     pub delimits: bool,
+    /// A polysyndetic tail child that must repeat the mother's coordinator.
+    pub chained: Option<usize>,
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
@@ -313,6 +315,7 @@ pub(crate) fn resolve(
         uncoordinated: Vec::new(),
         undelimited: Vec::new(),
         delimits: false,
+        chained: None,
         unlike: None,
         id,
         lhs,
@@ -747,6 +750,9 @@ impl Production {
                 }
                 if self.coordinator.is_some() && matches!(self.gaps[position], GapRule::Shared) {
                     Self::conjoin(&mut next, summary);
+                }
+                if self.chained == Some(position) && summary.coordinator != next.coordinator {
+                    return None;
                 }
                 if self.coordinator == Some(position) {
                     if self

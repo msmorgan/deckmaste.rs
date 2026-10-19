@@ -175,6 +175,8 @@ struct Draft {
     delimits: bool,
     /// Conjuncts that must differ in a feature: (first, last, feature).
     unlike: Option<(usize, usize, usize)>,
+    /// A polysyndetic tail that must repeat the coordinator.
+    chained: Option<usize>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -212,6 +214,7 @@ impl Draft {
             uncoordinated: Vec::new(),
             undelimited: Vec::new(),
             delimits: false,
+            chained: None,
             unlike: None,
         }
     }
@@ -283,6 +286,8 @@ impl<'a> Binder<'a> {
                     category,
                     coordinators,
                 ));
+                declared.insert(Ident::new(&format!("{tail}+")), declaration.clone());
+                declared.insert(Ident::new(&format!("{tail}++")), declaration.clone());
                 declared.insert(tail, declaration);
             }
         }
@@ -951,6 +956,7 @@ impl<'a> Binder<'a> {
         production.uncoordinated = draft.uncoordinated;
         production.undelimited = draft.undelimited;
         production.delimits = draft.delimits;
+        production.chained = draft.chained;
         production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
@@ -2045,6 +2051,7 @@ impl<'a> Binder<'a> {
         if conjoin.unlike.is_some() {
             return Ok(drafts);
         }
+        drafts.extend(conjoin.polysyndetic(self, &coordinator, *delimiter, *cost)?);
         let mut more = Draft::new(
             format!("Coordination:{}/serial-more", conjoin.tail_name),
             conjoin.tail_id,
@@ -2234,6 +2241,80 @@ impl Conjoin {
         }
     }
 
+    /// A polysyndetic coordination, its coordinator repeated before each
+    /// non-initial conjunct, each after the schema's delimiter (*another
+    /// creature dies, or a card leaves your graveyard, or ...*; CGEL, Ch. 15
+    /// §1.1, p. 1276): the whole (a conjunct and a tail of at least two
+    /// links) and the links of the tails `TAIL+` (one or more) and `TAIL++`
+    /// (two or more).
+    #[expect(clippy::many_single_char_names, reason = "conjunct positions")]
+    fn polysyndetic(
+        &self,
+        binder: &Binder<'_>,
+        coordinator: &Test,
+        delimiter: Option<char>,
+        cost: u32,
+    ) -> Result<Vec<Draft>, LoadError> {
+        // Oracle sets each repeated coordinator off with the delimiter; an
+        // undelimited chain stays binary.
+        let Some(mark) = delimiter else {
+            return Ok(Vec::new());
+        };
+        let name = &self.tail_name;
+        let tail = |suffix: &str| -> Result<usize, LoadError> {
+            binder
+                .out
+                .category_id(&format!("{name}{suffix}"))
+                .ok_or_else(|| invalid(format!("no polysyndetic tail `{name}{suffix}`")))
+        };
+        let (one, two) = (tail("+")?, tail("++")?);
+        let cat = |category| Symbol::Cat {
+            binding: None,
+            category,
+            prepositions: None,
+            host: None,
+        };
+        let mut drafts = Vec::new();
+        let mut whole = Draft::new(format!("Coordination:{name}/polysyndetic"), self.lhs, cost);
+        let a = whole.child("first", self.conjunct(), GapRule::Shared);
+        let t = whole.child("rest", cat(two), GapRule::Shared);
+        whole.coordinator = Some(t);
+        whole.distinct_coordinator = vec![a];
+        self.close(binder, &mut whole, &[a, t], Edge::Whole { last: false })?;
+        drafts.push(whole);
+        // A link and a further tail: into `TAIL++` and `TAIL+`.
+        for (lhs, shape) in [(two, "++"), (one, "+")] {
+            let mut link = Draft::new(format!("Coordination:{name}/polysyndetic{shape}"), lhs, 0);
+            link.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+            let c = link.child(
+                "coordinator",
+                Symbol::Leaf(coordinator.clone()),
+                GapRule::Closed,
+            );
+            let b = link.child("first", self.conjunct(), GapRule::Shared);
+            let r = link.child("rest", cat(one), GapRule::Shared);
+            link.coordinator = Some(c);
+            link.chained = Some(r);
+            link.distinct_coordinator = vec![b];
+            self.close(binder, &mut link, &[b, r], Edge::Tail { last: false })?;
+            drafts.push(link);
+        }
+        // The last link: into `TAIL+`.
+        let mut end = Draft::new(format!("Coordination:{name}/polysyndetic-end"), one, 0);
+        end.child("", Symbol::Punct(mark, Binding::Suffix), GapRule::Closed);
+        let c = end.child(
+            "coordinator",
+            Symbol::Leaf(coordinator.clone()),
+            GapRule::Closed,
+        );
+        let b = end.child("last", self.conjunct(), GapRule::Shared);
+        end.coordinator = Some(c);
+        end.distinct_coordinator = vec![b];
+        self.close(binder, &mut end, &[b], Edge::Tail { last: true })?;
+        drafts.push(end);
+        Ok(drafts)
+    }
+
     /// A binary coordination, after a correlative marker or with a
     /// delimiter before its coordinator.
     fn binary(
@@ -2305,7 +2386,9 @@ impl Conjoin {
         if whole {
             binder.equations(draft, &self.whole)?;
         }
-        binder.equations(draft, &self.firsts)?;
+        if draft.children.iter().any(|c| c.name == "first") {
+            binder.equations(draft, &self.firsts)?;
+        }
         if matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true }) {
             binder.equations(draft, &self.lasts)?;
         }

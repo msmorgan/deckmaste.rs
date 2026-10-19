@@ -35,3 +35,4 @@
 +NounPhrase three or more creatures => !NounPhrase "three"; readings 1
 * Each attacking creature and each blocking creature don't untap during its controller's next untap step.
 +Clause target creature and each other creature that shares a color with it get +1/+1 until end of turn => NounPhrase "target creature and each other creature that shares a color with it" as Subject of get
++Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => Clause "another creature dies"; Clause "a creature card leaves your graveyard"; Clause "a creature card is put into a graveyard"; readings 1
