@@ -46,7 +46,10 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
     *and*-coordination of singular nominals, even as a predicative only, also
     admits *becomes a [Human Soldier creature with power] and [toughness
     each equal to …]* on ~100 units: Stonework Packbeast; Burakos, Party
-    Leader; Tajuru Paragon; Veteran Adventurer.
+    Leader; Tajuru Paragon; Veteran Adventurer; and, under a singular
+    determiner, Lush Growth (*a Mountain, Forest, and Plains*) and Wild Shape
+    (*that base power and toughness*), which read only through a spurious
+    Noun Phrase coordination until Stratum 6 ruled it out.
   - Non-coordination one-off: Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
   - Serial unlike coordination beyond object lists: predicate adjuncts
     (*only during …, only if …, and only once each turn*), Grizzled Wolverine;

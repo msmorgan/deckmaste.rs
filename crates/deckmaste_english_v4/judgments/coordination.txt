@@ -22,7 +22,7 @@
 + <card=Shapeshifter> As this creature enters, choose a number between 0 and 7. => Amount "0 and 7" as Complement of between
 + Whenever a creature you control but don't own dies, return it to the battlefield under its owner's control and you draw a card. => VerbPhrase "control but don't own"
 + Prevent all combat damage that would be dealt to and dealt by enchanted creature. => NounPhrase "enchanted creature" as Complement of to; NounPhrase "enchanted creature" as Complement of by
-+NounPhrase its power and toughness => Nominal "power and toughness"
++NounPhrase its power and toughness => Nominal "power and toughness"; readings 1
 + Each creature and planeswalker you control gets +1/+1 until end of turn. => NounPhrase "Each creature and planeswalker you control" as Subject of get
 * Each creature and planeswalker you control get +1/+1 until end of turn.
 + Activate only during your turn and only once each turn. => PrepositionPhrase "only during your turn"; AdverbPhrase "only once each turn"

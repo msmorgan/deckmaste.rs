@@ -110,5 +110,8 @@ Monument to Perfection | {3}: This artifact becomes a 9/9 Phyrexian Construct ar
 Messenger Jays | Council's dilemma — When this creature enters, starting with you, each player votes for feather or quill. Put a +1/+1 counter on this creature for each feather vote and draw a card for each quill vote. For each card drawn this way, discard a card.
 Sarpadian Empires, Vol. VII | As this artifact enters, choose white Citizen, blue Camarid, black Thrull, red Goblin, or green Saproling.
 
+Wild Shape | Choose one. Until end of turn, target creature you control has that base power and toughness, becomes that creature type, and gains that ability.
+Lush Growth | Enchanted land is a Mountain, Forest, and Plains.
+
 # english-v4-oracle-editorial-corrections
 Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.
