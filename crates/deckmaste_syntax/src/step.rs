@@ -13,6 +13,15 @@ use crate::compile::CompiledGrammar;
 use crate::frames::SlotKind;
 use crate::grammar::HostKind;
 
+/// The most features one Category may carry, so a Summary is inline.
+pub(crate) const MAX_CATEGORY_FEATURES: usize = 12;
+/// The most feature variables one Production may unify, so a State is inline.
+pub(crate) const MAX_PRODUCTION_VARS: usize = 16;
+/// The most features a grammar may declare, so a leaf indexes its values.
+pub(crate) const MAX_FEATURES: usize = 48;
+/// The most conjuncts one coordination Production may mark distinct.
+pub(crate) const MAX_DISTINCT_COORDINATORS: usize = 2;
+
 /// A Complement that another frame of a phrase's head selects. A longer
 /// frame's Preposition Phrase headed by the preposition, or phrase of the
 /// slot's kind (*to*-infinitival in *choose to attack*), is not also an
@@ -107,8 +116,6 @@ pub(crate) struct Production {
     pub names: Vec<Ident>,
     pub gaps: Vec<GapRule>,
     pub cost: u32,
-    /// Constant bindings of each variable.
-    pub constants: Vec<Option<u16>>,
     /// (feature, variable) bindings of each child.
     pub child_vars: Vec<Vec<(usize, usize)>>,
     /// (feature, variable) bindings of the mother, in category feature order.
@@ -127,6 +134,8 @@ pub(crate) struct Production {
     /// The child whose engine fields (preposition, extensions) the mother
     /// inherits.
     pub head: Option<usize>,
+    /// The State before any child, its variables bound to their constants.
+    start: State,
 }
 
 pub(crate) type Key = (Option<usize>, usize);
@@ -207,7 +216,27 @@ pub(crate) fn resolve(
             })
         })
         .collect();
-    let constants = roots.iter().map(|&r| constant[r]).collect();
+    let constants: Vec<Option<u16>> = roots.iter().map(|&r| constant[r]).collect();
+    if constants.len() > MAX_PRODUCTION_VARS {
+        return Err(format!(
+            "unifies {} feature variables, more than {MAX_PRODUCTION_VARS}",
+            constants.len()
+        ));
+    }
+    if grammar.category_features[lhs].len() > MAX_CATEGORY_FEATURES {
+        return Err(format!(
+            "its mother carries {} features, more than {MAX_CATEGORY_FEATURES}",
+            grammar.category_features[lhs].len()
+        ));
+    }
+    if distinct_coordinator.len() > MAX_DISTINCT_COORDINATORS {
+        return Err(format!(
+            "marks {} conjuncts distinct, more than {MAX_DISTINCT_COORDINATORS}",
+            distinct_coordinator.len()
+        ));
+    }
+    let mut vars = [None; MAX_PRODUCTION_VARS];
+    vars[..constants.len()].copy_from_slice(&constants);
     let mut child_vars = vec![Vec::new(); children.len()];
     let mut mother_vars = vec![None; grammar.category_features[lhs].len()];
     for (i, key) in keys.iter().enumerate() {
@@ -240,7 +269,6 @@ pub(crate) fn resolve(
         names,
         gaps,
         cost,
-        constants,
         child_vars,
         mother_vars,
         introduces,
@@ -250,24 +278,42 @@ pub(crate) fn resolve(
         distinct_coordinator,
         requires_coordination,
         head,
+        start: State {
+            first_glues: None,
+            last_glues: false,
+            vars,
+            gap: None,
+            gap_right_edge: true,
+            shared_gap_right_edge: true,
+            leaves: 0,
+            preposition: None,
+            extensions: 0,
+            coordinator: None,
+            conjunct_coordinators: [None; MAX_DISTINCT_COORDINATORS],
+            host_extensions: 0,
+            adjunct_extension: None,
+        },
     })
 }
 
 /// The finite grammatical summary of a completed Constituent: everything a
 /// parent may inspect. Two Constituents with equal summaries are packed.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct Summary {
     pub first_glues: bool,
     pub last_glues: bool,
-    pub values: Box<[Option<u16>]>,
+    /// Feature values in Category feature order; slots past the Category's
+    /// features stay `None`.
+    pub values: [Option<u16>; MAX_CATEGORY_FEATURES],
     pub gap: Gap,
     pub gap_right_edge: bool,
     /// Its lexical leaves, counted to two.
     pub leaves: u8,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
-    /// Complements that would extend this phrase's selected frame.
-    pub extensions: Vec<Extension>,
+    /// Complements that would extend this phrase's selected frame, as an
+    /// index into [`CompiledGrammar::extension_sets`].
+    pub extensions: u16,
     /// The coordinator of a coordination.
     pub coordinator: Option<LexemeId>,
 }
@@ -280,7 +326,8 @@ pub(crate) struct LeafFacts {
     pub notation: Option<deckmaste_lexical::Numeral>,
     pub lexeme: Option<LexemeId>,
     pub category: LexicalCategory,
-    pub features: Vec<(usize, u16)>,
+    /// Feature values by feature id.
+    pub features: [Option<u16>; MAX_FEATURES],
 }
 
 pub(crate) enum ChildView<'a> {
@@ -290,21 +337,21 @@ pub(crate) enum ChildView<'a> {
 }
 
 /// The partial state of a Production whose first children have been found.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Ord, PartialOrd)]
 pub(crate) struct State {
     pub first_glues: Option<bool>,
     pub last_glues: bool,
-    vars: Box<[Option<u16>]>,
+    vars: [Option<u16>; MAX_PRODUCTION_VARS],
     gap: Option<Gap>,
     gap_right_edge: bool,
     shared_gap_right_edge: bool,
     /// Lexical leaves so far, counted to two.
     leaves: u8,
     preposition: Option<(LexemeId, usize)>,
-    extensions: Vec<Extension>,
+    extensions: u16,
     coordinator: Option<LexemeId>,
-    conjunct_coordinators: Vec<LexemeId>,
-    host_extensions: Vec<Extension>,
+    conjunct_coordinators: [Option<LexemeId>; MAX_DISTINCT_COORDINATORS],
+    host_extensions: u16,
     adjunct_extension: Option<Extension>,
 }
 
@@ -346,40 +393,34 @@ impl Production {
     }
 
     pub fn start(&self) -> State {
-        State {
-            first_glues: None,
-            last_glues: false,
-            vars: self.constants.clone().into_boxed_slice(),
-            gap: None,
-            gap_right_edge: true,
-            shared_gap_right_edge: true,
-            leaves: 0,
-            preposition: None,
-            extensions: Vec::new(),
-            coordinator: None,
-            conjunct_coordinators: Vec::new(),
-            host_extensions: Vec::new(),
-            adjunct_extension: None,
-        }
+        self.start
     }
 
     /// Records the head's and an adjunct's frame facts for same-head
     /// complement priority, or `None` when a predicative Complement is a
     /// Preposition Phrase a rival frame selects.
-    fn priority(&self, next: &mut State, position: usize, summary: &Summary) -> Option<()> {
+    fn priority(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        summary: &Summary,
+    ) -> Option<()> {
         if self.predicative == Some(position)
             && let Some((p, _)) = summary.preposition
-            && next.extensions.contains(&Extension::Predicative(p))
+            && grammar
+                .extension_set(next.extensions)
+                .contains(&Extension::Predicative(p))
         {
             return None;
         }
         if self.head == Some(position) {
-            next.preposition.clone_from(&summary.preposition);
-            next.extensions.clone_from(&summary.extensions);
+            next.preposition = summary.preposition;
+            next.extensions = summary.extensions;
         }
         if let Some((host, adjunct, _)) = self.host_check {
             if position == host {
-                next.host_extensions.clone_from(&summary.extensions);
+                next.host_extensions = summary.extensions;
             }
             if position == adjunct {
                 next.adjunct_extension = summary
@@ -447,7 +488,7 @@ impl Production {
         position: usize,
         child: &ChildView<'_>,
     ) -> Option<State> {
-        let mut next = state.clone();
+        let mut next = *state;
         if state.gap.is_some_and(|gap| gap != Gap::None) {
             next.gap_right_edge = false;
         }
@@ -479,11 +520,7 @@ impl Production {
                         .position(|f| *f == feature)?;
                     summary.values[index]
                 }
-                ChildView::Leaf(leaf) => leaf
-                    .features
-                    .iter()
-                    .find(|(f, _)| *f == feature)
-                    .map(|(_, v)| *v),
+                ChildView::Leaf(leaf) => leaf.features[feature],
                 ChildView::Punct => None,
             }
         };
@@ -537,18 +574,19 @@ impl Production {
                     return None;
                 }
                 if self.distinct_coordinator.contains(&position)
-                    && let Some(c) = &summary.coordinator
+                    && let Some(c) = summary.coordinator
+                    && let Some(slot) = next.conjunct_coordinators.iter_mut().find(|s| s.is_none())
                 {
-                    next.conjunct_coordinators.push(*c);
+                    *slot = Some(c);
                 }
                 if self.coordinator == Some(position) {
-                    next.coordinator.clone_from(&summary.coordinator);
+                    next.coordinator = summary.coordinator;
                 }
-                self.priority(&mut next, position, summary)?;
+                self.priority(grammar, &mut next, position, summary)?;
             }
             ChildView::Leaf(leaf) => {
                 if self.coordinator == Some(position) {
-                    next.coordinator.clone_from(&leaf.lexeme);
+                    next.coordinator = leaf.lexeme;
                 }
                 if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
                     next.preposition = leaf.lexeme.map(|l| (l, *frame));
@@ -559,8 +597,8 @@ impl Production {
                     next.extensions = grammar
                         .extensions
                         .get(&(*lexeme, Some(*frame)))
-                        .cloned()
-                        .unwrap_or_default();
+                        .copied()
+                        .unwrap_or(0);
                 }
                 if let (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) =
                     (&self.rhs[position], leaf.lexeme)
@@ -568,11 +606,11 @@ impl Production {
                     next.extensions = grammar
                         .extensions
                         .get(&(lexeme, None))
-                        .cloned()
-                        .unwrap_or_default();
+                        .copied()
+                        .unwrap_or(0);
                 }
                 if self.host_check.is_some_and(|(host, _, _)| host == position) {
-                    next.host_extensions.clone_from(&next.extensions);
+                    next.host_extensions = next.extensions;
                 }
             }
             ChildView::Punct => {}
@@ -582,13 +620,11 @@ impl Production {
 
     /// The mother's summary once every child has been accepted.
     pub fn finish(&self, grammar: &CompiledGrammar, state: &State) -> Option<Summary> {
-        if let Some(c) = &state.coordinator
-            && state.conjunct_coordinators.contains(c)
-        {
+        if state.coordinator.is_some() && state.conjunct_coordinators.contains(&state.coordinator) {
             return None;
         }
         if let (Some((_, _, _)), Some(e)) = (self.host_check, &state.adjunct_extension)
-            && state.host_extensions.contains(e)
+            && grammar.extension_set(state.host_extensions).contains(e)
         {
             return None;
         }
@@ -604,26 +640,31 @@ impl Production {
             return None;
         }
         let coordinated = self.coordinator.is_some();
+        let mut values = [None; MAX_CATEGORY_FEATURES];
+        for (value, var) in values.iter_mut().zip(&self.mother_vars) {
+            *value = var.and_then(|v| state.vars[v]);
+        }
         Some(Summary {
             first_glues: state.first_glues.unwrap_or(false),
             last_glues: state.last_glues,
-            values: self
-                .mother_vars
-                .iter()
-                .map(|var| var.and_then(|v| state.vars[v]))
-                .collect(),
+            values,
             gap,
             gap_right_edge: self.introduces != Gap::None
                 || (state.gap_right_edge && state.shared_gap_right_edge),
             leaves: state.leaves,
             preposition: if coordinated { None } else { state.preposition },
-            extensions: if coordinated { Vec::new() } else { state.extensions.clone() },
+            extensions: if coordinated { 0 } else { state.extensions },
             coordinator: state.coordinator,
         })
     }
 }
 
 impl CompiledGrammar {
+    /// The extension list an interned index names.
+    pub(crate) fn extension_set(&self, index: u16) -> &[Extension] {
+        &self.extension_sets[usize::from(index)]
+    }
+
     /// Whether a lexical leaf satisfies a test.
     pub(crate) fn leaf_matches(&self, test: &Test, leaf: &LeafFacts) -> bool {
         let facts = leaf.lexeme.as_ref().and_then(|l| self.lexemes.get(l));
@@ -673,11 +714,15 @@ impl CompiledGrammar {
                     facts.countability.map(|c| c.as_str().to_owned()),
                     None,
                 ];
-                let mut features = facts.features.clone();
+                let mut features = [None; MAX_FEATURES];
+                // A lexeme's own value for a feature outranks a projected one.
+                for &(id, value) in &facts.features {
+                    features[id].get_or_insert(value);
+                }
                 for (id, name) in self.projected.iter().zip(names) {
                     if let (Some(id), Some(name)) = (id, name) {
                         let value = self.values[*id].iter().position(|v| *v == name.as_str())?;
-                        features.push((*id, u16::try_from(value).ok()?));
+                        features[*id].get_or_insert(u16::try_from(value).ok()?);
                     }
                 }
                 Some(LeafFacts {
@@ -709,14 +754,17 @@ impl CompiledGrammar {
                         std::cmp::Ordering::Equal => "Zero",
                         std::cmp::Ordering::Greater => "Positive",
                     };
-                    [(self.projected[0], number), (self.projected[7], Some(sign))]
-                        .into_iter()
-                        .filter_map(|(id, name)| {
-                            let (id, name) = (id?, name?);
-                            let value = self.values[id].iter().position(|v| v == name)?;
-                            Some((id, u16::try_from(value).ok()?))
-                        })
-                        .collect()
+                    let mut features = [None; MAX_FEATURES];
+                    for (id, name) in [(self.projected[0], number), (self.projected[7], Some(sign))]
+                    {
+                        let (Some(id), Some(name)) = (id, name) else { continue };
+                        if let Some(value) = self.values[id].iter().position(|v| v == name)
+                            && let Ok(value) = u16::try_from(value)
+                        {
+                            features[id].get_or_insert(value);
+                        }
+                    }
+                    features
                 },
             }),
             LexicalReading::FlavorWord { .. } => Some(LeafFacts {
@@ -725,7 +773,7 @@ impl CompiledGrammar {
                 notation: None,
                 lexeme: None,
                 category: LexicalCategory::FlavorWord,
-                features: Vec::new(),
+                features: [None; MAX_FEATURES],
             }),
         }
     }

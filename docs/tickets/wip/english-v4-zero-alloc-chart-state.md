@@ -65,3 +65,6 @@ currently heap-allocates and clones multiple vectors and boxed slices inside
   `deckmaste_syntax` and `deckmaste_english_v4`.
 
 Standard constraints apply.
+
+Census delta (`toywrvwz` → `kxvzopnk`): faces read 20,391 → 20,391; total Readings 173,844 → 173,844; lost faces: none. `target/english-v4/strata.json` is byte-identical before and after across all 92,934 units (79,157 read, 5 known-wrong-only, 13,772 unread, 0 law failures); `strata --check` passes.
+Judgment set: `cargo test -p deckmaste_english_v4` passes (43 tests); tests and clippy pass for deckmaste_syntax and deckmaste_english_v4.

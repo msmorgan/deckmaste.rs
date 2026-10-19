@@ -79,8 +79,10 @@ pub struct CompiledGrammar {
     pub(crate) frames: Vec<Frame>,
     pub(crate) preposition_frames: Vec<PrepositionFrame>,
     /// Prepositions whose `PP` slot would extend a head's selected frame,
-    /// by (lexeme, selected frame).
-    pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), Vec<Extension>>,
+    /// by (lexeme, selected frame), as an index into `extension_sets`.
+    pub(crate) extensions: BTreeMap<(LexemeId, Option<usize>), u16>,
+    /// Distinct extension lists; index `0` is the empty list.
+    pub(crate) extension_sets: Vec<Vec<Extension>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
@@ -224,6 +226,13 @@ impl<'a> Binder<'a> {
                     "feature `{name}` is a policing flag, which the grammar may not declare"
                 )));
             }
+        }
+        if features.len() > crate::step::MAX_FEATURES {
+            return Err(invalid(format!(
+                "the grammar declares {} features, more than {}",
+                features.len(),
+                crate::step::MAX_FEATURES
+            )));
         }
         let values: Vec<Vec<Ident>> = grammar.features.values().cloned().collect();
         let feature_id = |name: &str| {
@@ -370,6 +379,17 @@ impl<'a> Binder<'a> {
             }
         }
         let mut extensions = BTreeMap::new();
+        let mut extension_sets: Vec<Vec<Extension>> = vec![Vec::new()];
+        let mut intern = |list: Vec<Extension>| -> Result<u16, LoadError> {
+            let index = extension_sets
+                .iter()
+                .position(|known| *known == list)
+                .unwrap_or_else(|| {
+                    extension_sets.push(list);
+                    extension_sets.len() - 1
+                });
+            u16::try_from(index).map_err(|_| invalid("too many distinct extension lists"))
+        };
         for (id, facts) in &lexemes {
             if facts.category != LexicalCategory::Verb {
                 let mut preps: Vec<_> = facts
@@ -384,7 +404,7 @@ impl<'a> Binder<'a> {
                 preps.sort();
                 preps.dedup();
                 if !preps.is_empty() {
-                    extensions.insert((*id, None), preps);
+                    extensions.insert((*id, None), intern(preps)?);
                 }
             }
             for &selected in &facts.frames {
@@ -416,7 +436,7 @@ impl<'a> Binder<'a> {
                 if !preps.is_empty() {
                     preps.sort();
                     preps.dedup();
-                    extensions.insert((*id, Some(selected)), preps);
+                    extensions.insert((*id, Some(selected)), intern(preps)?);
                 }
             }
         }
@@ -489,6 +509,7 @@ impl<'a> Binder<'a> {
                 frames,
                 preposition_frames,
                 extensions,
+                extension_sets,
                 classes,
                 projected,
                 report,

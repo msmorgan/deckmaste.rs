@@ -213,7 +213,7 @@ impl CompiledGrammar {
                     dot,
                     start,
                     end,
-                    state: key.4.clone(),
+                    state: key.4,
                     families: Vec::new(),
                 });
                 item_index.insert(key, i);
@@ -283,7 +283,7 @@ impl CompiledGrammar {
                         category: production.lhs,
                         start,
                         end: position,
-                        summary: key.3.clone(),
+                        summary: key.3,
                         families: vec![(production_id, id)],
                     });
                     node_index.insert(key, node);
