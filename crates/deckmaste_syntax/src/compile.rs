@@ -987,9 +987,15 @@ impl<'a> Binder<'a> {
                         .transpose()?;
                     let clustered: Vec<Draft> = drafts
                         .iter()
-                        .filter_map(|d| complement_clusters(d, &coordinator, None))
+                        .filter_map(|d| complement_clusters(d, &coordinator, None, false))
+                        .chain(
+                            drafts
+                                .iter()
+                                .filter_map(|d| complement_clusters(d, &coordinator, None, true)),
+                        )
                         .chain(drafts.iter().filter_map(|d| {
-                            between.and_then(|b| complement_clusters(d, &coordinator, Some(b)))
+                            between
+                                .and_then(|b| complement_clusters(d, &coordinator, Some(b), false))
                         }))
                         .collect();
                     drafts.extend(clustered);
@@ -2278,24 +2284,47 @@ impl Conjoin {
 
 /// The coordination of an active phrase's complement sequence, its head
 /// shared on the left (the mirror of Right Node Raising): the head, its
-/// Frame Slots, a coordinator, and the Frame Slots again; with `between`, an
-/// Adjunct of that Category ends the first sequence (*on top of your library
-/// in any order and the rest on the bottom*).
-fn complement_clusters(draft: &Draft, coordinator: &Test, between: Option<usize>) -> Option<Draft> {
+/// Frame Slots, a coordinator, and the Frame Slots again; `serial` makes three
+/// sequences with the Oxford comma (*one into your hand, one on top of your
+/// library, and one on the bottom*); with `between`, an Adjunct of that
+/// Category ends the first of two (*on top of your library in any order and
+/// the rest on the bottom*).
+fn complement_clusters(
+    draft: &Draft,
+    coordinator: &Test,
+    between: Option<usize>,
+    serial: bool,
+) -> Option<Draft> {
     let derived = ["/gap", "/passive", "/adjectival"];
     if draft.children.len() < 3
         || draft.frame.is_none()
         || derived.iter().any(|d| draft.id.contains(d))
         || draft.children[0].name != "head"
+        || (serial && between.is_some())
     {
         return None;
     }
-    let slots = draft.children.len() - 1;
     let mut clustered = draft.clone();
-    let tag = if between.is_some() { "clusters-interleaved" } else { "clusters" };
+    let tag = match (serial, between) {
+        (true, _) => "clusters-serial",
+        (false, Some(_)) => "clusters-interleaved",
+        (false, None) => "clusters",
+    };
     clustered.id = Ident::new(&format!("{}/{tag}", draft.id));
     for child in &mut clustered.children[1..] {
         child.gap = GapRule::Closed;
+    }
+    let mut offsets = Vec::new();
+    let mut push_copy = |clustered: &mut Draft| {
+        offsets.push(clustered.children.len() - 1);
+        for child in draft.children[1..].iter().cloned() {
+            clustered.child(child.name.as_ref(), child.symbol, GapRule::Closed);
+        }
+    };
+    if serial {
+        clustered.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
+        push_copy(&mut clustered);
+        clustered.child("", Symbol::Punct(',', Binding::Suffix), GapRule::Closed);
     }
     if let Some(category) = between {
         clustered.child(
@@ -2314,42 +2343,44 @@ fn complement_clusters(draft: &Draft, coordinator: &Test, between: Option<usize>
         Symbol::Leaf(coordinator.clone()),
         GapRule::Closed,
     );
-    // The second sequence's children, after the coordinator.
-    let offset = slots + 1 + usize::from(between.is_some());
-    let copy = |i: usize| if i == 0 { 0 } else { i + offset };
-    for child in draft.children[1..].iter().cloned() {
-        clustered.child(child.name.as_ref(), child.symbol, GapRule::Closed);
-    }
+    push_copy(&mut clustered);
     let on_slot = |p: &Path| matches!(p, Path::Child(i, _) if *i > 0);
-    let moved = |p: Path| match p {
-        Path::Child(i, f) => Path::Child(copy(i), f),
-        mother @ Path::Mother(_) => mother,
-    };
-    for (path, target) in &draft.equations {
-        let target_on_slot = matches!(target, Target::Path(t) if on_slot(t));
-        if on_slot(path) || target_on_slot {
-            let target = match target {
-                Target::Path(t) => Target::Path(moved(*t)),
-                value @ Target::Value(_) => value.clone(),
-            };
-            clustered.equations.push((moved(*path), target));
+    for offset in offsets {
+        // A copied sequence's children follow the copy's position.
+        let copy = |i: usize| if i == 0 { 0 } else { i + offset };
+        let moved = |p: Path| match p {
+            Path::Child(i, f) => Path::Child(copy(i), f),
+            mother @ Path::Mother(_) => mother,
+        };
+        for (path, target) in &draft.equations {
+            let target_on_slot = matches!(target, Target::Path(t) if on_slot(t));
+            if on_slot(path) || target_on_slot {
+                let target = match target {
+                    Target::Path(t) => Target::Path(moved(*t)),
+                    value @ Target::Value(_) => value.clone(),
+                };
+                clustered.equations.push((moved(*path), target));
+            }
         }
+        for (list, original) in [
+            (&mut clustered.exclusions, &draft.exclusions),
+            (&mut clustered.carried, &draft.carried),
+        ] {
+            list.extend(
+                original
+                    .iter()
+                    .filter(|(i, ..)| *i > 0)
+                    .map(|&(i, f, v)| (copy(i), f, v)),
+            );
+        }
+        clustered.weights.extend(
+            draft
+                .weights
+                .iter()
+                .filter(|(i, _)| *i > 0)
+                .map(|&(i, w)| (copy(i), w)),
+        );
     }
-    for list in [&mut clustered.exclusions, &mut clustered.carried] {
-        let more: Vec<_> = list
-            .iter()
-            .filter(|(i, ..)| *i > 0)
-            .map(|&(i, f, v)| (copy(i), f, v))
-            .collect();
-        list.extend(more);
-    }
-    let weights: Vec<_> = clustered
-        .weights
-        .iter()
-        .filter(|(i, _)| *i > 0)
-        .map(|&(i, w)| (copy(i), w))
-        .collect();
-    clustered.weights.extend(weights);
     clustered.predicative = None;
     Some(clustered)
 }
