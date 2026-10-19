@@ -747,7 +747,7 @@ def kyrenLegate : Spelled := spelled <| .singleFaced
     { name := "Kyren Legate", cost := some [generic 1, pip .red], types := [.creature],
       subtypes := [goblin],
       text :=
-        [ static (onlyWhile (altCost «this»)
+        [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype plains,
                                 controlledBy anOpponent ]),
@@ -809,7 +809,7 @@ def dreamThief : Spelled := spelled <| .singleFaced
             (doOnlyIf (draw (.lit 1))
               (happened (cast (a
                 (and [isSpell, hasColor .blue,
-                otherThan «this»]))) you soFarThisTurn)) ],
+                otherThan this_]))) you soFarThisTurn)) ],
       power := stat 2, toughness := stat 1 } }
 
 def brightspearZealot : Spelled := spelled <| .singleFaced
@@ -861,7 +861,7 @@ def stormOfSouls : Action :=
           { subtypes := [spirit], text := [flying],
             power := stat 1, toughness := stat 1 } }
         none,
-      exile «this» ]
+      exile this_ ]
 theorem okStormOfSouls : Action.check (DRS.ofList []) stormOfSouls = [] := by decide
 
 def answeredPrayers : Spelled := spelled <| .singleFaced
@@ -1084,14 +1084,14 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
         [ keywordCosting (.named "kicker") (mana [generic 6]),
           spell (replace
             (createToken (creatureToken 1 1 [.white] [kor, soldier]) (count := .lit 6))
-            (doIf (keywordCostPaid (.named "kicker") «this»)
+            (doIf (keywordCostPaid (.named "kicker") this_)
               (create (.lit 12) asThose []))) ] } }
 
 /-- Soul of Emancipation -/
 def soulOfEmancipation : Ability :=
   when (does thisCreature enter)
     (sequentially
-      [ destroy (targets (upTo 3) (and [isPermanent, non isLand, otherThan «this»])),
+      [ destroy (targets (upTo 3) (and [isPermanent, non isLand, otherThan this_])),
         doForEach (those permanent)
           (instruct (controllerOf (that permanent)) (createToken { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
@@ -1197,8 +1197,8 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
-  triggeredWhile (lastCounterRemoved (.named "timeCounter") «this»)
-    (whileTrue (matches_ «this» (cardIn exileZone)))
+  triggeredWhile (lastCounterRemoved (.named "timeCounter") this_)
+    (whileTrue (matches_ this_ (cardIn exileZone)))
     (establishThroughout (cant any (block (allOf isCreature))) thisTurn)
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide
 
@@ -1631,7 +1631,7 @@ def pureHalf : Action := destroy (target (and [isPermanent, isMulticolored]))
 theorem okPureHalf : Action.check (DRS.ofList []) pureHalf = [] := by decide
 /-- Korlash -/
 def grandeurDiscardCost : Cost :=
-  perform (discard (a (and [named (printedName "Korlash, Heir to Blackblade"), otherThan «this», in_ yourHand])))
+  perform (discard (a (and [named (printedName "Korlash, Heir to Blackblade"), otherThan this_, in_ yourHand])))
 theorem okGrandeurDiscardCost : Cost.check (DRS.ofList []) grandeurDiscardCost = [] := by decide
 /-- Gyruda, Doom of Depths -/
 def gyrudaCompanion : Ability := companion (everyCardIs isCard (manaValueParity .even))
@@ -1695,7 +1695,7 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
                   (establish
                      (textChange thisCreature
                         (exchangeWith
-                           (a (and [isCreature, otherThan «this»])))))) none .nextTimeOnly),
+                           (a (and [isCreature, otherThan this_])))))) none .nextTimeOnly),
           at_ (beginningOfYour .upkeep) (loseLife (.lit 3)),
           activated (compound [mana [generic 3], perform (sacrifice thisCreature)])
             (instruct (each isOtherPlayer) (draw (.lit 1))) ],

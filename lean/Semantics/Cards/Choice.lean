@@ -136,7 +136,7 @@ def preeminentCaptain : Ability :=
 theorem okPreeminentCaptain : Ability.check (DRS.ofList []) preeminentCaptain = [] := by decide
 
 def skaabRuinator : Ability :=
-  static (can you (cast «this» (from_ := some yourGraveyard)))
+  static (can you (cast this_ (from_ := some yourGraveyard)))
 theorem okSkaabRuinator : Ability.check (DRS.ofList []) skaabRuinator = [] := by decide
 
 /-- Raffine's Guidance -/
@@ -148,7 +148,7 @@ def raffinesGuidance : Spelled := spelled <| .singleFaced
         [ keywordSubject (.named "enchant") isCreature,
           static (getsPt (enchanted creature) (up (.lit 1)) (up (.lit 1))),
           static (can you
-                    (cast «this» (from_ := some yourGraveyard)
+                    (cast this_ (from_ := some yourGraveyard)
                        (payment := payingInstead (mana [generic 2, pip .white])))) ] } }
 
 /-- Scourge of Nel Toth -/
@@ -159,7 +159,7 @@ def scourgeOfNelToth : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           static (can you
-                    (cast «this» (from_ := some yourGraveyard) (payment := payingInstead (compound
+                    (cast this_ (from_ := some yourGraveyard) (payment := payingInstead (compound
                 [ mana [pip .black, pip .black],
                   perform (sacrifice (counted (exactly 2) isCreature)) ])))) ],
       power := stat 6, toughness := stat 6 } }
@@ -314,7 +314,7 @@ def cripplingFear : Spelled := spelled <| .singleFaced
 
 /-- Koh, the Face Stealer -/
 def kohChooser : Ability :=
-  activated (payLife 1) (choose (a (and [isCreature, in_ (exiledWith «this»)])))
+  activated (payLife 1) (choose (a (and [isCreature, in_ (exiledWith this_)])))
 theorem okKohChooser : Ability.check (DRS.ofList []) kohChooser = [] := by decide
 /-- Forgotten Lore -/
 def forgottenLoreChoice : Action :=
@@ -986,7 +986,7 @@ theorem okFastbondLands : Ability.check (DRS.ofList []) fastbondLands = [] := by
 /-- Panglacial Wurm -/
 def panglacialWurmCast : Ability :=
   static
-      (can you (cast «this» (from_ := some yourLibrary)) (timing := some whileSearchingYourLibrary))
+      (can you (cast this_ (from_ := some yourLibrary)) (timing := some whileSearchingYourLibrary))
 theorem okPanglacialWurmCast : Ability.check (DRS.ofList []) panglacialWurmCast = [] := by decide
 
 /-- Shah of Naar Isle -/
@@ -1239,12 +1239,12 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [zombie, knight],
       text :=
-        [ static (can you (cast «this» (from_ := some yourGraveyard))),
-          static (cant you (cast «this» (from_ := some (not yourGraveyard)))),
+        [ static (can you (cast this_ (from_ := some yourGraveyard))),
+          static (cant you (cast this_ (from_ := some (not yourGraveyard)))),
           static (onlyWhile
                     (can you
                        (cast (allOf (and [isSpell, hasSubtype knight]))
-                          (from_ := some yourGraveyard))) (matches_ «this» (in_ battlefield))),
+                          (from_ := some yourGraveyard))) (matches_ this_ (in_ battlefield))),
           when (does thisCreature die) (loseLife (.lit 2)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -1386,9 +1386,9 @@ def caughtInTheCrossfire : Spelled := spelled <| .singleFaced
       text :=
         [ spell (chooseSpree
             [ (some (mana [generic 1]),
-               instruct «this» (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])) .noncombatOnly)),
+               instruct this_ (dealDamage (.lit 2) (each (and [isCreature, isOutlaw])) .noncombatOnly)),
               (some (mana [generic 1]),
-               instruct «this»
+               instruct this_
                    (dealDamage (.lit 2) (each (and [isCreature, non isOutlaw]))
                       .noncombatOnly)) ]) ] } }
 

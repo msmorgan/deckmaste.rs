@@ -1887,6 +1887,7 @@ def stepOps : Nat → StepOps
             let payload := match r.payload with
               | .object ty _ stamp origin size =>
                 match marker with
+                | .card => r.payload
                 | .ability => .ability origin (some .stack)
                 | .spell => .object ty (some .stack) stamp origin size
                 | .token => .object ty (some .battlefield) stamp (some .token) size

@@ -153,7 +153,7 @@ def truthOrConsequencesVote : Ability :=
       [ instruct eachPlayer (vote .secretly (byLabel ["truth", "consequences"])),
         draw (votesFor "truth"),
         choose (aAtRandom isOpponent),
-        instruct «this»
+        instruct this_
           (dealDamage (times (.lit 3) (votesFor "consequences")) (that player) .noncombatOnly) ]))
 theorem okTruthOrConsequencesVote : Ability.check (DRS.ofList []) truthOrConsequencesVote = [] := by decide
 

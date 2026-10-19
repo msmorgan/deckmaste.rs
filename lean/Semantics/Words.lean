@@ -475,7 +475,7 @@ inductive Subtype where
   deriving DecidableEq, Repr
 
 inductive MarkerWord where
-  | token | emblem | spell | permanent | ability
+  | card | token | emblem | spell | permanent | ability
   deriving DecidableEq, Repr
 
 /-- A change of a quantity: up by, down by, or set to. -/

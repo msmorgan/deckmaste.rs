@@ -23,7 +23,7 @@ def masterDecoy : Ability :=
   activated (compound [mana [pip .white], tapSymbol]) (tap (target isCreature))
 theorem okMasterDecoy : Ability.check (DRS.ofList []) masterDecoy = [] := by decide
 def cycling : Ability :=
-  activated (compound [mana [generic 2], perform (discard «this»)]) (draw (.lit
+  activated (compound [mana [generic 2], perform (discard this_)]) (draw (.lit
       1))
 theorem okCycling : Ability.check (DRS.ofList []) cycling = [] := by decide
 def merrowGrimeblotter : Ability :=
@@ -121,13 +121,13 @@ def ghalta : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [elder, dinosaur],
       text :=
-        [ static (conjunction [ costShift «this» (less (letter .x)),
+        [ static (conjunction [ costShift this_ (less (letter .x)),
               letterDefinition .x (aggregate .sum (.stat .power) (and [isCreature, youControl])) ]),
           trample ],
       power := stat 12, toughness := stat 12 } }
 
 def ancientStoneIdol : Ability :=
-  static (costShift «this» (less (forEach (.lit 1) (and [isCreature, isAttacking]))))
+  static (costShift this_ (less (forEach (.lit 1) (and [isCreature, isAttacking]))))
 theorem okAncientStoneIdol : Ability.check (DRS.ofList []) ancientStoneIdol = [] := by decide
 
 /-- "<p> spells cost {N} more/less to cast" -/
@@ -326,7 +326,7 @@ def tranquilGrove : Spelled := spelled <| .singleFaced
     { name := "Tranquil Grove", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
         [ activated (mana [generic 1, pip .green, pip .green])
-            (destroy (allOf (and [isEnchantment, otherThan «this»]))) ] } }
+            (destroy (allOf (and [isEnchantment, otherThan this_]))) ] } }
 
 def aggressiveMining : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -616,7 +616,7 @@ def forceOfWill : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Force of Will", cost := some [generic 3, pip .blue, pip .blue], types := [.instant],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (compound
               [ payLife 1,
                 perform (exile (a (and [hasColor .blue, in_ yourHand]))) ]))),
@@ -627,7 +627,7 @@ def demonOfDeathsGate : Spelled := spelled <| .singleFaced
     { name := "Demon of Death's Gate", cost := some [generic 6, pip .black, pip .black, pip .black],
       types := [.creature], subtypes := [demon],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (compound
               [ payLife 6,
                 perform (sacrifice (counted (exactly 3) (and [isCreature, hasColor .black]))) ]))),
@@ -728,7 +728,7 @@ theorem okVoidMawPutCost : Ability.check (DRS.ofList []) voidMawPutCost = [] := 
 /-- Ghor-Clan Rampager -/
 def ghorClanRampager : Ability :=
   abilityWord "bloodrush"
-    (activated (compound [mana [pip .red, pip .green], perform (discard «this»)])
+    (activated (compound [mana [pip .red, pip .green], perform (discard this_)])
       (establishFor (target (and [isCreature, isAttacking]))
         [ getsPt (target (and [isCreature, isAttacking])) (up (.lit 4)) (up (.lit
               4)),
@@ -741,8 +741,8 @@ def tymorasInvoker : Ability :=
 theorem okTymorasInvoker : Ability.check (DRS.ofList []) tymorasInvoker = [] := by decide
 /-- Skyblade's Boon -/
 def skybladesBoonReturn : Ability :=
-  activatedOnlyIf (mana [generic 2, pip .white]) (putInto «this» hand)
-    (or [matches_ «this» (in_ battlefield), matches_ «this» (cardIn yourGraveyard)])
+  activatedOnlyIf (mana [generic 2, pip .white]) (putInto this_ hand)
+    (or [matches_ this_ (in_ battlefield), matches_ this_ (cardIn yourGraveyard)])
 theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonReturn = [] := by decide
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=
@@ -859,7 +859,7 @@ def embercleave : Spelled := spelled <| .singleFaced
       types := [.artifact], subtypes := [equipment],
       text :=
         [ flash,
-          static (costShift «this»
+          static (costShift this_
             (less (forEach (.lit 1) (and [isCreature, isAttacking, youControl])))),
           when (does thisEquipment enter) (attachTo it (target (and [isCreature, youControl]))),
           static (conjunction [ getsPt (equipped creature) (up (.lit
@@ -917,7 +917,7 @@ def ghostfireBlade : Spelled := spelled <| .singleFaced
         [ static (getsPt (equipped creature) (up (.lit 2)) (up (.lit 2))),
           keywordCosting (.named "equip") (mana [generic 3]),
           static (costShift
-            (allOf (and [ abilityHead (.keyword (.named "equip")), abilityOf «this»,
+            (allOf (and [ abilityHead (.keyword (.named "equip")), abilityOf this_,
                            targeting (a (and [isCreature, isColorless])) .someTarget ]))
             (less (.lit 2))) ] } }
 
@@ -927,7 +927,7 @@ def academyJourneymage : Spelled := spelled <| .singleFaced
     { name := "Academy Journeymage", cost := some [generic 4, pip .blue], types := [.creature],
       subtypes := [human, wizard],
       text :=
-        [ static (onlyIfSo (costShift «this» (less (.lit 1)))
+        [ static (onlyIfSo (costShift this_ (less (.lit 1)))
             (exists_ (and [hasSubtype wizard, youControl]))),
           when (does thisCreature enter)
             (putInto (target (and [isCreature, controlledBy anOpponent])) hand) ],
@@ -953,7 +953,7 @@ def edgewalker : Spelled := spelled <| .singleFaced
 
 /-- Cavern-Hoard Dragon -/
 def cavernHoardDragonRider : Ability :=
-  static (conjunction [ costShift «this» (less (letter .x)),
+  static (conjunction [ costShift this_ (less (letter .x)),
       letterDefinition .x
         (aggregateOver .max isOpponent (countOf (and [isArtifact, controlledBy they]))) ])
 theorem okCavernHoardDragonRider : Ability.check (DRS.ofList []) cavernHoardDragonRider = [] := by decide
@@ -992,7 +992,7 @@ def ahnCropInvader : Spelled := spelled <| .singleFaced
       text :=
         [ static (partScope .turn (some you) (abilityGrant thisCreature firstStrike)),
           activated (compound [mana [generic 1], perform (sacrifice (a (and [isCreature,
-              otherThan «this»])))])
+              otherThan this_])))])
             (get thisCreature (up (.lit 2)) (up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1000,7 +1000,7 @@ def ahnCropInvader : Spelled := spelled <| .singleFaced
 def nestingDragonInnerToken : Ability :=
   activated (mana [pip .red])
     (establishThroughout
-       (conjunction [ getsPt (asMarker .token «this») (up (.lit 1)) (up (.lit 0)) ]) untilEndOfTurn)
+       (conjunction [ getsPt (asMarker .token this_) (up (.lit 1)) (up (.lit 0)) ]) untilEndOfTurn)
 theorem okNestingDragonInnerToken : Ability.check (DRS.ofList []) nestingDragonInnerToken = [] := by decide
 
 /-- Leonin Bola -/
@@ -1019,7 +1019,7 @@ def deadlyDancerPump : Ability :=
   activated (mana [pip .red, pip .red])
     (establishThroughout
        (conjunction
-          [ modification (eachOf (both thisCreature (target (and [isCreature, otherThan «this»]))))
+          [ modification (eachOf (both thisCreature (target (and [isCreature, otherThan this_]))))
             .power (up (.lit 1)),
           modification (eachOf (both thisCreature it)) .toughness (up (.lit 0)) ]) untilEndOfTurn)
 theorem okDeadlyDancerPump : Ability.check (DRS.ofList []) deadlyDancerPump = [] := by decide

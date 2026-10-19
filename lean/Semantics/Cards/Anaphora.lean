@@ -174,7 +174,7 @@ def everAfter : Action :=
     [ putOntoBattlefield (targets (upTo 2) (and [isCreature, in_ yourGraveyard])),
       become (those creature)
         { characteristics := { colors := [.black], subtypes := [zombie] } } none,
-      putInto «this» onBottom ]
+      putInto this_ onBottom ]
 theorem okEverAfter : Action.check (DRS.ofList []) everAfter = [] := by decide
 
 def martyrsCry : Action :=
@@ -381,7 +381,7 @@ theorem sequencedRiderOneExiled : countReach (.verbed (.action "exile") none .at
   decide
 
 /-- Engulfing Flames -/
-def engulfingFlamesBody : Action := instruct «this» (dealDamage (.lit 1) (target isCreature) .noncombatOnly)
+def engulfingFlamesBody : Action := instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly)
 theorem okEngulfingFlamesBody : Action.check (DRS.ofList []) engulfingFlamesBody = [] := by decide
 def engulfingFlamesRider : DRS := (stepAction 512 .postEvent .obj (DRS.ofList []) engulfingFlamesBody).1
 theorem engulfingFlamesNoDestroyStamp :

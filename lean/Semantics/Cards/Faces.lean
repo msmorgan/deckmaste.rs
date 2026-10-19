@@ -317,7 +317,7 @@ def arlinnKord : Spelled := spelled <| .transforming
                   abilityGrant them trample ]) untilEndOfTurn),
           activated (loyaltySymbol (.down 1))
             (sequentially
-              [ instruct «this» (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), transform thisPlaneswalker ]),
+              [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), transform thisPlaneswalker ]),
           activated (loyaltySymbol (.down 6))
             (getEmblem
               [ static (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) haste,

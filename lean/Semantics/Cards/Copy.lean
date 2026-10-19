@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 /-- Display of Power: "this spell can't be copied". -/
-def displayOfPowerCopyLock : StaticSpec := cant any (copySpell «this» anyAmount)
+def displayOfPowerCopyLock : StaticSpec := cant any (copySpell this_ anyAmount)
 theorem okDisplayOfPowerCopyLock : StaticSpec.check (DRS.ofList []) displayOfPowerCopyLock = [] := by decide
 
 /-- Repeated Reverberation -/

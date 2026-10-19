@@ -20,7 +20,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 def forkedBolt : Action :=
-  dealDivided «this» (.lit 2) (targets (oneThrough 2) isAnyTarget)
+  dealDivided this_ (.lit 2) (targets (oneThrough 2) isAnyTarget)
 theorem okForkedBolt : Action.check (DRS.ofList []) forkedBolt = [] := by decide
 def thoughtReflection : Ability :=
   static (instead (would you (draw anyAmount)) (draw (.lit 2)))
@@ -54,7 +54,7 @@ def nowhereToRunTargetLine : StaticSpec :=
   can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword (.the (.named "hexproof")))))))
 theorem okNowhereToRunTargetLine : StaticSpec.check (DRS.ofList []) nowhereToRunTargetLine = [] := by decide
 /-- Hithlain Rope -/
-def hithlainRopeSacrificeLock : StaticSpec := cant any (sacrifice «this»)
+def hithlainRopeSacrificeLock : StaticSpec := cant any (sacrifice this_)
 theorem okHithlainRopeSacrificeLock : StaticSpec.check (DRS.ofList []) hithlainRopeSacrificeLock = [] := by
   decide
 /-- Lich's Mastery -/
@@ -538,7 +538,7 @@ def crash : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Crash", cost := some [generic 2, pip .red], types := [.instant],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (sacrifice (a (and [isLand, hasSubtype mountain])))))),
           spell (destroy (target isArtifact)) ] } }
 
@@ -546,7 +546,7 @@ def moggSalvage : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mogg Salvage", cost := some [generic 2, pip .red], types := [.instant],
       text :=
-        [ static (onlyWhile (altCost «this»)
+        [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype island,
                                 controlledBy anOpponent ]),
@@ -558,7 +558,7 @@ def abolish : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Abolish", cost := some [generic 1, pip .white, pip .white], types := [.instant],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (discard (a (and [hasSubtype plains, in_ yourHand])))))),
           spell (destroy (target (or [isArtifact, isEnchantment]))) ] } }
 
@@ -566,7 +566,7 @@ def gush : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Gush", cost := some [generic 4, pip .blue], types := [.instant],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (putInto
               (counted (exactly 2)
                 (and [isLand, hasSubtype island, youControl]))
@@ -577,7 +577,7 @@ def sunscour : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sunscour", cost := some [generic 5, pip .white, pip .white], types := [.sorcery],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (counted (exactly 2) (and [hasColor .white, in_ yourHand])))))),
           spell (destroy (allOf isCreature)) ] } }
@@ -586,7 +586,7 @@ def massacre : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Massacre", cost := some [generic 2, pip .black, pip .black], types := [.sorcery],
       text :=
-        [ static (onlyWhile (altCost «this»)
+        [ static (onlyWhile (altCost this_)
             (and
               [ exists_ (and [ isLand, hasSubtype plains,
                                 controlledBy anOpponent ]),
@@ -599,7 +599,7 @@ def rouse : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rouse", cost := some [generic 1, pip .black], types := [.instant],
       text :=
-        [ static (onlyWhile (altCost «this» (some (payLife 2)))
+        [ static (onlyWhile (altCost this_ (some (payLife 2)))
             (exists_ (and [isLand, hasSubtype swamp, youControl]))),
           spell (get (target isCreature) (up (.lit 2)) (up (.lit 0)) (some untilEndOfTurn)) ]
               } }
@@ -608,7 +608,7 @@ def thwart : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Thwart", cost := some [generic 2, pip .blue, pip .blue], types := [.instant],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (putInto
               (counted (exactly 3)
                 (and [isLand, hasSubtype island, youControl]))
@@ -616,7 +616,7 @@ def thwart : Spelled := spelled <| .singleFaced
           spell (counter (target isSpell)) ] } }
 
 def theLadyOfOtariaLine : StaticSpec :=
-  altCost «this»
+  altCost this_
     (some (perform (tap
       (counted (exactly 3)
         (and [ isCreature, hasSubtype dwarf, youControl,
@@ -681,14 +681,14 @@ def invigorate : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Invigorate", cost := some [generic 2, pip .green], types := [.instant],
       text :=
-        [ static (onlyWhile (altCost «this» (some (perform (instruct anOpponent (gainLife (.lit 3))))))
+        [ static (onlyWhile (altCost this_ (some (perform (instruct anOpponent (gainLife (.lit 3))))))
             (exists_ (and [isLand, hasSubtype forest, youControl]))),
           spell (get (target isCreature) (up (.lit 4)) (up (.lit 4)) (some untilEndOfTurn)) ]
               } }
 
 /-- Deflecting Swat -/
 def deflectingSwatCommanderAltCost : Ability :=
-  static (onlyWhile (altCost «this»)
+  static (onlyWhile (altCost this_)
     (exists_ (and [hasDesignation (.named "commander"), youControl])))
 theorem okDeflectingSwatCommanderAltCost :
     Ability.check (DRS.ofList []) deflectingSwatCommanderAltCost = [] := by decide
@@ -798,22 +798,22 @@ def luxiorTypeSetting : Ability :=
 theorem okLuxiorTypeSetting : Ability.check (DRS.ofList []) luxiorTypeSetting = [] := by decide
 /-- Kasmina, Enigma Sage -/
 def kasminaLoyaltySharing : StaticSpec :=
-  abilityGrantFrom (allOf (and [isPlaneswalker, youControl, otherThan «this»])) «this» [.loyalty]
+  abilityGrantFrom (allOf (and [isPlaneswalker, youControl, otherThan this_])) this_ [.loyalty]
 theorem okKasminaLoyaltySharing : StaticSpec.check (DRS.ofList []) kasminaLoyaltySharing = [] := by decide
 /-- Nicol Bolas, Dragon-God -/
 def nicolBolasDragonGodSharing : StaticSpec :=
-  abilityGrantFrom «this» (allOf
-                             (and [isPlaneswalker, otherThan «this», in_ battlefield])) [.loyalty]
+  abilityGrantFrom this_ (allOf
+                             (and [isPlaneswalker, otherThan this_, in_ battlefield])) [.loyalty]
 theorem okNicolBolasDragonGodSharing : StaticSpec.check (DRS.ofList []) nicolBolasDragonGodSharing = [] := by
   decide
 /-- Myr Welder -/
 def myrWelderBorrowedAbilities : StaticSpec :=
-  abilityGrantFrom thisCreature (allOf (in_ (exiledWith «this»))) [.anyActivated]
+  abilityGrantFrom thisCreature (allOf (in_ (exiledWith this_))) [.anyActivated]
 theorem okMyrWelderBorrowedAbilities : StaticSpec.check (DRS.ofList []) myrWelderBorrowedAbilities = [] := by
   decide
 /-- Sharkey, Tyrant of the Shire -/
 def sharkeyBorrowedLandAbilities : StaticSpec :=
-  abilityGrantFrom «this» (allOf (and [isLand, opponentsControl])) [.anyActivated] (some
+  abilityGrantFrom this_ (allOf (and [isLand, opponentsControl])) [.anyActivated] (some
                                                                                       isManaAbility)
 theorem okSharkeyBorrowedLandAbilities : StaticSpec.check (DRS.ofList []) sharkeyBorrowedLandAbilities = [] := by
   decide

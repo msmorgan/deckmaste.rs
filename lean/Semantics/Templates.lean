@@ -78,7 +78,7 @@ semantic_template getEmblem (abilities : List Ability) : Action :=
 /-- "you" -/
 semantic_template you : NounPhrase := .you
 /-- "this": the source, by self-name [CR#113.7]. -/
-semantic_template «this» : NounPhrase := .this
+semantic_template this_ : NounPhrase := .this
 
 /-- "it" -/
 semantic_template it : NounPhrase := .pro .bare .one
@@ -615,6 +615,10 @@ semantic_template thisRoom : NounPhrase :=
   .asType .enchantment .this (some (enchantmentType "Room"))
 semantic_template thisPlaneswalker : NounPhrase := .asType .planeswalker .this none
 semantic_template thisAbility : NounPhrase := .asMarker .ability .this
+/-- "this card": the source as a card, in whatever zone it is [CR#109.1]. -/
+semantic_template thisCard : NounPhrase := .asMarker .card .this
+semantic_template thisToken : NounPhrase := .asMarker .token .this
+semantic_template thisEmblem : NounPhrase := .asMarker .emblem .this
 semantic_template thisEnchantment : NounPhrase := .asType .enchantment .this none
 semantic_template thisAura : NounPhrase :=
   .asType .enchantment .this (some (enchantmentType "Aura"))
@@ -1254,12 +1258,12 @@ semantic_template removedThisWay : Amount := .theOutcome .countersRemoved
 semantic_template shiftResult (amount : Amount) : Action := .shiftResult none amount
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (can you (.procedure .play «this» .itsOwnCost none (some zone) none)
+  .property (can you (.procedure .play this_ .itsOwnCost none (some zone) none)
     (timing := some timing))
 /-- "You may cast this card from <zone> <timing>": the instant type's cast permission
 [CR#304.1]. -/
 semantic_template castableFrom (zone : Location) (timing : Timing) : Conferral :=
-  .property (can you (.procedure .cast «this» .itsOwnCost none (some zone) none)
+  .property (can you (.procedure .cast this_ .itsOwnCost none (some zone) none)
     (timing := some timing))
 /-- "When <event>, <action>" as a delayed trigger. -/
 semantic_template delay (event : GameEvent) (action : Action)

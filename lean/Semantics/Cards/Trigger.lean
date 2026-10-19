@@ -368,7 +368,7 @@ def unstableShapeshifter : Spelled := spelled <| .singleFaced
     { name := "Unstable Shapeshifter", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [shapeshifter],
       text :=
-        [ whenever (does (a (and [isCreature, otherThan «this»])) enter)
+        [ whenever (does (a (and [isCreature, otherThan this_])) enter)
             (establish (copyChange thisCreature (that creature) [exceptThisAbility])) ],
       power := stat 0, toughness := stat 1 } }
 
@@ -420,7 +420,7 @@ def admiralsOrder : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Admiral's Order", cost := some [generic 1, pip .blue, pip .blue], types := [.instant],
       text :=
-        [ static (onlyWhile (altCost «this» (some (mana [pip .blue])))
+        [ static (onlyWhile (altCost this_ (some (mana [pip .blue])))
             (happened attack you soFarThisTurn)),
           spell (counter (target isSpell)) ] } }
 
@@ -623,13 +623,13 @@ def fblthp : Spelled := spelled <| .singleFaced
     { name := "Fblthp, the Lost", cost := some [generic 1, pip .blue],
       supertypes := [.legendary], types := [.creature], subtypes := [homunculus],
       text :=
-        [ when (does «this» enter)
+        [ when (does this_ enter)
             (replace (draw (.lit 1))
               (doIf (or
                   [ did ⟨it, enter (from_ := some yourLibrary), triggering⟩,
                     matches_ it (castFrom yourLibrary) ])
                 (draw (.lit 2)))),
-          when (does (a isSpell) (target «this»)) (shuffleInto «this») ],
+          when (does (a isSpell) (target this_)) (shuffleInto this_) ],
       power := stat 1, toughness := stat 1 } }
 
 /-- Frost Walker -/
@@ -794,7 +794,7 @@ def autarchMammothLine : Ability :=
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
-  whenever (does (a (and [isPermanent, youControl, otherThan «this»])) enter)
+  whenever (does (a (and [isPermanent, youControl, otherThan this_])) enter)
     (instruct eachOpponent (mill (.lit 1) they))
 theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] := by decide
 /-- Foul Emissary -/
@@ -931,7 +931,7 @@ def dread : Spelled := spelled <| .singleFaced
       text :=
         [ fear,
           whenever (does (a isCreature) (dealDamage (to := you))) (destroy it),
-          when (does any (putInto «this» graveyard (from_ := some any)))
+          when (does any (putInto this_ graveyard (from_ := some any)))
             (instruct (ownerOf it) (shuffleInto it)) ],
       power := stat 6, toughness := stat 6 } }
 

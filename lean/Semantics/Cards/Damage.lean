@@ -81,12 +81,12 @@ def flamesOfTheRazeBoar : Action :=
 theorem okFlamesOfTheRazeBoar : Action.check (DRS.ofList []) flamesOfTheRazeBoar = [] := by decide
 def yawgmothDemon : Action :=
   mayOrElse (sacrifice (a isArtifact)) (sequentially
-                                          [tap thisCreature, instruct «this»
+                                          [tap thisCreature, instruct this_
                                              (dealDamage (.lit 2) you .noncombatOnly)])
 theorem okYawgmothDemon : Action.check (DRS.ofList []) yawgmothDemon = [] := by decide
 def arcBlade : Action :=
   sequentially
-    [ dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly, exileWithCounters «this» (.lit 3) (.named "timeCounter") ]
+    [ dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly, exileWithCounters this_ (.lit 3) (.named "timeCounter") ]
 theorem okArcBlade : Action.check (DRS.ofList []) arcBlade = [] := by decide
 def abrade : Action :=
   chooseOne (dealDamage (.lit 3) (target isCreature) .noncombatOnly) (destroy (target isArtifact))
@@ -112,7 +112,7 @@ def botBashingTime : Action :=
 theorem okBotBashingTime : Action.check (DRS.ofList []) botBashingTime = [] := by decide
 def wordsOfWar : Action :=
   replaceNextEvent (would you (draw anyAmount))
-      (instruct «this» (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) (some thisTurn)
+      (instruct this_ (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) (some thisTurn)
 theorem okWordsOfWar : Action.check (DRS.ofList []) wordsOfWar = [] := by decide
 
 /-- Thunderwave -/
@@ -146,7 +146,7 @@ def moonlitWake : Ability := whenever (does (a isCreature) die) (gainLife (.lit 
 theorem okMoonlitWake : Ability.check (DRS.ofList []) moonlitWake = [] := by decide
 def eliteJavelineer : Ability :=
   whenever (does thisCreature block)
-      (instruct «this»
+      (instruct this_
          (dealDamage (.lit 1) (target (and [isCreature, isAttacking])) .noncombatOnly))
 theorem okEliteJavelineer : Ability.check (DRS.ofList []) eliteJavelineer = [] := by decide
 /-- Glacial Chasm -/
@@ -155,7 +155,7 @@ def glacialChasmShield : Ability :=
 theorem okGlacialChasmShield : Ability.check (DRS.ofList []) glacialChasmShield = [] := by decide
 def corneredCrook : Ability :=
   when (does thisCreature enter)
-    (offerWhen (sacrifice (a isArtifact)) (instruct «this» (dealDamage (.lit 3) (target
+    (offerWhen (sacrifice (a isArtifact)) (instruct this_ (dealDamage (.lit 3) (target
         isAnyTarget) .noncombatOnly)))
 theorem okCorneredCrook : Ability.check (DRS.ofList []) corneredCrook = [] := by decide
 
@@ -284,12 +284,12 @@ def psychicPurge : Spelled := spelled <| .singleFaced
             (causes
               (bySource (a (and [or [isSpell, abilityHead .anyOnStack],
                                  controlledBy anOpponent])))
-              (does you (discard «this»)))
+              (does you (discard this_)))
             (instruct (that player) (loseLife (.lit 5))) ] } }
 
 /-- Chandra Nalaar -/
 def chandraNalaarsX : Ability :=
-  activated (loyaltySymbol .downX) (instruct «this» (dealDamage (letter .x) (target isCreature) .noncombatOnly))
+  activated (loyaltySymbol .downX) (instruct this_ (dealDamage (letter .x) (target isCreature) .noncombatOnly))
 theorem okChandraNalaarsX : Ability.check (DRS.ofList []) chandraNalaarsX = [] := by decide
 
 def etherealHaze : Spelled := spelled <| .singleFaced
@@ -497,7 +497,7 @@ def deflectingPalm : Spelled := spelled <| .singleFaced
             (establishThroughout (damageRule .any (dealtBy (aYourChoice isSource)) (toRecipient you)
               (prevent allDamage
                  (some
-                    (instruct «this»
+                    (instruct this_
                        (dealDamage thatMuch (controllerOf it)
                           .noncombatOnly)))) .nextTimeOnly) thisTurn) ] } }
 
@@ -558,8 +558,8 @@ theorem okOnakkeJavelineerBolt : Ability.check (DRS.ofList []) onakkeJavelineerB
 /-- Firesong and Sunspeaker -/
 def firesongJoinEcho : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 3) (target (or [isCreature, isPlayer])) .noncombatOnly),
-      instruct «this» (dealDamage (.lit 1) thatJoin .noncombatOnly) ]
+    [ instruct this_ (dealDamage (.lit 3) (target (or [isCreature, isPlayer])) .noncombatOnly),
+      instruct this_ (dealDamage (.lit 1) thatJoin .noncombatOnly) ]
 theorem okFiresongJoinEcho : Action.check (DRS.ofList []) firesongJoinEcho = [] := by decide
 
 /-- Forcefield -/
@@ -594,7 +594,7 @@ def divineDeflection : Spelled := spelled <| .singleFaced
       text :=
         [ spell (establishThroughout (damageRule .any unattributed
               (toRecipient (youAnd (allOf (and [isPermanent, youControl]))))
-              (prevent (theNext (letter .x)) (some (instruct «this» (dealDamage thatMuch (target isAnyTarget) .noncombatOnly))))
+              (prevent (theNext (letter .x)) (some (instruct this_ (dealDamage thatMuch (target isAnyTarget) .noncombatOnly))))
               .repeatedly) thisTurn) ] } }
 
 def glarecasterShield : Ability :=
@@ -746,7 +746,7 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
         [ haste,
           whenever (does any (dealDamage (to := thisCreature)))
             (sequentially
-              [ instruct it (dealDamage thatMuch (target (and [isAnyTarget, otherThan «this»])) .noncombatOnly),
+              [ instruct it (dealDamage thatMuch (target (and [isAnyTarget, otherThan this_])) .noncombatOnly),
                 doIf (dealtThisWay isPlayer)
                   (establishThroughout (cant they (gainLife anyAmount)) restOfGame) ]) ],
       power := stat 3, toughness := stat 3 } }
@@ -812,7 +812,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
       power := stat 0, toughness := stat 1 } }
 
 def saheeliRaiPlusOne : Action :=
-  sequentially [scry (.lit 1), instruct «this» (dealDamage (.lit 1) eachOpponent .noncombatOnly)]
+  sequentially [scry (.lit 1), instruct this_ (dealDamage (.lit 1) eachOpponent .noncombatOnly)]
 theorem okSaheeliRaiPlusOne : Action.check (DRS.ofList []) saheeliRaiPlusOne = [] := by decide
 def sarkhansUnsealingLine : Ability :=
   whenever
@@ -835,7 +835,7 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
     { name := "Inferno of the Star Mounts", cost := some [generic 4, pip .red, pip .red],
       supertypes := [.legendary], types := [.creature], subtypes := [dragon],
       text :=
-        [ static (cant any (counter «this»)),
+        [ static (cant any (counter this_)),
           flying,
           haste,
           activated (mana [pip .red])
@@ -886,7 +886,7 @@ def bullseyeModalCost : Ability :=
     (compound [mana [generic 3], tapSymbol,
       perform (chooseOne (sacrifice (a isArtifact))
                  (discard (a (and [non isLand, in_ yourHand]))))])
-    (instruct «this» (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))
+    (instruct this_ (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))
 theorem okBullseyeModalCost : Ability.check (DRS.ofList []) bullseyeModalCost = [] := by decide
 
 /-- Twinshot Sniper -/
@@ -899,25 +899,25 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
           when (does thisCreature enter)
               (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)),
           abilityWord "channel"
-            (activated (compound [mana [generic 1, pip .red], perform (discard «this»)])
+            (activated (compound [mana [generic 1, pip .red], perform (discard this_)])
               (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))) ],
       power := stat 2, toughness := stat 3 } }
 
 /-- Quakebringer -/
 def quakebringerDamage : Ability :=
   triggeredIf (beginningOfYour .upkeep)
-    (or [ matches_ «this» (in_ battlefield),
-           and [ matches_ «this» (cardIn yourGraveyard),
+    (or [ matches_ this_ (in_ battlefield),
+           and [ matches_ this_ (cardIn yourGraveyard),
                   exists_ (and [isCreature, hasSubtype giant,
                                  youControl]) ] ])
-    (instruct «this» (dealDamage (.lit 2) eachOpponent .noncombatOnly))
+    (instruct this_ (dealDamage (.lit 2) eachOpponent .noncombatOnly))
 theorem okQuakebringerDamage : Ability.check (DRS.ofList []) quakebringerDamage = [] := by decide
 /-- Sand Strangler -/
 def sandStranglerDamage : Ability :=
   triggeredIf (does thisCreature enter)
     (or [ exists_ (and [isLand, hasSubtype desert, youControl]),
            exists_ (and [isLand, hasSubtype desert, in_ yourGraveyard]) ])
-    (may (instruct «this» (dealDamage (.lit 3) (target isCreature) .noncombatOnly)))
+    (may (instruct this_ (dealDamage (.lit 3) (target isCreature) .noncombatOnly)))
 theorem okSandStranglerDamage : Ability.check (DRS.ofList []) sandStranglerDamage = [] := by decide
 
 def brazenDwarf : Spelled := spelled <| .singleFaced
@@ -944,14 +944,14 @@ theorem okFlameWave : Action.check (DRS.ofList []) flameWave = [] := by decide
 /-- Chandra Nalaar's ultimate -/
 def chandraNalaarUltimate : Action :=
   simultaneously
-    [ instruct «this» (dealDamage (.lit 10) targetPlayerOrPlaneswalker .noncombatOnly),
-      instruct «this» (dealDamage (.lit 10) eachCreatureThatSplitControls .noncombatOnly) ]
+    [ instruct this_ (dealDamage (.lit 10) targetPlayerOrPlaneswalker .noncombatOnly),
+      instruct this_ (dealDamage (.lit 10) eachCreatureThatSplitControls .noncombatOnly) ]
 theorem okChandraNalaarUltimate : Action.check (DRS.ofList []) chandraNalaarUltimate = [] := by decide
 /-- Chandra, Pyrogenius's ultimate -/
 def chandraPyrogeniusUltimate : Action :=
   simultaneously
-    [ instruct «this» (dealDamage (.lit 6) targetPlayerOrPlaneswalker .noncombatOnly),
-      instruct «this» (dealDamage (.lit 6) eachCreatureThatSplitControls .noncombatOnly) ]
+    [ instruct this_ (dealDamage (.lit 6) targetPlayerOrPlaneswalker .noncombatOnly),
+      instruct this_ (dealDamage (.lit 6) eachCreatureThatSplitControls .noncombatOnly) ]
 theorem okChandraPyrogeniusUltimate : Action.check (DRS.ofList []) chandraPyrogeniusUltimate = [] := by decide
 /-- Bonfire of the Damned -/
 def bonfireOfTheDamned : Action :=
@@ -968,8 +968,8 @@ theorem okChandrasFury : Action.check (DRS.ofList []) chandrasFury = [] := by de
 /-- Angrath, Minotaur Pirate's plus -/
 def angrathMinotaurPirateBolt : Action :=
   simultaneously
-    [ instruct «this» (dealDamage (.lit 1) targetOpponentOrPlaneswalker .noncombatOnly),
-      instruct «this» (dealDamage (.lit 1) eachCreatureThatSplitControls .noncombatOnly) ]
+    [ instruct this_ (dealDamage (.lit 1) targetOpponentOrPlaneswalker .noncombatOnly),
+      instruct this_ (dealDamage (.lit 1) eachCreatureThatSplitControls .noncombatOnly) ]
 theorem okAngrathMinotaurPirateBolt : Action.check (DRS.ofList []) angrathMinotaurPirateBolt = [] := by decide
 def whichOfYouBurnsBrightestBody : Action :=
   simultaneously
@@ -980,8 +980,8 @@ theorem okWhichOfYouBurnsBrightestBody :
 /-- Chandra, Pyromaster's plus -/
 def chandraPyromasterBolt : Action :=
   simultaneously
-    [ instruct «this» (dealDamage (.lit 1) targetPlayerOrPlaneswalker .noncombatOnly),
-      instruct «this» (dealDamage (.lit 1)
+    [ instruct this_ (dealDamage (.lit 1) targetPlayerOrPlaneswalker .noncombatOnly),
+      instruct this_ (dealDamage (.lit 1)
                          (targets (upTo 1)
                             (and
                                [isCreature, controlledBy splitOverPlaneswalker])) .noncombatOnly) ]
@@ -1009,8 +1009,8 @@ theorem okSoulOfShandalarBolt : Action.check (DRS.ofList []) soulOfShandalarBolt
 /-- Soul of Shandalar's graveyard activation -/
 def soulOfShandalarGraveyardBolt : Action :=
   simultaneously
-    [ instruct «this» (dealDamage (.lit 3) targetPlayerOrPlaneswalker .noncombatOnly),
-      instruct «this» (dealDamage (.lit 3)
+    [ instruct this_ (dealDamage (.lit 3) targetPlayerOrPlaneswalker .noncombatOnly),
+      instruct this_ (dealDamage (.lit 3)
                          (targets (upTo 1)
                             (and
                                [isCreature, controlledBy splitOverPlaneswalker])) .noncombatOnly) ]
@@ -1031,7 +1031,7 @@ theorem okRakdossReturn : Action.check (DRS.ofList []) rakdossReturn = [] := by 
 /-- Nicol Bolas, Planeswalker's ultimate -/
 def nicolBolasUltimate : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 7) targetPlayerOrPlaneswalker .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 7) targetPlayerOrPlaneswalker .noncombatOnly),
       discard (counted (exactly 7) (cardIn (handOf splitOverPlaneswalker))),
       instruct splitOverPlaneswalker (sacrifice (counted (exactly 7) isPermanent)) ]
 theorem okNicolBolasUltimate : Action.check (DRS.ofList []) nicolBolasUltimate = [] := by decide
@@ -1040,7 +1040,7 @@ def pulseOfTheForge : Action :=
   sequentially
     [ dealDamage (.lit 4) targetPlayerOrPlaneswalker .noncombatOnly,
       doIf (compareAmt (lifeTotalOf splitOverPlaneswalker) .greater (lifeTotalOf you))
-        (putInto «this» hand) ]
+        (putInto this_ hand) ]
 theorem okPulseOfTheForge : Action.check (DRS.ofList []) pulseOfTheForge = [] := by decide
 /-- Goblin Lyre's losing arm -/
 def goblinLyreLoseFlip : Action :=
@@ -1055,9 +1055,9 @@ theorem okGoblinLyreLoseFlip : Action.check (DRS.ofList []) goblinLyreLoseFlip =
 /-- Quenchable Fire -/
 def quenchableFire : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 3) targetPlayerOrPlaneswalker .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 3) targetPlayerOrPlaneswalker .noncombatOnly),
       delay (beginningOf .upkeep (some you) nextTime)
-        (instruct splitOverPlaneswalker (doUnless (instruct «this» (dealDamage (.lit 3) thatJoin .noncombatOnly)) (mana [pip .blue]))) ]
+        (instruct splitOverPlaneswalker (doUnless (instruct this_ (dealDamage (.lit 3) thatJoin .noncombatOnly)) (mana [pip .blue]))) ]
 theorem okQuenchableFire : Action.check (DRS.ofList []) quenchableFire = [] := by decide
 /-- Searing Blaze, both sentences -/
 def searingBlaze : Ability :=
@@ -1083,8 +1083,8 @@ def heartOfBogardan : Spelled := spelled <| .singleFaced
           when heartOfBogardanHeader
             (sequentially
               [ simultaneously
-                  [ instruct «this» (dealDamage (letter .x) targetPlayerOrPlaneswalker .noncombatOnly),
-                    instruct «this» (dealDamage (letter .x) eachCreatureThatSplitControls .noncombatOnly) ],
+                  [ instruct this_ (dealDamage (letter .x) targetPlayerOrPlaneswalker .noncombatOnly),
+                    instruct this_ (dealDamage (letter .x) eachCreatureThatSplitControls .noncombatOnly) ],
                 define .x
                   (minus (times (.lit 2) (countersOn (.named "ageCounter") thisEnchantment))
                      (.lit 2)) ]) ] } }
@@ -1108,7 +1108,7 @@ def explosiveSingularity : Spelled := spelled <| .singleFaced
         [ static (addedCost
             (perform (tap (counted anyNumber (and [isCreature, youControl, isUntapped]))))
             true),
-          static (costShift «this» (less (times (.lit 1) groupSize))),
+          static (costShift this_ (less (times (.lit 1) groupSize))),
           spell (dealDamage (.lit 10) (target isAnyTarget) .noncombatOnly) ] } }
 
 /-- Tyrant of Valakut -/
@@ -1176,7 +1176,7 @@ def aureliaTheLawAbove : Spelled := spelled <| .singleFaced
           whenever (does (a isPlayer) (attackWith (counted (atLeast 3) isCreature)))
               (draw (.lit 1)),
           whenever (does (a isPlayer) (attackWith (counted (atLeast 5) isCreature)))
-            (sequentially [instruct «this» (dealDamage (.lit 3) eachOpponent .noncombatOnly), gainLife (.lit 3)]) ],
+            (sequentially [instruct this_ (dealDamage (.lit 3) eachOpponent .noncombatOnly), gainLife (.lit 3)]) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Syr Konrad, the Grim -/
@@ -1186,11 +1186,11 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, knight],
       text :=
-        [ triggeredOr (does (a (and [isCreature, otherThan «this»])) die)
+        [ triggeredOr (does (a (and [isCreature, otherThan this_])) die)
             [ does any (putInto (a (and [isCard, isCreature])) graveyard (from_ := some (not battlefield))),
               does (a (and [isCreature, in_ yourGraveyard])) (leave
                                                                         (from_ := yourGraveyard)) ]
-            (instruct «this» (dealDamage (.lit 1) eachOpponent .noncombatOnly)),
+            (instruct this_ (dealDamage (.lit 1) eachOpponent .noncombatOnly)),
           activated (mana [generic 1, pip .black]) (instruct eachPlayer (mill (.lit 1) eachPlayer)) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -1212,13 +1212,13 @@ def fumingEffigy : Spelled := spelled <| .singleFaced
         [ whenever
             (does (counted (atLeast 1) (cardIn yourGraveyard))
                (leave (from_ := yourGraveyard)))
-            (instruct «this» (dealDamage (.lit 1) eachOpponent .noncombatOnly)) ],
+            (instruct this_ (dealDamage (.lit 1) eachOpponent .noncombatOnly)) ],
       power := stat 4, toughness := stat 3 } }
 
 /-- Breeches, Brazen Plunderer's slice -/
 def eachOfThoseOpponentsTopCard : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 1) eachOpponent .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 1) eachOpponent .noncombatOnly),
       exile (slice .top (.lit 1) (libraryOf (eachOf (those player)))) ]
 theorem okEachOfThoseOpponentsTopCard : Action.check (DRS.ofList []) eachOfThoseOpponentsTopCard = [] := by
   decide
@@ -1243,14 +1243,14 @@ def oathOfKaya : Spelled := spelled <| .singleFaced
     { name := "Oath of Kaya", cost := some [generic 1, pip .white, pip .black],
       supertypes := [.legendary], types := [.enchantment],
       text :=
-        [ when (does «this» enter)
-            (sequentially [instruct «this» (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), gainLife (.lit 3)]),
+        [ when (does this_ enter)
+            (sequentially [instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), gainLife (.lit 3)]),
           whenever
             (does anOpponent
                (attackWith (counted (atLeast 1) isCreature)
                   (some (a (and [isPlaneswalker, youControl])))))
             (sequentially
-               [instruct «this» (dealDamage (.lit 2) (that player) .noncombatOnly), gainLife
+               [instruct this_ (dealDamage (.lit 2) (that player) .noncombatOnly), gainLife
                   (.lit 2)]) ] } }
 
 /-- Frostwielder -/
@@ -1310,7 +1310,7 @@ def blindFury : Spelled := spelled <| .singleFaced
 def chandraAwakenedInfernoEmblem : Action :=
   getEmblem
     [ at_ (beginningOfYour .upkeep)
-        (instruct (asMarker .emblem «this») (dealDamage (.lit 1) you .noncombatOnly)) ]
+        (instruct (asMarker .emblem this_) (dealDamage (.lit 1) you .noncombatOnly)) ]
 theorem okChandraAwakenedInfernoEmblem :
     Action.check (DRS.ofList []) chandraAwakenedInfernoEmblem = [] := by decide
 
@@ -1334,7 +1334,7 @@ def innocentBlood : Action := instruct eachPlayer (sacrifice (aTheirChoice isCre
 theorem okInnocentBlood : Action.check (DRS.ofList []) innocentBlood = [] := by decide
 def cryOfContrition : Action := discard (a (cardIn (handOf (target isPlayer))))
 theorem okCryOfContrition : Action.check (DRS.ofList []) cryOfContrition = [] := by decide
-def cyclingCost : Action := discard «this»
+def cyclingCost : Action := discard this_
 theorem okCyclingCost : Action.check (DRS.ofList []) cyclingCost = [] := by decide
 def raiseTheAlarm : Action :=
   createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 2)

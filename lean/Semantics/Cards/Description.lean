@@ -81,12 +81,12 @@ theorem okMindFlayer : Action.check (DRS.ofList []) mindFlayer = [] := by decide
 
 /-- Arc Lightning -/
 def arcLightning : Action :=
-  dealDivided «this» (.lit 3) (targets (oneThrough 3) isAnyTarget)
+  dealDivided this_ (.lit 3) (targets (oneThrough 3) isAnyTarget)
 theorem okArcLightning : Action.check (DRS.ofList []) arcLightning = [] := by decide
 
 /-- Boulderfall -/
 def boulderfall : Action :=
-  dealDivided «this» (.lit 5) (targets anyNumber isAnyTarget)
+  dealDivided this_ (.lit 5) (targets anyNumber isAnyTarget)
 theorem okBoulderfall : Action.check (DRS.ofList []) boulderfall = [] := by decide
 
 /-- Banisher Priest -/
@@ -116,7 +116,7 @@ def aerialVolley : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Aerial Volley", cost := some [pip .green], types := [.instant],
       text :=
-        [ spell (dealDivided «this» (.lit 3)
+        [ spell (dealDivided this_ (.lit 3)
             (targets (oneThrough 3) (and [isCreature, hasKeyword (.the (.named "flying"))]))) ] } }
 
 /-- Terrifying Presence -/
@@ -259,15 +259,15 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
       text :=
         [ spell (doIf
             (and
-              [ matches_ «this» (castFrom yourHand),
+              [ matches_ this_ (castFrom yourHand),
                 happened (cast (a
                   (and [ isSpell, otherThan
-                  «this»,
+                  this_,
                              named (printedName
                                "Approach of the Second Sun") ]))) you thisGame ])
             winGame
             (some (sequentially
-              [ putInto «this» (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
+              [ putInto this_ (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
 
 /-- "a loyalty ability of enchanted planeswalker" -/
 def loyaltyAbilityOfEnchanted : NounPhrase :=
@@ -321,16 +321,16 @@ theorem okTargetOpponentOrPlaneswalker :
 
 /-- Baleful Mastery's paid read -/
 def balefulMasteryPaidRead : Ability :=
-  spell (doIf (costWasPaid .theAlternative none «this») (instruct anOpponent (draw (.lit 1))))
+  spell (doIf (costWasPaid .theAlternative none this_) (instruct anOpponent (draw (.lit 1))))
 theorem okBalefulMasteryPaidRead : Ability.check (DRS.ofList []) balefulMasteryPaidRead = [] := by decide
 
 /-- Karai, Future of the Foot -/
-def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some thisTurn) «this»
+def karaiSneakPaidThisTurn : Amount := paidCostRead (.byKeyword (.named "sneak")) (some thisTurn) this_
 theorem okKaraiSneakPaidThisTurn : Amount.check (DRS.ofList []) karaiSneakPaidThisTurn = [] := by decide
 
 /-- Requiting Hex's read -/
 def requitingHexAdditionalRead : Ability :=
-  spell (doIf (costWasPaid .theAdditional none «this») (gainLife (.lit 2)))
+  spell (doIf (costWasPaid .theAdditional none this_) (gainLife (.lit 2)))
 theorem okRequitingHexAdditionalRead : Ability.check (DRS.ofList []) requitingHexAdditionalRead = [] := by
   decide
 

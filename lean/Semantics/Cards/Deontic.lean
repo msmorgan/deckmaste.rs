@@ -20,7 +20,7 @@ def changeOfHeart : Action := establishThroughout (cant (target isCreature) atta
 theorem okChangeOfHeart : Action.check (DRS.ofList []) changeOfHeart = [] := by decide
 def blindblast : Action :=
   sequentially
-    [instruct «this» (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
+    [instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
        (cant (that creature) block) thisTurn]
 theorem okBlindblast : Action.check (DRS.ofList []) blindblast = [] := by decide
 def blindingFlare : Action :=
@@ -43,14 +43,14 @@ theorem okAuriokSiegeSledDenial : Ability.check (DRS.ofList []) auriokSiegeSledD
 /-- Blindblast -/
 def blindblastWhole : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
+    [ instruct this_ (dealDamage (.lit 1) (target isCreature) .noncombatOnly), establishThroughout
         (cant (that creature) block) thisTurn,
       draw (.lit 1) ]
 theorem okBlindblastWhole : Action.check (DRS.ofList []) blindblastWhole = [] := by decide
 
 def sparkmagesGambit : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 1) (eachOf (targets (upTo 2) isCreature)) .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 1) (eachOf (targets (upTo 2) isCreature)) .noncombatOnly),
       establishThroughout (cant (those creature) block) thisTurn ]
 theorem okSparkmagesGambit : Action.check (DRS.ofList []) sparkmagesGambit = [] := by decide
 
@@ -289,7 +289,7 @@ def pinpointAvalanche : Spelled := spelled <| .singleFaced
       types := [.instant],
       text :=
         [ spell (sequentially
-            [ instruct «this» (dealDamage (.lit 4) (target isCreature) .noncombatOnly),
+            [ instruct this_ (dealDamage (.lit 4) (target isCreature) .noncombatOnly),
               establish (preventionBan .any thatDamage .noPreventionOnly) ]) ] } }
 
 def whippoorwillImmunity : Action :=
@@ -308,7 +308,7 @@ def callInAProfessional : Spelled := spelled <| .singleFaced
             [ establishThroughout (cant (allOf isPlayer) (gainLife anyAmount)) thisTurn,
               establishThroughout (preventionBan .any (damageDealt unattributed everywhere)
                                      .noPreventionOnly) thisTurn,
-              instruct «this» (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly) ]) ] } }
+              instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly) ]) ] } }
 
 /-- Council of the Absolute -/
 def councilOfTheAbsolute : Spelled := spelled <| .singleFaced
@@ -478,7 +478,7 @@ def snuffOut : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Snuff Out", cost := some [generic 3, pip .black], types := [.instant],
       text :=
-        [ static (onlyWhile (altCost «this» (some (payLife 4)))
+        [ static (onlyWhile (altCost this_ (some (payLife 4)))
             (exists_ (and [isLand, hasSubtype swamp, youControl]))),
           spell (doAndForbid
             (destroy (target (and [isCreature, non (hasColor .black)])))
@@ -580,7 +580,7 @@ def nekrataalWhole : Spelled := spelled <| .singleFaced
 /-- Concussive Bolt, both paragraphs -/
 def concussiveBolt : Action :=
   sequentially
-    [ instruct «this» (dealDamage (.lit 4) targetPlayerOrPlaneswalker .noncombatOnly),
+    [ instruct this_ (dealDamage (.lit 4) targetPlayerOrPlaneswalker .noncombatOnly),
       doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit
           3))
         (establishThroughout
@@ -768,7 +768,7 @@ def harriedSpearguard : Spelled := spelled <| .singleFaced
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [rat],
                   text :=
-                    [ static (cant (asMarker .token «this») block) ],
+                    [ static (cant (asMarker .token this_) block) ],
                   power := stat 1, toughness := stat 1 } }) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -789,7 +789,7 @@ def conquerorsFlailProhibition : StaticSpec :=
   onlyWhile
     (partScope .turn (some you)
       (cant yourOpponents (cast (allOf isSpell))))
-    (matches_ «this» (attachedTo (a isCreature)))
+    (matches_ this_ (attachedTo (a isCreature)))
 theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquerorsFlailProhibition = [] := by
   decide
 
@@ -797,7 +797,7 @@ theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquero
 [CR#702.81a,601.2h]. -/
 def castFromGraveyardByDiscardingALand : StaticSpec :=
   can you
-    (cast «this» (from_ := some yourGraveyard)
+    (cast this_ (from_ := some yourGraveyard)
       (payment := payingInstead
         (compound [itsManaCost, perform (discard (a (and [isCard, isLand])))])))
 theorem okCastFromGraveyardByDiscardingALand :

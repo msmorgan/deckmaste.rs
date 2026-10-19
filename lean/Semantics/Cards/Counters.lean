@@ -890,7 +890,7 @@ def fontOfAgoniesTrigger : Ability :=
 theorem okFontOfAgoniesTrigger : Ability.check (DRS.ofList []) fontOfAgoniesTrigger = [] := by decide
 /-- Heart of Kiran -/
 def heartOfKiranCrewAltCost : Ability :=
-  static (altCost (allOf (and [abilityHead (.keyword (.named "crew")), abilityOf «this»]))
+  static (altCost (allOf (and [abilityHead (.keyword (.named "crew")), abilityOf this_]))
     (some
        (perform
           (removeCounters (exactly 1) (some (printedKind (.named "loyaltyCounter")))
@@ -1075,9 +1075,9 @@ def captainMarvelApexAvenger : Spelled := spelled <| .singleFaced
       text :=
         [ flying, doubleStrike, indestructible,
           triggeredIf
-            (does (by_ you) (putCounters anyAmount anyKind (a (and [isCreature, otherThan «this»])) .many false))
+            (does (by_ you) (putCounters anyAmount anyKind (a (and [isCreature, otherThan this_])) .many false))
             (matches_ it (not (hasSubtype kree)))
-            (may (putCounters thatMuch thoseCounters «this» .many)) ],
+            (may (putCounters thatMuch thoseCounters this_ .many)) ],
       power := stat 4, toughness := stat 4 } }
 
 /-- Blood Spatter Analysis -/
@@ -1142,7 +1142,7 @@ def chamberSentryDamage : Ability :=
     (compound
       [ mana [.variable], tapSymbol,
         perform (removeCounters (exactlyOf (letter .x)) (some (printedKind p1p1Counter)) thisCreature .many true) ])
-    (instruct «this» (dealDamage (letter .x) (target isAnyTarget) .noncombatOnly))
+    (instruct this_ (dealDamage (letter .x) (target isAnyTarget) .noncombatOnly))
 theorem okChamberSentryDamage : Ability.check (DRS.ofList []) chamberSentryDamage = [] := by decide
 
 /-- Menacing Ogre -/

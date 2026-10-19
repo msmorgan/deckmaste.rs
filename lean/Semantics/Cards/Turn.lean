@@ -74,7 +74,7 @@ def fourKnocks : Ability :=
 theorem okFourKnocks : Ability.check (DRS.ofList []) fourKnocks = [] := by decide
 
 def hammerOfBogardan : Ability :=
-  activatedOnlyDuring (mana [generic 2, pip .red, pip .red, pip .red]) (putInto «this» hand)
+  activatedOnlyDuring (mana [generic 2, pip .red, pip .red, pip .red]) (putInto this_ hand)
     (duringPart .upkeep (some you))
 theorem okHammerOfBogardan : Ability.check (DRS.ofList []) hammerOfBogardan = [] := by decide
 

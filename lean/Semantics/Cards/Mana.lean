@@ -17,7 +17,7 @@ namespace Semantics.Cards
 
 def boshIronGolem : Ability :=
   activated (compound [mana [generic 3, pip .red], perform (sacrifice (a isArtifact))])
-    (instruct «this»
+    (instruct this_
        (dealDamage
           (statOf (.stat .manaValue) (theVerbed (.action "sacrifice") .one (some artifact)))
         (target isAnyTarget) .noncombatOnly))
@@ -361,7 +361,7 @@ def blastOfGenius : Spelled := spelled <| .singleFaced
             [ choose (target isAnyTarget),
               draw (.lit 3),
               discard (a (cardIn yourHand)),
-              instruct «this» (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) thatJoin .noncombatOnly) ]) ] } }
+              instruct this_ (dealDamage (statOf (.stat .manaValue) (theVerbed (.action "discard") .one (some .card))) thatJoin .noncombatOnly) ]) ] } }
 
 def riddleOfLightning : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -371,7 +371,7 @@ def riddleOfLightning : Spelled := spelled <| .singleFaced
             [ choose (target isAnyTarget),
               scry (.lit 3),
               reveal (topSlice (.lit 1)),
-              instruct «this»
+              instruct this_
                   (dealDamage (statOf (.stat .manaValue) (that card)) thatJoin
                      .noncombatOnly) ]) ] } }
 
@@ -413,7 +413,7 @@ def burnBurnTreeAndFern : Spelled := spelled <| .singleFaced
       types := [.enchantment], subtypes := [saga],
       text :=
         [ when (chapterMark [1])
-            (instruct «this»
+            (instruct this_
                (dealDamage (.lit 6) (target (and [isCreature, controlledBy anOpponent]))
                   .noncombatOnly)),
           when (chapterMark [2])
@@ -427,7 +427,7 @@ def theFlux : Spelled := spelled <| .singleFaced
       subtypes := [saga],
       text :=
         [ when (chapterMark [1])
-            (instruct «this»
+            (instruct this_
                (dealDamage (.lit 4) (target (and [isCreature, controlledBy anOpponent]))
                   .noncombatOnly)),
           when (chapterMark [2, 3, 4, 5])
@@ -478,7 +478,7 @@ def shiningShoal : Spelled := spelled <| .singleFaced
     { name := "Shining Shoal", cost := some [.variable, pip .white, pip .white], types := [.instant],
       subtypes := [arcane],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (a (and [hasColor .white, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
@@ -491,7 +491,7 @@ def disruptingShoal : Spelled := spelled <| .singleFaced
     { name := "Disrupting Shoal", cost := some [.variable, pip .blue, pip .blue], types := [.instant],
       subtypes := [arcane],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (a (and [hasColor .blue, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
@@ -503,7 +503,7 @@ def blazingShoal : Spelled := spelled <| .singleFaced
     { name := "Blazing Shoal", cost := some [.variable, pip .red, pip .red], types := [.instant],
       subtypes := [arcane],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (a (and [hasColor .red, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
@@ -514,7 +514,7 @@ def sickeningShoal : Spelled := spelled <| .singleFaced
     { name := "Sickening Shoal", cost := some [.variable, pip .black, pip .black], types := [.instant],
       subtypes := [arcane],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (a (and [hasColor .black, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
@@ -526,7 +526,7 @@ def nourishingShoal : Spelled := spelled <| .singleFaced
     { name := "Nourishing Shoal", cost := some [.variable, pip .green, pip .green], types := [.instant],
       subtypes := [arcane],
       text :=
-        [ static (altCost «this»
+        [ static (altCost this_
             (some (perform (exile
               (a (and [hasColor .green, hasManaValue .eq (letter .x),
                         in_ yourHand])))))),
@@ -664,7 +664,7 @@ def adNauseam : Spelled := spelled <| .singleFaced
 
 def nahiriLoyaltyRead : Predicate :=
   and [ isCreature, in_ yourGraveyard,
-         hasManaValue .less (statOf (.stat .loyalty) «this») ]
+         hasManaValue .less (statOf (.stat .loyalty) this_) ]
 theorem okNahiriLoyaltyRead : Predicate.checkAt .object (DRS.ofList []) nahiriLoyaltyRead = [] := by decide
 
 /-- Caustic Bronco -/
@@ -739,7 +739,7 @@ def engineeredExplosives : Spelled := spelled <| .singleFaced
 def radiantFlames : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Radiant Flames", cost := some [generic 2, pip .red], types := [.sorcery],
-      text := [spell (instruct «this» (dealDamage (colorsSpentToCast «this») (each isCreature) .noncombatOnly))] } }
+      text := [spell (instruct this_ (dealDamage (colorsSpentToCast this_) (each isCreature) .noncombatOnly))] } }
 
 /-- Birthing Pod -/
 def birthingPodSearch : Ability :=
@@ -887,9 +887,9 @@ def heartOfYavimaya : Spelled := spelled <| .singleFaced
     { name := "Heart of Yavimaya", types := [.land],
       text :=
         [ static
-            (instead (would any (putOntoBattlefield «this»))
+            (instead (would any (putOntoBattlefield this_))
                (doIfDone (sacrifice (a (and [isLand, hasSubtype forest])))
-              (some (putOntoBattlefield «this»)) (some (putInto «this» graveyard)))),
+              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard)))),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.of .green]])),
           activated tapSymbol
             (get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ] } }
@@ -900,9 +900,9 @@ def moxDiamond : Spelled := spelled <| .singleFaced
     { name := "Mox Diamond", cost := some [], types := [.artifact],
       text :=
         [ static
-            (instead (would any (putOntoBattlefield «this»))
+            (instead (would any (putOntoBattlefield this_))
                (may (discard (a (and [isLand, in_ yourHand])))
-              (some (putOntoBattlefield «this»)) (some (putInto «this» graveyard)))),
+              (some (putOntoBattlefield this_)) (some (putInto this_ graveyard)))),
           activated tapSymbol (addMana (.lit 1) (ofAnyColor .sameColor)) ] } }
 
 /-- Up the Beanstalk -/
@@ -910,7 +910,7 @@ def upTheBeanstalk : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Up the Beanstalk", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
-        [ triggeredJoined (does «this» enter)
+        [ triggeredJoined (does this_ enter)
             [joinedHead (does you (cast (a
               (and [isSpell, hasManaValue .atLeast (.lit 5)]))))]
             (draw (.lit 1)) ] } }
@@ -920,11 +920,11 @@ def shelteredValley : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Sheltered Valley", types := [.land],
       text :=
-        [ static (instead (would any (putOntoBattlefield «this»)) (sequentially
+        [ static (instead (would any (putOntoBattlefield this_)) (sequentially
               [ sacrifice
                   (each (and [isPermanent, otherThan thisLand, named (printedName "Sheltered Valley"),
                                youControl])),
-                putOntoBattlefield «this» ])),
+                putOntoBattlefield this_ ])),
           triggeredIf (beginningOfYour .upkeep)
             (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3))
             (gainLife (.lit 1)),
