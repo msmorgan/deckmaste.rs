@@ -27,3 +27,24 @@ Implement **Stratum 6** in `crates/deckmaste_english_v4` per
 - Stratum 0–6 judgment suite passes with zero regressions.
 
 Standard constraints apply.
+
+## Owner ruling: accepted wrong Readings
+
+Against `docs/decisions/english-lexical-analysis.md` (line 97: a newly
+admitted wrong Reading is a defect, never a gain), the owner explicitly
+accepted the attachment ambiguities that serial unlike Object lists add. In
+each, a first Noun Phrase conjunct takes a keyword through its own *with* or
+*from among* phrase, which syntax cannot settle. Derivations before → after:
+Riftmarked Knight 36 → 72; Liberated Livestock 12 → 36; Odric, Blood-Cursed
+36 → 52; Mascot Exhibition 8 → 24; Aragorn, Company Leader 9 → 18; Grimdancer
+5 → 9; Triplicate Titan 1 → 4; Trostani's Summoner 1 → 4; Hungry for More
+2 → 4; Greymond, Avacyn's Stalwart 2 → 3. The owner likewise accepted twelve
+units that keep a narrow Targeting Marker reading beside the wide one, owned
+by `english-v4-stratum-7-discourse-and-long-tail`.
+
+1. **Census delta** (measured on `yqpnnypk`): faces read 20,391 → 28,709;
+   total Readings 173,844 → 399,377; lost faces: Bladehold War-Whip
+   (deferred to Stratum 7 by the owner).
+2. **Judgment set**: 2,981 enforced at `COMPLETED_STRATUM` 6, all hold; 189
+   pending.
+
