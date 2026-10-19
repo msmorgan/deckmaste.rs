@@ -2285,7 +2285,7 @@ fn check_closed(lexicon: &Lexicon, id: &LexemeId, context: &str) -> Result<(), L
 }
 
 /// The child name of a Frame Slot: the grammatical function it bears.
-fn relation_name(relation: SlotRelation) -> &'static str {
+pub(crate) fn relation_name(relation: SlotRelation) -> &'static str {
     match relation {
         SlotRelation::Object => "object",
         SlotRelation::IndirectObject => "indirect_object",

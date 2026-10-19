@@ -16,3 +16,5 @@
 + Flora Colossus's power and toughness are each equal to the number of lands you control. => NounPhrase "Flora Colossus's power and toughness" as Subject of be; AdjectivePhrase "each equal to the number of lands you control"
 + It deals 1 damage to each of up to one target creature, up to one target player, and/or up to one target planeswalker. => NounPhrase "up to one target creature, up to one target player, and/or up to one target planeswalker"
 + Cast this spell only during the declare attackers step and only if you've been attacked this step. => PrepositionPhrase "only during the declare attackers step"; PrepositionPhrase "only if you've been attacked this step"
++AdjectivePhrase less than or equal to this creature's power => NounPhrase "this creature's power" as Complement of than; NounPhrase "this creature's power" as Complement of to
++NounPhrase target permanent you own and control => RelativeClause "you own and control" gap "permanent"

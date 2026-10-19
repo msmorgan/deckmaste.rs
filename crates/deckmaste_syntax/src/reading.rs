@@ -438,16 +438,76 @@ impl CompiledGrammar {
             parent,
             head: self.head_lexeme(reading),
             gap: node.gap,
+            also: Vec::new(),
         });
         // The head of a function Category bears its function in its phrase.
         let wraps = self.function_categories.contains(&node.category);
         let names = self.child_names(node);
+        let raising = self
+            .by_id
+            .get(&node.production)
+            .is_some_and(|&p| self.productions[p].requires_coordination.is_some());
+        let mut sites = Vec::new();
         for (child, name) in node.children.iter().zip(names) {
+            let start = out.len();
+            if raising && name == "head" {
+                let mut at = start;
+                Self::gap_sites(child, &mut at, &mut sites);
+            }
             if wraps && name == "head" {
                 self.locate(child, parent, function, out);
             } else {
                 self.locate(child, Some(index), Some(name), out);
             }
+            if raising && name == "shared" {
+                out[start].also.clone_from(&sites);
+            }
+        }
+    }
+
+    /// The phrases along the NP Gap path of `reading` that introduce the
+    /// Gap, with the function of the extracted Frame Slot, by preorder
+    /// index from `at`.
+    fn gap_sites(reading: &Reading, at: &mut usize, sites: &mut Vec<(Ident, usize)>) {
+        let Reading::Node(node) = reading else { return };
+        let index = *at;
+        *at += 1;
+        let on_path = node.gap == Gap::NP;
+        let extracted = node
+            .production
+            .rsplit_once("/gap")
+            .and_then(|(_, slot)| slot.split('/').next()?.parse::<usize>().ok());
+        if let (true, Some(slot)) = (on_path, extracted) {
+            // A preposition's phrase records no Selected Frame: its NP is its
+            // Complement.
+            let relation = node
+                .selected_frame
+                .as_ref()
+                .and_then(|frame| frame.slots.get(slot))
+                .map_or(crate::frames::SlotRelation::Complement, |s| s.relation);
+            sites.push((Ident::new(crate::compile::relation_name(relation)), index));
+            Self::count(node, at);
+            return;
+        }
+        for child in &node.children {
+            if on_path && child.node().is_some_and(|c| c.gap == Gap::NP) {
+                Self::gap_sites(child, at, sites);
+            } else {
+                Self::count_reading(child, at);
+            }
+        }
+    }
+
+    fn count(node: &ReadingNode, at: &mut usize) {
+        for child in &node.children {
+            Self::count_reading(child, at);
+        }
+    }
+
+    fn count_reading(reading: &Reading, at: &mut usize) {
+        if let Reading::Node(node) = reading {
+            *at += 1;
+            Self::count(node, at);
         }
     }
 
@@ -573,6 +633,10 @@ pub struct Constituent {
     /// The lexeme reached through its `head` children.
     pub head: Option<LexemeId>,
     pub gap: Gap,
+    /// The other functions it bears, each with the preorder index of the
+    /// phrase it bears it in: a Noun Phrase shared by Right Node Raising
+    /// fills each conjunct's Gap (*draw and discard [cards]*).
+    pub also: Vec<(Ident, usize)>,
 }
 
 /// Joins atoms with the spacing their bindings call for, returning the text

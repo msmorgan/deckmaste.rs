@@ -539,9 +539,12 @@ impl Judge<'_> {
                     .as_ref()
                     .is_none_or(|h| self.names(c.head.as_ref(), h))
                 && assertion.function.as_ref().is_none_or(|(function, of)| {
-                    bears(c.function, function.child_name())
-                        && c.parent
-                            .is_some_and(|p| self.names(reading.constituents[p].head.as_ref(), of))
+                    let in_phrase =
+                        |p: usize| self.names(reading.constituents[p].head.as_ref(), of);
+                    (bears(c.function, function.child_name()) && c.parent.is_some_and(in_phrase))
+                        || c.also
+                            .iter()
+                            .any(|(f, p)| *f == function.child_name() && in_phrase(*p))
                 })
                 && assertion
                     .gap
