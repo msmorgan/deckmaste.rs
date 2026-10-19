@@ -70,6 +70,13 @@ example : Spelled := spelled <| .singleFaced
       text := [Primitives.Ability.spell none (Primitives.Action.sequentially
         [.enact (.action "destroy") (.sequentially [.move (target isCreature) (.zone .battlefield none) (some (.zone .hand none)) .arrival none []]) none none])] } }
 
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Replacement.instead] -/
+#guard_msgs in
+example : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
+      text := [spell (replace (draw (.lit 1)) (.instead (draw (.lit 2)) none))] } }
+
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in
 example : Spelled := { withKeyword with card := rawKeywordCard, ok := by decide }

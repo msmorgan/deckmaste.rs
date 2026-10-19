@@ -297,8 +297,8 @@ theorem okSearchZoneFreeDescription :
 creature card and reveal that card." [CR#614.1a] -/
 theorem okInsteadOfSearchRevealsIt :
     Action.check (DRS.ofList []) (.replace (searchLibraryFor (exactly 1) isCreature)
-      (.sequentially [searchLibraryFor (exactly 1) isCreature,
-        reveal (theVerbed (.action "search") .one)])) = [] := by
+      (instead (.sequentially [searchLibraryFor (exactly 1) isCreature,
+        reveal (theVerbed (.action "search") .one)]))) = [] := by
   decide
 
 /-- "Each player mills a card. Exile it." -/
@@ -346,7 +346,8 @@ theorem badEachOfTheRest :
 /-- "If a creature you control would die this turn, exile it instead." -/
 theorem okWouldDieOnBattlefield :
     Action.check (DRS.ofList [])
-      (replaceEvent (.would .any (.move (target (and [isCreature, youControl])) (battlefield) (some graveyard) .departure none [])) (exile it) (some thisTurn)) = [] := by
+      (replaceEvent (.would .any (.move (target (and [isCreature, youControl])) (battlefield) (some graveyard) .departure none []))
+        (instead (exile it)) (some thisTurn)) = [] := by
   decide
 
 /-- "Reveal the top card of your library. Put that card into your hand." -/
@@ -543,14 +544,15 @@ theorem badInterceptReplacementAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ replaceNextEvent (.would (.actor .you) (.draw .anyAmount))
-            (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Soldier"])))
+            (instead
+              (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Soldier"]))))
             (some thisTurn),
           sacrifice it ]) = [.anaphor .bare .one 0] := by
   decide
 
 /-- "If you would draw a card, draw two cards instead." -/
 theorem okFlatInstead :
-    Action.check (DRS.ofList []) (.replace (draw (.lit 1)) (draw (.lit 2)))
+    Action.check (DRS.ofList []) (.replace (draw (.lit 1)) (instead (draw (.lit 2))))
         = [] := by decide
 
 /-- "Untap target creature." -/

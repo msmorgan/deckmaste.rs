@@ -346,12 +346,16 @@ theorem okChargeCounterOnArtifact :
 /-- "… that many plus one +1/+1 counters are put on it instead" -/
 theorem okManyCounterBatchSize :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .many false)) (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true) none .repeatedly none) = [] := by
+      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .many false))
+        (instead (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true))
+        none .repeatedly none) = [] := by
   decide
 
 theorem badSingularCounterBatchSize :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .one false)) (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true) none .repeatedly none)
+      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .one false))
+        (instead (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true))
+        none .repeatedly none)
       = [.quantOutcomeInScope 0] := by
   decide
 
@@ -444,7 +448,9 @@ theorem badThoseKindsUnannounced :
 /-- "If ... +1/+1 counters ... that many plus one are put instead." -/
 theorem okInterceptsCounterEvent :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .many false)) (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true) none .repeatedly none) = [] := by
+      (.replace (.would .any (.putCounters .anyAmount (.printed p1p1Counter) (a (and [isCreature, youControl])) .many false))
+        (instead (.putCounters (plus .thatMuch (.lit 1)) p11 it .one true))
+        none .repeatedly none) = [] := by
   decide
 
 /-- "Target creature becomes an artifact in addition to its other types." -/
@@ -510,7 +516,9 @@ one of each of those kinds are put on that permanent instead." The replaced even
 agent. -/
 theorem okAgentlessCounterReplacement :
     StaticSpec.check (DRS.ofList [])
-      (.replace (.would .any (.putCounters .anyAmount .anyKind teamPermanent .many false)) (.putCounters (plus .thatMuch (.lit 1)) .those (that .permanent) .one true) none .repeatedly none)
+      (.replace (.would .any (.putCounters .anyAmount .anyKind teamPermanent .many false))
+        (instead (.putCounters (plus .thatMuch (.lit 1)) .those (that .permanent) .one true))
+        none .repeatedly none)
       = [] := by
   decide
 

@@ -809,7 +809,7 @@ theorem badStoreResultsWithoutRoll :
 theorem okThoseDiceAfterRollEvent :
     Action.check (DRS.ofList [])
       (replaceEvent (.would (.actor .you) (.rollDice .anyAmount (.sides 6) .many .anyResult))
-        (.rollDice .thatMuch .thoseDice .many .anyResult) none) = [] := by
+        (instead (.rollDice .thatMuch .thoseDice .many .anyResult)) none) = [] := by
   decide
 
 /-- "Roll that many dice." -/

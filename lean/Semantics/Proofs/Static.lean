@@ -133,6 +133,77 @@ theorem okDrawReplacement :
       = [] := by
   decide
 
+/-! ### Replacements
+
+"Instead" builds a `Replacement`, the only thing a replacement slot accepts, and nothing else
+accepts one [CR#614.1a]. -/
+
+/--
+error: Application type mismatch: The argument
+  instead (draw (Amount.lit 1))
+has type
+  Replacement
+but is expected to have type
+  Action
+in the application
+  @spell instAuthoringContext (instead (draw (Amount.lit 1)))
+-/
+#guard_msgs in
+example : Ability := spell (instead (draw (.lit 1)))
+
+/--
+error: Application type mismatch: The argument
+  instead (draw (Amount.lit 1))
+has type
+  Replacement
+but is expected to have type
+  Action
+in the application
+  @instead instAuthoringContext (instead (draw (Amount.lit 1)))
+-/
+#guard_msgs in
+example : Replacement := instead (instead (draw (.lit 1)))
+
+/--
+error: Application type mismatch: The argument
+  draw (Amount.lit 2)
+has type
+  Action
+but is expected to have type
+  Replacement
+in the application
+  @Templates.StaticSpec.replace instAuthoringContext (would (actor you) (draw (Amount.lit 1))) (draw (Amount.lit 2))
+-/
+#guard_msgs in
+example : StaticSpec := replace (would you (draw (.lit 1))) (draw (.lit 2))
+
+/-- "Draw a card. If you control three or more artifacts, draw two cards instead.": the
+condition is the replacement's own, so the draw happens unreplaced while it fails
+[CR#614.15]. -/
+theorem conditionalReplacementCarriesItsCondition :
+    (replace (draw (.lit 1))
+      (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
+        (instead (draw (.lit 2)))) : Action) =
+      .replace (draw (.lit 1))
+        (.instead (draw (.lit 2))
+          (some (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3)))) := rfl
+
+/-- The replacement's condition is read: one naming nothing it can resolve is refused. -/
+theorem conditionalReplacementChecksItsCondition :
+    Action.check (DRS.ofList [])
+      (replace (draw (.lit 1)) (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) =
+      [.anaphor .bare .one 0] := by
+  decide
+
+/-- A condition over a caller's replacement keeps the caller's parts in the caller's scope. -/
+theorem conditionOverCallerReplacementKeepsItsScope :
+    (Templates.Replacement.doIf (matches_ you (hasDesignation citysBlessing))
+      (.inCaller
+        (instead (draw (.lit 3)) (some (compareAmt (countOf isArtifact) .atLeast (.lit 3)))))) =
+      .instead (.inCaller (draw (.lit 3)))
+        (some (.and [matches_ you (hasDesignation citysBlessing),
+          .inCaller (compareAmt (countOf isArtifact) .atLeast (.lit 3))])) := rfl
+
 /-- "unless you control an artifact" -/
 theorem okUnlessOverNegatedCondition :
     StaticSpec.check (DRS.ofList [])
