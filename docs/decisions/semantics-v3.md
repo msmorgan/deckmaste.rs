@@ -459,7 +459,7 @@ structure DeonticMods where
 | `deonticRule(s, .require, deeds, .patient, .counterpart b, ...)` | `must(by(b), action, mods)` | `must(by(allOf(creature)), block(this))` (*"All creatures able to block this creature do so."*) |
 | `deonticRule(s, .permit, deeds, .agent, ...)` | `may(s, action, mods)` | `may(you, play(it), { rider := ... })` |
 | `deonticRule(s, .gatedBy cost, deeds, ...)` | `gatedBy(cost, subj, action, mods)` | `gatedBy(mana([2]), any, attack(you))` (*Ghostly Prison*) |
-| `replacement(event, alternatives, timing, repl, use, limit)` | `replace(would(subj, action), instead(repl), ...)` | `replace(would(any, destroy(this)), instead(regenerate(this)))` (with `wouldAny([would(...), ...])` for disjunctive replacement events) |
+| `replacement(event, alternatives, timing, repl, use, limit)` | `replace(would(subj, action), instead(repl), ...)` | `replace(would(any, destroy(this)), instead(regenerationApplication(this)))` (with `wouldAny([would(...), ...])` for disjunctive replacement events) |
 
 - **2026-10-13 Owner Rulings Preserved on the `semantics-v3` Spine (Q81–Q90):**
   - **`Stat.defense` and battle entry conferral (Q81, Q82):** `Stat` gains `defense` (`[CR#310.4,310.4a]`, mapped by `Stat.comparedType` to `battle`); `Stat` and `CharacteristicStat` remain distinct enums (`[CR#109.3]`). `[CR#310.4b]` is written as a conferral on the `battle` card-type definition (`enters with defense counters equal to statOf(stat(defense), this)`).
