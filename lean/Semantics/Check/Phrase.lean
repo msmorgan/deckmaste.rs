@@ -933,6 +933,20 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
     (drs2, errors ++ clauseErrors)
 termination_by structural fuel
 
+/-- A replacement, read after the event it replaces: its `when` condition, then its action. -/
+def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (fuel : Nat := 8) :
+    DRS × List Refusal :=
+  match fuel, r with
+  | 0, _ => (drs, [.recursionLimit])
+  | n + 1, .inCaller body =>
+    let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body n
+    (leaveCaller drs callerDrs, errs)
+  | _ + 1, .instead action when =>
+    let (drs1, e1) := match when with | some c => ops.cond drs c | none => (drs, [])
+    let (drs2, e2) := ops.inst .postEvent .obj drs1 action
+    (drs2, e1 ++ e2)
+termination_by structural fuel
+
 def stepCombatParticipationWith (ops : StepOps) (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
   match cp with
   | .attacking (some defn) =>
@@ -2792,7 +2806,7 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.inst .preEvent patientRole drs repld
           let localDescriptions := drs1.prospectiveTokenTypes.drop drs.prospectiveTokenTypes.length
           let described := { drs1 with prospectiveTokenTypes := localDescriptions }
-          let (drs2, e2) := ops.inst .postEvent .obj (nextClause described) repl
+          let (drs2, e2) := stepReplacementWith ops (nextClause described) repl
           ({ drs2 with prospectiveTokenTypes := drs.prospectiveTokenTypes }, e1 ++ e2)
         | .holdUntil inst ev =>
           let (drs1, e1) := ops.inst phase patientRole drs inst
@@ -2913,7 +2927,7 @@ def stepOps : Nat → StepOps
             headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
         | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
-          let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) repl
+          let (drs2, e2) := stepReplacementWith ops (nextClause drs1) repl
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
           -- Nothing the `would` clause or the replacement introduces escapes but the letters
           -- they introduce: X has one value on the object, so "enters with X counters, where X is

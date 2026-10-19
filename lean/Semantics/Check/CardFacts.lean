@@ -140,6 +140,13 @@ mutual
     | _, _ => false
   termination_by structural fuel
 
+  def Replacement.namesThisDoor (replacement : Replacement) (fuel : Nat := 64) : Bool :=
+    match fuel, replacement with
+    | n + 1, .inCaller body => body.namesThisDoor n
+    | n + 1, .instead i condition => i.namesThisDoor n || condition.any (fun c => c.namesThisDoor n)
+    | _, _ => false
+  termination_by structural fuel
+
   def Timing.namesDoor (timing : Timing) (fuel : Nat := 64) : Bool :=
     match fuel, timing with
     | n + 1, .relativeToEvent _ ev | n + 1, .whileDoing ev => ev.namesThisDoor n
@@ -181,7 +188,7 @@ private theorem delayedDoorReferenceIsFound :
 
 private theorem nestedDoorReferenceIsFound :
     (Action.sequentially [.replace (.sequentially [])
-      (.holdUntil (.unlock .thisDoor) .now)]).namesThisDoor = true := by decide
+      (.instead (.holdUntil (.unlock .thisDoor) .now) none)]).namesThisDoor = true := by decide
 
 private theorem unrelatedUnlockIsNotThisDoor :
     (Action.sequentially []).namesThisDoor = false := by decide

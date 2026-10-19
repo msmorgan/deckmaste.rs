@@ -23,6 +23,9 @@ instance : CallerScope Cost where
 instance : CallerScope StaticSpec where
   caller := StaticSpec.inCaller
 
+instance : CallerScope Replacement where
+  caller := Replacement.inCaller
+
 instance : CallerScope Amount where
   caller := Amount.inCaller
 

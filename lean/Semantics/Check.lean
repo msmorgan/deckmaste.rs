@@ -160,12 +160,12 @@ def kalitasReplacement : Ability :=
         (.move (.described (.a .unmarked)
             (.and [.not .isToken, .hasType .creature, .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you))]))
           (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) []))
-      (.sequentially [
+      (.instead (.sequentially [
         .move (.pro (.word (.type .creature)) .one) .anyLocation (some exileZone) .departure (some .anEffect) [],
         .createObject (.lit 1)
           (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) [])
           true none
-      ])
+      ]) none)
       none .repeatedly none
 
 theorem kalitas_replacement_sound :

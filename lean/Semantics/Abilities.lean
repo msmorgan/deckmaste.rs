@@ -5,9 +5,9 @@ import Semantics.Events
 
 The Semantics v3 unified action-clause spine: phrases (`Location`, `Predicate`, `NounPhrase`,
 `Amount`, `Quantity`, `Condition`, `GameEvent`, `DidClause`, `LookbackSpan`, `Subject`), trigger
-headers and bounds (`UsageLimit`, `JoinedHeader`), actions (`Action`),
-static specifications (`StaticSpec`, `WouldClause`, `DeonticMods`, `DamageResult`), costs
-(`Cost`), and abilities (`Ability`).
+headers and bounds (`UsageLimit`, `JoinedHeader`), actions (`Action`), static specifications
+(`StaticSpec`, `WouldClause`, `Replacement`, `DeonticMods`, `DamageResult`), costs (`Cost`), and
+abilities (`Ability`).
 
 Because `GameEvent.does` and `DidClause` (`Predicate.did`, `Amount.tally`, `Condition.did`)
 embed `action : Action` directly, the phrase, trigger, and ability grammars form a single
@@ -763,6 +763,16 @@ mutual
     /-- The named cause of a prospective event [CR#700.1,614.1a]. -/
     | causedBy (cause : Causing) (clause : WouldClause)
 
+  /-- What a replacement effect does in place of the event it replaces, the clause the word
+  "instead" marks ("draw two cards instead", "you may instead mill …") [CR#614.1a,614.6]. With a
+  `when` condition it applies only while that condition holds, and otherwise the event happens
+  unreplaced, as in the self-replacement "draw a card. If you control three or more artifacts,
+  draw two cards instead" [CR#614.15]. -/
+  inductive Replacement where
+    /-- A replacement supplied by the immediate caller of a Definition. -/
+    | inCaller (body : Replacement)
+    | instead (action : Action) (when : Option Condition)
+
   /-- Optional modifiers on a deontic rule (`cant`, `can`, `must`, `gatedBy`)
   [CR#702.13b,702.111b,702.145b]: when or how often it applies (`timing`, "each turn", "during
   each of your turns"), what it applies as though, and the one source it exempts. -/
@@ -809,12 +819,12 @@ mutual
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)
     /-- A replacement effect: as `event` would happen, `replacement` happens in its place ("If …
-    would …, … instead", "this enters tapped") [CR#614.1a,614.1c,614.1d]. Only when the whole
-    `replacement` is a `may` with no failure arm ("you may instead mill …") does declining it
-    leave `event` to happen. Otherwise `replacement` is what happens in its place, a failure arm
-    ("if you don't, put it into its owner's graveyard") included, so a `may` nested inside it
-    spells out what happens on both arms. -/
-    | replace (event : WouldClause) (replacement : Action) (timing : Option Timing)
+    would …, … instead", "this enters tapped") [CR#614.1a,614.1c,614.1d]. Only when the action
+    `instead` carries is wholly a `may` with no failure arm ("you may instead mill …") does
+    declining it leave `event` to happen. Otherwise that action is what happens in its place, a
+    failure arm ("if you don't, put it into its owner's graveyard") included, so a `may` nested
+    inside it spells out what happens on both arms. -/
+    | replace (event : WouldClause) (replacement : Replacement) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
     /-- A static damage-result modification (lifelink, wither, infect)
     [CR#120.3,120.4c,702.15b,702.80a]. -/
@@ -1076,7 +1086,9 @@ mutual
     | chooseModes (quantity : Quantity) (modes : List (Option Cost × Option Nat × Action))
     | delay (event : GameEvent) (alternatives : List GameEvent) (duration : Option Duration)
         (body : Action)
-    | replace (replaced : Action) (replacement : Action)
+    /-- A self-replacement: the spell's or ability's own `replaced` action, replaced by
+    `replacement` [CR#614.15,616.1a]. -/
+    | replace (replaced : Action) (replacement : Replacement)
     | holdUntil (action : Action) (event : GameEvent)
     /-- A reflexive triggered ability created by `body` [CR#603.12]: with no `event`, it triggers
     "when [the performer does]" what `body` offers; with `some ev`, "when [ev] this way". -/
@@ -1173,7 +1185,8 @@ end Semantics
 attribute [semantic_expression] Semantics.GameEvent Semantics.NounPhrase Semantics.Predicate
   Semantics.Amount Semantics.Quantity Semantics.Location Semantics.Condition Semantics.Duration
   Semantics.Timing Semantics.Subject Semantics.LookbackSpan Semantics.WouldClause
-  Semantics.Action Semantics.StaticSpec Semantics.Cost Semantics.Ability Semantics.TokenSpec
+  Semantics.Replacement Semantics.Action Semantics.StaticSpec Semantics.Cost Semantics.Ability
+  Semantics.TokenSpec
 
 classify_semantic_syntax
 
@@ -1183,5 +1196,6 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
   Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
   Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
+  Semantics.Replacement.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit
