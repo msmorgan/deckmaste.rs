@@ -73,6 +73,9 @@ pub enum Gap {
     /// A noun's Preposition Phrase Complement shared by Right Node Raising
     /// (*the top or bottom of their library*).
     PP,
+    /// Nouns' Amount Complements shared, respectively, by a slash Measure
+    /// (*base power and toughness 4/4*).
+    Measure,
 }
 
 impl Gap {

@@ -863,7 +863,7 @@
         (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
         (name: "FinalAttribute", lhs: "AttributeChain", rhs: [Cat("last", "Attribute")]),
         (name: "AttributedNominal", lhs: "BareNominal", rhs: [Cat("modifier", "Attributes"), Cat("head", "BareNominal")], equations: [Exclude("head.Determination", "Overt")]),
-        (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], equations: [Exclude("head.Determination", "Overt")]),
+        (name: "NominalPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Exclude("head.Determination", "Overt")]),
         (name: "QuantifiedNominalPremodifier", lhs: "QuantifiedNominal", rhs: [Cat("modifier", "NounPremodifier"), Cat("head", "QuantifiedNominal")]),
         (name: "BarePrepositionalNominal", lhs: "BareNominalComplement", rhs: [Cat("head", "PrepositionalNominal")], equations: [Require("head.Number", "Singular"), Require("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
         // Noun phrases.

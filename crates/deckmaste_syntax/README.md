@@ -115,6 +115,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   (*A, or B, or C*), one tree per same-coordinator chain, across-the-board Gaps, and Right Node Raising (a coordination with a
   shared NP, keyword-phrase, *to*-infinitival or predicative Gap, or a noun's single-preposition
   Preposition Phrase Complement headed by that preposition (*the top or bottom of their library*),
+  or nouns' Amount Complements filled respectively by a slash Measure (*base power and toughness 4/4*),
   filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which

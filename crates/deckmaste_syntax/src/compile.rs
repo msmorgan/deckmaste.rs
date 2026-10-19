@@ -1776,6 +1776,7 @@ impl<'a> Binder<'a> {
                         gappable
                             && if noun {
                                 matches!(***fill, SlotFill::PP(ref list) if list.len() == 1)
+                                    || ***fill == SlotFill::Amount
                             } else {
                                 matches!(
                                     ***fill,
@@ -1831,6 +1832,7 @@ impl<'a> Binder<'a> {
                 }
                 draft.introduces = match slots[i] {
                     SlotFill::PP(_) => Gap::PP,
+                    SlotFill::Amount => Gap::Measure,
                     SlotFill::Pred => Gap::Pred,
                     SlotFill::KeywordPhrase => Gap::Keyword,
                     SlotFill::ToInf => Gap::ToInf,
@@ -2119,6 +2121,7 @@ impl<'a> Binder<'a> {
                 (Gap::ToInf, SlotKind::ToInf, "-toinf"),
                 (Gap::Pred, SlotKind::Pred, "-pred"),
                 (Gap::PP, SlotKind::PP, "-pp"),
+                (Gap::Measure, SlotKind::Measure, "-measure"),
             ] {
                 let Ok(shared) = self.slot_category(kind) else {
                     continue;
@@ -2672,6 +2675,7 @@ fn gap_named(name: &str) -> Option<Gap> {
         "Keyword" => Gap::Keyword,
         "ToInf" => Gap::ToInf,
         "PP" => Gap::PP,
+        "Measure" => Gap::Measure,
         _ => return None,
     })
 }
