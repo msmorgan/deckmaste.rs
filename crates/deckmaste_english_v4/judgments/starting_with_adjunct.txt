@@ -2,7 +2,7 @@
 + III — Starting with you, each player chooses a creature. Destroy each creature chosen this way. => VerbPhrase "Starting with you" as Adjunct of choose; PrepositionPhrase "with you" as Complement of start
 + Starting with you, each player may put a permanent card from their hand onto the battlefield. Repeat this process until no one puts a card onto the battlefield. => VerbPhrase "Starting with you" as Adjunct of put; PrepositionPhrase "with you" as Complement of start
 + Starting with you, each player separates all permanents they control into three piles. Then each player chooses one of their piles at random and sacrifices those permanents. => VerbPhrase "Starting with you" as Adjunct of separate; PrepositionPhrase "with you" as Complement of start
-+ When this creature enters, starting with you, each player may choose an artifact or enchantment you don't control. Destroy each permanent chosen this way. => VerbPhrase "starting with you" as Adjunct of choose; PrepositionPhrase "with you" as Complement of start
++ When this creature enters, starting with you, each player may choose an artifact or enchantment you don't control. Destroy each permanent chosen this way. => VerbPhrase "starting with you" as Adjunct of may; PrepositionPhrase "with you" as Complement of start
 + Starting with you, each player may pay any amount of life. => VerbPhrase "Starting with you" as Adjunct of may; PrepositionPhrase "with you" as Complement of start
 +VerbPhrase starting with you => PrepositionPhrase "with you" as Complement of start
 *PrepositionPhrase starting
