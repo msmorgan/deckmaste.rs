@@ -540,6 +540,9 @@
         (name: "InterleavedDepictive", lhs: "Interleaved", rhs: [Cat("head", "AdjectivePhrase")], equations: [Require("head.ComplementKind", "Intransitive"), Exclude("head.Voice", "Passive"), Exclude("head.Grade", "Comparative"), Exclude("head.Determination", "Overt"), Exclude("head.AdjectivePosition", "Attributive")], cost: 0),
         (name: "AdjectivalDepictive", lhs: "Depictive", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
         (name: "GerundDepictive", lhs: "Depictive", rhs: [Cat("filler", "Gerund")], equations: [Require("$.ComplementKind", "Gerund")]),
+        // Unlike categories coordinated as a predicative Complement too
+        // (*a token that's tapped and attacking*).
+        (name: "CoordinatedPredicative", lhs: "Predicative", rhs: [Cat("head", "DepictiveCoordination")]),
         (name: "CoordinatedDepictive", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("adjunct", "DepictiveCoordination")], equations: [Exclude("head.VerbKind", "Auxiliary")], transparent: ["head"], cost: 2),
         (name: "PrepositionalAdjunct", lhs: "PredicateAdjunct", rhs: [Hosted("filler", "PrepositionPhrase", Predicate)], equations: [Require("$.ComplementKind", "PP")]),
         (name: "DepictiveAdjunct", lhs: "PredicateAdjunct", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Exclude("filler.Voice", "Passive"), Exclude("filler.Grade", "Comparative"), Exclude("filler.Determination", "Overt"), Exclude("filler.AdjectivePosition", "Attributive"), Require("$.ComplementKind", "AdjP")]),
