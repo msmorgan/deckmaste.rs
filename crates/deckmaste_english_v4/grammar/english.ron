@@ -868,6 +868,10 @@
         // A noun premodifier sits inside determinative and adjectival ones,
         // never outside them or on a determined symbol (*amount {G}*).
         (name: "NounAttribute", lhs: "Attribute", rhs: [Cat("filler", "NounPremodifier")], equations: [Require("$.ComplementKind", "Nominal")]),
+        // A gerund-participle in an asyndetic premodifier chain (*nonattacking,
+        // nonblocking creature*); like an adjective, it is no unlike conjunct
+        // of one.
+        (name: "ParticipialAttribute", lhs: "Attribute", rhs: [Cat("filler", "Participle")], equations: [Require("filler.Inflection", "GerundParticiple"), Require("$.ComplementKind", "AdjP")]),
         (name: "AdjectivalAttribute", lhs: "Attribute", rhs: [Cat("filler", "AdjectivePhrase")], equations: [Require("filler.ComplementKind", "Intransitive"), Exclude("filler.Voice", "Passive"), Exclude("filler.AdjectivePosition", "Predicative"), Exclude("filler.Determination", "Overt"), Require("$.ComplementKind", "AdjP")]),
         (name: "AsyndeticAttributes", lhs: "Attributes", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
         (name: "AttributeSequence", lhs: "AttributeChain", rhs: [Cat("first", "Attribute"), Punct(','), Cat("rest", "AttributeChain")]),
