@@ -33,3 +33,5 @@
 + If X is 5 or more, create a 4/4 green Elephant creature token. => NounPhrase "5 or more" as PredicativeComplement of be; DeterminerPhrase "5 or more"; !NounPhrase "5"; readings 1
 + Choose one or more — => DeterminerPhrase "one or more"; !NounPhrase "one"; readings 1
 +NounPhrase three or more creatures => !NounPhrase "three"; readings 1
+* Each attacking creature and each blocking creature don't untap during its controller's next untap step.
++Clause target creature and each other creature that shares a color with it get +1/+1 until end of turn => NounPhrase "target creature and each other creature that shares a color with it" as Subject of get
