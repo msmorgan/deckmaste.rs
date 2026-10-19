@@ -76,5 +76,10 @@ Chaos Defiler | Battle Cannon — When this creature enters or dies, for each op
 Immard, the Stormcleaver | Whenever Immard, the Stormcleaver enters or attacks, put a charge counter on it or remove one from it. When you remove a counter this way, choose one —
 Shay Cormac | {1}: Permanents your opponents control lose hexproof, indestructible, protection, shroud, and ward until end of turn.
 
+Everything Comes to Dust | Exile all creatures except those that share a creature type with a creature that convoked this spell, all artifacts, and all enchantments.
+Squee's Revenge | Choose a number. Flip a coin that many times or until you lose a flip, whichever comes first. If you win all the flips, draw two cards for each flip.
+Opportunistic Dragon | When this creature enters, choose target Human or artifact an opponent controls. For as long as this creature remains on the battlefield, gain control of that permanent, it loses all abilities, and it can't attack or block.
+Dralnu's Pet | If this creature was kicked, it enters with flying and with X +1/+1 counters on it, where X is the discarded card's mana value.
+
 # english-v4-oracle-editorial-corrections
 Agency Outfitter | When this creature enters, you may search your graveyard, hand and/or library for a card named Magnifying Glass and/or a card named Thinking Cap and put them onto the battlefield. If you search your library this way, shuffle.

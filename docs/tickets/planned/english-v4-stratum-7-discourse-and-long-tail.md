@@ -30,6 +30,17 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   - Villainous choice dash alternatives: Midnight Crusader Shuttle.
   - *whichever comes first / is greater* supplement: Thought Dissector; Willowdusk, Essence Seer; Triumphant Chomp; Prophet of the Scarab.
   - Counter kinds listed as a choice: Crystalline Giant.
+  - Mixed-mood serial clauses whose first conjunct ends in a subordinate clause
+    that could take the rest (scope): Opportunistic Dragon.
+  - *enters with flying and with X counters*, a *with*-keyword phrase as a
+    dependent of *enter* (a complement frame for *enter* breaks Master
+    Biomancer's *with … and as a Mutant*; a predicate host for *with* plus a
+    keyword grows 400 units): Dralnu's Pet.
+  - Fused-head *those* with a relative clause, and the scope of *except* in a
+    serial object: Everything Comes to Dust.
+  - A frequency NP coordinated with an *until* PP (*that many times or until
+    you lose a flip*), and the *whichever comes first* supplement: Squee's
+    Revenge.
   - Non-coordination one-off: Gorex, the Tombshell; Eye of Duskmantle; Portal Manipulator; Expand the Sphere; Niv-Mizzet Reborn; Spikeshell Harrier; Avatar of Woe; Distended Mindbender; Banshee; Fork; Berserker's Frenzy; Cosmos Charger; Dance with Calamity; Iron Mastiff; Fiery Gambit; Moritte of the Frost; Loxodon Peacekeeper; Celestial Convergence; Impact Resonance; Worms of the Earth; Ob Nixilis, the Adversary; Tameshi, Reality Architect; Multiple Choice; Game of Chaos; Time and Tide; Elenda, Saint of Dusk; The Enigma Jewel; Scrying Glass; Tempt with Mayhem; Withering Wisps; Arcum's Whistle; Tranquil Frillback; All Hallow's Eve; Chrome Replicator; Crabomination; Chaos Defiler; Immard, the Stormcleaver; Shay Cormac.
 - **Closing the Corpus Tail Under the Long-Tail Rule:** Cover the remaining
   Stratum 7 families without introducing policing flags (`...Use`, `...Licence`,
