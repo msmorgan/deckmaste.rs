@@ -6,8 +6,8 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Proofs.KeywordArguments
 
 theorem qualifiedCostUsesDeclaredOrder :
-    Ability.check (DRS.ofList []) (.keyword (.named "cycling")
-      [.quality (.hasSubtype (landType "Plains")), .cost (.mana [generic 2])] []) = [] := by decide
+    Ability.check (DRS.ofList []) (keywordQualityCosting cycling
+      (.hasSubtype (landType "Plains")) (.mana [generic 2])) = [] := by decide
 
 theorem reversedQualifiedCostIsRefused :
     Ability.check (DRS.ofList []) (.keyword (.named "cycling")
@@ -15,10 +15,10 @@ theorem reversedQualifiedCostIsRefused :
       [.keywordParamFits (.named "cycling")] := by decide
 
 theorem unqualifiedCostVariantRemainsAvailable :
-    Ability.check (DRS.ofList []) (.keyword (.named "cycling") [.cost (.mana [generic 2])] []) = [] := by decide
+    Ability.check (DRS.ofList []) (keywordCosting cycling (.mana [generic 2])) = [] := by decide
 
 theorem numberedCostNeedsBothArguments :
-    Ability.check (DRS.ofList []) (.keyword (.named "suspend") [.cost (.mana [generic 2])] []) =
+    Ability.check (DRS.ofList []) (keywordCosting suspend (.mana [generic 2])) =
       [.keywordParamFits (.named "suspend")] := by decide
 
 theorem extraArgumentIsRefused :
@@ -27,7 +27,7 @@ theorem extraArgumentIsRefused :
       [.keywordParamFits (.named "suspend")] := by decide
 
 theorem qualifiedCostRequiresObjectQuality :
-    Ability.check (DRS.ofList []) (.keyword (.named "cycling") [.quality .anyPlayer, .cost (.mana [generic 2])] []) =
+    Ability.check (DRS.ofList []) (keywordQualityCosting cycling .anyPlayer (.mana [generic 2])) =
       [.kindMismatch .object .player] := by decide
 
 /-- "Plainscycling {2}" through the `typecycling` Definition. -/
@@ -44,21 +44,21 @@ theorem typecyclingIsCycling :
 
 theorem qualityCanReadOuterChoice :
     Ability.check [(ChoiceSort.quality .color).binding]
-      (.keyword (.named "protection") [.quality (ofChosen .color)] []) = [] := by decide
+      (keywordQuality protection (ofChosen .color)) = [] := by decide
 
 theorem subjectCannotReadOuterChoice :
     Ability.check [(ChoiceSort.quality .color).binding]
-      (.keyword (.named "enchant") [.subject (ofChosen .color)] []) =
+      (keywordSubject enchant (ofChosen .color)) =
       [.choiceRef .theChoice (.quality .color) 0] := by decide
 
 theorem amountCannotReadOuterChoice :
     Ability.check [(ChoiceSort.quality .number).binding]
-      (.keyword (.named "bushido") [.number (.chosenNumber .theChoice)] []) =
+      (keywordNumber bushido (.chosenNumber .theChoice)) =
       [.choiceRef .theChoice (.quality .number) 0] := by decide
 
 theorem costCannotReadOuterChoice :
     Ability.check [(ChoiceSort.quality .number).binding]
-      (.keyword (.named "ward") [.cost (.perform (loseLife (.chosenNumber .theChoice)))] []) =
+      (keywordCosting ward (.perform (loseLife (.chosenNumber .theChoice)))) =
       [.choiceRef .theChoice (.quality .number) 0] := by decide
 
 theorem emptyAndMissingSchemaAreDistinct :

@@ -44,7 +44,7 @@ theorem okSpellAbilityOnInstant :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [.spell none (draw (.lit 1))] }) = [] := by
+          text := [spell (draw (.lit 1))] }) = [] := by
   decide
 
 /-- "Draw a card." -/
@@ -52,7 +52,7 @@ theorem badSpellAbilityOnPermanent :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.creature],
-          text := [.spell none (draw (.lit 1))], power := stat 1, toughness := stat
+          text := [spell (draw (.lit 1))], power := stat 1, toughness := stat
               1 })
       = [.cardText] := by
   decide
@@ -62,7 +62,7 @@ theorem badStaticOnSorcery :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.sorcery],
-          text := [.static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))] })
+          text := [static (getsPt (allOf (and [isCreature, youControl])) (.up (.lit 1)) (.up (.lit 1)))] })
       = [.cardText] := by
   decide
 
@@ -71,7 +71,7 @@ theorem okCastWindowOnSpell :
     Card.check
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
-          text := [.spell (some (duringPart .declareAttackers none)) (draw (.lit 1))] })
+          text := [spell (draw (.lit 1)) (some (duringPart .declareAttackers none))] })
       = [] := by
   decide
 
@@ -83,10 +83,10 @@ theorem badCastWindowAsDeonticStatic :
       (one
         { name := some "", cost := some [pip .blue], types := [.instant],
           text :=
-            [ .static
+            [ static
                 (partScope .declareAttackers none
                   (.can .any (.procedure .cast .this .itsOwnCost none none none) {})),
-              .spell none (draw (.lit 1)) ] }) = [.cardText] := by
+              spell (draw (.lit 1)) ] }) = [.cardText] := by
   decide
 
 /-- "Flying" -/
@@ -171,7 +171,7 @@ theorem badStarlessDefinedPt :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.creature],
-          text := [.static (.ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl])))],
+          text := [static (.ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl])))],
           power := stat 2, toughness := stat 2 }) = [.cardBox] := by
   decide
 
@@ -207,7 +207,7 @@ theorem okProtectionFromAColor :
 
 /-- "Protection from player" -/
 theorem badProtectionFromPlayerRestriction :
-    Ability.check (DRS.ofList []) (.keyword (.named "protection") [.subject .anyPlayer] [])
+    Ability.check (DRS.ofList []) (keywordSubject protection .anyPlayer)
       = [.keywordParamFits (.named "protection")] := by
   decide
 
@@ -282,7 +282,7 @@ theorem badKindredAlone :
 /-- "Enchanted creature can't attack." -/
 theorem okEnchantedCreatureCantAttack :
     Ability.check (DRS.ofList [])
-      (.static
+      (static
         (.cant (.actor (.attachHost .enchanted (.type .creature))) (.attack none) {}))
       = [] := by
   decide
@@ -292,7 +292,7 @@ retaining its planeswalker type [CR#205.1b]. This fixture keeps the restriction 
 when attackers are chosen [CR#508.1a]. -/
 theorem okPlaneswalkerAttacks :
     Ability.check (DRS.ofList [])
-      (.static
+      (static
         (.cant (.actor (.attachHost .enchanted (.type .planeswalker))) (.attack none) {})) = [] := by
   decide
 
@@ -403,7 +403,7 @@ theorem okEscalateWithModes :
         { name := some "", cost := some [pip .black], types := [.instant],
           text :=
             [ keywordCosting (.named "escalate") (.mana [generic 2]),
-              .spell none
+              spell
                 (chooseModes (.range (some 1) (some 2))
                   [ get (target isCreature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn),
                     get (target isCreature) (.down (.lit 1)) (.down (.lit 1))
@@ -432,7 +432,7 @@ theorem badModeChoiceWithoutModes :
     Card.check
       (one
         { name := some "", cost := some [pip .red], types := [.sorcery],
-          text := [.static (.modeChoice .repeatable)] }) = [.modalFrame] := by
+          text := [static (.modeChoice .repeatable)] }) = [.modalFrame] := by
   decide
 
 /-- "Whenever you draw a card, choose one that hasn't been chosen this turn — Draw a card; or
@@ -444,7 +444,7 @@ theorem okModeChoiceOnTriggeredModes :
           text :=
             [ .triggered (.does (.actor .you) (.draw .anyAmount)) [] none [] none none none
                 (chooseModes (exactly 1) [draw (.lit 1), destroy (target isArtifact)]),
-              .static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
+              static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
   decide
 
 /-- "As this creature enters, choose a color. / This creature has protection from the chosen
@@ -456,8 +456,8 @@ theorem okCrossAbilityChoice :
             { name := some "Cross-ability choice witness", types := [.creature],
               subtypes := [creatureType "Shapeshifter"],
               text :=
-                [ .static (entersChoosing thisCreature .color),
-                  .static (Templates.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
+                [ static (entersChoosing thisCreature .color),
+                  static (Templates.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
                     .color))) ],
               power := stat 1, toughness := stat 1 } }) = [] := by
   decide
@@ -518,7 +518,7 @@ theorem okCostedUnearth :
 
 /-- "Unearth" -/
 theorem badBareUnearth :
-    Ability.check (DRS.ofList []) (.keyword (.named "unearth") [] []) = [.keywordParamFits (.named "unearth")] := by decide
+    Ability.check (DRS.ofList []) (keyword unearth) = [.keywordParamFits (.named "unearth")] := by decide
 
 /-- "Retrace {1}" -/
 theorem badCostedRetrace :

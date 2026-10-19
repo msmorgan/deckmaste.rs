@@ -67,25 +67,25 @@ private semantic_definition announceThen (chosen : NounPhrase) (body : Action) :
 private def explicitExpansion : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Expansion witness", types := [.sorcery],
-      text := [Primitives.Ability.spell none (expand (drawTwice (.lit 1)))] } }
+      text := [spell (expand (drawTwice (.lit 1)))] } }
 theorem explicitExpansionPreservesAuthorship : explicitExpansion.authoring.onlyAuthored = true := explicitExpansion.onlyAuthored
 theorem explicitExpansionChecksItsResult : explicitExpansion.card.check = [] := explicitExpansion.ok
 private def explicitBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Body witness", types := [.sorcery],
-      text := [Primitives.Ability.spell none
+      text := [spell
       (onChosen (target isCreature) (fun chosen => Primitives.Action.setStatus .tapped chosen))] } }
 theorem suppliedBodyCanNameTheTemplateSubject : explicitBodyParameter.card.check = [] := explicitBodyParameter.ok
 private def aliasedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Aliased body witness", types := [.sorcery],
-      text := [Primitives.Ability.spell none
+      text := [spell
       (withSubjectBody (target isCreature) (fun subject => Primitives.Action.setStatus .tapped subject))] } }
 theorem bodyTypeAliasesRetainParameterEvidence : aliasedBodyParameter.card.check = [] := aliasedBodyParameter.ok
 private def nestedBodyParameter : Spelled := spelled <| .singleFaced
   { characteristics := {
       name := "Nested body witness", types := [.sorcery],
-      text := [Primitives.Ability.spell none
+      text := [spell
       (onChosen (target isCreature) (fun subject => moveSubject subject))] } }
 theorem parameterizedBodiesForwardSubjectsIntoNestedTemplates : nestedBodyParameter.card.check = [] := nestedBodyParameter.ok
 
@@ -266,7 +266,7 @@ theorem forwardedCoordinationRetainsTwoParties :
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Forged context witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none
+        text := [spell
         (instruct (target isCreature) (@fight ⟨1⟩ (target isCreature)))] } }
 
 /-- error: Semantic parameter outside has no authoring evidence -/
@@ -274,7 +274,7 @@ example : Spelled := spelled <| .singleFaced
 example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Unbound callback argument witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none
+        text := [spell
         (onChosen (target isCreature) (fun _ => moveSubject outside))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
@@ -282,7 +282,7 @@ example (outside : NounPhrase) : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded projection witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none
+        text := [spell
         (configuredDraw (discardedAction (.draw (.lit 1))).bit)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.setStatus] -/
@@ -290,7 +290,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Body witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none
+        text := [spell
         (onChosen (target isCreature) (fun chosen => .setStatus .tapped chosen))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.draw] -/
@@ -298,28 +298,28 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Expansion witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none (expand (.draw (.lit 1)))] } }
+        text := [spell (expand (.draw (.lit 1)))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Expansion witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none (expand (instruct .you (drawTwice (.lit 1))))] } }
+        text := [spell (expand (instruct .you (drawTwice (.lit 1))))] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Unannotated function alias witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none (ordinaryFunctionConfig ordinarySubjectIdentity)] } }
+        text := [spell (ordinaryFunctionConfig ordinarySubjectIdentity)] } }
 
 /-- error: Semantics.Definitions.fight uses a lexical context outside its authoring scope -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Higher order context witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none
+        text := [spell
         (applyWithForgedContext (@fight) (target isCreature) (target isCreature))] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/
@@ -327,14 +327,14 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded function witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none (configuredDraw discardedSubjectFunction)] } }
+        text := [spell (configuredDraw discardedSubjectFunction)] } }
 
 /-- error: Semantic parameter subject has no authoring evidence -/
 #guard_msgs in
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Function container witness", types := [.sorcery],
-        text := [Primitives.Ability.spell none (functionListConfig subjectFunctions)] } }
+        text := [spell (functionListConfig subjectFunctions)] } }
 
 private semantic_template amountBodyInCaller (_subject : NounPhrase)
     (body : splice Amount) : Amount := body
