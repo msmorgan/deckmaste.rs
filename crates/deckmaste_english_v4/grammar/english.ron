@@ -139,6 +139,9 @@
         "PrepositionalNominal": (category: Some("Nominal"), features: ["Number", "Countability", "NounDistribution"]),
         "BareNominalComplement": (category: Some("Nominal")),
         "Possessor": (category: Some("NounPhrase"), features: ["Number", "Person", "Case"]),
+        // A single genitive over coordinated nominals (*target artifact or
+        // creature's owner*; CGEL, Ch. 15 §3.4, p. 1331).
+        "PossessorNominals": (category: Some("Nominal"), features: ["Number", "Countability", "NounKind"]),
         "NumericalDeterminer": (category: Some("DeterminerPhrase"), features: ["Number", "Countability"]),
         // A determinative that can head a fused Noun Phrase alone (*choose
         // one*, *choose both*), and a coordination of such (*one or more*).
@@ -918,8 +921,10 @@
         // A noun's *of* Complement is a Noun Phrase, never a gerund-participial
         // (*the number of attacking creatures*).
         (name: "Unmodified", lhs: "Nominal", rhs: [Cat("head", "BareNominal")], equations: [Exclude("head.ObliqueKind", "Gerund")], transparent: ["head"]),
-        (name: "Premodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative")]),
+        (name: "Premodifier", lhs: "BareNominal", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")], transparent: ["head"], equations: [Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Agree("modifier.Determination", "$.Determination"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         (name: "DeterminedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "BareNominal")],
+            equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
+        (name: "CoordinatedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "PossessorNominals")],
             equations: [Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Agree("determiner.NounKind", "head.NounKind"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         (name: "GenitiveDeterminedPossessor", lhs: "Possessor", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "BareNominal")], equations: [Require("determiner.Case", "Genitive"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // *up to one target player's life total*.
@@ -1114,8 +1119,9 @@
         Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability", "DeterminativeDistribution"], equations: [Require("$.Number", "Plural"), Require("$.Person", "Third"), Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity"), Exclude("first.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
         Coordination(category: "NounPhrase", coordinators: "Additive", unshared: ["Number", "Person", "Determination", "Countability"], equations: [Require("$.Number", "Singular"), Require("$.Person", "Third"), Carry("first.DeterminativeDistribution", "Distributive"), Carry("last.DeterminativeDistribution", "Distributive")], proximate: ["Case", "NounKind"]),
         Coordination(category: "NounPhrase", coordinators: "Alternative", unshared: ["Determination", "Countability", "DeterminativeDistribution"], equations: [Exclude("first.NounKind", "Numeric"), Exclude("last.NounKind", "Numeric"), Exclude("first.NounKind", "Quantity"), Exclude("last.NounKind", "Quantity")], proximate: ["Number", "Person", "Case", "NounKind"]),
-        Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
-        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ComplementKind", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
+        Coordination(category: "Nominal", coordinators: "And", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"], equations: [Require("$.Number", "Plural"), Agree("$.ConjunctNumber", "first.Number")]),
+        Coordination(category: "Nominal", coordinators: "Disjunctive", unshared: ["NounDistribution", "ObliqueNumber", "ObliqueNounKind", "ConjunctNumber"]),
+        Coordination(category: "PossessorNominals", conjunct: Some("BareNominal"), coordinators: "Coordinator", proximate: ["Number", "Countability", "NounKind"]),
         Coordination(category: "NounPremodifier", coordinators: "Coordinator"),
         Coordination(category: "Participle", coordinators: "Coordinator", unshared: ["Inflection"]),
         Coordination(category: "AdjectivePhrase", coordinators: "Coordinator", unshared: ["Grade"]),

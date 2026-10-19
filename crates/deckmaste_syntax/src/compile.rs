@@ -177,6 +177,8 @@ struct Draft {
     unlike: Option<(usize, usize, usize)>,
     /// A polysyndetic tail that must repeat the coordinator.
     chained: Option<usize>,
+    gap_preposition: Option<LexemeId>,
+    fills_preposition: Option<usize>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Ord, PartialOrd)]
@@ -215,6 +217,8 @@ impl Draft {
             undelimited: Vec::new(),
             delimits: false,
             chained: None,
+            gap_preposition: None,
+            fills_preposition: None,
             unlike: None,
         }
     }
@@ -957,6 +961,8 @@ impl<'a> Binder<'a> {
         production.undelimited = draft.undelimited;
         production.delimits = draft.delimits;
         production.chained = draft.chained;
+        production.gap_preposition = draft.gap_preposition;
+        production.fills_preposition = draft.fills_preposition;
         production.unlike = draft.unlike;
         if self.out.by_id.contains_key(&production.id) {
             return Err(invalid(format!(
@@ -1428,7 +1434,11 @@ impl<'a> Binder<'a> {
             let frame = &self.out.frames[index];
             let name = frame_name(phrase, frame);
             let slots: Vec<&SlotFill> = frame.slots.iter().map(|s| &s.fill).collect();
-            let gappable = gap_capable && head == LexicalCategory::Verb;
+            // A verb's NP-like Complements are extracted; a noun's single
+            // *of*-like Preposition Phrase Complement is shared by Right Node
+            // Raising (*the top or bottom of their library*).
+            let gappable = gap_capable
+                && (head == LexicalCategory::Verb || frame.family == FrameFamily::NounComplement);
             // Active, with every NP slot optionally extracted. Voice is a
             // verb's; another head's phrase takes its Voice from
             // the head (a declared Adjectival Passive).
@@ -1756,6 +1766,7 @@ impl<'a> Binder<'a> {
         // Only a subjective predicative relativises (CGEL, Ch. 12 §3.3(c),
         // p. 1045): never the objective one of *turn it face up*.
         let copular = self.out.frames[frame].family == FrameFamily::Copular;
+        let noun = self.out.frames[frame].family == FrameFamily::NounComplement;
         let extractable: Vec<Option<usize>> = std::iter::once(None)
             .chain(
                 slots
@@ -1763,10 +1774,14 @@ impl<'a> Binder<'a> {
                     .enumerate()
                     .filter(|(_, fill)| {
                         gappable
-                            && (matches!(
-                                ***fill,
-                                SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::ToInf
-                            ) || (copular && ***fill == SlotFill::Pred))
+                            && if noun {
+                                matches!(***fill, SlotFill::PP(ref list) if list.len() == 1)
+                            } else {
+                                matches!(
+                                    ***fill,
+                                    SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::ToInf
+                                ) || (copular && ***fill == SlotFill::Pred)
+                            }
                     })
                     .map(|(i, _)| Some(i)),
             )
@@ -1811,7 +1826,11 @@ impl<'a> Binder<'a> {
                 }
             }
             if let Some(i) = gap {
+                if let SlotFill::PP(list) = slots[i] {
+                    draft.gap_preposition = list.first().copied();
+                }
                 draft.introduces = match slots[i] {
+                    SlotFill::PP(_) => Gap::PP,
                     SlotFill::Pred => Gap::Pred,
                     SlotFill::KeywordPhrase => Gap::Keyword,
                     SlotFill::ToInf => Gap::ToInf,
@@ -2099,6 +2118,7 @@ impl<'a> Binder<'a> {
                 (Gap::Keyword, SlotKind::KeywordPhrase, "-keyword"),
                 (Gap::ToInf, SlotKind::ToInf, "-toinf"),
                 (Gap::Pred, SlotKind::Pred, "-pred"),
+                (Gap::PP, SlotKind::PP, "-pp"),
             ] {
                 let Ok(shared) = self.slot_category(kind) else {
                     continue;
@@ -2109,7 +2129,7 @@ impl<'a> Binder<'a> {
                     *cost,
                 );
                 let h = raising.child("head", conjoin.conjunct(), GapRule::Require(gap));
-                raising.child(
+                let shared_child = raising.child(
                     "shared",
                     Symbol::Cat {
                         binding: None,
@@ -2120,6 +2140,9 @@ impl<'a> Binder<'a> {
                     GapRule::Closed,
                 );
                 raising.requires_coordination = Some(h);
+                if gap == Gap::PP {
+                    raising.fills_preposition = Some(shared_child);
+                }
                 drafts.push(raising);
             }
         }
@@ -2648,6 +2671,7 @@ fn gap_named(name: &str) -> Option<Gap> {
         "Pred" => Gap::Pred,
         "Keyword" => Gap::Keyword,
         "ToInf" => Gap::ToInf,
+        "PP" => Gap::PP,
         _ => return None,
     })
 }

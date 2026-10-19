@@ -113,7 +113,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
 - `Coordination { category, coordinators, unshared, equations, proximate, delimiter }`:
   binary and Oxford-comma serial coordination, a delimited polysyndetic chain
   (*A, or B, or C*), one tree per same-coordinator chain, across-the-board Gaps, and Right Node Raising (a coordination with a
-  shared NP, keyword-phrase, *to*-infinitival or predicative Gap, filled once after it, derived for a Category's first
+  shared NP, keyword-phrase, *to*-infinitival or predicative Gap, or a noun's single-preposition
+  Preposition Phrase Complement headed by that preposition (*the top or bottom of their library*),
+  filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which
   it takes from its last conjunct (*one or more cards*). `equations` over `$`
@@ -218,7 +220,9 @@ Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and
 postpose an Object. Same-head complement priority still applies through these
-projections. Right Node Raising requires the shared Gap at each coordinate's
+projections; a coordination whose conjuncts take the same Complements keeps
+them as its extensions, so a Complement they share is never an Adjunct of the
+coordination. Right Node Raising requires the shared Gap at each coordinate's
 right edge; ordinary extraction is not subject to that restriction. A
 gap-capable Category's `closed_gaps` names Gap kinds its Constituents never
 contain: a non-finite Complement passes up no predicative Gap (*can't be __*),

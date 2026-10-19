@@ -70,6 +70,9 @@ pub enum Gap {
     /// A *to*-infinitival Complement shared by Right Node Raising (*choose
     /// and choose to attack*).
     ToInf,
+    /// A noun's Preposition Phrase Complement shared by Right Node Raising
+    /// (*the top or bottom of their library*).
+    PP,
 }
 
 impl Gap {
@@ -174,6 +177,11 @@ pub(crate) struct Production {
     pub delimits: bool,
     /// A polysyndetic tail child that must repeat the mother's coordinator.
     pub chained: Option<usize>,
+    /// The preposition of the Preposition Phrase Complement it extracts.
+    pub gap_preposition: Option<LexemeId>,
+    /// The shared child of Right Node Raising, which must be headed by the
+    /// preposition of the Gap it fills.
+    pub fills_preposition: Option<usize>,
     /// Two conjuncts that may not share a feature value: (first, last,
     /// feature).
     pub unlike: Option<(usize, usize, usize)>,
@@ -189,6 +197,7 @@ pub(crate) type Key = (Option<usize>, usize);
 /// Builds a Production from resolved equations by unifying paths into
 /// variables.
 #[expect(clippy::too_many_arguments, reason = "one internal call shape")]
+#[expect(clippy::too_many_lines, reason = "one Production literal")]
 pub(crate) fn resolve(
     grammar: &CompiledGrammar,
     id: Ident,
@@ -316,6 +325,8 @@ pub(crate) fn resolve(
         undelimited: Vec::new(),
         delimits: false,
         chained: None,
+        gap_preposition: None,
+        fills_preposition: None,
         unlike: None,
         id,
         lhs,
@@ -339,6 +350,8 @@ pub(crate) fn resolve(
             gap: None,
             gap_right_edge: true,
             shared_gap_right_edge: true,
+            gap_preposition: None,
+            conjoined: false,
             leaves: 0,
             preposition: None,
             extensions: 0,
@@ -366,6 +379,8 @@ pub(crate) struct Summary {
     pub values: [FeatureValue; MAX_CATEGORY_FEATURES],
     pub gap: Gap,
     pub gap_right_edge: bool,
+    /// The preposition of an extracted Preposition Phrase Complement.
+    pub gap_preposition: Option<LexemeId>,
     /// Its lexical leaves, counted to two.
     pub leaves: u8,
     /// The preposition and complement frame heading a Preposition Phrase.
@@ -416,6 +431,9 @@ pub(crate) struct State {
     gap: Option<Gap>,
     gap_right_edge: bool,
     shared_gap_right_edge: bool,
+    gap_preposition: Option<LexemeId>,
+    /// A conjunct has been taken into the coordination.
+    conjoined: bool,
     /// Lexical leaves so far, counted to two.
     leaves: u8,
     preposition: Option<(LexemeId, usize)>,
@@ -566,6 +584,16 @@ impl Production {
     /// black and from red*, *into your hand or onto the battlefield*).
     fn conjoin(next: &mut State, summary: &Summary) {
         next.conjunct_hosts &= summary.hosts;
+        // Conjuncts that would take the same Complements leave the
+        // coordination extendable by them (*the top or bottom of their
+        // library* takes its *of*-phrase as a shared Complement, never as an
+        // Adjunct).
+        if !next.conjoined {
+            next.extensions = summary.extensions;
+            next.conjoined = true;
+        } else if next.extensions != summary.extensions {
+            next.extensions = 0;
+        }
         let own = [
             summary.preposition.map(|(p, _)| p),
             summary.other_preposition,
@@ -727,6 +755,17 @@ impl Production {
                     }
                 }
                 self.take_gap(&mut next, position, summary.gap)?;
+                if let Some(p) = summary.gap_preposition {
+                    if next.gap_preposition.is_some_and(|q| q != p) {
+                        return None;
+                    }
+                    next.gap_preposition = Some(p);
+                }
+                if self.fills_preposition == Some(position)
+                    && summary.preposition.map(|(p, _)| p) != next.gap_preposition
+                {
+                    return None;
+                }
                 if self.uncoordinated.contains(&position) && summary.coordinator.is_some() {
                     return None;
                 }
@@ -804,6 +843,11 @@ impl Production {
             gap,
             gap_right_edge: self.introduces != Gap::None
                 || (state.gap_right_edge && state.shared_gap_right_edge),
+            gap_preposition: match gap {
+                Gap::PP if self.introduces == Gap::PP => self.gap_preposition,
+                Gap::PP => state.gap_preposition,
+                _ => None,
+            },
             leaves: state.leaves,
             preposition: if coordinated && state.mixed_prepositions {
                 None
@@ -815,7 +859,7 @@ impl Production {
             } else {
                 state.other_preposition
             },
-            extensions: if coordinated { 0 } else { state.extensions },
+            extensions: state.extensions,
             coordinator: state.coordinator,
             hosts: match state.preposition {
                 Some((_, frame)) if !coordinated => grammar.preposition_frames[frame].hosts.mask(),

@@ -36,3 +36,6 @@
 * Each attacking creature and each blocking creature don't untap during its controller's next untap step.
 +Clause target creature and each other creature that shares a color with it get +1/+1 until end of turn => NounPhrase "target creature and each other creature that shares a color with it" as Subject of get
 +Clause another creature dies, or a creature card leaves your graveyard, or a creature card is put into a graveyard => Clause "another creature dies"; Clause "a creature card leaves your graveyard"; Clause "a creature card is put into a graveyard"; readings 1
++NounPhrase the top or bottom of their library => Nominal "top or bottom"; PrepositionPhrase "of their library" as Complement of top; PrepositionPhrase "of their library" as Complement of bottom; readings 1
++NounPhrase the same number and kind of counters => PrepositionPhrase "of counters" as Complement of number; PrepositionPhrase "of counters" as Complement of kind; readings 1
++ Target artifact or creature's owner puts it on the top of their library. => Nominal "artifact or creature"; readings 1
