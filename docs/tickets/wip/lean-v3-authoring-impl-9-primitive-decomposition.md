@@ -11,7 +11,7 @@ constraints apply.
 
 ## Scope
 
-### 1. Fold Day/Night (`[CR#731.1]`) and Room Doors (`[CR#709.5c..709.5j]`) into Designations
+### 1. Fold Day/Night (`[CR#731.1]`) into Designations
 
 - **Day and Night (`[CR#731.1,731.1a]`):**
   - Under `[CR#731.1]`, `day` and `night` are designations held by the game
@@ -22,20 +22,11 @@ constraints apply.
     `gainDesignation`, `GameEvent.does`, and `hasDesignation` (using `day` and
     `night` from `Definitions/Designations.lean`), while keeping surface templates
     in `Templates.lean` (`setGameDesignation`, `gameBecomes`, `gameIs`) expanding
-    into the unified designation primitives.
-- **Room Doors & Unlocking (`[CR#709.5c,709.5f..709.5j]`):**
-  - Under `[CR#709.5c,709.5f..709.5j]`, *"left half unlocked"* and *"right half
-    unlocked"* are designations on a permanent (`leftHalfUnlocked` and
-    `rightHalfUnlocked` in `Definitions/Designations.lean`), unlocking/locking a
-    half is giving/removing the appropriate unlocked designation, and *"fully
-    unlocks"* triggers when a permanent gains the remaining unlocked
-    designation(s) so both are held.
-  - Retire `Action.unlock`, `Action.fullyUnlock`, `CoreDeed.unlock`,
-    `CoreDeed.fullyUnlock`, `Door`, `RoomHalf`, and `LockState` from `Words.lean`
-    and `Abilities.lean`, re-expressing the surface helpers (`unlock`,
-    `fullyUnlock`, `thisDoor`, `doorOf`, `isUnlocked`, `isLocked`) in
-    `Templates.lean` / `Definitions/` over `leftHalfUnlocked` and
-    `rightHalfUnlocked`.
+    into the unified designation primitives. The game is the holder through a game noun phrase
+    (`NounPhrase.theGame`), admitted only as the holder of a `heldByGame` designation.
+- **Room Doors & Unlocking (`[CR#709.5c,709.5f..709.5j]`):** kept: "this door" is relative to
+  the half it is printed on, "a locked door" is a choice of half, and "fully unlocks" needs an
+  event no designation primitive expresses, user ruling 2026-10-19.
 
 ### 2. Decompose CR-defined and compound `Action` and `GameEvent` primitives
 
@@ -48,22 +39,18 @@ constraints apply.
    - Under `[CR#701.10e]`, doubling the number of a kind of counters on a player or
      permanent gives that player or permanent as many of those counters as it
      already has. Retire `Action.doubleCounters` from `Abilities.lean` and express
-     `Definitions.doubleCounters` via `putCounters` (matching `doubleCountersOfKind`
-     and `proliferate`).
-3. **`Action.crew` and `Action.saddle` (`[CR#702.122b,702.122d,702.171c]`):**
-   - Retire the hardcoded `Action.crew` and `Action.saddle` constructors from
-     `Abilities.lean` and express `crew` (`Action`) and `saddle` (`Action`) in
-     `Definitions/` via `Action.enact (.ofAbility (.named "crew" / "saddle"))`.
-4. **`Action.skipUntap` (`[CR#701.43a,502.3]`):**
-   - Retire `Action.skipUntap` from `Abilities.lean` and express
-     `doesntUntapDuringNextUntapStep` / `exert` (`[CR#701.43a]`) via `Action.establish`
-     of `cant any (untap subject)` during the controller's next untap step (matching
-     continuous `doesntUntap`).
+     `Definitions.doubleCounters` via `putCounters` under `doForEachKind .counterKind`, its
+     amount a bound-kind counter projection (`ProjAxis.boundCounter`).
+3. **`Action.crew` and `Action.saddle` (`[CR#702.122b,702.122d,702.171c]`):** kept: the
+   constructors carry the object-actor check and the deontic head gate `enact` lacks, user ruling
+   2026-10-19.
+4. **`Action.skipUntap` (`[CR#701.43a,502.3]`):** kept: a duration cannot count "next two untap
+   steps" (Telekinesis), user ruling 2026-10-19.
 5. **`Action.doAndForbid` (`Abilities.lean:999`):**
-   - Retire `Action.doAndForbid` from `Abilities.lean` and express `doAndForbid` /
-     `destroyCantRegenerate` in `Templates.lean` via `sequentially` +
-     `establish (cant any ...) (some untilEndOfTurn)` using `firstMention` /
-     `laterMention`.
+   - Retire `Action.doAndForbid` from `Abilities.lean` and express `doAndForbid` in
+     `Templates.lean` over the forbidden `Action` via `sequentially` +
+     `establish (cant any ...) (some untilEndOfTurn)`, with `destroyCantRegenerate` in
+     `Definitions/Actions.lean` as `doAndForbid (destroy X) (regeneration it)`.
 6. **`Action.drawGame` (`[CR#104.4]`):**
    - Add `.drawGame` to `OutcomeVerb` (`Words.lean:525`) and retire the separate
      `Action.drawGame` constructor in favor of `Action.conclude .drawGame none`.
