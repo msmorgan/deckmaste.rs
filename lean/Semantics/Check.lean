@@ -250,7 +250,7 @@ theorem slice_c_fact_or_fiction_pin_sound :
 def sliceDVoteAndChoicePin : Ability :=
   .spell none <|
     .sequentially [
-      .establish (.choice .entry .you (.quality .color) none .openly) none,
+      .choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none,
       .instruct (.described .each .anyPlayer)
         (.vote (some .you) .openly (.byLabel ["grace", "condemnation"]) none),
       .draw (.votesFor "grace"),

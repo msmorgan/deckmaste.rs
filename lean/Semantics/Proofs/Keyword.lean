@@ -129,7 +129,7 @@ def enchantmentWith (text : List Ability) : Card :=
 
 /-- "As this enchantment enters, choose a creature type." -/
 def choosesCreatureType : Ability :=
-  .static (entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly)
+  .static (entersChoosing thisEnchantment (.subtype .creature))
 
 /-- "Creatures of the chosen type get +1/+1." -/
 def chosenTypeGets : Ability :=
@@ -154,7 +154,7 @@ theorem badTwoChoosersOneSortRead :
 theorem badChosenReadWrongSort :
     Card.check
       (enchantmentWith
-        [ .static (entryChoice thisEnchantment (.quality .color) none .openly),
+        [ .static (entersChoosing thisEnchantment .color),
           chosenTypeGets ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 
@@ -168,7 +168,7 @@ theorem badChosenProtectionBeforeChoice :
               [ .static
                   (Templates.abilityGrant thisCreature
                     (.keyword (.named "protection") [.quality (ofChosen .color)] [])),
-                .static (entryChoice thisCreature (.quality .color) none .openly) ] } })
+                .static (entersChoosing thisCreature .color) ] } })
       = [.choiceRef .theChoice (.quality .color) 0] := by
   decide
 

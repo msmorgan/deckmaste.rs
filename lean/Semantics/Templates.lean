@@ -53,14 +53,6 @@ semantic_template abilityLoss (subject : NounPhrase) (abilities : List AbilityLo
 semantic_template allAbilityLoss (subject : NounPhrase) (except : Option Predicate := none) :
     StaticSpec :=
   .characteristicChange subject [.removedAbilities (.allExcept except)]
-/-- "As <subject> enters, [secretly] choose <sort> [from <domain>]." -/
-semantic_template entryChoice (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
-    (disclosure : Disclosure) : StaticSpec :=
-  .choice .entry subject sort domain disclosure
-/-- "As <subject> becomes attached, choose <sort> [from <domain>]." -/
-semantic_template attachmentChoice (subject : NounPhrase) (sort : ChoiceSort)
-    (domain : Option ChoiceDomain) : StaticSpec :=
-  .choice .attachment subject sort domain .openly
 /-- "During [<whose>] <part>, <spec>" -/
 semantic_template partScope (part : TurnPart) (whose : Option NounPhrase) (spec : StaticSpec) :
     StaticSpec := .conditional spec (.duringPart part whose) .asLongAs
@@ -1770,21 +1762,28 @@ semantic_template triggeredIf (event : GameEvent) (condition : Condition)
 semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit)
     (action : Action) : Ability :=
   .triggered event [] none [] none (some limit) none action
+/-- "As <subject> enters, [secretly] choose <chosen>": an Off-Stack Static whose choice is made
+as the permanent enters [CR#614.1c,614.12]. -/
+semantic_template entryChoice (subject chosen : NounPhrase) (disclosure : Disclosure := .openly) :
+    StaticSpec :=
+  .asEvent (does subject enter) (.choose none chosen disclosure none)
+/-- "As <subject> becomes attached, choose <chosen>": an Off-Stack Static whose choice is made as
+it becomes attached [CR#604.1]. -/
+semantic_template attachmentChoice (subject chosen : NounPhrase) : StaticSpec :=
+  .asEvent (does .any (.attachment .attached subject none)) (.choose none chosen .openly none)
 /-- "As <subject> enters, choose a <quality>." -/
 semantic_template entersChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  entryChoice subject (.quality sort) none .openly
+  entryChoice subject (a (quality sort))
 /-- "As <subject> enters, choose a <quality> from <domain>." -/
 semantic_template entersChoosingFrom (subject : NounPhrase) (sort : QualitySort)
     (domain : ChoiceDomain) : StaticSpec :=
-  entryChoice subject (.quality sort) (some domain) .openly
-/-- "As <subject> enters, choose a player [from <domain>]." -/
-semantic_template entersChoosingPlayer (subject : NounPhrase) (domain : Option ChoiceDomain) :
-    StaticSpec :=
-  entryChoice subject .player domain .openly
-/-- "As <subject> enters, secretly choose a player [from <domain>]." -/
-semantic_template entersChoosingPlayerSecretly (subject : NounPhrase)
-    (domain : Option ChoiceDomain) : StaticSpec :=
-  entryChoice subject .player domain .secretly
+  entryChoice subject (a (qualityFrom sort domain))
+/-- "As <subject> enters, choose <player>", as "choose an opponent". -/
+semantic_template entersChoosingPlayer (subject player : NounPhrase) : StaticSpec :=
+  entryChoice subject player
+/-- "As <subject> enters, secretly choose <player>". -/
+semantic_template entersChoosingPlayerSecretly (subject player : NounPhrase) : StaticSpec :=
+  entryChoice subject player .secretly
 /-- "<subject> enters <riders>", a static ability: as `subject` would enter, it enters with
 `riders` instead, "it" read back as "them" after a plural subject ("creatures you control enter
 tapped") [CR#614.1c,614.1d]. -/
@@ -1798,7 +1797,7 @@ semantic_template entersTapped (subject : NounPhrase) : StaticSpec :=
   enters subject [.entersAs .tapped]
 /-- "As <subject> becomes attached, choose a <quality>." -/
 semantic_template attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
-  attachmentChoice subject (.quality sort) none
+  attachmentChoice subject (a (quality sort))
 /-- "<subject> enters with N <kind> counters on it" -/
 semantic_template entersWithCounters (subject : NounPhrase) (amount : Amount) (kind : CounterKind) :
     StaticSpec :=
@@ -1912,9 +1911,6 @@ semantic_template asThose : TokenSpec := .asThose
 semantic_template characteristicChange (subject : NounPhrase)
     (edits : List CharacteristicEdit := []) : StaticSpec :=
   .characteristicChange subject edits
-semantic_template choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
-    (disclosure : Disclosure) (domain : Option ChoiceDomain := none) : StaticSpec :=
-  .choice occasion subject sort domain disclosure
 semantic_template compound (costs : List Cost := []) : Cost := .compound costs
 semantic_template conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking) :
     StaticSpec :=

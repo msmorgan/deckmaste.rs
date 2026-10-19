@@ -303,7 +303,7 @@ theorem okVolrathsLaboratoryChoice : StaticSpec.check (DRS.ofList []) volrathsLa
 /-- Call to Arms -/
 def callToArmsChoice : StaticSpec :=
   conjunction [ entersChoosing thisEnchantment .color,
-      entersChoosingPlayer thisEnchantment (some (players isOpponent)) ]
+      entersChoosingPlayer thisEnchantment anOpponent ]
 theorem okCallToArmsChoice : StaticSpec.check (DRS.ofList []) callToArmsChoice = [] := by decide
 
 def encroachingMycosynth : Spelled := spelled <| .singleFaced
@@ -832,7 +832,7 @@ def skillBorrower : Spelled := spelled <| .singleFaced
 
 /-- Emissary of Grudges -/
 def emissaryOfGrudgesEntry : StaticSpec :=
-  entersChoosingPlayerSecretly thisCreature (some (players isOpponent))
+  entersChoosingPlayerSecretly thisCreature anOpponent
 theorem okEmissaryOfGrudgesEntry : StaticSpec.check (DRS.ofList []) emissaryOfGrudgesEntry = [] := by decide
 
 def aerialAssault : Action := destroy (target (and [isCreature, isTapped]))

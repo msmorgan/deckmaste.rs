@@ -553,7 +553,7 @@ theorem okLastChosenAfterChooser :
         { characteristics :=
           { name := "", types := [.enchantment],
             text :=
-              [ .static (entryChoice thisEnchantment (.quality .color) none .openly),
+              [ .static (entersChoosing thisEnchantment .color),
                 .static preventLastChosenColor ] } }) = [] := by
   decide
 
@@ -564,7 +564,7 @@ theorem badLastChosenBeforeChooser :
           { name := "", types := [.enchantment],
             text :=
               [ .static preventLastChosenColor,
-                .static (entryChoice thisEnchantment (.quality .color) none .openly) ] } })
+                .static (entersChoosing thisEnchantment .color) ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide
 
@@ -575,7 +575,7 @@ theorem badLastChosenWrongSort :
           { name := "", types := [.enchantment],
             text :=
               [ .static
-                  (entryChoice thisEnchantment (.quality (.subtype .creature)) none .openly),
+                  (entersChoosing thisEnchantment (.subtype .creature)),
                 .static preventLastChosenColor ] } })
       = [.choiceRef .theLatestChoice (.quality .color) 0] := by
   decide

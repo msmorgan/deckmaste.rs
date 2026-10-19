@@ -2879,15 +2879,6 @@ def stepOps : Nat → StepOps
           let (drs1, _, e1) := ops.np drs .subj true player
           let (drs2, ids, e2) := ops.np drs1 .obj true subj
           (applyInPlaceStamp drs2 ids (some (.core .gainControl)), e1 ++ e2)
-        | .choice _ subj q dom _ =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := sortedDomainCheckWith ops drs1 q dom
-          let choiceRef : Referent := {
-            det := .the, plur := .one,
-            payload := match q with | .player => .player true | .quality qs => .quality qs
-          }
-          let drs3 := drs2.push choiceRef .other false
-          (drs3, e1 ++ e2)
         | .modeChoice mc => stepModeChangeWith ops drs mc
         | .cant subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]

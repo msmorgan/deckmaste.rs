@@ -77,29 +77,34 @@ theorem patientOnlyDoesNotManufactureSource :
       (.does .any (.dealDamage .anyAmount thisCreature .any))).performer = none := by decide
 
 theorem choiceOccasionsRemainDistinct :
-    StaticSpec.choice .entry thisCreature (.quality .color) none .openly ≠
-      StaticSpec.choice .attachment thisCreature (.quality .color) none .openly := by
+    entersChoosing thisCreature .color ≠ attachChoosing thisCreature .color := by
   intro equal
   cases equal
 
 theorem choiceDisclosureRemainsDistinct :
-    StaticSpec.choice .entry thisCreature .player none .openly ≠
-      StaticSpec.choice .entry thisCreature .player none .secretly := by
+    entersChoosingPlayer thisCreature anOpponent ≠
+      entersChoosingPlayerSecretly thisCreature anOpponent := by
   intro equal
   cases equal
 
-theorem everyChoiceOccasionPublishesItsSort (occasion : ChoiceOccasion) (drs : DRS)
-    (subject : NounPhrase) (sort : ChoiceSort) (domain : Option ChoiceDomain)
-    (disclosure : Disclosure) :
-    ((stepStaticSpec 64 drs (.choice occasion subject sort domain disclosure)).1.referents.head?).map
-      (·.payload) = some sort.binding.payload := by
-  cases sort <;> rfl
+/-- A choice made as a permanent enters or becomes attached is read by a later line of its
+text ("the chosen color"). -/
+theorem everyChoiceOccasionPublishesItsSort :
+    let reader := Ability.static (.characteristicChange .any
+      [.chosenQuality .adds (.ofChosen .theChoice .color)])
+    Ability.checkText (DRS.ofList []) [.static (entersChoosing thisCreature .color), reader] = [] ∧
+      Ability.checkText (DRS.ofList []) [.static (attachChoosing thisCreature .color), reader] =
+        [] := by
+  decide
 
-theorem everyChoiceOccasionChecksDomain (occasion : ChoiceOccasion) :
+theorem everyChoiceOccasionChecksDomain :
     StaticSpec.check (DRS.ofList [])
-      (.choice occasion thisCreature (.quality .color) (some (.players (.isOpponentOf .you))) .openly) =
-      [.kindAxisSort] := by
-  cases occasion <;> decide
+        (entryChoice thisCreature (a (qualityFrom .color (.players (.isOpponentOf .you))))) =
+      [.kindAxisSort] ∧
+      StaticSpec.check (DRS.ofList [])
+          (attachmentChoice thisCreature (a (qualityFrom .color (.players (.isOpponentOf .you))))) =
+        [.kindAxisSort] := by
+  decide
 
 theorem deathPublishesArrival :
     nounZone (GameEvent.extend (DRS.ofList []) (does (a isCreature) die)) it =

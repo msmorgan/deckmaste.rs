@@ -49,7 +49,6 @@ private def staticTextContext (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64)
   match fuel, spec with
   | 0, _ => drs
   | n+1, .inCaller body => staticTextContext drs body n
-  | _+1, .choice _ _ sort _ _ => publishTextChoices drs [sort]
   | n+1, .conjunction _ parts =>
     parts.foldl (fun context part => staticTextContext context part n) drs
   | _+1, .addedCost cost _ _ => costTextContext drs cost
@@ -175,7 +174,8 @@ def UsageLimit.check (drs : DRS) (limit : UsageLimit) : List Refusal :=
   (stepUsageLimitWith (stepOps 64) drs limit).2
 
 private def announcedColor : Ability :=
-  .static (.choice .entry .any (.quality .color) none .openly)
+  .static (.asEvent (.does .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival none []))
+    (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
 private def readAnnouncedColor : Ability :=
   .static (.characteristicChange .any [.chosenQuality .adds (.ofChosen .theChoice .color)])
 

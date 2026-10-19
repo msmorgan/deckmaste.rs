@@ -128,7 +128,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | _n + 1, .preventionBan _ _ _ => []
   | _n + 1, .conditional _ _ _ => []
   | _n + 1, .visibility _ _ _ | _n + 1, .additionalTriggers _ _ => []
-  | _n + 1, .choice _ _ _ _ _ | _n + 1, .conjunction _ _ => []
+  | _n + 1, .conjunction _ _ => []
 termination_by structural fuel
 
 /-- The action's own slots and the regime each is read in [CR#107.1b]. -/

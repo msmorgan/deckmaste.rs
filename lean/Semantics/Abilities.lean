@@ -821,8 +821,6 @@ mutual
     | conditional (spec : StaticSpec) (condition : Condition) (marking : CondMarking)
     | visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing)
     | additionalTriggers (event : GameEvent) (quantity : Quantity)
-    | choice (occasion : ChoiceOccasion) (subject : NounPhrase) (sort : ChoiceSort)
-        (domain : Option ChoiceDomain) (disclosure : Disclosure)
     | conjunction (subject : Option NounPhrase) (parts : List StaticSpec)
     /-- A Mana Substitute on a spell (convoke, delve, improvise): neither an additional nor an
     alternative cost, applied once the spell's total cost is locked

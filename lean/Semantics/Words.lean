@@ -607,13 +607,4 @@ end Semantics
 
 attribute [semantic_expression] Semantics.Delta
 
-namespace Semantics
-
-/-- The event at which a static choice is made. -/
-inductive ChoiceOccasion where
-  | entry | attachment
-  deriving DecidableEq, Repr
-
-end Semantics
-
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic

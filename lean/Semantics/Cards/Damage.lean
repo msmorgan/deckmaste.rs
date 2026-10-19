@@ -208,7 +208,7 @@ def blackVise : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Black Vise", cost := some [generic 1], types := [.artifact],
       text :=
-        [ static (entersChoosingPlayer thisArtifact (some (players isOpponent))),
+        [ static (entersChoosingPlayer thisArtifact anOpponent),
           at_ (beginningOfPossessed .upkeep (the isChosenPlayer))
             (sequentially
               [ instruct thisArtifact (dealDamage (letter .x) (that player) .noncombatOnly),
@@ -806,7 +806,7 @@ def stuffyDoll : Spelled := spelled <| .singleFaced
       subtypes := [construct],
       text :=
         [ indestructible,
-          static (entersChoosingPlayer thisCreature none),
+          static (entersChoosingPlayer thisCreature (a isPlayer)),
           whenever (does any (dealDamage (to := thisCreature))) (instruct it (dealDamage thatMuch (the isChosenPlayer) .noncombatOnly)),
           activated tapSymbol (instruct thisCreature (dealDamage (.lit 1) thisCreature .noncombatOnly)) ],
       power := stat 0, toughness := stat 1 } }

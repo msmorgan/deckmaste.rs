@@ -477,7 +477,7 @@ def nyxathid : Spelled := spelled <| .singleFaced
     { name := "Nyxathid", cost := some [generic 1, pip .black, pip .black], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ static (entersChoosingPlayer thisCreature (some (players isOpponent))),
+        [ static (entersChoosingPlayer thisCreature anOpponent),
           static (getsPt thisCreature
             (down (countOf (cardIn (handOf (the isChosenPlayer)))))
             (down (countOf (cardIn (handOf (the isChosenPlayer)))))) ],
@@ -1268,7 +1268,7 @@ def trueNameNemesis : Spelled := spelled <| .singleFaced
     { name := "True-Name Nemesis", cost := some [generic 1, pip .blue, pip .blue],
       types := [.creature], subtypes := [merfolk, rogue],
       text :=
-        [ static (entersChoosingPlayer thisCreature none),
+        [ static (entersChoosingPlayer thisCreature (a isPlayer)),
           protection isChosenPlayer ],
       power := stat 3, toughness := stat 1 } }
 
