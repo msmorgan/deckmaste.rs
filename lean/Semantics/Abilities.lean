@@ -254,8 +254,12 @@ mutual
     /-- Rules text printed in square brackets, kept in place so a Text Change can find it
     [CR#702.148a]: transparent, it means what `predicate` means. -/
     | bracketed (predicate : Predicate)
+    /-- "Another", "other" with no anchor written: other than the targets the text has already
+    chosen of the member's kind ("another target creature"). -/
     | other
     | notChosen
+    /-- "Other than <anchor>": not `anchor` itself, nor one of it ("another creature you control"
+    is other than this one, "other than that creature"). -/
     | otherThan (anchor : NounPhrase)
     | coinCameUp (face : CoinFace)
     | isSource
@@ -1079,7 +1083,7 @@ mutual
     /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/
     | shuffle (pile : Location)
     | flipCoins (count : FlipScope) (call : Option FlipCall) (outcome : Option CoinFace)
-    | rollDice (count : Amount) (sides : DieSides) (batch : DiceBatch) (watch : RollWatch)
+    | rollDice (count : Amount) (sides : DieSides) (batch : Plurality) (watch : RollWatch)
     | applyResultsTable (rows : List RollRow)
     | ignoreOutcomes (which : IgnoredOutcomes)
     /-- Raise or lower a die result by one of `changes`, the performer's choice: "increase or

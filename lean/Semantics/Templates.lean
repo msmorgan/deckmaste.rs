@@ -1107,7 +1107,7 @@ semantic_template flipCoins (count : Amount := anyAmount)
   .flipCoins (.count count) call outcome
 /-- "roll <count> <sides>-sided dice [and watch for <watch>]" -/
 semantic_template rollDice (count : Amount := .lit 1)
-    (sides : DieSides := .sides 6) (batch : DiceBatch := .one)
+    (sides : DieSides := .sides 6) (batch : Plurality := .one)
     (watch : RollWatch := anyResult) : Action :=
   .rollDice count sides batch watch
 

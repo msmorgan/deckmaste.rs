@@ -148,6 +148,20 @@ constraints apply.
     duplicated qualifier slots (`Ability.activated` vs `Ability.qualified` vs
     `triggered` limit vs `Action.limited`), `Plurality`/`CounterBatch`/`DiceBatch`,
     and orphan `inCaller` constructors on `TokenSpec`/`MoveRider` (§4.13).
+    Audit: `DiceBatch` duplicated `Plurality` and is retired; `TokenSpec` and
+    `MoveRider` get their `CallerScope` instances (`create` already wraps
+    both); `Predicate.other` (no anchor: other than the targets already
+    chosen of its kind) and `otherThan` (a written anchor) are documented, two
+    meanings. Kept: `mayBeginOnBattlefield` is the opening-hand action of
+    `[CR#103.6a]`, not a static, activated or triggered ability;
+    `alsoForKeywords` is a Text construct six cards print ("the same is true
+    for …"); `thatAbility` reads a chosen ability back as an Ability value;
+    `CounterBatch.emptying` is part of the event `[CR#310.12b]`, so it is no
+    plurality. An activated ability's own timing, limit and guard are the
+    printed restriction on its use `[CR#602.5b]`, `qualified` the one a keyword
+    or a grant adds to the ability it carries (ruling of 2026-10-09);
+    `triggered`'s limit bounds the triggering, `Action.limited` the action
+    ("do this only once each turn", `[CR#603.2h]`).
 
 ### 3. Authoring, Label Discipline, Layering & Dead Helpers (Opus §§4.2, 4.8–4.12, 5.4)
 

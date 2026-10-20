@@ -17,10 +17,6 @@ inductive CounterBatch where
   | emptying
   deriving DecidableEq, Repr
 
-inductive DiceBatch where
-  | one | many
-  deriving DecidableEq, Repr
-
 inductive PaymentOutcome where
   | paid | unpaid
   deriving DecidableEq, Repr

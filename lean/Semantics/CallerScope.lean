@@ -47,6 +47,12 @@ instance : CallerScope NounPhrase where
 instance : CallerScope GameEvent where
   caller := GameEvent.inCaller
 
+instance : CallerScope TokenSpec where
+  caller := TokenSpec.inCaller
+
+instance : CallerScope MoveRider where
+  caller := MoveRider.inCaller
+
 class CallerSplice (α : Type) where
   close : α → α
 
