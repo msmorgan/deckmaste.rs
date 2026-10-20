@@ -365,9 +365,10 @@ semantic_definition champion (quality : Predicate) : Ability :=
       triggered (does thisPermanent leave)
         (returnTo (linkedObject (.byDeed (.action "exile")) (.action "exile") this_) battlefield
           [.under (ownerOf (that .card))]) ]
+/-- "Changeling" means "This object is every creature type": a Characteristic-Defining Ability
+of the object, a Kindred instant or sorcery as much as a creature [CR#702.73a,604.3a]. -/
 semantic_definition changeling : Ability :=
-  .keyword (.named "changeling") []
-    [static (.characteristicChange thisCreature [.quality .adds (.everyTypeOf .creature)])]
+  .keyword (.named "changeling") [] [static (qualityDefinition this_ .adds (everyTypeOf .creature))]
 semantic_definition chooseABackground : Ability := keyword (.named "chooseABackground")
 semantic_definition cipher : Ability :=
   .keyword (.named "cipher") []
@@ -483,8 +484,10 @@ semantic_definition dethrone : Ability :=
             (some
               (the (and [.anyPlayer, .superlative .max (.playerStat .lifeTotal) .anyPlayer])))))
         (putCounters (.lit 1) (.printed p1p1Counter) thisCreature) ]
+/-- "Devoid" means "This object is colorless": a Characteristic-Defining Ability
+[CR#702.114a,604.3a]. -/
 semantic_definition devoid : Ability :=
-  .keyword (.named "devoid") [] [static (.characteristicChange this_ [.colors .sets (.some [])])]
+  .keyword (.named "devoid") [] [static (qualityDefinition this_ .sets (colored (.some [])))]
 semantic_definition devourQuality (quality : Predicate) (amount : Amount) : Ability :=
   .keyword (.named "devour") [.quality (.inCaller quality), .number (.inCaller amount)]
     [ static

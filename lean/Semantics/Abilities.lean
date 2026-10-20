@@ -734,9 +734,8 @@ mutual
     /-- A stat set (`sets`), or raised (`adds`) or lowered (`loses`) by `amount`. In a static
     change of power and toughness, a set applies in layer 7b and a change by an amount in layer
     7c [CR#613.4b,613.4c]: "<subject> gets +P/+T" is two of these, the subject written once. A
-    set an object's own printed, unconditional static ability makes of its own power or
-    toughness ("this creature's power is equal to …") is a characteristic-defining ability,
-    applied in layer 7a [CR#604.3a,613.4a]; that is read from where the set stands, not stored. -/
+    set of an object's own power or toughness by a characteristic-defining ability is written
+    under `StaticSpec.characteristicDefining`, applied in layer 7a [CR#604.3a,613.4a]. -/
     | stat (op : QualityOp) (axis : CharacteristicStat) (amount : Amount)
     /-- The subject's power and toughness are switched [CR#613.4d]. -/
     | ptSwitch
@@ -845,6 +844,22 @@ mutual
     power and toughness P/T"), the abilities it has or gains, and the rest of its
     characteristics, each one Characteristic Edit, the subject written once. -/
     | characteristicChange (subject : NounPhrase) (edits : List CharacteristicEdit)
+    /-- A Characteristic-Defining Ability: `subject`, the object itself, has the colors,
+    subtypes, power or toughness `edits` define ("this creature's power is equal to …",
+    "this object is every creature type", devoid's "this object is colorless") [CR#604.3a].
+    Each edit is a color edit, a subtype edit (an every-type-of quality or a type line writing
+    subtypes alone), or a power or toughness `sets`; a stat edit names its number, which a later
+    edit reads back ("its toughness is equal to that number plus 1"). Written as a printed
+    static ability, unconditionally, and never inside a grant or an established effect: the
+    checker refuses a subject other than the object itself, a condition, and a grant
+    [CR#604.3a]. It stands on the card's own face, in a token's definition, or comes with a copy
+    or a text change; a keyword whose definition writes one (changeling, devoid) has one where
+    the keyword stands so, while another effect granting that keyword gives an ordinary
+    continuous effect [CR#604.3a]. It functions in all zones and
+    outside the game [CR#604.3]. Its effects apply first within their layer: a subtype edit in
+    layer 4 and a color edit in layer 5, before the other effects there [CR#613.1d,613.1e,613.3];
+    a power or toughness edit in layer 7a [CR#613.4a]. -/
+    | characteristicDefining (subject : NounPhrase) (edits : List CharacteristicEdit)
     | retention (spec : StaticSpec) (subject : NounPhrase)
     | copyChange (subject : NounPhrase) (source : NounPhrase) (exceptions : List CopyExcept)
     | controlGrant (player : NounPhrase) (subject : NounPhrase)

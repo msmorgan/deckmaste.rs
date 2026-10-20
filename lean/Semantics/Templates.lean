@@ -1994,21 +1994,31 @@ semantic_template perform (action : Action) : Cost := .perform action
 semantic_template preventionBan (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan) :
     StaticSpec :=
   .preventionBan kind damage ban
-/-- "<subject>'s power [and toughness] [are each] [is] equal to <amount>": a set of each stat
-`slots` names, the subject written once; on the object's own printed, unconditional static
-ability it is a characteristic-defining ability [CR#604.3a,613.4a]. -/
+/-- "<subject>'s power [and toughness] [are each] [is] equal to <amount>": a
+Characteristic-Defining Ability setting each stat `slots` names [CR#604.3a,613.4a]. -/
 semantic_template ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount) :
     StaticSpec :=
-  .characteristicChange subject (match slots with
+  .characteristicDefining subject (match slots with
     | .powerAlone => [.stat .sets .power amount]
     | .toughnessAlone => [.stat .sets .toughness amount]
     | .bothEach => [.stat .sets .power amount, .stat .sets .toughness amount])
+/-- "<subject>'s power is equal to <power> and its toughness is equal to <toughness>": one
+Characteristic-Defining Ability setting both, the toughness free to read the power's number
+back ("that number plus 1") [CR#604.3a,613.4a]. -/
+semantic_template ptDefinitions (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
+  .characteristicDefining subject [.stat .sets .power power, .stat .sets .toughness toughness]
 semantic_template ptModification (subject : NounPhrase) (power toughness : Delta Amount) :
     StaticSpec :=
   getsPt subject power toughness
 /-- "Switch <subject>'s power and toughness" [CR#613.4d] -/
 semantic_template ptSwitch (subject : NounPhrase) : StaticSpec :=
   .characteristicChange subject [.ptSwitch]
+/-- "<subject> is <quality>" as a Characteristic-Defining Ability: "this creature is all
+colors", "this object is colorless", "this object is every creature type"
+[CR#604.3a,702.73a,702.114a]. -/
+semantic_template qualityDefinition (subject : NounPhrase) (op : QualityOp)
+    (payload : QualityPayload) : StaticSpec :=
+  .characteristicDefining subject (payload.edits op)
 semantic_template repeatable : ModeChange := .repeatable
 semantic_template retention (spec : StaticSpec) (subject : NounPhrase) : StaticSpec :=
   .retention spec subject

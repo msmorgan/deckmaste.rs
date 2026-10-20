@@ -180,6 +180,19 @@ inductive Refusal where
   /-- A replacement's riders are Entry Riders, never Pile Placements, which only a card put into
   another zone carries [CR#401.4,406.3,614.12]. -/
   | entryRidersOnly
+  /- characteristic-defining abilities [CR#604.3a] -/
+  /-- A Characteristic-Defining Ability defines colors, subtypes, power or toughness, and
+  nothing else (criterion 1). -/
+  | cdaEdit
+  /-- A Characteristic-Defining Ability defines the object it is on, and affects no other
+  object's characteristics (criterion 3). -/
+  | cdaSubject
+  /-- A Characteristic-Defining Ability is no grant: an object granting it, to itself or
+  another, or an effect putting it in force, gives an ordinary continuous effect (criteria 2
+  and 4). -/
+  | cdaGranted
+  /-- A Characteristic-Defining Ability sets its values unconditionally (criterion 5). -/
+  | cdaConditional
   deriving DecidableEq, Repr
 
 end Semantics

@@ -10,8 +10,8 @@ Port of `idris/src/Experimental/Cards/Turn.idr`: the printed cards of the Turn f
 parts, extra turns, additional phases, cast windows) and the bench items beside them.
 
 Not ported: `fracturedPowerstonePlanarRoll` (the planar die is Planechase, out of scope).
-`shapeshifter`'s printed `*`/`7-*` box is `none` under the printed-star ruling; the
-characteristic-defining clauses set it.
+`shapeshifter`'s printed `*`/`7-*` box is `none` under the printed-star ruling; its
+Characteristic-Defining Ability sets it.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -374,8 +374,8 @@ def shapeshifter : Spelled := spelled <| .singleFaced
         [ static (entersChoosingFrom thisCreature .number (number (fromTo 0 7))),
           at_ (beginningOfYour .upkeep)
             (may (choose (a (qualityFrom .number (number (fromTo 0 7)))))),
-          static (conjunction [ ptDefinition thisCreature .powerAlone theLastChosenNumber,
-              ptDefinition thisCreature .toughnessAlone (minus (.lit 7) theLastChosenNumber) ]) ] }
+          static (ptDefinitions thisCreature theLastChosenNumber
+            (minus (.lit 7) theLastChosenNumber)) ] }
                   }
 
 def selfSacrificeThenExile : Ability :=

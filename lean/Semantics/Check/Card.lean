@@ -151,17 +151,15 @@ def printedAfterLaws (text : List Ability) : List Refusal :=
   (Ability.printedAfterKeywordsAll text).filterMap fun k =>
     if text.any (Ability.printsKeyword k) then none else some (.printedAfterKeyword k)
 
-/-- The stats a static ability defines for its own object: a set of the object's own power or
-toughness, written unconditionally [CR#604.3a]. -/
+/-- The stats a static ability's Characteristic-Defining Ability defines: its power or
+toughness sets [CR#604.3a,613.4a]. -/
 def StaticSpec.definedStats (s : StaticSpec) (fuel : Nat := 64) : List CharacteristicStat :=
   match fuel, s with
   | n + 1, .inCaller b => b.definedStats n
-  | _ + 1, .characteristicChange subject edits =>
-    if subject.selfDefinedOk then
-      edits.filterMap fun
-        | .stat .sets axis _ => some axis
-        | _ => none
-    else []
+  | _ + 1, .characteristicDefining _ edits =>
+    edits.filterMap fun
+      | .stat .sets axis _ => some axis
+      | _ => none
   | n + 1, .conjunction _ ps => ps.flatMap (fun p => p.definedStats n)
   | _, _ => []
 termination_by structural fuel

@@ -172,6 +172,17 @@ An Ability written as a statement that is simply true and may create continuous
 Effects while active ([CR#113.3d,604.1,609.1]).
 _Avoid_: Static Effect
 
+**Characteristic-Defining Ability**:
+A Static Ability that defines its own Object's colors, subtypes, power, or
+toughness, conveying what would otherwise be found elsewhere on the Object
+([CR#604.3]). It stands on the card it affects, was given to the Token it
+affects by the effect that created it, or came by a copy or text-changing
+effect; it affects no other Object, is not one an Object grants itself, and
+sets its values unconditionally ([CR#604.3a]). It functions in every zone and
+outside the game ([CR#604.3]), and its effects apply before the others in their
+layer, power and toughness in layer 7a ([CR#613.3,613.4a]). Changeling and
+devoid are Keyword Abilities of this kind ([CR#702.73a,702.114a]).
+
 **Ability Category**:
 Which of the four general kinds an Ability is: Spell Ability, Activated
 Ability, Triggered Ability, or Static Ability ([CR#113.3]). A Keyword Ability's

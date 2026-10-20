@@ -14,13 +14,11 @@ constraints apply.
 ### 1. Finish `CharacteristicEdit` Unification (Opus §4.1)
 
 - Fold `StaticSpec.ptDefinition` and `StaticSpec.ptSwitch` (`[CR#613.4a,613.4d]`)
-  into `CharacteristicEdit` under `StaticSpec.characteristicChange`. A defined
-  power or toughness is a `stat .sets` edit; whether it is a
-  characteristic-defining ability (layer 7a) is read from where it stands (the
-  object's own printed, unconditional static ability setting its own stat,
-  `[CR#604.3a]`), as a self "is all colors" already was, not stored. The
-  switch is `CharacteristicEdit.ptSwitch`. `ptDefinition`/`ptSwitch` remain as
-  templates, `DefinedSlots` as `ptDefinition`'s input only.
+  into `CharacteristicEdit`. A defined power or toughness is a `stat .sets`
+  edit, written under `StaticSpec.characteristicDefining` (§1c). The switch is
+  `CharacteristicEdit.ptSwitch` under `characteristicChange`.
+  `ptDefinition`/`ptSwitch` remain as templates, `DefinedSlots` as
+  `ptDefinition`'s input only.
 - Collapse the triple encoding of `"every type of"`, `"chosen quality"`, and
   color setting across `TokenQuality`, `QualityPayload`, and `CharacteristicEdit`,
   and deduplicate `retained` between `TypeLineChanges` and `QualityPayload.bundle`.
@@ -63,6 +61,29 @@ constraints apply.
   and mutate's merge `[CR#702.140c]`. Dredge's "as long as you have at least N
   cards in your library" `[CR#702.52a]` is an as-long-as condition on the
   static ability and stays there.
+
+### 1c. Characteristic-Defining Abilities as a Form (owner addition)
+
+- Whether a static ability is a characteristic-defining ability is a rules
+  classification (all zones `[CR#604.3]`, first in its layer, 7a for power and
+  toughness `[CR#613.3,613.4a]`), so it is a form, not inferred from where a
+  set stands: `StaticSpec.characteristicDefining subject edits`. The subject
+  stays written (it carries the printed head: "this creature's power",
+  changeling's "this object"), and the checker enforces `[CR#604.3a]` where
+  it is structurally visible: an edit other than a color, subtype, power or
+  toughness definition (`cdaEdit`, criterion 1; a stat sets, a color or
+  subtype adds or sets), a subject other than the object itself (`cdaSubject`,
+  3), the form written inside a grant or an established effect (`cdaGranted`,
+  2 and 4; a granted keyword whose definition is one, as changeling, is an
+  ordinary grant), and a condition on it (`cdaConditional`, 5). Criterion 2
+  otherwise holds by where it stands: a face, a token's definition, a copy or
+  a text change.
+- Templates `ptDefinition`, `ptDefinitions` (power and toughness apart, one
+  ability; the toughness reads the power's number back: Tarmogoyf, Lhurgoyf,
+  Consuming Blob, Shapeshifter) and `qualityDefinition`. Changeling ("This
+  object is every creature type", subject `this_`, `[CR#702.73a]`), devoid
+  `[CR#702.114a]`, Transguild Courier and Mistform Ultimus are written with
+  it. `definedStats` reads the form.
 
 ### 2. Reconcile Overlapping AST & Vocabulary Constructs (Opus §§4.3–4.6, §4.13–4.14)
 

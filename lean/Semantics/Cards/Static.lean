@@ -12,7 +12,7 @@ Port of `idris/src/Experimental/Cards/Static.idr`: the printed cards of the Stat
 the bench items beside them.
 
 `maro`, `peopleOfTheWoods` and `cultivatorColossus` print `*` boxes: those slots are `none`
-under the printed-star ruling, and the characteristic-defining clauses set them.
+under the printed-star ruling, and their Characteristic-Defining Abilities set them.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -368,7 +368,7 @@ def transguildCourier : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Transguild Courier", cost := some [generic 4], types := [.artifact, .creature],
       subtypes := [golem],
-      text := [static (qualityChange thisCreature .sets (colored .every))],
+      text := [static (qualityDefinition thisCreature .sets (colored .every))],
       power := stat 3, toughness := stat 3 } }
 
 /-- Booby Trap -/
@@ -430,7 +430,7 @@ def mistformUltimus : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Mistform Ultimus", cost := some [generic 3, pip .blue], supertypes := [.legendary],
       types := [.creature], subtypes := [illusion],
-      text := [static (qualityChange thisCreature .adds (everyTypeOf .creature))],
+      text := [static (qualityDefinition thisCreature .adds (everyTypeOf .creature))],
       power := stat 3, toughness := stat 3 } }
 
 def volatileClaws : Spelled := spelled <| .singleFaced
@@ -672,8 +672,8 @@ def aspectOfWolf : Ability :=
 theorem okAspectOfWolf : Ability.check (DRS.ofList []) aspectOfWolf = [] := by decide
 /-- Lhurgoyf -/
 def lhurgoyfDefinition : Ability :=
-  static (conjunction [ ptDefinition thisCreature .powerAlone (countOf (and [isCreature, in_ graveyard])),
-      ptDefinition thisCreature .toughnessAlone (plus thatMuch (.lit 1)) ])
+  static (ptDefinitions thisCreature (countOf (and [isCreature, in_ graveyard]))
+    (plus thatMuch (.lit 1)))
 theorem okLhurgoyfDefinition : Ability.check (DRS.ofList []) lhurgoyfDefinition = [] := by decide
 
 /-- Invigorate -/
@@ -716,15 +716,14 @@ def voltageSurgeAddedCost : Ability :=
 theorem okVoltageSurgeAddedCost : Ability.check (DRS.ofList []) voltageSurgeAddedCost = [] := by decide
 /-- Tarmogoyf -/
 def tarmogoyfDefinition : Ability :=
-  static (conjunction [ ptDefinition thisCreature .powerAlone
-        (distinctCount .cardType (allOf (cardIn (graveyardOf (bare isPlayer))))),
-      ptDefinition thisCreature .toughnessAlone (plus thatMuch (.lit 1)) ])
+  static (ptDefinitions thisCreature
+    (distinctCount .cardType (allOf (cardIn (graveyardOf (bare isPlayer)))))
+    (plus thatMuch (.lit 1)))
 theorem okTarmogoyfDefinition : Ability.check (DRS.ofList []) tarmogoyfDefinition = [] := by decide
 /-- Consuming Blob's definition -/
 def consumingBlobDefinition : Ability :=
-  static (conjunction [ ptDefinition thisCreature .powerAlone
-        (distinctCount .cardType (allOf (cardIn yourGraveyard))),
-      ptDefinition thisCreature .toughnessAlone (plus thatMuch (.lit 1)) ])
+  static (ptDefinitions thisCreature (distinctCount .cardType (allOf (cardIn yourGraveyard)))
+    (plus thatMuch (.lit 1)))
 theorem okConsumingBlobDefinition : Ability.check (DRS.ofList []) consumingBlobDefinition = [] := by decide
 /-- Nighthawk Scavenger's definition -/
 def nighthawkScavengerDefinition : Ability :=

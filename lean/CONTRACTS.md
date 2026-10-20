@@ -735,10 +735,18 @@ expected child kinds in the incoming `DRS`.
 `CharacteristicEdit` list. A static change of stats ("gets +P/+T", "has base power and
 toughness P/T", "its power is equal to …", "switch its power and toughness") and of abilities
 ("has flying", "has all activated abilities of …", backup's selection) is a
-`characteristicChange` too. Whether a set of power or toughness is a characteristic-defining
-ability (layer 7a) is read from where it stands, the object's own printed, unconditional static
-ability setting its own stat [CR#604.3a,613.4a] (`StaticSpec.definedStats`, which fills a printed
-`*`), not stored. A stat edit's `sets` stands below zero and its
+`characteristicChange` too. A Characteristic-Defining Ability is its own form,
+`StaticSpec.characteristicDefining subject edits` [CR#604.3a] (templates `ptDefinition`,
+`ptDefinitions`, `qualityDefinition`; changeling and devoid are written with it): it functions in
+all zones [CR#604.3], applies first in layer 4 or 5 [CR#613.3] and in layer 7a for power and
+toughness [CR#613.4a], and its power and toughness sets fill a printed `*`
+(`StaticSpec.definedStats`). It is the one game rule the checker enforces outside the card frame,
+by the owner's decision (`lean-v3-authoring-impl-14-ast-and-authoring-cleanup`), because the form
+is the rules classification: `cdaEdit` refuses an edit other than a color, subtype, power or
+toughness definition, `cdaSubject` a subject other than the object itself, `cdaGranted` the form
+inside a grant or an established effect, and `cdaConditional` a condition on it
+[CR#604.3a]. Its stat edits each name their number, which a later edit reads back ("its toughness
+is equal to that number plus 1"). A stat edit's `sets` stands below zero and its
 `adds` or `loses` is clamped (`CharacteristicEdit.numberSlots`); an "each" subject distributes
 over the whole change; a granted keyword whose number is a letter introduces it. `TypeLineChanges` uses optional axes: `none` leaves
 an axis unchanged, while `some []` explicitly clears it under `sets`. Add and

@@ -1051,6 +1051,36 @@ def CharacteristicEdit.shape : CharacteristicEdit → List Refusal
 def CharacteristicEdit.shapeAll (edits : List CharacteristicEdit) : List Refusal :=
   edits.flatMap CharacteristicEdit.shape
 
+/-- An edit a Characteristic-Defining Ability may write: it defines colors, subtypes, power or
+toughness [CR#604.3a]. A color or subtype edit adds or sets (a definition never removes); a
+power or toughness edit sets. -/
+def CharacteristicEdit.definesOk : CharacteristicEdit → Bool
+  | .colors op _ | .quality op (.everyTypeOf _) => op != .loses
+  | .typeLine op changes =>
+    op != .loses && changes.supertypes.isNone && changes.types.isNone && changes.subtypes.isSome
+  | .stat .sets .power _ | .stat .sets .toughness _ => true
+  | _ => false
+
+/-- Whether a Static Spec writes a Characteristic-Defining Ability. -/
+def StaticSpec.writesDefining (spec : StaticSpec) (fuel : Nat := 64) : Bool :=
+  match fuel, spec with
+  | _ + 1, .characteristicDefining _ _ => true
+  | n + 1, .inCaller s | n + 1, .retention s _ | n + 1, .conditional s _ _ => s.writesDefining n
+  | n + 1, .conjunction _ parts => parts.any (fun s => s.writesDefining n)
+  | _, _ => false
+termination_by structural fuel
+
+/-- Whether an ability, as written in a list of abilities, is a Characteristic-Defining
+Ability. A keyword's own definition is not looked into: a keyword ability granted is the
+keyword, whatever its definition writes. -/
+def Ability.writesDefining (ability : Ability) (fuel : Nat := 64) : Bool :=
+  match fuel, ability with
+  | n + 1, .static spec => spec.writesDefining n
+  | n + 1, .italicHead _ a | n + 1, .qualified a _ _ _ _ | n + 1, .alsoForKeywords a _ =>
+    a.writesDefining n
+  | _, _ => false
+termination_by structural fuel
+
 def KeywordParam.shape : KeywordParam → KeywordParamShape
   | .cost _ => .cost
   | .quality _ => .quality
@@ -1139,7 +1169,8 @@ def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicE
       | .keyword _ [.number (.inCaller (.letter l))] _ =>
         (introducedLetters l drs).foldl (fun d r => d.push r .other false) d
       | _ => d) drs
-    (out, (stepAbilityListWith ops (choiceContext drs) abs).2)
+    (out, (stepAbilityListWith ops (choiceContext drs) abs).2 ++
+      refuse (!abs.any (fun ab => ab.writesDefining)) .cdaGranted)
   | .addedAbilitiesOf src _ optEx =>
     let (drs1, _, e1) := ops.np drs .other false src
     let (drs2, e2) := match optEx with | some p => ops.pred drs1 p | none => (drs1, [])
@@ -2655,7 +2686,7 @@ def stepOps : Nat → StepOps
         | .establish spec dur =>
           let (drs1, e1) := ops.spec drs spec
           let (drs2, e2) := match dur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ e2 ++ refuse (!spec.writesDefining) .cdaGranted)
         | .createObject cnt spec _ optUnder =>
           let (drs1, e1) := ops.amt drs cnt
           let (drs2, sourceTypes, e2) := stepCreationSpecMetadataWith ops drs1 spec
@@ -2902,11 +2933,22 @@ def stepOps : Nat → StepOps
         | .characteristicChange subj edits =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
-          -- A stat set names its number, which "that number" reads back ("its toughness is
-          -- equal to that number plus 1").
-          let drs3 := if edits.any (fun | .stat .sets _ _ => true | _ => false)
-            then drs2.push (outcomeB .namedNumber) .other false else drs2
-          (finishEachSubject subj ids drs3, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+          (finishEachSubject subj ids drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+            refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
+            CharacteristicEdit.shapeAll edits)
+        | .characteristicDefining subj edits =>
+          let (drs1, _, e1) := ops.np drs .subj true subj
+          -- A stat set names its number, which a later edit's "that number" reads back ("its
+          -- toughness is equal to that number plus 1").
+          let (drs2, e2) := edits.foldl (fun (d, es) edit =>
+            let (d', e') := stepCharacteristicEditWith ops d edit
+            let named := match edit with
+              | .stat .sets _ _ => d'.push (outcomeB .namedNumber) .other false
+              | _ => d'
+            (named, es ++ e')) (drs1, [])
+          (drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+            refuse subj.selfDefinedOk .cdaSubject ++
+            refuse (edits.all CharacteristicEdit.definesOk) .cdaEdit ++
             refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
             CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>
@@ -3003,7 +3045,7 @@ def stepOps : Nat → StepOps
         | .conditional spec cond _ =>
           let (drs1, e1) := ops.spec drs spec
           let (drs2, e2) := ops.cond (nextClause drs1) cond
-          (drs2, e1 ++ e2)
+          (drs2, e1 ++ e2 ++ refuse (!spec.writesDefining) .cdaConditional)
         | .visibility _ player what =>
           let (drs1, _, e1) := ops.np drs .subj true player
           let (drs2, e2) := stepVisibleThingWith ops drs1 what

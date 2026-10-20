@@ -72,7 +72,8 @@ Combat predicates and events carry a `CombatRelation`; `statOf` takes a
 with their own kinds. Designations are open labels whose declared scope
 feeds the checker tables. `Characteristics` is flat and follows
 [CR#109.3]. Printed stat slots use `Option Amount`: `none` represents a printed
-`*`, with a characteristic-defining ability supplying its value. `CardFace`
+`*`, with a Characteristic-Defining Ability (`StaticSpec.characteristicDefining`)
+supplying its value. `CardFace`
 adds what a printed face carries; `CharacteristicBundle` describes what an
 effect writes, including token qualities [CR#111.3].
 

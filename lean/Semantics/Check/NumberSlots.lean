@@ -118,7 +118,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   match fuel, value with
   | 0, _ => []
   | _n + 1, .inCaller body => body.numberSlots _n
-  | _n + 1, .characteristicChange _ edits => edits.flatMap CharacteristicEdit.numberSlots
+  | _n + 1, .characteristicChange _ edits | _n + 1, .characteristicDefining _ edits => edits.flatMap CharacteristicEdit.numberSlots
   | _n + 1, .combatant _ | _n + 1, .textChange _ _ => []
   | _n + 1, .costShift _ shift => shift.numberSlots
   | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ | _n + 1, .modeChoice _
