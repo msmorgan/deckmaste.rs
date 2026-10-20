@@ -127,8 +127,15 @@ theorem conditionalModificationKeepsItsAnnouncedTarget :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
       (doOnlyIf (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
-    out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.det) =
-      [.target] := by decide
+    out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
+
+/-- "If you control a creature, destroy a creature. Otherwise, tap it.": the other branch reads
+what the branch announces (its targets, the amounts it names), never a participant the branch
+would choose as it resolves, so "it" finds nothing [CR#601.2c,608.2c]. -/
+theorem badOtherwiseReadsIndefiniteThenArm :
+    Action.check (DRS.ofList [])
+      (.doIf (exists_ (and [isCreature, youControl])) (destroy (a isCreature))
+        (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by decide
 
 /-- "A creature gets +2/+2 if its power is 2.": a creature the branch chooses as it resolves is
 not chosen when the condition is checked, so the condition cannot read it; only the branch's

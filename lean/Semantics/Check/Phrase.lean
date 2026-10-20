@@ -2753,22 +2753,38 @@ def stepOps : Nat → StepOps
           -- condition reads them back wherever it is printed ("counter target spell if its mana
           -- value is X"). The other branch reads the branch as announced, its targets and the
           -- amounts it names ("otherwise, each opponent loses that much life"), not what it did.
+          -- The branch keeps the ids it announced its targets under: it is stepped again from
+          -- the ids it took then, and the condition's referents take ids past every id the
+          -- branch takes, so a later line reads the target the condition read.
           let (announced, _) := ops.inst .preEvent .obj drs thenInst
-          let targets := announced.referents.filter fun ref =>
-            ref.det == .target && !(drs.referents.any (·.id == ref.id))
+          let fresh := announced.referents.filter fun ref => !(drs.referents.any (·.id == ref.id))
+          let targets := fresh.filter (·.det == .target)
           let targetIds := targets.map (·.id)
+          let branchExtent := if targets.isEmpty then announced.nextId
+            else (ops.inst phase .obj (nextClause drs) thenInst).1.nextId
           let withTargets := if targets.isEmpty then drs else
             nextClause { drs with
-              referents := targets ++ drs.referents, nextId := announced.nextId }
+              referents := targets ++ drs.referents
+              nextId := max announced.nextId branchExtent }
           let (drs1, e1) := ops.cond withTargets cond
-          let (drs2, e2) := ops.inst phase .obj
+          let branchStart := if targets.isEmpty then drs1.nextId else drs.nextId
+          let (stepped, e2) := ops.inst phase .obj
             (nextClause { drs1 with
-              referents := drs1.referents.filter (!targetIds.contains ·.id) }) thenInst
+              referents := drs1.referents.filter (!targetIds.contains ·.id)
+              nextId := branchStart }) thenInst
+          let drs2 := { stepped with nextId := max stepped.nextId drs1.nextId }
           match elseInst with
           | none => (drs2, e1 ++ e2)
           | some el =>
+            -- The other branch reads the targets and the amounts the branch names, nothing the
+            -- branch would choose as it resolves.
+            let amounts := fresh.filter fun ref => match ref.plur, ref.payload with
+              | .one, .outcome s => s.isAmount
+              | _, _ => false
             let (alternative, e3) := ops.inst phase .obj
-              (nextClause { announced with nextId := max announced.nextId drs2.nextId }) el
+              (nextClause { withTargets with
+                referents := amounts ++ withTargets.referents
+                nextId := max withTargets.nextId drs2.nextId }) el
             ({ withTargets with nextId := max drs2.nextId alternative.nextId }, e1 ++ e2 ++ e3)
         | .doForEach grp body =>
           let (read, grpIds, e1) := ops.np { drs with characteristicRead := true } .other false grp
