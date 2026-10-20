@@ -184,7 +184,7 @@ theorem badReflexiveOnDelayed :
 theorem okThisWayOnRegenerate :
     Action.check (DRS.ofList [])
       (.triggerReflexively (regenerate thisCreature)
-        (some (does any (regenerationApplication thisCreature))) (draw (.lit 1)))
+        (some (does any (regeneration thisCreature))) (draw (.lit 1)))
       = [] := by
   decide
 

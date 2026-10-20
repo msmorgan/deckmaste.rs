@@ -60,22 +60,12 @@ semantic_definition activate (subject : NounPhrase) (from_ : Option Location := 
   .ownScope (some (.action "activate"))
     (.procedure .activate (.firstMention "activate.subject" (.inCaller subject))
       payment.inCaller (resulting.map .inCaller) (from_.map .inCaller) none)
-/-- "the regeneration of <subject>": the deed "can't be regenerated" forbids, a shield's
-application rather than the action that creates one (`Definition`, [CR#701.19c]). -/
-semantic_definition regeneration (subject : NounPhrase) : Action :=
-  .ownScope (some (.action "regenerate"))
-    (enact (.action "regenerate")
-      (clearDamage (.firstMention "regeneration.subject" (.inCaller subject))))
 /-- "destroy <subject>" (`Definition`, [CR#701.8]). -/
 semantic_definition destroy (subject : NounPhrase) : Action :=
   .ownScope (some (.action "destroy"))
     (enact (.action "destroy")
       (.move (.firstMention "destroy.subject" (.inCaller subject)) (.zone .battlefield none)
         (some graveyard) .departure none []))
-/-- "Destroy <subject>. It can't be regenerated." / "… They can't be regenerated.": the
-regeneration the prohibition forbids is of the object or objects just destroyed [CR#701.19c]. -/
-semantic_template destroyCantRegenerate (subject : NounPhrase) : Action :=
-  doAndForbid (destroy subject) (regeneration (.pro .bare subject.plur))
 /-- "exile <subject>" (`Definition`, [CR#701.13]). -/
 semantic_definition exile (subject : NounPhrase) : Action :=
   .ownScope (some (.action "exile"))
@@ -124,6 +114,30 @@ semantic_definition manifestPlacement (subject : NounPhrase) : Action :=
 semantic_definition tap (subject : NounPhrase) : Action :=
   .ownScope (some (.action "tap"))
     (enact (.action "tap") (.setStatus .tapped (.firstMention "tap.subject" (.inCaller subject))))
+/-- "the regeneration of <subject>": a regeneration shield's application, "remove all damage
+marked on it and tap it. If it's an attacking or blocking creature, remove it from combat"
+[CR#701.19a], the deed "can't be regenerated" forbids. Activating or casting what creates a
+shield is not regenerating (`regenerate`, [CR#701.19c]) (`Definition`). -/
+semantic_definition regeneration (subject : NounPhrase) : Action :=
+  .ownScope (some (.action "regenerate"))
+    (enact (.action "regenerate")
+      (sequentially
+        [ clearDamage (.firstMention "regeneration.subject" (.inCaller subject)),
+          instruct
+            (.possessorOf .controller (.laterMention "regeneration.subject" (.inCaller subject)))
+            (tap (.laterMention "regeneration.subject" (.inCaller subject))),
+          doIf
+            (or
+              [ is (.laterMention "regeneration.subject" (.inCaller subject))
+                  (.inCombat .attackerOf none),
+                is (.laterMention "regeneration.subject" (.inCaller subject))
+                  (.inCombat .blockerOf none) ])
+            (removeFromCombat (.laterMention "regeneration.subject" (.inCaller subject)))
+            none ]))
+/-- "Destroy <subject>. It can't be regenerated." / "… They can't be regenerated.": the
+regeneration the prohibition forbids is of the object or objects just destroyed [CR#701.19c]. -/
+semantic_template destroyCantRegenerate (subject : NounPhrase) : Action :=
+  doAndForbid (destroy subject) (regeneration (.pro .bare subject.plur))
 /-- "<performer> discards <subject>": a move from the performer's own hand, the card's owner's,
 to the graveyard (`Definition`, [CR#701.9a]). -/
 semantic_definition discard (subject : NounPhrase) : Action :=
@@ -528,23 +542,6 @@ semantic_definition clueToken : CharacteristicBundle :=
 /-- "Exile <subject> until <event>." -/
 semantic_template exileUntil (subject : NounPhrase) (event : GameEvent) : Action :=
   .holdUntil (exile subject) event
-/-- The replacement's application, rather than installation of a new shield
-[CR#701.19b,701.19c]. -/
-semantic_template regenerationApplication (subject : NounPhrase) : Action :=
-  enact (.action "regenerate")
-    (sequentially
-      [ clearDamage (.firstMention "regenerationApplication.subject" subject),
-        instruct
-          (.possessorOf .controller (.laterMention "regenerationApplication.subject" subject))
-          (tap (.laterMention "regenerationApplication.subject" subject)),
-        doIf
-          (or
-            [ is (.laterMention "regenerationApplication.subject" subject)
-                (.inCombat .attackerOf none),
-              is (.laterMention "regenerationApplication.subject" subject)
-                (.inCombat .blockerOf none) ])
-          (removeFromCombat (.laterMention "regenerationApplication.subject" subject))
-          none ])
 /-- "attach <what> to it": ordinary pronoun `it` resolved by `D′` (no `Window` override). -/
 semantic_template attachToIt (what : NounPhrase) : Action :=
   attachTo what it
@@ -586,8 +583,6 @@ semantic_template createTappedAttacking (count : Amount) (token : Characteristic
 semantic_template createTokenCopy (source : NounPhrase) (riders : List MoveRider := []) : Action :=
   create (.lit 1) (.copyOf source []) riders
 
-/-! The regeneration shield is a Definition, but its replacement applies
-`regenerationApplication`, a Template over `tap`, so it follows that Template here. -/
 
 /-- A resolving regeneration action installs a single-use shield for this turn;
 only its eventual application carries the Regenerate label (`Definition`, [CR#701.19a,701.19c]). -/
@@ -595,7 +590,7 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
   .ownScope (some (.action "regenerate"))
     (.establish (.replace
       (.would .any (destroy (.firstMention "regenerate.subject" (.inCaller subject))))
-      (instead (regenerationApplication (.laterMention "regenerate.subject" (.inCaller subject))))
+      (instead (regeneration (.laterMention "regenerate.subject" (.inCaller subject))))
       none .nextTimeOnly none) (some thisTurn))
 
 /-! ## Keyword actions -/

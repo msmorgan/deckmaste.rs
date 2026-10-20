@@ -245,10 +245,10 @@ theorem conniveReadsTheDiscardsNumber :
 "Regenerate <permanent>" [CR#701.19a]: the next time it would be destroyed this turn, instead
 remove all damage marked on it and its controller taps it; if it's an attacking or blocking
 creature, remove it from combat. The `plugins_v3` declaration binds the permanent where the
-replacement's event first mentions it, and the application (`regenerationApplication`) binds
+replacement's event first mentions it, and the application (`regeneration`) binds
 its own subject at its first mention, read back by identity in the other five. -/
 
-private def regenerationApplicationBy := regenerationApplication
+private def regenerationApplicationBy := regeneration
 private def regenerateBy := regenerate
 
 /-- "Regenerate target creature." -/

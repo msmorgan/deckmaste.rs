@@ -691,7 +691,7 @@ def matopiGolem : Spelled := spelled <| .singleFaced
       subtypes := [golem],
       text :=
         [ activated (mana [generic 1])
-            (triggerThisWay (regenerate thisCreature) (does any (regenerationApplication thisCreature))
+            (triggerThisWay (regenerate thisCreature) (does any (regeneration thisCreature))
               (putCounters (.lit 1) m1m1Counter it .many)) ],
       power := stat 3, toughness := stat 3 } }
 

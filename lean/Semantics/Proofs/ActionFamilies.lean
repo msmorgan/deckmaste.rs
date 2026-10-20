@@ -199,7 +199,7 @@ theorem fightAcceptsItsOwnSource :
     Action.check (DRS.ofList []) (instruct thisCreature (fight thisCreature)) = [] := by decide
 
 theorem regenerationApplicationChecks :
-    Action.check (DRS.ofList []) (regenerationApplication thisCreature) = [] := by decide
+    Action.check (DRS.ofList []) (regeneration thisCreature) = [] := by decide
 
 theorem regenerationInstallationPublishesNoImmediateOutcome :
     outcomeReferents (actionResult (DRS.ofList []) (regenerate thisCreature)) = [] := by decide
@@ -292,7 +292,7 @@ theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
 /-- A regeneration shield's application, not the shield, is the regeneration event: it acts on
 the object on the battlefield, and the shield introduces none [CR#701.19a,701.19c]. -/
 theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
-    let event := does any (regenerationApplication thisCreature)
+    let event := does any (regeneration thisCreature)
     let applied := (stepGameEvent 64 (DRS.ofList []) event).1
     let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
     GameEvent.check (DRS.ofList []) event = [] ∧
