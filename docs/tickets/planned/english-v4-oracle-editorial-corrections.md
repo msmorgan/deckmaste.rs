@@ -35,6 +35,18 @@ relaxing the grammar for a single editorial slip.
 - Until this ticket lands, Agency Outfitter is listed in
   `crates/deckmaste_english_v4/deferred.txt`, owned by this ticket.
 
+## Candidate entry: Mathise, Surge Channeler (SLX), printed evidence pending
+
+- Current Oracle text has hyphenated d20 row ranges: "1-9 | Each player draws a
+  card." and "10-19 | You draw a card.".
+- Every other d20 table row range among Vintage-legal cards uses an em dash
+  (75 rows, for example Earth-Cult Elemental). No card mixes the two.
+- The grammar keeps `HyphenRowHeader` (`english.ron`) beside
+  `UnicodeRangeRowHeader` for this card alone.
+- Before this entry is recorded, check the printed SLX card. If it prints em
+  dashes, record the correction and delete `HyphenRowHeader`. If it prints
+  hyphens, the Oracle text matches the card and the entry is dropped.
+
 ## Done when
 
 - The census reads Agency Outfitter's corrected text, and the unit reads at its
