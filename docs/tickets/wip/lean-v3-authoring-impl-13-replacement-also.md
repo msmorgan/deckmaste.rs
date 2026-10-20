@@ -20,13 +20,15 @@ constraints apply.
     with `action` (`[CR#614.1a]`).
   - `Replacement.also`: does `action` as part of the event, which still happens
     (`[CR#603.6d,614.1c]`).
-  - `Replacement.withRiders (riders : List MoveRider)`: the replaced move still happens,
-    with these riders ("enters tapped / with … counters / as a copy / transformed",
+  - `Replacement.withRiders (riders : List MoveRider)`: the replaced entering still happens,
+    with these Entry Riders ("enters tapped / with … counters / as a copy / transformed",
     `[CR#614.1c,614.1d,614.12]`). These modify the entering event itself, so neither
     `instead` (which would restate `enter`) nor `also` (`also (tap it)` would be a separate
-    "becomes tapped" event) is right. Named for the glossary's riders: `MoveRider` carries both
-    Entry Riders and Pile Placements, and `with` is a Lean keyword. The checker accepts it only
-    where the replaced event is a move (refusal `riddenMove`, e.g. riders over a draw).
+    "becomes tapped" event) is right. Named for the glossary's Entry Rider, which this arm alone
+    carries (`with` is a Lean keyword); a Pile Placement is no rider, so it is refused here. The
+    checker accepts it only where the replaced event is an entering, a move to the battlefield or
+    a token's creation (refusal `riddenEntering`, e.g. riders over a draw or a dying), and only
+    with Entry Riders (refusal `entryRidersOnly`).
   - `Replacement.onlyIf (condition) (body)`: one structural conditional wrapper in place of a
     per-arm `when` field; `instead`, `also` and `withRiders` take only their payload.
     `doIf c r` at expected type `Replacement` builds `onlyIf c r`, so cards still write
@@ -38,9 +40,15 @@ constraints apply.
   `lean/Semantics/Templates.lean`; the `enters subject riders` template builds
   `replace (would subject enter) (withRiders riders)`, so nothing restates `enter`.
 - The `may` convention, per arm: under `instead`, only a wholly-`may` action with no failure arm
-  leaves the event to happen when declined; under `also`, the event happens regardless and
-  declining skips only the addition; `withRiders` offers no choice beyond an optional copy's own
-  (`asCopyOf`); under `onlyIf`, the event happens unmodified while the condition fails.
+  leaves the event to happen when declined; under `also`, the event happens regardless, and
+  declining a `may` does its failure arm if it has one (riot's haste) and otherwise nothing;
+  under `withRiders` there is nothing to decline; under `onlyIf`, the event happens unmodified
+  while the condition fails.
+- A condition checked as the permanent would enter is the replacement's own (`doIf c
+  (withRiders …)`: daybound, bloodthirst, impending, sunburst). A condition deciding whether the
+  ability exists at all stays on the static ability (`onlyUnless`): the Saga's lore counter,
+  "each Saga without read ahead" `[CR#714.3a]`. Turbulent Fen's "enters tapped unless …" also
+  stays `onlyUnless`, because `onlyIf` has no "unless" marking for the checker's `markingOk`.
 - Update `stepReplacementWith` (`Check/Phrase.lean`), `Check/AbilityRules.lean`
   (`staticTextContext` publishing text choices from `also`), `Check/CardFacts.lean`, and
   `Check/NumberSlots.lean` (`Replacement.numberSlots`: a `withRiders` replacement's riders).
@@ -87,9 +95,10 @@ constraints apply.
     (and retire `StaticSpec.asEvent` if all remaining `"As [event], [action]"`
     sites in `Keywords.lean`, `Cards/`, and `Proofs/` are covered by
     `replace ... (also ...)`). `asEvent` stays: dash, blitz and warp act as a cost is paid,
-    daybound and nightbound as it becomes night or day, enchant's Aura attachment is the rule
-    `[CR#303.4f]`, and "as it becomes attached" is no entering; none is a replacement effect
-    `[CR#614.1c]` covers.
+    daybound and nightbound as it becomes night or day, and "as it becomes attached" is no
+    entering; none is a replacement effect `[CR#614.1c]` covers. Enchant's Aura attachment acts
+    as the Aura enters, but it is the game rule `[CR#303.4f]`, not "As this enters" text, so it
+    too stays `asEvent`.
 
 ## Verification
 

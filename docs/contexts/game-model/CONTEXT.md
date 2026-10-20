@@ -322,7 +322,8 @@ face up, transform it", [CR#702.145b]) or at any time a condition holds ("any
 time you control ten or more permanents and you don't have the city's
 blessing, you get the city's blessing", [CR#702.131b]). Text that acts as a
 Permanent enters ("as this enters, you may sacrifice …") is a Replacement
-Effect instead ([CR#614.1c]). A Special Action is its sibling, done by choice
+Effect instead ([CR#614.1c]); the rule that attaches an Aura as it enters
+([CR#303.4f]) is no such text. A Special Action is its sibling, done by choice
 with a cost; a delayed trigger an Off-Stack Static creates has that static's
 object as its source ([CR#603.7g]).
 _Avoid_: state trigger, since nothing goes on the stack ([CR#604.1])
