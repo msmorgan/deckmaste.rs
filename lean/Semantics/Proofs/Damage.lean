@@ -18,7 +18,7 @@ theorem okFightCreatures :
 
 private def fightParticipantPairs : Action → List (BindingId × BindingId)
   | .ownScope _ (.enact _ (.doIf _ (.simultaneously [
-      .dealDamage (.statOf _ (.laterMention source _)) (.inCaller (.laterMention recipient _)) _,
+      .dealDamage (.statOf _ (.laterMention source _)) (.laterMention recipient (.inCaller _)) _,
       .instruct (.laterMention reverseSource _) (.dealDamage _ (.laterMention reverseRecipient _) _)]) none) _ _) =>
     [(source, recipient), (reverseSource, reverseRecipient)]
   | _ => []

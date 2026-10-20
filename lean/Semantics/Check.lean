@@ -44,14 +44,14 @@ private def graveyardZone : Location :=
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `doIf` + `putCounters`). -/
 def exploreDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "explore")) <|
-    .instruct (.inCaller (.firstMention "subject" subject)) <|
+    .instruct (.firstMention "subject" (.inCaller subject)) <|
       .sequentially [
         .expose .reveal (.cards (.slice .top (.lit 1) (.zone .library (some .you)))),
         .doIf
           (.matches (.pro .bare .one) (.hasType .land))
           (.move (.pro .bare .one) .anyLocation (some handZone) .departure (some .anEffect) [])
           (some (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.inCaller (.laterMention "subject" subject)) .one true))
+            (.laterMention "subject" (.inCaller subject)) .one true))
       ]
 
 theorem explore_def_sound :
@@ -61,7 +61,7 @@ theorem explore_def_sound :
 (`ownScope` + `inCaller` + `firstMention` / `laterMention` + `draw` + `move` + `doIf`). -/
 def conniveDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "connive")) <|
-    .instruct (.inCaller (.firstMention "subject" subject)) <|
+    .instruct (.firstMention "subject" (.inCaller subject)) <|
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [
         .draw (.exactlyOf (.lit 1)),
@@ -73,7 +73,7 @@ def conniveDef (subject : NounPhrase) : Action :=
               (handZone) (some graveyardZone) .departure (some .anEffect) [],
             .thisWay⟩)
           (.putCounters (.lit 1) (.printed (.named "p1p1Counter"))
-            (.inCaller (.laterMention "subject" subject)) .one true)
+            (.laterMention "subject" (.inCaller subject)) .one true)
           none
       ]
 
@@ -85,7 +85,7 @@ theorem connive_def_sound :
 def airbendDef (subject : NounPhrase) : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
-      .move (.inCaller (.firstMention "subject" subject))
+      .move (.firstMention "subject" (.inCaller subject))
         .anyLocation (some exileZone) .departure (some .anEffect) [],
       .establish
         (.can (.actor .you)
@@ -104,9 +104,9 @@ theorem airbend_def_sound :
 def postMoveLaterMentionRefused : Action :=
   .ownScope (some (.action "airbend")) <|
     .sequentially [
-      .move (.inCaller (.firstMention "subject" targetCreature))
+      .move (.firstMention "subject" (.inCaller targetCreature))
         .anyLocation (some exileZone) .departure (some .anEffect) [],
-      .setStatus .tapped (.inCaller (.laterMention "subject" targetCreature))
+      .setStatus .tapped (.laterMention "subject" (.inCaller targetCreature))
     ]
 
 theorem post_move_later_mention_refused :

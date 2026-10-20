@@ -8,7 +8,7 @@ theorem exileOmittedAgent :
     exile thisPermanent =
       Action.ownScope (some (.action "exile"))
         (.enact (.action "exile")
-          (.move (.inCaller (.firstMention "exile.subject" thisPermanent))
+          (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
             .anyLocation (some exileZone) .arrival none []) none none) := by rfl
 
 theorem exileNamedAgent :
@@ -16,7 +16,7 @@ theorem exileNamedAgent :
       Action.instruct .you
         (Action.ownScope (some (.action "exile"))
         (.enact (.action "exile")
-          (.move (.inCaller (.firstMention "exile.subject" thisPermanent))
+          (.move (.firstMention "exile.subject" (.inCaller thisPermanent))
             .anyLocation (some exileZone) .arrival none []) none none)) := by rfl
 
 theorem chooseOmittedAgent :

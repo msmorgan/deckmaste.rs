@@ -408,6 +408,9 @@ structure OwnScopeFrame where
   callerSelectionScope : Nat := 0
   callerPending : List (ReferentId × GramRole) := []
   callerReferentIds : List ReferentId := []
+  /-- The caller's pending roles as the body was entered, which leaving the body restores: a
+  mention in the body never changes a role the caller can see. -/
+  entryPending : List (ReferentId × GramRole) := []
   deriving DecidableEq, Repr
 
 /-- Discourse Representation Structure (`semantics-v3.md` §1.2). -/
@@ -1080,6 +1083,7 @@ def enterOwnScope (drs : DRS) : DRS :=
     callerClause  := drs.currentClause
     callerSelectionScope := drs.selectionScope
     callerPending := drs.pendingRoles
+    entryPending  := drs.pendingRoles
   }
   { (enterSelectionScope drs) with
     scopeStack    := frame :: drs.scopeStack
@@ -1131,7 +1135,11 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
 
 /-- Close an own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
 drops definition-internal scratch referents (`.part` and `.player _`), and stamps surviving
-referents introduced during `topFrame` with `clause := topFrame.callerClause` and `role := .obj`. -/
+referents introduced during `topFrame` with `clause := topFrame.callerClause` and `role := .obj`.
+A mention in the body never changes a role the caller can see: the caller's pending roles are
+the ones it had as the body was entered, and an argument the body read in its caller
+(`callerReferentIds`) is pending as the call's object, whatever role its mentions in the body
+took. -/
 def leaveOwnScope (drs : DRS) : DRS :=
   match drs.scopeStack with
   | [] => drs
@@ -1143,13 +1151,16 @@ def leaveOwnScope (drs : DRS) : DRS :=
           none
         else
           some { r with clause := topFrame.callerClause, role := .obj, pronounResolved := false }
+      let keptIds := kept.map (·.id)
+      let arguments := topFrame.callerReferentIds.filter fun id =>
+        keptIds.contains id && !topFrame.entryPending.any (·.1 == id)
       { drs with
         referents     := kept
         scopeStack    := outerFrames
         selectionEvidence := drs.selectionEvidence.filter (fun evidence =>
           evidence.scope != drs.selectionScope)
         selectionScope := topFrame.callerSelectionScope
-        pendingRoles  := topFrame.callerPending
+        pendingRoles  := topFrame.entryPending ++ arguments.map (·, GramRole.obj)
         currentClause := topFrame.callerClause }
 
 /-! ## Binding Identity (`firstMention` / `laterMention`) -/

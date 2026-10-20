@@ -404,6 +404,7 @@ def applyZoneMove (drs : DRS) (refIds : List ReferentId) (deed : Option Deed)
           { frame with
             maskedIds := frame.maskedIds.map remap
             callerPending := frame.callerPending.map remapRole
+            entryPending := frame.entryPending.map remapRole
             callerReferentIds := (frame.callerReferentIds.map remap ++
               if callerOwned then [freshId] else []).eraseDups }
         { state with

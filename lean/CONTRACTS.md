@@ -397,7 +397,9 @@ text except the performer the innermost handoff names, and opens a new clause. T
 body's parameters are written `inCaller`: `enterCaller` pops only the top frame, so the
 argument is read in the immediate caller's view, with any enclosing Definition's masks
 still in force, and `leaveCaller` unmasks what the argument introduced or resolved and
-records it as caller-owned (`callerReferentIds`). `leaveOwnScope` pops the frame, drops
+records it as caller-owned (`callerReferentIds`). `leaveOwnScope` pops the frame, restores the caller's pending roles as they were when the body
+was entered, with each argument the body read in its caller pending as the call's object
+(a mention in the body never changes a role the caller can see), drops
 the body's partitive and player scratch referents, keeps every update to caller-owned
 referents and their successors, and exports the body's other new referents (its
 outcomes, piles, qualities, letters, turn references and object results) at the
@@ -949,10 +951,11 @@ is substituted as written. A Definition wraps each argument it reads in `inCalle
 for every phrase type that can be an argument) and binds a referent argument at its
 first mention with `firstMention`, reading it back with `laterMention`
 ("Binding identity and a keyword body's own scope" above). The Binding Identity is named
-`<declaration>.<parameter>` (`destroy.subject`, `fight.other`). Where `inCaller` and the
-mention nest is not yet one rule: the order moves the caller-view role a body mention leaves
-(`fight` reads its other creature back inside `inCaller` as damage's recipient, outside it as
-the handoff's performer, and `Proofs/Damage.lean` pins "Tap it" reading the fight's source). A Template that names one
+`<declaration>.<parameter>` (`destroy.subject`, `fight.other`), and the identity is outermost:
+`firstMention id (inCaller arg)`, `laterMention id (inCaller arg)`, since the identity is the
+declaration's and only the argument is read in the caller. Where a mention stands in the body
+never changes a role the caller can see (`leaveOwnScope`, below), so "Target creature fights
+target creature. Tap it." reads the fight's source (`fightSourceIsSelectedBySubjectPriority`). A Template that names one
 argument twice does the same (`dealDamageOwnPower`, `controllerSacrifices`). An argument
 is therefore selected once, at its textual first use, however often the body names it,
 and two identical argument expressions remain two selections. An Amount argument is

@@ -339,8 +339,8 @@ private def prepared (fresh : Nat) (rs : List Referent) : DRS :=
    refIds := [fresh + 3] }
  source.push { det := .the, plur := .one, payload := .actor frame } .other false
 private def moveArg : NounPhrase :=
- .inCaller (.firstMention "sacrifice.subject"
-   (.laterMention "controllerSacrifices.subject" nestedSubject))
+ .firstMention "sacrifice.subject"
+   (.inCaller (.laterMention "controllerSacrifices.subject" nestedSubject))
 private def moveBody : Action :=
  .move moveArg (.zone .battlefield none) (some graveyard) .departure none []
 private theorem moveBodyStep (fuel : Nat) (drs : DRS) (ordinary : drs.actionPattern = false) :
@@ -386,9 +386,9 @@ private theorem argumentStep (fuel : Nat) (drs : DRS) :
       let caller := enterCaller drs
       let selected := stepNounPhrase (fuel + 1) caller .obj true
         (.laterMention "controllerSacrifices.subject" nestedSubject)
-      let named := selected.2.1.foldl
-        (fun state id => recordIdentityById "sacrifice.subject" state id) selected.1
-      (leaveCaller drs named selected.2.1, selected.2.1, selected.2.2) := by rfl
+      let left := leaveCaller drs selected.1 selected.2.1
+      (selected.2.1.foldl (fun state id => recordIdentityById "sacrifice.subject" state id) left,
+        selected.2.1, selected.2.2) := by rfl
 
 private theorem preparedSuffix (fresh : Nat) (rs : List Referent)
     (older : ∀ r ∈ rs, r.id < fresh) :
@@ -438,8 +438,8 @@ private theorem argumentResult (fuel fresh : Nat) (rs : List Referent)
       let inner := enterOwnScope (prepared fresh rs)
       let caller := enterCaller inner
       let mentioned := caller.recordMention (fresh + 2) .obj true
-      let named := recordIdentityById "sacrifice.subject" mentioned (fresh + 2)
-      (leaveCaller inner named [fresh + 2], [fresh + 2], []) := by
+      (recordIdentityById "sacrifice.subject" (leaveCaller inner mentioned [fresh + 2]) (fresh + 2),
+        [fresh + 2], []) := by
   rw [argumentStep]
   dsimp only
   rw [ControllerSuffixLocality.laterMention_step,
@@ -595,8 +595,9 @@ private theorem movedStampedPrefixAndSuffixWithActors (fresh : Nat) (names : Lis
 
 private def argumentOut (fresh : Nat) (rs : List Referent) : DRS :=
  let inner := enterOwnScope (prepared fresh rs)
- leaveCaller inner (recordIdentityById "sacrifice.subject"
-   ((enterCaller inner).recordMention (fresh + 2) .obj true) (fresh + 2)) [fresh + 2]
+ recordIdentityById "sacrifice.subject"
+   (leaveCaller inner ((enterCaller inner).recordMention (fresh + 2) .obj true) [fresh + 2])
+   (fresh + 2)
 
 private theorem argumentOutPrefix (fresh : Nat) (rs : List Referent)
     (older : ∀ r ∈ rs, r.id < fresh)

@@ -218,7 +218,7 @@ theorem counterIsSingleEnactedMove (subject : NounPhrase) :
     counter subject =
       .ownScope (some (.action "counter"))
         (.enact (.action "counter")
-          (.move (.inCaller (.firstMention "counter.subject" subject))
+          (.move (.firstMention "counter.subject" (.inCaller subject))
             (.zone .stack none) (some graveyard) .arrival none []) none none) := by rfl
 
 theorem losingCountersPublishesTheSharedRemovalOutcome :

@@ -57,10 +57,10 @@ private semantic_template functionListConfig (_functions : List (NounPhrase → 
 
 private semantic_definition selectThenTap (subject : NounPhrase) : Action :=
   .ownScope none (.sequentially
-    [.setStatus .tapped (.inCaller (.firstMention "select.subject" subject)),
+    [.setStatus .tapped (.firstMention "select.subject" (.inCaller subject)),
       .setStatus .untapped (.laterMention "select.subject" .any)])
 private semantic_definition selectThenMove (subject : NounPhrase) : Action :=
-  .ownScope none (.move (.inCaller (.firstMention "select.subject" subject))
+  .ownScope none (.move (.firstMention "select.subject" (.inCaller subject))
     .anyLocation (some graveyard) .arrival none [])
 private semantic_definition announceThen (chosen : NounPhrase) (body : Action) : Action :=
   .ownScope none (.sequentially [.setStatus .tapped (.firstMention "announce.subject" (.inCaller chosen)),
