@@ -1,3 +1,5 @@
+import Semantics.Check
+import Semantics.Check.Card
 import Semantics.Definitions
 
 open Semantics Semantics.Templates Semantics.Definitions

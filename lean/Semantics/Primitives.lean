@@ -1,5 +1,5 @@
 import Semantics
-import Semantics.Check.Phrase
+import Semantics.CallerScope
 
 /-!
 # Semantics.Primitives

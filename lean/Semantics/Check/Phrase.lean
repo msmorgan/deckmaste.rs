@@ -71,21 +71,6 @@ def SliceCount.plur : SliceCount → Plurality
   | .counted q => q.plur
   | .whole | .totalling .. => .many
 
-/-- The one zone a location is in, if it names one: a disjunction names a zone only when all its
-disjuncts name the same one ("on the top or bottom of your library"). -/
-def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
-  match fuel, z with
-  | 0, _ => none
-  | n + 1, .inCaller body => body.sort n
-  | _ + 1, .zone zn _ => some zn
-  | n + 1, .fromEnd _ _ p => p.sort n
-  | _ + 1, .exiledWith _ => some .exile
-  | n + 1, .or (first :: rest) =>
-    let zone := first.sort n
-    if zone.isSome && rest.all (fun loc => loc.sort n == zone) then zone else none
-  | _ + 1, .or [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
-termination_by structural fuel
-
 def Predicate.kind? (p : Predicate) (fuel : Nat := 32) : Option Kind :=
   match fuel, p with
   | 0, _ => none

@@ -302,4 +302,19 @@ theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :
     Amount.check context .thatMuch = [] ∧
       Condition.check context (.dealtThisWay .anyPlayer) = [.damageDealtInScope] := by decide
 
+/-- A regeneration shield's application, not the shield, is the regeneration event: it acts on
+the object on the battlefield, and the shield introduces none [CR#701.19a,701.19c]. -/
+theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
+    let event := does any (regenerationApplication thisCreature)
+    let applied := (stepGameEvent 64 (DRS.ofList []) event).1
+    let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
+    GameEvent.check (DRS.ofList []) event = [] ∧
+      countOnes .object applied = 1 ∧
+      (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
+        some (.object, some .battlefield) ∧
+      countOnes .object shield = 0 ∧
+      Action.check (DRS.ofList [])
+        (.triggerReflexively (regenerate thisCreature) (some event)
+          (putCounters (.lit 1) m1m1Counter it .many)) = [] := by decide
+
 end Semantics.Proofs.ActionFamilies

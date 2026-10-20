@@ -1,9 +1,10 @@
 import Semantics.Templates
+import Semantics.Check.Phrase
 
 /-!
 # Semantics.Definitions.Actions
 
-Rules-defined actions spelled over `Semantics.Templates`: turn parts, attaching, creating and
+Rules-defined actions spelled over `Semantics.Templates`: attaching, creating and
 countering, the other actions, the predefined tokens, the phrasing templates that need these
 actions, and the keyword actions.
 -/
@@ -11,28 +12,6 @@ actions, and the keyword actions.
 namespace Semantics.Definitions
 
 open Semantics.Templates
-
-/-! ## Turn parts -/
-
-semantic_definition beginningOfCombatStep : TurnPart := .beginningOfCombat
-semantic_definition beginningPhase : TurnPart := .beginningPhase
-semantic_definition cleanup : TurnPart := .cleanup
-semantic_definition cleanupStep : TurnPart := .cleanup
-semantic_definition TurnPart.combat : TurnPart := .combat
-semantic_definition combatDamageStep : TurnPart := .combatDamage
-semantic_definition combatPhase : TurnPart := .combat
-semantic_definition declareAttackersStep : TurnPart := .declareAttackers
-semantic_definition declareBlockersStep : TurnPart := .declareBlockers
-semantic_definition drawStep : TurnPart := .drawStep
-semantic_definition endOfCombatStep : TurnPart := .endOfCombat
-semantic_definition endStep : TurnPart := .endStep
-semantic_definition endingPhase : TurnPart := .endingPhase
-semantic_definition mainPhase : TurnPart := .mainPhase
-semantic_definition postcombatMainPhase : TurnPart := .postcombatMain
-semantic_definition precombatMainPhase : TurnPart := .firstMain
-semantic_definition untapStep : TurnPart := .untapStep
-semantic_definition upkeep : TurnPart := .upkeep
-semantic_definition upkeepStep : TurnPart := .upkeep
 
 /-! ## Attach, create, and counter -/
 
@@ -618,19 +597,6 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
       (.would .any (destroy (.firstMention "regenerate.subject" (.inCaller subject))))
       (instead (regenerationApplication (.laterMention "regenerate.subject" (.inCaller subject))))
       none .nextTimeOnly none) (some thisTurn))
-
-private theorem regenerationEventDescribesTheApplicationRatherThanTheShield :
-    let event := does any (regenerationApplication thisCreature)
-    let applied := (stepGameEvent 64 (DRS.ofList []) event).1
-    let shield := (stepAction 64 .postEvent .obj (DRS.ofList []) (regenerate thisCreature)).1
-    GameEvent.check (DRS.ofList []) event = [] ∧
-      countOnes .object applied = 1 ∧
-      (applied.findById? 0).map (fun ref => (ref.kind, ref.zone)) =
-        some (.object, some .battlefield) ∧
-      countOnes .object shield = 0 ∧
-      Action.check (DRS.ofList [])
-        (.triggerReflexively (regenerate thisCreature) (some event)
-          (putCounters (.lit 1) m1m1Counter it .many)) = [] := by decide
 
 /-! ## Keyword actions -/
 

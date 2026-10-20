@@ -90,7 +90,7 @@ theorem okOverloadDefinition : Ability.check (DRS.ofList []) (overload cleaveCos
 /-- Splice onto Arcane's definition: as you cast an Arcane spell, you may reveal this card; if you
 do, that spell gains its text and you pay the cost as an additional cost [CR#702.47a]. -/
 theorem okSpliceDefinition :
-    Ability.check (DRS.ofList []) (splice_ (.hasSubtype (.spell "Arcane")) cleaveCost) = [] := by
+    Ability.check (DRS.ofList []) (Ability.splice (.hasSubtype arcane) cleaveCost) = [] := by
   decide
 
 end Semantics.Proofs.TextChanges

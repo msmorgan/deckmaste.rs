@@ -1,3 +1,5 @@
+import Semantics.Check
+import Semantics.Check.Card
 import Semantics.Definitions
 import Semantics.Check.NumberSlots
 import Semantics.Check.LocalShape

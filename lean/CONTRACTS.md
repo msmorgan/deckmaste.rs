@@ -125,7 +125,14 @@ semantic fields are inspected recursively. The modules are layered
 re-exported by `Semantics.Definitions`. The leaf catalogs
 (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are spelled over
 primitives only; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`) are
-spelled over Templates.
+spelled over Templates. The checker sits beside this stack, not under it: Primitives, the leaf
+catalogs and Templates import none of `Semantics.Check` (the structural readers they need, such
+as `Location.sort`, live with the Core AST), and only the composite Definitions read a checker
+reader (`NounPhrase.plur`, for "It/They can't be regenerated"). A word a Template sort and a
+Definition share (`crew`, `saddle`) is dispatched on its expected type where the Definition is
+declared, so Templates name nothing above them. A declaration whose bare name another
+declaration or a syntax word already takes is named in its sort's namespace (`Subtype.army`,
+`Subtype.infinity`, `DesignationLabel.solved`, `Ability.splice`).
 `Semantics.Primitives` provides the generated constructor wrappers
 (`declare_semantic_primitives`, `Semantics.Primitives.<Type>.<name>`), which
 have definitionally identical constructor signatures and are registered as

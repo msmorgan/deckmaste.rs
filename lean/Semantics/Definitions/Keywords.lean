@@ -784,6 +784,9 @@ semantic_definition harmonize (cost : Cost) : Ability :=
         (replace (would thisSpell (leave stack))
           (doIf (keywordCostPaid (.named "harmonize") thisSpell) (instead (exile thisSpell)))) ]
 semantic_definition haste : Ability := keyword (.named "haste")
+/-- "<subject> gains haste [until …]" -/
+semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration := none) : Action :=
+  gain subject haste duration
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
     [ triggeredIf (does thisPermanent die)
@@ -1328,7 +1331,10 @@ semantic_definition spectacle (cost : Cost) : Ability :=
     [ static
         (onlyWhile (can you (cast this_ (payment := .payingInstead (.inCaller cost))))
           (happened (loseLife .anyAmount) anOpponent soFarThisTurn)) ]
-semantic_definition splice_ (quality : Predicate) (cost : Cost) : Ability :=
+/-- "Splice onto [quality] [cost]" [CR#702.47a]. Named in its sort, `Ability.splice`, as a
+declaration whose bare name is taken is (`Subtype.army`, `DesignationLabel.solved`): `splice` is
+the authoring syntax's word for a supplied body. -/
+semantic_definition Ability.splice (quality : Predicate) (cost : Cost) : Ability :=
   .keyword (.named "splice") [.quality (.inCaller quality), .cost (.inCaller cost)]
     [ static
         (.replace
@@ -1550,5 +1556,16 @@ semantic_definition webSlinging (cost : Cost) : Ability :=
                 [ .inCaller cost,
                   .perform (returnToHand (a (and [isCreature, isTapped, youControl]))) ])))) ]
 semantic_definition wither : Ability := keyword (.named "wither")
+
+open Lean Elab Term in
+/-- `crew` and `saddle` name a keyword ability declared here and the action its definition's cost
+performs (`Action.crew`, `Action.saddle` [CR#702.122a,702.171a]): the expected type picks one,
+as `Semantics.Templates` dispatches the words its own sorts share. -/
+@[scoped term_elab Lean.Parser.Term.app]
+def elabKeywordDispatch : TermElab := Templates.dispatchOnExpectedType
+  [ (`crew, [ (``Semantics.Action, `Semantics.Templates.Action.crew),
+              (``Semantics.Ability, `Semantics.Definitions.crew) ]),
+    (`saddle, [ (``Semantics.Action, `Semantics.Templates.Action.saddle),
+                (``Semantics.Ability, `Semantics.Definitions.saddle) ]) ]
 
 end Semantics.Definitions

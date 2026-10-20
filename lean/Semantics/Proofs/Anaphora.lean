@@ -1,3 +1,4 @@
+import Semantics.Check
 import Semantics.Definitions
 import Semantics.Check.Card
 

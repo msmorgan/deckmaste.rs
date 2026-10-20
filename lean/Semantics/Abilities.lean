@@ -1259,6 +1259,25 @@ attribute [internal_expansion] Semantics.NounPhrase.pro Semantics.NounPhrase.whi
   Semantics.NounPhrase.inCaller Semantics.GameEvent.inCaller Semantics.Amount.inCaller
   Semantics.Predicate.inCaller Semantics.Action.enact Semantics.Action.inCaller
   Semantics.Action.ownScope Semantics.Cost.inCaller Semantics.StaticSpec.inCaller
-  Semantics.Replacement.inCaller
+  Semantics.Replacement.inCaller Semantics.Ability.inCaller
 
 attribute [semantic_literal] Semantics.Amount.lit
+
+namespace Semantics
+
+/-- The one zone a location is in, if it names one: a disjunction names a zone only when all its
+disjuncts name the same one ("on the top or bottom of your library"). -/
+def Location.sort (z : Location) (fuel : Nat := 16) : Option Zone :=
+  match fuel, z with
+  | 0, _ => none
+  | n + 1, .inCaller body => body.sort n
+  | _ + 1, .zone zn _ => some zn
+  | n + 1, .fromEnd _ _ p => p.sort n
+  | _ + 1, .exiledWith _ => some .exile
+  | n + 1, .or (first :: rest) =>
+    let zone := first.sort n
+    if zone.isSome && rest.all (fun loc => loc.sort n == zone) then zone else none
+  | _ + 1, .or [] | _ + 1, .pile _ | _ + 1, .anyLocation | _ + 1, .not _ => none
+termination_by structural fuel
+
+end Semantics
