@@ -772,7 +772,6 @@ semantic_template pileOf (count : SliceCount) (by_ : Option NounPhrase := none) 
   .pileOf count by_
 semantic_template possessorOf (axis : PossessorAxis) (subject : NounPhrase) : NounPhrase :=
   .possessorOf axis subject
-semantic_template resolvedPermanent (spell : NounPhrase) : NounPhrase := .resolvedPermanent spell
 semantic_template run (end_ : PileEnd) (stop : Predicate) (pile : Location) : NounPhrase :=
   .run end_ stop pile
 semantic_template slice (end_ : PileEnd) (amount : Amount) (pile : Location) : NounPhrase :=
@@ -1571,7 +1570,7 @@ semantic_template separateIntoPiles (group : NounPhrase) (piles : Nat)
 semantic_template sequentially (steps : List Action := []) : Action := .sequentially steps
 /-- "it becomes <designation>": the game gains a designation the game can have [CR#731.1]. -/
 semantic_template setGameDesignation (designation : DesignationLabel) : Action :=
-  .gainDesignation .theGame designation none
+  .gameGains designation
 semantic_template setStatus (status : Status) (subject : NounPhrase) : Action :=
   .setStatus status subject
 semantic_template simultaneously (steps : List Action := []) : Action := .simultaneously steps
@@ -1714,7 +1713,7 @@ semantic_template endOf (part : TurnPart) (whose : Option NounPhrase) (which : T
   .endOf part whose which
 /-- "whenever it becomes <designation>": the game gaining it [CR#731.1,731.1a]. -/
 semantic_template gameBecomes (designation : DesignationLabel) : GameEvent :=
-  .does .any (.gainDesignation .theGame designation none)
+  .does .any (.gameGains designation)
 semantic_template nthOccurrence (ordinal : Ordinal) (event : GameEvent)
     (per : Option TurnPart := none) : GameEvent :=
   .nthOccurrence ordinal per event
@@ -2069,8 +2068,7 @@ semantic_template flipCalled (caller : NounPhrase) (call : FlipCall) : Condition
   .flipCalled caller call
 semantic_template flipFace (face : CoinFace) : Condition := .flipFace face
 /-- "if it's <designation>": the game has it [CR#731.1]. -/
-semantic_template gameIs (designation : DesignationLabel) : Condition :=
-  .matches .theGame (.hasDesignation designation none)
+semantic_template gameIs (designation : DesignationLabel) : Condition := .gameHas designation
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=
   costWasPaid (.byKeyword label) none subject
 semantic_template matches_ (subject : NounPhrase) (predicate : Predicate) : Condition :=

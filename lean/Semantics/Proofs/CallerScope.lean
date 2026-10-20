@@ -169,13 +169,13 @@ theorem conditionsRefineOriginalIdentity :
     (after.findById? 0).map (·.ty) = some [.creature] ∧ after.nextId = before.nextId := by decide
 
 theorem resolvedSubjectRetainsIdentityAndChangesZone :
-    let refs := selected callerCreatureSpell (forwardedSubject (.resolvedPermanent it))
+    let refs := selected callerCreatureSpell (forwardedSubject (.becomes it))
     refs.map (·.id) = [0] ∧ refs.map (·.zone) = [some .battlefield] := by decide
 theorem amountReadsPreserveNounContextUpdates :
-    (((stepAmount 64 callerCreatureSpell (subjectPower (forwardedSubject (.resolvedPermanent it)))).1).findById? 0).bind
+    (((stepAmount 64 callerCreatureSpell (subjectPower (forwardedSubject (.becomes it)))).1).findById? 0).bind
       (·.zone) = some .battlefield := by decide
 theorem nounCoordinationPreservesContextUpdates :
-    ((nounResult callerCreatureSpell (.and [forwardedSubject (.resolvedPermanent it), .you])).findById? 0).bind
+    ((nounResult callerCreatureSpell (.and [forwardedSubject (.becomes it), .you])).findById? 0).bind
       (·.zone) = some .battlefield := by decide
 
 theorem eventParametersPublishTheirOutcome :
@@ -208,7 +208,7 @@ theorem scopedNumberRegimeIsPreserved :
       [(.lit 2, .clamped)] := rfl
 
 theorem possessorQueryPreservesSubjectUpdate :
-    ((nounResult callerCreatureSpell (.possessorOf .controller (.resolvedPermanent it))).findById? 0).bind
+    ((nounResult callerCreatureSpell (.possessorOf .controller (.becomes it))).findById? 0).bind
       (·.zone) = some .battlefield := by decide
 
 theorem sameSelectedSubjectIsReadBackThroughTemplate :
@@ -264,7 +264,7 @@ theorem forwardedLibraryOwnerRetainsOpponentClassification :
 
 theorem librarySlicePreservesExplicitOwnerUpdate :
     ((nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (libraryOf (.possessorOf .controller (.resolvedPermanent it))))).findById? 0).bind
+      (.slice .top (.lit 2) (libraryOf (.possessorOf .controller (.becomes it))))).findById? 0).bind
         (·.zone) = some .battlefield := by decide
 
 theorem forwardedCoordinationRetainsTwoParties :
@@ -392,19 +392,19 @@ theorem callerExitDoesNotResurrectForgottenMentions :
 
 theorem possessorQueryPreservesItsWholeContext :
     let after := nounResult callerCreatureSpell
-      (.possessorOf .controller (forwardedSubject (.resolvedPermanent it)))
+      (.possessorOf .controller (forwardedSubject (.becomes it)))
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(1, .player, none), (0, .object, some .battlefield)] := by decide
 
 theorem nounCoordinationPreservesItsWholeContext :
     let after := nounResult callerCreatureSpell
-      (.and [forwardedSubject (.resolvedPermanent it), .you])
+      (.and [forwardedSubject (.becomes it), .you])
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(1, .player, none), (0, .object, some .battlefield)] := by decide
 
 theorem unusedLibraryOwnerArgumentDoesNotMutateTheCaller :
     let after := nounResult callerCreatureSpell
-      (.slice .top (.lit 2) (libraryOf (playerIgnoringSubject (.resolvedPermanent it))))
+      (.slice .top (.lit 2) (libraryOf (playerIgnoringSubject (.becomes it))))
     after.visibleReferents.map (fun ref => (ref.id, ref.kind, ref.zone)) =
       [(2, .object, some .library), (1, .player, none), (0, .object, some .stack)] := by decide
 

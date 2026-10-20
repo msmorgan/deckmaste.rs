@@ -294,7 +294,7 @@ theorem conditionalShuffleForgetsPrivateOperand :
 
 theorem capturePreservesTheResolvedPermanentView :
     Action.check (DRS.ofList []) (instruct
-      (.resolvedPermanent (target (.and [isSpell, isCreature]))) (fight (target isCreature))) = [] := by decide
+      (.becomes (target (.and [isSpell, isCreature]))) (fight (target isCreature))) = [] := by decide
 
 
 theorem alternativeReadsTheAmountWithoutObservingTheUntakenDamage :

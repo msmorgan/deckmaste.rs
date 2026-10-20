@@ -1962,7 +1962,7 @@ def stepOps : Nat → StepOps
           let (drs1, ids, errs) := ops.np drs role inArgSlot subj
           (drs1, ids, errs ++ refuse (subj.plur == .many) .plural ++
             refuse (subj.det == some .count || subj.det == some .target) .countedMention)
-        | .resolvedPermanent subj =>
+        | .becomes subj =>
           let (out, ids, errors) := ops.np drs role inArgSlot subj
           let source := ids.head?.bind out.findById?
           let errors := errors ++ kindCheck .object (source.map (·.kind))
@@ -1972,11 +1972,8 @@ def stepOps : Nat → StepOps
                 .object ty (some .battlefield) stamp origin size
               | payload => payload }) out
           (out, ids, errors)
-        | .becomes subj | .counterpart _ subj =>
-          let (drs1, srcIds, e1) := ops.np drs .other false subj
-          let e1 := e1 ++ (match np with
-            | .becomes _ => kindCheck .object ((srcIds.head?.bind drs1.findById?).map (·.kind))
-            | _ => [])
+        | .counterpart _ subj =>
+          let (drs1, _, e1) := ops.np drs .other false subj
           let ref : Referent := {
             det := .the, plur := .one,
             payload := .object [] (some .battlefield) none none none
@@ -2008,7 +2005,6 @@ def stepOps : Nat → StepOps
           let rid := drs1.nextId
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1)
-        | .theGame => (drs, [], [.gameReference])
         | .you =>
           let ref : Referent := { det := .the, plur := np.plur, payload := .player false }
           let rid := drs.nextId
@@ -2158,8 +2154,7 @@ def stepOps : Nat → StepOps
           let (out, errs) := stepDidClauseWith ops
             { drs with relativeBinder := none, relativeUses := 0 } clause
           ({ out with relativeBinder := drs.relativeBinder, relativeUses := drs.relativeUses }, errs)
-        | .matches .theGame (.hasDesignation designation none) =>
-          (drs, refuse designation.gameWide (.designationScope designation))
+        | .gameHas designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .matches subj pred =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let subjectKind := (ids.head?.bind drs1.findById?).map (·.kind)
@@ -2399,9 +2394,7 @@ def stepOps : Nat → StepOps
             | some (.ofColor ct) => stepColorTermWith ops drs1 ct
             | _ => (drs1, [])
           (drs2.push (outcomeB .manaProduced) .other false, e1 ++ e2)
-        | .gainDesignation .theGame designation optDur =>
-          let (drs1, e1) := match optDur with | some d => stepDurationWith ops drs d | none => (drs, [])
-          (drs1, refuse designation.gameWide (.designationScope designation) ++ e1)
+        | .gameGains designation => (drs, refuse designation.gameWide (.designationScope designation))
         | .gainDesignation subj designation optDur =>
           let (drs1, refIds, e1) := ops.np drs patientRole true subj
           let source := refIds.head?.bind drs1.findById?

@@ -290,7 +290,7 @@ theorem badShuffleLocusAtGraveyard :
 
 /-- "target creature spell, once it resolves" -/
 theorem okResolvedCreatureSpell :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (.resolvedPermanent (a (.and [.hasType .creature, isSpell])))
+    NounPhrase.checkAt (some .object) (DRS.ofList []) (.becomes (a (.and [.hasType .creature, isSpell])))
       = [] := by
   decide
 

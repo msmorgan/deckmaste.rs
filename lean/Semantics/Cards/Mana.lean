@@ -1000,7 +1000,7 @@ def generatorServant : Spelled := spelled <| .singleFaced
         [ activated (compound [tapSymbol, perform (sacrifice thisCreature)])
             (addMana (.lit 1) (manaOf [[.colorless, .colorless]])
               [ whenSpentOn .affectsIt false (a (and [isCreature, isSpell]))
-                  (gainHaste (resolvedPermanent (that .spell)) (some untilEndOfTurn)) ]) ],
+                  (gainHaste (becomes (that .spell)) (some untilEndOfTurn)) ]) ],
       power := stat 2, toughness := stat 1 } }
 
 /-- Animal Attendant -/
@@ -1014,7 +1014,7 @@ def animalAttendant : Spelled := spelled <| .singleFaced
               [ whenSpentOn .affectsIt false
                   (a (and [non (hasSubtype human), isCreature, isSpell]))
                   (establish
-                    (entersWithAdditionalCounters (resolvedPermanent (that .spell)) (.lit 1)
+                    (entersWithAdditionalCounters (becomes (that .spell)) (.lit 1)
                        p1p1Counter)) ]) ],
       power := stat 2, toughness := stat 2 } }
 

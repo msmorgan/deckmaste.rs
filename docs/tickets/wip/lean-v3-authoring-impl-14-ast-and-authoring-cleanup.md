@@ -101,12 +101,18 @@ constraints apply.
     `Predicate.abilityHead`: `AbilityClass.mana`, with `isManaAbility` the
     template.
   - Reconcile `NounPhrase.resolvedPermanent` vs `NounPhrase.becomes`
-    (`Abilities.lean:301,304`, `[CR#400.7,608.3a]`).
+    (`Abilities.lean:301,304`, `[CR#400.7,608.3a]`). One constructor,
+    `becomes` ("the permanent this spell becomes"), with `resolvedPermanent`'s
+    reading: a type view refining the spell's referent in place (ADR §1.4),
+    since effects on the spell continue to the permanent `[CR#400.7a]`.
   - Replace `NounPhrase.theGame` (`Abilities.lean:309`, §4.14 — refused
     everywhere except `.matches .theGame (.hasDesignation ...)` and
     `.gainDesignation .theGame ...`, violating the glossary's Reference = Object
     or Player) with dedicated game-designation forms or a clean non-`NounPhrase`
-    representation.
+    representation: `Condition.gameHas d` ("it's day") and `Action.gameGains d`
+    ("it becomes night"), the `gameIs`/`setGameDesignation`/`gameBecomes`
+    templates over them; `Refusal.gameReference` goes, the misuse it caught
+    being unrepresentable.
   - Audit and clean up one-card `Ability` constructors (`mayBeginOnBattlefield`,
     `alsoForKeywords`, `thatAbility`), `Predicate.other` vs `otherThan`,
     duplicated qualifier slots (`Ability.activated` vs `Ability.qualified` vs

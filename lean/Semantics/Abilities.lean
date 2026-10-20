@@ -298,15 +298,13 @@ mutual
     | this
     /-- `subject` named by a Head Noun: "this creature", "this spell". -/
     | headed (head : HeadNoun) (subject : NounPhrase)
-    | resolvedPermanent (spell : NounPhrase)
-    /-- The new object `subject` turns into at its next zone change, named before the change
-    happens: "the permanent this spell becomes" [CR#400.7]. -/
+    /-- The permanent the spell `subject` becomes as it resolves, named before it resolves: "the
+    permanent this spell becomes", "it" for a creature spell mana was spent on [CR#608.3a]. A
+    type view of the spell's referent, refined in place: effects that apply to the spell
+    continue to apply to that permanent [CR#400.7a,400.7b]. -/
     | becomes (subject : NounPhrase)
     | theGrantor (head : HeadNoun)
     | you
-    /-- The game itself, named only as the holder of the designations the game can have: "it
-    becomes night" is the game gaining night, "if it's day" the game having day [CR#731.1]. -/
-    | theGame
     /-- Whoever performs the action this phrase is part of: the controller [CR#109.5],
     unless an enclosing `Action.instruct` hands the action to another player or to a
     permanent, which it then is. -/
@@ -426,6 +424,10 @@ mutual
     | exists_ (subject : NounPhrase)
     | did (clause : DidClause)
     | matches (subject : NounPhrase) (predicate : Predicate)
+    /-- The game has `designation`, one the game itself can have: "if it's day" [CR#731.1]. The
+    game is neither an Object nor a Player, so it is no Reference, and is named only here and in
+    `Action.gameGains`. -/
+    | gameHas (designation : DesignationLabel)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
     | dealtThisWay (predicate : Predicate)
     | choseThisWay (chooser : NounPhrase) (predicate : Predicate)
@@ -1030,6 +1032,9 @@ mutual
     | changeControl (subject : NounPhrase)
     | gainDesignation (subject : NounPhrase) (designation : DesignationLabel)
         (duration : Option Duration)
+    /-- The game gains `designation`, one the game itself can have: "it becomes night"
+    [CR#731.1]. -/
+    | gameGains (designation : DesignationLabel)
     | unlock (door : Door)
     /-- A Room gains its remaining unlocked designation, or both at once [CR#709.5i]. -/
     | fullyUnlock (room : NounPhrase)

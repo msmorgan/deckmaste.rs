@@ -30,8 +30,6 @@ inductive Refusal where
   | axesAt (k : Kind)
   | designationHolder (designation : DesignationLabel) (k : Kind)
   | designationScope (designation : DesignationLabel)
-  /-- The game is named only as the holder of the designations it can have [CR#731.1]. -/
-  | gameReference
   /-- A Relation no declaration declares [CR#702.55b,702.95b,702.99b]. -/
   | knownRelation (relation : RelationLabel)
   | designationPossessorFits (designation : DesignationLabel)

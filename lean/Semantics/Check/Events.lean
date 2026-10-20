@@ -38,7 +38,7 @@ def Action.eventHeadOk (e : Action) (fuel : Nat := 16) : Bool :=
   | _ + 1, .combat .. | _ + 1, .attack .. | _ + 1, .block .. | _ + 1, .attackUnblocked .. | _ + 1, .attackWith ..
   | _ + 1, .target .. | _ + 1, .tapForMana .. | _ + 1, .commitCrime | _ + 1, .attachment .. | _ + 1, .changeControl ..
   | _ + 1, .trigger | _ + 1, .crew .. | _ + 1, .saddle .. | _ + 1, .fullyUnlock ..
-  | _ + 1, .gainDesignation .. | _ + 1, .unlock .. | _ + 1, .conclude ..
+  | _ + 1, .gainDesignation .. | _ + 1, .gameGains _ | _ + 1, .unlock .. | _ + 1, .conclude ..
   | _ + 1, .choose .. | _ + 1, .vote .. | _ + 1, .copy .. | _ + 1, .changeLife .. | _ + 1, .addMana .. | _ + 1, .draw ..
   | _ + 1, .expose .. | _ + 1, .search .. | _ + 1, .shuffle .. | _ + 1, .flipCoins .. | _ + 1, .rollDice ..
   | _ + 1, .createObject .. | _ + 1, .putCounters .. | _ + 1, .distribute .. | _ + 1, .removeCounters ..

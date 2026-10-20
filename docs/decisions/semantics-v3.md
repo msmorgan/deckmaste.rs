@@ -155,7 +155,7 @@ references resolve in the caller. The checker steps a copy source once and carri
 source’s types into the created token. Embedded ability text inherits announced choices only;
 ordinary participants and the enclosing performer remain outside that text’s discourse context.
 
-Type views (`headed`, a Head Noun over its subject, and `resolvedPermanent`) refine their selected referent in
+Type views (`headed`, a Head Noun over its subject, and `becomes`, the permanent a spell becomes) refine their selected referent in
 place. They do not create a second discourse object merely by describing the same object’s type
 or rules role.
 
