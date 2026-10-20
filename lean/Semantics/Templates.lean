@@ -1946,8 +1946,8 @@ semantic_template instead (action : Action) : Replacement := .instead action
 /-- `action` done as part of the replaced event, which still happens: "As this enters, choose a
 color", "that player may put … counters on it as it enters" [CR#603.6d,614.1c]. -/
 semantic_template also (action : Action) : Replacement := .also action
-/-- The replaced move still happens, with `riders`: "enters tapped", "enters with N counters",
-"enters as a copy", "enters transformed" [CR#614.1c,614.1d]. -/
+/-- The replaced entering still happens, with Entry Riders `riders`: "enters tapped", "enters
+with N counters", "enters as a copy", "enters transformed" [CR#614.1c,614.1d]. -/
 semantic_template withRiders (riders : List MoveRider) : Replacement := .withRiders riders
 /-- "If <condition>, <replacement> instead": a replacement applying only while `condition` holds,
 the event happening unmodified otherwise, as "draw a card. If you control three or more

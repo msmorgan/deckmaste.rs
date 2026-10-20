@@ -171,8 +171,12 @@ inductive Refusal where
   | levelerFrame
   | bandsDisjoint
   | prototypeFrame
-  /-- Riders ride a move: a replacement adding riders replaces a move [CR#614.1c,614.12]. -/
-  | riddenMove
+  /-- Entry Riders ride an entering: a replacement adding riders replaces a permanent's
+  entering [CR#614.1c,614.12]. -/
+  | riddenEntering
+  /-- A replacement's riders are Entry Riders, never Pile Placements, which only a card put into
+  another zone carries [CR#401.4,406.3,614.12]. -/
+  | entryRidersOnly
   deriving DecidableEq, Repr
 
 end Semantics

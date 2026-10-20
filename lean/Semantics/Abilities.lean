@@ -764,8 +764,8 @@ mutual
     | causedBy (cause : Causing) (clause : WouldClause)
 
   /-- What a replacement effect makes of the event it replaces [CR#614.1]: an action in its
-  place, an action done as part of it, or riders on the move it is, each of which may apply only
-  while a condition holds. -/
+  place, an action done as part of it, or Entry Riders on the entering it is, each of which may
+  apply only while a condition holds. -/
   inductive Replacement where
     /-- A replacement supplied by the immediate caller of a Definition. -/
     | inCaller (body : Replacement)
@@ -776,13 +776,17 @@ mutual
     color", "That player may put an additional N +1/+1 counters on it as it enters"
     [CR#603.6d,614.1c]. -/
     | also (action : Action)
-    /-- The replaced move still happens, with `riders`: "this enters tapped", "enters with N
-    counters", "enters as a copy of", "enters transformed" [CR#614.1c,614.1d,614.12]. Only a
-    move is ridden. -/
+    /-- The replaced entering still happens, with `riders`: "this enters tapped", "enters with N
+    counters", "enters as a copy of", "enters transformed" [CR#614.1c,614.1d,614.12]. Only an
+    entering, a move to the battlefield or a token's creation, is ridden, and only by Entry
+    Riders. -/
     | withRiders (riders : List MoveRider)
     /-- `body`, applying only while `condition` holds; otherwise the event happens unmodified,
     as in the self-replacement "draw a card. If you control three or more artifacts, draw two
-    cards instead" [CR#614.15]. -/
+    cards instead" [CR#614.15], or "if it is night, … it enters transformed" [CR#702.145b]. The
+    condition is checked as the event would happen. One that decides whether the ability exists
+    at all ("each Saga without read ahead has …" [CR#714.3a]) stays on the static ability
+    (`StaticSpec.conditional`). -/
     | onlyIf (condition : Condition) (body : Replacement)
 
   /-- Optional modifiers on a deontic rule (`cant`, `can`, `must`, `gatedBy`)
@@ -836,10 +840,10 @@ mutual
     failure arm ("you may instead mill …") does declining it leave `event` to happen; otherwise
     that action is what happens in its place, a failure arm ("if you don't, put it into its
     owner's graveyard") included, so a `may` nested inside it spells out both arms. Under `also`,
-    `event` happens whatever is chosen, and declining a `may` skips only what it adds. Under
-    `withRiders`, the move happens with the riders, which offer no choice but an optional copy's
-    own (`MoveRider.asCopyOf`). Under `onlyIf`, `event` happens unmodified while the condition
-    fails. -/
+    `event` happens whatever is chosen: declining a `may` does its failure arm if it has one
+    (riot's "if you don't, it gains haste") and otherwise nothing. Under `withRiders`, the
+    entering happens with the riders, and there is nothing to decline. Under `onlyIf`, `event`
+    happens unmodified while the condition fails. -/
     | replace (event : WouldClause) (replacement : Replacement) (timing : Option Timing)
         (use : ReplUse) (limit : Option UsageLimit)
     /-- A static damage-result modification (lifelink, wither, infect)
@@ -862,8 +866,9 @@ mutual
     | specialAction (when : Option Timing) (cost : Cost) (does : Action)
     /-- An Off-Stack Static, "as [event], do": as `event` happens, `does` is carried out without
     using the stack [CR#604.1]. A delayed trigger it creates has this static's object as its
-    source [CR#603.7a,603.7g]. "As this enters, …" is a replacement of the entering instead
-    (`replace … (also …)`, [CR#614.1c]). -/
+    source [CR#603.7a,603.7g]. "As this enters, …" text is a replacement of the entering instead
+    (`replace … (also …)`, [CR#614.1c]); the rule that attaches an Aura as it enters other than
+    by resolving [CR#303.4f] is no such text, and stays here. -/
     | asEvent (event : GameEvent) (does : Action)
     /-- An Off-Stack Static, "any time [condition] holds, do": whenever `condition` holds, `does`
     is carried out without using the stack [CR#604.1,702.131b]. -/

@@ -211,7 +211,7 @@ theorem conditionOverTooDeepReplacementIsRefused :
 /-! ### What a replacement makes of its event
 
 "Instead" puts an action in the event's place; `also` does one as part of the event, which still
-happens; `withRiders` lets the move happen with riders. None restates the event
+happens; `withRiders` lets the entering happen with Entry Riders. None restates the event
 [CR#614.1a,614.1c,614.1d]. -/
 
 /-- "This land enters tapped": the entering still happens, ridden; nothing restates it
@@ -228,17 +228,45 @@ theorem okPluralEnteringRidden :
         p1p1Counter) = [] := by
   decide
 
-/-- Riders ride only a move: "If you would draw a card, it enters tapped" is refused
+/-- Entry Riders ride only an entering: "If you would draw a card, it enters tapped" is refused
 [CR#614.1c,614.12]. -/
 theorem badRidersOverADraw :
     StaticSpec.check (DRS.ofList [])
-      (replace (would you (draw (.lit 1))) (withRiders [.entersAs .tapped])) = [.riddenMove] := by
+      (replace (would you (draw (.lit 1))) (withRiders [.entersAs .tapped])) =
+      [.riddenEntering] := by
   decide
 
 /-- The same refusal for a spell's own replacement: "Draw a card; it enters tapped instead". -/
 theorem badSelfReplacementRidersOverADraw :
     Action.check (DRS.ofList [])
-      (replace (draw (.lit 1)) (withRiders [.entersAs .tapped])) = [.riddenMove] := by
+      (replace (draw (.lit 1)) (withRiders [.entersAs .tapped])) = [.riddenEntering] := by
+  decide
+
+/-- A move is not enough: "If this creature would die, it enters tapped" is refused, dying being
+a move to a graveyard [CR#614.12,700.4]. -/
+theorem badRidersOverADying :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would thisCreature die) (withRiders [.entersAs .tapped])) =
+      [.riddenEntering] := by
+  decide
+
+/-- A token's creation is an entering: "If you would create one or more tokens, they enter
+tapped" [CR#111.1,614.1d]. -/
+theorem okRidersOverATokenCreation :
+    StaticSpec.check (DRS.ofList [])
+      (replace
+        (would any
+          (createObject anyAmount (token (copyOf (counted (atLeast 1) isToken)) []) true
+            (some you)))
+        (withRiders [.entersAs .tapped])) = [] := by
+  decide
+
+/-- A Pile Placement is no Entry Rider: "this creature enters in any order" is refused
+[CR#401.4,614.12]. -/
+theorem badPilePlacementOverAnEntering :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would thisCreature enter) (withRiders [.inOrder .anyOrder])) =
+      [.entryRidersOnly] := by
   decide
 
 /-- A condition over riders keeps them riding the move: "If it's night, this permanent enters
