@@ -19,6 +19,74 @@ def distinctKeywordWords : List KeywordFacts → Bool
 
 def keywordFactsFor (k : KeywordLabel) : Option KeywordFacts := keywordFacts.find? (·.word == k)
 def knownKeyword (k : KeywordLabel) : Bool := (keywordFactsFor k).isSome
+
+/-- The ability words, as [CR#207.2c] lists and spells them. -/
+def abilityWordNames : List String :=
+  [ "adamant",
+    "addendum",
+    "alliance",
+    "battalion",
+    "bloodrush",
+    "celebration",
+    "channel",
+    "chroma",
+    "cohort",
+    "constellation",
+    "converge",
+    "council’s dilemma",
+    "coven",
+    "delirium",
+    "descend 4",
+    "descend 8",
+    "disappear",
+    "domain",
+    "eerie",
+    "eminence",
+    "enrage",
+    "fateful hour",
+    "fathomless descent",
+    "ferocious",
+    "flurry",
+    "formidable",
+    "grandeur",
+    "hellbent",
+    "heroic",
+    "imprint",
+    "infusion",
+    "inspired",
+    "join forces",
+    "kinship",
+    "landfall",
+    "lieutenant",
+    "magecraft",
+    "metalcraft",
+    "morbid",
+    "opus",
+    "pack tactics",
+    "paradox",
+    "parley",
+    "radiance",
+    "raid",
+    "rally",
+    "renew",
+    "repartee",
+    "revolt",
+    "secret council",
+    "spell mastery",
+    "strive",
+    "survival",
+    "sweep",
+    "tempting offer",
+    "threshold",
+    "undergrowth",
+    "valiant",
+    "vivid",
+    "void",
+    "will of the council" ]
+
+/-- Whether an ability word is one [CR#207.2c] lists. -/
+def AbilityWordLabel.known : AbilityWordLabel → Bool
+  | .named name => abilityWordNames.contains name
 def keywordSchemas (k : KeywordLabel) : List KeywordSchema :=
   (keywordFactsFor k).elim [] (·.argumentSchemas)
 

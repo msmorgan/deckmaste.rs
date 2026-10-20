@@ -203,7 +203,7 @@ def phyrexianIngester : Spelled := spelled <| .singleFaced
     { name := "Phyrexian Ingester", cost := some [generic 6, pip .blue], types := [.creature],
       subtypes := [phyrexian, beast],
       text :=
-        [ abilityWord "imprint"
+        [ imprint
             (when (does thisCreature enter)
               (may (exile (target (and [isCreature, isNontoken]))))),
           phyrexianIngesterPump ],

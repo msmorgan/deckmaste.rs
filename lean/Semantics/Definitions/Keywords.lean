@@ -111,76 +111,79 @@ semantic_definition cycling (cost : Cost) : Ability :=
   .keyword (.named "cycling") [.cost (.inCaller cost)]
     [activated (.compound [.inCaller cost, .perform (discard this_)]) (draw (.lit 1))]
 
-/-! ## Ability words -/
+/-! ## Ability words
 
-semantic_definition adamant (ability : Ability) : Ability := abilityWord "Adamant" ability
-semantic_definition addendum (ability : Ability) : Ability := abilityWord "Addendum" ability
-semantic_definition alliance (ability : Ability) : Ability := abilityWord "Alliance" ability
-semantic_definition battalion (ability : Ability) : Ability := abilityWord "Battalion" ability
-semantic_definition bloodrush (ability : Ability) : Ability := abilityWord "Bloodrush" ability
-semantic_definition celebration (ability : Ability) : Ability := abilityWord "Celebration" ability
-semantic_definition channel (ability : Ability) : Ability := abilityWord "Channel" ability
-semantic_definition chroma (ability : Ability) : Ability := abilityWord "Chroma" ability
-semantic_definition cohort (ability : Ability) : Ability := abilityWord "Cohort" ability
-semantic_definition constellation (ability : Ability) : Ability :=
-  abilityWord "Constellation" ability
-semantic_definition converge (ability : Ability) : Ability := abilityWord "Converge" ability
-semantic_definition councilsDilemma (ability : Ability) : Ability :=
-  abilityWord "Council's dilemma" ability
-semantic_definition coven (ability : Ability) : Ability := abilityWord "Coven" ability
-semantic_definition delirium (ability : Ability) : Ability := abilityWord "Delirium" ability
-semantic_definition descend4 (ability : Ability) : Ability := abilityWord "Descend 4" ability
-semantic_definition descend8 (ability : Ability) : Ability := abilityWord "Descend 8" ability
-semantic_definition disappear (ability : Ability) : Ability := abilityWord "Disappear" ability
-semantic_definition domain (ability : Ability) : Ability := abilityWord "Domain" ability
-semantic_definition eerie (ability : Ability) : Ability := abilityWord "Eerie" ability
-semantic_definition eminence (ability : Ability) : Ability := abilityWord "Eminence" ability
-semantic_definition enrage (ability : Ability) : Ability := abilityWord "Enrage" ability
-semantic_definition fatefulHour (ability : Ability) : Ability := abilityWord "Fateful hour" ability
-semantic_definition fathomlessDescent (ability : Ability) : Ability :=
-  abilityWord "Fathomless descent" ability
-semantic_definition ferocious (ability : Ability) : Ability := abilityWord "Ferocious" ability
-semantic_definition flurry (ability : Ability) : Ability := abilityWord "Flurry" ability
-semantic_definition formidable (ability : Ability) : Ability := abilityWord "Formidable" ability
-semantic_definition grandeur (ability : Ability) : Ability := abilityWord "Grandeur" ability
-semantic_definition hellbent (ability : Ability) : Ability := abilityWord "Hellbent" ability
-semantic_definition heroic (ability : Ability) : Ability := abilityWord "Heroic" ability
-semantic_definition imprint (ability : Ability) : Ability := abilityWord "Imprint" ability
-semantic_definition infusion (ability : Ability) : Ability := abilityWord "Infusion" ability
-semantic_definition inspired (ability : Ability) : Ability := abilityWord "Inspired" ability
-semantic_definition joinForces (ability : Ability) : Ability := abilityWord "Join forces" ability
-semantic_definition kinship (ability : Ability) : Ability := abilityWord "Kinship" ability
-semantic_definition landfall (ability : Ability) : Ability := abilityWord "Landfall" ability
-semantic_definition lieutenant (ability : Ability) : Ability := abilityWord "Lieutenant" ability
-semantic_definition magecraft (ability : Ability) : Ability := abilityWord "Magecraft" ability
-semantic_definition metalcraft (ability : Ability) : Ability := abilityWord "Metalcraft" ability
-semantic_definition morbid (ability : Ability) : Ability := abilityWord "Morbid" ability
-semantic_definition opus (ability : Ability) : Ability := abilityWord "Opus" ability
-semantic_definition packTactics (ability : Ability) : Ability := abilityWord "Pack tactics" ability
-semantic_definition paradox (ability : Ability) : Ability := abilityWord "Paradox" ability
-semantic_definition parley (ability : Ability) : Ability := abilityWord "Parley" ability
-semantic_definition radiance (ability : Ability) : Ability := abilityWord "Radiance" ability
-semantic_definition raid (ability : Ability) : Ability := abilityWord "Raid" ability
-semantic_definition rally (ability : Ability) : Ability := abilityWord "Rally" ability
-semantic_definition renew (ability : Ability) : Ability := abilityWord "Renew" ability
-semantic_definition repartee (ability : Ability) : Ability := abilityWord "Repartee" ability
-semantic_definition revolt (ability : Ability) : Ability := abilityWord "Revolt" ability
-semantic_definition secretCouncil (ability : Ability) : Ability :=
-  abilityWord "Secret council" ability
-semantic_definition spellMastery (ability : Ability) : Ability :=
-  abilityWord "Spell mastery" ability
-semantic_definition strive (ability : Ability) : Ability := abilityWord "Strive" ability
-semantic_definition survival (ability : Ability) : Ability := abilityWord "Survival" ability
-semantic_definition sweep (ability : Ability) : Ability := abilityWord "Sweep" ability
-semantic_definition temptingOffer (ability : Ability) : Ability :=
-  abilityWord "Tempting offer" ability
-semantic_definition threshold (ability : Ability) : Ability := abilityWord "Threshold" ability
-semantic_definition undergrowth (ability : Ability) : Ability := abilityWord "Undergrowth" ability
-semantic_definition valiant (ability : Ability) : Ability := abilityWord "Valiant" ability
-semantic_definition vivid (ability : Ability) : Ability := abilityWord "Vivid" ability
-semantic_definition void (ability : Ability) : Ability := abilityWord "Void" ability
-semantic_definition willOfTheCouncil (ability : Ability) : Ability :=
-  abilityWord "Will of the council" ability
+An ability word has no rules meaning [CR#207.2c]: each is a Template, the italic word over the
+ability it heads, and no Definition. -/
+
+semantic_template adamant (ability : Ability) : Ability := abilityWord (.named "adamant") ability
+semantic_template addendum (ability : Ability) : Ability := abilityWord (.named "addendum") ability
+semantic_template alliance (ability : Ability) : Ability := abilityWord (.named "alliance") ability
+semantic_template battalion (ability : Ability) : Ability := abilityWord (.named "battalion") ability
+semantic_template bloodrush (ability : Ability) : Ability := abilityWord (.named "bloodrush") ability
+semantic_template celebration (ability : Ability) : Ability := abilityWord (.named "celebration") ability
+semantic_template channel (ability : Ability) : Ability := abilityWord (.named "channel") ability
+semantic_template chroma (ability : Ability) : Ability := abilityWord (.named "chroma") ability
+semantic_template cohort (ability : Ability) : Ability := abilityWord (.named "cohort") ability
+semantic_template constellation (ability : Ability) : Ability :=
+  abilityWord (.named "constellation") ability
+semantic_template converge (ability : Ability) : Ability := abilityWord (.named "converge") ability
+semantic_template councilsDilemma (ability : Ability) : Ability :=
+  abilityWord (.named "council’s dilemma") ability
+semantic_template coven (ability : Ability) : Ability := abilityWord (.named "coven") ability
+semantic_template delirium (ability : Ability) : Ability := abilityWord (.named "delirium") ability
+semantic_template descend4 (ability : Ability) : Ability := abilityWord (.named "descend 4") ability
+semantic_template descend8 (ability : Ability) : Ability := abilityWord (.named "descend 8") ability
+semantic_template disappear (ability : Ability) : Ability := abilityWord (.named "disappear") ability
+semantic_template domain (ability : Ability) : Ability := abilityWord (.named "domain") ability
+semantic_template eerie (ability : Ability) : Ability := abilityWord (.named "eerie") ability
+semantic_template eminence (ability : Ability) : Ability := abilityWord (.named "eminence") ability
+semantic_template enrage (ability : Ability) : Ability := abilityWord (.named "enrage") ability
+semantic_template fatefulHour (ability : Ability) : Ability := abilityWord (.named "fateful hour") ability
+semantic_template fathomlessDescent (ability : Ability) : Ability :=
+  abilityWord (.named "fathomless descent") ability
+semantic_template ferocious (ability : Ability) : Ability := abilityWord (.named "ferocious") ability
+semantic_template flurry (ability : Ability) : Ability := abilityWord (.named "flurry") ability
+semantic_template formidable (ability : Ability) : Ability := abilityWord (.named "formidable") ability
+semantic_template grandeur (ability : Ability) : Ability := abilityWord (.named "grandeur") ability
+semantic_template hellbent (ability : Ability) : Ability := abilityWord (.named "hellbent") ability
+semantic_template heroic (ability : Ability) : Ability := abilityWord (.named "heroic") ability
+semantic_template imprint (ability : Ability) : Ability := abilityWord (.named "imprint") ability
+semantic_template infusion (ability : Ability) : Ability := abilityWord (.named "infusion") ability
+semantic_template inspired (ability : Ability) : Ability := abilityWord (.named "inspired") ability
+semantic_template joinForces (ability : Ability) : Ability := abilityWord (.named "join forces") ability
+semantic_template kinship (ability : Ability) : Ability := abilityWord (.named "kinship") ability
+semantic_template landfall (ability : Ability) : Ability := abilityWord (.named "landfall") ability
+semantic_template lieutenant (ability : Ability) : Ability := abilityWord (.named "lieutenant") ability
+semantic_template magecraft (ability : Ability) : Ability := abilityWord (.named "magecraft") ability
+semantic_template metalcraft (ability : Ability) : Ability := abilityWord (.named "metalcraft") ability
+semantic_template morbid (ability : Ability) : Ability := abilityWord (.named "morbid") ability
+semantic_template opus (ability : Ability) : Ability := abilityWord (.named "opus") ability
+semantic_template packTactics (ability : Ability) : Ability := abilityWord (.named "pack tactics") ability
+semantic_template paradox (ability : Ability) : Ability := abilityWord (.named "paradox") ability
+semantic_template parley (ability : Ability) : Ability := abilityWord (.named "parley") ability
+semantic_template radiance (ability : Ability) : Ability := abilityWord (.named "radiance") ability
+semantic_template raid (ability : Ability) : Ability := abilityWord (.named "raid") ability
+semantic_template rally (ability : Ability) : Ability := abilityWord (.named "rally") ability
+semantic_template renew (ability : Ability) : Ability := abilityWord (.named "renew") ability
+semantic_template repartee (ability : Ability) : Ability := abilityWord (.named "repartee") ability
+semantic_template revolt (ability : Ability) : Ability := abilityWord (.named "revolt") ability
+semantic_template secretCouncil (ability : Ability) : Ability :=
+  abilityWord (.named "secret council") ability
+semantic_template spellMastery (ability : Ability) : Ability :=
+  abilityWord (.named "spell mastery") ability
+semantic_template strive (ability : Ability) : Ability := abilityWord (.named "strive") ability
+semantic_template survival (ability : Ability) : Ability := abilityWord (.named "survival") ability
+semantic_template sweep (ability : Ability) : Ability := abilityWord (.named "sweep") ability
+semantic_template temptingOffer (ability : Ability) : Ability :=
+  abilityWord (.named "tempting offer") ability
+semantic_template threshold (ability : Ability) : Ability := abilityWord (.named "threshold") ability
+semantic_template undergrowth (ability : Ability) : Ability := abilityWord (.named "undergrowth") ability
+semantic_template valiant (ability : Ability) : Ability := abilityWord (.named "valiant") ability
+semantic_template vivid (ability : Ability) : Ability := abilityWord (.named "vivid") ability
+semantic_template void (ability : Ability) : Ability := abilityWord (.named "void") ability
+semantic_template willOfTheCouncil (ability : Ability) : Ability :=
+  abilityWord (.named "will of the council") ability
 
 /-! ## Keyword abilities -/
 

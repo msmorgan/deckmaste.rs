@@ -898,7 +898,7 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
         [ reach,
           when (does thisCreature enter)
               (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)),
-          abilityWord "channel"
+          channel
             (activated (compound [mana [generic 1, pip .red], perform (discard this_)])
               (instruct it (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly))) ],
       power := stat 2, toughness := stat 3 } }
@@ -1061,7 +1061,7 @@ def quenchableFire : Action :=
 theorem okQuenchableFire : Action.check (DRS.ofList []) quenchableFire = [] := by decide
 /-- Searing Blaze, both sentences -/
 def searingBlaze : Ability :=
-  abilityWord "landfall"
+  landfall
     (spell (replace
         (simultaneously
           [ dealDamage (.lit 1) targetPlayerOrPlaneswalker .noncombatOnly,
@@ -1139,7 +1139,7 @@ def tribalFlames : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Tribal Flames", cost := some [generic 1, pip .red], types := [.sorcery],
       text :=
-        [ abilityWord "domain"
+        [ domain
             (spell (sequentially
               [ dealDamage (letter .x) (target isAnyTarget) .noncombatOnly,
                 define .x (distinctCount (.subtype .land .basicOnly)
@@ -1147,7 +1147,7 @@ def tribalFlames : Spelled := spelled <| .singleFaced
 
 /-- Explosive Prodigy -/
 def explosiveProdigyTrigger : Ability :=
-  abilityWord "vivid"
+  vivid
     (when (does thisCreature enter)
       (sequentially
         [ instruct it

@@ -49,7 +49,7 @@ def tyrantsChoice : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Tyrant's Choice", cost := some [generic 1, pip .black], types := [.sorcery],
       text :=
-        [ abilityWord "will of the council"
+        [ willOfTheCouncil
             (spell (sequentially
               [ instruct eachPlayer (voteStartingWith you .openly (byLabel ["death", "torture"])),
                 doIf (voteLead "death" false)
@@ -63,7 +63,7 @@ def councilsJudgment : Spelled := spelled <| .singleFaced
     { name := "Council's Judgment", cost := some [generic 1, pip .white, pip .white],
       types := [.sorcery],
       text :=
-        [ abilityWord "will of the council"
+        [ willOfTheCouncil
             (spell (sequentially
               [ instruct eachPlayer (voteStartingWith you .openly
                   (byCandidate (a (and [ isPermanent, non isLand,
@@ -76,7 +76,7 @@ def orchardElemental : Spelled := spelled <| .singleFaced
     { name := "Orchard Elemental", cost := some [generic 5, pip .green], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ abilityWord "council's dilemma"
+        [ councilsDilemma
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
@@ -91,7 +91,7 @@ def pleaForPower : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Plea for Power", cost := some [generic 3, pip .blue], types := [.sorcery],
       text :=
-        [ abilityWord "will of the council"
+        [ willOfTheCouncil
             (spell (sequentially
               [ instruct eachPlayer (voteStartingWith you .openly (byLabel ["time", "knowledge"])),
                 doIf (voteLead "time" false) (extraTurn (.lit 1)),
@@ -102,7 +102,7 @@ def coercivePortal : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Coercive Portal", cost := some [generic 4], types := [.artifact],
       text :=
-        [ abilityWord "will of the council"
+        [ willOfTheCouncil
             (at_ (beginningOfYour .upkeep)
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
@@ -120,7 +120,7 @@ def custodiSquire : Spelled := spelled <| .singleFaced
       subtypes := [spirit, cleric],
       text :=
         [ flying,
-          abilityWord "will of the council"
+          willOfTheCouncil
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
@@ -136,7 +136,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
     { name := "Lieutenants of the Guard", cost := some [generic 4, pip .white],
       types := [.creature], subtypes := [human, soldier],
       text :=
-        [ abilityWord "council's dilemma"
+        [ councilsDilemma
             (when (does any (putOntoBattlefield thisCreature))
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
@@ -148,7 +148,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
 
 /-- Truth or Consequences: the secret-council ability alone, as the Idris bench holds it. -/
 def truthOrConsequencesVote : Ability :=
-  abilityWord "secret council"
+  secretCouncil
     (spell (sequentially
       [ instruct eachPlayer (vote .secretly (byLabel ["truth", "consequences"])),
         draw (votesFor "truth"),

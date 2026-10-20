@@ -63,7 +63,7 @@ def tippyToe : Ability :=
 theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
-  abilityWord "raid"
+  raid
     (triggeredIf (beginningOfYour .postcombatMain)
       (happened attack you soFarThisTurn)
       (exile (topSlice (.lit 1))))

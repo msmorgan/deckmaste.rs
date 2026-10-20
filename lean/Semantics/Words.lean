@@ -219,9 +219,12 @@ card names a keyword by its declaration's name and an undeclared name is refused
 inductive KeywordLabel where
   | named (name : String)
   deriving DecidableEq, Repr
-/-- An ability word [CR#207.2c], as printed ("Threshold"). It has no rules meaning, and the CR
-lists the ability words. -/
-abbrev AbilityWordLabel := String
+/-- An ability word [CR#207.2c], as the CR's list spells it (`threshold`, `council’s dilemma`).
+It has no rules meaning; the CR lists the ability words, so a word not on the list is refused
+(`knownAbilityWord`). A type of its own, as `KeywordLabel` is. -/
+inductive AbilityWordLabel where
+  | named (name : String)
+  deriving DecidableEq, Repr
 /-- A flavor word [CR#207.2d], as printed. Each is the card's own, and the CR lists none, so the
 printed word is all it is. -/
 abbrev FlavorWordLabel := String

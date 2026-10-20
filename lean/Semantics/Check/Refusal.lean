@@ -181,6 +181,8 @@ inductive Refusal where
   /-- A replacement's riders are Entry Riders, never Pile Placements, which only a card put into
   another zone carries [CR#401.4,406.3,614.12]. -/
   | entryRidersOnly
+  /-- An ability word is one the CR lists [CR#207.2c]. -/
+  | knownAbilityWord (word : AbilityWordLabel)
   /- characteristic-defining abilities [CR#604.3a] -/
   /-- A Characteristic-Defining Ability defines colors, subtypes, power or toughness, and
   nothing else (criterion 1). -/

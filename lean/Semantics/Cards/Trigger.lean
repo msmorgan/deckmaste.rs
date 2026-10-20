@@ -461,7 +461,7 @@ def dreadSlaver : Spelled := spelled <| .singleFaced
 
 /-- Steppe Lynx -/
 def steppeLynx : Ability :=
-  abilityWord "landfall"
+  landfall
     (whenever (does (a (and [isLand, youControl])) enter)
       (get thisCreature (up (.lit 2)) (up (.lit 2)) (some untilEndOfTurn)))
 theorem okSteppeLynx : Ability.check (DRS.ofList []) steppeLynx = [] := by decide

@@ -778,7 +778,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
 
 /-- Bloom Tender -/
 def bloomTenderMana : Ability :=
-  abilityWord "vivid"
+  vivid
     (activated tapSymbol
       (doForEachKind .color .color (addMana (.lit 1) ofTheChosenColor)
          (some (allOf (and [isPermanent, youControl])))))

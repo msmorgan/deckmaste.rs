@@ -3148,9 +3148,12 @@ def stepOps : Nat → StepOps
         | .alsoForKeywords inner keywords =>
           ops.ab drs inner ++ refuse inner.keywordExtendable .keywordExtendable ++
             refuse (keywordListOk inner keywords) .keywordListOk
-        | .italicHead _ inner =>
+        | .italicHead word inner =>
           let plain := match inner with | .italicHead .. => false | _ => true
-          ops.ab drs inner ++ refuse plain .notWordHeaded
+          let wordErrors := match word with
+            | .abilityWord label => refuse label.known (.knownAbilityWord label)
+            | .flavorWord _ => []
+          ops.ab drs inner ++ refuse plain .notWordHeaded ++ wordErrors
         | .qualified inner tm _ guard _ =>
           let e1 := ops.ab drs inner
           let (_, e2) := match tm with | some t => stepTimingWith ops drs t | none => (drs, [])

@@ -653,7 +653,7 @@ def nahiriCompleatedEntry : Ability :=
 theorem okNahiriCompleatedEntry : Ability.check (DRS.ofList []) nahiriCompleatedEntry = [] := by decide
 /-- Nimble Mongoose -/
 def nimbleMongoose : Ability :=
-  abilityWord "threshold"
+  threshold
     (static (onlyWhile (getsPt thisCreature (up (.lit 2)) (up (.lit 2)))
       (compareAmt (countOf (cardIn yourGraveyard)) .atLeast (.lit 7))))
 theorem okNimbleMongoose : Ability.check (DRS.ofList []) nimbleMongoose = [] := by decide

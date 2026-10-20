@@ -44,10 +44,18 @@ theorem namedPaymentRequiresAPayableKeyword :
 /-- A word-headed line wraps an ability, not another word-headed line. -/
 theorem wordHeadsCannotBeNested :
     let keyword := Ability.keyword (.named "flying") [] []
-    let head := ItalicWord.abilityWord "landfall"
+    let head := ItalicWord.abilityWord (.named "landfall")
     Ability.check emptyContext (.italicHead head keyword) = [] ∧
       Ability.check emptyContext (.italicHead head (.italicHead head keyword)) =
         [.notWordHeaded] := by decide
+
+/-- An ability word is one the CR lists, as it spells it [CR#207.2c]: "landfall" is, a misspelt
+or capitalised word is not. -/
+theorem abilityWordIsOneTheCrLists :
+    let keyword := Ability.keyword (.named "flying") [] []
+    Ability.check emptyContext (.italicHead (.abilityWord (.named "landfall")) keyword) = [] ∧
+      Ability.check emptyContext (.italicHead (.abilityWord (.named "Landfal")) keyword) =
+        [.knownAbilityWord (.named "Landfal")] := by decide
 
 /-- “In that pile” requires both pile kind and a written pile mention. -/
 theorem inPileRequiresAPileMention :

@@ -726,7 +726,7 @@ def voidMawPutCost : Ability :=
 theorem okVoidMawPutCost : Ability.check (DRS.ofList []) voidMawPutCost = [] := by decide
 /-- Ghor-Clan Rampager -/
 def ghorClanRampager : Ability :=
-  abilityWord "bloodrush"
+  bloodrush
     (activated (compound [mana [pip .red, pip .green], perform (discard this_)])
       (establishFor (target (and [isCreature, isAttacking]))
         [ getsPt (target (and [isCreature, isAttacking])) (up (.lit 4)) (up (.lit
@@ -831,7 +831,7 @@ def deathMaskDuplicant : Spelled := spelled <| .singleFaced
     { name := "Death-Mask Duplicant", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [shapeshifter],
       text :=
-        [ abilityWord "imprint"
+        [ imprint
             (activated (mana [generic 1]) (exile (target (and [isCreature, in_ yourGraveyard])))),
           alsoForKeywords
             (static (onlyWhile (abilityGrant thisCreature flying)

@@ -1003,7 +1003,7 @@ def thranduilsCompany : Spelled := spelled <| .singleFaced
         [ static (onlyWhile (can you (play (counted (additional (exactly 1)) isLand)))
             (exists_ (and [ and [isCreature, otherThan thisCreature], hasSubtype elf,
                              youControl ]))),
-          abilityWord "landfall"
+          landfall
             (whenever (does (a (and [isLand, youControl])) enter)
               (sequentially
                 [ putCounters (.lit 2) p1p1Counter

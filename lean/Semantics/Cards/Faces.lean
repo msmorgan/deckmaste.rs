@@ -451,7 +451,7 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
     { name := "Balemurk Leech", cost := some [generic 1, pip .black], types := [.creature],
       subtypes := [leech],
       text :=
-        [ abilityWord "eerie"
+        [ eerie
             (triggeredJoined
               (does (a (and [isEnchantment, youControl])) enter)
               [ joinedHead
