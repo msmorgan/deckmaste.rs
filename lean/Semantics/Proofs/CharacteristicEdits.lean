@@ -129,6 +129,16 @@ theorem definingAbilitiesDefineColorsAndSubtypes :
     Ability.check (DRS.ofList []) changeling = [] ∧ Ability.check (DRS.ofList []) devoid = [] := by
   decide
 
+/-- "As this creature enters, choose a creature type. This creature is the chosen type in addition
+to its other types." (Adaptive Automaton, Metallic Mimic): a Characteristic-Defining Ability
+read off a choice, as Shapeshifter's power is; depending on a choice is no condition
+[CR#604.3a]. -/
+theorem choiceDependentSubtypeDefinitionIsAccepted :
+    Ability.checkText (DRS.ofList [])
+      [ static (entersChoosing thisCreature (.subtype .creature)),
+        static (qualityDefinition thisCreature .adds
+          (chosenQuality (ofChosen (.subtype .creature)))) ] = [] := by decide
+
 /-- A token is created with a Characteristic-Defining Ability the creating effect gives it
 [CR#604.3a,111.3]. -/
 theorem tokenIsCreatedWithADefiningAbility :

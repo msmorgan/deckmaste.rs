@@ -362,13 +362,17 @@ def realmwright : Spelled := spelled <| .singleFaced
             (chosenQuality (ofChosen (.subtype .land)))) ],
       power := stat 1, toughness := stat 1 } }
 
+/-- Adaptive Automaton. "This creature is the chosen type in addition to its other types" is a
+Characteristic-Defining Ability: it depends on the choice made as it enters, as Shapeshifter's
+power does, and depending on a choice is no condition [CR#604.3a]. Its pump of the other creatures of the chosen type stays a
+separate ability, affecting other objects [CR#604.3a]. -/
 def adaptiveAutomaton : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Adaptive Automaton", cost := some [generic 3], types := [.artifact, .creature],
       subtypes := [construct],
       text :=
         [ static (entersChoosing thisCreature (.subtype .creature)),
-          static (qualityChange thisCreature .adds (chosenQuality (ofChosen (.subtype
+          static (qualityDefinition thisCreature .adds (chosenQuality (ofChosen (.subtype
               .creature)))),
           static (getsPt
             (allOf (and [ isCreature, youControl, otherThan thisCreature,

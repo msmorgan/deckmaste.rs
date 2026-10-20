@@ -1038,10 +1038,14 @@ def CharacteristicEdit.shapeAll (edits : List CharacteristicEdit) : List Refusal
   edits.flatMap CharacteristicEdit.shape
 
 /-- An edit a Characteristic-Defining Ability may write: it defines colors, subtypes, power or
-toughness [CR#604.3a]. A color or subtype edit adds or sets (a definition never removes); a
-power or toughness edit sets. -/
+toughness [CR#604.3a], written or chosen. A color or subtype edit adds or sets (a definition
+never removes); a power or toughness edit sets. -/
 def CharacteristicEdit.definesOk : CharacteristicEdit → Bool
   | .colors op _ | .quality op (.everyTypeOf _) => op != .loses
+  -- "is the chosen type in addition to its other types": a definition read off a choice, as
+  -- Shapeshifter's power is; depending on a choice is no condition [CR#604.3a].
+  | .quality op (.chosen (.ofChosen _ (.subtype _)))
+  | .quality op (.chosen (.ofChosen _ .color)) => op != .loses
   | .typeLine op changes =>
     op != .loses && changes.supertypes.isNone && changes.types.isNone && changes.subtypes.isSome
   | .stat .sets .power _ | .stat .sets .toughness _ => true

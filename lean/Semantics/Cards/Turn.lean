@@ -365,7 +365,8 @@ def centaurOfAttention : Spelled := spelled <| .singleFaced
               letterDefinition .x (greatestStoredMatch thisCreature) ]) ],
       power := stat 3, toughness := stat 3 } }
 
-/-- Shapeshifter -/
+/-- Shapeshifter: its printed `*`/`7-*` box is filled by a Characteristic-Defining Ability
+[CR#208.2a], one that reads the last chosen number. -/
 def shapeshifter : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shapeshifter", cost := some [generic 6], types := [.artifact, .creature],
