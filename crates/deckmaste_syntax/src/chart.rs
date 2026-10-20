@@ -149,8 +149,7 @@ impl CompiledGrammar {
                 let LexicalReading::Word(word) = &m.reading else { return None };
                 let facts = self.lexemes.get(&word.lexeme)?;
                 (m.start == 0 || !analyzed.tokens[m.start - 1].is_alphanumeric()).then_some(())?;
-                (facts.atomic
-                    && facts.category == deckmaste_lexical::Category::Noun
+                (facts.category == deckmaste_lexical::Category::Noun
                     && analyzed.tokens[m.start..m.end].contains(&' '))
                 .then_some(m.start..m.end)
             })

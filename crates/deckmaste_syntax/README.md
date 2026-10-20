@@ -235,8 +235,8 @@ Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in
 the same equations as inflectional features. `Require` values an unvalued
 feature; `Carry` requires the child to carry the value itself; `ExcludeTogether`
-rejects only a combination of child values, every one of them carried. Multiword noun terms remain atomic
-in both parsing and Admission; measured compounds retain their internal measure.
+rejects only a combination of child values, every one of them carried. Multiword noun terms, measured compounds
+(`+1/+1 counter`) among them, remain atomic in both parsing and Admission.
 Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and

@@ -7,5 +7,5 @@
 +NounPhrase an additional +1/+0
 +NounPhrase an extra +1/+0
 + It deals an additional 2 damage. => NounPhrase "an additional 2 damage" as Object of deal
-+ It enters with an additional +1/+1 counter on it. => AdjectivePhrase "additional" as Modifier of counter
++ It enters with an additional +1/+1 counter on it. => AdjectivePhrase "additional" as Modifier of "+1/+1 counter"
 + Draw an additional card. => NounPhrase "an additional card" as Object of draw; AdjectivePhrase "additional" as Modifier of card

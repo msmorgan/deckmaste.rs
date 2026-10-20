@@ -83,3 +83,32 @@ duplicate analyses that multiply across the sentence:
   Census records the Reading reduction across the corpus.
 
 Standard constraints apply.
+
+## Record
+
+- Counter kinds: word kinds (*loyalty counter*, *time counter*) were already
+  atomic, so only measured kinds (*+1/+1 counter*) were read twice. A measured
+  compound is now atomic like every other multiword noun (`deckmaste_syntax`
+  drops the `LexemeFacts::atomic` exception), so `MeasurePremodifier` never
+  rebuilds a declared kind out of a measure and `noun:counter`. Bare
+  `noun:counter` keeps its own uses. The 211 removed Readings that had no
+  remaining duplicate all split the measure off its counter (*[the number of
+  +1/+1] [counters on it]*, *[that many plus one +1/+1] counters*), which is
+  wrong.
+- Existentials: `ExistentialPredicate` carries `ComplementKind`, `NP` from
+  `ExistentialBe` and `PP` from `LocatedExistentialBe`, and its PP Adjunct
+  excludes `NP`. A PP right after the displaced subject is therefore the
+  complement, and an Adjunct follows only a complemented predicate. A temporal
+  PP is an extension too (CGEL, Ch. 16 §6.2.1, p. 1394: *There's one concert on
+  Sunday*).
+- `noun:excess` is `HeadOnly`.
+- `SingularNominalQuality` carries `Countability` `Count` and excludes
+  `BareSingular`, so mass and bare-singular nominals become a Quality only
+  through their Noun Phrase.
+- Judgments in `judgments/single_compound_analyses.txt`. Rewritten: the
+  `+1/+1 counter` head lemma in `additional_slash_adjustment.txt` and
+  `all_but_exception.txt`, and *after this phase* as Complement of *be* in
+  `trailing_adjunct_height.txt`.
+
+Census delta (measured on svzunlkq): faces read 28,709 → 28,709; total Readings 381,785 → 346,725; lost faces: none.
+Judgment set: 2,909 enforced at `COMPLETED_STRATUM` 6, all hold; 191 pending.

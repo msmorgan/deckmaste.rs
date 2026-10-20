@@ -110,7 +110,7 @@
         // Existential *there* and the predicate it is subject of (CGEL, Ch. 16
         // §6.1, p. 1391).
         "DummyPronoun": (category: Some("NounPhrase"), features: ["Number", "Person"]),
-        "ExistentialPredicate": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Inflection"]),
+        "ExistentialPredicate": (category: Some("VerbPhrase"), features: ["Number", "Person", "VerbForm", "Inflection", "ComplementKind"]),
         "FusedNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A compound locative determinative, which a Preposition Phrase may
         // postmodify (*anywhere else*).
@@ -431,7 +431,10 @@
         (name: "SentenceEffect", lhs: "Effect", rhs: [Cat("head", "Sentences")]),
         (name: "ModeInstruction", lhs: "ModeEffect", rhs: [Cat("head", "Effect")]),
         (name: "ModeMeasure", lhs: "ModeEffect", rhs: [Cat("head", "Measure"), Punct('.')]),
-        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular")]),
+        // A singular nominal that is not already a bare Noun Phrase (a count
+        // noun's: *legendary creature*); mass and bare-singular nominals are
+        // Qualities through their Noun Phrase.
+        (name: "SingularNominalQuality", lhs: "Quality", rhs: [Cat("head", "Nominal")], equations: [Require("head.Number", "Singular"), Carry("head.Countability", "Count"), Exclude("head.NounDistribution", "BareSingular")]),
         (name: "NominalPhraseQuality", lhs: "Quality", rhs: [Cat("head", "NounPhrase")]),
         (name: "AdjectivalQuality", lhs: "Quality", rhs: [Cat("head", "AdjectivePhrase")]),
         (name: "NamedParameter", lhs: "Name", rhs: [Lex("head", Catalog)]),
@@ -490,16 +493,19 @@
             transparent: ["head"]),
 
         // An existential clause: dummy *there*, the copula agreeing with the
-        // displaced subject, and an optional locative complement.
+        // displaced subject, and an optional locative or temporal complement
+        // (CGEL, Ch. 16 §6.2.1, p. 1394). A Preposition Phrase right after the
+        // displaced subject is that complement, never an Adjunct, so a PP
+        // Adjunct follows only a complemented predicate.
         (name: "Existential", lhs: "Clause", rhs: [Cat("subject", "DummyPronoun"), Cat("head", "ExistentialPredicate")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"),
                 Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")]),
         (name: "ExistentialThere", lhs: "DummyPronoun", rhs: [Lex("head", Pronoun)],
             equations: [Require("head.PronounKind", "Existential")]),
         (name: "ExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase")],
-            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative")]),
+            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")]),
         (name: "LocatedExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Cat("complement", "PrepositionPhrase")],
-            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative")]),
+            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")]),
 
         (name: "EndAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "EndAdverb")],
             equations: [Require("$.AdjunctPosition", "End")]),
@@ -1175,7 +1181,7 @@
         Adjunct(host: "KeywordPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1, equations: [Exclude("head.KeywordForm", "Parametric")]),
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
-        Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
+        Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.ComplementKind", "NP")]),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 2),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),
         // A comma-set Supplement to a Clause, a keyword or an indexed

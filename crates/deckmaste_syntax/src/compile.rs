@@ -51,7 +51,6 @@ pub(crate) const PROJECTED: [&str; 8] = [
 /// The lexical facts a bound grammar keeps about one lexeme.
 #[derive(Debug, Clone)]
 pub(crate) struct LexemeFacts {
-    pub atomic: bool,
     pub countability: Option<Ident>,
     /// A noun both count and mass is count in its plural form.
     pub countable_plural: bool,
@@ -362,8 +361,6 @@ impl<'a> Binder<'a> {
             lexemes.insert(
                 *id,
                 LexemeFacts {
-                    atomic: lexeme.surface_structure
-                        != deckmaste_lexical::SurfaceStructure::MeasuredCompound,
                     features: lexeme
                         .properties
                         .features

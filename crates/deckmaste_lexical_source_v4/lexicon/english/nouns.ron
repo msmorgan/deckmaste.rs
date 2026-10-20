@@ -59,8 +59,8 @@
     "effect",
     "emblem",
     (lemma: "end", frames: [Complement(PP(["of"]))]),
-    // "in excess of the number you control".
-    (lemma: "excess", countability: [Mass], frames: [Complement(PP(["of"]))]),
+    // "in excess of the number you control"; prenominal *excess* is the adjective.
+    (lemma: "excess", distribution: HeadOnly, countability: [Mass], frames: [Complement(PP(["of"]))]),
     "exchange",
     // The zone; the verb is a keyword action [CR#701.13].
     (lemma: "exile", countability: [Mass]),
