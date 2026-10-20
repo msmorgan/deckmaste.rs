@@ -1128,9 +1128,10 @@ mutual
     /-- Branch on the decision or start of payment, independently of resulting events. -/
     | withContinuation (policy : ContinuationPolicy) (body : Action)
         (ifDid : Option Action) (ifNot : Option Action)
-    /-- "<action>. Do this only once each turn.": the action is limited, not the
-    ability that carries it; the ability still triggers, and is done only within `limit`
-    [CR#603.2h]. -/
+    /-- "<action>. Do this only once each turn.": the limit counts `action` taken, not the
+    triggerings or resolutions of the ability that carries it. That ability triggers only if its
+    source's controller has not yet taken `action` within `limit`, so declining a "may" leaves it
+    free to trigger again [CR#603.2h]. -/
     | limited (action : Action) (limit : UsageLimit)
     | doIf (condition : Condition) (action : Action) (otherwise : Option Action)
     | doForEach (group : NounPhrase) (body : Action)

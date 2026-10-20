@@ -575,8 +575,9 @@ theorem okCastWhenASorceryCouldNotHaveBeen :
   decide
 
 /-- "Whenever you cast a spell, you may draw a card. Do this only once each turn." [CR#603.2h]:
-the ability triggers every time and the action is limited (Iron Man, Bleeding Edge and
-Donal, Herald of Wings; the retired `UsageLimit.actionOncePerTurn`). -/
+the limit counts the action, so the ability triggers only if you haven't yet drawn this way
+this turn (Iron Man, Bleeding Edge and Donal, Herald of Wings; the retired
+`UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
     Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
       (doOnlyOnceEachTurn (may (draw (.lit 1))))) = [] := by

@@ -181,8 +181,10 @@ constraints apply.
     plurality. An activated ability's own timing, limit and guard are the
     printed restriction on its use `[CR#602.5b]`, `qualified` the one a keyword
     or a grant adds to the ability it carries (ruling of 2026-10-09);
-    `triggered`'s limit bounds the triggering, `Action.limited` the action
-    ("do this only once each turn", `[CR#603.2h]`).
+    `triggered`'s limit bounds the triggering; `Action.limited` counts the
+    action taken ("do this only once each turn"), and the ability carrying it
+    triggers only if its controller has not yet taken that action within the
+    limit `[CR#603.2h]`.
 
 ### 3. Authoring, Label Discipline, Layering & Dead Helpers (Opus §§4.2, 4.8–4.12, 5.4)
 

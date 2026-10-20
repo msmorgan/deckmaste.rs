@@ -921,7 +921,8 @@ semantic_template oncePerGame : UsageLimit := ⟨.lit 1, .game⟩
 semantic_template onceEachYourTurn : UsageLimit := ⟨.lit 1, .yourTurn⟩
 /-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
 semantic_template oncePerObject : UsageLimit := ⟨.lit 1, .thisObject⟩
-/-- "<action>. Do this only once each turn." [CR#603.2h] -/
+/-- "<action>. Do this only once each turn.": its ability triggers only if its controller has not
+yet taken the action this turn [CR#603.2h]. -/
 semantic_template doOnlyOnceEachTurn (action : Action) : Action :=
   .limited action oncePerTurn
 /-! ## Amounts -/
