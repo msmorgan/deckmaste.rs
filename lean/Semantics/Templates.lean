@@ -898,8 +898,8 @@ semantic_template oncePerGame : UsageLimit := ⟨.lit 1, .game⟩
 semantic_template onceEachYourTurn : UsageLimit := ⟨.lit 1, .yourTurn⟩
 /-- "Activate only once": no more than one while the object exists [CR#602.5b,702.177a]. -/
 semantic_template oncePerObject : UsageLimit := ⟨.lit 1, .thisObject⟩
-/-- "<action>. Do this only once each turn.": its ability triggers only if its controller has not
-yet taken the action this turn [CR#603.2h]. -/
+/-- "<action>. Do this only once each turn.": its ability triggers only if its source's controller
+has not yet taken the action this turn [CR#603.2h]. -/
 semantic_template doOnlyOnceEachTurn (action : Action) : Action :=
   .limited action oncePerTurn
 /-! ## Amounts -/
@@ -1054,7 +1054,7 @@ semantic_template turnFaceUp (subject : NounPhrase) : Action := .setStatus .face
 /-- "flip <subject>": a flip card's permanent turns to its flipped half, whose alternative name,
 text box, type line, power and toughness apply [CR#710.1a,710.2]. Flipping is no keyword action
 [CR#701.1], so this is a Template, naming no deed. -/
-semantic_template flip (subject : NounPhrase := .actor) : Action := .setStatus .flipped subject
+semantic_template flip (subject : NounPhrase) : Action := .setStatus .flipped subject
 /-- "<subject> attacks [<defender>]" [CR#508.1a] -/
 semantic_template attack (defender : Option NounPhrase := none) : Action := .attack defender
 /-- "<subject> blocks [<attacker>]" [CR#509.1a] -/

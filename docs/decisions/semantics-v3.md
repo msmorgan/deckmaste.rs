@@ -398,11 +398,11 @@ Of the 27 domain `GameEvent` constructors in `semantics-v2` (`lean/Semantics/Phr
 | `draws (player, cards)` | `does(player, draw(cards))` | Uses `Instruction.draw`. |
 | `searchesLibrary (searcher, libraryOwner)` | `does(searcher, search(libraryOf(libraryOwner), any))` | Uses `search` definition. |
 | `createsTokens (creator, tokens)` | `does(creator, create(tokens))` | Uses `create` definition. |
-| `counterEvent (dir, batch, target, by)` | `does(by, putCounters(batch, target))` / `does(by, removeCounters(batch, target))` | Uses `putCounters` / `removeCounters` carrying `CounterBatch` (`.counted`, `.some`, `.emptying` `[CR#310.12b,702.62a]`), keeping `Instruction.moveCounters` distinct for moving counters between two objects (`[CR#122.5]`). |
+| `counterEvent (dir, batch, target, by)` | `countersPut(kind, batch, subject)` / `countersRemoved(kind, batch, subject)`, templates over `does(any, putCounters(…))` / `does(any, removeCounters(…))` | A `Delta`-free pair: the direction is which action the event names. `CounterBatch` is `one`, `many` or `emptying` (`[CR#310.12b,702.62a]`); `Instruction.moveCounters` stays distinct for moving counters between two objects (`[CR#122.5]`). |
 | `statusEvent (edge, subject, status, by)` | `does(by, setStatus(edge, subject, status))` | Covers `"becomes tapped"`, `"is turned face up"`, `"phases out"`. |
 | `attaches (attachment, object, dir)` | `does(any, attach(attachment, object, dir))` | Uses `attach` / `unattach`. |
 | `gainsControl (player, object)` | `does(player, gainControl(object))` | Uses `Instruction.changeControl`. |
-| `rollsDice (roller, dice, watch)` | `does(roller, rollDice(dice, watch))` | Carries `dice : DiceBatch` and `watch : RollWatch`. |
+| `rollsDice (roller, dice, watch)` | `does(roller, rollDice(count, sides, batch, watch))` | Carries `count : Amount`, `sides : DieSides`, `batch : Plurality` and `watch : RollWatch`. |
 | `flipsCoin (flipper, call, outcome)` | `does(flipper, flipCoin(call, outcome))` | Carries `call : Option FlipCall` and `outcome : Option CoinOutcome`. |
 | Triggered ability triggering | `does(ability, trigger)` | The automatic triggering occurrence [CR#603.2]. |
 | A creature crews or saddles another permanent | `does(creature, crew(vehicle))` / `does(creature, saddle(permanent))` | Cost participation [CR#702.122b,702.122d,702.171c]; the ability's activation and resolution retain their own events. |

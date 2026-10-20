@@ -31,7 +31,10 @@ def Characteristics.typeChanges (c : Characteristics) : TypeLineChanges :=
   ⟨nonempty c.supertypes, nonempty c.types, nonempty c.subtypes⟩
 
 /-- The value characteristics `c` writes, each with `op`: an addition sets a written value,
-as "becomes a 2/2 creature in addition to its other types" does, and a removal removes it. -/
+as "becomes a 2/2 creature in addition to its other types" does, and a removal removes a name,
+colors, abilities and the mana cost (`manaCost none`). A number is not removed: a removal writes
+a power, toughness, loyalty or defense as lowered by it (`stat .loses`), as "gets −N" is. No
+expansion is checked syntax, so nothing refuses that; no card writes a removed number. -/
 def Characteristics.valueEdits (c : Characteristics) (op : QualityOp) : List CharacteristicEdit :=
   let valueOp := if op == .loses then .loses else .sets
   c.name.toList.map (.name valueOp) ++

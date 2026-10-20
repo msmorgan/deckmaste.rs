@@ -77,7 +77,8 @@ def Ability.textContext (drs : DRS) (ability : Ability) (fuel : Nat := 64) : DRS
   | _+1, .activated _ action _ _ _ _ | _+1, .triggered _ _ _ _ _ _ _ action
   | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
   | _+1, .static spec => staticTextContext drs spec
-  | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _ =>
+  | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
+  | n+1, .inCaller body =>
     Ability.textContext drs body n
   | _+1, _ => drs
 termination_by structural fuel

@@ -587,7 +587,7 @@ expected child kinds in the incoming `DRS`.
 | `ManaHeld` | The `manaRetention` static case steps its player; `ManaHeld.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |
 | `AsThough` | `stepAsThoughWith` steps it. |
 | `Exchanged` | `stepExchangedWith` steps it. Whether an exchanged value can be set is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). |
-| `TokenQuality` | Now `WrittenQuality`, shared by a bundle's qualities and `CharacteristicEdit.quality`: `stepWrittenQualityWith` steps it (`stepCharacteristicBundleWith` each quality of the bundle in order) and `WrittenQuality.shape` checks a chosen quality is read as a chosen one. |
+| `WrittenQuality` | Shared by a bundle's qualities and `CharacteristicEdit.quality`: `stepWrittenQualityWith` steps it (`stepCharacteristicBundleWith` each quality of the bundle in order) and `WrittenQuality.shape` checks a chosen quality is read as a chosen one. |
 | `CounterKindSource` | `stepCounterKindSourceWith` steps it; `CounterKindSource.localChecks` checks the counter is known. |
 | `CostShift` | `stepCostShiftWith` steps it; `CostShift.localChecks` checks its shape. |
 | `CountBound` | No Lean type: a usage limit's count is an `Amount` (`UsageLimit.mk times per`), stepped by `stepUsageLimitWith`. |
@@ -783,7 +783,9 @@ context; sharing edits does not turn copy exceptions into later static effects.
 `QualityPayload` is an authoring input in `Semantics.Primitives`, not a
 checked syntax field. It expands to edits, its op written once over them.
 Ordinary additions add their type line but set every other written value; a
-removal removes each one, its mana cost included. A retained type ("It's still
+removal removes each name, color list, ability and mana cost, and writes a number (power,
+toughness, loyalty, defense) as lowered by it, `stat .loses`, there being no removal of a
+number. A retained type ("It's still
 a land") adds the type line whatever the op [CR#205.1b]; no edit stores the
 retained type. `copyCharacteristics` expands the old
 packed input into one edit block and separate ability exceptions. The former

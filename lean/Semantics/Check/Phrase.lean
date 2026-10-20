@@ -1159,8 +1159,7 @@ def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicE
       | .keyword _ [.number (.inCaller (.letter l))] _ =>
         (introducedLetters l drs).foldl (fun d r => d.push r .other false) d
       | _ => d) drs
-    (out, (stepAbilityListWith ops (choiceContext drs) abs).2 ++
-      refuse (!abs.any (fun ab => ab.writesDefining)) .cdaGranted)
+    (out, (stepAbilityListWith ops (choiceContext drs) abs).2)
   | .addedAbilitiesOf src _ optEx =>
     let (drs1, _, e1) := ops.np drs .other false src
     let (drs2, e2) := match optEx with | some p => ops.pred drs1 p | none => (drs1, [])
@@ -2931,9 +2930,14 @@ def stepOps : Nat → StepOps
         | .characteristicChange subj edits =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
+          -- A grant gives no Characteristic-Defining Ability, to the granting object or another
+          -- [CR#604.3a]; a copy effect's exception may (`CopyExcept.edits`).
+          let granted := edits.any fun
+            | .addedAbilities abs => abs.any (fun ab => ab.writesDefining)
+            | _ => false
           (finishEachSubject subj ids drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
             refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
-            CharacteristicEdit.shapeAll edits)
+            CharacteristicEdit.shapeAll edits ++ refuse (!granted) .cdaGranted)
         | .characteristicDefining subj edits =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           -- A stat set names its number, which a later edit's "that number" reads back ("its

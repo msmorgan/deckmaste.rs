@@ -35,7 +35,8 @@ theorem subjectWrittenTwiceIntroducesTwoTargets :
         (some untilEndOfTurn))).referents.countP (fun b => b.det == .target) = 2 := by
   decide
 
-theorem ptModificationSlots :
+/-- "Gets +2 power and has base toughness −1": the raise is clamped, the set stands [CR#107.1b]. -/
+theorem getsPtSlots :
     (getsPt thisCreature (.up (.lit 2)) (.set (.lit (-1)))).numberSlots =
       [(.lit 2, .clamped), (.lit (-1), .signed)] := by
   rfl

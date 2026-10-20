@@ -96,10 +96,16 @@ theorem okDefinesPtSigned :
       [.stat .sets .power (.lit 0), .stat .sets .toughness (.lit 2)]).numberSlots
       = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
 
+/-- "This creature's power and toughness are each equal to …": a Characteristic-Defining
+Ability sets them, so a negative it reads stands [CR#107.1b,604.3a]. -/
+theorem okCharacteristicDefiningPtSigned :
+    (ptDefinitions thisCreature (.lit 0) (.lit 2)).numberSlots
+      = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
+
 /-- "Whenever this creature's power becomes 3": the header watches a game state [CR#603.8], a
 comparison of a game value that may be less than zero [CR#107.1b]; it is no effect's result, so
 it has no clamped number slot. -/
-theorem okStatBecomesSigned :
+theorem okStateHeaderHasNoNumberSlot :
     (stateHolds (compareAmt (powerOf thisCreature) .eq (.lit 3))).numberSlots = [] := by rfl
 
 /-- "This creature's power becomes -1": a set of a power, the exception [CR#107.1b] names,

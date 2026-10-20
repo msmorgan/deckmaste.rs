@@ -173,6 +173,13 @@ theorem definingAbilityIsNeverGranted :
         untilEndOfTurn) = [.cdaGranted] ∧
     StaticSpec.check (DRS.ofList []) (abilityGrant thisCreature changeling) = [] := by decide
 
+/-- Criterion (2): a Characteristic-Defining Ability a copy effect gives the copy, as an exception
+("except it has 'This creature's power is equal to …'"), is one [CR#604.3a,707.9a]. -/
+theorem copyExceptionMayGiveADefiningAbility :
+    CopyExcept.check (DRS.ofList [])
+      (.edits [.addedAbilities [static (ptDefinition thisCreature .powerAlone (.lit 2))]]) =
+      [] := by decide
+
 /-- Criterion (5): a Characteristic-Defining Ability sets its values unconditionally
 [CR#604.3a]. -/
 theorem definingAbilityIsUnconditional :
