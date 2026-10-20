@@ -32,9 +32,9 @@
         // Auxiliary verbs (CGEL's NICE verbs) and the rest.
         "VerbKind": ["Lexical", "Auxiliary"],
         // The Slot Kind of a Preposition Phrase's Complement.
-        "ComplementKind": ["NP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ComplementKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         // The Slot Kind of a determinative's Preposition Phrase's Complement.
-        "ObliqueKind": ["NP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
+        "ObliqueKind": ["NP", "MeasureNP", "PP", "AdjP", "AdvP", "Nominal", "Amount", "FiniteClause", "VerblessClause", "InterrogativeClause", "ToInf", "Gerund", "BareInf", "KeywordPhrase", "QuotedAbility", "Intransitive"],
         "NounDistribution": ["Ordinary", "Quantity", "BareSingular", "DirectMeasure", "HeadOnly", "Valued", "Serial"],
         // A fused-head quantity (*choose one*, *one or more*) is a Quantity.
         // An Amount bounded by a comparative (*3 or less*), only a noun's value.
@@ -122,6 +122,9 @@
         // A quantity with its partitive oblique, which a Preposition Phrase may
         // postmodify (*one of them of their choice*).
         "PartitiveHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
+        // A slash measure as a Noun Phrase (*gets +2/+2*), taken only where a
+        // head selects one: never a general Object or bare singular term.
+        "MeasureNounPhrase": (category: Some("NounPhrase")),
         "LocativeHead": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         "LocativeNounPhrase": (category: Some("NounPhrase"), features: ["Number", "Person", "Case", "Determination", "NounKind", "Countability"]),
         // A Noun Phrase's DeterminativeDistribution is its determiner's: an
@@ -316,6 +319,7 @@
         AdjP: "AdjectivePhrase",
         AdvP: "Adverbial",
         LocativeNP: "LocativeNounPhrase",
+        MeasureNP: "MeasureNounPhrase",
         KeywordPhrase: "KeywordPhrase",
         Nominal: "BareNominalComplement",
         Amount: "Amount",
@@ -415,7 +419,7 @@
         (name: "UnicodeNegativeLoyaltySymbol", lhs: "LoyaltySymbol", rhs: [Mark('[', Prefix), Mark('−', Bound), Cat("amount", "Amount"), Punct(']')]),
         (name: "PositiveLoyaltySymbol", lhs: "LoyaltySymbol", rhs: [Mark('[', Prefix), Mark('+', Bound), Cat("amount", "Amount"), Punct(']')]),
         (name: "LoyaltyCost", lhs: "ActivationCost", rhs: [Cat("head", "LoyaltySymbol")]),
-        (name: "LoyaltyNominal", lhs: "BareNominal", rhs: [Cat("head", "LoyaltySymbol")], equations: [Require("$.Number", "Singular"), Require("$.Countability", "Count")]),
+        (name: "LoyaltyNominal", lhs: "BareNominal", rhs: [Cat("head", "LoyaltySymbol")], equations: [Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
         (name: "VerbalCost", lhs: "NonManaCost", rhs: [Cat("head", "VerbPhrase")], equations: [Require("head.VerbForm", "Plain")]),
         (name: "CompositeNonManaCost", lhs: "NonManaCost", rhs: [Cat("first", "Symbols"), Punct(','), Cat("rest", "NonManaCost")]),
         (name: "NonManaCost", lhs: "Cost", rhs: [Cat("head", "NonManaCost")]),
@@ -580,7 +584,15 @@
         // *five {P} worth of modes*.
         (name: "PawprintPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Pawprints"), Cat("head", "BareNominal")]),
         (name: "SymbolPremodifier", lhs: "BareNominal", rhs: [Cat("modifier", "Symbols"), Cat("head", "BareNominal")]),
-        (name: "MeasureNominal", lhs: "BareNominal", rhs: [Cat("head", "Measure")], equations: [Require("$.Number", "Singular"), Require("$.Countability", "Count")]),
+        // A slash measure is a noun only under a determiner (*an additional
+        // +2/+2*, *a 3/3*); bare, it is a selected Measure Noun Phrase.
+        (name: "MeasureNominal", lhs: "BareNominal", rhs: [Cat("head", "Measure")], equations: [Require("$.Determination", "Overt"), Require("$.Number", "Singular"), Require("$.Countability", "Count"), Require("$.NounKind", "Ordinary"), Require("$.NounDistribution", "Ordinary")]),
+        (name: "MeasureNounPhrase", lhs: "MeasureNounPhrase", rhs: [Cat("head", "Measure")]),
+        // A multiplied measure (*gets twice -X/-X*).
+        (name: "AdverbModifiedMeasure", lhs: "MeasureNounPhrase", rhs: [Cat("modifier", "AdverbPhrase"), Cat("head", "MeasureNounPhrase")], equations: [Require("modifier.AdjunctPosition", "Phrasal")]),
+        // A creature's size as a predicative Complement (*except it's 4/3*,
+        // *base power and toughness become 4/2*).
+        (name: "MeasurePredicative", lhs: "Predicative", rhs: [Cat("head", "MeasureNounPhrase")]),
         // A bare ordinal is attributive (*the second spell*).
         (name: "OrdinalAdjective", lhs: "AdjectivePhrase", rhs: [Numeral("head", Ordinal)], equations: [Require("$.AdjectivePosition", "Attributive"), Require("$.Determination", "Overt")]),
         // An ordinal's position from an end (*third from the top*).
@@ -1277,6 +1289,7 @@
         Coordination(category: "PostmodifierCoordination", conjunct: Some("PostmodifierConjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
         Coordination(category: "ObjectCoordination", conjunct: Some("ObjectConjunct"), coordinators: "And", unshared: ["ComplementKind"], unlike: Some("ComplementKind"), serial: Some(true)),
         Coordination(category: "AdjunctCoordination", conjunct: Some("PredicateAdjunct"), coordinators: "Coordinator", unshared: ["ComplementKind"], unlike: Some("ComplementKind")),
+        Coordination(category: "MeasureNounPhrase", coordinators: "Coordinator"),
         Coordination(category: "Amount", coordinators: "Coordinator", proximate: ["QuantityNumber", "Sign"]),
         Coordination(category: "SymbolCosts", coordinators: "Coordinator"),
         // A coordination of quantifiers determines as its last one does (*one

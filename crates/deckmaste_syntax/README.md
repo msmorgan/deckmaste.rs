@@ -94,6 +94,9 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   *deals 2 damage to any target and 1 damage to you*); each copy of a Slot
   bears its function (right nonce-constituent coordination, CGEL, Ch. 15
   §4.3, p. 1341).
+  A `MeasureNP` slot is a Monotransitive Object filled by the grammar's
+  measure Noun Phrase Category, which no `NP` slot accepts (*gets +2/+2*, but
+  not *draw 2/2*); like a keyword-phrase Object it derives no passive.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).

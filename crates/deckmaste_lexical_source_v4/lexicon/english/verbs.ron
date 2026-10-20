@@ -62,8 +62,9 @@
     (lemma: "follow", frames: [Monotransitive]),
     (lemma: "gain", frames: [Monotransitive, Transitive(KeywordPhrase)]),
     // Oracle *get* takes only an object: *gets +2/+2*, *get an emblem*.
+    // *gets +2/+2*: a slash measure is a Noun Phrase only where selected.
     (lemma: "get", preterite: "got", past_participle: "gotten", gerund: "getting",
-        frames: [Monotransitive]),
+        frames: [Monotransitive, Transitive(MeasureNP)]),
     (lemma: "give", preterite: "gave", past_participle: "given",
         frames: [Monotransitive, Ditransitive]),
     (lemma: "group", frames: [TransitiveWithPP(["into"])]),

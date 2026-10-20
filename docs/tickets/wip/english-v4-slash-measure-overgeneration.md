@@ -35,3 +35,6 @@ analyses predate Stratum 6, which found them and left them alone.
   the census reports the derivation change on previously read units.
 
 Standard constraints apply.
+
+Census delta (`rutnpyrp`): faces read 28,705 → 28,705; total Readings 390,052 → 384,270 (495 units fewer, none more: wrong measure Manner Adjuncts, measured comparatives, subjects, *of*-complements and relative antecedents, and duplicate bare-measure coordinations); lost faces: none. Strata 0–6 unchanged, 0 known-wrong-only, 0 law failures.
+Judgment set (`rutnpyrp`): 3,013 enforced, 189 pending, all hold, including `slash_measure_selection.txt`; tests and clippy pass for deckmaste_syntax, deckmaste_lexical_source_v4 and deckmaste_english_v4.

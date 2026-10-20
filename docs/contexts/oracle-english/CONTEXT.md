@@ -896,6 +896,15 @@ combinations and comparisons with other values.
 A Complement that supplies a quantity or extent licensed by its head.
 _Avoid_: Numerative
 
+**Measure Noun Phrase** (project term):
+A bare slash measure (*+2/+2*, *5/1*) as a Noun Phrase, occurring only where
+a head selects one: the Object of *get* (*gets +2/+2*) or the Complement of
+*of* (*your choice of 5/1 or 1/5*). It is never a general Object, a Manner
+Adjunct or a bare singular Noun Phrase elsewhere. Under a determiner a slash
+measure is an ordinary noun (*an additional +2/+2*); before a noun it states
+a size (*a 3/3 creature*); after *be* or *become* it is a predicative
+Complement (*it's 4/3*).
+
 **Amount Complement** (project term):
 A Complement realized by a numeral or variable stating a number, as *2* in
 *scry 2* or *X* in *scry X*. It selects no Object, so it has no passive Valence

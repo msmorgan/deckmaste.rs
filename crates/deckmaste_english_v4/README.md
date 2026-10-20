@@ -102,6 +102,12 @@ frames; numeric subjects and predicatives retain Noun Phrase analyses.
 Quantity nominals use general determination. Modified quantities admit the
 indefinite article, and distributive quantities preserve singular external
 agreement independently of the numeral–noun agreement inside the group.
+A bare slash measure is a Measure Noun Phrase only where a head's frame
+selects one (*gets +2/+2*, *gets twice -X/-X*, *your choice of 5/1 or 1/5*)
+and a predicative Complement after *be* or *become* (*it's 4/3*); it is a noun
+only under a determiner (*an additional +2/+2*), as a bracketed loyalty symbol
+is, so neither is a general Object, a Manner Adjunct or the head of an
+attributive noun (*Draw a card 3/3.* has no Reading).
 Slash measures take nonnegative amounts with optional sign markers, so a
 negative numeral does not duplicate the marker-plus-amount analysis; signed
 zero and variables retain their notation. Attributive-only adjective position

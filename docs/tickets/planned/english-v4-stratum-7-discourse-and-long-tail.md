@@ -24,6 +24,15 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
 - **Also deferred from Stratum 6** (each unit in `deferred.txt`, by the
   mechanism it needs):
   - Ellipsis or gapping: Multiclass Baldric; Scion of Draco; Dominaria's Judgment; Akroma, Vision of Ixidor; Selective Adaptation; Detention Vortex; Oft-Nabbed Goat; Hearth Elemental; Frantic Firebolt.
+  - Gapped *get* over two Object + Adjunct strings (*each get +1/+1 for each
+    creature you control and +1/+1 for each Aura you control*): Eidolon of
+    Countless Battles reads only through the wrong *for each [creature you
+    control and +1/+1]*. It is not in `deferred.txt`, because a judgment would
+    leave only a known-wrong reading. Retire that reading when the gapped
+    analysis lands.
+  - A determined measure nominal as a nominal conjunct (*your [choice of 5/1]
+    or [1/5]*): Aquamorph Entity keeps this Reading beside the endorsed
+    *choice of [5/1 or 1/5]*.
   - Elided second *with*: Ulasht, the Hate Seed.
   - Floating quantifier: Kutzil, Malamet Exemplar; Angelic Aberration; Leonardo's Technique; Dance of the Manse; Ballroom Brawlers; Keen Duelist; Storyweave.
   - Vote option or metalinguistic mention: Bite of the Black Rose; Lieutenants of the Guard; Capital Punishment; Trial of a Time Lord; Abundant Harvest.

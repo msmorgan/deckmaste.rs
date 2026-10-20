@@ -78,6 +78,8 @@ pub enum FillSpec {
     /// An Adverb Phrase or a Noun Phrase of frequency (*than twice*).
     AdvP,
     LocativeNP,
+    /// A slash measure as a Noun Phrase (*gets +2/+2*).
+    MeasureNP,
     FiniteClause,
     VerblessClause,
     ToInf,

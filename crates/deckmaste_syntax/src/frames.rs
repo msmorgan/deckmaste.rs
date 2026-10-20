@@ -69,6 +69,9 @@ pub enum SlotFill {
     /// *twice* or *three times* in *more than twice*.
     AdvP,
     LocativeNP,
+    /// A slash measure as a Noun Phrase, taken only where a head selects
+    /// one (*gets +2/+2*).
+    MeasureNP,
     Clause(ClauseKind),
     ToInf,
     /// A *to*-infinitival with an object Gap its verb's Subject fills
@@ -103,6 +106,7 @@ pub enum SlotKind {
     AdjP,
     AdvP,
     LocativeNP,
+    MeasureNP,
     FiniteClause,
     VerblessClause,
     InterrogativeClause,
@@ -128,6 +132,7 @@ impl SlotFill {
             Self::AdjP => SlotKind::AdjP,
             Self::AdvP => SlotKind::AdvP,
             Self::LocativeNP => SlotKind::LocativeNP,
+            Self::MeasureNP => SlotKind::MeasureNP,
             Self::Clause(ClauseKind::Finite) => SlotKind::FiniteClause,
             Self::Clause(ClauseKind::Verbless) => SlotKind::VerblessClause,
             Self::Clause(ClauseKind::Interrogative) => SlotKind::InterrogativeClause,
@@ -174,7 +179,10 @@ impl Frame {
                 shape[..],
                 [(
                     Object,
-                    SlotFill::NP | SlotFill::KeywordPhrase | SlotFill::QuotedAbility
+                    SlotFill::NP
+                        | SlotFill::KeywordPhrase
+                        | SlotFill::QuotedAbility
+                        | SlotFill::MeasureNP
                 )]
             ),
             FrameFamily::Ditransitive => matches!(
