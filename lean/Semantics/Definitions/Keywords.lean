@@ -331,8 +331,9 @@ semantic_definition blitz (cost : Cost) : Ability :=
 semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
     [ static
-        (onlyWhile (entersWithCounters thisPermanent (.inCaller amount) p1p1Counter)
-          (happened (.dealDamage .anyAmount .which .any) (.actor anOpponent) soFarThisTurn)) ]
+        (replace (would thisPermanent enter)
+          (doIf (happened (.dealDamage .anyAmount .which .any) (.actor anOpponent) soFarThisTurn)
+            (withRiders [.withCounters (.inCaller amount) (.printed p1p1Counter) .fresh]))) ]
 semantic_definition boast (ability : Ability) : Ability :=
   .keyword (.named "boast") [.ability ability]
     [ .qualified ability none (some oncePerTurn)
@@ -443,7 +444,9 @@ semantic_definition dash (cost : Cost) : Ability :=
           (keywordCostPaid (.named "dash") thisPermanent)) ]
 semantic_definition daybound : Ability :=
   .keyword (.named "daybound") []
-    [ static (onlyIfSo (enters thisPermanent [.entersTransformed]) (gameIs night)),
+    [ static
+        (replace (would thisPermanent enter)
+          (doIf (gameIs night) (withRiders [.entersTransformed]))),
       static
         (.asEvent (gameBecomes night)
           (doIf (matches_ thisPermanent (.currentFace .front))
@@ -822,8 +825,9 @@ semantic_definition impending (amount : Amount) (cost : Cost) : Ability :=
   .keyword (.named "impending") [.number (.inCaller amount), .cost (.inCaller cost)]
     [ static (can (.actor .you) (cast this_ (payment := .payingInstead (.inCaller cost)))),
       static
-        (onlyWhile (entersWithCounters thisPermanent (.inCaller amount) timeCounter)
-          (keywordCostPaid (.named "impending") thisPermanent)),
+        (replace (would thisPermanent enter)
+          (doIf (keywordCostPaid (.named "impending") thisPermanent)
+            (withRiders [.withCounters (.inCaller amount) (.printed timeCounter) .fresh]))),
       static
         (onlyWhile
           (.characteristicChange thisPermanent [.typeLine .loses { types := some [.creature] }])
@@ -1377,11 +1381,15 @@ semantic_definition storied : Ability :=
 semantic_definition sunburst : Ability :=
   .keyword (.named "sunburst") []
     [ static
-        (onlyWhile (entersWithCounters thisPermanent (colorsSpentToCast thisSpell) p1p1Counter)
-          (matches_ thisPermanent isCreature)),
+        (replace (would thisPermanent enter)
+          (doIf (matches_ thisPermanent isCreature)
+            (withRiders
+              [.withCounters (colorsSpentToCast thisSpell) (.printed p1p1Counter) .fresh]))),
       static
-        (onlyWhile (entersWithCounters thisPermanent (colorsSpentToCast thisSpell) chargeCounter)
-          (not (matches_ thisPermanent isCreature))) ]
+        (replace (would thisPermanent enter)
+          (doIf (not (matches_ thisPermanent isCreature))
+            (withRiders
+              [.withCounters (colorsSpentToCast thisSpell) (.printed chargeCounter) .fresh]))) ]
 semantic_definition surge (cost : Cost) : Ability :=
   .keyword (.named "surge") [.cost (.inCaller cost)]
     [ static
