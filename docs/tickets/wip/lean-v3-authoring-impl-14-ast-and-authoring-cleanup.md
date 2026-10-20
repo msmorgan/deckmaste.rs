@@ -82,7 +82,16 @@ constraints apply.
   `thisRoom`, `thisSiege`).
 - **Per-property up/down vocabularies vs `Delta` (§4.5):** Align `CostShift`,
   `ShiftDir`, `LoyaltyCost`, `LifeMove`, and `CounterMove` with the glossary's
-  `Delta` rule (`_Avoid_` per-property up/down enums).
+  `Delta` rule (`_Avoid_` per-property up/down enums). `CostShift` is
+  `generic (Delta Amount) floor | bySymbols (Delta ManaCostTerm) coloredOnly`
+  (templates `less`, `more`, `lessBySymbols`, `moreBySymbols`);
+  `DamageScale.shifted`, `Cost.loyaltySymbol` (`[0]` is `up 0`, `[−X]` is
+  `down X`) and `Action.shiftResult` (a list of changes, the performer's
+  choice: "increase or decrease") take `Delta Amount`. A shift never sets
+  (`Refusal.shiftSets`, `[CR#118.9,606.4]`). `ShiftDir`, `LoyaltyCost` and the
+  dead `LifeMove` are retired; `CounterMove` only picked between two templates,
+  now `countersPut`/`countersRemoved` and their bare forms. `QualityOp` stays:
+  qualities are not numeric properties.
 - **"One counter of each kind it already has" (§4.6):** Unify the three
   encodings across `proliferate` (`CounterKindSource.own`), `doubleCounters`
   (`doForEachKind ... .bound`), and `moveCounters` (`.sameAs`), plus

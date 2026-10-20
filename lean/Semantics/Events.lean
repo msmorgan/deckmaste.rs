@@ -9,10 +9,6 @@ live in the recursive phrase model; their facts are checked in `Check/Events`.
 
 namespace Semantics
 
-inductive CounterMove where
-  | put | removed
-  deriving DecidableEq, Repr
-
 inductive CounterBatch where
   | one | many
   /-- Removal that leaves no counters of this kind. Emptiness is part of the trigger event,
@@ -27,10 +23,6 @@ inductive DiceBatch where
 
 inductive PaymentOutcome where
   | paid | unpaid
-  deriving DecidableEq, Repr
-
-inductive LifeMove where
-  | up | down
   deriving DecidableEq, Repr
 
 /-- Whether a lookback tally counts event occurrences ("the number of times…") or sums the

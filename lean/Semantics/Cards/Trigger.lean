@@ -251,12 +251,12 @@ def bloomHulk : Spelled := spelled <| .singleFaced
       power := stat 4, toughness := stat 4 } }
 
 /-- Stalwart Successor -/
-def stalwartSuccessorHeader : GameEvent := bareCounterEvent .put .many (a (and [isCreature, youControl]))
+def stalwartSuccessorHeader : GameEvent := bareCountersPut .many (a (and [isCreature, youControl]))
 theorem okStalwartSuccessorHeader : GameEvent.check (DRS.ofList []) stalwartSuccessorHeader = [] := by decide
 
 /-- Hollowmurk Siege -/
 def hollowmurkSiegeSultai : Ability :=
-  triggeredOnlyOnce (bareCounterEvent .put .one (a (and [isCreature, youControl]))) oncePerTurn
+  triggeredOnlyOnce (bareCountersPut .one (a (and [isCreature, youControl]))) oncePerTurn
     (draw (.lit 1))
 theorem okHollowmurkSiegeSultai : Ability.check (DRS.ofList []) hollowmurkSiegeSultai = [] := by decide
 
@@ -508,11 +508,11 @@ def wavebreakHippocamp : Ability :=
 theorem okWavebreakHippocamp : Ability.check (DRS.ofList []) wavebreakHippocamp = [] := by decide
 /-- Midnight Clock -/
 def midnightClockHeader : GameEvent :=
-  nthOccurrence (.nth 12) (counterEvent .put hourCounter .one thisArtifact)
+  nthOccurrence (.nth 12) (countersPut hourCounter .one thisArtifact)
 theorem okMidnightClockHeader : GameEvent.check (DRS.ofList []) midnightClockHeader = [] := by decide
 /-- Political Triumph -/
 def politicalTriumphHeader : GameEvent :=
-  nthOccurrence (.nth 4) (counterEvent .put planCounter .one thisEnchantment)
+  nthOccurrence (.nth 4) (countersPut planCounter .one thisEnchantment)
 theorem okPoliticalTriumphHeader : GameEvent.check (DRS.ofList []) politicalTriumphHeader = [] := by decide
 /-- Thought Lash -/
 def thoughtLashTrigger : Ability :=

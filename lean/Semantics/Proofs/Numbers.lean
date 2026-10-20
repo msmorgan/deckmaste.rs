@@ -135,7 +135,7 @@ theorem okMultipliedDamageDeclaresNoSlot :
 for a sign, and damage is never negative [CR#107.1b]. -/
 theorem okShiftedDamageClamped :
     (StaticSpec.damageRule .any .unattributed .everywhere
-      (.scale (.shifted .up (.lit 1))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
+      (.scale (.shifted (.up (.lit 1)))) .repeatedly).numberSlots = [(.lit 1, .clamped)] := by rfl
 
 /-! ## Printed slots and effect-written expressions -/
 

@@ -194,7 +194,7 @@ semantic_definition affinity (quality : Predicate) : Ability :=
   .keyword (.named "affinity") [.quality (.inCaller quality)]
     [ static
         (.costShift thisSpell
-          (.less (forEach (.lit 1) (and [.inCaller quality, youControl])) none)) ]
+          (.generic (.down (forEach (.lit 1) (and [.inCaller quality, youControl]))) none)) ]
 semantic_definition afflict (amount : Amount) : Ability :=
   .keyword (.named "afflict") [.number (.inCaller amount)]
     [ triggered (does .any (.block thisCreature))
@@ -538,7 +538,7 @@ semantic_definition emerge (cost : Cost) : Ability :=
       static
         (onlyWhile
           (.costShift thisSpell
-            (.less
+            (less
               (.statOf (.stat .manaValue)
                 (linkedObject .theAlternative (.action "sacrifice") thisSpell))
               none))
@@ -555,7 +555,7 @@ semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
       static
         (onlyWhile
           (.costShift thisSpell
-            (.less
+            (less
               (.statOf (.stat .manaValue)
                 (linkedObject .theAlternative (.action "sacrifice") thisSpell))
               none))
@@ -765,7 +765,7 @@ semantic_definition harmonize (cost : Cost) : Ability :=
       static
         (onlyWhile
           (.costShift thisSpell
-            (.less (powerOf (linkedObject .theAlternative (.action "tap") thisSpell)) none))
+            (.generic (.down (powerOf (linkedObject .theAlternative (.action "tap") thisSpell))) none))
           (keywordCostPaid (.named "harmonize") thisSpell)),
       static
         (replace (would thisSpell (leave stack))
@@ -1471,7 +1471,7 @@ semantic_definition umbraArmor : Ability :=
           (instead (sequentially [clearDamage (enchanted .permanent), destroy thisAura]))) ]
 semantic_definition undaunted : Ability :=
   .keyword (.named "undaunted") []
-    [static (.costShift thisSpell (.less (forEach (.lit 1) isOpponent) none))]
+    [static (.costShift thisSpell (.generic (.down (forEach (.lit 1) isOpponent)) none))]
 semantic_definition undying : Ability :=
   .keyword (.named "undying") []
     [ triggeredIf (does thisPermanent die)

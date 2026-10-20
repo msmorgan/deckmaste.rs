@@ -75,8 +75,12 @@ def Cost.localChecks : Cost → List Refusal
   | _ => []
 
 def CostShift.localChecks : CostShift → List Refusal
-  | .bySymbols (.lit symbols) _ _ => localRefuse (!symbols.isEmpty) .nonEmpty
-  | _ => []
+  | .generic change _ => localRefuse (!change.isSet) .shiftSets
+  | .bySymbols change _ =>
+    localRefuse (!change.isSet) .shiftSets ++
+      (match change.amount with
+        | .lit symbols => localRefuse (!symbols.isEmpty) .nonEmpty
+        | _ => [])
 
 def CreationSpec.localChecks : CreationSpec → List Refusal
   | .emblem _ abilities => localRefuse (!abilities.isEmpty) .nonEmpty

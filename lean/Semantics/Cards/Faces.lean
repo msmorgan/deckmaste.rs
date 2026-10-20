@@ -208,7 +208,7 @@ def akkiLavarunner : Spelled := spelled <| .flip
       text :=
         [ protection (hasColor .red),
           static (damageRule .any (dealtBy (a (and [isSource, hasColor .red])))
-            (toRecipient (a isPlayer)) (scale (shifted .up (.lit 1))) .repeatedly) ],
+            (toRecipient (a isPlayer)) (scale (shifted (up (.lit 1)))) .repeatedly) ],
       power := stat 2, toughness := stat 2 } }
 
 def bushiTenderfoot : Spelled := spelled <| .flip
@@ -293,13 +293,13 @@ def arlinnKord : Spelled := spelled <| .transforming
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [arlinn],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (establishThroughout
                (conjunction [ modification (targets (upTo 1) isCreature) .power (up (.lit 2)),
                   modification it .toughness (up (.lit 2)),
                   abilityGrant it vigilance,
                   abilityGrant it haste ]) untilEndOfTurn),
-          activated (loyaltySymbol .zero)
+          activated (loyaltySymbol (up (.lit 0)))
             (sequentially
               [ createToken (creatureToken 2 2 [.green] [wolf]),
                 transform thisPlaneswalker ]) ],
@@ -308,16 +308,16 @@ def arlinnKord : Spelled := spelled <| .transforming
     { name := "Arlinn, Embraced by the Moon", supertypes := [.legendary],
       types := [.planeswalker], subtypes := [arlinn],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (establishThroughout
                (conjunction
                   [ modification (allOf (and [isCreature, youControl])) .power (up (.lit 1)),
                   modification them .toughness (up (.lit 1)),
                   abilityGrant them trample ]) untilEndOfTurn),
-          activated (loyaltySymbol (.down 1))
+          activated (loyaltySymbol (down (.lit 1)))
             (sequentially
               [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly), transform thisPlaneswalker ]),
-          activated (loyaltySymbol (.down 6))
+          activated (loyaltySymbol (down (.lit 6)))
             (getEmblem
               [ static (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) haste,
                     abilityGrant them
@@ -536,29 +536,29 @@ def garrukRelentless : Spelled := spelled <| .transforming
       subtypes := [garruk],
       text :=
         [ garrukRelentlessFlip,
-          activated (loyaltySymbol .zero)
+          activated (loyaltySymbol (up (.lit 0)))
             (sequentially
               [ instruct thisPlaneswalker (dealDamage (.lit 3) (target isCreature) .noncombatOnly),
                 instruct (that creature) (dealDamage (powerOf (that creature))
                                                      thisPlaneswalker .noncombatOnly) ]),
-          activated (loyaltySymbol .zero)
+          activated (loyaltySymbol (up (.lit 0)))
             (createToken (creatureToken 2 2 [.green] [wolf])) ],
       loyalty := stat 3 } }
   { characteristics :=
     { name := "Garruk, the Veil-Cursed", supertypes := [.legendary], types := [.planeswalker],
       subtypes := [garruk],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (createToken
               { characteristics :=
                 { colors := [.black], types := [.creature], subtypes := [wolf],
                   text := [deathtouch], power := stat 1, toughness := stat 1 } }),
-          activated (loyaltySymbol (.down 1))
+          activated (loyaltySymbol (down (.lit 1)))
             (doIfDone (sacrifice (a isCreature))
               (some (sequentially
                 [ searchLibraryFor (exactly 1) isCreature, reveal it, putInto it hand,
                   shuffle ]))),
-          activated (loyaltySymbol (.down 3))
+          activated (loyaltySymbol (down (.lit 3)))
             (sequentially
               [ establishThroughout
                   (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) trample,

@@ -309,7 +309,7 @@ def jace : Characteristics :=
 theorem okLoyaltyOnPlaneswalker :
     Card.check
       (one
-        { jace with text := [activatedAbility (.loyaltySymbol (.up 1)) (draw (.lit 1))],
+        { jace with text := [activatedAbility (.loyaltySymbol (.up (.lit 1))) (draw (.lit 1))],
                     loyalty := stat 3 }) = [] := by
   decide
 
@@ -318,7 +318,7 @@ theorem badLoyaltySorcery :
     Card.check
       (one
         { name := some "Impossible Loyalty Sorcery", cost := some [pip .blue], types := [.sorcery],
-          text := [activatedAbility (.loyaltySymbol (.up 1)) (draw (.lit 1))] }) = [.cardText] :=
+          text := [activatedAbility (.loyaltySymbol (.up (.lit 1))) (draw (.lit 1))] }) = [.cardText] :=
               by
   decide
 

@@ -171,6 +171,9 @@ inductive Refusal where
   /-- Entry Riders ride an entering: a replacement adding riders replaces a permanent's
   entering [CR#614.1c,614.12]. -/
   | riddenEntering
+  /-- A shift raises or lowers its value, never sets it: a cost shift, a damage shift, a loyalty
+  symbol or a die-result shift [CR#118.9,606.4]. -/
+  | shiftSets
   /-- A replacement's riders are Entry Riders, never Pile Placements, which only a card put into
   another zone carries [CR#401.4,406.3,614.12]. -/
   | entryRidersOnly

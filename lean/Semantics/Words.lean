@@ -351,10 +351,6 @@ inductive ScaleFactor where
   | doubled | tripled
   deriving DecidableEq, Repr
 
-inductive ShiftDir where
-  | up | down
-  deriving DecidableEq, Repr
-
 /-- How much of a spell's or ability's targets a "targets …" check reads [CR#115.9]: some target
 ("that targets [something]" [CR#115.9b]), its sole target ("that targets only a single
 [something]"), or the subject alone ("that targets only it"); both "only" readings count the
@@ -461,13 +457,6 @@ inductive ManaMatch where
   | anyColor
   | anyType
   | of (color : ColorOrColorless)
-  deriving DecidableEq, Repr
-
-inductive LoyaltyCost where
-  | up (amount : Nat)
-  | down (amount : Nat)
-  | downX
-  | zero
   deriving DecidableEq, Repr
 
 /-- A card subtype. Instants and sorceries share their spell types [CR#205.3k]. -/

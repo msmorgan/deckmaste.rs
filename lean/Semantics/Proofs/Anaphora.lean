@@ -678,7 +678,7 @@ theorem oneNonTokenIsNoSpec :
 theorem badDefineWithoutUse : anyOpenLetter .x (DRS.ofList []) = false := by decide
 
 theorem costXStaysOpen :
-    anyOpenLetter .x (stepCost 64 (DRS.ofList []) (.loyaltySymbol .downX)).1 = true := by decide
+    anyOpenLetter .x (stepCost 64 (DRS.ofList []) (.loyaltySymbol (.down (.letter .x)))).1 = true := by decide
 
 theorem thisNeedsNoAntecedent : NounPhrase.checkAt (some .object) (DRS.ofList []) .this = [] := by decide
 

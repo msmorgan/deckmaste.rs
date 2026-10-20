@@ -573,14 +573,17 @@ mutual
     | lit (cost : ManaCost)
     | manaCostOf (object : NounPhrase)
 
+  /-- A cost shift raises (`up`) or lowers (`down`) a cost; it never sets one, which is an
+  alternative cost [CR#118.9] (`shiftSets`). -/
   inductive CostShift where
-    | less (amount : Amount) (floor : Option Amount)
-    | more (amount : Amount)
-    /-- Raise (`rises`) or lower the cost by the symbols of `cost`, each symbol of a type
-    changing mana of that type. `coloredOnly` is "this effect reduces only the amount of colored
-    mana you pay" (Edgewalker): a reduction that leaves generic mana alone; without it, colored
-    mana in `cost` beyond what the total cost has reduces generic mana [CR#702.48c,118.7]. -/
-    | bySymbols (cost : ManaCostTerm) (rises : Bool) (coloredOnly : Bool)
+    /-- By an amount of generic mana: "costs {1} less", "costs {X} more"; `floor` the least a
+    reduction leaves ("to a minimum of {1}") [CR#601.2f]. -/
+    | generic (change : Delta Amount) (floor : Option Amount)
+    /-- By the symbols of a mana cost, each symbol of a type changing mana of that type.
+    `coloredOnly` is "this effect reduces only the amount of colored mana you pay" (Edgewalker):
+    a reduction that leaves generic mana alone; without it, colored mana in the cost beyond what
+    the total cost has reduces generic mana [CR#702.48c,118.7]. -/
+    | bySymbols (change : Delta ManaCostTerm) (coloredOnly : Bool)
 
   /-- The mana one act of a Mana Substitute pays for: one generic mana, or one mana of a color
   [CR#702.51a,702.66a,702.126a,701.67a]. -/
@@ -619,7 +622,8 @@ mutual
   inductive DamageScale where
     | multiplied (factor : ScaleFactor)
     | halved (rounding : RoundMode)
-    | shifted (direction : ShiftDir) (amount : Amount)
+    /-- "That much damage plus or minus N": raised or lowered, never set (`shiftSets`). -/
+    | shifted (change : Delta Amount)
 
   inductive DividedVerb where
     | damage (source : NounPhrase)
@@ -947,7 +951,9 @@ mutual
     | scaled (cost : Cost) (amount : Amount)
     | tapSymbol
     | untapSymbol
-    | loyaltySymbol (loyalty : LoyaltyCost)
+    /-- A loyalty symbol: put on (`up`, "[+1]", "[0]") or remove (`down`, "[−2]", "[−X]") that
+    many loyalty counters [CR#606.4]; never set (`shiftSets`). -/
+    | loyaltySymbol (change : Delta Amount)
     /-- An action performed as a cost ("Sacrifice a creature:") [CR#602.2b,118.1]. -/
     | perform (action : Action)
     | compound (costs : List Cost)
@@ -1070,7 +1076,9 @@ mutual
     | rollDice (count : Amount) (sides : DieSides) (batch : DiceBatch) (watch : RollWatch)
     | applyResultsTable (rows : List RollRow)
     | ignoreOutcomes (which : IgnoredOutcomes)
-    | shiftResult (direction : Option ShiftDir) (amount : Amount)
+    /-- Raise or lower a die result by one of `changes`, the performer's choice: "increase or
+    decrease the result by 1" lists both [CR#706.2]. Never a set (`shiftSets`). -/
+    | shiftResult (changes : List (Delta Amount))
     | storeResults (on : NounPhrase)
     | rerollStored (quantity : Quantity) (whose : NounPhrase)
     | establish (spec : StaticSpec) (duration : Option Duration)

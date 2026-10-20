@@ -198,10 +198,10 @@ def lilianaOfTheVeil : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.planeswalker],
       subtypes := [liliana],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (sequentially [instruct eachPlayer (choose (a (cardIn hand))), discard them]),
-          activated (loyaltySymbol (.down 2)) (instruct (target isPlayer) (sacrifice (a isCreature))),
-          activated (loyaltySymbol (.down 6))
+          activated (loyaltySymbol (down (.lit 2))) (instruct (target isPlayer) (sacrifice (a isCreature))),
+          activated (loyaltySymbol (down (.lit 6)))
             (sequentially
               [ separateIntoPiles
                   (allOf (and [isPermanent, controlledBy (target isPlayer)])) 2,

@@ -286,7 +286,7 @@ def herdBaloth : Spelled := spelled <| .singleFaced
     { name := "Herd Baloth", cost := some [generic 3, pip .green, pip .green], types := [.creature],
       subtypes := [beast],
       text :=
-        [ whenever (counterEvent .put p1p1Counter .many thisCreature)
+        [ whenever (countersPut p1p1Counter .many thisCreature)
             (may (createToken (creatureToken 4 4 [.green] [beast]))) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -294,7 +294,7 @@ def flourishingDefenses : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Flourishing Defenses", cost := some [generic 4, pip .green], types := [.enchantment],
       text :=
-        [ whenever (counterEvent .put m1m1Counter .one (a isCreature))
+        [ whenever (countersPut m1m1Counter .one (a isCreature))
             (may
               (createToken (creatureToken 1 1 [.green] [elf, warrior]))) ] } }
 
@@ -491,7 +491,7 @@ def shalaiAndHallar : Spelled := spelled <| .singleFaced
       subtypes := [angel, elf],
       text :=
         [ flying, vigilance,
-          whenever (counterEvent .put p1p1Counter .many (a (and [isCreature, youControl])))
+          whenever (countersPut p1p1Counter .many (a (and [isCreature, youControl])))
             (instruct thisCreature (dealDamage thatMuch (target isOpponent) .noncombatOnly)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -846,7 +846,7 @@ theorem okViviensTalentTrigger : Ability.check (DRS.ofList []) viviensTalentTrig
 /-- Bioessence Hydra -/
 def bioessenceHydraTrigger : Ability :=
   whenever
-    (counterEvent .put loyaltyCounter .many
+    (countersPut loyaltyCounter .many
       (allOf (and [isPlaneswalker, youControl])))
     (putCounters thatMuch (printedKind p1p1Counter) thisCreature .many)
 theorem okBioessenceHydraTrigger : Ability.check (DRS.ofList []) bioessenceHydraTrigger = [] := by decide

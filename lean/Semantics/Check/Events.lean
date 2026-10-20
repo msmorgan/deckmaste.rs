@@ -10,10 +10,6 @@ deed, and play-window rules (`docs/decisions/semantics-v3.md` §3.6–§3.8).
 
 namespace Semantics
 
-def LifeMove.outcome : LifeMove → OutcomeSort
-  | .up => .lifeGained
-  | .down => .lifeLost
-
 /-- The life outcomes a life change publishes. Setting a life total gains or loses the necessary
 amount of life [CR#119.5], and doubling one is written as that set [CR#701.10d], so a set publishes
 both, as an exchange of life totals does. -/

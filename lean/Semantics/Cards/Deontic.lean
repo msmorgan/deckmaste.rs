@@ -265,13 +265,13 @@ def gideonJura : Spelled := spelled <| .singleFaced
     { name := "Gideon Jura", cost := some [generic 3, pip .white, pip .white],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [gideon],
       text :=
-        [ activated (loyaltySymbol (.up 2))
+        [ activated (loyaltySymbol (up (.lit 2)))
             (establishThroughout
               (must (allOf (and [isCreature, controlledBy (target isOpponent)]))
                  (attack (some thisPlaneswalker)))
               (duringNextTurnOf (that player))),
-          activated (loyaltySymbol (.down 2)) (destroy (target (and [isCreature, isTapped]))),
-          activated (loyaltySymbol .zero)
+          activated (loyaltySymbol (down (.lit 2))) (destroy (target (and [isCreature, isTapped]))),
+          activated (loyaltySymbol (up (.lit 0)))
             (sequentially
               [ establishThroughout (qualityChange thisPlaneswalker .sets
                     (bundle

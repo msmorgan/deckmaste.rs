@@ -125,7 +125,7 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
       subtypes := [vampire, soldier],
       text :=
         [ vigilance,
-          triggeredOnlyOnce (counterEvent .put p1p1Counter .many thisCreature) oncePerTurn
+          triggeredOnlyOnce (countersPut p1p1Counter .many thisCreature) oncePerTurn
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -197,20 +197,20 @@ def saheeliFiligreeMaster : Spelled := spelled <| .singleFaced
     { name := "Saheeli, Filigree Master", cost := some [generic 2, pip .blue, pip .red],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [saheeli],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (sequentially
               [ scry (.lit 1),
                 may
                   (tap (a (and [isArtifact, isUntapped, youControl])))
                   (some (draw (.lit 1))) ]),
-          activated (loyaltySymbol (.down 2))
+          activated (loyaltySymbol (down (.lit 2)))
             (sequentially
               [ createToken
                   { characteristics :=
                     { types := [.artifact, .creature], subtypes := [thopter],
                       text := [flying], power := stat 1, toughness := stat 1 } } (count := .lit 2),
                 gainHaste them (some untilEndOfTurn) ]),
-          activated (loyaltySymbol (.down 4))
+          activated (loyaltySymbol (down (.lit 4)))
             (getEmblem
               [ static (getsPt (allOf (and [isArtifact, isCreature, youControl]))
                   (up (.lit 1)) (up (.lit 1))),

@@ -1293,7 +1293,7 @@ semantic_template choiceWasTaken (which : LinkSource) (subject : NounPhrase) : C
 semantic_template manaCostOf (object : NounPhrase) : ManaCostTerm := .manaCostOf object
 /-- "<subject>'s total cost is reduced by <cost>", symbol by symbol [CR#702.48c,118.7]. -/
 semantic_template reducedBySymbols (subject : NounPhrase) (cost : ManaCostTerm) : StaticSpec :=
-  .costShift subject (.bySymbols cost false false)
+  .costShift subject (.bySymbols (.down cost) false)
 /-- "the last chosen color" -/
 semantic_template theLastChosenColor : ColorTerm := .chosen .theLatestChoice
 /-- "the last chosen number" -/
@@ -1302,8 +1302,8 @@ semantic_template theLastChosenNumber : Amount := .chosenNumber .theLatestChoice
 semantic_template shortOfCeiling : Amount := .theOutcome .ceilingShortfall
 /-- "the number of counters removed this way" -/
 semantic_template removedThisWay : Amount := .theOutcome .countersRemoved
-/-- "increase or decrease the result by N" -/
-semantic_template shiftResult (amount : Amount) : Action := .shiftResult none amount
+/-- "increase or decrease the result by <amount>" -/
+semantic_template shiftResult (amount : Amount) : Action := .shiftResult [.up amount, .down amount]
 /-- "You may play this card from <zone> <timing>": the land type's play permission [CR#305.1]. -/
 semantic_template playableFrom (zone : Location) (timing : Timing) : Conferral :=
   .property (can you (.procedure .play this_ .itsOwnCost none (some zone) none)
@@ -1653,19 +1653,20 @@ semantic_template beginningOfNext (part : TurnPart) : GameEvent :=
   .beginningOf part none (.next none)
 /-- "at the beginning of that turn's <part>" -/
 semantic_template beginningOfThatTurns (part : TurnPart) : GameEvent := .beginningOf part none .that
-/-- "N <kind> counters are put on / removed from <subject>" -/
-semantic_template counterEvent (move : CounterMove) (kind : CounterKind) (batch : CounterBatch)
-    (subject : NounPhrase) : GameEvent :=
-  match move with
-  | .put => .does .any (.putCounters .anyAmount (.printed kind) subject batch false)
-  | .removed => .does .any (.removeCounters none (some (.printed kind)) subject batch false)
-/-- "counters are put on / removed from <subject>", the kind unsaid. -/
-semantic_template bareCounterEvent (move : CounterMove) (batch : CounterBatch)
-    (subject : NounPhrase) :
+/-- "N <kind> counters are put on <subject>" -/
+semantic_template countersPut (kind : CounterKind) (batch : CounterBatch) (subject : NounPhrase) :
     GameEvent :=
-  match move with
-  | .put => .does .any (.putCounters .anyAmount .anyKind subject batch false)
-  | .removed => .does .any (.removeCounters none none subject batch false)
+  .does .any (.putCounters .anyAmount (.printed kind) subject batch false)
+/-- "N <kind> counters are removed from <subject>" -/
+semantic_template countersRemoved (kind : CounterKind) (batch : CounterBatch)
+    (subject : NounPhrase) : GameEvent :=
+  .does .any (.removeCounters none (some (.printed kind)) subject batch false)
+/-- "counters are put on <subject>", the kind unsaid. -/
+semantic_template bareCountersPut (batch : CounterBatch) (subject : NounPhrase) : GameEvent :=
+  .does .any (.putCounters .anyAmount .anyKind subject batch false)
+/-- "counters are removed from <subject>", the kind unsaid. -/
+semantic_template bareCountersRemoved (batch : CounterBatch) (subject : NounPhrase) : GameEvent :=
+  .does .any (.removeCounters none none subject batch false)
 /-- "the last <kind> counter is removed from <subject> by <who>" -/
 semantic_template lastCounterRemovedBy (kind : CounterKind) (subject who : NounPhrase) :
     GameEvent :=
@@ -1975,7 +1976,7 @@ semantic_template withoutPaying : PlayPayment := .withoutPaying
 semantic_template payingInstead (cost : Cost) : PlayPayment := .payingInstead cost
 semantic_template letterDefinition (letter : Letter) (amount : Amount) : StaticSpec :=
   .letterDefinition letter amount
-semantic_template loyaltySymbol (loyalty : LoyaltyCost) : Cost := .loyaltySymbol loyalty
+semantic_template loyaltySymbol (change : Delta Amount) : Cost := .loyaltySymbol change
 semantic_template mana (cost : List ManaSymbol) : Cost := .mana cost
 semantic_template manaRetention (player : NounPhrase) (mana : ManaHeld) : StaticSpec :=
   .manaRetention player mana
@@ -2306,8 +2307,7 @@ semantic_template multiplied (factor : ScaleFactor) : DamageScale := .multiplied
 /-- "half that damage, rounded <rounding>" -/
 semantic_template halved (rounding : RoundMode) : DamageScale := .halved rounding
 /-- "that much damage plus or minus <amount>" -/
-semantic_template shifted (direction : ShiftDir) (amount : Amount) : DamageScale :=
-  .shifted direction amount
+semantic_template shifted (change : Delta Amount) : DamageScale := .shifted change
 /-- "damage <source> would deal <scope>", as a prevention ban names it -/
 semantic_template damageDealt (source : DamageAgent) (scope : DamageScope) : Unpreventable :=
   .described source scope
@@ -2318,12 +2318,14 @@ semantic_template thatDamage : Unpreventable := .thatDamage
 
 /-- "costs <amount> less [to a floor of <floor>]" -/
 semantic_template less (amount : Amount) (floor : Option Amount := none) : CostShift :=
-  .less amount floor
+  .generic (.down amount) floor
 /-- "costs <amount> more" -/
-semantic_template more (amount : Amount) : CostShift := .more amount
-/-- "costs <cost> less/more", symbol by symbol [CR#702.48c,118.7] -/
-semantic_template bySymbols (cost : ManaCostTerm) (rises : Bool) (coloredOnly : Bool) : CostShift :=
-  .bySymbols cost rises coloredOnly
+semantic_template more (amount : Amount) : CostShift := .generic (.up amount) none
+/-- "costs <cost> less", symbol by symbol [CR#702.48c,118.7] -/
+semantic_template lessBySymbols (cost : ManaCostTerm) (coloredOnly : Bool := false) : CostShift :=
+  .bySymbols (.down cost) coloredOnly
+/-- "costs <cost> more", symbol by symbol [CR#702.48c,118.7] -/
+semantic_template moreBySymbols (cost : ManaCostTerm) : CostShift := .bySymbols (.up cost) false
 
 /-! ## Visibility, exposure and exchanges -/
 

@@ -256,9 +256,9 @@ def jaceBeleren : Spelled := spelled <| .singleFaced
     { name := "Jace Beleren", cost := some [generic 1, pip .blue, pip .blue],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [jace],
       text :=
-        [ activated (loyaltySymbol (.up 2)) (instruct eachPlayer (draw (.lit 1))),
-          activated (loyaltySymbol (.down 1)) (instruct (target isPlayer) (draw (.lit 1))),
-          activated (loyaltySymbol (.down 10)) (instruct (target isPlayer) (mill (.lit 20)))
+        [ activated (loyaltySymbol (up (.lit 2))) (instruct eachPlayer (draw (.lit 1))),
+          activated (loyaltySymbol (down (.lit 1))) (instruct (target isPlayer) (draw (.lit 1))),
+          activated (loyaltySymbol (down (.lit 10))) (instruct (target isPlayer) (mill (.lit 20)))
               ],
       loyalty := stat 3 } }
 
@@ -267,11 +267,11 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
     { name := "Elspeth, Sun's Champion", cost := some [generic 4, pip .white, pip .white],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [elspeth],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)),
-          activated (loyaltySymbol (.down 3))
+          activated (loyaltySymbol (down (.lit 3)))
             (destroy (allOf (and [isCreature, hasPower .atLeast (.lit 4)]))),
-          activated (loyaltySymbol (.down 7))
+          activated (loyaltySymbol (down (.lit 7)))
             (getEmblem
               [ static (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 2)) (up (.lit 2)),
                     abilityGrant them flying ]) ]) ],
@@ -280,7 +280,7 @@ def elspethSunsChampion : Spelled := spelled <| .singleFaced
 /-- Elspeth's Talent -/
 def elspethsTalentGrant : StaticSpec :=
   abilityGrant (enchanted planeswalker)
-    (activated (loyaltySymbol (.up 1))
+    (activated (loyaltySymbol (up (.lit 1)))
       (createToken (creatureToken 1 1 [.white] [soldier]) (count := .lit 3)))
 theorem okElspethsTalentGrant : StaticSpec.check (DRS.ofList []) elspethsTalentGrant = [] := by decide
 
@@ -937,7 +937,7 @@ def alabasterLeech : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Alabaster Leech", cost := some [pip .white], types := [.creature],
       subtypes := [leech],
-      text := [static (spellsCost (and [isSpell, hasColor .white, castBy you]) (bySymbols (symbols [pip .white]) true false))],
+      text := [static (spellsCost (and [isSpell, hasColor .white, castBy you]) (moreBySymbols (symbols [pip .white])))],
       power := stat 1, toughness := stat 3 } }
 
 /-- Edgewalker -/
@@ -947,7 +947,7 @@ def edgewalker : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ static (spellsCost (and [hasSubtype cleric, isSpell, castBy you])
-            (bySymbols (symbols [pip .white, pip .black]) false true)) ],
+            (lessBySymbols (symbols [pip .white, pip .black]) (coloredOnly := true))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Cavern-Hoard Dragon -/

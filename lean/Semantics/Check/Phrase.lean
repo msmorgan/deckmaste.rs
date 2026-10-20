@@ -1357,15 +1357,16 @@ def stepManaSubstituteWith (ops : StepOps) (drs : DRS) (ms : ManaSubstitute) : D
 def stepCostShiftWith (ops : StepOps) (drs : DRS) (cs : CostShift) : DRS × List Refusal :=
   let (out, errors) :=
     match cs with
-    | .less amt optFl =>
-      let (drs1, e1) := ops.amt drs amt
+    | .generic change optFl =>
+      let (drs1, e1) := ops.amt drs change.amount
       let (drs2, e2) := match optFl with | some fl => ops.amt drs1 fl | none => (drs1, [])
       (drs2, e1 ++ e2)
-    | .more amt => ops.amt drs amt
-    | .bySymbols (.lit _) _ _ => (drs, [])
-    | .bySymbols (.manaCostOf obj) _ _ =>
-      let (drs', _, e) := ops.np drs .other false obj
-      (drs', e)
+    | .bySymbols change _ =>
+      match change.amount with
+      | .lit _ => (drs, [])
+      | .manaCostOf obj =>
+        let (drs', _, e) := ops.np drs .other false obj
+        (drs', e)
   (out, errors ++ cs.localChecks)
 
 def stepDamageAgentWith (ops : StepOps) (drs : DRS) (da : DamageAgent) : DRS × List Refusal :=
@@ -1403,7 +1404,9 @@ def stepDamageOpWith (ops : StepOps) (drs : DRS) (dop : DamageOp) : DRS × List 
     (drs2, e1 ++ e2 ++ refuse (to.plur == .one) .singular ++
       refuse (Kind.lte kind (.join .object .player)) (.kindLte kind (.join .object .player)))
   | .scale (.multiplied _) | .scale (.halved _) => (drs, [])
-  | .scale (.shifted _ amt) => ops.amt drs amt
+  | .scale (.shifted change) =>
+    let (out, errors) := ops.amt drs change.amount
+    (out, errors ++ refuse (!change.isSet) .shiftSets)
 
 private def stepMoveRiderFuel (ops : StepOps) (fuel : Nat) (drs : DRS) (r : MoveRider) : DRS × List Refusal :=
   match fuel with
@@ -2630,11 +2633,13 @@ def stepOps : Nat → StepOps
             | .extreme _ => countOutcomes .rollResult drs1 == 1
             | _ => ignorableInScope drs1
           (drs1, e1 ++ refuse allowed .ignorableFor)
-        | .shiftResult _ amt =>
-          let (drs1, e1) := ops.amt drs amt
+        | .shiftResult changes =>
+          let (drs1, e1) := changes.foldl (fun (d, es) change =>
+            let (d', e) := ops.amt d change.amount
+            (d', es ++ e ++ refuse (!change.isSet) .shiftSets)) (drs, [])
           let cnt := countOutcomes .rollResult drs1
           let e2 := if cnt == 1 then [] else [.outcomeInScope .rollResult cnt]
-          (drs1, e1 ++ e2)
+          (drs1, e1 ++ refuse (!changes.isEmpty) .nonEmpty ++ e2)
         | .storeResults on =>
           let (drs1, _, e1) := ops.np drs patientRole true on
           let cnt := countOutcomes .rollResult drs1
@@ -3036,8 +3041,10 @@ def stepOps : Nat → StepOps
             let out := if manaHasX cost && countLetter .x drs == 0 then
               drs.push (letterB .x) .other false else drs
             (out, [])
-          | .loyaltySymbol .downX => ops.amt drs (.letter .x)
-          | .tapSymbol | .untapSymbol | .loyaltySymbol _ | .itsManaCost => (drs, [])
+          | .loyaltySymbol change =>
+            let (out, errors) := ops.amt drs change.amount
+            (out, errors ++ refuse (!change.isSet) .shiftSets)
+          | .tapSymbol | .untapSymbol | .itsManaCost => (drs, [])
           | .scaled c amt =>
             let (drs1, e1) := ops.cost drs c
             let (drs2, e2) := ops.amt drs1 amt

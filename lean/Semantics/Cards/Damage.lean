@@ -289,7 +289,7 @@ def psychicPurge : Spelled := spelled <| .singleFaced
 
 /-- Chandra Nalaar -/
 def chandraNalaarsX : Ability :=
-  activated (loyaltySymbol .downX) (instruct this_ (dealDamage (letter .x) (target isCreature) .noncombatOnly))
+  activated (loyaltySymbol (down (letter .x))) (instruct this_ (dealDamage (letter .x) (target isCreature) .noncombatOnly))
 theorem okChandraNalaarsX : Ability.check (DRS.ofList []) chandraNalaarsX = [] := by decide
 
 def etherealHaze : Spelled := spelled <| .singleFaced
@@ -341,7 +341,7 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
     { name := "Gideon, Ally of Zendikar", cost := some [generic 2, pip .white, pip .white],
       supertypes := [.legendary], types := [.planeswalker], subtypes := [gideon],
       text :=
-        [ activated (loyaltySymbol (.up 1))
+        [ activated (loyaltySymbol (up (.lit 1)))
             (sequentially
               [ establishThroughout (qualityChange thisPlaneswalker .sets
                     (bundle
@@ -351,9 +351,9 @@ def gideonAllyOfZendikar : Spelled := spelled <| .singleFaced
                           text := [indestructible], power := stat 5, toughness := stat 5 } }
                       (some .planeswalker))) untilEndOfTurn,
                 preventAll .any (toRecipient it) (some thisTurn) ]),
-          activated (loyaltySymbol .zero)
+          activated (loyaltySymbol (up (.lit 0)))
             (createToken (creatureToken 2 2 [.white] [knight, ally])),
-          activated (loyaltySymbol (.down 4))
+          activated (loyaltySymbol (down (.lit 4)))
             (getEmblem
               [static (getsPt (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)))]) ],
       loyalty := stat 4 } }
@@ -635,7 +635,7 @@ def sulfuricVapors : Spelled := spelled <| .singleFaced
     { name := "Sulfuric Vapors", cost := some [generic 3, pip .red], types := [.enchantment],
       text :=
         [ static (damageRule .any (dealtBy (a (and [isSpell, hasColor .red])))
-            (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted .up (.lit 1)))
+            (toRecipient (a (or [isPermanent, isPlayer]))) (scale (shifted (up (.lit 1))))
             .repeatedly) ] } }
 
 def lashknifeBarrier : Spelled := spelled <| .singleFaced
@@ -644,7 +644,7 @@ def lashknifeBarrier : Spelled := spelled <| .singleFaced
       text :=
         [ when (does thisEnchantment enter) (draw (.lit 1)),
           static (damageRule .any (dealtBy (a isSource)) (toRecipient (a (and [isCreature, youControl])))
-            (scale (shifted .down (.lit 1))) .repeatedly) ] } }
+            (scale (shifted (down (.lit 1)))) .repeatedly) ] } }
 
 def ghostsOfTheInnocent : Spelled := spelled <| .singleFaced
   { characteristics :=

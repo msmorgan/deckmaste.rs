@@ -30,7 +30,7 @@ theorem okGainsKeyword :
 
 /-- "Creature spells you cast cost {1} less to cast." -/
 theorem okCostSubjectOnStack :
-    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [isCreature, isSpell])) (.less (.lit 1) none)) = [] :=
+    StaticSpec.check (DRS.ofList []) (.costShift (allOf (.and [isCreature, isSpell])) (.generic (.down (.lit 1)) none)) = [] :=
         by
   decide
 

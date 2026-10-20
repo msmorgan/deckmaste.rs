@@ -492,7 +492,7 @@ theorem okScaleDoubled :
 theorem badScaleShiftByThatMuch :
     StaticSpec.check (DRS.ofList [])
       (.damageRule .any (.dealtBy (a isSource)) (.toRecipient (a (.or [isPermanent, .anyPlayer])))
-        (.scale (.shifted .up .thatMuch)) .repeatedly) = [.quantOutcomeInScope 0] := by
+        (.scale (.shifted (.up .thatMuch))) .repeatedly) = [.quantOutcomeInScope 0] := by
   decide
 
 /-- "Whenever this creature is dealt damage, it deals that much damage to any target." -/

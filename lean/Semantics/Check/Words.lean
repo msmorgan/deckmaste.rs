@@ -1452,6 +1452,11 @@ def Delta.amount {α : Type} : Delta α → α
   | .down x => x
   | .set x => x
 
+/-- Whether the Delta sets its value rather than raising or lowering it. -/
+def Delta.isSet {α : Type} : Delta α → Bool
+  | .set _ => true
+  | _ => false
+
 def supersDistinct : List Supertype → Bool
   | [] => true
   | s :: ss => !ss.elem s && supersDistinct ss

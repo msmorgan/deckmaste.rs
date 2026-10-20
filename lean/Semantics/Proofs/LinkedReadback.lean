@@ -141,7 +141,7 @@ theorem okReducedByManaCost :
 
 /-- A written cost shift of no symbols is refused, as it was under `run`. -/
 theorem badEmptySymbols :
-    StaticSpec.check (DRS.ofList []) (.costShift thisSpell (.bySymbols (.lit []) false false))
+    StaticSpec.check (DRS.ofList []) (.costShift thisSpell (.bySymbols (.down (.lit [])) false))
       = [.nonEmpty] := by
   decide
 

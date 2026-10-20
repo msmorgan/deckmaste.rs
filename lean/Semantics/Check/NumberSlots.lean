@@ -24,9 +24,8 @@ def Exchanged.numberSlots : Exchanged → List (Amount × NumberRegime)
 /-- A cost shift is an amount of mana, and a floor is the least it can be reduced to: both are
 counts, so neither goes below zero [CR#107.1b]. -/
 def CostShift.numberSlots : CostShift → List (Amount × NumberRegime)
-  | .less amount floor => (amount, .clamped) :: optClamped floor
-  | .more amount => [(amount, .clamped)]
-  | .bySymbols _ _ _ => []
+  | .generic change floor => (change.amount, .clamped) :: optClamped floor
+  | .bySymbols _ _ => []
 
 /-- "as though its power were greater than 4" compares a game value, and a comparison uses a
 negative when it needs one [CR#107.1b]. -/
@@ -44,7 +43,7 @@ declares no slot. A shift is a magnitude with the direction as its sign, and the
 adjusts is not negative [CR#107.1b]. -/
 def DamageScale.numberSlots : DamageScale → List (Amount × NumberRegime)
   | .multiplied _ | .halved _ => []
-  | .shifted _ amount => [(amount, .clamped)]
+  | .shifted change => [(change.amount, .clamped)]
 
 /-- A damage replacement's own slots. The `also` action a prevention runs declares its
 own. -/
@@ -174,7 +173,7 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .applyResultsTable _ => []
   | _n + 1, .ignoreOutcomes which => which.numberSlots
   -- The sign is the direction; the amount added to a result is a magnitude [CR#107.1b].
-  | _n + 1, .shiftResult _ amount => [(amount, .clamped)]
+  | _n + 1, .shiftResult changes => changes.map ((·.amount, .clamped))
   | _n + 1, .storeResults _ | _n + 1, .rerollStored _ _ => []
   | _n + 1, .establish spec none => match spec with
     | .letterDefinition _ amount => [(amount, .clamped)]
