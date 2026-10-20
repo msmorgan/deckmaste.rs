@@ -95,7 +95,14 @@ constraints apply.
 - **"One counter of each kind it already has" (§4.6):** Unify the three
   encodings across `proliferate` (`CounterKindSource.own`), `doubleCounters`
   (`doForEachKind ... .bound`), and `moveCounters` (`.sameAs`), plus
-  `proliferate`'s permanent vs player counter test.
+  `proliferate`'s permanent vs player counter test. "One of each kind on X" is
+  `sameAs X`, the recipient itself included: proliferate is
+  `doForEach (those …) (putCounters 1 (sameAs it) it)` and `own` is retired.
+  Doubling stays a kind loop: it gives as many of each kind as there are, not
+  one. Moving put `sameAs source` (one of *each* kind on the source); it now puts
+  `those`, the kind removed this way `[CR#122.5]`. `hasCounters` and `sameAs`
+  accept players `[CR#122.1]`, so proliferate's choice is one test,
+  `and [or [isPermanent, isPlayer], hasCounters none]`.
 - **Remaining redundant AST constructors & one-card slots (§4.13, §4.14):**
   - Retire `Action.doOnlyIf` constructor (`Abilities.lean:1059`), keeping
     `doOnlyIf` as a `Templates.lean` helper expanding to `.doIf` (and align

@@ -289,10 +289,9 @@ semantic_definition surveil (amount : Amount) : Action :=
 semantic_definition proliferate : Action :=
   .ownScope (some (.action "proliferate"))
     (.enact (.action "proliferate") (sequentially
-      [ .choose none (counted anyNumber
-            (or [ and [isPermanent, .hasCounters none],
-                   .compare [.anyCounter .player] .atLeast (.lit 1) ])) .openly none,
-        .putCounters (.lit 1) .own (.eachOf (those .join)) .one true ])
+      [ .choose none (counted anyNumber (and [or [isPermanent, isPlayer], .hasCounters none]))
+          .openly none,
+        .doForEach (those .join) (.putCounters (.lit 1) (.sameAs it) it .one true) ])
       none none)
 /-- "<performer> amasses <subtype> N" with its reminder text (`Definition`, [CR#701.47a]): the
 chosen Army is `that (.type .creature)` and `it`, resolved inside `ownScope`. -/

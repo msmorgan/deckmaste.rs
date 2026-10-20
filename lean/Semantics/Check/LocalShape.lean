@@ -95,9 +95,12 @@ def CounterKindSource.localChecks (drs : DRS) : CounterKindSource → List Refus
     let n := countChoice (.quality .counterKind) drs
     localRefuse (n == 1) (.choiceRef .theChoice (.quality .counterKind) n)
   | .those =>
-    let n := countOutcomes .countersPut drs
-    localRefuse (n == 1) (.outcomeInScope .countersPut n)
-  | .own | .sameAs _ | .anyKind => []
+    let put := countOutcomes .countersPut drs
+    let removed := countOutcomes .countersRemoved drs
+    if put + removed == 1 then []
+    else if removed == 0 then [.outcomeInScope .countersPut put]
+    else [.outcomeInScope .countersRemoved (put + removed)]
+  | .sameAs _ | .anyKind => []
 
 def counterHolderKind (kind : Kind) : Bool := Kind.lte kind (.join .object .player)
 

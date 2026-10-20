@@ -953,7 +953,8 @@ def stepCounterKindSourceWith (ops : StepOps) (drs : DRS) (source : CounterKindS
   let (out, errors) := match source with
     | .sameAs subject =>
       let (out, ids, errors) := ops.np drs .other false subject
-      (out, errors ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)))
+      let kind := ((ids.head?.bind out.findById?).map (·.kind)).getD (subject.kindIn out .object)
+      (out, errors ++ refuse (counterHolderKind kind) .counterHolderKind)
     | _ => (drs, [])
   (out, errors ++ source.localChecks drs)
 
@@ -1625,9 +1626,10 @@ def stepOps : Nat → StepOps
           (drs, refuse q.chosenReadOk (.chosenQualityRead q) ++
             (if ref.ok n then [] else [.choiceRef ref (.quality q) n]))
         | .hasCounters kind =>
+          -- Objects and players have counters [CR#122.1].
           let headKind := drs.relativeKind.getD .object
           let knownErrors := kind.toList.flatMap (fun counter => refuse counter.known .knownCounter)
-          (drs, kindCheck headKind (some .object) ++ knownErrors)
+          (drs, refuse (counterHolderKind headKind) .counterHolderKind ++ knownErrors)
         | .hasPossessor _ np =>
           let (drs', _, errs) := ops.np drs .other false np
           (drs', errs ++ refuse np.soleHolderOk .soleHolder)

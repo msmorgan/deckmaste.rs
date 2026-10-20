@@ -1523,15 +1523,14 @@ semantic_template mayOrElse (body otherwise : Action) : Action := may body none 
 semantic_template merge (subject onto : NounPhrase) (position : MergePosition) : Action :=
   .merge subject onto position
 /-- "move <amount> [<kind>] counters from <source> onto <destination>": remove them from the
-source, then put them onto the destination [CR#122.5]. With no kind written, what is put is a
-counter of the kind removed from the source. -/
+source, then put them onto the destination [CR#122.5]. With no kind written, what is put is
+counters of the kind removed this way (`those`). -/
 semantic_template moveCounters (amount : Amount) (source destination : NounPhrase)
     (kind : Option CounterKindSource := none) : Action :=
   .sequentially
     [ .removeCounters (some (.exactlyOf amount)) kind (.firstMention "moveCounters.source" source)
         .one true,
-      .putCounters amount (kind.getD (.sameAs (.laterMention "moveCounters.source" source)))
-        destination .one true ]
+      .putCounters amount (kind.getD .those) destination .one true ]
 semantic_template pay (cost : Cost) (times : PayTimes) (outcome : PaymentOutcome := .paid)
     (whose : Option NounPhrase := none) (keyword : Option KeywordLabel := none) : Action :=
   .pay cost times outcome whose keyword

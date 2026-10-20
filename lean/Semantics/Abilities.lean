@@ -561,9 +561,15 @@ mutual
     | printed (kind : CounterKind)
     | chosen (menu : List CounterKind)
     | distinctChosen (menu : List CounterKind)
+    /-- The one kind a kind loop or a choice binds ("each kind of counter on it", doubling's
+    "as many of that kind" [CR#701.10e]). -/
     | bound
+    /-- The kind of the counters put or removed this way: "that many of those counters", and
+    moving's "a counter" put where it was removed from [CR#122.5]. -/
     | those
-    | own
+    /-- One of each kind on `source`, the object or player itself or another: "a counter of each
+    kind that's on this creature", proliferate's "each kind that permanent or player already
+    has" [CR#701.34a]. -/
     | sameAs (source : NounPhrase)
     | anyKind
 

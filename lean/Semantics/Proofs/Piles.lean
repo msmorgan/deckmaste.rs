@@ -249,12 +249,17 @@ theorem oneWayResultShift :
       = [] := by
   decide
 
+/-- "For each ability on the stack, put a counter of each kind on it on it": an ability on the
+stack is an object [CR#109.1], so it may hold counters. -/
 theorem abilityCounterRecipient :
-    Action.check (DRS.ofList []) (.putCounters (.lit 1) .own (a (.abilityHead .anyOnStack)) .one true) = [] := by
+    Action.check (DRS.ofList [])
+      (.doForEach (each (.abilityHead .anyOnStack)) (.putCounters (.lit 1) (.sameAs it) it .one true))
+      = [] := by
   decide
 
+/-- "Remove a counter of each kind you have from you": a player has counters too [CR#122.1]. -/
 theorem removeOwnCounterKinds :
-    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some .own) .you .one true) = [] := by decide
+    Action.check (DRS.ofList []) (.removeCounters (some (exactly 1)) (some (.sameAs .you)) .you .one true) = [] := by decide
 
 theorem namedAdditionalPartAnchor :
     Action.check (DRS.ofList []) (Primitives.Action.addTurnPart .upkeep (some .mainPhase) (.lit 1) none)
