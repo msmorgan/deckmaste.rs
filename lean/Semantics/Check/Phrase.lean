@@ -1568,10 +1568,6 @@ def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
     (out, types, errors ++ exceptionErrors)
 termination_by structural fuel
 
-def stepTokenSpecWith (ops : StepOps) (drs : DRS) (ts : TokenSpec) : DRS × List Refusal :=
-  let (out, _, errors) := stepTokenSpecMetadataWith ops drs ts
-  (out, errors)
-
 def stepCreationSpecMetadataWith (ops : StepOps) (drs : DRS)
     (spec : CreationSpec) : DRS × List CardType × List Refusal :=
   match spec with
@@ -1581,10 +1577,6 @@ def stepCreationSpecMetadataWith (ops : StepOps) (drs : DRS)
     (out, types, errors ++ riderErrors ++ spec.localChecks)
   | .emblem _ abilities =>
     (drs, [], (stepAbilityListWith ops (choiceContext drs) abilities).2 ++ spec.localChecks)
-
-def stepCreationSpecWith (ops : StepOps) (drs : DRS) (spec : CreationSpec) : DRS × List Refusal :=
-  let (out, _, errors) := stepCreationSpecMetadataWith ops drs spec
-  (out, errors)
 
 /-- A play's payment: the cost is paid while casting or playing [CR#601.2h], not an argument of
 the play. The cost's mentions leave the clause's pending argument roles, and the enclosing frames'

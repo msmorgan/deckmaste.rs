@@ -2,6 +2,12 @@ import Semantics.Check.Phrase
 
 namespace Semantics
 
+/-- Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
+is clamped unless it sets, doubles, or triples a life total or a power and toughness. -/
+inductive NumberRegime where
+  | clamped | signed
+  deriving DecidableEq, Repr
+
 /-- An `Option Amount` slot in the clamped regime. -/
 private def optClamped : Option Amount → List (Amount × NumberRegime)
   | none => []

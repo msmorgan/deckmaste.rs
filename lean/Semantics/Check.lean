@@ -8,7 +8,6 @@ import Semantics.Check.Phrase
 import Semantics.Check.Queries
 import Semantics.Check.Abilities
 import Semantics.Check.AbilityRules
-import Semantics.Check.SelectionEvidence
 import Semantics.Check.Card
 import Semantics.Check.Rules
 

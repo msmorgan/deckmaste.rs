@@ -583,7 +583,7 @@ def oneOfAnUncountedTop : NounPhrase :=
 theorem okOneOfAnUncountedTop : NounPhrase.checkAt (some .object) (DRS.ofList []) oneOfAnUncountedTop = [] := by
   decide
 def theArtifactsAmongTheTopFive : NounPhrase :=
-  allAmong isArtifact (topSlice (.lit 5))
+  allFromAmong isArtifact (topSlice (.lit 5))
 theorem okTheArtifactsAmongTheTopFive :
     NounPhrase.checkAt (some .object) (DRS.ofList []) theArtifactsAmongTheTopFive = [] := by decide
 theorem theOtherAfterATwoCardLook : theOtherOk .object ((stepNounPhrase 512 (DRS.ofList []) .obj true oneOfTheTopTwo).1) = true := by

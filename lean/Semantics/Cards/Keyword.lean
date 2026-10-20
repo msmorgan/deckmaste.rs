@@ -1160,7 +1160,7 @@ def aimHigh : Spelled := spelled <| .singleFaced
 
 /-- Harried Dronesmith -/
 def harriedDronesmithToken : Action :=
-  sequentially [createToken thopterToken, gainHaste itAsToken (some untilEndOfTurn)]
+  sequentially [createToken thopterToken, gainHaste thatToken (some untilEndOfTurn)]
 theorem okHarriedDronesmithToken : Action.check (DRS.ofList []) harriedDronesmithToken = [] := by decide
 
 /-- Archfiend's Vessel -/
@@ -1343,7 +1343,7 @@ def ancestralBlade : Spelled := spelled <| .singleFaced
         [ when (does thisEquipment enter)
             (sequentially
               [ createToken (creatureToken 1 1 [.white] [soldier]),
-                attachTo thisEquipment itAsToken ]),
+                attachTo thisEquipment thatToken ]),
           static (getsPt (equipped creature) (up (.lit 1)) (up (.lit 1))),
           equip (mana [generic 1]) ] } }
 

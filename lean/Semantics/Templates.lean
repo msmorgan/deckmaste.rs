@@ -88,8 +88,6 @@ semantic_template them : NounPhrase := .pro .bare .many
 semantic_template itCard : NounPhrase := .pro (.atSlot .card) .one
 /-- "it": the permanent slot's occupant, as "sacrifice it" reads it. -/
 semantic_template itPermanent : NounPhrase := .pro (.atSlot .permanent) .one
-/-- "that token": the token just created. -/
-semantic_template itAsToken : NounPhrase := .pro .tokenBorn .one
 /-- "itself" / "himself" / "herself" -/
 semantic_template itself : NounPhrase := .refl .one
 /-- "themselves" -/
@@ -167,7 +165,6 @@ semantic_template oneThrough (n : Nat) : Quantity := .range (some 1) (some n)
 semantic_template exactlyOf (amount : Amount) : Quantity := .exactlyOf amount
 semantic_template range (low : Option Nat := none) (high : Option Nat := none) : Quantity :=
   .range low high
-semantic_template Quantity.upTo (n : Nat) : Quantity := Templates.upTo n
 semantic_template upToOf (amount : Amount) : Quantity := .upToOf amount
 semantic_template worth (n : Nat) : Quantity := .worth n
 /-- "more than N": the count a prohibition bounds ("can't cast more than one spell"). -/
@@ -210,7 +207,6 @@ semantic_template countOf (p : Predicate) : Amount := .countOf (bare p)
 /-- "the greatest power among …s" -/
 semantic_template aggregate (op : AggregateOp) (axis : ProjAxis) (p : Predicate) : Amount :=
   .aggregate op axis (bare p)
-semantic_template aRandom (p : Predicate) : NounPhrase := aAtRandom p
 semantic_template random (q : Quantity) (p : Predicate) : NounPhrase := countedAtRandom q p
 /-! ## Locations -/
 
@@ -222,7 +218,6 @@ semantic_template graveyard : Location := .zone .graveyard none
 [CR#400.3]. -/
 semantic_template library : Location := .zone .library none
 semantic_template stack : Location := .zone .stack none
-semantic_template command : Location := .zone .command none
 /-- "the command zone", scoped to nobody. -/
 semantic_template commandZone : Location := .zone .command none
 /-- "<player>'s library": a face-down pile [CR#401.2]. -/
@@ -385,12 +380,7 @@ semantic_template isPermanent : Predicate := .in_ battlefield
 /-- "permanent card": a card that could be put onto the battlefield, one with an artifact,
 battle, creature, enchantment, land, or planeswalker type [CR#110.4a]; a reading of the card's
 types, wherever it is. -/
-semantic_template isPermanentCard : Predicate :=
-  .and
-    [ .isCard,
-      .or
-        [ .hasType .artifact, .hasType .battle, .hasType .creature, .hasType .enchantment,
-          .hasType .land, .hasType .planeswalker ] ]
+semantic_template isPermanentCard : Predicate := .and [.isCard, isPermanentType]
 /-- "spell": an object on the stack that is not an ability [CR#112.1,113.1]. -/
 semantic_template isSpell : Predicate := .and [.in_ stack, .not (.abilityHead .anyOnStack)]
 semantic_template isCard : Predicate := .isCard
@@ -696,11 +686,9 @@ semantic_template withTheSameName (group : NounPhrase) : NounPhrase := .agree .c
 /-- "<group> with different names" -/
 semantic_template withDifferentNames (group : NounPhrase) : NounPhrase :=
   .agree .cardName .differ group
-/-- "the <p> from among <group>": every member the description picks. -/
+/-- "the <p> [from] among <group>": every member the description picks. -/
 semantic_template allFromAmong (p : Predicate) (group : NounPhrase) : NounPhrase :=
   .someOf .whole (some p) group
-/-- "the <p> among <group>" -/
-semantic_template allAmong (p : Predicate) (group : NounPhrase) : NounPhrase := allFromAmong p group
 /-- "each object" -/
 semantic_template everyObject : NounPhrase := allOf (.and [])
 /-- "one pile": one of the piles just made. -/
@@ -763,7 +751,6 @@ semantic_template run (end_ : PileEnd) (stop : Predicate) (pile : Location) : No
 semantic_template slice (end_ : PileEnd) (amount : Amount) (pile : Location) : NounPhrase :=
   .slice end_ amount pile
 semantic_template theGrantor (head : NounWord) : NounPhrase := .theGrantor head
-semantic_template themAsTokens : NounPhrase := .pro .tokenBorn .many
 /-! ### Noun words
 
 The bare nouns a pronoun or an attached host reads: "that creature", "those cards",
@@ -815,7 +802,6 @@ semantic_template phyrexianPip (color : Color) : ManaSymbol := .phyrexian color 
 /-- "{1} for each …": generic mana cost scaled by an amount. -/
 semantic_template scaledGenericMana (amount : Amount) : Cost :=
   .scaled (.mana [generic 1]) amount
-semantic_template ManaSymbol.generic (amount : Nat) : ManaSymbol := Templates.generic amount
 /-! ## Durations -/
 
 /-- "until end of turn" -/
@@ -961,7 +947,6 @@ semantic_template greatestStoredMatch (subject : NounPhrase) : Amount :=
 semantic_template groupSize : Amount := .groupSize
 semantic_template half (rounding : RoundMode) (amount : Amount) : Amount := .half rounding amount
 semantic_template letter (letter : Letter) : Amount := .letter letter
-semantic_template lit (value : Amount) : Amount := value
 semantic_template numberOf (subject : NounPhrase) : Amount := .countOf subject
 semantic_template paid (facet : LinkedFacet) (subject : NounPhrase) : Amount := .paid facet subject
 semantic_template setTo (amount : Amount) : (Delta Amount) := .set amount
@@ -1588,9 +1573,6 @@ semantic_template theActor : NounPhrase := .actor
 /-- "<performer> <body>": the handoff (`Action.instruct`), to a player or a permanent. -/
 semantic_template instruct (performer : NounPhrase) (body : Action) : Action :=
   .instruct performer body
-/-- Alias for `instruct` for compatibility during porting. -/
-semantic_template act (performer : NounPhrase) (body : Action) : Action :=
-  .instruct performer body
 /-- "… <performer> controls" -/
 semantic_template actorControls : Predicate := .hasPossessor .controller .actor
 /-- "For each <pip> mana …, you may <action> rather than pay that mana": a Mana Substitute
@@ -1885,9 +1867,6 @@ semantic_template abilityGrant (subject : NounPhrase) (ability : Ability) : Stat
 semantic_template abilityGrantFrom (subject source : NounPhrase)
     (classes : List AbilityClass := []) (except : Option Predicate := none) : StaticSpec :=
   .characteristicChange subject [.addedAbilitiesOf source classes except]
-semantic_template Ability.activatedBy (cost : Cost) (action : Action) (who : NounPhrase) :
-    Ability :=
-  Templates.activatedBy cost action who
 semantic_template addSubtype (subject : NounPhrase) (subtype : Subtype) : StaticSpec :=
   .characteristicChange subject [.typeLine .adds { subtypes := some [subtype] }]
 semantic_template addedCost (cost : Cost) (offered : Bool) (times : PayTimes := PayTimes.once) :
@@ -1929,9 +1908,6 @@ semantic_template costShift (subject : NounPhrase) (shift : CostShift) : StaticS
 semantic_template damageRule (kind : DamageKind) (source : DamageAgent) (scope : DamageScope)
     (op : DamageOp) (use : ReplUse) : StaticSpec :=
   .damageRule kind source scope op use
-semantic_template Timing.duringPart (part : TurnPart) (whose : Option NounPhrase := none) :
-    Timing :=
-  Templates.duringPart part whose
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
 /-- "If <event> would …, <replacement> instead", "<subject> enters tapped", "As <subject> enters,
 …": a replacement effect, `event` modified by `replacement` [CR#614.1a,614.1c,614.1d]. -/
@@ -2001,9 +1977,6 @@ Characteristic-Defining Ability setting both, the toughness free to read the pow
 back ("that number plus 1") [CR#604.3a,613.4a]. -/
 semantic_template ptDefinitions (subject : NounPhrase) (power toughness : Amount) : StaticSpec :=
   .characteristicDefining subject [.stat .sets .power power, .stat .sets .toughness toughness]
-semantic_template ptModification (subject : NounPhrase) (power toughness : Delta Amount) :
-    StaticSpec :=
-  getsPt subject power toughness
 /-- "Switch <subject>'s power and toughness" [CR#613.4d] -/
 semantic_template ptSwitch (subject : NounPhrase) : StaticSpec :=
   .characteristicChange subject [.ptSwitch]

@@ -253,7 +253,7 @@ permanent's last known characteristics stay readable). A bare pronoun (`.bare`,
 clause's mentions (`J2`, `DRS.isClauseMate` over `pendingRoles`), keeps the nearest
 clause and the highest grammatical role (`GramRole.rank`: subject, object, other), and
 resolves only to a unique winner; none or a tie is refused `anaphor`. A demonstrative
-(`.word _`, `.tokenBorn`, `.unionHalf _`) follows `AC>R1`: it also excludes clause-mates
+(`.word _`, `.unionHalf _`) follows `AC>R1`: it also excludes clause-mates
 in an argument slot and any referent a bare pronoun already resolved to in this clause
 (`pronounResolved`), then takes the most recently introduced candidate. A stamped
 participle (`.verbed …`) must match exactly one referent. A reflexive

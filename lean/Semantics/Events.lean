@@ -3,7 +3,7 @@ import Semantics.Words
 /-!
 # Semantics.Events
 
-Shared event parameters, deed sets, and play-window values. Event patterns themselves
+Shared event parameters and the markings and modes clauses carry. Event patterns themselves
 live in the recursive phrase model; their facts are checked in `Check/Events`.
 -/
 

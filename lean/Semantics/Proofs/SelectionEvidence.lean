@@ -1,6 +1,11 @@
-import Semantics.Check.AbilityRules
+import Semantics.Check
 
-namespace Semantics
+/-! Selection evidence: the referents a selection leaves for a later remainder, choice or loop
+read. -/
+
+namespace Semantics.Proofs.SelectionEvidence
+
+open Semantics
 
 private def optionalCreature : Action :=
   .withContinuation .optional
@@ -9,7 +14,7 @@ private def optionalCreature : Action :=
 private def afterOptionalCreature : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) optionalCreature).1
 
-private theorem optionalChoiceKeepsEvidenceWithoutTheCreature :
+theorem optionalChoiceKeepsEvidenceWithoutTheCreature :
     Action.check (DRS.ofList []) optionalCreature = [] ∧
       Predicate.checkAt .object afterOptionalCreature .notChosen = [] ∧
       NounPhrase.check afterOptionalCreature (.pro .bare .one) = [.anaphor .bare .one 0] := by decide
@@ -26,18 +31,18 @@ private def optionalSubset : Action :=
 private def afterOptionalSubset : DRS :=
   (stepAction 64 .postEvent .obj fiveCards optionalSubset).1
 
-private theorem optionalSubsetKeepsItsGroupWithoutTheSelectedCard :
+theorem optionalSubsetKeepsItsGroupWithoutTheSelectedCard :
     Action.check fiveCards optionalSubset = [] ∧
       NounPhrase.check afterOptionalSubset (.theRest .object .many) = [] ∧
       countParts .object afterOptionalSubset = 0 ∧
       countOnes .object afterOptionalSubset = 0 ∧
       Predicate.checkAt .object afterOptionalSubset .notChosen = [.choiceInScope .object] := by decide
 
-private theorem missingSelectionIsStillRefused :
+theorem missingSelectionIsStillRefused :
     Predicate.checkAt .object (DRS.ofList []) .notChosen = [.choiceInScope .object] ∧
       NounPhrase.check fiveCards (.theRest .object .many) = [.theRestFits .object] := by decide
 
-private theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
+theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
     let context := fiveCards.recordSelection .object (some 999) false
     NounPhrase.check context (.theRest .object .many) = [.theRestFits .object] ∧
       NounPhrase.check
@@ -47,11 +52,11 @@ private theorem unrelatedOrClosedGroupCannotSupplyTheRemainder :
               (.slice .top (.lit 5) (.zone .library none)))) ) none none)).1
         (.theRest .object .many) = [.theRestFits .object] := by decide
 
-private theorem optionalSubsetCannotPromiseOneRemainingCard :
+theorem optionalSubsetCannotPromiseOneRemainingCard :
     theOtherOk .object afterOptionalSubset = false ∧
       NounPhrase.check afterOptionalSubset (.theRest .object .one) = [.theRestFits .object] := by decide
 
-private theorem selectionEvidenceFollowsExplicitCallerScope :
+theorem selectionEvidenceFollowsExplicitCallerScope :
     let chosen := (DRS.ofList []).recordSelection .object none true
     let inner := enterOwnScope chosen
     let caller := enterCaller inner
@@ -62,13 +67,13 @@ private theorem selectionEvidenceFollowsExplicitCallerScope :
       (leaveOwnScope (leaveCaller inner caller)).choiceWasPossible .object = true ∧
       (leaveOwnScope ((enterOwnScope (DRS.ofList [])).recordSelection .object none true)).choiceWasPossible .object = false := by decide
 
-private theorem selectionEvidenceTracksTheMovedGroupIdentity :
+theorem selectionEvidenceTracksTheMovedGroupIdentity :
     let group := fiveCards.recordSelection .object (some 0) false
     let moved := applyZoneMove group [0] none (some .graveyard)
     moved.subsetWasPossible .object = true ∧
       moved.selectionEvidence.head?.bind (·.sourceGroup) = some 1 := by decide
 
-private theorem possibleChoiceHistoryDoesNotExportLoopReferences :
+theorem possibleChoiceHistoryDoesNotExportLoopReferences :
     (choiceContext afterOptionalCreature).choiceWasPossible .object = false ∧
       (leaveRelative (DRS.ofList []) afterOptionalCreature).choiceWasPossible .object = false ∧
       Ability.checkText (DRS.ofList [])
@@ -92,7 +97,7 @@ private def targetForEachPlayer : Action :=
 private def afterTargetLoop : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList []) targetForEachPlayer).1
 
-private theorem targetLoopPublishesAFreshPluralResult :
+theorem targetLoopPublishesAFreshPluralResult :
     Action.check (DRS.ofList []) targetForEachPlayer = [] ∧
       afterTargetLoop.referents.map (·.id) = [3, 0] ∧
       countOnes .object afterTargetLoop = 0 ∧
@@ -104,7 +109,7 @@ private theorem targetLoopPublishesAFreshPluralResult :
         [.anaphor (.word .permanent) .one 0] ∧
       NounPhrase.check afterTargetLoop (.pro .bare .one) = [.anaphor .bare .one 0] := by decide
 
-private theorem playersCanSacrificeTheCollectedTargets :
+theorem playersCanSacrificeTheCollectedTargets :
     Action.check (DRS.ofList []) (.sequentially [targetForEachPlayer,
       .instruct (.pro (.word .player) .many)
         (.enact (.action "sacrifice")
@@ -116,7 +121,7 @@ private def afterPlayerLoop (body : Action) : DRS :=
   (stepAction 64 .postEvent .obj (DRS.ofList [])
     (.doForEach (.described .each .anyPlayer) body)).1
 
-private theorem ordinaryLocalsAndOptionalTargetsRemainClosed :
+theorem ordinaryLocalsAndOptionalTargetsRemainClosed :
     countManys .object (afterPlayerLoop
       (.choose none (.described (.a .unmarked) (.hasType .creature)) .openly none)) = 0 ∧
       countManys .object (afterPlayerLoop
@@ -125,13 +130,13 @@ private theorem ordinaryLocalsAndOptionalTargetsRemainClosed :
       countManys .object (afterPlayerLoop
         (.withContinuation .optional (loopTarget (.hasType .creature)) none none)) = 0 := by decide
 
-private theorem separateTargetAnnouncementsStaySeparate :
+theorem separateTargetAnnouncementsStaySeparate :
     let out := afterPlayerLoop (.sequentially [loopTarget (.hasType .creature), loopTarget (.hasType .artifact)])
     countReach (.word (.type .creature)) .many out = 1 ∧
       countReach (.word (.type .artifact)) .many out = 1 ∧
       countManys .object out = 2 := by decide
 
-private theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
+theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
     let out := afterPlayerLoop (.sequentially [
       .choose none (.firstMention "loop.target"
         (.described (.target (.range (some 1) (some 1))) (.hasType .creature))) .openly none,
@@ -143,7 +148,7 @@ private theorem targetGroupUsesTheMovedSuccessorWithoutLocalIdentity :
       (out.findById? 2) = none ∧ (out.findById? 3) = none ∧
       countOnes .object out = 0 := by decide
 
-private theorem preexistingTargetsAreNotReaggregated :
+theorem preexistingTargetsAreNotReaggregated :
     let outer : DRS := DRS.ofList [{
       id := 10, det := .target, plur := .one,
       payload := .object [.artifact] (some .battlefield) none none none,
@@ -158,14 +163,14 @@ private def deniedTarget : StaticSpec :=
     (.described (.target (.range (some 1) (some 1))) (.hasType .creature))))
     (.block .any) {}
 
-private theorem prohibitionKeepsTheAnnouncedTargetIdentity :
+theorem prohibitionKeepsTheAnnouncedTargetIdentity :
     StaticSpec.check (DRS.ofList []) deniedTarget = [] ∧
       let out := (stepStaticSpec 64 (DRS.ofList []) deniedTarget).1
       out.referents.map (·.id) = [0] ∧
         NounPhrase.check out (.laterMention "outside.target" .any) = [] ∧
         NounPhrase.check out (.pro (.word (.type .creature)) .one) = [] := by decide
 
-private theorem hypotheticalProhibitionParticipantsStayClosed :
+theorem hypotheticalProhibitionParticipantsStayClosed :
     let indefinite := (stepStaticSpec 64 (DRS.ofList [])
       (.cant (.actor (.described (.a .unmarked) (.hasType .creature)))
         (.block .any) {})).1
@@ -174,7 +179,7 @@ private theorem hypotheticalProhibitionParticipantsStayClosed :
         (.block .any) {})).1
     countOnes .object indefinite = 0 ∧ countManys .object universal = 0 := by decide
 
-private theorem attachmentSourceRemainsAvailableAfterProhibition :
+theorem attachmentSourceRemainsAvailableAfterProhibition :
     let source := StaticSpec.cant (.actor (.attachHost .enchanted (.type .creature)))
       (.block .any) {}
     let out := (stepStaticSpec 64 (DRS.ofList []) source).1
@@ -183,7 +188,7 @@ private theorem attachmentSourceRemainsAvailableAfterProhibition :
 
 private def tollCost : Cost := .scaled (.mana [.simple (.generic 1)]) (.arith .times (.lit 1) .groupSize)
 
-private theorem tollReadsTheActorGroupAfterTheAction :
+theorem tollReadsTheActorGroupAfterTheAction :
     StaticSpec.check (DRS.ofList [])
       (.gatedBy tollCost (.actor (.described .all (.hasType .creature)))
         (.attack (some (.or [.you, .described .all (.hasType .planeswalker)])))
@@ -196,7 +201,7 @@ private theorem tollReadsTheActorGroupAfterTheAction :
           (.actor (.and [.described .all (.hasType .creature), .described .all (.hasType .artifact)]))
           (.attack none) {}) = [.groupSizeInScope 2] := by decide
 
-private theorem postposedTollSeesItsAttachmentPatient :
+theorem postposedTollSeesItsAttachmentPatient :
     StaticSpec.check (DRS.ofList [])
       (.gatedBy (.perform (.clearDamage (.pro .bare .one))) .any
         (.block (.attachHost .enchanted (.type .creature))) {}) = [] ∧
@@ -204,7 +209,7 @@ private theorem postposedTollSeesItsAttachmentPatient :
         (.gatedBy .anyCost (.actor (.described .all (.hasType .creature)))
           (.attack none) {}) = [.concreteCost] := by decide
 
-private theorem linkedProhibitionStartsANewClauseAfterItsAction :
+theorem linkedProhibitionStartsANewClauseAfterItsAction :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .enact (.action "destroy")
@@ -217,7 +222,7 @@ private theorem linkedProhibitionStartsANewClauseAfterItsAction :
                 none none)) {})
             (some (.between none (some (.endOf .turn none .current)))) ]) = [] := by decide
 
-private theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
+theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
     let change := StaticSpec.characteristicChange (.headed (.type .planeswalker) .this)
       [.addedAbilities [.keyword (.named "indestructible") [] []]]
     let out := (stepStaticSpec 64 (DRS.ofList []) change).1
@@ -229,7 +234,7 @@ private theorem addingAbilitiesRetainsTheChangedSubjectButIsolatesTheirBodies :
           [.addedAbilities [.spell none (.clearDamage (.pro .bare .one))]]) =
         [.anaphor .bare .one 0] := by decide
 
-private theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
+theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
     let spellClause := StaticSpec.cant (.by (.headed .spell .this))
       (.target (.described (.a .unmarked) (.hasType .creature))) {}
     let abilityClause := StaticSpec.cant (.by (.headed .ability .this))
@@ -239,7 +244,7 @@ private theorem targetAgentsKeepTheirActualSpellOrAbilityIdentity :
       (stepStaticSpec 64 (DRS.ofList []) spellClause).1.referents.map (·.id) = [1] ∧
       (stepStaticSpec 64 (DRS.ofList []) abilityClause).1.referents.map (·.id) = [1] := by decide
 
-private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
+theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
     let group := DRS.ofList [{
       det := .all, plur := .many,
       payload := .object [.creature] (some .battlefield) none none none }]
@@ -251,7 +256,7 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
         (.gatedBy tollCost (.actor (.described .all (.hasType .creature)))
           (.attack none) {})).1.groupSizeScope = none := by decide
 
-private theorem eachModificationHasAMemberViewAndAPluralResult :
+theorem eachModificationHasAMemberViewAndAPluralResult :
     let subject := NounPhrase.described .each (.hasType .creature)
     let modification := StaticSpec.characteristicChange subject
       [.stat .adds .power (.statOf (.stat .power) (.pro .bare .one)), .stat .adds .toughness (.lit 1)]
@@ -270,7 +275,7 @@ private theorem eachModificationHasAMemberViewAndAPluralResult :
 private def repeatedManaPayment : Action :=
   .pay (.mana [.simple (.generic 2), .simple (.specific (.of .black))]) .anyNumberOfTimes .paid none none
 
-private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
+theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
     let offered := Action.withContinuation .optional repeatedManaPayment none none
     let out := (stepAction 64 .postEvent .obj (DRS.ofList []) offered).1
     Action.check (DRS.ofList []) offered = [] ∧
@@ -281,7 +286,7 @@ private theorem repeatedPaymentCarriesOnlyItsCountThroughAnOffer :
           (.putCounters .thatMuch (.printed (.named "p1p1Counter"))
             (.headed (.type .creature) .this) .many true)) = [] := by decide
 
-private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
+theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
     let mana := Cost.mana [.simple (.generic 1)]
     let once := (stepAction 64 .postEvent .obj (DRS.ofList [])
       (.pay mana .once .paid none none)).1
@@ -295,7 +300,7 @@ private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
         (stepAction 64 .postEvent .obj (DRS.ofList [])
           (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.exactlyOf (.lit 1))))) none none)).1 = 0 := by decide
 
-private theorem oneDiceBatchHasOneNumericResultRead :
+theorem oneDiceBatchHasOneNumericResultRead :
     let batch := DRS.ofList [outcomeB .diceRolled]
     let out := (stepAmount 64 batch (.theOutcome .rollResult)).1
     Amount.check batch (.theOutcome .rollResult) = [] ∧
@@ -303,7 +308,7 @@ private theorem oneDiceBatchHasOneNumericResultRead :
       countAmountOutcomes out = 1 ∧ Amount.check out .thatMuch = [] ∧
       Amount.check batch (.theOutcome .repeatCount) = [.outcomeInScope .repeatCount 0] := by decide
 
-private theorem numericDiceResultRequiresOneUnambiguousRoll :
+theorem numericDiceResultRequiresOneUnambiguousRoll :
     Amount.check (DRS.ofList []) (.theOutcome .rollResult) = [.outcomeInScope .rollResult 0] ∧
     Amount.check (DRS.ofList [outcomeB .diceRolled, outcomeB .diceRolled])
       (.theOutcome .rollResult) = [.outcomeInScope .rollResult 2] ∧
@@ -314,7 +319,7 @@ private theorem numericDiceResultRequiresOneUnambiguousRoll :
     Amount.check (DRS.ofList [outcomeB .rollResult]) (.theOutcome .rollResult) = [] ∧
     countOutcomes .diceRolled (DRS.ofList [outcomeB .rollResult]) = 0 := by decide
 
-private theorem performedReplacementResultTakesPriorityOverItsDiceCount :
+theorem performedReplacementResultTakesPriorityOverItsDiceCount :
     let prospective := DRS.ofList [outcomeB .diceRolled]
     let performed := (stepAction 64 .postEvent .obj prospective
       (.rollDice .thatMuch .thoseDice .many .anyResult)).1
@@ -324,4 +329,4 @@ private theorem performedReplacementResultTakesPriorityOverItsDiceCount :
       Amount.check performed (.theOutcome .rollResult) = [] ∧
       Condition.check performed (.anyResultIs .atLeast (.lit 1)) = [] := by decide
 
-end Semantics
+end Semantics.Proofs.SelectionEvidence

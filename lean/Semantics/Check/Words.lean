@@ -9,11 +9,16 @@ The checker's vocabulary and Discourse Representation Theory (`DRS`) layer (`sem
 `OwnScopeFrame`, `DRS`), the two-stage anaphor resolver (`J1` accessibility, `J2` clause-mate
 exclusion, `D′` bare pronoun resolution, `AC>R1` demonstrative resolution, Principle A reflexives,
 and unique stamped participles), the Reference Scope frame stack (`enterOwnScope`, `enterCaller`,
-`leaveCaller`, `leaveOwnScope`), the facts tables (`coreDeedFacts`, `abilityDeedFacts`, `actFacts`),
+`leaveCaller`, `leaveOwnScope`), the facts tables (`abilityDeedFacts`, `actFacts`),
 and the leaf predicates the phrase and ability layers consult.
 -/
 
 namespace Semantics
+
+/-- A referent's determiner, as the checker records how its phrase introduced it. -/
+inductive Determiner where
+  | target | a | each | all | the | part | count | self | bare
+  deriving DecidableEq, Repr
 
 /-! ## Card types and stats -/
 
@@ -221,10 +226,7 @@ def deedFeatureOf (v : Deed) : Option DeedFeature := deedFacts v >>= (·.feature
 def participleOf (v : Deed) : Option String := deedFacts v >>= (·.participle)
 def actDestOf (v : Deed) : Option Zone := deedFacts v >>= (·.dest)
 def actLociOf (v : Deed) : List Zone := (deedFacts v).elim [] (·.loci)
-def actNamesLocus (v : Deed) : Bool := !(actLociOf v).isEmpty
 def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.permanentActor)
-def actNamesParticiple (v : Deed) : Bool := (participleOf v).isSome
-
 /-! ## Discourse Representation Structure (`DRS`) -/
 
 /-- Provenance: the verb that last moved a referent, whether it was on the battlefield then,
@@ -546,19 +548,6 @@ def DRS.recordMention (drs : DRS) (id : ReferentId) (role : GramRole := .other)
   let resolved := if drs.resolvedIds.elem id then drs.resolvedIds else id :: drs.resolvedIds
   { drs with referents := refs, pendingRoles := pending, resolvedIds := resolved }
 
-/-- Re-size an object or pile referent; any other referent is returned unchanged. -/
-def sized (sz : Option Nat) (b : Referent) : Referent :=
-  match b.payload with
-  | .object ty zn pv og _ => { b with payload := .object ty zn pv og sz }
-  | .pile zn _ fc => { b with payload := .pile zn sz fc }
-  | _ => b
-
-/-- The head type(s) a phrase seeds, one per join half. -/
-inductive HeadTy where
-  | sole (ty : List CardType)
-  | join (a b : HeadTy)
-  deriving Repr, BEq
-
 def outcomeB (s : OutcomeSort) : Referent :=
   { det := .the, plur := .one, payload := .outcome s }
 def differenceB : Referent :=
@@ -583,11 +572,6 @@ def choiceSortAt : Kind → Option ChoiceSort
   | .quality q => some (.quality q)
   | .player => some .player
   | _ => none
-
-def introducedChoiceAt (k : Kind) : List Referent :=
-  match choiceSortAt k with
-  | none => []
-  | some s => [s.binding]
 
 def countOnes (k : Kind) (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -745,15 +729,9 @@ def spentDistributivelyList : List Referent → List Referent → Bool
       (a.payload == b.payload || !a.plur.isOne) && spentDistributivelyList as_ bs
   | _, _ => false
 
-def spentDistributively (outer out : DRS) : Bool :=
-  spentDistributivelyList outer.visibleReferents out.visibleReferents
-
 def partsClosed (drs : DRS) : DRS :=
   { drs with referents := drs.referents.map fun b =>
       if drs.isVisible b.id && b.det == .part then { b with det := .the } else b }
-
-def partsDistributed (drs : DRS) : Bool :=
-  drs.visibleReferents.all fun b => b.det != .part || !b.plur.isOne
 
 def restSource (k : Kind) (drs : DRS) : Option Referent :=
   let rec loop : List Referent → Option Referent
@@ -780,8 +758,6 @@ def DRS.consumeRest (after before : DRS) (kind : Kind) : DRS :=
 
 def zoneOfGroup (k : Kind) (drs : DRS) : Option Zone := restSource k drs >>= (·.zone)
 def tyOfGroup (k : Kind) (drs : DRS) : List CardType := (restSource k drs).elim [] (·.ty)
-def provOfGroup (k : Kind) (drs : DRS) : Option Stamp := restSource k drs >>= (·.payload.prov)
-
 def anyTargeted (k : Kind) (drs : DRS) : Bool :=
   drs.visibleReferents.any fun b => b.det == .target && Kind.lte k b.kind
 
@@ -793,60 +769,9 @@ def settleTargets (drs : DRS) : DRS :=
   { drs with referents := drs.referents.map fun b =>
       if drs.isVisible b.id && b.det == .target then { b with det := .the } else b }
 
-def outcomesOnly (drs : DRS) : DRS :=
-  { drs with referents := drs.referents.filter fun b =>
-      !drs.isVisible b.id || (match b.payload with | .outcome _ => true | _ => false) }
-
 def agreedField {α : Type} (f : α → α → Bool) : Option α → Option α → Option α
   | some x, some y => if f x y then some x else none
   | _, _ => none
-
-/-- The payload two arms of a choice agree on, if any: the union of their payloads. -/
-def unionPayload : Payload → Payload → Option (Kind × Payload)
-  | .object t1 z1 v1 o1 s1, .object t2 z2 v2 o2 s2 =>
-    some (.object, .object (commonTypes t1 t2) (agreedField (· == ·) z1 z2)
-      (agreedField (· == ·) v1 v2) (agreedField (· == ·) o1 o2) (agreedField (· == ·) s1 s2))
-  | .ability o1 z1, .ability o2 z2 =>
-    some (.object, .ability (agreedField (· == ·) o1 o2) (agreedField (· == ·) z1 z2))
-  | .player a, .player b => if a == b then some (.player, .player a) else none
-  | .object _ z1 _ o1 _, .ability o2 z2 =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-  | .ability o1 z1, .object _ z2 _ o2 _ =>
-    some (.object, .object [] (agreedField (· == ·) z1 z2) none (agreedField (· == ·) o1 o2) none)
-  | p@(.object ..), .player false => some (.join .object .player, .join p (.player false))
-  | .player false, q@(.object ..) => some (.join .object .player, .join q (.player false))
-  | _, _ => none
-
-def unionBinding (b c : Referent) : Option Referent :=
-  if b.sameCore c then
-    some { b with
-      clause := Nat.max b.clause c.clause
-      role := if b.role.rank ≤ c.role.rank then b.role else c.role }
-  else if b.det == c.det && b.plur == c.plur then do
-    let p := b.payload
-    let q := c.payload
-    let value ← if p == q then some p else (unionPayload p q).map Prod.snd
-    pure { b with
-      payload := value
-      idents := b.idents.filter c.idents.contains
-      clause := Nat.max b.clause c.clause
-      role := if b.role.rank ≤ c.role.rank then b.role else c.role }
-  else none
-
-def unionReferentLists : List Referent → List Referent → Option (List Referent)
-  | [], [] => some []
-  | b :: bs, c :: cs =>
-    match unionBinding b c, unionReferentLists bs cs with
-    | some u, some us => some (u :: us)
-    | _, _ => none
-  | _, _ => none
-
-def unionBindings (l r : DRS) : Option DRS := do
-  let refs ← unionReferentLists l.referents r.referents
-  pure { l with
-    referents := refs
-    nextId := Nat.max l.nextId r.nextId
-    currentClause := Nat.max l.currentClause r.currentClause }
 
 def Zone.isPublic : Zone → Bool
   | .hand => false
@@ -865,16 +790,6 @@ def pluralizeBinding (b : Referent) : Referent :=
   | .self, _ | _, .letter _ => b
   | _, _ => { b with plur := .many }
 
-def pluralizeIntroduced (bs : List Referent) : List Referent := bs.map pluralizeBinding
-
-def stampMoves : Option Stamp → Bool
-  | none => false
-  | some s => s.moved
-
-def stampWasField : Option Stamp → Bool
-  | none => false
-  | some s => s.wasField
-
 /-! ## Pronoun reach & Anaphor resolution (`J1`, `J2`, `D′`, `AC>R1`, Principle A) -/
 
 def tyIs (t : CardType) (types : List CardType) : Bool := types.contains t
@@ -892,7 +807,7 @@ def onStackZone (z : Option Zone) : Bool := zoneIsB z .stack
 
 /-- The reaches that resolve to an object referent a move can re-stamp. -/
 def Reach.tracksObject : Reach → Bool
-  | .bare | .atSlot _ | .verbed _ none _ | .tokenBorn => true
+  | .bare | .atSlot _ | .verbed _ none _ => true
   | _ => false
 
 def slotZoneOk : SlotCarrier → Option Zone → Bool
@@ -1027,26 +942,12 @@ def markTy (ty : List CardType) (b : Referent) : Referent :=
     { b with payload := .object (mergeTypes old ty) zn st og sz }
   | _ => b
 
-def markFirstList (drs : DRS) (q : Referent → Bool) (ty : List CardType) :
-    List Referent → List Referent
-  | [] => []
-  | b :: bs =>
-    if drs.isVisible b.id && q b then markTy ty b :: bs
-    else b :: markFirstList drs q ty bs
-
-def markFirst (q : Referent → Bool) (ty : List CardType) (drs : DRS) : DRS :=
-  { drs with referents := markFirstList drs q ty drs.referents }
-
 def survivesShuffle (b : Referent) : Bool :=
   match b.payload with
   | .object _ (some .library) (some st) _ _ =>
     b.librarySearchResult || deedFeatureOf st.verb == some .librarySearch
   | .object _ (some .library) none _ _ => false
   | _ => true
-
-def stampWordOk (v : Deed) (w : NounWord) (st : Stamp) (ty : List CardType)
-    (zn : Option Zone) (og : Option Origin) : Bool :=
-  stampedBy v st && verbedWordOk w st ty zn og
 
 /-- Stage 1 (`J1`): sort, plurality, zone/carrier, and stamp reach (`semantics-v3.md` §1.5). -/
 def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
@@ -1055,8 +956,6 @@ def reaches (r : Reach) (pl : Plurality) (b : Referent) : Bool :=
   | .atSlot sl => Kind.lte .object b.kind && pl.isOne == b.plur.isOne && slotZoneOk sl b.zone
   | .verbed v none _ =>
     Kind.lte .object b.kind && pl.isOne == b.plur.isOne && b.stampedBy v
-  | .tokenBorn =>
-    Kind.lte .object b.kind && pl.isOne == b.plur.isOne && isTokenOrigin b.payload.orig
   | .word w => pl.isOne == b.plur.isOne && wordNow w b
   | .unionHalf w => pl.isOne == b.plur.isOne && b.payload.joined && halfReaches w b.payload
   | .verbed v (some w) _ =>
@@ -1082,7 +981,7 @@ def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
 - Bare pronouns (`.bare`, `.atSlot _`) use `D′`: filter by `J1` and exclude `J2` clause-mates
   (when `inArgSlot`), then select the nearest clause (highest `clause`) and highest grammatical
   role (`subj < obj < other`); a unique winner resolves, while `0` or `≥ 2` winners refuse.
-- Demonstratives / definite NPs (`.word _`, `.tokenBorn`, `.unionHalf _`) use `AC>R1`: filter by
+- Demonstratives / definite NPs (`.word _`, `.unionHalf _`) use `AC>R1`: filter by
   `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), exclude any referent already resolved
   by a bare pronoun in the current clause (`C`, `pronounResolved == true`), and pick the most
   recently introduced candidate (`R1`, highest `id`).
@@ -1103,7 +1002,7 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           let inClause := cands.filter (·.clause == maxClause)
           let minRank := inClause.foldl (fun acc b => Nat.min acc b.role.rank) 2
           inClause.filter (·.role.rank == minRank)
-  | .word _ | .tokenBorn | .unionHalf _ =>
+  | .word _ | .unionHalf _ =>
       let afterA := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1
       let afterC := afterA.filter (fun b => !b.pronounResolved)
       match afterC with
@@ -1122,8 +1021,6 @@ def firstReach (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := fal
     Option Referent :=
   (resolveCandidates r pl drs inArgSlot).head?
 
-def provOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option Stamp :=
-  firstReach r pl drs >>= (·.payload.prov)
 def zoneOfReach (r : Reach) (pl : Plurality) (drs : DRS) : Option Zone :=
   firstReach r pl drs >>= (·.zone)
 def tyOfReach (r : Reach) (pl : Plurality) (drs : DRS) : List CardType :=
@@ -1138,9 +1035,6 @@ def resolveReflexive (pl : Plurality) (drs : DRS) : List Referent :=
     !b.isActorFrame && b.plur.isOne == pl.isOne &&
     ((drs.pendingRoles.any fun (id, role) => id == b.id && role == .subj) ||
      (b.clause == drs.currentClause && b.role == .subj))
-
-def countReflexive (pl : Plurality) (drs : DRS) : Nat :=
-  (resolveReflexive pl drs).length
 
 def firstReflexive (pl : Plurality) (drs : DRS) : Option Referent :=
   (resolveReflexive pl drs).head?
@@ -1268,75 +1162,6 @@ def identityBinding (id : BindingId) (drs : DRS) : Option Referent :=
 def recordIdentityById (id : BindingId) (drs : DRS) (refId : ReferentId) : DRS :=
   drs.updateById refId fun b => { b with idents := mergeIdents b.idents [id] }
 
-/-- Record the head of a list of introduced referents under `id`. -/
-def recordHead (id : BindingId) : List Referent → List Referent
-  | b :: bs => { b with idents := mergeIdents b.idents [id] } :: bs
-  | [] => []
-
-/-- Apply an update to all visible referents recorded under `id`. -/
-def overIdentity (f : Referent → Referent) (id : BindingId) (drs : DRS) : DRS :=
-  { drs with referents := drs.referents.map fun r =>
-      if drs.isVisible r.id && r.idents.contains id then
-        let updated := f r
-        { updated with id := r.id }
-      else r }
-
-/-! ## `NounResult` -/
-
-/-- A noun evaluation result: the updated `DRS`, the `ReferentId` of the introduced or resolved
-head referent (if any), its `Referent` value, the `ReferentId`s of coordinated conjuncts, and the
-referents introduced by this phrase. -/
-structure NounResult where
-  context   : DRS
-  refId     : Option ReferentId
-  value     : Option Referent
-  additions : List Referent := []
-  refIds    : List ReferentId := []
-  deriving DecidableEq, Repr
-
-def NounResult.introduced (_drs : DRS) (result : NounResult) : List Referent :=
-  result.additions
-
-def introducedNounResult (drs : DRS) (additions : List Referent) (ownsHead : Bool)
-    (role : GramRole := .other) (inArgSlot : Bool := false) : NounResult :=
-  let (context, stamped) := drs.prepend additions role inArgSlot
-  let head := if ownsHead then stamped.head? else none
-  { context   := context
-    refId     := head.map (·.id)
-    value     := head
-    additions := stamped
-    refIds    := (head.map (·.id)).toList }
-
-/-- A containing noun publishes its own mentions over the child's updated context. -/
-def NounResult.prepend (child : NounResult) (additions : List Referent)
-    (role : GramRole := .other) (inArgSlot : Bool := false) : NounResult :=
-  let res := introducedNounResult child.context additions true role inArgSlot
-  { res with additions := res.additions ++ child.additions }
-
-def NounResult.withValue (result : NounResult) (fallback : Referent)
-    (view : Referent → Referent) : NounResult :=
-  let value := view (result.value.getD fallback)
-  let context := match result.refId with
-    | some id => result.context.updateById id (fun _ => value)
-    | none => result.context
-  let additions := match result.refId with
-    | some id => result.additions.map fun r => if r.id == id then { value with id := r.id } else r
-    | none => result.additions
-  { result with value := some value, context, additions }
-
-/-- A first mention's result: record the referent(s) introduced or resolved by `result` under `id`. -/
-def NounResult.recordIdentity (id : BindingId) (result : NounResult) : NounResult :=
-  let ids := if result.refIds.isEmpty then result.refId.toList else result.refIds
-  if ids.isEmpty then result
-  else
-    let context := ids.foldl (recordIdentityById id) result.context
-    let additions := result.additions.map fun r =>
-      if ids.elem r.id then { r with idents := mergeIdents r.idents [id] } else r
-    { result with
-      context   := context
-      value     := (result.refId >>= context.findById?).or result.value
-      additions := additions }
-
 /-! ## Filtering a `DRS` -/
 
 def filterContext (keep : Referent → Bool) (drs : DRS) : DRS :=
@@ -1352,11 +1177,6 @@ def afterShuffle (drs : DRS) : DRS :=
     referents := refs
     pendingRoles := drs.pendingRoles.filter (fun p => keptIds.elem p.1)
     resolvedIds := drs.resolvedIds.filter keptIds.elem }
-
-def groupSpent (k : Kind) (drs : DRS) : DRS :=
-  let filtered := filterContext (fun b => b.det == .part || !objGroup k b) drs
-  { filtered with referents := filtered.referents.map fun b =>
-      if filtered.isVisible b.id && b.det == .part then { b with det := .the } else b }
 
 def countTokenSpecs (drs : DRS) : Nat :=
   (drs.visibleReferents.filter fun b =>
@@ -1390,10 +1210,6 @@ def Kind.phrasal : Kind → Bool
   | .join a b => Kind.phrasal a && Kind.phrasal b
   | _ => false
 
-def CardType.damageable : CardType → Bool
-  | .creature | .planeswalker | .battle => true
-  | _ => false
-
 /-- A copy of an ability is itself an ability [CR#707.10]. -/
 def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
   | .object, true, _, z => .ability (some .copy) z
@@ -1406,11 +1222,6 @@ def copyPayloadIn : Kind → Bool → List CardType → Option Zone → Payload
 def CopySort.landsIn : CopySort → Option Zone → Option Zone
   | .fromStack, _ => some .stack
   | .fromCardZone, z => z
-
-def Kind.qualityParam : Kind → Bool
-  | .object => true
-  | .player => true
-  | _ => false
 
 /-! ## Mana -/
 
@@ -1498,9 +1309,6 @@ def DesignationLabel.known (label : DesignationLabel) : Bool := label.facts.isSo
 def DesignationLabel.scope (label : DesignationLabel) : Option DesignationScope :=
   label.facts.map (·.scope)
 def DesignationLabel.seedZone (label : DesignationLabel) : Option Zone := label.facts.bind (·.zone)
-def DesignationLabel.seedType (label : DesignationLabel) : Option CardType :=
-  label.facts.bind (·.type)
-
 def DesignationLabel.holder (label : DesignationLabel) : Option Kind :=
   match label.scope with
   | some (.heldBy k) => some k
@@ -1524,11 +1332,6 @@ def designationHolderOk (label : DesignationLabel) : Bool :=
   match label.scope with
   | some (.heldBy _) => true
   | _ => false
-
-def RoomHalf.designation (h : RoomHalf) : DesignationLabel :=
-  .named (((designationTable.find? (·.half == some h)).map (·.label)).getD "")
-
-def DesignationLabel.half (label : DesignationLabel) : Option RoomHalf := label.facts >>= (·.half)
 
 /-! ## Relations -/
 
@@ -1590,13 +1393,6 @@ def allAxisType (t : CardType) : List ProjAxis → Bool
     match a.type with
     | none => false
     | some u => t == u && allAxisType t as
-
-def axisTypes : List ProjAxis → Option CardType
-  | [] => none
-  | a :: as =>
-    match a.type with
-    | none => none
-    | some t => if allAxisType t as then some t else none
 
 def axesAt (k : Kind) : List ProjAxis → Bool
   | [] => false

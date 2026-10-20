@@ -36,7 +36,7 @@ theorem subjectWrittenTwiceIntroducesTwoTargets :
   decide
 
 theorem ptModificationSlots :
-    (Templates.ptModification thisCreature (.up (.lit 2)) (.set (.lit (-1)))).numberSlots =
+    (getsPt thisCreature (.up (.lit 2)) (.set (.lit (-1)))).numberSlots =
       [(.lit 2, .clamped), (.lit (-1), .signed)] := by
   rfl
 
@@ -81,14 +81,14 @@ theorem ambiguousSingularPtSubjectIsRefused :
     let before := (stepNounPhrase 64 (DRS.ofList []) .subj true
       (.and [target isCreature, target isArtifact])).1
     StaticSpec.check (nextClause before)
-      (Templates.ptModification it (.up (.lit 1)) (.up (.lit 1))) =
+      (getsPt it (.up (.lit 1)) (.up (.lit 1))) =
       [.anaphor .bare .one 2] := by decide
 
 theorem nestedModernCoordinationIsRefused :
     StaticSpec.check (DRS.ofList [])
       (.conjunction none
         [.conjunction none
-          [Templates.ptModification thisCreature (.up (.lit 1)) (.up (.lit 1)),
+          [getsPt thisCreature (.up (.lit 1)) (.up (.lit 1)),
             Templates.abilityGrant thisCreature (keyword (.named "flying"))],
           Templates.abilityGrant thisCreature (keyword (.named "trample"))]) = [.notCoord] := by decide
 

@@ -104,19 +104,6 @@ theorem pronounMovePreservesCopyOriginAndOuterBindings :
         { det := .the, plur := .one, payload := .ability (some .copy) (some .graveyard) },
         { det := .the, plur := .one, payload := .player false }]) = true := by decide
 
-theorem abilityUnionRetainsCommonLocation :
-    (unionPayload (.ability none (some .exile)) (.ability none (some .exile))).map
-      (fun pair => pair.2.zone) = some (some .exile) := by decide
-
-theorem abilityUnionDoesNotInventACommonLocation :
-    (unionPayload (.ability none (some .exile)) (.ability none (some .stack))).map
-      (fun pair => pair.2.zone) = some none := by decide
-
-theorem mixedUnionRetainsCommonLocation :
-    (unionPayload (.ability none (some .exile))
-      (.object [] (some .exile) none none none)).map
-      (fun pair => pair.2.zone) = some (some .exile) := by decide
-
 theorem abilityElementRetainsItsLocation :
     nounZone (DRS.ofList []) (.eachOf (allOf (.and [.abilityHead .anyActivated, .in_ exileZone]))) = some .exile := by decide
 

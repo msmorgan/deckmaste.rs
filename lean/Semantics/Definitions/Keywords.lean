@@ -699,7 +699,7 @@ semantic_definition forMirrodin : Ability :=
     [ triggered (does thisEquipment enter)
         (sequentially
           [ createToken (creatureToken 2 2 [.red] [rebel]),
-            attachTo thisEquipment itAsToken ]) ]
+            attachTo thisEquipment thatToken ]) ]
 semantic_definition forecast (ability : Ability) : Ability :=
   .keyword (.named "forecast") [.ability (.inCaller ability)]
     [ .qualified (.inCaller ability) (some (duringPart .upkeep (some (ownerOf this_))))
@@ -895,7 +895,7 @@ semantic_definition jobSelect : Ability :=
     [ triggered (does thisEquipment enter)
         (sequentially
           [ createToken (creatureToken 1 1 [] [hero]),
-            attachTo thisEquipment itAsToken ]) ]
+            attachTo thisEquipment thatToken ]) ]
 semantic_definition jumpStart : Ability := keyword (.named "jumpStart")
 semantic_definition kicker (cost : Cost) : Ability :=
   .keyword (.named "kicker") [.cost (.inCaller cost)]
@@ -918,7 +918,7 @@ semantic_definition livingWeapon : Ability :=
     [ triggered (does thisEquipment enter)
         (sequentially
           [ createToken (creatureToken 0 0 [.black] [phyrexian, germ]),
-            attachTo thisEquipment itAsToken ]) ]
+            attachTo thisEquipment thatToken ]) ]
 semantic_definition madness (cost : Cost) : Ability :=
   .keyword (.named "madness") [.cost (.inCaller cost)]
     [ static
@@ -982,7 +982,7 @@ semantic_definition mobilize (amount : Amount) : Ability :=
         (sequentially
           [ createTappedAttacking (.inCaller amount) (creatureToken 1 1 [.red] [warrior]),
             atNext .endStep
-              (sacrifice themAsTokens) ]) ]
+              (sacrifice thoseTokens) ]) ]
 semantic_definition moreThanMeetsTheEye (cost : Cost) : Ability :=
   keywordCosting (.named "moreThanMeetsTheEye") (.inCaller cost)
 semantic_definition morph (cost : Cost) : Ability :=
@@ -1018,8 +1018,8 @@ semantic_definition myriad : Ability :=
                   [ .entersAs .tapped,
                     .entersAttacking
                       (some (or [they, a (and [isPlaneswalker, controlledBy they])])) ])),
-            doIf (.compareAmt (.countOf themAsTokens) .atLeast (.lit 1))
-              (atNext .endOfCombat (exile themAsTokens))
+            doIf (.compareAmt (.countOf thoseTokens) .atLeast (.lit 1))
+              (atNext .endOfCombat (exile thoseTokens))
               none ]) ]
 semantic_definition nightbound : Ability :=
   .keyword (.named "nightbound") []

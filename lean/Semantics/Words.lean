@@ -137,10 +137,6 @@ def Agreement.holdsOn {α : Type} [BEq α] : Agreement → List α → List α �
   | .share, mine, theirs => mine.any theirs.contains
   | .differ, mine, theirs => !mine.any theirs.contains
 
-inductive Determiner where
-  | target | a | each | all | the | part | count | self | bare
-  deriving DecidableEq, Repr
-
 inductive PossessorAxis where
   | owner | controller
   deriving DecidableEq, Repr
@@ -343,7 +339,6 @@ inductive SlotCarrier where
 inductive Reach where
   | bare
   | atSlot (slot : SlotCarrier)
-  | tokenBorn
   | word (word : NounWord)
   | unionHalf (word : NounWord)
   /-- "the exiled card" names its noun word; "it", stamped by the deed that produced it, names
@@ -486,12 +481,6 @@ inductive Delta (α : Type) where
   | down (amount : α)
   | set (amount : α)
   deriving DecidableEq, Repr, BEq
-
-/-- Where a number below zero reads as zero and where it stands [CR#107.1b]: an effect's result
-is clamped unless it sets, doubles, or triples a life total or a power and toughness. -/
-inductive NumberRegime where
-  | clamped | signed
-  deriving DecidableEq, Repr
 
 inductive Parity where
   | even | odd

@@ -1,10 +1,12 @@
 import Semantics.Proofs.AbilityQualifiers
 import Semantics.Proofs.ActionFamilies
+import Semantics.Proofs.ActionForms
 import Semantics.Proofs.Actor
 import Semantics.Proofs.Anaphora
 import Semantics.Proofs.Attachments
 import Semantics.Proofs.Authoring
 import Semantics.Proofs.BindingIdentity
+import Semantics.Proofs.CallerScope
 import Semantics.Proofs.CharacteristicEdits
 import Semantics.Proofs.Choice
 import Semantics.Proofs.ComparisonBox
@@ -25,7 +27,6 @@ import Semantics.Proofs.Faces
 import Semantics.Proofs.GetsBothDeltas
 import Semantics.Proofs.GiftVariants
 import Semantics.Proofs.HistoricalMove
-import Semantics.Proofs.ActionForms
 import Semantics.Proofs.Keyword
 import Semantics.Proofs.KeywordAbilityCensus
 import Semantics.Proofs.KeywordActionResidues
@@ -34,7 +35,6 @@ import Semantics.Proofs.KeywordByCardClass
 import Semantics.Proofs.LinkedChoiceReadback
 import Semantics.Proofs.LinkedReadback
 import Semantics.Proofs.Lookback
-import Semantics.Proofs.CallerScope
 import Semantics.Proofs.Mana
 import Semantics.Proofs.MovementScopes
 import Semantics.Proofs.NounWords
@@ -44,6 +44,7 @@ import Semantics.Proofs.Piles
 import Semantics.Proofs.ReferenceScopes
 import Semantics.Proofs.RefusalReachability
 import Semantics.Proofs.Rules
+import Semantics.Proofs.SelectionEvidence
 import Semantics.Proofs.Sharing
 import Semantics.Proofs.SpellCopies
 import Semantics.Proofs.Static

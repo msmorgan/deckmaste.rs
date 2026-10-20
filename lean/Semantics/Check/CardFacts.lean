@@ -253,9 +253,6 @@ def Predicate.writtenTypes (p : Predicate) (fuel : Nat := 64) : List CardType :=
   | _, _ => []
 termination_by structural fuel
 
-def Predicate.writtenTypesAll (ps : List Predicate) : List CardType :=
-  ps.foldr (fun p ts => mergeTypes p.writtenTypes ts) []
-
 def combineTypeAlts (left right : List (List CardType)) : List (List CardType) :=
   left.flatMap fun l => right.map (mergeTypes l)
 

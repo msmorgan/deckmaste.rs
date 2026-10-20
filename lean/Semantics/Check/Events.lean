@@ -118,8 +118,6 @@ termination_by structural fuel
 
 def NounPhrase.isYou := NounPhrase.isYouFuel 64
 
-def knownActs (ds : List Deed) : Bool := ds.all knownAct
-
 def distinctDeeds : List Deed → Bool
   | [] => true
   | d :: ds => !ds.elem d && distinctDeeds ds
