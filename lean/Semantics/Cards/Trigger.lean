@@ -29,7 +29,7 @@ def jhessianThief : Ability :=
   whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly))) (draw (.lit 1))
 theorem okJhessianThief : Ability.check (DRS.ofList []) jhessianThief = [] := by decide
 def scholarOfStars : Ability :=
-  triggeredIf (does thisCreature enter)
+  whenIf (does thisCreature enter)
     (exists_ (and [isArtifact, youControl])) (draw (.lit 1))
 theorem okScholarOfStars : Ability.check (DRS.ofList []) scholarOfStars = [] := by decide
 
@@ -92,22 +92,22 @@ def vertigoSpawn : Ability :=
         skipUntap (that creature) (.lit 1) ])
 theorem okVertigoSpawn : Ability.check (DRS.ofList []) vertigoSpawn = [] := by decide
 def orneryDilophosaur : Ability :=
-  triggeredIf (does thisCreature attack)
+  wheneverIf (does thisCreature attack)
     (exists_ (and [ isCreature, youControl,
                      hasPower .atLeast (.lit 4) ]))
     (get thisCreature (up (.lit 2)) (up (.lit 2)) (some untilEndOfTurn))
 theorem okOrneryDilophosaur : Ability.check (DRS.ofList []) orneryDilophosaur = [] := by decide
 def incisorGlider : Ability :=
-  triggeredIf (does thisCreature attack)
+  wheneverIf (does thisCreature attack)
     (compareAmt (countersOn poison anOpponent) .atLeast (.lit 3))
     (get (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn))
 theorem okIncisorGlider : Ability.check (DRS.ofList []) incisorGlider = [] := by decide
 def stormFleetSpy : Ability :=
-  triggeredIf (does thisCreature enter) (happened attack you soFarThisTurn)
+  whenIf (does thisCreature enter) (happened attack you soFarThisTurn)
     (draw (.lit 1))
 theorem okStormFleetSpy : Ability.check (DRS.ofList []) stormFleetSpy = [] := by decide
 def loanShark : Ability :=
-  triggeredIf (does thisCreature enter)
+  whenIf (does thisCreature enter)
     (compareAmt (eventCount (cast any) you soFarThisTurn) .atLeast (.lit 2)) (draw
       (.lit 1))
 theorem okLoanShark : Ability.check (DRS.ofList []) loanShark = [] := by decide
@@ -142,7 +142,7 @@ def phageTheUntouchable : Ability :=
       (instruct (that player) loseGame)
 theorem okPhageTheUntouchable : Ability.check (DRS.ofList []) phageTheUntouchable = [] := by decide
 def elderscaleWurm : Ability :=
-  triggeredIf (does thisCreature enter) (compareAmt (lifeTotalOf you) .less (.lit 7))
+  whenIf (does thisCreature enter) (compareAmt (lifeTotalOf you) .less (.lit 7))
     (setLife (.lit 7))
 theorem okElderscaleWurm : Ability.check (DRS.ofList []) elderscaleWurm = [] := by decide
 /-- Krang, Master Mind -/
@@ -179,7 +179,7 @@ def youngPyromancer : Spelled := spelled <| .singleFaced
       power := stat 2, toughness := stat 1 } }
 
 def archivistOfGondor : Ability :=
-  triggeredIf (does yourCommander (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+  whenIf (does yourCommander (dealDamage (to := a isPlayer) (kind := .combatOnly)))
       (thereIsNo monarch)
     (gainDesignation you monarch)
 theorem okArchivistOfGondor : Ability.check (DRS.ofList []) archivistOfGondor = [] := by decide

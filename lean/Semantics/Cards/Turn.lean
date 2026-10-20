@@ -64,7 +64,7 @@ theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
   raid
-    (triggeredIf (beginningOfYour .postcombatMain)
+    (atIf (beginningOfYour .postcombatMain)
       (happened attack you soFarThisTurn)
       (exile (topSlice (.lit 1))))
 theorem okBrazenCannonade : Ability.check (DRS.ofList []) brazenCannonade = [] := by decide
@@ -290,7 +290,7 @@ def odricLunarchMarshal : Spelled := spelled <| .singleFaced
       subtypes := [human, soldier],
       text :=
         [ alsoForKeywords
-            (triggeredIf (beginningOfPossessed .combat eachPlayer)
+            (atIf (beginningOfPossessed .combat eachPlayer)
               (exists_ (and [ isCreature, youControl,
                                hasKeyword firstStrike ]))
               (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) firstStrike)
@@ -305,7 +305,7 @@ def bleedingEffect : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ alsoForKeywords
-            (triggeredIf (beginningOfYour .combat)
+            (atIf (beginningOfYour .combat)
               (exists_ (and [ isCreature, in_ yourGraveyard,
                                hasKeyword flying ]))
               (establishThroughout
@@ -328,7 +328,7 @@ def fettergeist : Spelled := spelled <| .singleFaced
       power := stat 3, toughness := stat 4 } }
 
 def chainVeilEndStep : Ability :=
-  triggeredIf (beginningOfYour .endStep)
+  atIf (beginningOfYour .endStep)
     (not (happened (activate (a
       (and [abilityHead .loyalty,
       abilityOf (a isPlaneswalker)]))) you soFarThisTurn))
@@ -402,7 +402,7 @@ def concertedEffort : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ alsoForKeywords
-            (triggeredIf (beginningOfPossessed .upkeep eachPlayer)
+            (atIf (beginningOfPossessed .upkeep eachPlayer)
               (exists_ (and [ isCreature, youControl,
                                hasKeyword flying ]))
               (establishThroughout

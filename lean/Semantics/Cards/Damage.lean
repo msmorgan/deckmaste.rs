@@ -905,7 +905,7 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
 
 /-- Quakebringer -/
 def quakebringerDamage : Ability :=
-  triggeredIf (beginningOfYour .upkeep)
+  atIf (beginningOfYour .upkeep)
     (or [ is this_ (in_ battlefield),
            and [ is this_ (cardIn yourGraveyard),
                   exists_ (and [isCreature, hasSubtype giant,

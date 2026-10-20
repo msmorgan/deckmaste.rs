@@ -510,7 +510,7 @@ theorem permanentCardIsPlaceless : permanentCardPhrase.phraseZone .object = none
 def archpriestOfIonaPower : Ability := static (ptDefinition thisCreature .powerAlone partySize)
 theorem okArchpriestOfIonaPower : Ability.check (DRS.ofList []) archpriestOfIonaPower = [] := by decide
 def archpriestOfIonaFullParty : Ability :=
-  triggeredIf (beginningOfYour .combat) fullParty
+  atIf (beginningOfYour .combat) fullParty
     (sequentially
       [ get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn),
         gain it flying (some untilEndOfTurn) ])

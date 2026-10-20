@@ -25,7 +25,7 @@ def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 /-- The permanent half: "When this permanent enters, if this is a permanent card, draw a
 card." -/
 def permanentHalf : Ability :=
-  triggeredIf (does thisPermanent enter) onPermanentCard (draw (.lit 1))
+  whenIf (does thisPermanent enter) onPermanentCard (draw (.lit 1))
 
 /-- The spell half: "If this is an instant or sorcery, draw a card." -/
 def spellHalf : Ability := .spell none (doIf onInstantOrSorcery (draw (.lit 1)))

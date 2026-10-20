@@ -133,7 +133,7 @@ def kratosStoicFather : Ability :=
       (target isCreature) .many)
 theorem okKratosStoicFather : Ability.check (DRS.ofList []) kratosStoicFather = [] := by decide
 def vashtaNerada : Ability :=
-  triggeredIf (beginningOfPossessed .endStep eachPlayer)
+  atIf (beginningOfPossessed .endStep eachPlayer)
     (happened die (a isCreature) soFarThisTurn)
     (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okVashtaNerada : Ability.check (DRS.ofList []) vashtaNerada = [] := by decide
@@ -144,11 +144,11 @@ def furiousSpinesplitter : Ability :=
       p1p1Counter thisCreature .many)
 theorem okFuriousSpinesplitter : Ability.check (DRS.ofList []) furiousSpinesplitter = [] := by decide
 def paladinOfAtonement : Ability :=
-  triggeredIf (beginningOfPossessed .upkeep eachPlayer)
+  atIf (beginningOfPossessed .upkeep eachPlayer)
     (happened (loseLife anyAmount) you lastTurn) (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okPaladinOfAtonement : Ability.check (DRS.ofList []) paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
-  triggeredIf (beginningOfYour .endStep)
+  atIf (beginningOfYour .endStep)
     (is you (hasDesignation monarch))
     (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okThroneWarden : Ability.check (DRS.ofList []) throneWarden = [] := by decide
@@ -1093,7 +1093,7 @@ def bewitchingLeechcraft : Spelled := spelled <| .singleFaced
                   (some (untap thisCreature)))) (some (duringPart .untapStep (some you)))))) ] } }
 
 def agentOfTheShadowThievesGrantedTrigger : Ability :=
-  triggeredIf (does thisCreature (attack (some (a isPlayer)))) (not
+  wheneverIf (does thisCreature (attack (some (a isPlayer)))) (not
                                                                           (exists_
                                                                              (and [ isOpponent,
                                  compare .greater (lifeTotalOf (that player))

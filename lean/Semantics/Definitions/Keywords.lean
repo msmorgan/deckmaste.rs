@@ -71,7 +71,7 @@ semantic_definition ripple (amount : Amount) : Ability :=
 isn't renowned, put N +1/+1 counters on it and it becomes renowned." [CR#702.112a] -/
 semantic_definition renown (count : Amount) : Ability :=
   .keyword (.named "renown") [.number (.inCaller count)]
-    [ triggeredIf (does thisCreature (dealDamage (to := a .anyPlayer) (kind := .combatOnly)))
+    [ whenIf (does thisCreature (dealDamage (to := a .anyPlayer) (kind := .combatOnly)))
         (not (is thisCreature (hasDesignation renowned)))
         (sequentially
           [ putCounters (.inCaller count) p1p1Counter thisCreature,
@@ -79,7 +79,7 @@ semantic_definition renown (count : Amount) : Ability :=
 /-- "Cumulative upkeep [cost]" with its reminder text [CR#702.24a]. -/
 semantic_definition cumulativeUpkeep (cost : Cost) : Ability :=
   .keyword (.named "cumulativeUpkeep") [.cost (.inCaller cost)]
-    [ triggeredIf (.beginningOf .upkeep (some .you) (.each none))
+    [ atIf (.beginningOf .upkeep (some .you) (.each none))
         (is thisPermanent isPermanent)
         (sequentially
           [ putCounters (.lit 1) ageCounter thisPermanent,
@@ -356,7 +356,7 @@ semantic_definition casualty (amount : Amount) : Ability :=
         (.addedCost
           (.perform (sacrifice (a (and [isCreature, hasPower .atLeast (.inCaller amount)]))))
           true .once),
-      triggeredIf (does you (cast thisSpell))
+      whenIf (does you (cast thisSpell))
         (keywordCostPaid (.named "casualty") thisSpell)
         (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
 semantic_definition champion (quality : Predicate) : Ability :=
@@ -410,7 +410,7 @@ semantic_definition conspire : Ability :=
               (counted (exactly 2)
                 (and [isUntapped, isCreature, youControl, .shares .color .share thisSpell]))))
           true .once),
-      triggeredIf (does you (cast thisSpell))
+      whenIf (does you (cast thisSpell))
         (keywordCostPaid (.named "conspire") thisSpell)
         (sequentially [copyOnStack thisSpell, may (.chooseNewTargets (that .copy))]) ]
 semantic_definition convoke : Ability :=
@@ -630,19 +630,19 @@ semantic_definition eternalize (cost : Cost) : Ability :=
 semantic_definition evoke (cost : Cost) : Ability :=
   .keyword (.named "evoke") [.cost (.inCaller cost)]
     [ static (can you (cast this_ (payment := .payingInstead (.inCaller cost)))),
-      triggeredIf (does thisPermanent enter)
+      whenIf (does thisPermanent enter)
         (keywordCostPaid (.named "evoke") thisPermanent)
         (instruct (controllerOf thisPermanent) (sacrifice thisPermanent)) ]
 semantic_definition evolve : Ability :=
   .keyword (.named "evolve") []
-    [ triggeredIf (does (a (and [isCreature, youControl])) enter)
+    [ wheneverIf (does (a (and [isCreature, youControl])) enter)
         (or
           [ .compareAmt (powerOf (that creature)) .greater (powerOf thisCreature),
             .compareAmt (toughnessOf (that creature)) .greater (toughnessOf thisCreature) ])
         (putCounters (.lit 1) p1p1Counter thisCreature) ]
 semantic_definition exalted : Ability :=
   .keyword (.named "exalted") []
-    [ triggeredIf (does (a (and [isCreature, youControl])) (.attack none))
+    [ wheneverIf (does (a (and [isCreature, youControl])) (.attack none))
         (.compareAmt (countOf (and [isCreature, isAttacking])) .eq (.lit 1))
         (get (that creature) (.up (.lit 1)) (.up (.lit 1)) (some untilEndOfTurn)) ]
 semantic_definition exhaust (ability : Ability) : Ability :=
@@ -732,7 +732,7 @@ semantic_definition fuse : Ability := keyword (.named "fuse")
 semantic_definition gift (promise : Action) : Ability :=
   .keyword (.named "gift") []
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
-      triggeredIf (does thisPermanent enter) (is this_ isPermanentType)
+      whenIf (does thisPermanent enter) (is this_ isPermanentType)
         (doIf (keywordCostPaid (.named "gift") this_)
           (instruct (chosenAsPaid (.named "gift") this_) (.inCaller promise))
           none),
@@ -756,7 +756,7 @@ semantic_template giftAnOctopus : Ability :=
 semantic_definition graft (amount : Amount) : Ability :=
   .keyword (.named "graft") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) p1p1Counter),
-      triggeredIf
+      wheneverIf
         (does (a (and [isCreature, .otherThan thisPermanent])) enter)
         (is thisPermanent (.hasCounters (some p1p1Counter)))
         (may (moveCounters (.lit 1) thisPermanent (that creature) (some p1p1Counter))) ]
@@ -792,12 +792,12 @@ semantic_template gainHaste (subject : NounPhrase) (duration : Option Duration :
   gain subject haste duration
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
-    [ triggeredIf (does thisPermanent die)
+    [ whenIf (does thisPermanent die)
         (is this_ isPermanentType)
         (sequentially
           [ exile it,
             .relate it haunting (target isCreature) ]),
-      triggeredIf (does .any (.move thisSpell stack (some graveyard) .departure none []))
+      whenIf (does .any (.move thisSpell stack (some graveyard) .departure none []))
         (is this_ isInstantOrSorcery)
         (sequentially
           [ exile it,
@@ -849,7 +849,7 @@ semantic_definition impending (amount : Amount) (cost : Cost) : Ability :=
           (and
             [ keywordCostPaid (.named "impending") thisPermanent,
               is thisPermanent (.hasCounters (some timeCounter)) ])),
-      triggeredIf (beginningOfYour .endStep)
+      atIf (beginningOfYour .endStep)
         (and
           [ keywordCostPaid (.named "impending") thisPermanent,
             is thisPermanent (.hasCounters (some timeCounter)) ])
@@ -862,7 +862,7 @@ semantic_definition improvise : Ability :=
             [.generic] ⟩) ]
 semantic_definition increment : Ability :=
   .keyword (.named "increment") []
-    [ triggeredIf (does you (cast (a isSpell)))
+    [ wheneverIf (does you (cast (a isSpell)))
         (and
           [ is thisPermanent isCreature,
             or
@@ -1058,7 +1058,7 @@ semantic_definition offering (quality : Predicate) : Ability :=
 semantic_definition offspring (cost : Cost) : Ability :=
   .keyword (.named "offspring") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .once),
-      triggeredIf (does thisPermanent enter)
+      whenIf (does thisPermanent enter)
         (keywordCostPaid (.named "offspring") thisPermanent)
         (create (.lit 1)
           (.copyOf thisPermanent
@@ -1084,7 +1084,7 @@ semantic_definition partnerWith (quality : Predicate) : Ability :=
   keywordQuality (.named "partnerWith") (.inCaller quality)
 semantic_definition persist : Ability :=
   .keyword (.named "persist") []
-    [ triggeredIf (does thisPermanent die)
+    [ whenIf (does thisPermanent die)
         (not (is thisPermanent (.hasCounters (some m1m1Counter))))
         (returnTo thisPermanent battlefield
           [.under (ownerOf thisPermanent), .withCounters (.lit 1) m1m1Counter .fresh]) ]
@@ -1174,7 +1174,7 @@ semantic_definition rampage (amount : Amount) : Ability :=
 semantic_definition ravenous : Ability :=
   .keyword (.named "ravenous") []
     [ static (entersWithCounters thisPermanent (.letter .x) p1p1Counter),
-      triggeredIf (does thisPermanent enter)
+      whenIf (does thisPermanent enter)
         (.compareAmt (.letter .x) .atLeast (.lit 5))
         (draw (.lit 1)) ]
 semantic_definition readAhead : Ability :=
@@ -1225,7 +1225,7 @@ semantic_definition reinforce (amount : Amount) (cost : Cost) : Ability :=
 semantic_definition replicate (cost : Cost) : Ability :=
   .keyword (.named "replicate") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .anyNumberOfTimes),
-      triggeredIf (does you (cast thisSpell))
+      whenIf (does you (cast thisSpell))
         (keywordCostPaid (.named "replicate") thisSpell)
         (sequentially
           [ copyOnStack thisSpell (timesPaid (.byKeyword (.named "replicate")) thisSpell),
@@ -1298,7 +1298,7 @@ semantic_definition solved (ability : Ability) : Ability :=
         none ]
 semantic_definition soulbond : Ability :=
   .keyword (.named "soulbond") []
-    [ triggeredIf (does thisCreature enter)
+    [ whenIf (does thisCreature enter)
         (and
           [ is thisCreature (and [youControl, not (.related paired none)]),
             exists_
@@ -1311,7 +1311,7 @@ semantic_definition soulbond : Ability :=
               (and
                 [ and [isCreature, youControl, .otherThan thisCreature],
                   not (.related paired none) ])))),
-      triggeredIf
+      wheneverIf
         (does (a (and [isCreature, youControl, .otherThan thisCreature])) enter)
         (and
           [ is thisCreature (and [youControl, not (.related paired none)]),
@@ -1366,7 +1366,7 @@ semantic_definition spree : Ability :=
 semantic_definition squad (cost : Cost) : Ability :=
   .keyword (.named "squad") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .anyNumberOfTimes),
-      triggeredIf (does thisCreature enter)
+      whenIf (does thisCreature enter)
         (keywordCostPaid (.named "squad") thisCreature)
         (create (timesPaid (.byKeyword (.named "squad")) thisCreature) (.copyOf thisCreature [])) ]
 semantic_definition startYourEngines : Ability := keyword (.named "startYourEngines")
@@ -1496,7 +1496,7 @@ semantic_definition undaunted : Ability :=
     [static (.costShift thisSpell (.generic (.down (forEach (.lit 1) isOpponent)) none))]
 semantic_definition undying : Ability :=
   .keyword (.named "undying") []
-    [ triggeredIf (does thisPermanent die)
+    [ whenIf (does thisPermanent die)
         (not (is thisPermanent (.hasCounters (some p1p1Counter))))
         (returnTo thisPermanent battlefield
           [.under (ownerOf thisPermanent), .withCounters (.lit 1) p1p1Counter .fresh]) ]
@@ -1523,7 +1523,7 @@ semantic_definition unleash : Ability :=
 semantic_definition vanishing (amount : Amount) : Ability :=
   .keyword (.named "vanishing") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) timeCounter),
-      triggeredIf (beginningOfYour .upkeep)
+      atIf (beginningOfYour .upkeep)
         (is thisPermanent (.hasCounters (some timeCounter)))
         (removeCounters (oneThrough 1) (some timeCounter) thisPermanent),
       triggered (lastCounterRemoved timeCounter thisPermanent)
