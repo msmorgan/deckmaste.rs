@@ -369,7 +369,7 @@ semantic_definition champion (quality : Predicate) : Ability :=
           [.under (ownerOf (that .card))]) ]
 semantic_definition changeling : Ability :=
   .keyword (.named "changeling") []
-    [static (.characteristicChange thisCreature [.everyTypeOf .adds .creature])]
+    [static (.characteristicChange thisCreature [.quality .adds (.everyTypeOf .creature)])]
 semantic_definition chooseABackground : Ability := keyword (.named "chooseABackground")
 semantic_definition cipher : Ability :=
   .keyword (.named "cipher") []

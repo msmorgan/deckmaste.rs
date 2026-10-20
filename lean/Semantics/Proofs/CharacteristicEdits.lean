@@ -79,4 +79,37 @@ theorem copySpecificAdditionsRemainSeparate :
 theorem abilityOnlyCopyInputNeedsNoEmptyEditBlock :
     CopyExcept.checkAll (DRS.ofList []) (copyCharacteristics {text := [keyword (.named "flying")]} false) = [] := by decide
 
+/-- A removed bundle's mana cost is removed, never set: every written value of a `loses` bundle
+is removed. -/
+theorem lostBundleRemovesItsManaCost :
+    (match QualityPayload.edits .loses
+        (.bundle { characteristics := { cost := some [generic 2] } } none) with
+      | [.typeLine .loses _, .manaCost none] => true
+      | _ => false) = true := by decide
+
+/-- An added bundle sets its written name as it sets its other values. -/
+theorem addedBundleSetsItsName :
+    (match QualityPayload.edits .adds
+        (.bundle { characteristics := { name := some "Ajani's Pridemate" } } none) with
+      | [.typeLine .adds _, .name .sets _] => true
+      | _ => false) = true := by decide
+
+/-- "It's still a land" keeps every prior type, so the type line is added under a set
+[CR#205.1b]. -/
+theorem retainedTypeLineIsAdded :
+    (match QualityPayload.edits .sets
+        (.bundle { characteristics := { types := [.creature] } } (some .land)) with
+      | [.typeLine .adds _] => true
+      | _ => false) = true := by decide
+
+/-- "This creature's power is equal to …" is a set of its power by its own static ability, so it
+fills the printed `*` [CR#604.3a]; the same set of another object's power does not. -/
+theorem selfSetDefinesPower :
+    (ptDefinition thisCreature .powerAlone (.lit 2)).definedStats = [.power] ∧
+      (ptDefinition (target isCreature) .powerAlone (.lit 2)).definedStats = [] := by decide
+
+/-- "Switch target creature's power and toughness": a Characteristic Edit [CR#613.4d]. -/
+theorem ptSwitchIsAnEdit :
+    StaticSpec.check (DRS.ofList []) (ptSwitch (target isCreature)) = [] := by decide
+
 end Semantics.Proofs.CharacteristicEdits

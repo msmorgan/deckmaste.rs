@@ -578,7 +578,7 @@ expected child kinds in the incoming `DRS`.
 | `ManaHeld` | The `manaRetention` static case steps its player; `ManaHeld.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |
 | `AsThough` | `stepAsThoughWith` steps it. |
 | `Exchanged` | `stepExchangedWith` steps it. Whether an exchanged value can be set is not checked (`lean-v3-authoring-impl-4-checker-dewarting`). |
-| `TokenQuality` | `stepCharacteristicBundleWith` steps each quality of the bundle in order. |
+| `TokenQuality` | Now `WrittenQuality`, shared by a bundle's qualities and `CharacteristicEdit.quality`: `stepWrittenQualityWith` steps it (`stepCharacteristicBundleWith` each quality of the bundle in order) and `WrittenQuality.shape` checks a chosen quality is read as a chosen one. |
 | `CounterKindSource` | `stepCounterKindSourceWith` steps it; `CounterKindSource.localChecks` checks the counter is known. |
 | `CostShift` | `stepCostShiftWith` steps it; `CostShift.localChecks` checks its shape. |
 | `CountBound` | No Lean type: a usage limit's count is an `Amount` (`UsageLimit.mk times per`), stepped by `stepUsageLimitWith`. |
@@ -733,8 +733,12 @@ expected child kinds in the incoming `DRS`.
 
 `StaticSpec.characteristicChange` and `CopyExcept.edits` carry the same typed
 `CharacteristicEdit` list. A static change of stats ("gets +P/+T", "has base power and
-toughness P/T") and of abilities ("has flying", "has all activated abilities of …", backup's
-selection) is a `characteristicChange` too: a stat edit's `sets` stands below zero and its
+toughness P/T", "its power is equal to …", "switch its power and toughness") and of abilities
+("has flying", "has all activated abilities of …", backup's selection) is a
+`characteristicChange` too. Whether a set of power or toughness is a characteristic-defining
+ability (layer 7a) is read from where it stands, the object's own printed, unconditional static
+ability setting its own stat [CR#604.3a,613.4a] (`StaticSpec.definedStats`, which fills a printed
+`*`), not stored. A stat edit's `sets` stands below zero and its
 `adds` or `loses` is clamped (`CharacteristicEdit.numberSlots`); an "each" subject distributes
 over the whole change; a granted keyword whose number is a letter introduces it. `TypeLineChanges` uses optional axes: `none` leaves
 an axis unchanged, while `some []` explicitly clears it under `sets`. Add and
@@ -760,9 +764,11 @@ self context. Separate copy exceptions each read the incoming scope.
 context; sharing edits does not turn copy exceptions into later static effects.
 
 `QualityPayload` is an authoring input in `Semantics.Primitives`, not a
-checked syntax field. It expands to edits. Ordinary additions add their type
-line but set written colors and numeric characteristics. Named additions and
-power/toughness removal remain refused. `copyCharacteristics` expands the old
+checked syntax field. It expands to edits, its op written once over them.
+Ordinary additions add their type line but set every other written value; a
+removal removes each one, its mana cost included. A retained type ("It's still
+a land") adds the type line whatever the op [CR#205.1b]; no edit stores the
+retained type. `copyCharacteristics` expands the old
 packed input into one edit block and separate ability exceptions. The former
 minimum-two-fields packing rule has no semantic counterpart in an edit list.
 

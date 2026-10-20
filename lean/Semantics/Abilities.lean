@@ -38,12 +38,13 @@ inductive QualityOp where
   | adds | sets | loses
   deriving DecidableEq, Repr
 
-/-- Only present axes are written. A present empty list explicitly clears that axis. -/
+/-- Only present axes are written. A present empty list explicitly clears that axis. An object
+that is "still a land" keeps all its prior types [CR#205.1b], so that is an `adds` of the new
+ones. -/
 structure TypeLineChanges where
   supertypes : Option (List Supertype) := none
   types : Option (List CardType) := none
   subtypes : Option (List Subtype) := none
-  retained : Option CardType := none
   deriving Repr, BEq
 
 inductive CharacteristicStat where
@@ -554,9 +555,12 @@ mutual
     other's previous rules text [CR#612.5,701.12h]. -/
     | exchangeWith (other : NounPhrase)
 
-  inductive TokenQuality where
-    | withEveryType (space : SubtypeSpace)
-    | withQuality (quality : Predicate)
+  /-- A characteristic value an effect writes that a `Characteristics` cannot list: every subtype
+  of a space ("with all creature types") or a chosen quality ("of the chosen color"). A token's
+  written characteristics carry it, and a Characteristic Edit writes it with its op. -/
+  inductive WrittenQuality where
+    | everyTypeOf (space : SubtypeSpace)
+    | chosen (quality : Predicate)
 
   /-- Where a counter's kind comes from. -/
   inductive CounterKindSource where
@@ -700,11 +704,11 @@ mutual
     loyalty : Option Amount := none
     defense : Option Amount := none
 
-  /-- A characteristics set as an effect writes it, with the token qualities ("with every
+  /-- A characteristics set as an effect writes it, with the written qualities ("with every
   creature type") an effect can add [CR#111.3]. -/
   structure CharacteristicBundle where
     characteristics : Characteristics
-    qualities : List TokenQuality := []
+    qualities : List WrittenQuality := []
 
   /-- The one face-down spec. `none` is a card exiled face down, which has no characteristics
   and no status [CR#406.3a,110.5d]; `some c` is a face-down spell or permanent, `c` its listed
@@ -721,10 +725,14 @@ mutual
     | colors (op : QualityOp) (colors : ColorSpec)
     /-- A stat set (`sets`), or raised (`adds`) or lowered (`loses`) by `amount`. In a static
     change of power and toughness, a set applies in layer 7b and a change by an amount in layer
-    7c [CR#613.4b,613.4c]: "<subject> gets +P/+T" is two of these, the subject written once. -/
+    7c [CR#613.4b,613.4c]: "<subject> gets +P/+T" is two of these, the subject written once. A
+    set an object's own printed, unconditional static ability makes of its own power or
+    toughness ("this creature's power is equal to …") is a characteristic-defining ability,
+    applied in layer 7a [CR#604.3a,613.4a]; that is read from where the set stands, not stored. -/
     | stat (op : QualityOp) (axis : CharacteristicStat) (amount : Amount)
-    | everyTypeOf (op : QualityOp) (space : SubtypeSpace)
-    | chosenQuality (op : QualityOp) (quality : Predicate)
+    /-- The subject's power and toughness are switched [CR#613.4d]. -/
+    | ptSwitch
+    | quality (op : QualityOp) (quality : WrittenQuality)
     | addedAbilities (abilities : List Ability)
     /-- The abilities of `source` in the families `classes`, but for those `except` describes:
     "<subject> has all activated abilities of <source>". -/
@@ -807,8 +815,6 @@ mutual
 
   inductive StaticSpec where
     | inCaller (body : StaticSpec)
-    | ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount)
-    | ptSwitch (subject : NounPhrase)
     | costShift (subject : NounPhrase) (shift : CostShift)
     | altCost (subject : NounPhrase) (cost : Option Cost)
     /-- An additional cost to cast the spell [CR#601.2f]: `offered` when the player may decline

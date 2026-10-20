@@ -92,7 +92,7 @@ attached, is read by a later line of its text ("the chosen color", "the chosen p
 cannot read it without the choice. -/
 theorem entryAndAttachmentChoicesPublishTheirSort :
     let colorReader := Ability.static (.characteristicChange .any
-      [.chosenQuality .adds (.ofChosen .theChoice .color)])
+      [.quality .adds (.chosen (.ofChosen .theChoice .color))])
     let playerReader := at_ (beginningOfPossessed .upkeep (the isChosenPlayer)) (loseLife (.lit 1))
     Ability.checkText (DRS.ofList []) [.static (entersChoosing thisCreature .color), colorReader]
         = [] ∧
@@ -185,7 +185,7 @@ theorem ownedOutsideCardsAreAdmitted :
 theorem controlledCreatureSpellsRemainIncluded :
     StaticSpec.check (DRS.ofList []) (.characteristicChange
       (allOf (.and [isCreature, isSpell, .hasPossessor .controller .you]))
-      [.everyTypeOf .adds .creature]) = [] := by decide
+      [.quality .adds (.everyTypeOf .creature)]) = [] := by decide
 
 theorem beforeObservationRetainsKnownUnspecifiedOrigin :
     nounZone (WouldClause.extend (DRS.ofList [])

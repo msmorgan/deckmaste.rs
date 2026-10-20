@@ -191,7 +191,7 @@ private def announcedColor : Ability :=
     (.also (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
     none .repeatedly none)
 private def readAnnouncedColor : Ability :=
-  .static (.characteristicChange .any [.chosenQuality .adds (.ofChosen .theChoice .color)])
+  .static (.characteristicChange .any [.quality .adds (.chosen (.ofChosen .theChoice .color))])
 
 private theorem cardTextThreadsChoicesButIndependentAbilitiesDoNot :
     Ability.checkText (DRS.ofList []) [announcedColor, readAnnouncedColor] = [] ∧

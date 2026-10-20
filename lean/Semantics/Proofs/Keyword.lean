@@ -177,7 +177,7 @@ theorem badAscribedQualityBeforeChoice :
       (enchantmentWith
         [ .static
             (qualityChange (allOf (.and [isCreature, .hasPossessor .controller .you])) .adds
-              (.chosenQuality (ofChosen (.subtype .creature)))),
+              (.quality (.chosen (ofChosen (.subtype .creature))))),
           choosesCreatureType ]) = [.choiceRef .theChoice (.quality (.subtype .creature)) 0] := by
   decide
 

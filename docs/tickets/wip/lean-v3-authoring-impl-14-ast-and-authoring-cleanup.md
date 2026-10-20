@@ -14,13 +14,27 @@ constraints apply.
 ### 1. Finish `CharacteristicEdit` Unification (Opus §4.1)
 
 - Fold `StaticSpec.ptDefinition` and `StaticSpec.ptSwitch` (`[CR#613.4a,613.4d]`)
-  into `CharacteristicEdit` under `StaticSpec.characteristicChange`.
+  into `CharacteristicEdit` under `StaticSpec.characteristicChange`. A defined
+  power or toughness is a `stat .sets` edit; whether it is a
+  characteristic-defining ability (layer 7a) is read from where it stands (the
+  object's own printed, unconditional static ability setting its own stat,
+  `[CR#604.3a]`), as a self "is all colors" already was, not stored. The
+  switch is `CharacteristicEdit.ptSwitch`. `ptDefinition`/`ptSwitch` remain as
+  templates, `DefinedSlots` as `ptDefinition`'s input only.
 - Collapse the triple encoding of `"every type of"`, `"chosen quality"`, and
   color setting across `TokenQuality`, `QualityPayload`, and `CharacteristicEdit`,
   and deduplicate `retained` between `TypeLineChanges` and `QualityPayload.bundle`.
+  `TokenQuality` becomes `WrittenQuality` (`everyTypeOf`, `chosen`), the one
+  encoding a token's bundle and `CharacteristicEdit.quality op q` share;
+  `QualityPayload` is `bundle | quality | colored`, the op-less inputs of the
+  edits it expands to. `TypeLineChanges.retained` is retired: "It's still a
+  land" keeps every prior type `[CR#205.1b]`, so a retained bundle's type line
+  is an `adds`, whatever op writes the rest; the named type is wording only.
 - Fix `Characteristics.valueEdits` (`lean/Semantics/Primitives.lean:16-56`) where
   `name` gets raw `op`, other fields get `valueOp`, and `manaCost` ignores `op`
-  (causing a `.loses` bundle with a cost to emit a mana-cost set).
+  (causing a `.loses` bundle with a cost to emit a mana-cost set). Every
+  written value takes the value op (an addition sets it, a removal removes it);
+  a removed cost is `manaCost none`.
 
 ### 2. Reconcile Overlapping AST & Vocabulary Constructs (Opus §§4.3–4.6, §4.13–4.14)
 

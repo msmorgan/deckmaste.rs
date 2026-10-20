@@ -92,8 +92,9 @@ theorem okModifyUpClamped :
 /-- "Target creature's base power and toughness become 0/2": an effect that sets a power and
 toughness is the exception [CR#107.1b] names. -/
 theorem okDefinesPtSigned :
-    (StaticSpec.ptDefinition (target isCreature) .bothEach (.lit 0)).numberSlots
-      = [(.lit 0, .signed)] := by rfl
+    (StaticSpec.characteristicChange (target isCreature)
+      [.stat .sets .power (.lit 0), .stat .sets .toughness (.lit 2)]).numberSlots
+      = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
 
 /-- "Whenever this creature's power becomes 3": the header watches a game value, which may be
 less than zero [CR#107.1b]. -/

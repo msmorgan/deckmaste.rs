@@ -120,9 +120,7 @@ def StaticSpec.numberSlots (value : StaticSpec) (fuel : Nat := 64) : List (Amoun
   | 0, _ => []
   | _n + 1, .inCaller body => body.numberSlots _n
   | _n + 1, .characteristicChange _ edits => edits.flatMap CharacteristicEdit.numberSlots
-  -- An effect that sets a power and toughness, the exception [CR#107.1b] names.
-  | _n + 1, .ptDefinition _ _ amount => [(amount, .signed)]
-  | _n + 1, .ptSwitch _ | _n + 1, .combatant _ | _n + 1, .textChange _ _ => []
+  | _n + 1, .combatant _ | _n + 1, .textChange _ _ => []
   | _n + 1, .costShift _ shift => shift.numberSlots
   | _n + 1, .altCost _ _ | _n + 1, .addedCost _ _ _ | _n + 1, .paySubstitute _ _ | _n + 1, .specialAction _ _ _ | _n + 1, .modeChoice _
   | _n + 1, .addsTarget _ _ | _n + 1, .asEvent _ _ | _n + 1, .whileHolds _ _ => []

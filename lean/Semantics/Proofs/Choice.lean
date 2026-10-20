@@ -151,7 +151,7 @@ theorem okStaticPlayerCant :
 
 /-- "the basic land type of your choice" -/
 def chosenBasicLandType : QualityPayload :=
-  .chosenQuality (.ofYourChoice (.subtype .land) (some .basicTypesOnly))
+  .quality (.chosen (.ofYourChoice (.subtype .land) (some .basicTypesOnly)))
 
 /-- "Target land becomes the basic land type of your choice until end of turn." -/
 theorem okChosenBasicTypeOnLand :
@@ -176,7 +176,7 @@ theorem okCreatureTypeExclusion :
 /-- "Target land becomes every basic land type until end of turn." -/
 theorem setsEveryBasicLandType :
     Action.check (DRS.ofList [])
-      (.establish (qualityChange (target isLand) .sets (.everyTypeOf .basicLand))
+      (.establish (qualityChange (target isLand) .sets (.quality (.everyTypeOf .basicLand)))
         (some untilEndOfTurn)) = [] := by
   decide
 
@@ -185,7 +185,7 @@ theorem losesChosenCreatureType :
     Action.check (DRS.ofList [])
       (.establish
         (qualityChange (target isCreature) .loses
-          (.chosenQuality (.ofYourChoice (.subtype .creature) none))) (some untilEndOfTurn))
+          (.quality (.chosen (.ofYourChoice (.subtype .creature) none)))) (some untilEndOfTurn))
       = [] := by
   decide
 

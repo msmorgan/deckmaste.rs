@@ -1988,13 +1988,21 @@ semantic_template perform (action : Action) : Cost := .perform action
 semantic_template preventionBan (kind : DamageKind) (damage : Unpreventable) (ban : PreventionBan) :
     StaticSpec :=
   .preventionBan kind damage ban
+/-- "<subject>'s power [and toughness] [are each] [is] equal to <amount>": a set of each stat
+`slots` names, the subject written once; on the object's own printed, unconditional static
+ability it is a characteristic-defining ability [CR#604.3a,613.4a]. -/
 semantic_template ptDefinition (subject : NounPhrase) (slots : DefinedSlots) (amount : Amount) :
     StaticSpec :=
-  .ptDefinition subject slots amount
+  .characteristicChange subject (match slots with
+    | .powerAlone => [.stat .sets .power amount]
+    | .toughnessAlone => [.stat .sets .toughness amount]
+    | .bothEach => [.stat .sets .power amount, .stat .sets .toughness amount])
 semantic_template ptModification (subject : NounPhrase) (power toughness : Delta Amount) :
     StaticSpec :=
   getsPt subject power toughness
-semantic_template ptSwitch (subject : NounPhrase) : StaticSpec := .ptSwitch subject
+/-- "Switch <subject>'s power and toughness" [CR#613.4d] -/
+semantic_template ptSwitch (subject : NounPhrase) : StaticSpec :=
+  .characteristicChange subject [.ptSwitch]
 semantic_template repeatable : ModeChange := .repeatable
 semantic_template retention (spec : StaticSpec) (subject : NounPhrase) : StaticSpec :=
   .retention spec subject
@@ -2156,9 +2164,9 @@ semantic_template inOrder (arrangement : Arrangement) : MoveRider := .inOrder ar
 semantic_template CreationSpec.token (spec : TokenSpec) (riders : List MoveRider) : CreationSpec :=
   .token spec riders
 /-- "with every <space> type" -/
-semantic_template withEveryType (space : SubtypeSpace) : TokenQuality := .withEveryType space
+semantic_template withEveryType (space : SubtypeSpace) : WrittenQuality := .everyTypeOf space
 /-- "of <quality>", as "of the chosen color" -/
-semantic_template withQuality (quality : Predicate) : TokenQuality := .withQuality quality
+semantic_template withQuality (quality : Predicate) : WrittenQuality := .chosen quality
 /-- "except it's <types> in addition to its other types" -/
 semantic_template isAlso (types : List CardType) (subtypes : List Subtype) : CopyExcept :=
   .edits [.typeLine .adds (({ types := types, subtypes := subtypes } :
@@ -2184,14 +2192,15 @@ semantic_template Action.copy (sort : CopySort) (subject : NounPhrase) (times : 
 
 /-! ## Characteristics and abilities lost -/
 
-/-- The characteristics a quality change adds or sets, keeping `retained`'s type. -/
+/-- The characteristics a quality change adds or sets; "It's still a <retained>" keeps every
+prior type [CR#205.1b]. -/
 semantic_template bundle (characteristics : CharacteristicBundle) (retained : Option CardType := none) :
     QualityPayload :=
   .bundle characteristics retained
 /-- "every <space> type" -/
-semantic_template everyTypeOf (space : SubtypeSpace) : QualityPayload := .everyTypeOf space
+semantic_template everyTypeOf (space : SubtypeSpace) : QualityPayload := .quality (.everyTypeOf space)
 /-- "the chosen <quality>" -/
-semantic_template chosenQuality (quality : Predicate) : QualityPayload := .chosenQuality quality
+semantic_template chosenQuality (quality : Predicate) : QualityPayload := .quality (.chosen quality)
 /-- "<colors>", as "becomes blue" -/
 semantic_template colored (colors : ColorSpec) : QualityPayload := .colored colors
 /-- "<ability>", lost as written -/

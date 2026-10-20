@@ -1545,14 +1545,6 @@ def NounWord.attachHostTy : NounWord → List CardType
   | .type t => [t]
   | _ => []
 
-def DefinedSlots.power : DefinedSlots → Bool
-  | .toughnessAlone => false
-  | _ => true
-
-def DefinedSlots.toughness : DefinedSlots → Bool
-  | .powerAlone => false
-  | _ => true
-
 def distinctCounterLabels : List CounterFacts → Bool
   | [] => true
   | f :: fs => !(fs.map (·.label)).elem f.label && distinctCounterLabels fs

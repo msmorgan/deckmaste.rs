@@ -151,23 +151,30 @@ def printedAfterLaws (text : List Ability) : List Refusal :=
   (Ability.printedAfterKeywordsAll text).filterMap fun k =>
     if text.any (Ability.printsKeyword k) then none else some (.printedAfterKeyword k)
 
-def StaticSpec.definedSlots (s : StaticSpec) (fuel : Nat := 64) : List DefinedSlots :=
+/-- The stats a static ability defines for its own object: a set of the object's own power or
+toughness, written unconditionally [CR#604.3a]. -/
+def StaticSpec.definedStats (s : StaticSpec) (fuel : Nat := 64) : List CharacteristicStat :=
   match fuel, s with
-  | n + 1, .inCaller b | n + 1, .conditional b _ _ => b.definedSlots n
-  | _ + 1, .ptDefinition _ sl _ => [sl]
-  | n + 1, .conjunction _ ps => ps.flatMap (fun p => p.definedSlots n)
+  | n + 1, .inCaller b => b.definedStats n
+  | _ + 1, .characteristicChange subject edits =>
+    if subject.selfDefinedOk then
+      edits.filterMap fun
+        | .stat .sets axis _ => some axis
+        | _ => none
+    else []
+  | n + 1, .conjunction _ ps => ps.flatMap (fun p => p.definedStats n)
   | _, _ => []
 termination_by structural fuel
 
-def Ability.definesPt (a : Ability) (fuel : Nat := 64) : List DefinedSlots :=
+def Ability.definesPt (a : Ability) (fuel : Nat := 64) : List CharacteristicStat :=
   match fuel, a with
-  | _ + 1, .static se => se.definedSlots
+  | _ + 1, .static se => se.definedStats
   | n + 1, .italicHead _ a | n + 1, .qualified a _ _ _ _ => a.definesPt n
   | _, _ => []
 termination_by structural fuel
 
-def textDefines (f : DefinedSlots → Bool) (text : List Ability) : Bool :=
-  text.any fun a => (a.definesPt).any f
+def textDefines (axis : CharacteristicStat) (text : List Ability) : Bool :=
+  text.any fun a => (a.definesPt).elem axis
 
 /-- A power or toughness slot against the text that may define it: on a creature an absent slot
 is the printed `*` a characteristic-defining ability fills, and nothing else fills it
@@ -193,8 +200,8 @@ def Characteristics.printedStatsOk (c : Characteristics) : Bool :=
 def cardBoxOk (side : FaceSide) (tys : List CardType) (text : List Ability)
     (c : Characteristics) : Bool :=
   c.printedStatsOk && boxSuitsTypes side tys c &&
-    ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.power text) c.power &&
-    ptSlotOk (tys.elem .creature) (textDefines DefinedSlots.toughness text) c.toughness
+    ptSlotOk (tys.elem .creature) (textDefines .power text) c.power &&
+    ptSlotOk (tys.elem .creature) (textDefines .toughness text) c.toughness
 
 def cardCostOk : FaceSide → List CardType → Option ManaCost → Bool
   | _, _, none => true

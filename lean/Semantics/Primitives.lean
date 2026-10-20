@@ -12,12 +12,14 @@ expands through, and the generated constructor wrappers (`declare_semantic_primi
 
 namespace Semantics
 
-/-- Convenience input for established quality wording. Expansion produces typed edits;
-this input is not stored in the checked static or copy syntax. -/
+/-- Convenience input for established quality wording, `op` written once over it. Expansion
+produces typed edits; this input is not stored in the checked static or copy syntax. -/
 inductive QualityPayload where
+  /-- `characteristics`, each written with `op`. A `retained` type ("It's still a land") keeps
+  every prior type, supertype and subtype [CR#205.1b], so the type line is added, whatever `op`
+  writes the rest; the type it names is wording only. -/
   | bundle (characteristics : CharacteristicBundle) (retained : Option CardType)
-  | everyTypeOf (space : SubtypeSpace)
-  | chosenQuality (quality : Predicate)
+  | quality (quality : WrittenQuality)
   | colored (colors : ColorSpec)
 
 attribute [semantic_expression] QualityPayload
@@ -25,14 +27,15 @@ attribute [semantic_expression] QualityPayload
 private def nonempty {α : Type} (xs : List α) : Option (List α) :=
   if xs.isEmpty then none else some xs
 
-def Characteristics.typeChanges (c : Characteristics) (retained : Option CardType := none) :
-    TypeLineChanges :=
-  ⟨nonempty c.supertypes, nonempty c.types, nonempty c.subtypes, retained⟩
+def Characteristics.typeChanges (c : Characteristics) : TypeLineChanges :=
+  ⟨nonempty c.supertypes, nonempty c.types, nonempty c.subtypes⟩
 
+/-- The value characteristics `c` writes, each with `op`: an addition sets a written value,
+as "becomes a 2/2 creature in addition to its other types" does, and a removal removes it. -/
 def Characteristics.valueEdits (c : Characteristics) (op : QualityOp) : List CharacteristicEdit :=
   let valueOp := if op == .loses then .loses else .sets
-  c.name.toList.map (.name op) ++
-    c.cost.toList.map (fun cost => .manaCost (some cost)) ++
+  c.name.toList.map (.name valueOp) ++
+    c.cost.toList.map (fun cost => .manaCost (if op == .loses then none else some cost)) ++
     (if c.colors.isEmpty then [] else [.colors valueOp (.some c.colors)]) ++
     c.power.toList.map (.stat valueOp .power) ++
     c.toughness.toList.map (.stat valueOp .toughness) ++
@@ -44,13 +47,9 @@ def Characteristics.valueEdits (c : Characteristics) (op : QualityOp) : List Cha
 
 def QualityPayload.edits (op : QualityOp) : QualityPayload → List CharacteristicEdit
   | .bundle b retained =>
-    .typeLine op (b.characteristics.typeChanges retained) ::
-      b.characteristics.valueEdits op ++ b.qualities.map (fun quality =>
-        match quality with
-        | .withEveryType space => .everyTypeOf op space
-        | .withQuality q => .chosenQuality op q)
-  | .everyTypeOf space => [.everyTypeOf op space]
-  | .chosenQuality quality => [.chosenQuality op quality]
+    .typeLine (if retained.isSome then .adds else op) b.characteristics.typeChanges ::
+      b.characteristics.valueEdits op ++ b.qualities.map (.quality op)
+  | .quality q => [.quality op q]
   | .colored colors => [.colors op colors]
 
 /-- A play payment read in the caller's Reference Scope: its cost, when it names one. -/

@@ -1041,12 +1041,21 @@ def Predicate.qualityReadOk (p : Predicate) (fuel : Nat := 64) : Bool :=
     | _ => false
 termination_by structural fuel
 
+/-- A chosen quality is read as a chosen one. -/
+def WrittenQuality.shape : WrittenQuality → List Refusal
+  | .chosen q => refuse q.qualityReadOk .qualityRead
+  | .everyTypeOf _ => []
+
+def stepWrittenQualityWith (ops : StepOps) (drs : DRS) : WrittenQuality → DRS × List Refusal
+  | .chosen p => ops.pred drs p
+  | .everyTypeOf _ => (drs, [])
+
 def CharacteristicEdit.shape : CharacteristicEdit → List Refusal
   | .typeLine op c =>
     refuse (op == .sets || !c.hasWrites || c.hasValues) .lineNonEmpty ++
       refuse c.canonical .distinct
   | .colors op cs => refuse cs.ok .distinct ++ refuse (colorOpOk op cs) .nonEmpty
-  | .chosenQuality _ q => refuse q.qualityReadOk .qualityRead
+  | .quality _ q => q.shape
   | _ => []
 
 def CharacteristicEdit.shapeAll (edits : List CharacteristicEdit) : List Refusal :=
@@ -1132,7 +1141,7 @@ def stepCharacteristicEditWith (ops : StepOps) (drs : DRS) (ed : CharacteristicE
   match ed with
   | .manaCost _ => (drs, [])
   | .stat _ _ amt => ops.amt drs amt
-  | .chosenQuality _ p => ops.pred drs p
+  | .quality _ q => stepWrittenQualityWith ops drs q
   | .addedAbilities abs =>
     -- A granted keyword whose number is a letter ("has toxic X") introduces that letter.
     let out := abs.foldl (fun d ab => match ab with
@@ -1510,11 +1519,9 @@ def stepCharacteristicsWith (ops : StepOps) (drs : DRS) (c : Characteristics) : 
 def stepCharacteristicBundleWith (ops : StepOps) (drs : DRS)
     (bundle : CharacteristicBundle) : DRS × List Refusal :=
   let (out, errs) := stepCharacteristicsWith ops drs bundle.characteristics
-  bundle.qualities.foldl (fun (d, es) q => match q with
-    | .withEveryType _ => (d, es)
-    | .withQuality p =>
-      let (d', e) := ops.pred d p
-      (d', es ++ e ++ refuse p.qualityReadOk .qualityRead)) (out, errs)
+  bundle.qualities.foldl (fun (d, es) q =>
+    let (d', e) := stepWrittenQualityWith ops d q
+    (d', es ++ e ++ q.shape)) (out, errs)
 
 def stepTokenSpecMetadataWith (ops : StepOps) (drs : DRS) (ts : TokenSpec)
     (fuel : Nat := 64) : DRS × List CardType × List Refusal :=
@@ -2882,14 +2889,10 @@ def stepOps : Nat → StepOps
         | .inCaller body =>
           let (callerDrs, errs) := ops.spec (enterCaller drs) body
           (leaveCaller drs callerDrs, errs)
-        | .ptDefinition subj _ amt =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := ops.amt drs1 amt
-          (drs2.push (outcomeB .namedNumber) .other false, e1 ++ e2)
         | .manaRetention subj held =>
           let (out, _, errors) := ops.np drs .subj true subj
           (out, errors ++ held.localChecks out)
-        | .ptSwitch subj | .partSkip subj _ | .combatant subj =>
+        | .partSkip subj _ | .combatant subj =>
           let (drs1, _, e1) := ops.np drs .subj true subj
           (drs1, e1)
         | .costShift subj sh =>
@@ -2911,7 +2914,11 @@ def stepOps : Nat → StepOps
         | .characteristicChange subj edits =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
-          (finishEachSubject subj ids drs2, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
+          -- A stat set names its number, which "that number" reads back ("its toughness is
+          -- equal to that number plus 1").
+          let drs3 := if edits.any (fun | .stat .sets _ _ => true | _ => false)
+            then drs2.push (outcomeB .namedNumber) .other false else drs2
+          (finishEachSubject subj ids drs3, e1 ++ e2 ++ refuse (!edits.isEmpty) .nonEmpty ++
             refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
             CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>

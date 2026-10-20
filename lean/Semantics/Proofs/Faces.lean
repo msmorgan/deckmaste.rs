@@ -171,7 +171,7 @@ theorem badStarlessDefinedPt :
     Card.check
       (one
         { name := some "", cost := some [pip .green], types := [.creature],
-          text := [static (.ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl])))],
+          text := [static (ptDefinition thisCreature .bothEach (countOf (and [isCreature, youControl])))],
           power := stat 2, toughness := stat 2 }) = [.cardBox] := by
   decide
 
