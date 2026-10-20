@@ -15,8 +15,14 @@ relaxing the grammar for a single editorial slip.
 - Make the census read the corrected text for every listed card. The grammar
   stays as it is: `docs/decisions/english-v4.md` §3 (item 3) requires the Oxford comma
   for coordinations of three or more, and that rule is not relaxed.
-- Each correction must cite printed-card evidence. A sibling card with the same
-  template, alone, is supporting evidence only.
+- Each correction must cite one of two kinds of evidence:
+  - **Printed-card evidence:** the printed card disagrees with its Oracle text.
+  - **Missed template update (owner ruling, 2026-10-20):** the printed card
+    keeps an older template that Oracle has since replaced. The correction
+    cites the template update and the count of current Oracle texts that
+    already carry the new wording.
+
+  A sibling card with the same template, alone, is supporting evidence only.
 
 ## First entry: Agency Outfitter (MKM 0038)
 
@@ -46,6 +52,25 @@ relaxing the grammar for a single editorial slip.
 - Before this entry is recorded, check the printed SLX card. If it prints em
   dashes, record the correction and delete `HyphenRowHeader`. If it prints
   hyphens, the Oracle text matches the card and the entry is dropped.
+
+## Missed-template-update entries (owner ruling, 2026-10-20)
+
+- **Brainstealer Dragon (OTC, printed 2024-04-19).** Oracle: "Whenever a
+  nonland permanent an opponent owns enters the battlefield under your
+  control, …". Correct it to "enters under your control", the Foundations-era
+  template. Brainstealer Dragon is the only Vintage-legal card that still says
+  "enters the battlefield" there.
+- **"the player shuffles" → "that player shuffles".** 54 current Oracle texts say
+  "then that player shuffles". These four keep "the player":
+  - Rootwater Thief (NEM): "…exile it, then the player shuffles."
+  - Spellshift (PLC): "Then the player shuffles."
+  - Quiet Speculation (EMA): "Then the player shuffles."
+  - Tunnel Vision (RAV): "Otherwise, the player shuffles." This card was found
+    by a later corpus search; confirm that it shares the template before
+    recording it.
+
+Not a correction: Firesong and Sunspeaker's "target creature or player" is
+deliberate (owner ruling). Its rules text differs from "any target".
 
 ## Done when
 
