@@ -251,9 +251,13 @@ constraints apply.
     speed, power-up) qualify are `Ability.inCaller`. Search, like mill, scry
     and surveil, reads the performer's own library (`.actor`), as the
     handoff names it `[CR#701.23]`.
-  - The `inCaller` / mention nesting is left as it stands: the order moves
-    the caller-view role a body mention leaves, so it is not wording (see the
-    STOP below).
+  - A mention in a Definition's body never changes a role the caller can
+    see: leaving the body (`leaveOwnScope`) restores the caller's pending
+    roles as they were when it was entered, with each argument read in the
+    caller pending as the call's object. With that, the nesting is one rule,
+    identity outermost (`firstMention id (inCaller arg)`, `laterMention id
+    (inCaller arg)`), at every Definition site; "Target creature fights
+    target creature. Tap it." still reads the fight's source.
   - A keyword variant carries its base keyword's label when the CR calls it
     a variant of that keyword ("is a variant of", "is a hexproof ability",
     "typecycling abilities are cycling abilities"): hexproof from, typecycling,
@@ -263,6 +267,14 @@ constraints apply.
     `[CR#702.22c]`. Devour's definition is one entry (`devourEntry`), not a
     devour nested in devour.
   - `flip` is a Template: flipping is no keyword action `[CR#701.1,710.2]`.
+  - Ability words are Templates over `abilityWord`: they have no rules
+    meaning `[CR#207.2c]`. `AbilityWordLabel` is a label checked against the
+    CR's list (`knownAbilityWord`), and cards call the ability word's
+    template.
+  - `regenerationApplication` merges into the one `regeneration`
+    Definition: a shield's application (remove damage, tap, remove from
+    combat, `[CR#701.19a]`), the deed "can't be regenerated" forbids and the
+    shield `regenerate` installs applies.
   - The string subtype templates (`creatureType` …) are retired for the
     catalog's subtypes (*Mishra's Factory* now names Assembly-Worker
     `[CR#205.3m]`); card-local helpers take a `Subtype`. A keyword action
@@ -288,8 +300,23 @@ constraints apply.
     `bloodCounter`, *Ersatz Gnomes*, *Crimson Wisps* and *Blatant Thievery*
     through their templates, one `copyOnStack` for every copy of a spell or
     ability on the stack (Fork's exception included, `[CR#707.10]`), worded
-    `whenIf`/`wheneverIf`/`atIf` over `triggeredIf` `[CR#603.4]`, and `is`
-    for `matches_`.
+    `whenIf`/`wheneverIf`/`atIf` over `triggeredIf` `[CR#603.4]` at every
+    site (the word read from the Oracle text, from the keyword's CR rule, or
+    "at" for the beginning of a step or phase `[CR#603.2b]`), and `is` for
+    `matches_`.
+  - Adaptive Automaton's and Metallic Mimic's "this creature is the chosen
+    type in addition to its other types" are Characteristic-Defining
+    Abilities: they depend on a choice as Shapeshifter's power does, and
+    depending on a choice is no condition under `[CR#604.3a]`(5). Their other
+    abilities, which affect other creatures, stay separate. Shapeshifter's
+    printed `*`/`7-*` box is filled by one `[CR#208.2a]`.
+  - `doIf`'s other branch reads only what the branch announces: the targets
+    and the amounts it names, never a participant the branch would choose as
+    it resolves; the branch keeps the ids it announced its targets under, so
+    a later line reads the target the condition read.
+  - Left for follow-ups: typed deeds for participles
+    (`lean-v3-typed-verbed-deeds`) and a check refusing an undeclared
+    subtype (`lean-v3-known-subtype-check`).
 
 ## Verification
 

@@ -847,9 +847,10 @@ mutual
     /-- A Characteristic-Defining Ability: `subject`, the object itself, has the colors,
     subtypes, power or toughness `edits` define ("this creature's power is equal to …",
     "this object is every creature type", devoid's "this object is colorless") [CR#604.3a].
-    Each edit is a color edit, a subtype edit (an every-type-of quality or a type line writing
-    subtypes alone), or a power or toughness `sets`; a stat edit names its number, which a later
-    edit reads back ("its toughness is equal to that number plus 1"). Written as a printed
+    Each edit is a color edit, a subtype edit (an every-type-of quality, a chosen subtype or a
+    type line writing subtypes alone), or a power or toughness `sets`; a stat edit names its
+    number, which a later edit reads back ("its toughness is equal to that number plus 1").
+    Written as a printed
     static ability, unconditionally, and never inside a grant or an established effect: the
     checker refuses a subject other than the object itself, a condition, and a grant
     [CR#604.3a]. It stands on the card's own face, in a token's definition, or comes with a copy
