@@ -211,9 +211,8 @@ semantic_definition aftermath : Ability :=
         (cant (.actor .actor)
           (cast this_ (from_ := some (not yourGraveyard)))),
       static
-        (onlyWhile
-          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
-          (matches_ thisSpell (.castFrom graveyard))) ]
+        (replace (would thisSpell (leave stack))
+          (doIf (matches_ thisSpell (.castFrom graveyard)) (instead (exile thisSpell)))) ]
 semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
     [ static
@@ -343,10 +342,9 @@ semantic_definition buyback (cost : Cost) : Ability :=
   .keyword (.named "buyback") [.cost (.inCaller cost)]
     [ static (.addedCost (.inCaller cost) true .once),
       static
-        (onlyWhile
-          (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
-            (instead (.move thisSpell .anyLocation (some hand) .arrival none [])))
-          (keywordCostPaid (.named "buyback") thisSpell)) ]
+        (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+          (doIf (keywordCostPaid (.named "buyback") thisSpell)
+            (instead (.move thisSpell .anyLocation (some hand) .arrival none [])))) ]
 semantic_definition casualty (amount : Amount) : Ability :=
   .keyword (.named "casualty") [.number (.inCaller amount)]
     [ static
@@ -681,9 +679,8 @@ semantic_definition flashback (cost : Cost) : Ability :=
         (can (.actor .you)
           (cast this_ (from_ := some yourGraveyard) (payment := .payingInstead (.inCaller cost)))),
       static
-        (onlyWhile
-          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
-          (keywordCostPaid (.named "flashback") thisSpell)) ]
+        (replace (would thisSpell (leave stack))
+          (doIf (keywordCostPaid (.named "flashback") thisSpell) (instead (exile thisSpell)))) ]
 semantic_definition forMirrodin : Ability :=
   .keyword (.named "forMirrodin") []
     [ triggered (does thisEquipment enter)
@@ -771,9 +768,8 @@ semantic_definition harmonize (cost : Cost) : Ability :=
             (.less (powerOf (linkedObject .theAlternative (.action "tap") thisSpell)) none))
           (keywordCostPaid (.named "harmonize") thisSpell)),
       static
-        (onlyWhile
-          (replace (would thisSpell (leave stack)) (instead (exile thisSpell)))
-          (keywordCostPaid (.named "harmonize") thisSpell)) ]
+        (replace (would thisSpell (leave stack))
+          (doIf (keywordCostPaid (.named "harmonize") thisSpell) (instead (exile thisSpell)))) ]
 semantic_definition haste : Ability := keyword (.named "haste")
 semantic_definition haunt : Ability :=
   .keyword (.named "haunt") []
@@ -987,16 +983,15 @@ semantic_definition mutate (cost : Cost) : Ability :=
           (and
             [isCreature, not (.hasSubtype human), ownedBy (ownerOf thisSpell)])),
       static
-        (onlyWhile
-          (.replace (.would .any (putOntoBattlefield thisSpell))
+        (.replace (.would .any (putOntoBattlefield thisSpell))
+          (doIf (keywordCostPaid (.named "mutate") thisSpell)
             (instead
               (chooseOne
                 (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell)
                   .top)
                 (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell)
-                  .bottom)))
-            none .repeatedly none)
-          (keywordCostPaid (.named "mutate") thisSpell)) ]
+                  .bottom))))
+          none .repeatedly none) ]
 semantic_definition myriad : Ability :=
   .keyword (.named "myriad") []
     [ triggered (does (.actor thisCreature) (.attack none))
@@ -1178,14 +1173,13 @@ semantic_definition readAhead : Ability :=
 semantic_definition rebound : Ability :=
   .keyword (.named "rebound") []
     [ static
-        (onlyIfSo
-          (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+        (replace (.would .any (.move thisSpell stack (some graveyard) .departure none []))
+          (doIf (matches_ thisSpell (.castFrom yourHand))
             (instead
               (sequentially
                 [ exile thisSpell,
                   delay (beginningOf .upkeep (some .you) (.next none))
-                    (may (cast this_ (payment := withoutPaying))) ])))
-          (matches_ thisSpell (.castFrom yourHand))) ]
+                    (may (cast this_ (payment := withoutPaying))) ])))) ]
 semantic_definition reconfigure (cost : Cost) : Ability :=
   .keyword (.named "reconfigure") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)

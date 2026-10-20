@@ -57,6 +57,12 @@ constraints apply.
   has no other "enters … if/unless" conditioned at the static level. The
   Saga rule's read-ahead test stays on the static ability (it decides whether
   the ability exists, `[CR#714.3a]`).
+- The stack keywords whose replacement is printed "if C, … instead" condition
+  the replacement the same way, `replace … (doIf c (instead …))`: aftermath,
+  buyback, flashback, harmonize, rebound `[CR#702.127a,702.27a,702.34a,702.180a,702.88a]`
+  and mutate's merge `[CR#702.140c]`. Dredge's "as long as you have at least N
+  cards in your library" `[CR#702.52a]` is an as-long-as condition on the
+  static ability and stays there.
 
 ### 2. Reconcile Overlapping AST & Vocabulary Constructs (Opus §§4.3–4.6, §4.13–4.14)
 
