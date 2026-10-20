@@ -62,8 +62,7 @@ keywordFacts =
   , { word := "Crew", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "Saddle", paramShapes := [NumberParam] } defaultKeywordFacts
   , { word := "PartnerWith", paramShapes := [QualityParam] } defaultKeywordFacts
-  , { word := "Emerge", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
-  , { word := "EmergeFrom", paramShapes := [CompoundParam QualityHead], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
+  , { word := "Emerge", paramShapes := [CostParam, CompoundParam QualityHead], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Craft", paramShapes := [CostParam], paidCost := True } defaultKeywordFacts
   , { word := "Madness", paramShapes := [CostParam], onSpellCard := True, paidCost := True } defaultKeywordFacts
   , { word := "Prowl", paramShapes := [CostParam], regime := Just AtCasting, functionsOnStack := True, onSpellCard := True, paidCost := True } defaultKeywordFacts

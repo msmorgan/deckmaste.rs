@@ -10,8 +10,8 @@ KeywordAbility(
     // chose to pay this spell's emerge cost, its total cost is reduced by an
     // amount of generic mana equal to the sacrificed creature's mana value."
     // [CR#702.119a] The sacrificed creature is the `objects` Linked Facet of
-    // the alternative cost's sacrifice. "Emerge from [quality]" is its own
-    // declaration (`emergeFrom`) [CR#702.119b].
+    // the alternative cost's sacrifice. "Emerge from [quality]" is its variant,
+    // labelled emerge (`emergeFrom`) [CR#702.119b].
     body: [
         static(mayCastFor(you, compound([Param(0), perform(sacrifice(a(creature)))]))),
         static(

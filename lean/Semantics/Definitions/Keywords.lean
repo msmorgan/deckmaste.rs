@@ -286,7 +286,9 @@ semantic_definition backup (amount : Amount) : Ability :=
                 untilEndOfTurn)
               none ]) ]
 semantic_definition banding : Ability := keyword (.named "banding")
-/-- "Bands with other <quality>", a special form of banding [CR#702.22b]. -/
+/-- "Bands with other <quality>", a special form of banding [CR#702.22b]. Unlike a variant, it
+keeps its own label: the banding rules count a creature with it as one without banding
+[CR#702.22c], and only losing banding takes it too [CR#702.22b]. -/
 semantic_definition bandsWithOther (quality : Predicate) : Ability :=
   keywordQuality (.named "bandsWithOther") (.inCaller quality)
 semantic_definition bargain : Ability :=
@@ -488,19 +490,24 @@ semantic_definition dethrone : Ability :=
 [CR#702.114a,604.3a]. -/
 semantic_definition devoid : Ability :=
   .keyword (.named "devoid") [] [static (qualityDefinition this_ .sets (colored (.some [])))]
+/-- Devour's definition over the permanents `quality` describes: "As this object enters, you may
+sacrifice any number of [quality] permanents. This permanent enters with N +1/+1 counters on it for
+each permanent sacrificed this way." [CR#702.82a,702.82c] -/
+semantic_template devourEntry (quality : Predicate) (amount : Amount) : Ability :=
+  static
+    (replace (would thisPermanent enter)
+      (also
+        (may (sacrifice (counted anyNumber (and [quality, .in_ battlefield])))
+          (some
+            (putCounters (.arith .times amount (.countOf (theVerbed (.action "sacrifice") .many)))
+              p1p1Counter thisPermanent)))))
+/-- "Devour [quality] N", a variant of devour, so it carries devour's label [CR#702.82c]. -/
 semantic_definition devourQuality (quality : Predicate) (amount : Amount) : Ability :=
   .keyword (.named "devour") [.quality (.inCaller quality), .number (.inCaller amount)]
-    [ static
-        (replace (would thisPermanent enter)
-          (also
-            (may (sacrifice (counted anyNumber (and [.inCaller quality, .in_ battlefield])))
-              (some
-                (putCounters
-                  (.arith .times (.inCaller amount)
-                    (.countOf (theVerbed (.action "sacrifice") .many)))
-                  p1p1Counter thisPermanent))))) ]
+    [devourEntry (.inCaller quality) (.inCaller amount)]
+/-- "Devour N": devour over creatures [CR#702.82a]. -/
 semantic_definition devour (amount : Amount) : Ability :=
-  .keyword (.named "devour") [.number (.inCaller amount)] [devourQuality isCreature amount]
+  .keyword (.named "devour") [.number (.inCaller amount)] [devourEntry isCreature (.inCaller amount)]
 semantic_definition disguise (cost : Cost) : Ability :=
   .keyword (.named "disguise") [.cost (.inCaller cost)]
     [ static
@@ -547,8 +554,10 @@ semantic_definition emerge (cost : Cost) : Ability :=
                 (linkedObject .theAlternative (.action "sacrifice") thisSpell))
               none))
           (keywordCostPaid (.named "emerge") thisSpell)) ]
+/-- "Emerge from [quality] [cost]", a variant of emerge, so it carries emerge's label, its
+quality telling it apart, and its cost is an emerge cost [CR#702.119b]. -/
 semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
-  .keyword (.named "emergeFrom") [.quality (.inCaller quality), .cost (.inCaller cost)]
+  .keyword (.named "emerge") [.quality (.inCaller quality), .cost (.inCaller cost)]
     [ static
         (can you
           (cast this_
@@ -563,7 +572,7 @@ semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
               (.statOf (.stat .manaValue)
                 (linkedObject .theAlternative (.action "sacrifice") thisSpell))
               none))
-          (keywordCostPaid (.named "emergeFrom") thisSpell)) ]
+          (keywordCostPaid (.named "emerge") thisSpell)) ]
 semantic_definition enchant (quality : Predicate) : Ability :=
   .keyword (.named "enchant") [.subject (.inCaller quality)]
     [ static (.addsTarget thisAura (.inCaller quality)),

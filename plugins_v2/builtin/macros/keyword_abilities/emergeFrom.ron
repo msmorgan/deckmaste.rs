@@ -9,9 +9,10 @@ KeywordAbility(
     // [cost] and sacrificing a [quality] permanent rather than paying its mana
     // cost" and "If you pay this spell's emerge cost, its total cost is
     // reduced by an amount of generic mana equal to the sacrificed permanent's
-    // mana value." [CR#702.119b] A variant of emerge with its own quality, so
-    // its own declaration, as `conniveN` is connive's.
-
+    // mana value." [CR#702.119b] A variant of emerge, so it carries emerge's
+    // label, its quality telling it apart, as devour [quality] carries
+    // devour's [CR#702.82c]; its cost is an emerge cost.
+    label: emerge,
     body: [
         static(mayCastFor(you, compound([Param(1), perform(sacrifice(a(and([Param(0), permanent]))))]))),
         static(
@@ -20,7 +21,7 @@ KeywordAbility(
                     thisSpell,
                     Less(statOf(Stat(ManaValue), linkedObject(TheAlternative, sacrifice, thisSpell)), None),
                 ),
-                keywordCostPaid(emergeFrom, thisSpell),
+                keywordCostPaid(emerge, thisSpell),
             ),
         ),
     ],

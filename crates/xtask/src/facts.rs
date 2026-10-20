@@ -515,14 +515,6 @@ fn overlay() -> Vec<Row> {
             ..D
         },
         Row {
-            label: "EmergeFrom",
-            regime: Some(Regime::AtCasting),
-            functions_on_stack: true,
-            on_spell_card: true,
-            paid_cost: true,
-            ..D
-        },
-        Row {
             label: "Craft",
             paid_cost: true,
             ..D
