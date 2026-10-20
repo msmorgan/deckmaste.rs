@@ -10,5 +10,3 @@
 +KeywordPhrase Devour artifact 1
 +KeywordPhrase Suspend
 +KeywordPhrase Boast — {1}{W}: Tap target creature. => NounPhrase "target creature" as Object of tap
-*KeywordPhrase Protection for red
-*KeywordPhrase Devour for Food 3

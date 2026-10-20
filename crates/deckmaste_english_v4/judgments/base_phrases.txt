@@ -9,7 +9,6 @@
 +Clause to attack
 +VerbPhrase choose to attack
 * Choose to attacks.
-* Choose from attack.
 +Clause it explores again
 +Clause this creature can't attack alone
 +Clause Otherwise, suspect it

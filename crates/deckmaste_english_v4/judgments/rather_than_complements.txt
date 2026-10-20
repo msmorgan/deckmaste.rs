@@ -4,7 +4,6 @@
 + You may discard a Plains card rather than pay this spell's mana cost. => VerbPhrase "pay this spell's mana cost"
 + Enchanted creature gets +0/+2 and assigns combat damage equal to its toughness rather than its power. => NounPhrase "its toughness rather than its power"
 +PrepositionPhrase by paying life equal to its mana value rather than paying its mana cost => VerbPhrase "paying its mana cost"
-*NounPhrase its toughness rather than pay its mana cost
 * You may pay {U} rather than pays this spell's mana cost.
 +VerbPhrase pay {U} rather than pay this spell's mana cost
 +VerbPhrase paying life equal to its mana value rather than paying its mana cost

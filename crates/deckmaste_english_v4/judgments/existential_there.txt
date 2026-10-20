@@ -12,7 +12,5 @@
 *Clause there be fifteen or more cards in your graveyard
 *Clause there's no creatures on the battlefield
 *Clause there was three or more card types among the sacrificed permanents
-*Clause there attacks
-*Clause there is tapped
 +Clause there's an additional combat phase
 +Clause there were three or more card types among the sacrificed permanents

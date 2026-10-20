@@ -13,7 +13,5 @@
 +NounPhrase each of them => readings 1
 +Clause Each of them gets +1/+1 => NounPhrase "Each of them" as Subject of get
 *Clause Each of them get +1/+1
-*NounPhrase every of them
-*NounPhrase the of them
 +NounPhrase each creature
 +NounPhrase one of them

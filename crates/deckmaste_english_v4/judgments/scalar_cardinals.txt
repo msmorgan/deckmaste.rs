@@ -13,5 +13,3 @@
 + Return up to two target creature cards from your graveyard to your hand. => DeterminerPhrase "up to two target" as Determiner of card; Nominal "creature cards"
 *NounPhrase up to one target creatures
 *NounPhrase up to two target creature
-*NounPhrase to two target creatures
-*NounPhrase up two target creatures

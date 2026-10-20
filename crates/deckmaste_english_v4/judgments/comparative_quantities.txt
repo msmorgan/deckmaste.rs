@@ -25,5 +25,3 @@
 *NounPhrase more than one creatures
 *NounPhrase one or more card
 *NounPhrase fewer than six creature card
-*NounPhrase up than two creatures
-*NounPhrase more to one creature

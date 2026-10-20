@@ -6,4 +6,3 @@
 + <card=Waterbending Lesson> Draw three cards. Then discard a card unless you waterbend {2}. => VerbPhrase "waterbend {2}" head waterbend
 + <card=The Unagi of Kyoshi Island> Ward—Waterbend {4}. => VerbPhrase "Waterbend {4}" head waterbend
 + <card=Hama, the Bloodbender> For as long as you control Hama, you may cast the exiled card during your turn by waterbending {X} rather than paying its mana cost, where X is its mana value. => VerbPhrase "waterbending {X}" head waterbend
-*VerbPhrase waterbend

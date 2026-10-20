@@ -5,7 +5,6 @@
 +KeywordPhrase Equip Human {1}
 +KeywordPhrase Equip {1}
 +KeywordPhrase Equip—Pay 3 life.
-*KeywordPhrase Craft {1}{U}
 +KeywordPhrase Splice onto Arcane {1}{R}
 +KeywordPhrase Affinity for artifacts
 +KeywordPhrase Protection from legendary creatures

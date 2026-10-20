@@ -8,8 +8,4 @@
 +PrepositionPhrase as long as you control an artifact
 +PrepositionPhrase As long as you control an artifact
 +PrepositionPhrase for as long as you control this creature
-*PrepositionPhrase as long as that you control an artifact
-*PrepositionPhrase as long as control an artifact
 *PrepositionPhrase as long as controlling an artifact
-*PrepositionPhrase for as long to you control this creature
-*PrepositionPhrase for as long as that you control this creature

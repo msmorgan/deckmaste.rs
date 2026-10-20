@@ -1,7 +1,4 @@
 # A slash measure is a Noun Phrase only where a head selects one (*gets +2/+2*, *your choice of 5/1 or 1/5*), a noun only under a determiner, a size before a noun, or a predicative; never a general Object, Manner Adjunct or attributive noun's head
-*Clause Draw a card 3/3.
-*Clause Draw a card [+1].
-*Clause Draw 3/3.
 + Target creature gets +2/+2 until end of turn. => NounPhrase "+2/+2" as Object of get; readings 1
 + <card=Nuclear Fallout> Each creature gets twice -X/-X until end of turn. => NounPhrase "twice -X/-X" as Object of get; AdverbPhrase "twice" head twice; readings 1
 + <card=Aspect of Wolf> Enchanted creature gets +X/+Y, where X is half the number of Forests you control, rounded down, and Y is half the number of Forests you control, rounded up. => NounPhrase "+X/+Y" as Object of get

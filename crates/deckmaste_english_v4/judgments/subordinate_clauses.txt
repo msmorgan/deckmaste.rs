@@ -29,4 +29,3 @@
 + <card=North Star> {4}, {T}: For one spell this turn, you may spend mana as though it were mana of any type to pay that spell's mana cost. => PrepositionPhrase "For one spell" as Adjunct of may; NounPhrase "this turn" as Adjunct of may
 + <card=Overpowering Attack> Untap all creatures you control that attacked this turn. If it's your main phase, there is an additional combat phase after this phase, followed by an additional main phase. => VerbPhrase "followed by an additional main phase"
 + an opponent guesses which number you chose. => Clause "which number you chose" as Complement of guess; readings 1
-*Clause Destroy which creature

@@ -7,13 +7,8 @@
 +VerbPhrase do so => VerbPhrase "do so" head do
 +VerbPhrase does so => VerbPhrase "does so" head do
 +AdjectivePhrase able to block this creature => Clause "to block this creature" as Complement of able
-*Nominal creatures able to
-*Nominal creatures able block this creature
 *Clause That player do so.
 *Clause All creatures does so.
-*Clause You can't so.
-*Clause You can't all so.
-*Clause You do and can't so.
 +Nominal creatures tapped this way => VerbPhrase "tapped this way" as Modifier of creature
 # ellipsis after "do" and verbless "if able"
 + If you do, draw a card. => PrepositionPhrase "If you do" as Adjunct of draw; Clause "you do"; VerbPhrase "do" head do

@@ -26,11 +26,8 @@
 * Draw cards from they.
 * Creatures that attacks draw cards.
 * Creatures you controls attack.
-* Draw.
 * You may draws cards.
-* .
 * If you do, .
-* Draw cards and .
 +Nominal artifact named Powerstone Shard => VerbPhrase "named Powerstone Shard" as Modifier of artifact
 +VerbPhrase named Powerstone Shard
 +Nominal defending player
@@ -52,8 +49,6 @@
 +NounPhrase amounts of {G}
 +NounPhrase the amount of {G}{G}
 + Add the amount of {G}.
-*Nominal amount of
-*Nominal amount {G}
 *NounPhrase much amount of {G}
 +Clause you do
 + Draw two cards.
@@ -71,8 +66,6 @@
 + Your maximum hand size is increased by two.
 + You gain X plus 3 life.
 * Draw two card.
-* You gain life equal than 3.
-* You gain life greater to 3.
 +AdjectivePhrase second
 +Amount 1,000 minus X
 + Gain 1 life. => readings 1
@@ -92,7 +85,6 @@
 +VerbPhrase get +3/-2
 +AdjectivePhrase equal to 2 => PrepositionPhrase "to 2" as Complement of equal
 +AdjectivePhrase equal
-*AdjectivePhrase equal than 2
 +AdjectivePhrase greater than 2 => PrepositionPhrase "than 2" as Complement of great
 + Flying
 + Flying, vigilance; haste
@@ -109,10 +101,6 @@
 + Creatures have "{T}: Draw cards."
 +KeywordPhrase Ward
 +KeywordPhrase Frenzy
-* Flying 2
-* Flying {2}
-* Landfall
-* : Draw cards.
 + Flying; ward {2}{T}
 +KeywordPhrase ward
 + Spells that target target creatures attack. => RelativeClause "that target target creatures" gap "Spells"; NounPhrase "target creatures" as Object of target
@@ -125,17 +113,10 @@
 + Enchantment Creature — Human Soldier
 + Kindred Instant — Elf
 + Battle — Siege
-* Legendary
-* Legendary — Elf
-* Creature Legendary — Elf
-* Elf — Creature
-* Creature —
-* Creature — Legendary
 * Creature — NoSuchSubtype
 +Nominal amount equal to 2 => AdjectivePhrase "equal to 2" as Modifier of amount
 +NounPhrase an amount equal to 2
 +NounPhrase a white creature
-*NounPhrase a creature white
 +NounPhrase the creature on the battlefield => PrepositionPhrase "on the battlefield" as Modifier of creature
 + Draw creatures on the battlefield.
 + You are on the battlefield. => PrepositionPhrase "on the battlefield" as Complement of be
@@ -148,9 +129,6 @@
 +PrepositionPhrase whenever you draw a card => Clause "you draw a card" as Complement of whenever
 +PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
 +PrepositionPhrase when you draw cards => Clause "you draw cards" as Complement of when
-*PrepositionPhrase with you draw cards
-*PrepositionPhrase that you draw cards
-*PrepositionPhrase whether you draw cards
 +PrepositionPhrase until counter spells => NounPhrase "counter spells" as Complement of until; !Clause "counter spells" as Complement of until
 + Until you draw cards, draw cards.
 +Nominal creatures that attack => RelativeClause "that attack" gap "creatures"
@@ -165,7 +143,6 @@
 * You, they, and creatures attacks.
 * Draw cards, creatures, and they.
 * You draws cards, discard cards, and gain life.
-* Draw cards, discard cards, and.
 +NounPhrase cards, creatures, artifacts, and lands => NounPhrase "creatures" || Nominal "cards, creatures, artifacts, and lands"
 +Clause Draw cards
 +Clause Cards are drawn

@@ -9,8 +9,8 @@
 *NounPhrase more land than you
 *NounPhrase fewer life than you
 *NounPhrase less lands than you
-*NounPhrase a more life than you
-*NounPhrase more lands as you
 +NounPhrase more than two lands => DeterminerPhrase "more than two" as Determiner of land
 +NounPhrase a card with the same name as that card
 + Its power is greater than its toughness.
+# A comparative quantity's than-Complement agrees with its head: *more than ... white* does not determine *cards*.
++ <card=Nameless Race> As this creature enters, pay any amount of life. The amount you pay can't be more than the total number of white nontoken permanents your opponents control plus the total number of white cards in their graveyards. => NounPhrase "the total number of white cards in their graveyards"; !DeterminerPhrase "more than the total number of white nontoken permanents your opponents control plus the total number of white"

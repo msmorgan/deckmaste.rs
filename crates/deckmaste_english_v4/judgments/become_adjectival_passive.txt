@@ -9,4 +9,3 @@
 +VerbPhrase becomes untapped => AdjectivePhrase "untapped" as PredicativeComplement of become; readings 1
 +VerbPhrase becomes blocked by a creature => AdjectivePhrase "blocked by a creature" as PredicativeComplement of become
 +AdjectivePhrase blocked by a creature => PrepositionPhrase "by a creature" as Complement of block; !PrepositionPhrase "by a creature" as Adjunct of block; readings 1
-*VerbPhrase becomes blocked a creature

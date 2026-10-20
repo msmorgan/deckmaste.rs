@@ -5,7 +5,6 @@
 +NounPhrase the command zone
 *NounPhrase yours hand
 *NounPhrase they hand
-*NounPhrase your the hand
 +PrepositionPhrase from your hand
 +PrepositionPhrase from the command zone
 +PrepositionPhrase from your hand or from the command zone => PrepositionPhrase "from your hand"; PrepositionPhrase "from the command zone"

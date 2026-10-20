@@ -15,9 +15,3 @@
 + While you are searching your library, you may cast this card from your library. => PrepositionPhrase "While you are searching your library" as Adjunct of may; VerbPhrase "searching your library" as Complement of be
 +Clause it's been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
 +Clause it has been cast => VerbPhrase "been cast" as Complement of have; VerbPhrase "cast" as Complement of be
-*Clause it's
-*Clause you've
-*RelativeClause that's
-*VerbPhrase 're
-*VerbPhrase 've
-*Clause you've a creature

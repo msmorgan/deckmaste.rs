@@ -10,4 +10,3 @@
 +NounPhrase exactly one of those attacking creatures => DeterminerPhrase "exactly one"; AdverbPhrase "exactly"
 +DeterminerPhrase exactly seven => readings 1
 +DeterminerPhrase exactly 20 => readings 1
-* Its power is exactly.

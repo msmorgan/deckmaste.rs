@@ -23,8 +23,6 @@
 +VerbPhrase phases out => PrepositionPhrase "out" as Complement of phase
 +VerbPhrase phased in => PrepositionPhrase "in" as Complement of phase
 +VerbPhrase phased out => PrepositionPhrase "out" as Complement of phase
-* This creature phases out out.
-*NounPhrase phases out
 +NounPhrase your main phase
 +Nominal combat phase
 +NounPhrase your main phases

@@ -10,7 +10,4 @@
 + Repeat this process once. => NounPhrase "this process" as Object of repeat; AdverbPhrase "once" as Adjunct of repeat
 +NounPhrase this
 +VerbPhrase do this => NounPhrase "this" as Object of do
-*NounPhrase every
-*NounPhrase a
-*NounPhrase only
 +NounPhrase each player who does => RelativeClause "who does" gap "player"; readings 1

@@ -6,4 +6,3 @@
 +PrepositionPhrase if either creatures attack or creatures block => Clause "either creatures attack or creatures block" as Complement of if
 +PrepositionPhrase if either you draw cards or they discard cards => Clause "you draw cards"; Clause "they discard cards"
 +PrepositionPhrase if either you draw cards, they discard cards, or creatures attack => Clause "you draw cards"; Clause "they discard cards"; Clause "creatures attack"
-*PrepositionPhrase if either draw cards or they discard cards

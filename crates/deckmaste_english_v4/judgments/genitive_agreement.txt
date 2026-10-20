@@ -3,8 +3,6 @@
 +Clause yours attack => NounPhrase "yours" as Subject of attack
 +NounPhrase enchanted creature's controller's hand => NounPhrase "enchanted creature's controller's" as Determiner of hand
 +NounPhrase target creature's controller's hand => NounPhrase "target creature's controller's" as Determiner of hand
-*NounPhrase none creatures' power
-*NounPhrase none two creatures
 
 +NounPhrase an additional two creatures => AdjectivePhrase "additional"; Nominal "two creatures"
 +NounPhrase an additional 2 damage => AdjectivePhrase "additional"; Nominal "2 damage"
@@ -12,7 +10,6 @@
 +NounPhrase every two turns => Nominal "two turns"
 +NounPhrase each two turns => Nominal "two turns"
 +NounPhrase every two creatures => Nominal "two creatures"
-*NounPhrase none one
 *NounPhrase much one
 
 *NounPhrase a two creatures
@@ -27,3 +24,5 @@
 
 *NounPhrase those one creature
 +NounPhrase those two creatures => Nominal "two creatures"
+# A determiner agrees with its quantity's Number: *that card three times* is no Noun Phrase.
++ <card=Mnemonic Deluge> Copy that card three times. => NounPhrase "that card" as Object of copy; NounPhrase "three times"; readings 1

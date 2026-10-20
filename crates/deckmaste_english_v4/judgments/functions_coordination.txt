@@ -2,4 +2,3 @@
 +PrepositionPhrase if you draw cards => Clause "you draw cards" as Complement of if
 +PrepositionPhrase if you draw cards and they discard cards => Clause "you draw cards"; Clause "they discard cards"
 +PrepositionPhrase if you draw cards, they discard cards, and creatures attack => Clause "you draw cards"; Clause "they discard cards"; Clause "creatures attack"
-*PrepositionPhrase if draw cards and they discard cards

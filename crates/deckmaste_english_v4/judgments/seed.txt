@@ -25,8 +25,4 @@
 + Put into your hand or exile the card. => VerbPhrase "Put into your hand or exile" gap "the card"; readings 1
 + Put into your hand the card. => NounPhrase "the card" as Object of put; PrepositionPhrase "into your hand" as Complement of put
 
-* Put the card.
-* Destroy creature target.
-* Search your library for.
-* The card you put the card into your hand.
 * Each creature enter or leaves the battlefield.

@@ -19,6 +19,4 @@
 *Clause to attacks or to block
 # A coordination of Noun Phrases is determined only when every conjunct is, and countable when its last conjunct is
 + Destroy all artifacts and enchantments. => !NounPhrase "artifacts and enchantments"; Nominal "artifacts and enchantments" || NounPhrase "all artifacts"; NounPhrase "enchantments"
-*NounPhrase creatures and planeswalkers more
 # Not a `*` entry: attributive *double* (*double damage*) premodifies the nominal; what is excluded is the multiplier over a coordination of bare Noun Phrases
-*NounPhrase double creatures and planeswalkers

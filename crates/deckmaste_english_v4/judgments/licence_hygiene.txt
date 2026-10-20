@@ -4,5 +4,3 @@
 + Slivers can't be blocked except by Slivers. => PrepositionPhrase "except by Slivers"
 + This creature has all activated abilities of the chosen permanent except for loyalty abilities. => PrepositionPhrase "except for loyalty abilities"
 + You may put a land card from among them into your hand. => PrepositionPhrase "from among them"; PrepositionPhrase "among them"
-* Exile a card of without paying its mana cost.
-*PrepositionPhrase of of paying its mana cost

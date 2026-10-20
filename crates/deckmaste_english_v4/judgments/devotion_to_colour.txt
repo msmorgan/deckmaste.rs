@@ -9,7 +9,5 @@
 +Clause X is your devotion to black => NounPhrase "your devotion to black" as PredicativeComplement of be
 +NounPhrase your devotion to that color => PrepositionPhrase "to that color" as Complement of devotion; !PrepositionPhrase "to that color" as Modifier of devotion
 +NounPhrase your devotion to each color and each combination of colors => PrepositionPhrase "to each color and each combination of colors" as Complement of devotion; !PrepositionPhrase "to each color and each combination of colors" as Modifier of devotion
-*NounPhrase your devotion to legendary
-*NounPhrase your devotion to black and legendary
 + Target spell or permanent becomes black. => AdjectivePhrase "black" as PredicativeComplement of become
 +KeywordPhrase Protection from black

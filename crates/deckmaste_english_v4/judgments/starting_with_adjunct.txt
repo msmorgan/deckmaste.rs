@@ -5,8 +5,6 @@
 + When this creature enters, starting with you, each player may choose an artifact or enchantment you don't control. Destroy each permanent chosen this way. => VerbPhrase "starting with you" as Adjunct of may; PrepositionPhrase "with you" as Complement of start
 + Starting with you, each player may pay any amount of life. => VerbPhrase "Starting with you" as Adjunct of may; PrepositionPhrase "with you" as Complement of start
 +VerbPhrase starting with you => PrepositionPhrase "with you" as Complement of start
-*PrepositionPhrase starting
-*PrepositionPhrase starting you
 +Nominal starting life total => VerbPhrase "starting" as Modifier of "life total"
 +Nominal starting deck => VerbPhrase "starting" as Modifier of deck
 + During your turn, each player may pay any amount of mana. => PrepositionPhrase "During your turn" as Adjunct of may

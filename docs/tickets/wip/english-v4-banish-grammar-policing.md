@@ -1,5 +1,5 @@
 ---
-needs: [english-v4-valued-noun-phrases, english-v4-adverb-so-overgeneration, english-v4-mixed-voice-participle-coordination, english-v4-unset-number-and-countability]
+needs: []
 ---
 # Banish combinatorial grammar policing, dead lexical dodges, and synthetic `*` judgments
 
@@ -245,3 +245,159 @@ lands):
   `deckmaste_syntax`, `deckmaste_lexical_source_v4`, and `deckmaste_english_v4`.
 
 Standard constraints apply.
+
+## Record
+
+The owner ordered this ticket to run before its listed `needs`, which follow it.
+
+- Section 1: `yours` and the `IndependentGenitive` Production stay, because
+  *yours* is attested (*During turns other than yours*: Mesa Lynx and nine
+  more units). `hers`, `theirs` and independent `his` are deleted.
+  `WordForm::IndependentGenitive` stays, since `deckmaste_lexical` uses it.
+- Section 2 ran as one cumulative pass against `nvstumpz`. 174 of the 227
+  listed equations are deleted. 53 stay, because removing them raised a
+  Corpus Unit, changed a `+` Judgment or flipped an inflectional `*`
+  Judgment. `MarkedMaximum`'s
+  `Carry("head.DeterminativeDistribution", "Targeting")` stays: without it,
+  Oblivious Bookworm rises from 91 to 121 Readings.
+- Section 3: 124 synthetic `*` Judgments on unattested strings are retired
+  (owner ruling: no policing of strings that no card contains). Among them is
+  `*NounPhrase double creatures and planeswalkers` in `phrase_coordination.txt`,
+  restored by [english-v4-targeting-marker-excludes](english-v4-targeting-marker-excludes.md);
+  this ticket supersedes that restoration. The 156 `*` Judgments that test
+  inflectional-form selection stay, and so do the three Shortened Name scope
+  checks in `name_lexeme_scope.txt` (*Chandra*, *Jace*, *Ajani* off their own
+  cards [CR#201.5c]): their text is real Oracle text, and they test scope, not
+  a word combination. Four `+` Judgments on real cards now cover
+  the `[CORPUS-ONLY]` constraints: Warbringer, Super-Soldier Serum, Mnemonic
+  Deluge and Nameless Race. The retired `*` Judgments, by their location
+  before retirement:
+  - `articles.txt:8` a
+  - `articles.txt:9` an
+  - `as_long_as.txt:11` as long as that you control an artifact
+  - `as_long_as.txt:12` as long as control an artifact
+  - `as_long_as.txt:14` for as long to you control this creature
+  - `as_long_as.txt:15` for as long as that you control this creature
+  - `as_though_content_clauses.txt:9` Target creature as though it weren't blocked
+  - `base_phrases.txt:12` Choose from attack.
+  - `become_adjectival_passive.txt:12` becomes blocked a creature
+  - `clitic_contractions.txt:18` it's
+  - `clitic_contractions.txt:19` you've
+  - `clitic_contractions.txt:20` that's
+  - `clitic_contractions.txt:21` 're
+  - `clitic_contractions.txt:22` 've
+  - `clitic_contractions.txt:23` you've a creature
+  - `comparative_complements.txt:17` other to this Equipment
+  - `comparative_complements.txt:18` equal than its power
+  - `comparative_complements.txt:19` less to its power
+  - `comparative_quantities.txt:28` up than two creatures
+  - `comparative_quantities.txt:29` more to one creature
+  - `comparative_quantity_than.txt:12` a more life than you
+  - `comparative_quantity_than.txt:13` more lands as you
+  - `core_clause_ambiguity.txt:29` activate additional
+  - `core_clause_ambiguity.txt:30` activate extra
+  - `core_clause_ambiguity.txt:31` activate other
+  - `core_clause_ambiguity.txt:32` activate only
+  - `core_clause_ambiguity.txt:33` activate own
+  - `correlative_finite_complements.txt:9` if either draw cards or they discard cards
+  - `devotion_to_colour.txt:12` your devotion to legendary
+  - `devotion_to_colour.txt:13` your devotion to black and legendary
+  - `do_so_and_able_to.txt:10` creatures able to
+  - `do_so_and_able_to.txt:11` creatures able block this creature
+  - `do_so_and_able_to.txt:14` You can't so.
+  - `do_so_and_able_to.txt:15` You can't all so.
+  - `do_so_and_able_to.txt:16` You do and can't so.
+  - `each_of_partitive.txt:16` every of them
+  - `each_of_partitive.txt:17` the of them
+  - `exactly_cardinal_modifier.txt:13` Its power is exactly.
+  - `existential_there.txt:15` there attacks
+  - `existential_there.txt:16` there is tapped
+  - `focusing_only.txt:12` Activate only before attackers are declared by.
+  - `focusing_only.txt:15` only during your turn
+  - `functions_coordination.txt:5` if draw cards and they discard cards
+  - `generic_predicates.txt:3` amass 1 Orcs
+  - `genitive_agreement.txt:6` none creatures' power
+  - `genitive_agreement.txt:7` none two creatures
+  - `genitive_agreement.txt:15` none one
+  - `grammar.txt:29` Draw.
+  - `grammar.txt:31` .
+  - `grammar.txt:33` Draw cards and .
+  - `grammar.txt:55` amount of
+  - `grammar.txt:56` amount {G}
+  - `grammar.txt:74` You gain life equal than 3.
+  - `grammar.txt:75` You gain life greater to 3.
+  - `grammar.txt:95` equal than 2
+  - `grammar.txt:112` Flying 2
+  - `grammar.txt:113` Flying {2}
+  - `grammar.txt:114` Landfall
+  - `grammar.txt:115` : Draw cards.
+  - `grammar.txt:128` Legendary
+  - `grammar.txt:129` Legendary — Elf
+  - `grammar.txt:130` Creature Legendary — Elf
+  - `grammar.txt:131` Elf — Creature
+  - `grammar.txt:132` Creature —
+  - `grammar.txt:133` Creature — Legendary
+  - `grammar.txt:138` a creature white
+  - `grammar.txt:151` with you draw cards
+  - `grammar.txt:152` that you draw cards
+  - `grammar.txt:153` whether you draw cards
+  - `grammar.txt:168` Draw cards, discard cards, and.
+  - `keyword_dash_cost_line.txt:12` Haste—{3}
+  - `keyword_payloads.txt:13` Protection for red
+  - `keyword_payloads.txt:14` Devour for Food 3
+  - `licence_hygiene.txt:7` Exile a card of without paying its mana cost.
+  - `licence_hygiene.txt:8` of of paying its mana cost
+  - `once_frequency.txt:13` every
+  - `once_frequency.txt:14` a
+  - `once_frequency.txt:15` only
+  - `partitive_determinative_heads.txt:47` every of them
+  - `partitive_determinative_heads.txt:48` the of them
+  - `partitive_determinative_heads.txt:49` no of them
+  - `partitive_determinative_heads.txt:50` none creatures
+  - `partner_with_name_keyword.txt:10` Partner with
+  - `phase_in_out.txt:26` This creature phases out out.
+  - `phase_in_out.txt:27` phases out
+  - `phrase_coordination.txt:22` creatures and planeswalkers more
+  - `phrase_coordination.txt:24` double creatures and planeswalkers
+  - `play_with_absolute.txt:16` play with able
+  - `possessive_phrases.txt:8` your the hand
+  - `quality_cost_keyword_lines.txt:8` Craft {1}{U}
+  - `quantity_modifiers.txt:16` an equal to its power creature
+  - `rather_than_complements.txt:7` its toughness rather than pay its mana cost
+  - `scalar_cardinals.txt:16` to two target creatures
+  - `scalar_cardinals.txt:17` up two target creatures
+  - `seed.txt:28` Put the card.
+  - `seed.txt:29` Destroy creature target.
+  - `seed.txt:30` Search your library for.
+  - `seed.txt:31` The card you put the card into your hand.
+  - `slash_measure_selection.txt:2` Draw a card 3/3.
+  - `slash_measure_selection.txt:3` Draw a card [+1].
+  - `slash_measure_selection.txt:4` Draw 3/3.
+  - `starting_with_adjunct.txt:8` starting
+  - `starting_with_adjunct.txt:9` starting you
+  - `stratum_zero.txt:4` Creature Legendary — Elf
+  - `stratum_zero.txt:5` Legendary
+  - `stratum_zero.txt:6` Creature —
+  - `stratum_zero.txt:7` Creature — Elf — Druid
+  - `stratum_zero.txt:10` Flying,
+  - `stratum_zero.txt:11` Flying;; vigilance
+  - `stratum_zero.txt:12` Flying {2}
+  - `stratum_zero.txt:13` Ward
+  - `stratum_zero.txt:15` Equip—{3}
+  - `stratum_zero.txt:22` Goblinwalk
+  - `stratum_zero.txt:23` Nonflying
+  - `stratum_zero.txt:31` [2+]: Destroy a creature.
+  - `stratum_zero.txt:46` {W}{U}: Level
+  - `stratum_zero.txt:52` {1}: {2}: Destroy a creature.
+  - `stratum_zero.txt:53` {T}: Flying, vigilance
+  - `subordinate_clauses.txt:32` Destroy which creature
+  - `typecycling_bound_suffix.txt:16` Wizardwalk
+  - `typecycling_bound_suffix.txt:17` Sliverwalk
+  - `typecycling_bound_suffix.txt:20` Swampscycling {2}
+  - `up_to_that_many.txt:11` to that many target creatures
+  - `waterbend_cost_verb.txt:9` waterbend
+
+1. **Census delta** (measured on `urxrrvtz`): faces read 28,705 → 28,709;
+   total Readings 382,529 → 382,447; lost faces: none.
+2. **Judgment set**: 2,892 enforced at `COMPLETED_STRATUM` 6, all hold; 189
+   pending.

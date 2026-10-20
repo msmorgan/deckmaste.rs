@@ -5,8 +5,6 @@
 *NounPhrase an artifacts
 *NounPhrase a mana
 *NounPhrase an mana
-*NounPhrase a
-*NounPhrase an
 + Sacrifice an artifact
 +NounPhrase an Aura
 +NounPhrase an amount of {G}

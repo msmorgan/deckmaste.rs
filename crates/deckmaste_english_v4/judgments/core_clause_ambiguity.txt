@@ -26,11 +26,6 @@
 
 +Measure -0/+0 => readings 1
 +PrepositionPhrase in addition to other types => Nominal "addition to other types" as Complement of in
-*VerbPhrase activate additional
-*VerbPhrase activate extra
-*VerbPhrase activate other
-*VerbPhrase activate only
-*VerbPhrase activate own
 
 +Clause X is 1 => NounPhrase "X" as Subject of be; NounPhrase "1"; Predicative "1" as PredicativeComplement of be; readings 1
 +Clause Your life total is 1 => NounPhrase "1"; Predicative "1" as PredicativeComplement of be; readings 1

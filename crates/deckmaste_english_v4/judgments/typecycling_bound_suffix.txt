@@ -13,8 +13,5 @@
 +KeywordPhrase Cycling {2}
 +KeywordPhrase Cycling {1}
 +KeywordPhrase Cycling {1}{W}
-* Wizardwalk
-* Sliverwalk
 + Artifactcycling {2}
 + Equipmentcycling {2}
-* Swampscycling {2}

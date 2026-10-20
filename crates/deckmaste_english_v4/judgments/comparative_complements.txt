@@ -14,6 +14,3 @@
 + Whenever equipped creature deals combat damage to a player, destroy all permanents other than this Equipment. => NounPhrase "all permanents other than this Equipment"; AdjectivePhrase "other than this Equipment"
 +NounPhrase each other player's speed
 +AdjectivePhrase other than this Equipment => readings 1
-*AdjectivePhrase other to this Equipment
-*AdjectivePhrase equal than its power
-*AdjectivePhrase less to its power

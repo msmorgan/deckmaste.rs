@@ -13,4 +13,3 @@
 +AdverbPhrase so far this turn => AdverbPhrase "so far"; readings 1
 +AdverbPhrase only once each turn => AdverbPhrase "only once"; !AdverbPhrase "once each turn"
 +AdjectivePhrase equal to target creature's power => NounPhrase "target creature's power" as Complement of to; readings 1
-*NounPhrase an equal to its power creature

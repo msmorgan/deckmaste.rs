@@ -9,4 +9,3 @@
 + Eternalize—{2}{W}{W}, Discard a card.
 + {2}, Pay 2 life: Draw a card.
 + Landfall — Whenever a land you control enters, you gain 1 life.
-*KeywordPhrase Haste—{3}

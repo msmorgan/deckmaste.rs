@@ -13,5 +13,4 @@
 + Players attack with their hands revealed. => PrepositionPhrase "with their hands revealed" as Adjunct of attack
 + It enters with a +1/+1 counter on it.
 + <card=Play with Fire> Play with Fire deals 2 damage to any target. => NounPhrase "Play with Fire" as Subject of deal
-*VerbPhrase play with able
 *VerbPhrase play with their hands revealing

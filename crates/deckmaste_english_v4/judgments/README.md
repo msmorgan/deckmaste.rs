@@ -73,12 +73,16 @@ The grammar parses Oracle text into Readings that keep the legitimate
 Ambiguity and no more; it does not validate templating. Text that Oracle
 would template differently (digits for a spelled number, a capital, a glyph,
 a missing comma, *if possible* for *if able*) may parse incidentally, and
-that is fine. A `*` entry therefore claims only a rejection that costs the
-grammar nothing: one that falls out of distinctions it needs anyway to analyse
-Oracle text, such as agreement, a head's selected frame, phrase-internal word
-order, or a word the lexical analysis does not know or does not have in scope.
-A rule, feature or production that would exist only to reject some text is
-never added, and no entry asks for one.
+that is fine. The grammar does not police strings that no card contains. A `*` entry
+therefore claims only the rejection of a wrong inflectional form, which
+generation needs to choose the right one: agreement in Person, Number or
+Countability (*a creatures*, *You draws cards.*), Case (*Draw cards from
+they.*) and verb form (*choose not untap this creature*). A synthetic word
+combination that no card contains (*Destroy creature target.*, *up two target
+creatures*) gets no entry. A constraint that keeps a spurious Reading off real
+Oracle text is witnessed by a `+` entry on that text, with a `!` assertion or
+a Reading count. A rule, feature or production that would exist only to reject
+some text is never added, and no entry asks for one.
 
 Punctuation that the construction determines is never stored in a Reading.
 The separator between the keywords of a keyword line is the known exception:
@@ -151,7 +155,7 @@ Each was settled while adjudicating the migrated judgments.
 + Destroy target creature. => NounPhrase "target creature" as Object of destroy
 + Search your library for a card. => PrepositionPhrase "for a card" as Complement of search; !PrepositionPhrase "for a card" as Modifier of library; readings 1
 + Untap all permanents you control during each other player's untap step. => Clause "you control" gap "permanents"; PrepositionPhrase "during each other player's untap step" as Adjunct of untap || PrepositionPhrase "during each other player's untap step" as Adjunct of control
-* Destroy creature target.
+* You draws cards.
 +NounPhrase target creature with flying => PrepositionPhrase "with flying" as Modifier of creature
 ```
 
