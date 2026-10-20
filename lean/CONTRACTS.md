@@ -529,7 +529,7 @@ not add a creature fact to an explicitly Kindred description. The separate
 `Predicate.seedType` presupposition calculation is not stored type evidence.
 
 A same-kind disjunction retains only facts common to every alternative. Joined
-kinds keep separate evidence in each `HeadTy`/`Payload` half, with intersection
+kinds keep separate evidence in each `Payload` half, with intersection
 within each half's alternatives. A read must satisfy all refinements within one
 half. The legacy flattened `Payload.ty` projection skips nonobject halves; it
 must not be used to borrow evidence across halves. Choice-arm payloads and
@@ -605,7 +605,7 @@ expected child kinds in the incoming `DRS`.
 | `DeckReadable` | Retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): `checkDeckTraitWith` and `checkDeckConditionWith` step a deck condition's predicates from an empty context at object kind; whether a predicate reads a characteristic of a card in a deck is not checked. |
 | `DeckComparable` | Retired (`lean-v3-authoring-impl-7-checker-and-regime-retirement`): which quality a deck's cards agree on is not checked. |
 | `QualityPayload` | An authoring input in `Semantics.Primitives` that expands to edits (below); it is not checked syntax. |
-| `TokenSpec` | `stepTokenSpecWith` steps it. |
+| `TokenSpec` | `stepTokenSpecMetadataWith` steps it. |
 | `StaticSpec` | `stepStaticSpec` (`StaticSpec.check`) steps it. |
 | `Compulsion` | No Lean type: requirements are `StaticSpec.must` clauses, stepped as a deontic. |
 | `PlayPayment` | `stepPlayPaymentWith` steps it (`PlayPayment.check` in [AbilityRules.lean](Semantics/Check/AbilityRules.lean)). |
@@ -704,9 +704,9 @@ expected child kinds in the incoming `DRS`.
 |---|---|
 | `OptOk` | Optional consumers step a present value and skip an absent one; absence introduces no payload to check. |
 | `Joins` | `joinKinds`, `Predicate.kind?` and `NounPhrase.kind?` derive the resulting kind; there is no independently supplied result index. |
-| `KnownAct` | `knownAct`/`knownActs` at deed consumers read the deed facts; the Definition is trusted to supply the corresponding expansion. |
+| `KnownAct` | `knownAct` at deed consumers reads the deed facts; the Definition is trusted to supply the corresponding expansion. |
 | `Payload` | `Payload.kind` derives the kind from the constructor; `Referent` has no separate kind field that can disagree. The checker-private handoff frame (`Payload.actor`) is not a discourse referent: reflexives, resolution and the published referents pass over it. |
-| `HeadTy` | `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
+| `HeadTy` | No Lean type: `NounPhrase.ty` and `Payload.ty` derive lists of known card-type facts; joined kinds retain evidence per half. |
 | `DieSides` | `DieSides.localChecks` ([LocalShape.lean](Semantics/Check/LocalShape.lean)) checks its shape. |
 | `Targetable` | `Kind.targetable` at determiner, copying and target consumers (`targetable`). |
 | `Targeter` | `Kind.targeter` in the `targets` predicate case and the deontic patients (`targeter`). |
@@ -727,9 +727,9 @@ expected child kinds in the incoming `DRS`.
 - `TokenChars bs`: `stepCharacteristicBundleWith` and `stepCharacteristicsWith`
   step the carried expressions, power, toughness, loyalty and defense in slot order.
   Nested characteristic text is stepped in `choiceContext`.
-- `Binding`'s kind/payload pair and `unionPayload`'s returned dependent pair:
-  the kind is now derived from the payload (`Referent.kind`), so there is no separate
-  index to validate. Union payloads retain only card-type facts shared by both arms.
+- `Binding`'s kind/payload pair: the kind is now derived from the payload
+  (`Referent.kind`), so there is no separate index to validate. Alternative arms keep what
+  they share (`commonHeaderContext`).
 - Other erased implicit binders on functions, templates and definitions refer to these same
   datatype duties; erasing the binder does not remove the obligation at the
   resulting term's consumer. In particular, templates and definitions are not an independent

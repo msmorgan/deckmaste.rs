@@ -93,8 +93,9 @@ theorem opponentAndTeammateAreRelational :
         [.kindMismatch .player .object] := by decide
 
 /-- A shift raises or lowers, never sets: "this spell costs {1} less" and "[−X]" stand, while a
-cost shift, a damage shift, a loyalty symbol or a die-result shift that sets is refused
-[CR#118.9,606.4]. -/
+cost shift, a damage shift, a loyalty symbol or a die-result shift that sets is refused (a cost
+set instead is an alternative cost [CR#118.9]; a loyalty symbol puts on or removes counters
+[CR#606.4]). -/
 theorem shiftsNeverSet :
     StaticSpec.check emptyContext (.costShift .this (.generic (.down (.lit 1)) none)) = [] ∧
     StaticSpec.check emptyContext (.costShift .this (.generic (.set (.lit 1)) none)) =

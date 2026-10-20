@@ -174,8 +174,9 @@ inductive Refusal where
   /-- A Head Noun names an Object by its Object Class, Card Type or Subtype
   [CR#109.1,205.2a,205.3]; a player word, a pile or a stack word is none. -/
   | headNoun
-  /-- A shift raises or lowers its value, never sets it: a cost shift, a damage shift, a loyalty
-  symbol or a die-result shift [CR#118.9,606.4]. -/
+  /-- A shift raises or lowers its value, never sets it: a cost shift (a cost set instead is an
+  alternative cost [CR#118.9]), a damage shift, a loyalty symbol (which puts on or removes
+  loyalty counters [CR#606.4]) or a die-result shift. -/
   | shiftSets
   /-- A replacement's riders are Entry Riders, never Pile Placements, which only a card put into
   another zone carries [CR#401.4,406.3,614.12]. -/

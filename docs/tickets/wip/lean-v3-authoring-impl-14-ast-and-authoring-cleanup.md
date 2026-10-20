@@ -118,7 +118,8 @@ constraints apply.
   `DamageScale.shifted`, `Cost.loyaltySymbol` (`[0]` is `up 0`, `[−X]` is
   `down X`) and `Action.shiftResult` (a list of changes, the performer's
   choice: "increase or decrease") take `Delta Amount`. A shift never sets
-  (`Refusal.shiftSets`, `[CR#118.9,606.4]`). `ShiftDir`, `LoyaltyCost` and the
+  (`Refusal.shiftSets`; a cost set instead is an alternative cost `[CR#118.9]`,
+  and a loyalty symbol puts on or removes counters `[CR#606.4]`). `ShiftDir`, `LoyaltyCost` and the
   dead `LifeMove` are retired; `CounterMove` only picked between two templates,
   now `countersPut`/`countersRemoved` and their bare forms. `QualityOp` stays:
   qualities are not numeric properties.
@@ -140,7 +141,11 @@ constraints apply.
     `doIf` announces its branch's targets before its condition (they are chosen
     on casting, `[CR#601.2c]`), so either order reads them, and the branch's
     output continues as `doIf`'s always did. *Galvanic Blast* already wrote
-    `doIf`.
+    `doIf`. The anaphora is part of `doIf`'s contract for both word orders:
+    in "Create a token if you control a creature. Put a counter on it." (the
+    postposed conditional) "it" is the token, as in the preposed form. The
+    old Idris-era refusal of that reading is retired on purpose;
+    `conditionalArmAntecedentIsTheToken` pins it.
   - Retire `Condition.noHolder` (`Abilities.lean:428`) in favor of a template
     over `not (exists_ (hasDesignation ...))`. The template is `thereIsNo`
     (the Oracle wording); the duplicate `noHolder` template goes with the
@@ -234,6 +239,57 @@ constraints apply.
     templates (*Ersatz Gnomes*, *Crimson Wisps*, *Blatant Thievery*), `copy` vs
     `copySpell` (*Fork* vs *Twincast* vs *Strionic Resonator*), trigger template
     symmetry (`whenIf`/`wheneverIf`/`atIf`), and `matches_` → `matches` / `is`.
+- **Answers:**
+  - Definitions write templates, not raw constructors (`enact`, `putCounters`,
+    `gainDesignation`, `removeFromCombat`, `clearDamage`; a subject by
+    coercion, a counter kind by coercion, so cards write `p1p1Counter`, not
+    `printedKind`). A Binding Identity is named `<declaration>.<parameter>`
+    (`fight.other`, `goad.subject`). `cast`, `play`, `activate` and
+    `regeneration` bind their subject with `firstMention`. `search` reads its
+    zone, `dredge` its amount, `vote` its ballot (`Ballot.inCaller`) in the
+    caller; the abilities boast, exhaust, solved (and forecast, infinity, max
+    speed, power-up) qualify are `Ability.inCaller`. Search, like mill, scry
+    and surveil, reads the performer's own library (`.actor`), as the
+    handoff names it `[CR#701.23]`.
+  - The `inCaller` / mention nesting is left as it stands: the order moves
+    the caller-view role a body mention leaves, so it is not wording (see the
+    STOP below).
+  - A keyword variant carries its base keyword's label when the CR calls it
+    a variant of that keyword ("is a variant of", "is a hexproof ability",
+    "typecycling abilities are cycling abilities"): hexproof from, typecycling,
+    devour [quality], equip [quality], and now emerge from
+    `[CR#702.11d,702.29e,702.82c,702.6c,702.119b]`. Bands with other keeps its
+    own: the banding rules count a creature with it as one without banding
+    `[CR#702.22c]`. Devour's definition is one entry (`devourEntry`), not a
+    devour nested in devour.
+  - `flip` is a Template: flipping is no keyword action `[CR#701.1,710.2]`.
+  - The string subtype templates (`creatureType` …) are retired for the
+    catalog's subtypes (*Mishra's Factory* now names Assembly-Worker
+    `[CR#205.3m]`); card-local helpers take a `Subtype`. A keyword action
+    label stays a `String`, refused unless declared (`knownAct`); flavor words
+    and vote options are the card's own words `[CR#207.2d,701.38a]`.
+    `ItalicWord` and `RoomHalf` are documented: the CR tells ability and
+    flavor words apart `[CR#207.2c,207.2d]`, and a split permanent has a left
+    and a right half `[CR#709.5c]`, closed as a card's sides are.
+  - Templates import none of the checker (`Location.sort` lives with the Core
+    AST; the selection-evidence pins moved to `Proofs/`); `crew`/`saddle`
+    dispatch where the Definitions are declared; the named `TurnPart`
+    aliases were dead and are retired; `gainHaste` is a template over the
+    `haste` Definition; ward stays a bare label in `faceDownWardedCreature`,
+    since cloak (below the keyword abilities) reads it. A declaration whose
+    bare name is taken is named in its sort (`Subtype.army`,
+    `DesignationLabel.solved`, `Ability.splice`).
+  - Retired: `act`, `lit`, `aRandom`, `command`, `ptModification`,
+    `allAmong`, the namespaced aliases (`Quantity.upTo`, `ManaSymbol.generic`,
+    `Ability.activatedBy`, `Timing.duringPart`), `itAsToken`/`themAsTokens`
+    and `Reach.tokenBorn` ("that token" is `that .token`), and the dead
+    checker helpers of §5.4; `isPermanentCard` reads `isPermanentType`.
+  - Card warts: printed names by coercion, *Font of Agonies*'
+    `bloodCounter`, *Ersatz Gnomes*, *Crimson Wisps* and *Blatant Thievery*
+    through their templates, one `copyOnStack` for every copy of a spell or
+    ability on the stack (Fork's exception included, `[CR#707.10]`), worded
+    `whenIf`/`wheneverIf`/`atIf` over `triggeredIf` `[CR#603.4]`, and `is`
+    for `matches_`.
 
 ## Verification
 
