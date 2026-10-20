@@ -16,7 +16,8 @@
     "common",
     "different",
     "double-faced",
-    (lemma: "equal", frames: [Complement(PP(["to"]))]),
+    // An equality adjective, graded like *same* (*equal toughness*).
+    (lemma: "equal", grade: Some(Equative), frames: [Complement(PP(["to"]))]),
     "even",
     "excess",
     (lemma: "extra", position: Some(Attributive)),

@@ -918,11 +918,20 @@
         (name: "BareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third"), Exclude("head.NounDistribution", "Valued")],
             transparent: ["head"]),
-        // A Valued noun is a bare Noun Phrase only with its value or a
-        // dependent (*power 3 or less*, *power equal to …*), never alone.
-        (name: "ValuedBareMass", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
-            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third"), Require("head.NounDistribution", "Valued")],
-            transparent: ["head"], heavy: ["head"]),
+        // A Valued noun, or a coordination of them, is a bare Noun Phrase
+        // only when it ends in its value or another dependent (*power 3 or
+        // less*, *base power and toughness 4/4*, *power equal to its
+        // toughness*), never by premodification or coordination alone (*base
+        // power*, *power or toughness*). Its plural form counts (*different
+        // powers*) and is an ordinary bare plural.
+        (name: "ValuedBare", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
+            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.ConjunctNumber", "Singular"), Require("$.Person", "Third"), Require("head.NounDistribution", "Valued")],
+            transparent: ["head"], postdependent: ["head"]),
+        // A graded adjective implies the value it compares with, so it alone
+        // licenses a bare Valued Noun Phrase (*creatures with greater power*,
+        // *tied for greatest power*, *with equal toughness*).
+        (name: "GradedValuedBare", lhs: "NounPhrase", rhs: [Cat("modifier", "AdjectivePhrase"), Cat("head", "BareNominal")],
+            equations: [Exclude("modifier.Grade", "Plain"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.AdjectivePosition", "Predicative"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Require("$.Person", "Third"), Require("head.NounDistribution", "Valued")]),
         (name: "SymbolFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "SymbolHead")]),
         (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
@@ -957,7 +966,7 @@
         (name: "TemporalQuantity", lhs: "TemporalNounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("quantity", "Nominal")],
             equations: [Require("determiner.DeterminativeDistribution", "FreeChoice"), Require("quantity.ComplementKind", "PP"), Require("quantity.ObliqueNumber", "Plural"), Require("quantity.ObliqueNounKind", "Temporal"), Agree("$.Number", "quantity.ObliqueNumber"), Require("$.NounKind", "Temporal"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "BarePlural", lhs: "NounPhrase", rhs: [Cat("head", "Nominal")],
-            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third")]),
+            equations: [Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("head.Number", "Plural"), Require("$.Person", "Third"), ExcludeTogether([("head.NounDistribution", "Valued"), ("head.ConjunctNumber", "Singular")])]),
         (name: "Pronoun", lhs: "NounPhrase", rhs: [Lex("head", Pronoun)],
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Exclude("head.Case", "Genitive"), Exclude("head.PronounKind", "Existential"), Exclude("head.PronounKind", "Relative"), Require("head.Inflection", "Invariant")]),
         (name: "IndependentGenitive", lhs: "NounPhrase", rhs: [Lex("pronoun", Pronoun)],

@@ -252,8 +252,13 @@ phrase, *to*-infinitival, predicative, bare infinitival, a noun's
 single-preposition Complement (*the top or bottom of their library*), a
 preposition's Amount (*less than or equal to X*) or, respectively, nouns'
 Amounts under a slash Measure (*base power and toughness 4/4*) or under one
-Amount (*power or toughness 2 or less*); a bare *power* or *toughness* is no
-Noun Phrase by itself. The Targeting
+Amount (*power or toughness 2 or less*). A bare *power* or *toughness*, or a
+coordination of them, is a Noun Phrase only when it ends in its value or
+another dependent (*power equal to its toughness*, *base power and toughness
+each equal to X*) or follows a graded adjective that implies the value
+(*creatures with greater power*, *equal toughness*). It is never one by
+premodification or coordination alone (*base power*, *power or toughness*).
+Its counted plural is an ordinary bare plural (*different powers*). The Targeting
 Marker's determiner takes a whole coordination of nominals, each with its own
 postmodifiers or none (*up to one target artifact or creature*, *target
 planeswalker that player controls or battle that player protects*).

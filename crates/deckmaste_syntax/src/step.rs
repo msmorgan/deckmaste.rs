@@ -116,6 +116,8 @@ pub(crate) enum GapRule {
 pub(crate) enum Weight {
     Light,
     Heavy,
+    /// Ends in a dependent of its head, not in the head.
+    PostDependent,
 }
 
 /// A lexical leaf test.
@@ -171,8 +173,10 @@ pub(crate) struct Production {
     pub resolution_last: Option<(usize, bool)>,
     /// (child, feature, value) a child must carry, not merely admit.
     pub carried: Vec<(usize, usize, u16)>,
-    /// Children that must be light or heavy.
+    /// Children that must be light or heavy, or end in a dependent.
     pub weights: Vec<(usize, Weight)>,
+    /// Children in the head line: the head, or a conjunct of a coordination.
+    pub head_line: Vec<bool>,
     pub id: Ident,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -339,6 +343,10 @@ pub(crate) fn resolve(
         }
     }
     let head = children.iter().position(|(name, ..)| name == "head");
+    let head_line = children
+        .iter()
+        .map(|(name, ..)| matches!(name.as_str(), "head" | "first" | "last" | "rest"))
+        .collect();
     let names = children.iter().map(|(name, ..)| *name).collect();
     let (rhs, gaps) = children.into_iter().map(|(_, s, g)| (s, g)).unzip();
     if introduces != Gap::None && grammar.category_gap[lhs] & introduces.bit() == 0 {
@@ -353,6 +361,7 @@ pub(crate) fn resolve(
         resolution_last: None,
         carried: Vec::new(),
         weights: Vec::new(),
+        head_line,
         adjunct_slot: None,
         predicative: None,
         paired_coordinator: None,
@@ -389,6 +398,7 @@ pub(crate) fn resolve(
             gap_preposition: None,
             conjoined: false,
             leaves: 0,
+            head_final: false,
             preposition: None,
             extensions: 0,
             coordinator: None,
@@ -422,6 +432,9 @@ pub(crate) struct Summary {
     pub gap_preposition: Option<LexemeId>,
     /// Its lexical leaves, counted to two.
     pub leaves: u8,
+    /// It ends in its head (through conjuncts of a coordination), not in a
+    /// dependent of it.
+    pub head_final: bool,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
     /// A coordination's second preposition (*into your hand or onto the
@@ -477,6 +490,8 @@ pub(crate) struct State {
     conjoined: bool,
     /// Lexical leaves so far, counted to two.
     leaves: u8,
+    /// The last child so far is in the head line and ends in its head.
+    head_final: bool,
     preposition: Option<(LexemeId, usize)>,
     extensions: u16,
     coordinator: Option<LexemeId>,
@@ -579,6 +594,18 @@ impl Production {
         Some(())
     }
 
+    /// Whether the phrase so far ends in its head: the last child is in the
+    /// head line and itself ends in its head (a leaf does).
+    fn track_head_final(&self, next: &mut State, position: usize, child: &ChildView<'_>) {
+        match child {
+            ChildView::Node(summary) => {
+                next.head_final = self.head_line[position] && summary.head_final;
+            }
+            ChildView::Leaf(_) => next.head_final = self.head_line[position],
+            ChildView::Punct => {}
+        }
+    }
+
     /// The lexical leaves child `position` adds, counted to two, or `None` if
     /// it is not the weight the Production requires.
     fn weigh(&self, position: usize, child: &ChildView<'_>) -> Option<u8> {
@@ -587,9 +614,11 @@ impl Production {
             ChildView::Leaf(_) => 1,
             ChildView::Punct => 0,
         };
+        let post_dependent = matches!(child, ChildView::Node(summary) if !summary.head_final);
         match self.weights.iter().find(|(at, _)| *at == position) {
             Some((_, Weight::Light)) if leaves != 1 => None,
             Some((_, Weight::Heavy)) if leaves < 2 => None,
+            Some((_, Weight::PostDependent)) if !post_dependent => None,
             _ => Some(leaves),
         }
     }
@@ -793,6 +822,7 @@ impl Production {
         next.first_glues.get_or_insert(first);
         next.last_glues = last;
         next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
+        self.track_head_final(&mut next, position, child);
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -977,6 +1007,7 @@ impl Production {
                 _ => None,
             },
             leaves: state.leaves,
+            head_final: state.head_final,
             preposition: if coordinated && state.mixed_prepositions {
                 None
             } else {

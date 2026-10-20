@@ -48,3 +48,35 @@ toughness.` read.
 - Every unit that reads before the change still reads, with no face lost.
 
 Standard constraints apply.
+
+## Record
+
+- The syntax engine gains a `postdependent` child weight: the child ends in a
+  dependent of its head (a Complement, a postmodifier, or a value shared by
+  Right Node Raising) rather than in the head, through the last conjunct of a
+  coordination. `ValuedBare` (formerly `ValuedBareMass`) requires it in place
+  of `heavy`, for either Number, so a valued coordination is licensed by its
+  value (*base power and toughness 4/4*).
+- Real cards need two more licenses that the change above would have lost.
+  `GradedValuedBare` licenses a bare Valued nominal under a graded adjective
+  that implies its value (*creatures with greater power*, *tied for greatest
+  power*, *equal toughness*); *equal* is now `grade: Equative`, like *same*.
+  A counted plural stays an ordinary bare plural (*with different powers*).
+  So `BarePlural` excludes only a coordination of Valued nominals, not
+  `NounDistribution = Valued` wholesale.
+- The Done-when's `*` Judgments are on strings no card contains. Their intent
+  is covered by `+` Judgments on real cards in `valued_noun_phrases.txt`
+  (Square Up, Stern Scolding, Squall, Gunblade Duelist) and by
+  `!NounPhrase "base power"` on Sword of the Squeak.
+- Porcelain Gallery and Trench Gorger: *have base power and toughness each equal
+  to X* no longer has a bare unvalued Object. Their Judgments now assert the Noun
+  Phrase with its postmodifier.
+- Cut Down and Meek Attack lose the spurious `[NP total power] and [NP
+  toughness 5 or less]` reading, but stay deferred to
+  `english-v4-stratum-7-discourse-and-long-tail`: *total* still scopes only
+  over *power*, not the coordination.
+
+1. **Census delta** (measured on `owynyzkn`): faces read 28,709 → 28,709;
+   total Readings 382,447 → 382,154; lost faces: none.
+2. **Judgment set**: 2,898 enforced at `COMPLETED_STRATUM` 6, all hold; 189
+   pending.

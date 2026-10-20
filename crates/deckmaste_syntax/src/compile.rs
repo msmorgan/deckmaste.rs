@@ -737,6 +737,7 @@ impl<'a> Binder<'a> {
         for (names, weight) in [
             (&declaration.light, Weight::Light),
             (&declaration.heavy, Weight::Heavy),
+            (&declaration.postdependent, Weight::PostDependent),
         ] {
             for name in names {
                 let child = draft

@@ -101,6 +101,11 @@ pub struct ProductionDecl {
     /// Children that must be exactly one lexical leaf, alone or projected.
     #[serde(default)]
     pub light: Vec<Ident>,
+    /// Children that must end in a dependent of their head, a Complement or
+    /// postmodifier, rather than in the head itself (*power 3 or less*,
+    /// *power equal to its toughness*, not *base power*).
+    #[serde(default)]
+    pub postdependent: Vec<Ident>,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,

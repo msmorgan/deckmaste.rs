@@ -1,6 +1,7 @@
 //! A Production can require a child to be light (one lexical leaf) or heavy
 //! (more than one), as a single postpositive participle differs from a
-//! participial clause.
+//! participial clause, and to end in a dependent of its head rather than in
+//! the head (a Valued noun with its value).
 
 use deckmaste_lexical::Category;
 use deckmaste_lexical::Lexeme;
@@ -30,6 +31,7 @@ fn grammar(lexicon: &Lexicon, light: &str) -> Result<CompiledGrammar, deckmaste_
             (name: "MoreWords", lhs: "Words", rhs: [Cat("head", "Words"), Lex("next", Noun)]),
             (name: "Light", lhs: "Sentence", rhs: [Cat("words", "Words"), Punct('.')], light: ["{light}"]),
             (name: "Heavy", lhs: "Sentence", rhs: [Cat("words", "Words"), Punct('!')], heavy: ["words"]),
+            (name: "PostDependent", lhs: "Sentence", rhs: [Cat("words", "Words"), Punct('?')], postdependent: ["words"]),
         ],
     )"#
     );
@@ -61,4 +63,18 @@ fn a_light_child_is_one_leaf_and_a_heavy_child_more() {
 #[test]
 fn a_weighted_child_must_exist() {
     assert!(grammar(&lexicon(), "nothing").is_err());
+}
+
+#[test]
+fn a_post_dependent_child_ends_in_a_dependent_of_its_head() {
+    let lexicon = lexicon();
+    let grammar = grammar(&lexicon, "words").unwrap();
+    // `MoreWords` ends in `next`, a dependent; `Word` ends in its head.
+    for (text, readings) in [("Card?", 0), ("Card card?", 1), ("Card card card?", 1)] {
+        let found = grammar.parse(&lexicon, text).readings();
+        assert_eq!(found.len(), readings, "{text}: {found:#?}");
+        for reading in &found {
+            assert_eq!(grammar.admit(reading, &lexicon), Ok(()), "{text}");
+        }
+    }
 }
