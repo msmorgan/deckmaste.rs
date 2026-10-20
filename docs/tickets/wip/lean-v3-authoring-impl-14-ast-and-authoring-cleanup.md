@@ -313,7 +313,10 @@ constraints apply.
   - `doIf`'s other branch reads only what the branch announces: the targets
     and the amounts it names, never a participant the branch would choose as
     it resolves; the branch keeps the ids it announced its targets under, so
-    a later line reads the target the condition read.
+    a later line reads the target the condition read, and takes fresh ids
+    instead should it need more than were reserved for it.
+  - A Definition's first mention that binds nothing is refused once, by its
+    own phrase; the later mentions of that identity add no refusal.
   - Left for follow-ups: typed deeds for participles
     (`lean-v3-typed-verbed-deeds`) and a check refusing an undeclared
     subtype (`lean-v3-known-subtype-check`).
