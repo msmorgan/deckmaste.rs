@@ -1764,11 +1764,11 @@ semantic_template triggeredIf (event : GameEvent) (condition : Condition)
 semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit)
     (action : Action) : Ability :=
   .triggered event [] none [] none (some limit) none action
-/-- "As <subject> enters, [secretly] choose <chosen>": an Off-Stack Static whose choice is made
-as the permanent enters [CR#614.1c,614.12]. -/
+/-- "As <subject> enters, [secretly] choose <chosen>": a replacement effect whose choice is made
+as part of the permanent's entering [CR#603.6d,614.1c,614.12]. -/
 semantic_template entryChoice (subject chosen : NounPhrase) (disclosure : Disclosure := .openly) :
     StaticSpec :=
-  .asEvent (does subject enter) (.choose none chosen disclosure none)
+  .replace (would subject enter) (.also (.choose none chosen disclosure none)) none .repeatedly none
 /-- "As <subject> becomes attached, choose <chosen>": an Off-Stack Static whose choice is made as
 it becomes attached. -/
 semantic_template attachmentChoice (subject chosen : NounPhrase) : StaticSpec :=
@@ -1786,16 +1786,11 @@ semantic_template entersChoosingPlayer (subject player : NounPhrase) : StaticSpe
 /-- "As <subject> enters, secretly choose <player>". -/
 semantic_template entersChoosingPlayerSecretly (subject player : NounPhrase) : StaticSpec :=
   entryChoice subject player .secretly
-/-- "<subject> enters <riders>", a static ability: as `subject` would enter, it enters with
-`riders` instead, "it" read back as "them" after a plural subject ("creatures you control enter
-tapped", `NounPhrase.plur`) [CR#614.1c,614.1d]. -/
+/-- "<subject> enters <riders>", a static ability: as `subject` would enter, it still enters,
+with `riders` ("this land enters tapped", "creatures you control enter with an additional +1/+1
+counter on them") [CR#603.6d,614.1c,614.1d]. -/
 semantic_template enters (subject : NounPhrase) (riders : List MoveRider) : StaticSpec :=
-  .replace (would subject enter)
-    (.instead
-      (instruct (match subject.plur with | .many => them | .one => it)
-        (enter (riders := riders)))
-      none)
-    none .repeatedly none
+  .replace (would subject enter) (.withRiders riders) none .repeatedly none
 /-- "<subject> enters tapped" -/
 semantic_template entersTapped (subject : NounPhrase) : StaticSpec :=
   enters subject [.entersAs .tapped]
@@ -1938,41 +1933,29 @@ semantic_template Timing.duringPart (part : TurnPart) (whose : Option NounPhrase
     Timing :=
   Templates.duringPart part whose
 semantic_template extraModesCost (cost : Cost) : ModeChange := .extraModesCost cost
-/-- "If <event> would …, <replacement> instead": a replacement effect, `event` replaced by
-`replacement` [CR#614.1a,614.1c,614.1d]. -/
+/-- "If <event> would …, <replacement> instead", "<subject> enters tapped", "As <subject> enters,
+…": a replacement effect, `event` modified by `replacement` [CR#614.1a,614.1c,614.1d]. -/
 semantic_template StaticSpec.replace (event : WouldClause) (replacement : Replacement)
     (timing : Option Timing := none) (use : ReplUse := .repeatedly)
     (limit : Option UsageLimit := none) : StaticSpec :=
   .replace event replacement timing use limit
-/-- "instead": the word marking `action` as the replacement, at a replacement's action slot
-("draw two cards instead", "you may instead mill …"), applying only while `when` holds when it
-is written [CR#614.1a]. Cards write a conditional replacement in Oracle word order,
-`doIf c (instead a)`, which builds `instead a (some c)`. -/
-semantic_template instead (action : Action) (when : Option Condition := none) : Replacement :=
-  .instead action when
-/-- The action a replacement does and the condition it applies under, each kept in the scope
-that supplied it: a caller's replacement reads both in its caller's scope. None when the
-replacement nests callers more deeply than `fuel`, which is deeper than the checker reads
-(`stepReplacementWith`). -/
-def _root_.Semantics.Replacement.parts? (replacement : Replacement) (fuel : Nat := 8) :
-    Option (Action × Option Condition) :=
-  match fuel, replacement with
-  | _, .instead action when => some (action, when)
-  | 0, .inCaller _ => none
-  | n + 1, .inCaller body =>
-    (body.parts? n).map fun (action, when) => (.inCaller action, when.map .inCaller)
-termination_by structural fuel
+/-- "instead": the word marking `action` as what happens in the replaced event's place
+("draw two cards instead", "you may instead mill …") [CR#614.1a]. Cards write a conditional
+replacement in Oracle word order, `doIf c (instead a)`. -/
+semantic_template instead (action : Action) : Replacement := .instead action
+/-- `action` done as part of the replaced event, which still happens: "As this enters, choose a
+color", "that player may put … counters on it as it enters" [CR#603.6d,614.1c]. -/
+semantic_template also (action : Action) : Replacement := .also action
+/-- The replaced move still happens, with `riders`: "enters tapped", "enters with N counters",
+"enters as a copy", "enters transformed" [CR#614.1c,614.1d]. -/
+semantic_template withRiders (riders : List MoveRider) : Replacement := .withRiders riders
 /-- "If <condition>, <replacement> instead": a replacement applying only while `condition` holds,
-the event happening unreplaced otherwise, as "draw a card. If you control three or more
-artifacts, draw two cards instead" [CR#614.1a,614.15]. A condition the replacement already
-carries is kept beside `condition`; a caller's replacement keeps its action and condition in its
-caller's scope. One nested too deeply to read is left as written, and the checker refuses it. -/
+the event happening unmodified otherwise, as "draw a card. If you control three or more
+artifacts, draw two cards instead" [CR#614.1a,614.15]. A replacement that already has a
+condition keeps it inside, and a caller's replacement stays its caller's. -/
 semantic_template Replacement.doIf (condition : Condition) (replacement : Replacement) :
     Replacement :=
-  match replacement.parts? with
-  | some (action, none) => .instead action (some condition)
-  | some (action, some also) => .instead action (some (.and [condition, also]))
-  | none => replacement
+  .onlyIf condition replacement
 semantic_template italicHead (word : ItalicWord) (ability : Ability) : Ability :=
   .italicHead word ability
 semantic_template itsManaCost : Cost := .itsManaCost
