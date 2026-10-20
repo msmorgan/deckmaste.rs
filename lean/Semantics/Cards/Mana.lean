@@ -138,11 +138,11 @@ def mishrasFactory : Spelled := spelled <| .singleFaced
             (establishThroughout (qualityChange thisLand .sets
                 (bundle
                   { characteristics :=
-                    { types := [.artifact, .creature], subtypes := [creatureType "AssemblyWorker"],
+                    { types := [.artifact, .creature], subtypes := [assemblyWorker],
                       power := stat 2, toughness := stat 2 } }
                   (some .land))) untilEndOfTurn),
           activated tapSymbol
-            (get (target (and [isCreature, hasSubtype (creatureType "AssemblyWorker")]))
+            (get (target (and [isCreature, hasSubtype (assemblyWorker)]))
               (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ] } }
 
 /-- Mutavault -/

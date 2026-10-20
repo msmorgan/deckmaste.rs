@@ -173,13 +173,13 @@ theorem badNamelessCounter :
 
 /-- Subtypes are type-line vocabulary [CR#205.3a,205.3b]. This catalog row supplies the word
 without an intrinsic conferral. -/
-def gargoyle : Definition := .subtype (creatureType "Gargoyle") []
+def gargoyle : Definition := .subtype Semantics.Definitions.gargoyle []
 theorem okGargoyle : Definition.check gargoyle = [] := by decide
 
 /-- Subtypes are written as words [CR#205.3b]. The registry requires a nonempty word as its
 lookup key. -/
 theorem badNamelessSubtype :
-    Definition.check (.subtype (creatureType "") []) = [.definitionNamed] := by decide
+    Definition.check (.subtype (.of .creature "") []) = [.definitionNamed] := by decide
 
 /-- Artifact is a card type [CR#205.2a] and a permanent type [CR#110.4]. This registry row
 needs no intrinsic conferral. -/
@@ -214,14 +214,14 @@ def isAttached (subject : NounPhrase) : Condition :=
 /-- [CR#301.5,704.5n] An Equipment may be attached to a creature, and one attached to no legal
 host becomes unattached. -/
 def equipmentDefinition : Definition :=
-  .subtype (artifactType "Equipment")
+  .subtype Semantics.Definitions.equipment
     [ .property (mayBeAttachedTo thisEquipment (allOf isCreature)),
       .stateBased (.not (isAttached thisEquipment)) (.attachment .unattached thisEquipment none) ]
 theorem okEquipmentDefinition : Definition.check equipmentDefinition = [] := by decide
 
 /-- [CR#301.6,704.5n] The Land twin of Equipment. -/
 def fortificationDefinition : Definition :=
-  .subtype (artifactType "Fortification")
+  .subtype Semantics.Definitions.fortification
     [ .property (mayBeAttachedTo thisFortification (allOf isLand)),
       .stateBased (.not (isAttached thisFortification))
         (.attachment .unattached thisFortification none) ]
@@ -229,7 +229,7 @@ theorem okFortificationDefinition : Definition.check fortificationDefinition = [
 
 /-- [CR#704.5m] An Aura that is not attached is put into its owner's graveyard. -/
 def auraDefinition : Definition :=
-  .subtype (enchantmentType "Aura")
+  .subtype Semantics.Definitions.aura
     [ .stateBased (.not (isAttached thisAura))
         (.move thisAura (.zone .battlefield none) (some graveyard) .arrival none []) ]
 theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
@@ -238,7 +238,7 @@ theorem okAuraDefinition : Definition.check auraDefinition = [] := by decide
 as its controller's precombat main phase begins, and is sacrificed once its lore counters reach
 its final chapter number. -/
 def sagaDefinition : Definition :=
-  .subtype (enchantmentType "Saga")
+  .subtype Semantics.Definitions.saga
     [ .ability (.static (onlyUnless (entersWithCounters thisSaga (.lit 1) (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
@@ -289,7 +289,7 @@ def treasure : PredefinedToken :=
   { name := "Treasure",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Treasure"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.treasure],
             text :=
               [ activated (.compound [.tapSymbol, .perform (sacrifice .this)])
                   (.addMana (.lit 1) (.anyColor .sameColor) []) ] } } }
@@ -301,7 +301,7 @@ def food : PredefinedToken :=
   { name := "Food",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Food"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.food],
             text :=
               [ activated (.compound [.mana [generic 2], .tapSymbol, .perform (sacrifice .this)])
                   (gainLife (.lit 3)) ] } } }
@@ -313,7 +313,7 @@ def gold : PredefinedToken :=
   { name := "Gold",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Gold"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.gold],
             text :=
               [ activated (.perform (sacrifice .this))
                   (.addMana (.lit 1) (.anyColor .sameColor) []) ] } } }
@@ -325,7 +325,7 @@ def clue : PredefinedToken :=
   { name := "Clue",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Clue"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.clue],
             text :=
               [ activated (.compound [.mana [generic 2], .perform (sacrifice .this)])
                   (draw (.lit 1)) ] } } }
@@ -337,7 +337,7 @@ def blood : PredefinedToken :=
   { name := "Blood",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Blood"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.blood],
             text :=
               [ activated
                   (.compound
@@ -352,7 +352,7 @@ def powerstone : PredefinedToken :=
   { name := "Powerstone",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Powerstone"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.powerstone],
             text :=
               [ activated .tapSymbol
                   (.addMana (.lit 1) (.runs [[.colorless]])
@@ -365,7 +365,7 @@ def vibranium : PredefinedToken :=
   { name := "Vibranium",
     token :=
       { characteristics :=
-          { types := [.artifact], subtypes := [artifactType "Vibranium"],
+          { types := [.artifact], subtypes := [Semantics.Definitions.vibranium],
             text :=
               [ keyword (.named "indestructible"),
                 activated .tapSymbol

@@ -68,7 +68,7 @@ def awakenDefinition : List Ability :=
               (target (.and [isLand, .hasPossessor .controller .you])) .one true,
             .establish
               (.characteristicChange (that (.type .land))
-                [ .typeLine .adds { types := some [.creature], subtypes := some [creatureType "elemental"] },
+                [ .typeLine .adds { types := some [.creature], subtypes := some [elemental] },
                   .stat .sets .power (.lit 0), .stat .sets .toughness (.lit 0),
                   .addedAbilities [keyword (.named "haste")] ])
               none ])) ]

@@ -275,7 +275,7 @@ theorem okDoorHeaderOnSharedLine :
     Card.check
       (.sharedLineSplit
         { characteristics :=
-          { types := [.enchantment], subtypes := [enchantmentType "Room"] } }
+          { types := [.enchantment], subtypes := [room] } }
         ⟨"", some [generic 1, pip .red], [unlockDraw 1]⟩
         ⟨"", some [generic 3, pip .red], [unlockDraw 2]⟩) = [] := by
   decide

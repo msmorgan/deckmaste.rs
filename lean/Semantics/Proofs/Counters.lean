@@ -196,7 +196,7 @@ theorem badTokenDuplicateType :
 /-- "Create a 1/1 white white Soldier creature token." -/
 theorem badTokenDuplicateColor :
     Action.check (DRS.ofList [])
-      (create (.lit 1) (.written (creatureToken 1 1 [.white, .white] [creatureType "Soldier"])))
+      (create (.lit 1) (.written (creatureToken 1 1 [.white, .white] [soldier])))
       = [.distinct] := by
   decide
 
@@ -217,7 +217,7 @@ theorem badSimultaneousReadsOutcome :
 theorem badSimultaneousReadsMayDeed :
     Action.check (DRS.ofList [])
       (.simultaneously
-        [ may (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"]))),
+        [ may (create (.lit 1) (.written (creatureToken 1 1 [.green] [plant]))),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -234,8 +234,8 @@ theorem badBatchTwoCreatesThenIt :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .simultaneously
-            [ create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])),
-              create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])) ],
+            [ create (.lit 1) (.written (creatureToken 1 1 [.green] [plant])),
+              create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier])) ],
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 2] := by
   decide
 
@@ -251,7 +251,7 @@ theorem badBatchTwoOutcomesThenThatMuch :
 theorem okCreatedThenCountered :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) [],
+        [ create (.lit 1) (.written (creatureToken 1 1 [.green] [plant])) [],
           (.putCounters (.lit 1) p11 it .one true) ]) = [] := by
   decide
 
@@ -259,7 +259,7 @@ theorem badDistributedCreationIt :
     Action.check (DRS.ofList [])
       (.sequentially
         [ instruct (each .anyPlayer) (create (.lit 1)
-            (.written (creatureToken 1 1 [.green] [creatureType "Plant"])) []),
+            (.written (creatureToken 1 1 [.green] [plant])) []),
           (.putCounters (.lit 1) p11 it .one true) ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -468,7 +468,7 @@ theorem badBecomesNothing :
 /-- The Idris pin refutes the anaphor. -/
 theorem badOtherwiseReadsIfArm :
     Action.check (DRS.ofList [])
-      (doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])))
+      (doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.black] [zombie])))
         (exists_ (and [isCreature, youControl])) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
   decide
 
@@ -476,7 +476,7 @@ theorem badOtherwiseReadsIfArm :
 theorem okAnaphoricTokenAfterToken :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])),
+        [ create (.lit 1) (.written (creatureToken 1 1 [.black] [zombie])),
           create (.lit 2) .asThose [] ]) = [] := by
   decide
 
@@ -490,8 +490,8 @@ theorem badAnaphoricTokenAfterNonToken :
 theorem badAnaphoricTokenAfterTwoDistinctSpecs :
     Action.check (DRS.ofList [])
       (.sequentially
-        [create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Plant"])),
-          create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])),
+        [create (.lit 1) (.written (creatureToken 1 1 [.green] [plant])),
+          create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier])),
           create (.lit 1) .asThose []]) = [.tokenSpecInScope 2] := by decide
 
 /-- "Put a +1/+1 counter on target creature card in your graveyard." No printed card on the

@@ -84,19 +84,19 @@ theorem okHymnToTourach :
   decide
 
 /-- "Amass Orcs 2" [CR#701.47a]: with no handoff the controller amasses. -/
-theorem okAmassBare : Action.check (DRS.ofList []) (amass (creatureType "Orc") (.lit 2)) = [] := by decide
+theorem okAmassBare : Action.check (DRS.ofList []) (amass (orc) (.lit 2)) = [] := by decide
 
 /-- Azog: "Destroy target creature. Its controller amasses Goblins 2." The performer is the
 destroyed creature's controller; the reminder's "that creature" and "it" are the chosen Army. -/
 theorem okAzogControllerAmasses :
     Action.check (DRS.ofList [])
-      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (amass (creatureType "Goblin") (.lit 2))])
+      (.sequentially [destroy (target isCreature), instruct (controllerOf it) (amass (goblin) (.lit 2))])
       = [] := by
   decide
 
 /-- D′ selects the newly chosen Army after an earlier creature is destroyed. -/
 theorem amassBareItAfterDestroyChecks :
-    Action.check (DRS.ofList []) (.sequentially [destroy (target isCreature), amass (creatureType "Goblin") (.lit 2)])
+    Action.check (DRS.ofList []) (.sequentially [destroy (target isCreature), amass (goblin) (.lit 2)])
       = [] := by
   decide
 
@@ -104,13 +104,13 @@ theorem amassBareItAfterDestroyChecks :
 private def literalAmass : Action :=
   .sequentially
     [ .doIf (.not (exists_ army))
-        (create (.lit 1) (.written (creatureToken 0 0 [.black] [creatureType "Orc", creatureType "Army"])))
+        (create (.lit 1) (.written (creatureToken 0 0 [.black] [orc, Subtype.army])))
         none,
       choose (a army),
       .putCounters (.lit 2) (.printed p1p1Counter) (that (.type .creature)) .one true,
-      .doIf (.not (.matches it (.hasSubtype (creatureType "Orc"))))
+      .doIf (.not (.matches it (.hasSubtype (orc))))
         (.establish (qualityChange it .adds
-          (.bundle { characteristics := { subtypes := [creatureType "Orc"] } } none)) none)
+          (.bundle { characteristics := { subtypes := [orc] } } none)) none)
         none ]
 
 /-- "Amass Orcs 2" in the literal spelling checks on its own. -/
@@ -159,13 +159,13 @@ view (`inCaller`). -/
 private def scopedAmassOf (amount : Amount) : Action :=
   .enact (.action "amass") (.ownScope none (.sequentially
     [ .doIf (.not (exists_ army))
-        (create (.lit 1) (.written (creatureToken 0 0 [.black] [creatureType "Goblin", creatureType "Army"])))
+        (create (.lit 1) (.written (creatureToken 0 0 [.black] [goblin, Subtype.army])))
         none,
       choose (a army),
       .putCounters (.inCaller amount) (.printed p1p1Counter) (that (.type .creature)) .one true,
-      .doIf (.not (.matches it (.hasSubtype (creatureType "Goblin"))))
+      .doIf (.not (.matches it (.hasSubtype (goblin))))
         (.establish (qualityChange it .adds
-          (.bundle { characteristics := { subtypes := [creatureType "Goblin"] } } none)) none)
+          (.bundle { characteristics := { subtypes := [goblin] } } none)) none)
         none ])) none none
 
 /-- Azog's shape with X: "Its controller amasses Goblins X, where X is its power." The amount
@@ -260,17 +260,17 @@ token." -/
 theorem varchildsWarRidersHandoffTwin :
     Ability.check (DRS.ofList [])
         (cumulativeUpkeep (.perform (instruct anOpponent
-          (create (.lit 1) (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])))))) = [] ∧
+          (create (.lit 1) (.written (creatureToken 1 1 [.red] [survivor])))))) = [] ∧
       Ability.check (DRS.ofList [])
           (cumulativeUpkeep (.perform (instruct anOpponent
-            (create (.lit 1) (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])))))) =
+            (create (.lit 1) (.written (creatureToken 1 1 [.red] [survivor])))))) =
         Ability.check (DRS.ofList [])
           (cumulativeUpkeep (.perform (instruct anOpponent (create (.lit 1)
-            (.written (creatureToken 1 1 [.red] [creatureType "Survivor"])) [])))) := by
+            (.written (creatureToken 1 1 [.red] [survivor])) [])))) := by
   decide
 
 private def controlsForest : Condition :=
-  exists_ (.and [isLand, .hasSubtype (landType "Forest"), .hasPossessor .controller .you])
+  exists_ (.and [isLand, .hasSubtype (forest), .hasPossessor .controller .you])
 
 /-- Invigorate: "If you control a Forest, rather than pay this spell's mana cost, you may have an
 opponent gain 3 life." -/
@@ -576,7 +576,7 @@ private def syndicOfTithes (loss : Action) : Card :=
   .singleFaced
     { characteristics :=
       { name := "Syndic of Tithes", cost := some [generic 1, pip .white], types := [.creature],
-        subtypes := [creatureType "Human", creatureType "Cleric"],
+        subtypes := [human, cleric],
         text :=
           [ .keyword (.named "extort") []
               [ .triggered
@@ -687,7 +687,7 @@ private def literalEndure (n : Nat) : Action :=
     (instruct (controllerOf theActor)
       (.chooseModes (.range (some 1) (some 1))
         [ (none, none, .putCounters (.lit n) (.printed p1p1Counter) (that .permanent) .one true),
-          (none, none, create (.lit 1) (.written (creatureToken n n [.white] [creatureType "Spirit"]))) ])) none none
+          (none, none, create (.lit 1) (.written (creatureToken n n [.white] [spirit]))) ])) none none
 
 /-- "Target creature explores.": handed to the creature, whose controller does the steps. -/
 theorem okExploreHandedToTargetCreature :

@@ -40,7 +40,7 @@ theorem badChooseYou :
 on it.": a conditional's branch continues when it has no otherwise-branch, wherever its condition
 is printed, so "it" is the token, the nearer antecedent. -/
 theorem conditionalArmAntecedentIsTheToken :
-    let line := doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
+    let line := doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier])))
       (exists_ (and [isCreature, youControl])) none
     let out := (stepAction 12 .postEvent .obj (DRS.ofList []) line).1
     Action.check (DRS.ofList [])
@@ -52,8 +52,8 @@ theorem badBothArmsAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
         [ may (gainLife (.lit 1))
-            (some (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))))
-            (some (create (.lit 2) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))),
+            (some (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier]))))
+            (some (create (.lit 2) (.written (creatureToken 1 1 [.white] [soldier])))),
           .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
   decide
 
@@ -600,7 +600,7 @@ theorem putHasNoStandaloneParticiple : participleOf (.core .put) = none := by de
 /-- "Whenever a creature transforms into a Phyrexian, …" -/
 theorem okIntransitiveBecomes :
     GameEvent.check (DRS.ofList [])
-      (.does .any (.enact (.action "transform") (.turnOver (a isCreature)) (some (.hasSubtype (creatureType "Phyrexian"))) none)) = [] := by
+      (.does .any (.enact (.action "transform") (.turnOver (a isCreature)) (some (.hasSubtype (phyrexian))) none)) = [] := by
   decide
 
 /-- "Whenever you discard a card, …" -/
@@ -725,7 +725,7 @@ theorem conditionItReadsCurrentSource :
         [ destroy (target isCreature),
           .doIf (.not (.matches thisEnchantment isCreature))
             (become it
-              { characteristics := { types := [.creature], subtypes := [creatureType "Angel"] } }
+              { characteristics := { types := [.creature], subtypes := [angel] } }
               (some untilEndOfTurn))
             none ]) = [] := by
   decide

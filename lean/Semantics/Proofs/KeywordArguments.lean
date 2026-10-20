@@ -7,11 +7,11 @@ namespace Semantics.Proofs.KeywordArguments
 
 theorem qualifiedCostUsesDeclaredOrder :
     Ability.check (DRS.ofList []) (keywordQualityCosting cycling
-      (.hasSubtype (landType "Plains")) (.mana [generic 2])) = [] := by decide
+      (.hasSubtype (plains)) (.mana [generic 2])) = [] := by decide
 
 theorem reversedQualifiedCostIsRefused :
     Ability.check (DRS.ofList []) (.keyword (.named "cycling")
-      [.cost (.mana [generic 2]), .quality (.hasSubtype (landType "Plains"))] []) =
+      [.cost (.mana [generic 2]), .quality (.hasSubtype (plains))] []) =
       [.keywordParamFits (.named "cycling")] := by decide
 
 theorem unqualifiedCostVariantRemainsAvailable :
@@ -32,13 +32,13 @@ theorem qualifiedCostRequiresObjectQuality :
 
 /-- "Plainscycling {2}" through the `typecycling` Definition. -/
 theorem okTypecycling :
-    Ability.check (DRS.ofList []) (typecycling (.hasSubtype (landType "Plains")) (.mana [generic 2]))
+    Ability.check (DRS.ofList []) (typecycling (.hasSubtype (plains)) (.mana [generic 2]))
       = [] := by decide
 
 /-- A typecycling ability is a cycling ability [CR#702.29f]: it carries the cycling label that
 an "abilityHead (.keyword (.named "cycling"))" class names, as plain cycling does. -/
 theorem typecyclingIsCycling :
-    keywordOf (typecycling (.hasSubtype (landType "Plains")) (.mana [generic 2])) =
+    keywordOf (typecycling (.hasSubtype (plains)) (.mana [generic 2])) =
       .the (.named "cycling") ∧
     keywordOf (cycling (.mana [generic 2])) = .the (.named "cycling") := by decide
 

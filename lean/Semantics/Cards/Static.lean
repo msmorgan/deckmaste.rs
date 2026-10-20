@@ -235,26 +235,26 @@ def solfataraLandLock : Action :=
 theorem okSolfataraLandLock : Action.check (DRS.ofList []) solfataraLandLock = [] := by decide
 
 /-- "each nonbasic land is a <type>": a moon effect. -/
-def nonbasicLandsAre (type : String) : StaticSpec :=
+def nonbasicLandsAre (type : Subtype) : StaticSpec :=
   qualityChange (allOf (and [isLand, non (hasSupertype .basic)])) .sets
-    (bundle { characteristics := { subtypes := [landType type] } })
+    (bundle { characteristics := { subtypes := [type] } })
 
 def bloodMoon : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Blood Moon", cost := some [generic 2, pip .red], types := [.enchantment],
-      text := [static (nonbasicLandsAre "Mountain")] } }
+      text := [static (nonbasicLandsAre mountain)] } }
 
 def magusOfTheMoon : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Magus of the Moon", cost := some [generic 2, pip .red], types := [.creature],
       subtypes := [human, wizard],
-      text := [static (nonbasicLandsAre "Mountain")], power := stat 2, toughness := stat 2 } }
+      text := [static (nonbasicLandsAre mountain)], power := stat 2, toughness := stat 2 } }
 
 def harbingerOfTheSeas : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Harbinger of the Seas", cost := some [generic 1, pip .blue, pip .blue],
       types := [.creature], subtypes := [merfolk, wizard],
-      text := [static (nonbasicLandsAre "Island")], power := stat 2, toughness := stat 2 } }
+      text := [static (nonbasicLandsAre island)], power := stat 2, toughness := stat 2 } }
 
 def yavimayaCradleOfGrowth : Spelled := spelled <| .singleFaced
   { characteristics :=

@@ -363,15 +363,6 @@ def elabExpectedTypeDispatch : TermElab := fun stx expectedType? => do
   let call := stx.setArg 0 (mkCIdentFrom fn template)
   withMacroExpansion stx call <| elabTerm call expectedType?
 
-/-! ### Subtype words -/
-
-semantic_template creatureType (label : String) : Subtype := .of .creature label
-semantic_template artifactType (label : String) : Subtype := .of .artifact label
-semantic_template landType (label : String) : Subtype := .of .land label
-semantic_template enchantmentType (label : String) : Subtype := .of .enchantment label
-semantic_template spellType (label : String) : Subtype := .spell label
-semantic_template planeswalkerType (label : String) : Subtype := .of .planeswalker label
-
 /-! ### Types, kinds and roles -/
 
 semantic_template isCreature : Predicate := .hasType .creature

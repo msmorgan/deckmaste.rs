@@ -58,7 +58,7 @@ theorem okReplaceLandTypeWord :
 theorem badReplaceWordSort :
     Action.check (DRS.ofList [])
       (.establish (textChange (target isPermanent)
-        (replaceWord [.color] none (some (.basicLandType (landType "Swamp"))))) none)
+        (replaceWord [.color] none (some (.basicLandType (swamp))))) none)
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
 /-- "Change the text of target spell or permanent by replacing all instances of one color word
@@ -71,7 +71,7 @@ theorem okReplaceColorOrLandTypeWord :
 /-- "… one color word with Swamp": a word replaced by a word of another kind is refused. -/
 theorem badReplaceAcrossKinds :
     TextChange.check (DRS.ofList []) (.replaceWord [.color, .subtype .land] (some (.color .black))
-      (some (.basicLandType (landType "Swamp"))))
+      (some (.basicLandType (swamp))))
       = [.kindMismatch (.quality .color) (.quality (.subtype .land))] := by decide
 
 /-- A name is not a word a Text Change replaces [CR#612.2]. -/

@@ -365,7 +365,7 @@ theorem badUnboundTheirChoice :
 theorem okUnnamedAddition :
     Action.check (DRS.ofList [])
       (become (target isCreature)
-        { characteristics := { colors := [.black], subtypes := [creatureType "Zombie"] } } none)
+        { characteristics := { colors := [.black], subtypes := [zombie] } } none)
       = [] := by
   decide
 
@@ -373,7 +373,7 @@ theorem badRepeatedAdditionColor :
     Action.check (DRS.ofList [])
       (become (target isCreature)
         { characteristics :=
-          { colors := [.black, .black], subtypes := [creatureType "Zombie"] } } none)
+          { colors := [.black, .black], subtypes := [zombie] } } none)
       = [.distinct] := by
   decide
 

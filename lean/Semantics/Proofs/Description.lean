@@ -271,7 +271,7 @@ theorem okItAfterAntecedent :
 theorem badOtherwiseReadsLeadingArm :
     Action.check (DRS.ofList [])
       (.doIf (exists_ (and [isCreature, youControl]))
-        (create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])))
+        (create (.lit 1) (.written (creatureToken 1 1 [.black] [zombie])))
         (some (.setStatus .tapped it)))
       = [.anaphor .bare .one 0] := by
   decide

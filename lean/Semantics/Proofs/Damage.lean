@@ -636,7 +636,7 @@ theorem okJoinDamageRecipient :
 
 /-- "Create a 1/1 white Soldier creature token." -/
 theorem okSoldierToken :
-    Action.check (DRS.ofList []) (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
+    Action.check (DRS.ofList []) (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier])))
       = [] := by
   decide
 

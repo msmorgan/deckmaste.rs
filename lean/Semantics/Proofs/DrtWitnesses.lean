@@ -13,7 +13,7 @@ private def kalitasBody : Action := .sequentially [
     (.sequentially [
       create (.lit 1)
         (.written { characteristics :=
-            { colors := [.black], types := [.creature], subtypes := [creatureType "Vampire"] } }),
+            { colors := [.black], types := [.creature], subtypes := [vampire] } }),
       .establish (Templates.ptModification it (.set (powerOf (that (.type .creature))))
         (.set (toughnessOf (that (.type .creature))))) none]) none]
 
@@ -53,7 +53,7 @@ private def brokenVisageBody : Action := .sequentially [
   destroy (target (.and [isCreature, .not isArtifact, isAttacking])),
   create (.lit 1)
     (.written { characteristics :=
-        { colors := [.black], types := [.creature], subtypes := [creatureType "Spirit"] } }),
+        { colors := [.black], types := [.creature], subtypes := [spirit] } }),
   .establish (Templates.ptModification it (.set (powerOf (that (.type .creature))))
     (.set (toughnessOf (that (.type .creature))))) none]
 

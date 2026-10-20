@@ -28,7 +28,7 @@ theorem okSingleSnow :
     Card.check
       (one
         { name := some "Snow-Covered Forest", supertypes := [.basic, .snow], types := [.land],
-          subtypes := [landType "Forest"] }) = [] := by
+          subtypes := [forest] }) = [] := by
   decide
 
 /-- "Snow Snow Land — Forest" -/
@@ -36,7 +36,7 @@ theorem badDuplicateSnow :
     Card.check
       (one
         { name := some "", supertypes := [.snow, .snow], types := [.land],
-          subtypes := [landType "Forest"] }) = [.distinct] := by
+          subtypes := [forest] }) = [.distinct] := by
   decide
 
 /-- "Draw a card." printed on an instant -/
@@ -188,7 +188,7 @@ theorem okProtectionOnPermanentCard :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.creature],
-          subtypes := [creatureType "Soldier"],
+          subtypes := [soldier],
           text := [keywordQuality (.named "protection") (.colorIs .red)], power := stat 2,
           toughness := stat 2 }) = [] := by
   decide
@@ -216,7 +216,7 @@ theorem okEquipOnEquipment :
     Card.check
       (one
         { name := some "", cost := some [generic 1], types := [.artifact],
-          subtypes := [artifactType "Equipment"],
+          subtypes := [equipment],
           text := [keywordCosting (.named "equip") (.mana [generic 2])] }) = [] := by
   decide
 
@@ -260,7 +260,7 @@ theorem okKindredWithAnotherType :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred, .enchantment],
-          subtypes := [creatureType "Merfolk"], text := [keyword (.named "flying")] }) = [] := by
+          subtypes := [merfolk], text := [keyword (.named "flying")] }) = [] := by
   decide
 
 /-- a "Kindred Enchantment — Siege" card -/
@@ -276,7 +276,7 @@ theorem badKindredAlone :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred],
-          subtypes := [creatureType "Merfolk"], text := [keyword (.named "flying")] }) = [.cardLine] := by
+          subtypes := [merfolk], text := [keyword (.named "flying")] }) = [.cardLine] := by
   decide
 
 /-- "Enchanted creature can't attack." -/
@@ -373,7 +373,7 @@ theorem okChapterOnSaga :
     Card.check
       (one
         { name := some "", cost := some [pip .white], types := [.enchantment],
-          subtypes := [enchantmentType "Saga"],
+          subtypes := [saga],
           text :=
             [ when (.chapterMark [1]) (draw (.lit 1)),
               when (.chapterMark [2]) (draw (.lit 1)),
@@ -392,7 +392,7 @@ theorem badChapterOnNonSaga :
 theorem okAltCostSacrifice :
     StaticSpec.check (DRS.ofList [])
       (.altCost .this
-        (some (.perform (sacrifice (a (.and [isLand, .hasSubtype (landType "Mountain")]))))))
+        (some (.perform (sacrifice (a (.and [isLand, .hasSubtype (mountain)]))))))
       = [] := by
   decide
 
@@ -454,7 +454,7 @@ theorem okCrossAbilityChoice :
       (.singleFaced
         { characteristics :=
             { name := some "Cross-ability choice witness", types := [.creature],
-              subtypes := [creatureType "Shapeshifter"],
+              subtypes := [shapeshifter],
               text :=
                 [ static (entersChoosing thisCreature .color),
                   static (Templates.abilityGrant thisCreature (keywordQuality (.named "protection") (ofChosen
@@ -531,7 +531,7 @@ theorem okUnearthOnPermanentCard :
     Card.check
       (one
         { name := some "", cost := some [pip .black], types := [.creature],
-          subtypes := [creatureType "Zombie"],
+          subtypes := [zombie],
           text := [keywordCosting (.named "unearth") (.mana [pip .black])], power := stat 2,
           toughness := stat 2 }) = [] := by
   decide
@@ -620,7 +620,7 @@ theorem okNamedAdventure :
       (.adventurer blueCreature
         { characteristics :=
           { name := some "", cost := some [pip .blue], types := [.sorcery],
-            subtypes := [spellType "Adventure"] } }) = [] := by
+            subtypes := [adventure] } }) = [] := by
   decide
 
 /-- an adventurer card whose inset frame is a plain instant, naming no Adventure -/
@@ -697,7 +697,7 @@ theorem badCoinsShowingWithoutFlip :
 theorem okTurnOverOnField : Action.check (DRS.ofList []) (.turnOver (target isCreature)) = [] := by decide
 
 /-- "Room" -/
-def room : Predicate := .hasSubtype (enchantmentType "Room")
+def room : Predicate := .hasSubtype Semantics.Definitions.room
 
 /-- "unlock a locked door of a Room you control" -/
 theorem okUnlockRoomDoor :
@@ -719,7 +719,7 @@ theorem okRoomDoorHeaderOnSharedLine :
     Card.check
       (.sharedLineSplit
         { characteristics :=
-          { types := [.enchantment], subtypes := [enchantmentType "Room"] } }
+          { types := [.enchantment], subtypes := [Semantics.Definitions.room] } }
         ⟨"", some [pip .red], [doorDamage 1]⟩ ⟨"", some [generic 3, pip .red], [doorDamage 2]⟩)
       = [] := by
   decide
@@ -729,7 +729,7 @@ theorem badDoorHeaderOffSharedLine :
     Card.check
       (one
         { name := some "", cost := some [pip .red], types := [.enchantment],
-          subtypes := [enchantmentType "Room"], text := [doorDamage 1] }) = [.doorFrame] := by
+          subtypes := [Semantics.Definitions.room], text := [doorDamage 1] }) = [.doorFrame] := by
   decide
 
 theorem generalManaSymbolMatcher :

@@ -226,7 +226,7 @@ theorem spidersilkArmorGrantsReachToItsPumpedGroup :
 
 theorem enchantedVanillaChangesOnlyItsAttachmentHost :
     let result := stepStaticSpec 32 (DRS.ofList [])
-      (Cards.enchantedBecomesVanilla [.blue] "Frog" 1 1)
+      (Cards.enchantedBecomesVanilla [.blue] Semantics.Definitions.frog 1 1)
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.attachmentHost) = some true := by decide
 

@@ -28,7 +28,7 @@ theorem setAndAddStayDistinct :
 
 theorem compoundTypeWritesHostSubtypes :
     StaticSpec.check (DRS.ofList []) (.characteristicChange thisCreature
-      [.typeLine .adds {subtypes := some [landType "Forest"]},
+      [.typeLine .adds {subtypes := some [forest]},
        .typeLine .adds {types := some [.land]}]) = [] := by decide
 
 theorem copyCanRemoveLegendary :

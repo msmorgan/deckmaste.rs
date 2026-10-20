@@ -223,13 +223,20 @@ card names a keyword by its declaration's name and an undeclared name is refused
 inductive KeywordLabel where
   | named (name : String)
   deriving DecidableEq, Repr
+/-- An ability word [CR#207.2c], as printed ("Threshold"). It has no rules meaning, and the CR
+lists the ability words. -/
 abbrev AbilityWordLabel := String
+/-- A flavor word [CR#207.2d], as printed. Each is the card's own, and the CR lists none, so the
+printed word is all it is. -/
 abbrev FlavorWordLabel := String
+/-- A vote's option, as the card prints it ("grace", "condemnation") [CR#701.38a]: a card's own
+words, read back by the same card ("the option with the most votes"). -/
 abbrev VoteLabel := String
 
 /-- A keyword action's name [CR#701.1]. The keyword actions are an open set the registry
 declares, so a deed of that source is keyed by the declaration's name verbatim (`exile`,
-`collectEvidence`), as a designation is. -/
+`collectEvidence`), as a designation is. An enacted deed whose label no declaration has is
+refused (`knownAct`), and a participle naming one reaches nothing. -/
 abbrev KeywordActionLabel := String
 
 /-- Deeds the core rules define outside the keyword actions of [CR#701.1]: turn-based actions
@@ -411,7 +418,10 @@ inductive AbilityClass where
   | keyword (k : KeywordLabel)
   deriving DecidableEq, Repr
 
--- this seems odd
+/-- The italic word that may head an ability: an ability word [CR#207.2c] or a flavor word
+[CR#207.2d]. Neither has rules meaning; both are text a card prints over the ability
+(`Ability.italicHead`), and the CR tells them apart (it lists the ability words and no flavor
+words), so the head records which it is. -/
 inductive ItalicWord where
   | abilityWord (label : AbilityWordLabel)
   | flavorWord (label : FlavorWordLabel)
@@ -491,7 +501,10 @@ inductive Supertype where
   | legendary | basic | snow | world
   deriving DecidableEq, Repr
 
--- this doesn't seem like it should be enum-sourced like this. keywords, actions, counters are not
+/-- A half of a split permanent with a shared type line, a Room's door [CR#709.5c,709.5j]. Not a
+vocabulary item a registry declares, as keywords, keyword actions and counters are: a split card
+has two faces [CR#709.1], its left and right halves [CR#709.5c], so the halves are closed, as a
+card's sides (`CardFaceSide`) are. -/
 inductive RoomHalf where
   | left | right
   deriving DecidableEq, Repr

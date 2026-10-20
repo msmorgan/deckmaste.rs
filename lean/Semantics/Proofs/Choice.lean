@@ -164,12 +164,12 @@ theorem okChosenBasicTypeOnLand :
 theorem okLandsAreMountains :
     StaticSpec.check (DRS.ofList [])
       (qualityChange (allOf (.and [isLand, .hasPossessor .controller .you])) .sets
-        (.bundle { characteristics := { subtypes := [landType "Mountain"] } } none)) = [] := by
+        (.bundle { characteristics := { subtypes := [mountain] } } none)) = [] := by
   decide
 
 /-- "Choose a creature type other than Wall." -/
 theorem okCreatureTypeExclusion :
-    sortedDomainCheck (DRS.ofList []) (.quality (.subtype .creature)) (some (.typeOtherThan (creatureType "Wall")))
+    sortedDomainCheck (DRS.ofList []) (.quality (.subtype .creature)) (some (.typeOtherThan (wall)))
       = [] := by
   decide
 

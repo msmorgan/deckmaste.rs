@@ -47,7 +47,7 @@ def giftACard : Ability := gift (draw (.lit 1))
 /-- "Gift a tapped Fish": the chosen player creates a tapped 1/1 blue Fish creature token
 [CR#702.174f]. -/
 def giftATappedFish : Ability :=
-  gift (createTappedToken (creatureToken 1 1 [.blue] [creatureType "Fish"]))
+  gift (createTappedToken (creatureToken 1 1 [.blue] [fish]))
 
 /-- Both variants check with no class context. -/
 theorem okVariantsCheck :

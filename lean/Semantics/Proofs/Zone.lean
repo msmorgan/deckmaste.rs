@@ -545,7 +545,7 @@ theorem badInterceptReplacementAntecedent :
       (.sequentially
         [ replaceNextEvent (.would (.actor .you) (.draw (.exactlyOf .anyAmount)))
             (instead
-              (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Soldier"]))))
+              (create (.lit 1) (.written (creatureToken 1 1 [.green] [soldier]))))
             (some thisTurn),
           sacrifice it ]) = [.anaphor .bare .one 0] := by
   decide
@@ -587,7 +587,7 @@ theorem okExchangeControlOnField :
 theorem okExchangeCardsAcrossZones :
     Action.check (DRS.ofList [])
       (.exchange
-        (.cardsAcross thisAura (a (.and [.hasSubtype (enchantmentType "Aura"), .in_ hand]))))
+        (.cardsAcross thisAura (a (.and [.hasSubtype (aura), .in_ hand]))))
       = [] := by
   decide
 

@@ -380,11 +380,11 @@ def bootsOfSpeed : Spelled := spelled <| .singleFaced
           equip (mana [generic 1]) ] } }
 
 /-- "enchanted creature loses all abilities and is a <colors> <subtype> with base P/T" -/
-def enchantedBecomesVanilla (colors : List Color) (subtype : String) (power toughness : Nat) :
+def enchantedBecomesVanilla (colors : List Color) (subtype : Subtype) (power toughness : Nat) :
     StaticSpec :=
   conjunction [ allAbilityLoss (enchanted creature),
       qualityChange it .sets
-        (bundle { characteristics := { colors, types := [.creature], subtypes := [creatureType subtype] } }),
+        (bundle { characteristics := { colors, types := [.creature], subtypes := [subtype] } }),
       getsPt it (setTo (.lit power)) (setTo (.lit toughness)) ]
 
 def frogify : Spelled := spelled <| .singleFaced
@@ -393,7 +393,7 @@ def frogify : Spelled := spelled <| .singleFaced
       subtypes := [aura],
       text :=
         [ enchant isCreature,
-          static (enchantedBecomesVanilla [.blue] "Frog" 1 1) ] } }
+          static (enchantedBecomesVanilla [.blue] frog 1 1) ] } }
 
 def darksteelMutation : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -416,7 +416,7 @@ def kenrithsTransformation : Spelled := spelled <| .singleFaced
       text :=
         [ enchant isCreature,
           when (does thisAura enter) (draw (.lit 1)),
-          static (enchantedBecomesVanilla [.green] "Elk" 3 3) ] } }
+          static (enchantedBecomesVanilla [.green] elk 3 3) ] } }
 
 def amphibianDownpour : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -425,7 +425,7 @@ def amphibianDownpour : Spelled := spelled <| .singleFaced
       text :=
         [ flash, storm,
           enchant isCreature,
-          static (enchantedBecomesVanilla [.blue] "Frog" 1 1) ] } }
+          static (enchantedBecomesVanilla [.blue] frog 1 1) ] } }
 
 def lignify : Spelled := spelled <| .singleFaced
   { characteristics :=

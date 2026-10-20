@@ -130,7 +130,7 @@ theorem badMergeOntoGroup :
 /-- Required pin: mutate's target, gained with its alternative cost [CR#702.140a]. -/
 theorem okAddsTarget :
     StaticSpec.check (DRS.ofList []) (.addsTarget thisSpell
-      (.and [isCreature, .not (.hasSubtype (creatureType "Human"))])) = [] := by
+      (.and [isCreature, .not (.hasSubtype (human))])) = [] := by
   decide
 
 /-- Required pin: offering's reduction by the sacrificed permanent's mana cost [CR#702.48a]. -/
@@ -159,7 +159,7 @@ theorem okEmerge : Ability.check (DRS.ofList []) (emerge cost) = [] := by decide
 theorem okEmergeFrom : Ability.check (DRS.ofList []) (emergeFrom isArtifact cost) = [] := by decide
 /-- Required pin: offering [CR#702.48a]. -/
 theorem okOffering :
-    Ability.check (DRS.ofList []) (offering (.hasSubtype (creatureType "Goblin"))) = [] := by decide
+    Ability.check (DRS.ofList []) (offering (.hasSubtype (goblin))) = [] := by decide
 /-- Required pin: harmonize [CR#702.180a]. -/
 theorem okHarmonize : Ability.check (DRS.ofList []) (harmonize cost) = [] := by decide
 /-- Required pin: haunt [CR#702.55a]. -/

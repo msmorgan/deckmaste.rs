@@ -103,7 +103,7 @@ theorem okTokenKeywordAbility :
     Action.check (DRS.ofList [])
       (create (.lit 1)
         (.written { characteristics :=
-          { colors := [.white], types := [.creature], subtypes := [creatureType "Soldier"],
+          { colors := [.white], types := [.creature], subtypes := [soldier],
             power := some (.lit 1), toughness := some (.lit 1), text := [keyword (.named "flying")] } }))
       = [] := by
   decide
@@ -162,7 +162,7 @@ theorem badChosenProtectionBeforeChoice :
     Card.check
       (.singleFaced
         { characteristics :=
-          { name := "", types := [.creature], subtypes := [creatureType "Angel"],
+          { name := "", types := [.creature], subtypes := [angel],
             power := stat 2, toughness := stat 2,
             text :=
               [ .static

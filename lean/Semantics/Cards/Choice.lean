@@ -1343,13 +1343,14 @@ def scatheZombies : Spelled := spelled <| .singleFaced
     { name := "Scathe Zombies", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [zombie], power := stat 2, toughness := stat 2 } }
 
-/-- A basic land card of the named type. -/
-def basicLand (name : String) : Card :=
+/-- A basic land card: its name and its basic land type. -/
+def basicLand (name : String) (type : Subtype) : Card :=
   .singleFaced
     { characteristics :=
-      { name, supertypes := [.basic], types := [.land], subtypes := [landType name] } }
+      { name, supertypes := [.basic], types := [.land], subtypes := [type] } }
 def basicLandCards : List Card :=
-  ["Plains", "Island", "Swamp", "Mountain", "Forest"].map basicLand
+  [ basicLand "Plains" plains, basicLand "Island" island, basicLand "Swamp" swamp,
+    basicLand "Mountain" mountain, basicLand "Forest" forest ]
 theorem okBasicLandCards : basicLandCards.flatMap Card.check = [] := by decide
 
 def snowCoveredForest : Spelled := spelled <| .singleFaced

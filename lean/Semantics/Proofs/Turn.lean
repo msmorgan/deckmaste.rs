@@ -205,7 +205,7 @@ theorem badAfterReflexiveReadsTrigger :
     Action.check (DRS.ofList [])
       (.sequentially
         [ .triggerReflexively (mill (.lit 4)) none
-            (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"]))),
+            (create (.lit 1) (.written (creatureToken 1 1 [.white] [soldier]))),
           .setStatus .tapped (that (.type .creature)) ])
       = [.anaphor (.word (.type .creature)) .one 0] := by
   decide
@@ -373,7 +373,7 @@ theorem okTokenSingleSupertype :
       (create (.lit 1)
         (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary],
-            types := [.creature], subtypes := [creatureType "Avatar"],
+            types := [.creature], subtypes := [avatar],
             power := some (.lit 20), toughness := some (.lit 20) } })) = [] := by
   decide
 
@@ -383,7 +383,7 @@ theorem badTokenDuplicateSupertype :
       (create (.lit 1)
         (.written { characteristics :=
           { name := some "Marit Lage", colors := [.black], supertypes := [.legendary, .legendary],
-            types := [.creature], subtypes := [creatureType "Avatar"],
+            types := [.creature], subtypes := [avatar],
             power := some (.lit 20), toughness := some (.lit 20) } })) = [.distinct] := by
   decide
 
