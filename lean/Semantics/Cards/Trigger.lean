@@ -952,7 +952,7 @@ def vampiricEmbrace : Spelled := spelled <| .singleFaced
           static (abilityGrant
             (enchanted creature) flying),
           whenever (does (creatureDamagedByAttachedHostThisTurn .enchanted) die)
-            (putCounters (.lit 1) (printedKind p1p1Counter)
+            (putCounters (.lit 1) p1p1Counter
               (that creature) .many) ] } }
 
 /-- Scythe of the Wretched. -/

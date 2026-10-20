@@ -1076,7 +1076,7 @@ keyword, whatever its definition writes. -/
 def Ability.writesDefining (ability : Ability) (fuel : Nat := 64) : Bool :=
   match fuel, ability with
   | n + 1, .static spec => spec.writesDefining n
-  | n + 1, .italicHead _ a | n + 1, .qualified a _ _ _ _ | n + 1, .alsoForKeywords a _ =>
+  | n + 1, .italicHead _ a | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ | n + 1, .alsoForKeywords a _ =>
     a.writesDefining n
   | _, _ => false
 termination_by structural fuel
@@ -3111,6 +3111,7 @@ def stepOps : Nat → StepOps
 
       ab := fun drs ab =>
         match ab with
+        | .inCaller body => ops.ab (enterCaller drs) body
         | .keyword k params body =>
           checkKeywordParamsWith ops drs ((keywordSchemaFor k params).getD []) params ++
             (stepAbilityListWith ops (enterOwnScope drs) body).2 ++

@@ -649,7 +649,7 @@ def myrPrototype : Spelled := spelled <| .singleFaced
       subtypes := [myr],
       text :=
         [ at_ (beginningOfYour .upkeep)
-            (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many),
+            (putCounters (.lit 1) p1p1Counter thisCreature .many),
           static
               (conjunction
                  [gatedBy (scaledGenericMana (times (.lit 1) (countersOn p1p1Counter it)))

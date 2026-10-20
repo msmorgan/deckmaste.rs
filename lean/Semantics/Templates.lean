@@ -1075,6 +1075,10 @@ semantic_template putInto (subject : NounPhrase) (destination : Location)
     (if before then .departure else .arrival) none riders
 /-- "turn <subject> face up" -/
 semantic_template turnFaceUp (subject : NounPhrase) : Action := .setStatus .faceUp subject
+/-- "flip <subject>": a flip card's permanent turns to its flipped half, whose alternative name,
+text box, type line, power and toughness apply [CR#710.1a,710.2]. Flipping is no keyword action
+[CR#701.1], so this is a Template, naming no deed. -/
+semantic_template flip (subject : NounPhrase := .actor) : Action := .setStatus .flipped subject
 /-- "<subject> attacks [<defender>]" [CR#508.1a] -/
 semantic_template attack (defender : Option NounPhrase := none) : Action := .attack defender
 /-- "<subject> blocks [<attacker>]" [CR#509.1a] -/

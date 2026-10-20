@@ -941,7 +941,11 @@ is substituted as written. A Definition wraps each argument it reads in `inCalle
 (`CallerScope.caller`: `NounPhrase.inCaller`, `Amount.inCaller`, `Action.inCaller`, …
 for every phrase type that can be an argument) and binds a referent argument at its
 first mention with `firstMention`, reading it back with `laterMention`
-("Binding identity and a keyword body's own scope" above). A Template that names one
+("Binding identity and a keyword body's own scope" above). The Binding Identity is named
+`<declaration>.<parameter>` (`destroy.subject`, `fight.other`). Where `inCaller` and the
+mention nest is not yet one rule: the order moves the caller-view role a body mention leaves
+(`fight` reads its other creature back inside `inCaller` as damage's recipient, outside it as
+the handoff's performer, and `Proofs/Damage.lean` pins "Tap it" reading the fight's source). A Template that names one
 argument twice does the same (`dealDamageOwnPower`, `controllerSacrifices`). An argument
 is therefore selected once, at its textual first use, however often the body names it,
 and two identical argument expressions remain two selections. An Amount argument is

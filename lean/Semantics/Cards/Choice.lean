@@ -1401,7 +1401,7 @@ def requisitionRaid : Spelled := spelled <| .singleFaced
             [ (some (mana [generic 1]), destroy (target isArtifact)),
               (some (mana [generic 1]), destroy (target isEnchantment)),
               (some (mana [generic 1]),
-               putCounters (.lit 1) (printedKind p1p1Counter)
+               putCounters (.lit 1) p1p1Counter
                  (each (and [isCreature, controlledBy (target isPlayer)])) .many) ]) ] } }
 
 /-- Rustler Rampage -/

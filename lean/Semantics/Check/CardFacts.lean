@@ -169,7 +169,7 @@ mutual
       (match wh with | some (.whileDoing ev) => ev.namesThisDoor n | _ => false) ||
       joins.any (fun j => j.event.namesThisDoor n || j.alternatives.any (fun e => e.namesThisDoor n)) ||
       i.namesThisDoor n
-    | n + 1, .italicHead _ a | n + 1, .alsoForKeywords a _ | n + 1, .qualified a _ _ _ _ => a.namesThisDoor n
+    | n + 1, .italicHead _ a | n + 1, .alsoForKeywords a _ | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.namesThisDoor n
     | n + 1, .static spec => spec.namesThisDoor n
     | n + 1, .keyword _ _ body => body.any (fun a => a.namesThisDoor n)
     | _, _ => false
@@ -238,7 +238,7 @@ def Ability.category (a : Ability) (fuel : Nat := 64) : Option AbilityCategory :
   | _ + 1, .triggered .. => some .triggered
   | _ + 1, .activated .. => some .activated
   | _ + 1, .spell .. => some .spell
-  | n + 1, .qualified a _ _ _ _ => a.category n
+  | n + 1, .inCaller a | n + 1, .qualified a _ _ _ _ => a.category n
   | _, _ => none
 termination_by structural fuel
 

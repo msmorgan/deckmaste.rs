@@ -1191,6 +1191,9 @@ mutual
     | term (keyword : KeywordTerm)
 
   inductive Ability where
+    /-- An ability supplied by the immediate caller of a Definition: the ability a keyword
+    qualifies (boast's, exhaust's, solved's), read in its card's Reference Scope. -/
+    | inCaller (body : Ability)
     /-- A keyword ability [CR#702.1]. `body` is the keyword's definition, held the way a text
     box holds rules text [CR#109.3]: empty where the card writes the keyword bare, and otherwise
     the abilities the keyword represents. -/

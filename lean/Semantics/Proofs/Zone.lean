@@ -137,9 +137,9 @@ that read; the printed sentence hands it the first fighting creature,
 theorem badAgentedAgentlessAct :
     Action.check (DRS.ofList [])
       (instruct (target (.isOpponentOf .you)) (.enact (.action "fight") (.simultaneously [
-        instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.0" (target isCreature)) .any),
-        instruct (.laterMention "fight.0" (target isCreature))
-          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.0" (target isCreature))) theActor .any)]) none none))
+        instruct theActor (.dealDamage (.statOf (.stat .power) theActor) (.firstMention "fight.other" (target isCreature)) .any),
+        instruct (.laterMention "fight.other" (target isCreature))
+          (.dealDamage (.statOf (.stat .power) (.laterMention "fight.other" (target isCreature))) theActor .any)]) none none))
       = [.kindMismatch .object .player] := by
   decide
 

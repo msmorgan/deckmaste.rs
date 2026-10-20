@@ -28,11 +28,11 @@ theorem fightUsesTheTwoBoundParticipantsInOppositeDirections :
       (instruct (.firstMention "fight.test.source" (target isCreature))
         (fight (.firstMention "fight.test.other" (target isCreature))))).1
     (identityBinding "fight.source" after).map (·.id) = some 0 ∧
-      (identityBinding "fight.0" after).map (·.id) = some 2 ∧
+      (identityBinding "fight.other" after).map (·.id) = some 2 ∧
       (identityBinding "fight.test.source" after).map (·.id) = some 0 ∧
       (identityBinding "fight.test.other" after).map (·.id) = some 2 ∧
       fightParticipantPairs (fight (target isCreature)) =
-        [("fight.source", "fight.0"), ("fight.0", "fight.source")] := by decide
+        [("fight.source", "fight.other"), ("fight.other", "fight.source")] := by decide
 
 /-- "Target creature fights two target creatures.": the group is the other creature, refused by
 the singular power read and the per-member damage check. Handed the deed, a group performer

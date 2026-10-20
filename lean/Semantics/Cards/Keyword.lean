@@ -1059,7 +1059,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
 def tourachDiscardTrigger : Ability :=
   whenever (does anOpponent (discard (a
     isCard)))
-    (putCounters (.lit 1) (printedKind p1p1Counter) thisCreature .many)
+    (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okTourachDiscardTrigger : Ability.check (DRS.ofList []) tourachDiscardTrigger = [] := by decide
 
 /-- Shimmering Glasskite -/

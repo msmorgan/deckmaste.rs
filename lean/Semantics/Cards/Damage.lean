@@ -1398,7 +1398,7 @@ def terminationFacilitator : Spelled := spelled <| .singleFaced
       subtypes := [human, assassin],
       text :=
         [ activatedOnlyDuring tapSymbol
-            (putCounters (.lit 1) (printedKind bountyCounter)
+            (putCounters (.lit 1) bountyCounter
               (target (or [isCreature, isPlaneswalker])) .many)
             asSorcery,
           whenever
