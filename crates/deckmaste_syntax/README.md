@@ -121,7 +121,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   selects in its place (locative *on the battlefield* after *be*). Optional
   `equations` constrain the `head` (host) and the adjunct (a depictive
   gerund-participial of a lexical verb only).
-- `Coordination { category, coordinators, unshared, equations, proximate, delimiter, delimited, serial }`:
+- `Coordination { category, coordinators, unshared, equations, proximate, resolve, delimiter, delimited, serial }`:
   binary (only with the delimiter when `delimited`) and Oxford-comma serial
   coordination (`serial` overrides the default: like conjuncts only; a plain serial ends with
   one of its own coordinators), a delimited polysyndetic chain
@@ -134,11 +134,16 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   filled once after it, derived for a Category's first
   coordination schema). Conjuncts agree on every feature but the `unshared`
   ones, which the coordination leaves unvalued, and the `proximate` ones, which
-  it takes from its last conjunct (*one or more cards*). `equations` over `$`
+  it takes from its last conjunct (*one or more cards*). Every conjunct but
+  the last shares a `resolve` feature, and the coordination takes that value
+  with the last conjunct's, or the listed value when they differ (a
+  coordination of Noun Phrases is determined only when every conjunct is). `equations` over `$`
   resolve the whole coordination: a feature they value is still shared by the
   conjuncts but not by the coordination (two singular nominals joined by *and*
   are plural); equations over `first` hold of every conjunct but the last, over
-  `last` of the last (imperatives followed by a declarative). A `delimiter` may
+  `last` of the last (imperatives followed by a declarative); an
+  `ExcludeTogether` equation over `first` and `last` relates the last conjunct
+  to the one before it. A `delimiter` may
   also precede the coordinator of a binary coordination (*X, and Y*). The
   grammar's `correlatives` pair a marker with a coordinator (*both … and*);
   every schema whose coordinators admit the paired one also derives the
@@ -230,7 +235,8 @@ Readings be compared under exactly those equivalences.
 Category aliases retain a grammatical category in Readings while allowing
 separate internal production domains. Declared lexical features participate in
 the same equations as inflectional features. `Require` values an unvalued
-feature; `Carry` requires the child to carry the value itself. Multiword noun terms remain atomic
+feature; `Carry` requires the child to carry the value itself; `ExcludeTogether`
+rejects only a combination of child values, every one of them carried. Multiword noun terms remain atomic
 in both parsing and Admission; measured compounds retain their internal measure.
 Construction boundaries enforce the spacing used by realization.
 

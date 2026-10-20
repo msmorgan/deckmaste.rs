@@ -162,6 +162,10 @@ pub enum Equation {
     /// Requires a child to carry the value itself: an unvalued feature, which
     /// `Require` would value, does not satisfy it.
     Carry(Ident, Ident),
+    /// Excludes a combination of values: it fails only when every listed
+    /// child carries its listed value. In a Coordination schema it is over
+    /// `first` and `last`, the last conjunct and the one before it.
+    ExcludeTogether(Vec<(Ident, Ident)>),
 }
 
 /// An instance of one of the engine's built-in Schema kinds.
@@ -257,6 +261,13 @@ pub enum SchemaDecl {
         /// others need not share (proximity: *one or more cards*).
         #[serde(default)]
         proximate: Vec<Ident>,
+        /// Features every conjunct but the last shares, which the
+        /// coordination resolves with its last conjunct's: their common value,
+        /// or the listed one when they differ (an *and*-coordination of Noun
+        /// Phrases is determined only when every conjunct is). A conjunct
+        /// without a value does not decide it.
+        #[serde(default)]
+        resolve: Vec<(Ident, Ident)>,
         /// Punctuation that may also precede the coordinator of a binary
         /// coordination (two independent clauses joined by *, and*).
         #[serde(default)]

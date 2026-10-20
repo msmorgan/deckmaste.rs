@@ -156,7 +156,14 @@ struct Draft {
     children: Vec<Child>,
     equations: Vec<(Path, Target)>,
     exclusions: Vec<(usize, usize, u16)>,
+    /// Combinations of (child, feature, value) that may not all hold.
+    joint_exclusions: Vec<Vec<(usize, usize, u16)>>,
     carried: Vec<(usize, usize, u16)>,
+    /// Features a coordination resolves: (feature, value when they differ,
+    /// whether the mother is the whole coordination rather than a tail).
+    resolutions: Vec<(usize, u16, bool)>,
+    resolution_nonlast: Vec<usize>,
+    resolution_last: Option<(usize, bool)>,
     weights: Vec<(usize, Weight)>,
     cost: u32,
     introduces: Gap,
@@ -204,7 +211,11 @@ impl Draft {
             children: Vec::new(),
             equations: Vec::new(),
             exclusions: Vec::new(),
+            joint_exclusions: Vec::new(),
             carried: Vec::new(),
+            resolutions: Vec::new(),
+            resolution_nonlast: Vec::new(),
+            resolution_last: None,
             weights: Vec::new(),
             cost,
             introduces: Gap::None,
@@ -778,6 +789,19 @@ impl<'a> Binder<'a> {
                         .carried
                         .push((child, feature, self.value(feature, value)?));
                 }
+                Equation::ExcludeTogether(conditions) => {
+                    if conditions.len() < 2 {
+                        return Err(invalid("ExcludeTogether needs two or more conditions"));
+                    }
+                    let mut joint = Vec::new();
+                    for (path, value) in conditions {
+                        let Path::Child(child, feature) = self.path(draft, path)? else {
+                            return Err(invalid("ExcludeTogether requires child features"));
+                        };
+                        joint.push((child, feature, self.value(feature, value)?));
+                    }
+                    draft.joint_exclusions.push(joint);
+                }
                 Equation::Agree(a, b) => {
                     let a = self.path(draft, a)?;
                     let b = self.path(draft, b)?;
@@ -956,6 +980,50 @@ impl<'a> Binder<'a> {
         )
         .map_err(|e| invalid(format!("production `{}`: {e}", draft.id)))?;
         production.exclusions = draft.exclusions;
+        let conditions: usize = draft.joint_exclusions.iter().map(Vec::len).sum();
+        if conditions > crate::step::MAX_JOINT_CONDITIONS {
+            return Err(invalid(format!(
+                "production `{}`: {conditions} joint-exclusion conditions, more than {}",
+                production.id,
+                crate::step::MAX_JOINT_CONDITIONS
+            )));
+        }
+        for joint in draft.joint_exclusions {
+            production.joint_conditions.extend(joint);
+            production
+                .joint_exclusions
+                .push(production.joint_conditions.len());
+        }
+        if draft.resolutions.len() > crate::step::MAX_RESOLUTIONS {
+            return Err(invalid(format!(
+                "production `{}` resolves {} features, more than {}",
+                production.id,
+                draft.resolutions.len(),
+                crate::step::MAX_RESOLUTIONS
+            )));
+        }
+        for (feature, differ, whole) in draft.resolutions {
+            let at = self.out.category_features[production.lhs]
+                .iter()
+                .position(|f| *f == feature)
+                .ok_or_else(|| {
+                    invalid(format!(
+                        "production `{}` resolves a feature its mother does not carry",
+                        production.id
+                    ))
+                })?;
+            if whole && production.mother_vars[at].is_some() {
+                return Err(invalid(format!(
+                    "production `{}` both resolves and binds a mother feature",
+                    production.id
+                )));
+            }
+            production
+                .resolutions
+                .push((feature, differ, whole.then_some(at)));
+        }
+        production.resolution_nonlast = draft.resolution_nonlast;
+        production.resolution_last = draft.resolution_last;
         production.carried = draft.carried;
         production.weights = draft.weights;
         production.adjunct_slot = draft.adjunct_slot;
@@ -1976,6 +2044,9 @@ impl<'a> Binder<'a> {
                         }
                 });
                 prefix.exclusions.retain(|(i, _, _)| *i < split);
+                prefix
+                    .joint_exclusions
+                    .retain(|joint| joint.iter().all(|(i, _, _)| *i < split));
                 prefix.carried.retain(|(i, _, _)| *i < split);
                 prefix.predicative = prefix.predicative.filter(|&i| i < split);
                 let a = prefix.child(
@@ -2014,6 +2085,9 @@ impl<'a> Binder<'a> {
                         }
                 });
                 suffix.exclusions.retain(|(i, _, _)| *i >= split);
+                suffix
+                    .joint_exclusions
+                    .retain(|joint| joint.iter().all(|(i, _, _)| *i >= split));
                 suffix.carried.retain(|(i, _, _)| *i >= split);
                 suffix.predicative = suffix.predicative.filter(|&i| i >= split);
                 remap_draft(&mut suffix, |i| i - split + 1);
@@ -2256,8 +2330,13 @@ struct Conjoin {
     unshared: BTreeSet<usize>,
     proximate: BTreeSet<usize>,
     resolved: BTreeSet<usize>,
+    /// Features resolved over the conjuncts: (feature, value when they
+    /// differ).
+    resolutions: Vec<(usize, u16)>,
     /// Equations over the whole coordination.
     whole: Vec<Equation>,
+    /// Joint exclusions over a `first` conjunct and the last.
+    joints: Vec<Equation>,
     /// Equations over every conjunct but the last (`first`) and the last.
     firsts: Vec<Equation>,
     lasts: Vec<Equation>,
@@ -2271,6 +2350,7 @@ impl Conjoin {
             unshared,
             equations,
             proximate,
+            resolve,
             conjunct,
             unlike,
             ..
@@ -2289,13 +2369,28 @@ impl Conjoin {
                 .map(|name| binder.feature(name))
                 .collect::<Result<BTreeSet<_>, _>>()
         };
+        let joint = |e: &Equation| matches!(e, Equation::ExcludeTogether(_));
         let select = |prefix: &str| -> Vec<Equation> {
             equations
                 .iter()
-                .filter(|e| equation_path(e).starts_with(prefix))
+                .filter(|e| !joint(e) && equation_path(e).starts_with(prefix))
                 .cloned()
                 .collect()
         };
+        let joints: Vec<Equation> = equations.iter().filter(|e| joint(e)).cloned().collect();
+        for equation in &joints {
+            let Equation::ExcludeTogether(conditions) = equation else {
+                unreachable!("a joint exclusion")
+            };
+            if conditions
+                .iter()
+                .any(|(p, _)| !p.starts_with("first.") && !p.starts_with("last."))
+            {
+                return Err(invalid(format!(
+                    "coordination of `{category}`: a joint exclusion is over `first` and `last`"
+                )));
+            }
+        }
         let whole = select("$.");
         // A feature the schema's equations value on the whole coordination is
         // resolved: the conjuncts still share it, but the coordination takes
@@ -2307,6 +2402,22 @@ impl Conjoin {
             {
                 resolved.insert(binder.feature(feature)?);
             }
+        }
+        let unshared = features(unshared)?;
+        let proximate = features(proximate)?;
+        let mut resolutions = Vec::new();
+        for (name, value) in resolve {
+            let feature = binder.feature(name)?;
+            if unshared.contains(&feature)
+                || proximate.contains(&feature)
+                || resolved.contains(&feature)
+                || !binder.out.category_features[lhs].contains(&feature)
+            {
+                return Err(invalid(format!(
+                    "coordination of `{category}` cannot resolve `{name}`"
+                )));
+            }
+            resolutions.push((feature, binder.value(feature, value)?));
         }
         let tail_name = serial_tail(&binder.grammar.schemas, schema, category, coordinators);
         let tail_id = binder.out.category_id(&tail_name).ok_or_else(|| {
@@ -2321,10 +2432,12 @@ impl Conjoin {
             tail_id,
             tail_name,
             features: binder.out.category_features[lhs].clone(),
-            unshared: features(unshared)?,
-            proximate: features(proximate)?,
+            unshared,
+            proximate,
             resolved,
+            resolutions,
             whole,
+            joints,
             firsts: select("first."),
             lasts: select("last."),
         })
@@ -2461,6 +2574,42 @@ impl Conjoin {
         Ok(draft)
     }
 
+    /// Resolved features: every conjunct but the last shares the value, which
+    /// a serial tail carries as its own while recording its last conjunct's;
+    /// the whole coordination takes their common value, or the schema's one
+    /// when they differ.
+    fn resolve(&self, draft: &mut Draft, conjuncts: &[usize], edge: Edge) {
+        if self.resolutions.is_empty() {
+            return;
+        }
+        let whole = matches!(edge, Edge::Whole { .. });
+        let ends = matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true });
+        let (last, nonlast) = conjuncts.split_last().expect("a conjunct");
+        for &(feature, differ) in &self.resolutions {
+            draft.resolutions.push((feature, differ, whole));
+            // The first conjunct agrees with the rest of the conjuncts but
+            // the last: a serial tail's own value.
+            if !ends {
+                for &c in nonlast {
+                    draft.equations.push((
+                        Path::Child(c, feature),
+                        Target::Path(Path::Child(*last, feature)),
+                    ));
+                }
+            }
+            if !whole {
+                let carrier = if ends { nonlast } else { conjuncts };
+                for &c in carrier {
+                    draft
+                        .equations
+                        .push((Path::Mother(feature), Target::Path(Path::Child(c, feature))));
+                }
+            }
+        }
+        draft.resolution_nonlast = if ends { nonlast.to_vec() } else { conjuncts.to_vec() };
+        draft.resolution_last = Some((*last, !ends));
+    }
+
     /// Makes the conjuncts agree and adds the schema's equations; the second
     /// of `conjuncts` is the last conjunct or the serial tail.
     fn close(
@@ -2471,8 +2620,12 @@ impl Conjoin {
         edge: Edge,
     ) -> Result<(), LoadError> {
         let whole = matches!(edge, Edge::Whole { .. });
+        self.resolve(draft, conjuncts, edge);
         for &feature in &self.features {
-            if self.unshared.contains(&feature) {
+            if self.unshared.contains(&feature)
+                || self.resolutions.iter().any(|&(f, _)| f == feature)
+            {
+                // Resolved features are bound by `resolve`.
                 continue;
             }
             if self.proximate.contains(&feature) {
@@ -2503,11 +2656,16 @@ impl Conjoin {
         if whole {
             binder.equations(draft, &self.whole)?;
         }
-        if draft.children.iter().any(|c| c.name == "first") {
+        let first = draft.children.iter().any(|c| c.name == "first");
+        if first {
             binder.equations(draft, &self.firsts)?;
         }
         if matches!(edge, Edge::Whole { last: true } | Edge::Tail { last: true }) {
             binder.equations(draft, &self.lasts)?;
+            // Joint exclusions relate the last conjunct to the one before it.
+            if first {
+                binder.equations(draft, &self.joints)?;
+            }
         }
         Ok(())
     }
@@ -2622,6 +2780,7 @@ fn equation_path(equation: &Equation) -> &str {
         | Equation::Exclude(p, _)
         | Equation::Carry(p, _)
         | Equation::Agree(p, _) => p,
+        Equation::ExcludeTogether(conditions) => conditions.first().map_or("", |(p, _)| p),
     }
 }
 
@@ -2750,7 +2909,12 @@ fn remap_draft(draft: &mut Draft, map: impl Fn(usize) -> usize) {
             path(p);
         }
     }
-    for (i, _, _) in draft.exclusions.iter_mut().chain(&mut draft.carried) {
+    for (i, _, _) in draft
+        .exclusions
+        .iter_mut()
+        .chain(&mut draft.carried)
+        .chain(draft.joint_exclusions.iter_mut().flatten())
+    {
         *i = map(*i);
     }
     draft.predicative = draft.predicative.map(&map);

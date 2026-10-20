@@ -22,6 +22,10 @@ pub(crate) const MAX_PRODUCTION_VARS: usize = 16;
 pub(crate) const MAX_FEATURES: usize = 48;
 /// The most conjuncts one coordination Production may mark distinct.
 pub(crate) const MAX_DISTINCT_COORDINATORS: usize = 2;
+/// The most features one coordination Production may resolve.
+pub(crate) const MAX_RESOLUTIONS: usize = 4;
+/// The most conditions the joint exclusions of one Production may list.
+pub(crate) const MAX_JOINT_CONDITIONS: usize = 8;
 
 /// One feature value, with the final byte value reserved for an unbound slot.
 /// Binding validates the domain before any value reaches a chart State.
@@ -163,6 +167,21 @@ pub(crate) enum Symbol {
 #[derive(Debug, Clone)]
 pub(crate) struct Production {
     pub exclusions: Vec<(usize, usize, u16)>,
+    /// Combinations of (child, feature, value) conditions that may not all
+    /// hold: each exclusion is the run of `joint_conditions` up to its end
+    /// index.
+    pub joint_exclusions: Vec<usize>,
+    pub joint_conditions: Vec<(usize, usize, u16)>,
+    /// Features a coordination resolves: (feature, value when the conjuncts
+    /// but the last and the last differ, the mother feature position a whole
+    /// coordination resolves; a serial tail binds that position to its
+    /// conjuncts but the last instead).
+    pub resolutions: Vec<(usize, u16, Option<usize>)>,
+    /// The children that carry the value of the conjuncts but the last.
+    pub resolution_nonlast: Vec<usize>,
+    /// The child that carries the last conjunct's value, as its own feature
+    /// or (`true`) as a serial tail's recorded last value.
+    pub resolution_last: Option<(usize, bool)>,
     /// (child, feature, value) a child must carry, not merely admit.
     pub carried: Vec<(usize, usize, u16)>,
     /// Children that must be light or heavy.
@@ -340,6 +359,11 @@ pub(crate) fn resolve(
     }
     Ok(Production {
         exclusions: Vec::new(),
+        joint_exclusions: Vec::new(),
+        joint_conditions: Vec::new(),
+        resolutions: Vec::new(),
+        resolution_nonlast: Vec::new(),
+        resolution_last: None,
         carried: Vec::new(),
         weights: Vec::new(),
         adjunct_slot: None,
@@ -386,6 +410,9 @@ pub(crate) fn resolve(
             mixed_prepositions: false,
             conjunct_hosts: u8::MAX,
             unlike_value: None,
+            nonlast: [FeatureValue::UNSET; MAX_RESOLUTIONS],
+            last: [FeatureValue::UNSET; MAX_RESOLUTIONS],
+            joint_hits: 0,
             host_extensions: 0,
             adjunct_extension: None,
         },
@@ -413,6 +440,8 @@ pub(crate) struct Summary {
     /// A coordination's second preposition (*into your hand or onto the
     /// battlefield*).
     pub other_preposition: Option<LexemeId>,
+    /// A serial tail's last conjunct's value of each resolved feature.
+    pub last_resolved: [FeatureValue; MAX_RESOLUTIONS],
     /// Complements that would extend this phrase's selected frame, as an
     /// index into [`CompiledGrammar::extension_sets`].
     pub extensions: u16,
@@ -473,6 +502,12 @@ pub(crate) struct State {
     conjunct_hosts: u8,
     /// The first conjunct's value of an `unlike` feature.
     unlike_value: Option<u16>,
+    /// The value of each resolved feature on the conjuncts but the last, and
+    /// on the last.
+    nonlast: [FeatureValue; MAX_RESOLUTIONS],
+    last: [FeatureValue; MAX_RESOLUTIONS],
+    /// The joint-exclusion conditions (as bits) that hold so far.
+    joint_hits: u8,
     host_extensions: u16,
     adjunct_extension: Option<Extension>,
 }
@@ -658,6 +693,62 @@ impl Production {
         Some(())
     }
 
+    /// Records the joint-exclusion conditions child `position` meets, or
+    /// `None` once every condition of one exclusion holds.
+    fn joint_exclusion(
+        &self,
+        next: &mut State,
+        position: usize,
+        lookup: &dyn Fn(usize) -> Option<u16>,
+    ) -> Option<()> {
+        if self.joint_conditions.is_empty() {
+            return Some(());
+        }
+        for (k, &(at, feature, value)) in self.joint_conditions.iter().enumerate() {
+            if at == position && lookup(feature) == Some(value) {
+                next.joint_hits |= 1 << k;
+            }
+        }
+        let mut start = 0;
+        for &end in &self.joint_exclusions {
+            let mask = u8::try_from((1u16 << end) - (1u16 << start)).expect("validated");
+            if next.joint_hits & mask == mask {
+                return None;
+            }
+            start = end;
+        }
+        Some(())
+    }
+
+    /// Takes a child's values of the resolved features into the
+    /// coordination: those of the conjuncts but the last (which agree by
+    /// equation), or the last conjunct's.
+    fn resolve(
+        &self,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+        lookup: &dyn Fn(usize) -> Option<u16>,
+    ) {
+        let nonlast = self.resolution_nonlast.contains(&position);
+        let last = match self.resolution_last {
+            Some((at, from_tail)) if at == position => Some(from_tail),
+            _ => None,
+        };
+        for (i, &(feature, ..)) in self.resolutions.iter().enumerate() {
+            if nonlast && let Some(value) = lookup(feature) {
+                next.nonlast[i] = FeatureValue::new(value);
+            }
+            match (last, child) {
+                (Some(true), ChildView::Node(summary)) => next.last[i] = summary.last_resolved[i],
+                (Some(false), _) => {
+                    next.last[i] = lookup(feature).map_or(FeatureValue::UNSET, FeatureValue::new);
+                }
+                _ => {}
+            }
+        }
+    }
+
     /// The engine facts a lexical leaf child adds.
     fn accept_leaf(
         &self,
@@ -747,6 +838,8 @@ impl Production {
             return None;
         }
         self.unlike_conjuncts(&mut next, position, &lookup)?;
+        self.joint_exclusion(&mut next, position, &lookup)?;
+        self.resolve(&mut next, position, child, &lookup);
         for &(feature, var) in &self.child_vars[position] {
             if let Some(value) = lookup(feature) {
                 match next.vars[var].get() {
@@ -873,6 +966,21 @@ impl Production {
         for (value, var) in values.iter_mut().zip(&self.mother_vars) {
             *value = var.map_or(FeatureValue::UNSET, |v| state.vars[v]);
         }
+        let mut last_resolved = [FeatureValue::UNSET; MAX_RESOLUTIONS];
+        for (i, &(_, differ, at)) in self.resolutions.iter().enumerate() {
+            match at {
+                // The whole takes the common value, or `differ`.
+                Some(at) => {
+                    values[at] = match (state.nonlast[i].get(), state.last[i].get()) {
+                        (Some(a), Some(b)) if a != b => FeatureValue::new(differ),
+                        (None, _) => state.last[i],
+                        _ => state.nonlast[i],
+                    };
+                }
+                // A serial tail records its last conjunct's value.
+                None => last_resolved[i] = state.last[i],
+            }
+        }
         Some(Summary {
             first_glues: state.first_glues.unwrap_or(false),
             last_glues: state.last_glues,
@@ -896,6 +1004,7 @@ impl Production {
             } else {
                 state.other_preposition
             },
+            last_resolved,
             extensions: state.extensions,
             coordinator: state.coordinator,
             hosts: match state.preposition {

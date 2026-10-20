@@ -1175,6 +1175,13 @@ quantifier Coordination determines as its last Conjunct does (*one or more
 cards*).
 _Avoid_: attraction for this resolution rule
 
+**Feature Resolution** (project term):
+The value a Coordination takes from all of its Conjuncts' values: their common
+value, or a fixed one when they differ. A Coordination of Noun Phrases is
+determined only when every Conjunct is, so *all* over *artifacts and
+enchantments* determines a coordinated Nominal, never a Coordination of bare
+Noun Phrases; every Conjunct but the last shares its Determination.
+
 **Finiteness**:
 The grammatical property distinguishing finite clauses and Verb Phrases from
 nonfinite ones. It is not an Inflectional Form.

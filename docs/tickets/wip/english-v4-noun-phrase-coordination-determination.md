@@ -41,3 +41,7 @@ accepted that as an exception: it takes the schemas from 9 to 17 in
   exists.
 
 Standard constraints apply.
+
+Census delta (`kqzxkkzp`): faces read 28,705 → 28,705; total Readings 384,270 → 382,567 (86 units fewer, none more: predeterminers over coordinated Noun Phrases not all determined, and duplicate arithmetic operands over an unvalued coordinated Determination); lost faces: none. Lush Growth stays deferred; strata 0–6 unchanged, 0 known-wrong-only, 0 law failures.
+Judgment set (`kqzxkkzp`): 3,016 enforced, 189 pending, all hold; tests and clippy pass for deckmaste_syntax and deckmaste_english_v4.
+Done-when restated (coordinator ruling): `*NounPhrase double creatures and planeswalkers` cannot hold, since attributive *double* (*double damage*) is ordinary English and keeps its adjective + noun Readings; the judgment is `+NounPhrase double creatures and planeswalkers => !NounPhrase "creatures and planeswalkers"`, excluding only the multiplier over a bare coordination.

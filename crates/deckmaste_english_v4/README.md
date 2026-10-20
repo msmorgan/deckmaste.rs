@@ -233,7 +233,12 @@ determined by a distributive determinative (*each attacking creature and each
 blocking creature doesn't untap*); *and/or* is plural after a plural last
 conjunct and of either Number after a singular one; an *or*-coordination of
 nominals shares its conjuncts' Number and of Noun Phrases takes its last
-one's. A coordination of quantifiers determines as its last one does (*one or
+one's. Every conjunct of a Noun Phrase coordination but the last shares its
+Determination; the coordination is determined only when the last is too
+(*all artifacts and enchantments* has no predeterminer over coordinated bare
+Noun Phrases), takes the last's Countability, and never ends in a bare mass
+Noun Phrase after a determined one (*its power and toughness* is a determiner
+over a coordinated nominal). A coordination of quantifiers determines as its last one does (*one or
 more cards*) and, of fusable determinatives, heads a fused Noun Phrase
 (*choose one or more*, *if X is 5 or more*). A postmodifier agrees with each
 conjunct of a coordinated nominal. Bare imperatives and declaratives
