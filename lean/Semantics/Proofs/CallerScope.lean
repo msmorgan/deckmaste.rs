@@ -458,11 +458,28 @@ theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
       (drawUnlessReplaced (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) = [] := by
   decide
 
-/-- The caller's condition and action are one caller frame, the action a new clause after the
-condition, so both can name the caller's creature. -/
-theorem callerConditionAndActionShareTheCallersAnaphor :
-    Action.check callerCreature
-      (drawUnlessReplaced (doIf (matches_ it isCreature) (instead (tap it)))) = [] := by
+/-- "If you sacrificed a creature this turn": a caller's condition introducing the creature its
+action reads. -/
+private def sacrificedACreature : Condition :=
+  happened (sacrifice (a isCreature)) you soFarThisTurn
+
+/-- "… If you sacrificed a creature this turn, return it to its owner's hand instead.", the
+replacement the caller's: its condition and action are read in one caller frame, the action a
+new clause after the condition, so "it" names the creature the condition introduced. -/
+theorem callerConditionIntroducesWhatItsActionReads :
+    Action.check (DRS.ofList [])
+      (drawUnlessReplaced
+        (doIf sacrificedACreature (instead (returnToHand it graveyard)))) = [] := by
+  decide
+
+/-- Read in two caller frames instead, one for the condition and one for the action, the
+creature the condition introduced is gone by the time the action reads "it". -/
+theorem callerConditionReadInItsOwnFrameLosesItsReferent :
+    Action.check (DRS.ofList [])
+      (.ownScope none (.replace (draw (.lit 1))
+        (.onlyIf
+          (.and [compareAmt (countOf isArtifact) .atLeast (.lit 3), .inCaller sacrificedACreature])
+          (.instead (.inCaller (returnToHand it graveyard)))))) = [.anaphor .bare .one 0] := by
   decide
 
 /-- Read in the Definition's own scope instead, the caller's action names nothing. -/
