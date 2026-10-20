@@ -10,7 +10,6 @@ use deckmaste_lexical::Binding;
 use deckmaste_lexical::Case;
 use deckmaste_lexical::Countability;
 use deckmaste_lexical::Number;
-use deckmaste_lexical::Onset;
 use deckmaste_lexical::Person;
 use deckmaste_lexical::WordForm;
 use deckmaste_syntax::frames::Hosts;
@@ -340,8 +339,6 @@ pub enum AdverbPosition {
     /// Bounding a quantity: its determinative or numeral (*at least two*,
     /// *exactly one*; CGEL p. 1129).
     Bounding,
-    /// A degree modifier within a scalar phrase.
-    Degree,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -405,9 +402,6 @@ pub struct DeterminativeEntry {
     /// Spelling Variants, when the lemma is not the only spelling.
     #[serde(default)]
     pub spellings: Option<Vec<String>>,
-    /// The Onset each article spelling requires of what follows it.
-    #[serde(default)]
-    pub article_onsets: BTreeMap<String, Onset>,
     #[serde(default)]
     pub frames: Vec<FrameSpec>,
 }

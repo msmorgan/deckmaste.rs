@@ -122,7 +122,6 @@ impl Builder {
                 .features
                 .insert("NounKind".into(), Ident::new(&format!("{kind:?}")));
         }
-        lexeme.article_onsets.clone_from(&entry.article_onsets);
         self.push(lexeme);
         self.frames(id.into(), Category::Determinative, &entry.frames);
     }

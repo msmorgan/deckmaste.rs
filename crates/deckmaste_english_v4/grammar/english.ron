@@ -275,6 +275,7 @@
         "Which": "det:which",
         "Whether": "sub:whether",
         "Target": "det:target",
+        "Most": "det:most",
     },
     lexical_classes: {
         "Predeterminer": ["det:all", "det:both"],
@@ -294,7 +295,7 @@
         // Subordinator *that* and the relative pronouns (CGEL, Ch. 12 §3.5).
         "RelativeMarker": ["sub:that", "pronoun:which", "pronoun:who"],
     },
-    typed_classes: ["DegreeAdverb", "CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "InterrogativeAdverb"],
+    typed_classes: ["CopularVerb", "FusedHeadAdjective", "PhrasalAdverb", "BoundingAdverb", "FrontAdverb", "CentralAdverb", "EndAdverb", "CardType", "Supertype", "Subtype", "ParameterizedKeyword", "AbilityWord", "AnchorWord", "BracedSymbol", "Variable", "RangeMarker", "Pawprint", "InterrogativeAdverb"],
     slot_categories: {
         TypeModifier: "TypeModifier",
         NonManaCost: "NonManaCost",
@@ -824,9 +825,9 @@
             equations: [Require("modifier.Grade", "Equative"), Require("modifier.ComplementKind", "Intransitive"), Require("complement.ComplementKind", "NP"), Agree("modifier.Determination", "$.Determination")]),
         // An analytic superlative (*your most recent turn*, *most recently
         // cast*; CGEL, Ch. 13 §4.3, p. 1122).
-        (name: "DegreeModifiedAdjective", lhs: "AdjectivePhrase", rhs: [Class("modifier", "DegreeAdverb"), Cat("head", "AdjectivePhrase")],
+        (name: "DegreeModifiedAdjective", lhs: "AdjectivePhrase", rhs: [Word("modifier", "Most"), Cat("head", "AdjectivePhrase")],
             equations: [Require("head.Grade", "Plain"), Require("head.ComplementKind", "Intransitive"), Require("$.AdjectivePosition", "Attributive")]),
-        (name: "DegreeModifiedAdverb", lhs: "AdverbPhrase", rhs: [Class("modifier", "DegreeAdverb"), Cat("head", "AdverbPhrase")],
+        (name: "DegreeModifiedAdverb", lhs: "AdverbPhrase", rhs: [Word("modifier", "Most"), Cat("head", "AdverbPhrase")],
             equations: [Require("head.AdjunctPosition", "Central")]),
         // A comparative determinative and its *than* Complement as a fused
         // head (*by more than {5}*, *more than two*), with a bare standard;
@@ -987,7 +988,6 @@
         // creature*, *up to one target artifact or creature you control*).
         // The nominal it determines takes every modifier below it (CGEL,
         // Ch. 5, pp. 330–332).
-        (name: "TargetingMarker", lhs: "DeterminerPhrase", rhs: [Word("head", "Target")], equations: [Require("$.ComplementKind", "Intransitive")]),
         (name: "ModifiedTargetingMarker", lhs: "DeterminerPhrase", rhs: [Cat("modifier", "AdjectivePhrase"), Word("head", "Target")],
             equations: [Require("$.ComplementKind", "Intransitive"), Require("modifier.ComplementKind", "Intransitive"), Exclude("modifier.Voice", "Passive"), Exclude("modifier.AdjectivePosition", "Predicative")]),
         (name: "MarkedDeterminer", lhs: "DeterminerPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "DeterminerPhrase")],
@@ -1155,7 +1155,7 @@
         Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         Valence(head: Noun, phrase: "PrepositionalNominal"),
         Valence(head: Adjective, phrase: "AdjectivePhrase"),
-        Valence(head: Determinative, phrase: "DeterminerPhrase", except: ["Target"], agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
+        Valence(head: Determinative, phrase: "DeterminerPhrase", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("PrepositionMarking", "PrepositionMarking"), ("ObliqueDetermination", "Determination")]),
         // A complement costs nothing; a nominal postmodifier ranks before a
         // predicate adjunct.
         Adjunct(host: "QuantifiedNominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),

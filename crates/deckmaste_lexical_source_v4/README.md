@@ -172,8 +172,8 @@ end in it. The count noun `noun:target`
 has `HeadOnly` nominal distribution, keeping its head uses without duplicating
 the marker as a noun premodifier. An attributive adjective that requires overt
 determination (`adj:only`) passes that need to its nominal.
-Scalar degree adverbs (`as`, `most`) have Degree position within their scalar
-phrase, separate from general phrasal focus modifiers such as `only`. A
+The analytic superlative *most* (*most recent*) is the determinative
+`det:most`, which the grammar names directly; there are no degree adverbs. A
 number-transparent quantificational noun (*number*) has `Quantity`
 distribution.
 

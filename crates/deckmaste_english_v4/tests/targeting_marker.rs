@@ -7,14 +7,13 @@ use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::Reading;
 
-/// Whether some Constituent is a determiner the Targeting Marker heads.
+/// Whether some Constituent has the Targeting Marker as a leaf of its own.
 fn marked(reading: &Reading) -> bool {
     match reading {
         Reading::Node(node) => {
-            matches!(
-                node.production.as_str(),
-                "TargetingMarker" | "ModifiedTargetingMarker"
-            ) || node.children.iter().any(marked)
+            node.children.iter().any(|c| {
+                matches!(c, Reading::Leaf(LexicalReading::Word(w)) if w.lexeme == "det:target")
+            }) || node.children.iter().any(marked)
         }
         Reading::Leaf(_) => false,
     }

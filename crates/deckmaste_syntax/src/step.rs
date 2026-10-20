@@ -133,19 +133,6 @@ pub(crate) enum Test {
     FreeFrame(usize),
     /// A preposition that declares this complement frame.
     PrepositionFrame(usize),
-    /// A leaf the inner test admits, unless it is one of these lexemes (a
-    /// Valence schema's `except` Closed Words).
-    Except(Box<Test>, std::collections::BTreeSet<LexemeId>),
-}
-
-impl Test {
-    /// The test without its exceptions.
-    pub(crate) fn base(&self) -> &Test {
-        match self {
-            Test::Except(inner, _) => inner.base(),
-            other => other,
-        }
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -760,18 +747,14 @@ impl Production {
         if self.coordinator == Some(position) {
             next.coordinator = leaf.lexeme;
         }
-        let test = match &self.rhs[position] {
-            Symbol::Leaf(test) => Some(test.base()),
-            _ => None,
-        };
-        if let Some(Test::PrepositionFrame(frame)) = test {
+        if let Symbol::Leaf(Test::PrepositionFrame(frame)) = &self.rhs[position] {
             next.preposition = leaf.lexeme.map(|l| (l, *frame));
         }
-        let key = match (test, leaf.lexeme) {
-            (Some(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) => {
+        let key = match (&self.rhs[position], leaf.lexeme) {
+            (Symbol::Leaf(Test::Frame(frame) | Test::FreeFrame(frame)), Some(lexeme)) => {
                 Some((lexeme, Some(*frame)))
             }
-            (Some(Test::FreeLexical(_)), Some(lexeme)) => Some((lexeme, None)),
+            (Symbol::Leaf(Test::FreeLexical(_)), Some(lexeme)) => Some((lexeme, None)),
             _ => None,
         };
         if let Some(key) = key {
@@ -1057,10 +1040,6 @@ impl CompiledGrammar {
             }),
             Test::PrepositionFrame(frame) => {
                 facts.is_some_and(|f| f.preposition_frames.contains(frame))
-            }
-            Test::Except(inner, words) => {
-                leaf.lexeme.is_none_or(|id| !words.contains(&id))
-                    && self.leaf_matches_with_facts(inner, leaf, facts)
             }
         }
     }

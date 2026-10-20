@@ -68,7 +68,7 @@ checks compare characters without allocating another source string.
 
 Authors write active Subcategorization Frames once; the engine derives the rest.
 
-- `Valence { head, phrase, passive, adjectival, except }`: for each frame of each head lexeme
+- `Valence { head, phrase, passive, adjectival }`: for each frame of each head lexeme
   (verb, preposition, noun, adjective, determinative), a phrase of its head and
   frame slots, recording the Selected Frame. For verbs it also derives every
   object-Gap variant, a predicative-Gap variant of a `Copular` frame only (a
@@ -100,9 +100,6 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   Amount and Cost slots (*scry 2*, *waterbend {3}*) are Complements, never
   objects, so they derive no passive or Gap. An `Idiom` frame fixes a
   preposition among its Complements (*come up heads*).
-  `except` names Closed Words of the head Category that head none of the
-  derived phrases: the grammar builds such a word only into Productions of its
-  own (the Targeting Marker, which only ends a determiner).
 - `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause

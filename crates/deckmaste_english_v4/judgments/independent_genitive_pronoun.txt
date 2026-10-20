@@ -1,8 +1,5 @@
-# Independent genitive pronouns (yours, his, hers, theirs) versus dependent genitives (your, their, its)
+# The independent genitive pronoun yours versus dependent genitives (your, their, its)
 +NounPhrase yours => readings 1
-+NounPhrase his => readings 1
-+NounPhrase hers => readings 1
-+NounPhrase theirs
 *NounPhrase its
 *NounPhrase your
 *NounPhrase their

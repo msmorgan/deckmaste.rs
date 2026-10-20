@@ -6,7 +6,7 @@
     determinatives: [
         (lemma: "last", distribution: Deictic, noun_kind: Some(Temporal)),
         (lemma: "next", distribution: Deictic, noun_kind: Some(Temporal)),
-        (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"], article_onsets: {"a": Consonant, "an": Vowel}),
+        (lemma: "a", distribution: IndefiniteArticle, number: Singular, countability: Count, spellings: ["a", "an"]),
         (lemma: "all", frames: [Complement(PP(["of"])), Complement(PP(["but"]))]),
         (number: Singular, countability: Count, lemma: "another", distribution: SingularOrQuantified, frames: [Complement(PP(["of"]))]),
         // Its partitive is the grammar's: with a plural oblique the Noun
@@ -25,6 +25,7 @@
         // that damage*; CGEL, Ch. 5 §7.3, p. 434); the verb is a keyword action.
         (lemma: "half", distribution: Multiplier),
         (lemma: "double", distribution: Multiplier),
+        (lemma: "triple", distribution: Multiplier),
         (number: Singular, countability: Mass, lemma: "least"),
         (number: Singular, countability: Mass, lemma: "less", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (number: Plural, countability: Count, lemma: "many", frames: [Complement(PP(["of"]))]),
@@ -58,7 +59,6 @@
             (person: Third, number: Singular, case: Nominative, surfaces: "he"),
             (person: Third, number: Singular, case: Accusative, surfaces: "him"),
             (person: Third, number: Singular, case: Genitive, surfaces: "his"),
-            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "his"),
         ]),
         (lemma: "himself", forms: [
             (person: Third, number: Singular, case: Accusative, surfaces: "himself"),
@@ -77,7 +77,6 @@
             (person: Third, number: Singular, case: Nominative, surfaces: "she"),
             (person: Third, number: Singular, case: Accusative, surfaces: "her"),
             (person: Third, number: Singular, case: Genitive, surfaces: "her"),
-            (form: IndependentGenitive, person: Third, number: Singular, case: Genitive, surfaces: "hers"),
         ]),
         // Existential dummy *there*; it agrees with the displaced subject.
         (lemma: "there", kind: Existential, forms: [
@@ -91,7 +90,6 @@
             (person: Third, number: Plural, case: Nominative, surfaces: "they"),
             (person: Third, number: Plural, case: Accusative, surfaces: "them"),
             (person: Third, number: Plural, case: Genitive, surfaces: "their"),
-            (form: IndependentGenitive, person: Third, number: Plural, case: Genitive, surfaces: "theirs"),
         ]),
         // Relative *which* does not inflect for case.
         (lemma: "which", kind: Relative, forms: [
