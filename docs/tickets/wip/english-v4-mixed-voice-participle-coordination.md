@@ -40,3 +40,23 @@ coordination in the corpus.
   face lost.
 
 Standard constraints apply.
+
+## Record
+
+- The mixed-voice `VerbPhrase` coordination now excludes past participles
+  (`Exclude("first.VerbForm", "PastParticiple")`; an equation over `$` is not
+  available for an `Exclude`, and the conjuncts share `VerbForm`).
+- The `Require` → `Carry` change on the six passive-participle consumers is
+  not made. With the schema fixed, no participle coordination leaves `Voice`
+  unset, and the change measured zero census difference on top of the fix. It
+  would only add consumer-side checks.
+- The ticket's example phrases are not Oracle text. `+` Judgments on real cards
+  in `mixed_voice_participles.txt` cover the intent: Elspeth, Undaunted Hero
+  (*a card named Sunlit Hoplite and put it onto the battlefield* is no
+  participle coordination), God-Eternal Bontu (*dies or is put into exile*)
+  and Mephitic Draught (*enters or is put into a graveyard*).
+
+1. **Census delta** (measured on `mvrxnorx`): faces read 28,709 → 28,709;
+   total Readings 382,152 → 381,876; lost faces: none.
+2. **Judgment set**: 2,902 enforced at `COMPLETED_STRATUM` 6, all hold; 190
+   pending.

@@ -1195,8 +1195,10 @@
         // passive perfect).
         Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive"]),
         // An active and a passive Verb Phrase coordinate too (*enters
-        // or is put into a graveyard*), leaving Voice and VerbKind unvalued.
-        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"], unlike: Some("Voice"), serial: Some(true)),
+        // or is put into a graveyard*), leaving Voice and VerbKind unvalued;
+        // past participles do not, since a participle's Voice is what selects
+        // it (*attacked or blocked by this creature* is passive throughout).
+        Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["VerbKind", "Voice", "Inflection", "AdjectivalPassive"], equations: [Exclude("first.VerbForm", "PastParticiple")], unlike: Some("Voice"), serial: Some(true)),
         // A gerund-participle and then a past participle (*blocking or
         // blocked by this creature*).
         Coordination(category: "VerbPhrase", coordinators: "Coordinator", unshared: ["Inflection", "AdjectivalPassive", "VerbForm"], equations: [Require("first.VerbForm", "GerundParticiple"), Require("last.VerbForm", "PastParticiple"), Require("$.VerbForm", "PastParticiple")], proximate: ["VerbKind", "Voice"]),

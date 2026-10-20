@@ -1,0 +1,4 @@
+# A past participle's Voice selects it, so active and passive past participles never coordinate; finite active and passive Verb Phrases still do
++ <card=Elspeth, Undaunted Hero> −2: Search your library and/or graveyard for a card named Sunlit Hoplite and put it onto the battlefield. If you search your library this way, shuffle. => NounPhrase "a card named Sunlit Hoplite"; !VerbPhrase "named Sunlit Hoplite and put it onto the battlefield"
++ <card=God-Eternal Bontu> When God-Eternal Bontu dies or is put into exile from the battlefield, you may put her into her owner's library third from the top. => VerbPhrase "dies or is put into exile from the battlefield"
++ <card=Mephitic Draught> When this artifact enters or is put into a graveyard from the battlefield, you draw a card and you lose 1 life. => VerbPhrase "enters or is put into a graveyard from the battlefield"
