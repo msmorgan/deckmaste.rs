@@ -206,6 +206,25 @@ When all five colors are listed, use color-wheel order: `white, blue, black,
 red, and green` (or final `or` as semantics require). Put `colorless` after the
 five colors when it participates in the same catalog.
 
+For a two-color description, use the established pair order:
+
+| Allied pairs | Enemy pairs |
+| --- | --- |
+| white and blue | white and black |
+| blue and black | blue and red |
+| black and red | black and green |
+| red and green | red and white |
+| green and white | green and blue |
+
+Use the same order with `or` when describing alternatives. For longer lists,
+use the approved order of the color combination:
+
+> a 1/1 red, green, and white Sand Warrior creature token  
+> target red, white, or black creature card
+
+Do not alphabetize colors, start every combination at white, or calculate
+their prose order from the object's mana cost.
+
 #### Category-specific capitalization
 
 Apply capitalization at the point where each formal category is defined:
@@ -235,9 +254,14 @@ contains one:
 - a power/toughness line in a leveler band; or
 - a result or threshold label before `|`.
 
-If an approved keyword template punctuates a verbal cost as a sentence, retain
-that punctuation. Do not extrapolate the period to a keyword form such as `Ward
-{2}`.
+End a keyword's em-dash-separated verbal cost with a period, even when it
+occupies a standalone line: `Ward—Pay 3 life.`, `Cumulative upkeep—Sacrifice a
+land.`, `Echo—Discard a card.` Composite mana-and-action costs likewise retain
+the period: `Ward—{2}, Pay 2 life.` Do not extrapolate it to a mana-only form
+such as `Ward {2}`. Keep an associated instruction on the same line when it
+belongs to that keyword ability:
+
+> Equip—Sacrifice another nonland permanent. Activate only once each turn.
 
 #### Commas and the serial comma
 
@@ -346,6 +370,16 @@ gloss, give its punctuation to the outer sentence:
 
 > When this creature enters, you get {E}{E} (two energy counters).
 
+When a complete instruction is followed by a full-sentence reminder, put a
+period before `(` and another before `)`:
+
+> When this creature enters, it explores. (Reveal the top card of your library.
+> Put that card into your hand if it's a land. Otherwise, put a +1/+1 counter
+> on this creature, then put the card back or put it into your graveyard.)
+
+The reminder's period does not replace the instruction's period. A bare
+keyword still takes no outer period: `Trample (...)`.
+
 #### Quotation marks and apostrophes
 
 Use straight double quotation marks and straight apostrophes in Oracle source
@@ -442,6 +476,24 @@ This convention continues beyond ten. Use `a` or `an`, not `one`, for an
 ordinary single object: `Draw a card`, `Create a token`. Use `one` where the
 number participates in a choice, contrast, bound, or distribution: `choose
 one`, `up to one target`, `one of them`, `one or more`.
+
+Write `up to one target creature`, never `up to a target creature`. Spell out
+larger bounds: `up to two target creatures`. Keep `one` in a distribution:
+
+> For each player, exile up to one target nonland permanent that player controls.
+
+#### Ordinals and fractions
+
+Spell out ordinals in prose: `first`, `second`, `third`, `seventh`. Write
+`seventh from the top`, not `7th from the top`. Keep digits in structural
+labels such as `Level 2`.
+
+Spell out fractions: `half their life`, `half X`, `a third of their life`.
+Use `half` without an article in these quantity expressions; do not substitute
+`one-half` or `1/2`. Put the rounding instruction after the calculation, or in
+a shared sentence when several calculations use the same rounding:
+
+> You gain half X life and draw half X cards. Round down each time.
 
 #### Scalar values and notation are digits
 
@@ -874,6 +926,12 @@ ordinary coordination: `an Assassin, Pirate, or Vehicle card`; `Elf or Druid
 creature`. When they jointly describe one object's subtype set in a token
 description or type line, place them adjacently: `Human Wizard creature token`.
 
+Put species before class in combinations such as `Human Wizard` and `Elf
+Druid`. Preserve the established order of other subtype combinations:
+`Fungus Zombie`, `Dragon Spirit`. Do not move every Zombie, Skeleton, or Spirit
+subtype to the front. Adjacent subtypes remain distinct; a catalog entry such
+as `Time Lord` is one multiword subtype.
+
 #### Supertypes are lowercase modifiers
 
 Use supertypes as modifiers of a type or carrier noun:
@@ -1030,6 +1088,15 @@ verbal cost component begins with a capital even after a comma: `Sacrifice`,
 `Discard`, `Exile`, `Remove`, `Reveal`, `Pay`, `Tap`. Use the exact game action
 and state the object or resource being paid.
 
+Keep the remaining action costs in their approved template order. Payment may
+precede tapping other objects, and exile may precede sacrifice:
+
+> {T}, Pay 2 life, Tap X untapped tokens you control: ...  
+> {3}{W}, {T}, Exile two creature cards from your graveyard, Sacrifice this
+> artifact: ...
+
+Do not sort verbal costs by a fixed hierarchy of action names.
+
 Do not put `target` in an activation cost. Costs identify what is paid without
 targeting (`Sacrifice a creature`, `Discard a card`); every target belongs
 after the colon in the effect.
@@ -1134,9 +1201,16 @@ Use the shortened battlefield event for routine enters triggers:
 > When this creature enters, ...  
 > Whenever another artifact enters under your control, ...
 
-Do not write `enters the battlefield` by habit. Retain the full phrase only
-when the destination phrase is needed to express a nonstandard relation, such
-as `enters the battlefield under your control`.
+Keep the shortened form before `under your control` in routine triggers.
+Retain the full destination where the approved template requires it:
+
+> Creature cards in graveyards and libraries can't enter the battlefield.  
+> if you had a land enter the battlefield under your control this turn  
+> Whenever a nonland permanent an opponent owns enters the battlefield under
+> your control, ...
+
+Movement instructions still say `put ... onto the battlefield` and
+`return ... to the battlefield`.
 
 Use `dies` for a creature moving from the battlefield to a graveyard. Use the
 long form when the subject can be a noncreature or when the exact origin and
@@ -1192,8 +1266,22 @@ embedded in its instruction:
 
 > Return that card to the battlefield at the beginning of the next end step.
 
-Use `When you do` or `When [event happens] this way` for a reflexive trigger
-created during resolution. Use `If you do` when no new trigger is intended.
+A timing clause may also begin the sentence:
+
+> At the beginning of the next end step, return that card to the battlefield
+> under its owner's control with a +1/+1 counter on it.
+
+Use the placement prescribed by the effect template. A newly created token
+can take a trailing timing clause: `Sacrifice it at the beginning of the next
+end step.` Make the scope of any following instructions clear.
+
+Begin a reflexive trigger with a new sentence: `When you do, ...` or `When
+[event happens] this way, ...`:
+
+> You may sacrifice a creature. When you do, destroy target creature or
+> planeswalker.
+
+Use `If you do` when no new trigger is intended.
 
 #### Static abilities
 
@@ -1221,10 +1309,40 @@ is independently intelligible:
 
 > Flying, vigilance, lifelink
 
-Use a semicolon when a following keyword has reminder text and a comma would
-make the reminder's attachment unclear:
+Use the approved comma or semicolon separators on a shared keyword line.
+A semicolon can separate a keyword with reminder text from a preceding keyword:
 
-> First strike; reach (This creature can block creatures with flying.)
+> Defender; reach (This creature can block creatures with flying.)
+
+Keep semicolons between earlier members when the template uses them:
+
+> Flying; trample; rampage 4 (...)  
+> Trample; haste; shroud (...)
+
+A comma can also precede a keyword with reminder text, including a keyword
+without a numeric parameter:
+
+> Flying, vigilance (Attacking doesn't cause this creature to tap.)
+
+Do not choose the separator by whether the keyword has a numeric parameter.
+Preserve the template's line breaks as well as its separators.
+
+Put a shared line's reminder at the end. Its wording determines which
+keywords it explains; its position does not restrict it to the final keyword:
+
+> Flying, intimidate, trample (A creature with intimidate can't be blocked
+> except by artifact creatures and/or creatures that share a color with it.)
+
+Use one combined reminder when the approved template explains several
+keywords together, as in `Convoke, delve (...)` or `Soulshift 4, soulshift 4
+(...)`. Put separately reminded keywords on separate lines.
+
+Keep the approved keyword order, including repeated instances:
+
+> Vigilance, deathtouch, haste  
+> Trample, ward {2}, prowess, prowess (Each instance of prowess triggers separately.)
+
+Do not sort keywords alphabetically or by combat phase.
 
 Keep a parameter with its keyword: `flying, ward {2}`. A shared keyword line is
 several abilities despite occupying one paragraph, an express exception to the
@@ -1768,6 +1886,9 @@ Zombie creature token.` Append `that's tapped and attacking` when a newly
 created noncopy token enters combat. A copy uses the distinct fixed order `a
 tapped and attacking token that's a copy of ...`.
 
+For multicolor and multiple-subtype descriptions, use the orders described in
+[Capitalization](#2-capitalization) and [Subtypes](#subtypes-are-capitalized-nouns-and-modifiers).
+
 For a predefined artifact token kind, capitalize the subtype and omit the
 implied card type in the creation instruction: `Create a Treasure token`,
 `Create two Food tokens`, `Create a tapped Powerstone token`. Include the card
@@ -1940,6 +2061,19 @@ Make the source the grammatical subject:
 > Shock deals 2 damage to any target.  
 > It deals damage equal to its power to that player.
 
+Use the source object as the subject of `deals damage` [CR#120.7]. Do not
+substitute its controller. Use a pronoun for a repeated source when its
+antecedent is clear:
+
+> Whenever Questing Beast deals combat damage to an opponent, it deals that
+> much damage to target planeswalker that player controls.
+
+Repeat the source description when the template calls for it, even without
+an intervening subject:
+
+> Whenever this creature deals damage to a creature or opponent, this creature
+> deals that much damage to you.
+
 Use `combat damage` and `noncombat damage`, not *battle damage* or
 `non-combat`. Use `damage dealt this way` to link a result to a particular
 instruction. Use `that much damage` after a scalar antecedent.
@@ -2039,6 +2173,19 @@ the player when it is not the resolving effect's controller:
 Use `destroy target [permanent]` for destruction and `exile target [object]`
 for exile. Do not use *remove from the game*. Use `It can't be regenerated`
 only when the design specifically defeats regeneration.
+
+Put a restriction on regenerating a destroyed creature in a separate sentence:
+
+> Destroy target nonartifact, nonblack creature. It can't be regenerated.
+
+For a damage effect's regeneration restriction, identify the affected creatures
+and state the duration:
+
+> A creature dealt damage this way can't be regenerated this turn.
+
+Do not add this restriction merely because an effect reduces toughness.
+Regeneration cannot replace a creature's move to its owner's graveyard for
+having toughness 0 or less [CR#704.5f].
 
 ##### Randomness, dice, coins, and voting
 
@@ -2239,11 +2386,14 @@ After a comma or semicolon in a shared keyword line, begin the next keyword in
 lowercase unless it contains a proper name:
 
 > Flying, first strike, vigilance  
-> Protection from black; banding (...)
+> Protection from red; banding (...)
 
 Do not add a terminal period to a keyword line unless the keyword's fixed
-grammar includes one. Parameters and reminder text do not turn the keyword's
-name into title case.
+grammar includes one. In particular, retain the period after a verbal cost
+following an em dash, as described under [Periods](#periods). Parameters and
+reminder text do not turn the keyword's name into title case. For reminder
+scope, separators, and ordering on a shared line, follow
+[Keyword abilities on a shared line](#keyword-abilities-on-a-shared-line).
 
 Use each keyword ability's approved spelling, parameter order, separators,
 punctuation, and display form. The Comprehensive Rules supply the catalog and
