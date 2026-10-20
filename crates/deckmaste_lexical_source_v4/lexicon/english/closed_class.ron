@@ -18,7 +18,7 @@
         (number: Singular, countability: Count, lemma: "each", distribution: Distributive, frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "either", distribution: Distributive, frames: [Complement(PP(["of"]))]),
         (number: Singular, countability: Count, lemma: "every", distribution: Distributive),
-        (lemma: "everything"),
+        (number: Singular, countability: Count, lemma: "everything"),
         (number: Plural, countability: Count, lemma: "fewer", frames: [Complement(PP(["of"])), Complement(PP(["than"]))]),
         (number: Plural, countability: Count, lemma: "fewest"),
         // Fraction and multiplier predeterminers (*half their life*, *double

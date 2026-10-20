@@ -66,3 +66,31 @@ bound, causing duplicate derivations and agreement leaks:
 - Every unit that reads before the change still reads, with no face lost.
 
 Standard constraints apply.
+
+## Record
+
+- `ProperName` requires `Countability` `Count`. It does not bind `Number`:
+  plural card names (*The Fantastic Four deal 3 damage*, *Whenever Krang &
+  Shredder enter or attack*) agree in the plural, and requiring `Singular`
+  lost 20 faces. `*CARDNAME attack.` and `*CARDNAME more` already had no
+  Reading.
+- A `[Count, Mass]` noun is `Count` in its plural form (`countable_plural` on
+  the lexeme facts in `deckmaste_syntax`); its singular stays unvalued.
+  `Determined` already unifies `$`, `determiner` and `head` `Countability`
+  through the head convention, so it needed no new equation.
+- `ComparativeQuantityMassDetermined` carries `head.Countability` `Mass`, so a
+  singular dual noun reads only as a count head: *more than one time* has one
+  derivation. `PredeterminerCount` requires a plural head, so *all the time*
+  already had one.
+- `det:everything` is `Singular` and `Count`.
+- `FusedDegreeDeterminer` is a count quantity, as `FusableCardinal` is: fused
+  *the most* has one analysis (Hooded Horror 78 → 39), and the spurious fused
+  Indirect Object *that much* in *deals [that much] [damage plus 1]* is gone
+  (19 units).
+- `*NounPhrase one time less` already had no Reading. *that order more* still
+  reads through `MeasuredComparativeHead`; it is a word combination no card
+  contains, not an inflectional choice, so it gets no `*` entry.
+- Judgments in `judgments/number_and_countability.txt`.
+
+Census delta (measured on wyqmuoyv): faces read 28,709 → 28,709; total Readings 381,876 → 381,785; lost faces: none.
+Judgment set: 2,905 enforced at `COMPLETED_STRATUM` 6, all hold; 191 pending.

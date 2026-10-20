@@ -1,0 +1,5 @@
+# Number and Countability bound where the paradigm fixes them: a fused degree determinative is a count quantity, so *that much* before its noun is never a fused Indirect Object and fused *the most* has one analysis; *everything* is singular
++ If a source you control would deal noncombat damage to an opponent or a permanent an opponent controls, it deals that much damage plus 1 instead. => NounPhrase "that much damage plus 1" as Object of deal; DeterminerPhrase "that much" as Determiner of damage; !NounPhrase "that much" as IndirectObject of deal
++ This creature can't be blocked as long as defending player controls the most creatures or is tied for the most. => DeterminerPhrase "the most" as Determiner of creature; NounPhrase "the most"#2 as Complement of for
++PrepositionPhrase for the most => NounPhrase "the most" as Complement of for; readings 1
+*Clause Everything are exiled.

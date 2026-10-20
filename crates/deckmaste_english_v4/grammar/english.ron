@@ -621,8 +621,9 @@
         (name: "DegreeDeterminer", lhs: "DeterminerPhrase", rhs: [Word("modifier", "That"), Class("head", "DegreeQuantifier")], equations: [Require("$.ComplementKind", "Intransitive")]),
         // A modified degree determinative as a fused head (*that many*, *the
         // most*); a coordination fuses only as a FusedQuantity, whose conjuncts
-        // can each head alone.
-        (name: "FusedDegreeDeterminer", lhs: "FusedNounPhrase", rhs: [Cat("head", "DeterminerPhrase")], uncoordinated: ["head"], equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Dependent"), Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
+        // can each head alone. Like a fused cardinal, it is a count quantity
+        // (*tied for the most*), never a fused *that much*.
+        (name: "FusedDegreeDeterminer", lhs: "FusedNounPhrase", rhs: [Cat("head", "DeterminerPhrase")], uncoordinated: ["head"], equations: [Require("head.ComplementKind", "Intransitive"), Require("head.DeterminativeDistribution", "Dependent"), Agree("$.Countability", "head.Countability"), Require("$.Countability", "Count"), Require("$.NounKind", "Quantity"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")], heavy: ["head"]),
         // A coordination of fusable determinatives as a fused head (*choose
         // one or more*, *if X is 5 or more*).
         // A spelled cardinal is a quantity (*one or more*); an Arabic numeral
@@ -935,7 +936,7 @@
         (name: "SymbolFusedHead", lhs: "FusedNounPhrase", rhs: [Cat("head", "SymbolHead")]),
         (name: "SymbolNominalPhrase", lhs: "SymbolHead", rhs: [Cat("head", "Symbols")], equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Number", "Singular"), Require("$.Person", "Third")]),
         (name: "ProperName", lhs: "NounPhrase", rhs: [Cat("head", "Name")],
-            equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("$.NounKind", "Ordinary"), Require("$.Countability", "Count"), Require("$.Determination", "Bare"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "Determined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Agree("$.Targeting", "determiner.Targeting"), Agree("$.DeterminativeDistribution", "determiner.DeterminativeDistribution"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third"), Exclude("determiner.DeterminativeDistribution", "Independent"), Exclude("determiner.DeterminativeDistribution", "FreeChoice"), Exclude("determiner.ComplementKind", "PP"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number")]),
         // A distributive determiner over an *and*-coordination of singular
@@ -947,11 +948,12 @@
                 Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")], transparent: ["nominal"]),
         // A comparative quantity determines a count head that agrees with its
         // *than* Complement (*more than one creature*), or a mass head (*less
-        // than three mana*).
+        // than three mana*). A singular noun both count and mass carries no
+        // Countability of its own, so it is not a mass head here.
         (name: "ComparativeQuantityCountDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
             equations: [Require("determiner.ComplementKind", "PP"), Require("determiner.PrepositionMarking", "Comparative"), Require("head.Countability", "Count"), Agree("determiner.ObliqueNumber", "head.Number"), Agree("determiner.Countability", "head.Countability"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "ComparativeQuantityMassDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "DeterminerPhrase"), Cat("head", "Nominal")],
-            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Require("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
+            equations: [Require("determiner.ComplementKind", "PP"), Exclude("determiner.ObliqueKind", "FiniteClause"), Carry("head.Countability", "Mass"), Require("head.Number", "Singular"), Agree("determiner.Countability", "head.Countability"), Agree("determiner.Number", "head.Number"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Require("$.Person", "Third")]),
         // Free-choice *any* determines a nominal, but a quantificational noun
         // only without its oblique: with one, the Noun Phrase takes the
         // oblique's Number (*any number of target creatures become ...*).

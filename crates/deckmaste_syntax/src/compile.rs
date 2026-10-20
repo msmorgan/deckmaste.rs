@@ -53,6 +53,8 @@ pub(crate) const PROJECTED: [&str; 8] = [
 pub(crate) struct LexemeFacts {
     pub atomic: bool,
     pub countability: Option<Ident>,
+    /// A noun both count and mass is count in its plural form.
+    pub countable_plural: bool,
     pub features: Vec<(usize, u16)>,
     pub category: LexicalCategory,
     pub binding: Binding,
@@ -387,6 +389,10 @@ impl<'a> Binder<'a> {
                         [value] => Some(Ident::new(&format!("{value:?}"))),
                         _ => lexeme.properties.features.get("Countability").copied(),
                     },
+                    countable_plural: lexeme
+                        .properties
+                        .countability
+                        .contains(&deckmaste_lexical::Countability::Count),
                     category: lexeme.category,
                     binding: lexeme.binding,
                     frames: BTreeSet::new(),
