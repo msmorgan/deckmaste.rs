@@ -256,7 +256,7 @@ theorem forgottenOperandDoesNotRedirectToNeighbor :
       moved.sameReferents shuffled = true := by decide
 
 theorem postposedCounterConditionReadsTheUnmovedSpell :
-    Action.check (DRS.ofList []) (.doOnlyIf (counter (target isSpell))
+    Action.check (DRS.ofList []) (doOnlyIf (counter (target isSpell))
       (costWasPaid (.byKeyword (.named "kicker")) none it) none) = [] := by decide
 
 
@@ -269,7 +269,7 @@ theorem regenerationCanProtectANoncreaturePermanent :
 
 
 theorem alternativeDoesNotObserveThePrimaryBranchesMove :
-    Action.check (DRS.ofList []) (.doOnlyIf (putInto (target isSpell) exileZone)
+    Action.check (DRS.ofList []) (doOnlyIf (putInto (target isSpell) exileZone)
       (.matches it (.colorIs .red)) (some (counter it))) = [] := by decide
 
 

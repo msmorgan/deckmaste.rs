@@ -216,7 +216,7 @@ theorem okTapDamagedCreature :
 theorem badConditionAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ .doOnlyIf (gainLife (.lit 2)) (exists_ (and [isCreature, youControl])) none,
+        [ doOnlyIf (gainLife (.lit 2)) (exists_ (and [isCreature, youControl])) none,
           .setStatus .tapped it ]) = [.anaphor .bare .one 0] := by
   decide
 

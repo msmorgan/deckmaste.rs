@@ -128,7 +128,7 @@ theorem badMatchesTargetSubject :
 theorem okMatchesArtifact :
     Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target isCreature),
-                      .doOnlyIf (gainLife (.lit 1)) (.matches it isArtifact) none]) =
+                      doOnlyIf (gainLife (.lit 1)) (.matches it isArtifact) none]) =
                           [] := by
   decide
 
@@ -136,7 +136,7 @@ theorem okMatchesArtifact :
 theorem badMatchesNothing :
     Action.check (DRS.ofList [])
       (.sequentially [.setStatus .tapped (target isCreature),
-                      .doOnlyIf (gainLife (.lit 1)) (.matches it (.and [])) none])
+                      doOnlyIf (gainLife (.lit 1)) (.matches it (.and [])) none])
       = [.predSays] := by
   decide
 

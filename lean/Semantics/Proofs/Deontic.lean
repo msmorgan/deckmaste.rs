@@ -257,12 +257,13 @@ theorem okCantCounterAbilities :
       = [] := by
   decide
 
-/-- "Each opponent discards a card, if those cards are creature cards." -/
+/-- "Each opponent discards a card. If those cards are creature cards, you gain 1 life." -/
 theorem distributedDeedReadsBackPluralUnderCondition :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (.sequentially [Templates.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))), discard them]) (.matches (those .card)
-          isCreature)
-        none) = [] := by
+      (.sequentially
+        [ Templates.instruct (each (.isOpponentOf .you)) (choose (a (.and [.isCard, .in_ hand]))),
+          discard them,
+          doIf (.matches (those .card) isCreature) (gainLife (.lit 1)) ]) = [] := by
   decide
 
 /-- "... sacrificed permanents can't be regenerated." -/

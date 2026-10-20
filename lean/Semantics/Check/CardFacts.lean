@@ -50,7 +50,7 @@ mutual
     | _ + 1, .unlock .thisDoor => true
     | n + 1, .withContinuation _ b yes no =>
       b.namesThisDoor n || yes.any (fun i => i.namesThisDoor n) || no.any (fun i => i.namesThisDoor n)
-    | n + 1, .doOnlyIf b condition no | n + 1, .doIf condition b no =>
+    | n + 1, .doIf condition b no =>
       b.namesThisDoor n || condition.namesThisDoor n || no.any (fun i => i.namesThisDoor n)
     | n + 1, .sequentially bs | n + 1, .simultaneously bs => bs.any (fun i => i.namesThisDoor n)
     | n + 1, .repeat_ (.fixed _ b) => b.namesThisDoor n

@@ -2740,29 +2740,33 @@ def stepOps : Nat → StepOps
               nextId := max drs2.nextId drs3.nextId
               nextSelectionScope := max drs2.nextSelectionScope drs3.nextSelectionScope
               selectionEvidence := evidence }, e1 ++ e2 ++ e3 ++ policyErrors)
-        | .doOnlyIf inst cond otherwise =>
-          let (performed, e1) := ops.inst phase patientRole drs inst
-          let (announced, _) := ops.inst .preEvent patientRole drs inst
-          let (condition, e2) := ops.cond (nextClause announced) cond
-          let (alternative, e3) := match otherwise with
-            | some body => ops.inst phase .obj (nextClause condition) body
-            | none => (condition, [])
-          let nextId := max performed.nextId (max condition.nextId alternative.nextId)
-          let announcedTargets := announced.referents.filter fun ref =>
-            ref.det == .target && !(drs.referents.any (·.id == ref.id))
-          ({ drs with referents := announcedTargets ++ drs.referents, nextId }, e1 ++ e2 ++ e3)
         | .limited inst limit =>
           let (out, errors) := ops.inst phase patientRole drs inst
           let (out', limitErrors) := stepUsageLimitWith ops out limit
           (out', errors ++ limitErrors)
         | .doIf cond thenInst elseInst =>
-          let (drs1, e1) := ops.cond drs cond
-          let (drs2, e2) := ops.inst phase .obj (nextClause drs1) thenInst
+          -- The branch's targets are chosen as the spell or ability is put on the stack
+          -- [CR#601.2c,115.1], before the condition is checked as it resolves [CR#608.2c]: the
+          -- condition reads them back wherever it is printed ("counter target spell if its mana
+          -- value is X"). The other branch reads the branch as announced, its targets and the
+          -- amounts it names ("otherwise, each opponent loses that much life"), not what it did.
+          let (announced, _) := ops.inst .preEvent .obj drs thenInst
+          let targets := announced.referents.filter fun ref =>
+            ref.det == .target && !(drs.referents.any (·.id == ref.id))
+          let targetIds := targets.map (·.id)
+          let withTargets := if targets.isEmpty then drs else
+            nextClause { drs with
+              referents := targets ++ drs.referents, nextId := announced.nextId }
+          let (drs1, e1) := ops.cond withTargets cond
+          let (drs2, e2) := ops.inst phase .obj
+            (nextClause { drs1 with
+              referents := drs1.referents.filter (!targetIds.contains ·.id) }) thenInst
           match elseInst with
           | none => (drs2, e1 ++ e2)
           | some el =>
-            let (_, e3) := ops.inst phase .obj (nextClause drs) el
-            (drs, e1 ++ e2 ++ e3)
+            let (alternative, e3) := ops.inst phase .obj
+              (nextClause { announced with nextId := max announced.nextId drs2.nextId }) el
+            ({ withTargets with nextId := max drs2.nextId alternative.nextId }, e1 ++ e2 ++ e3)
         | .doForEach grp body =>
           let (read, grpIds, e1) := ops.np { drs with characteristicRead := true } .other false grp
           let drs1 := { read with characteristicRead := drs.characteristicRead }

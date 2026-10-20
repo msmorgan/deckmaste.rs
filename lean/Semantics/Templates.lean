@@ -1495,9 +1495,12 @@ semantic_template doForEachKind (axis : KindAxis) (sort : QualitySort) (body : A
 semantic_template doIfDone (body : Action) (ifDid : Option Action := none)
     (ifNot : Option Action := none) : Action :=
   .withContinuation .required body ifDid ifNot
+/-- "<action> if <condition>" ("counter target spell if its mana value is X"): the conditional
+action with its condition printed after it, which reads the action's targets back as any
+condition does. -/
 semantic_template doOnlyIf (action : Action) (condition : Condition)
     (otherwise : Option Action := none) : Action :=
-  .doOnlyIf action condition otherwise
+  .doIf condition action otherwise
 /-- "the game is a draw" [CR#104.4c] -/
 semantic_template drawGame : Action := .conclude .drawGame none
 semantic_template enact (verb : Deed) (action : Action) : Action :=

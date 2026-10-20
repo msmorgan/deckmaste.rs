@@ -468,7 +468,7 @@ theorem badBecomesNothing :
 /-- The Idris pin refutes the anaphor. -/
 theorem badOtherwiseReadsIfArm :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])))
+      (doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.black] [creatureType "Zombie"])))
         (exists_ (and [isCreature, youControl])) (some (.setStatus .tapped it))) = [.anaphor .bare .one 0] := by
   decide
 

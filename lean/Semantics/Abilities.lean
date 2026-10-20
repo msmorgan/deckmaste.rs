@@ -1096,7 +1096,6 @@ mutual
     /-- Branch on the decision or start of payment, independently of resulting events. -/
     | withContinuation (policy : ContinuationPolicy) (body : Action)
         (ifDid : Option Action) (ifNot : Option Action)
-    | doOnlyIf (action : Action) (condition : Condition) (otherwise : Option Action)
     /-- "<action>. Do this only once each turn.": the action is limited, not the
     ability that carries it; the ability still triggers, and is done only within `limit`
     [CR#603.2h]. -/

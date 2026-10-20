@@ -36,12 +36,16 @@ theorem badChooseYou :
     Action.check (DRS.ofList []) (.choose none .you .openly none) = [.choiceClause] := by
         decide
 
-theorem badConditionalArmAntecedent :
+/-- "Create a 1/1 white Soldier creature token if you control a creature. Put a +1/+1 counter
+on it.": a conditional's branch continues when it has no otherwise-branch, wherever its condition
+is printed, so "it" is the token, the nearer antecedent. -/
+theorem conditionalArmAntecedentIsTheToken :
+    let line := doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
+      (exists_ (and [isCreature, youControl])) none
+    let out := (stepAction 12 .postEvent .obj (DRS.ofList []) line).1
     Action.check (DRS.ofList [])
-      (.sequentially
-        [ .doOnlyIf (create (.lit 1) (.written (creatureToken 1 1 [.white] [creatureType "Soldier"])))
-            (exists_ (and [isCreature, youControl])) none,
-          .putCounters (.lit 1) (.printed p1p1Counter) it .one true ]) = [.anaphor .bare .one 0] := by
+      (.sequentially [line, .putCounters (.lit 1) (.printed p1p1Counter) it .one true]) = [] ∧
+      (resolveCandidates .bare .one (nextClause out)).map (·.payload.orig) = [some .token] := by
   decide
 
 theorem badBothArmsAntecedent :

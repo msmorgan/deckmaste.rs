@@ -85,7 +85,11 @@ constraints apply.
 - **Remaining redundant AST constructors & one-card slots (§4.13, §4.14):**
   - Retire `Action.doOnlyIf` constructor (`Abilities.lean:1059`), keeping
     `doOnlyIf` as a `Templates.lean` helper expanding to `.doIf` (and align
-    *Galvanic Blast*, §4.7).
+    *Galvanic Blast*, §4.7). Where the condition is printed is wording only:
+    `doIf` announces its branch's targets before its condition (they are chosen
+    on casting, `[CR#601.2c]`), so either order reads them, and the branch's
+    output continues as `doIf`'s always did. *Galvanic Blast* already wrote
+    `doIf`.
   - Retire `Condition.noHolder` (`Abilities.lean:428`) in favor of a template
     over `not (exists_ (hasDesignation ...))`.
   - Retire `GameEvent.statBecomes` (`Abilities.lean:459`, `[CR#603.8]`) in favor

@@ -225,7 +225,7 @@ theorem okSpellOrPermanentSubject :
 /-- "Destroy target creature if it's on the battlefield." -/
 theorem okMatchesZoneFits :
     Action.check (DRS.ofList [])
-      (.doOnlyIf (destroy (target isCreature)) (.matches it (.in_ battlefield)) none) = [] := by
+      (doOnlyIf (destroy (target isCreature)) (.matches it (.in_ battlefield)) none) = [] := by
   decide
 
 /-- "Choose a card in your hand. You discard that card." -/

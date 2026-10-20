@@ -119,17 +119,23 @@ theorem distributedDamagePublishesItsRecipientGroup :
       (.dealDamage (.lit 1) (each (.isOpponentOf .you)) .noncombatOnly)).1
     (resolveCandidates (.word .player) .many (nextClause out)).map (·.id) = [0] := by decide
 
+/-- "Target creature gets +2/+2 if its power is 2. …": the condition reads the target, chosen as
+the spell is cast, and the target is the one later antecedent. -/
 theorem conditionalModificationKeepsItsAnnouncedTarget :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.doOnlyIf (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
+      (doOnlyIf (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
-    out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
+    out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.det) =
+      [.target] := by decide
 
-theorem conditionalModificationDoesNotExportAnIndefiniteSubject :
+/-- "A creature gets +2/+2 if its power is 2.": a creature the branch chooses as it resolves is
+not chosen when the condition is checked, so the condition cannot read it; only the branch's
+targets are [CR#601.2c]. -/
+theorem conditionReadsOnlyTheBranchsTargets :
     let out := stepAction 12 .postEvent .obj (DRS.ofList [])
-      (.doOnlyIf (get (a isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
+      (doOnlyIf (get (a isCreature) (.up (.lit 2)) (.up (.lit 2)) none)
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
-    out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).isEmpty = true := by decide
+    out.2 = [.anaphor .bare .one 0] := by decide
 
 theorem prohibitionsReadTheirCallerScopedSpellParameter :
     let announced := nextClause ((stepNounPhrase 12 (DRS.ofList []) .subj true (a isSpell)).1)
