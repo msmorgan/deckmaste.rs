@@ -281,15 +281,13 @@ theorem destroyCantRegenerateIsDestroyThenProhibition :
         .establish (.cant .any (regeneration it) {}) (some untilEndOfTurn)] := rfl
 
 /-- The prohibition binds the destroyed object: "it" reads the one destroyed creature and "them"
-the destroyed group, and a pronoun of the other number finds nothing to read; the regeneration's
-later mentions of what it bound nothing to fail with it. -/
+the destroyed group, and a pronoun of the other number finds nothing to read, refused once. -/
 theorem regenerationProhibitionBindsTheDestroyed :
     Action.check (DRS.ofList []) (destroyCantRegenerate (target isCreature)) = [] ∧
       Action.check (DRS.ofList []) (destroyCantRegenerate (allOf isCreature)) = [] ∧
-      let refused := Action.check (DRS.ofList [])
-        (doAndForbid (destroy (target isCreature)) (regeneration them))
-      refused.head? = some (.anaphor .bare .many 0) ∧
-        refused.tail.all (· == .bindingIdentity "regeneration.subject") := by
+      Action.check (DRS.ofList [])
+        (doAndForbid (destroy (target isCreature)) (regeneration them)) =
+        [.anaphor .bare .many 0] := by
   decide
 
 /-- "... dealt damage, they lose half their life, rounded up." -/

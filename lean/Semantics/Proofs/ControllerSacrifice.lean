@@ -280,7 +280,7 @@ private theorem laterMention_step (fuel : Nat) (drs : DRS)
     stepNounPhrase (fuel + 1) drs role arg (.laterMention name fallback) =
       let matching := drs.visibleReferents.filter (fun ref => ref.idents.elem name)
       match matching with
-      | [] => (drs, [], [.bindingIdentity name])
+      | [] => (drs, [], if drs.unboundIdentities.contains name then [] else [.bindingIdentity name])
       | refs =>
         let ids := refs.map (·.id)
         let out := if arg then ids.foldl (fun state id => state.recordMention id role true) drs
@@ -302,7 +302,9 @@ private def selectedContext (drs : DRS) : DRS :=
       payload := .object [.creature] (some .battlefield) none none none } .other false
   let named := recordIdentityById "controllerSacrifices.subject" creatureContext
     (drs.nextId + 2)
-  { named with characteristicRead := drs.characteristicRead }.push
+  { named with
+      characteristicRead := drs.characteristicRead
+      unboundIdentities := named.unboundIdentities.filter (· != "controllerSacrifices.subject") }.push
     { det := .the, plur := .one, payload := .player false } .subj true
 
 private def sacrificeEnactState (fuel : Nat) (drs : DRS) (body : Action) : DRS :=
@@ -387,7 +389,12 @@ private theorem argumentStep (fuel : Nat) (drs : DRS) :
       let selected := stepNounPhrase (fuel + 1) caller .obj true
         (.laterMention "controllerSacrifices.subject" nestedSubject)
       let left := leaveCaller drs selected.1 selected.2.1
-      (selected.2.1.foldl (fun state id => recordIdentityById "sacrifice.subject" state id) left,
+      let named := selected.2.1.foldl
+        (fun state id => recordIdentityById "sacrifice.subject" state id) left
+      let unbound := named.unboundIdentities.filter (· != "sacrifice.subject")
+      ({ named with
+          unboundIdentities :=
+            if selected.2.1.isEmpty then "sacrifice.subject" :: unbound else unbound },
         selected.2.1, selected.2.2) := by rfl
 
 private theorem preparedSuffix (fresh : Nat) (rs : List Referent)

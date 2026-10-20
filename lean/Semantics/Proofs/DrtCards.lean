@@ -129,6 +129,18 @@ theorem conditionalModificationKeepsItsAnnouncedTarget :
         (.compareAmt (.statOf (.stat .power) it) .eq (.lit 2)) none)
     out.2 = [] ∧ (resolveCandidates .bare .one (nextClause out.1)).map (·.id) = [0] := by decide
 
+/-- "Deal X damage to target creature if X is 2. Tap it.": the condition brings X into scope,
+so the branch, stepped again, introduces one referent fewer than it announced; its ids stay
+clear of the condition's, no two referents share one, and "it" reads the target. -/
+theorem conditionalBranchIdsNeverCollideWithTheCondition :
+    let line := doOnlyIf (dealDamage (letter .x) (target isCreature))
+      (compareAmt (letter .x) .eq (.lit 2)) none
+    let out := (stepAction 12 .postEvent .obj (DRS.ofList []) line).1
+    let ids := out.referents.map (·.id)
+    Action.check (DRS.ofList []) (.sequentially [line, .setStatus .tapped it]) = [] ∧
+      ids.eraseDups.length = ids.length ∧
+      (resolveCandidates .bare .one (nextClause out)).map (·.det) = [.target] := by decide
+
 /-- "If you control a creature, destroy a creature. Otherwise, tap it.": the other branch reads
 what the branch announces (its targets, the amounts it names), never a participant the branch
 would choose as it resolves, so "it" finds nothing [CR#601.2c,608.2c]. -/

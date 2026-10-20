@@ -1798,11 +1798,16 @@ def stepOps : Nat → StepOps
         | .firstMention id body =>
           let (drs', refIds, errs) := ops.np drs role inArgSlot body
           let drs'' := refIds.foldl (fun d rid => recordIdentityById id d rid) drs'
-          (drs'', refIds, errs)
+          -- A first mention that binds nothing is refused once, by its own phrase; its later
+          -- mentions then add no refusal of their own.
+          let unbound := drs''.unboundIdentities.filter (· != id)
+          ({ drs'' with
+              unboundIdentities := if refIds.isEmpty then id :: unbound else unbound },
+            refIds, errs)
         | .laterMention id _ =>
           let matching := drs.visibleReferents.filter (fun r => r.idents.elem id)
           match matching with
-          | [] => (drs, [], [.bindingIdentity id])
+          | [] => (drs, [], if drs.unboundIdentities.contains id then [] else [.bindingIdentity id])
           | rs =>
             let ids := rs.map (·.id)
             let drs' := if inArgSlot then ids.foldl (fun d rid => d.recordMention rid role true) drs else drs
@@ -2772,10 +2777,16 @@ def stepOps : Nat → StepOps
               nextId := max announced.nextId branchExtent }
           let (drs1, e1) := ops.cond withTargets cond
           let branchStart := if targets.isEmpty then drs1.nextId else drs.nextId
-          let (stepped, e2) := ops.inst phase .obj
-            (nextClause { drs1 with
-              referents := drs1.referents.filter (!targetIds.contains ·.id)
-              nextId := branchStart }) thenInst
+          let branchContext := { drs1 with
+            referents := drs1.referents.filter (!targetIds.contains ·.id) }
+          let (reused, reusedErrors) := ops.inst phase .obj
+            (nextClause { branchContext with nextId := branchStart }) thenInst
+          -- What the branch allocates depends on its context (a letter is introduced only when
+          -- none is in scope), so the reuse stands only while the branch stayed below the ids
+          -- reserved for it; otherwise it takes fresh ids, past the condition's.
+          let (stepped, e2) := if targets.isEmpty || reused.nextId ≤ withTargets.nextId
+            then (reused, reusedErrors)
+            else ops.inst phase .obj (nextClause branchContext) thenInst
           let drs2 := { stepped with nextId := max stepped.nextId drs1.nextId }
           match elseInst with
           | none => (drs2, e1 ++ e2)

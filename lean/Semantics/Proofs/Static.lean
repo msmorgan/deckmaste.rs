@@ -349,9 +349,11 @@ theorem durationPossessorReadsTheExplicitPlayer :
     errors = [] ∧ (identityBinding "duringNextTurnOf.player" after).map (·.id) = some 0 ∧
       after.referents.map (·.id) = [0] := by decide
 
+/-- "until that player's next turn" with no player to read: refused once, by the pronoun; the
+template's later mention of what it bound nothing to adds no refusal of its own. -/
 theorem unboundDurationPossessorIsRefused :
     Duration.check (DRS.ofList []) (duringNextTurnOf (that .player))
-      = [.anaphor (.word .player) .one 0, .bindingIdentity "duringNextTurnOf.player"] := by
+      = [.anaphor (.word .player) .one 0] := by
   decide
 
 /-- "Your opponents can't gain life." A rules-meaningful sentence with no printed card on the

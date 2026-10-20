@@ -436,6 +436,9 @@ structure DRS where
   selectionEvidence : List SelectionEvidence := []
   selectionScope : Nat := 0
   nextSelectionScope : Nat := 1
+  /-- The Binding Identities whose first mention bound nothing: that mention's refusal is the
+  one their later mentions would repeat, so they report none of their own. -/
+  unboundIdentities : List BindingId := []
   deriving DecidableEq, Repr
 
 def DRS.ofList (rs : List Referent) : DRS :=
