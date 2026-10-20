@@ -106,7 +106,7 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (does you (flipCoins anyAmount (some .wins)))
             (putCounters (.lit 1) luckCounter thisEnchantment .many),
-          triggeredIf (beginningOfYour .upkeep)
+          atIf (beginningOfYour .upkeep)
             (compareAmt (countersOn luckCounter thisEnchantment) .atLeast (.lit 10))
             winGame ] } }
 
@@ -184,7 +184,7 @@ theorem planeswalkerBackWithoutLoyaltyOk :
 def garrukRelentlessFlip : Ability :=
   when
     (stateHolds
-      (matches_ thisPlaneswalker (compare .atMost (.lit 2) (axes := [.counter loyaltyCounter]))))
+      (is thisPlaneswalker (compare .atMost (.lit 2) (axes := [.counter loyaltyCounter]))))
     (transform thisPlaneswalker)
 theorem okGarrukRelentlessFlip : Ability.check (DRS.ofList []) garrukRelentlessFlip = [] := by decide
 
@@ -232,8 +232,8 @@ def bushiTenderfoot : Spelled := spelled <| .flip
 
 /-- Kitsune Mystic -/
 def kitsuneMysticFlip : Ability :=
-  triggeredIf (beginningOfEach .endStep)
-    (matches_ thisCreature
+  atIf (beginningOfEach .endStep)
+    (is thisCreature
       (attachedBy (some .enchanted)
         (counted (atLeast 2) (hasSubtype aura))))
     (flip thisCreature)
@@ -358,7 +358,7 @@ def harvestHand : Spelled := spelled <| .transforming
         [ static (getsPt (equipped creature) (up (.lit 1)) (up (.lit 1))),
           static
             (onlyWhile (abilityGrant (equipped creature) menace)
-              (matches_ (equipped creature)
+              (is (equipped creature)
                 (hasSubtype human))),
           equip (mana [generic 2]) ] } }
 
@@ -412,8 +412,8 @@ def meldThemInto : Action :=
   sequentially
     [ exile
         (allOf (and [ isCreature, youControl,
-                       or [ named (printedName "Graf Rats"),
-                             named (printedName "Midnight Scavengers") ] ])),
+                       or [ named "Graf Rats",
+                             named "Midnight Scavengers" ] ])),
       meldInto (theVerbed (.action "exile") .many) "Chittering Host" ]
 theorem okMeldThemInto : Action.check (DRS.ofList []) meldThemInto = [] := by decide
 
@@ -603,7 +603,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
     { name := "Arcane Proxy", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [wizard],
       text :=
-        [ triggeredIf (does thisCreature enter) (matches_ it (castBy you))
+        [ whenIf (does thisCreature enter) (is it (castBy you))
             (sequentially
               [ exile
                   (target (and [ isInstantOrSorcery, isCard,

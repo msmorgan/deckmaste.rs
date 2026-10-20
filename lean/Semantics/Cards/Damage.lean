@@ -331,7 +331,7 @@ def thunderstaff : Spelled := spelled <| .singleFaced
         [ static (onlyWhile
             (damageRule .combatOnly (dealtBy (a isCreature)) (toRecipient you)
               (prevent (ofThatDamage (.lit 1))) .repeatedly)
-            (matches_ thisArtifact isUntapped)),
+            (is thisArtifact isUntapped)),
           activated (compound [mana [generic 2], tapSymbol])
             (get (allOf (and [isCreature, isAttacking])) (up (.lit 1)) (up (.lit 0))
               (some untilEndOfTurn)) ] } }
@@ -383,7 +383,7 @@ def martyrsOfKorlis : Spelled := spelled <| .singleFaced
         [ static (onlyWhile
             (damageRule .any (dealtBy (allOf isArtifact)) (toRecipient you)
               (redirect allDamage thisCreature) .repeatedly)
-            (matches_ thisCreature isUntapped)) ],
+            (is thisCreature isUntapped)) ],
       power := stat 1, toughness := stat 6 } }
 
 def wardOfPiety : Spelled := spelled <| .singleFaced
@@ -783,7 +783,7 @@ def cursedScroll : Spelled := spelled <| .singleFaced
             (sequentially
               [ choose (a (quality .cardName)),
                 reveal (aAtRandom (cardIn yourHand)),
-                doIf (matches_ (that card) (named chosenName))
+                doIf (is (that card) (named chosenName))
                   (instruct thisArtifact (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ]) ] } }
 
 def magusOfTheScroll : Spelled := spelled <| .singleFaced
@@ -795,7 +795,7 @@ def magusOfTheScroll : Spelled := spelled <| .singleFaced
             (sequentially
               [ choose (a (quality .cardName)),
                 reveal (aAtRandom (cardIn yourHand)),
-                doIf (matches_ (that card) (named chosenName))
+                doIf (is (that card) (named chosenName))
                   (instruct thisCreature (dealDamage (.lit 2) (target isAnyTarget) .noncombatOnly)) ]) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -906,15 +906,15 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
 /-- Quakebringer -/
 def quakebringerDamage : Ability :=
   triggeredIf (beginningOfYour .upkeep)
-    (or [ matches_ this_ (in_ battlefield),
-           and [ matches_ this_ (cardIn yourGraveyard),
+    (or [ is this_ (in_ battlefield),
+           and [ is this_ (cardIn yourGraveyard),
                   exists_ (and [isCreature, hasSubtype giant,
                                  youControl]) ] ])
     (instruct this_ (dealDamage (.lit 2) eachOpponent .noncombatOnly))
 theorem okQuakebringerDamage : Ability.check (DRS.ofList []) quakebringerDamage = [] := by decide
 /-- Sand Strangler -/
 def sandStranglerDamage : Ability :=
-  triggeredIf (does thisCreature enter)
+  whenIf (does thisCreature enter)
     (or [ exists_ (and [isLand, hasSubtype desert, youControl]),
            exists_ (and [isLand, hasSubtype desert, in_ yourGraveyard]) ])
     (may (instruct this_ (dealDamage (.lit 3) (target isCreature) .noncombatOnly)))
@@ -1121,7 +1121,7 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
       text :=
         [ surge (mana [generic 3, pip .red, pip .red]),
           flying,
-          triggeredIf (does thisCreature enter) (keywordCostPaid surge
+          whenIf (does thisCreature enter) (keywordCostPaid surge
                                                            thisCreature)
             (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget) .noncombatOnly)) ],
       power := stat 5, toughness := stat 4 } }

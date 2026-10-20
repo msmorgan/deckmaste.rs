@@ -58,7 +58,7 @@ theorem okKjeldoranFrostbeast : Ability.check (DRS.ofList []) kjeldoranFrostbeas
 
 /-- Tippy-Toe, Terrific Partner -/
 def tippyToe : Ability :=
-  triggeredIf (beginningOfYour .endStep) (happened (gainLife anyAmount) you soFarThisTurn)
+  atIf (beginningOfYour .endStep) (happened (gainLife anyAmount) you soFarThisTurn)
     (draw (.lit 1))
 theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
@@ -97,7 +97,7 @@ def felidarSovereign : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [cat, beast],
       text :=
         [ vigilance, lifelink,
-          triggeredIf (beginningOfYour .upkeep)
+          atIf (beginningOfYour .upkeep)
             (compareAmt (lifeTotalOf you) .atLeast (.lit 40))
             winGame ],
       power := stat 4, toughness := stat 6 } }
@@ -108,14 +108,14 @@ def gloriousEnforcer : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [angel],
       text :=
         [ flying, lifelink,
-          triggeredIf (beginningOfPossessed .combat eachPlayer)
+          atIf (beginningOfPossessed .combat eachPlayer)
             (compareAmt (lifeTotalOf you) .greater (lifeTotalOf anOpponent))
             (gain thisCreature doubleStrike (some untilEndOfTurn)) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Damia, Sage of Stone -/
 def damia : Ability :=
-  triggeredIf (beginningOfYour .upkeep)
+  atIf (beginningOfYour .upkeep)
     (compareAmt (countOf (cardIn yourHand)) .less (.lit 7))
     (draw theDifference)
 theorem okDamia : Ability.check (DRS.ofList []) damia = [] := by decide
@@ -348,7 +348,7 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
-        [ triggeredIf (beginningOfPossessed .upkeep eachOpponent)
+        [ atIf (beginningOfPossessed .upkeep eachOpponent)
             (compareAmt (countOf (cardIn (handOf (that player)))) .atMost (.lit 1))
             (instruct they (loseLife (.lit 3))) ] } }
 
@@ -416,7 +416,7 @@ def landTax : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Land Tax", cost := some [pip .white], types := [.enchantment],
       text :=
-        [ triggeredIf (beginningOfYour .upkeep) (exists_ opponentWithMoreLands)
+        [ atIf (beginningOfYour .upkeep) (exists_ opponentWithMoreLands)
             (may
               (sequentially
                 [ searchLibraryFor (upTo 3) (and [isLand, hasSupertype .basic]),

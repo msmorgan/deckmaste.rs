@@ -47,11 +47,11 @@ def anthemOfChampions : Spelled := spelled <| .singleFaced
 
 def adantoVanguard : Ability :=
   static (onlyWhile (getsPt thisCreature (up (.lit 2)) (up (.lit 0)))
-    (matches_ thisCreature isAttacking))
+    (is thisCreature isAttacking))
 theorem okAdantoVanguard : Ability.check (DRS.ofList []) adantoVanguard = [] := by decide
 /-- Nowhere to Run -/
 def nowhereToRunTargetLine : StaticSpec :=
-  can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof)))))
+  can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (is them (not (hasKeyword hexproof)))))
 theorem okNowhereToRunTargetLine : StaticSpec.check (DRS.ofList []) nowhereToRunTargetLine = [] := by decide
 /-- Hithlain Rope -/
 def hithlainRopeSacrificeLock : StaticSpec := cant any (sacrifice this_)
@@ -504,8 +504,7 @@ def blatantThievery : Spelled := spelled <| .singleFaced
       types := [.sorcery],
       text :=
         [ spell (doForEach eachOpponent
-            (establish
-              (controlGrant you (target (controlledBy (that player)))))) ] } }
+            (gainControl (target (controlledBy (that player))) (controller := you))) ] } }
 
 /-- "activated abilities of <p> can't be activated" -/
 def cantActivateAbilitiesOf (p : Predicate) : StaticSpec :=
@@ -744,7 +743,7 @@ theorem okFaeburrowElderPump : Ability.check (DRS.ofList []) faeburrowElderPump 
 def bondsOfFaithPump : Ability :=
   static (onlyWhile
     (getsPt (enchanted creature) (up (.lit 2)) (up (.lit 2)))
-    (matches_ it (hasSubtype human)))
+    (is it (hasSubtype human)))
 theorem okBondsOfFaithPump : Ability.check (DRS.ofList []) bondsOfFaithPump = [] := by decide
 
 /-- Field of Dreams -/
@@ -826,7 +825,7 @@ def skillBorrower : Spelled := spelled <| .singleFaced
         [ static (visibility .reveal you topOfLibrary),
           static (onlyWhile
             (abilityGrantFrom thisCreature (topSlice (.lit 1)) [.anyActivated])
-            (matches_ (topSlice (.lit 1)) (or [isArtifact, isCreature]))) ],
+            (is (topSlice (.lit 1)) (or [isArtifact, isCreature]))) ],
       power := stat 1, toughness := stat 3 } }
 
 /-- Emissary of Grudges -/

@@ -27,7 +27,7 @@ theorem okGabrielAngelfire : Action.check (DRS.ofList []) gabrielAngelfire = [] 
 def builtToSmash : Action :=
   sequentially
     [ get (target (and [isCreature, isAttacking])) (up (.lit 3)) (up (.lit 3)) (some untilEndOfTurn),
-      doIf (matches_ it (and [isArtifact, isCreature]))
+      doIf (is it (and [isArtifact, isCreature]))
         (gain it trample (some untilEndOfTurn)) ]
 theorem okBuiltToSmash : Action.check (DRS.ofList []) builtToSmash = [] := by decide
 
@@ -96,7 +96,7 @@ def bristlepackSentry : Spelled := spelled <| .singleFaced
           static (onlyWhile
             (can thisCreature attack
                (asThough := some
-                  (holds (matches_ it (not (hasKeyword defender))))))
+                  (holds (is it (not (hasKeyword defender))))))
             (exists_ (and [ isCreature, youControl,
                              hasPower .atLeast (.lit 4) ]))) ],
       power := stat 3, toughness := stat 3 } }
@@ -221,7 +221,7 @@ def eomerOfTheRiddermark : Spelled := spelled <| .singleFaced
       subtypes := [human, knight],
       text :=
         [ haste,
-          triggeredIf (does thisCreature attack)
+          wheneverIf (does thisCreature attack)
             (exists_ (and [ isCreature, youControl,
                              superlative .max (.stat .power) (and [isCreature, isPermanent]) ]))
             (createToken (creatureToken 1 1 [.white] [human, soldier])) ],
@@ -244,7 +244,7 @@ def consulsLieutenant : Spelled := spelled <| .singleFaced
       text :=
         [ firstStrike,
           renown (.lit 1),
-          triggeredIf (does thisCreature attack) (matches_ it (hasDesignation renowned))
+          wheneverIf (does thisCreature attack) (is it (hasDesignation renowned))
             (get (allOf (and [isCreature, isAttacking, youControl, otherThan
                 thisCreature]))
               (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ],
@@ -257,7 +257,7 @@ def secretsOfTheGoldenCity : Spelled := spelled <| .singleFaced
       text :=
         [ ascend,
           spell (replace (draw (.lit 2))
-            (doIf (matches_ you (hasDesignation citysBlessing)) (instead (draw (.lit 3))))) ] } }
+            (doIf (is you (hasDesignation citysBlessing)) (instead (draw (.lit 3))))) ] } }
 
 def bombur : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -267,7 +267,7 @@ def bombur : Spelled := spelled <| .singleFaced
       text :=
         [ storied,
           static (onlyUnless (doesntUntap thisCreature (some you))
-            (matches_ you (hasDesignation enduringStory))) ],
+            (is you (hasDesignation enduringStory))) ],
       power := stat 5, toughness := stat 3 } }
 
 def drachNyen : Spelled := spelled <| .singleFaced
@@ -560,9 +560,9 @@ def crimsonWisps : Spelled := spelled <| .singleFaced
     { name := "Crimson Wisps", cost := some [pip .red], types := [.instant],
       text :=
         [ spell (sequentially
-            [ establishThroughout
-                (conjunction [ qualityChange (target isCreature) .sets (colored (.some [.red])),
-                    abilityGrant it haste ]) untilEndOfTurn,
+            [ establishFor (target isCreature)
+                [qualityChange it .sets (colored (.some [.red])), abilityGrant it haste]
+                (some untilEndOfTurn),
               draw (.lit 1) ]) ] } }
 
 /-- Ghoulflesh -/
@@ -871,7 +871,7 @@ def answeredPrayers : Spelled := spelled <| .singleFaced
         [ when (does (a (and [isCreature, youControl])) enter)
             (sequentially
               [ gainLife (.lit 1),
-                doIf (not (matches_
+                doIf (not (is
                     thisEnchantment isCreature))
                   (become thisEnchantment
                     { characteristics :=
@@ -958,7 +958,7 @@ def nezumiRonin : Ability := bushido (.lit 1)
 theorem okNezumiRonin : Ability.check (DRS.ofList []) nezumiRonin = [] := by decide
 /-- Dragonlord Ojutai -/
 def dragonlordOjutaiHexproof : Ability :=
-  static (onlyWhile (abilityGrant thisCreature hexproof) (matches_ it isUntapped))
+  static (onlyWhile (abilityGrant thisCreature hexproof) (is it isUntapped))
 theorem okDragonlordOjutaiHexproof : Ability.check (DRS.ofList []) dragonlordOjutaiHexproof = [] := by decide
 /-- Monoxa, Midway Manager -/
 def monoxaRollTrigger : Ability :=
@@ -984,7 +984,7 @@ def krosanDruid : Spelled := spelled <| .singleFaced
       subtypes := [centaur, druid],
       text :=
         [ kicker (mana [generic 4, pip .green]),
-          triggeredIf (does thisCreature enter) (keywordCostPaid kicker
+          whenIf (does thisCreature enter) (keywordCostPaid kicker
                                                            thisCreature)
             (gainLife (.lit 10)) ],
       power := stat 2, toughness := stat 3 } }
@@ -1050,7 +1050,7 @@ def rafterDemon : Spelled := spelled <| .singleFaced
       subtypes := [demon],
       text :=
         [ spectacle (mana [generic 3, pip .black, pip .red]),
-          triggeredIf (does thisCreature enter)
+          whenIf (does thisCreature enter)
             (keywordCostPaid spectacle thisCreature)
             (sequentially [instruct eachOpponent (choose (a (cardIn hand))), discard them]) ],
       power := stat 4, toughness := stat 2 } }
@@ -1107,7 +1107,7 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
         [ kicker (mana [pip .black, pip .black]),
           protection (hasColor .white),
           tourachDiscardTrigger,
-          triggeredIf (does thisCreature enter) (keywordCostPaid kicker
+          whenIf (does thisCreature enter) (keywordCostPaid kicker
                                                            thisCreature)
             (instruct (target isOpponent) (discard (countedAtRandom (exactly 2) isCard))) ],
       power := stat 2, toughness := stat 1 } }
@@ -1140,7 +1140,7 @@ def towerWinder : Spelled := spelled <| .singleFaced
         [ reach, deathtouch,
           when (does thisCreature enter)
             (sequentially
-              [ searchLibraryOrGraveyard (named (printedName "Command Tower")),
+              [ searchLibraryOrGraveyard (named "Command Tower"),
                 reveal it, putInto it hand,
                 doIf (happenedThisWay (searchLibraryFor anyNumber (and []))
                         you) shuffle ]) ],
@@ -1170,10 +1170,10 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ lifelink,
-          triggeredIf (does thisCreature enter)
+          whenIf (does thisCreature enter)
             (or
               [ did ⟨it, enter (from_ := some yourGraveyard), triggering⟩,
-                matches_ it (and [castBy you, castFrom yourGraveyard]) ])
+                is it (and [castBy you, castFrom yourGraveyard]) ])
             (triggerReflexively (exile it)
               (createToken
                 { characteristics :=
@@ -1197,7 +1197,7 @@ def containmentPriest : Spelled := spelled <| .singleFaced
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
   triggeredWhile (lastCounterRemoved timeCounter this_)
-    (whileTrue (matches_ this_ (cardIn exileZone)))
+    (whileTrue (is this_ (cardIn exileZone)))
     (establishThroughout (cant any (block (allOf isCreature))) thisTurn)
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide
 
@@ -1247,7 +1247,7 @@ def iymrithDesertDoom : Spelled := spelled <| .singleFaced
         [ flying,
           static (onlyWhile (abilityGrant thisCreature (ward (mana [generic
               4])))
-            (matches_ it isUntapped)),
+            (is it isUntapped)),
           whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
             (sequentially
               [ draw (.lit 1),
@@ -1304,7 +1304,7 @@ def pirImaginativeRascal : Spelled := spelled <| .singleFaced
     { name := "Pir, Imaginative Rascal", cost := some [generic 2, pip .green],
       supertypes := [.legendary], types := [.creature], subtypes := [human],
       text :=
-        [ partnerWith (named (printedName "Toothy, Imaginary Friend")),
+        [ partnerWith (named "Toothy, Imaginary Friend"),
           pirDistributive ],
       power := stat 1, toughness := stat 1 } }
 
@@ -1330,7 +1330,7 @@ def escapedShapeshifter : Spelled := spelled <| .singleFaced
             (static (onlyWhile (abilityGrant thisCreature flying)
               (exists_
                  (and [ isCreature, anOpponentControls, hasKeyword flying,
-                               not (named (printedName "Escaped Shapeshifter")) ]))))
+                               not (named "Escaped Shapeshifter") ]))))
             [firstStrike, trample, protectionFromAnyColor] ],
       power := stat 3, toughness := stat 4 } }
 
@@ -1630,7 +1630,7 @@ def pureHalf : Action := destroy (target (and [isPermanent, isMulticolored]))
 theorem okPureHalf : Action.check (DRS.ofList []) pureHalf = [] := by decide
 /-- Korlash -/
 def grandeurDiscardCost : Cost :=
-  perform (discard (a (and [named (printedName "Korlash, Heir to Blackblade"), otherThan this_, in_ yourHand])))
+  perform (discard (a (and [named "Korlash, Heir to Blackblade", otherThan this_, in_ yourHand])))
 theorem okGrandeurDiscardCost : Cost.check (DRS.ofList []) grandeurDiscardCost = [] := by decide
 /-- Gyruda, Doom of Depths -/
 def gyrudaCompanion : Ability := companion (everyCardIs isCard (manaValueParity .even))

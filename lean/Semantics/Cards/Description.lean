@@ -76,7 +76,7 @@ theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by de
 /-- Mind Flayer -/
 def mindFlayer : Action :=
   gainControl (target isCreature)
-    (some (forAsLongAs (matches_ thisCreature youControl))) (controller := you)
+    (some (forAsLongAs (is thisCreature youControl))) (controller := you)
 theorem okMindFlayer : Action.check (DRS.ofList []) mindFlayer = [] := by decide
 
 /-- Arc Lightning -/
@@ -259,12 +259,11 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
       text :=
         [ spell (doIf
             (and
-              [ matches_ this_ (castFrom yourHand),
+              [ is this_ (castFrom yourHand),
                 happened (cast (a
                   (and [ isSpell, otherThan
                   this_,
-                             named (printedName
-                               "Approach of the Second Sun") ]))) you thisGame ])
+                             named "Approach of the Second Sun" ]))) you thisGame ])
             winGame
             (some (sequentially
               [ putInto this_ (fromTop 7 library), gainLife (.lit 7) ]))) ] } }
@@ -452,7 +451,7 @@ def someOpponentLacksMoreLifeThanYou : Condition :=
 theorem okSomeOpponentLacksMoreLifeThanYou :
     Condition.check (DRS.ofList []) someOpponentLacksMoreLifeThanYou = [] := by decide
 def yourOpponentsHaveMoreLifeThanYou : Condition :=
-  matches_ yourOpponents
+  is yourOpponents
     (compare .greater (lifeTotalOf you) (axes := [.playerStat .lifeTotal]))
 theorem okYourOpponentsHaveMoreLifeThanYou :
     Condition.check (DRS.ofList []) yourOpponentsHaveMoreLifeThanYou = [] := by decide

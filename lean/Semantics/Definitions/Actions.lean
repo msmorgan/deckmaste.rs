@@ -183,8 +183,8 @@ semantic_definition fight (other : NounPhrase) : Action :=
   .ownScope (some (.action "fight"))
     (enact (.action "fight")
       (doIf (and [
-        matches_ (.firstMention "fight.other" (.inCaller other)) isCreature,
-        matches_ (.firstMention "fight.source" .actor) isCreature])
+        is (.firstMention "fight.other" (.inCaller other)) isCreature,
+        is (.firstMention "fight.source" .actor) isCreature])
         (.simultaneously [
           .dealDamage (.statOf (.stat .power) (.laterMention "fight.source" .actor))
             (.inCaller (.laterMention "fight.other" other)) .any,
@@ -256,14 +256,14 @@ semantic_definition amass (subtype : Subtype) (count : Amount) : Action :=
           none,
         choose (a army),
         putCounters (.inCaller count) p1p1Counter (that (.type .creature)),
-        doIf (not (matches_ it (.hasSubtype subtype)))
+        doIf (not (is it (.hasSubtype subtype)))
           (become it { characteristics := { subtypes := [subtype] } })
           none ]))
 /-- "monstrosity N" with its reminder text (`Definition`, [CR#701.37a]). -/
 semantic_definition monstrosity (amount : Amount) : Action :=
   .ownScope (some (.action "monstrosity"))
     (enact (.action "monstrosity")
-      (doIf (not (matches_ .actor (hasDesignation monstrous)))
+      (doIf (not (is .actor (hasDesignation monstrous)))
         (sequentially
           [ putCounters (.inCaller amount) p1p1Counter .actor,
             gainDesignation .actor monstrous ])
@@ -400,7 +400,7 @@ semantic_definition explore : Action :=
       (instruct (controllerOf (.firstMention "explore.permanent" .actor))
         (sequentially
           [ reveal (.slice .top (.lit 1) (libraryOf .actor)),
-            doIf (matches_ (that .card) isLand)
+            doIf (is (that .card) isLand)
               (putInto (that .card) (.zone .hand (some (ownerOf (that .card)))))
               (some (sequentially
                 [ putCounters (.lit 1) p1p1Counter
@@ -434,7 +434,7 @@ semantic_definition airbend (subject : NounPhrase) : Action :=
                 (can (ownerOf it)
                   (cast it (from_ := some exileZone)
                     (payment := .payingInstead (.mana [generic 2]))))
-                (some (.forAsLongAs (matches_ it (.in_ exileZone)))))) ]))
+                (some (.forAsLongAs (is it (.in_ exileZone)))))) ]))
 /-- "double <subject>'s power" (`Definition`, [CR#701.10b,701.10c]): it gets +X/+0, X its power. -/
 semantic_definition doublePower (subject : NounPhrase) (duration : Option Duration := none) :
     Action :=
@@ -539,9 +539,9 @@ semantic_template regenerationApplication (subject : NounPhrase) : Action :=
           (tap (.laterMention "regenerationApplication.subject" subject)),
         doIf
           (or
-            [ matches_ (.laterMention "regenerationApplication.subject" subject)
+            [ is (.laterMention "regenerationApplication.subject" subject)
                 (.inCombat .attackerOf none),
-              matches_ (.laterMention "regenerationApplication.subject" subject)
+              is (.laterMention "regenerationApplication.subject" subject)
                 (.inCombat .blockerOf none) ])
           (removeFromCombat (.laterMention "regenerationApplication.subject" subject))
           none ])
@@ -603,7 +603,7 @@ semantic_definition regenerate (subject : NounPhrase) : Action :=
 semantic_definition adapt (amount : Amount) : Action :=
   .ownScope (some (.action "adapt"))
     (enact (.action "adapt")
-      (doIf (not (matches_ .actor (.hasCounters (some p1p1Counter))))
+      (doIf (not (is .actor (.hasCounters (some p1p1Counter))))
         (putCounters (.inCaller amount) p1p1Counter .actor)
         none))
 semantic_definition behold (quality : Predicate) : Action :=
@@ -695,7 +695,7 @@ semantic_definition harness (subject : NounPhrase) : Action :=
     (enact (.action "harness")
       (doIf
         (not
-          (matches_ (.firstMention "harness.subject" (.inCaller subject))
+          (is (.firstMention "harness.subject" (.inCaller subject))
             (hasDesignation harnessed)))
         (gainDesignation (.laterMention "harness.subject" (.inCaller subject)) harnessed)
         none))
@@ -716,7 +716,7 @@ semantic_definition recruit : Action :=
       (sequentially
         [ draw (.lit 1),
           discard (a (cardIn (handOf .actor))),
-          doIf (not (matches_ (theVerbed (.action "discard") .one (some .card) .thisWay) isLand))
+          doIf (not (is (theVerbed (.action "discard") .one (some .card) .thisWay) isLand))
             (createToken (creatureToken 1 1 [.white] [human, soldier]))
             none ]))
 semantic_definition search (zone : Location) (quantity : Quantity) (quality : Predicate) : Action :=

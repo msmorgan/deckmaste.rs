@@ -147,7 +147,7 @@ def elderscaleWurm : Ability :=
 theorem okElderscaleWurm : Ability.check (DRS.ofList []) elderscaleWurm = [] := by decide
 /-- Krang, Master Mind -/
 def krang : Ability :=
-  triggeredIf (does thisCreature enter)
+  whenIf (does thisCreature enter)
     (compareAmt (countOf (cardIn yourHand)) .less (.lit 4)) (draw theDifference)
 theorem okKrang : Ability.check (DRS.ofList []) krang = [] := by decide
 
@@ -405,7 +405,7 @@ def chromeReplicator : Spelled := spelled <| .singleFaced
     { name := "Chrome Replicator", cost := some [generic 5], types := [.artifact, .creature],
       subtypes := [construct],
       text :=
-        [ triggeredIf (does thisCreature enter)
+        [ whenIf (does thisCreature enter)
             (thereAre (withTheSameName
               (counted (atLeast 2)
                 (and [isPermanent, non isLand, isNontoken, youControl]))))
@@ -428,7 +428,7 @@ def fyndhornDruid : Spelled := spelled <| .singleFaced
     { name := "Fyndhorn Druid", cost := some [generic 2, pip .green], types := [.creature],
       subtypes := [elf, druid],
       text :=
-        [ triggeredIf (does thisCreature die) (happened (block it) any soFarThisTurn)
+        [ whenIf (does thisCreature die) (happened (block it) any soFarThisTurn)
             (gainLife (.lit 4)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -437,7 +437,7 @@ def kamiOfTerribleSecrets : Spelled := spelled <| .singleFaced
     { name := "Kami of Terrible Secrets", cost := some [generic 3, pip .black], types := [.creature],
       subtypes := [spirit],
       text :=
-        [ triggeredIf (does thisCreature enter)
+        [ whenIf (does thisCreature enter)
             (and [ exists_ (and [isArtifact, youControl]),
                     exists_ (and [isEnchantment, youControl]) ])
             (sequentially [draw (.lit 1), gainLife (.lit 1)]) ],
@@ -530,7 +530,7 @@ def balduvianFallenHeader : GameEvent := does any (pay anyCost .once .paid (some
 theorem okBalduvianFallenHeader : GameEvent.check (DRS.ofList []) balduvianFallenHeader = [] := by decide
 /-- Stormscape Battlemage -/
 def stormscapeBattlemageFirstKicker : Ability :=
-  triggeredIf (does thisCreature enter)
+  whenIf (does thisCreature enter)
     (costWasPaid (.byNthKeyword (.nth 1) kicker) none thisCreature) (gainLife (.lit 3))
 theorem okStormscapeBattlemageFirstKicker :
     Ability.check (DRS.ofList []) stormscapeBattlemageFirstKicker = [] := by decide
@@ -625,7 +625,7 @@ def fblthp : Spelled := spelled <| .singleFaced
             (replace (draw (.lit 1))
               (doIf (or
                   [ did ⟨it, enter (from_ := some yourLibrary), triggering⟩,
-                    matches_ it (castFrom yourLibrary) ])
+                    is it (castFrom yourLibrary) ])
                 (instead (draw (.lit 2))))),
           when (does (a isSpell) (target this_)) (shuffleInto this_) ],
       power := stat 1, toughness := stat 1 } }
@@ -686,7 +686,7 @@ def agencyOutfitterSearch : Action :=
     [ may
         (sequentially
           [ searchZonesOf you (exactly 1)
-              (or [named (printedName "Magnifying Glass"), named (printedName "Thinking Cap")]),
+              (or [named "Magnifying Glass", named "Thinking Cap"]),
             putOntoBattlefield (theVerbed (.action "search") .one) ]),
       doIf (happenedThisWay (search any anyNumber (and [])) you) shuffle ]
 theorem okAgencyOutfitterSearch : Action.check (DRS.ofList []) agencyOutfitterSearch = [] := by decide
@@ -788,7 +788,7 @@ def brazenBlademaster : Spelled := spelled <| .singleFaced
 def autarchMammothLine : Ability :=
   triggeredJoined (does thisCreature enter)
     [ joinedHeadWhile (does thisCreature attack)
-        (whileTrue (matches_ thisCreature (hasDesignation saddled))) ]
+        (whileTrue (is thisCreature (hasDesignation saddled))) ]
     (createToken (creatureToken 3 3 [.green] [elephant]))
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
@@ -843,7 +843,7 @@ def akiriEquippedAttackers : Ability :=
 theorem okAkiriEquippedAttackers : Ability.check (DRS.ofList []) akiriEquippedAttackers = [] := by decide
 /-- Vexing Bauble -/
 def vexingBaubleTrigger : Ability :=
-  triggeredIf (does (a isPlayer) (cast (a isSpell)))
+  wheneverIf (does (a isPlayer) (cast (a isSpell)))
     (noManaSpentToCast it)
     (counter (that .spell))
 theorem okVexingBaubleTrigger : Ability.check (DRS.ofList []) vexingBaubleTrigger = [] := by decide
@@ -853,7 +853,7 @@ def voidMirror : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Void Mirror", cost := some [generic 2], types := [.artifact],
       text :=
-        [ triggeredIf (does (a isPlayer) (cast (a
+        [ wheneverIf (does (a isPlayer) (cast (a
           isSpell))) (noColoredManaSpentToCast it)
             (counter (that .spell)) ] } }
 

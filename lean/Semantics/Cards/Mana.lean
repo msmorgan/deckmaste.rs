@@ -96,8 +96,8 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
       text :=
         [ deathtouch,
           ascend,
-          triggeredIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
-            (matches_ you (hasDesignation citysBlessing))
+          wheneverIf (does thisCreature (dealDamage (to := a isPlayer) (kind := .combatOnly)))
+            (is you (hasDesignation citysBlessing))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -635,7 +635,7 @@ def coalStoker : Spelled := spelled <| .singleFaced
     { name := "Coal Stoker", cost := some [generic 3, pip .red], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ triggeredIf (does thisCreature enter) (matches_ it (castFrom yourHand))
+        [ whenIf (does thisCreature enter) (is it (castFrom yourHand))
             (addMana (.lit 1) (manaOf [[.of .red, .of .red, .of .red]])) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -673,7 +673,7 @@ def causticBroncoLoss : Action :=
     [ reveal (topSlice (.lit 1)),
       putInto (that card) hand,
       doOnlyIf (loseLife (statOf (.stat .manaValue) it))
-        (not (matches_ thisCreature (hasDesignation saddled)))
+        (not (is thisCreature (hasDesignation saddled)))
         (some (instruct eachOpponent (loseLife thatMuch))) ]
 theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [] := by decide
 
@@ -771,7 +771,7 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           prowl (mana [generic 2, pip .blue]),
-          triggeredIf (does thisCreature enter) (keywordCostPaid prowl
+          whenIf (does thisCreature enter) (keywordCostPaid prowl
                                                            thisCreature)
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 1 } }
@@ -807,7 +807,7 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           vigilance,
-          triggeredIf (beginningOfYour .endStep)
+          atIf (beginningOfYour .endStep)
             (not
                (happened (cast (a isSpell) (from_ := some yourHand))
                   you soFarThisTurn))
@@ -927,10 +927,10 @@ def shelteredValley : Spelled := spelled <| .singleFaced
                   [ sacrifice
                       (each
                         (and
-                          [ isPermanent, otherThan thisLand, named (printedName "Sheltered Valley"),
+                          [ isPermanent, otherThan thisLand, named "Sheltered Valley",
                             youControl ])),
                     putOntoBattlefield thisLand ]))),
-          triggeredIf (beginningOfYour .upkeep)
+          atIf (beginningOfYour .upkeep)
             (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3))
             (gainLife (.lit 1)),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.colorless]])) ] } }
@@ -945,8 +945,8 @@ theorem okSoulShatter : Action.check (DRS.ofList []) soulShatter = [] := by deci
 
 /-- Padeem, Consul of Innovation -/
 def padeemConsulOfInnovation : Ability :=
-  triggeredIf (beginningOfYour .upkeep)
-    (matches_
+  atIf (beginningOfYour .upkeep)
+    (is
       (the (and [isArtifact,
                   superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])]))
       youControl)

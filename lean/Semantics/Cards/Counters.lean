@@ -149,7 +149,7 @@ def paladinOfAtonement : Ability :=
 theorem okPaladinOfAtonement : Ability.check (DRS.ofList []) paladinOfAtonement = [] := by decide
 def throneWarden : Ability :=
   triggeredIf (beginningOfYour .endStep)
-    (matches_ you (hasDesignation monarch))
+    (is you (hasDesignation monarch))
     (putCounters (.lit 1) p1p1Counter thisCreature .many)
 theorem okThroneWarden : Ability.check (DRS.ofList []) throneWarden = [] := by decide
 def bloodTyrant : Ability :=
@@ -229,8 +229,8 @@ def passagewaySeer : Spelled := spelled <| .singleFaced
       text :=
         [ lifelink,
           when (does thisCreature enter) (gainDesignation you initiative),
-          triggeredIf (beginningOfYour .endStep)
-            (matches_ you (hasDesignation initiative))
+          atIf (beginningOfYour .endStep)
+            (is you (hasDesignation initiative))
             (putCounters (.lit 1) p1p1Counter thisCreature .many) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -383,14 +383,14 @@ def aragornDistributive : Ability :=
 theorem okAragornDistributive : Ability.check (DRS.ofList []) aragornDistributive = [] := by decide
 /-- Captain Marvel, Apex Avenger -/
 def captainMarvelSameKinds : Ability :=
-  triggeredIf (manyBareCountersPutBy you (a (and [isCreature, otherThan thisCreature])))
-    (not (matches_ it (hasSubtype kree)))
+  wheneverIf (manyBareCountersPutBy you (a (and [isCreature, otherThan thisCreature])))
+    (not (is it (hasSubtype kree)))
     (may (putCounters thatMuch thoseCounters thisCreature .many))
 theorem okCaptainMarvelSameKinds : Ability.check (DRS.ofList []) captainMarvelSameKinds = [] := by decide
 /-- Denry Klin, Editor in Chief -/
 def denryKlinSameKinds : Ability :=
-  triggeredIf (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
-    (matches_ thisCreature hasCounter)
+  wheneverIf (does (a (and [isNontoken, and [isCreature, youControl]])) enter)
+    (is thisCreature hasCounter)
     (putCounters (.lit 1) (sameKindAs thisCreature) (that creature) .many)
 theorem okDenryKlinSameKinds : Ability.check (DRS.ofList []) denryKlinSameKinds = [] := by decide
 
@@ -828,7 +828,7 @@ def infernalVessel : Spelled := spelled <| .singleFaced
     { name := "Infernal Vessel", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [human, cleric],
       text :=
-        [ triggeredIf (does thisCreature die) (not (matches_ it (hasSubtype demon)))
+        [ whenIf (does thisCreature die) (not (is it (hasSubtype demon)))
             (sequentially
               [ returnToBattlefieldWithCounters it (ownerOf it) (.lit 2) p1p1Counter,
                 become it { characteristics := { subtypes := [demon] } } ]) ],
@@ -920,7 +920,7 @@ def whirlingDervish : Spelled := spelled <| .singleFaced
       subtypes := [human, monk],
       text :=
         [ protection (hasColor .black),
-          triggeredIf (beginningOfPossessed .endStep eachPlayer)
+          atIf (beginningOfPossessed .endStep eachPlayer)
             (happened (dealDamage anyAmount anOpponent) thisCreature soFarThisTurn)
             (putCounters (.lit 1) p1p1Counter it .many) ],
       power := stat 1, toughness := stat 1 } }
@@ -931,7 +931,7 @@ def ichorShade : Spelled := spelled <| .singleFaced
     { name := "Ichor Shade", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [phyrexian, shade],
       text :=
-        [ triggeredIf (beginningOfYour .endStep)
+        [ atIf (beginningOfYour .endStep)
             (happened
                (putInto (a (or [isArtifact, isCreature])) graveyard (from_ := some battlefield))
                any soFarThisTurn)
@@ -1048,9 +1048,9 @@ def captainMarvelApexAvenger : Spelled := spelled <| .singleFaced
       subtypes := [human, kree, hero],
       text :=
         [ flying, doubleStrike, indestructible,
-          triggeredIf
+          wheneverIf
             (does (by_ you) (putCounters anyAmount anyKind (a (and [isCreature, otherThan this_])) .many false))
-            (matches_ it (not (hasSubtype kree)))
+            (is it (not (hasSubtype kree)))
             (may (putCounters thatMuch thoseCounters this_ .many)) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -1133,7 +1133,7 @@ def menacingOgre : Spelled := spelled <| .singleFaced
               [ instruct eachPlayer (choose (disclosure := .secretly) (a (quality .number))),
                 revealChoices .numbers,
                 instruct (each (and [isPlayer, choseExtreme .max])) (loseLife thatMuch),
-                doIf (matches_ you (choseExtreme .max))
+                doIf (is you (choseExtreme .max))
                   (putCounters (.lit 2) p1p1Counter thisCreature .many) ]) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -1175,7 +1175,7 @@ def darkDepths : Spelled := spelled <| .singleFaced
         [ static (entersWithCounters thisLand (.lit 10) iceCounter),
           activated (mana [generic 3])
             (removeCounters (exactly 1) (some iceCounter) thisLand),
-          when (stateHolds (not (matches_ thisLand (hasCounter (some iceCounter)))))
+          when (stateHolds (not (is thisLand (hasCounter (some iceCounter)))))
             (doIfDone (sacrifice thisLand) (some (createToken maritLage)))
                 ] } }
 

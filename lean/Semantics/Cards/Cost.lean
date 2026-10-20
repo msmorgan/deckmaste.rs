@@ -226,7 +226,7 @@ def chillerpillar : Spelled := spelled <| .singleFaced
       text :=
         [ activated (mana [generic 4, .snow, .snow]) (monstrosity (.lit 2)),
           static (onlyWhile (abilityGrant thisCreature flying)
-            (matches_ thisCreature (hasDesignation monstrous))) ],
+            (is thisCreature (hasDesignation monstrous))) ],
       power := stat 3, toughness := stat 3 } }
 
 def nullhideFerox : Ability :=
@@ -393,7 +393,7 @@ def ersatzGnomes : Spelled := spelled <| .singleFaced
       subtypes := [gnome],
       text :=
         [ activated tapSymbol
-            (establish (qualityChange (target isSpell) .sets (colored (.some [])))),
+            (becomeColor (target isSpell) (.some [])),
           activated tapSymbol (becomeColor (target isPermanent) (.some []) (some untilEndOfTurn)) ],
       power := stat 1, toughness := stat 1 } }
 
@@ -441,7 +441,7 @@ def candlesOfLeng : Spelled := spelled <| .singleFaced
         [ activated (compound [mana [generic 4], tapSymbol])
             (sequentially
               [ reveal (topSlice (.lit 1)),
-                doIf (matches_ it (shares .cardName .share (a (cardIn yourGraveyard))))
+                doIf (is it (shares .cardName .share (a (cardIn yourGraveyard))))
                   (putInto it graveyard) (some (draw (.lit 1))) ]) ] } }
 
 def sphinxOfTheChimes : Spelled := spelled <| .singleFaced
@@ -741,7 +741,7 @@ theorem okTymorasInvoker : Ability.check (DRS.ofList []) tymorasInvoker = [] := 
 /-- Skyblade's Boon -/
 def skybladesBoonReturn : Ability :=
   activatedOnlyIf (mana [generic 2, pip .white]) (putInto this_ hand)
-    (or [matches_ this_ (in_ battlefield), matches_ this_ (cardIn yourGraveyard)])
+    (or [is this_ (in_ battlefield), is this_ (cardIn yourGraveyard)])
 theorem okSkybladesBoonReturn : Ability.check (DRS.ofList []) skybladesBoonReturn = [] := by decide
 /-- Bamboozling Beeble -/
 def bamboozlingBeebleIgnore : Ability :=

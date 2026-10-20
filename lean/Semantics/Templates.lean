@@ -1446,8 +1446,12 @@ semantic_template clearDamage (subject : NounPhrase) : Action := .clearDamage su
 semantic_template Action.combat (subject : NounPhrase) (update : CombatUpdate) : Action :=
   .combat subject update
 semantic_template conclude (verb : OutcomeVerb) : Action := .conclude verb none
-semantic_template copySpell (subject : NounPhrase) (times : Amount := (Amount.lit 1)) : Action :=
-  .copy .fromStack subject times []
+/-- "copy <subject> [<times> times] [, except …]": a copy of a spell or of an ability on the stack,
+put onto the stack (Twincast's spell, Strionic Resonator's triggered ability, Fork's red copy)
+[CR#707.10]. -/
+semantic_template copyOnStack (subject : NounPhrase) (times : Amount := (Amount.lit 1))
+    (exceptions : List CopyExcept := []) : Action :=
+  .copy .fromStack subject times exceptions
 semantic_template copyTargets (copy original : NounPhrase) : Action := .copyTargets copy original
 semantic_template createDoubleFacedToken (front back : CharacteristicBundle)
     (riders : List MoveRider := []) : Action :=
@@ -1728,10 +1732,22 @@ semantic_template keywordQualityCosting (label : KeywordLabel) (quality : Predic
 semantic_template keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) :
     Ability :=
   .keyword label [.number amount, .cost cost] []
-/-- "When <event>, if <condition>, <action>" -/
+/-- "<event>, if <condition>, <action>": a triggered ability with an intervening "if" clause
+[CR#603.4]. The trigger word is wording: `whenIf`, `wheneverIf` and `atIf` write the card's, as
+`when`, `whenever` and `at_` do. -/
 semantic_template triggeredIf (event : GameEvent) (condition : Condition)
     (action : Action) : Ability :=
   .triggered event [] none [] none none (some condition) action
+/-- "When <event>, if <condition>, <action>" -/
+semantic_template whenIf (event : GameEvent) (condition : Condition) (action : Action) : Ability :=
+  triggeredIf event condition action
+/-- "Whenever <event>, if <condition>, <action>" -/
+semantic_template wheneverIf (event : GameEvent) (condition : Condition) (action : Action) :
+    Ability :=
+  triggeredIf event condition action
+/-- "At <event>, if <condition>, <action>" -/
+semantic_template atIf (event : GameEvent) (condition : Condition) (action : Action) : Ability :=
+  triggeredIf event condition action
 /-- "Whenever <event>, <action>. This ability triggers only once each turn." -/
 semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit)
     (action : Action) : Ability :=
@@ -2043,7 +2059,9 @@ semantic_template flipFace (face : CoinFace) : Condition := .flipFace face
 semantic_template gameIs (designation : DesignationLabel) : Condition := .gameHas designation
 semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) : Condition :=
   costWasPaid (.byKeyword label) none subject
-semantic_template matches_ (subject : NounPhrase) (predicate : Predicate) : Condition :=
+/-- "<subject> is <predicate>" ("if it's a creature", "if this permanent isn't renowned" under
+`not`): the condition that `subject` matches `predicate` (`matches` is Lean's word). -/
+semantic_template is (subject : NounPhrase) (predicate : Predicate) : Condition :=
   .matches subject predicate
 semantic_template preventedFromSource (predicate : Predicate) : Condition :=
   .preventedFromSource predicate

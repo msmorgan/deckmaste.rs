@@ -16,7 +16,7 @@ open Semantics Semantics.Templates Semantics.Definitions
 namespace Semantics.Cards
 
 /-- Display of Power: "this spell can't be copied". -/
-def displayOfPowerCopyLock : StaticSpec := cant any (copySpell this_ anyAmount)
+def displayOfPowerCopyLock : StaticSpec := cant any (copyOnStack this_ anyAmount)
 theorem okDisplayOfPowerCopyLock : StaticSpec.check (DRS.ofList []) displayOfPowerCopyLock = [] := by decide
 
 /-- Repeated Reverberation -/
@@ -30,7 +30,7 @@ def repeatedReverberation : Spelled := spelled <| .singleFaced
               [isInstant, isSpell]))))
             thisTurn
             (sequentially
-              [ copySpell (that .stack) (.lit 2),
+              [ copyOnStack (that .stack) (.lit 2),
                 may (chooseNewTargets (those .copy)) ])
             [ does you (cast (a
               (and [isSorcery, isSpell]))),
@@ -48,7 +48,7 @@ def frontlineHeroismCopy : Ability :=
           { characteristics :=
             { colors := [.red], types := [.creature], subtypes := [soldier],
               text := [haste], power := stat 1, toughness := stat 1 } },
-        copySpell (that .spell),
+        copyOnStack (that .spell),
         copyTargets (that .copy) thatToken ])
 theorem okFrontlineHeroismCopy : Ability.check (DRS.ofList []) frontlineHeroismCopy = [] := by decide
 
@@ -67,7 +67,7 @@ def twincast : Spelled := spelled <| .singleFaced
     { name := "Twincast", cost := some [pip .blue, pip .blue], types := [.instant],
       text :=
         [ spell (sequentially
-            [ copySpell (target (and [isInstantOrSorcery, isSpell])),
+            [ copyOnStack (target (and [isInstantOrSorcery, isSpell])),
               may (chooseNewTargets (that .copy)) ]) ] } }
 
 /-- Fork -/
@@ -76,8 +76,8 @@ def fork : Spelled := spelled <| .singleFaced
     { name := "Fork", cost := some [pip .red, pip .red], types := [.instant],
       text :=
         [ spell (sequentially
-            [ copy .fromStack (target (and [isInstantOrSorcery, isSpell])) (.lit 1)
-                [isColor .red],
+            [ copyOnStack (target (and [isInstantOrSorcery, isSpell]))
+                (exceptions := [isColor .red]),
               may (chooseNewTargets (that .copy)) ]) ] } }
 
 /-- Meletis Charlatan -/
@@ -88,7 +88,7 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
       text :=
         [ activated (compound [mana [generic 2, pip .blue], tapSymbol])
             (sequentially
-              [ instruct (controllerOf (target (and [isInstantOrSorcery, isSpell]))) (copySpell it),
+              [ instruct (controllerOf (target (and [isInstantOrSorcery, isSpell]))) (copyOnStack it),
                 instruct (that player) (may (chooseNewTargets (that .copy))) ]) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -96,7 +96,7 @@ def meletisCharlatan : Spelled := spelled <| .singleFaced
 def echoMagesFourthLevel : Ability :=
   activated (compound [mana [pip .blue, pip .blue], tapSymbol])
     (sequentially
-      [ copySpell (target (and [isInstantOrSorcery, isSpell])) (.lit 2),
+      [ copyOnStack (target (and [isInstantOrSorcery, isSpell])) (.lit 2),
         may (chooseNewTargets (those .copy)) ])
 theorem okEchoMagesFourthLevel : Ability.check (DRS.ofList []) echoMagesFourthLevel = [] := by decide
 
@@ -107,14 +107,14 @@ def strionicResonator : Spelled := spelled <| .singleFaced
       text :=
         [ activated (compound [mana [generic 2], tapSymbol])
             (sequentially
-              [ copySpell (target (and [abilityHead .anyTriggered, youControl])),
+              [ copyOnStack (target (and [abilityHead .anyTriggered, youControl])),
                 may (chooseNewTargets (that (.copied .ability))) ]) ] } }
 
 /-- Mister Fantastic -/
 def misterFantasticCopy : Ability :=
   activated (compound [mana [pip .red, pip .green, pip .white, pip .blue], tapSymbol])
     (sequentially
-      [ copySpell (target (and [abilityHead .anyTriggered, youControl])) (.lit 2),
+      [ copyOnStack (target (and [abilityHead .anyTriggered, youControl])) (.lit 2),
         may (chooseNewTargets (those (.copied .ability))) ])
 theorem okMisterFantasticCopy : Ability.check (DRS.ofList []) misterFantasticCopy = [] := by decide
 
@@ -124,7 +124,7 @@ def rowansTalentCopy : Ability :=
     (does you (activate (a (and [ abilityHead .loyalty,
                  abilityOf (enchanted planeswalker) ]))))
     (sequentially
-      [ copySpell (that .ability),
+      [ copyOnStack (that .ability),
         may (chooseNewTargets (that (.copied .ability))) ])
 theorem okRowansTalentCopy : Ability.check (DRS.ofList []) rowansTalentCopy = [] := by decide
 
@@ -133,11 +133,11 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rings of Brighthearth", cost := some [generic 3], types := [.artifact],
       text :=
-        [ triggeredIf (does you (activate (a (abilityHead .anyActivated))))
-            (not (matches_ (that .ability) isManaAbility))
+        [ wheneverIf (does you (activate (a (abilityHead .anyActivated))))
+            (not (is (that .ability) isManaAbility))
             (may (pay (mana [generic 2]) .once)
               (some (sequentially
-                [ copySpell (that .ability),
+                [ copyOnStack (that .ability),
                   may (chooseNewTargets (that (.copied .ability))) ]))) ] } }
 
 /-- Iron Man, Bleeding Edge -/
@@ -150,7 +150,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
         [ flying,
           triggered (does you (cast (a
             (and [isArtifact, isSpell]))))
-            (doOnlyOnceEachTurn (may (copy .fromStack it (.lit 1) [isntLegendary])))
+            (doOnlyOnceEachTurn (may (copyOnStack it (exceptions := [isntLegendary]))))
                 ],
       power := stat 3, toughness := stat 5 } }
 
@@ -166,10 +166,10 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
                 (hasSupertype .legendary),
                          hasKeyword flying ]))))
             (doOnlyOnceEachTurn (may
-              (copy .fromStack it (.lit 1)
-                (copyCharacteristics {
+              (copyOnStack it
+                (exceptions := (copyCharacteristics {
                            subtypes := [spirit], power := stat 1,
-                           toughness := stat 1 } true)))) ],
+                           toughness := stat 1 } true))))) ],
       power := stat 3, toughness := stat 3 } }
 
 /-- Tawnos, the Toymaker -/
@@ -184,7 +184,7 @@ def tawnosTheToymaker : Spelled := spelled <| .singleFaced
                 hasSubtype beast,
                                hasSubtype bird ],
                          isCreature, isSpell ]))))
-            (may (copy .fromStack it (.lit 1) [isAlso [.artifact] []])) ],
+            (may (copyOnStack it (exceptions := [isAlso [.artifact] []]))) ],
       power := stat 3, toughness := stat 5 } }
 
 /-- Bonus Round -/
@@ -194,7 +194,7 @@ def bonusRound : Spelled := spelled <| .singleFaced
       text :=
         [ spell (delayWithin (does (a isPlayer) (cast (a
               (and [isInstantOrSorcery, isSpell])))) untilEndOfTurn (sequentially
-              [ instruct (that player) (copySpell it),
+              [ instruct (that player) (copyOnStack it),
                 instruct (that player) (may (chooseNewTargets (that .copy))) ])) ] } }
 
 /-- Melek, Izzet Paragon -/
@@ -211,7 +211,7 @@ def melekIzzetParagon : Spelled := spelled <| .singleFaced
             (does you (cast (a (and
               [isInstantOrSorcery, isSpell])) (from_ := some yourLibrary)))
             (sequentially
-              [ copySpell it,
+              [ copyOnStack it,
                 may (chooseNewTargets (that .copy)) ]) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -222,7 +222,7 @@ def pyromancersGogglesMana : Ability :=
       [ whenSpentOn .triggersThen false
           (a (and [hasColor .red, isInstantOrSorcery, isSpell]))
           (sequentially
-            [ copySpell (that .spell),
+            [ copyOnStack (that .spell),
               may (chooseNewTargets (that .copy)) ]) ])
 theorem okPyromancersGogglesMana : Ability.check (DRS.ofList []) pyromancersGogglesMana = [] := by decide
 

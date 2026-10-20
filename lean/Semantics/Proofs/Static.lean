@@ -191,7 +191,7 @@ theorem conditionalReplacementCarriesItsCondition :
 /-- The replacement's condition is read: one naming nothing it can resolve is refused. -/
 theorem conditionalReplacementChecksItsCondition :
     Action.check (DRS.ofList [])
-      (replace (draw (.lit 1)) (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) =
+      (replace (draw (.lit 1)) (doIf (is it isCreature) (instead (draw (.lit 2))))) =
       [.anaphor .bare .one 0] := by
   decide
 
@@ -214,7 +214,7 @@ than read as a replacement that does nothing. -/
 theorem conditionOverTooDeepReplacementIsRefused :
     (StaticSpec.check (DRS.ofList [])
       (replace (would you (draw (.lit 1)))
-        (doIf (matches_ you (hasDesignation citysBlessing))
+        (doIf (is you (hasDesignation citysBlessing))
           (nestCallers 9 (instead (draw (.lit 2))))))).contains .recursionLimit = true := by
   decide
 

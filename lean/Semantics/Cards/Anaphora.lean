@@ -350,7 +350,7 @@ def opponentWithMoreLands : Predicate :=
 theorem okOpponentWithMoreLands : Predicate.checkAt .player (DRS.ofList []) opponentWithMoreLands = [] := by
   decide
 
-def bioplasmCardTest : Condition := matches_ itCard isCreature
+def bioplasmCardTest : Condition := is itCard isCreature
 theorem okBioplasmCardTest : Condition.check (nextClause bioplasmAfterExile) bioplasmCardTest = [] := by decide
 
 /-- Blessed Respite -/
@@ -696,7 +696,7 @@ def vaevictisAsmadiTheDire : Spelled := spelled <| .singleFaced
                                   ]))
                   (sequentially
                     [ instruct they (expose .reveal (cards (slice .top (.lit 1) (libraryOf they)))),
-                      doIf (matches_ itCard isPermanentCard) (putOntoBattlefield itCard) ]) ]) ],
+                      doIf (is itCard isPermanentCard) (putOntoBattlefield itCard) ]) ]) ],
       power := stat 6, toughness := stat 6 } }
 
 end Semantics.Cards

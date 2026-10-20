@@ -260,7 +260,7 @@ def runeSnag : Spelled := spelled <| .singleFaced
               [ mana [generic 2],
                 scaledGenericMana
                   (forEach (.lit 2)
-                     (and [named (printedName "Rune Snag"), in_ graveyard])) ]))) ] } }
+                     (and [named "Rune Snag", in_ graveyard])) ]))) ] } }
 
 /-- Tahngarth, First Mate -/
 def tahngarthChoosesDefender : Action :=
@@ -531,7 +531,7 @@ def foundingOfOmashu : Spelled := spelled <| .singleFaced
 
 /-- "as though they had flash" -/
 def asThoughFlash : Option AsThough :=
-  some (holds (matches_ them (hasKeyword flash)))
+  some (holds (is them (hasKeyword flash)))
 
 def vedalkenOrrery : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -867,8 +867,8 @@ def helmOfPossession : Spelled := spelled <| .singleFaced
           activated (compound [mana [generic 2], tapSymbol, perform (sacrifice (a isCreature))])
             (gainControl (target isCreature)
               (some (forAsLongAs
-                (and [ matches_ thisArtifact youControl,
-                        matches_ thisArtifact isTapped ]))) (controller := you)) ] } }
+                (and [ is thisArtifact youControl,
+                        is thisArtifact isTapped ]))) (controller := you)) ] } }
 
 def override : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -922,7 +922,7 @@ def primalSurge : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ exile (topSlice (.lit 1)),
-              doIf (matches_ it isPermanentCard)
+              doIf (is it isPermanentCard)
                 (may (putOntoBattlefield it) (some (repeat_ again)))
                     ]) ] } }
 
@@ -1179,7 +1179,7 @@ def vraskasScorn : Spelled := spelled <| .singleFaced
             [ instruct (target isOpponent) (loseLife (.lit 4)),
               may
                 (sequentially
-                  [ searchLibraryOrGraveyard (named (printedName "Vraska, Scheming Gorgon")),
+                  [ searchLibraryOrGraveyard (named "Vraska, Scheming Gorgon"),
                     reveal it, putInto it hand ]),
               doIf (happenedThisWay (search any anyNumber (and [])) you) shuffle ]) ] } }
 
@@ -1202,9 +1202,9 @@ def verityCircle : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Verity Circle", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ triggeredIf
+        [ wheneverIf
             (does (a (and [isCreature, anOpponentControls])) (become tapped))
-            (matches_ it (not (inCombat .declaredAttacker)))
+            (is it (not (inCombat .declaredAttacker)))
             (may (draw (.lit 1))),
           activated (mana [generic 4, pip .blue])
             (tap (target (and [isCreature, not (hasKeyword flying)]))) ] } }
@@ -1244,7 +1244,7 @@ def haakonStromgaldScourge : Spelled := spelled <| .singleFaced
           static (onlyWhile
                     (can you
                        (cast (allOf (and [isSpell, hasSubtype knight]))
-                          (from_ := some yourGraveyard))) (matches_ this_ (in_ battlefield))),
+                          (from_ := some yourGraveyard))) (is this_ (in_ battlefield))),
           when (does thisCreature die) (loseLife (.lit 2)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -1283,7 +1283,7 @@ theorem okAkiriUnattachOffer : Ability.check (DRS.ofList []) akiriUnattachOffer 
 /-- Summoning Materia -/
 def summoningMateriaTopCast : Ability :=
   static (onlyWhile (castFromTop (and [isSpell, isCreature]))
-    (matches_ thisEquipment (attachedTo (a isCreature))))
+    (is thisEquipment (attachedTo (a isCreature))))
 theorem okSummoningMateriaTopCast : Ability.check (DRS.ofList []) summoningMateriaTopCast = [] := by decide
 /-- Vizier of the Menagerie -/
 def vizierOfTheMenagerieSpend : StaticSpec :=
@@ -1303,7 +1303,7 @@ def conspicuousSnoop : Spelled := spelled <| .singleFaced
                     (play (allOf (and [isSpell, hasSubtype goblin])) (from_ := some onTop))),
           static (onlyWhile
             (abilityGrantFrom thisCreature (topSlice (.lit 1)) [.anyActivated])
-            (matches_ (topSlice (.lit 1)) (hasSubtype goblin))) ],
+            (is (topSlice (.lit 1)) (hasSubtype goblin))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Ballot Broker -/
@@ -1319,8 +1319,8 @@ def emissaryOfGrudgesReveal : Ability :=
   activatedOnlyOnce (perform (expose .reveal (choiceOf .player)))
     (doOnlyIf (chooseNewTargets (target (or [isSpell, abilityHead .anyOnStack])))
       (and
-        [ matches_ it (controlledBy (the isChosenPlayer)),
-          matches_ it
+        [ is it (controlledBy (the isChosenPlayer)),
+          is it
             (targeting (youOr (a (and [isPermanent, youControl]))) .someTarget) ]))
     oncePerGame
 theorem okEmissaryOfGrudgesReveal :

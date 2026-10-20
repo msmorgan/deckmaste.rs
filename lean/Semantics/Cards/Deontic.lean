@@ -81,14 +81,14 @@ def winterOrb : Ability :=
       (onlyWhile
          (cant (bare isPlayer) (untap (counted (moreThan 1) isLand))
             (timing := some duringTheirUntapSteps))
-    (matches_ thisArtifact isUntapped))
+    (is thisArtifact isUntapped))
 theorem okWinterOrb : Ability.check (DRS.ofList []) winterOrb = [] := by decide
 def staticOrb : Ability :=
   static
       (onlyWhile
          (cant (bare isPlayer) (untap (counted (moreThan 2) isPermanent))
             (timing := some duringTheirUntapSteps))
-    (matches_ thisArtifact isUntapped))
+    (is thisArtifact isUntapped))
 theorem okStaticOrb : Ability.check (DRS.ofList []) staticOrb = [] := by decide
 
 /-- Rule of Law -/
@@ -117,7 +117,7 @@ def leitmotifComposer : Ability :=
   activated (mana [generic 2, pip .blue])
     (establishThroughout
        (cant any
-          (block (allOf (and [isCreature, named (printedName "Leitmotif Composer")])))) thisTurn)
+          (block (allOf (and [isCreature, named "Leitmotif Composer"])))) thisTurn)
 theorem okLeitmotifComposer : Ability.check (DRS.ofList []) leitmotifComposer = [] := by decide
 
 def berserkersOfBloodRidge : Ability :=
@@ -142,7 +142,7 @@ theorem okHipparion : Ability.check (DRS.ofList []) hipparion = [] := by decide
 
 def frodoBaggins : Ability :=
   static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
-    (matches_ thisCreature (hasDesignation ringBearer (some you))))
+    (is thisCreature (hasDesignation ringBearer (some you))))
 theorem okFrodoBaggins : Ability.check (DRS.ofList []) frodoBaggins = [] := by decide
 
 def bloodshedFever : Spelled := spelled <| .singleFaced
@@ -186,7 +186,7 @@ def gaeasRevenge : Spelled := spelled <| .singleFaced
 
 /-- Nowhere to Run -/
 def nowhereToRunWardLine : StaticSpec :=
-  conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof))))),
+  conjunction [ can (by_ (allOf (or [isSpell, abilityHead .anyOnStack]))) (target (allOf (and [isCreature, opponentsControl]))) (asThough := some (holds (is them (not (hasKeyword hexproof))))),
       cant (allOf (and [abilityHead (.keyword ward), abilityOf (those creature)]))
           trigger ]
 theorem okNowhereToRunWardLine : StaticSpec.check (DRS.ofList []) nowhereToRunWardLine = [] := by decide
@@ -207,7 +207,7 @@ def brainwash : Spelled := spelled <| .singleFaced
 
 def enkiraHostileScavenger : Ability :=
   static (onlyWhile (must (by_ (allOf isCreature)) (block thisCreature))
-    (matches_ thisCreature (isAttached (some .equipped))))
+    (is thisCreature (isAttached (some .equipped))))
 theorem okEnkiraHostileScavenger : Ability.check (DRS.ofList []) enkiraHostileScavenger = [] := by decide
 
 def anglerTurtle : Ability :=
@@ -529,7 +529,7 @@ def glaringSpotlight : Spelled := spelled <| .singleFaced
         [ static
             (can (by_ (allOf (and [or [isSpell, abilityHead .anyOnStack], youControl])))
                (target (allOf (and [ isCreature, opponentsControl,
-                           hasKeyword hexproof ]))) (asThough := some (holds (matches_ them (not (hasKeyword hexproof)))))),
+                           hasKeyword hexproof ]))) (asThough := some (holds (is them (not (hasKeyword hexproof)))))),
           activated (compound [mana [generic 3], perform (sacrifice thisArtifact)])
             (sequentially
               [ gain (allOf (and [isCreature, youControl])) hexproof (some untilEndOfTurn),
@@ -619,14 +619,14 @@ def ghostlyPrisonWhole : Spelled := spelled <| .singleFaced
 def archangelOfTithesBlockToll : Ability :=
   static (onlyWhile
     (gatedBy (scaledGenericMana (times (.lit 1) groupSize)) (allOf isCreature) block)
-    (matches_ thisCreature isAttacking))
+    (is thisCreature isAttacking))
 theorem okArchangelOfTithesBlockToll : Ability.check (DRS.ofList []) archangelOfTithesBlockToll = [] := by decide
 /-- Archangel of Tithes -/
 def archangelOfTithesAttackToll : Ability :=
   static (onlyWhile
     (gatedBy (scaledGenericMana (times (.lit 1) groupSize)) (allOf isCreature)
        (attack (some (youOr (allOf (and [isPlaneswalker, youControl]))))))
-    (matches_ thisCreature isUntapped))
+    (is thisCreature isUntapped))
 theorem okArchangelOfTithesAttackToll : Ability.check (DRS.ofList []) archangelOfTithesAttackToll = [] := by
   decide
 
@@ -786,7 +786,7 @@ def conquerorsFlailProhibition : StaticSpec :=
   onlyWhile
     (partScope .turn (some you)
       (cant yourOpponents (cast (allOf isSpell))))
-    (matches_ this_ (attachedTo (a isCreature)))
+    (is this_ (attachedTo (a isCreature)))
 theorem okConquerorsFlailProhibition : StaticSpec.check (DRS.ofList []) conquerorsFlailProhibition = [] := by
   decide
 

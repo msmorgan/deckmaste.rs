@@ -445,7 +445,7 @@ theorem templateBareThisRetainsEnactedZoneExemption :
 after its condition, so both can name the same creature. -/
 theorem conditionalReplacementActionFollowsItsCondition :
     Action.check callerCreature
-      (replace (draw (.lit 1)) (doIf (matches_ it isCreature) (instead (tap it)))) = [] := by
+      (replace (draw (.lit 1)) (doIf (is it isCreature) (instead (tap it)))) = [] := by
   decide
 
 /-- A Definition's condition over its caller's replacement reads the caller's action in the
@@ -457,7 +457,7 @@ theorem conditionOverCallerReplacementReadsItsActionInTheCallersScope :
 /-- It keeps the caller's own condition inside its own, read in the caller's scope too. -/
 theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
     Action.check callerCreature
-      (drawUnlessReplaced (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) = [] := by
+      (drawUnlessReplaced (doIf (is it isCreature) (instead (draw (.lit 2))))) = [] := by
   decide
 
 /-- "If you sacrificed a creature this turn": a caller's condition introducing the creature its
@@ -493,7 +493,7 @@ theorem callerReplacementActionReadHereNamesNothing :
 /-- Nor does the caller's condition. -/
 theorem callerReplacementConditionReadHereNamesNothing :
     Action.check callerCreature
-      (drawUnlessReplacedHere (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) =
+      (drawUnlessReplacedHere (doIf (is it isCreature) (instead (draw (.lit 2))))) =
       [.anaphor .bare .one 0] := by
   decide
 
