@@ -452,10 +452,17 @@ theorem conditionOverCallerReplacementReadsItsActionInTheCallersScope :
     Action.check callerCreature (drawUnlessReplaced (instead (tap it))) = [] := by
   decide
 
-/-- It keeps the caller's own condition beside its own, read in the caller's scope too. -/
+/-- It keeps the caller's own condition inside its own, read in the caller's scope too. -/
 theorem conditionOverCallerReplacementReadsItsConditionInTheCallersScope :
     Action.check callerCreature
-      (drawUnlessReplaced (instead (draw (.lit 2)) (some (matches_ it isCreature)))) = [] := by
+      (drawUnlessReplaced (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) = [] := by
+  decide
+
+/-- The caller's condition and action are one caller frame, the action a new clause after the
+condition, so both can name the caller's creature. -/
+theorem callerConditionAndActionShareTheCallersAnaphor :
+    Action.check callerCreature
+      (drawUnlessReplaced (doIf (matches_ it isCreature) (instead (tap it)))) = [] := by
   decide
 
 /-- Read in the Definition's own scope instead, the caller's action names nothing. -/
@@ -467,7 +474,7 @@ theorem callerReplacementActionReadHereNamesNothing :
 /-- Nor does the caller's condition. -/
 theorem callerReplacementConditionReadHereNamesNothing :
     Action.check callerCreature
-      (drawUnlessReplacedHere (instead (draw (.lit 2)) (some (matches_ it isCreature)))) =
+      (drawUnlessReplacedHere (doIf (matches_ it isCreature) (instead (draw (.lit 2))))) =
       [.anaphor .bare .one 0] := by
   decide
 

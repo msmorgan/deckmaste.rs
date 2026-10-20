@@ -239,9 +239,7 @@ as its controller's precombat main phase begins, and is sacrificed once its lore
 its final chapter number. -/
 def sagaDefinition : Definition :=
   .subtype (enchantmentType "Saga")
-    [ .ability (.static (onlyUnless
-        (.asEvent (.does .any (.move thisSaga .anyLocation (some battlefield) .arrival none []))
-          (.establish (entersWithCounters thisSaga (.lit 1) (.named "loreCounter")) none))
+    [ .ability (.static (onlyUnless (entersWithCounters thisSaga (.lit 1) (.named "loreCounter"))
         (.matches thisSaga (.hasKeyword (.the (.named "readAhead")))))),
       .turnBased .firstMain
         (.putCounters (.lit 1) (.printed (.named "loreCounter")) thisSaga .one true),

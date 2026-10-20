@@ -260,7 +260,7 @@ theorem okRegenerateThisCreature : Action.check (DRS.ofList []) (regenerateBy th
 /-- The replacement pattern selects its target once; the application keeps that identity. -/
 theorem regenerateTargetsOnce :
     (match (regenerateBy (target isCreature)).scopeBody with
-      | .establish (.replace event (.instead body _) _ _ _) _ =>
+      | .establish (.replace event (.instead body) _ _ _) _ =>
         let context := (stepWouldClause 64 (DRS.ofList []) event).1
         targets (actionResult body context)
       | _ => 0) = 1 := by decide

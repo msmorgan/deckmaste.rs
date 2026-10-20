@@ -18,11 +18,18 @@ namespace Semantics.Proofs.OffStack
 
 /-! ## The nodes -/
 
-/-- "As this permanent enters, you may draw a card": an action carried out as an event
-happens [CR#614.1c]. -/
-theorem okAsEventEnters :
+/-- "As this permanent enters, you may draw a card": an action carried out as part of the
+entering it replaces, which still happens [CR#614.1c]. -/
+theorem okAsEnteringAlso :
     StaticSpec.check (DRS.ofList [])
-      (.asEvent (does thisPermanent enter) (may (draw (.lit 1)))) = [] := by
+      (replace (would thisPermanent enter) (also (may (draw (.lit 1))))) = [] := by
+  decide
+
+/-- "As it becomes night, transform this permanent": an action carried out as an event that is
+no permanent's entering happens [CR#702.145b]. -/
+theorem okAsEventBecomesNight :
+    StaticSpec.check (DRS.ofList [])
+      (.asEvent (gameBecomes night) (transform thisPermanent)) = [] := by
   decide
 
 /-- "Any time you control ten or more permanents and you don't have the city's blessing, you get

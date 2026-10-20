@@ -159,7 +159,7 @@ has type
 but is expected to have type
   Action
 in the application
-  @instead instAuthoringContext (instead (draw (Amount.lit 1)))
+  instead (instead (draw (Amount.lit 1)))
 -/
 #guard_msgs in
 example : Replacement := instead (instead (draw (.lit 1)))
@@ -185,8 +185,8 @@ theorem conditionalReplacementCarriesItsCondition :
       (doIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
         (instead (draw (.lit 2)))) : Action) =
       .replace (draw (.lit 1))
-        (.instead (draw (.lit 2))
-          (some (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3)))) := rfl
+        (.onlyIf (compareAmt (countOf (and [isArtifact, youControl])) .atLeast (.lit 3))
+          (.instead (draw (.lit 2)))) := rfl
 
 /-- The replacement's condition is read: one naming nothing it can resolve is refused. -/
 theorem conditionalReplacementChecksItsCondition :
@@ -199,13 +199,67 @@ private def nestCallers : Nat → Replacement → Replacement
   | 0, replacement => replacement
   | n + 1, replacement => .inCaller (nestCallers n replacement)
 
-/-- A condition over a replacement nested more deeply than the checker reads leaves it as
-written, and the checker refuses it rather than reading a replacement that does nothing. -/
+/-- A condition over a replacement nested more deeply than the checker reads is refused, rather
+than read as a replacement that does nothing. -/
 theorem conditionOverTooDeepReplacementIsRefused :
     (StaticSpec.check (DRS.ofList [])
       (replace (would you (draw (.lit 1)))
         (doIf (matches_ you (hasDesignation citysBlessing))
           (nestCallers 9 (instead (draw (.lit 2))))))).contains .recursionLimit = true := by
+  decide
+
+/-! ### What a replacement makes of its event
+
+"Instead" puts an action in the event's place; `also` does one as part of the event, which still
+happens; `withRiders` lets the move happen with riders. None restates the event
+[CR#614.1a,614.1c,614.1d]. -/
+
+/-- "This land enters tapped": the entering still happens, ridden; nothing restates it
+[CR#614.1c]. -/
+theorem entersTappedRidesTheEntering :
+    (entersTapped thisLand : StaticSpec) =
+      .replace (would thisLand enter) (.withRiders [.entersAs .tapped]) none .repeatedly none := rfl
+
+/-- "Creatures you control enter with an additional +1/+1 counter on them": a plural subject's
+entering is ridden the same way, with no pronoun to agree with it [CR#614.1d]. -/
+theorem okPluralEnteringRidden :
+    StaticSpec.check (DRS.ofList [])
+      (entersWithAdditionalCounters (allOf (and [isCreature, youControl])) (.lit 1)
+        p1p1Counter) = [] := by
+  decide
+
+/-- Riders ride only a move: "If you would draw a card, it enters tapped" is refused
+[CR#614.1c,614.12]. -/
+theorem badRidersOverADraw :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would you (draw (.lit 1))) (withRiders [.entersAs .tapped])) = [.riddenMove] := by
+  decide
+
+/-- The same refusal for a spell's own replacement: "Draw a card; it enters tapped instead". -/
+theorem badSelfReplacementRidersOverADraw :
+    Action.check (DRS.ofList [])
+      (replace (draw (.lit 1)) (withRiders [.entersAs .tapped])) = [.riddenMove] := by
+  decide
+
+/-- A condition over riders keeps them riding the move: "If it's night, this permanent enters
+transformed" [CR#702.145b]. -/
+theorem okConditionalRiders :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would thisPermanent enter) (doIf (gameIs night) (withRiders [.entersTransformed])))
+      = [] := by
+  decide
+
+/-- "As this creature enters, choose an opponent. That player may put an additional +1/+1
+counter on it as it enters." (tribute 1): the chosen player is read in the action done as part
+of the entering [CR#702.104a]. -/
+theorem okAlsoReadsItsOwnChoice :
+    StaticSpec.check (DRS.ofList [])
+      (replace (would thisCreature enter)
+        (also
+          (sequentially
+            [ choose anOpponent,
+              instruct (the isChosenPlayer)
+                (may (putCounters (.lit 1) (.printed p1p1Counter) thisCreature)) ]))) = [] := by
   decide
 
 /-- "unless you control an artifact" -/

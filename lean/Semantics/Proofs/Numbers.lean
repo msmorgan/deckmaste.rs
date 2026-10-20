@@ -54,6 +54,12 @@ theorem okGainsLifeClamped :
 theorem okLosesLifeClamped :
     (loseLife (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl
 
+/-- "This creature enters with X +1/+1 counters on it": the riders a replacement adds to a move
+are its own slots, a count of counters [CR#107.1b]. -/
+theorem okEnteringRidersClamped :
+    (withRiders [.withCounters (.letter .x) (.printed p1p1Counter) .fresh]).numberSlots =
+      [(.letter .x, .clamped)] := by rfl
+
 /-- "Draw X cards": a count of cards [CR#107.1b]. -/
 theorem okDrawClamped :
     (draw (.letter .x)).numberSlots = [(.letter .x, .clamped)] := by rfl

@@ -75,7 +75,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [spell (replace (draw (.lit 1)) (.instead (draw (.lit 2)) none))] } }
+      text := [spell (replace (draw (.lit 1)) (.instead (draw (.lit 2))))] } }
 
 /-- error: invalid {...} notation, constructor for `Spelled` is marked as private -/
 #guard_msgs in
