@@ -39,9 +39,18 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   frames with `.outcome` kind into `referents` and filtering `!b.isActorFrame` /
   `r.kind != .outcome` across counting helpers; reconcile `Payload`'s 11
   constructors with the ADR.
-- **Consistent disjunction and negation scoping (§2.6):** Fix `Timing.or`/`.and`
+- **Consistent disjunction and negation scoping (§2.6):** Fix `NounPhrase.or`
+  (`stepNounAlternativesWith` in `Check/Phrase.lean:975-995`), `Timing.or`/`.and`
   (`Check/Phrase.lean:720`), `Location.or` (`:771`), and `Location.not` (`:770`)
-  so branches do not thread left-to-right and leak referents.
+  so branches do not thread left-to-right or dump branch-local indefinites flatly
+  into outer discourse, and update `lean/CONTRACTS.md` to match.
+- **Foreground non-argument possessor re-mentions in `DRS.recordMention`:** When
+  an existing referent is re-mentioned in a non-argument slot (`inArgSlot = false`,
+  e.g. `"that creature's owner"`), update `r.clause := drs.currentClause` and
+  `r.role := .other` (matching a newly introduced possessor NP) without recording
+  in `drs.pendingRoles`, so *Weeping Angel*'s raw `"it"` in
+  `"that creature's owner shuffles it into their library"` (`Proofs/DrtCards.lean:240-266`)
+  resolves directly to the damaged creature without `.laterMention`.
 
 ### 2. Shared Action-Clause Spine, Head Gates & Deed Identity (Opus §§2.7–2.8, §3.1–3.3)
 
@@ -85,10 +94,14 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   `predicatePayload`, `GameEvent.facts`, `numberSlots`) and tight helper fuel
   limits (`stepQuantityWith`, `stepTimingWith` at 8) so fuel exhaustion cannot
   silently produce default classifications.
-- **Authorable explicit-selector corrections (Astra §2, Opus §6.7):** Make the
-  explicit-selector mechanism used for *Mangara's Equity* and *Noetic Scales*
-  (`Proofs/CorpusRecency.lean:118-152`) authorable in `spelled` cards without raw
-  `internal_expansion` `laterMention`.
+- **Resolve *Mangara's Equity* and *Noetic Scales* without explicit selectors
+  (Astra §2, Opus §6.7):** With `NounPhrase.or` branch-local indefinites closed
+  (`stepNounAlternativesWith`), prove that *Mangara's Equity* resolves raw
+  `that creature` to the damage source in `Proofs/CorpusRecency.lean:119-136`;
+  express *Noetic Scales* (`Proofs/CorpusRecency.lean:138-152`) as the actual
+  `Action.move` / `returnToHand` AST (stepping the moved subject NP before the
+  destination) so raw `that player` resolves to the upkeep player; and delete
+  the `.laterMention` explicit-selector workarounds.
 - **Delete dead `Check/` code (§5.4):** Remove unused `NounResult` API,
   `introducedNounResult`, `HeadTy`, `unionPayload`/`unionBinding`/`unionReferentLists`/`unionBindings`,
   `recordHead`, `overIdentity`, `markFirst*`, `spentDistributively*`,

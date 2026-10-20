@@ -97,6 +97,9 @@ them.
 - Never make a change pass by removing or weakening the check that would fail. If a test fails
   and what it asserts is still wanted, fix the code. A genuine regression is a successful find:
   fix it; stop only if the fix fails, leaves the ticket, or needs a decision.
+- Never enshrine preliminary-investigation misses or model/grammar/checker defects in an ADR,
+  contract, ticket, or test as "known-wrong", accepted silent errors, or permanent manual
+  workarounds/escape hatches. Fix the underlying defect or ticket the fix.
 - A test that asserts something wrong, or pins incidental behaviour (a reading count that
   includes wrong readings, an exact tree for an analysis nobody endorses), is retired or
   rewritten to assert what is wanted. Say which, by name, and why.
