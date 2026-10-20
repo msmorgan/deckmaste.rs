@@ -218,17 +218,14 @@ semantic_definition amplify (amount : Amount) : Ability :=
   .keyword (.named "amplify") [.number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (instead
+          (also
             (sequentially
               [ .expose .reveal
                   (.cards
                     (counted anyNumber
                       (and [cardIn yourHand, .shares (.subtype .creature) .share thisPermanent]))),
-                instruct thisPermanent
-                  (enter
-                    (riders :=
-                      [ .withCounters (times (.inCaller amount) (.countOf them))
-                          (.printed p1p1Counter) .fresh ])) ]))) ]
+                putCounters (times (.inCaller amount) (.countOf them)) (.printed p1p1Counter)
+                  thisPermanent ]))) ]
 semantic_definition annihilator (amount : Amount) : Ability :=
   .keyword (.named "annihilator") [.number (.inCaller amount)]
     [ triggered (does (.actor thisCreature) (.attack none))
@@ -491,16 +488,13 @@ semantic_definition devourQuality (quality : Predicate) (amount : Amount) : Abil
   .keyword (.named "devour") [.quality (.inCaller quality), .number (.inCaller amount)]
     [ static
         (replace (would thisPermanent enter)
-          (instead
+          (also
             (may (sacrifice (counted anyNumber (and [.inCaller quality, .in_ battlefield])))
               (some
-                (instruct thisPermanent
-                  (enter
-                    (riders :=
-                      [ .withCounters
-                          (.arith .times (.inCaller amount)
-                            (.countOf (theVerbed (.action "sacrifice") .many)))
-                          (.printed p1p1Counter) .fresh ]))))))) ]
+                (putCounters
+                  (.arith .times (.inCaller amount)
+                    (.countOf (theVerbed (.action "sacrifice") .many)))
+                  (.printed p1p1Counter) thisPermanent))))) ]
 semantic_definition devour (amount : Amount) : Ability :=
   .keyword (.named "devour") [.number (.inCaller amount)] [devourQuality isCreature amount]
 semantic_definition disguise (cost : Cost) : Ability :=
@@ -1231,11 +1225,9 @@ semantic_definition riot : Ability :=
   .keyword (.named "riot") []
     [ static
         (replace (would thisPermanent enter)
-          (instead
-            (mayOrElse
-              (instruct thisPermanent
-                (enter (riders := [.withCounters (.lit 1) (.printed p1p1Counter) .additional])))
-              (sequentially [instruct thisPermanent enter, gainHaste thisPermanent])))) ]
+          (also
+            (mayOrElse (putCounters (.lit 1) (.printed p1p1Counter) thisPermanent)
+              (gainHaste thisPermanent)))) ]
 semantic_definition saddle (amount : Amount) : Ability :=
   .keyword (.named "saddle") [.number (.inCaller amount)]
     [ activatedOnlyDuring
@@ -1461,17 +1453,11 @@ semantic_definition tribute (amount : Amount) : Ability :=
   .keyword (.named "tribute") [.number (.inCaller amount)]
     [ static
         (replace (would thisCreature enter)
-          (instead
+          (also
             (sequentially
               [ choose anOpponent,
                 instruct (the isChosenPlayer)
-                  (mayOrElse
-                    (instruct thisCreature
-                      (enter
-                        (riders :=
-                          [ .withCounters (.inCaller amount) (.printed p1p1Counter)
-                              .additional ])))
-                    (instruct thisCreature enter)) ]))) ]
+                  (may (putCounters (.inCaller amount) (.printed p1p1Counter) thisCreature)) ]))) ]
 /-- "<Type>cycling <cost>": a cycling ability qualified by the card it searches for, labelled
 cycling, since typecycling abilities are cycling abilities [CR#702.29e,702.29f]. -/
 semantic_definition typecycling (quality : Predicate) (cost : Cost) : Ability :=
@@ -1506,10 +1492,7 @@ semantic_definition unleash : Ability :=
   .keyword (.named "unleash") []
     [ static
         (replace (would thisPermanent enter)
-          (instead
-            (may
-              (instruct thisPermanent
-                (enter (riders := [.withCounters (.lit 1) (.printed p1p1Counter) .additional])))))),
+          (also (may (putCounters (.lit 1) (.printed p1p1Counter) thisPermanent)))),
       static
         (onlyWhile (cant (.actor thisPermanent) (.block .any))
           (matches_ thisPermanent (.hasCounters (some p1p1Counter)))) ]
