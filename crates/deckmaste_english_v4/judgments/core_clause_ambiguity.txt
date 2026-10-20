@@ -1,8 +1,8 @@
 # Distinct lexical identities and the intended core-clause analyses.
-+ Destroy two target lands. => Nominal "target lands" head land; DeterminerPhrase "target" head det:target as Determiner of land; !Nominal "target" head noun:target; readings 1
-+NounPhrase two target creatures => Nominal "target creatures" head creature; DeterminerPhrase "target" head det:target as Determiner of creature; DeterminerPhrase "two" as Determiner of creature; !Nominal "target" head noun:target; readings 1
-+NounPhrase another target creature => Nominal "target creature" head creature; DeterminerPhrase "target" head det:target as Determiner of creature; readings 1
-+NounPhrase a second target creature => Nominal "second target creature" head creature; Nominal "target creature" head creature; DeterminerPhrase "target" head det:target; !Nominal "target" head noun:target
++ Destroy two target lands. => DeterminerPhrase "two target" as Determiner of land; DeterminerPhrase "target" head det:target; !Nominal "target" head noun:target; readings 1
++NounPhrase two target creatures => DeterminerPhrase "two target" as Determiner of creature; DeterminerPhrase "target" head det:target; !Nominal "target" head noun:target; readings 1
++NounPhrase another target creature => DeterminerPhrase "another target" as Determiner of creature; DeterminerPhrase "target" head det:target; readings 1
++NounPhrase a second target creature => DeterminerPhrase "a second target" as Determiner of creature; DeterminerPhrase "second target" head det:target; !Nominal "target" head noun:target
 +NounPhrase any target => Nominal "target" head noun:target; readings 1
 + Scry 1. => !NounPhrase "1"; readings 1
 + Choose 2. => !NounPhrase "2"; readings 1

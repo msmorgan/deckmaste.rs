@@ -368,9 +368,16 @@ ordinary noun or adjective use in Oracle text. Noun uses retain their Part of
 Speech when functioning as Premodifiers.
 
 **Targeting Marker** (project term):
-The invariant prenominal *target* that marks an Oracle-text target description:
-a Determinative that determines only a Targeted Nominal (never *target two
-creatures*). It is distinct from the count noun *target* and the verb *target*.
+The invariant prenominal *target* that marks an Oracle-text target description.
+It is a Determinative and ends a Determiner: alone (*target creature*), after an
+Adjective (*other target creatures*), or after an outer Determiner (*two target
+creatures*, *each other target creature*, *up to one target creature*). The
+Nominal it determines takes every Modifier below the Determiner (*target
+creature you control*). A Noun Phrase whose Determiner ends in the Marker after
+an outer Determiner, as a non-final Conjunct, coordinates only with a determined
+Noun Phrase. It is distinct from the count noun *target* and the verb *target*.
+_Avoid_: targeted nominal, target phrase, target description for the syntactic
+unit
 
 **Target Noun**:
 The count-noun Lexeme whose Word Forms *target* and *targets* denote Game Model
@@ -380,18 +387,6 @@ Targets.
 The Verb Lexeme realized as *target*, *targets*, *targeted*, or *targeting* in
 rules text stating that a Game Model Spell or Ability targets a Game Model
 Object or Player.
-
-**Targeted Nominal** (project term):
-A Nominal the Targeting Marker determines, above all of its Modifiers as any
-Determiner is (*target creature you control*), including a Coordination of Nominals
-the Marker determines as a whole (*target artifact or creature*, *target
-planeswalker that player controls or battle that player protects*). An outer
-Determiner may precede it (*two target creatures*); without one, the Marker
-determines the Noun Phrase. No Conjunct of a Coordination of Nominals is itself
-a Targeted Nominal. A Noun Phrase whose Targeted Nominal has an outer
-Determiner, as a non-final Conjunct, coordinates only with a determined Noun
-Phrase.
-_Avoid_: target phrase, target description for the syntactic unit
 
 **Notation**:
 A conventional written representation using symbols, numerals, or other

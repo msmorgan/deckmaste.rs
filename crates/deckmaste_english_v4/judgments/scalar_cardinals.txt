@@ -1,6 +1,6 @@
 # Maximum quantities `up to N` as determiner phrases of counted, targeted nominals
-+NounPhrase up to two target creature cards => PrepositionPhrase "up to two" as Determiner of card; Nominal "target creature cards"
-+NounPhrase up to one target creature => PrepositionPhrase "up to one" as Determiner of creature; Nominal "target creature"
++NounPhrase up to two target creature cards => DeterminerPhrase "up to two target" as Determiner of card; PrepositionPhrase "up to two"; Nominal "creature cards"
++NounPhrase up to one target creature => DeterminerPhrase "up to one target" as Determiner of creature; PrepositionPhrase "up to one"
 +NounPhrase two target creature cards
 +NounPhrase one target creature
 +NounPhrase up to two lands
@@ -9,8 +9,8 @@
 +NounPhrase target player's graveyard
 + Up to one target creature gets -1/-1 until end of turn. => NounPhrase "Up to one target creature" as Subject of get
 * Up to one target creature get -1/-1 until end of turn.
-+ Suspect up to one target creature. => NounPhrase "up to one target creature" as Object of suspect; Nominal "target creature"
-+ Return up to two target creature cards from your graveyard to your hand. => PrepositionPhrase "up to two" as Determiner of card; Nominal "target creature cards"
++ Suspect up to one target creature. => NounPhrase "up to one target creature" as Object of suspect; DeterminerPhrase "up to one target"
++ Return up to two target creature cards from your graveyard to your hand. => DeterminerPhrase "up to two target" as Determiner of card; Nominal "creature cards"
 *NounPhrase up to one target creatures
 *NounPhrase up to two target creature
 *NounPhrase to two target creatures

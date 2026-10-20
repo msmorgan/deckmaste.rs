@@ -9,6 +9,6 @@
 *NounPhrase white creature
 *NounPhrase tapped creature
 +NounPhrase the enchanted creature => VerbPhrase "enchanted" as Modifier of creature; readings 1
-+NounPhrase two target creatures => DeterminerPhrase "two" as Determiner of creature
++NounPhrase two target creatures => DeterminerPhrase "two target" as Determiner of creature; DeterminerPhrase "two"
 
 + Fortified land has indestructible. => DeterminerPhrase "Fortified" as Determiner of land; NounPhrase "Fortified land" as Subject of have

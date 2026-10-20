@@ -171,10 +171,10 @@ creatures`, `another two creatures`, and `every two turns`. Articles select modi
 Distributive quantities have singular external agreement, while
 `another two creatures` retains plural agreement. `each two turns` and
 `every two creatures` now assert the quantity nominal instead of rejection.
-The Targeting Marker is `det:target`, a determiner of its targeted nominal
-also after an outer determiner (`DeterminerPhrase "target" as Determiner of
-creature` beside `"two"` in `two target creatures`); the Target Noun has no
-attributive noun use. Bare numeric arguments select Amount
+The Targeting Marker is `det:target`, the last word of its Determiner
+(`DeterminerPhrase "target" as Determiner of creature` in `target creature`,
+`DeterminerPhrase "two target" as Determiner of creature` in `two target
+creatures`); the Target Noun has no attributive noun use. Bare numeric arguments select Amount
 complements rather than becoming arbitrary recipient or object Noun Phrases;
 numeric subjects and predicatives retain their Noun Phrase analyses.
 The `vocabulary_batch_1` judgment for `different kinds of counters` requires

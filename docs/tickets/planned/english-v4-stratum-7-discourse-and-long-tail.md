@@ -33,6 +33,12 @@ Implement **Stratum 7** in `crates/deckmaste_english_v4` per
   - A determined measure nominal as a nominal conjunct (*your [choice of 5/1]
     or [1/5]*): Aquamorph Entity keeps this Reading beside the endorsed
     *choice of [5/1 or 1/5]*.
+  - The Targeting Marker determining a nominal that needs an overt determiner
+    of its own (`english-v4-targeting-marker-excludes` findings): Cloud,
+    Planet's Champion (*that target Cloud cost {2} less*); Frodo, Determined
+    Hero (*target [Equipment … mana value 2] or [3]*); Eternal Flame
+    (*[opponent or planeswalker and half] X damage*). Each keeps its endorsed
+    Reading beside the wrong one. Fix this without a consumer exclusion.
   - Elided second *with*: Ulasht, the Hate Seed.
   - Floating quantifier: Kutzil, Malamet Exemplar; Angelic Aberration; Leonardo's Technique; Dance of the Manse; Ballroom Brawlers; Keen Duelist; Storyweave.
   - Vote option or metalinguistic mention: Bite of the Black Rose; Lieutenants of the Guard; Capital Punishment; Trial of a Time Lord; Abundant Harvest.

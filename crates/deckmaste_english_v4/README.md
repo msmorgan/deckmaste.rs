@@ -83,15 +83,13 @@ catalog entries; status adjectives and numerical mass distributions are declared
 in their owning lexical sources. Later constructions remain pending at their
 own Stratum.
 
-The Targeting Marker `det:target` is the determiner of a targeted nominal
-and of nothing else: it heads no general Determiner Phrase (*target two
-creatures*, *the or target creature* have no Reading), it determines no
-nominal that needs another determiner (*target first creature*), and an
-outer determiner may precede it (*two target creatures*). Like any
-determiner it sits above every postmodifier of its nominal (*target [creature
-you control]*), and no postmodifier attaches above it. Without an outer
-determiner it determines the Noun Phrase or possessor; a possessor's targeted
-conjuncts are bare. An
+The Targeting Marker `det:target` ends a Determiner Phrase: alone
+(*target creature*), after an adjective (*other target creatures*), or after
+an outer determiner, which gives it its Number (*two target creatures*, *each other target creature*, *[one or two] target
+creatures*), including a maximum Preposition Phrase (*up to one target
+creature*). An ordinary Determined Noun Phrase or possessor then takes it,
+so every postmodifier attaches inside the Nominal, below the determiner
+(*target [creature you control]*). An
 attributive adjective that needs an overt determiner (*the only creature*,
 an ordinal) is an ordinary premodifier. Its homographic Target Noun is
 restricted to nominal heads. Preposition
@@ -256,11 +254,9 @@ preposition's Amount (*less than or equal to X*) or, respectively, nouns'
 Amounts under a slash Measure (*base power and toughness 4/4*) or under one
 Amount (*power or toughness 2 or less*); a bare *power* or *toughness* is no
 Noun Phrase by itself. The Targeting
-Marker determines a whole coordination of nominals, each with its own
-postmodifiers or none, above any postmodifier of the whole and inside any
-outer determiner (*up to one target
-artifact or creature*, *target planeswalker that player controls or battle
-that player protects*).
+Marker's determiner takes a whole coordination of nominals, each with its own
+postmodifiers or none (*up to one target artifact or creature*, *target
+planeswalker that player controls or battle that player protects*).
 
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)

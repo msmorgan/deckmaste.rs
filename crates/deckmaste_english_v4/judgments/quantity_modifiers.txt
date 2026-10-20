@@ -1,7 +1,7 @@
 # Bounding, focusing and multiplying modifiers of quantities, comparative quantities and their standards
 + <card=Season of the Bold> Choose up to five {P} worth of modes. => NounPhrase "up to five {P} worth of modes" as Object of choose; PrepositionPhrase "up to five" as Determiner of worth; readings 1
 + <card=Season of the Bold> You may choose the same mode more than once. => NounPhrase "the same mode" as Object of choose; AdverbPhrase "more than once" as Adjunct of choose; !NounPhrase "the same mode more than once"
-+ <card=Erebos's Intervention> • Exile up to twice X target cards from graveyards. => PrepositionPhrase "up to twice X" as Determiner of card
++ <card=Erebos's Intervention> • Exile up to twice X target cards from graveyards. => DeterminerPhrase "up to twice X target" as Determiner of card; PrepositionPhrase "up to twice X"
 + <card=Stabwhisker the Odious> At the beginning of each opponent's upkeep, that player loses 1 life for each card fewer than three in their hand. => DeterminerPhrase "fewer than three" as Modifier of card
 + <card=Keeper of the Beasts> {G}, {T}: Choose target opponent who controls more creatures than you do as you activate this ability. => NounPhrase "more creatures than you do" as Object of control; Clause "you do" || NounPhrase "more creatures than you do as you activate this ability" as Object of control
 + <card=Change of Plans> Each of X target creatures you control connive. => NounPhrase "Each of X target creatures you control" as Subject of connive; readings 1

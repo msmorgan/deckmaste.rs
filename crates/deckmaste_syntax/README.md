@@ -102,8 +102,7 @@ Authors write active Subcategorization Frames once; the engine derives the rest.
   preposition among its Complements (*come up heads*).
   `except` names Closed Words of the head Category that head none of the
   derived phrases: the grammar builds such a word only into Productions of its
-  own (the Targeting Marker determines a targeted nominal and is no general
-  determinative).
+  own (the Targeting Marker, which only ends a determiner).
 - `Adjunct { host, adjunct, side, host_kind, equations }`: unselected attachment, limited to
   Preposition Phrases whose (preposition, complement frame) entry admits that Host
   Category: a Nominal (as `modifier`), a Predicate (as `adjunct`), or a Clause

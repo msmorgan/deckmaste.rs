@@ -42,7 +42,7 @@
         // The Targeting Marker (*target creature*, *two target creatures*),
         // distinct from the noun and the verb; the grammar builds it into
         // targeted nominals only.
-        (lemma: "target"),
+        (lemma: "target", distribution: Targeting),
         (number: Singular, lemma: "that", distribution: Deictic),
         (lemma: "the"),
         (number: Singular, lemma: "this", distribution: Deictic),

@@ -55,9 +55,9 @@
 +NounPhrase target nonattacking, nonblocking creature => Attributes "nonattacking, nonblocking"; readings 1
 +NounPhrase that creature's or spell's controller => Nominal "creature's or spell's"; readings 1
 +Clause it doesn't untap, and at the beginning of each of your draw steps, put a counter on it => Clause "it doesn't untap"; Clause "at the beginning of each of your draw steps, put a counter on it"
-+NounPhrase up to one target artifact or creature => Nominal "target artifact or creature"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
-+NounPhrase up to two target artifacts and/or enchantments => Nominal "target artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
-+NounPhrase each other target creature => Nominal "other target creature"; Nominal "target creature"; readings 1
++NounPhrase up to one target artifact or creature => DeterminerPhrase "up to one target"; Nominal "artifact or creature"; !Nominal "target artifact"; readings 1
++NounPhrase up to two target artifacts and/or enchantments => DeterminerPhrase "up to two target"; Nominal "artifacts and/or enchantments"; !NounPhrase "up to two target artifacts"; readings 1
++NounPhrase each other target creature => DeterminerPhrase "each other target" as Determiner of creature; DeterminerPhrase "other target" head det:target; readings 1
 + As long as this creature is enchanted by three or more Auras, it has base power and toughness 10/10, vigilance, and trample. => NounPhrase "base power and toughness 10/10, vigilance, and trample" as Object of have
 +Clause it or a creature becomes tapped => NounPhrase "it or a creature" as Subject of become; readings 1
 + Destroy you or a creature. => NounPhrase "you or a creature" as Object of destroy; readings 1

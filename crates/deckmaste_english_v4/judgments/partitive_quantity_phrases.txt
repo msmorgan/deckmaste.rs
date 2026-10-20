@@ -14,6 +14,6 @@
 + <card=Parallel Lives> If an effect would create one or more tokens under your control, it creates twice that many of those tokens instead. => NounPhrase "twice that many of those tokens" as Object of create; PrepositionPhrase "of those tokens"
 + <card=Appa, Steadfast Guardian> When Appa enters, airbend any number of other target nonland permanents you control. => NounPhrase "any number of other target nonland permanents you control" as Object of airbend
 + <card=Lathiel, the Bounteous Dawn> At the beginning of each end step, if you gained life this turn, distribute up to that many +1/+1 counters among any number of other target creatures. => NounPhrase "other target creatures" as Complement of of; PrepositionPhrase "among any number of other target creatures" as Complement of distribute
-+Nominal other target creatures => readings 1
++NounPhrase other target creatures => readings 1
 +NounPhrase other target creatures => readings 1
 +NounPhrase two other target creatures => readings 1

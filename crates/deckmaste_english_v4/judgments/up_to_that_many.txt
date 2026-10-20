@@ -1,17 +1,17 @@
 # Bounded degree determiner "up to that many" determining a counted nominal, with number agreement
-+ <card=Cephalid Constable> Whenever this creature deals combat damage to a player, return up to that many target permanents that player controls to their owner's hand. => NounPhrase "up to that many target permanents that player controls" as Object of return; PrepositionPhrase "up to that many" as Determiner of permanent; DeterminerPhrase "that many"; Nominal "target permanents that player controls"
-+ <card=Heroic Feast> Whenever you gain life, choose up to that many target creatures you control. => NounPhrase "up to that many target creatures you control" as Object of choose; PrepositionPhrase "up to that many" as Determiner of creature; DeterminerPhrase "that many"; Nominal "target creatures you control"
++ <card=Cephalid Constable> Whenever this creature deals combat damage to a player, return up to that many target permanents that player controls to their owner's hand. => NounPhrase "up to that many target permanents that player controls" as Object of return; DeterminerPhrase "up to that many target" as Determiner of permanent; DeterminerPhrase "that many"; Nominal "permanents that player controls"
++ <card=Heroic Feast> Whenever you gain life, choose up to that many target creatures you control. => NounPhrase "up to that many target creatures you control" as Object of choose; DeterminerPhrase "up to that many target" as Determiner of creature; DeterminerPhrase "that many"; Nominal "creatures you control"
 + <card=Swashbuckler Extraordinaire> When you do, up to that many target creatures gain double strike until end of turn. => NounPhrase "up to that many target creatures" as Subject of gain; PrepositionPhrase "up to that many" as Determiner of creature; DeterminerPhrase "that many"; Nominal "target creatures"
 + <card=Scapeshift> Search your library for up to that many land cards, put them onto the battlefield tapped, then shuffle. => NounPhrase "up to that many land cards" as Complement of for; PrepositionPhrase "up to that many" as Determiner of card; DeterminerPhrase "that many"; Nominal "land cards"
-+ <card=Swashbuckler Extraordinaire> Up to that many target creatures gain double strike until end of turn. => NounPhrase "Up to that many target creatures" as Subject of gain; PrepositionPhrase "Up to that many" as Determiner of creature; DeterminerPhrase "that many"; Nominal "target creatures"
-+NounPhrase up to that many target creatures => PrepositionPhrase "up to that many" as Determiner of creature; !PrepositionPhrase "up to that many target creatures"; readings 1
++ <card=Swashbuckler Extraordinaire> Up to that many target creatures gain double strike until end of turn. => NounPhrase "Up to that many target creatures" as Subject of gain; DeterminerPhrase "Up to that many target" as Determiner of creature; DeterminerPhrase "that many"
++NounPhrase up to that many target creatures => DeterminerPhrase "up to that many target" as Determiner of creature; !PrepositionPhrase "up to that many target creatures"; readings 1
 +NounPhrase up to that many land cards => PrepositionPhrase "up to that many" as Determiner of card; readings 1
 *NounPhrase up to that many target creature
 *NounPhrase up to that many life
 *NounPhrase to that many target creatures
 * Up to that many target creatures gains double strike until end of turn.
-+ Return that many target permanents that player controls to their owner's hand. => DeterminerPhrase "that many" as Determiner of permanent
-+ Return up to two target permanents that player controls to their owner's hand. => PrepositionPhrase "up to two" as Determiner of permanent
++ Return that many target permanents that player controls to their owner's hand. => DeterminerPhrase "that many target" as Determiner of permanent; DeterminerPhrase "that many"
++ Return up to two target permanents that player controls to their owner's hand. => DeterminerPhrase "up to two target" as Determiner of permanent
 + Search your library for that many land cards. => DeterminerPhrase "that many" as Determiner of card
 + Search your library for up to two land cards. => PrepositionPhrase "up to two" as Determiner of card
-+ That many target creatures gain double strike until end of turn. => DeterminerPhrase "That many" as Determiner of creature
++ That many target creatures gain double strike until end of turn. => DeterminerPhrase "That many target" as Determiner of creature; DeterminerPhrase "That many"

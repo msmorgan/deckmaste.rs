@@ -1,19 +1,19 @@
-//! The Targeting Marker `det:target` is the only thing that builds a targeted
-//! nominal: an adjective that needs an overt determiner (*only*) premodifies
-//! an ordinary nominal. Judgments name no Production, so this checks the
-//! Readings directly.
+//! The Targeting Marker `det:target` is the only thing that builds a
+//! Targeting Marker determiner: an adjective that needs an overt determiner
+//! (*only*) premodifies an ordinary nominal. Judgments name no Production, so
+//! this checks the Readings directly.
 
 use deckmaste_lexical::LexicalReading;
 use deckmaste_lexical_source_v4::LexicalEnvironment;
 use deckmaste_syntax::Reading;
 
-/// Whether some Constituent is a nominal the Targeting Marker determines.
+/// Whether some Constituent is a determiner the Targeting Marker heads.
 fn marked(reading: &Reading) -> bool {
     match reading {
         Reading::Node(node) => {
             matches!(
                 node.production.as_str(),
-                "TargetingPremodifier" | "TargetingPossessorNominal"
+                "TargetingMarker" | "ModifiedTargetingMarker"
             ) || node.children.iter().any(marked)
         }
         Reading::Leaf(_) => false,
@@ -40,14 +40,14 @@ fn noun_phrase_readings(text: &str) -> Vec<Reading> {
 }
 
 #[test]
-fn only_premodifies_an_unmarked_nominal() {
+fn only_heads_no_targeting_determiner() {
     let readings = noun_phrase_readings("the only creature you control");
     assert_eq!(readings.len(), 1);
     assert!(!marked(&readings[0]), "{:#?}", readings[0]);
 }
 
 #[test]
-fn the_targeting_marker_marks_its_nominal() {
+fn the_targeting_marker_heads_the_determiner() {
     for text in [
         "target creature",
         "two target creatures",

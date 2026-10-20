@@ -166,8 +166,9 @@ The latter licenses numerical `mana`, `life`, and `damage` without treating ever
 mass noun as directly countable. Temporal and manner noun kinds support NP
 Adjuncts. Quantity nominals use ordinary adjectival modification and determination.
 
-The Targeting Marker is the determinative `det:target`, its only Lexeme; the
-grammar builds it into targeted nominals alone. The count noun `noun:target`
+The Targeting Marker is the determinative `det:target`, its only Lexeme, with
+its own `Targeting` distribution; the grammar builds it into determiners that
+end in it. The count noun `noun:target`
 has `HeadOnly` nominal distribution, keeping its head uses without duplicating
 the marker as a noun premodifier. An attributive adjective that requires overt
 determination (`adj:only`) passes that need to its nominal.
