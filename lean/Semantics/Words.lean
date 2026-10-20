@@ -399,6 +399,8 @@ inductive AbilityClass where
   | anyActivated
   | anyTriggered
   | loyalty
+  /-- A mana ability, activated or triggered [CR#605.1]. -/
+  | mana
   | keyword (k : KeywordLabel)
   deriving DecidableEq, Repr
 

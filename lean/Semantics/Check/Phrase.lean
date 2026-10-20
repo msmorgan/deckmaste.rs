@@ -171,7 +171,7 @@ def Predicate.seedZone (p : Predicate) (fuel : Nat := 32) : Option Zone :=
   | _ + 1, .isToken | _ + 1, .inCombat .. | _ + 1, .attachment ..
   | _ + 1, .currentFace _ => some .battlefield
   | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _
-  | _ + 1, .isManaAbility | _ + 1, .targets _ _ => some .stack
+  | _ + 1, .targets _ _ => some .stack
   | _ + 1, .isEmblem => some .command
   | _ + 1, .hasStatus _ => some .battlefield
   | n + 1, .and ps => ps.findSome? (·.seedZone n)
@@ -322,8 +322,7 @@ def Predicate.seedsAbility (p : Predicate) (fuel : Nat := 64) : Bool :=
   match fuel, p with
   | n + 1, .inCaller b | n + 1, .bracketed b | n + 1, .compareOver b _ _ _ =>
     b.seedsAbility n
-  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _
-  | _ + 1, .isManaAbility => true
+  | _ + 1, .abilityHead _ | _ + 1, .abilityOf _ | _ + 1, .activatedBy _ => true
   | n + 1, .and ps => ps.any (fun p => p.seedsAbility n)
   | n + 1, .or ps => !ps.isEmpty && ps.all (fun p => p.seedsAbility n)
   | _, _ => false
@@ -2208,8 +2207,6 @@ def stepOps : Nat → StepOps
         | .rolledDoubles =>
           let n := countOutcomes .rollResult drs
           (drs, if n == 1 then [] else [.outcomeInScope .rollResult n])
-        | .noHolder designation =>
-          (drs, refuse (designation.scope == some (.heldBy .player)) (.designationScope designation))
         | .hasPriority p =>
           let (drs', _, errs) := ops.np drs .subj true p
           (drs', errs)
@@ -2270,10 +2267,6 @@ def stepOps : Nat → StepOps
           (drs2, errors ++ turnErrors)
         | .chapterMark ns => (drs, refuse (chapterMarksOk ns) .chapterMarks)
         | .stateBasedActionsChecked | .now => (drs, [])
-        | .statBecomes subj _ val =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
-          let (drs2, e2) := ops.amt drs1 val
-          (drs2, e1 ++ e2)
         | .stateHolds c => ops.cond drs c
         | .nthOccurrence _ _ ev => ops.ev drs ev
         | .causes c ev =>

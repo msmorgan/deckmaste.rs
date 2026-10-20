@@ -96,11 +96,11 @@ theorem okDefinesPtSigned :
       [.stat .sets .power (.lit 0), .stat .sets .toughness (.lit 2)]).numberSlots
       = [(.lit 0, .signed), (.lit 2, .signed)] := by rfl
 
-/-- "Whenever this creature's power becomes 3": the header watches a game value, which may be
-less than zero [CR#107.1b]. -/
+/-- "Whenever this creature's power becomes 3": the header watches a game state [CR#603.8], a
+comparison of a game value that may be less than zero [CR#107.1b]; it is no effect's result, so
+it has no clamped number slot. -/
 theorem okStatBecomesSigned :
-    (GameEvent.statBecomes thisCreature .power (.lit 3)).numberSlots
-      = [(.lit 3, .signed)] := by rfl
+    (stateHolds (compareAmt (powerOf thisCreature) .eq (.lit 3))).numberSlots = [] := by rfl
 
 /-- "This creature's power becomes -1": a set of a power, the exception [CR#107.1b] names,
 so the printed negative stands where the `up` half of the same `Delta` would clamp. -/

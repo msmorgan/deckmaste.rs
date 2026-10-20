@@ -91,11 +91,15 @@ constraints apply.
     output continues as `doIf`'s always did. *Galvanic Blast* already wrote
     `doIf`.
   - Retire `Condition.noHolder` (`Abilities.lean:428`) in favor of a template
-    over `not (exists_ (hasDesignation ...))`.
+    over `not (exists_ (hasDesignation ...))`. The template is `thereIsNo`
+    (the Oracle wording); the duplicate `noHolder` template goes with the
+    constructor.
   - Retire `GameEvent.statBecomes` (`Abilities.lean:459`, `[CR#603.8]`) in favor
-    of `GameEvent.stateHolds`.
+    of `GameEvent.stateHolds`: "its power becomes 20" is
+    `stateHolds (compareAmt (powerOf it) .eq (.lit 20))`.
   - Fold `Predicate.isManaAbility` (`Abilities.lean:262`, `[CR#605.1]`) into
-    `Predicate.abilityHead`.
+    `Predicate.abilityHead`: `AbilityClass.mana`, with `isManaAbility` the
+    template.
   - Reconcile `NounPhrase.resolvedPermanent` vs `NounPhrase.becomes`
     (`Abilities.lean:301,304`, `[CR#400.7,608.3a]`).
   - Replace `NounPhrase.theGame` (`Abilities.lean:309`, §4.14 — refused

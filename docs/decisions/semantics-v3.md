@@ -418,8 +418,7 @@ inductive GameEvent where
   | beginningOf              (part : TurnPart) (whose : Option NounPhrase) (which : TurnRef)
   | endOf                    (part : TurnPart) (whose : Option NounPhrase)
   | now                                                                 -- Immediate event for self-replacement ("As this enters...")
-  | stateHolds               (condition : Condition)                    -- State triggers ("When this has no counters on it...") [CR#603.8]
-  | statBecomes              (subject : NounPhrase) (stat : CharacteristicStat) (cmp : Comparison) -- Stat-threshold state event (preserves .signed SignClass)
+  | stateHolds               (condition : Condition)                    -- State triggers ("When this has no counters on it...", "when its power becomes 20" as a comparison) [CR#603.8]
   | gameBecomes              (designation : DesignationName)            -- "Whenever it becomes day / night" [CR#731.1]
   | chapterMark              (chapters : List ChapterNumber)            -- Saga chapter triggers [CR#714.2]
   | triggers                 (ability : NounPhrase) (of_ : NounPhrase) (by : Option NounPhrase) -- "Whenever a triggered ability of ... triggers"

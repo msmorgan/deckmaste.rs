@@ -1337,7 +1337,7 @@ semantic_definition splitSecond : Ability :=
           (.conjunction none
             [ cant (bare isPlayer) (cast (allOf anotherSpell)),
               cant (bare isPlayer)
-                (activate (allOf (and [.abilityHead .anyActivated, non .isManaAbility]))) ])
+                (activate (allOf (and [.abilityHead .anyActivated, non isManaAbility]))) ])
           (matches_ thisSpell (.in_ stack))) ]
 semantic_definition spree : Ability :=
   .keyword (.named "spree") [] [static (.modeChoice (.setQuantity (atLeast 1)))]

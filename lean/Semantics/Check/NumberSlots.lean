@@ -203,7 +203,6 @@ def GameEvent.numberSlots (event : GameEvent) (fuel : Nat := 64) : List (Amount 
   match fuel, event with
   | 0, _ => []
   | _n + 1, .inCaller body => body.numberSlots _n
-  | _ + 1, .statBecomes _ _ amount => [(amount, .signed)]
   | _ + 1, .does _ _ | _ + 1, .beginningOf _ _ _ | _ + 1, .endOf _ _ _ | _ + 1, .now
   | _ + 1, .stateHolds _ | _ + 1, .chapterMark _
   | _ + 1, .nthOccurrence _ _ _ | _ + 1, .causes _ _ | _ + 1, .stateBasedActionsChecked => []

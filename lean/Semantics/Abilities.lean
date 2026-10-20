@@ -263,7 +263,6 @@ mutual
     | abilityHead (class_ : AbilityClass)
     | abilityOf (source : NounPhrase)
     | activatedBy (activator : NounPhrase)
-    | isManaAbility
     | targets (subject : NounPhrase) (extent : TargetExtent)
 
   inductive DetPhrase where
@@ -426,7 +425,6 @@ mutual
     /-- "if there is a …" -/
     | exists_ (subject : NounPhrase)
     | did (clause : DidClause)
-    | noHolder (designation : DesignationLabel)
     | matches (subject : NounPhrase) (predicate : Predicate)
     | compareAmt (subject : Amount) (comparator : Comparator) (bound : Amount)
     | dealtThisWay (predicate : Predicate)
@@ -456,8 +454,6 @@ mutual
     | now
     /-- A state trigger condition holding [CR#603.8]. -/
     | stateHolds (condition : Condition)
-    /-- A stat-threshold state event (preserves `.signed` regime). -/
-    | statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount)
     /-- Saga chapter trigger mark [CR#714.2]. -/
     | chapterMark (chapters : List ChapterNumber)
     /-- "Whenever you cast your second spell each turn". -/

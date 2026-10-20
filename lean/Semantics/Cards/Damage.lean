@@ -840,7 +840,7 @@ def infernoOfTheStarMounts : Spelled := spelled <| .singleFaced
           haste,
           activated (mana [pip .red])
             (triggerThisWay (get thisCreature (up (.lit 1)) (up (.lit 0)) (some untilEndOfTurn))
-              (statBecomes it .power (.lit 20))
+              (stateHolds (compareAmt (powerOf it) .eq (.lit 20)))
               (instruct it (dealDamage (.lit 20) (target isAnyTarget) .noncombatOnly))) ],
       power := stat 6, toughness := stat 6 } }
 

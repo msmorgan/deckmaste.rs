@@ -92,7 +92,7 @@ def GameEvent.facts (ev : GameEvent) (fuel : Nat := 16) : EventFacts :=
   | n + 1, .inCaller body => body.facts n
   | _ + 1, .does _ action => { hasMagnitude := action.eventHasMagnitude }
   | n + 1, .nthOccurrence _ _ ev | n + 1, .causes _ ev => ev.facts n
-  | _ + 1, .beginningOf .. | _ + 1, .endOf .. | _ + 1, .now | _ + 1, .stateHolds .. | _ + 1, .statBecomes ..
+  | _ + 1, .beginningOf .. | _ + 1, .endOf .. | _ + 1, .now | _ + 1, .stateHolds ..
   | _ + 1, .chapterMark .. | _ + 1, .stateBasedActionsChecked => {}
 termination_by structural fuel
 

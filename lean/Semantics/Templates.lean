@@ -414,7 +414,7 @@ semantic_template isCopyOfACard : Predicate := .isCopyOfACard
 /-- "source": the object dealing the damage under discussion. -/
 semantic_template isSource : Predicate := .isSource
 semantic_template isEmblem : Predicate := .isEmblem
-semantic_template isManaAbility : Predicate := .isManaAbility
+semantic_template isManaAbility : Predicate := .abilityHead .mana
 semantic_template isPlayer : Predicate := .anyPlayer
 /-- "an opponent of <who>" [CR#102.2..102.3]. -/
 semantic_template isOpponentOf (who : NounPhrase) : Predicate := .isOpponentOf who
@@ -1263,8 +1263,9 @@ semantic_template happenedTo (subj : Subject) (action : Action) (within : Durati
 semantic_template eventSum (action : Action) (subj : Subject) (within : Duration)
     (timing : Option Timing := none) : Amount :=
   .tally ⟨subj, action, .duration within timing⟩ .quantity
-/-- "if there is no <designation>" -/
-semantic_template thereIsNo (designation : DesignationLabel) : Condition := .noHolder designation
+/-- "if there is no <designation>" ("if there is no monarch"): nothing holds it. -/
+semantic_template thereIsNo (designation : DesignationLabel) : Condition :=
+  .not (.exists_ (bare (.hasDesignation designation none)))
 /-- "<subject>'s <keyword> cost was paid", read back. -/
 semantic_template paidCostRead (which : LinkSource) (window : Option Duration)
     (subject : NounPhrase) : Amount :=
@@ -1717,8 +1718,6 @@ semantic_template gameBecomes (designation : DesignationLabel) : GameEvent :=
 semantic_template nthOccurrence (ordinal : Ordinal) (event : GameEvent)
     (per : Option TurnPart := none) : GameEvent :=
   .nthOccurrence ordinal per event
-semantic_template statBecomes (subject : NounPhrase) (stat : Stat) (value : Amount) : GameEvent :=
-  .statBecomes subject stat value
 semantic_template stateHolds (condition : Condition) : GameEvent := .stateHolds condition
 /-- "<ability> triggers [by <cause>]": the ability is the subject of `trigger` [CR#603.2]; whose
 ability it is ("a triggered ability of a creature you control") is `Predicate.abilityOf` in its
@@ -2076,7 +2075,6 @@ semantic_template keywordCostPaid (label : KeywordLabel) (subject : NounPhrase) 
   costWasPaid (.byKeyword label) none subject
 semantic_template matches_ (subject : NounPhrase) (predicate : Predicate) : Condition :=
   .matches subject predicate
-semantic_template noHolder (designation : DesignationLabel) : Condition := .noHolder designation
 semantic_template preventedFromSource (predicate : Predicate) : Condition :=
   .preventedFromSource predicate
 semantic_template rolledDoubles : Condition := .rolledDoubles
