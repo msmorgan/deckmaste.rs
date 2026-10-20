@@ -12,23 +12,50 @@ constraints apply.
 
 ## Scope
 
-### 1. `Replacement.also` Constructor & `also` Template (`Abilities.lean`, `Templates.lean`, `Check/`)
+### 1. `Replacement.also`, `withRiders` & `onlyIf` (`Abilities.lean`, `Templates.lean`, `Check/`)
 
-- Add `| also (action : Action) (when : Option Condition := none)` to
-  `Replacement` in `lean/Semantics/Abilities.lean`:
+- `Replacement` in `lean/Semantics/Abilities.lean` becomes
+  `inCaller body | instead action | also action | withRiders riders | onlyIf condition body`:
   - `Replacement.instead`: wholly replaces the `WouldClause` / `replaced` event
     with `action` (`[CR#614.1a]`).
-  - `Replacement.also`: modifies or augments the `WouldClause` event without
-    cancelling the underlying event (`[CR#614.1c,614.1d,614.12]`).
-- Define `semantic_template also (action : Action) (when : Option Condition := none) : Replacement := .also action when`
-  in `lean/Semantics/Templates.lean`.
-- Update `CallerScope Replacement`, `Authoring.inspect`, `stepReplacementWith`
-  (`Check/Phrase.lean`), `Check/AbilityRules.lean` (`staticTextContext` publishing
-  text choices from `.replace _ (.also action)`), `Check/CardFacts.lean`, and
-  `Check/NumberSlots.lean`.
+  - `Replacement.also`: does `action` as part of the event, which still happens
+    (`[CR#603.6d,614.1c]`).
+  - `Replacement.withRiders (riders : List MoveRider)`: the replaced move still happens,
+    with these riders ("enters tapped / with … counters / as a copy / transformed",
+    `[CR#614.1c,614.1d,614.12]`). These modify the entering event itself, so neither
+    `instead` (which would restate `enter`) nor `also` (`also (tap it)` would be a separate
+    "becomes tapped" event) is right. Named for the glossary's riders: `MoveRider` carries both
+    Entry Riders and Pile Placements, and `with` is a Lean keyword. The checker accepts it only
+    where the replaced event is a move (refusal `riddenMove`, e.g. riders over a draw).
+  - `Replacement.onlyIf (condition) (body)`: one structural conditional wrapper in place of a
+    per-arm `when` field; `instead`, `also` and `withRiders` take only their payload.
+    `doIf c r` at expected type `Replacement` builds `onlyIf c r`, so cards still write
+    `doIf c (instead a)`. `Replacement.parts?` and its fuel are retired; the checker steps
+    `onlyIf` as condition, then body in a new clause, and a caller's `.inCaller` replacement
+    stays one caller frame, so a Definition's condition over a caller replacement whose
+    condition and action share an anaphor is accepted.
+- Templates `instead (action)`, `also (action)`, `withRiders (riders)` in
+  `lean/Semantics/Templates.lean`; the `enters subject riders` template builds
+  `replace (would subject enter) (withRiders riders)`, so nothing restates `enter`.
+- The `may` convention, per arm: under `instead`, only a wholly-`may` action with no failure arm
+  leaves the event to happen when declined; under `also`, the event happens regardless and
+  declining skips only the addition; `withRiders` offers no choice beyond an optional copy's own
+  (`asCopyOf`); under `onlyIf`, the event happens unmodified while the condition fails.
+- Update `stepReplacementWith` (`Check/Phrase.lean`), `Check/AbilityRules.lean`
+  (`staticTextContext` publishing text choices from `also`), `Check/CardFacts.lean`, and
+  `Check/NumberSlots.lean` (`Replacement.numberSlots`: a `withRiders` replacement's riders).
+  `CallerScope Replacement` and `Authoring.inspect` need no change.
 
 ### 2. Re-author Additive Entry & Event Modifications onto `also` (`Definitions/`, `Cards/`, `Proofs/`)
 
+- Oracle phrasing sorts each entering modification: what the text states as how it enters
+  ("enters tapped", "enters with N counters", "enters as a copy", "enters transformed") is a
+  `withRiders` replacement; what it states as something done as it enters ("choose …",
+  "you may sacrifice …", "reveal …", "put … counters on it as it enters", "you may exchange …")
+  is `also`. Counters may be an `also` action where the Oracle says "put", or where a rider
+  cannot carry what the text needs (a `may`, a failure arm, or a count read from an action done
+  as it enters): counters given as it enters are put on it (`[CR#122.6]`). Gather Specimens
+  stays `instead` (its Oracle text says "instead").
 - Express additive `"As ~ enters, ..."` and entry-modification keywords/helpers
   through `replace (would ... enter) (also ...)` without repeating
   `instruct thisCreature enter` or wrapping in a redundant `mayOrElse ... (instruct thisCreature enter)`:
@@ -59,7 +86,10 @@ constraints apply.
     `"As ~ enters, you may exchange ..."` via `replace (would ... enter) (also ...)`
     (and retire `StaticSpec.asEvent` if all remaining `"As [event], [action]"`
     sites in `Keywords.lean`, `Cards/`, and `Proofs/` are covered by
-    `replace ... (also ...)`).
+    `replace ... (also ...)`). `asEvent` stays: dash, blitz and warp act as a cost is paid,
+    daybound and nightbound as it becomes night or day, enchant's Aura attachment is the rule
+    `[CR#303.4f]`, and "as it becomes attached" is no entering; none is a replacement effect
+    `[CR#614.1c]` covers.
 
 ## Verification
 

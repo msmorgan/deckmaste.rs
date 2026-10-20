@@ -317,10 +317,12 @@ card face down during its owner's turn ([CR#116.2c,116.2h]).
 
 **Off-Stack Static** (project term):
 A Static Ability that carries out an Action without using the stack,
-either as an Event happens ("as this enters, you may sacrifice …",
-[CR#614.1c]) or at any time a condition holds ("any time you control ten or
-more permanents and you don't have the city's blessing, you get the city's
-blessing", [CR#702.131b]). A Special Action is its sibling, done by choice
+either as an Event happens ("as it becomes night, if this permanent is front
+face up, transform it", [CR#702.145b]) or at any time a condition holds ("any
+time you control ten or more permanents and you don't have the city's
+blessing, you get the city's blessing", [CR#702.131b]). Text that acts as a
+Permanent enters ("as this enters, you may sacrifice …") is a Replacement
+Effect instead ([CR#614.1c]). A Special Action is its sibling, done by choice
 with a cost; a delayed trigger an Off-Stack Static creates has that static's
 object as its source ([CR#603.7g]).
 _Avoid_: state trigger, since nothing goes on the stack ([CR#604.1])
