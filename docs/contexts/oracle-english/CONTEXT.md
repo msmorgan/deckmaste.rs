@@ -368,8 +368,9 @@ ordinary noun or adjective use in Oracle text. Noun uses retain their Part of
 Speech when functioning as Premodifiers.
 
 **Targeting Marker** (project term):
-The invariant prenominal *target* that marks an Oracle-text target description.
-It is distinct from the count noun *target* and the verb *target*.
+The invariant prenominal *target* that marks an Oracle-text target description:
+a Determinative that determines only a Targeted Nominal (never *target two
+creatures*). It is distinct from the count noun *target* and the verb *target*.
 
 **Target Noun**:
 The count-noun Lexeme whose Word Forms *target* and *targets* denote Game Model
@@ -381,11 +382,15 @@ rules text stating that a Game Model Spell or Ability targets a Game Model
 Object or Player.
 
 **Targeted Nominal** (project term):
-A Nominal premodified by the Targeting Marker, including a Coordination of bare
-Nominals the Marker premodifies as a whole (*target artifact or creature*). No
-Conjunct of a Coordination of Nominals is itself a Targeted Nominal. A Noun
-Phrase built on one is targeted, and as a non-final Conjunct it coordinates
-only with a determined Noun Phrase.
+A Nominal the Targeting Marker determines, above all of its Modifiers as any
+Determiner is (*target creature you control*), including a Coordination of Nominals
+the Marker determines as a whole (*target artifact or creature*, *target
+planeswalker that player controls or battle that player protects*). An outer
+Determiner may precede it (*two target creatures*); without one, the Marker
+determines the Noun Phrase. No Conjunct of a Coordination of Nominals is itself
+a Targeted Nominal. A Noun Phrase whose Targeted Nominal has an outer
+Determiner, as a non-final Conjunct, coordinates only with a determined Noun
+Phrase.
 _Avoid_: target phrase, target description for the syntactic unit
 
 **Notation**:

@@ -75,9 +75,6 @@
     "single",
     "six-sided",
     (lemma: "small", comparative: "smaller", superlative: "smallest"),
-    // The Targeting Marker of "another target creature", "two target
-    // creatures": attributive-only and invariant, distinct from the count noun.
-    (lemma: "target", position: Some(Attributive), determination: Some(Overt)),
     "top",
     "total",
     (lemma: "true", frames: [Complement(PP(["for"]))]),

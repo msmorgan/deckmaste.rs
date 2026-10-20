@@ -218,6 +218,11 @@ pub enum SchemaDecl {
         /// Ch. 15 §4.3, p. 1341).
         #[serde(default)]
         clusters: Option<Ident>,
+        /// Closed Words of the head Category that head none of these
+        /// phrases: a word the grammar builds only into a Production of its
+        /// own (the Targeting Marker).
+        #[serde(default)]
+        except: Vec<Ident>,
     },
     /// Unselected attachment of an adjunct Category to a host.
     Adjunct {

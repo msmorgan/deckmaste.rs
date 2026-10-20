@@ -39,7 +39,9 @@
         // The independent form of *no* (CGEL p. 356).
         (lemma: "none", distribution: Independent, frames: [Complement(PP(["of"]))]),
         (lemma: "some", frames: [Complement(PP(["of"]))]),
-        // Oracle determiner use; other lexical categories remain independent.
+        // The Targeting Marker (*target creature*, *two target creatures*),
+        // distinct from the noun and the verb; the grammar builds it into
+        // targeted nominals only.
         (lemma: "target"),
         (number: Singular, lemma: "that", distribution: Deictic),
         (lemma: "the"),

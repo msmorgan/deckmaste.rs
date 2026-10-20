@@ -21,3 +21,17 @@
 +Nominal other target creatures
 +NounPhrase two other target creatures
 +NounPhrase target players or planeswalkers => Nominal "players or planeswalkers" || NounPhrase "target players"; NounPhrase "planeswalkers"; readings 2
+# The Targeting Marker is a determiner of a targeted nominal only: never a general determinative.
+*NounPhrase target two creatures
+*NounPhrase the or target creature
+*NounPhrase target first creature
++NounPhrase target creature => Nominal "target creature" head creature; DeterminerPhrase "target" head det:target as Determiner of creature; readings 1
++NounPhrase target player's graveyard => NounPhrase "target player" head player; DeterminerPhrase "target" head det:target as Determiner of player; readings 1
++NounPhrase other target creatures => Nominal "other target creatures" head creature; AdjectivePhrase "other" as Modifier of creature; DeterminerPhrase "target" head det:target as Determiner of creature; readings 1
+# An adjective that needs an overt determiner is an ordinary premodifier, not a Targeting Marker.
++NounPhrase the only creature you control => AdjectivePhrase "only" head adj:only as Modifier of creature; DeterminerPhrase "the" as Determiner of creature; !DeterminerPhrase "only"; readings 1
+*NounPhrase only creature
+# The Targeting Marker determines its nominal above every postmodifier; no postmodifier attaches above it.
++NounPhrase target creature you control => Nominal "creature you control"; DeterminerPhrase "target" as Determiner of creature; !Nominal "target creature"; readings 1
++NounPhrase target creature you control or planeswalker an opponent controls => Nominal "creature you control or planeswalker an opponent controls"; !Nominal "target creature you control or planeswalker"; !Nominal "target creature you control"
++NounPhrase up to one target artifact or enchantment that player controls => Nominal "artifact or enchantment that player controls"; !Nominal "target artifact or enchantment"

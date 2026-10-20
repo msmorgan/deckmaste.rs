@@ -1009,6 +1009,7 @@ impl<'a> Binder<'a> {
                 heavy_shift,
                 agree,
                 clusters,
+                except,
             } => {
                 let mut drafts = self.valence(
                     *head,
@@ -1017,6 +1018,7 @@ impl<'a> Binder<'a> {
                     passive.as_deref(),
                     adjectival.as_deref(),
                 )?;
+                self.valence_exceptions(*head, &mut drafts, except)?;
                 self.slot_agreement(phrase, &mut drafts, agree)?;
                 if let Some(coordinators) = clusters {
                     let coordinator = self.coordinator_test(coordinators)?;
@@ -1388,6 +1390,39 @@ impl<'a> Binder<'a> {
         );
         push_marked(&mut end);
         vec![binary, serial, more, end]
+    }
+
+    /// Withholds the `except` Closed Words from every phrase a Valence
+    /// schema derives: its head leaf admits any other lexeme it admitted.
+    fn valence_exceptions(
+        &self,
+        head: LexicalCategory,
+        drafts: &mut [Draft],
+        except: &[Ident],
+    ) -> Result<(), LoadError> {
+        if except.is_empty() {
+            return Ok(());
+        }
+        let mut words = BTreeSet::new();
+        for name in except {
+            let id = self.word(name)?;
+            if self.out.lexemes.get(&id).is_none_or(|l| l.category != head) {
+                return Err(invalid(format!(
+                    "valence exception `{name}` is not a {head:?} lexeme"
+                )));
+            }
+            words.insert(id);
+        }
+        for draft in drafts {
+            for child in &mut draft.children {
+                if child.name == "head"
+                    && let Symbol::Leaf(test) = &mut child.symbol
+                {
+                    *test = Test::Except(Box::new(test.clone()), words.clone());
+                }
+            }
+        }
+        Ok(())
     }
 
     fn valence(

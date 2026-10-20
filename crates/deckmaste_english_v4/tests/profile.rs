@@ -251,3 +251,19 @@ fn reviewed_misplacements_stay_fixed() {
         assert_eq!(found, stratum, "{text}: {families:?}");
     }
 }
+
+#[test]
+fn the_targeting_marker_is_no_postmodified_host_or_asyndetic_attribute() {
+    let env = LexicalEnvironment::load().unwrap();
+    for (text, stratum) in [
+        ("Destroy target attacking creature.", 1),
+        ("Target legendary creature gains fear until end of turn.", 1),
+        (
+            "When this enchantment leaves the battlefield, target opponent creates a 3/3 green Dinosaur creature token with trample.",
+            4,
+        ),
+    ] {
+        let (found, families) = profile(&env, UnitKind::Line, text);
+        assert_eq!(found, stratum, "{text}: {families:?}");
+    }
+}

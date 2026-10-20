@@ -83,8 +83,18 @@ catalog entries; status adjectives and numerical mass distributions are declared
 in their owning lexical sources. Later constructions remain pending at their
 own Stratum.
 
-The Targeting Marker remains an attributive adjective after a determiner;
-its homographic Target Noun is restricted to nominal heads. Preposition
+The Targeting Marker `det:target` is the determiner of a targeted nominal
+and of nothing else: it heads no general Determiner Phrase (*target two
+creatures*, *the or target creature* have no Reading), it determines no
+nominal that needs another determiner (*target first creature*), and an
+outer determiner may precede it (*two target creatures*). Like any
+determiner it sits above every postmodifier of its nominal (*target [creature
+you control]*), and no postmodifier attaches above it. Without an outer
+determiner it determines the Noun Phrase or possessor; a possessor's targeted
+conjuncts are bare. An
+attributive adjective that needs an overt determiner (*the only creature*,
+an ordinal) is an ordinary premodifier. Its homographic Target Noun is
+restricted to nominal heads. Preposition
 frames selecting a bare nominal take a singular count-noun head and its
 selected complements, without arbitrary noun compounds or the plural/mass
 alternatives already supplied by Noun Phrases. Numeric arguments use Amount
@@ -235,8 +245,11 @@ preposition's Amount (*less than or equal to X*) or, respectively, nouns'
 Amounts under a slash Measure (*base power and toughness 4/4*) or under one
 Amount (*power or toughness 2 or less*); a bare *power* or *toughness* is no
 Noun Phrase by itself. The Targeting
-Marker premodifies a whole coordination of bare nominals inside the
-determiner (*up to one target artifact or creature*).
+Marker determines a whole coordination of nominals, each with its own
+postmodifiers or none, above any postmodifier of the whole and inside any
+outer determiner (*up to one target
+artifact or creature*, *target planeswalker that player controls or battle
+that player protects*).
 
 The profiler recognizes bound stems and preposed qualities without treating
 keyword verbs as keyword heads. A relative after a numeral (*two that share …*)

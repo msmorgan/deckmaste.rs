@@ -866,11 +866,12 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         if t.is(Category::Adverb, "not") || t.is(Category::Adverb, "never") {
             families.insert(NEGATION);
         }
-        // *to* before a plain verb, unless that verb is a premodifier of a
-        // following nominal (*to target creature*).
+        // *to* before a plain verb, unless that verb is a premodifier or the
+        // Targeting Marker of a following nominal (*to target creature*).
         if t.is(Category::Subordinator, "to")
             && next(i).is_some_and(|n| n.verb_form(&[WordForm::Plain]))
-            && !(next(i).is_some_and(|n| n.has(Category::Adjective))
+            && !(next(i)
+                .is_some_and(|n| n.has(Category::Adjective) || n.has(Category::Determinative))
                 && tokens.get(i + 2).is_some_and(Tok::nominal))
         {
             families.insert(INFINITIVAL);
@@ -997,7 +998,9 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
             || t.has(Category::Keyword)
                 && previous(i).is_some_and(|p| p.has(Category::Preposition))
             || t.class_is(Class::Symbol) && previous(i).is_some_and(|p| p.class_is(Class::Symbol));
-        if host && !t.has(Category::Adjective) {
+        // A premodifier or the Targeting Marker is no host (*target attacking
+        // creature*).
+        if host && !t.has(Category::Adjective) && !t.has(Category::Determinative) {
             // A bare relative: nominal, subject, finite verb.
             if let Some(subject) = next(i) {
                 let verb_at = if subject.has(Category::Pronoun)

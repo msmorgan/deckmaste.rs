@@ -69,3 +69,8 @@ That split has three defects:
 - Every unit that reads before the change still reads, with no face lost.
 
 Standard constraints apply.
+
+1. **Census delta** (measured on `zmluqqrq`): faces read 28,705 → 28,705;
+   total Readings 389,484 → 390,052; lost faces: none.
+2. **Judgment set**: 3,000 enforced at `COMPLETED_STRATUM` 6, all hold; 189
+   pending.
