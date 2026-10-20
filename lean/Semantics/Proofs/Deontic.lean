@@ -133,23 +133,6 @@ theorem okCastCreatureFromGraveyard :
       = [] := by
   decide
 
-/-- "unless" on a negated condition -/
-theorem okUnlessOnNegated :
-    Ability.check (DRS.ofList [])
-      (.static
-        (.conditional (.cant (.actor thisCreature) (.attack none) {})
-          (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .unless_)) = [] := by
-  decide
-
-/-- "unless" -/
-theorem badUnlessOnPositive :
-    Ability.check (DRS.ofList [])
-      (.static
-        (.conditional (.cant (.actor thisCreature) (.attack none) {})
-          (exists_ (.and [isArtifact, .hasPossessor .controller .you])) .unless_))
-      = [.markingOk] := by
-  decide
-
 /-- "Target creature attacks each combat if able." -/
 theorem okMustAttackCreature :
     Action.check (DRS.ofList [])

@@ -290,21 +290,12 @@ theorem okAlsoReadsItsOwnChoice :
                 (may (putCounters (.lit 1) (.printed p1p1Counter) thisCreature)) ]))) = [] := by
   decide
 
-/-- "unless you control an artifact" -/
-theorem okUnlessOverNegatedCondition :
-    StaticSpec.check (DRS.ofList [])
-      (.conditional (.altCost .this none)
-        (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .unless_) = [] := by
-  decide
-
-theorem badUnlessConjunction :
-    StaticSpec.check (DRS.ofList [])
-      (.conditional (.altCost .this none)
-        (.and
-          [ exists_ (.and [isArtifact, .hasPossessor .controller .you]),
-            exists_ (.and [isEnchantment, .hasPossessor .controller .you]) ]) .unless_)
-      = [.markingOk] := by
-  decide
+/-- "<spec> unless <condition>" is "<spec> if not <condition>": the negation is the
+condition's, and no marking stores the word "unless". -/
+theorem unlessIsIfNot :
+    onlyUnless (.altCost .this none) (exists_ (.and [isArtifact, .hasPossessor .controller .you])) =
+      .conditional (.altCost .this none)
+        (.not (exists_ (.and [isArtifact, .hasPossessor .controller .you]))) .ifSo := rfl
 
 /-- "This creature blocks an attacking creature." -/
 theorem okCreatureBecomesBlocking :

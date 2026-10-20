@@ -1432,9 +1432,9 @@ semantic_template gainControl (subject : NounPhrase) (duration : Option Duration
 /-- "<spec> as long as <condition>" -/
 semantic_template onlyWhile (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .asLongAs
-/-- "<spec> unless <condition>" -/
+/-- "<spec> unless <condition>": "<spec> if not <condition>". -/
 semantic_template onlyUnless (spec : StaticSpec) (condition : Condition) : StaticSpec :=
-  .conditional spec (.not condition) .unless_
+  .conditional spec (.not condition) .ifSo
 /-- "<spec> if <condition>" -/
 semantic_template onlyIfSo (spec : StaticSpec) (condition : Condition) : StaticSpec :=
   .conditional spec condition .ifSo

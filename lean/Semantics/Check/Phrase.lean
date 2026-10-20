@@ -556,17 +556,6 @@ def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
-def Condition.negated (condition : Condition) (fuel : Nat := 32) : Bool :=
-  match fuel, condition with
-  | n + 1, .inCaller body => body.negated n
-  | _ + 1, .not _ => true
-  | _, _ => false
-termination_by structural fuel
-
-def markingOk : CondMarking → Condition → Bool
-  | .asLongAs, _ | .ifSo, _ => true
-  | .unless_, condition => condition.negated
-
 def stepChoiceDomainWith (ops : StepOps) (drs : DRS) (cd : ChoiceDomain) : DRS × List Refusal :=
   match cd with
   | .nameOfCard p =>
@@ -3012,10 +3001,10 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.ev drs ev
           let (drs2, e2) := stepQuantityWith ops drs1 q
           (drs2, e1 ++ e2)
-        | .conditional spec cond marking =>
+        | .conditional spec cond _ =>
           let (drs1, e1) := ops.spec drs spec
           let (drs2, e2) := ops.cond (nextClause drs1) cond
-          (drs2, e1 ++ e2 ++ refuse (markingOk marking cond) .markingOk)
+          (drs2, e1 ++ e2)
         | .visibility _ player what =>
           let (drs1, _, e1) := ops.np drs .subj true player
           let (drs2, e2) := stepVisibleThingWith ops drs1 what

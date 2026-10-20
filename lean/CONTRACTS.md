@@ -661,7 +661,7 @@ expected child kinds in the incoming `DRS`.
 | `CostSubject` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): a cost change's subject is not required to be on the stack. |
 | `StackActOn` | Retired by `lean-checker-sweep-zone` (§7 charter ruling 2026-10-06): retargeting and copying do not demand a stack object, and counter's enacted move checks no source zone. |
 | `Condition` | `stepCondition` (`Condition.check`) steps it. |
-| `MarkingOk` | `markingOk` in the `conditional` static case. |
+| `MarkingOk` | Retired with `CondMarking.unless_` (`lean-v3-authoring-impl-14-ast-and-authoring-cleanup`): "unless C" is `onlyUnless`, the condition `not C` under `ifSo`, so there is no marking to agree with its condition. |
 | `TokenPhrase` | `NounPhrase.tokenPhrase` plus object-kind checking in the token-creation event (`tokenPhrase`). |
 | `Exposed` | The `expose` action case steps it. |
 | `VisibleThing` | `stepVisibleThingWith` steps it. |

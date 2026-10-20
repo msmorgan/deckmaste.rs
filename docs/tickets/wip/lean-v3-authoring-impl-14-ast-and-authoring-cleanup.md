@@ -36,6 +36,16 @@ constraints apply.
   written value takes the value op (an addition sets it, a removal removes it);
   a removed cost is `manaCost none`.
 
+### 1a. Retire the `unless` Marking (owner addition)
+
+- "Unless C" is "if not C"; whether a negated condition is said with "unless"
+  is a realisation choice read from the condition, not stored. Retire
+  `CondMarking.unless_` and `markingOk` (`Refusal.markingOk`) with their pins.
+  `onlyUnless spec c` stays as the template for the Oracle word order, sugar
+  for `.conditional spec (.not c) .ifSo`, the same expansion `onlyIfSo spec
+  (not c)` gives, so card sources read as printed. `asLongAs` vs `ifSo` stays:
+  they are different conditions.
+
 ### 2. Reconcile Overlapping AST & Vocabulary Constructs (Opus §§4.3–4.6, §4.13–4.14)
 
 - **`Amount` vs `Quantity` (§4.3):** Reconcile `Amount.upTo`/`moreThan`

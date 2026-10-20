@@ -99,7 +99,6 @@ inductive Refusal where
   | linkSource
   | pileMention
   | predSays
-  | markingOk
   | amtNonZero
   | tallyOk
   | lookbackSubject

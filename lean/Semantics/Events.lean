@@ -58,8 +58,11 @@ inductive ResultMode where
   | inAddition
   deriving DecidableEq, Repr
 
+/-- How a static ability's condition holds it in force: "as long as" it holds, or "if" it does.
+"Unless C" is "if not C" (`onlyUnless`); whether a negated condition is said with "unless" is
+read from the condition, not stored. -/
 inductive CondMarking where
-  | asLongAs | unless_ | ifSo
+  | asLongAs | ifSo
   deriving DecidableEq, Repr
 
 /-- How "a …" chooses. -/
