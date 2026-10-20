@@ -819,6 +819,11 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
         let bare_verb = |n: &Tok<'_>, form: WordForm| {
             n.verb_form(&[form]) && !n.has(Category::Noun) && !n.has(Category::Adjective)
         };
+        // The pro-form *do so* is a verb of its own (CGEL, Ch. 17 §7.5,
+        // pp. 1529–1532).
+        if t.lemma_in(&["do so"]) {
+            families.insert(PRO_FORM);
+        }
         if auxiliary {
             // An auxiliary whose Verb Phrase is left unsaid: at the end of its
             // clause, or before the next clause's finite verb (*each opponent
@@ -837,9 +842,7 @@ fn clause(tokens: &[Tok<'_>], baseline: bool, families: &mut BTreeSet<Family>) {
                 // §7.6, p. 1533).
                 let same = next(i).is_some_and(|n| n.is(Category::Determinative, "the"))
                     && tokens.get(i + 2).is_some_and(|n| n.lemma_in(&["same"]));
-                if t.lemma_in(&["do"])
-                    && (stranded || same || next(i).is_some_and(|n| n.lemma_in(&["so"])))
-                {
+                if t.lemma_in(&["do"]) && (stranded || same) {
                     families.insert(PRO_FORM);
                 }
                 if next(i).is_some_and(|n| {

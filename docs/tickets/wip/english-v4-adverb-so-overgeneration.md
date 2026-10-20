@@ -36,3 +36,24 @@ needs: []
 - Every unit that reads before the change still reads, with no face lost.
 
 Standard constraints apply.
+
+## Record
+
+- `adv:so` is gone. Oracle uses *so* only in *so far* and the pro-form *do so*,
+  so both are Lexemes of their own: the End adverb *so far* (`adverbs.ron`) and
+  the Intransitive verb *do so*, inflected on *do* (*does so*, *did so*, *done
+  so*, *doing so*; `verbs.ron`). Neither is a `PhrasalAdverb` or `EndAdverb`
+  *so*. The profiler places *do so* in the pro-form family, at Stratum 7, as
+  before.
+- The Done-when's `*` Judgments are on strings no card contains. The intent is
+  covered by a `+` Judgment on Reverse Polarity (`[so far] this turn`, never
+  `so [far this turn]`) and by `+VerbPhrase doing so`. The *do so* Judgments now
+  name the head `"do so"`.
+- *and so on* (Selective Adaptation, Akroma, Vision of Ixidor) was already
+  deferred to `english-v4-stratum-7-discourse-and-long-tail` and stays there.
+  Its *so* is now an unknown word, which places those units at Stratum 7.
+
+1. **Census delta** (measured on `tsppnvrp`): faces read 28,709 → 28,709;
+   total Readings 382,154 → 382,152; lost faces: none.
+2. **Judgment set**: 2,899 enforced at `COMPLETED_STRATUM` 6, all hold; 190
+   pending.

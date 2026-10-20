@@ -45,8 +45,9 @@
     (lemma: "secretly", positions: [Central]),
     // *that player simultaneously untaps*; *reveal them simultaneously*
     (lemma: "simultaneously", positions: [Central, End]),
-    // *do so* (its complement use has no Frame Family yet); *so far*
-    (lemma: "so", positions: [End, Phrasal]),
+    // *so far this turn*: Oracle's only adverbial *so*, a fixed phrase; the
+    // pro-form *do so* is a verb of its own.
+    (lemma: "so far", positions: [End]),
     (lemma: "still", positions: [Central]),
     (lemma: "then", positions: [Front]),
     // *copy that spell twice*; *deals twice that much damage*

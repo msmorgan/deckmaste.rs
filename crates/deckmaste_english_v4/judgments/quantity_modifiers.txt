@@ -10,6 +10,7 @@
 +NounPhrase twice X life => readings 1
 +NounPhrase only one target => readings 1
 +NounPhrase more than one creature => DeterminerPhrase "more than one" as Determiner of creature; readings 1
-+AdverbPhrase so far this turn => AdverbPhrase "so far"; readings 1
++AdverbPhrase so far this turn => AdverbPhrase "so far" head "so far"; readings 1
++ <card=Reverse Polarity> You gain X life, where X is twice the damage dealt to you so far this turn by artifacts. => AdverbPhrase "so far" head "so far"; !AdverbPhrase "far this turn"
 +AdverbPhrase only once each turn => AdverbPhrase "only once"; !AdverbPhrase "once each turn"
 +AdjectivePhrase equal to target creature's power => NounPhrase "target creature's power" as Complement of to; readings 1
