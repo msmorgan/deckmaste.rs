@@ -102,10 +102,6 @@
     // Predicative *first* (*whichever comes first*); an attributive ordinal
     // is the grammar's numeral (*the second spell*).
     (lemma: "first", position: Some(Predicative)),
-    // Multipliers in attributive use (*double damage*; CGEL Ch. 5 §7.3, p. 434);
-    // the verbs are keyword actions [CR#701.10,701.11].
-    "double",
-    "triple",
     // No verb *tie* in Oracle: *the vote is tied*, *tied for most common*.
     (lemma: "tied", frames: [Complement(PP(["for"]))]),
 ]
