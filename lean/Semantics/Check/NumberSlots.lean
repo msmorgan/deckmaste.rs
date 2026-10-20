@@ -165,7 +165,9 @@ def Action.numberSlots (value : Action) (fuel : Nat := 64) : List (Amount × Num
   | _n + 1, .changeLife delta => delta.numberSlots
   | _n + 1, .exchange exchanged => exchanged.numberSlots
   | _n + 1, .addMana amount _ _ => [(amount, .clamped)]
-  | _n + 1, .draw amount => [(amount, .clamped)]
+  | _n + 1, .draw (.exactlyOf amount) | _n + 1, .draw (.upToOf amount)
+  | _n + 1, .draw (.moreThanOf amount) => [(amount, .clamped)]
+  | _n + 1, .draw _ => []
   | _n + 1, .expose _ _ | _n + 1, .search _ _ _ | _n + 1, .shuffle _ => []
   | _n + 1, .flipCoins count _ _ => count.numberSlots
   | _n + 1, .rollDice count _ _ _ => [(count, .clamped)]

@@ -57,7 +57,7 @@ def Amount.read (amount : Amount) (fuel : Nat := 32) : Bool :=
   match fuel, amount with
   | n + 1, .inCaller body => body.read n
   | _ + 1, .lit _ | _ + 1, .arith _ _ _ | _ + 1, .thatMuch | _ + 1, .chosenNumber _
-  | _ + 1, .groupSize | _ + 1, .half _ _ | _ + 1, .upTo _ | _ + 1, .moreThan _ => false
+  | _ + 1, .groupSize | _ + 1, .half _ _ => false
   | _ + 1, .theOutcome sort => sort.comparable
   | _, _ => true
 termination_by structural fuel

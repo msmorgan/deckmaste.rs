@@ -64,12 +64,12 @@ private def selectedCreature : NounPhrase :=
 theorem callerOwnedTestSubjectsDoNotPermitFreshLocalTestSelections :
     let test := Action.doIf
       (.matches (.firstMention "tested.parameter" (.inCaller selectedCreature))
-        (.hasType .creature)) (.draw (.lit 1)) none
+        (.hasType .creature)) (.draw (.exactlyOf (.lit 1))) none
     Action.check emptyContext (.ownScope none test) = [] ∧
       Condition.check emptyContext (.matches selectedCreature (.hasType .creature)) =
         [.testSubject] ∧
       Action.check emptyContext (.ownScope none
-        (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.lit 1)) none)) =
+        (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.exactlyOf (.lit 1))) none)) =
         [.testSubject] := by decide
 
 /-- Explicit counted selections and linked plural objects keep their written plurality. -/

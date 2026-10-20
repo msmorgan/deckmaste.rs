@@ -103,7 +103,7 @@ def spiritOfTheLabyrinth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Spirit of the Labyrinth", cost := some [generic 1, pip .white],
       types := [.enchantment, .creature], subtypes := [spirit],
-      text := [static (cant eachPlayer (draw (moreThan 1)) (timing := some eachTurn))],
+      text := [static (cant eachPlayer (drawCount (moreThan 1)) (timing := some eachTurn))],
       power := stat 3, toughness := stat 1 } }
 
 def winterMoon : Ability :=

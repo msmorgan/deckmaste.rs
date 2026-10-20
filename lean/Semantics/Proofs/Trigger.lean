@@ -101,7 +101,7 @@ theorem badNonTokenCreationSubject :
 /-- "Whenever you draw a card, draw a card. This triggers only once each turn." -/
 theorem okTriggerLimitOffChapter :
     Ability.check (DRS.ofList [])
-      (.triggered (.does (.actor .you) (.draw .anyAmount)) [] none [] none (some oncePerTurn) none
+      (.triggered (.does (.actor .you) (.draw (.exactlyOf .anyAmount))) [] none [] none (some oncePerTurn) none
         (draw (.lit 1))) = [] := by
   decide
 

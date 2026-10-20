@@ -998,7 +998,7 @@ def shahOfNaarIsle : Spelled := spelled <| .singleFaced
         [ trample,
           echo (mana [generic 0]),
           when (does any (pay anyCost .once .paid (some thisCreature) (some echo)))
-            (instruct eachOpponent (may (draw (upTo (.lit 3))))) ],
+            (instruct eachOpponent (may (drawCount (upToOf (.lit 3))))) ],
       power := stat 6, toughness := stat 6 } }
 
 /-- Memory Plunder -/
@@ -1118,7 +1118,7 @@ theorem okDiscardUpToTwoThenDrawThatMany :
 def drawUpToTwoThenGainPerShortfall : Action :=
   instruct eachPlayer
     (sequentially
-      [ may (draw (upTo (.lit 2))),
+      [ may (drawCount (upToOf (.lit 2))),
         instruct (that player) (gainLife (times (.lit 2) shortOfCeiling)) ])
 theorem okDrawUpToTwoThenGainPerShortfall :
     Action.check (DRS.ofList []) drawUpToTwoThenGainPerShortfall = [] := by decide

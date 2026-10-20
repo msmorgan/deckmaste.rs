@@ -380,10 +380,6 @@ mutual
     "whichever is greater" `max`. -/
     | aggregateOf (op : AggregateOp) (amounts : List Amount)
     | distinctCount (axis : KindAxis) (domain : NounPhrase)
-    | upTo (bound : Amount)
-    /-- "More than N": an amount a prohibition bounds ("can't draw more than one card each
-    turn"), never a value read. -/
-    | moreThan (bound : Amount)
     | anyAmount
 
   inductive Quantity where
@@ -1063,7 +1059,9 @@ mutual
     | changeLife (delta : Delta Amount)
     | exchange (exchanged : Exchanged)
     | addMana (amount : Amount) (produced : ProducedMana) (riders : List ManaRider)
-    | draw (amount : Amount)
+    /-- Draw as many cards as `quantity` says: exactly N, up to N (the performer choosing how
+    many), or, under a prohibition, more than N [CR#121.1,121.2]. -/
+    | draw (quantity : Quantity)
     | expose (verb : ExposeVerb) (exposed : Exposed)
     | search (scope : Location) (quantity : Quantity) (predicate : Predicate)
     /-- Randomize the objects in a pile so no player knows their order [CR#701.24a]. -/

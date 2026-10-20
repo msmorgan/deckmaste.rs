@@ -373,7 +373,7 @@ theorem okAsThoughReadsTheSubject :
 /-- An "as though" clause whose pronoun has no participant to read is refused. -/
 theorem badAsThoughPronounWithoutParticipant :
     StaticSpec.check (DRS.ofList [])
-      (.can (.actor .you) (.draw .anyAmount)
+      (.can (.actor .you) (.draw (.exactlyOf .anyAmount))
         { asThough := some (.condition (.matches them (.hasKeyword (.the (.named "flash"))))) }) =
       [.anaphor .bare .many 0] := by decide
 

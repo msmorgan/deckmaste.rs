@@ -6,7 +6,7 @@ namespace Semantics.Proofs.DefinitionsAndTemplates
 
 /-- error: An Action Definition must establish its own Reference Scope -/
 #guard_msgs in
-semantic_definition missingReferenceScope : Action := .draw (.lit 1)
+semantic_definition missingReferenceScope : Action := .draw (.exactlyOf (.lit 1))
 
 open Lean Elab Command in
 run_cmd do

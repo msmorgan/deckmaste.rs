@@ -543,7 +543,7 @@ theorem okSacrificeBattlefieldNoun :
 theorem badInterceptReplacementAntecedent :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ replaceNextEvent (.would (.actor .you) (.draw .anyAmount))
+        [ replaceNextEvent (.would (.actor .you) (.draw (.exactlyOf .anyAmount)))
             (instead
               (create (.lit 1) (.written (creatureToken 1 1 [.green] [creatureType "Soldier"]))))
             (some thisTurn),

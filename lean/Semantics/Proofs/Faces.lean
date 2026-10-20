@@ -442,7 +442,7 @@ theorem okModeChoiceOnTriggeredModes :
       (one
         { name := some "", cost := some [generic 3], types := [.artifact],
           text :=
-            [ .triggered (.does (.actor .you) (.draw .anyAmount)) [] none [] none none none
+            [ .triggered (.does (.actor .you) (.draw (.exactlyOf .anyAmount))) [] none [] none none none
                 (chooseModes (exactly 1) [draw (.lit 1), destroy (target isArtifact)]),
               static (.modeChoice (.notChosenBefore soFarThisTurn)) ] }) = [] := by
   decide

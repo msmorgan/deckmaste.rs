@@ -69,6 +69,11 @@ constraints apply.
 - **`Amount` vs `Quantity` (§4.3):** Reconcile `Amount.upTo`/`moreThan`
   (`Abilities.lean:383-387`) vs `Quantity.upToOf`/`moreThanOf` (`:394,399`) to
   honor the Game Model glossary `_Avoid_` lines on `Amount` and `Quantity`.
+  "Up to N" and "more than N" are count constraints, so `Amount.upTo` and
+  `Amount.moreThan` are retired and their one host, `Action.draw`, takes a
+  `Quantity` (`draw n` builds `exactlyOf n`; `drawCount (upToOf n)`, `drawCount
+  (moreThan 1)`); "up to N" still publishes the ceiling shortfall. `anyAmount`
+  is a pattern wildcard, not a constraint, and stays.
 - **`HeadNoun` vs `NounWord` & Object-Class Split (§4.4):** Reconcile the shared
   `card`/`token`/`spell`/`permanent`/`ability`/`type` heads across `HeadNoun`
   (`Words.lean:479-482`) and `NounWord` (`Words.lean:283-302`), the 3-way

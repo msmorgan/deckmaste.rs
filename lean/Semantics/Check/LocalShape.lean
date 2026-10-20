@@ -11,7 +11,7 @@ private def localRefuse (ok : Bool) (refusal : Refusal) : List Refusal :=
 
 def Amount.nonZero (amount : Amount) (fuel : Nat := 32) : Bool :=
   match fuel, amount with
-  | n + 1, .inCaller body | n + 1, .upTo body => body.nonZero n
+  | n + 1, .inCaller body => body.nonZero n
   | _ + 1, .lit n => n != 0
   | _, _ => true
 termination_by structural fuel

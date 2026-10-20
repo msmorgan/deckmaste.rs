@@ -611,7 +611,7 @@ theorem okDiscardFromHand :
 
 /-- "if you drew a card this turn" -/
 theorem okPlayerDrawLookback :
-    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.draw .anyAmount), (.duration soFarThisTurn none)⟩) = [] := by decide
+    Condition.check (DRS.ofList []) (.did ⟨(.actor .you), (.draw (.exactlyOf .anyAmount)), (.duration soFarThisTurn none)⟩) = [] := by decide
 
 /-- "if you dealt damage to an opponent this turn" -/
 theorem badPlayerDamageDealer :

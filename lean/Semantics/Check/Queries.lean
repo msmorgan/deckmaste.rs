@@ -179,7 +179,7 @@ private theorem prospectiveEmblemIsNotATokenDescription :
 
 private theorem replacementTokenDescriptionStaysInItsOwnScope :
     let unused := (stepAction 8 .postEvent .obj (DRS.ofList [])
-      (.replace prospectiveCreatureCreation (.instead (.draw (.lit 1))))).1
+      (.replace prospectiveCreatureCreation (.instead (.draw (.exactlyOf (.lit 1)))))).1
     let created := (stepAction 8 .postEvent .obj (DRS.ofList [])
       (.replace prospectiveCreatureCreation (.instead repeatProspectiveTokens))).1
     unused.prospectiveTokenTypes = [] ∧ countTokenSpecs unused = 0 ∧

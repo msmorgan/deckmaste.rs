@@ -409,7 +409,7 @@ theorem badPreventedThisWayUnannounced :
 /-- "… They gain 2 life for each card less than two they drew this way." -/
 theorem okShortOfCeilingAnnounced :
     let drawing := instruct (each .anyPlayer)
-      (.sequentially [may (draw (.upTo (.lit 2))),
+      (.sequentially [may (drawCount (upToOf (.lit 2))),
         instruct they (gainLife (times (.lit 2) shortOfCeiling))])
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) drawing).1
     Action.check (DRS.ofList []) drawing = [] ∧
@@ -419,12 +419,12 @@ theorem okShortOfCeilingAnnounced :
 theorem singularTheyCannotReadThePublishedPlayerGroup :
     Action.check (DRS.ofList [])
       (.sequentially
-        [ instruct (each .anyPlayer) (may (instruct they (draw (.upTo (.lit 2))))),
+        [ instruct (each .anyPlayer) (may (instruct they (drawCount (upToOf (.lit 2))))),
           instruct they (gainLife (times (.lit 2) shortOfCeiling)) ]) =
       [.anaphor (.word .player) .one 0] := by decide
 
 theorem optionalDrawSummaryDoesNotExportDrawnCards :
-    let drawing := instruct .you (may (draw (.upTo (.lit 2))))
+    let drawing := instruct .you (may (drawCount (upToOf (.lit 2))))
     let after := (stepAction 64 .postEvent .obj (DRS.ofList []) drawing).1
     countOutcomes .ceilingShortfall after = 1 ∧
       NounPhrase.checkAt (some .object) (nextClause after) (those .card) =

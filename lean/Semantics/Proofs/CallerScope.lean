@@ -31,7 +31,7 @@ private semantic_template powerEquals (amount : Amount) : Predicate := .compare 
 private semantic_template lifeCost (amount : Amount) : Cost := .perform (.changeLife (.down amount))
 private semantic_template powerBoost (subject : NounPhrase) (amount : Amount) : StaticSpec :=
   Templates.modification subject .power (.up amount)
-private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.lit 1)
+private semantic_template unusedSubject (_chosen : NounPhrase) : Action := .draw (.exactlyOf (.lit 1))
 private semantic_template secondSubject (_left right : NounPhrase) : NounPhrase := right
 private semantic_template moveSubject (subject : NounPhrase) : Action :=
   .move subject .anyLocation (some graveyard) .arrival none []
@@ -39,7 +39,7 @@ private semantic_template onChosen (chosen : NounPhrase) (body : splice (NounPhr
   body chosen
 private abbrev SubjectBody := NounPhrase → Action
 private semantic_template withSubjectBody (subject : NounPhrase) (body : splice SubjectBody) : Action := body subject
-private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.lit 1)
+private semantic_template configuredDraw (_flag : Bool) : Action := .draw (.exactlyOf (.lit 1))
 private structure Flag where
   bit : Bool
 private def discardedAction (_ : Action) : Flag := ⟨true⟩
@@ -293,7 +293,7 @@ example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Discarded projection witness", types := [.sorcery],
         text := [spell
-        (configuredDraw (discardedAction (.draw (.lit 1))).bit)] } }
+        (configuredDraw (discardedAction (.draw (.exactlyOf (.lit 1)))).bit)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.setStatus] -/
 #guard_msgs in
@@ -308,7 +308,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Expansion witness", types := [.sorcery],
-        text := [spell (expand (.draw (.lit 1)))] } }
+        text := [spell (expand (.draw (.exactlyOf (.lit 1))))] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.NounPhrase.you] -/
 #guard_msgs in

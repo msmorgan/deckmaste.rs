@@ -473,7 +473,7 @@ semantic_definition connive (amount : Amount := .lit 1) : Action :=
     (.enact (.action "connive")
       (instruct (controllerOf (.firstMention "connive.permanent" .actor))
         (sequentially
-          [ .draw (.inCaller amount),
+          [ .draw (.exactlyOf (.inCaller amount)),
             discard (counted (.exactlyOf (.inCaller amount)) .isCard),
             .doForEach (allOf (and [non isLand, .isCard,
                 .did ⟨.any, discard .which, .thisWay⟩]))
@@ -789,7 +789,7 @@ semantic_definition recruit : Action :=
   .ownScope (some (.action "recruit"))
     (enact (.action "recruit")
       (sequentially
-        [ .draw (.lit 1),
+        [ .draw (.exactlyOf (.lit 1)),
           discard (a (cardIn (handOf .actor))),
           doIf (not (matches_ (theVerbed (.action "discard") .one (some .card) .thisWay) isLand))
             (createToken (creatureToken 1 1 [.white] [human, soldier]))

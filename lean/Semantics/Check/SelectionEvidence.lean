@@ -149,7 +149,7 @@ private theorem preexistingTargetsAreNotReaggregated :
       payload := .object [.artifact] (some .battlefield) none none none,
       announcedTargetResult := true }]
     let out := (stepAction 64 .postEvent .obj outer
-      (.doForEach (.described .each .anyPlayer) (.draw (.lit 1)))).1
+      (.doForEach (.described .each .anyPlayer) (.draw (.exactlyOf (.lit 1))))).1
     (out.findById? 10).map (·.plur) = some .one ∧
       countManys .object out = 0 ∧ countOnes .object out = 1 := by decide
 
@@ -243,7 +243,7 @@ private theorem ordinaryGroupSizeIsNotAnchoredToThePerformer :
     let group := DRS.ofList [{
       det := .all, plur := .many,
       payload := .object [.creature] (some .battlefield) none none none }]
-    Action.check group (.instruct .you (.draw .groupSize)) = [] ∧
+    Action.check group (.instruct .you (.draw (.exactlyOf .groupSize))) = [] ∧
       StaticSpec.check group
         (.gatedBy tollCost (.actor (.headed (.type .creature) .this))
           (.attack none) {}) = [.groupSizeInScope 0] ∧
@@ -293,7 +293,7 @@ private theorem ordinaryUnpaidAndProspectivePaymentsDoNotInventRepeatCounts :
       Amount.check prospective .thatMuch = [.quantOutcomeInScope 0] ∧
       countOutcomes .repeatCount
         (stepAction 64 .postEvent .obj (DRS.ofList [])
-          (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.lit 1)))) none none)).1 = 0 := by decide
+          (.withContinuation .optional (.repeat_ (.fixed (.lit 2) (.draw (.exactlyOf (.lit 1))))) none none)).1 = 0 := by decide
 
 private theorem oneDiceBatchHasOneNumericResultRead :
     let batch := DRS.ofList [outcomeB .diceRolled]

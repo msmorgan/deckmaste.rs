@@ -47,7 +47,7 @@ def DetPhrase.det : DetPhrase → Determiner
 
 def Amount.plur (a : Amount) (fuel : Nat := 16) : Plurality :=
   match fuel, a with
-  | n + 1, .inCaller body | n + 1, .upTo body => body.plur n
+  | n + 1, .inCaller body => body.plur n
   | _ + 1, .lit 1 => .one
   | _, _ => .many
 termination_by structural fuel
@@ -57,7 +57,7 @@ def Quantity.plur (q : Quantity) (fuel : Nat := 16) : Plurality :=
   | 0, _ => .many
   | n + 1, .inCaller body => body.plur n
   | _ + 1, .range _ (some 1) => .one
-  | n + 1, .exactlyOf amount => amount.plur n
+  | n + 1, .exactlyOf amount | n + 1, .upToOf amount => amount.plur n
   | n + 1, .additional q => q.plur n
   | _ + 1, _ => .many
 termination_by structural fuel
@@ -2123,10 +2123,6 @@ def stepOps : Nat → StepOps
           let (drs3, e3) := match optSec with | some d => stepColorTermWith ops drs2 d | none => (drs2, [])
           (drs3, e1 ++ e2 ++ e3)
         | .half _ inner => ops.amt drs inner
-        | .upTo inner =>
-          let (out, errors) := ops.amt drs inner
-          (out.push (outcomeB .ceilingShortfall) .other false, errors)
-        | .moreThan inner => ops.amt drs inner
         | .aggregateOver _ dom body =>
           let (drs1, e1) := ops.pred drs dom
           let k := dom.kindOr .object
@@ -2564,14 +2560,19 @@ def stepOps : Nat → StepOps
           let withOutcome := drs2.push (outcomeB .manaAdded) .other false
           let (drs3, e3) := stepManaRiderListWith ops withOutcome riders
           (drs3, e1 ++ e2 ++ e3)
-        | .draw amt =>
+        | .draw quantity =>
           let actorErrors := match actorShape? drs with
             | some shape => kindCheck .player (some shape.kind)
             | none => []
-          let (drs1, e1) := ops.amt drs amt
+          let (drs1, e1) := stepQuantityWith ops drs quantity
+          -- "Up to N": how many fewer than N were drawn is an outcome a later line may read
+          -- ("for each card less than two they drew this way").
+          let drs1 := match quantity with
+            | .upToOf _ => drs1.push (outcomeB .ceilingShortfall) .other false
+            | _ => drs1
           let drs2 := if phase == .postEvent then
             let cardRef : Referent := {
-              det := .the, plur := amt.plur,
+              det := .the, plur := quantity.plur,
               payload := .object [] (some .hand) (mkStamp (some (.core .draw)) (some .hand) false) none none
             }
             drs1.push cardRef patientRole true

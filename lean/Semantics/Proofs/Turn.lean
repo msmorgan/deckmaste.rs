@@ -191,7 +191,7 @@ theorem okThisWayOnRegenerate :
 theorem badThisWayOnDelayed :
     Action.check (DRS.ofList [])
       (.triggerReflexively (delay (.beginningOf .endStep (some .you) (.next none)) (draw (.lit 1)))
-        (some (.does (.actor .you) (.draw .anyAmount))) (draw (.lit 1))) = [.thisWayOutcome] := by
+        (some (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))) (draw (.lit 1))) = [.thisWayOutcome] := by
   decide
 
 theorem badReflexiveOnBranchedMay :
@@ -403,7 +403,7 @@ theorem badExtraTurnForwardSubject :
 
 theorem okExtraTurnAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))]) =
+      [extraTurn (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))]) =
           [] := by decide
 
 theorem okExtraTurnNestedAmountIntroducesLetterOnce :
@@ -426,7 +426,7 @@ theorem badSkipNextForwardSubject :
 
 theorem okSkipNextAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
+      [.skipPart .drawStep (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))])
       = [] := by
   decide
 
@@ -453,7 +453,7 @@ theorem badAdditionalPartForwardSubject :
 theorem okAdditionalPartAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
       [Primitives.Action.addTurnPart .upkeep none (lifeTotalOf (target (.isOpponentOf .you))) none, Templates.instruct they (.draw
-          (.lit 1))])
+          (.exactlyOf (.lit 1)))])
       = [] := by
   decide
 
@@ -479,7 +479,7 @@ theorem okUntapNestedAmountIntroducesLetterOnce :
 
 theorem okUntapAmountIntroducesPlayer :
     Action.check (DRS.ofList []) (.sequentially
-      [.skipUntap (target isCreature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.lit 1))])
+      [.skipUntap (target isCreature) (lifeTotalOf (target (.isOpponentOf .you))), Templates.instruct they (.draw (.exactlyOf (.lit 1)))])
       = [] := by decide
 
 theorem okAdditionalPartWithoutSubjectReadsOuterContext :

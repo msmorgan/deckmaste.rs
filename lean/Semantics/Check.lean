@@ -65,7 +65,7 @@ def conniveDef (subject : NounPhrase) : Action :=
     .instruct (.inCaller (.firstMention "subject" subject)) <|
       .instruct (.possessorOf .controller .actor) <|
       .sequentially [
-        .draw (.lit 1),
+        .draw (.exactlyOf (.lit 1)),
         .move (.described (.a .unmarked) (.and [.isCard, .in_ handZone]))
           (handZone) (some graveyardZone) .departure (some .anEffect) [],
         .doIf
@@ -178,7 +178,7 @@ def sacrificeDrawActivated : Ability :=
     (.perform (.enact (.action "sacrifice")
       (.move aCreature (.zone .battlefield none) (some graveyardZone) .departure (some .anEffect) [])
       none none))
-    (.draw (.statOf (.stat .power) (.pro .bare .one)))
+    (.draw (.exactlyOf (.statOf (.stat .power) (.pro .bare .one))))
     none none none none
 
 theorem sacrifice_draw_activated_sound :
@@ -188,7 +188,7 @@ theorem sacrifice_draw_activated_sound :
 compound actions (`sequentially`) are refused inside `does`, `would`, `did`, and `cant` with
 `Refusal.eventHead`, while `ownScope (some (.action name))` is admitted. -/
 theorem compound_event_head_refused :
-    (GameEvent.does (.actor .you) (.sequentially [.draw (.lit 1), .draw (.lit 1)])).check
+    (GameEvent.does (.actor .you) (.sequentially [.draw (.exactlyOf (.lit 1)), .draw (.exactlyOf (.lit 1))])).check
       (DRS.ofList []) = [.eventHead] := by decide
 
 theorem own_scope_action_event_head_admitted :
@@ -253,7 +253,7 @@ def sliceDVoteAndChoicePin : Ability :=
       .choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none,
       .instruct (.described .each .anyPlayer)
         (.vote (some .you) .openly (.byLabel ["grace", "condemnation"]) none),
-      .draw (.votesFor "grace"),
+      .draw (.exactlyOf (.votesFor "grace")),
       .move (.described .all (.and [.hasType .creature, .ofChosen .theChoice .color]))
         (.zone .battlefield none) (some handZone) .departure (some .anEffect) []
     ]
@@ -272,7 +272,7 @@ def sliceECopyAndPreventPin : Ability :=
       .chooseNewTargets (.pro (.word .copy) .one),
       .establish
         (.damageRule .any .unattributed .everywhere
-          (.prevent (.shield (.lit 3)) (some (.draw (.theOutcome .damagePrevented))))
+          (.prevent (.shield (.lit 3)) (some (.draw (.exactlyOf (.theOutcome .damagePrevented)))))
           .nextTimeOnly)
         (some (.between none (some (.endOf .turn none .current))))
     ]

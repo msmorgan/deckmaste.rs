@@ -325,7 +325,7 @@ semantic_definition blitz (cost : Cost) : Ability :=
       static
         (onlyWhile
           (abilityGrant thisPermanent
-            (triggered (does thisPermanent die) (.draw (.lit 1))))
+            (triggered (does thisPermanent die) (.draw (.exactlyOf (.lit 1)))))
           (keywordCostPaid (.named "blitz") thisPermanent)) ]
 semantic_definition bloodthirst (amount : Amount) : Ability :=
   .keyword (.named "bloodthirst") [.number (.inCaller amount)]
@@ -1157,7 +1157,7 @@ semantic_definition ravenous : Ability :=
     [ static (entersWithCounters thisPermanent (.letter .x) p1p1Counter),
       triggeredIf (does thisPermanent enter)
         (.compareAmt (.letter .x) .atLeast (.lit 5))
-        (.draw (.lit 1)) ]
+        (.draw (.exactlyOf (.lit 1))) ]
 semantic_definition readAhead : Ability :=
   .keyword (.named "readAhead") []
     [ static

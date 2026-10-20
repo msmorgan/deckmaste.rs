@@ -172,20 +172,20 @@ theorem okWhiteCreature :
 /-- "Draw X cards, where X is the number of creatures you control." -/
 theorem okSingleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), define .x (countOf (and [isCreature, youControl]))]) = []
+      (.sequentially [.draw (.exactlyOf (.letter .x)), define .x (countOf (and [isCreature, youControl]))]) = []
           := by
   decide
 
 theorem badDoubleXRider :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .x), define .x (countOf (and [isCreature, youControl])),
+      (.sequentially [.draw (.exactlyOf (.letter .x)), define .x (countOf (and [isCreature, youControl])),
                       define .x (countOf isCreature)]) = [.openLetter .x] := by
   decide
 
 /-- "Draw Y cards, where X is the number of creatures you control." -/
 theorem badUnlicensedY :
     Action.check (DRS.ofList [])
-      (.sequentially [.draw (.letter .y), define .x (countOf (and [isCreature, youControl]))])
+      (.sequentially [.draw (.exactlyOf (.letter .y)), define .x (countOf (and [isCreature, youControl]))])
       = [.openLetter .x] := by
   decide
 
@@ -332,10 +332,6 @@ theorem badReadsShuffledIntoLibraryCard :
       (actionResult (DRS.ofList []) (.sequentially [lookAt (topSlice (.lit 1)), shuffleInto .this]))
       (that .card) = [.anaphor (.word .card) .one 0] := by
   decide
-
-/-- "if up to three is 4 or greater" -/
-theorem badCompareCeilingSubject :
-    Condition.check (DRS.ofList []) (.compareAmt (.upTo (.lit 3)) .atLeast (.lit 4)) = [.readAmount] := by decide
 
 /-- "target monocolored permanent": exactly one color -/
 theorem monocoloredIsOneColor : Predicate.checkAt .object (DRS.ofList []) (.colorCount .eq 1) = [] := by decide

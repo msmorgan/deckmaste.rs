@@ -292,8 +292,7 @@ semantic_template Cost.or (costs : List Cost := []) : Cost := .or costs
 
 open Lean Elab Term in
 /-- Words several sorts share, each sort's template (or definition) by the result type it builds:
-the combinators `and`, `or` and `not`; the bounds `moreThan` and `upTo` (a `Quantity` of a noun
-phrase, or an `Amount`); the verb and the determiner `target`; and the other words whose sorts'
+the combinators `and`, `or` and `not`; the verb and the determiner `target`; and the other words whose sorts'
 templates are namespaced (`did`, `allBut`, `half`, `token`, `written`, `copy`, `doIf`, `replace`,
 `crew`, …). -/
 private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
@@ -311,10 +310,6 @@ private def expectedTypeDispatch : List (Name × List (Name × Name)) :=
              (``Semantics.Condition, `Semantics.Templates.Condition.not),
              (``Semantics.Location, `Semantics.Templates.Location.not),
              (``Semantics.Timing, `Semantics.Templates.Timing.not) ]),
-    (`moreThan, [ (``Semantics.Quantity, `Semantics.Templates.moreThan),
-                  (``Semantics.Amount, `Semantics.Templates.Amount.moreThan) ]),
-    (`upTo, [ (``Semantics.Quantity, `Semantics.Templates.upTo),
-              (``Semantics.Amount, `Semantics.Templates.Amount.upTo) ]),
     (`target, [ (``Semantics.NounPhrase, `Semantics.Templates.target),
                 (``Semantics.Action, `Semantics.Templates.Action.target) ]),
     (`attachment, [ (``Semantics.Predicate, `Semantics.Templates.Predicate.attachment),
@@ -985,9 +980,6 @@ semantic_template theOutcome (sort : OutcomeSort) : Amount := .theOutcome sort
 semantic_template totalOf (axis : ProjAxis) (group : NounPhrase) : Amount :=
   .aggregate .sum axis group
 semantic_template up (amount : Amount) : (Delta Amount) := .up amount
-semantic_template Amount.upTo (bound : Amount) : Amount := .upTo bound
-/-- "more than N", as a prohibition bounds an amount ("can't draw more than one card"). -/
-semantic_template Amount.moreThan (n : Nat) : Amount := .moreThan (.lit n)
 semantic_template votesFor (label : String) : Amount := .votesFor label
 /-! ## Counters -/
 
@@ -1180,7 +1172,10 @@ semantic_template gainLife (amount : Amount) : Action :=
 /-- "<player>'s life total becomes <amount>" -/
 semantic_template setLife (amount : Amount) : Action :=
   .changeLife (.set amount)
-semantic_template draw (amount : Amount) : Action := .draw amount
+/-- "draw <amount> cards" -/
+semantic_template draw (amount : Amount) : Action := .draw (.exactlyOf amount)
+/-- "draw up to N cards", "can't draw more than one card": a draw bounded by a Quantity. -/
+semantic_template drawCount (quantity : Quantity) : Action := .draw quantity
 semantic_template lookAt (cards : NounPhrase) : Action := .expose .lookAt (.cards cards)
 /-- "look at <player>'s hand" -/
 semantic_template lookAtHandOf (player : NounPhrase) : Action :=

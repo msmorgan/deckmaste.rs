@@ -16,14 +16,14 @@ private def relativeCheck (kind : Kind) (clause : DidClause) : List Refusal :=
 private def withinThisTurn : LookbackSpan := .duration soFarThisTurn none
 
 theorem scopedPlayerDraw :
-    relativeCheck .player ⟨.actor .which, .draw .anyAmount, withinThisTurn⟩ = [] := by decide
+    relativeCheck .player ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ = [] := by decide
 
 theorem playerGapCannotStandForObject :
-    relativeCheck .object ⟨.actor .which, .draw .anyAmount, withinThisTurn⟩ =
+    relativeCheck .object ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ =
       [.kindMismatch .player .object] := by decide
 
 theorem gapRequiresLookback :
-    GameEvent.check (DRS.ofList []) (.does (.actor .which) (.draw .anyAmount)) =
+    GameEvent.check (DRS.ofList []) (.does (.actor .which) (.draw (.exactlyOf .anyAmount))) =
       [.anaphor (.word .permanent) .one 0] := by decide
 
 theorem scopedCreatureDeath :
@@ -50,17 +50,17 @@ theorem nestedLookbackCannotCaptureOuterGap :
         .procedure .cast
           (.described (.a .unmarked)
             (.and [.hasType .creature, .in_ (.zone .stack none),
-              .did ⟨.actor .which, .draw .anyAmount, withinThisTurn⟩]))
+              .did ⟨.actor .which, .draw (.exactlyOf .anyAmount), withinThisTurn⟩]))
           .itsOwnCost none none none,
         withinThisTurn⟩ = [.kindMismatch .player .object] := by decide
 
 theorem lookbackRequiresBoundParticipant :
-    relativeCheck .player ⟨.actor .you, .draw .anyAmount, withinThisTurn⟩ =
+    relativeCheck .player ⟨.actor .you, .draw (.exactlyOf .anyAmount), withinThisTurn⟩ =
       [.lookbackSubject] := by decide
 
 theorem innerGapDoesNotSupplyOuterParticipant :
     relativeCheck .object
-      ⟨.actor .you, .draw .anyAmount,
+      ⟨.actor .you, .draw (.exactlyOf .anyAmount),
         .duration soFarThisTurn
           (some (.onlyIf (.exists_ (.described .bare
             (.and [.hasType .creature,

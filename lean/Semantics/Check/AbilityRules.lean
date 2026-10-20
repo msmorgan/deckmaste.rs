@@ -114,13 +114,13 @@ private theorem additionalCostPublishesTheActualGroupIdentity :
     let publishedIds := (resolveCandidates reach .many published).map (·.id)
     actualIds = [8] ∧ publishedIds = actualIds ∧ published.nextId = actual.nextId ∧
       (published.findById? 7).map (·.payload) = some (.quality .color) ∧
-      Ability.checkText initial [additionalTapGroup, .spell none (.draw .groupSize)] = [] ∧
-      Ability.checkAll initial [additionalTapGroup, .spell none (.draw .groupSize)] =
+      Ability.checkText initial [additionalTapGroup, .spell none (.draw (.exactlyOf .groupSize))] = [] ∧
+      Ability.checkAll initial [additionalTapGroup, .spell none (.draw (.exactlyOf .groupSize))] =
         [.groupSizeInScope 0] := by decide
 
 private theorem additionalCostDoesNotPublishAHiddenGroup :
     Ability.checkText (DRS.ofList [])
-      [additionalHiddenGroup, .spell none (.draw .groupSize)] = [.groupSizeInScope 0] := by decide
+      [additionalHiddenGroup, .spell none (.draw (.exactlyOf .groupSize))] = [.groupSizeInScope 0] := by decide
 
 def CopyExcept.check (drs : DRS) (exception : CopyExcept) : List Refusal :=
   (stepCopyExceptWith (stepOps 64) drs exception).2
@@ -214,7 +214,7 @@ private theorem selectedPlayerCanBeReadWithinTheSameAction :
     Action.check (DRS.ofList [])
       (.sequentially
         [.choose none (.described (.a .unmarked) .anyPlayer) .openly none,
-         .draw (.devotion (.described .the (.chosenPlayer .theChoice)) (.lit .red) none)]) = [] := by decide
+         .draw (.exactlyOf (.devotion (.described .the (.chosenPlayer .theChoice)) (.lit .red) none))]) = [] := by decide
 
 private theorem grantedAbilityReadsChoicesButNotOrdinaryOuterObjects :
     Ability.check (DRS.ofList [qualityB .color])

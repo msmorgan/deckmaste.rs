@@ -52,7 +52,7 @@ example : Spelled := spelled <| .singleFaced
 example : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Authoring witness", types := [.sorcery], cost := some [generic 1],
-      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.lit 1)) none none)] } }
+      text := [Primitives.Ability.spell none (.enact (.action "destroy") (.draw (.exactlyOf (.lit 1))) none none)] } }
 
 /-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Action.enact] -/
 #guard_msgs in
