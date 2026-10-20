@@ -84,6 +84,17 @@ def MoveRider.ridersSlots : List MoveRider → List (Amount × NumberRegime)
   | [] => []
   | rider :: rest => rider.numberSlots ++ MoveRider.ridersSlots rest
 
+/-- A replacement's own slots: the riders it adds to the move it replaces, as a move's own riders
+are the move's. The actions it carries and the condition it applies under declare their own. -/
+def Replacement.numberSlots (value : Replacement) (fuel : Nat := 64) :
+    List (Amount × NumberRegime) :=
+  match fuel, value with
+  | 0, _ => []
+  | n + 1, .inCaller body => body.numberSlots n
+  | _ + 1, .withRiders riders => MoveRider.ridersSlots riders
+  | _ + 1, .instead _ | _ + 1, .also _ | _ + 1, .onlyIf _ _ => []
+termination_by structural fuel
+
 /-- A cost's own slots: "for each" multiplies a cost by a count [CR#107.1b]. A nested cost and
 a performed action declare their own. -/
 def Cost.numberSlots (value : Cost) (fuel : Nat := 64) : List (Amount × NumberRegime) :=

@@ -171,6 +171,8 @@ inductive Refusal where
   | levelerFrame
   | bandsDisjoint
   | prototypeFrame
+  /-- Riders ride a move: a replacement adding riders replaces a move [CR#614.1c,614.12]. -/
+  | riddenMove
   deriving DecidableEq, Repr
 
 end Semantics

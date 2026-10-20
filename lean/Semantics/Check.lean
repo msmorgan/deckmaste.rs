@@ -165,7 +165,7 @@ def kalitasReplacement : Ability :=
         .createObject (.lit 1)
           (.token (.written ⟨{ colors := [.black], types := [.creature], power := some (.lit 2), toughness := some (.lit 2) }, []⟩) [])
           true none
-      ]) none)
+      ]))
       none .repeatedly none
 
 theorem kalitas_replacement_sound :

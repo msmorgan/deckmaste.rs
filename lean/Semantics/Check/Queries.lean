@@ -179,9 +179,9 @@ private theorem prospectiveEmblemIsNotATokenDescription :
 
 private theorem replacementTokenDescriptionStaysInItsOwnScope :
     let unused := (stepAction 8 .postEvent .obj (DRS.ofList [])
-      (.replace prospectiveCreatureCreation (.instead (.draw (.lit 1)) none))).1
+      (.replace prospectiveCreatureCreation (.instead (.draw (.lit 1))))).1
     let created := (stepAction 8 .postEvent .obj (DRS.ofList [])
-      (.replace prospectiveCreatureCreation (.instead repeatProspectiveTokens none))).1
+      (.replace prospectiveCreatureCreation (.instead repeatProspectiveTokens))).1
     unused.prospectiveTokenTypes = [] ∧ countTokenSpecs unused = 0 ∧
       (stepTokenSpecMetadataWith (stepOps 8) unused .asThose).2.2 = [.tokenSpecInScope 0] ∧
       created.prospectiveTokenTypes = [] ∧ countTokenSpecs created = 1 ∧
@@ -191,7 +191,7 @@ private theorem nestedReplacementUsesItsOwnTokenDescription :
     let initial := { (DRS.ofList []) with prospectiveTokenTypes := [[.land]] }
     let nested := Action.replace prospectiveCreatureCreation
       (.instead (.replace (.createObject (.lit 1) (.token .asThose []) true none)
-        (.instead repeatProspectiveTokens none)) none)
+        (.instead repeatProspectiveTokens)))
     let result := stepAction 8 .postEvent .obj initial nested
     result.2 = [] ∧ result.1.prospectiveTokenTypes = [[.land]] ∧
       countTokenSpecs result.1 = 1 ∧ tyOfThoseAny .token result.1 = [.creature] := by decide +kernel

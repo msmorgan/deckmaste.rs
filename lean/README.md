@@ -112,7 +112,7 @@ the result of an effect yields zero rather than a negative, except where the
 effect sets, doubles, or triples a life total or a creature's power and
 toughness. So every position that consumes an `Amount` declares its regime as
 data the engine reads, in `Action.numberSlots`, `StaticSpec.numberSlots`,
-`Cost.numberSlots`, and `GameEvent.numberSlots`: `clamped` for damage, life
+`Replacement.numberSlots`, `Cost.numberSlots`, and `GameEvent.numberSlots`: `clamped` for damage, life
 gain and loss, draws, counts, costs, choices, and the letter X; `signed` for
 an effect that sets a value, for exchanges of values, and for the raw reads
 and comparisons inside an `Amount`, which are calculations and not effects.

@@ -27,6 +27,17 @@ private def actionTextChoices (action : Action) (fuel : Nat := 64) : List Choice
   | _+1, _ => []
 termination_by structural fuel
 
+/-- Choices made as part of a replaced event, by what a replacement does `also`
+("As this enters, choose a color"), which later lines read [CR#614.1c]. -/
+private def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
+    List ChoiceSort :=
+  match fuel, replacement with
+  | 0, _ => []
+  | n+1, .inCaller body | n+1, .onlyIf _ body => replacementTextChoices body n
+  | _+1, .also action => actionTextChoices action
+  | _+1, .instead _ | _+1, .withRiders _ => []
+termination_by structural fuel
+
 private def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
   sorts.foldl (fun context sort => context.push sort.binding .other false) drs
 
@@ -54,6 +65,8 @@ private def staticTextContext (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64)
   | _+1, .addedCost cost _ _ => costTextContext drs cost
   | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
     publishTextChoices drs (actionTextChoices action)
+  | _+1, .replace _ replacement _ _ _ =>
+    publishTextChoices drs (replacementTextChoices replacement)
   | _+1, _ => drs
 termination_by structural fuel
 
@@ -174,8 +187,9 @@ def UsageLimit.check (drs : DRS) (limit : UsageLimit) : List Refusal :=
   (stepUsageLimitWith (stepOps 64) drs limit).2
 
 private def announcedColor : Ability :=
-  .static (.asEvent (.does .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival none []))
-    (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
+  .static (.replace (.would .any (.move .this .anyLocation (some (.zone .battlefield none)) .arrival none []))
+    (.also (.choose none (.described (.a .unmarked) (.qualityNoun .color none)) .openly none))
+    none .repeatedly none)
 private def readAnnouncedColor : Ability :=
   .static (.characteristicChange .any [.chosenQuality .adds (.ofChosen .theChoice .color)])
 

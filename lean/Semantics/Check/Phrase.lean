@@ -933,22 +933,6 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
     (drs2, errors ++ clauseErrors)
 termination_by structural fuel
 
-/-- A replacement, read after the event it replaces: its `when` condition, then its action, in
-a new clause after the condition as `doIf` reads its then-branch. -/
-def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (fuel : Nat := 8) :
-    DRS × List Refusal :=
-  match fuel, r with
-  | 0, _ => (drs, [.recursionLimit])
-  | n + 1, .inCaller body =>
-    let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body n
-    (leaveCaller drs callerDrs, errs)
-  | _ + 1, .instead action none => ops.inst .postEvent .obj drs action
-  | _ + 1, .instead action (some condition) =>
-    let (drs1, e1) := ops.cond drs condition
-    let (drs2, e2) := ops.inst .postEvent .obj (nextClause drs1) action
-    (drs2, e1 ++ e2)
-termination_by structural fuel
-
 def stepCombatParticipationWith (ops : StepOps) (drs : DRS) (cp : CombatParticipation) : DRS × List Refusal :=
   match cp with
   | .attacking (some defn) =>
@@ -1458,6 +1442,47 @@ def stepMoveRiderListWith (ops : StepOps) (drs : DRS) (mrs : List MoveRider) : D
   mrs.foldl (fun (d, es) mr =>
     let (d', e') := stepMoveRiderWith ops d mr
     (d', es ++ e')) (drs, [])
+
+/-- Whether `action` is a move, read through the wrappers that keep its event: only a move is
+ridden [CR#614.1c,614.12]. -/
+def Action.isMove (action : Action) (fuel : Nat := 8) : Bool :=
+  match fuel, action with
+  | 0, _ => false
+  | _ + 1, .move .. => true
+  | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .instruct _ body
+  | n + 1, .enact _ body _ _ => body.isMove n
+  | _ + 1, _ => false
+termination_by structural fuel
+
+/-- Whether every event `clause` names is a move. -/
+def WouldClause.isMove (clause : WouldClause) (fuel : Nat := 8) : Bool :=
+  match fuel, clause with
+  | 0, _ => false
+  | _ + 1, .would _ action => action.isMove
+  | n + 1, .wouldAny clauses => !clauses.isEmpty && clauses.all (fun c => c.isMove n)
+  | n + 1, .causedBy _ clause => clause.isMove n
+termination_by structural fuel
+
+/-- A replacement, read after the event it replaces, `replacesMove` when that event is a move.
+`instead` and `also` read their action; `withRiders` reads its riders, refused unless the event
+is a move; `onlyIf` reads its condition, then its body in a new clause after it, as `doIf` reads
+its then-branch. A caller's replacement is read in its caller's scope. -/
+def stepReplacementWith (ops : StepOps) (drs : DRS) (r : Replacement) (replacesMove : Bool)
+    (fuel : Nat := 8) : DRS × List Refusal :=
+  match fuel, r with
+  | 0, _ => (drs, [.recursionLimit])
+  | n + 1, .inCaller body =>
+    let (callerDrs, errs) := stepReplacementWith ops (enterCaller drs) body replacesMove n
+    (leaveCaller drs callerDrs, errs)
+  | _ + 1, .instead action | _ + 1, .also action => ops.inst .postEvent .obj drs action
+  | _ + 1, .withRiders riders =>
+    let (out, errs) := stepMoveRiderListWith ops drs riders
+    (out, errs ++ refuse replacesMove .riddenMove)
+  | n + 1, .onlyIf condition body =>
+    let (drs1, e1) := ops.cond drs condition
+    let (drs2, e2) := stepReplacementWith ops (nextClause drs1) body replacesMove n
+    (drs2, e1 ++ e2)
+termination_by structural fuel
 
 def stepCharacteristicsWith (ops : StepOps) (drs : DRS) (c : Characteristics) : DRS × List Refusal :=
   let (out, errs) := [c.power, c.toughness, c.loyalty, c.defense].foldl
@@ -2808,7 +2833,7 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.inst .preEvent patientRole drs repld
           let localDescriptions := drs1.prospectiveTokenTypes.drop drs.prospectiveTokenTypes.length
           let described := { drs1 with prospectiveTokenTypes := localDescriptions }
-          let (drs2, e2) := stepReplacementWith ops (nextClause described) repl
+          let (drs2, e2) := stepReplacementWith ops (nextClause described) repl repld.isMove
           ({ drs2 with prospectiveTokenTypes := drs.prospectiveTokenTypes }, e1 ++ e2)
         | .holdUntil inst ev =>
           let (drs1, e1) := ops.inst phase patientRole drs inst
@@ -2929,7 +2954,7 @@ def stepOps : Nat → StepOps
             headErr ++ e1 ++ e2 ++ e3 ++ costErrors ++ agentErrors)
         | .replace ev repl tm _ _ =>
           let (drs1, e1) := stepWouldClauseWith ops drs ev
-          let (drs2, e2) := stepReplacementWith ops (nextClause drs1) repl
+          let (drs2, e2) := stepReplacementWith ops (nextClause drs1) repl ev.isMove
           let (_, e3) := match tm with | some t => stepTimingWith ops drs2 t | none => (drs2, [])
           -- Nothing the `would` clause or the replacement introduces escapes but the letters
           -- they introduce: X has one value on the object, so "enters with X counters, where X is
