@@ -30,12 +30,17 @@ hand-copied replicas, add the `[CR#704.5g]` lethal-damage row to
 
 ### 2. Complete the `[CR#704.5g]` Rules Row & Tighten Proof Quality (Astra §6, Opus §§6.3–6.5, 6.8, 7.1)
 
-- **Add the `[CR#704.5g]` lethal-damage row to `builtinTables`
-  (`lean/Semantics/Proofs/Rules.lean:395-401`, Astra §6, Opus §7.1):** Now that
-  `Stat.defense`, `ProjAxis.markedDamage`, and `GameEvent.stateBasedActionsChecked`
-  exist, encode the `[CR#704.5g]` state-based action row and update the docstring
-  and `lean/CONTRACTS.md:1036-1041` so only `[CR#704.5h]` deathtouch lookback
-  remains noted if still unprojected.
+- **Add the `[CR#704.5g]` lethal-damage row to `builtinTables` and complete
+  truncated SBA / spell-copy guards (`lean/Semantics/Proofs/Rules.lean:240-251,395-401`,
+  Astra §6, Opus §7.1):**
+  - Now that `Stat.defense`, `ProjAxis.markedDamage`, and
+    `GameEvent.stateBasedActionsChecked` exist, encode the `[CR#704.5g]`
+    state-based action row and update the docstring and `lean/CONTRACTS.md:1036-1041`.
+  - Complete the triggered-ability-on-stack guards on Saga (`[CR#704.5s,714.4]`,
+    using `chapterAbilityOf` + `in_ stack`) and Siege (`[CR#310.7,704.5v]`,
+    using `abilityOf` + `in_ stack`), and add the `"If the spell has any targets"`
+    guard (`targeting any .someTarget`) to `storm` (`[CR#702.40a]`) and
+    `replicate` (`[CR#702.56a]`).
 - **Retire vacuous `rfl` restatements (§6.3):** Audit and retire or rewrite the
   ~20 `rfl` expansion-restatement theorems (`Proofs/ActionForms.lean`,
   `controllerSacrificesExpansionForEverySubject`, `lookAndSortSlice_is_the_hand_expansion`,

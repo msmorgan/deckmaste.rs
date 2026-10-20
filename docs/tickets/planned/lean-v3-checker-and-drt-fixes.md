@@ -39,11 +39,14 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   frames with `.outcome` kind into `referents` and filtering `!b.isActorFrame` /
   `r.kind != .outcome` across counting helpers; reconcile `Payload`'s 11
   constructors with the ADR.
-- **Consistent disjunction and negation scoping (§2.6):** Fix `NounPhrase.or`
-  (`stepNounAlternativesWith` in `Check/Phrase.lean:975-995`), `Timing.or`/`.and`
-  (`Check/Phrase.lean:720`), `Location.or` (`:771`), and `Location.not` (`:770`)
-  so branches do not thread left-to-right or dump branch-local indefinites flatly
-  into outer discourse, and update `lean/CONTRACTS.md` to match.
+- **Consistent disjunction, conditional, and negation scoping (§2.6):** Fix
+  `NounPhrase.or` (`stepNounAlternativesWith` in `Check/Phrase.lean:975-995`),
+  `Timing.or`/`.and` (`Check/Phrase.lean:720`), `Location.or` (`:771`),
+  `Location.not` (`:770`), and `doIf` (`Check/Phrase.lean:2759-2803`) so branches
+  do not thread left-to-right or leak branch-local non-target indefinites into
+  outer discourse (preserving announced targets `[CR#601.2c,115.1]` and outer
+  mutations across both `elseInst = none` and `elseInst = some _`, matching
+  `doOnlyIf`), and update `lean/CONTRACTS.md` to match.
 - **Foreground non-argument possessor re-mentions in `DRS.recordMention`:** When
   an existing referent is re-mentioned in a non-argument slot (`inArgSlot = false`,
   e.g. `"that creature's owner"`), update `r.clause := drs.currentClause` and
@@ -85,10 +88,13 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
   text-change sorts (`Check/Phrase.lean:1748-1760`, `Check/TextChanges.lean`).
 - **Remove one-purpose flags and positional hacks (§2.13):** Clean up
   `DeedFeature.librarySearch` / `Referent.librarySearchResult`,
-  `historicalMoveFrom`, `NounPhrase.plur`'s hard-coded slice rule, `.addedAbilities`
-  toxic parameter matching (`Check/Phrase.lean:1136`), `stepPlayPaymentWith`
-  `zipWith`, `enact` `pendingRoles.take`, `DRS.ofList` id-0 renumbering, and the
-  ambiguous `EmptyCollection DRS` instance.
+  `Referent.attachmentHost` / `announcedTargetResult` / `createdResult` (deriving
+  loop plural abstraction from `det == .target` and `Origin.token` + `.actedOn`
+  stamps and projecting/reusing `attachHost` as a definite presuppositional
+  reference), `historicalMoveFrom`, `NounPhrase.plur`'s hard-coded slice rule,
+  `.addedAbilities` toxic parameter matching (`Check/Phrase.lean:1136`),
+  `stepPlayPaymentWith` `zipWith`, `enact` `pendingRoles.take`, `DRS.ofList`
+  id-0 renumbering, and the ambiguous `EmptyCollection DRS` instance.
 - **Fuel defaults & helper depth limits (§2.9, Astra §7):** Audit silent fuel
   fallbacks (`NounPhrase.kind?`, `NounPhrase.plur`, `Quantity.plur`,
   `predicatePayload`, `GameEvent.facts`, `numberSlots`) and tight helper fuel
