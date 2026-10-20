@@ -639,9 +639,10 @@ Token, Spell, Permanent, Emblem, or an Ability on the stack.
 _Avoid_: Object Kind, substrate
 
 **Head Noun** (project term):
-The Object Class or Card Type [CR#109.1,205.2a] a Reference names its Object
-by, as in "this creature", "this spell" or "the emblem that granted it". It
-narrows what the Reference is known to be without introducing another Object.
+The Object Class, Card Type or Subtype [CR#109.1,205.2a,205.3] a Reference
+names its Object by, as in "this creature", "this spell", "this Aura" or "the
+emblem that granted it". It narrows what the Reference is known to be without
+introducing another Object.
 _Avoid_: Marker Word
 
 **Reference** (project term):

@@ -550,7 +550,8 @@ def NounPhrase.restContext? (drs : DRS) (noun : NounPhrase) (fuel : Nat := 32) :
 def NounPhrase.selfDefinedOk (np : NounPhrase) (fuel : Nat := 32) : Bool :=
   match fuel, np with
   | n + 1, .inCaller body | n + 1, .firstMention _ body
-  | n + 1, .laterMention _ body | n + 1, .headed (.type _) body => body.selfDefinedOk n
+  | n + 1, .laterMention _ body | n + 1, .headed (.type _) body
+  | n + 1, .headed (.subtype _) body => body.selfDefinedOk n
   | _ + 1, .this => true
   | _, _ => false
 termination_by structural fuel
@@ -1949,20 +1950,20 @@ def stepOps : Nat → StepOps
             let payload := match r.payload with
               | .object ty zone stamp origin size =>
                 match head with
-                | .type t =>
+                | .type t | .subtype (.of t _) =>
                   .object (mergeTypes ty [t])
                     (zone.orElse (fun _ => if t.permanent then some .battlefield else none))
                     stamp origin size
-                | .card => r.payload
                 | .ability => .ability origin (some .stack)
-                | .spell => .object ty (some .stack) stamp origin size
+                | .spell | .subtype (.spell _) => .object ty (some .stack) stamp origin size
                 | .token => .object ty (some .battlefield) stamp (some .token) size
                 | .permanent => .object ty (some .battlefield) stamp origin size
                 | .emblem => .object ty (some .command) stamp origin size
+                | _ => r.payload
               | payload => payload
             { r with payload }) out
           (refined, ids, errs ++ kindCheck .object ((ids.head?.bind out.findById?).map (·.kind)) ++
-            refuse (subj.ascribableIn drs) .ascribable)
+            refuse (subj.ascribableIn drs) .ascribable ++ refuse head.isHead .headNoun)
         | .agree _ _ subj =>
           let (drs1, ids, errs) := ops.np drs role inArgSlot subj
           (drs1, ids, errs ++ refuse (subj.plur == .many) .plural ++
@@ -1994,14 +1995,14 @@ def stepOps : Nat → StepOps
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], refuse ((attachment == .enchanted && !word.refined) ||
             Kind.lte word.kind .object) (.kindLte word.kind .object))
-        | .theGrantor _ =>
+        | .theGrantor head =>
           let ref : Referent := {
             det := .the, plur := .one,
             payload := .object [] (some .battlefield) none none none
           }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
-          (drs', [rid], [])
+          (drs', [rid], refuse head.isHead .headNoun)
         | .designated d whose =>
           let (drs1, ownerIds, e1) := ops.np drs .other false whose
           let ownerKind := (ownerIds.head?.bind drs1.findById?).map (·.kind)

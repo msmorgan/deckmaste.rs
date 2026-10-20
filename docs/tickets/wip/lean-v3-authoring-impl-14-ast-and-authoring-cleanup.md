@@ -79,7 +79,16 @@ constraints apply.
   (`Words.lean:479-482`) and `NounWord` (`Words.lean:283-302`), the 3-way
   object-class split (`Predicate.isCard`/`isToken`/`isEmblem`, `isPermanent`,
   `isSpell`), and subtype-headed self-references (`thisAura`, `thisEquipment`,
-  `thisRoom`, `thisSiege`).
+  `thisRoom`, `thisSiege`). `HeadNoun` is retired: `headed` and `theGrantor`
+  take a `NounWord`, which gains `emblem` and `subtype s` (read as its card
+  type, `[CR#205.3]`), so "this creature" and "that creature" share one word
+  and `thisAura`, `thisEquipment`, `thisRoom`, `thisSiege` (and the other
+  subtype heads) carry their subtype. A word that is no Head Noun (player,
+  pile, stack, join, copy) is refused as a head (`Refusal.headNoun`). The
+  object-class predicates stay as they are: a permanent and a spell are
+  defined by their zone (`isPermanent`, `isSpell` read it,
+  `[CR#110.1,112.1]`), a card, a token and an emblem by what represents the
+  object (`isCard`, `isToken`, `isEmblem`, `[CR#111.1,114.1]`).
 - **Per-property up/down vocabularies vs `Delta` (§4.5):** Align `CostShift`,
   `ShiftDir`, `LoyaltyCost`, `LifeMove`, and `CounterMove` with the glossary's
   `Delta` rule (`_Avoid_` per-property up/down enums). `CostShift` is

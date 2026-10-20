@@ -296,14 +296,14 @@ mutual
     | which
     /-- the source, by self-name or "this spell" [CR#113.7] -/
     | this
-    /-- `subject` named by a Head Noun: "this creature", "this spell". -/
-    | headed (head : HeadNoun) (subject : NounPhrase)
+    /-- `subject` named by a Head Noun: "this creature", "this spell", "this Aura". -/
+    | headed (head : NounWord) (subject : NounPhrase)
     /-- The permanent the spell `subject` becomes as it resolves, named before it resolves: "the
     permanent this spell becomes", "it" for a creature spell mana was spent on [CR#608.3a]. A
     type view of the spell's referent, refined in place: effects that apply to the spell
     continue to apply to that permanent [CR#400.7a,400.7b]. -/
     | becomes (subject : NounPhrase)
-    | theGrantor (head : HeadNoun)
+    | theGrantor (head : NounWord)
     | you
     /-- Whoever performs the action this phrase is part of: the controller [CR#109.5],
     unless an enclosing `Action.instruct` hands the action to another player or to a

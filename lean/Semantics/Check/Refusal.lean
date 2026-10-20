@@ -171,6 +171,9 @@ inductive Refusal where
   /-- Entry Riders ride an entering: a replacement adding riders replaces a permanent's
   entering [CR#614.1c,614.12]. -/
   | riddenEntering
+  /-- A Head Noun names an Object by its Object Class, Card Type or Subtype
+  [CR#109.1,205.2a,205.3]; a player word, a pile or a stack word is none. -/
+  | headNoun
   /-- A shift raises or lowers its value, never sets it: a cost shift, a damage shift, a loyalty
   symbol or a die-result shift [CR#118.9,606.4]. -/
   | shiftSets

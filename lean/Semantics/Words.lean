@@ -291,14 +291,25 @@ inductive ExposeVerb where
   | lookAt | reveal
   deriving DecidableEq, Repr
 
-/-- The noun a pronoun ("that player", "that card") is written with. -/
+/-- A card subtype. Instants and sorceries share their spell types [CR#205.3k]. -/
+inductive Subtype where
+  | of (host : CardType) (label : String)
+  | spell (label : String)
+  deriving DecidableEq, Repr
+
+/-- The noun a reference is written with: a pronoun's ("that player", "that card"), or a Head
+Noun, the Object Class, Card Type or Subtype a reference names its referent by ("this
+creature", "this spell", "this Aura", "the emblem that granted it") [CR#109.1,205.2a,205.3]. -/
 inductive NounWord where
   | type (type : CardType)
+  /-- A subtype, read as its card type: "this Aura", "this Equipment" [CR#205.3]. -/
+  | subtype (subtype : Subtype)
   | card
   | spell
   | player
   | permanent
   | token
+  | emblem
   | copy
   | join
   /-- "Counter target spell or ability. … THAT SPELL OR ABILITY" -/
@@ -457,19 +468,6 @@ inductive ManaMatch where
   | anyColor
   | anyType
   | of (color : ColorOrColorless)
-  deriving DecidableEq, Repr
-
-/-- A card subtype. Instants and sorceries share their spell types [CR#205.3k]. -/
-inductive Subtype where
-  | of (host : CardType) (label : String)
-  | spell (label : String)
-  deriving DecidableEq, Repr
-
-/-- A Head Noun: the Object Class or Card Type a reference names its referent by ("this
-creature", "this spell", "the emblem that granted it") [CR#109.1,205.2a]. -/
-inductive HeadNoun where
-  | card | token | emblem | spell | permanent | ability
-  | type (type : CardType)
   deriving DecidableEq, Repr
 
 /-- A change of a quantity: up by, down by, or set to. -/

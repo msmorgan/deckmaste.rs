@@ -922,7 +922,7 @@ def halfWordReaches (w : NounWord) (pl : Payload) : Bool :=
     match pl with
     | .object ty zn _ _ _ =>
       match word with
-      | .type t => onFieldZone zn && tyIs t ty
+      | .type t | .subtype (.of t _) => onFieldZone zn && tyIs t ty
       | .permanent => onFieldZone zn
       | _ => false
     | .player _ => word == .player
@@ -941,18 +941,20 @@ def wordReaches (w : NounWord) (b : Referent) : Bool :=
     match b.payload with
     | .object ty zn _ og _ =>
       match w with
-      | .type t => onFieldZone zn && tyIs t ty
+      -- A subtype is read as its card type [CR#205.3].
+      | .type t | .subtype (.of t _) => onFieldZone zn && tyIs t ty
       | .card => isCardZone zn
-      | .spell => onStackZone zn
+      | .spell | .subtype (.spell _) => onStackZone zn
       | .permanent => onFieldZone zn
       | .token => onFieldZone zn && isTokenOrigin og
+      | .emblem => zn == some .command
       | .copy => isCopyOrigin og
       | .stack => onStackZone zn
       | _ => false
     | .player _ => w == .player
     | pl@(.join _ _) =>
       match w with
-      | .type t => halfReaches (.type t) pl
+      | .type t | .subtype (.of t _) => halfReaches (.type t) pl
       | .player => halfReaches .player pl
       | .permanent => halfReaches .permanent pl
       | .join => Kind.lte .player b.kind
@@ -983,6 +985,12 @@ def NounWord.kind : NounWord → Kind
   | .pile => .pile
   | _ => .object
 
+/-- Whether the word is a Head Noun: an Object Class, Card Type or Subtype an object is named
+by [CR#109.1,205.2a,205.3]. -/
+def NounWord.isHead : NounWord → Bool
+  | .type _ | .subtype _ | .card | .spell | .permanent | .token | .emblem | .ability => true
+  | _ => false
+
 /-- A noun word refined by a card type or by "copied", which only an object noun takes. -/
 def NounWord.refined : NounWord → Bool
   | .ofType .. | .copied _ => true
@@ -999,9 +1007,9 @@ def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
 def verbedWordOk : NounWord → Stamp → List CardType → Option Zone → Option Origin → Bool
   | .ofType word t, st, ty, zn, og => verbedWordOk word st ty zn og && tyIs t ty
   | .copied word, st, ty, zn, og => verbedWordOk word st ty zn og && isCopyOrigin og
-  | .type t, st, ty, _, _ => st.wasField && tyIs t ty
+  | .type t, st, ty, _, _ | .subtype (.of t _), st, ty, _, _ => st.wasField && tyIs t ty
   | .card, _, _, zn, _ => isCardZone zn
-  | .spell, _, _, zn, _ => onStackZone zn
+  | .spell, _, _, zn, _ | .subtype (.spell _), _, _, zn, _ => onStackZone zn
   | .permanent, st, _, _, _ => st.wasField
   | _, _, _, _, _ => false
 
@@ -1540,14 +1548,14 @@ def RelationLabel.right (label : RelationLabel) : Kind := (label.facts.map (·.r
 
 def NounWord.attachHostZone : NounWord → Option Zone
   | .ofType word _ | .copied word => word.attachHostZone
-  | .type _ | .card | .spell | .permanent | .token => some .battlefield
+  | .type _ | .subtype (.of ..) | .card | .spell | .permanent | .token => some .battlefield
   | .copy => some .stack
   | _ => none
 
 def NounWord.attachHostTy : NounWord → List CardType
   | .ofType word t => mergeTypes word.attachHostTy [t]
   | .copied word => word.attachHostTy
-  | .type t => [t]
+  | .type t | .subtype (.of t _) => [t]
   | _ => []
 
 def distinctCounterLabels : List CounterFacts → Bool

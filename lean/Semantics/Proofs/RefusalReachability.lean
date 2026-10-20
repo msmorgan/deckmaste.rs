@@ -103,4 +103,12 @@ theorem shiftsNeverSet :
       [.shiftSets] ∧
     (stepCost 64 emptyContext (.loyaltySymbol (.down (.letter .x)))).2 = [] ∧
     (stepCost 64 emptyContext (.loyaltySymbol (.set (.lit 2)))).2 = [.shiftSets] := by decide
+
+/-- A Head Noun is an Object Class, Card Type or Subtype: "this Aura" names the source by its
+subtype, read as an enchantment, while "this player" is no Head Noun [CR#109.1,205.2a,205.3]. -/
+theorem headNounsNameObjects :
+    NounPhrase.checkAt (some .object) emptyContext (.headed (.subtype (.of .enchantment "Aura")) .this)
+      = [] ∧
+    NounPhrase.checkAt (some .object) emptyContext (.headed .player .this) = [.headNoun] := by
+  decide
 end Semantics.Proofs.RefusalReachability
