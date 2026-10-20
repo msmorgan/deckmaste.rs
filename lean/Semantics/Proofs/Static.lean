@@ -195,6 +195,16 @@ theorem conditionalReplacementChecksItsCondition :
       [.anaphor .bare .one 0] := by
   decide
 
+/-- "This land enters tapped unless your opponents control eight or more lands": the condition
+is checked as the land would enter, so the replacement carries it, not the static ability
+[CR#614.1d,614.12]. -/
+theorem entersTappedUnlessConditionsTheReplacement :
+    entersTappedUnless thisLand
+        (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast (.lit 8)) =
+      .replace (would thisLand enter)
+        (.onlyIf (.not (compareAmt (countOf (and [isLand, opponentsControl])) .atLeast (.lit 8)))
+          (.withRiders [.entersAs .tapped])) none .repeatedly none := rfl
+
 private def nestCallers : Nat → Replacement → Replacement
   | 0, replacement => replacement
   | n + 1, replacement => .inCaller (nestCallers n replacement)

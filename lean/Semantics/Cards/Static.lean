@@ -780,7 +780,7 @@ def umbrisPump : Ability :=
 theorem okUmbrisPump : Ability.check (DRS.ofList []) umbrisPump = [] := by decide
 /-- Turbulent Fen -/
 def turbulentFen : Ability :=
-  static (onlyUnless (entersTapped thisLand)
+  static (entersTappedUnless thisLand
     (compareAmt (countOf (and [isLand, opponentsControl]))
       .atLeast (.lit 8)))
 theorem okTurbulentFen : Ability.check (DRS.ofList []) turbulentFen = [] := by decide

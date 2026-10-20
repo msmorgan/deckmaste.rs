@@ -46,6 +46,18 @@ constraints apply.
   (not c)` gives, so card sources read as printed. `asLongAs` vs `ifSo` stays:
   they are different conditions.
 
+### 1b. "Enters … unless" on the Replacement (owner addition)
+
+- A condition checked as a permanent would enter belongs to the replacement,
+  not the static ability: "this land enters tapped unless C" (*Turbulent Fen*
+  and its kin) is `entersTappedUnless subject c`, the template over
+  `entersUnless subject riders c` =
+  `replace (would subject enter) (doIf (not c) (withRiders riders))`
+  `[CR#614.1d,614.12]`, replacing `onlyUnless (entersTapped …) c`. The bench
+  has no other "enters … if/unless" conditioned at the static level. The
+  Saga rule's read-ahead test stays on the static ability (it decides whether
+  the ability exists, `[CR#714.3a]`).
+
 ### 2. Reconcile Overlapping AST & Vocabulary Constructs (Opus §§4.3–4.6, §4.13–4.14)
 
 - **`Amount` vs `Quantity` (§4.3):** Reconcile `Amount.upTo`/`moreThan`

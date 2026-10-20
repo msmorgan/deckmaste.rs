@@ -1794,6 +1794,16 @@ semantic_template enters (subject : NounPhrase) (riders : List MoveRider) : Stat
 /-- "<subject> enters tapped" -/
 semantic_template entersTapped (subject : NounPhrase) : StaticSpec :=
   enters subject [.entersAs .tapped]
+/-- "<subject> enters <riders> unless <condition>": the condition is checked as `subject` would
+enter, so the replacement carries it, not the static ability; while it holds, `subject` enters
+unmodified [CR#614.1d,614.12]. -/
+semantic_template entersUnless (subject : NounPhrase) (riders : List MoveRider)
+    (condition : Condition) : StaticSpec :=
+  .replace (would subject enter) (.onlyIf (.not condition) (.withRiders riders)) none .repeatedly
+    none
+/-- "<subject> enters tapped unless <condition>" -/
+semantic_template entersTappedUnless (subject : NounPhrase) (condition : Condition) : StaticSpec :=
+  entersUnless subject [.entersAs .tapped] condition
 /-- "As <subject> becomes attached, choose a <quality>." -/
 semantic_template attachChoosing (subject : NounPhrase) (sort : QualitySort) : StaticSpec :=
   attachmentChoice subject (a (quality sort))
