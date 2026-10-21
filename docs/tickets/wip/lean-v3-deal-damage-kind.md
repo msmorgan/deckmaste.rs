@@ -28,27 +28,38 @@ passing `.any`).
     | combat | noncombat
     deriving DecidableEq, Repr
   ```
-- Change `kind` on `Action.dealDamage` (`Semantics/Abilities.lean:1030`),
-  `DamageResult` (`Semantics/Abilities.lean:816-821`), `StaticSpec.damageRule`
-  (`Semantics/Abilities.lean:882-883`), and `StaticSpec.preventionBan`
-  (`Semantics/Abilities.lean:884`) — plus their templates (`dealDamage` in
-  `Semantics/Templates.lean:1070-1072`, `preventAll` / `preventNext` /
-  `preventAllBy` in `Semantics/Templates.lean:1384-1396`, `damageRule` in
-  `Semantics/Templates.lean:1924-1927`, and `preventionBan` in
-  `Semantics/Templates.lean:1980-1981`) — to
-  `(kind : Option DamageKind := none)`, and add
-  `instance [AuthoringContext] : Coe DamageKind (Option DamageKind) := ⟨some⟩`
-  so `.combat` and `.noncombat` pass bare without `some`:
+- Change `kind` on `Action.dealDamage`, `DamageResult`, `StaticSpec.damageRule`
+  and `StaticSpec.preventionBan` (`Semantics/Abilities.lean`), plus their
+  templates (`dealDamage`, `preventAll` / `preventNext` / `preventAllBy`,
+  `damageRule` and `preventionBan` in `Semantics/Templates.lean`), to
+  `(kind : Option DamageKind := none)`:
   - `kind = none` (default): unqualified `"damage"` (effect damage in an
     imperative per `[CR#120.2b]`; all damage in an event, replacement, deontic,
     lookback, or static damage rule).
-  - `kind = .combat`: `"combat damage"`.
-  - `kind = .noncombat`: `"noncombat damage"`.
+  - `kind = some .combat`: `"combat damage"`.
+  - `kind = some .noncombat`: `"noncombat damage"`.
 - Drop the trailing `.noncombatOnly` (and raw `.any`) arguments from all
   imperative `dealDamage` / `.dealDamage` call sites across
   `Semantics/Cards/*.lean`, `Semantics/Definitions/`,
-  `Semantics/Check/Queries.lean`, and `Semantics/Proofs/*.lean`, and rename
-  `.combatOnly` → `.combat` and `.noncombatOnly` → `.noncombat` on event,
-  replacement, deontic, lookback, and static damage-rule sites (e.g.,
-  *Solphim, Mayhem Dominus* in `Cards/Keyword.lean:484` and combat-damage
+  `Semantics/Check/Queries.lean`, and `Semantics/Proofs/*.lean`, drop `.any`
+  from event and rule sites, and rewrite `.combatOnly` → `some .combat` and
+  `.noncombatOnly` → `some .noncombat` on event, replacement, deontic,
+  lookback, and static damage-rule sites (e.g., *Chandra's Spitfire* in
+  `Cards/Keyword.lean`, *Solphim, Mayhem Dominus*'s would-pattern
+  `solphimPattern` in `Proofs/CorpusRecency.lean`, and combat-damage
   triggers).
+- Remove `instance : AnyValue DamageKind`: no damage-kind value means "any".
+
+## Owner rulings
+
+- **Spelling of a qualified kind.** Authors write `some .combat` and
+  `some .noncombat`, matching the `some .mainPhase` convention. No
+  `Coe DamageKind (Option DamageKind)` instance: Lean resolves a leading-dot
+  name against the expected type's namespace (`Option.combat`) before any
+  coercion applies, so the instance cannot make `.combat` pass bare, and core's
+  `α → Option α` coercion already covers qualified names.
+- **Parameter order.** `kind : Option DamageKind := none` comes after the
+  required parameters of `preventAll`, `preventNext`, `preventAllBy`,
+  `damageRule` and `preventionBan`, constructors and templates alike, so sites
+  without a kind omit it: Lean never skips a defaulted parameter that a later
+  positional argument follows.
