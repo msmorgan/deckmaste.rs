@@ -155,5 +155,5 @@ cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `lzzwskzn` → `pwyvozyw`): faces read 28,709 → 28,709, total Readings 295,697 → 294,324, Surplus 149,101 → 148,485; lost faces: none.
+Judgment set: `cargo test -p deckmaste_english_v4` passes; 4 entries added (Triton Tactics, Pelt Collector, Full Throttle, Murmuration), none rewritten or retired.

@@ -729,8 +729,13 @@
         // one comma (*For one spell this turn, ...*). The Preposition Phrase
         // has a Noun Phrase Complement: a Clause Complement runs to the comma
         // and keeps the temporal inside it (*When you next cast a spell this
-        // turn, ...*; oracle-style-guide checklist item 4; [CR#603.1]).
-        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
+        // turn, ...*; oracle-style-guide checklist item 4; [CR#603.1]). The
+        // Preposition Phrase is unextended: a temporal that can belong inside
+        // it does, as a trigger's or header's bound (*At the beginning of each
+        // combat this turn, ...*; oracle-style-guide §8, Triggered abilities;
+        // [CR#603.1,603.7]) or a relative clause's (*For each creature that
+        // entered this turn, ...*), never stranded before the comma.
+        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], unextended: ["adjunct"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],
@@ -1062,9 +1067,12 @@
             equations: [Require("$.DeterminativeDistribution", "Dependent"), Require("$.ComplementKind", "Intransitive"), Carry("possessor.Case", "Genitive"), Require("possessor.Inflection", "Invariant"), Exclude("possessor.PronounKind", "Relative")]),
         (name: "GenitivePossessor", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")],
             equations: [Require("$.Determination", "Bare"), Require("$.Case", "Genitive"), Carry("possessor.Case", "Plain"), Agree("$.Number", "possessor.Number"), Agree("$.Person", "possessor.Person")]),
-        // An independent genitive is a fused-head Noun Phrase (*power less
-        // than Mirko's*; CGEL, Ch. 5 §16.5, p. 471).
-        (name: "IndependentGenitivePhrase", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")],
+        // A genitive in a fused subject-determiner-head is a whole Noun
+        // Phrase whose head is understood from an antecedent (*power less
+        // than Mirko's*; CGEL, Ch. 5 §16.3, pp. 467–468). A nominal right
+        // after it is its head, not an antecedent (CGEL, Ch. 17 §6.1,
+        // pp. 1516–1517): *during [its controller's next untap step]*.
+        (name: "IndependentGenitivePhrase", lhs: "NounPhrase", rhs: [Cat("possessor", "Possessor"), Word("marker", "Genitive")], fused_head: true,
             equations: [Require("$.NounKind", "Ordinary"), Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("possessor.Case", "Plain"), Require("$.Person", "Third")]),
         (name: "GenitiveDetermined", lhs: "NounPhrase", rhs: [Cat("determiner", "NounPhrase"), Cat("head", "Nominal")],
             equations: [Require("$.Determination", "Overt"), Require("$.Case", "Plain"), Carry("determiner.Case", "Genitive"), Require("$.Person", "Third")]),

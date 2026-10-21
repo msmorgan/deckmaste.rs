@@ -111,8 +111,21 @@ pub struct ProductionDecl {
     /// Complement, would take as that Complement: the phrase is the sibling's
     /// Complement, never the child's postmodifier (an existential's locative
     /// extension, CGEL Ch. 16 §6.2.1, p. 1394).
+    ///
+    /// A first child that is not the last, followed by a Constituent, can be
+    /// `unextended` too: it does not end where one Constituent of its own
+    /// Category would span it and the child after it, so that child is never
+    /// stranded outside a phrase it can belong to.
     #[serde(default)]
     pub unextended: Vec<Ident>,
+    /// A fused-head Production: it has the same right-hand side as one
+    /// sibling Production, its twin, whose Constituent is a dependent of a
+    /// following `head` (CGEL Ch. 5 §16.3, pp. 467–468). Where the twin's
+    /// Constituent over the same words is followed by its head, the nominal
+    /// is that head, not an antecedent (CGEL Ch. 17 §6.1, pp. 1516–1517), and
+    /// this Production forms no Constituent there.
+    #[serde(default)]
+    pub fused_head: bool,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,
@@ -303,8 +316,8 @@ pub enum SchemaDecl {
         conjunct: Option<Ident>,
         /// A feature whose value the two conjuncts of a binary coordination
         /// must not share: a coordination of unlike categories in one
-        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial ones, derived only
-        /// with `serial`, differ first to last.
+        /// function (CGEL, Ch. 15 §3.2, pp. 1326–1329); serial ones, derived
+        /// only with `serial`, differ first to last.
         #[serde(default)]
         unlike: Option<Ident>,
     },

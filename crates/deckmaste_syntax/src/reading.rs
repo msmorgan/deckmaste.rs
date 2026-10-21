@@ -262,7 +262,7 @@ impl CompiledGrammar {
     /// # Errors
     /// The first violation found.
     pub fn admit(&self, reading: &Reading, lexicon: &Lexicon) -> Result<(), AdmissionError> {
-        self.admit_as(reading, lexicon, self.root)
+        self.admit_as(reading, lexicon, self.root, None)
     }
 
     /// Admission without parsing as the named Category instead of the root.
@@ -279,14 +279,19 @@ impl CompiledGrammar {
         let root = self
             .category_id(category)
             .ok_or_else(|| AdmissionError::Root(category.to_owned()))?;
-        self.admit_as(reading, lexicon, root)
+        self.admit_as(reading, lexicon, root, None)
     }
 
+    /// Admission as Category `root`. A Reading with a Production that a chart
+    /// closure can rule out is admitted only where the parse of its
+    /// realization keeps it: `parse` when it was made from that text, or a
+    /// parse made here.
     pub(crate) fn admit_as(
         &self,
         reading: &Reading,
         lexicon: &Lexicon,
         root: usize,
+        parse: Option<&Parse<'_>>,
     ) -> Result<(), AdmissionError> {
         let (category, summary) = self.summarize(reading, lexicon)?;
         if category != root || summary.gap != Gap::None {
@@ -309,7 +314,30 @@ impl CompiledGrammar {
                 reason: "a declared multiword noun is decomposed".into(),
             });
         }
+        if let Some(production) = self.chart_closed_production(reading) {
+            let kept = match parse {
+                Some(parse) if parse.text() == text => parse.contains(reading),
+                _ => self.run(&analyzed, root).contains(reading),
+            };
+            if !kept {
+                return Err(AdmissionError::Rejected {
+                    production: production.to_string(),
+                    reason: "a longer analysis of the words that follow closes it".into(),
+                });
+            }
+        }
         Ok(())
+    }
+
+    /// The first Production of `reading` that a chart closure can rule out.
+    fn chart_closed_production<'r>(&self, reading: &'r Reading) -> Option<&'r Ident> {
+        let Reading::Node(node) = reading else { return None };
+        if self.chart_closed.contains(&node.production) {
+            return Some(&node.production);
+        }
+        node.children
+            .iter()
+            .find_map(|child| self.chart_closed_production(child))
     }
 
     fn summarize(

@@ -1,0 +1,6 @@
+# A nominal right after a genitive is its head, never an Adjunct beside a
+# fused-head genitive (CGEL, Ch. 5 §16.3, pp. 467–468; Ch. 17 §6.1,
+# pp. 1516–1517). A fused-head genitive keeps a head understood from an
+# antecedent.
++ <card=Triton Tactics> At this turn's next end of combat, tap each creature that was blocked by one of those creatures this turn and it doesn't untap during its controller's next untap step. => NounPhrase "this turn's next end of combat" as Complement of at; NounPhrase "its controller's next untap step" as Complement of during; !NounPhrase "this turn's" as Complement of at; !NounPhrase "its controller's" as Complement of during
++ <card=Pelt Collector> Whenever another creature you control enters or dies, if that creature's power is greater than this creature's, put a +1/+1 counter on this creature. => NounPhrase "this creature's" as Complement of than

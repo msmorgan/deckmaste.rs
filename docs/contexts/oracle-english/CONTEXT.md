@@ -74,6 +74,11 @@ correlated alternatives correlated.
 The record of every partial and complete Derivation found for each span of an
 expression during parsing.
 
+**Chart Closure** (project term):
+A condition on a Derivation that only a longer analysis of the words after it
+can decide, so it is applied once the Chart is complete: a Derivation it rules
+out is removed, with every Constituent left without one.
+
 **Packed Forest** (project term):
 The shared representation of all Readings of an expression in which each
 Constituent occurs once per Category, span and grammatical summary, with its
@@ -737,6 +742,13 @@ _Avoid_: Head for the Oblique
 An expression combining the Determiner and Head functions in a Noun Phrase
 without an overt nominal head (CGEL, Ch. 5 §§9.1–9.2, pp. 410–415).
 _Avoid_: Pronoun for a Determinative in fused-head use
+
+**Fused Subject-Determiner-Head**:
+A genitive that is a whole Noun Phrase, its head understood from an Antecedent
+or the context, as in *power less than Mirko's* (CGEL, Ch. 5 §16.3,
+pp. 467–468). A nominal immediately after the genitive is its head, not an
+Antecedent (CGEL, Ch. 17 §6.1, pp. 1516–1517).
+_Avoid_: Independent Genitive for a noun's genitive
 
 **Partitive Noun Phrase**:
 A fused-head Noun Phrase containing an *of* phrase and denoting a subset of the

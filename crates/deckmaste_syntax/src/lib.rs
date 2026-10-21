@@ -8,6 +8,7 @@
 //! without parsing, and realized back to text.
 
 mod chart;
+mod closure;
 mod compile;
 pub mod frames;
 pub mod grammar;

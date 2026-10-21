@@ -243,7 +243,20 @@ imperative Clauses). A last child can be `unextended`: it does not end, through
 its head line, in a Preposition Phrase dependent that a sibling Production, the
 same but for a trailing selected `PP` Complement, would take as that Complement
 (an existential's locative extension is a Complement of *be*, never also the
-Displaced Subject's postmodifier). A verb without
+Displaced Subject's postmodifier). A first child followed by a Constituent can
+be `unextended` too: it does not end where one Constituent of its own Category
+spans it and the child after it, so that child is never stranded outside a
+phrase it can belong to (a preposed Preposition Phrase and a temporal bound it
+can hold). A `fused_head` Production shares its right-hand side with one
+sibling, its twin, whose Constituent is a dependent of a following `head`
+(a genitive as subject-determiner and as fused subject-determiner-head, CGEL
+Ch. 5 §16.3, pp. 467–468); where the twin over the same words is followed by
+its head, that nominal is the head, not an antecedent (CGEL Ch. 17 §6.1,
+pp. 1516–1517), and the fused-head Production forms no Constituent there.
+These two are chart closures: a longer analysis of the words that follow
+decides them, so they are applied once the chart is complete, removing the
+closed Derivations and every Constituent left without one. Admission of a
+Reading that uses either Production parses its realization to decide them. A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 

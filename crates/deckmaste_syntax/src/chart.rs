@@ -157,7 +157,7 @@ impl CompiledGrammar {
     }
 
     #[expect(clippy::too_many_lines, reason = "one Earley loop reads best whole")]
-    fn run<'g>(&'g self, analyzed: &AnalyzedText, root: usize) -> Parse<'g> {
+    pub(crate) fn run<'g>(&'g self, analyzed: &AnalyzedText, root: usize) -> Parse<'g> {
         let tokens = &analyzed.tokens;
         let n = tokens.len();
         let skip = |mut p: usize| {
@@ -412,10 +412,12 @@ impl CompiledGrammar {
                 }
             }
         }
+        self.close(&mut forest);
         forest.roots = (0..forest.nodes.len())
             .filter(|&i| {
                 let node = &forest.nodes[i];
-                node.category == root
+                !node.families.is_empty()
+                    && node.category == root
                     && node.start == 0
                     && skip(node.end) == n
                     && node.summary.gap == crate::Gap::None
