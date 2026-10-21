@@ -1,0 +1,6 @@
+# No two Readings share every Constituent and Production but for a Word Form, so each analysis of these is one Reading per Word Form: a relative clause after coordinated nominals modifies the coordination
++ <card=Brighthearth Banneret> Elemental spells and Warrior spells you cast cost {1} less to cast. => RelativeClause "you cast" gap "Elemental spells and Warrior spells"; NounPhrase "Elemental spells and Warrior spells you cast" as Subject of cost
++ <card=Ballyrush Banneret> Kithkin spells and Soldier spells you cast cost {1} less to cast. => RelativeClause "you cast" gap "Kithkin spells and Soldier spells"; NounPhrase "Kithkin spells and Soldier spells you cast" as Subject of cost
+# A comparative of a bounding frequency counts occasions, so its *more* is count *many*'s comparative (CGEL, Ch. 8 §9, p. 715; Ch. 13 §4.1, p. 1123)
++ <card=Eldrazi Confluence> Choose three. You may choose the same mode more than once. => AdverbPhrase "more than once" head det:more.count; !AdverbPhrase "more than once" head det:more.mass
++ <card=Pit Imp> {B}: This creature gets +1/+0 until end of turn. Activate no more than twice each turn. => AdverbPhrase "no more than twice" head det:more.count; !AdverbPhrase "no more than twice" head det:more.mass

@@ -27,9 +27,9 @@ per seed sentence.
 
 `corpus` reads the supported corpus (Vintage legal or restricted, outside
 `set_type: funny`) from `data/scryfall/oracle-cards.jsonl` through
-`deckmaste_data`, one `Face` per Card Face record with every name of its card in
-lexical scope. Each face yields Corpus Units: its Type Line, and each paragraph
-line of its rules text after balanced reminder text is removed
+`deckmaste_data`, one `Face` per Card Face record with its own name and its
+card's in lexical scope. Each face yields Corpus Units: its Type Line, and each
+paragraph line of its rules text after balanced reminder text is removed
 (`deckmaste_data::oracle_text::strip_reminder_text`). The split needs no parse.
 
 ## Complexity Strata

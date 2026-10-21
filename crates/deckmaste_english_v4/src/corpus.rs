@@ -24,8 +24,8 @@ pub struct Face {
     pub name: String,
     /// The whole card's name.
     pub card: String,
-    /// Card-name lexemes in scope on this face: every name of its card
-    /// [CR#201.5c].
+    /// Card-name lexemes in scope on this face: its own name and its
+    /// card's [CR#201.5c].
     pub scope: BTreeSet<LexemeId>,
     pub type_line: Option<String>,
     /// Rules text as printed, reminder text included.
@@ -115,17 +115,20 @@ impl Corpus {
             if !card.supported() {
                 continue;
             }
-            let mut scope: BTreeSet<LexemeId> = card
-                .oracle_units()
-                .map(|unit| card_name_lexeme(unit.display_name()))
-                .collect();
-            scope.insert(card_name_lexeme(&card.name));
             for unit in card.oracle_units() {
+                // A face's text shortens its own name: the faces of a
+                // double-faced card are named apart [CR#712.8d,712.8e,712.8f],
+                // and two faces that shorten to one spelling (*Ral*) name one
+                // object, not two.
+                let scope = BTreeSet::from([
+                    card_name_lexeme(unit.display_name()),
+                    card_name_lexeme(&card.name),
+                ]);
                 let face = Face {
                     identity: unit.identity().to_string(),
                     name: unit.display_name().to_owned(),
                     card: unit.group_name().to_owned(),
-                    scope: scope.clone(),
+                    scope,
                     type_line: unit.type_line().map(str::to_owned),
                     oracle_text: unit.oracle_text().map(str::to_owned),
                 };
@@ -214,6 +217,22 @@ mod tests {
         assert_eq!(
             split_lines("\"A\" and \"B\nC\"\nD"),
             ["\"A\" and \"B\nC\"", "D"]
+        );
+    }
+
+    #[test]
+    fn a_face_has_its_own_name_in_scope_and_not_its_other_face_s() {
+        // Both faces shorten to *Ral*; each face's text names only itself.
+        let input = r#"{"object":"card","id":"p","oracle_id":"o","name":"Ral, Monsoon Mage // Ral, Leyline Prodigy","layout":"transform","legalities":{"vintage":"legal"},"card_faces":[{"name":"Ral, Monsoon Mage","type_line":"Creature — Human Wizard","oracle_text":"Transform Ral."},{"name":"Ral, Leyline Prodigy","type_line":"Legendary Planeswalker — Ral","oracle_text":"Ral deals 2 damage to any target."}]}"#;
+        let corpus = Corpus::read(std::io::Cursor::new(input), |_| true).unwrap();
+        let card = card_name_lexeme("Ral, Monsoon Mage // Ral, Leyline Prodigy");
+        let scopes: Vec<_> = corpus.faces.iter().map(|f| f.scope.clone()).collect();
+        assert_eq!(
+            scopes,
+            [
+                BTreeSet::from([card_name_lexeme("Ral, Monsoon Mage"), card]),
+                BTreeSet::from([card_name_lexeme("Ral, Leyline Prodigy"), card]),
+            ]
         );
     }
 

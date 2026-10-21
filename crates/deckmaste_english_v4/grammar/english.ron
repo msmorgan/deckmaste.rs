@@ -899,8 +899,11 @@
         (name: "FrequencyAdverbial", lhs: "Adverbial", rhs: [Cat("head", "TemporalNounPhrase")]),
         // A comparative determinative and its *than* Complement as a degree
         // Adjunct (*choose the same mode more than once*; CGEL, Ch. 13 §4.4).
+        // Its standard is a bounding frequency (*once*, *twice*, *three
+        // times*), which counts occasions (CGEL, Ch. 8 §9, p. 715), so *more*
+        // is count *many*'s comparative (Ch. 13 §4.1, p. 1123).
         (name: "ComparativeAdverb", lhs: "AdverbPhrase", rhs: [Cat("head", "DeterminerPhrase")],
-            equations: [Require("head.ComplementKind", "PP"), Require("head.ObliqueKind", "AdvP"), Require("$.AdjunctPosition", "End")]),
+            equations: [Require("head.ComplementKind", "PP"), Require("head.ObliqueKind", "AdvP"), Require("head.Countability", "Count"), Require("$.AdjunctPosition", "End")]),
         // A comparative adjective premodifier with its *than* Complement after
         // the head, an indirect Complement (*greater power than this
         // creature*; CGEL, Ch. 13 §2.1, p. 1104; Ch. 5 §16.1, p. 445).

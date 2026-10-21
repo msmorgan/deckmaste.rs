@@ -379,7 +379,8 @@ _Avoid_: anchor, which is a Supplement's anchor; Flavor Word
 **Shortened Name**:
 A shortened spelling printed on a card in place of its full name that refers to
 that same card [CR#201.5c]. It is derived from the full name and admitted only
-in the text of the card whose name it shortens.
+in the text of the card whose name it shortens; on a card with two Card Faces,
+in the text of the face whose name it shortens [CR#712.8d,712.8e,712.8f].
 _Avoid_: nickname
 
 **Introduced Name** (project term):
