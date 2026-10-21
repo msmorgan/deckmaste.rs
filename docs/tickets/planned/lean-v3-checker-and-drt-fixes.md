@@ -72,6 +72,10 @@ needs: [lean-v3-authoring-impl-10-definitions-and-cards-polish]
     `Check/Phrase.lean:455-478`) and remove the `ownScope` + `.enact` double-wrap.
   - Delete the 8 dead `CoreDeed` constructors (`attack`, `block`, `gainLife`,
     `loseGame`, `winGame`, `spend`, `unlock`, `tapForMana` in `Words.lean:225-228`).
+  - [lean-v3-move-deeds-and-verbs](lean-v3-move-deeds-and-verbs.md) removes
+    `CoreDeed.put` and `.return_`, the `inferredDeed` cases that guess them, and
+    gives a move its own stamp (owner ruling 2026-10-21). Neither ticket needs the
+    other; whichever lands second rebases onto the other's stamp.
 
 ### 3. `theGrantor`, `permanentActor`, Refusal Hygiene, Positional Hacks, Fuel & Dead Code (Opus §§1.16, 2.9, 2.11–2.13, 5.4, 6.7; Astra §§2, 7)
 

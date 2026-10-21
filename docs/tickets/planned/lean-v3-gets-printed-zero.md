@@ -46,6 +46,10 @@ Battle cry and *Deadly Dancer* also print "another"/"other", which
 [lean-v3-another-contrast-anchor](lean-v3-another-contrast-anchor.md) rewrites. Whichever ticket
 lands second rebases onto the other's encoding.
 
+[lean-v3-trigger-words](lean-v3-trigger-words.md) §3 lands after this ticket (its `needs:`). It
+moves the resulting *Arlinn Kord* and *Berserk* `getsPt`s, and the other "gets … and gains …"
+sites, under one shared-subject `establishFor`.
+
 Update `lean/CONTRACTS.md` ("gets +P/+T", `:306` and `:779`) to say that a printed "+0" is
 written.
 

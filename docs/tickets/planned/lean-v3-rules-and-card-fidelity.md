@@ -57,23 +57,20 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
 - **Route keyword bodies through keyword-action `Definitions` (§3.2):**
   - Replace raw `.search` / `.shuffle` in `transmute` and `transfigure`
     (`Keywords.lean:1439-1460`), raw `.exchange` in `auraSwap`, raw
-    `.expose .reveal` in `ninjutsu`/`splice`/`amplify`, and raw
-    `setStatus .untapped` in `doesntUntap` with the corresponding `Definitions`
-    so their deeds are preserved.
+    `.expose .reveal` in `ninjutsu`/`splice`/`amplify` with the corresponding
+    `Definitions` so their deeds are preserved. The raw `setStatus .untapped` in
+    `doesntUntap` moved to [lean-v3-untap-statics](lean-v3-untap-statics.md).
 
 ### 3. Card Encoding Fidelity Fixes (Opus §§1.3–1.6, 1.10, 1.12–1.14, 3.4, 4.7)
 
 - **Celestial Convergence (`Cards/Counters.lean:205-213`, §1.3):** Nest the
   life-tie → `drawGame` branch inside the `"if there are no omen counters on ~"`
   condition.
-- **Berserk & Ghor-Clan Rampager (`Cards/Turn.lean:512-516`, `Cards/Cost.lean:731-734`, §1.4):**
-  Bind `target isCreature` once and reference `it` across the granted ability and
-  P/T modification instead of repeating `target isCreature` three times. Keep
-  *Berserk*'s `+0` toughness: by owner ruling 2026-10-21, `getsPt` always carries
-  both printed deltas, because the printed `"+0"` in `"+X/+0"` is part of the
-  encoding and spelling must render it back. Rewriting Berserk's split
-  `modification` pair onto `getsPt` belongs to
-  [lean-v3-gets-printed-zero](lean-v3-gets-printed-zero.md).
+- **Berserk & Ghor-Clan Rampager (§1.4):** moved to
+  [lean-v3-trigger-words](lean-v3-trigger-words.md) §3, which writes both as one shared-subject
+  `establishFor` with the target written once, after
+  [lean-v3-gets-printed-zero](lean-v3-gets-printed-zero.md) turns *Berserk*'s `modification`
+  pair into one `getsPt` (owner ruling 2026-10-21: the printed "+0" stays).
 - **Inkshield (`Cards/Damage.lean:451-454`, §1.5):** Prevent `some .combat` damage
   (not `none`), and give the created 2/1 white and black token the `inkling`
   subtype and `flying`.
@@ -94,8 +91,9 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
     invited payer — performs `counter it`, and generalize `payLife` to `Amount`
     so *Killing Wave*, *Heat Wave*, and *Font of Agonies* use `payLife` instead of
     `perform (loseLife ...)`.
-  - Standardize damage-source performer handoffs across `Cards/*.lean` (and record
-    the convention in `lean/CONTRACTS.md`).
+  - Standardizing damage-source performer handoffs moved to
+    [lean-v3-spell-damage-dealer](lean-v3-spell-damage-dealer.md) (owner ruling 2026-10-21:
+    "<this> deals" is a Handoff to the source on spells as on permanents).
 - **Phyrexian Infiltrator (`Cards/Anaphora.lean:64-67`, `[CR#701.12a,701.12b]`, §1.12):**
   Use `exchange (controlOf thisCreature) (controlOf (target isCreature))` instead
   of `simultaneously [gainControl ..., gainControl ...]`.
@@ -104,12 +102,10 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
   (`Cards/Copy.lean:56-61`), and *Arcane Proxy* (`Cards/Faces.lean:601-614`) as
   one-shot optional casting during resolution (`may (cast ...)`) rather than a
   durationless static permission `establish (can you (cast ...))`.
-- **`"Return"` vs `"put"` (§3.4):** Re-express *Unsummon*
-  (`Cards/Anaphora.lean:616`), *Wind Zendikon* (`Cards/Keyword.lean:345`),
-  *Cloudshift* (`Cards/Anaphora.lean:22`), *Flickering Spirit* (`:36`), *Synod
-  Sanctum* and *Cold Storage* (`Cards/Cost.lean:76,85`), and
-  `returnToBattlefieldWithCounters` (`Templates.lean:1160`) through `returnTo*`
-  so they carry `.core .return_`.
+- **`"Return"` vs `"put"` (§3.4):** moved to
+  [lean-v3-move-deeds-and-verbs](lean-v3-move-deeds-and-verbs.md). The owner ruling of
+  2026-10-21 removes `CoreDeed.return_` and `.put`, so the sites no longer "carry
+  `.core .return_`"; they take the Template of their printed verb.
 - **Restore dropped Oracle clauses (§1.14):** Complete the omitted clauses on
   *Qarsi Deceiver* (`Cards/Mana.lean:300`), *Overgrown Zealot* (`:277`),
   *Candles' Glow* (`Cards/Damage.lean:440`), *Giggling Skitterspike*
