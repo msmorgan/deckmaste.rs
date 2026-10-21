@@ -100,5 +100,5 @@ cannot be done that way, STOP and return to the owner.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on ywmorwss): faces read 28,706 → 28,706; total Readings 218,547 → 219,886; Surplus 91,328 → 92,014; lost faces: none.
+Judgment set: 3,012 enforced at `COMPLETED_STRATUM` 6, all hold; 200 pending.

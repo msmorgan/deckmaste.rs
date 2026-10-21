@@ -1296,6 +1296,7 @@ impl<'a> Binder<'a> {
                 adjectival,
                 interleaved,
                 heavy_shift,
+                postposed,
                 obligatory,
                 agree,
                 clusters,
@@ -1333,7 +1334,13 @@ impl<'a> Binder<'a> {
                         .collect();
                     drafts.extend(clustered);
                 }
-                self.valence_order(drafts, interleaved.as_deref(), *heavy_shift)
+                let postposed = postposed.as_deref().map(|p| self.category(p)).transpose()?;
+                let mut ordered =
+                    self.valence_order(drafts.clone(), interleaved.as_deref(), *heavy_shift)?;
+                if let Some(modifier) = postposed {
+                    ordered.extend(self.postposed_modifiers(&drafts, modifier));
+                }
+                Ok(ordered)
             }
             SchemaDecl::Adjunct {
                 host,
@@ -1412,6 +1419,30 @@ impl<'a> Binder<'a> {
             }
             SchemaDecl::Coordination { .. } => self.coordination(schema),
         }
+    }
+
+    /// The phrases of `drafts` with a Modifier of their Object postposed
+    /// after its selected Preposition Phrase Complements
+    /// ([`postposed_modifier`]). The Modifier agrees with the Object in each
+    /// feature they both carry, as a postposed relative clause does.
+    fn postposed_modifiers(&self, drafts: &[Draft], modifier: usize) -> Vec<Draft> {
+        let shared = &self.out.category_features[modifier];
+        drafts
+            .iter()
+            .filter_map(|d| postposed_modifier(d, modifier))
+            .map(|mut draft| {
+                let last = draft.children.len() - 1;
+                for &feature in shared {
+                    if self.carries(&draft.children[1].symbol, feature) {
+                        draft.equations.push((
+                            Path::Child(1, feature),
+                            Target::Path(Path::Child(last, feature)),
+                        ));
+                    }
+                }
+                draft
+            })
+            .collect()
     }
 
     /// Adds a Valence Schema's `agree` equations: each `(phrase, slot)`
@@ -2903,6 +2934,43 @@ impl Conjoin {
         }
         Ok(())
     }
+}
+
+/// An active phrase whose Object is followed only by selected Preposition
+/// Phrase Complements, with a Modifier of that Object postposed after them,
+/// a `modifier` of the `postposed` function Category (*put a number of
+/// counters [on it] [equal to …]*; CGEL, Ch. 12 §4, p. 1066). The Modifier
+/// would otherwise stand inside the Object, before the Complements it
+/// crosses; it is never interleaved.
+fn postposed_modifier(draft: &Draft, postposed: usize) -> Option<Draft> {
+    let crossed = draft.children.get(2..)?;
+    if draft.children[1].name != "object"
+        || crossed.is_empty()
+        || !crossed.iter().all(|c| {
+            matches!(
+                c.symbol,
+                Symbol::Cat {
+                    prepositions: Some(_),
+                    ..
+                }
+            )
+        })
+    {
+        return None;
+    }
+    let mut postposing = draft.clone();
+    postposing.id = Ident::new(&format!("{}/postposed", draft.id));
+    postposing.child(
+        "modifier",
+        Symbol::Cat {
+            category: postposed,
+            host: None,
+            binding: None,
+            prepositions: None,
+        },
+        GapRule::Closed,
+    );
+    Some(postposing)
 }
 
 /// The coordination of an active phrase's complement sequence, its head

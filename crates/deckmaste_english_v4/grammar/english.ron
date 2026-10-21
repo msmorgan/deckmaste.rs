@@ -239,6 +239,10 @@
         "Adverbial": (function: true),
         // The Adjunct function before a selected Complement or shifted Object.
         "Interleaved": (function: true),
+        // The Modifier function of an Object, postposed after the selected
+        // Complements that follow it (CGEL, Ch. 12 §4, p. 1066), with the
+        // Case its Object agrees in.
+        "PostposedModifier": (function: true, features: ["Case"]),
         // The Modifier function after a nominal head: a relative clause or a
         // participial clause.
         "Postmodifier": (function: true, features: ["Number", "NounKind"]),
@@ -1254,6 +1258,17 @@
         // random*), which has no noun of its own to modify in place.
         (name: "PostposedBareRelative", lhs: "VerbPhrase", rhs: [Cat("head", "VerbPhrase"), Cat("object", "ComplementNounPhrase"), Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("modifier", "RelativeClause")],
             equations: [Require("head.Gap", "NP"), Require("adjunct.ComplementKind", "AdjP"), Require("modifier.ClauseMarking", "Unmarked"), Agree("object.Number", "modifier.Number")], heavy: ["modifier"], cost: 2),
+        // A postpositive equative Adjective Phrase with its own Complement,
+        // the amount of the Object, postposed out of it past the verb's
+        // selected Complements (*deals damage to any target equal to …*,
+        // *put a number of counters on it equal to …*; CGEL, Ch. 5 §14.2,
+        // p. 445; Ch. 12 §4, p. 1066). Oracle gives an Object's amount with
+        // *equal to* in place or postposed (`docs/oracle-style-guide.md`
+        // §12, "Damage"). Its Object is in plain case, as a
+        // Nominal is: a personal pronoun takes no such Modifier. It ranks
+        // behind the Adjective Phrase in place.
+        (name: "PostposedAdjective", lhs: "PostposedModifier", rhs: [Cat("head", "AdjectivePhrase")],
+            equations: [Require("head.ComplementKind", "PP"), Carry("head.Grade", "Equative"), Exclude("head.Voice", "Passive"), Require("$.Case", "Plain")], heavy: ["head"], cost: 5),
 
         // Clause Complements of a Preposition (CGEL, Ch. 7 §1, pp. 599–600):
         // a finite Clause (*when this creature enters*), or a reducible
@@ -1307,7 +1322,7 @@
         // fused-head quantity or a symbol after *by* is an extent (*reduced
         // by {2}*, *increased by two*; Ch. 8 §5.2, p. 692); a *by* gerund is
         // a means Adjunct (p. 1428).
-        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")], adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, clusters: Some("Coordinator")),
+        Valence(head: Verb, phrase: "VerbPhrase", passive: Some("By"), internalised: [Require("internalised.ComplementKind", "NP"), Exclude("internalised.NounKind", "Quantity"), Exclude("internalised.NounKind", "Symbol")], adjectival: Some("AdjectivePhrase"), interleaved: Some("Interleaved"), heavy_shift: true, postposed: Some("PostposedModifier"), clusters: Some("Coordinator")),
         Valence(head: Preposition, phrase: "PrepositionPhrase", agree: [("Number", "Number"), ("Number", "QuantityNumber"), ("Determination", "Determination"), ("Case", "Case"), ("NounKind", "NounKind"), ("Countability", "Countability"), ("DeterminativeDistribution", "DeterminativeDistribution")]),
         Valence(head: Noun, phrase: "BareNominal", agree: [("ObliqueNumber", "Number"), ("ObliqueKind", "ComplementKind"), ("ObliqueNounKind", "NounKind")]),
         // A bare noun in a fossilised Preposition Phrase keeps the Complement

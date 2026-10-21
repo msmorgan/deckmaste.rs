@@ -243,6 +243,13 @@ pub enum SchemaDecl {
         interleaved: Option<Ident>,
         #[serde(default)]
         heavy_shift: bool,
+        /// Function Category of a Modifier postposed out of the Object past
+        /// the selected Preposition Phrase Complements after it, at the end
+        /// of the phrase (*put a number of counters [on it] [equal to …]*;
+        /// CGEL, Ch. 12 §4, p. 1066). It bears Modifier in the Object too,
+        /// and agrees with the Object in each feature they both carry.
+        #[serde(default)]
+        postposed: Option<Ident>,
         /// A non-verbal head that declares a Frame realizes one of them in
         /// this phrase: only a head declaring none, or an Intransitive one,
         /// forms its bare phrase.

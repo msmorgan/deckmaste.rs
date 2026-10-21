@@ -555,6 +555,14 @@ separated from it by other material (*Choose a card at random [that was exiled
 with ...]*) (CGEL, Ch. 12 §4, p. 1066).
 _Avoid_: extraposed relative
 
+**Postposed Modifier**:
+A Modifier of an Object placed at the end of its Verb Phrase, separated from
+the Object by other material, while still modifying the Object: a Postposed
+Relative Clause, or a heavy postpositive Adjective Phrase after the verb's
+selected Complements (*put a number of +1/+1 counters on it [equal to the
+result]*) (CGEL, Ch. 5 §14.2, p. 445; Ch. 12 §4, p. 1066).
+_Avoid_: extraposed modifier
+
 **Present Clause** (project term):
 A finite Clause in the present tense that a Preposition selects as its
 Complement where Oracle English never refers to past time: a repeated trigger

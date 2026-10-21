@@ -947,8 +947,17 @@ impl CompiledGrammar {
             .get(&node.production)
             .is_some_and(|&p| self.productions[p].requires_coordination.is_some());
         let mut sites = Vec::new();
+        let mut object = None;
         for (child, name) in node.children.iter().zip(names) {
             let start = out.len();
+            if name == "object" {
+                object = Some(start);
+            }
+            // A Modifier after its phrase's Object is postposed out of it
+            // (*put a number of counters on it [equal to …]*, *choose a card
+            // at random [that …]*; CGEL, Ch. 12 §4, p. 1066): it modifies
+            // the Object too.
+            let postposed = object.filter(|_| name == "modifier");
             if raising && name == "head" {
                 let mut at = start;
                 let gap = child.node().map_or(Gap::None, |c| c.gap);
@@ -966,6 +975,14 @@ impl CompiledGrammar {
                 for constituent in &mut out[start..] {
                     if constituent.parent == parent && constituent.function == function {
                         constituent.also.clone_from(&sites);
+                    }
+                }
+            }
+            if let Some(object) = postposed {
+                // A function Category's head bears it too.
+                for constituent in &mut out[start..] {
+                    if constituent.parent == Some(index) && constituent.function == Some(name) {
+                        constituent.also.push((name, object));
                     }
                 }
             }
@@ -1151,7 +1168,8 @@ pub struct Constituent {
     pub gap: Gap,
     /// The other functions it bears, each with the preorder index of the
     /// phrase it bears it in: a Noun Phrase shared by Right Node Raising
-    /// fills each conjunct's Gap (*draw and discard [cards]*).
+    /// fills each conjunct's Gap (*draw and discard [cards]*), and a
+    /// Modifier postposed out of an Object modifies that Object.
     pub also: Vec<(Ident, usize)>,
 }
 

@@ -71,7 +71,9 @@ It has no proc macros and no generated code: a grammar is data.
    phrases), `modifier` (an unselected dependent of a nominal) or `adjunct` (of
    a predicate). A phrase shared by Right Node Raising also bears, in each
    conjunct, the function of the Frame Slot whose Gap it fills
-   (`Constituent::also`), as does the head of a function Category it is.
+   (`Constituent::also`), as does the head of a function Category it is. A
+   `modifier` after its phrase's `object` is postposed out of it, and also
+   bears `modifier` in that Object.
 
 ## Chart and realization costs
 
@@ -333,7 +335,11 @@ begins before the term and its last word in a child that ends after it.
 Construction boundaries enforce the spacing used by realization.
 
 The Valence Schema can interleave PP Adjuncts before selected complements and
-postpose an Object. Same-head complement priority still applies through these
+postpose an Object. With `postposed`, a phrase whose Object is followed only by
+selected PP complements also ends in a `modifier` of that function Category,
+postposed out of the Object past them and agreeing with it in each feature
+both carry (*put a number of counters on it equal to …*; CGEL, Ch. 12 §4,
+p. 1066); it is never interleaved. Same-head complement priority still applies through these
 projections; a coordination whose conjuncts take the same Complements keeps
 them as its extensions, so a Complement they share is never an Adjunct of the
 coordination. Right Node Raising requires the shared Gap at each coordinate's

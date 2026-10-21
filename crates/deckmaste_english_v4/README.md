@@ -194,7 +194,11 @@ end step*, *after this phase*), so it is never a general Object (*can't block
 this turn* has no Object). A marked relative
 clause may be postposed past a predicate adjunct, its Antecedent the Object that
 fills the verb's Gap (*Choose a card at random that was exiled with ...*),
-ranked behind the relative in place. A single postpositive participle ranks
+ranked behind the relative in place. A postpositive Adjective Phrase with its
+own Complement may be postposed out of the Object past the verb's selected
+Preposition Phrase Complements (*put a number of counters on it equal to the
+result*), still the Object's Modifier, ranked behind the Adjective Phrase in
+place. A single postpositive participle ranks
 behind a participial clause and is never a status adjective's verb (*onto the
 battlefield tapped* has only the depictive *tapped*). A copular verb takes a
 central adverb before its predicative Complement (*become no longer
