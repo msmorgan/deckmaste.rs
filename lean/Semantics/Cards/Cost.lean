@@ -327,7 +327,7 @@ def tranquilGrove : Spelled := spelled <| .singleFaced
     { name := "Tranquil Grove", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
         [ activated (mana [generic 1, pip .green, pip .green])
-            (destroy (allOf (and [isEnchantment, otherThan this_]))) ] } }
+            (destroy (allOf (and [isEnchantment, isOther]))) ] } }
 
 def aggressiveMining : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -488,14 +488,14 @@ def fluctuator : Spelled := spelled <| .singleFaced
 def boomScholarExhaustDiscount : Ability :=
   static (costShift
     (allOf (and [ abilityHead (.keyword exhaust),
-                   abilityOf (allOf (and [isPermanent, otherThan thisCreature, youControl])) ]))
+                   abilityOf (allOf (and [isPermanent, isOther, youControl])) ]))
     (less (.lit 2)))
 theorem okBoomScholarExhaustDiscount : Ability.check (DRS.ofList []) boomScholarExhaustDiscount = [] := by decide
 /-- Hulk, Gamma Goliath -/
 def hulkPowerUpDiscount : Ability :=
   static (costShift
     (allOf (and [ abilityHead (.keyword powerUp),
-                   abilityOf (allOf (and [isCreature, otherThan thisCreature, youControl])) ]))
+                   abilityOf (allOf (and [isCreature, isOther, youControl])) ]))
     (less (.lit 3)))
 theorem okHulkPowerUpDiscount : Ability.check (DRS.ofList []) hulkPowerUpDiscount = [] := by decide
 
@@ -683,7 +683,7 @@ def patricianGeist : Spelled := spelled <| .singleFaced
       subtypes := [spirit, knight],
       text :=
         [ flying,
-          static (getsPt (allOf (and [hasSubtype spirit, youControl, otherThan thisCreature]))
+          static (getsPt (allOf (and [hasSubtype spirit, youControl, isOther]))
             (up (.lit 1)) (up (.lit 1))),
           static (spellsCost (and [isSpell, castBy you, castFrom yourGraveyard]) (less (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
@@ -989,7 +989,7 @@ def ahnCropInvader : Spelled := spelled <| .singleFaced
       text :=
         [ static (partScope .turn (some you) (abilityGrant thisCreature firstStrike)),
           activated (compound [mana [generic 1], perform (sacrifice (a (and [isCreature,
-              otherThan this_])))])
+              isOther])))])
             (get thisCreature (up (.lit 2)) (up (.lit 0)) (some untilEndOfTurn)) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -1015,7 +1015,7 @@ def leoninBola : Spelled := spelled <| .singleFaced
 def deadlyDancerPump : Ability :=
   activated (mana [pip .red, pip .red])
     (establishThroughout
-       (getsPt (eachOf (both thisCreature (target (and [isCreature, otherThan this_]))))
+       (getsPt (eachOf (both thisCreature (target (and [isCreature, isOther]))))
           (up (.lit 1)) (up (.lit 0))) untilEndOfTurn)
 theorem okDeadlyDancerPump : Ability.check (DRS.ofList []) deadlyDancerPump = [] := by decide
 
@@ -1029,7 +1029,7 @@ def uneshCriosphinxSovereign : Spelled := spelled <| .singleFaced
           static (spellsCost (and [hasSubtype sphinx, isSpell, castBy you]) (less (.lit 2))),
           whenever
             (does (eitherOf thisCreature
-              (a (and [hasSubtype sphinx, youControl, otherThan thisCreature]))) enter)
+              (a (and [hasSubtype sphinx, youControl, isOther]))) enter)
             (sequentially
               [ reveal (topSlice (.lit 4)),
                 instruct anOpponent (separateIntoPiles them 2),

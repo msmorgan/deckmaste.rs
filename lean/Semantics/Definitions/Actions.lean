@@ -392,7 +392,7 @@ semantic_definition support (amount : Amount) : Action :=
       (putCounters (.lit 1) p1p1Counter
         (.eachOf
           (.described (.target (.upToOf (.inCaller amount)))
-            (and [isCreature, .otherThan this_])))))
+            (and [isCreature, isOther])))))
 
 /-- "<performer> explores" (`Definition`, [CR#701.44a]). -/
 semantic_definition explore : Action :=

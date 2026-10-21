@@ -174,13 +174,13 @@ def firesongAndSunspeaker : Ability :=
     lifelink)
 theorem okFiresongAndSunspeaker : Ability.check (DRS.ofList []) firesongAndSunspeaker = [] := by decide
 def briaRiptideRogue : Ability :=
-  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) prowess)
+  static (abilityGrant (allOf (and [isCreature, youControl, isOther])) prowess)
 theorem okBriaRiptideRogue : Ability.check (DRS.ofList []) briaRiptideRogue = [] := by decide
 def narsetEnlightenedExile : Ability :=
   static (abilityGrant (allOf (and [isCreature, youControl])) prowess)
 theorem okNarsetEnlightenedExile : Ability.check (DRS.ofList []) narsetEnlightenedExile = [] := by decide
 def pontiffOfBlight : Ability :=
-  static (abilityGrant (allOf (and [isCreature, youControl, otherThan thisCreature])) extort)
+  static (abilityGrant (allOf (and [isCreature, youControl, isOther])) extort)
 theorem okPontiffOfBlight : Ability.check (DRS.ofList []) pontiffOfBlight = [] := by decide
 
 def prismariTheInspiration : Spelled := spelled <| .singleFaced
@@ -245,8 +245,7 @@ def consulsLieutenant : Spelled := spelled <| .singleFaced
         [ firstStrike,
           renown (.lit 1),
           whenever (does thisCreature attack) (if_ := some (is it (hasDesignation renowned)))
-            (get (allOf (and [isCreature, isAttacking, youControl, otherThan
-                thisCreature]))
+            (get (allOf (and [isCreature, isAttacking, youControl, isOther]))
               (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ],
       power := stat 2, toughness := stat 1 } }
 
@@ -693,7 +692,7 @@ def drumbellower : Spelled := spelled <| .singleFaced
 
 def tayamLine : StaticSpec :=
   entersWithAdditionalCounters
-    (each (and [isCreature, youControl, otherThan thisCreature])) (.lit 1)
+    (each (and [isCreature, youControl, isOther])) (.lit 1)
     vigilanceCounter
 theorem okTayamLine : StaticSpec.check (DRS.ofList []) tayamLine = [] := by decide
 
@@ -809,7 +808,7 @@ def dreamThief : Spelled := spelled <| .singleFaced
             (doOnlyIf (draw (.lit 1))
               (did you (cast (a
                 (and [isSpell, hasColor .blue,
-                otherThan this_]))) soFarThisTurn)) ],
+                isOther]))) soFarThisTurn)) ],
       power := stat 2, toughness := stat 1 } }
 
 def brightspearZealot : Spelled := spelled <| .singleFaced
@@ -832,7 +831,7 @@ def deepwayNavigator : Spelled := spelled <| .singleFaced
           when (does thisCreature enter)
             (untap
               (each (and [ hasSubtype merfolk, youControl,
-                            otherThan thisCreature ]))),
+                            isOther ]))),
           static (onlyWhile
             (getsPt (allOf (and [hasSubtype merfolk, youControl]))
               (up (.lit 1)) (up (.lit 0)))
@@ -1091,7 +1090,7 @@ def conquerorsPledge : Spelled := spelled <| .singleFaced
 def soulOfEmancipation : Ability :=
   when (does thisCreature enter)
     (sequentially
-      [ destroy (targets (upTo 3) (and [isPermanent, non isLand, otherThan this_])),
+      [ destroy (targets (upTo 3) (and [isPermanent, non isLand, isOther])),
         doForEach (those permanent)
           (instruct (controllerOf (that permanent)) (createToken { characteristics :=
                 { colors := [.white], types := [.creature], subtypes := [angel],
@@ -1627,7 +1626,7 @@ def pureHalf : Action := destroy (target (and [isPermanent, isMulticolored]))
 theorem okPureHalf : Action.check (DRS.ofList []) pureHalf = [] := by decide
 /-- Korlash -/
 def grandeurDiscardCost : Cost :=
-  perform (discard (a (and [named "Korlash, Heir to Blackblade", otherThan this_, in_ yourHand])))
+  perform (discard (a (and [named "Korlash, Heir to Blackblade", isOther, in_ yourHand])))
 theorem okGrandeurDiscardCost : Cost.check (DRS.ofList []) grandeurDiscardCost = [] := by decide
 /-- Gyruda, Doom of Depths -/
 def gyrudaCompanion : Ability := companion (everyCardIs isCard (manaValueParity .even))
@@ -1691,7 +1690,7 @@ def deadpoolTradingCard : Spelled := spelled <| .singleFaced
                 (may
                   (establish
                     (textChange thisCreature
-                      (exchangeWith (a (and [isCreature, otherThan this_])))))))),
+                      (exchangeWith (a (and [isCreature, isOther])))))))),
           at_ (beginningOfYour .upkeep) (loseLife (.lit 3)),
           activated (compound [mana [generic 3], perform (sacrifice thisCreature)])
             (instruct (each isOtherPlayer) (draw (.lit 1))) ],

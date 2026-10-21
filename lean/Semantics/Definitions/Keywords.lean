@@ -30,7 +30,7 @@ semantic_definition storm : Ability :=
         (sequentially
           [ .copy .fromStack thisSpell
               (eventCount
-                (cast (a (and [isSpell, .otherThan thisSpell])))
+                (cast (a (and [isSpell, isOther])))
                 (a .anyPlayer) earlierThisTurn)
               [],
             may (.chooseNewTargets (.pro (.word .copy) .many)) ]) ]
@@ -279,7 +279,7 @@ semantic_definition backup (amount : Amount) : Ability :=
     [ when (does thisCreature enter)
         (sequentially
           [ putCounters (.inCaller amount) p1p1Counter (target isCreature),
-            doIf (is (that creature) (.otherThan thisCreature))
+            doIf (is (that creature) (and [isCreature, isOther]))
               (establishThroughout
                 (Templates.abilityGrantSelected (that creature) thisCreature
                   (.printedAfter (.named "backup")))
@@ -307,7 +307,7 @@ semantic_definition battleCry : Ability :=
   .keyword (.named "battleCry") []
     [ whenever (does thisCreature (.attack none))
         (establishThroughout
-          (Templates.getsPt (each (and [isCreature, isAttacking, .otherThan thisCreature]))
+          (Templates.getsPt (each (and [isCreature, isAttacking, isOther]))
             (.up (.lit 1)) (.up (.lit 0)))
           untilEndOfTurn) ]
 semantic_definition bestow (cost : Cost) : Ability :=
@@ -361,7 +361,7 @@ semantic_definition champion (quality : Predicate) : Ability :=
     [ when (does thisPermanent enter)
         (mayOrElse
           (pay
-            (.perform (exile (a (and [.inCaller quality, youControl, .otherThan thisPermanent]))))
+            (.perform (exile (a (and [.inCaller quality, youControl, isOther]))))
             .once)
           (sacrifice thisPermanent)),
       when (does thisPermanent leave)
@@ -427,7 +427,7 @@ semantic_definition crew (amount : Amount) : Ability :=
               (allOf
                 (and
                   [ isUntapped,
-                    and [isCreature, youControl, .otherThan thisPermanent] ])))))
+                    and [isCreature, youControl, isOther] ])))))
         (establishThroughout
           (.characteristicChange thisPermanent
             [.typeLine .adds { types := some [.artifact, .creature] }])
@@ -762,7 +762,7 @@ semantic_definition graft (amount : Amount) : Ability :=
   .keyword (.named "graft") [.number (.inCaller amount)]
     [ static (entersWithCounters thisPermanent (.inCaller amount) p1p1Counter),
       whenever
-        (does (a (and [isCreature, .otherThan thisPermanent])) enter)
+        (does (a (and [isCreature, isOther])) enter)
         (if_ := some (is thisPermanent (.hasCounters (some p1p1Counter))))
         (may (moveCounters (.lit 1) thisPermanent (that creature) (some p1p1Counter))) ]
 semantic_definition gravestorm : Ability :=
@@ -1204,7 +1204,7 @@ semantic_definition rebound : Ability :=
 semantic_definition reconfigure (cost : Cost) : Ability :=
   .keyword (.named "reconfigure") [.cost (.inCaller cost)]
     [ activatedOnlyDuring (.inCaller cost)
-        (attachTo thisPermanent (target (and [isCreature, .otherThan thisPermanent, youControl])))
+        (attachTo thisPermanent (target (and [isCreature, isOther, youControl])))
         asSorcery,
       .activated (.inCaller cost)
         (enact (.action "attach") (.attachment .unattached thisPermanent none))
@@ -1256,7 +1256,7 @@ semantic_definition saddle (amount : Amount) : Ability :=
               (allOf
                 (and
                   [ isUntapped,
-                    and [isCreature, youControl, .otherThan thisPermanent] ])))))
+                    and [isCreature, youControl, isOther] ])))))
         (gainDesignation thisPermanent saddled (some untilEndOfTurn))
         asSorcery ]
 semantic_definition scavenge (cost : Cost) : Ability :=
@@ -1305,16 +1305,16 @@ semantic_definition soulbond : Ability :=
           [ is thisCreature (and [youControl, not (.related paired none)]),
             exists_
               (and
-                [ and [isCreature, youControl, .otherThan thisCreature],
+                [ and [isCreature, youControl, isOther],
                   not (.related paired none) ]) ]))
         (may
           (.relate thisCreature paired
             (a
               (and
-                [ and [isCreature, youControl, .otherThan thisCreature],
+                [ and [isCreature, youControl, isOther],
                   not (.related paired none) ])))),
       whenever
-        (does (a (and [isCreature, youControl, .otherThan thisCreature])) enter)
+        (does (a (and [isCreature, youControl, isOther])) enter)
         (if_ := some (and
           [ is thisCreature (and [youControl, not (.related paired none)]),
             is (that creature) (and [youControl, not (.related paired none)]) ]))
@@ -1375,7 +1375,7 @@ semantic_definition startYourEngines : Ability := keyword (.named "startYourEngi
 semantic_definition station : Ability :=
   .keyword (.named "station") []
     [ activatedOnlyDuring
-        (.perform (tap (a (and [isCreature, .otherThan thisPermanent, isUntapped, youControl]))))
+        (.perform (tap (a (and [isCreature, isOther, isUntapped, youControl]))))
         (putCounters (powerOf (the (and [was (tap which), isCreature])))
           chargeCounter thisPermanent)
         asSorcery ]
@@ -1438,7 +1438,7 @@ semantic_definition training : Ability :=
                 counted (atLeast 1)
                   (and
                     [ isCreature,
-                      .otherThan thisCreature,
+                      isOther,
                       hasPower .greater (powerOf thisCreature) ]) ]))
           (.attack none))
         (putCounters (.lit 1) p1p1Counter thisCreature) ]

@@ -415,6 +415,16 @@ structure Referent where
   change, as the group and its part move together. -/
   groupKey : Option ReferentId := none
   partOf : Option ReferentId := none
+  /-- A mention of the Source ("this", "this creature") or of "you": the Contrast Anchor a bare
+  "another"/"other" falls back to ([CR#109.5]), and so never an earlier mention or clause
+  participant it is anchored on. -/
+  defaultAnchor : Bool := false
+  /-- Introduced inside a Condition (an intervening "if", a `doIf` condition, `exists_`): a
+  hypothetical, never a Contrast Anchor. -/
+  fromCondition : Bool := false
+  /-- Whether its description says "you control" (`some true`) or that an opponent, or not you,
+  controls it (`some false`); `none` when it says neither. -/
+  controlledByYou : Option Bool := none
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -454,6 +464,21 @@ structure OwnScopeFrame where
   /-- The caller's pending roles as the body was entered, which leaving the body restores: a
   mention in the body never changes a role the caller can see. -/
   entryPending : List (ReferentId × GramRole) := []
+  /-- The caller's Source type evidence (`DRS.sourceTypes`), which the caller's arguments read
+  and leaving the body restores. -/
+  callerSourceTypes : List CardType := []
+  deriving DecidableEq, Repr
+
+/-- What a bare "another"/"other" contrasts with, as the checker resolved it (`semantics-v3.md`
+§0.1): the nearest earlier mention in scope, a participant of the same clause read forward, or,
+failing both, the Source for an Object or "you" for a Player ([CR#109.5]). -/
+inductive ContrastAnchor where
+  | mention (id : ReferentId)
+  /-- A participant the clause introduces after its agent, by its facts: it takes its id only
+  when the clause steps it, after the agent. -/
+  | participant (facts : Payload)
+  | source
+  | you
   deriving DecidableEq, Repr
 
 /-- Discourse Representation Structure (`semantics-v3.md` §1.2). -/
@@ -482,6 +507,27 @@ structure DRS where
   /-- The Binding Identities whose first mention bound nothing: that mention's refusal is the
   one their later mentions would repeat, so they report none of their own. -/
   unboundIdentities : List BindingId := []
+  /-- The Source's Card Types from its card frame; empty when unknown, as in a Definition. -/
+  sourceTypes : List CardType := []
+  /-- The Card Types the Head Noun of the enclosing conjunction names, read by its bare
+  "another"/"other". -/
+  relativeTypes : List CardType := []
+  /-- The zone the Head Noun of the enclosing conjunction places its referent in. -/
+  relativeZone : Option Zone := none
+  /-- Whether the enclosing conjunction says "you control" it (`some true`) or that an opponent,
+  or not you, controls it (`some false`). -/
+  relativeControl : Option Bool := none
+  /-- A mention of the Source coordinated before the phrase being stepped ("this card and up to
+  one other target creature card"): that phrase's Contrast Anchor. -/
+  coordinatedSelf : Option ReferentId := none
+  /-- Referents the predicate being stepped describes (the subject of `is`), never its Contrast
+  Anchor. -/
+  contrastExcluded : List ReferentId := []
+  /-- The participants a clause introduces after its agent, read forward by the agent's bare
+  "another"/"other" (step 2). -/
+  clauseParticipants : List Referent := []
+  /-- Contrast Anchors resolved so far, latest first. -/
+  contrastAnchors : List ContrastAnchor := []
   deriving DecidableEq, Repr
 
 def DRS.ofList (rs : List Referent) : DRS :=
@@ -815,14 +861,81 @@ def DRS.consumeRest (after before : DRS) (kind : Kind) : DRS :=
 
 def zoneOfGroup (k : Kind) (drs : DRS) : Option Zone := restSource k drs >>= (·.zone)
 def tyOfGroup (k : Kind) (drs : DRS) : List CardType := (restSource k drs).elim [] (·.ty)
-/-- Whether this text has targeted a `k` that "another target" can be other than. A target a
-linked ability published is read only by a Participial Description (`Referent.linked`). -/
-def anyTargeted (k : Kind) (drs : DRS) : Bool :=
-  drs.visibleReferents.any fun b => !b.linked && b.det == .target && Kind.lte k b.kind
-
 def anchorTyOk (t : CardType) : List CardType → Bool
   | [] => true
   | ts => ts.contains t
+
+/-- Known Card Types fit a head's: a head naming no Card Type, or an anchor of unknown type, fits;
+otherwise the anchor's types include one the head names. -/
+def anchorTyFits (headTypes anchorTypes : List CardType) : Bool :=
+  headTypes.isEmpty || headTypes.any (fun type => anchorTyOk type anchorTypes)
+
+/-- Two kinds a phrase can denote one thing under: either is within the other. -/
+def Kind.overlaps (a b : Kind) : Bool := Kind.lte a b || Kind.lte b a
+
+/-- Zones fit unless both are known and differ. -/
+def zonesFit : Option Zone → Option Zone → Bool
+  | some a, some b => a == b
+  | _, _ => true
+
+/-- Controller restrictions fit unless both are known and contradict ("you control" against "an
+opponent controls"). -/
+def controlFits : Option Bool → Option Bool → Bool
+  | some a, some b => a == b
+  | _, _ => true
+
+/-- The Source's zone as its Card Types tell it: an instant or sorcery is a spell on the stack;
+any other Source may function from more than one zone, so its zone is unknown. -/
+def sourceZone (types : List CardType) : Option Zone :=
+  if !types.isEmpty && types.all (fun t => t == .instant || t == .sorcery) then some .stack
+  else none
+
+/-- Whether `b` can be the Contrast Anchor of a bare "another"/"other" of kind `k` whose Head Noun
+names `headTypes` in `headZone`, under the controller restriction `headControl` (steps 1 and 2):
+compatible in kind, Card Type, zone and controller; not the
+Source or "you", which are the fallback (step 3); and not a hypothetical a Condition introduced.
+A referent a linked ability published is read only by a Participial Description
+(`Referent.linked`). -/
+def Referent.anchorsContrast (k : Kind) (headTypes : List CardType) (headZone : Option Zone)
+    (headControl : Option Bool) (b : Referent) : Bool :=
+  !b.linked && !b.defaultAnchor && !b.fromCondition && !b.isActorFrame &&
+    Kind.overlaps k b.kind && anchorTyFits headTypes b.ty && zonesFit headZone b.zone &&
+    controlFits headControl b.controlledByYou
+
+/-- The later of two candidate anchors by DRS recency: the clause of the latest mention, then
+the order of introduction. -/
+def Referent.recentOver (a b : Referent) : Bool :=
+  a.clause > b.clause || (a.clause == b.clause && a.id > b.id)
+
+/-- Resolve the Contrast Anchor of a bare "another"/"other" of kind `k` whose Head Noun names
+`headTypes` in `headZone` (`semantics-v3.md` §0.1). A mention of the Source coordinated with the
+phrase is its anchor ("this card and up to one other target creature card"). Otherwise: (1) the
+nearest earlier compatible mention in scope, never the described thing (`contrastExcluded`);
+(2) failing that, the first compatible particular the same clause introduces after its agent
+(`clauseParticipants`); (3) otherwise the Source, for an Object head in a zone the Source may be
+in and not restricted to a controller other than "you", whatever its Card Types, or "you", for a
+Player head ([CR#109.5]). -/
+def DRS.contrastAnchor? (drs : DRS) (k : Kind) (headTypes : List CardType)
+    (headZone : Option Zone) (headControl : Option Bool) : Option ContrastAnchor :=
+  match drs.coordinatedSelf with
+  | some id => some (.mention id)
+  | none =>
+  let earlier := drs.visibleReferents.filter fun b =>
+    !drs.contrastExcluded.contains b.id && b.anchorsContrast k headTypes headZone headControl
+  let nearest := earlier.foldl (fun best b => match best with
+    | some a => if b.recentOver a then some b else some a
+    | none => some b) none
+  match nearest with
+  | some b => some (.mention b.id)
+  | none =>
+    match drs.clauseParticipants.find? (·.anchorsContrast k headTypes headZone headControl) with
+    | some b => some (.participant b.payload)
+    | none =>
+      if k == .player then some .you
+      else if Kind.overlaps k .object && zonesFit headZone (sourceZone drs.sourceTypes) &&
+          controlFits headControl (some true) then
+        some .source
+      else none
 
 def settleTargets (drs : DRS) : DRS :=
   { drs with referents := drs.referents.map fun b =>
@@ -1220,11 +1333,14 @@ def enterOwnScope (drs : DRS) : DRS :=
     callerSelectionScope := drs.selectionScope
     callerPending := drs.pendingRoles
     entryPending  := drs.pendingRoles
+    callerSourceTypes := drs.sourceTypes
   }
+  -- A Definition is written for any Source, so its Source's Card Types are unknown.
   { (enterSelectionScope drs) with
     scopeStack    := frame :: drs.scopeStack
     pendingRoles  := []
-    currentClause := drs.currentClause + 1 }
+    currentClause := drs.currentClause + 1
+    sourceTypes   := [] }
 
 /-- Temporarily pop the top `OwnScopeFrame` to evaluate an `inCaller` argument in the immediate
 caller's visibility (`semantics-v3.md` §1.4). -/
@@ -1237,7 +1353,8 @@ def enterCaller (drs : DRS) : DRS :=
         currentClause := topFrame.callerClause
         selectionScope := topFrame.callerSelectionScope
         pendingRoles  := topFrame.callerPending
-        resolvedIds   := [] }
+        resolvedIds   := []
+        sourceTypes   := topFrame.callerSourceTypes }
 
 /-- Restore the top `OwnScopeFrame` after evaluating an `inCaller` argument, unmasking any
 referents bound or introduced by that argument (`semantics-v3.md` §1.4). -/
@@ -1267,7 +1384,8 @@ def leaveCaller (before after : DRS) (unmaskIds : List ReferentId := []) : DRS :
         currentClause := before.currentClause
         selectionScope := before.selectionScope
         pendingRoles  := addedPending ++ before.pendingRoles
-        resolvedIds   := before.resolvedIds }
+        resolvedIds   := before.resolvedIds
+        sourceTypes   := before.sourceTypes }
 
 /-- Close an own Reference Scope (`Action.ownScope`, `semantics-v3.md` §1.4): pops `topFrame`,
 drops definition-internal scratch referents (`.part` and `.player _`), and stamps surviving
@@ -1297,7 +1415,8 @@ def leaveOwnScope (drs : DRS) : DRS :=
           evidence.scope != drs.selectionScope)
         selectionScope := topFrame.callerSelectionScope
         pendingRoles  := topFrame.entryPending ++ arguments.map (·, GramRole.obj)
-        currentClause := topFrame.callerClause }
+        currentClause := topFrame.callerClause
+        sourceTypes   := topFrame.callerSourceTypes }
 
 /-! ## Binding Identity (`firstMention` / `laterMention`) -/
 

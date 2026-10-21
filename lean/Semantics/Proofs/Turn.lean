@@ -30,14 +30,16 @@ theorem okSacrificeBattlefield : Action.check (DRS.ofList []) (sacrifice (a isCr
     := by
   decide
 
-/-- The Idris pin refutes the "other" anchor; the targeting law the delayed clause loses is
-listed too. -/
-theorem badDelayedOther :
-    Action.check (DRS.ofList [])
-      (.sequentially
-        [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget))),
-          delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))) ])
-      = [.anyTargeted (.join .object .player), .otherAnchored] := by
+/-- A delayed trigger reads the earlier target as a settled particular [CR#603.7c]: an earlier
+mention in scope, so the delayed "any other target" contrasts with it, not with the Source
+(`semantics-v3.md` §0.1). -/
+theorem okDelayedOtherAnchorsOnTheSettledTarget :
+    let action := Action.sequentially
+      [ (Action.instruct .this (.dealDamage (.lit 2) (target isAnyTarget))),
+        delay atTheEndStep (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))) ]
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList []) action).1
+    Action.check (DRS.ofList []) action = [] ∧ after.contrastAnchors = [.mention 2] ∧
+      (after.findById? 2).map (·.kind) = some (.join .object .player) := by
   decide
 
 theorem badStaleCarrier :

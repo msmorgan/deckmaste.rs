@@ -742,11 +742,14 @@ _Avoid_: Sharing, for the group form
 
 **Contrast Anchor** (project term):
 What a bare "another" or "other" excludes when no "other than" phrase is
-written: the nearest earlier mention of a compatible kind in Reference Scope,
-other than the thing the word describes; failing that, a compatible participant
-of the same clause or event ("another creature would deal combat damage to
-equipped creature"); otherwise the Source for an Object, or "you" for a Player
-([CR#702.151a,707.11,109.5]).
+written. A mention of the Source coordinated with the phrase is its anchor
+("this card and up to one other target creature card"). Otherwise it is the
+nearest earlier mention in Reference Scope compatible in kind, Card Type, zone
+and controller, other than the thing the word describes, a mention of the Source or of
+"you", or a hypothetical a condition introduces; failing that, a compatible
+particular of the same clause or event ("another creature would deal combat
+damage to equipped creature"); otherwise the Source, whatever its Card Types,
+for an Object, or "you" for a Player ([CR#702.151a,707.11,109.5]).
 _Avoid_: target anchor, since a Contrast Anchor need not be a Target;
 complement anchor, for the phrase "other than" writes
 

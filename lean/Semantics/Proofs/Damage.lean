@@ -52,11 +52,12 @@ theorem okAnyOtherTarget :
           (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))) ]) = [] := by
   decide
 
-/-- "This deals 1 damage to any other target." The Idris pin discharged both obligations of
-`anyOtherTarget` with one hypothesis; the list form names both. -/
-theorem badOther :
-    Action.check (DRS.ofList []) (Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget)))
-      = [.anyTargeted (.join .object .player), .otherAnchored] := by
+/-- "This deals 1 damage to any other target." With no earlier target, "other" contrasts with
+the Source (`semantics-v3.md` §0.1, [CR#707.11]). -/
+theorem okOtherAnchorsOnTheSource :
+    let action := Action.instruct .this (.dealDamage (.lit 1) (target isAnyOtherTarget))
+    Action.check (DRS.ofList []) action = [] ∧
+      (stepAction 64 .postEvent .obj (DRS.ofList []) action).1.contrastAnchors = [.source] := by
   decide
 
 /-- "Tap target creature. It gets −1/−1 until end of turn." (U+2212 minus signs: an ASCII

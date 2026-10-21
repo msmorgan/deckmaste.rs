@@ -79,7 +79,9 @@ inductive Refusal where
   | groupSizeInScope (found : Nat)
   | differenceInScope (found : Nat)
   | theRestFits (k : Kind)
-  | anyTargeted (k : Kind)
+  /-- A bare "another"/"other" of kind `k` finds no Contrast Anchor compatible with its head in
+  kind and Card Type (`DRS.contrastAnchor?`). -/
+  | contrastAnchor (k : Kind)
   | eventAgent
   | chooserInScope (found : Nat)
   | tokenSpecInScope (found : Nat)

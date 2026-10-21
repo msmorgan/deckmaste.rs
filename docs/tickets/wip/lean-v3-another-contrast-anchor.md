@@ -50,6 +50,43 @@ A delayed trigger reads earlier targets as settled particulars ([CR#603.7c]). Th
 mentions in scope, so step 1 can anchor an "other" in the delayed trigger on them (ADR §0.1,
 accepted by the owner 2026-10-21).
 
+## Review rulings (owner, 2026-10-21)
+
+These amend the ruling above and ADR §0.1.
+
+- **Q1.** Mentions of the source and of "you" are never step-1 or step-2 candidates. They are
+  the step-3 fallback only.
+  - A referent a Condition introduces (an intervening "if", a `doIf`/`doOnlyIf` condition,
+    `exists_`) is never a candidate. Targets the action branch announces still are
+    ([CR#601.2c]). This settles *Flames of the Raze-Boar* (the target) and soulbond (this
+    creature).
+  - Compatibility includes zone: the head's zone against the candidate's. This settles
+    *Hulkling, Young Avenger*, *Ink-Treader Nephilim*, *Mirrorwing Dragon*, *Invasion of
+    Tarkir*, and a drawn card.
+  - A mention of the source coordinated with the "other" phrase is that phrase's anchor
+    (*Slimefoot and Squee*'s "Return this card and up to one other target creature card").
+- **Q2.** Steps 1 and 2 check card type. The step-3 source fallback checks only kind and zone, so
+  *Ebony Fly*, *Restless Ridgeline*, *Gideon Blackblade*, *Goliath Truck* and the Vehicles
+  check. This overturns "must then refuse a source whose card types do not include creature"
+  below. *Inquisitor's Flail* stays at step 2.
+- **Q3.** Step 2 takes only particulars: targets, definite descriptions, and attachment hosts
+  ("equipped creature"). It never takes a generic indefinite. *Embermaw Hellion*'s "a permanent
+  or player" falls through to the source.
+- **Q4.** Step 2 applies to every clause agent, including handoff, deontic, copy and
+  characteristic-change subjects. *Mirrorweave*'s "Each other creature becomes a copy of target
+  nonlegendary creature" anchors on the target.
+- A head that may be an object or a player ("any other target") falls back to the source, never
+  to "you".
+- A written granted ability is read with a source of unknown type, and the granting text's
+  objects are never its anchor (*Setessan Tactics*, *Hardy Outlander*, *Shameless Charlatan*).
+- Compatibility includes controller, at every step (coordinator clarification of "compatible").
+  A candidate whose controller restriction contradicts the head's ("you control" against "an
+  opponent controls") is never the anchor. *Bartz and Boko*'s "each other Bird you control"
+  therefore anchors on the source, not on "target creature an opponent controls".
+- The exclusion of the `is` subject covers only the predicate's own "another", not a noun
+  phrase nested in it. *Unexpected Allies*' "if it has the same name as another creature you
+  control" anchors on "it".
+
 ## Checker change
 
 - `Predicate.other` (`Check/Phrase.lean:2145-2147`) stops refusing with `anyTargeted` when no
@@ -167,6 +204,6 @@ Add these pins:
 - *Contractual Safeguard* anchors on "a creature you control", which is not a target.
 - *Inquisitor's Flail*'s second ability anchors on the equipped creature (step 2), not on the
   Equipment.
-- A creature-headed "another" with no earlier mention and no clause participant is refused when
-  the source's card types exclude creature, for example a probe Equipment printing "another
-  creature dies".
+- A creature-headed "another" with no earlier mention and no clause participant anchors on the
+  source whatever its card types (Q2), for example a probe Equipment printing "another creature
+  dies".

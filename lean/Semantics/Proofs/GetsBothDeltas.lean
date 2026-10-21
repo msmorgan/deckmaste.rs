@@ -269,6 +269,7 @@ theorem enchantedPenaltyWritesItsHostOnce :
     result.2 = [] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.attachmentHost) = some true := by decide
 
+/-- "Creatures you control other than this creature get +1/+1." -/
 theorem otherCreaturesAnthemKeepsSourceAndPumpedGroupDistinct :
     let result := stepStaticSpec 32 (DRS.ofList [])
       (getsPt (allOf ((and [isCreature, youControl, otherThan thisCreature]))) (.up (.lit 1)) (.up (.lit 1)))

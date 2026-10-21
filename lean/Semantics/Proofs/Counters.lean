@@ -433,7 +433,7 @@ theorem okKeywordCounterByName :
 
 def afterCountersPut : DRS :=
   GameEvent.extend (DRS.ofList [])
-    (.does (.actor .you) (.putCounters .anyAmount .anyKind (a (.and [isCreature, .otherThan .this])) .many false))
+    (.does (.actor .you) (.putCounters .anyAmount .anyKind (a (.and [isCreature, .other])) .many false))
 
 /-- "Put that many counters of each of those kinds on this creature." -/
 theorem okThoseKindsAfterCountersPut :
@@ -533,29 +533,37 @@ theorem badCounterEventAgentAndEffect :
       = [.causedByOk] := by
   decide
 
+private def exileCost : Cost :=
+  .compound [.tapSymbol, .perform (exile (a (.and [.not isLand, .in_ (handOf .you)])))]
+
+private def countersOnTheExiledCard : Action :=
+  .sequentially
+    [ (.putCounters (.lit 4) (.printed (.named "timeCounter"))
+        (the (and [was (exile which), isCard])) .one true),
+      (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and
+          [ .other, .hasPossessor .owner .you, .in_ exileZone ])) .one true) ]
+
 /-- "{T}: Exile a card from your hand and put four time counters on it. Then remove a time
-counter from each other card you own in exile." "other" is anchored on the card this same
-ability exiled and granted to. -/
-theorem okOtherThanExiledByThisAbility :
-    Ability.check (DRS.ofList [])
-      (activated
-        (.compound [.tapSymbol, .perform (exile (a (.and [.not isLand, .in_ (handOf .you)])))])
-        (.sequentially
-          [ (.putCounters (.lit 4) (.printed (.named "timeCounter"))
-              (the (and [was (exile which), isCard])) .one true),
-            (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and
-                [ .otherThan (the (and [was (exile which), isCard])),
-                  .hasPossessor .owner .you, .in_ exileZone ])) .one true) ])) = [] := by
+counter from each other card you own in exile." The bare "other" is anchored on the card this
+same ability exiled and granted to, its nearest earlier mention (`semantics-v3.md` §0.1). -/
+theorem okOtherAnchorsOnTheCardThisAbilityExiled :
+    let afterCost := (stepCost 64 (DRS.ofList []) exileCost).1
+    let after := (stepAction 64 .postEvent .obj (nextClause (publicOnly afterCost))
+      countersOnTheExiledCard).1
+    Ability.check (DRS.ofList []) (activated exileCost countersOnTheExiledCard) = [] ∧
+      after.contrastAnchors.length = 1 ∧
+      (after.contrastAnchors.head?.bind fun
+        | .mention id => after.findById? id
+        | _ => none).map (·.zone) = some (some .exile) := by
   decide
 
-/-- The same last sentence with a bare "other": with nothing announced, there is no anchor for
-the complement to be other THAN. The Idris pin refutes the anchor; the list also names the
-targeting law the same bare "other" fails. -/
-theorem badBareOtherWithoutAnchor :
-    Ability.check (DRS.ofList [])
-      (activated .tapSymbol
-        (.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter"))) (each (.and [.other, .hasPossessor .owner .you, .in_ exileZone])) .one true))
-      = [.anyTargeted .object, .otherAnchored] := by
+/-- The same last sentence with a bare "other": with nothing mentioned earlier, it contrasts with
+the Source (`semantics-v3.md` §0.1). -/
+theorem okBareOtherAnchorsOnTheSource :
+    let effect := Action.removeCounters (some (exactly 1)) (some (.printed (.named "timeCounter")))
+      (each (.and [.other, .hasPossessor .owner .you, .in_ exileZone])) .one true
+    Ability.check (DRS.ofList []) (activated .tapSymbol effect) = [] ∧
+      (stepAction 64 .postEvent .obj (DRS.ofList []) effect).1.contrastAnchors = [.source] := by
   decide
 
 /-! ## The +1/+1 and −1/−1 annihilation rule and "the smaller of" -/

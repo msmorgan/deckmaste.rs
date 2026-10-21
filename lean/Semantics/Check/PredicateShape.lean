@@ -102,13 +102,36 @@ def Predicate.hasBareOther (predicate : Predicate) (fuel : Nat := 32) : Bool :=
   | _, _ => false
 termination_by structural fuel
 
+/-- Whether a noun phrase's own description prints a bare "another"/"other". -/
+def NounPhrase.hasBareOther (np : NounPhrase) (fuel : Nat := 8) : Bool :=
+  match fuel, np with
+  | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .headed _ body =>
+    body.hasBareOther n
+  | _ + 1, .described _ predicate => predicate.hasBareOther
+  | _, _ => false
+termination_by structural fuel
+
+/-- Whether a noun phrase names an opponent of yours ("an opponent", "your opponents"). -/
+def NounPhrase.namesOpponent : NounPhrase → Bool
+  | .described _ (.isOpponentOf .you) => true
+  | _ => false
+
+/-- The controller restriction a description states: `some true` for "you control", `some false`
+for "an opponent controls", "your opponents control" or "you don't control". -/
+def Predicate.controlFact (predicate : Predicate) (fuel : Nat := 32) : Option Bool :=
+  match fuel, predicate with
+  | n + 1, .inCaller body | n + 1, .bracketed body => body.controlFact n
+  | _ + 1, .hasPossessor .controller .you => some true
+  | _ + 1, .hasPossessor .controller who => if who.namesOpponent then some false else none
+  | _ + 1, .not (.hasPossessor .controller .you) => some false
+  | n + 1, .and predicates => predicates.findSome? (·.controlFact n)
+  | _, _ => none
+termination_by structural fuel
+
 def Predicate.isOther (predicate : Predicate) : Bool :=
   match predicate.scopeBody with | .other | .otherThan _ => true | _ => false
 
 def coordinableAll (predicates : List Predicate) : Bool :=
   predicates.all (fun predicate => !predicate.hasOther)
-
-def anchorTyFits (headTypes anchorTypes : List CardType) : Bool :=
-  headTypes.isEmpty || headTypes.any (fun type => anchorTyOk type anchorTypes)
 
 end Semantics

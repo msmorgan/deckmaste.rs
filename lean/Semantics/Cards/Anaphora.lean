@@ -532,7 +532,7 @@ def bileBlight : Spelled := spelled <| .singleFaced
         [ spell (get
             (both (target isCreature)
               (allOf (and [ isCreature, (shares .cardName .share (that creature)),
-                             otherThan (that creature) ])))
+                             isOther ])))
             (down (.lit 3)) (down (.lit 3)) (some untilEndOfTurn)) ] } }
 
 /-- Echoing Ruin -/
@@ -543,7 +543,7 @@ def echoingRuin : Spelled := spelled <| .singleFaced
         [ spell (destroy
             (both (target isArtifact)
               (allOf (and [ isArtifact, (shares .cardName .share (that artifact)),
-                             otherThan (that artifact) ])))) ] } }
+                             isOther ])))) ] } }
 
 /-- Hijack -/
 def hijack : Spelled := spelled <| .singleFaced

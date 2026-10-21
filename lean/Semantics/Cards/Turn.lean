@@ -322,7 +322,7 @@ def fettergeist : Spelled := spelled <| .singleFaced
             (doUnless (sacrifice thisCreature)
               (scaledGenericMana
                 (forEach (.lit 1)
-                  (and [isCreature, youControl, otherThan thisCreature])))) ],
+                  (and [isCreature, youControl, isOther])))) ],
       power := stat 3, toughness := stat 4 } }
 
 def chainVeilEndStep : Ability :=

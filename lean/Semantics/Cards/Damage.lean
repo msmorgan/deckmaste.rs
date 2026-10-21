@@ -94,10 +94,10 @@ theorem okAbrade : Action.check (DRS.ofList []) abrade = [] := by decide
 def nibelheimAflame : Action :=
   sequentially
     [ choose (target (and [isCreature, youControl])),
-      dealDamageOwnPower it (each (and [isCreature, otherThan it])) ]
+      dealDamageOwnPower it (each (and [isCreature, isOther])) ]
 theorem okNibelheimAflame : Action.check (DRS.ofList []) nibelheimAflame = [] := by decide
 def brashTaunter : Action := instruct thisCreature
-    (fight (target (and [isCreature, otherThan thisCreature])))
+    (fight (target (and [isCreature, isOther])))
 theorem okBrashTaunter : Action.check (DRS.ofList []) brashTaunter = [] := by decide
 def ulvenwaldTracker : Action :=
   instruct (target (and [isCreature, youControl])) (fight (target (and [isCreature, isOther])))
@@ -744,7 +744,7 @@ def screamingNemesis : Spelled := spelled <| .singleFaced
         [ haste,
           whenever (does any (dealDamage (to := thisCreature)))
             (sequentially
-              [ instruct it (dealDamage thatMuch (target (and [isAnyTarget, otherThan this_]))),
+              [ instruct it (dealDamage thatMuch (target isAnyOtherTarget)),
                 doIf (dealtThisWay isPlayer)
                   (establishThroughout (cant they (gainLife anyAmount)) restOfGame) ]) ],
       power := stat 3, toughness := stat 3 } }
@@ -1184,7 +1184,7 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, knight],
       text :=
-        [ whenever (does (a (and [isCreature, otherThan this_])) die)
+        [ whenever (does (a (and [isCreature, isOther])) die)
             (or_ :=
               [ does any
                   (putInto (a (and [isCard, isCreature])) graveyard
@@ -1232,7 +1232,7 @@ def inquisitorsFlail : Spelled := spelled <| .singleFaced
       text :=
         [ static (damageRule (dealtBy (equipped creature)) everywhere
             (scale (multiplied .doubled)) .repeatedly (some .combat)),
-          static (damageRule (dealtBy (a (and [isCreature, otherThan (equipped creature)])))
+          static (damageRule (dealtBy (a (and [isCreature, isOther])))
             (toRecipient (equipped creature)) (scale (multiplied .doubled))
             .repeatedly (some .combat)),
           equip (mana [generic 2]) ] } }

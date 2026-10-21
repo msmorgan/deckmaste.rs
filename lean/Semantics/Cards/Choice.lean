@@ -374,7 +374,7 @@ def adaptiveAutomaton : Spelled := spelled <| .singleFaced
           static (qualityDefinition thisCreature .adds (chosenQuality (ofChosen (.subtype
               .creature)))),
           static (getsPt
-            (allOf (and [ isCreature, youControl, otherThan thisCreature,
+            (allOf (and [ isCreature, youControl, isOther,
                            ofChosen (.subtype .creature) ]))
             (up (.lit 1)) (up (.lit 1))) ],
       power := stat 2, toughness := stat 2 } }
@@ -943,7 +943,7 @@ def cultivatorColossus : Spelled := spelled <| .singleFaced
 
 def zimoneAndDina : Ability :=
   activated
-      (compound [tapSymbol, perform (sacrifice (a (and [isCreature, otherThan thisCreature])))])
+      (compound [tapSymbol, perform (sacrifice (a (and [isCreature, isOther])))])
     (sequentially
       [ draw (.lit 1),
         may (putOntoBattlefieldTapped (a (and [isLand, in_ yourHand]))),

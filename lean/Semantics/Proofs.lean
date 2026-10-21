@@ -11,6 +11,7 @@ import Semantics.Proofs.CharacteristicEdits
 import Semantics.Proofs.Choice
 import Semantics.Proofs.ComparisonBox
 import Semantics.Proofs.Composition
+import Semantics.Proofs.ContrastAnchor
 import Semantics.Proofs.ControllerSacrifice
 import Semantics.Proofs.CorpusRecency
 import Semantics.Proofs.Counters

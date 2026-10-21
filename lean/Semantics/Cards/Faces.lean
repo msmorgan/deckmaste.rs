@@ -52,7 +52,7 @@ def invasionOfDominaria : Spelled := spelled <| .transforming
 
 /-- Missy -/
 def missyFaceDownReturn : Ability :=
-  whenever (does (a (and [isCreature, non isArtifact, otherThan thisCreature])) die)
+  whenever (does (a (and [isCreature, non isArtifact, isOther])) die)
     (sequentially
       [ returnToBattlefield it [(faceDownAs
               { characteristics := some
@@ -68,7 +68,7 @@ def yedoraGraveGardener : Spelled := spelled <| .singleFaced
       subtypes := [treefolk, druid],
       text :=
         [ whenever
-            (does (a (and [isNontoken, and [isCreature, youControl], otherThan thisCreature])) die)
+            (does (a (and [isNontoken, and [isCreature, youControl], isOther])) die)
             (may
               (sequentially
                 [ returnToBattlefield it [(faceDownAs
@@ -277,7 +277,7 @@ def kitsuneMystic : Spelled := spelled <| .flip
         [ activated (mana [generic 1])
             (attachTo
               (target (and [hasSubtype aura, attachedTo (a isCreature)]))
-              (a (and [isCreature, otherThan (that creature)]))) ],
+              (a (and [isCreature, isOther]))) ],
       power := stat 4, toughness := stat 5 } }
 
 /-- Vesuvan Shapeshifter -/
@@ -382,7 +382,7 @@ def chitteringHost : CardFace :=
       text :=
         [ haste, menace,
           when (does thisCreature enter)
-            (establishFor (allOf (and [isCreature, youControl, otherThan thisCreature]))
+            (establishFor (allOf (and [isCreature, youControl, isOther]))
               [getsPt them (up (.lit 1)) (up (.lit 0)), abilityGrant them menace]
               (some untilEndOfTurn)) ],
       power := stat 5, toughness := stat 6 } }

@@ -794,12 +794,12 @@ def luxiorTypeSetting : Ability :=
 theorem okLuxiorTypeSetting : Ability.check (DRS.ofList []) luxiorTypeSetting = [] := by decide
 /-- Kasmina, Enigma Sage -/
 def kasminaLoyaltySharing : StaticSpec :=
-  abilityGrantFrom (allOf (and [isPlaneswalker, youControl, otherThan this_])) this_ [.loyalty]
+  abilityGrantFrom (allOf (and [isPlaneswalker, youControl, isOther])) this_ [.loyalty]
 theorem okKasminaLoyaltySharing : StaticSpec.check (DRS.ofList []) kasminaLoyaltySharing = [] := by decide
 /-- Nicol Bolas, Dragon-God -/
 def nicolBolasDragonGodSharing : StaticSpec :=
   abilityGrantFrom this_ (allOf
-                             (and [isPlaneswalker, otherThan this_, in_ battlefield])) [.loyalty]
+                             (and [isPlaneswalker, isOther, in_ battlefield])) [.loyalty]
 theorem okNicolBolasDragonGodSharing : StaticSpec.check (DRS.ofList []) nicolBolasDragonGodSharing = [] := by
   decide
 /-- Myr Welder -/

@@ -72,7 +72,7 @@ theorem badSubstitutePaysWithoutAntecedent :
 total power 3 or greater". -/
 theorem okCrewCost :
     Cost.check (DRS.ofList []) (.perform (tap (withTotal (.stat .power) .atLeast (.lit 3)
-      (allOf (.and [isUntapped, isCreature, .hasPossessor .controller .you, .otherThan .this]))))) =
+      (allOf (.and [isUntapped, isCreature, .hasPossessor .controller .you, .other]))))) =
       [] := by decide
 
 /-- "Manifest the top card of your library" [CR#701.40a]. -/

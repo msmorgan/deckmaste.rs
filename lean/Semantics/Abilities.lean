@@ -260,12 +260,13 @@ mutual
     /-- Rules text printed in square brackets, kept in place so a Text Change can find it
     [CR#702.148a]: transparent, it means what `predicate` means. -/
     | bracketed (predicate : Predicate)
-    /-- "Another", "other" with no anchor written: other than the targets the text has already
-    chosen of the member's kind ("another target creature"). -/
+    /-- A bare printed "another" or "other" ("another target creature you control", "each other
+    player"): other than its Contrast Anchor, which the checker resolves (`semantics-v3.md`
+    §0.1). It need not contrast with a target. -/
     | other
     | notChosen
-    /-- "Other than <anchor>": not `anchor` itself, nor one of it ("another creature you control"
-    is other than this one, "other than that creature"). -/
+    /-- A printed "other than <anchor>": not `anchor` itself, nor one of it ("all permanents other
+    than this creature", "each opponent other than defending player"). -/
     | otherThan (anchor : NounPhrase)
     | coinCameUp (face : CoinFace)
     | isSource

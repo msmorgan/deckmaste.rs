@@ -642,6 +642,13 @@ def Subject.patientRole : Subject → GramRole
 
 /-! ## Core DRT Stepping and Checking -/
 
+/-- Mark the referents a Condition introduced (`Referent.fromCondition`): a hypothetical, never
+a Contrast Anchor. Targets a `doIf` announced for its then-branch precede the condition and stay
+unmarked [CR#601.2c]. -/
+def markFromCondition (before : DRS) (result : DRS × List Refusal) : DRS × List Refusal :=
+  ({ result.1 with referents := result.1.referents.map fun r =>
+      if r.id ≥ before.nextId then { r with fromCondition := true } else r }, result.2)
+
 structure StepOps where
   pred : DRS → Predicate → DRS × List Refusal
   np   : DRS → GramRole → Bool → NounPhrase → DRS × List ReferentId × List Refusal
@@ -653,11 +660,10 @@ structure StepOps where
   cost : DRS → Cost → DRS × List Refusal
   ab   : DRS → Ability → List Refusal
 
-def otherAnchorOkWith (ops : StepOps) (drs : DRS) (kind : Kind)
+def otherAnchorOkWith (ops : StepOps) (drs : DRS)
     (predicates : List Predicate) : Bool :=
   let flattened := Predicate.flatten predicates
   if (flattened.filter Predicate.isOther).length > 1 then false
-  else if predicates.any Predicate.hasBareOther then anyTargeted kind drs
   else
     let headTypes := predicates.flatMap (fun predicate => predicate.headTyAlts.flatten)
     flattened.all fun predicate => match predicate with
@@ -799,6 +805,46 @@ def stepSubjectBeforeWith (ops : StepOps) (drs : DRS) (s : Subject) : DRS × Lis
     let drs2 := drs1.push { det := .the, plur := np.plur, payload := .actor shape } .other false
     (drs2, e1)
   | .any | .by _ => (drs, [])
+
+/-- The particulars a clause's rest introduces, in textual order: stepped ahead of the clause's
+agent for its bare "another"/"other" (Contrast Anchor step 2, `semantics-v3.md` §0.1). A
+particular is a target, a definite description, or an attachment host ("equipped creature");
+a generic indefinite ("a permanent or player", "each creature") is none. An anaphor resolves to
+an earlier referent and introduces none, so the described thing's anaphors ("enters with … on
+it") are never among them. -/
+def forwardParticipants (before after : DRS) : List Referent :=
+  (after.referents.filter fun r =>
+    r.id ≥ before.nextId && !r.isActorFrame &&
+      (r.det == .target || r.det == .the || r.attachmentHost)).reverse
+
+/-- Step a clause's agent with the participants the clause's rest (`rest`) introduces in view,
+when the agent prints a bare "another"/"other". -/
+def stepAgentAhead {α : Type} (drs : DRS) (agent : Option NounPhrase) (rest : DRS → DRS)
+    (stepAgent : DRS → DRS × α) : DRS × α :=
+  match agent with
+  | some np =>
+    if np.hasBareOther then
+      let ahead := forwardParticipants drs (rest drs)
+      let (out, result) := stepAgent { drs with clauseParticipants := ahead }
+      ({ out with clauseParticipants := drs.clauseParticipants }, result)
+    else stepAgent drs
+  | none => stepAgent drs
+
+/-- Step the agent `np` of a clause whose rest `rest` steps, for `stepAgentAhead`. -/
+def stepAgentNounWith (ops : StepOps) (drs : DRS) (role : GramRole) (inArgSlot : Bool)
+    (np : NounPhrase) (rest : DRS → DRS) : DRS × List ReferentId × List Refusal :=
+  stepAgentAhead drs (some np) rest (fun d => ops.np d role inArgSlot np)
+
+def Subject.agent? : Subject → Option NounPhrase
+  | .actor np => some np
+  | .any | .by _ => none
+
+/-- `stepSubjectBeforeWith` for an event or `would` clause whose action is `action`. -/
+def stepEventSubjectWith (ops : StepOps) (drs : DRS) (subj : Subject) (phase : StepPhase)
+    (action : Action) : DRS × List Refusal :=
+  stepAgentAhead drs subj.agent?
+    (fun d => (ops.inst phase subj.patientRole { d with actionPattern := true } action).1)
+    (stepSubjectBeforeWith ops · subj)
 
 def stepSubjectAfterWith (ops : StepOps) (drs : DRS) (s : Subject)
     (expectedKind : Option Kind := none) (targeter : Bool := false) : DRS × List Refusal :=
@@ -1015,7 +1061,7 @@ def stepDidClauseWith (ops : StepOps) (drs : DRS) (c : DidClause) : DRS × List 
       | .enact verb _ _ (some zone) =>
         refuse (zone.sort.any (fun z => (actLociOf verb).elem z)) .lookbackLocus
       | _ => []
-    let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+    let (drs1, e1) := stepEventSubjectWith ops drs subj .postEvent action
     let actorErrors := match action.scopeBody with
       | .draw _ => []
       | _ => match clauseActorKind action, actorShape? drs1 with
@@ -1074,7 +1120,7 @@ def stepWouldClauseWith (ops : StepOps) (drs : DRS) (wc : WouldClause) (fuel : N
   | 0, _ => (drs, [.recursionLimit])
   | _ + 1, .would subj action =>
     let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
-    let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+    let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
     let actorErrors := match action.scopeBody with
       | .draw _ => []
       | _ => match clauseActorKind action, actorShape? drs1 with
@@ -1134,10 +1180,16 @@ def stepCounterKindSourceWith (ops : StepOps) (drs : DRS) (source : CounterKindS
 def stepAbilityListWith (ops : StepOps) (drs : DRS) (abs : List Ability) : DRS × List Refusal :=
   (drs, abs.foldl (fun es a => es ++ ops.ab drs a) [])
 
+/-- The mention of the Source among a coordination's earlier conjuncts (`ids`), the Contrast
+Anchor of a later conjunct's bare "other" ("this card and up to one other target creature
+card"); else whatever the enclosing phrase set. -/
+def coordinatedSelfIn (drs : DRS) (ids : List ReferentId) : Option ReferentId :=
+  (ids.find? fun id => (drs.findById? id).any (·.defaultAnchor)).orElse fun _ => drs.coordinatedSelf
+
 def stepNounAlternativesWith (ops : StepOps) (drs : DRS) (role : GramRole)
     (inArgSlot : Bool) (alternatives : List NounPhrase) : DRS × List ReferentId × List Refusal :=
   alternatives.foldl (fun (out, ids, errs) phrase =>
-    let branch := { drs with nextId := out.nextId }
+    let branch := { drs with nextId := out.nextId, coordinatedSelf := coordinatedSelfIn out ids }
     let (result, branchIds, branchErrors) := ops.np branch role inArgSlot phrase
     let additions := result.referents.filter (fun r => r.id ≥ out.nextId)
     let earlier := out.referents.filter (fun r => r.id ≥ drs.nextId)
@@ -1152,7 +1204,8 @@ def stepNounAlternativesWith (ops : StepOps) (drs : DRS) (role : GramRole)
       referents := additions ++ earlier ++ inherited
       pendingRoles := (out.pendingRoles ++ result.pendingRoles).eraseDups
       resolvedIds := (out.resolvedIds ++ result.resolvedIds).eraseDups
-      relativeUses := out.relativeUses + (result.relativeUses - drs.relativeUses) }
+      relativeUses := out.relativeUses + (result.relativeUses - drs.relativeUses)
+      coordinatedSelf := drs.coordinatedSelf }
     (merged, ids ++ branchIds, errs ++ branchErrors))
     (drs, [], refuse (alternatives.length ≥ 2) .atLeastTwo)
 
@@ -1321,12 +1374,21 @@ def checkKeywordParamsWith (ops : StepOps) (drs : DRS) (schema : KeywordSchema)
     | .deckCondition condition => checkDeckConditionWith ops condition
     | .ability a => ops.ab drs a
 
+/-- The context a written granted ability is read in: its Source is whatever it is granted to,
+of unknown Card Types, and the granting text's objects are never its "other"'s Contrast Anchor,
+as in `choiceContext`. -/
+def grantedContext (drs : DRS) : DRS :=
+  { drs with
+    sourceTypes := []
+    contrastExcluded := drs.contrastExcluded ++
+      (drs.visibleReferents.filter (·.kind == .object)).map (·.id) }
+
 def stepAbilitySelectionWith (ops : StepOps) (drs : DRS) (sel : AbilitySelection) : DRS × List Refusal :=
   match sel with
   | .specified als =>
     (drs, refuse (!als.isEmpty) .nonEmpty ++ als.foldl (fun es al =>
       match al with
-      | .written ab => es ++ ops.ab drs ab
+      | .written ab => es ++ ops.ab (grantedContext drs) ab
       | .term term => es ++ refuse term.known .knownKeywordTerm) [])
   | .allExcept (some p) => ops.pred drs p
   | .family family => (drs, refuse family.known .knownKeywordTerm)
@@ -1590,6 +1652,14 @@ def stepDamageScopeWith (ops : StepOps) (drs : DRS) (ds : DamageScope) : DRS × 
   | .toRecipient rec =>
     let (drs', _, e) := ops.np drs .obj true rec
     (drs', e)
+
+/-- Step a damage rule's agent with its recipient in view, read forward by the agent's bare
+"another"/"other" ("another creature would deal combat damage to equipped creature"). -/
+def stepDamageAgentAheadWith (ops : StepOps) (drs : DRS) (da : DamageAgent) (ds : DamageScope) :
+    DRS × List Refusal :=
+  let agent := match da with | .dealtBy src => some src | .unattributed => none
+  stepAgentAhead drs agent (fun d => (stepDamageScopeWith ops d ds).1)
+    (stepDamageAgentWith ops · da)
 
 def stepPreventCutWith (ops : StepOps) (drs : DRS) (pc : PreventCut) : DRS × List Refusal :=
   match pc with
@@ -2198,7 +2268,9 @@ def stepOps : Nat → StepOps
           (drs', errs)
         | .other =>
           let kind := drs.relativeKind.getD .object
-          (drs, refuse (anyTargeted kind drs) (.anyTargeted kind))
+          match drs.contrastAnchor? kind drs.relativeTypes drs.relativeZone drs.relativeControl with
+          | some anchor => ({ drs with contrastAnchors := anchor :: drs.contrastAnchors }, [])
+          | none => (drs, [.contrastAnchor kind])
         | .notChosen =>
           let kind := drs.relativeKind.getD .object
           (drs, refuse (countParts kind drs != 0 || drs.choiceWasPossible kind) (.choiceInScope kind))
@@ -2218,14 +2290,20 @@ def stepOps : Nat → StepOps
         | .and ps =>
           let headKind := p.kind? <|> drs.relativeKind
           let seed := relativeSeed (headKind.getD .object) p
+          let headTypes := ps.flatMap (fun predicate => predicate.headTyAlts.flatten)
+          let headZone := (predicatePayload (headKind.getD .object) p).zone
           let (out, errs) := ps.foldl (fun (d, es) q =>
-            let d := { d with relativeKind := headKind }
+            let d := { d with
+              relativeKind := headKind, relativeTypes := headTypes, relativeZone := headZone
+              relativeControl := p.controlFact }
             let (d', e') := match q with
               | .did clause => stepRelativeDidWith ops d seed clause
               | q => ops.pred d q
             (d', es ++ e')) (drs, [])
-          ({ out with relativeKind := drs.relativeKind },
-            errs ++ refuse (otherAnchorOkWith ops drs (headKind.getD .object) ps) .otherAnchored)
+          ({ out with
+              relativeKind := drs.relativeKind, relativeTypes := drs.relativeTypes
+              relativeZone := drs.relativeZone, relativeControl := drs.relativeControl },
+            errs ++ refuse (otherAnchorOkWith ops drs ps) .otherAnchored)
         | .or ps | .coord .andOr ps =>
           let headKind := p.kind? <|> drs.relativeKind
           let (nextId, errors) := ps.foldl (fun (nextId, errors) alternative =>
@@ -2300,8 +2378,14 @@ def stepOps : Nat → StepOps
             | .error n => (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription anchor n])
           | _, _ =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
-            let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred
-            let ref := bindFor detP.det detP.plur (pred.kindOr .object) pred
+            let (drs2, e2) := ops.pred { drs1 with
+              relativeKind := pred.kind?, relativeTypes := [], relativeZone := none
+              relativeControl := none, contrastExcluded := [] } pred
+            let drs2 := { drs2 with
+              relativeTypes := drs.relativeTypes, relativeZone := drs.relativeZone
+              relativeControl := drs.relativeControl, contrastExcluded := drs.contrastExcluded }
+            let ref := { bindFor detP.det detP.plur (pred.kindOr .object) pred with
+              controlledByYou := pred.controlFact }
             let rid := drs2.nextId
             let drs3 := drs2.push ref role inArgSlot
             let targetErrors := if detP.det == .target then
@@ -2310,8 +2394,10 @@ def stepOps : Nat → StepOps
               refuse (detP.det != .the || pred.uniquifies) .uniquifying)
         | .and ns | .coord .andOr ns =>
           let (out, ids, errs) := ns.foldl (fun (d, ids, es) n =>
-            let (d', ids', e') := ops.np d role inArgSlot n
+            let (d', ids', e') := ops.np { d with coordinatedSelf := coordinatedSelfIn d ids } role
+              inArgSlot n
             (d', ids ++ ids', es ++ e')) (drs, [], refuse (ns.length ≥ 2) .atLeastTwo)
+          let out := { out with coordinatedSelf := drs.coordinatedSelf }
           let (grouped, groupIds) := pushCoordinatedGroup out drs.nextId ids role inArgSlot
           (grouped, ids ++ groupIds, errs)
         | .or ns => stepNounAlternativesWith ops drs role inArgSlot ns
@@ -2497,7 +2583,8 @@ def stepOps : Nat → StepOps
           let drs2 := drs1.push ref role inArgSlot
           (drs2, [rid], e1)
         | .you =>
-          let ref : Referent := { det := .the, plur := np.plur, payload := .player false }
+          let ref : Referent := {
+            det := .the, plur := np.plur, payload := .player false, defaultAnchor := true }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], [])
@@ -2513,12 +2600,15 @@ def stepOps : Nat → StepOps
               let drs' := if inArgSlot then shape.refIds.foldl (fun d rid => d.recordMention rid role true) drs else drs
               (drs', shape.refIds, [])
           | none =>
-            let ref : Referent := { det := .the, plur := .one, payload := .player false }
+            let ref : Referent := {
+              det := .the, plur := .one, payload := .player false, defaultAnchor := true }
             let rid := drs.nextId
             let drs' := drs.push ref role inArgSlot
             (drs', [rid], [])
         | .this =>
-          let ref : Referent := { det := .the, plur := .one, payload := .object [] none none none none }
+          let ref : Referent := {
+            det := .the, plur := .one, defaultAnchor := true,
+            payload := .object drs.sourceTypes none none none none }
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], [])
@@ -2626,6 +2716,7 @@ def stepOps : Nat → StepOps
             (d', es ++ e')) (drs, []),
 
       cond := fun drs c =>
+        markFromCondition drs <|
         match c with
         | .inCaller body =>
           let (callerDrs, errs) := ops.cond (enterCaller drs) body
@@ -2646,7 +2737,18 @@ def stepOps : Nat → StepOps
         | .matches subj pred =>
           let (drs1, ids, e1) := ops.np drs .subj true subj
           let subjectKind := (ids.head?.bind drs1.findById?).map (·.kind)
-          let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? <|> subjectKind } pred
+          -- The subject of `is` is never the Contrast Anchor of its own "another".
+          let excluded := ids ++ drs1.contrastExcluded
+          let predDrs := { drs1 with
+            relativeKind := pred.kind? <|> subjectKind
+            relativeTypes := []
+            relativeZone := none
+            relativeControl := none
+            contrastExcluded := excluded }
+          let (drs2, e2) := ops.pred predDrs pred
+          let drs2 := { drs2 with
+            relativeTypes := drs1.relativeTypes, relativeZone := drs1.relativeZone
+            relativeControl := drs1.relativeControl, contrastExcluded := drs1.contrastExcluded }
           let refined := ids.foldl (fun d id => d.updateById id (markTy pred.seedTy)) drs2
           let kindErrors := match pred.kind?, ids.head?.bind drs1.findById? with
             | some expected, some r => kindCheck expected (some r.kind)
@@ -2701,7 +2803,14 @@ def stepOps : Nat → StepOps
           | .matches subj predicate =>
             if subj.selfDefinedOk then
               let (subjectDrs, ids, e1) := ops.np drs .subj true subj
-              let (_, e2) := ops.pred { subjectDrs with relativeKind := predicate.kind? } predicate
+              let excluded := ids ++ subjectDrs.contrastExcluded
+              let predDrs := { subjectDrs with
+                relativeKind := predicate.kind?
+                relativeTypes := []
+                relativeZone := none
+                relativeControl := none
+                contrastExcluded := excluded }
+              let (_, e2) := ops.pred predDrs predicate
               let kindErrors := match predicate.kind?, ids.head?.bind subjectDrs.findById? with
                 | some expected, some ref => kindCheck expected (some ref.kind)
                 | _, _ => []
@@ -2734,7 +2843,7 @@ def stepOps : Nat → StepOps
           (leaveCaller drs callerDrs, errs)
         | .does subj action =>
           let headErr := (if action.eventHeadOk then [] else [.eventHead]) ++ eventActionRefusals action
-          let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+          let (drs1, e1) := stepEventSubjectWith ops drs subj .postEvent action
           let actorErrors := match action.scopeBody with
             | .draw _ => []
             | _ => match clauseActorKind action, actorShape? drs1 with
@@ -2800,7 +2909,8 @@ def stepOps : Nat → StepOps
         | .instruct subj body =>
           let tracked := { drs with
             outerReferentIds := (drs.referents.map (·.id)) :: drs.outerReferentIds }
-          let (drs1, refIds, e1) := ops.np tracked .subj true subj
+          let (drs1, refIds, e1) := stepAgentNounWith ops tracked .subj true subj
+            (fun d => (ops.inst phase .obj d body).1)
           let shape : ActorShape := {
             kind := match subj.selectionKindOverride? with
               | some kind => kind
@@ -3342,7 +3452,8 @@ def stepOps : Nat → StepOps
           let (_, eAlts) := stepGameEventListWith ops drs alts
           let (drs2, e2) := match optDur with | some d => stepDurationWith ops drs1 d | none => (drs1, [])
           let (drs3, e3) := ops.inst phase .obj (nextClause (settleTargets drs2)) body
-          ({ drs with nextId := drs3.nextId }, e1 ++ eAlts ++ e2 ++ e3)
+          ({ drs with nextId := drs3.nextId, contrastAnchors := drs3.contrastAnchors },
+            e1 ++ eAlts ++ e2 ++ e3)
         | .replace repld repl =>
           let (drs1, e1) := ops.inst .preEvent patientRole drs repld
           let localDescriptions := drs1.prospectiveTokenTypes.drop drs.prospectiveTokenTypes.length
@@ -3404,7 +3515,8 @@ def stepOps : Nat → StepOps
           let (drs1, e1) := ops.amt drs amt
           (defineLetter l drs1, e1 ++ refuse (anyOpenLetter l drs) (.openLetter l))
         | .characteristicChange subj edits =>
-          let (drs1, ids, e1) := ops.np drs .subj true subj
+          let (drs1, ids, e1) := stepAgentNounWith ops drs .subj true subj
+            (fun d => (stepCharacteristicEditListWith ops d edits).1)
           let (drs2, e2) := stepCharacteristicEditListWith ops drs1 edits
           -- A grant gives no Characteristic-Defining Ability, to the granting object or another
           -- [CR#604.3a]; a copy effect's exception may (`CopyExcept.edits`).
@@ -3430,7 +3542,8 @@ def stepOps : Nat → StepOps
             refuse (edits.all CharacteristicEdit.writesLine) .lineNonEmpty ++
             CharacteristicEdit.shapeAll edits)
         | .copyChange subj src exs =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
+          let (drs1, _, e1) := stepAgentNounWith ops drs .subj true subj
+            (fun d => (ops.np d .other false src).1)
           let (drs2, _, e2) := ops.np drs1 .other false src
           let (drs3, e3) := stepCopyExceptListWith ops drs2 exs
           (drs3, e1 ++ e2 ++ e3)
@@ -3443,7 +3556,8 @@ def stepOps : Nat → StepOps
           let (drs2, e2) := ops.pred drs1 desc
           (drs2, e1 ++ e2)
         | .textChange subj tc =>
-          let (drs1, _, e1) := ops.np drs .subj true subj
+          let (drs1, _, e1) := stepAgentNounWith ops drs .subj true subj
+            (fun d => (stepTextChangeWith ops d tc).1)
           let (drs2, e2) := stepTextChangeWith ops drs1 tc
           (drs2, e1 ++ e2)
         | .controlGrant player subj =>
@@ -3453,21 +3567,21 @@ def stepOps : Nat → StepOps
         | .modeChoice mc => stepModeChangeWith ops drs mc
         | .cant subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
-          let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
           (publishProhibitionSources drs drs4, headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .must subj action mods | .can subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
-          let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let (drs4, e4) := stepSubjectAfterWith ops drs3 subj
           ({ drs4 with actionPattern := drs.actionPattern }, headErr ++ e1 ++ e2 ++ e3 ++ e4)
         | .gatedBy cost subj action mods =>
           let headErr := if action.deonticHeadOk then [] else [.eventHead]
-          let (drs1, e1) := stepSubjectBeforeWith ops drs subj
+          let (drs1, e1) := stepEventSubjectWith ops drs subj .preEvent action
           let (drs2, e2) := ops.inst .preEvent subj.patientRole { drs1 with actionPattern := true } action
           let (drs3, e3) := stepDeonticModsWith ops drs2 mods
           let payerId := drs3.nextId
@@ -3506,12 +3620,12 @@ def stepOps : Nat → StepOps
             let (_, e4) := stepSubjectAfterWith ops drs3 source
             (drs, e1 ++ recipientErrors ++ e2 ++ e3 ++ e4)
         | .damageRule da ds dop _ _ =>
-          let (drs1, e1) := stepDamageAgentWith ops drs da
+          let (drs1, e1) := stepDamageAgentAheadWith ops drs da ds
           let (drs2, e2) := stepDamageScopeWith ops drs1 ds
           let (drs3, e3) := stepDamageOpWith ops drs2 dop
           (drs3, e1 ++ e2 ++ e3)
         | .preventionBan (.described da ds) _ _ =>
-          let (drs1, e1) := stepDamageAgentWith ops drs da
+          let (drs1, e1) := stepDamageAgentAheadWith ops drs da ds
           let (drs2, e2) := stepDamageScopeWith ops drs1 ds
           (drs2, e1 ++ e2)
         | .preventionBan .thatDamage _ _ =>

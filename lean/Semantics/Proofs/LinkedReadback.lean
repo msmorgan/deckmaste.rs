@@ -364,14 +364,17 @@ theorem badUnrelatedTarget :
 end MutateTarget
 
 /-- What a linked ability published is read back only by a Participial Description: a
-creature card the first ability put onto the battlefield is no target the second ability's bare
-"another target creature" can be other than, nor a group "the rest" is taken from. -/
+creature card the first ability put onto the battlefield is no Contrast Anchor for the second
+ability's bare "another target creature", nor a group "the rest" is taken from. The anchor is
+the Source. -/
 theorem linkedTargetAnchorsNoBareOther :
-    Ability.checkText (DRS.ofList [])
-      [ when (does thisCreature enter)
-          (putOntoBattlefield (target (and [isCreature, in_ yourGraveyard]))),
-        activated (mana [generic 1]) (tap (target (and [isCreature, isOther]))) ] =
-      [.anyTargeted .object, .otherAnchored] := by
+    let first := when (does thisCreature enter)
+      (putOntoBattlefield (target (and [isCreature, in_ yourGraveyard])))
+    let tapOther := tap (target (and [isCreature, isOther]))
+    let context := Ability.textContext (DRS.ofList []) first
+    Ability.checkText (DRS.ofList []) [first, activated (mana [generic 1]) tapOther] = [] ∧
+      (stepAction 64 .postEvent .obj (nextClause (publicOnly context)) tapOther).1.contrastAnchors
+        = [.source] := by
   decide
 
 end Semantics.Proofs.LinkedReadback

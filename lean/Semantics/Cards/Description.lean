@@ -69,7 +69,7 @@ theorem okUnholyAnnex : Action.check (DRS.ofList []) unholyAnnex = [] := by deci
 
 /-- War Screecher -/
 def warScreecher : Action :=
-  get (allOf (and [isCreature, youControl, otherThan thisCreature])) (up (.lit 1)) (up (.lit 1))
+  get (allOf (and [isCreature, youControl, isOther])) (up (.lit 1)) (up (.lit 1))
     (some untilEndOfTurn)
 theorem okWarScreecher : Action.check (DRS.ofList []) warScreecher = [] := by decide
 
@@ -261,8 +261,7 @@ def approachOfTheSecondSun : Spelled := spelled <| .singleFaced
             (and
               [ is this_ (castFrom yourHand),
                 did you (cast (a
-                  (and [ isSpell, otherThan
-                  this_,
+                  (and [ isSpell, isOther,
                              named "Approach of the Second Sun" ]))) thisGame ])
             winGame
             (some (sequentially

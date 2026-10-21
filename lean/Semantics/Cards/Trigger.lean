@@ -343,7 +343,7 @@ def bardHeirOfGirion : Spelled := spelled <| .singleFaced
       text :=
         [ reach, vigilance,
           static
-              (getsPt (allOf (and [isCreature, youControl, otherThan thisCreature])) (up (.lit 1))
+              (getsPt (allOf (and [isCreature, youControl, isOther])) (up (.lit 1))
                  (up (.lit 1))),
           whenever (does you attack) (draw (.lit 1)) ],
       power := stat 4, toughness := stat 4 } }
@@ -370,7 +370,7 @@ def unstableShapeshifter : Spelled := spelled <| .singleFaced
     { name := "Unstable Shapeshifter", cost := some [generic 3, pip .blue], types := [.creature],
       subtypes := [shapeshifter],
       text :=
-        [ whenever (does (a (and [isCreature, otherThan this_])) enter)
+        [ whenever (does (a (and [isCreature, isOther])) enter)
             (establish (copyChange thisCreature (that creature) [exceptThisAbility])) ],
       power := stat 0, toughness := stat 1 } }
 
@@ -795,7 +795,7 @@ def autarchMammothLine : Ability :=
 theorem okAutarchMammothLine : Ability.check (DRS.ofList []) autarchMammothLine = [] := by decide
 /-- Altar of the Brood -/
 def altarOfTheBrood : Ability :=
-  whenever (does (a (and [isPermanent, youControl, otherThan this_])) enter)
+  whenever (does (a (and [isPermanent, youControl, isOther])) enter)
     (instruct eachOpponent (mill (.lit 1)))
 theorem okAltarOfTheBrood : Ability.check (DRS.ofList []) altarOfTheBrood = [] := by decide
 /-- Foul Emissary -/

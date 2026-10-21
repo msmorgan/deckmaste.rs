@@ -419,8 +419,9 @@ semantic_template isTeammate : Predicate := isTeammateOf you
 semantic_template isChosenPlayer : Predicate := .chosenPlayer .theChoice
 /-- "the last chosen player" -/
 semantic_template theLastChosenPlayer : Predicate := .chosenPlayer .theLatestChoice
-/-- "another player": any player other than you. -/
-semantic_template isOtherPlayer : Predicate := and [isPlayer, .otherThan you]
+/-- "another player", "other player": a bare "other", whose Contrast Anchor is "you" unless the
+text mentions a player first ("Choose a player. Each other player…"). -/
+semantic_template isOtherPlayer : Predicate := and [isPlayer, .other]
 /-- An outlaw: an Assassin, Mercenary, Pirate, Rogue, and/or Warlock [CR#700.12]. -/
 semantic_template isOutlaw : Predicate :=
   .coord .andOr
@@ -468,7 +469,7 @@ semantic_template isColorless : Predicate := .colorCount .eq 0
 semantic_template isMonocolored : Predicate := .colorCount .eq 1
 /-- "multicolored": an object of two or more colors [CR#105.2b]. -/
 semantic_template isMulticolored : Predicate := .colorCount .atLeast 2
-/-- "another …", anchored on a prior mention. -/
+/-- "another", "other" with no "other than" written: other than its Contrast Anchor. -/
 semantic_template isOther : Predicate := .other
 
 /-! ### Possessors, locations and relations -/
@@ -598,8 +599,8 @@ semantic_template abilityHead (class_ : AbilityClass) : Predicate := .abilityHea
 semantic_template abilityOf (source : NounPhrase) : Predicate := .abilityOf source
 semantic_template Predicate.activatedBy (activator : NounPhrase) : Predicate :=
   .activatedBy activator
-semantic_template anotherSpell : Predicate :=
-  .and [isSpell, .otherThan (.headed .spell .this)]
+/-- "another spell" -/
+semantic_template anotherSpell : Predicate := .and [isSpell, .other]
 semantic_template Predicate.attachment (side : AttachmentSide)
     (counterpart : Option NounPhrase := none) (word : Option AttachWord := none) : Predicate :=
   .attachment side word counterpart

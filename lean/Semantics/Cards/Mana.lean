@@ -453,7 +453,7 @@ def sageOfFables : Spelled := spelled <| .singleFaced
       text :=
         [ static (entersWithAdditionalCounters
             (each (and [isCreature, hasSubtype wizard, youControl,
-                         otherThan thisCreature]))
+                         isOther]))
             (.lit 1) p1p1Counter),
           activated
             (compound [mana [generic 2],
@@ -925,7 +925,7 @@ def shelteredValley : Spelled := spelled <| .singleFaced
                   [ sacrifice
                       (each
                         (and
-                          [ isPermanent, otherThan thisLand, named "Sheltered Valley",
+                          [ isPermanent, isOther, named "Sheltered Valley",
                             youControl ])),
                     putOntoBattlefield thisLand ]))),
           at_ (beginningOfYour .upkeep)

@@ -19,7 +19,7 @@ permanent becomes saddled until end of turn. Activate only as a sorcery." [CR#70
 def saddleDefinition : List Ability :=
   [ .activated
       (.perform (tap (withTotal (.stat .power) .atLeast (.lit 2)
-        (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]])))))
+        (allOf (.and [isUntapped, and [isCreature, youControl, isOther]])))))
       (.gainDesignation thisPermanent (.named "saddled") (some untilEndOfTurn)) (some asSorcery) none none none ]
 
 /-- "Saddle 2" with its Definition checks [CR#702.171a]. -/
@@ -34,7 +34,7 @@ unresolved "its power" is refused. -/
 theorem badSaddleUnresolvedBound :
     Cost.check (DRS.ofList []) (.perform (tap (withTotal (.stat .power) .atLeast
       (powerOf (that (.type .creature)))
-      (allOf (.and [isUntapped, and [isCreature, youControl, otherThan thisPermanent]]))))) =
+      (allOf (.and [isUntapped, and [isCreature, youControl, isOther]]))))) =
       [.anaphor (.word (.type .creature)) .one 0] := by
   decide
 

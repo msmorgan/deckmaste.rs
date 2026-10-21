@@ -618,7 +618,7 @@ theorem okExchangeTwoValues :
 Change [CR#612.5] that lasts indefinitely because it states no duration [CR#611.2a]. -/
 theorem okExchangeTextBoxes :
     Action.check (DRS.ofList [])
-      (.establish (.textChange thisCreature (.exchangeWith (a (.and [isCreature, .otherThan .this]))))
+      (.establish (.textChange thisCreature (.exchangeWith (a (.and [isCreature, .other]))))
         none) = [] := by
   decide
 
