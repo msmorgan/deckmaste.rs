@@ -724,8 +724,11 @@
         // A preposed temporal Noun Phrase (*This turn, ...*; *The next time ..., ...*).
         (name: "PreposedTemporalAdjunct", lhs: "Clause", rhs: [Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], transparent: ["head"]),
         // A preposed Preposition Phrase and temporal Noun Phrase set off by
-        // one comma (*For one spell this turn, ...*).
-        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], transparent: ["head"], cost: 2),
+        // one comma (*For one spell this turn, ...*). The Preposition Phrase
+        // has a Noun Phrase Complement: a Clause Complement runs to the comma
+        // and keeps the temporal inside it (*When you next cast a spell this
+        // turn, ...*; oracle-style-guide checklist item 4; [CR#603.1]).
+        (name: "PreposedPrepositionAndTemporal", lhs: "Clause", rhs: [Hosted("adjunct", "PrepositionPhrase", Predicate), Cat("adjunct", "TemporalNounPhrase"), Punct(','), Cat("head", "Clause")], equations: [Require("adjunct.ComplementKind", "NP")], transparent: ["head"], cost: 2),
         // *the first time each turn*: a temporal Noun Phrase modifies a
         // temporal nominal.
         (name: "TemporalPostmodifier", lhs: "Nominal", rhs: [Cat("head", "Nominal"), Cat("modifier", "TemporalNounPhrase")],

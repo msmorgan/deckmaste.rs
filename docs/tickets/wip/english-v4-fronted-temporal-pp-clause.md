@@ -54,7 +54,37 @@ of this figure.
 - No new feature in `english.ron`.
 - 0 faces lost, and no unit gains a Reading.
 
+## *At* measurement (`snxspnqn`)
+
+Measured by deleting `PreposedPrepositionAndTemporal` from the fixed grammar
+(scratch only) and comparing the full census. After the fix, 30 units still
+use it, 483 Readings by product (159 Surplus), every one with a Noun Phrase
+Complement:
+- *At …, this turn*, the PP complete: 5 units, 256 Readings (35 Surplus):
+  Full Throttle (*At the beginning of each combat this turn,*), Feral
+  Encounter, Vivien's Stampede, Pygmy Hippo (*at the beginning of your next
+  main phase this turn,*) and Paradox Haze (*At the beginning of enchanted
+  player's first upkeep each turn,*). Each also keeps the Reading with the
+  temporal inside the PP.
+- *After the second main phase this turn,* (World at War): 2 Readings.
+- A genitive split, the PP ending on a possessor and the temporal taking its
+  head noun (*[At this turn's] [next end of combat],*; *[During target
+  player's] [next turn],*): 15 units, 157 Readings (99 Surplus). Six are *at*
+  (Triton Tactics 50, Gaze of the Gorgon, Venomous Breath, Glyph of Doom,
+  Faramir, Suppress); nine are *during*, *until* (Taunt, Gideon Jura, Rowan
+  Kenrith, Imaginary Threats, Oracle en-Vec, Teferi's Reproach, Firestorm
+  Phoenix, Casey & Raph, Nuka-Nuke Launcher).
+- *For each … that entered this turn,*, the temporal lifted out of the
+  relative clause: 8 units, 63 Readings (Hurkyl, Renewed Solidarity, Living
+  Laser, Redoubled Stormsinger, Ocelot Pride, Murmuration, Giant Albatross,
+  Tobias).
+- North Star (*For one spell this turn,*), the endorsed use: 5 Readings.
+
+Reported to the owner; the fix is not extended to them.
+
 Standard constraints apply.
 
-1. **Census delta**: measured at landing.
-2. **Judgment set**: measured at landing.
+1. **Census delta** (`snxspnqn`, full corpus): faces read 28,709 → 28,709;
+   total Readings 327,929 → 320,502 and Surplus 175,304 → 171,425 (908 units
+   fewer, none more). Lost faces: none.
+2. **Judgment set** (`snxspnqn`): 2,978 enforced, 195 pending; all hold.
