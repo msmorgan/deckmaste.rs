@@ -86,6 +86,9 @@ pub struct CompiledGrammar {
     /// Distinct extension lists; index `0` is the empty list.
     pub(crate) extension_sets: Vec<Vec<Extension>>,
     pub(crate) classes: Vec<BTreeSet<LexemeId>>,
+    /// Prepositions some Production's `unextended` child may not end in, the
+    /// only ones a Summary's `final_preposition` records.
+    pub(crate) unextended_prepositions: BTreeSet<LexemeId>,
     /// Projected inflectional feature ids; additional properties are
     /// grammar-declared.
     pub(crate) projected: [Option<usize>; 8],
@@ -580,6 +583,7 @@ impl<'a> Binder<'a> {
                 extensions,
                 extension_sets,
                 classes,
+                unextended_prepositions: BTreeSet::new(),
                 projected,
                 prediction: crate::prediction::Prediction::default(),
                 report,
@@ -680,6 +684,11 @@ impl<'a> Binder<'a> {
                 self.add(draft)?;
             }
         }
+        for declaration in &self.grammar.productions {
+            for name in &declaration.unextended {
+                self.unextended(declaration.name, name)?;
+            }
+        }
         for (name, declaration) in &self.grammar.categories {
             if let Some(category) = &declaration.category {
                 self.category(category)?;
@@ -689,6 +698,43 @@ impl<'a> Binder<'a> {
         }
         self.out.prediction = crate::prediction::Prediction::compile(&self.out);
         Ok(self.out)
+    }
+
+    /// Closes the last child `name` of Production `id` to the prepositions
+    /// that its siblings' trailing selected `PP` Complement takes.
+    fn unextended(&mut self, id: Ident, name: &Ident) -> Result<(), LoadError> {
+        let context = |e: &str| invalid(format!("production `{id}`: unextended `{name}` {e}"));
+        let index = *self
+            .out
+            .by_id
+            .get(&id)
+            .ok_or_else(|| context("names no production"))?;
+        let production = &self.out.productions[index];
+        let child = production.rhs.len() - 1;
+        if production.names[child] != *name {
+            return Err(context("is not the last child"));
+        }
+        let mut closed = BTreeSet::new();
+        for sibling in &self.out.by_lhs[production.lhs] {
+            let sibling = &self.out.productions[*sibling];
+            if let Some((
+                crate::step::Symbol::Cat {
+                    prepositions: Some(list),
+                    ..
+                },
+                prefix,
+            )) = sibling.rhs.split_last()
+                && prefix == production.rhs.as_slice()
+            {
+                closed.extend(list.iter().copied());
+            }
+        }
+        if closed.is_empty() {
+            return Err(context("has no sibling with a trailing selected PP"));
+        }
+        self.out.unextended_prepositions.extend(closed.iter().copied());
+        self.out.productions[index].unextended = Some((child, closed));
+        Ok(())
     }
 
     fn authored(&self, declaration: &crate::grammar::ProductionDecl) -> Result<Draft, LoadError> {

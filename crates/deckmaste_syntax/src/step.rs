@@ -177,6 +177,9 @@ pub(crate) struct Production {
     pub weights: Vec<(usize, Weight)>,
     /// Children in the head line: the head, or a conjunct of a coordination.
     pub head_line: Vec<bool>,
+    /// The last child, and the prepositions of a Preposition Phrase it may
+    /// not end in (`ProductionDecl::unextended`).
+    pub unextended: Option<(usize, std::collections::BTreeSet<LexemeId>)>,
     pub id: Ident,
     pub lhs: usize,
     pub rhs: Vec<Symbol>,
@@ -362,6 +365,7 @@ pub(crate) fn resolve(
         carried: Vec::new(),
         weights: Vec::new(),
         head_line,
+        unextended: None,
         adjunct_slot: None,
         predicative: None,
         paired_coordinator: None,
@@ -399,6 +403,7 @@ pub(crate) fn resolve(
             conjoined: false,
             leaves: 0,
             head_final: false,
+            final_preposition: None,
             preposition: None,
             extensions: 0,
             coordinator: None,
@@ -435,6 +440,9 @@ pub(crate) struct Summary {
     /// It ends in its head (through conjuncts of a coordination), not in a
     /// dependent of it.
     pub head_final: bool,
+    /// The preposition of the Preposition Phrase dependent it ends in, through
+    /// its head line, when that preposition closes some `unextended` child.
+    pub final_preposition: Option<LexemeId>,
     /// The preposition and complement frame heading a Preposition Phrase.
     pub preposition: Option<(LexemeId, usize)>,
     /// A coordination's second preposition (*into your hand or onto the
@@ -492,6 +500,9 @@ pub(crate) struct State {
     leaves: u8,
     /// The last child so far is in the head line and ends in its head.
     head_final: bool,
+    /// The preposition of the Preposition Phrase dependent the last child
+    /// so far ends in (`Summary::final_preposition`).
+    final_preposition: Option<LexemeId>,
     preposition: Option<(LexemeId, usize)>,
     extensions: u16,
     coordinator: Option<LexemeId>,
@@ -604,6 +615,39 @@ impl Production {
             ChildView::Leaf(_) => next.head_final = self.head_line[position],
             ChildView::Punct => {}
         }
+    }
+
+    /// The preposition of the Preposition Phrase dependent the phrase so far
+    /// ends in, or `None` if child `position` is an `unextended` child that
+    /// ends in one its Production closes.
+    fn track_final_preposition(
+        &self,
+        grammar: &CompiledGrammar,
+        next: &mut State,
+        position: usize,
+        child: &ChildView<'_>,
+    ) -> Option<()> {
+        match child {
+            ChildView::Node(summary) => {
+                if let Some((at, closed)) = &self.unextended
+                    && *at == position
+                    && summary.final_preposition.is_some_and(|p| closed.contains(&p))
+                {
+                    return None;
+                }
+                next.final_preposition = if self.head_line[position] {
+                    summary.final_preposition
+                } else {
+                    summary
+                        .preposition
+                        .map(|(p, _)| p)
+                        .filter(|p| grammar.unextended_prepositions.contains(p))
+                };
+            }
+            ChildView::Leaf(_) => next.final_preposition = None,
+            ChildView::Punct => {}
+        }
+        Some(())
     }
 
     /// The lexical leaves child `position` adds, counted to two, or `None` if
@@ -823,6 +867,7 @@ impl Production {
         next.last_glues = last;
         next.leaves = (next.leaves + self.weigh(position, child)?).min(2);
         self.track_head_final(&mut next, position, child);
+        self.track_final_preposition(grammar, &mut next, position, child)?;
         let lookup = |feature: usize| -> Option<u16> {
             match child {
                 ChildView::Node(summary) => {
@@ -1008,6 +1053,7 @@ impl Production {
             },
             leaves: state.leaves,
             head_final: state.head_final,
+            final_preposition: state.final_preposition,
             preposition: if coordinated && state.mixed_prepositions {
                 None
             } else {

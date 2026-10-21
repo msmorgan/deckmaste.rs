@@ -117,7 +117,8 @@ analytic negation (`can't`, `doesn't`; `not` after the copula or before a
 *to*-infinitival); *to*-infinitival Clauses as Catenative Complements and as
 Purpose Adjuncts (not on a head whose frame selects one); gerund-participial
 Complements and preposed adjuncts; existential *there* with a Displaced
-Subject; and predicative Complements of `be`, `become`, `remain`, `get` and
+Subject and an optional locative or temporal Extension, a Complement of *be*
+that is never also the Displaced Subject's postmodifier; and predicative Complements of `be`, `become`, `remain`, `get` and
 complex-transitive verbs, including Preposition Phrases that could modify a
 nominal (*face down*, *of the chosen type*). Locatives after `be` and `remain`
 are Locative Complements, not predicatives. Passives carry their `by` phrase as

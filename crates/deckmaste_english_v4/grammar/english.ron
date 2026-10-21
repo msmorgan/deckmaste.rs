@@ -259,6 +259,14 @@
         "Of": "prep:of",
         "Than": "prep:than",
         "From": "prep:from",
+        // The locative prepositions of *be* and temporal *after*: an
+        // existential's extension (CGEL, Ch. 16 §6.2.1, p. 1394).
+        "In": "prep:in",
+        "On": "prep:on",
+        "Among": "prep:among",
+        "Under": "prep:under",
+        "Outside": "prep:outside",
+        "After": "prep:after",
         "As": "prep:as",
         "Plus": "prep:plus",
         "Minus": "prep:minus",
@@ -499,18 +507,21 @@
             transparent: ["head"]),
 
         // An existential clause: dummy *there*, the copula agreeing with the
-        // displaced subject, and an optional locative or temporal complement
-        // (CGEL, Ch. 16 §6.2.1, p. 1394). A Preposition Phrase right after the
-        // displaced subject is that complement, never an Adjunct, so a PP
-        // Adjunct follows only a complemented predicate.
+        // displaced subject, and an optional locative or temporal extension,
+        // a Complement of *be* as in its non-existential counterpart (CGEL,
+        // Ch. 16 §6.2.1, p. 1394: *There's one copy on the table*, *One copy
+        // is on the table*). A Preposition Phrase it could head right after the
+        // displaced subject is that Complement, never an Adjunct nor the
+        // displaced subject's postmodifier, so a PP Adjunct follows only a
+        // complemented predicate.
         (name: "Existential", lhs: "Clause", rhs: [Cat("subject", "DummyPronoun"), Cat("head", "ExistentialPredicate")],
             equations: [Agree("subject.Number", "head.Number"), Agree("subject.Person", "head.Person"),
                 Require("head.VerbForm", "Finite"), Require("$.ClauseMarking", "Unmarked")]),
         (name: "ExistentialThere", lhs: "DummyPronoun", rhs: [Lex("head", Pronoun)],
             equations: [Require("head.PronounKind", "Existential")]),
         (name: "ExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase")],
-            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")]),
-        (name: "LocatedExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Cat("complement", "PrepositionPhrase")],
+            equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "NP")], unextended: ["displaced_subject"]),
+        (name: "LocatedExistentialBe", lhs: "ExistentialPredicate", rhs: [Class("head", "BeVerb"), Cat("displaced_subject", "NounPhrase"), Selected("complement", "PrepositionPhrase", ["In", "On", "Among", "Under", "Outside", "After"])],
             equations: [Agree("$.Number", "displaced_subject.Number"), Exclude("displaced_subject.Case", "Accusative"), Require("$.ComplementKind", "PP")]),
 
         (name: "EndAdverb", lhs: "AdverbPhrase", rhs: [Class("head", "EndAdverb")],

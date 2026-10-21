@@ -38,3 +38,6 @@ your graveyard*, *on the battlefield*, *among permanents you control*):
 - No face is lost.
 
 Standard constraints apply.
+
+Census delta (measured on ulnxlpmm): faces read 28,709 → 28,709; total Readings 344,330 → 342,176; lost faces: none.
+Judgment set: 2,920 enforced at `COMPLETED_STRATUM` 6, all hold; 192 pending.

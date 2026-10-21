@@ -90,6 +90,12 @@ Settled analyses:
   passive (action) Reading. Both are attested.
 - A multiword game term that a plugin or catalog declares as one term is atomic.
 - A chain of bare imperatives has one analysis: coordinated imperative clauses.
+- A locative or temporal Preposition Phrase right after an existential's
+  Displaced Subject is its Extension, a Complement of *be* (CGEL, Ch. 16
+  §6.2.1, p. 1394), never also the Displaced Subject's postmodifier or an
+  Adjunct: the two attachments are one existential claim, so this is not a
+  retained cross-head ambiguity. A Preposition Phrase that cannot be an
+  Extension (*of the requested type*) stays a postmodifier.
 
 **Wrong analyses.** A face is read when a correct analysis is among its
 Readings; wrong Readings beside a correct one are tolerated, because not every

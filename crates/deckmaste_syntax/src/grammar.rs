@@ -106,6 +106,13 @@ pub struct ProductionDecl {
     /// *power equal to its toughness*, not *base power*).
     #[serde(default)]
     pub postdependent: Vec<Ident>,
+    /// A last child that does not end in a Preposition Phrase dependent which
+    /// a sibling Production, the same but for a trailing selected `PP`
+    /// Complement, would take as that Complement: the phrase is the sibling's
+    /// Complement, never the child's postmodifier (an existential's locative
+    /// extension, CGEL Ch. 16 §6.2.1, p. 1394).
+    #[serde(default)]
+    pub unextended: Vec<Ident>,
     /// Children through which a Gap may pass to the mother.
     #[serde(default)]
     pub transparent: Vec<Ident>,

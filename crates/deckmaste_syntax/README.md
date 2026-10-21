@@ -215,7 +215,11 @@ postmodifier) rather than in the head itself, through the last conjunct of a
 coordination (*power 3 or less*, *base power and toughness 4/4*, not *base
 power* or *power or toughness*), or `uncoordinated`, not itself a coordination, where the coordination
 one level up is the same analysis (a chain of bare imperatives is coordinated
-imperative Clauses). A verb without
+imperative Clauses). A last child can be `unextended`: it does not end, through
+its head line, in a Preposition Phrase dependent that a sibling Production, the
+same but for a trailing selected `PP` Complement, would take as that Complement
+(an existential's locative extension is a Complement of *be*, never also the
+Displaced Subject's postmodifier). A verb without
 a Subcategorization Frame binds when the grammar names it as a Closed Word or a
 Lexical Class member (perfect *have* and its forms).
 

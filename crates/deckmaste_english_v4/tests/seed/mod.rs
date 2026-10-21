@@ -243,7 +243,7 @@ pub fn lexicon() -> Lexicon {
     }
     for word in [
         "in", "into", "on", "onto", "for", "with", "from", "during", "by", "up", "of", "than",
-        "plus", "minus", "as",
+        "plus", "minus", "as", "among", "under", "outside", "after",
     ] {
         lexemes.push(invariant("prep", word, Category::Preposition, Core));
     }

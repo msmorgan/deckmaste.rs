@@ -460,6 +460,14 @@ basic counterpart, while the actual Subject position is filled by dummy *there*
 (CGEL, Ch. 16 §6.1, p. 1391).
 _Avoid_: Object, a second Subject
 
+**Extension**:
+The element of an Existential Clause beyond *there*, *be* and the Displaced
+Subject that the construction licenses; a locative or temporal extension is a
+Complement of *be*, as in the non-existential counterpart (*There are seven
+cards in your graveyard*: *Seven cards are in your graveyard*), not a
+postmodifier inside the Displaced Subject (CGEL, Ch. 16 §6.2.1, pp. 1393–1394).
+_Avoid_: Adjunct or Modifier for an existential's locative
+
 **Subordinate Clause**:
 A Clause that functions as a dependent within another Clause or phrase rather
 than as an independent Sentence.
