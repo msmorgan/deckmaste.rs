@@ -58,5 +58,10 @@ Today's sum leaves most alternatives tied. The cost study measured:
 
 Standard constraints apply.
 
-1. **Census delta**: measured at landing (Readings and Surplus unchanged).
-2. **Judgment set**: measured at landing.
+1. **Census delta** (measured on `oootyook`): faces read 28,704 → 28,704;
+   total Readings (product) 218,537 → 218,537; Surplus 91,320 → 91,320;
+   every unit's verdict, Derivations and Segments identical; lost faces: none.
+   Cheapest tier (new): a single Derivation in 5,509 of 17,219 ambiguous units
+   (32.0%), summed 56,043, largest 366 (Mockingbird).
+2. **Judgment set** (`oootyook`): 3,006 enforced at `COMPLETED_STRATUM` 6,
+   all hold; 200 pending.

@@ -226,6 +226,14 @@ fn parse(args: &ParseArgs, output: &mut dyn Write) -> Result<()> {
         };
         writeln!(output, "Segments: {segments}")?;
         writeln!(output, "Surplus: {}", segmentation.surplus(derivations))?;
+        match parse.cheapest_tier() {
+            Some((key, tied)) => writeln!(
+                output,
+                "Cheapest tier: {tied} at ranking key {}",
+                format_key(key)
+            )?,
+            None => writeln!(output, "Cheapest tier: none")?,
+        }
         for (index, reading) in parse.best_readings(args.limit).iter().enumerate() {
             parse.admit(reading, &env.lexicon)?;
             dump_reading(&grammar, &env, reading, index + 1, output)?;
@@ -245,9 +253,9 @@ fn dump_reading(
     let (text, constituents) = grammar.constituents(reading, &env.lexicon)?;
     writeln!(
         output,
-        "Reading {} (cost {}): {text:?}",
+        "Reading {} (ranking key {}): {text:?}",
         number,
-        grammar.cost(reading)
+        format_key(grammar.ranking_key(reading))
     )?;
     let mut nodes = Vec::new();
     preorder_nodes(reading, &mut nodes);
@@ -280,6 +288,15 @@ fn dump_reading(
         )?;
     }
     Ok(())
+}
+
+/// A Ranking Key as `class/association/cost`, its components in comparison
+/// order.
+fn format_key(key: deckmaste_syntax::RankingKey) -> String {
+    format!(
+        "{}/{}/{}",
+        key.attachment_class, key.right_association_words, key.production_cost
+    )
 }
 
 /// A Reading's nodes in preorder, as [`CompiledGrammar::constituents`]
@@ -333,6 +350,7 @@ mod tests {
         assert_eq!(output.matches("Packed Forest derivations:").count(), 5);
         assert_eq!(output.matches("Segments:").count(), 5);
         assert_eq!(output.matches("Surplus:").count(), 5);
+        assert_eq!(output.matches("Cheapest tier: ").count(), 5);
         assert!(
             output.contains("Segments: 1 \"Destroy target creature\"\nSurplus: 0"),
             "{output}"
@@ -340,8 +358,8 @@ mod tests {
         assert_eq!(output.matches("Outcome:").count(), 4);
         assert!(output.contains("Outcome: holds"));
         assert!(output.contains("Outcome: no Reading satisfies"));
-        assert!(output.contains("Reading 1 (cost"));
-        assert!(!output.contains("Reading 2 (cost"));
+        assert!(output.contains("Reading 1 (ranking key"));
+        assert!(!output.contains("Reading 2 (ranking key"));
         assert!(output.contains("Production\tCategory\tspan (bytes)"));
         assert!(output.contains("\"target creature\"\tobject\tcreature /"));
         assert!(
@@ -363,7 +381,7 @@ mod tests {
         assert!(output.contains("Outcome: vocabulary gaps"));
         assert!(output.contains("Unknown Category: MissingCategory"));
         assert!(output.contains("Outcome: holds"));
-        assert!(!output.contains("Reading 1 (cost"));
+        assert!(!output.contains("Reading 1 (ranking key"));
     }
 
     #[test]
@@ -377,7 +395,7 @@ mod tests {
             "Destroy target creature. => NounPhrase \"target creature\" as Object of destroy",
         ]);
         assert_eq!(output.matches("Outcome: holds").count(), 3, "{output}");
-        assert!(!output.contains("Reading 1 (cost"));
+        assert!(!output.contains("Reading 1 (ranking key"));
     }
 
     #[test]

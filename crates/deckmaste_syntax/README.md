@@ -18,9 +18,17 @@ It has no proc macros and no generated code: a grammar is data.
    text and returns a `Parse`: the Packed Forest, its `Metrics`, and vocabulary
    gaps. Constituents are packed by (Category, span, summary); a summary holds the
    Category's features, its Gap, and the engine-derived facts a parent may check.
-4. `Parse::best_readings(k)` returns the `k` cheapest Readings by total
-   Production Cost, keeping only `k` trees per forest node, so it never builds
-   every attachment tree; `derivation_count()` counts trees without building
+4. `Parse::best_readings(k)` returns the `k` best Readings by Ranking Key
+   (`RankingKey`, `docs/decisions/english-v4.md` §4.3): Attachment Class,
+   then Right Association words, then summed Production Cost, compared in that
+   order, with the Reading's own order as the final tie-break, so the best
+   Reading is unique. Every component is a sum over the Reading's Productions,
+   so each forest node keeps only its `k` best trees and the walk never builds
+   every attachment tree. Attachment Class and Right Association are zero until
+   they are computed. `best_ranked(k)` returns the keys too,
+   `CompiledGrammar::ranking_key` computes a given Reading's key, and
+   `cheapest_tier()` counts the Derivations sharing the least key without
+   building trees. `derivation_count()` counts trees without building
    them. `readings()` builds them all and is for tests. A Derivation never
    contains its own Constituent, so a unary cycle adds none of its own and
    hides none of its finite siblings.

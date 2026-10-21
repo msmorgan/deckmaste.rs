@@ -162,7 +162,7 @@ fn cheaper_attachment_ranks_first() {
         verb_phrase.production, "Transitive",
         "nominal attachment first"
     );
-    assert!(grammar.cost(&readings[0]) < grammar.cost(&readings[1]));
+    assert!(grammar.ranking_key(&readings[0]) < grammar.ranking_key(&readings[1]));
 }
 
 #[test]
@@ -354,6 +354,41 @@ fn best_readings_are_the_cheapest_prefix() {
     for k in [1, 3, 14, 20] {
         assert_eq!(parse.best_readings(k), all[..k.min(all.len())]);
     }
+}
+
+#[test]
+fn best_ranked_orders_by_key_then_reading() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let parse = grammar.parse(
+        &lexicon,
+        "See the man on the hill with the telescope in the card.",
+    );
+    let ranked = parse.best_ranked(usize::MAX);
+    assert_eq!(ranked.len(), parse.readings().len());
+    for (key, reading) in &ranked {
+        assert_eq!(*key, grammar.ranking_key(reading));
+    }
+    assert!(
+        ranked.windows(2).all(|w| w[0] < w[1]),
+        "keys, then Readings, ascend"
+    );
+}
+
+#[test]
+fn cheapest_tier_counts_the_ties_without_building_trees() {
+    let lexicon = lexicon();
+    let grammar = bind(GRAMMAR, &lexicon).unwrap();
+    let parse = grammar.parse(
+        &lexicon,
+        "See the man on the hill with the telescope in the card.",
+    );
+    let ranked = parse.best_ranked(usize::MAX);
+    let least = ranked[0].0;
+    let tied = ranked.iter().filter(|(key, _)| *key == least).count();
+    assert_eq!(parse.cheapest_tier(), Some((least, tied as u128)));
+    assert!(tied > 1, "this text ties at the cheapest key today");
+    assert_eq!(grammar.parse(&lexicon, "See see.").cheapest_tier(), None);
 }
 
 #[test]

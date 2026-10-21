@@ -7,6 +7,7 @@ mod seed;
 use deckmaste_lexical::Lexicon;
 use deckmaste_syntax::CompiledGrammar;
 use deckmaste_syntax::Gap;
+use deckmaste_syntax::RankingKey;
 use deckmaste_syntax::Reading;
 use deckmaste_syntax::ReadingNode;
 
@@ -173,6 +174,50 @@ fn cross_head_with_attachment_is_retained_and_ranked() {
         ],
         "both hosts retained, the nominal postmodifier ranked first"
     );
+}
+
+#[test]
+fn ranking_key_ranks_a_higher_component_over_any_amount_of_a_lower_one() {
+    let class = RankingKey {
+        attachment_class: 1,
+        ..RankingKey::default()
+    };
+    let association = RankingKey {
+        right_association_words: 1,
+        ..RankingKey::default()
+    };
+    let cost = RankingKey {
+        production_cost: u64::MAX,
+        ..RankingKey::default()
+    };
+    assert!(
+        class
+            > RankingKey {
+                attachment_class: 0,
+                right_association_words: i64::MAX,
+                production_cost: u64::MAX,
+            }
+    );
+    assert!(association > cost);
+    // On a seed parse the upper components are zero today, so the key is the
+    // Production Cost and the Reading's own order breaks ties.
+    let s = seed();
+    let parse = s
+        .grammar
+        .parse(&s.lexicon, "Exile target creature with a counter on it.");
+    let ranked = parse.best_ranked(usize::MAX);
+    assert_eq!(
+        ranked.len(),
+        s.readings("Exile target creature with a counter on it.")
+            .len()
+    );
+    for (key, reading) in &ranked {
+        assert_eq!(*key, s.grammar.ranking_key(reading));
+        assert_eq!((key.attachment_class, key.right_association_words), (0, 0));
+    }
+    assert!(ranked.windows(2).all(|w| w[0] < w[1]));
+    let tied = ranked.iter().filter(|(key, _)| *key == ranked[0].0).count();
+    assert_eq!(parse.cheapest_tier(), Some((ranked[0].0, tied as u128)));
 }
 
 #[test]

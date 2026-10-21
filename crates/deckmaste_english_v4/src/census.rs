@@ -75,6 +75,9 @@ pub struct UnitResult {
     /// Σ(nᵢ − 1) over its Segments' Derivations; `derivations − 1` for a
     /// unit that is not segmentable.
     pub surplus: u128,
+    /// Derivations sharing the least Ranking Key: the cheapest tier before
+    /// the final tie-break (0 without a Derivation).
+    pub cheapest_tier: u128,
 }
 
 /// Counts for one Stratum.
@@ -131,6 +134,12 @@ pub struct Report {
     pub total_surplus: u128,
     /// Units with more than one Reading (a Surplus above 0).
     pub ambiguous_units: usize,
+    /// Ambiguous units whose cheapest tier is a single Derivation.
+    pub singleton_cheapest_units: usize,
+    /// The ambiguous units' cheapest tiers, summed.
+    pub cheapest_tier_total: u128,
+    /// The largest cheapest tier of any unit.
+    pub largest_cheapest_tier: u128,
     /// Segments with more than one Derivation.
     pub ambiguous_segments: usize,
     /// Units with a Derivation but no single product segmentation.
@@ -192,8 +201,8 @@ pub fn run(
                                 })
                                 .copied()
                                 .collect();
-                            let (verdict, derivations, segments) = match grammar {
-                                None => (Verdict::Unread(Unread::Unbound), 0, None),
+                            let (verdict, derivations, segments, cheapest_tier) = match grammar {
+                                None => (Verdict::Unread(Unread::Unbound), 0, None, 0),
                                 Some((grammar, frame)) => judge_unit(
                                     grammar,
                                     frame,
@@ -217,6 +226,7 @@ pub fn run(
                                 derivations,
                                 segments,
                                 surplus,
+                                cheapest_tier,
                             }
                         })
                         .collect::<Vec<_>>()
@@ -238,18 +248,19 @@ fn judge_unit(
     analyzed: &deckmaste_lexical::AnalyzedText,
     scope: &BTreeSet<deckmaste_lexical::LexemeId>,
     entries: &[&Judgment],
-) -> (Verdict, u128, Option<Segmentation>) {
+) -> (Verdict, u128, Option<Segmentation>, u128) {
     let parse = grammar.parse_analyzed(analyzed);
     if !parse.vocabulary_gaps.is_empty() {
-        return (Verdict::Unread(Unread::VocabularyGap), 0, None);
+        return (Verdict::Unread(Unread::VocabularyGap), 0, None, 0);
     }
     let derivations = parse.derivation_count();
     if derivations == 0 {
-        return (Verdict::Unread(Unread::NoReading), 0, None);
+        return (Verdict::Unread(Unread::NoReading), 0, None, 0);
     }
     let segments = Some(parse.segments(frame));
+    let cheapest_tier = parse.cheapest_tier().map_or(0, |(_, tied)| tied);
     let (verdict, derivations) = judge_parse(grammar, env, &parse, derivations, scope, entries);
-    (verdict, derivations, segments)
+    (verdict, derivations, segments, cheapest_tier)
 }
 
 fn judge_parse(
@@ -315,6 +326,9 @@ fn summarize(
     let mut total_derivations = 0u128;
     let mut total_surplus = 0u128;
     let mut ambiguous_units = 0;
+    let mut singleton_cheapest_units = 0;
+    let mut cheapest_tier_total = 0u128;
+    let mut largest_cheapest_tier = 0u128;
     let mut ambiguous_segments = 0;
     let mut not_segmentable = Vec::new();
     let mut stale_deferrals = Vec::new();
@@ -353,6 +367,11 @@ fn summarize(
         total_derivations = total_derivations.saturating_add(unit.derivations);
         total_surplus = total_surplus.saturating_add(unit.surplus);
         ambiguous_units += usize::from(unit.derivations > 1);
+        if unit.derivations > 1 {
+            singleton_cheapest_units += usize::from(unit.cheapest_tier == 1);
+            cheapest_tier_total = cheapest_tier_total.saturating_add(unit.cheapest_tier);
+        }
+        largest_cheapest_tier = largest_cheapest_tier.max(unit.cheapest_tier);
         match &unit.segments {
             Some(Segmentation::Segments(segments)) => {
                 ambiguous_segments += segments.iter().filter(|s| s.derivations > 1).count();
@@ -421,6 +440,9 @@ fn summarize(
         total_derivations,
         total_surplus,
         ambiguous_units,
+        singleton_cheapest_units,
+        cheapest_tier_total,
+        largest_cheapest_tier,
         ambiguous_segments,
         not_segmentable,
         units,
@@ -476,6 +498,14 @@ impl Report {
             self.ambiguous_segments,
             self.not_segmentable.len(),
             self.total_derivations
+        );
+        let _ = writeln!(
+            out,
+            "cheapest tier: singleton in {} of {} ambiguous units  summed {}  largest {}",
+            self.singleton_cheapest_units,
+            self.ambiguous_units,
+            self.cheapest_tier_total,
+            self.largest_cheapest_tier
         );
         let _ = writeln!(
             out,

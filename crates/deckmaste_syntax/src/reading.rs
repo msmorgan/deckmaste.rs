@@ -1,8 +1,9 @@
 //! Readings: enumeration from the Packed Forest, Admission without parsing,
-//! Realization, and Production Cost.
+//! Realization, and the Ranking Key.
 
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
+use std::ops::Add;
 use std::ops::Range;
 
 use deckmaste_lexical::Binding;
@@ -53,6 +54,39 @@ impl Reading {
         match self {
             Self::Node(node) => Some(node),
             Self::Leaf(_) => None,
+        }
+    }
+}
+
+/// The Ranking Key (`docs/decisions/english-v4.md` §4.3): the Preference that
+/// orders a Parse's Readings, compared component by component in field order,
+/// lower first. A Reading's own order is the final tie-break, so the cheapest
+/// Reading is unique. Every component is a sum over the Reading's Productions
+/// or attachments, which keeps extraction over the Packed Forest
+/// compositional.
+#[derive(
+    Debug, Clone, Copy, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize,
+)]
+pub struct RankingKey {
+    /// Attachments that violate a structural Attachment Class.
+    pub attachment_class: u64,
+    /// Right Association: the words between unselected dependents and the
+    /// heads of their hosts, reversed for a dependent that attaches high.
+    pub right_association_words: i64,
+    /// The summed Production Cost.
+    pub production_cost: u64,
+}
+
+impl Add for RankingKey {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self {
+            attachment_class: self.attachment_class.saturating_add(other.attachment_class),
+            right_association_words: self
+                .right_association_words
+                .saturating_add(other.right_association_words),
+            production_cost: self.production_cost.saturating_add(other.production_cost),
         }
     }
 }
@@ -118,29 +152,89 @@ impl Parse<'_> {
         total
     }
 
-    /// Every Reading, deduplicated and ranked by total Production Cost, then
-    /// by a deterministic order. This builds every tree; outside tests, use
+    /// Every Reading, deduplicated and ranked by its Ranking Key, then by its
+    /// own order. This builds every tree; outside tests, use
     /// [`Parse::best_readings`] or [`Parse::derivation_count`].
     #[must_use]
     pub fn readings(&self) -> Vec<Reading> {
-        self.ranked(None)
+        self.ranked(None).into_iter().map(|(_, r)| r).collect()
     }
 
-    /// The `k` cheapest Readings by total Production Cost. Each forest node
-    /// keeps only its `k` cheapest trees, so the work is bounded by `k` and
-    /// the forest's size, never by the number of attachment trees.
+    /// The `k` best Readings by Ranking Key. Each forest node keeps only its
+    /// `k` best trees, so the work is bounded by `k` and the forest's size,
+    /// never by the number of attachment trees.
     #[must_use]
     pub fn best_readings(&self, k: usize) -> Vec<Reading> {
+        self.ranked(Some(k)).into_iter().map(|(_, r)| r).collect()
+    }
+
+    /// The `k` best Readings with their Ranking Keys, best first.
+    #[must_use]
+    pub fn best_ranked(&self, k: usize) -> Vec<(RankingKey, Reading)> {
         self.ranked(Some(k))
     }
 
-    fn ranked(&self, limit: Option<usize>) -> Vec<Reading> {
+    /// The least Ranking Key in the forest and the number of Derivations that
+    /// have it: the size of the cheapest tier before the final tie-break.
+    /// Counted without building trees; `None` without a Derivation.
+    #[must_use]
+    pub fn cheapest_tier(&self) -> Option<(RankingKey, u128)> {
+        let mut memo = ForestMemo::default();
+        let mut best = None;
+        for &root in &self.forest.roots {
+            best = least(best, self.tier_node(root, &mut memo));
+        }
+        best
+    }
+
+    fn tier_node(&self, node: usize, memo: &mut TierMemo) -> Tier {
+        let frame = match memo.nodes.enter(node) {
+            Visit::Known(tier) => return tier,
+            Visit::Cycle => return None,
+            Visit::Open(frame) => frame,
+        };
+        let mut best = None;
+        for &(production, item) in &self.forest.nodes[node].families {
+            let own = self.grammar.production_key(production);
+            let tier = self.tier_item(item, memo).map(|(key, n)| (key + own, n));
+            best = least(best, tier);
+        }
+        memo.nodes.leave(frame, &best);
+        best
+    }
+
+    fn tier_item(&self, item: usize, memo: &mut TierMemo) -> Tier {
+        if let Some(&tier) = memo.items.get(&item) {
+            return tier;
+        }
+        let mark = memo.nodes.mark();
+        let mut best = None;
+        for &(previous, child) in &self.forest.items[item].families {
+            let before = match previous {
+                Some(p) => self.tier_item(p, memo),
+                None => Some((RankingKey::default(), 1)),
+            };
+            let here = match child {
+                ChildRef::Node(n) => self.tier_node(n, memo),
+                ChildRef::Leaf(_) | ChildRef::Punct => Some((RankingKey::default(), 1)),
+            };
+            if let (Some((k1, n1)), Some((k2, n2))) = (before, here) {
+                best = least(best, Some((k1 + k2, n1.saturating_mul(n2))));
+            }
+        }
+        if memo.nodes.settle(mark) {
+            memo.items.insert(item, best);
+        }
+        best
+    }
+
+    fn ranked(&self, limit: Option<usize>) -> Vec<(RankingKey, Reading)> {
         let mut memo = ForestMemo::default();
         let mut all = BTreeSet::new();
         for &root in &self.forest.roots {
             all.extend(self.node_trees(root, limit, &mut memo));
         }
-        truncate(all, limit).into_iter().map(|(_, r)| r).collect()
+        truncate(all, limit)
     }
 
     fn node_trees(
@@ -148,7 +242,7 @@ impl Parse<'_> {
         node: usize,
         limit: Option<usize>,
         memo: &mut TreeMemo,
-    ) -> Vec<(u64, Reading)> {
+    ) -> Vec<(RankingKey, Reading)> {
         let frame = match memo.nodes.enter(node) {
             Visit::Known(trees) => return trees,
             Visit::Cycle => return Vec::new(),
@@ -159,9 +253,10 @@ impl Parse<'_> {
         let mut trees = BTreeSet::new();
         for &(production, item) in &packed.families {
             let p = &grammar.productions[production];
-            for (cost, children) in self.item_sequences(item, limit, memo) {
+            let own = grammar.production_key(production);
+            for (key, children) in self.item_sequences(item, limit, memo) {
                 trees.insert((
-                    cost + u64::from(p.cost),
+                    key + own,
                     Reading::Node(ReadingNode {
                         production: p.id,
                         category: grammar.categories[p.lhs],
@@ -183,7 +278,7 @@ impl Parse<'_> {
         item: usize,
         limit: Option<usize>,
         memo: &mut TreeMemo,
-    ) -> Vec<(u64, Vec<Reading>)> {
+    ) -> Vec<(RankingKey, Vec<Reading>)> {
         if let Some(sequences) = memo.items.get(&item) {
             return sequences.clone();
         }
@@ -192,25 +287,25 @@ impl Parse<'_> {
         for &(previous, child) in &self.forest.items[item].families {
             let prefixes = match previous {
                 Some(p) => self.item_sequences(p, limit, memo),
-                None => vec![(0, Vec::new())],
+                None => vec![(RankingKey::default(), Vec::new())],
             };
-            let lasts: Vec<(u64, Option<Reading>)> = match child {
+            let lasts: Vec<(RankingKey, Option<Reading>)> = match child {
                 ChildRef::Node(n) => self
                     .node_trees(n, limit, memo)
                     .into_iter()
-                    .map(|(c, r)| (c, Some(r)))
+                    .map(|(k, r)| (k, Some(r)))
                     .collect(),
                 ChildRef::Leaf(l) => vec![(
-                    0,
+                    RankingKey::default(),
                     Some(Reading::Leaf(self.forest.leaves[l].reading.clone())),
                 )],
-                ChildRef::Punct => vec![(0, None)],
+                ChildRef::Punct => vec![(RankingKey::default(), None)],
             };
-            for (prefix_cost, prefix) in &prefixes {
-                for (last_cost, last) in &lasts {
+            for (prefix_key, prefix) in &prefixes {
+                for (last_key, last) in &lasts {
                     let mut sequence = prefix.clone();
                     sequence.extend(last.clone());
-                    out.insert((prefix_cost + last_cost, sequence));
+                    out.insert((*prefix_key + *last_key, sequence));
                 }
             }
         }
@@ -222,26 +317,56 @@ impl Parse<'_> {
     }
 }
 
-type TreeMemo = ForestMemo<Vec<(u64, Reading)>, Vec<(u64, Vec<Reading>)>>;
+type TreeMemo = ForestMemo<Vec<(RankingKey, Reading)>, Vec<(RankingKey, Vec<Reading>)>>;
 
-/// The cheapest `limit` entries of an ordered set, or all of them.
-fn truncate<T: Ord>(set: BTreeSet<(u64, T)>, limit: Option<usize>) -> Vec<(u64, T)> {
+/// A forest node's or item's cheapest tier: its least key and how many
+/// Derivations have it.
+type Tier = Option<(RankingKey, u128)>;
+type TierMemo = ForestMemo<Tier, Tier>;
+
+/// The lesser of two tiers, adding their counts when their keys are equal.
+fn least(a: Tier, b: Tier) -> Tier {
+    match (a, b) {
+        (None, t) | (t, None) => t,
+        (Some((ka, na)), Some((kb, nb))) => Some(match ka.cmp(&kb) {
+            std::cmp::Ordering::Less => (ka, na),
+            std::cmp::Ordering::Greater => (kb, nb),
+            std::cmp::Ordering::Equal => (ka, na.saturating_add(nb)),
+        }),
+    }
+}
+
+/// The best `limit` entries of an ordered set, or all of them.
+fn truncate<T: Ord>(set: BTreeSet<(RankingKey, T)>, limit: Option<usize>) -> Vec<(RankingKey, T)> {
     set.into_iter().take(limit.unwrap_or(usize::MAX)).collect()
 }
 
 impl CompiledGrammar {
-    /// Total Production Cost of a Reading; leaves cost nothing.
+    /// A Reading's Ranking Key: the sum of its Productions' keys. Leaves add
+    /// nothing.
     #[must_use]
-    pub fn cost(&self, reading: &Reading) -> u64 {
+    pub fn ranking_key(&self, reading: &Reading) -> RankingKey {
         match reading {
-            Reading::Leaf(_) => 0,
+            Reading::Leaf(_) => RankingKey::default(),
             Reading::Node(node) => {
                 let own = self
                     .by_id
                     .get(&node.production)
-                    .map_or(0, |&p| u64::from(self.productions[p].cost));
-                own + node.children.iter().map(|c| self.cost(c)).sum::<u64>()
+                    .map_or_else(RankingKey::default, |&p| self.production_key(p));
+                node.children
+                    .iter()
+                    .fold(own, |key, child| key + self.ranking_key(child))
             }
+        }
+    }
+
+    /// One occurrence of a Production's contribution to a Ranking Key. The
+    /// Attachment Class and Right Association components are not computed
+    /// yet, and are zero.
+    pub(crate) fn production_key(&self, production: usize) -> RankingKey {
+        RankingKey {
+            production_cost: u64::from(self.productions[production].cost),
+            ..RankingKey::default()
         }
     }
 

@@ -77,6 +77,13 @@ unit with a Derivation whose Segments differ between Derivations, or do not
 multiply to its count, is not segmentable (its Surplus is `derivations − 1`);
 the summary lists it and `--check` fails on it.
 
+Each unit also reports its `cheapest_tier`: how many of its Derivations share
+the least Ranking Key (`docs/decisions/english-v4.md` §4.3), before the final
+tie-break, counted on the Packed Forest without building trees. The summary
+gives how many ambiguous units have a cheapest tier of one, the tiers' sum over
+ambiguous units, and the largest tier. Ranking never changes which Readings
+exist: verdicts, Readings and Surplus do not depend on it.
+
 `COMPLETED_STRATUM` is the highest Stratum whose gate is met. A unit at or below
 it that is not read is a regression, unless [`deferred.txt`](deferred.txt) names
 it by card and text: a deferred unit is left unread on purpose, owned by a
@@ -333,7 +340,10 @@ judgment evaluator, including its round-trip checks and 4096-derivation limit;
 `--limit` only limits the display, not assertion evaluation.
 
 Up to eight cheapest admitted Readings are shown by default. `--limit 0` prints
-only the summary. Each Reading includes its realized text, Production Cost and
+only the summary. The summary also gives the cheapest tier: how many
+Derivations share the least Ranking Key, and that key. Each Reading includes
+its realized text, its Ranking Key (`class/association/cost`, in comparison
+order) and
 a constituent table: preorder node index (root 0), parent, Production id,
 Category, byte span and surface in the realized text, grammatical function,
 head lemma, lexeme id and Word Form, and Gap. The Word Form tells apart

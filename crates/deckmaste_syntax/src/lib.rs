@@ -31,6 +31,7 @@ pub use laws::RealizationFault;
 pub use reading::AdmissionError;
 pub use reading::Constituent;
 pub use reading::NotSegmentable;
+pub use reading::RankingKey;
 pub use reading::Reading;
 pub use reading::ReadingNode;
 pub use reading::Segment;
