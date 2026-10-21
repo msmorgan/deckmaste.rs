@@ -1272,18 +1272,18 @@
         Adjunct(host: "LocativeHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "PartitiveHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "SymbolHead", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
-        // A keyword mentioned without its parameter takes a modifier
-        // (*landwalk of the chosen type*); a supplied parameter ends it.
-        Adjunct(host: "KeywordPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1, equations: [Exclude("head.KeywordForm", "Parametric")]),
         Adjunct(host: "Nominal", adjunct: "PrepositionPhrase", side: After, host_kind: Nominal, cost: 1),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2),
         Adjunct(host: "ExistentialPredicate", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, cost: 2, equations: [Exclude("head.ComplementKind", "NP")]),
         Adjunct(host: "VerbPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Predicate, delimiter: Some(','), cost: 2),
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),
-        // A comma-set Supplement to a Clause, a keyword or an indexed
-        // instruction (*, where X is its power*).
+        // A comma-set Supplement to a Clause, a keyword line's item or an
+        // indexed instruction (*, where X is its power*). A Supplement anchors
+        // to a Clause or line (Oracle English glossary, "Host Category"),
+        // never to a Keyword Phrase in a sentence, which takes only its
+        // catalog-declared parameters (english-v4.md §4.2).
         Adjunct(host: "Clause", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
-        Adjunct(host: "KeywordPhrase", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
+        Adjunct(host: "KeywordLineItem", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         Adjunct(host: "IndexedNominal", adjunct: "PrepositionPhrase", side: After, host_kind: Supplement, delimiter: Some(','), cost: 2),
         // A preposed gerund-participial adjunct (*Starting with you, ...*).
         Adjunct(host: "Clause", adjunct: "Gerund", side: Before, host_kind: Predicate, delimiter: Some(','), cost: 2),

@@ -28,8 +28,10 @@
     (rule: "[CR#702.11]", name: "Hexproof", lemma: "hexproof", parameters: [[], [Quality(Some("from"))]]),
     (rule: "[CR#702.12]", name: "Indestructible", lemma: "indestructible"),
     (rule: "[CR#702.13]", name: "Intimidate", lemma: "intimidate"),
-    // "islandwalk", and "land" in "nonbasic landwalk" [CR#702.14a,702.14c]
-    (rule: "[CR#702.14]", name: "Landwalk", lemma: "landwalk", bound: (surface: "walk", stems: [LandType, CardType])),
+    // "islandwalk", and "land" in "nonbasic landwalk" [CR#702.14a,702.14c]; "landwalk of the
+    // chosen type" names its land type as a Keyword Quality after "of"
+    (rule: "[CR#702.14]", name: "Landwalk", lemma: "landwalk", parameters: [[], [Quality(Some("of"))]],
+        bound: (surface: "walk", stems: [LandType, CardType])),
     (rule: "[CR#702.15]", name: "Lifelink", lemma: "lifelink"),
     (rule: "[CR#702.16]", name: "Protection", lemma: "protection", parameters: [[Quality(Some("from"))]]),
     (rule: "[CR#702.17]", name: "Reach", lemma: "reach"),

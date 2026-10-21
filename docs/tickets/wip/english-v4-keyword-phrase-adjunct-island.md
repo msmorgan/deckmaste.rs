@@ -82,6 +82,14 @@ frames or existing productions.
 - Delete both `KeywordPhrase` Adjunct Schemas.
 - Rehome the uses above as stated, with no new feature, Schema or Production.
 
+## Owner's ruling (round 3)
+
+No existing production hosts a *where* Supplement on a Keyword Line, and no
+catalog parameter kind takes one. The owner approved narrowing the comma-set
+Supplement's host from `KeywordPhrase` to `KeywordLineItem`. A Supplement
+anchors to a Clause or line (glossary, "Host Category"), so this keeps the
+Keyword Line faces without letting a keyword in a sentence take a Supplement.
+
 ## Acceptance set
 
 All figures are from the cost-audit evaluation data, measured on `loxuknun`.
@@ -118,5 +126,5 @@ All figures are from the cost-audit evaluation data, measured on `loxuknun`.
 
 Standard constraints apply.
 
-Census delta (measured on `<change>` → this landing): faces read, total Readings and Surplus before and after; lost faces by name, or "none".
-Judgment set: the result of running it.
+Census delta (measured on `tutlnwqy` → `rmszzxqu`): faces read 28,709 → 28,709, total Readings 318,400 → 316,018, Surplus 170,281 → 168,240; lost faces: none.
+Judgment set: `cargo test -p deckmaste_english_v4` passes; Traveler's Cloak rewritten, 3 entries added, none retired.
