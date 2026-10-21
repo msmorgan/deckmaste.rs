@@ -438,22 +438,22 @@ def volatileClaws : Spelled := spelled <| .singleFaced
     { name := "Volatile Claws", cost := some [generic 2, pip .red], types := [.instant],
       text :=
         [ spell
-            (establishThroughout (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up
-                  (.lit 2)) (up (.lit 0)),
-                qualityChange (allOf (and [isCreature, youControl])) .adds
-                  (everyTypeOf .creature) ]) untilEndOfTurn) ] } }
+            (establishFor (allOf (and [isCreature, youControl]))
+              [ getsPt them (up (.lit 2)) (up (.lit 0)),
+                qualityChange them .adds (everyTypeOf .creature) ]
+              (some untilEndOfTurn)) ] } }
 
 /-- Nameless Inversion -/
 def namelessInversionBody : Action :=
-  establishThroughout (conjunction [ getsPt (target isCreature) (up (.lit 3)) (down (.lit 3)),
-        qualityChange it .loses (everyTypeOf .creature) ]) untilEndOfTurn
+  establishFor (target isCreature)
+    [getsPt it (up (.lit 3)) (down (.lit 3)), qualityChange it .loses (everyTypeOf .creature)]
+    (some untilEndOfTurn)
 theorem okNamelessInversionBody : Action.check (DRS.ofList []) namelessInversionBody = [] := by decide
 /-- Ego Erasure -/
 def egoErasureBody : Action :=
-  establishThroughout (conjunction
-                         [ getsPt (allOf (and [isCreature, controlledBy (target isPlayer)]))
-                             (down (.lit 2)) (up (.lit 0)),
-        qualityChange them .loses (everyTypeOf .creature) ]) untilEndOfTurn
+  establishFor (allOf (and [isCreature, controlledBy (target isPlayer)]))
+    [getsPt them (down (.lit 2)) (up (.lit 0)), qualityChange them .loses (everyTypeOf .creature)]
+    (some untilEndOfTurn)
 theorem okEgoErasureBody : Action.check (DRS.ofList []) egoErasureBody = [] := by decide
 /-- Lithoform Blight -/
 def lithoformBlightLoss : StaticSpec :=

@@ -715,10 +715,9 @@ def elspethsTalent : Spelled := spelled <| .singleFaced
         [ enchant isPlaneswalker,
           static elspethsTalentGrant,
           whenever (does you (activate loyaltyAbilityOfEnchanted))
-            (establishThroughout
-               (conjunction [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 2)) (up
-                      (.lit 2)),
-                  abilityGrant them vigilance ]) untilEndOfTurn) ] } }
+            (establishFor (allOf (and [isCreature, youControl]))
+              [getsPt them (up (.lit 2)) (up (.lit 2)), abilityGrant them vigilance]
+              (some untilEndOfTurn)) ] } }
 
 /-- Void Maw -/
 def voidMawPutCost : Ability :=
@@ -730,9 +729,7 @@ def ghorClanRampager : Ability :=
   bloodrush
     (activated (compound [mana [pip .red, pip .green], perform (discard this_)])
       (establishFor (target (and [isCreature, isAttacking]))
-        [ getsPt (target (and [isCreature, isAttacking])) (up (.lit 4)) (up (.lit
-              4)),
-          abilityGrant (target (and [isCreature, isAttacking])) trample ]
+        [getsPt it (up (.lit 4)) (up (.lit 4)), abilityGrant it trample]
         (some untilEndOfTurn)))
 theorem okGhorClanRampager : Ability.check (DRS.ofList []) ghorClanRampager = [] := by decide
 /-- Tymora's Invoker -/

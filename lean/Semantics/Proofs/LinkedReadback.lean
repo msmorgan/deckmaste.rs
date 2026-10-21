@@ -328,7 +328,7 @@ namespace MutateTarget
 own", reading the target back as `description` does. -/
 def merges (description : NounPhrase) : Ability :=
   static
-    (.replace (.would .any (putOntoBattlefield thisSpell))
+    (.replace (would thisSpell enter)
       (instead (chooseOne (.merge thisSpell description .top) (.merge thisSpell description .bottom)))
       none .repeatedly none)
 

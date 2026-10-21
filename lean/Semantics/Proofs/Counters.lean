@@ -84,8 +84,8 @@ theorem okControlSelfNegation :
 gets −1/−1 until end of turn." -/
 theorem okAltHeaderAgreeingReadback :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature (block (a isCreature)))
-        [does (by_ (a isCreature)) (block thisCreature)] none [] none none none
+      (whenever (does thisCreature (block (a isCreature)))
+        (or_ := [does (by_ (a isCreature)) (block thisCreature)])
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] := by
   decide
@@ -100,8 +100,8 @@ theorem agreeingAlternativeHeadersSelectTheOtherCreature :
 
 theorem alternateHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature block)
-        [does (by_ (a isCreature)) (block thisCreature)] none [] none none none
+      (whenever (does thisCreature block)
+        (or_ := [does (by_ (a isCreature)) (block thisCreature)])
         (get (that (.type .creature)) (.down (.lit 1)) (.down (.lit 1)) (some untilEndOfTurn)))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
@@ -110,8 +110,8 @@ theorem alternateHeadersPublishTheirSelf :
 
 theorem threeHeadersPublishTheirSelf :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature attack)
-        [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)] none [] none none none
+      (whenever (does thisCreature attack)
+        (or_ := [does thisCreature block, .does (.by (a isSpell)) (.target thisCreature)])
         (Action.instruct thisCreature (.dealDamage (powerOf (that (.type .creature))) (each (.isOpponentOf .you)))))
       = [] ∧
       (firstReach (.word (.type .creature)) .one
@@ -120,8 +120,8 @@ theorem threeHeadersPublishTheirSelf :
 
 theorem badJoinedHeaderReadback :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature enter) [] none
-        [⟨does (a (and [isCreature, youControl])) die, [], none, none⟩] none none none
+      (when (does thisCreature enter)
+        (joins := [⟨does (a (and [isCreature, youControl])) die, [], none, none⟩])
         (.putCounters (.lit 1) p11 it .one true)) = [.anaphor .bare .one 0] := by
   decide
 

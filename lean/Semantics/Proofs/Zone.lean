@@ -413,8 +413,8 @@ theorem okUntapCapBattlefieldSet :
 /-- "if this creature is attacking" -/
 theorem okMatchesBattlefieldZone :
     Ability.check (DRS.ofList [])
-      (.triggered (lastCounterRemoved (.named "timeCounter") thisCreature) [] none [] none none
-        (some (.matches thisCreature isAttacking)) (draw (.lit 1))) = [] := by
+      (when (lastCounterRemoved (.named "timeCounter") thisCreature)
+        (if_ := some (.matches thisCreature isAttacking)) (draw (.lit 1))) = [] := by
   decide
 
 /-- "Draw cards equal to the difference." under a comparison -/
@@ -432,15 +432,15 @@ theorem badUnlicensedDifference :
 to the difference." -/
 theorem okDifferenceUnderComparisonTrigger :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature enter) [] none [] none none
-        (some (.compareAmt (countOf (and [isCreature, youControl])) .less (.lit 7)))
+      (when (does thisCreature enter)
+        (if_ := some (.compareAmt (countOf (and [isCreature, youControl])) .less (.lit 7)))
         (draw .theDifference)) = [] := by
   decide
 
 theorem badNonComparisonDifference :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature enter) [] none [] none none
-        (some (exists_ (and [isCreature, youControl]))) (draw .theDifference)) = [.differenceInScope 0]
+      (when (does thisCreature enter)
+        (if_ := some (exists_ (and [isCreature, youControl]))) (draw .theDifference)) = [.differenceInScope 0]
             := by
   decide
 

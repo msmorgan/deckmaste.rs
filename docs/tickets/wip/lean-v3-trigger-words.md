@@ -29,6 +29,12 @@ finding 5 of the spelling-layer audit ("enters"), and the gets-and-gains split.
    - Coordinate with [lean-v3-gets-printed-zero](lean-v3-gets-printed-zero.md), and state which
      lands first.
 
+4. **Optional named parameters (owner, 2026-10-21, option A).**
+   [Card authoring binds no implicits](../../decisions/card-authoring-binds-no-implicits.md) is
+   superseded for the Lean workbench: Templates may take optional named parameters with defaults,
+   placed after the required ones, as `dealDamage`'s `kind` and the deontic Templates' `timing`
+   already do. The ADR carries the dated supersession note.
+
 ## 1. Trigger words
 
 **Verified state (2026-10-21).**

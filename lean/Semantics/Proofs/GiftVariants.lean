@@ -39,7 +39,7 @@ def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) tru
 def gift (effect : Action) : Ability :=
   .keyword (.named "gift") []
     [ costPart,
-      whenIf (does thisPermanent enter) onPermanent (handed effect),
+      when (does thisPermanent enter) (if_ := some onPermanent) (handed effect),
       .spell none (doIf onInstantOrSorcery (handed effect)) ]
 
 /-- "Gift a card": the chosen player draws a card [CR#702.174e]. -/

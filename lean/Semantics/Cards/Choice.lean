@@ -1205,9 +1205,9 @@ def verityCircle : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Verity Circle", cost := some [generic 2, pip .blue], types := [.enchantment],
       text :=
-        [ wheneverIf
+        [ whenever
             (does (a (and [isCreature, anOpponentControls])) (become tapped))
-            (is it (not (inCombat .declaredAttacker)))
+            (if_ := some (is it (not (inCombat .declaredAttacker))))
             (may (draw (.lit 1))),
           activated (mana [generic 4, pip .blue])
             (tap (target (and [isCreature, not (hasKeyword flying)]))) ] } }

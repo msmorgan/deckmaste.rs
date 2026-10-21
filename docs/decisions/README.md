@@ -46,7 +46,8 @@ requires explicit review rather than an opportunistic refactor.
   `plugins_v3/`.
 - [Card authoring binds no implicits](card-authoring-binds-no-implicits.md) —
   Card authoring binds no implicit parameters; core constructors take every
-  field required.
+  field required. Superseded for the Lean workbench (2026-10-21): Templates may
+  take optional named parameters after the required ones.
 - [Workbench RON-shaped and label rulings](workbench-ron-shaped-and-label-rulings.md)
   — Registry label and RON-shaped syntax rulings.
 - [The kind index joins; union marking is spelling](kind-index-joins-union-marking-is-spelling.md) —

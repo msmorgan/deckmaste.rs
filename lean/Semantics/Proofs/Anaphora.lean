@@ -86,24 +86,24 @@ theorem okMoveToExile :
 /-- "When this creature enters, if a creature died this turn, draw a card." -/
 theorem okLookbackObjectDied :
     Ability.check (DRS.ofList [])
-      (.triggered (.does .any (.move thisCreature .anyLocation (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨.any, (.move (a isCreature) (battlefield) (some graveyard) .departure none []), some (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
+      (when (does thisCreature enter)
+        (if_ := some (.did ⟨.any, (.move (a isCreature) (battlefield) (some graveyard) .departure none []), some (.duration soFarThisTurn none)⟩)) (draw (.lit 1)))
             = [] := by
   decide
 
 /-- "When this creature enters, if you died this turn, draw a card." -/
 theorem badLookbackPlayerDied :
     Ability.check (DRS.ofList [])
-      (.triggered (.does .any (.move thisCreature .anyLocation (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨.any, (.move .you (battlefield) (some graveyard) .departure none []), some (.duration soFarThisTurn none)⟩)) (draw
+      (when (does thisCreature enter)
+        (if_ := some (.did ⟨.any, (.move .you (battlefield) (some graveyard) .departure none []), some (.duration soFarThisTurn none)⟩)) (draw
           (.lit 1)))
       = [.kindLte .player (.join .object .pile)] := by
   decide
 
 theorem badLookbackObjectCast :
     Ability.check (DRS.ofList [])
-      (.triggered (.does .any (.move thisCreature .anyLocation (some battlefield) .arrival none [])) [] none [] none none
-        (some (.did ⟨(.actor (a isCreature)), (.procedure .cast .any .itsOwnCost none none none), some (.duration soFarThisTurn none)⟩)) (draw
+      (when (does thisCreature enter)
+        (if_ := some (.did ⟨(.actor (a isCreature)), (.procedure .cast .any .itsOwnCost none none none), some (.duration soFarThisTurn none)⟩)) (draw
           (.lit 1)))
       = [.kindMismatch .player .object] := by
   decide

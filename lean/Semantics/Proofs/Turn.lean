@@ -579,7 +579,7 @@ the limit counts the action, so the ability triggers only if you haven't yet dra
 this turn (Iron Man, Bleeding Edge and Donal, Herald of Wings; the retired
 `UsageLimit.actionOncePerTurn`). -/
 theorem okDoThisOnlyOnceEachTurn :
-    Ability.check (DRS.ofList []) (triggered (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
+    Ability.check (DRS.ofList []) (whenever (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))
       (doOnlyOnceEachTurn (may (draw (.lit 1))))) = [] := by
   decide
 

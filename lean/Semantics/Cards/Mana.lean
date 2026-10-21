@@ -98,8 +98,8 @@ def deadeyeBrawler : Spelled := spelled <| .singleFaced
       text :=
         [ deathtouch,
           ascend,
-          wheneverIf (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
-            (is you (hasDesignation citysBlessing))
+          whenever (does thisCreature (dealDamage (to := a isPlayer) (kind := some .combat)))
+            (if_ := some (is you (hasDesignation citysBlessing)))
             (draw (.lit 1)) ],
       power := stat 2, toughness := stat 4 } }
 
@@ -116,10 +116,10 @@ def tocasiasWelcome : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Tocasia's Welcome", cost := some [generic 2, pip .white], types := [.enchantment],
       text :=
-        [ triggeredOnlyOnce
+        [ whenever
             (does (counted (atLeast 1) (and [isCreature, youControl,
                                                  hasManaValue .atMost (.lit 3)])) enter)
-            oncePerTurn (draw (.lit 1)) ] } }
+            (draw (.lit 1)) (limit := some oncePerTurn) ] } }
 
 def duskLegionDuelist : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -127,8 +127,8 @@ def duskLegionDuelist : Spelled := spelled <| .singleFaced
       subtypes := [vampire, soldier],
       text :=
         [ vigilance,
-          triggeredOnlyOnce (countersPut p1p1Counter .many thisCreature) oncePerTurn
-            (draw (.lit 1)) ],
+          whenever (countersPut p1p1Counter .many thisCreature)
+            (draw (.lit 1)) (limit := some oncePerTurn) ],
       power := stat 2, toughness := stat 2 } }
 
 def mishrasFactory : Spelled := spelled <| .singleFaced
@@ -635,7 +635,7 @@ def coalStoker : Spelled := spelled <| .singleFaced
     { name := "Coal Stoker", cost := some [generic 3, pip .red], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ whenIf (does thisCreature enter) (is it (castFrom yourHand))
+        [ when (does thisCreature enter) (if_ := some (is it (castFrom yourHand)))
             (addMana (.lit 1) (manaOf [[.of .red, .of .red, .of .red]])) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -680,7 +680,7 @@ theorem okCausticBroncoLoss : Action.check (DRS.ofList []) causticBroncoLoss = [
 /-- Dark Fortress -/
 def darkFortressMana : Ability :=
   activatedOnlyIf tapSymbol (addMana (.lit 1) (manaOf [[.of .black], [.of .red]]))
-    (or [ was (putOntoBattlefield thisLand) soFarThisTurn,
+    (or [ did thisLand enter soFarThisTurn,
            exists_ (and [isLand, hasSupertype .basic, youControl]) ])
 theorem okDarkFortressMana : Ability.check (DRS.ofList []) darkFortressMana = [] := by decide
 
@@ -771,8 +771,8 @@ def latchkeyFaerie : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           prowl (mana [generic 2, pip .blue]),
-          whenIf (does thisCreature enter) (keywordCostPaid prowl
-                                                           thisCreature)
+          when (does thisCreature enter) (if_ := some (keywordCostPaid prowl
+                                                           thisCreature))
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 1 } }
 
@@ -807,9 +807,9 @@ def jemLightfooteSkyExplorer : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           vigilance,
-          atIf (beginningOfYour .endStep)
-            (not
-               (did you (cast (a isSpell) (from_ := some yourHand)) soFarThisTurn))
+          at_ (beginningOfYour .endStep)
+            (if_ := some (not
+               (did you (cast (a isSpell) (from_ := some yourHand)) soFarThisTurn)))
             (draw (.lit 1)) ],
       power := stat 3, toughness := stat 3 } }
 
@@ -908,9 +908,9 @@ def upTheBeanstalk : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Up the Beanstalk", cost := some [generic 1, pip .green], types := [.enchantment],
       text :=
-        [ triggeredJoined (does this_ enter)
-            [joinedHead (does you (cast (a
-              (and [isSpell, hasManaValue .atLeast (.lit 5)]))))]
+        [ when (does this_ enter)
+            (joins := [joinedHead (does you (cast (a
+              (and [isSpell, hasManaValue .atLeast (.lit 5)]))))])
             (draw (.lit 1)) ] } }
 
 /-- Sheltered Valley -/
@@ -928,8 +928,8 @@ def shelteredValley : Spelled := spelled <| .singleFaced
                           [ isPermanent, otherThan thisLand, named "Sheltered Valley",
                             youControl ])),
                     putOntoBattlefield thisLand ]))),
-          atIf (beginningOfYour .upkeep)
-            (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3))
+          at_ (beginningOfYour .upkeep)
+            (if_ := some (compareAmt (countOf (and [isLand, youControl])) .atMost (.lit 3)))
             (gainLife (.lit 1)),
           activated tapSymbol (addMana (.lit 1) (manaOf [[.colorless]])) ] } }
 
@@ -943,11 +943,11 @@ theorem okSoulShatter : Action.check (DRS.ofList []) soulShatter = [] := by deci
 
 /-- Padeem, Consul of Innovation -/
 def padeemConsulOfInnovation : Ability :=
-  atIf (beginningOfYour .upkeep)
-    (is
+  at_ (beginningOfYour .upkeep)
+    (if_ := some (is
       (the (and [isArtifact,
                   superlative .max (.stat .manaValue) (and [isArtifact, in_ battlefield])]))
-      youControl)
+      youControl))
     (draw (.lit 1))
 theorem okPadeemConsulOfInnovation : Ability.check (DRS.ofList []) padeemConsulOfInnovation = [] := by decide
 

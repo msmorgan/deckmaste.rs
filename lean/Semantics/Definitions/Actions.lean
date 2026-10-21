@@ -761,13 +761,13 @@ semantic_definition theRingTemptsYou : Action :=
                 static
                   (onlyWhile
                     (abilityGrant this_
-                      (triggered (does (a ringBearers) attack)
+                      (whenever (does (a ringBearers) attack)
                         (sequentially [draw (.lit 1), discard (a (cardIn hand))])))
                     (compareAmt timesTempted .atLeast (.lit 2))),
                 static
                   (onlyWhile
                     (abilityGrant this_
-                      (triggered
+                      (whenever
                         (does (by_ (a isCreature)) (block (a ringBearers)))
                         (atNext .endOfCombat
                           (instruct (controllerOf (that creature)) (sacrifice (that creature))))))
@@ -775,7 +775,7 @@ semantic_definition theRingTemptsYou : Action :=
                 static
                   (onlyWhile
                     (abilityGrant this_
-                      (triggered
+                      (whenever
                         (does (a ringBearers)
                           (dealDamage (to := a isPlayer) (kind := some .combat)))
                         (instruct eachOpponent (loseLife (.lit 3)))))

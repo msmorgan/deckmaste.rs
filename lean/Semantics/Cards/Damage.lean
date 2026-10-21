@@ -264,8 +264,8 @@ def infernoElemental : Spelled := spelled <| .singleFaced
     { name := "Inferno Elemental", cost := some [generic 4, pip .red, pip .red], types := [.creature],
       subtypes := [elemental],
       text :=
-        [ triggeredOr (does thisCreature (block (a isCreature)))
-            [does (by_ (a isCreature)) (block thisCreature)]
+        [ whenever (does thisCreature (block (a isCreature)))
+            (or_ := [does (by_ (a isCreature)) (block thisCreature)])
             (instruct thisCreature (dealDamage (.lit 3) (that creature))) ],
       power := stat 4, toughness := stat 4 } }
 
@@ -897,18 +897,18 @@ def twinshotSniper : Spelled := spelled <| .singleFaced
 
 /-- Quakebringer -/
 def quakebringerDamage : Ability :=
-  atIf (beginningOfYour .upkeep)
-    (or [ is this_ (in_ battlefield),
+  at_ (beginningOfYour .upkeep)
+    (if_ := some (or [ is this_ (in_ battlefield),
            and [ is this_ (cardIn yourGraveyard),
                   exists_ (and [isCreature, hasSubtype giant,
-                                 youControl]) ] ])
+                                 youControl]) ] ]))
     (instruct this_ (dealDamage (.lit 2) eachOpponent))
 theorem okQuakebringerDamage : Ability.check (DRS.ofList []) quakebringerDamage = [] := by decide
 /-- Sand Strangler -/
 def sandStranglerDamage : Ability :=
-  whenIf (does thisCreature enter)
-    (or [ exists_ (and [isLand, hasSubtype desert, youControl]),
-           exists_ (and [isLand, hasSubtype desert, in_ yourGraveyard]) ])
+  when (does thisCreature enter)
+    (if_ := some (or [ exists_ (and [isLand, hasSubtype desert, youControl]),
+           exists_ (and [isLand, hasSubtype desert, in_ yourGraveyard]) ]))
     (may (instruct this_ (dealDamage (.lit 3) (target isCreature))))
 theorem okSandStranglerDamage : Ability.check (DRS.ofList []) sandStranglerDamage = [] := by decide
 
@@ -1113,8 +1113,8 @@ def tyrantOfValakut : Spelled := spelled <| .singleFaced
       text :=
         [ surge (mana [generic 3, pip .red, pip .red]),
           flying,
-          whenIf (does thisCreature enter) (keywordCostPaid surge
-                                                           thisCreature)
+          when (does thisCreature enter) (if_ := some (keywordCostPaid surge
+                                                           thisCreature))
             (instruct thisCreature (dealDamage (.lit 3) (target isAnyTarget))) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -1179,10 +1179,13 @@ def syrKonradTheGrim : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, knight],
       text :=
-        [ triggeredOr (does (a (and [isCreature, otherThan this_])) die)
-            [ does any (putInto (a (and [isCard, isCreature])) graveyard (from_ := some (not battlefield))),
+        [ whenever (does (a (and [isCreature, otherThan this_])) die)
+            (or_ :=
+              [ does any
+                  (putInto (a (and [isCard, isCreature])) graveyard
+                    (from_ := some (not battlefield))),
               does (a (and [isCreature, in_ yourGraveyard])) (leave
-                                                                        (from_ := yourGraveyard)) ]
+                                                                        (from_ := yourGraveyard)) ])
             (instruct this_ (dealDamage (.lit 1) eachOpponent)),
           activated (mana [generic 1, pip .black]) (instruct eachPlayer (mill (.lit 1))) ],
       power := stat 5, toughness := stat 4 } }

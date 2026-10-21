@@ -4,6 +4,10 @@ import Semantics.Check.Card
 import Semantics.Cards.Keyword
 import Semantics.Cards.Static
 import Semantics.Cards.Deontic
+import Semantics.Cards.Cost
+import Semantics.Cards.Faces
+import Semantics.Cards.Description
+import Semantics.Cards.Turn
 
 open Semantics Semantics.Templates Semantics.Definitions
 
@@ -371,5 +375,115 @@ theorem enchantedPlayerDoesNotPermitAnObjectTypeRefinement :
       NounPhrase.checkAt (some .player) (DRS.ofList [])
         (.attachHost .enchanted (.ofType .player .creature)) = [.kindLte .player .object] := by
     decide
+
+/-! ## Gets and gains
+
+"<subject> gets +X/+Y and gains <ability> until end of turn" is one sentence with one written
+subject and coordinated predicates: one `establish` of a `conjunction` that shares the subject,
+its parts reading it back as "it" or "them". The power/toughness change [CR#613.4c] and the
+ability grant [CR#613.1f], or a type change [CR#613.1d] ("gain all creature types", "lose all
+creature types"), apply in their own layers from that one effect [CR#611.2a]. -/
+
+private def faceText (face : CardFace) : List Ability := face.characteristics.text
+
+private def frontText : Card → List Ability
+  | .singleFaced face => faceText face
+  | .transforming front _ => faceText front
+  | _ => []
+
+private def backText : Card → List Ability
+  | .transforming _ back => faceText back
+  | _ => []
+
+private def abilityBody : Ability → Option Action
+  | .spell _ body | .activated _ body _ _ _ _ | .triggered _ _ _ _ _ _ _ body
+  | .italicHead _ (.activated _ body _ _ _ _) => some body
+  | _ => none
+
+/-- The body of each gets-and-gains ability: *Ghor-Clan Rampager*, *Archpriest of Iona*,
+*Elspeth's Talent*, *Chittering Host*, *Awaken the Bear*, *Aim High*, *Volatile Claws* ("get
++2/+0 and gain all creature types"), both faces of *Arlinn Kord*, *Berserk* ("gains trample
+and gets +X/+0"), *Garruk, the Veil-Cursed*'s −3 ("gain trample and get +X/+X"), and *Nameless
+Inversion* and *Ego Erasure* ("get … and lose all creature types"). -/
+private def getsAndGainsBodies : List (Option Action) :=
+  [ abilityBody Cards.ghorClanRampager,
+    abilityBody Cards.archpriestOfIonaFullParty,
+    (frontText Cards.elspethsTalent.card)[2]? >>= abilityBody,
+    (faceText Cards.chitteringHost)[2]? >>= abilityBody,
+    (frontText Cards.awakenTheBear.card)[0]? >>= abilityBody,
+    (frontText Cards.aimHigh.card)[0]? >>= abilityBody,
+    (frontText Cards.volatileClaws.card)[0]? >>= abilityBody,
+    (frontText Cards.arlinnKord.card)[0]? >>= abilityBody,
+    (backText Cards.arlinnKord.card)[0]? >>= abilityBody,
+    (frontText Cards.berserk.card)[0]? >>= abilityBody,
+    (backText Cards.garrukRelentless.card)[2]? >>= abilityBody,
+    some Cards.namelessInversionBody,
+    some Cards.egoErasureBody ]
+
+private def isEstablish : Action → Bool
+  | .establish _ _ => true
+  | _ => false
+
+/-- The `establish` a body writes, alone or among a sequence, and the context it is stepped in:
+after the members before it ("Untap target creature. It gets …"). -/
+private def establishInContext : Action → Option (DRS × Action)
+  | .sequentially members =>
+    let before := members.takeWhile (!isEstablish ·)
+    let context :=
+      if before.isEmpty then DRS.ofList []
+      else nextClause (stepAction 32 .postEvent .obj (DRS.ofList []) (.sequentially before)).1
+    (members.find? isEstablish).map (context, ·)
+  | action => some (DRS.ofList [], action)
+
+private def isCharacteristicChange : StaticSpec → Bool
+  | .characteristicChange _ _ => true
+  | _ => false
+
+private def readsSharedSubject : StaticSpec → Bool
+  | .characteristicChange (.pro .bare _) _ => true
+  | _ => false
+
+/-- One `establish` for a stated duration of a shared-subject `conjunction` whose characteristic
+changes (at least two) read the subject back rather than writing it again. -/
+private def sharesOneSubject : Action → Bool
+  | .establish (.conjunction (some _) parts) (some _) =>
+    (parts.filter isCharacteristicChange).length ≥ 2 &&
+      (parts.filter isCharacteristicChange).all readsSharedSubject
+  | _ => false
+
+/-- A targeted or universally quantified referent. -/
+private def isSelected (ref : Referent) : Bool := ref.det == .target || ref.det == .all
+
+/-- Whether stepping the `establish` leaves as many targeted or quantified referents as stepping
+its shared subject alone: the parts add none, so the subject is stepped once. -/
+private def stepsSubjectOnce : DRS × Action → Bool
+  | (context, action@(.establish (.conjunction (some subject) _) _)) =>
+    (stepAction 32 .postEvent .obj context action).1.referents.countP isSelected ==
+      (stepNounPhrase 32 context .subj true subject).1.referents.countP isSelected
+  | _ => false
+
+/-- Required pin: every gets-and-gains card writes one `establish` of one shared-subject
+`conjunction`. -/
+theorem getsAndGainsShareOneShape :
+    getsAndGainsBodies.all
+      (fun body => (body >>= establishInContext).any (sharesOneSubject ·.2)) = true := by
+  decide
+
+/-- Required pin: each steps its subject once; its parts introduce no referent of their own. -/
+theorem getsAndGainsStepOneSubject :
+    getsAndGainsBodies.all (fun body => (body >>= establishInContext).any stepsSubjectOnce) =
+      true := by
+  decide
+
+/-- The subject written again in each part is a new referent each time. -/
+theorem subjectRepeatedInEachPartIsSteppedEachTime :
+    let repeated := establishFor (target isCreature)
+      [ getsPt (target isCreature) (.up (.lit 4)) (.up (.lit 4)),
+        Templates.abilityGrant (target isCreature) (keyword (.named "trample")) ]
+      (some untilEndOfTurn)
+    sharesOneSubject repeated = false ∧ stepsSubjectOnce (DRS.ofList [], repeated) = false ∧
+      (stepAction 32 .postEvent .obj (DRS.ofList []) repeated).1.referents.countP isSelected =
+        3 := by
+  decide
 
 end Semantics.Proofs.GetsBothDeltas

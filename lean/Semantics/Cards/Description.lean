@@ -492,7 +492,7 @@ theorem okIronMastiffIgnore : Action.check (DRS.ofList []) ironMastiffIgnore = [
 
 /-- Xenosquirrels -/
 def xenosquirrelsShift : Ability :=
-  triggered (does you (rollDice anyAmount .anyDie)) (may
+  after (does you (rollDice anyAmount .anyDie)) (may
       (removeCounters (exactly 1) (some p1p1Counter) thisCreature .many true)
       (some (shiftResult (.lit 1))))
 theorem okXenosquirrelsShift : Ability.check (DRS.ofList []) xenosquirrelsShift = [] := by decide
@@ -510,10 +510,10 @@ theorem permanentCardIsPlaceless : permanentCardPhrase.phraseZone .object = none
 def archpriestOfIonaPower : Ability := static (ptDefinition thisCreature .powerAlone partySize)
 theorem okArchpriestOfIonaPower : Ability.check (DRS.ofList []) archpriestOfIonaPower = [] := by decide
 def archpriestOfIonaFullParty : Ability :=
-  atIf (beginningOfYour .combat) fullParty
-    (sequentially
-      [ get (target isCreature) (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn),
-        gain it flying (some untilEndOfTurn) ])
+  at_ (beginningOfYour .combat) (if_ := some fullParty)
+    (establishFor (target isCreature)
+      [getsPt it (up (.lit 1)) (up (.lit 1)), abilityGrant it flying]
+      (some untilEndOfTurn))
 theorem okArchpriestOfIonaFullParty : Ability.check (DRS.ofList []) archpriestOfIonaFullParty = [] := by decide
 
 /-- Squad Commander -/
@@ -527,7 +527,7 @@ def atKnifepointOutlaws : Ability :=
   static (partScope .turn (some you)
             (abilityGrant (allOf (and [isOutlaw, youControl])) firstStrike))
 def atKnifepointCrime : Ability :=
-  triggeredOnlyOnce (does you commitCrime) oncePerTurn (createToken
+  whenever (does you commitCrime) (createToken
       { characteristics :=
         { colors := [.red], types := [.creature], subtypes := [mercenary],
           text :=
@@ -535,7 +535,7 @@ def atKnifepointCrime : Ability :=
                 (get (target (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 0))
                   (some untilEndOfTurn))
                 asSorcery ],
-          power := stat 1, toughness := stat 1 } })
+          power := stat 1, toughness := stat 1 } }) (limit := some oncePerTurn)
 def atKnifepoint : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "At Knifepoint", cost := some [generic 1, pip .black, pip .red],

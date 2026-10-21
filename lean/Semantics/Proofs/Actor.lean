@@ -579,10 +579,9 @@ private def syndicOfTithes (loss : Action) : Card :=
         subtypes := [human, cleric],
         text :=
           [ .keyword (.named "extort") []
-              [ .triggered
+              [ whenever
                   (.does (.actor .you) (.procedure .cast (.described (.a .unmarked)
                       (.and [.in_ (.zone .stack none), .not (.abilityHead .anyOnStack)])) .itsOwnCost none none none))
-                  [] none [] none none none
                   (.withContinuation .optional
                     (.pay (.mana [hybridPip .white .black]) .once .paid none none)
                     (some (.sequentially [loss, gainLife .thatMuch])) none) ] ],

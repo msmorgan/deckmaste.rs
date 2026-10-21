@@ -18,7 +18,7 @@ def tezzeretsGatebreaker : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Tezzeret's Gatebreaker", cost := some [generic 4], types := [.artifact],
       text :=
-        [ when (does any (putOntoBattlefield thisArtifact))
+        [ when (does thisArtifact enter)
             (sequentially
               [ lookAt (topSlice (.lit 5)),
                 may
@@ -77,7 +77,7 @@ def orchardElemental : Spelled := spelled <| .singleFaced
       subtypes := [elemental],
       text :=
         [ councilsDilemma
-            (when (does any (putOntoBattlefield thisCreature))
+            (when (does thisCreature enter)
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["sprout", "harvest"])),
@@ -121,7 +121,7 @@ def custodiSquire : Spelled := spelled <| .singleFaced
       text :=
         [ flying,
           willOfTheCouncil
-            (when (does any (putOntoBattlefield thisCreature))
+            (when (does thisCreature enter)
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byCandidate
@@ -137,7 +137,7 @@ def lieutenantsOfTheGuard : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [human, soldier],
       text :=
         [ councilsDilemma
-            (when (does any (putOntoBattlefield thisCreature))
+            (when (does thisCreature enter)
               (sequentially
                 [ instruct eachPlayer (voteStartingWith you .openly
                     (byLabel ["strength", "numbers"])),

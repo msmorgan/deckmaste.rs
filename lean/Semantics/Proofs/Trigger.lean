@@ -1,5 +1,7 @@
 import Semantics.Definitions
 import Semantics.Check.Card
+import Semantics.Cards.Piles
+import Semantics.Cards.Turn
 
 /-!
 # Semantics.Proofs.Trigger
@@ -27,8 +29,8 @@ theorem badCastsPluralComplement :
 /-- "Whenever this creature attacks while you're casting a spell, draw a card." -/
 theorem okWhileDoingCast :
     Ability.check (DRS.ofList [])
-      (.triggered (does thisCreature attack) []
-        (some (.whileDoing (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none)))) [] none none none
+      (whenever (does thisCreature attack)
+        (while_ := some (.whileDoing (.does (.actor .you) (.procedure .cast (a isSpell) .itsOwnCost none none none))))
         (draw (.lit 1))) = [] := by
   decide
 
@@ -82,8 +84,8 @@ theorem okPlayerAttacksHeader : GameEvent.check (DRS.ofList []) (does you attack
 /-- "Whenever a creature enters during your turn, draw a card." -/
 theorem okHeaderOwnTurnWindow :
     Ability.check (DRS.ofList [])
-      (.triggered (does (a isCreature) enter) [] none []
-        (some (duringPart .turn (some .you))) none none (draw (.lit 1))) = [] := by
+      (whenever (does (a isCreature) enter) (during := some (duringPart .turn (some .you)))
+        (draw (.lit 1))) = [] := by
   decide
 
 /-- "If one or more tokens would be created under your control, …" -/
@@ -101,8 +103,8 @@ theorem badNonTokenCreationSubject :
 /-- "Whenever you draw a card, draw a card. This triggers only once each turn." -/
 theorem okTriggerLimitOffChapter :
     Ability.check (DRS.ofList [])
-      (.triggered (.does (.actor .you) (.draw (.exactlyOf .anyAmount))) [] none [] none (some oncePerTurn) none
-        (draw (.lit 1))) = [] := by
+      (whenever (.does (.actor .you) (.draw (.exactlyOf .anyAmount)))
+        (draw (.lit 1)) (limit := some oncePerTurn)) = [] := by
   decide
 
 /-- "Whenever a creature attacks a player" -/
@@ -267,6 +269,67 @@ theorem badShiftWithoutRoll :
 theorem badChapterZero :
     Ability.check (DRS.ofList []) (when (.chapterMark [0]) (draw (.lit 1)))
       = [.chapterMarks] := by
+  decide
+
+/-! ## Trigger words
+
+`when`, `whenever`, `at_` and `after` are one triggered ability [CR#603.1] spelled with the word
+the card prints; each takes every optional part of the header. -/
+
+/-- "Whenever an opponent loses life during your turn, if you control an artifact, draw a card.
+This ability triggers only once each turn.": a window, an intervening "if" [CR#603.4] and a limit
+on one header. -/
+def wheneverDuringIfOnlyOnce : Ability :=
+  whenever (does anOpponent (loseLife anyAmount)) (during := some (duringPart .turn (some you)))
+    (if_ := some (exists_ (and [isArtifact, youControl]))) (draw (.lit 1))
+    (limit := some oncePerTurn)
+
+/-- Required pin: the header's window, intervening "if" and limit are fields of one triggered
+ability, and the trigger word is none of them. -/
+theorem wheneverDuringIfOnlyOnceIsOneTrigger :
+    wheneverDuringIfOnlyOnce =
+      .triggered (does anOpponent (loseLife anyAmount)) [] none []
+        (some (duringPart .turn (some you))) (some oncePerTurn)
+        (some (exists_ (and [isArtifact, youControl]))) (draw (.lit 1)) :=
+  rfl
+
+theorem okWheneverDuringIfOnlyOnce :
+    Ability.check (DRS.ofList []) wheneverDuringIfOnlyOnce = [] := by
+  decide
+
+/-- The event of a card's first triggered ability. -/
+private def firstTriggerEvent (card : Spelled) : Option GameEvent :=
+  match card.card with
+  | .singleFaced face =>
+    match (face.characteristics.text.head? : Option Ability) with
+    | some (.triggered event _ _ _ _ _ _ _) => some event
+    | _ => none
+  | _ => none
+
+/-- Required pin: *Tezzeret's Gatebreaker*'s "When this artifact enters" is the intransitive
+`enter` with this artifact as its Actor [CR#603.6a]. -/
+theorem gatebreakerTriggersOnThisArtifactEntering :
+    firstTriggerEvent Cards.tezzeretsGatebreaker = some (.does (.actor thisArtifact) enter) :=
+  rfl
+
+/-- Whether a card's first ability, under its "The same is true for …", is a trigger with no
+intervening "if" whose effect is conditional. -/
+private def conditionIsInTheEffect (card : Spelled) : Bool :=
+  match card.card with
+  | .singleFaced face =>
+    match (face.characteristics.text.head? : Option Ability) with
+    | some (.alsoForKeywords (.triggered _ _ _ _ _ _ none (.doIf _ _ none)) _) => true
+    | _ => false
+  | _ => false
+
+/-- Required pin: *Odric, Lunarch Marshal*'s "creatures you control gain first strike until end of
+turn if a creature you control has first strike" prints its "if" after the effect, so it is not an
+intervening "if" [CR#603.4] and the condition is part of the effect; so are *Bleeding Effect*'s
+and *Concerted Effort*'s. -/
+theorem trailingIfIsInTheEffect :
+    conditionIsInTheEffect Cards.odricLunarchMarshal = true ∧
+      conditionIsInTheEffect Cards.bleedingEffect = true ∧
+      conditionIsInTheEffect Cards.concertedEffort = true := by
   decide
 
 end Semantics.Proofs.Trigger

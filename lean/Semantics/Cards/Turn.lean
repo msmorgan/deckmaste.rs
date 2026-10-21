@@ -58,14 +58,14 @@ theorem okKjeldoranFrostbeast : Ability.check (DRS.ofList []) kjeldoranFrostbeas
 
 /-- Tippy-Toe, Terrific Partner -/
 def tippyToe : Ability :=
-  atIf (beginningOfYour .endStep) (did you (gainLife anyAmount) soFarThisTurn)
+  at_ (beginningOfYour .endStep) (if_ := some (did you (gainLife anyAmount) soFarThisTurn))
     (draw (.lit 1))
 theorem okTippyToe : Ability.check (DRS.ofList []) tippyToe = [] := by decide
 
 def brazenCannonade : Ability :=
   raid
-    (atIf (beginningOfYour .postcombatMain)
-      (did you attack soFarThisTurn)
+    (at_ (beginningOfYour .postcombatMain)
+      (if_ := some (did you attack soFarThisTurn))
       (exile (topSlice (.lit 1))))
 theorem okBrazenCannonade : Ability.check (DRS.ofList []) brazenCannonade = [] := by decide
 
@@ -97,8 +97,8 @@ def felidarSovereign : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [cat, beast],
       text :=
         [ vigilance, lifelink,
-          atIf (beginningOfYour .upkeep)
-            (compareAmt (lifeTotalOf you) .atLeast (.lit 40))
+          at_ (beginningOfYour .upkeep)
+            (if_ := some (compareAmt (lifeTotalOf you) .atLeast (.lit 40)))
             winGame ],
       power := stat 4, toughness := stat 6 } }
 
@@ -108,15 +108,15 @@ def gloriousEnforcer : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [angel],
       text :=
         [ flying, lifelink,
-          atIf (beginningOfPossessed .combat eachPlayer)
-            (compareAmt (lifeTotalOf you) .greater (lifeTotalOf anOpponent))
+          at_ (beginningOfPossessed .combat eachPlayer)
+            (if_ := some (compareAmt (lifeTotalOf you) .greater (lifeTotalOf anOpponent)))
             (gain thisCreature doubleStrike (some untilEndOfTurn)) ],
       power := stat 5, toughness := stat 5 } }
 
 /-- Damia, Sage of Stone -/
 def damia : Ability :=
-  atIf (beginningOfYour .upkeep)
-    (compareAmt (countOf (cardIn yourHand)) .less (.lit 7))
+  at_ (beginningOfYour .upkeep)
+    (if_ := some (compareAmt (countOf (cardIn yourHand)) .less (.lit 7)))
     (draw theDifference)
 theorem okDamia : Ability.check (DRS.ofList []) damia = [] := by decide
 
@@ -289,11 +289,11 @@ def odricLunarchMarshal : Spelled := spelled <| .singleFaced
       subtypes := [human, soldier],
       text :=
         [ alsoForKeywords
-            (atIf (beginningOfPossessed .combat eachPlayer)
-              (exists_ (and [ isCreature, youControl,
-                               hasKeyword firstStrike ]))
-              (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) firstStrike)
-                 untilEndOfTurn))
+            (at_ (beginningOfPossessed .combat eachPlayer)
+              (doOnlyIf
+                (establishThroughout
+                  (abilityGrant (allOf (and [isCreature, youControl])) firstStrike) untilEndOfTurn)
+                (exists_ (and [isCreature, youControl, hasKeyword firstStrike]))))
             (["flying", "deathtouch", "doubleStrike", "haste", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "skulk", "trample", "vigilance"].map (fun k => .the (.named k))) ],
       power := stat 3, toughness := stat 3 } }
@@ -304,12 +304,11 @@ def bleedingEffect : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ alsoForKeywords
-            (atIf (beginningOfYour .combat)
-              (exists_ (and [ isCreature, in_ yourGraveyard,
-                               hasKeyword flying ]))
-              (establishThroughout
-                 (abilityGrant (allOf (and [isCreature, youControl]))
-                    flying) untilEndOfTurn))
+            (at_ (beginningOfYour .combat)
+              (doOnlyIf
+                (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) flying)
+                  untilEndOfTurn)
+                (exists_ (and [isCreature, in_ yourGraveyard, hasKeyword flying]))))
             (["firstStrike", "doubleStrike", "deathtouch", "hexproof", "indestructible",
               "lifelink", "menace", "reach", "trample", "vigilance"].map (fun k => .the (.named k))) ] } }
 
@@ -327,10 +326,10 @@ def fettergeist : Spelled := spelled <| .singleFaced
       power := stat 3, toughness := stat 4 } }
 
 def chainVeilEndStep : Ability :=
-  atIf (beginningOfYour .endStep)
-    (not (did you (activate (a
+  at_ (beginningOfYour .endStep)
+    (if_ := some (not (did you (activate (a
       (and [abilityHead .loyalty,
-      abilityOf (a isPlaneswalker)]))) soFarThisTurn))
+      abilityOf (a isPlaneswalker)]))) soFarThisTurn)))
     (loseLife (.lit 2))
 theorem okChainVeilEndStep : Ability.check (DRS.ofList []) chainVeilEndStep = [] := by decide
 
@@ -347,8 +346,8 @@ def shriekingAffliction : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Shrieking Affliction", cost := some [pip .black], types := [.enchantment],
       text :=
-        [ atIf (beginningOfPossessed .upkeep eachOpponent)
-            (compareAmt (countOf (cardIn (handOf (that player)))) .atMost (.lit 1))
+        [ at_ (beginningOfPossessed .upkeep eachOpponent)
+            (if_ := some (compareAmt (countOf (cardIn (handOf (that player)))) .atMost (.lit 1)))
             (instruct they (loseLife (.lit 3))) ] } }
 
 def centaurOfAttention : Spelled := spelled <| .singleFaced
@@ -401,12 +400,11 @@ def concertedEffort : Spelled := spelled <| .singleFaced
       types := [.enchantment],
       text :=
         [ alsoForKeywords
-            (atIf (beginningOfPossessed .upkeep eachPlayer)
-              (exists_ (and [ isCreature, youControl,
-                               hasKeyword flying ]))
-              (establishThroughout
-                 (abilityGrant (allOf (and [isCreature, youControl]))
-                    flying) untilEndOfTurn))
+            (at_ (beginningOfPossessed .upkeep eachPlayer)
+              (doOnlyIf
+                (establishThroughout (abilityGrant (allOf (and [isCreature, youControl])) flying)
+                  untilEndOfTurn)
+                (exists_ (and [isCreature, youControl, hasKeyword flying]))))
             [ fear, firstStrike, doubleStrike,
               .anyIn ⟨landwalk, none⟩, .anyIn ⟨protection, none⟩,
               trample, vigilance ] ] } }
@@ -416,7 +414,7 @@ def landTax : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Land Tax", cost := some [pip .white], types := [.enchantment],
       text :=
-        [ atIf (beginningOfYour .upkeep) (exists_ opponentWithMoreLands)
+        [ at_ (beginningOfYour .upkeep) (if_ := some (exists_ opponentWithMoreLands))
             (may
               (sequentially
                 [ searchLibraryFor (upTo 3) (and [isLand, hasSupertype .basic]),
@@ -510,8 +508,8 @@ def berserk : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
               [ establishFor (target isCreature)
-                  [ abilityGrant (target isCreature) trample,
-                    getsPt (target isCreature) (up (letter .x)) (up (.lit 0)),
+                  [ abilityGrant it trample,
+                    getsPt it (up (letter .x)) (up (.lit 0)),
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that creature))

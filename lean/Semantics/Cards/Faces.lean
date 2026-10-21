@@ -106,8 +106,8 @@ def chanceEncounter : Spelled := spelled <| .singleFaced
       text :=
         [ whenever (does you (flipCoins anyAmount (some .wins)))
             (putCounters (.lit 1) luckCounter thisEnchantment .many),
-          atIf (beginningOfYour .upkeep)
-            (compareAmt (countersOn luckCounter thisEnchantment) .atLeast (.lit 10))
+          at_ (beginningOfYour .upkeep)
+            (if_ := some (compareAmt (countersOn luckCounter thisEnchantment) .atLeast (.lit 10)))
             winGame ] } }
 
 /-- Karplusan Minotaur's win arm -/
@@ -230,10 +230,10 @@ def bushiTenderfoot : Spelled := spelled <| .flip
 
 /-- Kitsune Mystic -/
 def kitsuneMysticFlip : Ability :=
-  atIf (beginningOfEach .endStep)
-    (is thisCreature
+  at_ (beginningOfEach .endStep)
+    (if_ := some (is thisCreature
       (attachedBy (some .enchanted)
-        (counted (atLeast 2) (hasSubtype aura))))
+        (counted (atLeast 2) (hasSubtype aura)))))
     (flip thisCreature)
 theorem okKitsuneMysticFlip : Ability.check (DRS.ofList []) kitsuneMysticFlip = [] := by decide
 
@@ -292,10 +292,11 @@ def arlinnKord : Spelled := spelled <| .transforming
       subtypes := [arlinn],
       text :=
         [ activated (loyaltySymbol (up (.lit 1)))
-            (establishThroughout
-               (conjunction [ getsPt (targets (upTo 1) isCreature) (up (.lit 2)) (up (.lit 2)),
-                  abilityGrant it vigilance,
-                  abilityGrant it haste ]) untilEndOfTurn),
+            (establishFor (targets (upTo 1) isCreature)
+              [ getsPt it (up (.lit 2)) (up (.lit 2)),
+                abilityGrant it vigilance,
+                abilityGrant it haste ]
+              (some untilEndOfTurn)),
           activated (loyaltySymbol (up (.lit 0)))
             (sequentially
               [ createToken (creatureToken 2 2 [.green] [wolf]),
@@ -306,10 +307,9 @@ def arlinnKord : Spelled := spelled <| .transforming
       types := [.planeswalker], subtypes := [arlinn],
       text :=
         [ activated (loyaltySymbol (up (.lit 1)))
-            (establishThroughout
-               (conjunction
-                  [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)),
-                  abilityGrant them trample ]) untilEndOfTurn),
+            (establishFor (allOf (and [isCreature, youControl]))
+              [getsPt them (up (.lit 1)) (up (.lit 1)), abilityGrant them trample]
+              (some untilEndOfTurn)),
           activated (loyaltySymbol (down (.lit 1)))
             (sequentially
               [ instruct this_ (dealDamage (.lit 3) (target isAnyTarget)), transform thisPlaneswalker ]),
@@ -375,11 +375,9 @@ def chitteringHost : CardFace :=
       text :=
         [ haste, menace,
           when (does thisCreature enter)
-            (establishThroughout
-               (conjunction
-                  [ getsPt (allOf (and [isCreature, youControl, otherThan thisCreature]))
-                    (up (.lit 1)) (up (.lit 0)),
-                  abilityGrant them menace ]) untilEndOfTurn) ],
+            (establishFor (allOf (and [isCreature, youControl, otherThan thisCreature]))
+              [getsPt them (up (.lit 1)) (up (.lit 0)), abilityGrant them menace]
+              (some untilEndOfTurn)) ],
       power := stat 5, toughness := stat 6 } }
 def chitteringHostOnScavengers : CardFace := chitteringHost
 theorem okChitteringHostOnScavengers : CardFace.check .back chitteringHostOnScavengers = [] := by
@@ -445,11 +443,11 @@ def balemurkLeech : Spelled := spelled <| .singleFaced
       subtypes := [leech],
       text :=
         [ eerie
-            (triggeredJoined
+            (whenever
               (does (a (and [isEnchantment, youControl])) enter)
-              [ joinedHead
+              (joins := [ joinedHead
                   (does you (fullyUnlock (a (hasSubtype room))))
-                      ]
+                      ])
               (instruct eachOpponent (loseLife (.lit 1)))) ],
       power := stat 2, toughness := stat 2 } }
 
@@ -553,9 +551,9 @@ def garrukRelentless : Spelled := spelled <| .transforming
                   shuffle ]))),
           activated (loyaltySymbol (down (.lit 3)))
             (sequentially
-              [ establishThroughout
-                  (conjunction [ abilityGrant (allOf (and [isCreature, youControl])) trample,
-                      getsPt them (up (letter .x)) (up (letter .x)) ]) untilEndOfTurn,
+              [ establishFor (allOf (and [isCreature, youControl]))
+                  [abilityGrant them trample, getsPt them (up (letter .x)) (up (letter .x))]
+                  (some untilEndOfTurn),
                 define .x (countOf (and [isCreature, in_ yourGraveyard])) ]) ] } }
 
 /-- Brimstone Mage -/
@@ -596,7 +594,7 @@ def arcaneProxy : Spelled := spelled <| .prototype
     { name := "Arcane Proxy", cost := some [generic 7], types := [.artifact, .creature],
       subtypes := [wizard],
       text :=
-        [ whenIf (does thisCreature enter) (is it (castBy you))
+        [ when (does thisCreature enter) (if_ := some (is it (castBy you)))
             (sequentially
               [ exile
                   (target (and [ isInstantOrSorcery, isCard,

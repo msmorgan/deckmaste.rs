@@ -1,5 +1,15 @@
 # Card authoring binds no implicits
 
+> **Superseded for the Lean workbench (owner ruling, 2026-10-21).** Lean Templates may take
+> optional named parameters with defaults, placed after the required ones. The precedents are
+> the deal-damage-kind ruling (`kind : Option DamageKind := none`,
+> [lean-v3-deal-damage-kind](../tickets/done/lean-v3-deal-damage-kind.md)) and the deontic
+> Templates' `(timing := …)`; the `lean-v3-trigger-words` ticket
+> applies it to the trigger words, retiring `triggeredIf` and its siblings. This record's
+> rationale (a card translates term for term into constructors with positional arguments) was
+> specific to the Idris bench, and the future DSL defines the real authoring surface. The text
+> below is kept as history.
+
 > Workbench succession (2026-09-05): current workbench evidence lives in
 > `lean/`; Idris paths below are historical. See
 > [Lean is the workbench](lean-is-the-workbench.md).

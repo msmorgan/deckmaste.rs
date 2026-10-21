@@ -209,6 +209,8 @@ def Action.keyword (action : Action) (fuel : Nat := 64) : Option KeywordLabel :=
   match fuel, action with
   | n + 1, .inCaller body | n + 1, .ownScope _ body | n + 1, .bracketed body => body.keyword n
   | n + 1, .establish spec _ => spec.keyword n
+  -- "… gain first strike until end of turn if …": the grant under a trailing "if" (Odric).
+  | n + 1, .doIf _ body none => body.keyword n
   | _, _ => none
 termination_by structural fuel
 

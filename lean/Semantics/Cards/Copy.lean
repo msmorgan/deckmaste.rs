@@ -133,8 +133,8 @@ def ringsOfBrighthearth : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Rings of Brighthearth", cost := some [generic 3], types := [.artifact],
       text :=
-        [ wheneverIf (does you (activate (a (abilityHead .anyActivated))))
-            (not (is (that .ability) isManaAbility))
+        [ whenever (does you (activate (a (abilityHead .anyActivated))))
+            (if_ := some (not (is (that .ability) isManaAbility)))
             (may (pay (mana [generic 2]) .once)
               (some (sequentially
                 [ copyOnStack (that .ability),
@@ -148,7 +148,7 @@ def ironManBleedingEdge : Spelled := spelled <| .singleFaced
       subtypes := [human, hero],
       text :=
         [ flying,
-          triggered (does you (cast (a
+          whenever (does you (cast (a
             (and [isArtifact, isSpell]))))
             (doOnlyOnceEachTurn (may (copyOnStack it (exceptions := [isntLegendary]))))
                 ],
@@ -161,7 +161,7 @@ def donalHeraldOfWings : Spelled := spelled <| .singleFaced
       supertypes := [.legendary], types := [.creature],
       subtypes := [human, wizard],
       text :=
-        [ triggered
+        [ whenever
             (does you (cast (a (and [ isCreature, isSpell, not
                 (hasSupertype .legendary),
                          hasKeyword flying ]))))

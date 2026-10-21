@@ -1711,26 +1711,6 @@ semantic_template keywordQualityCosting (label : KeywordLabel) (quality : Predic
 semantic_template keywordNumberCosting (label : KeywordLabel) (amount : Amount) (cost : Cost) :
     Ability :=
   .keyword label [.number amount, .cost cost] []
-/-- "<event>, if <condition>, <action>": a triggered ability with an intervening "if" clause
-[CR#603.4]. The trigger word is wording: `whenIf`, `wheneverIf` and `atIf` write the card's, as
-`when`, `whenever` and `at_` do. -/
-semantic_template triggeredIf (event : GameEvent) (condition : Condition)
-    (action : Action) : Ability :=
-  .triggered event [] none [] none none (some condition) action
-/-- "When <event>, if <condition>, <action>" -/
-semantic_template whenIf (event : GameEvent) (condition : Condition) (action : Action) : Ability :=
-  triggeredIf event condition action
-/-- "Whenever <event>, if <condition>, <action>" -/
-semantic_template wheneverIf (event : GameEvent) (condition : Condition) (action : Action) :
-    Ability :=
-  triggeredIf event condition action
-/-- "At <event>, if <condition>, <action>" -/
-semantic_template atIf (event : GameEvent) (condition : Condition) (action : Action) : Ability :=
-  triggeredIf event condition action
-/-- "Whenever <event>, <action>. This ability triggers only once each turn." -/
-semantic_template triggeredOnlyOnce (event : GameEvent) (limit : UsageLimit)
-    (action : Action) : Ability :=
-  .triggered event [] none [] none (some limit) none action
 /-- "As <subject> enters, [secretly] choose <chosen>": a replacement effect whose choice is made
 as part of the permanent's entering [CR#603.6d,614.1c,614.12]. -/
 semantic_template entryChoice (subject chosen : NounPhrase) (disclosure : Disclosure := .openly) :
@@ -1786,45 +1766,41 @@ semantic_template entersWithAdditionalCounters (subject : NounPhrase) (amount : 
 semantic_template entersWithFewerCounters (subject : NounPhrase) (amount : Amount)
     (kind : CounterKind) : StaticSpec :=
   enters subject [.withCounters amount (.printed kind) .fewer]
-semantic_template triggered (event : GameEvent) (action : Action) : Ability :=
-  .triggered event [] none [] none none none action
-/-- "Whenever <event> and whenever <joined events>, <action>" -/
-semantic_template triggeredJoined (event : GameEvent) (joins : List JoinedHeader)
-    (action : Action) : Ability :=
-  .triggered event [] none joins none none none action
 /-- A further "whenever <event>" header joined onto a trigger. -/
 semantic_template joinedHead (event : GameEvent) : JoinedHeader := ⟨event, [], none, none⟩
-/-- "Whenever <event> or <alternatives>, <action>" -/
-semantic_template triggeredOr (event : GameEvent) (alternatives : List GameEvent)
-    (action : Action) : Ability :=
-  .triggered event alternatives none [] none none none action
-/-- "Whenever <event> while <concurrent>, <action>" -/
-semantic_template triggeredWhile (event : GameEvent) (while_ : Timing) (action : Action) :
-    Ability :=
-  .triggered event [] (some while_) [] none none none action
-/-- "Whenever <event> during <timing>, <action>" -/
-semantic_template triggeredOnlyDuring (event : GameEvent) (timing : Timing) (action : Action) :
-    Ability :=
-  .triggered event [] none [] (some timing) none none action
-/-- "Whenever <event> during <timing>, <action>. This ability triggers only once <limit>." -/
-semantic_template triggeredOnlyOnceDuring (event : GameEvent) (timing : Timing) (limit : UsageLimit)
-    (action : Action) : Ability :=
-  .triggered event [] none [] (some timing) (some limit) none action
 /-- A joined "whenever <event> while <concurrent>" header. -/
 semantic_template joinedHeadWhile (event : GameEvent) (while_ : Timing) : JoinedHeader :=
   ⟨event, [], some while_, none⟩
+/-! The trigger words. `when`, `whenever`, `at_` and `after` expand to the same triggered
+ability [CR#603.1]; the word is the Template's printed wording, never a field. Each takes the
+header's optional parts: alternative events (`or_`, "whenever <event> or <event>"), further
+headers (`joins`, "and whenever …"), a concurrent condition (`while_`), a window (`during`), a
+limit ("this ability triggers only once each turn", `limit`) and an intervening "if" clause
+(`if_`, "When/Whenever/At [trigger event], if [condition], [effect]" [CR#603.4]). -/
 /-- "When <event>, <action>" -/
-semantic_template when (event : GameEvent) (action : Action) : Ability :=
-  triggered event action
+semantic_template when (event : GameEvent) (action : Action)
+    (or_ : List GameEvent := []) (joins : List JoinedHeader := [])
+    (while_ : Option Timing := none) (during : Option Timing := none)
+    (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
+  .triggered event or_ while_ joins during limit if_ action
 /-- "Whenever <event>, <action>" -/
-semantic_template whenever (event : GameEvent) (action : Action) : Ability :=
-  triggered event action
+semantic_template whenever (event : GameEvent) (action : Action)
+    (or_ : List GameEvent := []) (joins : List JoinedHeader := [])
+    (while_ : Option Timing := none) (during : Option Timing := none)
+    (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
+  .triggered event or_ while_ joins during limit if_ action
 /-- "At <event>, <action>" (`at` is a Lean keyword). -/
-semantic_template at_ (event : GameEvent) (action : Action) : Ability :=
-  triggered event action
+semantic_template at_ (event : GameEvent) (action : Action)
+    (or_ : List GameEvent := []) (joins : List JoinedHeader := [])
+    (while_ : Option Timing := none) (during : Option Timing := none)
+    (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
+  .triggered event or_ while_ joins during limit if_ action
 /-- "After <event>, <action>": the dice template's word. -/
-semantic_template after (event : GameEvent) (action : Action) : Ability :=
-  triggered event action
+semantic_template after (event : GameEvent) (action : Action)
+    (or_ : List GameEvent := []) (joins : List JoinedHeader := [])
+    (while_ : Option Timing := none) (during : Option Timing := none)
+    (limit : Option UsageLimit := none) (if_ : Option Condition := none) : Ability :=
+  .triggered event or_ while_ joins during limit if_ action
 semantic_template activated (cost : Cost) (action : Action) : Ability :=
   .activated cost action none none none none
 /-- "[cost]: <action>. Activate only <timing>." -/
@@ -1994,9 +1970,6 @@ semantic_template spell (body : Action) (timing : Option Timing := none) : Abili
 semantic_template static (spec : StaticSpec) : Ability := .static spec
 semantic_template tapSymbol : Cost := .tapSymbol
 semantic_template thatAbility (ref : ChoiceRef) : Ability := .thatAbility ref
-semantic_template triggeredOrOnlyOnce (event : GameEvent) (alternatives : List GameEvent)
-    (limit : UsageLimit) (action : Action) : Ability :=
-  .triggered event alternatives none [] none (some limit) none action
 semantic_template untapSymbol : Cost := .untapSymbol
 semantic_template visibility (verb : ExposeVerb) (player : NounPhrase) (what : VisibleThing) :
     StaticSpec :=

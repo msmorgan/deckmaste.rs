@@ -221,9 +221,9 @@ def eomerOfTheRiddermark : Spelled := spelled <| .singleFaced
       subtypes := [human, knight],
       text :=
         [ haste,
-          wheneverIf (does thisCreature attack)
-            (exists_ (and [ isCreature, youControl,
-                             superlative .max (.stat .power) (and [isCreature, isPermanent]) ]))
+          whenever (does thisCreature attack)
+            (if_ := some (exists_ (and [ isCreature, youControl,
+                             superlative .max (.stat .power) (and [isCreature, isPermanent]) ])))
             (createToken (creatureToken 1 1 [.white] [human, soldier])) ],
       power := stat 5, toughness := stat 4 } }
 
@@ -244,7 +244,7 @@ def consulsLieutenant : Spelled := spelled <| .singleFaced
       text :=
         [ firstStrike,
           renown (.lit 1),
-          wheneverIf (does thisCreature attack) (is it (hasDesignation renowned))
+          whenever (does thisCreature attack) (if_ := some (is it (hasDesignation renowned)))
             (get (allOf (and [isCreature, isAttacking, youControl, otherThan
                 thisCreature]))
               (up (.lit 1)) (up (.lit 1)) (some untilEndOfTurn)) ],
@@ -288,7 +288,7 @@ def colossalGraveReaver : Spelled := spelled <| .singleFaced
       types := [.creature], subtypes := [dragon],
       text :=
         [ flying,
-          triggeredOr (does thisCreature enter) [does thisCreature attack] (mill (.lit 3)),
+          whenever (does thisCreature enter) (or_ := [does thisCreature attack]) (mill (.lit 3)),
           whenever
             (does any
                (putInto (counted (atLeast 1) (and [isCard, isCreature])) yourGraveyard
@@ -349,9 +349,9 @@ def awakenTheBear : Spelled := spelled <| .singleFaced
     { name := "Awaken the Bear", cost := some [generic 2, pip .green], types := [.instant],
       text :=
         [ spell
-            (establishThroughout
-               (conjunction [ getsPt (target isCreature) (up (.lit 3)) (up (.lit 3)),
-                abilityGrant it trample ]) untilEndOfTurn) ] } }
+            (establishFor (target isCreature)
+              [getsPt it (up (.lit 3)) (up (.lit 3)), abilityGrant it trample]
+              (some untilEndOfTurn)) ] } }
 
 def spidersilkArmor : Spelled := spelled <| .singleFaced
   { characteristics :=
@@ -984,8 +984,8 @@ def krosanDruid : Spelled := spelled <| .singleFaced
       subtypes := [centaur, druid],
       text :=
         [ kicker (mana [generic 4, pip .green]),
-          whenIf (does thisCreature enter) (keywordCostPaid kicker
-                                                           thisCreature)
+          when (does thisCreature enter) (if_ := some (keywordCostPaid kicker
+                                                           thisCreature))
             (gainLife (.lit 10)) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1050,8 +1050,8 @@ def rafterDemon : Spelled := spelled <| .singleFaced
       subtypes := [demon],
       text :=
         [ spectacle (mana [generic 3, pip .black, pip .red]),
-          whenIf (does thisCreature enter)
-            (keywordCostPaid spectacle thisCreature)
+          when (does thisCreature enter)
+            (if_ := some (keywordCostPaid spectacle thisCreature))
             (sequentially [instruct eachOpponent (choose (a (cardIn hand))), discard them]) ],
       power := stat 4, toughness := stat 2 } }
 
@@ -1069,8 +1069,9 @@ def shimmeringGlasskite : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ flying,
-          triggeredOnlyOnce
-            (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature)) oncePerTurn
+          whenever
+            (nthOccurrence (.nth 1)
+              (does (a (or [isSpell, abilityHead .anyOnStack])) (target thisCreature)) (some .turn))
             (counter (that .stack)) ],
       power := stat 2, toughness := stat 3 } }
 
@@ -1107,8 +1108,8 @@ def tourachDreadCantor : Spelled := spelled <| .singleFaced
         [ kicker (mana [pip .black, pip .black]),
           protection (hasColor .white),
           tourachDiscardTrigger,
-          whenIf (does thisCreature enter) (keywordCostPaid kicker
-                                                           thisCreature)
+          when (does thisCreature enter) (if_ := some (keywordCostPaid kicker
+                                                           thisCreature))
             (instruct (target isOpponent) (discard (countedAtRandom (exactly 2) isCard))) ],
       power := stat 2, toughness := stat 1 } }
 
@@ -1152,9 +1153,8 @@ def aimHigh : Spelled := spelled <| .singleFaced
       text :=
         [ spell (sequentially
             [ untap (target isCreature),
-              establishThroughout (conjunction
-                                     [ getsPt it (up (.lit 2)) (up (.lit 2)),
-                    abilityGrant it reach ]) untilEndOfTurn ]) ] } }
+              establishFor it [getsPt it (up (.lit 2)) (up (.lit 2)), abilityGrant it reach]
+                (some untilEndOfTurn) ]) ] } }
 
 /-- Harried Dronesmith -/
 def harriedDronesmithToken : Action :=
@@ -1168,10 +1168,10 @@ def archfiendsVessel : Spelled := spelled <| .singleFaced
       subtypes := [human, cleric],
       text :=
         [ lifelink,
-          whenIf (does thisCreature enter)
-            (or
+          when (does thisCreature enter)
+            (if_ := some (or
               [ did it (enter (from_ := some yourGraveyard)) triggering,
-                is it (and [castBy you, castFrom yourGraveyard]) ])
+                is it (and [castBy you, castFrom yourGraveyard]) ]))
             (triggerReflexively (exile it)
               (createToken
                 { characteristics :=
@@ -1187,15 +1187,14 @@ def containmentPriest : Spelled := spelled <| .singleFaced
       text :=
         [ flash,
           static (replace
-                    (would any
-                       (putOntoBattlefield
-                          (a (and [isCreature, isNontoken, not (castBy any)])))) (instead (exile it))) ],
+                    (would (a (and [isCreature, isNontoken, not (castBy any)])) enter)
+                    (instead (exile it))) ],
       power := stat 2, toughness := stat 2 } }
 
 /-- Veiling Oddity -/
 def veilingOddityLine : Ability :=
-  triggeredWhile (lastCounterRemoved timeCounter this_)
-    (whileTrue (is this_ (cardIn exileZone)))
+  when (lastCounterRemoved timeCounter this_)
+    (while_ := some (whileTrue (is this_ (cardIn exileZone))))
     (establishThroughout (cant any (block (allOf isCreature))) thisTurn)
 theorem okVeilingOddityLine : Ability.check (DRS.ofList []) veilingOddityLine = [] := by decide
 
@@ -1216,7 +1215,7 @@ def darkbladeAgentGrants : Ability :=
 theorem okDarkbladeAgentGrants : Ability.check (DRS.ofList []) darkbladeAgentGrants = [] := by decide
 /-- Frenzied Gorespawn -/
 def frenziedGorespawnMenaceTrigger : Ability :=
-  triggered (does (counted (atLeast 1) isCreature) (attack (some anOpponent)))
+  whenever (does (counted (atLeast 1) isCreature) (attack (some anOpponent)))
       (gain (those creature) menace (some untilEndOfTurn))
 theorem okFrenziedGorespawnMenaceTrigger :
     Ability.check (DRS.ofList []) frenziedGorespawnMenaceTrigger = [] := by decide
@@ -1313,8 +1312,8 @@ def marketGnome : Spelled := spelled <| .singleFaced
       subtypes := [gnome],
       text :=
         [ when (does thisCreature die) (sequentially [gainLife (.lit 1), draw (.lit 1)]),
-          triggeredWhile (does any (exile thisCreature))
-            (whileDoing (does you (activate (a (abilityHead (.keyword craft))))))
+          when (does any (exile thisCreature))
+            (while_ := some (whileDoing (does you (activate (a (abilityHead (.keyword craft)))))))
             (sequentially [gainLife (.lit 1), draw (.lit 1)]) ],
       power := stat 0, toughness := stat 3 } }
 
