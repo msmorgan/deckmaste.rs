@@ -279,7 +279,8 @@ zones they name now. `thisWay` reads only referents the current ability stamped
 `the` reads a published group [CR#607.3]. `participialRead` resolves: a group determiner
 reads every candidate (a Card Type picks members, asking nothing of the group); `the`
 reads one site, one object of the current ability or what one linked ability published,
-whose exclusive arms count as one. Otherwise it is refused `participialDescription`. Its
+whose exclusive arms count as one; a group reads a part taken from a group it also reads
+(cascade's hit within its run) once, as one of the group's members. Otherwise it is refused `participialDescription`. Its
 agent must be none, "you", the performer, the source, or for a keyword ability's own verb
 the object that has it (`participialAgent`): a stamp records no agent. `Proofs/Lookback.lean`, `Proofs/LinkedReadback.lean`
 and `Proofs/NounWords.lean` pin it.
@@ -882,8 +883,14 @@ sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AS
 public results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
 by targeting so mutate's "the target" is its own spell's [CR#702.140a], what a
 replacement does `also` (devour [CR#702.82b]), and the objects a printed triggered or
-activated ability itself introduces in a public zone, along each arm it may take
-(`Action.arms`, champion [CR#702.72a]), never what its trigger event names [CR#607.1]. Resolution refuses a description
+activated ability itself introduces in a public zone, never what its trigger event names
+[CR#607.1]. Each step is published once; at a branch point each arm is stepped from the
+state before it and its objects carry the arm (`Referent.linkArms`), so arms taken instead of
+each other read as one place (champion [CR#702.72a]); a Definition's own scope is read whole,
+along each path through it (`Action.arms`). A keyword ability's body publishes into the
+card's text like any other line: hideaway's "the exiled card", read by a printed ability,
+depends on it, and cumulative upkeep's sacrifice of its own permanent is likewise visible to
+the lines after it, to a Participial Description only. Resolution refuses a description
 whose deed or Head Noun no published object fits ("the exiled creature" when a card
 left a graveyard) and one two abilities could supply [CR#607.2a]. Where the object is
 when the linked ability resolves (a card that left exile) is the engine's, not the

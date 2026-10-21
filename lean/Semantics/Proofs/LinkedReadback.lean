@@ -173,6 +173,26 @@ theorem okExclusiveArmsAreOnePlace :
         returnToTheBattlefield theExiledCard ] = [] := by
   decide
 
+/-- Each step's arms are published on their own, so no number of options in sequence hides an
+arm: after four optional choices, the exile on the first choice's second arm is still read. -/
+theorem okArmAfterManyOptions :
+    Ability.checkText (DRS.ofList [])
+      [ when (does thisPermanent enter)
+          (sequentially
+            [ mayOrElse (draw (.lit 1)) (exile (target (and [isCard, in_ graveyard]))),
+              may (draw (.lit 1)), may (draw (.lit 1)), may (draw (.lit 1)) ]),
+        returnToTheBattlefield theExiledCard ] = [] := by
+  decide
+
+/-- Gap, recorded in the ticket: a battlefield location without "card" is read as "permanent",
+what the object was, not as a zone it is in now, since `isPermanent` is that location. The card
+exiled from the battlefield is read though it is in exile. -/
+theorem gapBattlefieldLocationIsNotAZone :
+    Ability.checkText (DRS.ofList [])
+      [ when (does thisPermanent enter) (exile (target isCreature)),
+        returnToTheBattlefield (the (and [was (exile which), in_ battlefield])) ] = [] := by
+  decide
+
 /-- The sacrificed creature is an object: a player context refuses it. -/
 theorem badObjectsAsPlayer :
     NounPhrase.checkAt (some .player) (Ability.textContext (DRS.ofList []) sacrificeACreature)

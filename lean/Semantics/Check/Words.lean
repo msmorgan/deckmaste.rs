@@ -380,9 +380,15 @@ structure Referent where
   the ability that reads it being linked to the one that published it [CR#607.1,607.2a]. -/
   linked : Bool := false
   /-- Where a linked referent was published: the line of text that acted on it, by the context's
-  `nextId` as the line was published, and which of that line's exclusive arms acted. -/
+  `nextId` as the line was published, and the arm taken at each of that line's branch points
+  on the way to the deed that acted on it. -/
   linkSite : ReferentId := 0
-  linkPath : Nat := 0
+  linkArms : List (Nat × Nat) := []
+  /-- A group's key, which a part taken from it records in `partOf` ("the card that stopped the
+  run" is part of the run), so that a group reading counts the part once. Keys survive a zone
+  change, as the group and its part move together. -/
+  groupKey : Option ReferentId := none
+  partOf : Option ReferentId := none
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -1049,14 +1055,20 @@ def participialRead (plur : Option Plurality) (found : List Referent) :
     Except Nat (List Referent) :=
   if found.isEmpty then .error 0 else
   match plur with
-  | none => .ok found
+  | none =>
+    -- A part taken from a group that is read too is read as one of the group's members.
+    .ok (found.filter fun ref => !ref.partOf.any (fun key => found.any (·.groupKey == some key)))
   | some _ =>
     let sites := (found.map fun ref => if ref.linked then (true, ref.linkSite) else (false, ref.id))
       |>.eraseDups
-    let paths := found.map (·.linkPath)
+    -- Two objects of one site are alternatives when they lie on different arms of a branch point.
+    let exclusive := fun (a b : Referent) =>
+      a.linkArms.any fun (point, arm) => b.linkArms.any fun (point', arm') =>
+        point == point' && arm != arm'
+    let alternatives := found.all fun a => found.all fun b => a.id == b.id || exclusive a b
     match sites with
     | [(false, _)] => .ok found
-    | [(true, _)] => if paths.eraseDups.length == paths.length then .ok found else .error found.length
+    | [(true, _)] => if alternatives then .ok found else .error found.length
     | _ => .error sites.length
 
 /-- How many winning antecedents `r` resolves to in `drs`; a read is sound at `1`. -/

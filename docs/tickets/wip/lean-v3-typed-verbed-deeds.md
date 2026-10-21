@@ -191,8 +191,19 @@ Deviations from the text above, made while implementing it:
   keyword ability's own verb) the object that has it; a stamp does not record who did the deed,
   so any other agent is refused (`participialAgent`).
 - A group determiner reads every candidate together, and a Card Type in it filters the group's
-  members. "The" reads one site: one object of the current ability, or what one linked ability
-  acted on, whose exclusive arms (`may … otherwise`, `doIf … else`) count as one.
+  members; a part taken from a group it also reads (cascade's hit within its run) is read once.
+  "The" reads one site: one object of the current ability, or what one linked ability acted on,
+  whose exclusive arms (`may … otherwise`, `doIf … else`) count as one. Each step of a linked
+  ability is published once, with the arm it was taken on at each branch point, so no number of
+  options hides an arm.
+- Gap: a battlefield location written without "card" is read as "permanent", what the object
+  was, not as the zone it is in now, because `isPermanent` is that same location and the two
+  trees are identical (pin `LinkedReadback.gapBattlefieldLocationIsNotAZone`).
+- Gap: a stamp records no agent, so "the card you exiled" also reads a card an opponent exiled
+  because this ability's text had them exile it (pin `Lookback.gapYouReadsAnyPerformer`).
+- Keyword ability bodies publish into the card's text, so hideaway's "the exiled card" in a
+  printed ability reads its exile, and cumulative upkeep's sacrifice of its own permanent is
+  visible to later lines (to a Participial Description only).
 - A triggered ability publishes only what it introduces, not what its trigger event or condition
   names ([CR#607.1]).
 - `NounPhrase.paid` and `Reach.tracksObject` are retired: no facet a noun phrase could read

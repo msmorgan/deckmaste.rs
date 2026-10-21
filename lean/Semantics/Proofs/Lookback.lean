@@ -237,4 +237,25 @@ theorem participialAgentRead :
       [.participialAgent] := by
   decide
 
+/-- Gap, recorded in the ticket: a stamp records no agent, so "the card you exiled" reads a card
+exiled by whoever this ability's text had exile it, here an opponent. -/
+theorem gapYouReadsAnyPerformer :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ instruct (target isOpponent) (exile (target (and [isCard, in_ graveyard]))),
+          putOntoBattlefield (the (and [isCard, did you (exile which)])) ]) = [] := by
+  decide
+
+/-- Cascade's run and the card that stopped it are both exiled: "all cards exiled this way" reads
+the run once, the stopping card as one of its members [CR#702.85a]. -/
+theorem runReadOnceWithItsStoppingCard :
+    let after := (stepAction 64 .postEvent .obj (DRS.ofList [])
+      (exile (.run .top (and [non isLand]) (libraryOf .you)))).1
+    let found := participialCandidates (.action "exile") none (some .card) true after
+    found.length = 2 ∧
+      (match participialRead none found with
+       | .ok read => read.map (·.det)
+       | .error _ => []) = [.the] := by
+  decide
+
 end Semantics.Proofs.Lookback

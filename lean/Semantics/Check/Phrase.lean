@@ -1798,16 +1798,16 @@ private def linkedResult (ref : Referent) : Bool :=
      | _ => false)
 
 /-- Publish what stepping one line took `drs` to (`out`): the referents from `since` on that
-`keep` admits. An object published is `linked`, at the line's site and the arm `path` it was
-acted on in: only a Participial Description reads it back. Publishing nothing leaves `drs` as
+`keep` admits. An object published is `linked`, at the line's site and on the `arms` it was
+acted on along: only a Participial Description reads it back. Publishing nothing leaves `drs` as
 it was. -/
 private def publishResults (drs out : DRS) (since : ReferentId) (keep : Referent → Bool)
-    (path : Nat := 0) (site : ReferentId := drs.nextId) : DRS :=
+    (arms : List (Nat × Nat) := []) (site : ReferentId := drs.nextId) : DRS :=
   let additions := out.visibleReferents.filter fun ref => ref.id ≥ since && keep ref
   if additions.isEmpty then drs else
   let marked := additions.map fun ref =>
     match ref.payload with
-    | .object .. => { ref with linked := true, linkSite := site, linkPath := path }
+    | .object .. => { ref with linked := true, linkSite := site, linkArms := arms }
     | _ => ref
   nextClause { drs with
     referents := marked ++ drs.referents,
@@ -1833,10 +1833,9 @@ def addedTargetContextWith (ops : StepOps) (drs : DRS) (description : Predicate)
     | ref => ref
   nextClause ({ drs with nextId := Nat.max drs.nextId described.nextId }.push target .other false)
 
-/-- The arms `action` may take, each as one straight-line action: what it does if a player chooses
-to ("you may exile …"), or otherwise; if a condition holds, or otherwise; inside a handoff or a
-Definition's own scope too. A linked ability reads back the objects the arm taken acted on
-[CR#607.2a]. At most eight arms are kept. -/
+/-- The arms a Definition's body may take, each as one straight-line action: what it does if a
+player chooses to, or otherwise; if a condition holds, or otherwise. A Definition's body is read
+whole, as its bindings are, so its arms are the paths through it. -/
 def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
   match fuel, action with
   | n + 1, .sequentially steps =>
@@ -1844,7 +1843,7 @@ def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
     let combined : List (List Action) := alternatives.foldr
       (fun (choices : List Action) (rests : List (List Action)) =>
         choices.flatMap fun (step : Action) => rests.map (step :: ·)) [[]]
-    (combined.map Action.sequentially).take 8
+    combined.map Action.sequentially
   | n + 1, .withContinuation _ body ifDid ifNot =>
     let done : List Action := (body.arms n).flatMap fun (first : Action) => match ifDid with
       | some next => (next.arms n).map fun (after : Action) => Action.sequentially [first, after]
@@ -1852,26 +1851,93 @@ def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
     let otherwise : List Action := match ifNot with
       | some other => other.arms n
       | none => []
-    (done ++ otherwise).take 8
+    done ++ otherwise
   | n + 1, .doIf _ action otherwise =>
     let rest : List Action := match otherwise with
       | some other => other.arms n
       | none => []
-    (action.arms n ++ rest).take 8
+    action.arms n ++ rest
   | n + 1, .instruct subject body => (body.arms n).map (Action.instruct subject)
-  | n + 1, .ownScope deed body => (body.arms n).map (Action.ownScope deed)
   | n + 1, .inCaller body => (body.arms n).map Action.inCaller
   | _, action => [action]
 termination_by structural fuel
 
-/-- Publish the objects each arm of `action`, stepped from `base`, acts on in a public zone,
-from the referents it introduces on [CR#607.2a]; all arms are one site. -/
+/-- `wrap` moved inside the branch structure `body` heads, for what its arms act on: "target
+opponent may exile …" acts on what "target opponent exiles …" does, if it does. -/
+def Action.wrapArms (wrap : Action → Action) : Action → Option Action
+  | .sequentially steps => some (.sequentially (steps.map wrap))
+  | .withContinuation policy body ifDid ifNot =>
+    some (.withContinuation policy (wrap body) (ifDid.map wrap) (ifNot.map wrap))
+  | .doIf condition action otherwise => some (.doIf condition (wrap action) (otherwise.map wrap))
+  | _ => none
+
+/-- Publish the objects `action`, stepped from `state`, acts on in a public zone into `context`,
+from the referents each step introduces on [CR#607.2a], all at one `site`. Each step is stepped
+once; at a branch point (`counter` numbers them) each arm is stepped from the state before it,
+and what it acts on carries the arm (`arms`), so that arms taken instead of each other read as one
+place. The steps after a branch point continue from its first arm. -/
+private def publishArmsWith (ops : StepOps) (site : ReferentId) (fuel : Nat)
+    (arms : List (Nat × Nat)) (counter : Nat) (context state : DRS) (action : Action) :
+    DRS × DRS × Nat :=
+  match fuel with
+  | 0 => (context, state, counter)
+  | n + 1 =>
+    let leaf := fun (arms : List (Nat × Nat)) (context state : DRS) (counter : Nat)
+        (action : Action) =>
+      let start := { state with nextId := Nat.max state.nextId context.nextId }
+      let (done, _) := ops.inst .postEvent .obj start action
+      (publishResults context done start.nextId linkedResult arms site, done, counter)
+    match action with
+    | .sequentially steps =>
+      steps.foldl (fun (acc : DRS × DRS × Nat) (step : Action) =>
+        publishArmsWith ops site n arms acc.2.2 acc.1 acc.2.1 step) (context, state, counter)
+    | .withContinuation _ body ifDid ifNot =>
+      let taken := arms ++ [(counter, 0)]
+      let (context1, state1, counter1) :=
+        publishArmsWith ops site n taken (counter + 1) context state body
+      let (context2, state2, counter2) := match ifDid with
+        | some next => publishArmsWith ops site n taken counter1 context1 state1 next
+        | none => (context1, state1, counter1)
+      match ifNot with
+      | some other =>
+        let (context3, _, counter3) :=
+          publishArmsWith ops site n (arms ++ [(counter, 1)]) counter2 context2 state other
+        (context3, state2, counter3)
+      | none => (context2, state2, counter2)
+    | .doIf _ action otherwise =>
+      let (context1, state1, counter1) :=
+        publishArmsWith ops site n (arms ++ [(counter, 0)]) (counter + 1) context state action
+      match otherwise with
+      | some other =>
+        let (context2, _, counter2) :=
+          publishArmsWith ops site n (arms ++ [(counter, 1)]) counter1 context1 state other
+        (context2, state1, counter2)
+      | none => (context1, state1, counter1)
+    | .instruct subject body =>
+      match body.wrapArms (.instruct subject) with
+      | some spread => publishArmsWith ops site n arms counter context state spread
+      | none => leaf arms context state counter action
+    | .inCaller body =>
+      match body.wrapArms .inCaller with
+      | some spread => publishArmsWith ops site n arms counter context state spread
+      | none => leaf arms context state counter action
+    | .ownScope deed body =>
+      match body.arms with
+      | [] | [_] => leaf arms context state counter action
+      | first :: rest =>
+        let (context1, state1, _) :=
+          leaf (arms ++ [(counter, 0)]) context state counter (.ownScope deed first)
+        let context2 := (rest.zipIdx).foldl (fun context (arm, index) =>
+          (leaf (arms ++ [(counter, index + 1)]) context state counter (.ownScope deed arm)).1)
+          context1
+        (context2, state1, counter + 1)
+    | _ => leaf arms context state counter action
+termination_by structural fuel
+
+/-- Publish the objects `action`, stepped from `base`, acts on in a public zone, on each arm it
+may take [CR#607.2a]. -/
 private def publishArms (ops : StepOps) (drs base : DRS) (action : Action) : DRS :=
-  let site := drs.nextId
-  (action.arms.zipIdx).foldl (fun context (arm, path) =>
-    let start := { base with nextId := Nat.max base.nextId context.nextId }
-    let (done, _) := ops.inst .postEvent .obj start arm
-    publishResults context done start.nextId linkedResult path site) drs
+  (publishArmsWith ops drs.nextId 16 [] 0 drs base action).1
 
 def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) :
     DRS :=
@@ -2212,6 +2278,10 @@ def stepOps : Nat → StepOps
             payload := selectionPayload (optP.map Predicate.seedTy |>.getD []) groupRef sc
           }
           let rid := drs3.nextId
+          let drs3 := grpIds.foldl (fun context id => context.updateById id fun group =>
+            { group with groupKey := group.groupKey.orElse fun _ => some id }) drs3
+          let ref := { ref with
+            partOf := (grpIds.head?.bind drs3.findById?).bind (·.groupKey) }
           let drs4 := drs3.push ref role inArgSlot
           let drs4 := grpIds.foldl (fun context id =>
             context.recordSelection ref.kind (some id) false) drs4
@@ -2236,13 +2306,15 @@ def stepOps : Nat → StepOps
           let payloads := runPayloads p.sort stop.seedTy
           let stoppedRef : Referent := {
             det := .part, plur := .one,
-            payload := payloads.2
+            payload := payloads.2,
+            partOf := some (drs2.nextId + 1)
           }
           let stoppedId := drs2.nextId
           let drs3 := drs2.push stoppedRef .other false
           let runRef : Referent := {
             det := .the, plur := np.plur,
-            payload := payloads.1
+            payload := payloads.1,
+            groupKey := some (drs2.nextId + 1)
           }
           let runId := drs3.nextId
           let drs4 := drs3.push runRef role inArgSlot
