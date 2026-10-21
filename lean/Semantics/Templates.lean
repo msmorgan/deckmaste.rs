@@ -1239,24 +1239,10 @@ semantic_template paidCostRead (which : LinkSource) (window : Option Duration)
 /-- "the number of times <subject>'s <keyword> cost was paid" -/
 semantic_template timesPaid (which : LinkSource) (subject : NounPhrase) : Amount :=
   .paid (.timesPaid which) subject
-/-- "the player chosen as <subject>'s <label> cost was paid", read back by the linked ability
-[CR#607.2d,702.174a] -/
-semantic_template chosenAsPaid (label : KeywordLabel) (subject : NounPhrase) : NounPhrase :=
-  .paid (.chosenPlayer (.byKeyword label)) subject
 /-- "if <subject>'s <cost> was paid" -/
 semantic_template costWasPaid (which : LinkSource) (window : Option Duration)
     (subject : NounPhrase) : Condition :=
   .compareAmt (paidCostRead which window subject) .atLeast (.lit 1)
-/-- "the sacrificed creature", "the exiled card": the one object `deed` acted on as the Link
-Source `which` of `subject` was paid or resolved [CR#607.2a]. -/
-semantic_template linkedObject (which : LinkSource) (deed : Deed) (subject : NounPhrase) :
-    NounPhrase :=
-  .paid (.objects which deed .one) subject
-/-- "the exiled cards", "creatures it devoured": the objects `deed` acted on as the Link Source
-`which` of `subject` was paid or resolved [CR#607.2a,702.82b]. -/
-semantic_template linkedObjects (which : LinkSource) (deed : Deed) (subject : NounPhrase) :
-    NounPhrase :=
-  .paid (.objects which deed .many) subject
 /-- "if <subject>'s <which> was taken": the choice the Link Source offered was taken
 [CR#702.104b]. -/
 semantic_template choiceWasTaken (which : LinkSource) (subject : NounPhrase) : Condition :=

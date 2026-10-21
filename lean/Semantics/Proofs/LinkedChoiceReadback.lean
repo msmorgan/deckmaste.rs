@@ -7,14 +7,10 @@ import Semantics.Check.Card
 Gift's first ability is a cost: "As an additional cost to cast this spell, you may choose an
 opponent." [CR#702.174a]. Its second ability hands the effect to the chosen player
 [CR#702.174b,702.174e], and the two are linked [CR#607.2d,607.2i]. The second reads the choice
-back through an explicit paid-cost facet keyed by the cost's name, as kicker's "was kicked" readback is
-[CR#702.33e] (`docs/decisions/semantics-v2.md` §7, ruling 2026-10-06 on gift and the
-additional-cost keywords): `LinkedFacet.chosenPlayer`, read as a noun phrase by `NounPhrase.paid`.
-
-The facet resolves where the named cost chooses a player when it is paid (the keyword row's
-`costChoosesPlayer`); a cost that chooses no player leaves the linked ability nothing to read,
-which is a reference refusal [CR#607.2d]. The checker requires that explicit facet for the cost link; a bare "the chosen player"
-requests a local choice instead.
+back as "the chosen player" (`the isChosenPlayer`), the same words a choice in its own ability
+would be read by: the cost publishes the choice to the abilities after it (`Ability.textContext`),
+across gift's own body as across a card's text. "The chosen player" requires exactly one player
+choice in scope, which holds in gift's body because its cost is the only one there.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -24,17 +20,17 @@ namespace Semantics.Proofs.LinkedChoiceReadback
 /-- "its gift cost" -/
 def gift : LinkSource := .byKeyword (.named "gift")
 
-/-- "its kicker cost" -/
-def kicker : LinkSource := .byKeyword (.named "kicker")
-
 /-- "if this is a permanent card" -/
 def onPermanentCard : Condition := .matches .this isPermanentCard
 
 /-- "if this is an instant or sorcery" -/
 def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
+/-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
+def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
+
 /-- "the chosen player draws a card", the player read back from gift's cost. -/
-def chosenDraws : Action := instruct (chosenAsPaid (.named "gift") .this) (draw (.lit 1))
+def chosenDraws : Action := instruct (the isChosenPlayer) (draw (.lit 1))
 
 /-- Gift's permanent half: "When this permanent enters, if this is a permanent card, if its gift
 cost was paid, the chosen player draws a card." [CR#702.174b,702.174e] -/
@@ -47,62 +43,64 @@ chosen player draws a card." [CR#702.174b,113.3a] -/
 def spellHalf : Ability :=
   .spell none (doIf onInstantOrSorcery (doIf (costWasPaid gift none .this) chosenDraws))
 
-/-- Required pin: gift's second ability reads the opponent chosen as its gift cost was paid. -/
+/-- Required pin: after gift's cost, "the chosen player" reads the opponent chosen as it was paid
+[CR#702.174a,607.2d]. -/
 theorem okGiftReadsChosenPlayer :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (chosenAsPaid (.named "gift") .this) = [] := by
+    NounPhrase.checkAt (some .player) (Ability.textContext (DRS.ofList []) costPart)
+      (the isChosenPlayer) = [] := by
   decide
 
-/-- Required pin: this fixture requests a local chosen player without a preceding choice or
-an explicit linked facet. Linked abilities can instead read their paired choice [CR#607.2d]. -/
+/-- Required pin: with no player choice in scope there is none to read [CR#607.2d]. -/
 theorem badUnlinkedChosenPlayer :
     Ability.check (DRS.ofList []) (.spell none (instruct (the isChosenPlayer) (draw (.lit 1))))
       = [.choiceRef .theChoice .player 0] := by
   decide
 
+/-- Required pin: two costs each choosing a player leave "the chosen player" ambiguous. -/
+theorem badTwoChosenPlayers :
+    Ability.checkText (DRS.ofList []) [costPart, costPart, spellHalf] =
+      [.choiceRef .theChoice .player 2] := by
+  decide
+
 /-- Kicker's cost chooses no player, so there is none to read back [CR#702.33a,607.2d]. -/
 theorem badKickerChoosesNoPlayer :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (chosenAsPaid (.named "kicker") .this)
-      = [.linkedChoiceInScope kicker] := by
-  decide
-
-/-- Flying has no cost at all: the facet names nothing. -/
-theorem badCostlessKeywordChoosesNoPlayer :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (chosenAsPaid (.named "flying") .this)
-      = [.linkedFacetNamed] := by
-  decide
-
-/-- "The additional cost" names no declared choice. -/
-theorem badTheAdditionalChoosesNoPlayer :
-    NounPhrase.checkAt (some .player) (DRS.ofList []) (.paid (.chosenPlayer .theAdditional) .this)
-      = [.linkedChoiceInScope .theAdditional] := by
-  decide
-
-/-- The chosen player is a player, not an amount; an amount facet is not a player. -/
-theorem badFacetReadAsTheOtherKind :
-    (Amount.check (DRS.ofList []) (.paid (.chosenPlayer gift) .this),
-      NounPhrase.checkAt (some .player) (DRS.ofList []) (.paid (.timesPaid kicker) .this))
-      = ([.linkedFacetKind], [.linkedFacetKind]) := by
+    Ability.checkText (DRS.ofList [])
+      [ .static (.addedCost (.mana [generic 1]) true .once),
+        .spell none (instruct (the isChosenPlayer) (draw (.lit 1))) ] =
+      [.choiceRef .theChoice .player 0] := by
   decide
 
 /-- The chosen player is a player: an object context refuses it. -/
 theorem badChosenPlayerAsObject :
-    NounPhrase.checkAt (some .object) (DRS.ofList []) (chosenAsPaid (.named "gift") .this)
-      = [.kindMismatch .object .player] := by
+    NounPhrase.checkAt (some .object) (Ability.textContext (DRS.ofList []) costPart)
+      (the isChosenPlayer) = [.kindMismatch .object .player] := by
   decide
 
-/-- Both guarded halves read the chosen player, each checked with no class context. -/
+/-- Both guarded halves read the chosen player after gift's cost. -/
 theorem okBothHalvesReadChosenPlayer :
-    Ability.checkAll (DRS.ofList []) [permanentHalf, spellHalf] = [] := by
+    Ability.checkText (DRS.ofList []) [costPart, permanentHalf, spellHalf] = [] := by
   decide
 
-/-- Gift's definition holding both halves is carried on a permanent card. -/
+/-- Gift's definition holding its cost and both halves is carried on a permanent card. -/
 theorem okPermanentClassReadsChosenPlayer :
-    cardTextOk [.creature] [.keyword (.named "gift") [] [permanentHalf, spellHalf]] = true := by
+    cardTextOk [.creature] [.keyword (.named "gift") [] [costPart, permanentHalf, spellHalf]] =
+      true := by
   decide
 
-/-- Gift's definition holding both halves is carried on an instant card. -/
+/-- Gift's definition holding its cost and both halves is carried on an instant card. -/
 theorem okSpellClassReadsChosenPlayer :
-    cardTextOk [.instant] [.keyword (.named "gift") [] [permanentHalf, spellHalf]] = true := by
+    cardTextOk [.instant] [.keyword (.named "gift") [] [costPart, permanentHalf, spellHalf]] =
+      true := by
+  decide
+
+/-- Required pin: inside gift's own body, the halves read its cost's choice
+[CR#702.174a,607.2d]; with a second cost choosing a player, neither knows which to read. -/
+theorem keywordBodyThreadsItsCostChoice :
+    Ability.check (DRS.ofList []) (.keyword (.named "gift") [] [costPart, spellHalf]) = [] ∧
+      Ability.check (DRS.ofList []) (.keyword (.named "gift") [] [costPart, costPart, spellHalf]) =
+        [.choiceRef .theChoice .player 2] ∧
+      Ability.check (DRS.ofList []) (.keyword (.named "gift") [] [spellHalf]) =
+        [.choiceRef .theChoice .player 0] := by
   decide
 
 end Semantics.Proofs.LinkedChoiceReadback

@@ -129,14 +129,6 @@ theorem okAmplify : Ability.check (DRS.ofList []) (amplify (.lit 1)) = [] := by 
 
 /-! ## The readbacks (`semantics-v2-linked-readback`) -/
 
-/-- "Draw a card for each creature it devoured" [CR#702.82b]: the objects devour's sacrifice
-acted on, counted as a group. -/
-theorem okItDevouredCount :
-    Amount.check (DRS.ofList [])
-      (.countOf (linkedObjects (.byKeyword (.named "devour")) (.ofAbility (.named "devour"))
-        thisCreature)) = [] := by
-  decide
-
 /-- "If tribute wasn't paid" [CR#702.104b]: the tribute choice not taken. -/
 theorem okTributeWasntPaid :
     Condition.check (DRS.ofList []) (.not (choiceWasTaken (.byKeyword (.named "tribute")) thisCreature)) = [] := by

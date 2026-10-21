@@ -51,8 +51,8 @@ theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause i
     (older : ∀ r ∈ rs, r.clause < clause) :
     let subject := { creatureBinding with clause := clause, role := .subj, id := id }
     resolveCandidates .bare .one { referents := subject :: rs } = [subject] := by
-  have filteredOlder : ∀ r ∈ rs.filter (reaches .bare .one), r.clause < clause := by
-    intro r h
+  have filteredOlder : ∀ (p : Referent → Bool), ∀ r ∈ rs.filter p, r.clause < clause := by
+    intro p r h
     exact older r (List.mem_filter.mp h).1
   let subject := { creatureBinding with clause := clause, role := .subj, id := id }
   change resolveCandidates .bare .one { referents := subject :: rs } = [subject]
@@ -66,11 +66,11 @@ theorem ownStatIdentityStableForEveryOuterContext (rs : List Referent) (clause i
   rw [visible]
   simp only [Bool.false_eq_true, ↓reduceIte,
     show ((none : Option Zone) == some .battlefield) = false from rfl,
-    Bool.false_and, Bool.or_false,
-    List.filter_cons, eligible]
+    Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
+    Bool.true_and, List.filter_cons, eligible]
   simp only [List.foldl_cons, show subject.clause = clause from rfl, Nat.zero_max,
-    olderClauseMaximum _ _ filteredOlder, BEq.rfl, ↓reduceIte,
-    olderClauseFilter _ _ filteredOlder, List.foldl_nil]
+    olderClauseMaximum _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
+    olderClauseFilter _ _ (filteredOlder _), List.foldl_nil]
   rfl
 
 /-- The same universally quantified subject read passes the actual noun-phrase checker. -/
@@ -277,8 +277,8 @@ private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
     (older : ∀ r ∈ rs, r.clause < clause) :
     let subject := { powerSubject with clause := clause, role := .subj, id := id }
     resolveCandidates .bare .one { referents := subject :: rs } = [subject] := by
-  have filteredOlder : ∀ r ∈ rs.filter (reaches .bare .one), r.clause < clause := by
-    intro r h
+  have filteredOlder : ∀ (p : Referent → Bool), ∀ r ∈ rs.filter p, r.clause < clause := by
+    intro p r h
     exact older r (List.mem_filter.mp h).1
   let subject := { powerSubject with clause := clause, role := .subj, id := id }
   change resolveCandidates .bare .one { referents := subject :: rs } = [subject]
@@ -292,11 +292,11 @@ private theorem powerSubjectWins (rs : List Referent) (clause id : Nat)
   rw [visible]
   simp only [Bool.false_eq_true, ↓reduceIte,
     show ((none : Option Zone) == some .battlefield) = false from rfl,
-    Bool.false_and, Bool.or_false,
-    List.filter_cons, eligible]
+    Bool.false_and, Bool.or_false, show subject.linked = false from rfl, Bool.not_false,
+    Bool.true_and, List.filter_cons, eligible]
   simp only [List.foldl_cons, show subject.clause = clause from rfl, Nat.zero_max,
-    olderClauseMaximum _ _ filteredOlder, BEq.rfl, ↓reduceIte,
-    olderClauseFilter _ _ filteredOlder, List.foldl_nil]
+    olderClauseMaximum _ _ (filteredOlder _), BEq.rfl, ↓reduceIte,
+    olderClauseFilter _ _ (filteredOlder _), List.foldl_nil]
   rfl
 
 

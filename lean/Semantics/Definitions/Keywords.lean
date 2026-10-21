@@ -365,7 +365,7 @@ semantic_definition champion (quality : Predicate) : Ability :=
             .once)
           (sacrifice thisPermanent)),
       triggered (does thisPermanent leave)
-        (returnTo (linkedObject (.byDeed (.action "exile")) (.action "exile") this_) battlefield
+        (returnTo (the (and [was (exile which), isCard])) battlefield
           [.under (ownerOf (that .card))]) ]
 /-- "Changeling" means "This object is every creature type": a Characteristic-Defining Ability
 of the object, a Kindred instant or sorcery as much as a creature [CR#702.73a,604.3a]. -/
@@ -552,8 +552,7 @@ semantic_definition emerge (cost : Cost) : Ability :=
         (onlyWhile
           (.costShift thisSpell
             (less
-              (.statOf (.stat .manaValue)
-                (linkedObject .theAlternative (.action "sacrifice") thisSpell))
+              (.statOf (.stat .manaValue) (the (and [was (sacrifice which), isCreature])))
               none))
           (keywordCostPaid (.named "emerge") thisSpell)) ]
 /-- "Emerge from [quality] [cost]", a variant of emerge, so it carries emerge's label, its
@@ -571,8 +570,7 @@ semantic_definition emergeFrom (quality : Predicate) (cost : Cost) : Ability :=
         (onlyWhile
           (.costShift thisSpell
             (less
-              (.statOf (.stat .manaValue)
-                (linkedObject .theAlternative (.action "sacrifice") thisSpell))
+              (.statOf (.stat .manaValue) (the (and [was (sacrifice which), isPermanent])))
               none))
           (keywordCostPaid (.named "emerge") thisSpell)) ]
 semantic_definition enchant (quality : Predicate) : Ability :=
@@ -733,12 +731,12 @@ semantic_definition gift (promise : Action) : Ability :=
     [ static (.addedCost (.perform (choose anOpponent)) true .once),
       whenIf (does thisPermanent enter) (is this_ isPermanentType)
         (doIf (keywordCostPaid (.named "gift") this_)
-          (instruct (chosenAsPaid (.named "gift") this_) (.inCaller promise))
+          (instruct (the isChosenPlayer) (.inCaller promise))
           none),
       spell
         (doIf (is this_ isInstantOrSorcery)
           (doIf (keywordCostPaid (.named "gift") this_)
-            (instruct (chosenAsPaid (.named "gift") this_) (.inCaller promise))
+            (instruct (the isChosenPlayer) (.inCaller promise))
             none)
           none) ]
 /-! The licensed phrasings of gift: its templating is not normative ("Gift a card", "Gift a
@@ -780,7 +778,7 @@ semantic_definition harmonize (cost : Cost) : Ability :=
       static
         (onlyWhile
           (.costShift thisSpell
-            (.generic (.down (powerOf (linkedObject .theAlternative (.action "tap") thisSpell))) none))
+            (.generic (.down (powerOf (the (and [was (tap which), isCreature])))) none))
           (keywordCostPaid (.named "harmonize") thisSpell)),
       static
         (replace (would thisSpell (leave stack))
@@ -1005,10 +1003,8 @@ semantic_definition mutate (cost : Cost) : Ability :=
           (doIf (keywordCostPaid (.named "mutate") thisSpell)
             (instead
               (chooseOne
-                (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell)
-                  .top)
-                (.merge thisSpell (linkedObject .theAlternative (.core .target) thisSpell)
-                  .bottom))))
+                (.merge thisSpell (the (was (target which))) .top)
+                (.merge thisSpell (the (was (target which))) .bottom))))
           none .repeatedly none) ]
 semantic_definition myriad : Ability :=
   .keyword (.named "myriad") []
@@ -1049,7 +1045,7 @@ semantic_definition offering (quality : Predicate) : Ability :=
       static
         (onlyWhile
           (reducedBySymbols thisSpell
-            (.manaCostOf (linkedObject .theAdditional (.action "sacrifice") thisSpell)))
+            (.manaCostOf (the (and [was (sacrifice which), isPermanent]))))
           (keywordCostPaid (.named "offering") thisSpell)),
       static
         (onlyWhile (can you (cast this_) (some asInstant))

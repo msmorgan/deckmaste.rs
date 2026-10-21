@@ -385,18 +385,14 @@ inductive KeywordTerm where
   | theWith (keyword : KeywordLabel) (number : Nat)
   deriving DecidableEq, Repr
 
-/-- A Link Source: the printed ability or cost a Linked Facet reads back [CR#607.2a]. A cost is
-named by its keyword ("its kicker cost"), by its keyword and rank ("its second kicker cost"), or
-as "the alternative" or "the additional" cost; a printed ability is named by what it does ("the
-exiled card" names the ability that exiled it). -/
+/-- A Link Source: the cost a Linked Facet reads back [CR#607.2i]. A cost is named by its
+keyword ("its kicker cost"), by its keyword and rank ("its second kicker cost"), or as "the
+alternative" or "the additional" cost. -/
 inductive LinkSource where
   | byKeyword (keyword : KeywordLabel)
   | byNthKeyword (ordinal : Ordinal) (keyword : KeywordLabel)
   | theAlternative
   | theAdditional
-  /-- The printed ability identified by its deed: "the exiled card" reads the ability of the
-  same object that exiled it [CR#607.2a]. -/
-  | byDeed (deed : Deed)
   deriving DecidableEq, Repr
 
 inductive AbilityClass where

@@ -116,7 +116,6 @@ def NounPhrase.kind? (np : NounPhrase) (fuel : Nat := 32) : Option Kind :=
   | _ + 1, .described _ p => p.kind?
   | _ + 1, .pro r _ => some r.kind
   | _ + 1, .theRest k _ => some k
-  | _ + 1, .paid f _ => some f.entityKind
   | _ + 1, _ => some .object
 termination_by structural fuel
 
@@ -196,6 +195,7 @@ def Action.inferredDeed (inst : Action) (fuel : Nat := 32) : Option Deed :=
   | _ + 1, .fullyUnlock _ => some (.core .fullyUnlock)
   | _ + 1, .createObject .. => some (.action "create")
   | _ + 1, .expose .reveal _ => some (.action "reveal")
+  | _ + 1, .target _ => some (.core .target)
   | _ + 1, _ => none
 termination_by structural fuel
 
@@ -294,8 +294,7 @@ def NounPhrase.plur (np : NounPhrase) (fuel : Nat := 32) : Plurality :=
   | n + 1, .inCaller body | n + 1, .firstMention _ body | n + 1, .laterMention _ body => body.plur n
   | _ + 1, .described d _ => d.plur
   | _ + 1, .someOf c _ _ | _ + 1, .pileOf c _ => c.plur
-  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl
-  | _ + 1, .paid (.objects _ _ pl) _ => pl
+  | _ + 1, .theRest _ pl | _ + 1, .pro _ pl | _ + 1, .refl pl => pl
   | n + 1, .slice _ (.lit 1) (.zone .library (some who))
   | n + 1, .slice _ (.lit 1) (.zone .graveyard (some who)) =>
     -- "the top card of each player's library": one per player, collected
@@ -335,7 +334,6 @@ def NounPhrase.groupMention (phrase : NounPhrase) (fuel : Nat := 32) : Bool :=
   | _ + 1, .laterMention _ body => body.plur != .one
   | _ + 1, .slice .. | _ + 1, .run .. | _ + 1, .and _ | _ + 1, .oneEachOf .. => true
   | _ + 1, .pro _ plur => plur != .one
-  | _ + 1, .paid (.objects _ _ plur) _ => plur != .one
   | _ + 1, .described (.the plur) _ => plur != .one
   | _ + 1, phrase => phrase.det == some .target
   | _, _ => false
@@ -1698,6 +1696,154 @@ def stepDeltaWith (ops : StepOps) (drs : DRS) (d : Delta Amount) : DRS × List R
   match d with
   | .up a | .down a | .set a => ops.amt drs a
 
+/-! ## Card text context
+
+What one line of rules text leaves the lines after it to read: the choices it announces, and the
+objects it acts on that a linked ability can read back [CR#607.1,607.2a]. `Ability.checkText`
+threads it across a card's abilities, and a keyword ability's body across the abilities it
+represents. -/
+
+private def choiceSortAtKind : Kind → Option ChoiceSort
+  | .quality q => some (.quality q)
+  | .player => some .player
+  | _ => none
+
+/-- The choices an action announces ("choose a color") for later lines to read. -/
+def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
+  match fuel, action with
+  | 0, _ => []
+  | n+1, .inCaller body | n+1, .ownScope _ body | n+1, .bracketed body
+  | n+1, .instruct _ body | n+1, .limited body _ => actionTextChoices body n
+  | _+1, .choose _ (.described (.a _) predicate) _ _ =>
+    (predicate.kind?.bind choiceSortAtKind).toList
+  | n+1, .sequentially steps => steps.flatMap (fun step => actionTextChoices step n)
+  | _+1, _ => []
+termination_by structural fuel
+
+/-- Choices made as part of a replaced event, by what a replacement does `also`
+("As this enters, choose a color"), which later lines read [CR#614.1c]. -/
+def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
+    List ChoiceSort :=
+  match fuel, replacement with
+  | 0, _ => []
+  | n+1, .inCaller body | n+1, .onlyIf _ body => replacementTextChoices body n
+  | _+1, .also action => actionTextChoices action
+  | _+1, .instead _ | _+1, .withRiders _ => []
+termination_by structural fuel
+
+def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
+  sorts.foldl (fun context sort => context.push sort.binding .other false) drs
+
+private def publicCostResult (ref : Referent) : Bool :=
+  !ref.isActorFrame && ref.isPublic &&
+    (match ref.payload with
+     | .object .. | .pile .. => ref.zone.isSome
+     | _ => true)
+
+/-- An object a printed ability acted on that a linked ability can find: one the ability's deed
+stamped, in a public zone [CR#607.2a]. -/
+private def linkedResult (ref : Referent) : Bool :=
+  !ref.isActorFrame && ref.payload.prov.isSome &&
+    (match ref.payload with
+     | .object _ (some zone) _ _ _ => zone.isPublic
+     | _ => false)
+
+/-- Publish what stepping one line took `drs` to (`out`), keeping the additions `keep` admits.
+An object published is `linked`: only a Participial Description reads it back. -/
+private def publishResults (drs out : DRS) (keep : Referent → Bool) : DRS :=
+  let additions := out.visibleReferents.filter fun ref => ref.id ≥ drs.nextId && keep ref
+  let marked := additions.map fun ref =>
+    match ref.payload with
+    | .object .. => { ref with linked := true }
+    | _ => ref
+  nextClause { drs with
+    referents := marked ++ drs.referents,
+    nextId := Nat.max drs.nextId out.nextId,
+    currentClause := Nat.max drs.currentClause out.currentClause }
+
+/-- A cost's public results: what an additional or alternative cost acted on ("the sacrificed
+creature" [CR#702.119a]), and the choice a cost makes ("the chosen player" [CR#702.174a]). -/
+def costTextContextWith (ops : StepOps) (drs : DRS) (cost : Cost) : DRS :=
+  publishResults drs (ops.cost drs cost).1 publicCostResult
+
+/-- The target a static ability adds to a spell, as targeting stamps it [CR#702.140a]: only an
+added target is published stamped by targeting, so "the target" a linked ability reads is the
+spell's own. -/
+def addedTargetContextWith (ops : StepOps) (drs : DRS) (description : Predicate) : DRS :=
+  let (described, _) := ops.pred { drs with relativeKind := description.kind? } description
+  let target : Referent :=
+    match bindFor .target .one .object description with
+    | ref@{ payload := .object ty zone _ origin size, .. } =>
+      { ref with
+        payload := .object ty zone (mkStamp (some (.core .target)) zone false) origin size
+        linked := true }
+    | ref => ref
+  nextClause ({ drs with nextId := Nat.max drs.nextId described.nextId }.push target .other false)
+
+def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) :
+    DRS :=
+  match fuel, spec with
+  | 0, _ => drs
+  | n+1, .inCaller body => staticTextContextWith ops drs body n
+  | n+1, .conjunction _ parts =>
+    parts.foldl (fun context part => staticTextContextWith ops context part n) drs
+  | _+1, .addedCost cost _ _ => costTextContextWith ops drs cost
+  | _+1, .can _ action _ =>
+    match action.scopeBody with
+    | .procedure .cast _ (.payingInstead cost) .. => costTextContextWith ops drs cost
+    | _ => drs
+  | _+1, .addsTarget _ description => addedTargetContextWith ops drs description
+  | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
+    publishTextChoices drs (actionTextChoices action)
+  | _+1, .replace _ replacement _ _ _ =>
+    publishTextChoices drs (replacementTextChoices replacement)
+  | _+1, _ => drs
+termination_by structural fuel
+
+/-- `action` with every branch it may take done in turn: what it does if a player chooses to
+("you may exile …"), if a condition holds, and otherwise. A linked ability reads back the objects
+the branch taken acted on [CR#607.2a], so each branch's are published. -/
+def Action.everyBranch (action : Action) (fuel : Nat := 16) : Action :=
+  match fuel, action with
+  | n + 1, .sequentially steps => .sequentially (steps.map (·.everyBranch n))
+  | n + 1, .withContinuation _ body ifDid ifNot =>
+    .sequentially ((body :: ifDid.toList ++ ifNot.toList).map (·.everyBranch n))
+  | n + 1, .doIf _ action otherwise =>
+    .sequentially ((action :: otherwise.toList).map (·.everyBranch n))
+  | _, action => action
+termination_by structural fuel
+
+/-- Choices, public cost results, added targets, and the objects a printed triggered or activated
+ability acted on in a public zone, available to later lines of card text [CR#607.2a]. -/
+def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fuel : Nat := 64) :
+    DRS :=
+  match fuel, ability with
+  | 0, _ => drs
+  | _+1, .activated cost action _ _ _ _ =>
+    let (paid, _) := ops.cost drs cost
+    let (done, _) := ops.inst .postEvent .obj (nextClause (publicOnly paid)) action.everyBranch
+    publishTextChoices (publishResults drs done linkedResult) (actionTextChoices action)
+  | _+1, .triggered event alternatives while_ _ _ _ intervening action =>
+    let (header, _) := stepTriggerHeaderWith ops drs event alternatives while_ none
+    let guarded := match intervening with
+      | some condition => (ops.cond (nextClause header) condition).1
+      | none => header
+    let (done, _) := ops.inst .postEvent .obj (nextClause guarded) action.everyBranch
+    publishTextChoices (publishResults drs done linkedResult) (actionTextChoices action)
+  | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
+  | _+1, .static spec => staticTextContextWith ops drs spec
+  | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
+  | n+1, .inCaller body =>
+    Ability.textContextWith ops drs body n
+  | _+1, _ => drs
+termination_by structural fuel
+
+/-- Check each line of `abilities` in the context the lines before it leave
+(`Ability.textContextWith`). -/
+def checkTextWith (ops : StepOps) (drs : DRS) (abilities : List Ability) : List Refusal :=
+  (abilities.foldl (fun (context, errors) ability =>
+    (Ability.textContextWith ops context ability, errors ++ ops.ab context ability)) (drs, [])).2
+
 def stepOps : Nat → StepOps
   | 0 => {
       pred := fun drs _ => (drs, [.recursionLimit]),
@@ -1936,7 +2082,10 @@ def stepOps : Nat → StepOps
             let word := Predicate.participialWord? pred.conjuncts
             let found := participialCandidates deed plur word clause.within.isSome drs
             match found with
-            | [w] => (drs2.recordMention w.id role inArgSlot, [w.id], e1 ++ e2)
+            | [w] =>
+              -- Read back, an object a linked ability published is mentioned in this one.
+              let mentioned := drs2.updateById w.id fun ref => { ref with linked := false }
+              (mentioned.recordMention w.id role inArgSlot, [w.id], e1 ++ e2)
             | _ => (drs2, [], e1 ++ e2 ++ [.participialDescription deed found.length])
           | _, _ =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
@@ -2061,12 +2210,6 @@ def stepOps : Nat → StepOps
           let rid := drs.nextId
           let drs' := drs.push ref role inArgSlot
           (drs', [rid], [])
-        | .paid facet subj =>
-          let (drs1, _, e1) := ops.np drs .other false subj
-          let ref := facet.binding
-          let rid := drs1.nextId
-          let drs2 := drs1.push ref role inArgSlot
-          (drs2, [rid], e1 ++ facet.localChecks true)
         | .headed head subj =>
           let (out, ids, errs) := ops.np drs role inArgSlot subj
           let refined := ids.foldl (fun d id => d.updateById id fun r =>
@@ -2189,7 +2332,7 @@ def stepOps : Nat → StepOps
             axisErrors ++ errs ++ kindErrors ++ refuse (!plural) .singular)
         | .paid facet subj =>
           let (out, _, errors) := ops.np drs .other false subj
-          (out, errors ++ facet.localChecks false)
+          (out, errors ++ facet.localChecks)
         | .aggregate _ axis subj =>
           let (out, ids, errors) := ops.np drs .other false subj
           let kind := ((ids.head?.bind out.findById?).map (·.kind)).getD (subj.kindIn out .object)
@@ -3234,7 +3377,7 @@ def stepOps : Nat → StepOps
         | .inCaller body => ops.ab (enterCaller drs) body
         | .keyword k params body =>
           checkKeywordParamsWith ops drs ((keywordSchemaFor k params).getD []) params ++
-            (stepAbilityListWith ops (enterOwnScope drs) body).2 ++
+            checkTextWith ops (enterOwnScope drs) body ++
             refuse (keywordParamFits k params) (.keywordParamFits k)
         | .activated cost inst tm _ guard activator =>
           let (drs0, e0) := match activator with

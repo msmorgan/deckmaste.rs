@@ -80,15 +80,24 @@ theorem callerOwnedTestSubjectsDoNotPermitFreshLocalTestSelections :
         (.doIf (.matches selectedCreature (.hasType .creature)) (.draw (.exactlyOf (.lit 1))) none)) =
         [.testSubject] := by decide
 
-/-- Explicit counted selections and linked plural objects keep their written plurality. -/
+/-- "the creatures put into a graveyard": a definite plural Participial Description. -/
+private def thePutCreatures : NounPhrase :=
+  .described (.the .many)
+    (.and [ .did ⟨.any, .move .which (.zone .battlefield none) (some (.zone .graveyard none))
+              .departure none [], none⟩,
+            .hasType .creature ])
+
+/-- Two creatures moved from the battlefield to a graveyard. -/
+private def putCreaturesContext : DRS := DRS.ofList [
+  { det := .count, plur := .many,
+    payload := .object [.creature] (some .graveyard) (some ⟨.core .put, true, true⟩) none none }]
+
+/-- Explicit counted selections and definite plural readbacks keep their written plurality. -/
 theorem writtenPluralGroupsRemainCountable :
     Amount.check emptyContext
       (.countOf (.described (.count (.range (some 2) (some 2)) none) (.hasType .creature))) = [] ∧
-    NounPhrase.plur (.paid (.objects (.byKeyword (.named "devour"))
-      (.ofAbility (.named "devour")) .many) (.headed (.type .creature) .this)) = .many ∧
-    Amount.check emptyContext (.countOf
-      (.paid (.objects (.byKeyword (.named "devour")) (.ofAbility (.named "devour")) .many)
-        (.headed (.type .creature) .this))) = [] := by decide
+    NounPhrase.plur thePutCreatures = .many ∧
+    Amount.check putCreaturesContext (.countOf thePutCreatures) = [] := by decide
 
 /-- "An opponent" and "a teammate" relate a player to the unwritten "you", which they read
 without introducing; a written relatum is a player [CR#102.2,102.3]. -/

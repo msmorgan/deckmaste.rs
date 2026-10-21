@@ -124,25 +124,6 @@ def LinkSource.named : LinkSource → Bool
   | .byNthKeyword ordinal kw => ordinal.ok && (keywordFactsFor kw).elim false (·.paidCost)
   | .theAlternative => true
   | .theAdditional => true
-  | .byDeed deed => knownAct deed
-
-/-- Whether paying the named cost chooses a player for the linked ability to read back
-[CR#607.2d,702.174a]. Only a keyword's cost declares one; "the additional cost" and "the
-alternative cost" name no declared choice. -/
-def LinkSource.choosesPlayer : LinkSource → Bool
-  | .byKeyword kw | .byNthKeyword _ kw => (keywordFactsFor kw).elim false (·.costChoosesPlayer)
-  | .theAlternative | .theAdditional | .byDeed _ => false
-
-/-- The deed an `objects` facet reads is one its Link Source performs: a printed ability named
-by its deed performs that deed, and a keyword ability's own deed ("creatures it devoured"
-[CR#702.82b]) is performed by that keyword's source alone. A deed the source never performs
-leaves the facet nothing to read [CR#607.2a]. -/
-def LinkSource.performs (which : LinkSource) (deed : Deed) : Bool :=
-  match which, deed with
-  | .byDeed d, _ => d == deed
-  | .byKeyword kw, .ofAbility k | .byNthKeyword _ kw, .ofAbility k => kw == k
-  | _, .ofAbility _ => false
-  | _, _ => true
 
 def AbilityClass.known : AbilityClass → Bool
   | .keyword k => knownKeyword k

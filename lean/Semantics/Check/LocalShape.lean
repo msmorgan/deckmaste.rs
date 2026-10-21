@@ -113,20 +113,10 @@ termination_by structural fuel
 
 def LinkedFacet.named : LinkedFacet → Bool
   | .colorsSpent | .manaValueSpent => true
-  | .timesPaid source | .readback source _ | .chosenPlayer source | .taken source => source.named
-  | .objects source deed _ =>
-    source.named && knownAct deed && source.performs deed
+  | .timesPaid source | .readback source _ | .taken source => source.named
 
-def LinkedFacet.choiceFound : LinkedFacet → Bool
-  | .chosenPlayer source => !source.named || source.choosesPlayer
-  | _ => true
-
-def LinkedFacet.localChecks (asEntity : Bool) (facet : LinkedFacet) : List Refusal :=
-  localRefuse facet.named .linkedFacetNamed ++
-    localRefuse (facet.readsEntity == asEntity) .linkedFacetKind ++
-    match facet with
-    | .chosenPlayer source => localRefuse facet.choiceFound (.linkedChoiceInScope source)
-    | _ => []
+def LinkedFacet.localChecks (facet : LinkedFacet) : List Refusal :=
+  localRefuse facet.named .linkedFacetNamed
 
 inductive EncloseUse where
   | agentless

@@ -6,11 +6,12 @@ import Semantics.Check.Card
 
 Gift is one definition holding both its abilities [CR#702.174a,702.174b]: the additional cost
 "you may choose an opponent", an enters trigger guarded by the permanent class and a spell
-ability guarded by the instant-or-sorcery class, each handing the effect to the player chosen as
-the gift cost was paid [CR#607.2d,607.2i]. Bare gift has no spelling; each spelled variant is gift
-with its effect (`giftACard`, `giftATappedFish`, … in `Semantics.Definitions`). These pins hold the
-two variants printed on both card classes, "Gift a card" [CR#702.174e] and "Gift a tapped Fish"
-[CR#702.174f], on a permanent card and on an instant, with a twin that must stay refused.
+ability guarded by the instant-or-sorcery class, each handing the effect to "the chosen player",
+the player chosen as the gift cost was paid [CR#607.2d,607.2i]. Bare gift has no spelling; each
+spelled variant is gift with its effect (`giftACard`, `giftATappedFish`, … in
+`Semantics.Definitions`). These pins hold the two variants printed on both card classes, "Gift a
+card" [CR#702.174e] and "Gift a tapped Fish" [CR#702.174f], on a permanent card and on an
+instant.
 -/
 
 open Semantics Semantics.Templates Semantics.Definitions
@@ -27,9 +28,9 @@ def onPermanent : Condition := .matches .this isPermanentType
 /-- "if this is an instant or sorcery" -/
 def onInstantOrSorcery : Condition := .matches .this isInstantOrSorcery
 
-/-- "if its gift cost was paid, the chosen player <effect>" -/
+/-- "if its gift cost was paid, the chosen player <effect>" [CR#702.174b] -/
 def handed (effect : Action) : Action :=
-  doIf (costWasPaid giftCost none .this) (instruct (chosenAsPaid (.named "gift") .this) effect)
+  doIf (costWasPaid giftCost none .this) (instruct (the isChosenPlayer) effect)
 
 /-- "As an additional cost to cast this spell, you may choose an opponent." [CR#702.174a] -/
 def costPart : Ability := .static (.addedCost (.perform (choose anOpponent)) true .once)
@@ -64,19 +65,6 @@ Flood Maw). -/
 theorem okGiftATappedFishOnBothClasses :
     (cardTextOk [.artifact] [giftATappedFish], cardTextOk [.instant] [giftATappedFish])
       = (true, true) := by
-  decide
-
-/-- Twin: "the chosen player" read in the effect's own scope does not reach the opponent chosen
-as the gift cost was paid [CR#607.2d]. -/
-def giftACardUnlinked : Ability :=
-  .keyword (.named "gift") []
-    [ costPart,
-      .spell none
-        (doIf onInstantOrSorcery
-          (doIf (costWasPaid giftCost none .this) (instruct (the isChosenPlayer) (draw (.lit 1))))) ]
-
-theorem badUnlinkedChosenPlayer :
-    Ability.check (DRS.ofList []) giftACardUnlinked = [.choiceRef .theChoice .player 0] := by
   decide
 
 end Semantics.Proofs.GiftVariants

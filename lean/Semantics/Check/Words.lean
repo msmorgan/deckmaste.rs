@@ -985,13 +985,15 @@ def DRS.isClauseMate (drs : DRS) (id : ReferentId) : Bool :=
 - Demonstratives / definite NPs (`.word _`, `.unionHalf _`) use `AC>R1`: filter by
   `J1`, exclude `J2` clause-mates (`A`, when `inArgSlot`), exclude any referent already resolved
   by a bare pronoun in the current clause (`C`, `pronounResolved == true`), and pick the most
-  recently introduced candidate (`R1`, highest `id`). -/
+  recently introduced candidate (`R1`, highest `id`).
+- Neither reaches an object a linked ability published (`Referent.linked`): only a Participial
+  Description reads one back. -/
 def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) :
     List Referent :=
-  let j1 := drs.visibleReferents.filter fun ref =>
+  let j1 := drs.visibleReferents.filter fun ref => !ref.linked && (
     (if drs.characteristicRead then reachesCharacteristic r pl ref else reaches r pl ref) ||
       (drs.historicalMoveFrom == some .battlefield &&
-        drs.historicalReferentIds.contains ref.id && reachesCharacteristic r pl ref)
+        drs.historicalReferentIds.contains ref.id && reachesCharacteristic r pl ref))
   match r with
   | .bare | .atSlot _ =>
       let cands := if inArgSlot then j1.filter (fun b => !drs.isClauseMate b.id) else j1

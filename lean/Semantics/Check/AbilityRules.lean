@@ -11,83 +11,14 @@ namespace Semantics
 def Ability.checkAll (drs : DRS) (abs : List Ability) : List Refusal :=
   (stepAbilityList 64 drs abs).2
 
-private def choiceSortAtKind : Kind → Option ChoiceSort
-  | .quality q => some (.quality q)
-  | .player => some .player
-  | _ => none
+/-- Choices, public cost results, added targets, and the objects a printed triggered or activated
+ability acted on in a public zone, available to later lines of card text [CR#607.2a]. -/
+def Ability.textContext (drs : DRS) (ability : Ability) : DRS :=
+  Ability.textContextWith (stepOps 64) drs ability
 
-private def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
-  match fuel, action with
-  | 0, _ => []
-  | n+1, .inCaller body | n+1, .ownScope _ body | n+1, .bracketed body
-  | n+1, .instruct _ body | n+1, .limited body _ => actionTextChoices body n
-  | _+1, .choose _ (.described (.a _) predicate) _ _ =>
-    (predicate.kind?.bind choiceSortAtKind).toList
-  | n+1, .sequentially steps => steps.flatMap (fun step => actionTextChoices step n)
-  | _+1, _ => []
-termination_by structural fuel
-
-/-- Choices made as part of a replaced event, by what a replacement does `also`
-("As this enters, choose a color"), which later lines read [CR#614.1c]. -/
-private def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
-    List ChoiceSort :=
-  match fuel, replacement with
-  | 0, _ => []
-  | n+1, .inCaller body | n+1, .onlyIf _ body => replacementTextChoices body n
-  | _+1, .also action => actionTextChoices action
-  | _+1, .instead _ | _+1, .withRiders _ => []
-termination_by structural fuel
-
-private def publishTextChoices (drs : DRS) (sorts : List ChoiceSort) : DRS :=
-  sorts.foldl (fun context sort => context.push sort.binding .other false) drs
-
-private def publicCostResult (ref : Referent) : Bool :=
-  !ref.isActorFrame && ref.isPublic &&
-    (match ref.payload with
-     | .object .. | .pile .. => ref.zone.isSome
-     | _ => true)
-
-private def costTextContext (drs : DRS) (cost : Cost) : DRS :=
-  let out := (stepCost 64 drs cost).1
-  let additions := out.visibleReferents.filter fun ref =>
-    ref.id ≥ drs.nextId && publicCostResult ref
-  nextClause { drs with
-    referents := additions ++ drs.referents,
-    nextId := Nat.max drs.nextId out.nextId,
-    currentClause := Nat.max drs.currentClause out.currentClause }
-
-private def staticTextContext (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) : DRS :=
-  match fuel, spec with
-  | 0, _ => drs
-  | n+1, .inCaller body => staticTextContext drs body n
-  | n+1, .conjunction _ parts =>
-    parts.foldl (fun context part => staticTextContext context part n) drs
-  | _+1, .addedCost cost _ _ => costTextContext drs cost
-  | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
-    publishTextChoices drs (actionTextChoices action)
-  | _+1, .replace _ replacement _ _ _ =>
-    publishTextChoices drs (replacementTextChoices replacement)
-  | _+1, _ => drs
-termination_by structural fuel
-
-/-- Choices and public additional-cost results available to later lines of card text. -/
-def Ability.textContext (drs : DRS) (ability : Ability) (fuel : Nat := 64) : DRS :=
-  match fuel, ability with
-  | 0, _ => drs
-  | _+1, .activated _ action _ _ _ _ | _+1, .triggered _ _ _ _ _ _ _ action
-  | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
-  | _+1, .static spec => staticTextContext drs spec
-  | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
-  | n+1, .inCaller body =>
-    Ability.textContext drs body n
-  | _+1, _ => drs
-termination_by structural fuel
-
-/-- Each card-text line can read prior choices and public additional-cost results. -/
+/-- Each card-text line can read prior choices and public results of the lines before it. -/
 def Ability.checkText (drs : DRS) (abilities : List Ability) : List Refusal :=
-  (abilities.foldl (fun (context, errors) ability =>
-    let errors := errors ++ Ability.check context ability
-    (Ability.textContext context ability, errors)) (drs, [])).2
+  checkTextWith (stepOps 64) drs abilities
 
 private def additionalTapGroupCost : Cost :=
   .perform (.ownScope (some (.action "tap"))

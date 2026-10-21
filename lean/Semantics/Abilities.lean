@@ -185,13 +185,6 @@ mutual
     | timesPaid (which : LinkSource)
     /-- "was kicked" [CR#702.33d], optionally within a span ("this turn") -/
     | readback (which : LinkSource) (within : Option Duration)
-    /-- "the player chosen as [which] was paid": the choice an additional cost makes, read
-    back by the ability linked to it [CR#702.174a,607.2d,607.2i] -/
-    | chosenPlayer (which : LinkSource)
-    /-- The objects `deed` acted on as `which` was paid or resolved, as the printed text numbers
-    them: "the sacrificed creature", "the exiled cards", "creatures it devoured"
-    [CR#607.2a,702.82b]. -/
-    | objects (which : LinkSource) (deed : Deed) (plurality : Plurality)
     /-- Whether the choice `which` offered was taken: "if tribute wasn't paid" reads it false
     [CR#702.104b]. -/
     | taken (which : LinkSource)
@@ -351,10 +344,6 @@ mutual
     | attachHost (word : AttachWord) (head : NounWord)
     | possessorOf (axis : PossessorAxis) (subject : NounPhrase)
     | designated (designation : DesignationLabel) (whose : NounPhrase)
-    /-- A Linked Facet of the subject that names a player or objects, read back by the ability
-    linked to its source: "the player chosen as its gift cost was paid", "the sacrificed
-    creature" [CR#607.2a,607.2d,607.2i]. -/
-    | paid (facet : LinkedFacet) (subject : NounPhrase)
     /-- The object on the second side of the Relation `label` whose first side is `subject`:
     "the creature it haunts" [CR#702.55b]. -/
     | counterpart (label : RelationLabel) (subject : NounPhrase)
