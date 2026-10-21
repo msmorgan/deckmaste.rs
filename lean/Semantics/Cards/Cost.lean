@@ -1017,10 +1017,8 @@ def leoninBola : Spelled := spelled <| .singleFaced
 def deadlyDancerPump : Ability :=
   activated (mana [pip .red, pip .red])
     (establishThroughout
-       (conjunction
-          [ modification (eachOf (both thisCreature (target (and [isCreature, otherThan this_]))))
-            .power (up (.lit 1)),
-          modification (eachOf (both thisCreature it)) .toughness (up (.lit 0)) ]) untilEndOfTurn)
+       (getsPt (eachOf (both thisCreature (target (and [isCreature, otherThan this_]))))
+          (up (.lit 1)) (up (.lit 0))) untilEndOfTurn)
 theorem okDeadlyDancerPump : Ability.check (DRS.ofList []) deadlyDancerPump = [] := by decide
 
 /-- Unesh, Criosphinx Sovereign -/

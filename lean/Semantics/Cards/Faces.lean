@@ -293,8 +293,7 @@ def arlinnKord : Spelled := spelled <| .transforming
       text :=
         [ activated (loyaltySymbol (up (.lit 1)))
             (establishThroughout
-               (conjunction [ modification (targets (upTo 1) isCreature) .power (up (.lit 2)),
-                  modification it .toughness (up (.lit 2)),
+               (conjunction [ getsPt (targets (upTo 1) isCreature) (up (.lit 2)) (up (.lit 2)),
                   abilityGrant it vigilance,
                   abilityGrant it haste ]) untilEndOfTurn),
           activated (loyaltySymbol (up (.lit 0)))
@@ -309,8 +308,7 @@ def arlinnKord : Spelled := spelled <| .transforming
         [ activated (loyaltySymbol (up (.lit 1)))
             (establishThroughout
                (conjunction
-                  [ modification (allOf (and [isCreature, youControl])) .power (up (.lit 1)),
-                  modification them .toughness (up (.lit 1)),
+                  [ getsPt (allOf (and [isCreature, youControl])) (up (.lit 1)) (up (.lit 1)),
                   abilityGrant them trample ]) untilEndOfTurn),
           activated (loyaltySymbol (down (.lit 1)))
             (sequentially
@@ -337,8 +335,7 @@ def neglectedHeirloom : Spelled := spelled <| .transforming
   { characteristics :=
     { name := "Ashmouth Blade", types := [.artifact], subtypes := [equipment],
       text :=
-        [ static (conjunction [ modification (equipped creature) .power (up (.lit 3)),
-              modification it .toughness (up (.lit 3)),
+        [ static (conjunction [ getsPt (equipped creature) (up (.lit 3)) (up (.lit 3)),
               abilityGrant it firstStrike ]),
           equip (mana [generic 3]) ] } }
 

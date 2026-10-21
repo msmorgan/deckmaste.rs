@@ -307,8 +307,8 @@ semantic_definition battleCry : Ability :=
   .keyword (.named "battleCry") []
     [ triggered (does thisCreature (.attack none))
         (establishThroughout
-          (Templates.modification (each (and [isCreature, isAttacking, .otherThan thisCreature])) .power
-            (.up (.lit 1)))
+          (Templates.getsPt (each (and [isCreature, isAttacking, .otherThan thisCreature]))
+            (.up (.lit 1)) (.up (.lit 0)))
           untilEndOfTurn) ]
 semantic_definition bestow (cost : Cost) : Ability :=
   .keyword (.named "bestow") [.cost (.inCaller cost)]

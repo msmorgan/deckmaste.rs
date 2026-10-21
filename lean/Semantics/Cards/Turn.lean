@@ -511,8 +511,7 @@ def berserk : Spelled := spelled <| .singleFaced
         [ spell (sequentially
               [ establishFor (target isCreature)
                   [ abilityGrant (target isCreature) trample,
-                    modification (target isCreature) .power (up (letter .x)),
-                    modification it .toughness (up (.lit 0)),
+                    getsPt (target isCreature) (up (letter .x)) (up (.lit 0)),
                     letterDefinition .x (powerOf it) ]
                   (some untilEndOfTurn),
                 atNext .endStep (doOnlyIf (destroy (that creature))

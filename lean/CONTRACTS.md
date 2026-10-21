@@ -305,7 +305,8 @@ comparison's own clause box resolves to its candidate (`Predicate.compareOver`);
 `aTheirChoice` is a determiner mode (`ChoiceMode.theirChoice`) checked by
 `choiceModeChecks`; "gets +P/+T" is one `StaticSpec.characteristicChange` with a
 power and a toughness `CharacteristicEdit.stat`, which steps its subject once and its
-toughness amount after its power amount.
+toughness amount after its power amount. A printed "+0" is written: "gets +X/+0" is
+`getsPt subject (up X) (up (.lit 0))`, never a lone power `modification`.
 
 `Proofs/DrtResolution.lean` pins each rule (nearest clause, role ranking, true ties,
 clause-mate exclusion, possessor exemption, masking, number, carrier, demonstrative
@@ -779,7 +780,9 @@ expected child kinds in the incoming `DRS`.
 `CharacteristicEdit` list. A static change of stats ("gets +P/+T", "has base power and
 toughness P/T", "its power is equal to …", "switch its power and toughness") and of abilities
 ("has flying", "has all activated abilities of …", backup's selection) is a
-`characteristicChange` too. A Characteristic-Defining Ability is its own form,
+`characteristicChange` too. "Gets +P/+T" is one `getsPt` carrying both printed deltas, a "+0"
+included; the single-stat `modification` template is only for a change whose text names one
+stat. A Characteristic-Defining Ability is its own form,
 `StaticSpec.characteristicDefining subject edits` [CR#604.3a] (templates `ptDefinition`,
 `ptDefinitions`, `qualityDefinition`; changeling and devoid are written with it): it functions in
 all zones [CR#604.3], applies first in layer 4 or 5 [CR#613.3] and in layer 7a for power and

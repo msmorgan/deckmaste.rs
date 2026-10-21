@@ -21,6 +21,24 @@ theorem getsPtIsOneCharacteristicChange (subject : NounPhrase) (power toughness 
       .characteristicChange subject [.stat .loses .power power, .stat .adds .toughness toughness] :=
   ⟨rfl, rfl⟩
 
+/-- The stat edits of the characteristic change battle cry's trigger establishes. -/
+private def battleCryStatEdits : List CharacteristicEdit :=
+  match battleCry with
+  | .keyword _ _ [.triggered _ _ _ _ _ _ _ (.establish (.characteristicChange _ edits) _)] => edits
+  | _ => []
+
+/-- Whether an edit raises `stat` by the literal `n`. -/
+private def raisesBy (stat : CharacteristicStat) (n : Int) : CharacteristicEdit → Bool
+  | .stat .adds stat' (.lit m) => stat' == stat && m == n
+  | _ => false
+
+/-- "Each other attacking creature gets +1/+0" [CR#702.91a]: one change carrying both printed
+deltas, its "+0" toughness edit included. -/
+theorem battleCryGetsBothPrintedDeltas :
+    battleCryStatEdits.any (raisesBy .power 1) = true ∧
+      battleCryStatEdits.any (raisesBy .toughness 0) = true := by
+  decide
+
 theorem okTargetGetsIntroducesOneTarget :
     (actionResult (DRS.ofList []) (get (target isCreature) (.up (.lit 2)) (.up (.lit 2)) (some untilEndOfTurn))).referents.countP
       (fun b => b.det == .target) = 1 := by
