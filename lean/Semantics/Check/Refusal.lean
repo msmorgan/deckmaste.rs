@@ -57,6 +57,10 @@ inductive Refusal where
   back the objects its deed acted on in scope, and found `found` of them, not exactly one
   [CR#607.1,607.2a]. -/
   | participialDescription (deed : Deed) (found : Nat)
+  /-- A Participial Description names an agent of its deed the checker cannot read back: a
+  stamp records what a deed did, not who did it, so only no agent, "you", the performer, or the
+  object whose keyword ability defines the verb are read. -/
+  | participialAgent
   /-- A historical clause with no span written ("exiled", not "exiled this way" or "exiled this
   turn") reads back only as a Participial Description: a condition, a tally, or any other
   relative clause names the span it looks back over. -/

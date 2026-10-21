@@ -90,7 +90,7 @@ private def thePutCreatures : NounPhrase :=
 /-- Two creatures moved from the battlefield to a graveyard. -/
 private def putCreaturesContext : DRS := DRS.ofList [
   { det := .count, plur := .many,
-    payload := .object [.creature] (some .graveyard) (some ⟨.core .put, true, true⟩) none none }]
+    payload := .object [.creature] (some .graveyard) (some ⟨.core .put, true, true, []⟩) none none }]
 
 /-- Explicit counted selections and definite plural readbacks keep their written plurality. -/
 theorem writtenPluralGroupsRemainCountable :

@@ -171,10 +171,14 @@ theorem builtToSmashConditionAndTrampleReadThePumpedTarget :
     result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true ∧
       (result.1.findById? 0).map (·.ty) = some [.creature, .artifact] := by decide
 
+/-- Both deltas read the one creature, its own subject, by one bare pronoun resolution. The
+sacrifice cumulative upkeep may make is published to this line for a linked readback, and is no
+pronoun's antecedent. -/
 theorem earthenGooBothCounterDeltasReadItsOwnSubject :
     let result := cardLineTrace Cards.earthenGoo 2
-    result.2 = [] ∧ result.1.resolvedIds = [0] ∧ creatureIdentity result.1 0 = true ∧
-      (result.1.findById? 0).map (·.pronounResolved) = some true := by decide
+    let subject := result.1.resolvedIds.headD 0
+    result.2 = [] ∧ result.1.resolvedIds.length = 1 ∧ creatureIdentity result.1 subject = true ∧
+      (result.1.findById? subject).map (·.pronounResolved) = some true := by decide
 
 theorem nyxathidBothDeltasReadItsUniqueAnnouncedPlayer :
     let result := cardLineTrace Cards.nyxathid 1

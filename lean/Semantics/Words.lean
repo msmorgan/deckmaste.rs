@@ -385,9 +385,9 @@ inductive KeywordTerm where
   | theWith (keyword : KeywordLabel) (number : Nat)
   deriving DecidableEq, Repr
 
-/-- A Link Source: the cost a Linked Facet reads back [CR#607.2i]. A cost is named by its
-keyword ("its kicker cost"), by its keyword and rank ("its second kicker cost"), or as "the
-alternative" or "the additional" cost. -/
+/-- A Link Source: the cost a Linked Facet reads back, an additional cost [CR#118.8,607.2i] or an
+alternative cost [CR#118.9,607.1]. A cost is named by its keyword ("its kicker cost"), by its
+keyword and rank ("its second kicker cost"), or as "the alternative" or "the additional" cost. -/
 inductive LinkSource where
   | byKeyword (keyword : KeywordLabel)
   | byNthKeyword (ordinal : Ordinal) (keyword : KeywordLabel)

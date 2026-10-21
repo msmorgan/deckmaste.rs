@@ -78,7 +78,7 @@ theorem unionRefinementAcceptsOneMatchingHalf :
       (DRS.ofList [{ det := .target, plur := .one, payload := .join artifactCard.payload copiedCreature, idents := [] }]) = 1 := by decide
 
 private def movedCopy (deed : Deed) (origin : Option Origin) : Referent :=
-  { det := .target, plur := .one, payload := .object [.creature] (some .exile) (some ⟨deed, true, true⟩) origin none, idents := [] }
+  { det := .target, plur := .one, payload := .object [.creature] (some .exile) (some ⟨deed, true, true, []⟩) origin none, idents := [] }
 
 theorem participialRefinementsKeepCarrierTypeAndOrigin :
     (participialCandidates (.action "exile") (some .one)

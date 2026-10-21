@@ -73,6 +73,23 @@ theorem badZoneRestriction :
       [.participialDescription exiling 0] := by
   decide
 
+/-- Required pin: a description demanding a zone or carrier other than the one the linked ability
+put the object into is refused [CR#607.2a]: the card the linked ability exiled is in exile, not on
+the battlefield nor in a graveyard. -/
+theorem badLinkedObjectInAnotherZone :
+    Ability.checkText (DRS.ofList [])
+      [ exileGraveyardCard,
+        returnToTheBattlefield (the (and [was (exile which), isCard, in_ battlefield])) ] =
+      [.participialDescription exiling 0] ∧
+    Ability.checkText (DRS.ofList [])
+      [ exileGraveyardCard,
+        returnToTheBattlefield (the (and [was (exile which), isCard, in_ graveyard])) ] =
+      [.participialDescription exiling 0] ∧
+    Ability.checkText (DRS.ofList [])
+      [ exileGraveyardCard,
+        returnToTheBattlefield (the (and [was (exile which), isCard, in_ exileZone])) ] = [] := by
+  decide
+
 /-- Required pin: two abilities of the object exile cards, so "the exiled card" could be either's
 [CR#607.2a]. -/
 theorem badAmbiguousExiledCard :
@@ -126,6 +143,34 @@ theorem badThisWayReadsNoLinkedObject :
       [ exileGraveyardCard,
         returnToTheBattlefield (the (and [isCard, was (exile which) thisWay])) ] =
       [.participialDescription exiling 0] := by
+  decide
+
+/-- Only what the linked ability did is linked [CR#607.1]: a creature its trigger event names
+("whenever you sacrifice a creature") was sacrificed by something else. -/
+theorem badTriggerEventObjectNotLinked :
+    Ability.checkText (DRS.ofList [])
+      [ when (does you (sacrifice (a isCreature))) (draw (.lit 1)),
+        spell (draw (statOf (.stat .manaValue) theSacrificed)) ] =
+      [.participialDescription sacrificing 0] := by
+  decide
+
+/-- The arms of a handoff are read too: "target opponent may exile a card from a graveyard".
+-/
+theorem okExiledInsideHandoff :
+    Ability.checkText (DRS.ofList [])
+      [ when (does thisPermanent enter)
+          (instruct (target isOpponent) (may (exile (target (and [isCard, in_ graveyard]))))),
+        returnToTheBattlefield theExiledCard ] = [] := by
+  decide
+
+/-- Arms the linked ability takes instead of each other are one place: "you may exile target
+card from a graveyard; if you don't, exile target card from your hand" exiles one card. -/
+theorem okExclusiveArmsAreOnePlace :
+    Ability.checkText (DRS.ofList [])
+      [ when (does thisPermanent enter)
+          (mayOrElse (exile (target (and [isCard, in_ graveyard])))
+            (exile (target (and [isCard, in_ yourHand])))),
+        returnToTheBattlefield theExiledCard ] = [] := by
   decide
 
 /-- The sacrificed creature is an object: a player context refuses it. -/

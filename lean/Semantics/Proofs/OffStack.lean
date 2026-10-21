@@ -129,6 +129,39 @@ theorem okAmplify : Ability.check (DRS.ofList []) (amplify (.lit 1)) = [] := by 
 
 /-! ## The readbacks (`semantics-v2-linked-readback`) -/
 
+/-- "When this creature enters, draw a card for each creature it devoured." -/
+def drawForEachDevoured : Ability :=
+  when (does thisCreature enter)
+    (doForEach (each (and [isCreature, did it (devour which)])) (draw (.lit 1)))
+
+/-- Skullmulcher: "Devour 1 … When this creature enters, draw a card for each creature it
+devoured." [CR#702.82b]: "it devoured" reads back the creatures devour's entry sacrificed, the
+objects of a linked ability. -/
+theorem okItDevouredCount :
+    Ability.checkText (DRS.ofList []) [devour (.lit 1), drawForEachDevoured] = [] := by
+  decide
+
+/-- Voracious Dragon: "When this creature enters, it deals damage to any target equal to twice
+the number of Goblins it devoured." [CR#702.82b] -/
+theorem okGoblinsItDevoured :
+    Ability.checkText (DRS.ofList [])
+      [ devour (.lit 1),
+        when (does thisCreature enter)
+          (dealDamage (times (.lit 2) (countOf (and [hasSubtype goblin, did it (devour which)])))
+            (target isAnyTarget) .noncombatOnly) ] = [] := by
+  decide
+
+/-- Without devour, it devoured nothing; and a creature another ability sacrificed was not
+devoured [CR#702.82b]. -/
+theorem badDevouredWithoutDevour :
+    Ability.checkText (DRS.ofList []) [drawForEachDevoured] =
+        [.participialDescription (.ofAbility (.named "devour")) 0] ∧
+      Ability.checkText (DRS.ofList [])
+        [ static (.addedCost (.perform (sacrifice (a isCreature))) false .once),
+          drawForEachDevoured ] =
+        [.participialDescription (.ofAbility (.named "devour")) 0] := by
+  decide
+
 /-- "If tribute wasn't paid" [CR#702.104b]: the tribute choice not taken. -/
 theorem okTributeWasntPaid :
     Condition.check (DRS.ofList []) (.not (choiceWasTaken (.byKeyword (.named "tribute")) thisCreature)) = [] := by

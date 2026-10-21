@@ -231,11 +231,13 @@ def actPermanentActorOf (v : Deed) : Bool := (deedFacts v).elim false (·.perman
 /-! ## Discourse Representation Structure (`DRS`) -/
 
 /-- Provenance: the verb that last moved a referent, whether it was on the battlefield then,
-and whether it changed zones. -/
+and whether it changed zones; and the deeds `verb` was done by (`through`), when a keyword
+ability's verb is done by doing another deed: devouring is sacrificing [CR#702.82b]. -/
 structure Stamp where
   verb : Deed
   wasField : Bool
   moved : Bool
+  through : List Deed := []
   deriving DecidableEq, Repr, BEq
 
 inductive Origin where
@@ -377,6 +379,10 @@ structure Referent where
   (`Ability.textContext`): only a Participial Description with no span written reads it back,
   the ability that reads it being linked to the one that published it [CR#607.1,607.2a]. -/
   linked : Bool := false
+  /-- Where a linked referent was published: the line of text that acted on it, by the context's
+  `nextId` as the line was published, and which of that line's exclusive arms acted. -/
+  linkSite : ReferentId := 0
+  linkPath : Nat := 0
   deriving DecidableEq, Repr
 
 def Referent.kind (b : Referent) : Kind := b.payload.kind
@@ -823,7 +829,7 @@ def slotZoneOk : SlotCarrier → Option Zone → Bool
 
 def mkStamp : Option Deed → Option Zone → Bool → Option Stamp
   | none, _, _ => none
-  | some v, oldZn, moved => some ⟨v, onFieldZone oldZn, moved⟩
+  | some v, oldZn, moved => some ⟨v, onFieldZone oldZn, moved, []⟩
 
 /-- A type refinement reads one object's evidence, never a different half of a join. -/
 def payloadHasType (t : CardType) : Payload → Bool
@@ -922,7 +928,7 @@ def Reach.kind : Reach → Kind
   | .unionHalf w => w.kind
   | _ => .object
 
-def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb
+def stampedBy (v : Deed) (s : Stamp) : Bool := v == s.verb || s.through.contains v
 
 /-- Whether `word` names a stamped object by what it was when its deed acted on it: a Card Type
 or "permanent" reads the permanent it was, a departed one by its last known information
@@ -1013,10 +1019,13 @@ def resolveCandidates (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool
           let best := t.foldl (fun acc b => if b.id > acc.id then b else acc) h
           [best]
 
-/-- The objects `deed` stamped that a Participial Description's number (`plur`), span
-(`thisWay`) and Head Noun (`word`) admit; `participialCandidates` reads them. -/
-def participialMatches (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
-    (thisWay : Bool) (drs : DRS) : List Referent :=
+/-- The objects `deed` stamped that a Participial Description admits: of its number (`plur`;
+none for a group determiner, which reads members of any number), within its span (`thisWay`:
+only objects the current ability stamped [CR#607.1c]; no span written: also those a linked
+ability published, where a singular "the" reads a group the linked ability acted on
+[CR#607.2a,607.3]), named by `word` as `stampedWordOk` reads it, and in each of `zones`. -/
+def participialCandidates (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
+    (thisWay : Bool) (drs : DRS) (zones : List Zone := []) : List Referent :=
   drs.visibleReferents.filter fun b =>
     !b.isActorFrame && Kind.lte .object b.kind && b.stampedBy deed &&
       (!thisWay || !b.linked) &&
@@ -1027,22 +1036,28 @@ def participialMatches (deed : Deed) (plur : Option Plurality) (word : Option No
       (match word, b.payload with
        | none, _ => true
        | some w, .object ty zn (some st) og _ => stampedWordOk w st ty zn og
-       | some _, _ => false)
+       | some _, _ => false) &&
+      zones.all (fun zone => b.zone == some zone)
 
-/-- The referents a Participial Description reads back: objects `deed` stamped, as many as its
-determiner says (`plur`; none for a group determiner, which reads a group of any size), named by
-`word` as `stampedWordOk` reads it. With "this way" written (`thisWay`), only objects the current
-ability stamped [CR#607.1c]; with no span written, also those a linked ability published, where
-a singular "the" reads a group the linked ability acted on as well [CR#607.2a,607.3]. A group
-determiner reads a whole group, not a part a selection drew from it beside the group ("all cards
-exiled this way" is the whole run, not also the card that stopped it [CR#702.85a]). A read is
-sound when exactly one referent answers. -/
-def participialCandidates (deed : Deed) (plur : Option Plurality) (word : Option NounWord)
-    (thisWay : Bool) (drs : DRS) : List Referent :=
-  let found := participialMatches deed plur word thisWay drs
+/-- How a Participial Description reads the candidates it found: the referents it denotes, or
+how many it found where it denotes none. A group determiner ("each creature exiled this way")
+reads every candidate together. "The" reads one place a deed acted: one object the current
+ability acted on, or what one linked ability acted on, where the arms that ability may take
+instead of each other ("you may exile …; if you don't, exile …") are one place, read by whichever
+arm acted [CR#607.2a]. -/
+def participialRead (plur : Option Plurality) (found : List Referent) :
+    Except Nat (List Referent) :=
+  if found.isEmpty then .error 0 else
   match plur with
-  | none => if found.any (·.det != .part) then found.filter (·.det != .part) else found
-  | some _ => found
+  | none => .ok found
+  | some _ =>
+    let sites := (found.map fun ref => if ref.linked then (true, ref.linkSite) else (false, ref.id))
+      |>.eraseDups
+    let paths := found.map (·.linkPath)
+    match sites with
+    | [(false, _)] => .ok found
+    | [(true, _)] => if paths.eraseDups.length == paths.length then .ok found else .error found.length
+    | _ => .error sites.length
 
 /-- How many winning antecedents `r` resolves to in `drs`; a read is sound at `1`. -/
 def countReach (r : Reach) (pl : Plurality) (drs : DRS) (inArgSlot : Bool := false) : Nat :=

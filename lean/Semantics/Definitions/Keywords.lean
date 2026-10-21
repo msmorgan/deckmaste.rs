@@ -366,7 +366,7 @@ semantic_definition champion (quality : Predicate) : Ability :=
           (sacrifice thisPermanent)),
       triggered (does thisPermanent leave)
         (returnTo (the (and [was (exile which), isCard])) battlefield
-          [.under (ownerOf (that .card))]) ]
+          [.under (ownerOf it)]) ]
 /-- "Changeling" means "This object is every creature type": a Characteristic-Defining Ability
 of the object, a Kindred instant or sorcery as much as a creature [CR#702.73a,604.3a]. -/
 semantic_definition changeling : Ability :=
@@ -490,6 +490,12 @@ semantic_definition dethrone : Ability :=
 [CR#702.114a,604.3a]. -/
 semantic_definition devoid : Ability :=
   .keyword (.named "devoid") [] [static (qualityDefinition this_ .sets (colored (.some [])))]
+/-- "<it> devours <subject>": sacrifices it as a result of its devour ability as it enters, the
+verb devour defines for itself [CR#702.82b]. It is done by sacrificing, so the sacrifice stands
+too ("each creature sacrificed this way" and "creatures it devoured" both read it). Named in its
+sort, as `devour` is the keyword ability. -/
+semantic_template Action.devour (subject : NounPhrase) : Action :=
+  enact (.ofAbility (.named "devour")) (sacrifice subject)
 /-- Devour's definition over the permanents `quality` describes, counted by the variant's head
 noun `head`: "As this object enters, you may sacrifice any number of [quality] permanents. This
 permanent enters with N +1/+1 counters on it for each [head] sacrificed this way." Devour counts
@@ -498,7 +504,7 @@ semantic_template devourEntry (quality head : Predicate) (amount : Amount) : Abi
   static
     (replace (would thisPermanent enter)
       (also
-        (may (sacrifice (counted anyNumber (and [quality, .in_ battlefield])))
+        (may (Action.devour (counted anyNumber (and [quality, .in_ battlefield])))
           (some
             (putCounters (forEach amount (and [head, was (sacrifice which) thisWay]))
               p1p1Counter thisPermanent)))))
@@ -1552,14 +1558,17 @@ semantic_definition webSlinging (cost : Cost) : Ability :=
 semantic_definition wither : Ability := keyword (.named "wither")
 
 open Lean Elab Term in
-/-- `crew` and `saddle` name a keyword ability declared here and the action its definition's cost
-performs (`Action.crew`, `Action.saddle` [CR#702.122a,702.171a]): the expected type picks one,
-as `Semantics.Templates` dispatches the words its own sorts share. -/
+/-- `crew`, `saddle` and `devour` name a keyword ability declared here and the action its
+definition performs (`Action.crew`, `Action.saddle`, `Action.devour`
+[CR#702.122a,702.171a,702.82b]): the expected type picks one, as `Semantics.Templates`
+dispatches the words its own sorts share. -/
 @[scoped term_elab Lean.Parser.Term.app]
 def elabKeywordDispatch : TermElab := Templates.dispatchOnExpectedType
   [ (`crew, [ (``Semantics.Action, `Semantics.Templates.Action.crew),
               (``Semantics.Ability, `Semantics.Definitions.crew) ]),
     (`saddle, [ (``Semantics.Action, `Semantics.Templates.Action.saddle),
-                (``Semantics.Ability, `Semantics.Definitions.saddle) ]) ]
+                (``Semantics.Ability, `Semantics.Definitions.saddle) ]),
+    (`devour, [ (``Semantics.Action, `Semantics.Definitions.Action.devour),
+                (``Semantics.Ability, `Semantics.Definitions.devour) ]) ]
 
 end Semantics.Definitions

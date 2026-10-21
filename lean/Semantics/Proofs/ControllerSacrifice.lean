@@ -158,7 +158,7 @@ theorem laterCardIsTheSacrificedObject :
       (fun ref => (ref.id, ref.det, ref.plur, ref.payload)) =
       some (3, .target, .one,
         .object [.creature, .artifact] (some .graveyard)
-          (some ⟨.action "sacrifice", true, true⟩) none none) := by decide
+          (some ⟨.action "sacrifice", true, true, []⟩) none none) := by decide
 
 theorem outerArtifactDoesNotStealThePatient :
     let outer : DRS := DRS.ofList
@@ -369,7 +369,7 @@ private def afterPrefix (fresh : Nat) : List Referent :=
  [ { id := fresh + 3, det := .the, plur := .one, payload := .player false, role := .subj },
    { id := fresh + 5, det := .target, plur := .one,
      payload := .object [.creature] (some .graveyard)
-       (some ⟨.action "sacrifice", true, true⟩) none none },
+       (some ⟨.action "sacrifice", true, true, []⟩) none none },
    { id := fresh + 1, det := .the, plur := .one, payload := .player false },
    { id := fresh, det := .target, plur := .one,
      payload := .object [.artifact] (some .battlefield) none none none } ]

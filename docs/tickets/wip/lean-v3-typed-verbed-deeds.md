@@ -76,7 +76,8 @@ currently split between two encodings:
   - `"the discarded card"` → `the (and [was (discard which), isCard])`
   - `"the discarded cards"` → `thePlural (and [was (discard which), isCard])`
   - `"the card discarded this way"` → `the (and [isCard, was (discard which) thisWay])`
-  - `"cards exiled this way"` (*Escape to the Wilds*, *Tezzeret*) → `bare (and [isCard, was (exile which) thisWay])`
+  - `"cards exiled this way"` (*Escape to the Wilds*) → `bare (and [isCard, was (exile which) thisWay])`
+  - *Tezzeret, Master of the Bridge*'s `"Put all artifact cards from among them onto the battlefield"` → `allFromAmong isArtifact them` (its Oracle text)
   - `"for each creature destroyed / exiled / tapped / card discarded this way"` →
     - *Descent of the Dragons*: `doForEach (each (and [isCreature, was (destroy which) thisWay]))`
     - *Martyr's Cry*: `doForEach (each (and [isCreature, was (exile which) thisWay]))`
@@ -158,3 +159,54 @@ currently split between two encodings:
   (`byKeyword`, `byNthKeyword`, `theAlternative`, `theAdditional`) stays because
   `LinkedFacet.timesPaid`, `LinkedFacet.readback`, and `LinkedFacet.taken` use
   it.
+
+## Rulings and deviations
+
+Rulings made by the orchestrator while the owner was offline (2026-10-21):
+- **Devour** ([CR#702.82b]): "it devoured" means "sacrificed as a result of its devour ability
+  as it entered the battlefield", a verb a keyword ability defines for itself (a Deed). Devour's
+  entry sacrifices through `Action.devour subject` (`enact (.ofAbility devour) (sacrifice
+  subject)`, named in its sort because `devour` is the ability), whose stamp keeps the sacrifice
+  it was done by (`Stamp.through`): "each creature sacrificed this way" and "creatures it
+  devoured" (`each (and [isCreature, did it (devour which)])`) both read it. A replacement's
+  `also` results are published by `staticTextContext`.
+- **Tezzeret, Master of the Bridge**: its Oracle text, as corrected above.
+- **`costChoosesPlayer`**: nothing reads it once `LinkedFacet.chosenPlayer` is gone, so the column
+  is retired from the facts generator, the Lean row type and `deckmaste_semantics_v2`.
+
+Deviations from the text above, made while implementing it:
+- A lookback with no agent, or one written with "by", hides the enclosing handoff's performer
+  while it steps: "the discarded card" in "this enchantment deals damage equal to …" is not
+  discarded by the enchantment.
+- *Damn*'s "A creature destroyed this way can't be regenerated" is
+  `a (and [isCreature, was (destroy which) thisWay])`: an indefinite, not a Participial
+  Description.
+- *Agency Outfitter*'s "a card named Magnifying Glass and/or a card named Thinking Cap … put them"
+  searches for `upTo 2` cards named either, so that `them` reads the group. It does not yet hold
+  the search to one of each.
+- Scavenge's "the card you exiled" is `the (and [isCard, did you (exile which)])`.
+- `cycling` is a Deed a keyword ability defines for itself ([CR#702.29c]), so *Unpredictable
+  Cyclone*'s "the cycled card" checks.
+- A Participial Description's agent must be none, "you", the performer, the source, or (for a
+  keyword ability's own verb) the object that has it; a stamp does not record who did the deed,
+  so any other agent is refused (`participialAgent`).
+- A group determiner reads every candidate together, and a Card Type in it filters the group's
+  members. "The" reads one site: one object of the current ability, or what one linked ability
+  acted on, whose exclusive arms (`may … otherwise`, `doIf … else`) count as one.
+- A triggered ability publishes only what it introduces, not what its trigger event or condition
+  names ([CR#607.1]).
+- `NounPhrase.paid` and `Reach.tracksObject` are retired: no facet a noun phrase could read
+  remained, and nothing read `tracksObject`.
+
+Tests retired, with reasons:
+- `okHijackDeedDescriptions`: an unprinted duplicate of *Hijack*, whose Oracle text says "it".
+- `NounWords.verbedPronounTracksItsObject`, `verbedDescriptionDoesNotTrackItsObject`,
+  `verbedPronounIsAnObject`, `verbedDescriptionTakesItsWordsKind`: `Reach.verbed` and
+  `Reach.tracksObject` are retired.
+- `LinkedReadback.badKeywordDeedOfAnotherKeyword`, `badObjectsReadAsAnAmount`: they tested
+  `LinkSource.performs` and `linkedFacetKind`, retired with `LinkedFacet.objects`.
+- `LinkedChoiceReadback.badCostlessKeywordChoosesNoPlayer`, `badTheAdditionalChoosesNoPlayer`,
+  `badFacetReadAsTheOtherKind`: they tested `LinkedFacet.chosenPlayer` and `NounPhrase.paid`.
+- `GiftVariants.badUnlinkedChosenPlayer`: it asserted the retired reading, that gift's own cost
+  choice is out of scope for its second ability.
+

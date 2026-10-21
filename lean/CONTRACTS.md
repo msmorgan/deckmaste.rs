@@ -268,16 +268,20 @@ pending roles, advances `currentClause` and clears `pronounResolved`.
 
 A Participial Description is a `NounPhrase.described` with determiner `the` (one, or
 `many`: "the exiled cards"), `all`, `each` or the bare plural, one of whose conjuncts is a
-`Predicate.did` with no span or `thisWay`, whose `which` is what the deed acted on
+`Predicate.did` with no span written or `thisWay`, whose `which` is what the deed acted on
 (`Predicate.participialAnchor?`). It introduces no referent: `participialCandidates`
-selects the referents its deed stamped (`Referent.stampedBy`), of its number (a group
-determiner reads any, and a whole group rather than a part drawn from it), named by the
-other conjuncts' Head Noun as the object was when acted on (`card`, a battlefield
-location as "permanent", Card Types: `stampedWordOk` [CR#608.2h]). `thisWay` reads only
-referents the current ability stamped [CR#607.1c]; no span written also reads those a
-linked ability published, and a singular `the` reads a published group [CR#607.3]. One
-candidate resolves (and, if published, is mentioned from then on); none or several are
-refused `participialDescription`. `Proofs/Lookback.lean`, `Proofs/LinkedReadback.lean`
+selects the referents its deed stamped (`Referent.stampedBy`, which also reads the deed a
+keyword ability's verb was done by: devouring is sacrificing [CR#702.82b]), of its number,
+named by the other conjuncts' Head Noun as the object was when acted on (`card`, a
+battlefield location as "permanent", Card Types: `stampedWordOk` [CR#608.2h]) and in the
+zones they name now. `thisWay` reads only referents the current ability stamped
+[CR#607.1c]; no span written also reads those a linked ability published, and a singular
+`the` reads a published group [CR#607.3]. `participialRead` resolves: a group determiner
+reads every candidate (a Card Type picks members, asking nothing of the group); `the`
+reads one site, one object of the current ability or what one linked ability published,
+whose exclusive arms count as one. Otherwise it is refused `participialDescription`. Its
+agent must be none, "you", the performer, the source, or for a keyword ability's own verb
+the object that has it (`participialAgent`): a stamp records no agent. `Proofs/Lookback.lean`, `Proofs/LinkedReadback.lean`
 and `Proofs/NounWords.lean` pin it.
 
 `NounPhrase.pro` and `NounPhrase.which` are expansion carriers (`internal_expansion`):
@@ -876,9 +880,10 @@ as the same ability would write it of its own deed ("the exiled card", "the
 sacrificed creature" [CR#607.2a]): linked and self-linked abilities share one AST.
 `Ability.textContext` publishes them `linked`: an additional or alternative cost's
 public results (emerge, harmonize, offering), the target `addsTarget` adds, stamped
-by targeting so mutate's "the target" is its own spell's [CR#702.140a], and the
-objects a printed triggered or activated ability acted on in a public zone, along
-every branch it may take (champion [CR#702.72a]). Resolution refuses a description
+by targeting so mutate's "the target" is its own spell's [CR#702.140a], what a
+replacement does `also` (devour [CR#702.82b]), and the objects a printed triggered or
+activated ability itself introduces in a public zone, along each arm it may take
+(`Action.arms`, champion [CR#702.72a]), never what its trigger event names [CR#607.1]. Resolution refuses a description
 whose deed or Head Noun no published object fits ("the exiled creature" when a card
 left a graveyard) and one two abilities could supply [CR#607.2a]. Where the object is
 when the linked ability resolves (a card that left exile) is the engine's, not the

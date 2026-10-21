@@ -197,4 +197,44 @@ theorem subjectRelativeClauseAnchorsNoDescription :
       (and [isPlayer, did which (sacrifice (a isPermanent)) thisWay])).isNone = true := by
   decide
 
+/-! ## Participial groups
+
+A group determiner reads every object its deed acted on, together; a Card Type in it picks
+members of that group, and asks nothing of the group itself. -/
+
+/-- Culmination of Studies: "Exile the top X cards of your library. For each land card exiled
+this way, create a Treasure token." -/
+theorem okEachLandCardExiledThisWay :
+    Action.check (DRS.ofList [letterB .x])
+      (sequentially
+        [ exile (topSlice (letter .x)),
+          doForEach (each (and [isLand, isCard, was (exile which) thisWay]))
+            (createToken treasureToken) ]) = [] := by
+  decide
+
+/-- Rally the Horde: "Exile the top card of your library. Exile the top card of your library.
+Exile the top card of your library. … Create a 1/1 red Warrior creature token for each nonland
+card exiled this way.": the group is every card the three exiles acted on. -/
+theorem okEachCardOfSeveralExiles :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ exile (topSlice (.lit 1)), exile (topSlice (.lit 1)), exile (topSlice (.lit 1)),
+          doForEach (each (and [non isLand, isCard, was (exile which) thisWay]))
+            (createToken (creatureToken 1 1 [.red] [warrior])) ]) = [] := by
+  decide
+
+/-- The agent of the deed must be one a stamp can stand for: "the card an opponent exiled" names
+an agent the checker cannot read back, so it is refused. "The card you exiled" is read. -/
+theorem participialAgentRead :
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ exile (target (and [isCard, in_ graveyard])),
+          putOntoBattlefield (the (and [isCard, did you (exile which)])) ]) = [] ∧
+    Action.check (DRS.ofList [])
+      (sequentially
+        [ exile (target (and [isCard, in_ graveyard])),
+          putOntoBattlefield (the (and [isCard, did anOpponent (exile which)])) ]) =
+      [.participialAgent] := by
+  decide
+
 end Semantics.Proofs.Lookback

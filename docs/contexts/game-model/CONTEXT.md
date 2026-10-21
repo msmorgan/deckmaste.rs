@@ -280,9 +280,10 @@ no declaration gives is refused when the card loads.
 **Deed**:
 Something a card's text says is done, from one of exactly three sources: the
 core rules (a Core Deed), a Keyword Action ([CR#701.1]), or the verb a Keyword
-Ability defines for itself — crewing, saddling, phasing in, cycling
-([CR#702.122b,702.171c,702.26a,702.29c]). Deed is what a rule about "what is
-done" ranges over ("can't attack or block"); Action is the wider notion that also
+Ability defines for itself — crewing, saddling, phasing in, cycling, devouring
+([CR#702.122b,702.171c,702.26a,702.29c,702.82b]); such a verb may be done by
+doing another Deed (devouring is sacrificing). Deed is what a rule about "what
+is done" ranges over ("can't attack or block"); Action is the wider notion that also
 covers what the game does with no text naming it.
 _Avoid_: verb for the whole union — a verb is the word, a Deed is what it names
 
@@ -405,15 +406,16 @@ reference)
 
 **Link Source** (project term):
 The cost a Linked Facet reads back: a cost named by its Keyword Ability, or
-"the additional" or "the alternative" cost ([CR#607.2i]).
+"the additional" or "the alternative" cost ([CR#118.8,118.9,607.2i]).
 _Avoid_: paid cost name
 
 **Participial Description** (project term):
 A definite or group description whose Predicate says what a Deed did to its
-members, with no span or "this way" written ("the exiled card", "the
+members, with either no span written or "this way" ("the exiled card", "the
 sacrificed creature", "each creature destroyed this way"). It introduces no
-Object: it denotes the one Object or group in scope that Deed acted on, read
-by what the Object was when it was acted on ([CR#608.2h]). With "this way" it
+Object: it denotes the one Object or group in scope that Deed acted on. A Card
+Type or "permanent" in it names the Object by what it was when acted on
+([CR#608.2h]); "card", and a zone, by where it is now. With "this way" it
 reads only its own ability's deeds ([CR#607.1c]); with no span written it also
 reads those of an ability linked to it, where a singular "the" reads each of
 a group ([CR#607.2a,607.3]).

@@ -202,10 +202,10 @@ termination_by structural fuel
 /-! ## Participial Descriptions
 
 "The exiled card", "the sacrificed creature", "each creature destroyed this way": a definite or
-group description whose predicate says, with no span or "this way" written, what a deed did to its
-members. It introduces no referent: it reads back the objects that deed acted on in scope
-(`participialCandidates`), in the current ability or, with no span written, in an ability linked
-to it [CR#607.1,607.1c,607.2a]. -/
+group description whose predicate says, with no span written or with "this way", what a deed did
+to its members. It introduces no referent: it reads back the objects that deed acted on in scope
+(`participialCandidates`, `participialRead`), in the current ability or, with no span written,
+in an ability linked to it [CR#607.1,607.1c,607.2a]. -/
 
 /-- Whether `np` is the relative pronoun `which`, however wrapped. -/
 def NounPhrase.isWhich (np : NounPhrase) (fuel : Nat := 8) : Bool :=
@@ -242,18 +242,42 @@ def Predicate.participialAnchor? (p : Predicate) : Option (DidClause × Deed) :=
     | .did clause => clause.anchorDeed?.map (clause, ·)
     | _ => none
 
-/-- The Head Noun a Participial Description's other conjuncts name its objects by, read as
-`stampedWordOk` reads it: "card", "permanent" (a battlefield location: "each permanent sacrificed
-this way" [CR#702.82c]) and each Card Type ("the exiled creature card"). -/
-def Predicate.participialWord? (conjuncts : List Predicate) : Option NounWord :=
+/-- What a Participial Description's other conjuncts ask of the objects it reads back: a Head
+Noun read as `stampedWordOk` reads it ("card", a battlefield location as "permanent": "each
+permanent sacrificed this way" [CR#702.82c], each Card Type: "the exiled creature card"), and the
+zones it names, which the object must be in now ("the exiled card in a graveyard"). With "card"
+written, a battlefield location is such a zone. For a group ("each land card exiled this way"),
+a Card Type picks members of the group and asks nothing of it (`group`). -/
+def Predicate.participialHead (conjuncts : List Predicate) (group : Bool) :
+    Option NounWord × List Zone :=
+  let card := conjuncts.any (fun | .isCard => true | _ => false)
+  let zones := conjuncts.filterMap fun
+    | .in_ loc => loc.sort
+    | _ => none
   let base : Option NounWord :=
-    if conjuncts.any (fun | .isCard => true | _ => false) then some .card
-    else if conjuncts.any (fun | .in_ loc => loc.sort == some .battlefield | _ => false) then
-      some .permanent
+    if card then some .card
+    else if zones.contains .battlefield then some .permanent
     else none
-  conjuncts.foldl (fun word conjunct => match conjunct with
-    | .hasType t => some (word.elim (.type t) (fun w => .ofType w t))
-    | _ => word) base
+  let word := if group then base else
+    conjuncts.foldl (fun word conjunct => match conjunct with
+      | .hasType t => some (word.elim (.type t) (fun w => .ofType w t))
+      | _ => word) base
+  (word, if card then zones else zones.filter (· != .battlefield))
+
+/-- Whether a Participial Description's anchoring clause names an agent the checker can read
+back: none written ("the exiled card"), "you" or the performer, who do what the ability says
+("the card you exiled"), the source ("the creature this spell targets"), or, for a verb a
+keyword ability defines for itself, the object that has it ("creatures it devoured"
+[CR#702.82b]). A stamp does not record who did the deed, so any other agent ("the card an
+opponent exiled") is refused. -/
+def DidClause.participialAgentOk (clause : DidClause) (deed : Deed) : Bool :=
+  match clause.subj with
+  | .any => true
+  | .by np | .actor np =>
+    np.isYou ||
+      (match deed, np with
+       | _, .actor | _, .this | _, .headed _ .this | .ofAbility _, .pro .. => true
+       | _, _ => false)
 
 /-- The number a Participial Description's determiner reads: "the" one object, or with
 `plur = many` a group; "all", "each" and the bare plural a group of any size (`some none`). Other
@@ -533,11 +557,26 @@ def applyInPlaceStamp (drs : DRS) (refIds : List ReferentId) (deed : Option Deed
         let newPayload := match r.payload with
           | .object ty zn oldProv orig sz =>
             let newStamp := match oldProv with
-              | some ⟨_, wasPerm, moved⟩ => some ⟨v, wasPerm, moved⟩
+              | some ⟨_, wasPerm, moved, _⟩ => some ⟨v, wasPerm, moved, []⟩
               | none => mkStamp (some v) zn false
             .object ty zn newStamp orig sz
           | other => other
         { r with payload := newPayload }) drs
+
+/-- Stamp `refIds` with the verb `deed` a keyword ability defines for itself, done by the deed
+that already stamped them: both stand ("each creature sacrificed this way", "creatures it
+devoured" [CR#702.82b]). -/
+def applyThroughStamp (drs : DRS) (refIds : List ReferentId) (deed : Deed) : DRS :=
+  refIds.foldl (fun d rid =>
+    d.updateById rid fun r =>
+      let newPayload := match r.payload with
+        | .object ty zn oldProv orig sz =>
+          let newStamp := match oldProv with
+            | some old => some ⟨deed, old.wasField, old.moved, old.verb :: old.through⟩
+            | none => mkStamp (some deed) zn false
+          .object ty zn newStamp orig sz
+        | other => other
+      { r with payload := newPayload }) drs
 
 
 /-- Voice and `GramRole` assignment (`semantics-v3.md` §3.2):
@@ -1720,6 +1759,16 @@ def actionTextChoices (action : Action) (fuel : Nat := 64) : List ChoiceSort :=
   | _+1, _ => []
 termination_by structural fuel
 
+/-- What a replacement does `also` as part of the replaced event ("As this enters, you may
+sacrifice any number of creatures"), whose results later lines read [CR#614.1c,702.82b]. -/
+def Replacement.alsoAction? (replacement : Replacement) (fuel : Nat := 64) : Option Action :=
+  match fuel, replacement with
+  | 0, _ => none
+  | n+1, .inCaller body | n+1, .onlyIf _ body => body.alsoAction? n
+  | _+1, .also action => some action
+  | _+1, .instead _ | _+1, .withRiders _ => none
+termination_by structural fuel
+
 /-- Choices made as part of a replaced event, by what a replacement does `also`
 ("As this enters, choose a color"), which later lines read [CR#614.1c]. -/
 def replacementTextChoices (replacement : Replacement) (fuel : Nat := 64) :
@@ -1748,13 +1797,17 @@ private def linkedResult (ref : Referent) : Bool :=
      | .object _ (some zone) _ _ _ => zone.isPublic
      | _ => false)
 
-/-- Publish what stepping one line took `drs` to (`out`), keeping the additions `keep` admits.
-An object published is `linked`: only a Participial Description reads it back. -/
-private def publishResults (drs out : DRS) (keep : Referent → Bool) : DRS :=
-  let additions := out.visibleReferents.filter fun ref => ref.id ≥ drs.nextId && keep ref
+/-- Publish what stepping one line took `drs` to (`out`): the referents from `since` on that
+`keep` admits. An object published is `linked`, at the line's site and the arm `path` it was
+acted on in: only a Participial Description reads it back. Publishing nothing leaves `drs` as
+it was. -/
+private def publishResults (drs out : DRS) (since : ReferentId) (keep : Referent → Bool)
+    (path : Nat := 0) (site : ReferentId := drs.nextId) : DRS :=
+  let additions := out.visibleReferents.filter fun ref => ref.id ≥ since && keep ref
+  if additions.isEmpty then drs else
   let marked := additions.map fun ref =>
     match ref.payload with
-    | .object .. => { ref with linked := true }
+    | .object .. => { ref with linked := true, linkSite := site, linkPath := path }
     | _ => ref
   nextClause { drs with
     referents := marked ++ drs.referents,
@@ -1764,7 +1817,7 @@ private def publishResults (drs out : DRS) (keep : Referent → Bool) : DRS :=
 /-- A cost's public results: what an additional or alternative cost acted on ("the sacrificed
 creature" [CR#702.119a]), and the choice a cost makes ("the chosen player" [CR#702.174a]). -/
 def costTextContextWith (ops : StepOps) (drs : DRS) (cost : Cost) : DRS :=
-  publishResults drs (ops.cost drs cost).1 publicCostResult
+  publishResults drs (ops.cost drs cost).1 drs.nextId publicCostResult
 
 /-- The target a static ability adds to a spell, as targeting stamps it [CR#702.140a]: only an
 added target is published stamped by targeting, so "the target" a linked ability reads is the
@@ -1776,9 +1829,49 @@ def addedTargetContextWith (ops : StepOps) (drs : DRS) (description : Predicate)
     | ref@{ payload := .object ty zone _ origin size, .. } =>
       { ref with
         payload := .object ty zone (mkStamp (some (.core .target)) zone false) origin size
-        linked := true }
+        linked := true, linkSite := drs.nextId }
     | ref => ref
   nextClause ({ drs with nextId := Nat.max drs.nextId described.nextId }.push target .other false)
+
+/-- The arms `action` may take, each as one straight-line action: what it does if a player chooses
+to ("you may exile …"), or otherwise; if a condition holds, or otherwise; inside a handoff or a
+Definition's own scope too. A linked ability reads back the objects the arm taken acted on
+[CR#607.2a]. At most eight arms are kept. -/
+def Action.arms (action : Action) (fuel : Nat := 8) : List Action :=
+  match fuel, action with
+  | n + 1, .sequentially steps =>
+    let alternatives : List (List Action) := steps.map fun (step : Action) => step.arms n
+    let combined : List (List Action) := alternatives.foldr
+      (fun (choices : List Action) (rests : List (List Action)) =>
+        choices.flatMap fun (step : Action) => rests.map (step :: ·)) [[]]
+    (combined.map Action.sequentially).take 8
+  | n + 1, .withContinuation _ body ifDid ifNot =>
+    let done : List Action := (body.arms n).flatMap fun (first : Action) => match ifDid with
+      | some next => (next.arms n).map fun (after : Action) => Action.sequentially [first, after]
+      | none => [first]
+    let otherwise : List Action := match ifNot with
+      | some other => other.arms n
+      | none => []
+    (done ++ otherwise).take 8
+  | n + 1, .doIf _ action otherwise =>
+    let rest : List Action := match otherwise with
+      | some other => other.arms n
+      | none => []
+    (action.arms n ++ rest).take 8
+  | n + 1, .instruct subject body => (body.arms n).map (Action.instruct subject)
+  | n + 1, .ownScope deed body => (body.arms n).map (Action.ownScope deed)
+  | n + 1, .inCaller body => (body.arms n).map Action.inCaller
+  | _, action => [action]
+termination_by structural fuel
+
+/-- Publish the objects each arm of `action`, stepped from `base`, acts on in a public zone,
+from the referents it introduces on [CR#607.2a]; all arms are one site. -/
+private def publishArms (ops : StepOps) (drs base : DRS) (action : Action) : DRS :=
+  let site := drs.nextId
+  (action.arms.zipIdx).foldl (fun context (arm, path) =>
+    let start := { base with nextId := Nat.max base.nextId context.nextId }
+    let (done, _) := ops.inst .postEvent .obj start arm
+    publishResults context done start.nextId linkedResult path site) drs
 
 def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel : Nat := 64) :
     DRS :=
@@ -1795,22 +1888,12 @@ def staticTextContextWith (ops : StepOps) (drs : DRS) (spec : StaticSpec) (fuel 
   | _+1, .addsTarget _ description => addedTargetContextWith ops drs description
   | _+1, .asEvent _ action | _+1, .whileHolds _ action =>
     publishTextChoices drs (actionTextChoices action)
-  | _+1, .replace _ replacement _ _ _ =>
-    publishTextChoices drs (replacementTextChoices replacement)
+  | _+1, .replace event replacement _ _ _ =>
+    let published := match replacement.alsoAction? with
+      | some action => publishArms ops drs (nextClause (stepWouldClauseWith ops drs event).1) action
+      | none => drs
+    publishTextChoices published (replacementTextChoices replacement)
   | _+1, _ => drs
-termination_by structural fuel
-
-/-- `action` with every branch it may take done in turn: what it does if a player chooses to
-("you may exile …"), if a condition holds, and otherwise. A linked ability reads back the objects
-the branch taken acted on [CR#607.2a], so each branch's are published. -/
-def Action.everyBranch (action : Action) (fuel : Nat := 16) : Action :=
-  match fuel, action with
-  | n + 1, .sequentially steps => .sequentially (steps.map (·.everyBranch n))
-  | n + 1, .withContinuation _ body ifDid ifNot =>
-    .sequentially ((body :: ifDid.toList ++ ifNot.toList).map (·.everyBranch n))
-  | n + 1, .doIf _ action otherwise =>
-    .sequentially ((action :: otherwise.toList).map (·.everyBranch n))
-  | _, action => action
 termination_by structural fuel
 
 /-- Choices, public cost results, added targets, and the objects a printed triggered or activated
@@ -1821,17 +1904,22 @@ def Ability.textContextWith (ops : StepOps) (drs : DRS) (ability : Ability) (fue
   | 0, _ => drs
   | _+1, .activated cost action _ _ _ _ =>
     let (paid, _) := ops.cost drs cost
-    let (done, _) := ops.inst .postEvent .obj (nextClause (publicOnly paid)) action.everyBranch
-    publishTextChoices (publishResults drs done linkedResult) (actionTextChoices action)
+    let costs := publishResults drs paid drs.nextId linkedResult
+    let base := { nextClause (publicOnly paid) with nextId := Nat.max paid.nextId costs.nextId }
+    publishTextChoices (publishArms ops costs base action) (actionTextChoices action)
   | _+1, .triggered event alternatives while_ _ _ _ intervening action =>
+    -- What the trigger event or its condition names was not acted on by this ability, which
+    -- publishes only what it introduces [CR#607.1].
     let (header, _) := stepTriggerHeaderWith ops drs event alternatives while_ none
     let guarded := match intervening with
       | some condition => (ops.cond (nextClause header) condition).1
       | none => header
-    let (done, _) := ops.inst .postEvent .obj (nextClause guarded) action.everyBranch
-    publishTextChoices (publishResults drs done linkedResult) (actionTextChoices action)
+    publishTextChoices (publishArms ops drs (nextClause guarded) action)
+      (actionTextChoices action)
   | _+1, .spell _ action => publishTextChoices drs (actionTextChoices action)
   | _+1, .static spec => staticTextContextWith ops drs spec
+  | n+1, .keyword _ _ body =>
+    body.foldl (fun context ability => Ability.textContextWith ops context ability n) drs
   | n+1, .alsoForKeywords body _ | n+1, .italicHead _ body | n+1, .qualified body _ _ _ _
   | n+1, .inCaller body =>
     Ability.textContextWith ops drs body n
@@ -2079,14 +2167,17 @@ def stepOps : Nat → StepOps
           | some plur, some (clause, deed) =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
             let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred.withAnchorSpan
-            let word := Predicate.participialWord? pred.conjuncts
-            let found := participialCandidates deed plur word clause.within.isSome drs
-            match found with
-            | [w] =>
+            let (word, zones) := Predicate.participialHead pred.conjuncts plur.isNone
+            let found := participialCandidates deed plur word clause.within.isSome drs zones
+            let agentErrors := refuse (clause.participialAgentOk deed) .participialAgent
+            match participialRead plur found with
+            | .ok read =>
               -- Read back, an object a linked ability published is mentioned in this one.
-              let mentioned := drs2.updateById w.id fun ref => { ref with linked := false }
-              (mentioned.recordMention w.id role inArgSlot, [w.id], e1 ++ e2)
-            | _ => (drs2, [], e1 ++ e2 ++ [.participialDescription deed found.length])
+              let mentioned := read.foldl (fun d ref =>
+                (d.updateById ref.id fun ref => { ref with linked := false }).recordMention ref.id
+                  role inArgSlot) drs2
+              (mentioned, read.map (·.id), e1 ++ e2 ++ agentErrors)
+            | .error n => (drs2, [], e1 ++ e2 ++ agentErrors ++ [.participialDescription deed n])
           | _, _ =>
             let (drs1, e1) := stepDetPhraseWith ops drs detP
             let (drs2, e2) := ops.pred { drs1 with relativeKind := pred.kind? } pred
@@ -2568,7 +2659,9 @@ def stepOps : Nat → StepOps
             else drs1.pendingRoles
           let actedIds := bodyMentions.filterMap fun (id, role) =>
             if role == patientRole then some id else none
-          let drs1 := if phase == .postEvent then applyInPlaceStamp drs1 actedIds (some verb) else drs1
+          let drs1 := if phase != .postEvent then drs1 else match verb with
+            | .ofAbility _ => applyThroughStamp drs1 actedIds verb
+            | _ => applyInPlaceStamp drs1 actedIds (some verb)
           let (drs2, e2) := match becomes with | some p => ops.pred drs1 p | none => (drs1, [])
           let (drs3, e3) := match locus with | some z => stepLocationWith ops drs2 z | none => (drs2, [])
           let out := if defaultsToSource then dropActorFrame drs3 else drs3

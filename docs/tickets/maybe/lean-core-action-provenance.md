@@ -4,8 +4,8 @@ needs: []
 # Design shared action provenance descriptions (`semantics-v3` port)
 
 Parked by the user on 2026-09-06. Investigate sharing descriptors for `castBy`,
-`castFrom`, `wasCast`, and corresponding activation reads without reducing
-all of them to `Predicate.did` (`happenedTo`).
+`castFrom`, "was cast this way" (`was (cast which) thisWay`), and corresponding
+activation reads without reducing all of them to `Predicate.did` (`did`/`was`).
 
 The required distinctions are a currently proposed action, the action
 associated with the current object incarnation, and a historical occurrence.
