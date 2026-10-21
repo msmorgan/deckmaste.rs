@@ -478,7 +478,7 @@ def seedbornMuse : Spelled := spelled <| .singleFaced
     { name := "Seedborn Muse", cost := some [generic 3, pip .green, pip .green],
       types := [.creature], subtypes := [spirit],
       text :=
-        [ static (untapsDuring (allOf youControl) (some (each isOtherPlayer))) ],
+        [ static (untapDuring (allOf youControl) (some (each isOtherPlayer))) ],
       power := stat 2, toughness := stat 4 } }
 
 /-- Unwinding Clock -/
@@ -486,7 +486,7 @@ def unwindingClock : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Unwinding Clock", cost := some [generic 4], types := [.artifact],
       text :=
-        [ static (untapsDuring (allOf (and [isArtifact, youControl]))
+        [ static (untapDuring (allOf (and [isArtifact, youControl]))
             (some (each isOtherPlayer))) ] } }
 
 /-- Thousand Moons Infantry -/
@@ -494,7 +494,7 @@ def thousandMoonsInfantry : Spelled := spelled <| .singleFaced
   { characteristics :=
     { name := "Thousand Moons Infantry", cost := some [generic 2, pip .white], types := [.creature],
       subtypes := [human, soldier],
-      text := [static (untapsDuring thisCreature (some (each isOtherPlayer)))],
+      text := [static (untapDuring thisCreature (some (each isOtherPlayer)))],
       power := stat 2, toughness := stat 4 } }
 
 /-- Blatant Thievery -/

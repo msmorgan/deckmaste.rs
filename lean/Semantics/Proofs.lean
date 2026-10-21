@@ -53,4 +53,5 @@ import Semantics.Proofs.TextChanges
 import Semantics.Proofs.Trigger
 import Semantics.Proofs.Turn
 import Semantics.Proofs.TypeEvidence
+import Semantics.Proofs.UntapStep
 import Semantics.Proofs.Zone

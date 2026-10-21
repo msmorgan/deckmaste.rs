@@ -1394,9 +1394,6 @@ semantic_template establishThroughout (spec : StaticSpec) (duration : Duration) 
 /-- "<spec> during [<whose>] untap step" -/
 semantic_template duringUntapStep (whose : Option NounPhrase) (spec : StaticSpec) : StaticSpec :=
   partScope .untapStep whose spec
-/-- "<n> doesn't untap during [<whose>] untap step" -/
-semantic_template doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  duringUntapStep whose (cant any (.setStatus .untapped subject))
 semantic_template addMana (amount : Amount) (produced : ProducedMana)
     (riders : List ManaRider := []) : Action :=
   .addMana amount produced riders

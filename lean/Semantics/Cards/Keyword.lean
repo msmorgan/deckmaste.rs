@@ -687,7 +687,7 @@ def drumbellower : Spelled := spelled <| .singleFaced
       subtypes := [spirit],
       text :=
         [ flying,
-          static (untapsDuring (allOf (and [isCreature, youControl]))
+          static (untapDuring (allOf (and [isCreature, youControl]))
             (some (each isOtherPlayer))) ],
       power := stat 2, toughness := stat 1 } }
 

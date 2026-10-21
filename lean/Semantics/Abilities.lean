@@ -432,6 +432,12 @@ mutual
     /-- `player` has priority [CR#117.1a]. A mana ability may be activated without it
     [CR#117.1d], so instant speed is written with this condition. -/
     | hasPriority (player : NounPhrase)
+    /-- `chooser` so chooses: a Choice `chooser` makes each time the clause it conditions would
+    apply. In the untap step the active player determines which permanents they control will
+    untap [CR#502.3], so "you may choose not to untap it during your untap step" is a prohibition
+    on untapping it that holds only if you so choose: untapping stays the default, and it is no
+    permission to untap. -/
+    | soChooses (chooser : NounPhrase)
     | not (condition : Condition)
     | and (conjuncts : List Condition)
     | or (disjuncts : List Condition)

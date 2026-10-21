@@ -559,16 +559,22 @@ semantic_template discardThenForEachNonland (discarded : NounPhrase) (step : Act
       .doForEach
         (allOf (and [non isLand, .isCard, .did ⟨.any, discard .which, some .thisWay⟩]))
         step ]
-/-- "you may choose not to untap <subject> during [<whose>] untap step" -/
+/-- "<subject> doesn't untap during [<whose>] untap step": the untap step's untapping is the
+`untap` Deed [CR#502.3,701.26b], so this forbids the same Deed a "can't untap" pattern names. -/
+semantic_template doesntUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  duringUntapStep whose (cant any (untap subject))
+/-- "you may choose not to untap <subject> during [<whose>] untap step": the active player
+determines which of their permanents untap [CR#502.3], so this is the prohibition `doesntUntap`
+writes, holding only if you so choose. Untapping stays the default. -/
 semantic_template mayDeclineUntap (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  duringUntapStep whose (.can .any (untap subject) {})
+  duringUntapStep whose (onlyIfSo (cant any (untap subject)) (.soChooses you))
 /-- "untap <subject> during [<whose>] untap step" -/
-semantic_template untapsDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
-  duringUntapStep whose (.must .any (untap subject) {})
+semantic_template untapDuring (subject : NounPhrase) (whose : Option NounPhrase) : StaticSpec :=
+  duringUntapStep whose (must any (untap subject))
 /-- "<subject> may be attached to <host>": the legal-host permission over the attach deed's host
 role [CR#701.3a,301.5]. -/
 semantic_template mayBeAttachedTo (subject host : NounPhrase) : StaticSpec :=
-  .can .any (attachTo subject host) {}
+  can any (attachTo subject host)
 /-- "create <count> <token>" -/
 semantic_template createToken (token : CharacteristicBundle) (count : Amount := .lit 1) : Action :=
   create count (.written token)

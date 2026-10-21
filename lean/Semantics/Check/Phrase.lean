@@ -2637,6 +2637,9 @@ def stepOps : Nat → StepOps
         | .hasPriority p =>
           let (drs', _, errs) := ops.np drs .subj true p
           (drs', errs)
+        | .soChooses chooser =>
+          let (drs', ids, errs) := ops.np drs .subj true chooser
+          (drs', errs ++ kindCheck .player ((ids.head?.bind drs'.findById?).map (·.kind)))
         | .not inner =>
           match inner with
           | .matches subj predicate =>
