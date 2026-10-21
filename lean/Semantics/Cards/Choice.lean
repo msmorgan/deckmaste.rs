@@ -1346,15 +1346,25 @@ def scatheZombies : Spelled := spelled <| .singleFaced
     { name := "Scathe Zombies", cost := some [generic 2, pip .black], types := [.creature],
       subtypes := [zombie], power := stat 2, toughness := stat 2 } }
 
-/-- A basic land card: its name and its basic land type. -/
-def basicLand (name : String) (type : Subtype) : Card :=
-  .singleFaced
-    { characteristics :=
-      { name, supertypes := [.basic], types := [.land], subtypes := [type] } }
-def basicLandCards : List Card :=
-  [ basicLand "Plains" plains, basicLand "Island" island, basicLand "Swamp" swamp,
-    basicLand "Mountain" mountain, basicLand "Forest" forest ]
-theorem okBasicLandCards : basicLandCards.flatMap Card.check = [] := by decide
+def plainsCard : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Plains", supertypes := [.basic], types := [.land], subtypes := [plains] } }
+
+def islandCard : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Island", supertypes := [.basic], types := [.land], subtypes := [island] } }
+
+def swampCard : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Swamp", supertypes := [.basic], types := [.land], subtypes := [swamp] } }
+
+def mountainCard : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Mountain", supertypes := [.basic], types := [.land], subtypes := [mountain] } }
+
+def forestCard : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Forest", supertypes := [.basic], types := [.land], subtypes := [forest] } }
 
 def snowCoveredForest : Spelled := spelled <| .singleFaced
   { characteristics :=

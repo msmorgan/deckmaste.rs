@@ -10,6 +10,7 @@ import Semantics.Check.Abilities
 import Semantics.Check.AbilityRules
 import Semantics.Check.Card
 import Semantics.Check.Rules
+import Semantics.Definitions.Subtypes
 
 /-!
 # Semantics.Check
@@ -205,7 +206,7 @@ def weepingAngelCombatPin : Ability :=
     (.sequentially [
       .setStatus .tapped (.pro .bare .one),
       .attachment .attached
-        (.described (.target (.range (some 1) (some 1))) (.hasSubtype (.of .artifact "Equipment")))
+        (.described (.target (.range (some 1) (some 1))) (.hasSubtype Definitions.equipment))
         (some (.pro (.word (.type .creature)) .one))
     ])
 
@@ -224,7 +225,7 @@ def sliceBCountersAndCharPin : Ability :=
             .bound (.laterMention "double.on" targetCreature) .one true)),
       .establish
         (.characteristicChange (.pro .bare .one)
-          [.typeLine .adds { subtypes := some [.of .creature "Dragon"] }])
+          [.typeLine .adds { subtypes := some [Definitions.dragon] }])
         (some (.between none (some (.endOf .turn none .current))))
     ]
 

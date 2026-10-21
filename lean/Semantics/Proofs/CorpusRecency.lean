@@ -21,7 +21,7 @@ theorem erietteRawDemonstrativeSelectsAttachedPermanent :
 private def erietteEvent : GameEvent :=
   .does .any (.attachment .attached
     (.described (.a .unmarked) (.and [
-      .hasSubtype (.of .enchantment "Aura"), .hasPossessor .controller .you]))
+      .hasSubtype aura, .hasPossessor .controller .you]))
     (some (.described (.a .unmarked) (.and [
       .in_ (.zone .battlefield none), .not (.hasType .land),
       .hasPossessor .controller (.described (.a .unmarked) (.isOpponentOf .you)),

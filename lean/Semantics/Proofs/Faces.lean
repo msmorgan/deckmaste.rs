@@ -268,7 +268,7 @@ theorem badSiegeWithoutBattle :
     Card.check
       (one
         { name := some "", cost := some [generic 2], types := [.kindred, .enchantment],
-          subtypes := [.of .battle "Siege"], text := [keyword (.named "flying")] }) = [.cardLine] := by
+          subtypes := [siege], text := [keyword (.named "flying")] }) = [.cardLine] := by
   decide
 
 /-- a "Kindred — Merfolk" card naming no other card type -/
@@ -303,7 +303,7 @@ theorem okPayMana : Action.check (DRS.ofList []) (.pay (.mana [generic 2]) .once
 /-- A legendary Jace planeswalker face with no text or loyalty yet. -/
 def jace : Characteristics :=
   { name := some "", cost := some [pip .blue], supertypes := [.legendary], types := [.planeswalker],
-    subtypes := [.of .planeswalker "Jace"] }
+    subtypes := [Definitions.jace] }
 
 /-- "[+1]: Draw a card." on a planeswalker card -/
 theorem okLoyaltyOnPlaneswalker :
@@ -605,7 +605,7 @@ theorem badBattleNoDefense :
     Card.check
       (one
         { name := some "", cost := some [generic 2, pip .white], types := [.battle],
-          subtypes := [.of .battle "Siege"] }) = [.cardBox] := by
+          subtypes := [siege] }) = [.cardBox] := by
   decide
 
 /-- A blue 1/1 creature front face. -/

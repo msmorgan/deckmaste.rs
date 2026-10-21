@@ -42,7 +42,7 @@ theorem okLoyaltyZero : SbaRule.check loyaltyZero = [] := by decide
 graveyard." A battle's defense on the battlefield is its defense-counter count [CR#310.4c], and
 the Siege exclusion is a subtype read, not a seam. -/
 def battleDefenseZero : SbaRule :=
-  { scope := .and [.hasType .battle, .not (.hasSubtype (.of .battle "Siege"))],
+  { scope := .and [.hasType .battle, .not (.hasSubtype siege)],
     when := .compareAmt (countersOn (.named "defenseCounter") .this) .eq (.lit 0),
     then_ := putInto .this graveyard }
 theorem okBattleDefenseZero : SbaRule.check battleDefenseZero = [] := by decide

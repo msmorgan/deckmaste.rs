@@ -124,7 +124,8 @@ semantic fields are inspected recursively. The modules are layered
 `Semantics.Primitives` ← leaf catalogs ← `Semantics.Templates` ← composite Definitions, all
 re-exported by `Semantics.Definitions`. The leaf catalogs
 (`Semantics.Definitions.Counters`, `.Designations`, `.Relations`, `.Subtypes`) are spelled over
-primitives only; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`) are
+primitives only, except that `.Subtypes` is spelled over the raw `Subtype` constructors, which
+have no primitive; the composite Definitions (`Semantics.Definitions.Actions`, `.Keywords`) are
 spelled over Templates. The checker sits beside this stack, not under it: Primitives, the leaf
 catalogs and Templates import none of `Semantics.Check` (the structural readers they need, such
 as `Location.sort`, live with the Core AST), and only the composite Definitions read a checker
@@ -139,7 +140,16 @@ have definitionally identical constructor signatures and are registered as
 templates, together with a few worded primitive templates and the
 characteristic inputs. `NounPhrase.pro` and `NounPhrase.which` have no
 primitive wrapper: they are expansion carriers (`internal_expansion`) that only
-templates and definitions write. `Semantics.Templates` holds every
+templates and definitions write. `Subtype` is a semantic expression with no primitive wrapper
+(`internal_expansion`) either. A subtype in authored content, including one on a printed type
+line, is a leaf catalog entry (`Semantics.Definitions.Subtypes`), so *Mishra's Factory* names
+`assemblyWorker` and cannot misspell Assembly-Worker [CR#205.3m]. `spelled` refuses a raw
+`Subtype.of` or `Subtype.spell` in a card, including one built by an ordinary helper definition
+that the card inspection follows. Authored declarations (`semantic_definition`,
+`semantic_template`) are trusted, as for every semantic type. Values that are not `spelled`
+cards are not checked: the checker's tables (`Check/Facts.lean`), and the pins that build a raw
+subtype on purpose (`badNamelessSubtype` in `Proofs/Rules.lean`, and the refusal pins in
+`Proofs/Authoring.lean`). `Semantics.Templates` holds every
 `semantic_template` and names leaf catalog entries rather than spelling their strings;
 the `Semantics.Definitions` submodules hold every `semantic_definition` and the few
 templates whose bodies need a composite definition: the templates over its actions

@@ -4,8 +4,9 @@ import Semantics.Primitives
 # Semantics.Definitions.Subtypes
 
 The rules-defined subtypes: each declaration's name is its `Subtype`. A leaf catalog, spelled
-over primitives only (the subtype-word templates live above it, in `Semantics.Templates`), so
-`Semantics.Templates` can name its entries.
+over the raw `Subtype` constructors, which have no primitive (the subtype-word templates live above
+it, in `Semantics.Templates`), so `Semantics.Templates` can name its entries. A card names these
+entries: `spelled` refuses a raw `Subtype` constructor in a card.
 -/
 
 namespace Semantics.Definitions

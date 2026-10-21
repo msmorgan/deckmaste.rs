@@ -29,7 +29,7 @@ theorem okPrintedNegativePowerAndToughness :
     Card.check (.singleFaced
       { characteristics :=
         { name := "Spinal Parasite", cost := some [generic 5],
-          types := [.artifact, .creature], subtypes := [.of .creature "Insect"],
+          types := [.artifact, .creature], subtypes := [insect],
           power := some (.lit (-1)), toughness := some (.lit (-1)) } }) = [] := by
   decide
 
@@ -39,7 +39,7 @@ theorem okPrintedNegativePower :
     Card.check (.singleFaced
       { characteristics :=
         { name := "Char-Rumbler", cost := some [generic 2, pip .red, pip .red],
-          types := [.creature], subtypes := [.of .creature "Elemental"],
+          types := [.creature], subtypes := [elemental],
           power := some (.lit (-1)), toughness := some (.lit 3) } }) = [] := by
   decide
 

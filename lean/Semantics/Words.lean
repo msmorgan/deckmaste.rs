@@ -591,6 +591,10 @@ inductive EventSide where
 
 end Semantics
 
-attribute [semantic_expression] Semantics.Delta
+attribute [semantic_expression] Semantics.Delta Semantics.Subtype
 
 attribute [semantic_literal] Semantics.SimpleManaSymbol.generic
+
+-- A `Subtype` is a semantic expression with no primitive wrapper: a card names a catalog entry
+-- (`Semantics.Definitions.Subtypes`), and `spelled` refuses a raw `Subtype.of` or `Subtype.spell`.
+attribute [internal_expansion] Semantics.Subtype

@@ -107,4 +107,34 @@ example : Spelled := spelled <|
 #guard_msgs in
 example : Spelled := spelled <| (withKeyword.card, (Ability.keyword (.named "flying") [] [])).1
 
+-- `Subtype` is a semantic expression and `internal_expansion`: a card names a catalog entry
+-- (`Semantics.Definitions.Subtypes`), no primitive wrapper spells one from a string, and a raw
+-- constructor in a card is refused. *Mishra's Factory* is an Assembly-Worker [CR#205.3m], not the
+-- "AssemblyWorker" a raw string let it write. The raw subtypes below are deliberate: each pins a
+-- refusal. The accepted direction is the corpus: *Mishra's Factory* (`Cards/Mana.lean`) and the
+-- Adventure card in `Cards/Faces.lean` are `spelled` with catalog subtypes.
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Subtype.of] -/
+#guard_msgs in
+example : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.artifact, .creature],
+      subtypes := [.of .creature "AssemblyWorker"], cost := some [generic 1], power := stat 2,
+      toughness := stat 2 } }
+
+/-- error: Card definitions must use semantic templates or definitions; raw constructors: [Semantics.Subtype.spell] -/
+#guard_msgs in
+example : Spelled := spelled <| .singleFaced
+  { characteristics :=
+    { name := "Authoring witness", types := [.instant], subtypes := [.spell "Adventure"],
+      cost := some [generic 1], text := [Primitives.Ability.spell none (draw (.lit 1))] } }
+
+/-- error: Unknown identifier `Semantics.Primitives.Subtype.of` -/
+#guard_msgs in
+example : Subtype := Semantics.Primitives.Subtype.of .creature "Dragon"
+
+/-- error: Unknown identifier `Semantics.Primitives.Subtype.spell` -/
+#guard_msgs in
+example : Subtype := Semantics.Primitives.Subtype.spell "Adventure"
+
 end Semantics.Proofs.Authoring
