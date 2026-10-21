@@ -50,6 +50,9 @@ The jj-kata `kata` and `kanban` skills own the lifecycle. Repo specifics:
   Read them before implementing, planning, reviewing or accounting for the English grammar
   (`deckmaste_english_v4`), syntax engine (`deckmaste_syntax`), or lexical catalogs
   (`deckmaste_lexical_source_v4`).
+- `docs/oracle-style-guide.md` is the authority on Oracle register. Before that same work, read its
+  front matter (through "The shortest useful checklist"), then read in full every section your
+  change touches, and cite it when a ruling depends on it. Briefs name those sections.
 - No word enumerated by the CR as a catalog item (including all `[CR#701.1]` keyword actions) may
   appear directly in grammar declarations (`schema` or `production`); vocabulary and complement
   frames live in the domain catalogs of `deckmaste_lexical_source_v4` (and later `plugins_v3/`).
