@@ -68,8 +68,12 @@ needs: [lean-v3-checker-and-drt-fixes, lean-v3-authoring-impl-14-ast-and-authori
   condition.
 - **Berserk & Ghor-Clan Rampager (`Cards/Turn.lean:512-516`, `Cards/Cost.lean:731-734`, §1.4):**
   Bind `target isCreature` once and reference `it` across the granted ability and
-  P/T modification instead of repeating `target isCreature` three times (and drop
-  *Berserk*'s no-op `+0` toughness edit).
+  P/T modification instead of repeating `target isCreature` three times. Keep
+  *Berserk*'s `+0` toughness: by owner ruling 2026-10-21, `getsPt` always carries
+  both printed deltas, because the printed `"+0"` in `"+X/+0"` is part of the
+  encoding and spelling must render it back. Rewriting Berserk's split
+  `modification` pair onto `getsPt` belongs to
+  [lean-v3-gets-printed-zero](lean-v3-gets-printed-zero.md).
 - **Inkshield (`Cards/Damage.lean:451-454`, §1.5):** Prevent `some .combat` damage
   (not `none`), and give the created 2/1 white and black token the `inkling`
   subtype and `flying`.

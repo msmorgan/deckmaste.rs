@@ -472,7 +472,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
     - `isTapped`, `isUntapped`, `isFaceDown`, `isFaceUp`, `isPhasedOut`, `isTransformed`, `isAttached`
     - `isAttacking`, `isBlocking`, `isBlocked`, `isUnblocked`
     - `isColorless`, `isMonocolored`, `isMulticolored`
-    - `isOther` (for `"another ..."` anchored on a prior mention)
+    - `isOther`: the only encoding of a bare printed `"another"` / `"other"`; the checker resolves its Contrast Anchor (owner ruling 2026-10-21, [lean-v3-another-contrast-anchor](lean-v3-another-contrast-anchor.md))
   - **Properties, possessors, locations, and relations (`has*` / participial / prepositional):**
     - **Possessors (`Predicate.hasPossessor`):**
       - `controlledBy (who : NounPhrase) : Predicate := .hasPossessor .controller who`
@@ -486,7 +486,7 @@ imperative instructions, `instruct`, `Cost.perform`, `GameEvent.does`,
       - `in_ (loc : Location) : Predicate := .in_ loc`
       - Examples: `and [isCard, in_ yourGraveyard]`, `and [isCreature, isCard, in_ yourHand]`, `and [isCard, in_ (exiledWith thisArtifact)]`.
     - **Identity and Negation:**
-      - `otherThan (np : NounPhrase) : Predicate := .otherThan np`
+      - `otherThan (np : NounPhrase) : Predicate := .otherThan np`, only for a printed `"other than <NP>"`
       - `non (p : Predicate) : Predicate := .not p` (e.g., `non isLand`, `non isCreature`, `non isToken`)
     - **Characteristics and Stat Comparisons:**
       - `hasKeyword (kw : KeywordTerm) : Predicate := .hasKeyword kw`
