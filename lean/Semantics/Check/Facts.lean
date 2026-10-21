@@ -157,7 +157,7 @@ def keywordFacts : List KeywordFacts :=
     { word := .named "casualty", argumentSchemas := [[⟨.number, none⟩]], onInstantOrSorceryCard := true, paidCost := true },
     { word := .named "squad", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
     { word := .named "offspring", argumentSchemas := [[⟨.cost, none⟩]], paidCost := true },
-    { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true, paidCost := true, costChoosesPlayer := true },
+    { word := .named "gift", argumentSchemas := [[]], onInstantOrSorceryCard := true, paidCost := true },
     { word := .named "replicate", argumentSchemas := [[⟨.cost, none⟩]], onInstantOrSorceryCard := true, paidCost := true, onPermanentCard := false },
     { word := .named "delve", argumentSchemas := [[]], onInstantOrSorceryCard := true },
     { word := .named "infect", argumentSchemas := [[]] },

@@ -70,9 +70,6 @@ structure KeywordFacts where
   onPermanentCard : Bool := true
   onInstantOrSorceryCard : Bool := false
   paidCost : Bool := false
-  /-- True where paying the keyword's cost chooses a player, whom the ability linked to that cost
-  reads back, as gift's "you may choose an opponent" [CR#702.174a,607.2d]. -/
-  costChoosesPlayer : Bool := false
   wantsModes : Bool := false
   deriving Repr, BEq
 

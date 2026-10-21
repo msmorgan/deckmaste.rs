@@ -185,10 +185,6 @@ struct Row {
     on_permanent_card: bool,
     on_spell_card: bool,
     paid_cost: bool,
-    /// Paying the cost chooses a player, whom the ability linked to that
-    /// cost reads back (gift's "you may choose an opponent" [CR#702.174a]).
-    /// Lean only: the Idris reference table has no such column.
-    cost_chooses_player: bool,
     /// The categories of the components this keyword's definition is
     /// written in, from its own [CR#702] entry. Empty is a keyword whose
     /// definition the workbench has not declared yet, and whose term
@@ -207,7 +203,6 @@ const D: Row = Row {
     on_permanent_card: true,
     on_spell_card: false,
     paid_cost: false,
-    cost_chooses_player: false,
     definition: &[],
     wants_modes: false,
 };
@@ -746,7 +741,6 @@ fn overlay() -> Vec<Row> {
             functions_on_stack: true,
             on_spell_card: true,
             paid_cost: true,
-            cost_chooses_player: true,
             ..D
         },
         Row {
@@ -1567,7 +1561,7 @@ const DESIGNATION_SCOPE: &str = "both directions bind, over the labels the decla
                                  `Designation` constructor is not the label.";
 
 const GATE_COLUMNS: &str = "gate columns (regime, functionsOnStack, \
-                            onPermanentCard, onSpellCard, paidCost, costChoosesPlayer, definition, \
+                            onPermanentCard, onSpellCard, paidCost, definition, \
                             wantsModes) stay \
                             hand-kept in xtask's overlay: \
                             plugins_v2/builtin/macros/meta/KeywordAbility.ron declares no field \

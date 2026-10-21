@@ -124,11 +124,6 @@ pub struct KeywordFacts {
     pub on_instant_or_sorcery_card: bool,
     #[serde(default)]
     pub paid_cost: bool,
-    /// True where paying the keyword's cost chooses a player, whom the ability
-    /// linked to that cost reads back, as gift's "you may choose an opponent"
-    /// [CR#702.174a,607.2d].
-    #[serde(default)]
-    pub cost_chooses_player: bool,
     #[serde(default)]
     pub wants_modes: bool,
 }
